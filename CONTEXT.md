@@ -86,8 +86,14 @@ nothing, `completeness` governs whether silence is evidence and a proposal's sil
 nothing. It records **which kind of record produced it** — an RIR delegation, or a compelled
 reassignment written by an upstream provider — because those carry different caveats and the
 operator is the one judging them. Confirming one retains it as provenance on the resulting
-`Seed`; declining one is a `Seed` exclusion. See
-[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
+`Seed`; declining one is a `Seed` exclusion. Proposals are produced **only in answer to an
+operator act** — expanding an address scope they declared, or searching the org-name box — never
+on a cadence, so they never accumulate into a queue to be worked through. Confirming is therefore
+**one scope at a time** while declining may be done over a whole lookup at once: the two acts fail
+in opposite directions, so they are deliberately not symmetric. A record re-offered with different
+contents is a **new** `Proposal`, never an existing one changed — it is Declared and has no
+timeline. See [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md) and
+[ADR-0022](./docs/adr/0022-confirmation-is-singular.md).
 _Avoid_: suggestion, candidate range, discovered scope, pending seed
 
 **Authority**:
