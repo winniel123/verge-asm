@@ -25,9 +25,11 @@ domain) or an *address scope* (a CIDR). It declares a boundary, not a starting p
 _Avoid_: target, root domain, scope target
 
 **Source**:
-Anything that can produce observations, carrying two properties: **authority**
-(`declared` / `measured` / `inferred`) and **completeness** (`enumerable` /
-`corroborative`).
+Anything that can produce observations, carrying three properties: **authority**
+(`declared` / `measured` / `inferred`), **completeness** (`enumerable` /
+`corroborative`) and **consent** (`unencumbered` / `operator-accepted` /
+`operator-credentialed`). The first two say how far to believe it; the third says whether
+it may run without the operator having said so.
 _Avoid_: provider, feed, integration
 
 **Authority**:
@@ -39,6 +41,16 @@ Whether a source's *silence* may mean absence. An `enumerable` source returns a 
 set over a declared scope, so silence within that scope is evidence. A `corroborative`
 source can only ever assert presence — certificate transparency is append-only, so a
 certificate's absence from a query means nothing, however the query went.
+
+**Consent**:
+Whose permission a source runs on. `unencumbered` sources run by default. An
+`operator-accepted` source runs only once the operator has accepted that source's terms
+themselves; an `operator-credentialed` one only once the operator supplies their own
+credential, under their own account's terms. The distinction is not cosmetic — the same
+service can sit in two different states depending on how it is reached — and it decides
+what is in the aperture, which makes it a property of the observation pipeline rather than
+of the deployment. See [ADR-0003](./docs/adr/0003-third-party-source-consent-bar.md).
+_Avoid_: enabled, licensed, tier
 
 **Vantage**:
 A network position observations are made from, declared as intent and re-verified every
