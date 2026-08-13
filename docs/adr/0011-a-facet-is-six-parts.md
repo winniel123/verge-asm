@@ -270,6 +270,17 @@ already had a value costs a `Break`.** Additive is not free, though — it produ
 first-values across the estate — so it fires **one re-baseline message at the cause**, ADR-0008's
 existing mechanism at zero comparison cost.
 
+*Amended by [#42](https://github.com/winniel123/verge-asm/issues/42) /
+[ADR-0014](./0014-only-revealed-generalises.md) in two details, neither disturbing the rule.* The
+edge those rows cross is a timeline **opening**, not `Gap` → value: a row that previously produced
+no observation at all has no span of any kind, and a `Gap` is a span. Both are safe for the same
+reason and the rule is unchanged, but they are different edges and #42 turned on telling them
+apart. And **"one re-baseline message" names the message *class*, not ADR-0008's trigger** — a
+re-baseline fires when a `Derivation` vector moves, and an additive widening moves no vector. One
+class, two triggers, and the payloads differ: a vector move carries a difference set computed
+across a `Break`, an additive widening carries a count of timelines opened and no comparison at
+all.
+
 ### What takes two measurements is decided by the prober
 
 `Shadowed` breaks the architecture as stated everywhere else. Deciding it means comparing this

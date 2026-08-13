@@ -289,6 +289,33 @@ record as `appeared`, or a TLS library upgrade that widens the client's offer re
 estate's worth of newly-accepted ciphers as change in the world. See
 [ADR-0011](./0011-a-facet-is-six-parts.md).
 
+## Amendment — [#42](https://github.com/winniel123/verge-asm/issues/42): only `revealed`
+generalises, and the gate does not open a `Gap` directly
+
+Two corrections, recorded in full as [ADR-0014](./0014-only-revealed-generalises.md). Neither
+disturbs the decision above.
+
+**`revealed` is not *"a third opening kind on the membership timeline"*.** It belongs to any
+timeline, because membership is a property of a **subject** while aperture is a property of
+**looking**, and looking is per-timeline. `appeared` and `returned` stay membership-only. This ADR
+had already committed to it in substance: the #36 amendment above rules that the qtype set and the
+TLS candidate set *"start timelines that did not exist, so both yield `revealed`"*, and those are
+facet timelines. An opening caused by neither the world nor our aperture — a `certificate` timeline
+opening six days after its `Service` did, because TLS is on the weekly tier — is recorded, unnamed
+and unalerted.
+
+**A closing probing gate does not open a `Gap` directly.** *"They enter a `Gap`"* under **Alert on
+the cause** above is amended: the gate stops **feeding** those timelines, the last value ages out
+under the currency bound, and the `Gap` opens by the mechanism that already existed. Read the
+original way, an operator toggling a `custody extension` off and on inside one cadence writes
+`value → Gap → value` on every timeline beneath the address for a `Gap` during which no measurement
+was ever missed. The attribution cost of the aged value is carried by the `Custody` timeline, which
+is current from the instant of the toggle.
+
+ADR-0014 also settles what this ADR left implicit: **`Gap` → value is an ordinary adjacency**, not
+a fourth member of the opening family, and the `Gap` records its cause the way a cascaded closure
+records `cascaded`.
+
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md)'s three-layer table is amended.** *Derived — drifts? No,
