@@ -8,12 +8,19 @@ The language divides into three layers, and the division is load-bearing:
 | Layer | What it holds | Drifts? |
 | --- | --- | --- |
 | **Declared** | What the operator tells us | No — it is input |
-| **Observed** | What we measured | **Yes — the only layer that does** |
-| **Derived** | What we concluded | No, ever |
+| **Observed** | What we measured | It is what drift is *made of* — but never compared directly |
+| **Derived** | What we concluded | **Only across an identical derivation** |
 
-A term's layer determines whether it may appear in a change report. Anything Derived is a
-function of our own rules or thresholds, so diffing it would report a change in the
-observer as a change in the world.
+A term's layer determines *on what condition* it may appear in a change report. Anything
+Derived is a function of our own rules or thresholds, so comparing two Derived values
+produced by *different* derivations reports a change in the observer as a change in the
+world.
+
+The rule is therefore not *never diff Derived* but **never compare across differing
+derivations** — and it is enforced by a `Break` rather than left to discipline. Observations
+are never compared to each other either; they are folded into `Span`s, and every `Span` is
+Derived, because even one folded straight from observations composes a canonicaliser version
+and a staleness bound. See [ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
 
 A fourth group, **Operational**, sits outside the table on purpose: it records what the
 system *did*, never what is true of the estate. Nothing in it may be read by the
@@ -42,7 +49,11 @@ _Avoid_: provider, feed, integration
 
 **Authority**:
 How far a source's claim of existence is believed. The operator's zone file is
-`declared`, our own prober is `measured`, a certificate SAN is `inferred`.
+`declared`, our own prober is `measured`, a certificate SAN is `inferred`. It governs
+**admission** — whose word is enough to put a subject in the estate — and nothing else. It is
+not a precedence ordering: sources that disagree are both reported, never ranked, or a zone
+file would keep a name alive that no longer resolves. See
+[ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
 
 **Completeness**:
 Whether a source's *silence* may mean absence. An `enumerable` source returns a complete
@@ -162,7 +173,10 @@ _Avoid_: provenance chain, lineage, discovery path
 **Ownership**:
 Whether an `Address` is `owned`, `third-party`, or `unknown`, computed against seeds and
 registry data. Governs what may be probed, not merely how it is displayed — see
-[ADR-0002](./docs/adr/0002-ownership-gates-probing.md).
+[ADR-0002](./docs/adr/0002-ownership-gates-probing.md). It is the one Derived value whose
+change carries a safety consequence, so it holds a `Span` timeline: closing the gate opens a
+`Gap` beneath the address rather than withdrawing anything, and opening it reveals services
+that are `revealed`, never `appeared`.
 _Avoid_: in scope, authorized, mine
 
 **Availability**:
@@ -176,7 +190,9 @@ _Avoid_: health, status, up, reachable
 **Exposure**:
 The reachability conclusion for a `Service`, computed across vantages rather than
 observed by any one of them. `firewalled` → `exposed` is the transition the product
-exists to catch. Reads `Availability`, and therefore composes its version.
+exists to catch. Reads `Availability`, and therefore composes its version. Held as a `Span`
+written once under the version that produced it, never recomputed on read — a correction ships
+as a new version and a `Break`, not as rewritten history.
 _Avoid_: open, reachable, public
 
 **Signal**:
@@ -189,6 +205,41 @@ that surfaced it. Evaluated where its evidence is absent it returns `not-evaluab
 which is not the same as not firing. See
 [ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
+
+**Span**:
+One period during which a timeline held a single value, keyed by `(subject, facet, vantage,
+source)` — one timeline per source, so two sources that disagree hold two true facts rather
+than forcing an arbitration. It opens, it is current, it closes; the open span is the current
+state. Carries the versions it was derived under, which is what makes comparison legal. See
+[ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
+_Avoid_: interval, state, record, period, snapshot
+
+**Transition**:
+The adjacency between two consecutive `Span`s on one timeline. Derived on read, never stored
+— storing it alongside the spans would be a second representation of one fact. Membership
+transitions distinguish three ways in: `appeared` (discovery), `returned` (a decommission
+undone), and `revealed` (a widened aperture — *we* started looking, the world did not move).
+_Avoid_: change, event, diff, delta
+
+**Break**:
+A boundary between two `Span`s that may not be compared, though both hold values. Two causes
+only: a derivation version changed, or the aperture widened. Nothing is compared across a
+break, so a break emits no `Transition` and alerts nothing. Distinct from `Gap`, which is the
+absence of a value rather than of a licence to compare.
+_Avoid_: seam (reserved for architectural boundaries), fault, discontinuity, version bump
+
+**Gap**:
+A `Span` holding no value — the period over which we could not say. Opened by a dead-lettered
+`Batch`'s empty scope, by a `Vantage` becoming `unavailable`, by evidence absent where a
+`Signal` would be `not-evaluable`, and by an observation ageing past its currency bound. A gap
+never withdraws a subject: ceasing to measure is not measuring absence.
+_Avoid_: outage, downtime, missing, unknown, stale
+
+**Drift**:
+What a `Transition` between two `Span`s *is*. It is the product's subject and deliberately
+**not a modelled thing** — there is no `Drift` object, no drift table and nothing that
+accumulates state, or `Finding` returns under a new name.
+_Avoid_: change set, diff, delta, drift record
 
 ### Operational
 
