@@ -46,6 +46,29 @@ When your output names a domain concept (in an issue title, a refactor proposal,
 
 If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 
+## Land glossary and ADR changes on `main` before the session ends
+
+**`CONTEXT.md` is one file, and it must not fork.** Every session reads it, and a session reads
+whichever copy its branch inherited — so an edit left on an unmerged branch is invisible to every
+later session, including sessions that go on to edit the same paragraph.
+
+If you write to `CONTEXT.md` or `docs/adr/`, merge that work to `main` as part of closing the
+ticket. Don't leave it on a long-lived branch for review later.
+
+This is not hypothetical. On 2026-08-13, [#27](https://github.com/winniel123/verge-asm/issues/27)
+took registry data out of the `Ownership` derivation and correctly amended both ADR-0002 and the
+glossary — on a branch that was never merged. Ten branches later, `main`'s `CONTEXT.md` was 9.6 KB
+against the working branch's 24 KB, every session was reading a different glossary, and
+[#39](https://github.com/winniel123/verge-asm/issues/39) was filed and worked against a premise
+ADR-0002 had already withdrawn. Recovering it meant reconciling three stranded commits and
+rewriting 40 branch-pinned links.
+
+Two riders. **Link to `blob/main/…`, never to `blob/<your-branch>/…`** — a branch link rots the
+moment the branch is deleted and reads as current until it does. And **when a decision changes what
+may be *read*, grep the glossary for the clauses it invalidates**: #27 changed the inputs to the
+probing gate, and `Vantage class` went on saying it re-verified against registry ranges because
+nobody searched for the other place that sentence lived.
+
 ## Flag ADR conflicts
 
 If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
