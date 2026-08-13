@@ -1,0 +1,262 @@
+# ADR-0009: `verge-core` is the union of a frequency set and a normative list
+
+- **Status:** Accepted
+- **Date:** 2026-08-13
+- **Ticket:** [#29 Hot-set transport defects and the sensitive-subset-of-hot invariant](https://github.com/winniel123/verge-asm/issues/29)
+- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+
+## Context
+
+Two port lists exist, built for different questions on incompatible evidence standards.
+
+[#4](https://github.com/winniel123/verge-asm/issues/4) built the ~140-port **`verge-core` hot
+set** on frequency — *how likely is this port to be found open in a small org's estate?* — from
+`nmap-services` open-frequency data with a modern-services supplement, keyed on **bare port
+numbers**, and specified that it ship "as an editable list file, not compiled in".
+
+[#21](https://github.com/winniel123/verge-asm/issues/21) built the **38-pair sensitive list** on a
+normative standard — *given the port is open to the internet, is that ever correct?* — keyed on
+**`(port, transport)` pairs**, and settled the relationship between the two in its §6: the lists
+stay **independent**, coupled by a one-directional build-time invariant
+
+```
+every (port, transport) on the sensitive list MUST be a member of the hot set
+```
+
+with a test that fails the build otherwise. The coupling points that way because the two lists have
+asymmetric constraints — the hot set is bounded by probe cost, the sensitive list by correctness —
+and probing one more port per host per day is cheap where being unable to evaluate the product's
+best signal is not. **Cost yields to correctness**, and the invariant encodes which is which.
+
+The invariant is violated today, in two ways at once.
+
+**Two transport mismatches.** `verge-core`'s Management/OOB group is specified as
+`161 (TCP), 623`. Per IANA, SNMP is **161/udp**; IPMI/ASF-RMCP is **623/udp**; and **623/tcp** is
+`oob-ws-http`, the DMTF out-of-band web services protocol — a different protocol on the same
+number. As specified, the hot set probes the TCP siblings of two UDP services and evaluates
+neither.
+
+**Four omissions.** 512/tcp (rexec), 4369/tcp (epmd), 25672/tcp (RabbitMQ inter-node) and
+27019/tcp (MongoDB config server) are on the sensitive list and absent from the hot set. A
+sensitive pair absent from the hot set can never fire `sensitive-port-exposed` **at all**, and
+under a naive implementation presents as *did not fire* — the clean bill of health
+[ADR-0004](./0004-signals-are-release-coupled-rules.md)'s `not-evaluable` rule exists to prevent.
+
+A containment check over bare integers passes today and lets both defects survive.
+
+Two things found while resolving the ticket, each of which changed an answer:
+
+- **The conflation is in the evidence, not only in the list.** [#4](https://github.com/winniel123/verge-asm/issues/4)
+  §2.2 — the measured argument for the whole modern-services supplement — carries the row
+  `623 | IPMI/BMC | 1,267 | no`. That rank is computed over `nmap-services` **TCP** entries and
+  labelled with a **UDP** service. 623 entered `verge-core` under a frequency figure for a
+  protocol it was not measuring.
+- **[`CONTEXT.md`](../../CONTEXT.md) was already right.** `Service` is an
+  `(Address, port, transport)` triple. The domain model has been transport-keyed since
+  [#7](https://github.com/winniel123/verge-asm/issues/7); it is the two lists and the wire contract
+  that disagree with the model they feed, not the model that needs changing.
+
+## Decision
+
+| Concern | Decision |
+| --- | --- |
+| Keying | Both lists on **`(port, transport)` pairs** |
+| How far the re-key reaches | The list files, the [#5](https://github.com/winniel123/verge-asm/issues/5) job spec / `internal/wire` contract, **and the `Batch` scope record** |
+| What `verge-core` is | **Derived: `frequency-set ∪ sensitive-list`** — a definition, never a maintained list |
+| The invariant | **Dissolved.** `sensitive ⊆ verge-core` holds by construction |
+| Enforcement | **None, anywhere** — no build-time test, no config-load check, no runtime check |
+| Operator editing | The **frequency half only**; the sensitive half is a shipped signal's reference data |
+| The four TCP additions | An ordinary aperture widening → [ADR-0007](https://github.com/winniel123/verge-asm/blob/adr-0007-drift-model/docs/adr/0007-drift-is-a-timeline-of-spans.md)'s **`revealed`** |
+| Pre-release exemption | **None.** The aperture rule is *vacuous* before the first install, not waived |
+| A "correction" | **Not a kind of change** — a removal plus an addition, each priced separately |
+| 161/tcp, 623/tcp | **Removed.** Re-adding 623/tcp later is a new widening, not a reversal |
+| UDP list | [#4](https://github.com/winniel123/verge-asm/issues/4) §2.5's enumerated opt-in list is **superseded** |
+| UDP capability | **Unchanged** — off by default; a batch measuring no UDP records no UDP pairs in scope |
+
+## Rationale
+
+### The re-key is a no-false-absence fix; the invariant is the small half
+
+Re-keying is usually argued from the invariant: a containment check over bare integers cannot see
+the difference between 161/tcp and 161/udp, so the check passes while the bug survives. True, and
+not the reason that matters.
+
+[ADR-0005](./0005-scan-execution-model.md) makes a `Batch`'s recorded scope the thing that
+**licenses silence to count as evidence of absence**. A batch that records its scope as `{161}`
+asserts an absence over a transport it never touched. That is the no-false-absence rule broken at
+the record — the same failure as the dead-lettered batch recording "attempted 140 ports", arriving
+through the key rather than through the failure path. The invariant is a build convenience; the
+scope record is a correctness property, and it is why the re-key may not stop at the list file.
+
+Nothing in the domain model changes. `Service` was already the triple.
+
+### `verge-core` was already a union; it was implicit and hand-maintained
+
+Look at what the four omissions have in common. 512/tcp ranks 239th by open-frequency; 4369, 25672
+and 27019 rank nowhere at all. **None of them belongs in the hot set on the hot set's own evidence
+standard.** They belong there only because the sensitive list forces them.
+
+So `verge-core` is not, and never was, a frequency-derived set. It is a union of a frequency set
+and a normative one, with the union left implicit and reconstructed by hand every time either side
+moves — which is precisely how the four went missing, and the 25672 row shows the mechanism
+exactly: the frequency half selected RabbitMQ's *popular* ports (5672, 15672), the normative half
+selects its *indefensible* one (25672), and they are disjoint. Somebody had to notice. Nobody did.
+
+Writing the union down changes nothing about what ships and everything about who maintains it.
+
+### A definition beats a test, for the reason this project prefers structure everywhere
+
+[#21](https://github.com/winniel123/verge-asm/issues/21) §6 specified a build-time test. A test is
+a good mechanism and it is strictly weaker than the alternative available here: a test can be
+skipped, deleted or never written, and it protects the invariant only where CI runs. A **definition
+cannot fail**, because the violating state is not expressible.
+
+This is the same move made twice already —
+[ADR-0007](https://github.com/winniel123/verge-asm/blob/adr-0007-drift-model/docs/adr/0007-drift-is-a-timeline-of-spans.md)'s
+`Break` enforcing comparison legality structurally rather than by discipline, and
+[ADR-0008](https://github.com/winniel123/verge-asm/blob/adr-0008-derivation-versions/docs/adr/0008-derivation-versions-move-on-content.md)'s
+golden corpus making a version bump mechanical while leaving the judgement human. A union is the
+same shape one level down.
+
+**It does not re-open the laundering [#21](https://github.com/winniel123/verge-asm/issues/21)
+closed.** That objection was to deriving the sensitive list *from* the hot set, which would make
+frequency a precondition of normativity. The union runs the other way: normativity forces
+probe-scope, which is what "cost yields to correctness" already licensed. The two source lists keep
+their separate evidence standards, their separate governance and their separate revision triggers —
+only the derived set is new.
+
+### The pre-release exemption has no work to do
+
+The ticket offered one: v1 has not shipped, so the hot set is not yet frozen and the additions cost
+nothing. It also named the hazard — that argument stops being available exactly once, and nobody
+ever writes down when.
+
+The exemption is unnecessary. `revealed` is a property of a **timeline that already exists**, and
+before the first install there are none. So the aperture rule is not *waived* pre-release, it is
+**vacuous** — and vacuity needs no policy, no freeze date, and cannot be quietly extended, because
+the moment an install has a timeline the rule binds by its own terms with nothing to repeal. Taking
+the exemption would have meant authoring a freeze policy with exactly one user, in order to avoid
+using a mechanism [ADR-0007](https://github.com/winniel123/verge-asm/blob/adr-0007-drift-model/docs/adr/0007-drift-is-a-timeline-of-spans.md)
+already built and already prices at zero: port tiers are one of its three named aperture inputs,
+alongside enabled sources and the ownership gate, and all three yield `revealed`.
+
+State it as vacuity, not as a grace period. The distinction is the whole safety of it.
+
+### "Correcting a mis-aimed port" is a category defined by intent
+
+The ticket proposed a third kind of change — *161/tcp was never measuring SNMP, so fixing it does
+not widen what we can see of the world; it fixes a measurement that was mis-aimed* — and called it
+the first change that alters the port set without altering the aperture.
+
+The category is refused. Once the aperture is keyed on pairs, 161/tcp and 161/udp are two different
+keys over two different timelines, and 623/tcp is a genuinely different protocol from 623/udp on
+IANA's own registry. The fix decomposes without residue:
+
+- **A removal.** 161/tcp and 623/tcp leave the set. Their timelines stop being fed and open a `Gap`
+  under ADR-0007's currency rule — which is the honest rendering: *we stopped looking*. Nothing is
+  withdrawn, because ceasing to measure is not measuring absence, and nothing is re-derived, because
+  history never is.
+- **An addition.** 161/udp and 623/udp enter. Plain `revealed`.
+
+Nothing is left over for a third category to hold. The intuition behind it is about **our intent**;
+the model keys on **subjects**. Admitting a change-kind defined by intent is the door ADR-0007
+closed when it made `Break` structural — and "it's just a fix" is a permanently available feeling,
+which is why the rejection is recorded here rather than left to be re-derived.
+
+### The two TCP siblings leave on their own merits
+
+Because the fix is a removal plus an addition, the removal needs its own justification rather than
+riding along on the addition's.
+
+161/tcp is registered but is not where SNMP agents listen. 623/tcp is `oob-ws-http`, a real DMTF
+protocol and a legitimate candidate on the frequency half's terms. But **neither was ever selected
+on those terms**: both entered through the Management/OOB supplement, whose stated rule is that
+each member "maps to a named v1 risk signal" — and after the transport fix, neither does. 623/tcp
+is re-addable later on a fresh frequency or signal argument; nobody has made one, and making one
+would be a new widening rather than a reversal of this.
+
+### What the operator loses, and why that is the right loss
+
+`verge-core` is computed, so it is not a file. The operator edits the **frequency half**; the
+sensitive half is a shipped signal's reference data, release-coupled under
+[ADR-0004](./0004-signals-are-release-coupled-rules.md), and not a file they reach.
+
+The cost is real: the operator can no longer say *"don't probe 4369"*. That is deliberate, and it
+has a precedent. [ADR-0006](https://github.com/winniel123/verge-asm/blob/adr-0006-subject-lifecycle/docs/adr/0006-subjects-leave-by-measurement.md)
+ruled that removing a subject from the estate belongs to `Seed`, never to `Annotation`, because
+operator opinion may not do the job measurement does; and
+[#22](https://github.com/winniel123/verge-asm/issues/22) refused suppression of coverage gaps for
+the same reason. **A port the operator can hide is a signal the operator can silence** — #22's
+refused suppression arriving through the port list. If the operator genuinely needs a host left
+alone, the instrument is the scope declaration, not the port set.
+
+The same construction removes the last enforcement point that would otherwise have been needed. An
+operator-editable `verge-core` could break the invariant after release, which would have wanted a
+config-load check; a computed one cannot.
+
+### UDP is a transport capability, not a list
+
+[#4](https://github.com/winniel123/verge-asm/issues/4) §2.5 put UDP off by default on measured
+signal-to-cost grounds — even a 1,000-port UDP scan misses half of what is open, and
+`open|filtered` resolves only by timeout. That decision stands and is not revisited here.
+
+But it was expressed as a **hand-picked list** — `53, 123, 161, 500, 623, 1900, 5353` — and
+measured against the sensitive list that list is wrong in the same way `verge-core` was: it covers
+161 and 623 and misses **69/udp, 137/udp, 138/udp and 11211/udp**, four sensitive pairs. Under the
+union it is superseded rather than amended: the UDP leg is `verge-core`'s UDP pairs, of which the
+sensitive half contributes six and the frequency half contributes the residue
+`53, 123, 500, 1900, 5353`. Nobody maintains a UDP list by hand again.
+
+Separating the two ideas is what makes this work. Membership of `verge-core` is a *definition*;
+whether a given `Batch` measures a pair is the *prober's* business. A batch that measures no UDP
+records a scope containing no UDP pairs, and `not-evaluable` falls out of ADR-0004's existing rule
+with no new mechanism — which is exactly what
+[#21](https://github.com/winniel123/verge-asm/issues/21) §6.1 asked for, obtained for free rather
+than by policy. Conflating capability with membership is what produced the 161/tcp bug in the first
+place.
+
+## Consequences
+
+- The `sensitive ⊆ hot` test [#21](https://github.com/winniel123/verge-asm/issues/21) §6 specified
+  is **not written**. A reader finding §6 and no test in the codebase should read this ADR: the
+  invariant was not dropped, it was made unfalsifiable.
+- Adding a pair to the sensitive list now does two things at once — bumps
+  `sensitive-port-exposed`'s rule version (ADR-0004/ADR-0008) **and** widens the aperture
+  (`revealed`). They compose cleanly, landing on different objects: the signal's version governs
+  comparability, the new `Service` timeline starts fresh. Neither produces a false transition.
+- Revising the **frequency half** still manufactures no drift, per ADR-0007 — a batch whose
+  recorded scope excludes a port does not touch that timeline.
+- The six UDP pairs remain `not-evaluable` on default settings, by design and visibly. **The
+  product currently has nowhere to show that**: `Coverage` as prototyped in
+  [#28](https://github.com/winniel123/verge-asm/issues/28) renders source coverage and vantage
+  state per `Seed` scope and nothing below it, so
+  [#21](https://github.com/winniel123/verge-asm/issues/21) §6.1's stated justification for keeping
+  the rows — that it makes the gap visible in the product rather than invisible in a list file — is
+  unbacked. This ADR does not repair it; it is open as a separate ticket, and it is not confined to
+  UDP.
+- The **governance** question is untouched and stays fog on the map: who revises either source
+  list, on what trigger. The union changes who maintains the *derived* set (nobody) and nothing
+  about who maintains the inputs.
+- [`CONTEXT.md`](../../CONTEXT.md) needs no change. No term is added and none is amended.
+
+## Alternatives rejected
+
+**Keep the lists independent with a build-time test** — [#21](https://github.com/winniel123/verge-asm/issues/21)
+§6's answer. Rejected on failure mode, not on cost: a test is a mechanism that can be absent, and
+the state it guards against is one a definition simply cannot express. The union preserves
+everything §6 argued for — separate evidence standards, separate governance, coupling that runs
+from correctness to cost — and removes only the part that had to be remembered.
+
+**Shrink the sensitive list instead**, dropping the four unprobed pairs rather than widening the
+hot set. This inverts §6's coupling direction and makes probe cost a precondition of normativity.
+Settled by [#21](https://github.com/winniel123/verge-asm/issues/21) and not re-opened.
+
+**Treat the hot set as unfrozen until v1.0.0.** Rejected above: it authors a policy with one user
+to avoid a mechanism that already exists and already costs nothing, and it converts a structural
+fact into a promise that has to be revoked on a date nobody will write down.
+
+**A `not-probed` state distinct from `not-evaluable`.** Considered for the six UDP pairs and
+rejected — it is a new lifecycle state for a condition that already has an observed account
+(ADR-0006's habit: check whether the thing already has a value before inventing a state). The
+`Batch` scope record already says the pair was not measured, and ADR-0004 already names the
+outcome.
