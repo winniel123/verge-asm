@@ -1,0 +1,1175 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #28: "Prototype the Coverage screen and the
+  board's coverage statement."
+
+  #22 decided that `Coverage` exists, what it is about, what it measures and
+  what wakes someone. It decided none of it visually. This renders it.
+
+  Two screens, switchable with ?screen=board|coverage :
+
+    board     — the exposure board (#10 variant C) carrying the permanent,
+                non-dismissible coverage statement, the four-route
+                not-comparable band, and the row/column reconciliation #10
+                required.
+    coverage  — the Coverage destination itself.
+
+  Three variants, ?variant=A|B|C . On `coverage` they are three answers to the
+  hard part #28 names — two different kinds of incompleteness sharing one
+  screen. On `board` they are three placements of the coverage statement,
+  which is the question "does it survive contact with the board?"
+
+    A — coverage: one ledger, two verbs      board: statement as a strip above
+    B — coverage: two panels, split by verb  board: statement in the card header
+    C — coverage: scope-first cards          board: statement as the board's footing
+
+  Six fills, ?fill=zero|healthy|fault|consent|blind|break :
+
+    zero     day one, nothing measured — #10's four-step checklist, which #22
+             made the same object as the degraded state
+    healthy  99.3%
+    fault    a scope dead-lettering — degraded by failure
+    consent  fully measured, sources off — degraded by consent
+    blind    internet vantage unavailable 3 days — the board's precondition
+             failing, deliberately renderable beside `zero` for comparison
+    break    the Exposure derivation vector moved — matrix clamped one cadence,
+             census renders in full, durations render as labelled floors (#18)
+
+  Not production code. No tests, no error handling, no abstractions. The visual
+  language is the real design system (../../design-system). The vocabulary is
+  CONTEXT.md, which overrides the kit where they disagree: no "finding", no
+  "host", no "scan run". Every count in the matrix is summed from its cells, so
+  the reconciliation is real rather than asserted.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — coverage prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 96px; }
+
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); text-decoration: none; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); transition: background var(--duration) var(--ease); }
+  .btn:hover { background: #3a3a30; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--surface-sunken); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); }
+  .btn.accent { background: var(--accent); border-color: var(--accent); }
+  .btn.accent:hover { background: var(--accent-hover); }
+
+  .card { background: var(--surface); border: var(--rule); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .sp { margin-left: auto; }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); }
+  .pad { padding: var(--space-4); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: middle; }
+  tbody tr:first-child td { border-top: none; }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num { text-align: right; font-family: var(--font-mono); font-size: var(--text-sm); }
+  th.num { text-align: right; }
+
+  .st { display: inline-block; padding: 1px 6px;
+        font: var(--weight-semibold) var(--text-2xs)/1.5 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  .st.exposed      { background: var(--danger); color: #fff; }
+  .st.firewalled   { background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok); }
+  .st.internal     { background: var(--surface-sunken); color: var(--text-muted); border: var(--rule); }
+  .st.edge         { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .st.unreachable  { background: transparent; color: var(--text-faint); border: 1px dashed var(--border); }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .tag.on     { border-color: var(--border-ink); color: var(--ink); }
+  .tag.off    { border-style: dashed; color: var(--text-faint); }
+  .tag.fault  { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+  .tag.invite { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* ── THE BAND ─────────────────────────────────────────────────────────
+     #22: one visual treatment carrying its reason. Sunken fill, dashed
+     hairline, the reason set as a micro-label inside the cell. No colour,
+     no rank — #16 forbids severity here. */
+  .band { background: var(--surface-sunken); border: 1px dashed var(--border) !important; }
+  .band .n { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+  .band .why { display: block; margin-top: 2px; white-space: nowrap;
+               font: var(--weight-semibold) var(--text-2xs)/1.3 var(--font-mono);
+               text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-faint); }
+
+  /* the precondition treatment — not a gap in the board, the board failing */
+  .precond { border: var(--rule-ink); background: var(--surface); }
+  .precond .hd { background: var(--ink); color: var(--text-on-ink);
+                 padding: var(--space-3) var(--space-4); display: flex; align-items: center; gap: var(--space-3); }
+  .precond .hd .ml { color: #9a9a90; }
+  .precond .hd a { color: var(--text-on-ink); text-decoration: underline; }
+  .precond .hd .cov-inline .faint { color: #9a9a90; }
+  .precond .hd h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+
+  /* ── the coverage statement ─────────────────────────────────────────── */
+  .cov-strip { display: flex; align-items: baseline; gap: var(--space-4);
+               background: var(--surface); border: var(--rule); border-left: 3px solid var(--ink);
+               padding: var(--space-3) var(--space-4); }
+  .cov-strip .big { font: var(--weight-semibold) var(--text-lg)/1 var(--font-mono); color: var(--ink); }
+  .cov-strip .txt { font-size: var(--text-base); color: var(--text); }
+  .cov-strip .sp { margin-left: auto; }
+  .cov-strip.thin { border-left-width: 3px; }
+  .cov-inline { display: inline-flex; align-items: baseline; gap: var(--space-2);
+                font-family: var(--font-mono); font-size: var(--text-sm); }
+  .cov-inline b { font-weight: var(--weight-semibold); }
+  .cov-foot { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+
+  .stats { display: flex; background: var(--surface); border: var(--rule); }
+  .stat { padding: var(--space-4) var(--space-5); flex: 1; border-left: var(--rule-soft); }
+  .stat:first-child { border-left: none; }
+  .stat .v { font: var(--weight-semibold) var(--text-2xl)/var(--leading-tight) var(--font-mono); color: var(--ink); margin-top: var(--space-2); }
+  .stat .v.danger { color: var(--danger); }
+  .stat .v.muted  { color: var(--text-muted); }
+  .stat .d { font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono); margin-top: var(--space-1); color: var(--text-muted); }
+
+  /* ── trajectory: a record of cadences, not a chart ──────────────────── */
+  .cad { display: flex; gap: 2px; align-items: flex-end; }
+  .cad i { width: 9px; height: 18px; display: block; border: 1px solid var(--border); background: var(--surface); }
+  .cad i.full { background: var(--ink); border-color: var(--ink); }
+  .cad i.part { background: var(--surface-sunken); border-color: var(--text-faint); }
+  .cad i.none { background: transparent; border-style: dashed; }
+  .cad-legend { font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono); color: var(--text-muted); }
+
+  /* ── measurement bar: a fill, not a chart ───────────────────────────── */
+  .fill { position: relative; height: 6px; background: var(--surface-sunken); border: 1px solid var(--border); }
+  .fill span { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+  .fill.gap span { background: var(--text-faint); }
+
+  .ink { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+         padding: var(--space-3) var(--space-4); font-family: var(--font-mono); font-size: var(--text-sm);
+         line-height: var(--leading-snug); overflow-x: auto; }
+  .ink .k { color: #9a9a90; }
+  details.err > summary { cursor: pointer; font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono);
+                          color: var(--text-muted); list-style: none; }
+  details.err > summary::-webkit-details-marker { display: none; }
+  details.err > summary::before { content: "▸ "; }
+  details.err[open] > summary::before { content: "▾ "; }
+  details.err > summary:hover { color: var(--ink); }
+  details.err > div { margin-top: var(--space-2); }
+
+  .note { border: var(--rule); border-left: 3px solid var(--border-ink); background: var(--surface);
+          padding: var(--space-3) var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .note.invite { border-left-color: var(--accent); }
+  .note.fault  { border-left-color: var(--danger); }
+  .note .ml { display: block; margin-bottom: var(--space-1); }
+  .note.invite .ml { color: var(--accent); }
+  .note.fault .ml  { color: var(--danger); }
+
+  .floor { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .floor .cap { color: var(--text-muted); }
+
+  .empty { background: var(--surface); border: var(--rule); padding: var(--space-10) var(--space-8); text-align: center; }
+  .empty h2 { margin: 0 0 var(--space-2); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+              letter-spacing: var(--tracking-tight); }
+  .empty p { margin: 0 auto var(--space-6); max-width: 560px; color: var(--text-muted); line-height: var(--leading-body); }
+  .empty .acts { display: flex; gap: var(--space-2); justify-content: center; }
+
+  .row { display: flex; gap: var(--space-4); align-items: flex-start; }
+  .col { flex: 1; min-width: 0; }
+  .stack > * + * { margin-top: var(--space-4); }
+  .stack-2 > * + * { margin-top: var(--space-2); }
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+  .ft-in .sp { margin-left: auto; }
+
+  /* ── switcher: deliberately NOT part of the design being judged ─────── */
+  #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch;
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch .grp { display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
+                 border-left: 1px solid #3a3a30; }
+  #switch .grp:first-child { border-left: none; }
+  #switch .grp > span { color: #9a9a90; font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); margin-right: var(--space-1); }
+  #switch button { background: transparent; border: none; color: #9a9a90; cursor: pointer;
+                   font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); padding: 7px 8px; }
+  #switch button:hover { background: #3a3a30; color: var(--text-on-ink); }
+  #switch button.on { background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div id="switch">
+  <div class="grp" data-key="screen"><span>screen</span></div>
+  <div class="grp" data-key="variant"><span>variant</span></div>
+  <div class="grp" data-key="fill"><span>fill</span></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   FAKE ESTATE
+   A RIPE-region estate, deliberately: it is the region #20 measured as
+   having no keyless org-name path at all, so the source axis has something
+   real to say. Vocabulary is CONTEXT.md.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const ORD   = ["exposed","firewalled","internal","edge","unreachable"];
+const LABEL = { exposed:"exposed", firewalled:"firewalled", internal:"internal-only",
+                edge:"edge-only", unreachable:"unreachable" };
+
+/* Matrix cells are authored; every total is summed from them, so the
+   reconciliation #10 required is real rather than asserted. `entered` is a
+   row with no prior state; `withdrawn` a column with no current state. */
+const MATRIX = {
+  healthy: {
+    rows: [
+      { from:"exposed",     to:{ exposed:118, firewalled:7, unreachable:4 },   band:{ tier:11, failed:2 } },
+      { from:"firewalled",  to:{ exposed:3, firewalled:742 },                  band:{ tier:58, failed:3 } },
+      { from:"internal",    to:{ firewalled:2, internal:214 },                 band:{ tier:15, failed:0 } },
+      { from:"edge",        to:{ exposed:1, edge:16, withdrawn:1 },            band:{ tier:0,  failed:0 } },
+      { from:"unreachable", to:{ exposed:1, unreachable:74 },                  band:{ tier:12, failed:0 } },
+      { from:"entered",     to:{ exposed:2, firewalled:4, internal:1 },        band:{ tier:0,  failed:0 } },
+    ],
+    hero: { from:"firewalled", to:"exposed" },
+  },
+  fault: {
+    rows: [
+      { from:"exposed",     to:{ exposed:96, firewalled:7, unreachable:4 },    band:{ tier:11, failed:24  } },
+      { from:"firewalled",  to:{ exposed:1, firewalled:566 },                  band:{ tier:58, failed:181 } },
+      { from:"internal",    to:{ firewalled:2, internal:186 },                 band:{ tier:15, failed:28  } },
+      { from:"edge",        to:{ edge:14, withdrawn:1 },                       band:{ tier:0,  failed:3   } },
+      { from:"unreachable", to:{ unreachable:60 },                             band:{ tier:12, failed:15  } },
+      { from:"entered",     to:{ exposed:1, firewalled:1 },                    band:{ tier:0,  failed:0   } },
+    ],
+    hero: { from:"firewalled", to:"exposed" },
+  },
+};
+
+/* The census is a count, not a comparison — #18: it renders across a Break. */
+const CENSUS = { exposed:125, firewalled:755, internal:215, edge:16, unreachable:78 };
+
+/* Measurement coverage: per Seed scope, per Vantage. Never per Batch. */
+const SEEDS = [
+  { scope:"acmecorp.io",    kind:"name",    zone:true  },
+  { scope:"acme-cdn.net",   kind:"name",    zone:false },
+  { scope:"203.0.113.0/24", kind:"address", zone:null  },
+];
+
+const MEASURED = {
+  healthy: [
+    { scope:"acmecorp.io",    vantage:"internet-01", n:409, of:412, last:"4h",  state:"ok"   },
+    { scope:"acmecorp.io",    vantage:"instance",    n:412, of:412, last:"12m", state:"ok"   },
+    { scope:"acme-cdn.net",   vantage:"internet-01", n:38,  of:41,  last:"4h",  state:"ok"   },
+    { scope:"acme-cdn.net",   vantage:"instance",    n:41,  of:41,  last:"12m", state:"ok"   },
+    { scope:"203.0.113.0/24", vantage:"internet-01", n:254, of:254, last:"4h",  state:"ok"   },
+    { scope:"203.0.113.0/24", vantage:"instance",    n:254, of:254, last:"12m", state:"ok"   },
+  ],
+  fault: [
+    { scope:"acmecorp.io",    vantage:"internet-01", n:384, of:412, last:"4h",  state:"ok"   },
+    { scope:"acmecorp.io",    vantage:"instance",    n:412, of:412, last:"12m", state:"ok"   },
+    { scope:"acme-cdn.net",   vantage:"internet-01", n:38,  of:41,  last:"4h",  state:"ok"   },
+    { scope:"acme-cdn.net",   vantage:"instance",    n:41,  of:41,  last:"12m", state:"ok"   },
+    { scope:"203.0.113.0/24", vantage:"internet-01", n:0,   of:254, last:"2d",  state:"dead",
+      err:"dial tcp 203.0.113.7:22: connect: connection refused" },
+    { scope:"203.0.113.0/24", vantage:"instance",    n:254, of:254, last:"12m", state:"ok"   },
+  ],
+  blind: [
+    { scope:"acmecorp.io",    vantage:"internet-01", n:0,   of:412, last:"3d",  state:"gone" },
+    { scope:"acmecorp.io",    vantage:"instance",    n:412, of:412, last:"12m", state:"ok"   },
+    { scope:"acme-cdn.net",   vantage:"internet-01", n:0,   of:41,  last:"3d",  state:"gone" },
+    { scope:"acme-cdn.net",   vantage:"instance",    n:41,  of:41,  last:"12m", state:"ok"   },
+    { scope:"203.0.113.0/24", vantage:"internet-01", n:0,   of:254, last:"3d",  state:"gone" },
+    { scope:"203.0.113.0/24", vantage:"instance",    n:254, of:254, last:"12m", state:"ok"   },
+  ],
+};
+MEASURED.consent = MEASURED.healthy;
+MEASURED.break   = MEASURED.healthy;
+
+/* Source coverage. `kind` is the verb — a fault is ours, an invitation is
+   one click. #22: rendering "RIPE Database not enabled" the same way as
+   "prober unreachable" is the same mistake as collapsing the band. */
+const SOURCES = [
+  { name:"operator zone file", scope:"acmecorp.io", completeness:"enumerable", consent:"—",
+    on:true, kind:"ok", note:"Removal detection is on inside this scope." },
+  { name:"operator zone file", scope:"acme-cdn.net", completeness:"enumerable", consent:"—",
+    on:false, kind:"invite", act:"Upload a zone file",
+    note:"Nothing in this scope can tell you when something disappears. Only corroborative sources reach it, and their silence means nothing." },
+  { name:"resolver", scope:"estate", completeness:"enumerable", consent:"unencumbered",
+    on:true, kind:"ok", note:"Enumerable over one name at a time." },
+  { name:"CT logs", scope:"estate", completeness:"corroborative", consent:"unencumbered",
+    on:true, kind:"ok", note:"Append-only. Silence is never evidence of absence." },
+  { name:"crt.sh", scope:"estate", completeness:"corroborative", consent:"unencumbered",
+    on:true, kind:"ok", degraded:true, note:"Throttled to 5 req/min. 41 of 88 queries failed this cycle and produced no observation.",
+    err:"GET https://crt.sh/?q=%25.acmecorp.io&output=json\n→ 404 Not Found (spurious; retried 3×, then abandoned)\n→ 0 observations written, 0 absences asserted" },
+  { name:"delegated-stats", scope:"estate", completeness:"enumerable", consent:"unencumbered",
+    on:true, kind:"ok", note:"Address → that holder's other prefixes. Covers all five registries." },
+  { name:"ARIN RDAP", scope:"estate", completeness:"enumerable", consent:"unencumbered",
+    on:true, kind:"ok", inert:true, note:"On, and returns nothing for this estate — your resources are delegated by RIPE, not ARIN." },
+  { name:"CAIDA org-name", scope:"estate", completeness:"corroborative", consent:"unencumbered",
+    on:false, kind:"invite", act:"Look up an organisation name",
+    note:"Fetched only when you use it, never at first run. Carries no entry for RIPE-delegated organisations." },
+  { name:"RIPE Database", scope:"estate", completeness:"enumerable", consent:"operator-accepted",
+    on:false, kind:"invite", act:"Review terms and enable", region:true,
+    note:"Asked 2026-06-02. Nobody replied. You can accept RIPE's terms yourself.", terms:"https://www.ripe.net/manage-ips-and-asns/db/support/documentation/terms" },
+  { name:"RIPEstat", scope:"estate", completeness:"corroborative", consent:"operator-accepted",
+    on:false, kind:"invite", act:"Review terms and enable",
+    note:"Asked 2026-06-02. Nobody replied.", terms:"https://www.ripe.net/about-us/legal/ripestat-service-terms-and-conditions" },
+];
+
+/* Trajectory: the last 14 cadences, as a record of what completed.
+   Deliberately not a time series of a percentage. */
+const CADENCES = {
+  healthy: "ffffffffpfffff",
+  fault:   "ffffffffpnnnnn",
+  consent: "ffffffffffffff",
+  blind:   "fffffffffffnnn",
+  break:   "ffffffffffffbf",
+};
+
+const FILL_COPY = {
+  healthy: { pct:"99.3%", n:1418, of:1428, dir:"99.1% seven days ago", cadence:"complete in 13 of the last 14 cadences" },
+  fault:   { pct:"79.1%", n:1129, of:1428, dir:"99.3% two days ago",   cadence:"complete in 8 of the last 14 cadences" },
+  consent: { pct:"99.3%", n:1418, of:1428, dir:"99.3% seven days ago", cadence:"complete in 14 of the last 14 cadences" },
+  blind:   { pct:"49.5%", n:707,  of:1428, dir:"99.2% three days ago", cadence:"complete in 11 of the last 14 cadences" },
+  break:   { pct:"99.3%", n:1418, of:1428, dir:"99.3% seven days ago", cadence:"complete in 14 of the last 14 cadences" },
+  zero:    { pct:"—",     n:0,    of:0,    dir:"nothing measured yet", cadence:"no cadence has completed" },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DERIVED — every total summed, never authored
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const COLS = [...ORD, "withdrawn"];
+const rowBand   = (r) => r.band.tier + r.band.failed;
+const rowMoved  = (r) => COLS.reduce((a,c) => a + (r.to[c] || 0), 0);
+const rowTotal  = (r) => rowMoved(r) + rowBand(r);
+const colTotal  = (M,c) => M.rows.reduce((a,r) => a + (r.to[c] || 0), 0);
+const bandTotal = (M) => M.rows.reduce((a,r) => a + rowBand(r), 0);
+const gridTotal = (M) => M.rows.reduce((a,r) => a + rowTotal(r), 0);
+const censusTotal = () => Object.values(CENSUS).reduce((a,b) => a+b, 0);
+
+const num = (n) => n.toLocaleString();
+const pct = (n,of) => of ? ((n/of)*100).toFixed(1) + "%" : "—";
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CHROME
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const NAV = ["Exposure","Subjects","Signals","Seeds","Coverage","Settings"];
+
+function chrome(active, body, fill) {
+  const st = fill === "zero"
+    ? `<span class="status muted"><span class="dot" style="background:var(--text-faint)"></span>no batches yet</span>`
+    : fill === "blind"
+    ? `<span class="status" style="color:var(--danger)"><span class="dot" style="background:var(--danger)"></span>internet-01 unavailable 3d</span>`
+    : `<span class="status" style="color:var(--ok)"><span class="dot live"></span>batch b-8851 running</span>`;
+  return `
+  <header class="nav"><div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <nav class="items">${NAV.map(n => n === active ? `<a href="#" class="on">${n}</a>` : `<a href="#">${n}</a>`).join("")}</nav>
+    <div class="nav-right">${st}<button class="btn sm"${fill === "zero" ? ` disabled style="opacity:.45"` : ``}>Run scan</button></div>
+  </div></header>
+  <main class="shell">${body}</main>
+  <footer class="ft"><div class="ft-in">
+    <span>v0.9.2</span><span>AGPL-3.0</span><span>self-hosted</span>
+    <span class="sp"></span><span>★ Star on GitHub</span><span>Report an issue</span>
+  </div></footer>`;
+}
+
+/* ── shared pieces ──────────────────────────────────────────────────── */
+
+function cadenceStrip(fill) {
+  const s = CADENCES[fill] || CADENCES.healthy;
+  const cls = { f:"full", p:"part", n:"none", b:"none" };
+  /* `b` is a re-baseline: the cadence completed, but nothing crosses it. Rendered
+     as a solid ink rule rather than a block — a boundary, not a measurement. */
+  return `<div class="cad">${[...s].map(c => c === "b"
+    ? `<i style="width:3px;background:var(--ink);border:none;height:22px" title="re-baseline"></i>`
+    : `<i class="${cls[c]}"></i>`).join("")}</div>`;
+}
+
+/* The statement itself — one sentence, three placements. `lead` is true when
+   the placement already shows the figure, so the sentence must not repeat it. */
+function statementText(fill, lead) {
+  const p = (t) => lead ? t : `<b>${FILL_COPY[fill].pct}</b> ${t.charAt(0).toLowerCase() + t.slice(1)}`;
+  if (fill === "blind")
+    return (lead ? `` : `<b>Half. </b>`) + `No internet vantage has reported for 3 days, so nothing below is a claim about exposure.`;
+  if (fill === "fault")
+    return p(`Of the estate was measured this cycle. Seed <span class="mono">203.0.113.0/24</span> has not been reached from <span class="mono">internet-01</span> for 2 days.`);
+  if (fill === "consent")
+    return p(`Of the estate was measured this cycle, over the seeds you declared. Two sources that would widen those seeds are off.`);
+  if (fill === "break")
+    return p(`Measured. The <span class="mono">exposure</span> derivation changed in v0.9.2, so nothing before <span class="mono">2026-08-13 04:00 UTC</span> may be compared with anything after it.`);
+  return p(`Of the estate was measured this cycle, across 2 vantages. Everything below is true over that portion.`);
+}
+
+function covStrip(fill) {
+  const c = FILL_COPY[fill] || FILL_COPY.healthy;
+  return `
+  <div class="cov-strip">
+    <span class="big">${c.pct}</span>
+    <span class="txt">${statementText(fill, true)}</span>
+    <span class="sp"></span>
+    <a href="#" class="mono" style="white-space:nowrap">Coverage →</a>
+  </div>`;
+}
+
+function covInline(fill) {
+  const c = FILL_COPY[fill] || FILL_COPY.healthy;
+  return `<span class="cov-inline"><span class="ml">measured</span> <b>${c.pct}</b>
+          <span class="faint">${num(c.n)}/${num(c.of)}</span> <a href="#">Coverage →</a></span>`;
+}
+
+function covFoot(fill) {
+  return `
+  <div class="card-f cov-foot">
+    <span class="ml">true over</span>
+    <span class="txt" style="font-size:var(--text-base)">${statementText(fill, false)}</span>
+    <span style="margin-left:auto"><a href="#" class="mono">Coverage →</a></span>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: EXPOSURE BOARD
+   The question: does a permanent coverage statement survive contact with a
+   board whose whole point is one hero cell?
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function boardMatrix(M, fill) {
+  const cell = (r, c) => {
+    const n = r.to[c];
+    if (r.from === c) return `<td class="num faint" style="background:var(--surface-sunken)">${num(n || 0)}</td>`;
+    if (!n) return `<td class="num faint">·</td>`;
+    const isHero = r.from === M.hero.from && c === M.hero.to;
+    const style = isHero ? `background:var(--sev-critical);color:#fff;font-weight:var(--weight-semibold)`
+                : c === "exposed" ? `background:var(--danger-soft);color:var(--danger)`
+                : c === "withdrawn" ? `color:var(--text-muted)` : ``;
+    return `<td class="num" style="${style};cursor:pointer">${num(n)}</td>`;
+  };
+  const bandCell = (r) => {
+    const t = rowBand(r);
+    if (!t) return `<td class="num faint">·</td>`;
+    const why = [];
+    if (r.band.tier)   why.push(`${r.band.tier} not in this tier`);
+    if (r.band.failed) why.push(`${r.band.failed} measurement failed`);
+    return `<td class="num band" style="cursor:pointer"><span class="n">${num(t)}</span>${
+      why.map(w => `<span class="why">${w}</span>`).join("")}</td>`;
+  };
+  return `
+  <table>
+    <thead><tr>
+      <th style="width:132px"></th>
+      ${ORD.map(c => `<th class="m num">${LABEL[c]}</th>`).join("")}
+      <th class="m num">withdrawn</th>
+      <th class="m num" style="width:200px">not comparable</th>
+      <th class="m num" style="border-left:var(--rule)">total</th>
+    </tr></thead>
+    <tbody>
+      ${M.rows.map(r => `
+        <tr>
+          <th style="border-bottom:none;border-top:var(--rule-soft);text-align:left">
+            ${r.from === "entered" ? `<span class="muted">entered</span>` : LABEL[r.from]}</th>
+          ${ORD.map(c => cell(r,c)).join("")}
+          ${cell(r,"withdrawn")}
+          ${bandCell(r)}
+          <td class="num" style="border-left:var(--rule);font-weight:var(--weight-semibold)">${num(rowTotal(r))}</td>
+        </tr>`).join("")}
+      <tr style="border-top:var(--rule-ink-heavy)">
+        <th style="border-bottom:none;border-top:var(--rule-ink-heavy);text-align:left">total</th>
+        ${COLS.map(c => `<td class="num" style="border-top:var(--rule-ink-heavy);font-weight:var(--weight-semibold)">${num(colTotal(M,c))}</td>`).join("")}
+        <td class="num band" style="border-top:var(--rule-ink-heavy)"><span class="n">${num(bandTotal(M))}</span></td>
+        <td class="num" style="border-left:var(--rule);border-top:var(--rule-ink-heavy);font-weight:var(--weight-semibold)">${num(gridTotal(M))}</td>
+      </tr>
+    </tbody>
+  </table>`;
+}
+
+const estateNow = (M) => ORD.reduce((a,c) => a + colTotal(M,c), 0) + bandTotal(M);
+const estateBefore = (M) => M.rows.filter(r => r.from !== "entered").reduce((a,r) => a + rowTotal(r), 0);
+
+function boardReconcile(M) {
+  const entered = rowTotal(M.rows.find(r => r.from === "entered"));
+  return `
+  <div class="card-f" style="display:flex;gap:var(--space-6);align-items:baseline;flex-wrap:wrap">
+    <span class="ml">reconciles</span>
+    <span class="mono" style="font-size:var(--text-xs);color:var(--text-muted)">
+      ${num(estateBefore(M))} before
+      + ${num(entered)} entered
+      − ${num(colTotal(M,"withdrawn"))} withdrawn
+      = ${num(estateNow(M))} now
+    </span>
+    <span class="mono" style="font-size:var(--text-xs);color:var(--text-muted)">
+      of which ${num(bandTotal(M))} not comparable
+    </span>
+    <span class="mono faint" style="font-size:var(--text-xs)">
+      every cell above is summed, not asserted — the band is inside the totals, never beside them
+    </span>
+  </div>`;
+}
+
+/* The census is a count of the state each subject holds now — not a comparison,
+   so #18 lets it render across a Break. It does NOT survive an unavailable
+   vantage, because Exposure is then non-constructible and there is no state to
+   count: `mode` carries that difference.
+     matrix — derived from the board's columns, plus the band as "no reading"
+     full   — the whole estate has a state; comparison is what is suspended
+     none   — the derivation's precondition failed; there is nothing to census */
+function censusPanel(mode, M) {
+  const body =
+    mode === "none" ? `
+      <div class="pad">
+        <div class="mono" style="font-size:var(--text-2xl);font-weight:var(--weight-semibold)">1,290</div>
+        <div class="ml" style="margin-top:var(--space-1)">services in the estate</div>
+        <p class="muted" style="margin:var(--space-3) 0 0;font-size:var(--text-sm);line-height:var(--leading-body)">
+          None of them holds an exposure state. Exposure needs both vantages, so with one silent
+          there is nothing here to count — not zero of each state, no states at all.</p>
+      </div>`
+    : `
+      <table><tbody>
+        ${ORD.map(s => `
+          <tr><td><span class="st ${s}">${LABEL[s]}</span></td>
+              <td class="num" style="font-weight:var(--weight-semibold)">${num(
+                mode === "matrix" ? colTotal(M, s) : CENSUS[s])}</td></tr>`).join("")}
+        ${mode === "matrix" && bandTotal(M) ? `
+          <tr><td class="muted" style="font-size:var(--text-sm)">no reading this cycle</td>
+              <td class="num muted">${num(bandTotal(M))}</td></tr>` : ``}
+      </tbody></table>`;
+  const foot =
+    mode === "full" ? `
+      <div class="card-f">
+        <span class="ml">longest held</span>
+        <div class="floor" style="margin-top:var(--space-2)">
+          <span class="cap">exposed for</span> ≥ 9h
+          <span class="cap">(floor — nothing crosses the re-baseline)</span></div>
+      </div>`
+    : mode === "matrix" ? `
+      <div class="card-f">
+        <span class="ml">longest held</span>
+        <div class="floor" style="margin-top:var(--space-2)">
+          <span class="cap">exposed for</span> 11d 4h</div>
+      </div>` : ``;
+  return `
+  <div class="card">
+    <div class="card-h"><h2 style="font-size:var(--text-base)">Census</h2>
+      <span class="sp"></span><span class="ml">${mode === "none" ? "not constructible" : "not a comparison"}</span></div>
+    ${body}${foot}
+  </div>`;
+}
+
+function vantagePanel(fill) {
+  const v = (name, ok, when, err) => `
+    <div style="display:flex;align-items:center;gap:7px;padding:6px 0">
+      <span class="dot" style="background:${ok ? "var(--ok)" : "var(--danger)"}"></span>
+      <span class="mono">${name}</span>
+      <span class="faint mono" style="font-size:var(--text-xs);margin-left:auto">${when}</span>
+    </div>
+    ${err ? `<details class="err" style="padding-bottom:var(--space-2)"><summary>why</summary>
+      <div class="ink">${err}</div></details>` : ``}`;
+  const dead = fill === "blind";
+  return `
+  <div class="card">
+    <div class="card-h"><h2 style="font-size:var(--text-base)">Vantages</h2></div>
+    <div class="pad" style="padding-top:var(--space-2);padding-bottom:var(--space-2)">
+      ${v("internet-01", !dead, dead ? "unavailable 3d" : "verified 4h",
+          dead ? `<span class="k">2026-08-10 06:00 UTC</span> ssh: connect to host 198.51.100.9 port 22:\n  Connection timed out\n<span class="k">retried</span> 71 times over 3d 2h — every attempt recorded, no observation written` : null)}
+      ${v("instance", true, "verified 12m", null)}
+    </div>
+  </div>`;
+}
+
+const BOARD = {
+  render(variant, fill) {
+    if (fill === "zero")   return this.zero();
+    if (fill === "blind")  return this.blind(variant);
+    if (fill === "break")  return this.brk(variant);
+    const M = MATRIX[fill === "fault" ? "fault" : "healthy"];
+    const c = FILL_COPY[fill];
+
+    const head = `
+      <h1 class="page">Exposure</h1>
+      <div class="sub">${num(estateNow(M))} services across 3 seeds, resolved from 2 vantages.</div>`;
+
+    const boardCard = `
+      <div class="card">
+        <div class="card-h">
+          <h2>What moved</h2>
+          ${variant === "B" ? `<span class="sp"></span>${covInline(fill)}` : `<span class="sp"></span>`}
+          <span class="ml">rows: was · columns: is now</span>
+        </div>
+        ${boardMatrix(M, fill)}
+        ${boardReconcile(M)}
+        ${variant === "C" ? covFoot(fill) : ``}
+      </div>`;
+
+    return `
+    ${head}
+    <div class="stack">
+      ${variant === "A" ? covStrip(fill) : ``}
+      <div class="row">
+        <div class="col">${boardCard}</div>
+        <div style="width:300px" class="stack">
+          ${censusPanel("matrix", M)}
+          ${vantagePanel(fill)}
+        </div>
+      </div>
+      ${fill === "fault" ? `
+      <div class="note fault">
+        <span class="ml">we stopped looking</span>
+        Seed <span class="mono">203.0.113.0/24</span> has not been measured from <span class="mono">internet-01</span>
+        since 2026-08-11. 251 services sit in the not-comparable band for that reason alone.
+        Nothing has been removed and nothing has been marked absent —
+        a batch that did not complete asserts nothing.
+        <details class="err" style="margin-top:var(--space-2)"><summary>last error</summary>
+          <div class="ink">dial tcp 203.0.113.7:22: connect: connection refused</div></details>
+      </div>` : ``}
+      ${fill === "consent" ? `
+      <div class="note invite">
+        <span class="ml">what you have not asked us to look at</span>
+        Your seeds are fully measured. Two registry sources that could propose more address scopes
+        are off, and for a RIPE-delegated estate there is no keyless substitute for them.
+        <a href="#">Review on Coverage →</a>
+      </div>` : ``}
+    </div>`;
+  },
+
+  zero() {
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">Exposure is derived across vantages. You have none configured.</div>
+    <div class="stack">
+      <div class="empty">
+        <h2>No exposure can be constructed</h2>
+        <p>Exposure is a conclusion drawn by comparing what an internet vantage reaches against what an
+           internal one reaches. With no internet vantage the conclusion has no definition —
+           it is not hidden from you, it does not yet exist.</p>
+        <div class="acts">
+          <button class="btn">Declare a seed</button>
+          <button class="btn ghost">Add an internet vantage</button>
+        </div>
+      </div>
+      ${checklist(0)}
+    </div>`;
+  },
+
+  blind(variant) {
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">1,290 services across 3 seeds, resolved from 1 of 2 vantages.</div>
+    <div class="stack">
+      ${variant === "A" ? covStrip("blind") : ``}
+      <div class="row">
+        <div class="col stack">
+          <div class="precond">
+            <div class="hd"><span class="ml">precondition</span>
+              <h2>Exposure cannot be constructed</h2>
+              ${variant === "B" ? `<span style="margin-left:auto">${covInline("blind")}</span>` : ``}
+            </div>
+            <div class="pad">
+              <p style="margin:0 0 var(--space-3);line-height:var(--leading-body)">
+                <span class="mono">internet-01</span> has not reported since
+                <span class="mono">2026-08-10 06:00 UTC</span>. Exposure compares an internet vantage
+                against an internal one; with one of them silent the comparison has no definition,
+                so the board is not rendered rather than rendered from half the evidence.</p>
+              <p style="margin:0 0 var(--space-4);line-height:var(--leading-body)" class="muted">
+                Nothing has been removed. 1,290 services are still in the estate and still measured
+                from <span class="mono">instance</span> — what is missing is the second reading, not the subjects.</p>
+              <div style="display:flex;gap:var(--space-2);align-items:center">
+                <button class="btn">Diagnose internet-01</button>
+                <button class="btn ghost">Add a second internet vantage</button>
+              </div>
+              <details class="err" style="margin-top:var(--space-3)"><summary>last error</summary>
+                <div class="ink">ssh: connect to host 198.51.100.9 port 22: Connection timed out
+<span class="k">retried</span> 71 times over 3d 2h — every attempt recorded, no observation written</div></details>
+            </div>
+            ${variant === "C" ? covFoot("blind") : ``}
+          </div>
+        </div>
+        <div style="width:300px" class="stack">
+          ${censusPanel("none")}
+          ${vantagePanel("blind")}
+        </div>
+      </div>
+    </div>`;
+  },
+
+  brk(variant) {
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">1,290 services across 3 seeds, resolved from 2 vantages.</div>
+    <div class="stack">
+      ${variant === "A" ? covStrip("break") : ``}
+      <div class="row">
+        <div class="col stack">
+          <div class="precond">
+            <div class="hd"><span class="ml">re-baselined</span>
+              <h2>Your rules changed, so there is nothing to compare yet</h2>
+              ${variant === "B" ? `<span style="margin-left:auto">${covInline("break")}</span>` : ``}
+            </div>
+            <div class="pad">
+              <p style="margin:0 0 var(--space-3);line-height:var(--leading-body)">
+                <span class="mono">exposure</span> moved from
+                <span class="mono">reachability@3 · availability@2 · exposure-rule@4</span> to
+                <span class="mono">reachability@3 · availability@2 · exposure-rule@5</span> when you upgraded to
+                <span class="mono">v0.9.2</span>. Everything measured before that point was concluded under a
+                different rule, so comparing across it would report our change as yours.</p>
+              <p style="margin:0 0 var(--space-4);line-height:var(--leading-body)" class="muted">
+                Measurement never stopped and the estate is unchanged. The board fills again after the
+                next complete cadence — <span class="mono">~20h</span>.</p>
+              <div class="ml" style="margin-bottom:var(--space-2)">what the new rule concludes differently</div>
+              <table style="border:var(--rule)">
+                <tbody>
+                  <tr><td class="m">edge-only → exposed</td><td class="muted">a vantage inside your own range no longer counts as internet</td><td class="num">7</td></tr>
+                  <tr><td class="m">unreachable → internal-only</td><td class="muted">a refused connection is now a reading, not a silence</td><td class="num">31</td></tr>
+                </tbody>
+              </table>
+              <div class="mono faint" style="font-size:var(--text-xs);margin-top:var(--space-2)">
+                a description of the rule change, computed once — not 38 transitions
+              </div>
+            </div>
+            ${variant === "C" ? covFoot("break") : ``}
+          </div>
+        </div>
+        <div style="width:300px" class="stack">
+          ${censusPanel("full")}
+          ${vantagePanel("break")}
+        </div>
+      </div>
+    </div>`;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: COVERAGE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function checklist(done) {
+  const steps = [
+    ["Declare a seed", "where your estate ends"],
+    ["Upload a zone file", "enables removal detection inside that scope"],
+    ["Add an internet vantage", "enables exposure — the board cannot be built without it"],
+    ["Run the first batch", "establishes the baseline the second batch is compared against"],
+  ];
+  return `
+  <div class="card">
+    <div class="card-h"><h2 style="font-size:var(--text-base)">What coverage needs</h2>
+      <span class="sp"></span><span class="ml">${done} of 4</span></div>
+    <table><tbody>
+      ${steps.map((s,i) => `
+        <tr>
+          <td style="width:28px" class="faint mono">${i+1}</td>
+          <td><span style="font-weight:${i < done ? "400" : "var(--weight-semibold)"}">${s[0]}</span>
+              <span class="muted"> — ${s[1]}</span></td>
+          <td class="num" style="width:80px">${i < done ? `<span class="tag on">done</span>` : `<span class="tag off">todo</span>`}</td>
+        </tr>`).join("")}
+    </tbody></table>
+  </div>`;
+}
+
+function trajectory(fill) {
+  const c = FILL_COPY[fill] || FILL_COPY.healthy;
+  return `
+  <div class="card">
+    <div class="pad">
+      <div class="ml">Measured this cycle</div>
+      <div style="display:flex;align-items:baseline;gap:var(--space-3);margin-top:var(--space-2)">
+        <span style="font:var(--weight-semibold) var(--text-2xl)/1 var(--font-mono)">${c.pct}</span>
+        <span class="mono muted" style="font-size:var(--text-sm)">${num(c.n)} of ${num(c.of)} subject-vantage pairs</span>
+      </div>
+      <div class="mono muted" style="font-size:var(--text-xs);margin-top:var(--space-2)">${c.dir}</div>
+      <div style="margin-top:var(--space-4);display:flex;align-items:center;gap:var(--space-3)">
+        ${cadenceStrip(fill)}
+        <span class="cad-legend">${c.cadence}</span>
+      </div>
+      <div class="mono faint" style="font-size:var(--text-xs);margin-top:var(--space-2)">
+        oldest on the left · one block per cadence · a record of what completed, not a chart
+      </div>
+    </div>
+  </div>`;
+}
+
+const stateTag = (m) =>
+  m.state === "dead" ? `<span class="tag fault">not reached</span>` :
+  m.state === "gone" ? `<span class="tag fault">vantage down</span>` :
+  m.n < m.of         ? `<span class="tag">partial</span>` :
+                       `<span class="tag on">measured</span>`;
+
+function measRow(m, withScope = true) {
+  const p = m.of ? m.n / m.of : 0;
+  return `
+  <tr>
+    ${withScope ? `<td class="m">${m.scope}</td>` : ``}
+    <td class="m">${m.vantage}</td>
+    <td style="width:120px"><div class="fill ${p < 1 ? "gap" : ""}"><span style="width:${(p*100).toFixed(1)}%"></span></div></td>
+    <td class="num">${num(m.n)}/${num(m.of)}</td>
+    <td class="num muted" style="width:64px">${pct(m.n,m.of)}</td>
+    <td style="width:120px">${stateTag(m)}</td>
+    <td class="num muted" style="width:140px;white-space:nowrap">last complete ${m.last}</td>
+  </tr>
+  ${m.err ? `<tr><td colspan="${withScope ? 7 : 6}" style="border-top:none;padding-top:0">
+      <details class="err"><summary>last error</summary><div class="ink">${m.err}</div></details></td></tr>` : ``}`;
+}
+
+const srcTag = (s) =>
+  s.on && s.inert    ? `<span class="tag off">no result</span>` :
+  s.on && s.degraded ? `<span class="tag fault">degraded</span>` :
+  s.on               ? `<span class="tag on">on</span>` :
+                       `<span class="tag invite">off</span>`;
+
+const REGION_NOTE = `
+  <div class="note invite">
+    <span class="ml">this estate is delegated by RIPE</span>
+    RIPE publishes no keyless organisation-name lookup, and the open dataset that fills that gap for
+    other registries carries no entry for a single RIPE organisation. For this estate the two sources
+    above are not extra depth — they are the whole of the organisation-name path.
+    <div style="margin-top:var(--space-2)" class="muted">
+      What still works without them: declare one address you own and verge-asm proposes the rest of
+      that holder's registered blocks for you to confirm. That path covers every registry.
+    </div>
+    <div class="mono faint" style="font-size:var(--text-xs);margin-top:var(--space-2)">
+      provisional — the first-run wording is #40's to settle
+    </div>
+  </div>`;
+
+/* ── VARIANT A — one ledger, two verbs ────────────────────────────────
+   Everything that shrinks completeness in one list, sorted by how much it
+   costs, with a `kind` column carrying the verb. The bet: an operator asks
+   one question — why is this not 100% — and wants one answer. */
+const CovA = {
+  name: "one ledger",
+  render(fill) {
+    const rows = [
+      ...MEASURED[fill].filter(m => m.n < m.of).map(m => ({
+        kind:"fault", what:`${m.scope} · ${m.vantage}`, detail: m.state === "gone"
+          ? "vantage unavailable 3d" : m.state === "dead" ? "6 consecutive batches dead-lettered" : `${m.of - m.n} names not reached`,
+        cost:`${num(m.of - m.n)} subjects`, act:"Diagnose", err:m.err })),
+      ...SOURCES.filter(s => !s.on || s.degraded || s.inert).map(s => ({
+        /* `none` exists because the ledger forced it: a source that is on, working,
+           and correctly returns nothing is neither a fault nor an invitation. */
+        kind: s.inert ? "none" : s.on ? "fault" : "invite",
+        what:`${s.name}${s.scope !== "estate" ? " · " + s.scope : ""}`,
+        detail:s.note,
+        cost: s.inert ? "nothing" : s.on ? "47 queries lost" : "unknown",
+        act: s.inert ? null : s.act || "Diagnose", err:s.err })),
+    ];
+    const kindTag = (k) => k === "fault"  ? `<span class="tag fault">fault</span>`
+                         : k === "invite" ? `<span class="tag invite">invitation</span>`
+                                          : `<span class="tag off">neither</span>`;
+    return `
+    <div class="stack">
+      ${trajectory(fill)}
+      <div class="card">
+        <div class="card-h"><h2>Why this is not 100%</h2>
+          <span class="sp"></span>
+          <span class="ml">fault = ours · invitation = yours</span></div>
+        <table>
+          <thead><tr><th>Kind</th><th>What</th><th>Detail</th><th class="num">Cost</th><th></th></tr></thead>
+          <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td style="width:100px">${kindTag(r.kind)}</td>
+              <td class="m">${r.what}</td>
+              <td class="muted" style="max-width:420px">${r.detail}
+                ${r.err ? `<details class="err" style="margin-top:6px"><summary>last error</summary>
+                  <div class="ink">${r.err}</div></details>` : ``}</td>
+              <td class="num muted">${r.cost}</td>
+              <td class="num">${r.act
+                ? `<button class="btn sm ${r.kind === "invite" ? "accent" : "ghost"}">${r.act}</button>`
+                : `<span class="faint mono" style="font-size:var(--text-xs)">nothing to do</span>`}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 style="font-size:var(--text-base)">Everything that is measured</h2>
+          <span class="sp"></span><span class="ml">per seed scope, per vantage</span></div>
+        <table>
+          <thead><tr><th>Seed scope</th><th>Vantage</th><th colspan="3">Measured</th><th></th><th class="num">Last complete</th></tr></thead>
+          <tbody>${MEASURED[fill].map(m => measRow(m)).join("")}</tbody>
+        </table>
+      </div>
+      ${fill === "consent" ? REGION_NOTE : ``}
+    </div>`;
+  },
+};
+
+/* ── VARIANT B — two panels, split by verb ────────────────────────────
+   #22 read literally: a fault and an invitation are different kinds of
+   incompleteness and must not share a treatment. Two panels, two visual
+   languages, two verbs. */
+const CovB = {
+  name: "split by verb",
+  render(fill) {
+    const short  = MEASURED[fill].filter(m => m.n < m.of);
+    const faults = MEASURED[fill].filter(m => m.state !== "ok");
+    /* the panel only takes the fault treatment when something actually failed —
+       otherwise "degraded by consent" would read as "degraded by failure" */
+    const edge = faults.length ? "var(--danger)" : "var(--border-ink)";
+    return `
+    <div class="stack">
+      ${trajectory(fill)}
+
+      <div class="card" style="border-left:3px solid ${edge}">
+        <div class="card-h"><h2>What we tried to measure</h2>
+          <span class="sp"></span>
+          <span class="ml"${faults.length ? ` style="color:var(--danger)"` : ``}>${
+            faults.length ? faults.length + " not reached"
+            : short.length ? short.length + " partial, nothing failed"
+            : "everything reached"}</span></div>
+        <table>
+          <thead><tr><th>Seed scope</th><th>Vantage</th><th colspan="3">Measured</th><th></th><th class="num">Last complete</th></tr></thead>
+          <tbody>${MEASURED[fill].map(m => measRow(m)).join("")}</tbody>
+        </table>
+        ${faults.length ? `<div class="card-f" style="display:flex;gap:var(--space-2)">
+          <button class="btn sm">Diagnose ${faults[0].vantage}</button>
+          <button class="btn sm ghost">Retry now</button>
+        </div>` : `<div class="card-f mono muted" style="font-size:var(--text-xs)">
+          Every seed scope was reached from every vantage this cycle. Nothing here is broken.</div>`}
+      </div>
+
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <div class="card-h"><h2>What we have not been asked to look at</h2>
+          <span class="sp"></span>
+          <span class="ml" style="color:var(--accent)">${SOURCES.filter(s => !s.on).length} available</span></div>
+        <table>
+          <thead><tr><th>Source</th><th>Scope</th><th>Completeness</th><th>Consent</th><th></th><th></th></tr></thead>
+          <tbody>
+          ${SOURCES.map(s => `
+            <tr>
+              <td class="m">${s.name}</td>
+              <td class="m muted">${s.scope}</td>
+              <td class="m muted">${s.completeness}</td>
+              <td class="m muted">${s.consent}</td>
+              <td style="width:110px">${srcTag(s)}</td>
+              <td class="num" style="width:200px">${s.on
+                ? `<span class="mono faint" style="font-size:var(--text-xs)">${s.degraded ? "41 of 88 queries failed" : ""}</span>`
+                : `<button class="btn sm accent">${s.act}</button>`}</td>
+            </tr>
+            <tr><td colspan="6" style="border-top:none;padding-top:0">
+              <span class="muted" style="font-size:var(--text-sm)">${s.note}</span>
+              ${s.terms ? ` <a href="#" class="mono" style="font-size:var(--text-xs)">terms</a>` : ``}
+              ${s.err ? `<details class="err" style="margin-top:6px"><summary>last error</summary>
+                <div class="ink">${s.err}</div></details>` : ``}
+            </td></tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${fill === "consent" ? REGION_NOTE : ``}
+    </div>`;
+  },
+};
+
+/* ── VARIANT C — scope-first ──────────────────────────────────────────
+   #22 said coverage is expressed in the operator's terms. The operator's
+   term is the seed, not the axis. One card per scope carrying both axes;
+   estate-wide sources get a final card because they belong to no scope. */
+const CovC = {
+  name: "scope-first",
+  render(fill) {
+    const scopeCard = (seed) => {
+      const ms = MEASURED[fill].filter(m => m.scope === seed.scope);
+      const ss = SOURCES.filter(s => s.scope === seed.scope);
+      const n = ms.reduce((a,m) => a+m.n, 0), of = ms.reduce((a,m) => a+m.of, 0);
+      const bad = ms.some(m => m.n < m.of);
+      return `
+      <div class="card">
+        <div class="card-h">
+          <h2 style="font-family:var(--font-mono);font-size:var(--text-base)">${seed.scope}</h2>
+          <span class="tag">${seed.kind} scope</span>
+          <span class="sp"></span>
+          <span class="mono" style="font-weight:var(--weight-semibold)">${pct(n,of)}</span>
+          <span class="mono faint" style="font-size:var(--text-xs)">${num(n)}/${num(of)}</span>
+        </div>
+        <table><tbody>${ms.map(m => measRow(m, false)).join("")}</tbody></table>
+        ${ss.length ? ss.map(s => `
+          <div class="card-f">
+            <div style="display:flex;align-items:baseline;gap:var(--space-3)">
+              <span class="mono" style="font-size:var(--text-sm)">${s.name}</span>
+              ${srcTag(s)}
+              <span class="sp" style="margin-left:auto"></span>
+              ${s.on ? `` : `<button class="btn sm accent">${s.act}</button>`}
+            </div>
+            <div class="muted" style="font-size:var(--text-sm);margin-top:var(--space-2);max-width:640px">${s.note}</div>
+          </div>`).join("") : ``}
+        ${bad ? `` : ``}
+      </div>`;
+    };
+    return `
+    <div class="stack">
+      ${trajectory(fill)}
+      ${SEEDS.map(scopeCard).join("")}
+      <div class="card">
+        <div class="card-h"><h2>Sources that belong to no scope</h2>
+          <span class="sp"></span><span class="ml">they propose new scopes rather than filling one</span></div>
+        <table>
+          <thead><tr><th>Source</th><th>Completeness</th><th>Consent</th><th></th><th></th></tr></thead>
+          <tbody>
+          ${SOURCES.filter(s => s.scope === "estate").map(s => `
+            <tr>
+              <td class="m">${s.name}</td>
+              <td class="m muted">${s.completeness}</td>
+              <td class="m muted">${s.consent}</td>
+              <td style="width:110px">${srcTag(s)}</td>
+              <td class="num" style="width:200px">${s.on ? `` : `<button class="btn sm accent">${s.act}</button>`}</td>
+            </tr>
+            <tr><td colspan="5" style="border-top:none;padding-top:0">
+              <span class="muted" style="font-size:var(--text-sm)">${s.note}</span>
+              ${s.err ? `<details class="err" style="margin-top:6px"><summary>last error</summary>
+                <div class="ink">${s.err}</div></details>` : ``}
+            </td></tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${fill === "consent" ? REGION_NOTE : ``}
+    </div>`;
+  },
+};
+
+const COV = { A: CovA, B: CovB, C: CovC };
+
+function coverageScreen(variant, fill) {
+  if (fill === "zero") {
+    return `
+    <h1 class="page">Coverage</h1>
+    <div class="sub">Nothing has been measured, so nothing below is complete or incomplete yet.</div>
+    <div class="stack">
+      <div class="empty">
+        <h2>No coverage to report</h2>
+        <p>Coverage is how much of what you declared was actually measured. You have declared nothing,
+           so there is no denominator — this is not zero coverage, it is no question yet.</p>
+        <div class="acts"><button class="btn">Declare a seed</button></div>
+      </div>
+      ${checklist(0)}
+      <div class="note">
+        <span class="ml">the same screen, later</span>
+        Once a vantage is configured and a batch has completed, this page reports how much of each seed
+        scope was reached, from where, and what is still missing. The checklist above does not go away —
+        it becomes the part of this page that is not yet satisfied.
+      </div>
+    </div>`;
+  }
+  const V = COV[variant];
+  const heads = {
+    healthy: ["Coverage", "99.3% of what you declared was measured this cycle. Everything the board says is true over that portion."],
+    fault:   ["Coverage", "79.1% of what you declared was measured this cycle, down from 99.3% two days ago."],
+    consent: ["Coverage", "99.3% of what you declared was measured this cycle. What you declared is narrower than it could be."],
+    blind:   ["Coverage", "One of two vantages has reported in the last 3 days. Exposure cannot be constructed."],
+    break:   ["Coverage", "99.3% measured. Comparison is suspended for one cadence while the estate re-baselines."],
+  };
+  const [h, s] = heads[fill];
+  const banner =
+    fill === "blind" ? `<div class="note fault"><span class="ml">we stopped looking</span>
+        <span class="mono">internet-01</span> has been unavailable for 3 days, so <span class="mono">Exposure</span>
+        is non-constructible estate-wide. This is not a gap in the board — it is the board's precondition.
+        Measurement from <span class="mono">instance</span> continued throughout and nothing has been marked absent.
+        <div style="margin-top:var(--space-2)"><button class="btn sm">Diagnose internet-01</button></div></div>`
+  : fill === "break" ? `<div class="note"><span class="ml">we changed how we look</span>
+        The <span class="mono">exposure</span> derivation moved to
+        <span class="mono">exposure-rule@5</span> in v0.9.2. Nothing measured before
+        <span class="mono">2026-08-13 04:00 UTC</span> may be compared with anything after it.
+        Counts and durations spanning that point render as floors, never as figures.
+        <div class="floor" style="margin-top:var(--space-2)">
+          <span class="cap">longest exposure</span> ≥ 9h <span class="cap">(floor)</span></div></div>`
+  : ``;
+  return `
+    <h1 class="page">${h}</h1>
+    <div class="sub">${s}</div>
+    ${banner ? `<div style="margin-bottom:var(--space-4)">${banner}</div>` : ``}
+    ${V.render(fill)}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SWITCHER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const SCREENS  = ["board","coverage"];
+const VARIANTS = ["A","B","C"];
+const FILLS    = ["zero","healthy","fault","consent","blind","break"];
+const VNAME    = { A:"one ledger / statement above", B:"split by verb / statement in header", C:"scope-first / statement as footing" };
+
+function params() {
+  const p = new URLSearchParams(location.search);
+  const g = (k, list, dflt) => { const v = p.get(k); return list.includes(v) ? v : dflt; };
+  return { screen:g("screen",SCREENS,"board"), variant:g("variant",VARIANTS,"A"), fill:g("fill",FILLS,"healthy") };
+}
+function go(next) {
+  const s = { ...params(), ...next };
+  history.replaceState(null, "", "?" + new URLSearchParams(s).toString());
+  render();
+}
+function render() {
+  const { screen, variant, fill } = params();
+  const body = screen === "board" ? BOARD.render(variant, fill) : coverageScreen(variant, fill);
+  document.getElementById("app").innerHTML =
+    chrome(screen === "board" ? "Exposure" : "Coverage", body, fill);
+  buildSwitch({ screen, variant, fill });
+}
+function buildSwitch(cur) {
+  const sets = { screen:SCREENS, variant:VARIANTS, fill:FILLS };
+  document.querySelectorAll("#switch .grp").forEach(g => {
+    const key = g.dataset.key;
+    g.querySelectorAll("button").forEach(b => b.remove());
+    sets[key].forEach(v => {
+      const b = document.createElement("button");
+      b.textContent = key === "variant" ? v : v;
+      b.title = key === "variant" ? VNAME[v] : v;
+      if (v === cur[key]) b.classList.add("on");
+      b.onclick = () => go({ [key]: v });
+      g.appendChild(b);
+    });
+  });
+}
+document.addEventListener("keydown", (e) => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  const c = params();
+  if (e.key === "ArrowRight") go({ fill: FILLS[(FILLS.indexOf(c.fill)+1) % FILLS.length] });
+  if (e.key === "ArrowLeft")  go({ fill: FILLS[(FILLS.indexOf(c.fill)+FILLS.length-1) % FILLS.length] });
+  if (e.key === "ArrowUp" || e.key === "ArrowDown")
+    go({ variant: VARIANTS[(VARIANTS.indexOf(c.variant)+1) % VARIANTS.length] });
+  if (e.key === " ") { e.preventDefault(); go({ screen: c.screen === "board" ? "coverage" : "board" }); }
+});
+render();
+</script>
+</body>
+</html>
