@@ -136,10 +136,15 @@ exists to catch.
 _Avoid_: open, reachable, public
 
 **Signal**:
-A named, versioned rule evaluated over observations, citing the observations that
-triggered it as evidence. It has no lifecycle of its own — its lifecycle is its
-evidence's.
-_Avoid_: finding, issue, alert, vulnerability, detection
+A named, versioned rule evaluated over observations — and over other Derived values, in
+which case its version composes theirs — citing the observations that triggered it as
+evidence. It has no lifecycle of its own; its lifecycle is its evidence's. Versions are
+per rule, never one set-wide version, so an edit to one rule leaves the rest comparable.
+A signal carries no severity: it is a named fact, and urgency belongs to the transition
+that surfaced it. Evaluated where its evidence is absent it returns `not-evaluable`,
+which is not the same as not firing. See
+[ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md).
+_Avoid_: finding, issue, alert, vulnerability, detection, severity
 
 ## Terms deliberately not used
 

@@ -1,0 +1,104 @@
+# ADR-0004: Signals are release-coupled rules, and comparability is versioned per rule
+
+- **Status:** Accepted
+- **Date:** 2026-08-13
+- **Ticket:** [#16 Risk signals: which ones does v1 emit from cert and protocol facts alone?](https://github.com/winniel123/verge-asm/issues/16)
+- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+
+## Context
+
+The map promises that v1 reports *"risk signals that fall out of probing for free"*, and
+[#7](https://github.com/winniel123/verge-asm/issues/7) fixed what a `Signal` is — a named,
+versioned rule evaluated over observations, citing its evidence, with no lifecycle of its
+own. What was never settled is **which** signals ship, and that turns out to be blocked on a
+prior question: where the line sits between a legal signal and the technology fingerprinting
+[#5](https://github.com/winniel123/verge-asm/issues/5) rejected.
+
+The obvious lines do not cut. *"Does the rule contain a human judgement?"* excludes nothing —
+*TLS 1.0 is weak* is a judgement. *"Is the evidence verifiable by the operator?"* excludes
+nothing either; a fingerprint's banner is right there to read. Meanwhile the candidate signal
+list contained items — matching admin-panel titles, default-install pages — that are plainly
+a signature database wearing a different hat.
+
+The harm #5 actually identified is narrower than "judgement": it is **reference data mutating
+underneath a comparison**, so the estate re-diffs without anyone having shipped anything. That
+points at the property that does cut.
+
+## Decision
+
+**A rule may ship as a `Signal` only if its reference data changes at release cadence.** The
+test is a question about our own intentions: *would we ever want to push updates to this list
+out of band?* If yes, it is a signature database and it is out. In practice the proxy is
+whether the reference set is **closed and enumerable** (protocol versions, key algorithms,
+dates, port numbers, the operator's own seeds) or an **open corpus that grows without bound**
+(page titles, banners, default-install fingerprints).
+
+Four rules follow from treating signals this way.
+
+**No severity.** A signal is a named fact with evidence. Severity exists to rank a static
+backlog, which is the `Finding` mental model [#7](https://github.com/winniel123/verge-asm/issues/7)
+rejected; in a product whose subject is change, urgency comes from the transition that
+surfaced the signal.
+
+**Absent evidence yields `not-evaluable`, never "did not fire."**
+[ADR-0002](./0002-ownership-gates-probing.md) limits probing on `third-party` addresses to the
+ports the `Name` implies, so port-facts rules have no evidence there. Reporting that as clean
+would give every SaaS-fronted address in the estate a bill of health it never earned.
+
+**A new signal is alertable if and only if the effective rule version was unchanged between
+the two evaluations.** A signal is a pure function of its inputs and its rule; hold the rule
+constant and any change in the signal set is attributable to the world, which makes it drift.
+Across a rule change the two sets are **not compared at all** and the presentation is *"your
+rules changed"*.
+
+**Signals may read Derived values, and their effective version composes the versions of
+everything they read.** Versions are **per rule**, not one global rule-set version.
+
+## Consequences
+
+- **The v1 set is:** certificate expired / not-yet-valid / expiring within N days (one rule,
+  operator-configurable N), self-signed, hostname-SAN mismatch, weak key or signature
+  algorithm, TLS 1.0/1.1 negotiated, plaintext HTTP with no HTTPS, a redirect that does not
+  upgrade to TLS, a redirect to a host outside the operator's estate, and
+  `sensitive-port-exposed`. Excluded: directory-listing pages, default-install pages,
+  admin-panel titles.
+- **`sensitive-port-exposed` is the only signal whose reference data we curate**, which makes
+  it the one to watch. It passes the test because the list moves at release cadence, but that
+  is a statement about cadence, not correctness — hence
+  [#21](https://github.com/winniel123/verge-asm/issues/21).
+- **Reading `Exposure` was chosen over re-deriving reachability.** Writing the port signal
+  over vantage-stamped observations directly would be a second implementation of the flagship
+  derivation, and its divergence from the first would surface as false drift — the seam rule.
+  The price is that bumping the `Exposure` derivation correctly makes the signal
+  non-comparable without anyone touching its rule.
+- **Per-rule versioning bounds the blast radius of an edit.** Under one global version, fixing
+  a typo in the self-signed rule would silently suppress drift alerting on exposed database
+  ports estate-wide for a cycle — a security product going quiet as a side effect of an
+  unrelated change. The cost is that *"your rules changed"* is a per-rule statement rather
+  than one banner.
+- **Notifications have at least two classes.** A clock-crossing signal — a certificate
+  expiring — becomes true with no new observation and no rule change. It may be worth telling
+  the operator about, but it is **not drift**, and a product whose claim is *what moved since
+  last time* must not report the passage of time as movement. Transitions and thresholds are
+  different notification classes and [#8](https://github.com/winniel123/verge-asm/issues/8)
+  inherits the distinction.
+- **Same-derivation-or-no-comparison is now general.** It has appeared three times — batch
+  scope in [#5](https://github.com/winniel123/verge-asm/issues/5), source completeness in
+  [#7](https://github.com/winniel123/verge-asm/issues/7), derivation version in
+  [#10](https://github.com/winniel123/verge-asm/issues/10) — and this is the fourth.
+  [#18](https://github.com/winniel123/verge-asm/issues/18) is therefore not a question about
+  the exposure board; it is a question about a rule binding every Derived value, and the
+  answer should be stated once.
+- **`not-evaluable` is likewise the third instance of one idea**, alongside `corroborative`
+  silence and `firewalled` vs `internal-only`. Whether the three want a single name is
+  recorded as open on the map.
+
+## Alternatives rejected
+
+| Alternative | Why not |
+| --- | --- |
+| **Verifiability test** — a signal is legal if the operator can check the verdict from the cited evidence | Excludes nothing. A fingerprint cites the banner it matched, and the operator can read it |
+| **Ship signature matching but version the corpus** | Technically consistent, but a corpus worth having is one updated continuously, and a corpus updated only at release cadence is a corpus nobody maintains. The honest choice is to have one properly or not at all |
+| **Severity on signals** | Imports the ranked-backlog model behind `Finding`, adds a second thing to version and dispute, and answers a question the exposure board already answers better. The accepted cost: an operator facing many signals has no intrinsic ranking |
+| **One global rule-set version** | Simpler to present, but makes every rule edit suppress comparability for every signal, so an unrelated fix silences the best signal in the product for a cycle |
+| **Operator-authored rules in v1** | Puts an un-versioned, un-reviewed derivation inside the comparison path this ADR exists to make trustworthy, and the first thing anyone writes is the signature matching deliberately excluded above. Plausible for v1.1 once `Annotation` and versioning have run in production |
