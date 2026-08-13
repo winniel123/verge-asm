@@ -1,0 +1,823 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #51: "What does the operator type on first run,
+  and what does the custody extension declaration say?"
+
+  #40 settled the semantics and ADR-0013 recorded them; neither wrote the words.
+  ADR-0013 §7 puts the apex-flattening hazard on the declaration's *wording* plus
+  a rendering of the current extension, rather than on a check — so these words
+  are the only thing carrying a safety property. This renders them.
+
+  Four screens, ?screen=checklist|declaration|placement|notqueue :
+
+    checklist    #28's day-one checklist with step 1 rewritten. Both densities
+                 (?density=board|coverage), because #28 made day one and
+                 degraded day one object at two densities.
+    declaration  The seed detail carrying the declaration. Three states,
+                 ?state=off|on|withdrawn — never ticked, ticked with its current
+                 extension rendered, and the moment after withdrawal.
+    placement    The three candidate homes for the current-extension rendering,
+                 ?variant=A|B|C. A is the ruling.
+    notqueue     The census drawn beside the approval queue ADR-0002 rejects,
+                 because the ticket's real risk is that the two look alike.
+
+  Not production code. No tests, no abstractions. The visual language is the real
+  design system (../../design-system). The vocabulary is CONTEXT.md, which
+  overrides the kit: no "finding", no "host", no "ownership".
+
+  The fake estate is deliberately the hazardous one. `example.com`'s apex holds
+  three flattened ALIAS records pointing at a CDN. They render in the covered
+  list with **no warning on them**, because recognising them would require the
+  list of provider ranges ADR-0013 and #31 both refused. The legibility is the
+  operator's, not ours — that is the whole of §7's second carrier, and drawing it
+  is the only way to see how thin it is.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — first-run and custody declaration</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 96px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); text-decoration: none; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); transition: background var(--duration) var(--ease); }
+  .btn:hover { background: #3a3a30; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--surface-sunken); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); }
+  .btn.accent { background: var(--accent); border-color: var(--accent); }
+
+  .card { background: var(--surface); border: var(--rule); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .sp { margin-left: auto; }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); }
+  .pad { padding: var(--space-4); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: middle; }
+  tbody tr:first-child td { border-top: none; }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num { text-align: right; font-family: var(--font-mono); font-size: var(--text-sm); }
+  th.num { text-align: right; }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .tag.on     { border-color: var(--border-ink); color: var(--ink); }
+  .tag.off    { border-style: dashed; color: var(--text-faint); }
+  .tag.fault  { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+  .tag.invite { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  .note { border: var(--rule); border-left: 3px solid var(--border-ink); background: var(--surface);
+          padding: var(--space-3) var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .note.invite { border-left-color: var(--accent); }
+  .note.fault  { border-left-color: var(--danger); }
+  .note .ml { display: block; margin-bottom: var(--space-1); }
+  .note.invite .ml { color: var(--accent); }
+  .note.fault .ml  { color: var(--danger); }
+
+  .ink { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+         padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .ink .ml { color: #9a9a90; display: block; margin-bottom: var(--space-2); }
+  .ink code, .ink .mono { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-on-ink); }
+  .ink strong { color: var(--text-on-ink); }
+
+  .empty { background: var(--surface); border: var(--rule); padding: var(--space-10) var(--space-8); text-align: center; }
+  .empty h2 { margin: 0 0 var(--space-2); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+              letter-spacing: var(--tracking-tight); }
+  .empty p { margin: 0 auto var(--space-6); max-width: 560px; color: var(--text-muted); line-height: var(--leading-body); }
+  .empty .acts { display: flex; gap: var(--space-2); justify-content: center; }
+
+  .row { display: flex; gap: var(--space-4); align-items: flex-start; }
+  .col { flex: 1; min-width: 0; }
+  .stack > * + * { margin-top: var(--space-4); }
+  .stack-2 > * + * { margin-top: var(--space-2); }
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5); }
+  p.body { line-height: var(--leading-body); margin: 0 0 var(--space-3); max-width: 760px; }
+  p.body:last-child { margin-bottom: 0; }
+
+  /* ── THE DECLARATION ──────────────────────────────────────────────────
+     The tick and the words that carry ADR-0013 §7. Deliberately not a
+     disclosure: the one hazard that fails silently is the one an operator
+     must not have to open a triangle to read. */
+  .decl { border: var(--rule-ink); background: var(--surface); }
+  .decl > .hd { display: flex; align-items: flex-start; gap: var(--space-3);
+                padding: var(--space-4); border-bottom: var(--rule); }
+  .decl .box { width: 16px; height: 16px; flex: none; margin-top: 2px;
+               border: 1px solid var(--border-ink); background: var(--surface); border-radius: var(--radius);
+               display: inline-flex; align-items: center; justify-content: center;
+               font-family: var(--font-mono); font-size: 11px; line-height: 1; color: var(--text-on-ink); }
+  .decl .box.ticked { background: var(--ink); }
+  .decl .lbl { font-size: var(--text-md); font-weight: var(--weight-semibold); line-height: var(--leading-snug); }
+  .decl .lbl .mono { font-weight: var(--weight-semibold); }
+  .decl .sec { padding: var(--space-4); border-top: var(--rule-soft); }
+  .decl .sec:first-of-type { border-top: none; }
+  .decl .sec h3 { margin: 0 0 var(--space-2); font-size: var(--text-base); font-weight: var(--weight-semibold); }
+  .decl ul { margin: 0 0 var(--space-3); padding-left: 0; list-style: none; max-width: 760px; }
+  .decl ul li { position: relative; padding-left: var(--space-5); margin-top: var(--space-2);
+                line-height: var(--leading-body); }
+  .decl ul li::before { content: "—"; position: absolute; left: 0; color: var(--text-faint);
+                        font-family: var(--font-mono); }
+  /* the apex block: ink ground, because it is the case no check catches */
+  .decl .apex { background: var(--surface-ink); color: var(--text-on-ink); padding: var(--space-4);
+                border-top: var(--rule-ink); }
+  .decl .apex h3 { color: var(--text-on-ink); }
+  .decl .apex p { color: var(--text-on-ink); line-height: var(--leading-body); margin: 0 0 var(--space-3); max-width: 760px; }
+  .decl .apex p:last-child { margin-bottom: 0; }
+  .decl .apex .mono { color: var(--text-on-ink); }
+  .decl .apex strong { color: var(--text-on-ink); }
+  .decl .ft { display: flex; align-items: center; gap: var(--space-3);
+              padding: var(--space-3) var(--space-4); border-top: var(--rule); background: var(--surface-sunken); }
+  .decl .ft .sp { margin-left: auto; }
+
+  /* ── ANNOTATION: prototype commentary, never part of the design ─────── */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--ink);
+          padding: var(--space-3) var(--space-4); font-size: var(--text-sm); line-height: var(--leading-body); }
+  .anno .ml { color: var(--accent); display: block; margin-bottom: var(--space-1); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+
+  .kv { display: flex; gap: var(--space-5); flex-wrap: wrap; }
+  .kv > div { min-width: 0; }
+  .kv .v { font: var(--weight-semibold) var(--text-lg)/1 var(--font-mono); margin-top: var(--space-2); display: block; }
+
+  #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch;
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch .grp { display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
+                 border-left: 1px solid #3a3a30; }
+  #switch .grp:first-child { border-left: none; }
+  #switch .grp > span { color: #9a9a90; font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); margin-right: var(--space-1); }
+  #switch button { background: transparent; border: none; color: #9a9a90; cursor: pointer;
+                   font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); padding: 7px 8px; }
+  #switch button:hover { background: #3a3a30; color: var(--text-on-ink); }
+  #switch button.on { background: var(--paper); color: var(--ink); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+  .ft-in .sp { margin-left: auto; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div id="switch">
+  <div class="grp" data-key="screen"><span>screen</span></div>
+  <div class="grp" data-key="state"><span>state</span></div>
+  <div class="grp" data-key="density"><span>density</span></div>
+  <div class="grp" data-key="variant"><span>placement</span></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   FAKE ESTATE — deliberately the hazardous one.
+
+   A cloud-resident operator with one name scope and no registry resources:
+   #26's modal install. The apex holds three flattened ALIAS records pointing
+   at a CDN, which is #40/ADR-0013 §7's hazard rendered rather than described.
+   Nothing marks those rows. Marking them would need the provider-range list
+   ADR-0013 refused in terms.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const SCOPE = "example.com";
+
+/* Covered: a name inside the declared zone resolves DIRECTLY to the address. */
+const COVERED = [
+  { name: "example.com",           addr: "18.164.52.11",  rr: "A", since: "2026-07-02", svc: 2 },
+  { name: "example.com",           addr: "18.164.52.94",  rr: "A", since: "2026-07-02", svc: 2 },
+  { name: "example.com",           addr: "18.164.52.130", rr: "A", since: "2026-08-09", svc: 2 },
+  { name: "api.example.com",       addr: "52.19.44.7",    rr: "A", since: "2026-05-14", svc: 4 },
+  { name: "api.example.com",       addr: "52.19.44.8",    rr: "A", since: "2026-05-14", svc: 4 },
+  { name: "mail.example.com",      addr: "52.19.44.19",   rr: "A", since: "2026-05-14", svc: 3 },
+  { name: "vpn.example.com",       addr: "52.19.61.204",  rr: "A", since: "2026-06-30", svc: 2 },
+  { name: "build.example.com",     addr: "52.19.61.205",  rr: "A", since: "2026-06-30", svc: 3 },
+  { name: "grafana.example.com",   addr: "52.19.61.205",  rr: "A", since: "2026-06-30", svc: 3 },
+  { name: "staging.example.com",   addr: "52.19.77.41",   rr: "A", since: "2026-08-01", svc: 5 },
+  { name: "redis-a.example.com",   addr: "52.19.77.62",   rr: "A", since: "2026-08-01", svc: 2 },
+  { name: "ns1.example.com",       addr: "52.19.44.2",    rr: "A", since: "2026-02-11", svc: 1 },
+];
+
+/* Not covered: the resolution chain leaves the declared zone. */
+const NOTCOVERED = [
+  { name: "shop.example.com",   via: "d1x2y3.cloudfront.net", why: "chain leaves example.com" },
+  { name: "docs.example.com",   via: "example-docs.pages.dev", why: "chain leaves example.com" },
+  { name: "status.example.com", via: "stats.uptimerobot.com",  why: "chain leaves example.com" },
+  { name: "support.example.com", via: "example.zendesk.com",   why: "chain leaves example.com" },
+];
+
+const N_ADDR  = new Set(COVERED.map(r => r.addr)).size;
+const N_NAME  = new Set(COVERED.map(r => r.name)).size;
+/* Services are a property of an Address, so they dedupe by address — 52.19.61.205
+   is cited by two names and its three services are three, not six. */
+const N_SVC   = [...new Map(COVERED.map(r => [r.addr, r.svc])).values()].reduce((a, n) => a + n, 0);
+
+const NAV = ["Exposure","Subjects","Signals","Seeds","Coverage","Settings"];
+
+function chrome(active, body) {
+  return `
+  <header class="nav"><div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <nav class="items">${NAV.map(n => `<a href="#" class="${n===active?"on":""}">${n}</a>`).join("")}</nav>
+    <div class="nav-right"><span class="status faint">no cadence complete</span>
+      <button class="btn sm ghost">Run scan</button></div>
+  </div></header>
+  <div class="shell">${body}</div>
+  <footer class="ft"><div class="ft-in">
+    <span>prototype — issue #51</span><span class="sp"></span>
+    <span>vocabulary: CONTEXT.md · visuals: design-system/</span>
+  </div></footer>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   1. THE DECLARATION — the deliverable.
+
+   ADR-0013 §7: the apex-flattening hazard is carried by these words plus the
+   rendering below, and by nothing else. Written in the operator's terms, not
+   the model's: no `Custody`, no `Seed`, no `Gap`, no transitivity. Four named
+   cases — CDN, a load balancer you do not run, shared hosting, and the
+   flattened alias at the apex.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function declaration(ticked) {
+  return `
+  <div class="decl">
+    <div class="hd">
+      <span class="box ${ticked ? "ticked" : ""}">${ticked ? "✓" : ""}</span>
+      <div>
+        <div class="lbl">Treat the addresses <span class="mono">${SCOPE}</span> resolves to as under your control</div>
+        <div class="ml" style="margin-top:6px">off by default · one setting for the whole scope</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>What you are asserting</h3>
+      <p class="body">That you control what listens on the machines your names point to, and can therefore
+        consent to their ports being probed. Without it, those addresses are treated as somebody else's
+        and nothing connects to them.</p>
+      <p class="body">It covers an address only while a name inside <span class="mono">${SCOPE}</span>
+        resolves to it <strong>directly</strong>. A name pointing at somebody else's name — for example
+        <span class="mono">shop.${SCOPE} → d1x2y3.cloudfront.net</span> — is outside it, and so is everything
+        past that point. The list is worked out again every cadence, so an address you stop using drops out
+        on its own.</p>
+    </div>
+
+    <div class="sec">
+      <h3>Leave this off if the machine answering is not yours</h3>
+      <ul>
+        <li><strong>Shared hosting.</strong> One address serves your site and other people's, and a probe
+          against it is a probe against theirs.</li>
+        <li><strong>A CDN.</strong> The address your name resolves to is Cloudflare's or Fastly's edge,
+          not your origin. You configure it; you do not run it.</li>
+        <li><strong>A load balancer you do not run.</strong> A managed one answers the connection before
+          anything of yours does, and the address belongs to the platform.</li>
+      </ul>
+      <p class="body">Leaving it off costs you nothing you were entitled to. Turning it on when the machine
+        belongs to somebody else is a false claim about their equipment, and this tool acts on it.</p>
+    </div>
+
+    <div class="apex">
+      <span class="ml">the one case nothing here can catch</span>
+      <h3>Check your apex before you tick this</h3>
+      <p><span class="mono">${SCOPE}</span> on its own — no label in front of it — cannot hold a
+        <span class="mono">CNAME</span>; the DNS does not permit one there. So DNS providers offer
+        <span class="mono">ALIAS</span>, <span class="mono">ANAME</span> or CNAME flattening instead, and
+        what they publish is a plain <span class="mono">A</span> record. It arrives here indistinguishable
+        from a machine of yours.</p>
+      <p>If your apex is pointed at a CDN, at a platform like Netlify, Vercel or Heroku, or at a managed
+        load balancer, <strong>that address is somebody else's and this setting will cover it anyway.</strong>
+        Nothing will warn you, now or later.</p>
+      <p>Read the address list below before you rely on this. You know your own estate; an address you do
+        not recognise is the whole of the check.</p>
+    </div>
+
+    <div class="ft">
+      <span class="muted" style="font-size:var(--text-sm)">${ticked
+        ? `In force since <span class="mono">2026-08-13 09:12 UTC</span>`
+        : `Nothing is probed under <span class="mono">${SCOPE}</span> while this is off`}</span>
+      <span class="sp"></span>
+      ${ticked
+        ? `<button class="btn ghost sm">Turn off</button>`
+        : `<button class="btn sm">Save seed</button>`}
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   2. THE CURRENT EXTENSION — a census, and never a queue.
+
+   No figure over a window, so #28's three densities do not apply: there is no
+   denominator, because "how many addresses should this cover" is estate
+   completeness, which #28 ruled unmeasurable. A count and a list.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function census(compact = false) {
+  return `
+  <div class="card">
+    <div class="card-h">
+      <h2 style="font-size:var(--text-base)">Addresses this covers</h2>
+      <span class="sp"></span>
+      <span class="mono muted" style="font-size:var(--text-sm)">${N_ADDR} addresses · ${N_NAME} names · ${N_SVC} services</span>
+    </div>
+    <div class="pad" style="padding-bottom:0">
+      <p class="body muted" style="font-size:var(--text-sm)">
+        What the setting above reaches as of the last cadence. Nothing here needs your action and nothing
+        here is pending — every row is already in force. Worked out again each cadence from what your names
+        resolve to.</p>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th></th><th>Address</th><th class="num">Services</th><th class="num">In this list since</th></tr></thead>
+      <tbody>
+        ${COVERED.map(r => `
+          <tr>
+            <td class="m">${r.name}</td>
+            <td class="m faint" style="width:28px">${r.rr}</td>
+            <td class="m">${r.addr}</td>
+            <td class="num">${r.svc}</td>
+            <td class="num faint">${r.since}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+    ${compact ? `` : `
+    <div class="card-f">
+      <div class="ml" style="margin-bottom:var(--space-2)">inside ${SCOPE}, not covered — the chain leaves your zone</div>
+      <table style="border:var(--rule)">
+        <tbody>
+          ${NOTCOVERED.map(r => `
+            <tr>
+              <td class="m">${r.name}</td>
+              <td class="m faint">→ ${r.via}</td>
+              <td class="muted" style="font-size:var(--text-sm)">${r.why}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+      <p class="body muted" style="font-size:var(--text-sm);margin-top:var(--space-3);margin-bottom:0">
+        These names are still in your estate and still watched. What is not covered is the machine at the
+        far end of them, which is not yours.</p>
+    </div>`}
+  </div>`;
+}
+
+const censusAnno = `
+<div class="anno">
+  <span class="ml">what the rendering deliberately does not do</span>
+  Three rows at the top are <span class="mono">18.164.52.x</span> — a CDN edge, reached through a flattened
+  <span class="mono">ALIAS</span> at the apex, and exactly the case ADR-0013 §7 says no check catches. They
+  carry <strong>no warning, no flag and no different treatment</strong>, because recognising them needs the
+  list of provider ranges ADR-0013 and #31 both refused by name. The operator recognising their own apex is
+  the whole of the second carrier, and drawing it is the only way to see how thin it is.
+</div>`;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: DECLARATION — off / on / withdrawn
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const DECL = {
+  off() {
+    return `
+    <h1 class="page">example.com</h1>
+    <div class="sub">Name scope · declared 2026-08-13 · 61 names, 34 addresses in the estate</div>
+    <div class="stack">
+      <div class="note">
+        <span class="ml">custody extension · off</span>
+        The addresses <span class="mono">${SCOPE}</span> resolves to are treated as somebody else's, so their
+        ports are not probed and no exposure is concluded for them.
+        <div style="margin-top:var(--space-2)">If the machines behind your names are somebody else's —
+        shared hosting, a CDN, a managed load balancer — this is the correct setting and there is nothing
+        here to fix.</div>
+      </div>
+      ${declaration(false)}
+      <div class="anno">
+        <span class="ml">zero state, honest without nagging</span>
+        The off state states its consequence in the indicative and then states, in the same breath, that off
+        can be right. There is no <span class="mono">todo</span> tag, no <span class="mono">1 of 2</span>
+        counter, and the control is a checkbox rather than an accent-blue button — in this system the accent
+        is the working colour, and an <span class="mono">Enable</span> button here would make a correct
+        configuration read as a defect.
+      </div>
+    </div>`;
+  },
+
+  on() {
+    return `
+    <h1 class="page">example.com</h1>
+    <div class="sub">Name scope · declared 2026-08-13 · 61 names, 34 addresses in the estate</div>
+    <div class="stack">
+      <div class="note">
+        <span class="ml">custody extension · on</span>
+        ${N_ADDR} addresses are under your control by this declaration, cited by ${N_NAME} of your names.
+        Their ports are probed and their exposure is concluded.
+      </div>
+      ${declaration(true)}
+      ${census()}
+      ${censusAnno}
+    </div>`;
+  },
+
+  withdrawn() {
+    return `
+    <h1 class="page">example.com</h1>
+    <div class="sub">Name scope · declared 2026-08-13 · 61 names, 34 addresses in the estate</div>
+    <div class="stack">
+      <div class="ink">
+        <span class="ml">custody extension turned off · 2026-08-13 14:20 UTC</span>
+        <h2 style="margin:0 0 var(--space-3);font-size:var(--text-md);font-weight:var(--weight-semibold)">
+          ${N_ADDR} addresses are now somebody else's, as far as this tool is concerned</h2>
+        <p style="color:var(--text-on-ink);line-height:var(--leading-body);margin:0 0 var(--space-3);max-width:760px">
+          <strong>Nothing was removed.</strong> All ${N_ADDR} are still in your estate — your names still
+          resolve to them — and they still appear under <span class="mono">${SCOPE}</span>.</p>
+        <p style="color:var(--text-on-ink);line-height:var(--leading-body);margin:0 0 var(--space-3);max-width:760px">
+          <strong>Their ports are no longer probed.</strong> What was already measured stays on screen for up
+          to <span class="mono">2 cadences</span> — a fortnight on the weekly tier — labelled as last measured
+          and shown beside <span class="mono">third-party</span>, never as current. After that it goes blank
+          rather than reading as absent, because ceasing to look is not measuring absence.</p>
+        <p style="color:var(--text-on-ink);line-height:var(--leading-body);margin:0 0 var(--space-3);max-width:760px">
+          <strong><span class="mono">sensitive-port-reached-from-internet</span> can no longer be evaluated</strong>
+          for the ${N_SVC} services on these addresses. That is this tool having stopped looking, not those
+          services having improved.</p>
+        <p style="color:var(--text-on-ink);line-height:var(--leading-body);margin:0;max-width:760px">
+          <strong>Turning it back on before the next cadence completes changes nothing.</strong> No gap opens,
+          no history is re-baselined and no message is sent. After that, switching it back on starts
+          measurement again, and anything measured for the first time is recorded as newly looked at rather
+          than newly appeared.</p>
+        <div style="margin-top:var(--space-4);display:flex;gap:var(--space-2)">
+          <button class="btn ghost sm" style="background:transparent;color:var(--text-on-ink);border-color:#3a3a30">Turn it back on</button>
+        </div>
+      </div>
+      ${declaration(false)}
+      <div class="anno">
+        <span class="ml">the one Custody transition with no Address departure beside it</span>
+        Withdrawal is the case ADR-0013 §5 splits from the other: the addresses are still cited, so they stay
+        and the gate closes over them. Per CONTEXT.md the gate closing does not open a gap directly — it stops
+        feeding those timelines and the last value ages out under the currency bound, which is why the panel
+        can honestly say a toggle inside one cadence is a non-event and why <em>undo</em> is free rather than
+        merely offered. Off is the safe direction, so it is a consequence panel and not a confirmation gate:
+        the operator is told what just happened, not asked to approve narrowing their own gate.
+      </div>
+    </div>`;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: CHECKLIST — #28's day-one checklist, step 1 rewritten.
+
+   The custody extension is NOT a fifth step. A step renders `todo` forever
+   for an operator on shared hosting who is correct to leave it off, which is
+   the nag this ticket forbids — and the model says it is a property of a
+   name-scope Seed, not a kind of Seed, so a step would contradict ADR-0013 §3
+   on screen. It is a decision inside step 1.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function checklist(done, deep) {
+  const steps = [
+    ["Declare your domain", "where your estate ends", [
+      "Gives coverage a denominator. Until one exists there is no figure to report — not 0%.",
+      "Type the registrable domain — <span class='mono'>example.com</span>, not a subdomain. Everything beneath it is inside the boundary, and for an estate that runs on rented infrastructure this is the whole of what there is to declare.",
+      "Then one decision, off by default: whether the machines your names point to are yours to probe. On shared hosting or behind a CDN they are not, and off is the right answer.",
+      "If you also hold address space of your own, declare it as a range here as well. A range additionally lets the registry paths propose the rest of that holder's blocks for you to confirm.",
+    ]],
+    ["Upload a zone file", "enables removal detection", [
+      "Makes your own zone <span class='mono'>enumerable</span> over that scope, which is the only thing that licenses silence to mean <em>gone</em>.",
+      "Without it a scope can report what appeared and never what disappeared, because every other source reaching it is corroborative.",
+    ]],
+    ["Add an internet vantage", "enables exposure", [
+      "Exposure compares an internet reading against an internal one. With one vantage the conclusion has no definition.",
+      "The exposure board and its census both depend on this. Nothing else on this screen does.",
+    ]],
+    ["Run the first batch", "establishes the baseline", [
+      "The first batch is measurement. The second is the first that can be compared with anything.",
+      "Each batch records the scope it completed, which is what every figure on this screen is a fraction of.",
+    ]],
+  ];
+  return `
+  <div class="card">
+    <div class="card-h"><h2 style="font-size:var(--text-base)">What coverage needs</h2>
+      <span class="sp"></span><span class="ml">${done} of 4</span></div>
+    <table><tbody>
+      ${steps.map((s,i) => `
+        <tr>
+          <td style="width:28px;${deep ? "vertical-align:top;padding-top:12px" : ""}" class="faint mono">${i+1}</td>
+          <td>
+            <span style="font-weight:${i < done ? "400" : "var(--weight-semibold)"}">${s[0]}</span>
+            <span class="muted"> — ${s[1]}</span>
+            ${deep ? `<div class="muted" style="margin-top:var(--space-2);max-width:720px;line-height:var(--leading-body);font-size:var(--text-sm)">
+              ${s[2].map(l => `<div style="margin-top:4px">${l}</div>`).join("")}</div>` : ``}
+          </td>
+          <td class="num" style="width:80px;${deep ? "vertical-align:top;padding-top:12px" : ""}">${
+            i < done ? `<span class="tag on">done</span>` : `<span class="tag off">todo</span>`}</td>
+        </tr>`).join("")}
+    </tbody></table>
+  </div>`;
+}
+
+function checklistScreen(density) {
+  const board = density === "board";
+  return `
+    <h1 class="page">${board ? "Exposure" : "Coverage"}</h1>
+    <div class="sub">${board
+      ? "Exposure is derived across vantages. You have none configured."
+      : "Nothing has been measured, so nothing below is complete or incomplete yet."}</div>
+    <div class="stack">
+      <div class="empty">
+        <h2>${board ? "No exposure can be constructed" : "No coverage to report"}</h2>
+        <p>${board
+          ? "Exposure is a conclusion drawn by comparing what an internet vantage reaches against what an internal one reaches. With no internet vantage the conclusion has no definition — it is not hidden from you, it does not yet exist."
+          : "Coverage is how much of what you declared was actually measured. You have declared nothing, so there is no denominator — this is not zero coverage, it is no question yet."}</p>
+        <div class="acts">
+          <button class="btn">Declare your domain</button>
+          ${board ? `<button class="btn ghost">Add an internet vantage</button>` : ``}
+        </div>
+      </div>
+      ${checklist(0, !board)}
+      <div class="anno">
+        <span class="ml">what #51 changed here</span>
+        Step 1 goes from <em>Declare a seed</em> to <strong>Declare your domain</strong>, and the empty
+        state's button with it. The custody decision lives inside step 1's expanded density, phrased as a
+        decision rather than a task, and there is <strong>no fifth step</strong> — a step renders
+        <span class="mono">todo</span> forever against an operator who is correct to leave the extension off,
+        and the checklist counter would read <span class="mono">4 of 5</span> for the life of the install.
+        The capability annotation stays a capability annotation: nothing here carries a figure.
+      </div>
+      ${board ? `` : `
+      <div class="note">
+        <span class="ml">the same screen, later</span>
+        Once a vantage is configured and a batch has completed, this page reports how much of each seed scope
+        was reached, from where, and what is still missing. The checklist above does not go away — it becomes
+        the part of this page that is not yet satisfied.
+      </div>`}
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: PLACEMENT — three homes for the current-extension rendering
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const PLACE = {
+  A() {
+    return `
+    <h1 class="page">A — a panel inside the declaration</h1>
+    <div class="sub">Seeds › example.com. The census sits directly beneath the words it is the extension of.</div>
+    <div class="stack">
+      <div class="anno">
+        <span class="ml">chosen</span>
+        ADR-0013 §7 names two carriers for one hazard and they only work as a pair: the declaration says what
+        is being asserted, and the census shows what the assertion currently reaches. Split across screens the
+        pair breaks, and the operator deciding whether their assertion is true is looking at the declaration,
+        not at a coverage report. It also fixes the moment: the census renders live as the box is ticked,
+        before the seed is saved.
+      </div>
+      ${declaration(true)}
+      ${census()}
+      <div class="note">
+        <span class="ml">one line elsewhere, not a second census</span>
+        Coverage carries a link and the same count read from the same computation — never a second count. #28
+        made the board's census derive from the board's own partition rather than being counted independently,
+        after two numbers on one screen disagreed the moment a batch dead-lettered. The same rule applies to a
+        number appearing on two screens.
+        <div class="mono" style="margin-top:var(--space-2);font-size:var(--text-sm)">
+          Coverage › <span class="muted">custody extension on for</span> example.com <span class="muted">·</span>
+          ${N_ADDR} addresses <span class="muted">·</span> <a href="#">see the list →</a></div>
+      </div>
+    </div>`;
+  },
+
+  B() {
+    return `
+    <h1 class="page">B — a section on Coverage</h1>
+    <div class="sub">Coverage. The census as a panel among the coverage panels.</div>
+    <div class="stack">
+      <div class="anno no">
+        <span class="ml">rejected</span>
+        Coverage is <em>how much of what you declared was measured</em>, and every panel on it carries a
+        figure against a declared denominator. This census has none — how many addresses the extension
+        <em>ought</em> to cover is estate completeness, which #28 ruled unmeasurable and the operator is the
+        only source for. So it lands as the one panel on Coverage with no number, which is the exact shape #28
+        gave the propose half, and it re-fuses the two things #28 and ADR-0012 spent two tickets separating.
+        It also separates the census from the declaration whose extension it is, breaking ADR-0013 §7's pair.
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 style="font-size:var(--text-base)">Measurement coverage</h2>
+          <span class="sp"></span><span class="mono muted" style="font-size:var(--text-sm)">99.3% this cycle</span></div>
+        <table>
+          <thead><tr><th>Seed scope</th><th>Vantage</th><th class="num">Measured</th></tr></thead>
+          <tbody>
+            <tr><td class="m">example.com</td><td class="m">internet-01</td><td class="num">1,284/1,290</td></tr>
+            <tr><td class="m">example.com</td><td class="m">instance</td><td class="num">1,290/1,290</td></tr>
+          </tbody>
+        </table>
+      </div>
+      ${census(true)}
+      <div class="anno no">
+        <span class="ml">the tell</span>
+        Read the two panels together. The first is a fraction; the second is a bare list beside it. On this
+        screen a panel with no figure reads as a panel whose figure is missing.
+      </div>
+    </div>`;
+  },
+
+  C() {
+    return `
+    <h1 class="page">C — a view on Subjects</h1>
+    <div class="sub">Subjects, filtered to addresses whose custody is yours.</div>
+    <div class="stack">
+      <div class="anno no">
+        <span class="ml">rejected</span>
+        The rows are right and the screen is wrong. Subjects answers <em>what is in the estate</em>; this
+        question is <em>what does my declaration reach</em>, and the filter that produces the same rows carries
+        no tie back to the declaration — the operator cannot read <em>did I over-assert</em> off it, and would
+        have to know to construct the filter. It also puts a load-bearing safety surface on a screen that is
+        unspecified and unprototyped, which is where the map's own patch says it still is.
+      </div>
+      <div class="card">
+        <div class="card-h"><h2 style="font-size:var(--text-base)">Subjects</h2>
+          <span class="sp"></span>
+          <span class="mono muted" style="font-size:var(--text-sm)">kind: address · custody: operator</span></div>
+        <table>
+          <thead><tr><th>Address</th><th>Custody</th><th>Cited by</th><th class="num">Services</th><th class="num">First seen</th></tr></thead>
+          <tbody>
+            ${COVERED.slice(0,6).map(r => `
+              <tr><td class="m">${r.addr}</td><td><span class="tag on">operator</span></td>
+                  <td class="m muted">${r.name}</td><td class="num">${r.svc}</td>
+                  <td class="num faint">${r.since}</td></tr>`).join("")}
+            <tr><td colspan="5" class="faint" style="font-size:var(--text-sm)">…${COVERED.length - 6} more</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="anno no">
+        <span class="ml">the tell</span>
+        Nothing on this screen says which declaration put these addresses here, and nothing says what is
+        <em>not</em> covered — the four names whose chains leave the zone are absent by construction, since
+        they are not addresses under operator custody. The boundary rule the declaration asserts is invisible
+        exactly where the operator would go to audit it.
+      </div>
+    </div>`;
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: NOTQUEUE — the census beside the thing ADR-0002 rejects
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function notqueue() {
+  return `
+  <h1 class="page">Display, not approval</h1>
+  <div class="sub">The same twelve rows, drawn twice. The right-hand one is forbidden.</div>
+  <div class="stack">
+    <div class="anno">
+      <span class="ml">why this screen exists</span>
+      ADR-0002 rejects a per-address approval queue and ADR-0013 §7 re-states it, but the ticket's real risk
+      is visual: a census of addresses and a queue of addresses are the same table with a column added. Drawn
+      side by side the discriminators are cheap and checkable.
+    </div>
+    <div class="row">
+      <div class="col stack">
+        <div class="ml">census — ships</div>
+        ${census(true)}
+      </div>
+      <div class="col stack">
+        <div class="ml" style="color:var(--danger)">queue — does not ship</div>
+        <div class="card" style="border-color:var(--danger)">
+          <div class="card-h" style="border-bottom-color:var(--danger)">
+            <h2 style="font-size:var(--text-base)">Addresses awaiting your approval</h2>
+            <span class="sp"></span><span class="tag fault">${COVERED.length} pending</span></div>
+          <table>
+            <thead><tr><th></th><th>Address</th><th>Cited by</th><th></th></tr></thead>
+            <tbody>
+              ${COVERED.slice(0,6).map(r => `
+                <tr>
+                  <td style="width:24px"><span style="display:inline-block;width:14px;height:14px;border:1px solid var(--border-ink)"></span></td>
+                  <td class="m">${r.addr}</td><td class="m muted">${r.name}</td>
+                  <td style="text-align:right"><button class="btn sm ghost">Approve</button></td></tr>`).join("")}
+              <tr><td colspan="4" class="faint" style="font-size:var(--text-sm)">…${COVERED.length - 6} more awaiting review</td></tr>
+            </tbody>
+          </table>
+          <div class="card-f" style="border-top-color:var(--danger)">
+            <button class="btn accent sm">Approve all ${COVERED.length}</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2 style="font-size:var(--text-base)">Six discriminators</h2></div>
+      <table>
+        <thead><tr><th>Census</th><th>Queue</th></tr></thead>
+        <tbody>
+          <tr><td>No control in any row.</td><td class="muted">A checkbox and a button per row.</td></tr>
+          <tr><td>No pending state — every row is already in force.</td><td class="muted">A count of items not yet cleared.</td></tr>
+          <tr><td>Ordered by the name citing the address.</td><td class="muted">Ordered by what needs attention.</td></tr>
+          <tr><td>No badge anywhere in the navigation.</td><td class="muted">A number on the nav that goes down as you work.</td></tr>
+          <tr><td>The only act is the one act on the whole declaration: turn it off.</td><td class="muted">An act per address, forever.</td></tr>
+          <tr><td>Header states a fact: <span class="mono">${N_ADDR} addresses · ${N_NAME} names</span>.</td><td class="muted">Header states a task.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="anno">
+      <span class="ml">finding for #50</span>
+      #50 is drawing what the operator sees when confirming or declining a <span class="mono">Proposal</span>,
+      which <em>is</em> legitimately a queue: a third party's suggestion, per scope, with confirm and decline
+      on it. So the product will ship both tables, and the right-hand pattern is correct there and forbidden
+      here. The distinguishing question is not <em>whose addresses</em> but <em>whose claim</em> — a proposal
+      is somebody else's guess the operator adjudicates, a census is the operator's own declaration read back
+      to them. If the two ever share a component, that shared component must not carry per-row controls by
+      default.
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ROUTER + SWITCHER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const SCREENS   = ["checklist","declaration","placement","notqueue"];
+const STATES    = ["off","on","withdrawn"];
+const DENSITIES = ["board","coverage"];
+const VARIANTS  = ["A","B","C"];
+
+function params() {
+  const p = new URLSearchParams(location.search);
+  const g = (k, list, dflt) => { const v = p.get(k); return list.includes(v) ? v : dflt; };
+  return {
+    screen:  g("screen",  SCREENS,   "declaration"),
+    state:   g("state",   STATES,    "on"),
+    density: g("density", DENSITIES, "coverage"),
+    variant: g("variant", VARIANTS,  "A"),
+  };
+}
+function go(next) {
+  const s = { ...params(), ...next };
+  history.replaceState(null, "", "?" + new URLSearchParams(s).toString());
+  render();
+}
+function render() {
+  const { screen, state, density, variant } = params();
+  let body, active;
+  if (screen === "checklist")        { body = checklistScreen(density); active = density === "board" ? "Exposure" : "Coverage"; }
+  else if (screen === "declaration") { body = DECL[state](); active = "Seeds"; }
+  else if (screen === "placement")   { body = PLACE[variant](); active = variant === "A" ? "Seeds" : variant === "B" ? "Coverage" : "Subjects"; }
+  else                               { body = notqueue(); active = "Seeds"; }
+  document.getElementById("app").innerHTML = chrome(active, body);
+  buildSwitch({ screen, state, density, variant });
+}
+function buildSwitch(cur) {
+  const sets = { screen: SCREENS, state: STATES, density: DENSITIES, variant: VARIANTS };
+  const shown = {
+    screen: true,
+    state: cur.screen === "declaration",
+    density: cur.screen === "checklist",
+    variant: cur.screen === "placement",
+  };
+  document.querySelectorAll("#switch .grp").forEach(g => {
+    const k = g.dataset.key;
+    g.style.display = shown[k] ? "" : "none";
+    g.querySelectorAll("button").forEach(b => b.remove());
+    sets[k].forEach(v => {
+      const b = document.createElement("button");
+      b.textContent = v;
+      if (cur[k] === v) b.className = "on";
+      b.onclick = () => go({ [k]: v });
+      g.appendChild(b);
+    });
+  });
+}
+render();
+</script>
+</body>
+</html>
