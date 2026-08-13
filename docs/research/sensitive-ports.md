@@ -32,7 +32,7 @@ Three constraints from decisions already made shape the answer before any eviden
 
 | Decision | Answer |
 |---|---|
-| The list | **36 `(port, transport)` pairs** in three classes — §3 |
+| The list | **38 `(port, transport)` pairs** in three classes — §3 |
 | Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2 |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
@@ -93,6 +93,21 @@ That is an attestation. Without allowing it, the list would flag MySQL and not P
 asymmetry driven by a documentation accident rather than by any difference in the two services'
 deployment models, which is exactly the kind of arbitrariness that destroys a curated list's
 credibility.
+
+**But the two forms are not equally strong, and the list must not hide the difference.** Several
+ports everyone "knows" are sensitive turn out to have **no vendor sentence behind them at all** —
+only a documented default. Disclosed here rather than smoothed over:
+
+| Row | Footing |
+|---|---|
+| 6379 Redis, 11211 memcached, 3306 MySQL, 1433 MS SQL, 9200 Elasticsearch, 873 rsync, 445 SMB, 623 IPMI, 161 SNMP | **Explicit prohibition** in the owner's own words |
+| 27017/27018/27019 MongoDB, 2049 NFS, 2181 ZooKeeper, 25672 RabbitMQ, 2376 Docker | **Explicit trusted-network scoping**, slightly weaker than a prohibition |
+| **5432 PostgreSQL, 5984 CouchDB, 9042 Cassandra** | **Shipped default only** — no prohibition exists upstream |
+
+The last row is the weak footing. PostgreSQL is treated at length in §4.5; Cassandra's strongest
+upstream sentence is an attack-surface observation rather than a prohibition; and CouchDB's actual
+"do not expose" warning covers the **Erlang distribution port, not 5984**, so it must not be
+transposed onto the HTTP API. All three are on the list, and all three are labelled.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -196,8 +211,19 @@ numbers generally. Many of the best-known sensitive ports are **squatted, not re
 | 8500/tcp | `fmtp` — "Flight Message Transfer Protocol" | Consul HTTP API |
 | 9092/tcp | `XmlIpcRegSvc` — "Xml-Ipc Server Reg" | Kafka |
 | 9100/tcp | `hp-pdl-datastr` — "PDL Data Streaming Port" | Prometheus node_exporter |
-| 1521/tcp | `ncube-lm` — "nCube License Manager", annotated **"Unauthorized Use Known on port 1521"** | Oracle DB listener |
-| 10250/tcp, 10255/tcp, 9042/tcp, 6000/tcp, 15672/tcp | **not registered at all** | kubelet, Cassandra, X11, RabbitMQ mgmt |
+| 1521/tcp | `ncube-lm` — "nCube License Manager", annotated "Unauthorized Use Known on port 1521". Oracle's registered SQL\*NET is port **66** | Oracle DB listener |
+| 5985, 5986/tcp | `wsman` / `wsmans` (DMTF WS-Management). The name `winrm` **is** registered — at port **47001** | WinRM |
+| 623/udp | `asf-rmcp`. The string "IPMI" appears **nowhere** in the registry | IPMI |
+| 10250/tcp, 10255/tcp, 9042/tcp, 15672/tcp | **inside explicit "Unassigned" ranges** | kubelet, Cassandra, RabbitMQ mgmt |
+
+The strings `elasticsearch`, `cassandra`, `kubelet`, `kubernetes`, `ipmi` and `jetdirect` return
+**zero matches** across all 14,531 rows of the registry — name, description and assignee. 6000/tcp
+*is* registered, as `x11`, across the 6000-6063 range.
+
+One field must not be over-read. 112 rows carry a non-empty `Unauthorized Use Reported` value — the
+`ncube-lm` annotation above is one — but the field marks **squatting on a number without
+registration**, a registry-hygiene matter. It is not a security judgement and is not used as one
+here.
 
 Properly registered to the service everyone assumes: `6379 redis`, `2375 docker` / `2376 docker-s`,
 `2379 etcd-client` / `2380 etcd-server`, `27017 mongodb`, `11211 memcache`, `5984 couchdb`,
@@ -238,25 +264,49 @@ which rows rest on convention rather than registration (§3, "reg." column).
   ([cisa.gov](https://www.cisa.gov/news-events/directives/bod-22-01-reducing-significant-risk-known-exploited-vulnerabilities)).
   Worth recording that even the government normative sources move under this list — see §7.
 
-### 2.6 The category route, stated explicitly
+### 2.6 An escape hatch that proved unnecessary
 
-Two rows on the list are carried by a syllogism rather than a single quote, and it is better to name
-the pattern than to let it hide:
+An earlier draft of this standard allowed a second attestation route for cases where no
+protocol-owner sentence could be found: the protocol's own specification attests that it *is* a
+management interface (category membership), and CISA CPG 3.S attests that interfaces in that
+category should never be exposed (category verdict). It was drafted to carry `161/udp` and
+`623/udp`.
 
-1. The protocol's **own specification** attests that it *is* a network-management or out-of-band
-   management interface (category membership).
-2. **CISA CPG 3.S** attests that interfaces in that category should never be exposed
-   (category verdict).
+**It carries nothing, because direct first-party attestations were found for both** — CISA's own
+IPMI alert and Dell's statement via CERT/CC for 623, and CISA's SNMP alert for 161 (§3.4). The
+escape hatch is recorded because its disuse is the strongest available statement about the
+standard's tightness:
 
-This is a legitimate second attestation route because CISA is not being asked to know anything about
-ports — only about the category, which is the thing it actually has a position on. It carries
-`161/udp` (SNMP) and `623/udp` (IPMI/BMC), and nothing else.
+> **No row on this list rests on a government or cloud-provider source alone.** Every one of the 38
+> is attested by the specification, the project, or the vendor that owns the protocol.
+
+### 2.7 The most tempting laundering instance in the corpus, and why it was refused
+
+`111/tcp` (rpcbind/portmapper) is the case that shows the §2.3 rule earning its keep, so it is worth
+recording rather than leaving as a silent exclusion.
+
+There is an obvious CISA citation available — Alert TA14-017A, *UDP-Based Amplification Attacks* —
+which names "Portmap (RPCbind)" with a bandwidth amplification factor of "7 to 28". It is
+authoritative, it is CISA, and it is about internet-reachable rpcbind. **It is also a frequency and
+magnitude source, not a position.** It says how hard an exposed rpcbind can hit someone; it does not
+say that exposing it is never correct. Citing it for the latter is precisely the substitution this
+ticket was written to prevent, and it is tempting exactly because the source is so reputable.
+
+Checking the protocol's actual owners closes the door rather than opening it:
+
+- `rpcbind(8)` contains **no security section and no exposure statement** at all.
+- RFC 1833's Security Considerations section reads, in its entirety: *"Security issues are not
+  discussed in this memo."* That is an explicit non-statement, citable as such and as nothing else.
+
+So 111 is excluded — not because it is defensible on the internet, but because **we could not find
+anyone entitled to say it isn't.** That is an uncomfortable result and it is the correct one; the
+alternative is a list whose rows are backed by whichever authoritative-looking document was nearest.
 
 ---
 
 ## 3. The list
 
-**36 `(port, transport)` pairs.** The `reg.` column records whether IANA registers the port to the
+**38 `(port, transport)` pairs.** The `reg.` column records whether IANA registers the port to the
 service named — `yes` means registered, `sq.` means the service squats on a registration belonging
 to something else, `--` means the port is unregistered. Per §2.4 this is disclosure, not
 qualification: convention, not registration, is the determinacy test.
@@ -285,8 +335,8 @@ qualification: convention, not registration, is the determinacy test.
 | 23/tcp | Telnet | yes | Username, password and the entire session travel unprotected; SSH on 22 is the standardised replacement |
 | 21/tcp | FTP control | yes | `PASS` sends the password in clear text; SFTP and FTPS are the standardised replacements |
 | 512/tcp | rexec | yes | IANA's own registry describes it as "remote process execution; authentication performed using passwords and UNIX login names" |
-| 513/tcp | rlogin | yes | Cleartext credentials over an untrusted path; superseded by SSH |
-| 514/tcp | rsh | yes | Cleartext, and trust is host-based rather than credential-based; superseded by SSH |
+| 513/tcp | rlogin | yes | Authentication is delegated to host-based trust, which a compromised DNS or network can forge; superseded by SSH |
+| 514/tcp | rsh | yes | Same trust model as 513, applied to arbitrary command execution; superseded by SSH |
 | 5900/tcp | VNC / RFB | yes | The RFB specification states its authentication is cryptographically weak and not intended for untrusted networks |
 | 6000/tcp | X11 display :0 | -- | The magic-cookie authenticator is transmitted without encryption, so observing it is sufficient to seize the display |
 
@@ -313,8 +363,10 @@ trade against the determinacy gate.
 | 139/tcp | NetBIOS session service | yes | Named in the same vendor perimeter-blocking directive as 445 |
 | 137/udp | NetBIOS name service | yes | Same |
 | 138/udp | NetBIOS datagram service | yes | Same |
-| 161/udp | SNMP | yes | A network-management interface by its own specification, and SNMPv1/v2c authenticate on cleartext community strings (category route, §2.6) |
-| 623/udp | IPMI / ASF-RMCP (BMC) | yes | An out-of-band server management interface — the exact class CISA says should never be directly accessible via the public internet (category route, §2.6) |
+| 2049/tcp | NFS | yes | The default `sys` auth flavour trusts a client-asserted user ID, which upstream calls adequate only "on a trusted physical network between trusted hosts" |
+| 873/tcp | rsync daemon | yes | Upstream directs outright that a cleartext daemon not be exposed to an untrusted network; a module without `auth users` is readable by anyone who reaches the port |
+| 161/udp | SNMP | yes | CISA directs that SNMP traffic be segregated onto a separate management network; SNMPv1/v2c authenticate on cleartext community strings |
+| 623/udp | IPMI / ASF-RMCP (BMC) | yes | CISA directs that IPMI be restricted to trusted internal networks, and Dell states BMCs are "not designed nor intended to be placed on or connected to the internet" |
 
 ### 3.4 The quotes behind the rows
 
@@ -374,6 +426,11 @@ trade against the determinacy gate.
 > TFTP server process so as not to violate the security of the server hosts file system."
 > — [RFC 1350, The TFTP Protocol (Revision 2)](https://www.rfc-editor.org/rfc/rfc1350.txt), §1 and Security Considerations
 
+> "TFTP has no mechanism for access control within the protocol, and there is no protection from a
+> man in the middle attack." … "In summary, use of TFTP is strongly discouraged except in the most
+> limited of circumstances where memory and CPU are at the highest premium."
+> — [RFC 3617](https://www.rfc-editor.org/rfc/rfc3617.txt), §5, a section titled "Security Considerations and Concerns about TFTP's use"
+
 **Class B.**
 
 > "The Telnet protocol normally uses passwords in the clear for authentication, and normally offers
@@ -383,16 +440,47 @@ trade against the determinacy gate.
 > — [RFC 4248, The telnet URI Scheme](https://www.rfc-editor.org/rfc/rfc4248.txt), §3
 
 > "Standard FTP [PR85] sends passwords in clear text using the "PASS" command."
-> — [RFC 2577, FTP Security Considerations](https://www.rfc-editor.org/rfc/rfc2577.txt), §5
+> — [RFC 2577, FTP Security Considerations](https://www.rfc-editor.org/rfc/rfc2577.txt), §5. §6 adds: "All data and control information (including passwords) is sent across the network in unencrypted form by standard FTP [PR85]."
 
-> "This type of authentication is known to be cryptographically weak and is not intended for use on
-> untrusted networks. Many implementations will want to use stronger security, such as running the
-> session over an encrypted channel provided by IPsec [RFC4301] or SSH [RFC4254]."
-> — [RFC 6143, The Remote Framebuffer Protocol](https://www.rfc-editor.org/rfc/rfc6143.txt), §7.2.2. §7.2.1 also defines a "None" security type: "No authentication is needed."
+For 512, 513 and 514 the attestation is IANA's own registry descriptions, which self-document the
+trust model — 512/tcp `exec` is "remote process execution; authentication performed using passwords
+and UNIX login names", and 513/tcp `login` is "remote login a la telnet; automatic authentication
+performed based on priviledged port numbers and distributed data bases which identify
+"authentication domains"" (IANA's typo preserved). RFC 1282's entire Security Considerations section
+defers to its "A Cautionary Tale":
+
+> "The rlogin protocol (as commonly implemented) allows a user to set up a class of trusted users
+> and/or hosts which will be allowed to log on as himself without the entry of a password. While
+> extremely convenient, this represents a weakening of security that has been successfully exploited
+> in previous attacks on the internet." … "Bypassing password authentication from trusted hosts
+> opens ALL the systems so configured when just one is compromised."
+> — [RFC 1282, BSD Rlogin](https://www.rfc-editor.org/rfc/rfc1282.txt)
+
+Note carefully what that does **not** say: RFC 1282's objection is to **host-based trust
+delegation**, not to cleartext credentials. The rows for 513 and 514 are worded accordingly. The
+vendor position is OpenBSD's, expressed by deletion rather than prose — `rlogin(1)`, `rlogind(8)`
+and `rexecd(8)` were removed in [OpenBSD 3.2](https://www.openbsd.org/plus32.html) and `rsh(1)` in
+[OpenBSD 5.6](https://www.openbsd.org/plus56.html) ("Removed rsh(1)"), and all three man pages
+return 404 on man.openbsd.org today.
+
+> "The RFB protocol as defined here provides no security beyond the optional and cryptographically
+> weak password check described in Section 7.2.2. In particular, it provides no protection against
+> observation of or tampering with the data stream. It has typically been used on secure physical or
+> virtual networks."
+> — [RFC 6143, The Remote Framebuffer Protocol](https://www.rfc-editor.org/rfc/rfc6143.txt), §9 (the whole section). §7.2.2 adds that VNC authentication "is known to be cryptographically weak and is not intended for use on untrusted networks", and §7.2.1 defines a "None" security type: "No authentication is needed."
+
+The claim is scoped to the RFB protocol's security type 2, not to any particular product. Vendors
+have since moved on — RealVNC scopes the DES/8-character weakness to a non-default "Legacy" mode —
+so a row asserting "VNC passwords are limited to 8 characters" would be contradicted by the vendor.
+RFC 6143 §9 carries the row instead, because it is a statement about the protocol on the wire.
 
 > "The cookie is transmitted on the network without encryption, so there is nothing to prevent a
 > network snooper from obtaining the data and using it to gain access to the X server."
-> — [Xsecurity(7)](https://man.openbsd.org/Xsecurity.7), on MIT-MAGIC-COOKIE-1, which the same page lists as "Shared plain-text "cookies""
+> — [Xsecurity(7)](https://man.openbsd.org/Xsecurity.7), on MIT-MAGIC-COOKIE-1, which the same page lists as "Shared plain-text "cookies"". [xhost(1)](https://www.x.org/releases/current/doc/man/man1/xhost.1.xhtml) describes host-based access control as "a rudimentary form of privacy control and security … only sufficient for a workstation (single user) environment".
+
+Two things frequently attributed to the X11 documentation are **not in it**, were checked, and are
+not used here: there is no sentence calling `xhost` "dangerous", and `-nolisten tcp` being the
+default is distribution and build-time behaviour that X.Org does not document as a default.
 
 **Class C.**
 
@@ -440,6 +528,21 @@ statement about legitimacy, not about risk. Every other vendor sentence gathered
 consequences. Microsoft's is about whether the traffic has any business existing — which is exactly
 the question this list asks.
 
+Microsoft names a carve-out in the next breath, and it is worth quoting because an informed reader
+will raise it:
+
+> "The primary case might be for a cloud-based server or service such as Azure Files. You should
+> create IP address-based restrictions in your perimeter firewall to allow only those specific
+> endpoints." … "Organizations can allow port 445 access to specific Azure Datacenter and O365 IP
+> ranges to enable hybrid scenarios in which on-premises clients (behind an enterprise firewall) use
+> the SMB port to talk to Azure file storage."
+
+The carve-out does not weaken the row, because it is about **outbound** access to named IP ranges —
+an on-premises client reaching Azure Files. This signal is about an **inbound listener** reachable
+from an internet vantage, which is the case Microsoft's "unlikely … legitimate" sentence covers
+without qualification. Worth recording because the distinction between the two directions is exactly
+the kind of thing a hasty reading collapses.
+
 > "Block TCP port 445 inbound from the internet at your corporate hardware firewalls."
 > — [Microsoft, Secure SMB traffic in Windows Server](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic)
 
@@ -453,17 +556,52 @@ CISA corroborates those four rows, and attaches an honest caveat worth carrying:
 > disruptions to users."
 > — [CISA/US-CERT, SMB Security Best Practices](https://www.cisa.gov/news-events/alerts/2017/01/16/smb-security-best-practices)
 
-For the two category-route rows:
+> "Typically, file data and user ID values appear unencrypted (i.e. "in the clear") on the network.
+> Moreover, NFS versions 2 and 3 use separate sideband protocols for mounting, locking and unlocking
+> files, and reporting system status of clients and servers. These auxiliary protocols use no
+> authentication." … "This is an easy system to spoof, but on a trusted physical network between
+> trusted hosts, it is entirely adequate."
+> — [nfs(5)](https://man7.org/linux/man-pages/man5/nfs.5.html), SECURITY CONSIDERATIONS, on the default `sys` auth flavour
+
+That second sentence is the cleanest "trusted-network protocol" statement in the whole corpus: it
+concedes the spoofing weakness and then names the exact deployment condition under which it is
+acceptable. The condition is the negation of an internet vantage.
+
+> "Do not expose a cleartext daemon to an untrusted network: front it with a TLS proxy (see the
+> SSL/TLS Daemon Setup section below) or run it over ssh." … "A module without "auth users" is
+> reachable by anyone who can reach the port."
+> — [rsyncd.conf(5), upstream](https://download.samba.org/pub/rsync/rsyncd.conf.5)
+
+Cited to the upstream Samba copy rather than a distribution rendering, because the two have
+diverged: the older "128 bit MD4 based challenge response system … fairly weak protection" wording
+still appears in some renderings but has been replaced upstream by SHA-512 negotiation text.
+
+For SNMP and IPMI:
 
 > "Protocol operations via SNMPv1 and SNMPv2c message wrappers support only trivial authentication
-> based on plain-text community strings and, as a result, are fundamentally insecure. When the
-> SNMPv3 specifications for security and administration, which include strong security, reached full
-> Standard status, the full Standard SNMPv1 … and the experimental SNMPv2c specifications … were
-> declared Historic due to their weaknesses with respect to security"
-> — [RFC 3410, Introduction and Applicability Statements for Internet-Standard Management Framework](https://www.rfc-editor.org/rfc/rfc3410.txt), §8.2
+> based on plain-text community strings and, as a result, are fundamentally insecure."
+> — [RFC 3410](https://www.rfc-editor.org/rfc/rfc3410.txt), §8.2. The same section supplies the counterweight that stops this being overclaimed: "the IETF standards process does not control actions of vendors or users who may choose to promote or deploy historic protocols, such as SNMPv1 and SNMPv2c, in spite of known short-comings." (RFC 3414 is the wrong citation here — it defines the threat model and never mentions community strings.)
+
+> "Segregate SNMP traffic onto a separate management network. Management network traffic should be
+> out-of-band"
+> — [CISA TA17-156A, Reducing the Risk of SNMP Abuse](https://www.cisa.gov/news-events/alerts/2017/06/05/reducing-risk-snmp-abuse)
+
+> "Restrict IPMI traffic to trusted internal networks. Traffic from IPMI (usually UDP port 623)
+> should be restricted to a management VLAN segment with strong network controls."
+> — [CISA TA13-207A, Risks of Using the Intelligent Platform Management Interface (IPMI)](https://www.cisa.gov/news-events/alerts/2013/07/26/risks-using-intelligent-platform-management-interface-ipmi), which also lists among the risks: "Passwords for IPMI authentication are saved in clear text."
+
+And the vendor statement, which is what actually carries the row:
+
+> "DRAC's are intended to be on a separate management network; they are not designed nor intended to
+> be placed on or connected to the internet."
+> — Dell, published in [CERT/CC VU#843044](https://www.kb.cert.org/vuls/id/843044)
 
 > "These out of band interfaces should never be directly accessible via the public internet."
-> — [CISA BOD 23-02 implementation guidance](https://www.cisa.gov/news-events/directives/bod-23-02-implementation-guidance-mitigating-risk-internet-exposed-management-interfaces), on the iLo/iDRAC class that 623/udp serves
+> — [CISA BOD 23-02 implementation guidance](https://www.cisa.gov/news-events/directives/bod-23-02-implementation-guidance-mitigating-risk-internet-exposed-management-interfaces), corroborating
+
+One thing deliberately **not** claimed: there is no CERT/CC note for the RAKP pre-authentication
+password-hash disclosure. VU#163057 covers a different RAKP flaw (session-ID predictability), and no
+VU# should be attributed to the hash-disclosure class.
 
 IANA registers 623/**udp** as `asf-rmcp` — "ASF Remote Management and Control Protocol" — and
 623/**tcp** as `oob-ws-http`, the DMTF out-of-band web services management protocol. They are
@@ -539,6 +677,22 @@ bears on Claim 2 and on nothing else. It has no bearing on whether the protocol 
 The residual case — an operator who has genuinely put an authenticating gateway in front of a listed
 port — is an `Annotation`, not a list change. That mechanism already exists and is the right place
 for operator opinion about a specific subject.
+
+**An objection worth surfacing, because it comes from the body that assigns the numbers.** Claim 2
+depends on the split-port pattern — plaintext on one number, TLS on another — and RFC 6335, the
+document governing the registry itself, says that pattern should not exist:
+
+> "Services are expected to include support for security, either as default or dynamically
+> negotiated in-band. The use of separate service name or port number assignments for secure and
+> insecure variants of the same service is to be avoided in order to discourage the deployment of
+> insecure services."
+> — [RFC 6335](https://www.rfc-editor.org/rfc/rfc6335.txt), §9
+
+This does not undermine the list; it explains it. The IETF's objection is to *creating* new split
+pairs, and the pairs this list relies on (23/22, 21/990, 2375/2376, 5985/5986, 110/995, 143/993) all
+predate that guidance. But it does mean the pattern will not extend to newer protocols, so Claim 2
+is a closing category rather than a growing one — which is a useful thing to know about a list whose
+revision cost is the subject of §7.2.
 
 ### 4.3 High ports that are conventionally anything
 
@@ -635,8 +789,12 @@ it refuses.
 | Excluded | Why |
 |---|---|
 | **22/tcp SSH** | Remote administration over an untrusted network is the protocol's express purpose. GCP ships it open to `0.0.0.0/0` by default |
-| **3389/tcp RDP** | Same category. CISA names it "high-risk" and Microsoft recommends JIT access — both are risk positions, not legitimacy positions. GCP ships it open by default |
-| **5985, 5986/tcp WinRM** | Same category. Azure's JIT list names them, but that is the sole evidence, and §2.3 forbids a cloud-provider list carrying a row alone |
+| **3389/tcp RDP** | Same category. Microsoft's position is **Azure-scoped** ("Disable direct RDP and SSH access to your Azure virtual machines from the internet") and no first-party non-Azure prohibition was found; CISA calls it "high-risk". Both are risk positions, not legitimacy positions. GCP ships it open by default |
+| **5985, 5986/tcp WinRM** | See below — the obvious argument for listing 5985 is factually wrong |
+| **9100/tcp** | Squats on `hp-pdl-datastr`, and HP's own best-practices document says the opposite of what one would assume: "9100 Printing should always be enabled. It is the standard printing protocol used by MFP print drivers." The print path HP tells you to disable is IPP, not 9100 |
+| **111/tcp rpcbind** | §2.7 — the only available authority is a frequency source, and the protocol's owners state nothing |
+| **389/tcp LDAP** | RFC 4513 §6.3.3 discourages cleartext credentials "unless the data on the session is protected using TLS" — so 389 with StartTLS is correct, and the port is not the discriminator |
+| **79/tcp finger** | RFC 1288's position is conditional ("should not run Finger without an explicit understanding of how much information it is giving away"), and finger was designed as an internet-facing service, so Claim 3 fails |
 | **6443/tcp kube-apiserver** | §4.4 |
 | **5601/tcp Kibana** | Elastic states no prohibition; Kibana is routinely and legitimately fronted on the internet behind auth. Its evidence is a secure default only, and it squats on `esmagent` |
 | **8500/tcp Consul HTTP API** | Consul "is not secure-by-default" and ships `acl.default_policy` = `"allow"`, but its stated position is only that external access "should be considered", and 8500 is registered to `fmtp` |
@@ -646,10 +804,34 @@ it refuses.
 | **1099/tcp Java RMI registry** | Contrary to reputation, modern JDK defaults are secure — `jmxremote.ssl` and `jmxremote.authenticate` both default to `true` |
 | **Hadoop NameNode / YARN UIs** | Hadoop's default `simple` authentication would qualify under Claim 1, but the web UI port moved from 50070 to 9870 between major versions, so port-to-service inference is version-dependent. Fails determinacy |
 | **110/tcp POP3, 143/tcp IMAP, 25/tcp SMTP** | Mail protocols whose intended audience genuinely is the internet. Cleartext variants are deprecated, but a server on 143 offering STARTTLS is correct, so the *port* is not the discriminator |
-| **111/tcp rpcbind, 2049/tcp NFS, 873/tcp rsync, 389/tcp LDAP, 79/tcp finger** | Plausible members for which no verbatim primary attestation was obtained in this pass. Deliberately excluded rather than admitted on reputation — see §8 |
 
-The last row is the discipline the standard exists to enforce. Every one of those five is a port a
-practitioner would casually call "never internet-facing", and four of them sit in the nmap top-100.
+**The WinRM case deserves its own paragraph, because the tempting argument is factually false.**
+5985 is the WinRM *HTTP* listener, and the natural inference — HTTP transport, therefore cleartext
+credentials, therefore Claim 2 — is contradicted by Microsoft directly:
+
+> "Regardless of the transport protocol used (HTTP or HTTPS), WinRM always encrypts all PowerShell
+> remoting communication after initial authentication."
+> — [Security considerations for PowerShell Remoting using WinRM](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/winrm-security)
+
+The defensible narrower statement is that 5985 carries no *transport-layer* TLS, so confidentiality
+rests on the negotiated authentication protocol — AES-256 under modern Kerberos, RC4-128 under NTLM,
+and none at all under Basic, which the same page notes "provides no encryption". That is a real
+weakness and it is **not** the same claim, so 5985 does not qualify under Claim 2. Nor is there any
+first-party Microsoft sentence prohibiting internet exposure of WinRM; the strongest that exists is
+a firewall warning and the fact that no listener is configured by default. Recording this because it
+is exactly the reading-laundered-into-a-position failure §2 exists to catch, and it nearly landed a
+row on the list.
+
+**Mail ports were checked properly and the nuance holds.** RFC 8314 is the document that would be
+cited to condemn 110 and 143, and it cannot be: it governs MUA-to-server submission and access only,
+it excludes MTA relay explicitly ("This memo does not address the use of TLS with SMTP for message
+relay"), it never names 110 or 143 by number, and it rules that 587-with-STARTTLS and 465-with-
+implicit-TLS have "no significant difference" in security properties. Its position is *deprecate
+cleartext as soon as practicable* — not *these ports must not be internet-facing*. 25, 110, 143 and
+587 all remain legitimately internet-facing.
+
+The exclusions above are the discipline the standard exists to enforce. Several are ports a
+practitioner would casually call "never internet-facing", and most sit in the nmap top-100.
 Admitting them on the strength of that feeling is exactly how a curated list becomes unfalsifiable.
 
 ---
@@ -732,8 +914,9 @@ Computing the current `verge-core` hot set from
 [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 — nmap top-100 TCP, minus the named
 ephemeral/obsolete tail, plus the named modern-services supplement — against §3's list:
 
-**In the hot set already — 26 of 36:** 21, 23, 139, 445, 513, 514, 2181, 2375, 2376, 2379, 2380,
-3306, 5432, 1433, 5900, 5984, 6000, 6379, 9042, 9200, 9300, 10250, 10255, 11211/tcp, 27017, 27018.
+**In the hot set already — 28 of 38:** 21, 23, 139, 445, 513, 514, 873, 2049, 2181, 2375, 2376,
+2379, 2380, 3306, 5432, 1433, 5900, 5984, 6000, 6379, 9042, 9200, 9300, 10250, 10255, 11211/tcp,
+27017, 27018.
 
 **Missing from the hot set — 4 TCP rows that would silently never fire:**
 
@@ -835,14 +1018,16 @@ be wrong within a year.
    credentials are never submitted. What can be established without crossing that line is unresolved.
 3. **Does the signal fire on `edge-only` as well as `exposed`?** §4.1 argues it must. This should be
    stated in the rule definition rather than left to the implementer, because the failure is silent.
-4. **Do the five ports excluded for want of attestation deserve a second pass?** 111/tcp rpcbind,
-   2049/tcp NFS, 873/tcp rsync, 389/tcp LDAP, 79/tcp finger. Four are in the nmap top-100 and all
-   five are plausible. They were excluded on evidence discipline, not on judgement, and a targeted
-   pass for primary attestations could admit them — but that pass must happen **before** v1 ships,
-   because adding them later costs a comparability cycle (§7.2).
-5. **Should the `reg.` disclosure surface in the product?** Nine rows rest on convention rather than
-   IANA registration. When the signal fires on 9200 it is asserting Elasticsearch on a port
-   registered to `wap-wsp`. The evidence the signal cites should probably say so.
+4. **Do the three ports still excluded for want of attestation deserve another pass?** 111/tcp
+   rpcbind, 389/tcp LDAP, 79/tcp finger. A targeted search admitted 2049/tcp and 873/tcp on the
+   strength of `nfs(5)` and upstream `rsyncd.conf(5)`, which is direct evidence that the remaining
+   three are a search problem rather than a settled verdict — though §2.7 argues 111 genuinely has
+   no owner willing to state a position. Any such pass must happen **before** v1 ships, because
+   adding a row later costs a comparability cycle (§7.2).
+5. **Should the `reg.` disclosure surface in the product?** Several rows rest on convention rather
+   than IANA registration. When the signal fires on 9200 it is asserting Elasticsearch on a port
+   registered to `wap-wsp`, and on 623/udp it is asserting IPMI on a number where the string "IPMI"
+   appears nowhere in the registry. The evidence the signal cites should probably say so.
 6. **Does this note's evidence standard generalise to the other v1 signals?** The claim/attestation/
    determinacy structure was built for the one signal with curated reference data, but "state the
    claim, cite the source that owns it" is not specific to ports.
@@ -856,11 +1041,15 @@ Government and standards bodies
 - [CISA Cross-Sector Cybersecurity Performance Goals v2.0](https://www.cisa.gov/sites/default/files/2025-12/CPG_Report_2.0_508c.pdf) (December 2025), goal 3.S — verified against the PDF's own text
 - [CISA BOD 22-01 (Revoked)](https://www.cisa.gov/news-events/directives/bod-22-01-reducing-significant-risk-known-exploited-vulnerabilities) — revoked 10 June 2026, superseded by BOD 26-04
 - [CISA/US-CERT, SMB Security Best Practices](https://www.cisa.gov/news-events/alerts/2017/01/16/smb-security-best-practices)
+- [CISA TA13-207A, Risks of Using the Intelligent Platform Management Interface (IPMI)](https://www.cisa.gov/news-events/alerts/2013/07/26/risks-using-intelligent-platform-management-interface-ipmi) · [CISA TA17-156A, Reducing the Risk of SNMP Abuse](https://www.cisa.gov/news-events/alerts/2017/06/05/reducing-risk-snmp-abuse)
+- [CERT/CC VU#843044](https://www.kb.cert.org/vuls/id/843044) — carries Dell's statement that DRACs are "not designed nor intended to be placed on or connected to the internet"
+- [NIST SP 800-123, Guide to General Server Security](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-123.pdf) §6.5 — corroborating, not load-bearing
 - [CISA AA22-137A, Weak Security Controls and Practices Routinely Exploited for Initial Access](https://www.cisa.gov/news-events/cybersecurity-advisories/aa22-137a)
 - [CISA #StopRansomware Guide v3.0](https://www.cisa.gov/sites/default/files/2025-03/StopRansomware-Guide%20508.pdf)
 - [NSA/CISA Kubernetes Hardening Guidance v1.2](https://media.defense.gov/2022/Aug/29/2003066362/-1/-1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF) (August 2022)
 - [IANA Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml) — registry data retrieved as [CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv), last updated 2026-08-11
-- [RFC 1350 (TFTP)](https://www.rfc-editor.org/rfc/rfc1350.txt) · [RFC 2577 (FTP Security Considerations)](https://www.rfc-editor.org/rfc/rfc2577.txt) · [RFC 3410 (SNMP framework)](https://www.rfc-editor.org/rfc/rfc3410.txt) · [RFC 4248 (telnet URI scheme)](https://www.rfc-editor.org/rfc/rfc4248.txt) · [RFC 6143 (RFB / VNC)](https://www.rfc-editor.org/rfc/rfc6143.txt) · [RFC 6335 (port registry procedures)](https://www.rfc-editor.org/rfc/rfc6335.txt)
+- [RFC 1282 (BSD Rlogin)](https://www.rfc-editor.org/rfc/rfc1282.txt) · [RFC 1350 (TFTP)](https://www.rfc-editor.org/rfc/rfc1350.txt) · [RFC 2577 (FTP Security Considerations)](https://www.rfc-editor.org/rfc/rfc2577.txt) · [RFC 3410 (SNMP framework)](https://www.rfc-editor.org/rfc/rfc3410.txt) · [RFC 3617 (TFTP URI scheme + security concerns)](https://www.rfc-editor.org/rfc/rfc3617.txt) · [RFC 4248 (telnet URI scheme)](https://www.rfc-editor.org/rfc/rfc4248.txt) · [RFC 4513 (LDAP authentication methods)](https://www.rfc-editor.org/rfc/rfc4513.txt) · [RFC 6143 (RFB / VNC)](https://www.rfc-editor.org/rfc/rfc6143.txt) · [RFC 6335 (port registry procedures)](https://www.rfc-editor.org/rfc/rfc6335.txt) · [RFC 8314 (cleartext mail considered obsolete)](https://www.rfc-editor.org/rfc/rfc8314.txt)
+- Checked and citable only as **non-statements**: RFC 854 (Telnet) has no Security Considerations section and no occurrence of "security", "password", "encrypt" or "authentic"; [RFC 1833](https://www.rfc-editor.org/rfc/rfc1833.txt)'s Security Considerations reads in full: "Security issues are not discussed in this memo."
 - [CIS Amazon Web Services Foundations Benchmark v1.2.0](https://d1.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf) (05-23-2018) — the CIS-authored PDF, ungated. Current versions are behind a registration form at [learn.cisecurity.org/benchmarks](https://learn.cisecurity.org/benchmarks); the "remote server administration ports" phrasing in v3.0.0+ was **not** verified against a CIS document and is second-hand via AWS's mapping page
 
 Cloud providers
@@ -891,8 +1080,19 @@ Upstream projects
 - [Oracle Net Listener security](https://docs.oracle.com/en/database/oracle/oracle-database/26/netag/managing-oracle-net-listener-security.html)
 - [Java JMX monitoring and management](https://docs.oracle.com/en/java/javase/21/management/monitoring-and-management-using-jmx-technology.html)
 - [Neo4j security checklist](https://neo4j.com/docs/operations-manual/current/security/checklist/)
-- [Xsecurity(7)](https://man.openbsd.org/Xsecurity.7)
+- [Xsecurity(7)](https://man.openbsd.org/Xsecurity.7) · [xhost(1), X.Org](https://www.x.org/releases/current/doc/man/man1/xhost.1.xhtml)
+- [nfs(5)](https://man7.org/linux/man-pages/man5/nfs.5.html) · [rsyncd.conf(5), upstream Samba copy](https://download.samba.org/pub/rsync/rsyncd.conf.5)
+- [OpenBSD 3.2 changelog](https://www.openbsd.org/plus32.html) (removal of rlogin/rlogind/rexecd) · [OpenBSD 5.6 changelog](https://www.openbsd.org/plus56.html) (removal of rsh)
+- [Microsoft, Security considerations for PowerShell Remoting using WinRM](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/winrm-security) · [Azure network security best practices](https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices)
+- [HP Printing Security Best Practices](https://h10032.www1.hp.com/ctg/Manual/c05318850.pdf) — cited for the position that 9100 "should always be enabled"
+
+Checked and found to contain **no** position, which is itself the finding
+- `rpcbind(8)` — no security section, no exposure statement
+- [Apache Kafka security overview](https://kafka.apache.org/43/security/security-overview/) — "security is optional - non-secured clusters are supported"
+- PostgreSQL `ssl-tcp.html` and `client-authentication.html` — no statement on network placement (§4.5)
 
 Consulted and deliberately not used as evidence
 - `nmap-services` open-frequency data — frequency, and 2008-vintage. Used in §6.1 only to state where a port ranks, never to justify a verdict
 - Shodan / Censys internet-exposure studies — frequency. Named as candidates by the ticket; not used anywhere in this note
+- [CISA TA14-017A, UDP-Based Amplification Attacks](https://www.cisa.gov/news-events/alerts/2014/01/17/udp-based-amplification-attacks) — a magnitude source (portmap's bandwidth amplification factor is given as "7 to 28"), not a position. It is the most tempting laundering candidate in the corpus and §2.7 records why it was refused
+- Redis's protected-mode prevalence rhetoric — §2.5
