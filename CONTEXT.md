@@ -114,7 +114,9 @@ A fully-qualified domain name. Has DNS records; has no ports. The only subject w
 departure needed deciding: it leaves when our own resolver measures a Name Error from
 every available vantage, never because time passed. Under a `Shadowed` answer it cannot
 leave at all, and stays visibly unconfirmed until the operator supplies coverage or
-excludes it. See [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md).
+excludes it — as it cannot beneath a `Lame` delegation, where there is nobody left to
+return a Name Error and the names beneath hold a `Gap` rather than a value. See
+[ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md).
 _Avoid_: domain, subdomain, hostname, host
 
 **Address**:
@@ -154,6 +156,19 @@ it reports a resolution change the same night. Whether a name is admitted under 
 turns on its `Citation`, not on this answer — a certificate SAN survives, a guessed label
 does not.
 _Avoid_: unverifiable, synthetic, wildcard hit
+
+**Lame**:
+The value a `resolution` observation takes when every nameserver the parent zone delegates
+a `Name` to was reached and none of them serves it — RFC 8499 §7's *lame delegation*, and
+the project uses the protocol's own word rather than a security taxonomy's. It is a
+**measurement of the operator's infrastructure, not a failure of ours**, which is what
+separates it from a source error, and it is only available because the measurement binary
+queries the delegated authorities directly: a recursive resolver's SERVFAIL cannot tell a
+dead delegation from a bad upstream, and attribution by inference is the *whose fault was
+it* judgement that would make this a coverage gap wearing a value's clothes. A delegation
+only *partly* lame is not this value — the name still resolves, so `resolution` has not
+moved — and is recorded per nameserver on `dns-record`.
+_Avoid_: servfail, dangling, broken delegation, dead NS
 
 **Certificate**:
 An X.509 certificate, held as an immutable value and shared by fingerprint across every

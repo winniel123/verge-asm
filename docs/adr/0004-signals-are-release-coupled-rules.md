@@ -54,6 +54,26 @@ rules changed"*.
 **Signals may read Derived values, and their effective version composes the versions of
 everything they read.** Versions are **per rule**, not one global rule-set version.
 
+### Amendment — [#35](https://github.com/winniel123/verge-asm/issues/35): the test is the gate; the v1 list is its output
+
+The cadence test above is the **only** bar a rule must clear to ship as a `Signal`. The v1
+set named under Consequences is that test's *output* at the time [#16](https://github.com/winniel123/verge-asm/issues/16)
+ran, not a second gate a later rule must also pass, and "the set is closed" was a fact about
+that session rather than a rule anyone adopted.
+
+This is stated because the opposite reading was already costing real work.
+[#8](https://github.com/winniel123/verge-asm/issues/8) declined to admit *zone-declared names
+that do not resolve* and recorded it as fog explicitly on the grounds that the set was
+closed, and [#17](https://github.com/winniel123/verge-asm/issues/17) declined to assert
+`lame-delegation` for the same reason. Both were right to defer to this ADR and wrong about
+what it says.
+
+So a candidate rule is admitted on the cadence test alone. What a proposal still owes is the
+ordinary accounting any addition owes — what it measures, what its `not-evaluable` case is,
+and what new measurement it requires — and the last of those is a **scope** cost to be
+weighed, never a correctness objection. A bar erected to protect the list rather than the
+property would have excluded #35 on exactly that confusion.
+
 ## Consequences
 
 - **The v1 set is:** certificate expired / not-yet-valid / expiring within N days (one rule,
@@ -62,6 +82,28 @@ everything they read.** Versions are **per rule**, not one global rule-set versi
   upgrade to TLS, a redirect to a host outside the operator's estate, and
   `sensitive-port-exposed`. Excluded: directory-listing pages, default-install pages,
   admin-panel titles.
+- **Two DNS signals join the set** under [#35](https://github.com/winniel123/verge-asm/issues/35):
+  **`lame-delegation`** (the `Name`'s `resolution` is `Lame` — its delegated nameservers were
+  reached and none serves it) and **`cname-target-name-error`** (the CNAME chain terminates at
+  a target returning a Name Error). Both carry **no reference data at all**, which is a cleaner
+  pass than anything already in the set. Both are named for the predicate they read rather than
+  the risk they suggest, per [ADR-0010](./0010-exposure-composes-two-reaches.md) — *takeover* is
+  a conclusion DNS-only evidence does not establish, and it belongs in the drill-down prose
+  where it can be hedged. Neither contains a threshold: persistence is the span's duration, not
+  a count the rule takes. On a `Shadowed` name both yield **`not-evaluable`** — there is no
+  delegation of its own to walk and no chain of its own to follow.
+- **Stages 3–4 of [#4](https://github.com/winniel123/verge-asm/issues/4)'s takeover ladder stay
+  out** — a CNAME-target provider fingerprint list and a known-error-body matcher are
+  `can-i-take-over-xyz`, which is worthless release-coupled. So the shipped signals are
+  narrower than the takeover detection their subject matter suggests, and the naming above is
+  what stops that from being a misrepresentation.
+- **These two are the first signals to alert on *clearing*.** `cname-target-name-error` stops
+  firing when the target starts existing — which is the operator re-provisioning **or somebody
+  else claiming the orphaned name**; `lame-delegation` clears when a dangling NS domain gets
+  registered. On these rules alone, a clear may be the attack having succeeded, so it is
+  reported as *this changed* and never as *resolved*. `fired → not-evaluable` remains the
+  coverage class per [#32](https://github.com/winniel123/verge-asm/issues/32) and must never be
+  worded as a clear either.
 - **`sensitive-port-exposed` is the only signal whose reference data we curate**, which makes
   it the one to watch. It passes the test because the list moves at release cadence, but that
   is a statement about cadence, not correctness — hence
