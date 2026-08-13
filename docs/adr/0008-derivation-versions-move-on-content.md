@@ -38,7 +38,7 @@ often the composite moves** and **what a `Break` actually costs**.
 | Where it lives | A `derivation` row; every `Span` carries a reference to it |
 | Break scope | **Every span of that derivation, uniformly** — no predicate, no recompute-to-test |
 | Break storage | **None** — the edge and its component diff are derived on read |
-| A view across a break | **Clamps its horizon** to the most recent break; the census still renders |
+| A view across a break | **Clamps its horizon** to the most recent break; the census still renders — but a census does **not** survive the derivation's precondition failing |
 | Duration and counts | **Never cross a break**; render as a **labelled floor** |
 | Alerting across a break | One **re-baseline message** per alerting derivation whose vector moved |
 | The difference set | A **description computed once at the cause** — never a `Transition` |
@@ -173,6 +173,36 @@ the upgrade — would get the least care of the three.
 Breaks are also **per timeline**. A change to the certificate canonicaliser breaks certificate
 timelines and leaves the board untouched; only a move in one of `Exposure`'s own four leaves
 clamps it.
+
+### A census survives a break; it does not survive a precondition failing
+
+*Added by [#28](https://github.com/winniel123/verge-asm/issues/28), which rendered both states
+side by side and found that "a census is not a comparison" is true and not sufficient.*
+
+"The census still renders" above is a claim about **breaks**, and it must not be read as a claim
+about degradation generally. A census renders across a break because every subject still holds a
+value — the break withdraws the licence to compare two of them, not the licence to read one. That
+survives because the derivation still *ran*.
+
+It does not survive the derivation being **non-constructible**. When an internet `Vantage` is
+unavailable, `Exposure` has no definition ([#14](https://github.com/winniel123/verge-asm/issues/14)),
+so there is no state for any subject to hold and nothing to count. The honest rendering is not a
+census reading zero of each state — it is the absence of the census, beside the subject count that
+*is* still true: *1,290 services are in the estate; none of them holds an exposure state.* A board
+that answered "0 exposed" there would be asserting the strongest possible claim about a thing it
+had not measured, which is the failure the no-false-absence rule exists to prevent, arriving
+through the census instead of through a `Batch`.
+
+The general form, which binds any surface rendering a Derived value:
+
+> A **census** of a Derived value survives a `Break` and does not survive that value's precondition
+> failing. A `Break` costs you the comparison. A precondition failing costs you the value.
+
+One consequence for the census itself: where a comparison view partitions subjects into a matrix
+plus a not-comparable band, the census must be **derived from that partition** — the states plus a
+`no reading this cycle` row — rather than counted independently. Counted independently it silently
+disagrees with the board whenever a `Batch` dead-letters, and the two numbers are then both
+presented as facts.
 
 ### Duration does not cross a break, and has to say so
 
