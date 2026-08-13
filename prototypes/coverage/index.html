@@ -151,6 +151,14 @@
   .cov-strip .txt { font-size: var(--text-base); color: var(--text); }
   .cov-strip .sp { margin-left: auto; }
   .cov-strip.thin { border-left-width: 3px; }
+  /* second density — same sentence, ink ground, board still renders below it */
+  .cov-esc { display: flex; align-items: baseline; gap: var(--space-4);
+             background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+             padding: var(--space-3) var(--space-4); }
+  .cov-esc .ml { color: #9a9a90; white-space: nowrap; }
+  .cov-esc .txt { font-size: var(--text-base); line-height: var(--leading-body); }
+  .cov-esc .sp { margin-left: auto; }
+  .cov-esc a { color: var(--text-on-ink); text-decoration: underline; }
   .cov-inline { display: inline-flex; align-items: baseline; gap: var(--space-2);
                 font-family: var(--font-mono); font-size: var(--text-sm); }
   .cov-inline b { font-weight: var(--weight-semibold); }
@@ -328,31 +336,37 @@ MEASURED.break   = MEASURED.healthy;
 
 /* Source coverage. `kind` is the verb — a fault is ours, an invitation is
    one click. #22: rendering "RIPE Database not enabled" the same way as
-   "prober unreachable" is the same mistake as collapsing the band. */
+   "prober unreachable" is the same mistake as collapsing the band.
+
+   `role` is the split variant D is built on, and it is not the same cut.
+   A `fill` source measures inside a scope you already declared, so its failure
+   moves the coverage figure. A `propose` source suggests scopes you have not
+   declared, so it cannot move the figure at all — it can only mean the figure
+   was of the wrong estate. The second kind therefore never carries a number. */
 const SOURCES = [
-  { name:"operator zone file", scope:"acmecorp.io", completeness:"enumerable", consent:"—",
+  { name:"operator zone file", role:"fill", scope:"acmecorp.io", completeness:"enumerable", consent:"—",
     on:true, kind:"ok", note:"Removal detection is on inside this scope." },
-  { name:"operator zone file", scope:"acme-cdn.net", completeness:"enumerable", consent:"—",
+  { name:"operator zone file", role:"fill", scope:"acme-cdn.net", completeness:"enumerable", consent:"—",
     on:false, kind:"invite", act:"Upload a zone file",
     note:"Nothing in this scope can tell you when something disappears. Only corroborative sources reach it, and their silence means nothing." },
-  { name:"resolver", scope:"estate", completeness:"enumerable", consent:"unencumbered",
+  { name:"resolver", role:"fill", scope:"estate", completeness:"enumerable", consent:"unencumbered",
     on:true, kind:"ok", note:"Enumerable over one name at a time." },
-  { name:"CT logs", scope:"estate", completeness:"corroborative", consent:"unencumbered",
+  { name:"CT logs", role:"fill", scope:"estate", completeness:"corroborative", consent:"unencumbered",
     on:true, kind:"ok", note:"Append-only. Silence is never evidence of absence." },
-  { name:"crt.sh", scope:"estate", completeness:"corroborative", consent:"unencumbered",
+  { name:"crt.sh", role:"fill", scope:"estate", completeness:"corroborative", consent:"unencumbered",
     on:true, kind:"ok", degraded:true, note:"Throttled to 5 req/min. 41 of 88 queries failed this cycle and produced no observation.",
     err:"GET https://crt.sh/?q=%25.acmecorp.io&output=json\n→ 404 Not Found (spurious; retried 3×, then abandoned)\n→ 0 observations written, 0 absences asserted" },
-  { name:"delegated-stats", scope:"estate", completeness:"enumerable", consent:"unencumbered",
+  { name:"delegated-stats", role:"propose", scope:"estate", completeness:"enumerable", consent:"unencumbered",
     on:true, kind:"ok", note:"Address → that holder's other prefixes. Covers all five registries." },
-  { name:"ARIN RDAP", scope:"estate", completeness:"enumerable", consent:"unencumbered",
+  { name:"ARIN RDAP", role:"propose", scope:"estate", completeness:"enumerable", consent:"unencumbered",
     on:true, kind:"ok", inert:true, note:"On, and returns nothing for this estate — your resources are delegated by RIPE, not ARIN." },
-  { name:"CAIDA org-name", scope:"estate", completeness:"corroborative", consent:"unencumbered",
+  { name:"CAIDA org-name", role:"propose", scope:"estate", completeness:"corroborative", consent:"unencumbered",
     on:false, kind:"invite", act:"Look up an organisation name",
     note:"Fetched only when you use it, never at first run. Carries no entry for RIPE-delegated organisations." },
-  { name:"RIPE Database", scope:"estate", completeness:"enumerable", consent:"operator-accepted",
+  { name:"RIPE Database", role:"propose", scope:"estate", completeness:"enumerable", consent:"operator-accepted",
     on:false, kind:"invite", act:"Review terms and enable", region:true,
     note:"Asked 2026-06-02. Nobody replied. You can accept RIPE's terms yourself.", terms:"https://www.ripe.net/manage-ips-and-asns/db/support/documentation/terms" },
-  { name:"RIPEstat", scope:"estate", completeness:"corroborative", consent:"operator-accepted",
+  { name:"RIPEstat", role:"propose", scope:"estate", completeness:"corroborative", consent:"operator-accepted",
     on:false, kind:"invite", act:"Review terms and enable",
     note:"Asked 2026-06-02. Nobody replied.", terms:"https://www.ripe.net/about-us/legal/ripestat-service-terms-and-conditions" },
 ];
@@ -444,8 +458,29 @@ function statementText(fill, lead) {
   return p(`Of the estate was measured this cycle, across 2 vantages. Everything below is true over that portion.`);
 }
 
+/* The statement has three densities, and the threshold between the first two is
+   #22's operator-configurable coverage alert threshold reused — never a second
+   constant, so the board can't look calm while the same scope is paging someone.
+     hairline strip  — coverage above the threshold
+     ink bar         — below it: the board still renders, but reads as a sample
+     full ink panel  — the `precond` treatment: no board at all (blind, break) */
+const COVERAGE_THRESHOLD = 80;   /* operator-configurable; same number as the alert */
+const covPct = (fill) => parseFloat((FILL_COPY[fill] || FILL_COPY.healthy).pct) || 0;
+const belowThreshold = (fill) => fill !== "zero" && covPct(fill) < COVERAGE_THRESHOLD;
+
 function covStrip(fill) {
   const c = FILL_COPY[fill] || FILL_COPY.healthy;
+  if (belowThreshold(fill)) return `
+  <div class="cov-esc">
+    <span class="ml">read the board as a sample</span>
+    <div class="txt">
+      <b>${c.pct}</b> of the estate was measured this cycle, below the
+      <span class="mono">${COVERAGE_THRESHOLD}%</span> you set for a coverage alert.
+      What follows is still true — of the portion we reached.
+    </div>
+    <span class="sp"></span>
+    <a href="#" class="mono" style="white-space:nowrap">Coverage →</a>
+  </div>`;
   return `
   <div class="cov-strip">
     <span class="big">${c.pct}</span>
@@ -645,7 +680,7 @@ const BOARD = {
     return `
     ${head}
     <div class="stack">
-      ${variant === "A" ? covStrip(fill) : ``}
+      ${variant === "A" || variant === "D" ? covStrip(fill) : ``}
       <div class="row">
         <div class="col">${boardCard}</div>
         <div style="width:300px" class="stack">
@@ -688,7 +723,7 @@ const BOARD = {
           <button class="btn ghost">Add an internet vantage</button>
         </div>
       </div>
-      ${checklist(0)}
+      ${checklist(0, false)}
     </div>`;
   },
 
@@ -697,7 +732,7 @@ const BOARD = {
     <h1 class="page">Exposure</h1>
     <div class="sub">1,290 services across 3 seeds, resolved from 1 of 2 vantages.</div>
     <div class="stack">
-      ${variant === "A" ? covStrip("blind") : ``}
+      ${variant === "A" || variant === "D" ? covStrip("blind") : ``}
       <div class="row">
         <div class="col stack">
           <div class="precond">
@@ -738,7 +773,7 @@ const BOARD = {
     <h1 class="page">Exposure</h1>
     <div class="sub">1,290 services across 3 seeds, resolved from 2 vantages.</div>
     <div class="stack">
-      ${variant === "A" ? covStrip("break") : ``}
+      ${variant === "A" || variant === "D" ? covStrip("break") : ``}
       <div class="row">
         <div class="col stack">
           <div class="precond">
@@ -783,12 +818,28 @@ const BOARD = {
    SCREEN: COVERAGE
    ═══════════════════════════════════════════════════════════════════════ */
 
-function checklist(done) {
+/* One object, two densities. The board gets the step and the capability word;
+   `Coverage` gets the same steps expanded into what each brings into play —
+   which is this screen with every fill empty, not a wizard. If the two read
+   alike, the board's copy is doing too much. */
+function checklist(done, deep) {
   const steps = [
-    ["Declare a seed", "where your estate ends"],
-    ["Upload a zone file", "enables removal detection inside that scope"],
-    ["Add an internet vantage", "enables exposure — the board cannot be built without it"],
-    ["Run the first batch", "establishes the baseline the second batch is compared against"],
+    ["Declare a seed", "where your estate ends", [
+      "Gives coverage a denominator. Until one exists there is no figure to report — not 0%.",
+      "An address scope also lets the registry paths propose the rest of that holder's blocks for you to confirm.",
+    ]],
+    ["Upload a zone file", "enables removal detection", [
+      "Makes the operator's own zone <span class='mono'>enumerable</span> over that scope, which is the only thing that licenses silence to mean <em>gone</em>.",
+      "Without it a scope can report what appeared and never what disappeared, because every other source reaching it is corroborative.",
+    ]],
+    ["Add an internet vantage", "enables exposure", [
+      "Exposure compares an internet reading against an internal one. With one vantage the conclusion has no definition.",
+      "The exposure board and its census both depend on this. Nothing else on this screen does.",
+    ]],
+    ["Run the first batch", "establishes the baseline", [
+      "The first batch is measurement. The second is the first that can be compared with anything.",
+      "Each batch records the scope it completed, which is what every figure on this screen is a fraction of.",
+    ]],
   ];
   return `
   <div class="card">
@@ -797,10 +848,15 @@ function checklist(done) {
     <table><tbody>
       ${steps.map((s,i) => `
         <tr>
-          <td style="width:28px" class="faint mono">${i+1}</td>
-          <td><span style="font-weight:${i < done ? "400" : "var(--weight-semibold)"}">${s[0]}</span>
-              <span class="muted"> — ${s[1]}</span></td>
-          <td class="num" style="width:80px">${i < done ? `<span class="tag on">done</span>` : `<span class="tag off">todo</span>`}</td>
+          <td style="width:28px;${deep ? "vertical-align:top;padding-top:12px" : ""}" class="faint mono">${i+1}</td>
+          <td>
+            <span style="font-weight:${i < done ? "400" : "var(--weight-semibold)"}">${s[0]}</span>
+            <span class="muted"> — ${s[1]}</span>
+            ${deep ? `<div class="muted" style="margin-top:var(--space-2);max-width:720px;line-height:var(--leading-body);font-size:var(--text-sm)">
+              ${s[2].map(l => `<div style="margin-top:4px">${l}</div>`).join("")}</div>` : ``}
+          </td>
+          <td class="num" style="width:80px;${deep ? "vertical-align:top;padding-top:12px" : ""}">${
+            i < done ? `<span class="tag on">done</span>` : `<span class="tag off">todo</span>`}</td>
         </tr>`).join("")}
     </tbody></table>
   </div>`;
@@ -856,18 +912,20 @@ const srcTag = (s) =>
   s.on               ? `<span class="tag on">on</span>` :
                        `<span class="tag invite">off</span>`;
 
+/* States what was asked and what came back, and nothing else. It makes no claim
+   about depth, degradation, or what the operator is missing — the figure that
+   would have carried such a claim was removed on purpose. The first-run wording
+   for a cloud-resident estate is a different surface and is #40's to settle. */
 const REGION_NOTE = `
   <div class="note invite">
-    <span class="ml">this estate is delegated by RIPE</span>
-    RIPE publishes no keyless organisation-name lookup, and the open dataset that fills that gap for
-    other registries carries no entry for a single RIPE organisation. For this estate the two sources
-    above are not extra depth — they are the whole of the organisation-name path.
+    <span class="ml">why two of these are off</span>
+    Your resources are delegated by RIPE. RIPE NCC was asked on
+    <span class="mono">2026-06-02</span> whether verge-asm may query the RIPE Database and RIPEstat
+    on your behalf by default. Nobody replied, so they ship off — not pending, and not because
+    anyone said no.
     <div style="margin-top:var(--space-2)" class="muted">
-      What still works without them: declare one address you own and verge-asm proposes the rest of
-      that holder's registered blocks for you to confirm. That path covers every registry.
-    </div>
-    <div class="mono faint" style="font-size:var(--text-xs);margin-top:var(--space-2)">
-      provisional — the first-run wording is #40's to settle
+      You can read RIPE's terms and decide for yourself. Enabling either records your account,
+      the time, and the terms you accepted.
     </div>
   </div>`;
 
@@ -1065,7 +1123,111 @@ const CovC = {
   },
 };
 
-const COV = { A: CovA, B: CovB, C: CovC };
+/* ── VARIANT D — the one that ships ───────────────────────────────────
+   C's layout, with B's verb distinction moved inside it — because the split
+   that holds is not measurement-versus-source. It is:
+
+     scopes you declared      measurement per vantage, plus the sources that
+                              fill that scope. A failure here is a FAULT and
+                              it moves the coverage figure.
+     scopes you have not      sources that propose new scopes. Being off is an
+                              INVITATION. It cannot move the figure at all, so
+                              it carries NO NUMBER — enabling RIPE's database
+                              cannot raise 99.3%, only reveal that 99.3% was of
+                              the wrong estate. */
+const CovD = {
+  name: "scope-first, split by verb",
+  render(fill) {
+    const scopeCard = (seed) => {
+      const ms = MEASURED[fill].filter(m => m.scope === seed.scope);
+      const ss = SOURCES.filter(s => s.scope === seed.scope);
+      const n = ms.reduce((a,m) => a+m.n, 0), of = ms.reduce((a,m) => a+m.of, 0);
+      const faulted = ms.some(m => m.state !== "ok");
+      return `
+      <div class="card"${faulted ? ` style="border-left:3px solid var(--danger)"` : ``}>
+        <div class="card-h">
+          <h2 style="font-family:var(--font-mono);font-size:var(--text-base)">${seed.scope}</h2>
+          <span class="tag">${seed.kind} scope</span>
+          <span class="sp"></span>
+          <span class="mono" style="font-weight:var(--weight-semibold)">${pct(n,of)}</span>
+          <span class="mono faint" style="font-size:var(--text-xs)">${num(n)}/${num(of)}</span>
+        </div>
+        <table><tbody>${ms.map(m => measRow(m, false)).join("")}</tbody></table>
+        ${ss.map(s => `
+          <div class="card-f">
+            <div style="display:flex;align-items:baseline;gap:var(--space-3)">
+              <span class="ml">${s.on ? "filling this scope" : "not filling this scope"}</span>
+              <span class="mono" style="font-size:var(--text-sm)">${s.name}</span>
+              ${srcTag(s)}
+              <span class="sp" style="margin-left:auto"></span>
+              ${s.on ? `` : `<button class="btn sm accent">${s.act}</button>`}
+            </div>
+            <div class="muted" style="font-size:var(--text-sm);margin-top:var(--space-2);max-width:720px">${s.note}</div>
+          </div>`).join("")}
+      </div>`;
+    };
+    const fillers  = SOURCES.filter(s => s.role === "fill" && s.scope === "estate");
+    const proposes = SOURCES.filter(s => s.role === "propose");
+    return `
+    <div class="stack">
+      ${trajectory(fill)}
+
+      <div class="ml" style="margin-top:var(--space-6)">Scopes you declared</div>
+      ${SEEDS.map(scopeCard).join("")}
+
+      <div class="card">
+        <div class="card-h"><h2>Sources filling every scope</h2>
+          <span class="sp"></span>
+          <span class="ml">a failure here moves the figure above</span></div>
+        <table>
+          <thead><tr><th>Source</th><th>Completeness</th><th>Consent</th><th></th><th class="num">This cycle</th></tr></thead>
+          <tbody>
+          ${fillers.map(s => `
+            <tr>
+              <td class="m">${s.name}</td>
+              <td class="m muted">${s.completeness}</td>
+              <td class="m muted">${s.consent}</td>
+              <td style="width:110px">${srcTag(s)}</td>
+              <td class="num muted" style="width:180px">${s.degraded ? "41 of 88 queries failed" : "no failures"}</td>
+            </tr>
+            ${s.degraded || s.err ? `<tr><td colspan="5" style="border-top:none;padding-top:0">
+              <span class="muted" style="font-size:var(--text-sm)">${s.note}</span>
+              ${s.err ? `<details class="err" style="margin-top:6px"><summary>last error</summary>
+                <div class="ink">${s.err}</div></details>` : ``}</td></tr>` : ``}`).join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <div class="card-h"><h2>Scopes you have not declared</h2>
+          <span class="sp"></span>
+          <span class="ml" style="color:var(--accent)">no figure applies here</span></div>
+        <div class="pad" style="padding-bottom:var(--space-2)">
+          <p class="muted" style="margin:0;max-width:760px;line-height:var(--leading-body)">
+            These sources propose address scopes for you to confirm. None of them can raise the
+            percentage above — coverage is measured against what you declared, so enabling one
+            cannot make us more complete. It can only tell you the estate was larger than you said.
+            That is why nothing here carries a number.</p>
+        </div>
+        ${proposes.map(s => `
+          <div class="card-f">
+            <div style="display:flex;align-items:baseline;gap:var(--space-3)">
+              <span class="mono" style="font-size:var(--text-sm)">${s.name}</span>
+              ${srcTag(s)}
+              <span class="mono faint" style="font-size:var(--text-xs)">${s.consent}</span>
+              <span class="sp" style="margin-left:auto"></span>
+              ${s.act ? `<button class="btn sm accent">${s.act}</button>` : ``}
+            </div>
+            <div class="muted" style="font-size:var(--text-sm);margin-top:var(--space-2);max-width:760px">
+              ${s.note}${s.terms ? ` <a href="#" class="mono" style="font-size:var(--text-xs)">terms</a>` : ``}</div>
+          </div>`).join("")}
+      </div>
+      ${REGION_NOTE}
+    </div>`;
+  },
+};
+
+const COV = { A: CovA, B: CovB, C: CovC, D: CovD };
 
 function coverageScreen(variant, fill) {
   if (fill === "zero") {
@@ -1079,7 +1241,7 @@ function coverageScreen(variant, fill) {
            so there is no denominator — this is not zero coverage, it is no question yet.</p>
         <div class="acts"><button class="btn">Declare a seed</button></div>
       </div>
-      ${checklist(0)}
+      ${checklist(0, true)}
       <div class="note">
         <span class="ml">the same screen, later</span>
         Once a vantage is configured and a batch has completed, this page reports how much of each seed
@@ -1123,9 +1285,10 @@ function coverageScreen(variant, fill) {
    ═══════════════════════════════════════════════════════════════════════ */
 
 const SCREENS  = ["board","coverage"];
-const VARIANTS = ["A","B","C"];
+const VARIANTS = ["A","B","C","D"];
 const FILLS    = ["zero","healthy","fault","consent","blind","break"];
-const VNAME    = { A:"one ledger / statement above", B:"split by verb / statement in header", C:"scope-first / statement as footing" };
+const VNAME    = { A:"one ledger / statement above", B:"split by verb / statement in header",
+                   C:"scope-first / statement as footing", D:"CHOSEN — scope-first + verb / statement above" };
 
 function params() {
   const p = new URLSearchParams(location.search);
