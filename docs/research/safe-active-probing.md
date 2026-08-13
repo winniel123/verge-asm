@@ -368,8 +368,11 @@ httpx does the same thing with `-response-size-to-read` and previews only the fi
 of body by default
 ([httpx usage](https://docs.projectdiscovery.io/tools/httpx/usage)).
 
-GET is also the safe choice by HTTP's own definition — §9.3.1 classifies GET as a safe method that
-"should not alter server state" ([RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html)). No
+GET is also the safe choice by HTTP's own definition. §9.2.1 defines a method as safe when "the
+client does not request, and does not expect, any state change on the origin server as a result of
+applying a safe method to a target resource", and the method registry records GET as Safe = yes
+([RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1),
+[§16.1.1 Table 4](https://www.rfc-editor.org/rfc/rfc9110.html#section-16.1.1)). No
 default probe should ever use POST/PUT/DELETE (§9).
 
 ### 4.2 Fingerprinting a service
@@ -919,7 +922,8 @@ operator.
 - **No vulnerability exploitation or version-specific exploit probes.** Stated project scope: not a
   vulnerability scanner.
 - **No state-changing HTTP methods** in any default probe (POST/PUT/DELETE/PATCH). GET is defined as
-  safe ([RFC 9110 §9.3.1](https://www.rfc-editor.org/rfc/rfc9110.html)); stay inside that.
+  safe ([RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1)); stay inside
+  that.
 - **No `--privileged`, no `cap_add`, no `network_mode: host`** in the shipped compose file (§3).
 - **No claiming/registering of suspected-dangling resources** (§7.4).
 - **No rate-limit-defeating behaviour.** Nmap's `--defeat-rst-ratelimit` and
