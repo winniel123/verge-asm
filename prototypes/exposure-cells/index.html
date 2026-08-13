@@ -1,0 +1,810 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #45: "Which of the four unnamed Exposure cells
+  need names, and what does the board render for the rest?"
+
+  ADR-0010 composed `Exposure` from two `Reach`es and left a 3x3 grid with five
+  names on it, four cells unnamed, and one of the unnamed cells reading
+  `unreachable` — "no vantage reaches it" — while nobody had looked from
+  outside. This prototype draws the three candidate answers so the axis can be
+  read rather than argued.
+
+    A — Name the holes     eight states, one per cell of the 3x3
+    B — Fold (status quo)  five states, the one-legged readings absorbed
+    C — Two legs required  four states, one-legged readings are not Exposure
+
+  Second axis, ?fill= : which vantage classes the install actually runs.
+
+    both         internet + internal, the two-legged case
+    no-internet  the default no-prober install (#14's internal inventory)
+    no-internal  the whole-stack-on-a-VPS install (#14 s7)
+    gap          the internet leg existed and went silent (#28's `blind`)
+
+  Switch with ?variant=A|B|C&fill=..., the floating bar, or the arrow keys.
+
+  Not production code. No tests, no error handling, no abstractions. Visual
+  language is the real design system (../../design-system); vocabulary is
+  CONTEXT.md, which overrides the kit where they disagree.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — exposure cells prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto;
+           padding: var(--page-pad) var(--page-pad) 96px; }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); text-decoration: none; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); color: var(--ok); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); transition: background var(--duration) var(--ease); }
+  .btn:hover { background: #3a3a30; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--surface-sunken); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); }
+
+  .card { background: var(--surface); border: var(--rule); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .sp { margin-left: auto; }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule);
+            display: flex; gap: var(--space-4); align-items: baseline; flex-wrap: wrap; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: middle; }
+  tbody tr:first-child td { border-top: none; }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num { text-align: right; font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  /* ── the board ──────────────────────────────────────────────────────
+     A transition matrix. Rows are what a Service WAS, columns what it IS
+     NOW. Variant C groups both axes by the internet leg, so the leg move
+     the product exists to catch is a contiguous block rather than two
+     cells the operator has to know to add up. */
+  table.board { table-layout: fixed; }
+  table.board th.rh { text-align: left; border-bottom: none; border-top: var(--rule-soft);
+                      font-family: var(--font-mono); text-transform: none; letter-spacing: 0;
+                      font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--ink); }
+  table.board th.ch { text-align: right; font-family: var(--font-mono); text-transform: none;
+                      letter-spacing: 0; font-size: var(--text-sm); color: var(--ink); }
+  table.board td { text-align: right; font-family: var(--font-mono); font-size: var(--text-sm); }
+  /* the group rules: 2px ink is this system's structural weight */
+  .gcol { border-left: var(--rule-ink-heavy) !important; }
+  .grow > * { border-top: var(--rule-ink-heavy) !important; }
+  .held { background: var(--surface-sunken); color: var(--text-faint); }
+  .zero { color: var(--text-faint); }
+  .q-esc  { background: var(--danger-soft); }
+  .q-esc.hot { background: var(--sev-critical); color: #fff; font-weight: var(--weight-semibold); }
+  .q-de   { background: var(--ok-soft); }
+  /* #28: the not-comparable band. Sunken fill, dashed hairline, no colour,
+     no rank, reason as a micro-label. */
+  .nc { background: var(--surface-sunken); color: var(--text-muted);
+        border-left: 1px dashed var(--border) !important; }
+  .wd { color: var(--text-muted); }
+
+  /* quadrant caption strip sitting under the board */
+  .quads { display: flex; }
+  .quad { flex: 1; padding: var(--space-3) var(--space-4); border-left: var(--rule); }
+  .quad:first-child { border-left: none; }
+  .quad .v { font: var(--weight-semibold) var(--text-xl)/var(--leading-tight) var(--font-mono); margin-top: 4px; }
+  .quad.esc { background: var(--danger-soft); }
+  .quad.esc .v { color: var(--danger); }
+  .quad .cap { font-size: var(--text-xs); color: var(--text-muted); margin-top: 4px; line-height: var(--leading-snug); }
+
+  /* ── the coverage statement, #28's three densities ─────────────────── */
+  .d1 { border: var(--rule); background: var(--surface); padding: 6px var(--space-4);
+        font: 400 var(--text-xs)/1.5 var(--font-mono); color: var(--text-muted); }
+  .d2 { border: var(--rule-ink); background: var(--surface-ink); color: var(--text-on-ink);
+        padding: var(--space-3) var(--space-4); display: flex; gap: var(--space-4); align-items: flex-start; }
+  .d2 .body { font-size: var(--text-base); line-height: var(--leading-body); }
+  .d2 .body b { font-weight: var(--weight-semibold); }
+  .d2 .k { color: #9a9a90; }
+  .d3 { border: var(--rule-ink); background: var(--surface-ink); color: var(--text-on-ink);
+        padding: var(--space-6) var(--space-8); }
+  .d3 h2 { margin: 0 0 var(--space-2); font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+  .d3 p { margin: 0 0 var(--space-4); max-width: 640px; color: #d0d0c6; line-height: var(--leading-body); }
+
+  .ink { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+         padding: var(--space-3) var(--space-4); font-family: var(--font-mono); font-size: var(--text-sm);
+         line-height: var(--leading-snug); }
+  .ink .k { color: #9a9a90; }
+
+  .st { display: inline-block; padding: 1px 6px;
+        font: var(--weight-semibold) var(--text-2xs)/1.5 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  .st.exposed     { background: var(--danger); color: #fff; }
+  .st.edge        { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .st.firewalled  { background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok); }
+  .st.unreachable { background: transparent; color: var(--text-faint); border: 1px dashed var(--border); }
+  .st.onelegged   { background: var(--surface-sunken); color: var(--text-muted); border: var(--rule); }
+  .st.reached     { background: var(--ink); color: var(--text-on-ink); }
+  .st.notreached  { background: transparent; color: var(--text-muted); border: var(--rule); }
+
+  /* the verdict note attached to each variant — prototype scaffolding, not UI */
+  .note { border: var(--rule-ink); border-left: 4px solid var(--ink); background: var(--surface);
+          padding: var(--space-4) var(--space-5); }
+  .note h3 { margin: 0 0 var(--space-2); font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .note p { margin: 0 0 var(--space-2); line-height: var(--leading-body); max-width: 78ch; }
+  .note p:last-child { margin-bottom: 0; }
+  .note .ml { display: block; margin-bottom: var(--space-2); }
+  .note.bad { border-left-color: var(--danger); }
+  .note.good { border-left-color: var(--ok); }
+
+  .legend { font: 400 var(--text-xs)/1.6 var(--font-mono); color: var(--text-muted); }
+  .sw { display: inline-block; width: 10px; height: 10px; vertical-align: -1px; border: var(--rule); }
+
+  .row { display: flex; gap: var(--space-4); align-items: flex-start; }
+  .col { flex: 1; min-width: 0; }
+  .stack > * + * { margin-top: var(--space-4); }
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+  .ft-in .sp { margin-left: auto; }
+
+  /* ── the switcher: deliberately NOT part of the design being judged ── */
+  #switch { position: fixed; left: 50%; bottom: var(--space-6); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch;
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch button { background: transparent; border: none; color: var(--text-on-ink); cursor: pointer;
+                   font: var(--weight-semibold) var(--text-base)/1 var(--font-mono); padding: 0 var(--space-3); }
+  #switch button:hover { background: #3a3a30; }
+  #switch .lbl { padding: var(--space-2) var(--space-4); color: var(--text-on-ink); white-space: nowrap;
+                 font: var(--weight-medium) var(--text-sm)/1.5 var(--font-mono);
+                 border-left: 1px solid #3a3a30; border-right: 1px solid #3a3a30; }
+  #switch .lbl b { font-weight: var(--weight-semibold); }
+  #switch .fills { display: flex; align-items: center; gap: 2px; padding: 0 var(--space-2);
+                   border-left: 1px solid #3a3a30; }
+  #switch .fills button { padding: 4px 8px; color: #9a9a90; font-size: var(--text-2xs);
+                          text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  #switch .fills button.on { background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div id="switch">
+  <button id="prev" title="Previous variant (left arrow)">&larr;</button>
+  <div class="lbl"><b id="vkey">A</b> &mdash; <span id="vname"></span></div>
+  <button id="next" title="Next variant (right arrow)">&rarr;</button>
+  <div class="fills" id="fills"></div>
+</div>
+
+<script>
+/* ═══════════════════════════ the estate ═══════════════════════════════
+   Vocabulary is CONTEXT.md. Reach, Exposure, Vantage class, Service,
+   Batch, Gap, Break, Span. No "asset" as a modelled thing, no "host",
+   no "finding".
+
+   Every total on every board below is SUMMED FROM ITS CELLS, never
+   authored — #28 found that two independently-counted numbers disagree on
+   screen the moment a Batch dead-letters, and both present as facts.
+*/
+
+/* ── the two-legged board: 4 real states, ADR-0010's 2x2 of valued legs ──
+   Order is deliberate. Both axes run internet-`reached` first, so the
+   internet leg's boundary is one rule across the whole matrix. */
+const FOUR = {
+  order: ["exposed", "edge", "firewalled", "unreachable"],
+  label: { exposed: "exposed", edge: "edge-only", firewalled: "firewalled", unreachable: "unreachable" },
+  legs:  { exposed: "internet reached · internal reached",
+           edge: "internet reached · internal not-reached",
+           firewalled: "internet not-reached · internal reached",
+           unreachable: "internet not-reached · internal not-reached" },
+  /* the group split falls after index 1 on both axes */
+  split: 2,
+  /* rows = was, cols = is now. `nc` and `withdrawn` are #28's two extra columns. */
+  cells: {
+    exposed:     { exposed: 130, edge:  2, firewalled:   7, unreachable:   4, nc: 12, withdrawn: 0 },
+    edge:        { exposed:   1, edge: 14, firewalled:   1, unreachable:   0, nc:  2, withdrawn: 0 },
+    firewalled:  { exposed:   3, edge:  2, firewalled: 890, unreachable:   5, nc: 74, withdrawn: 1 },
+    unreachable: { exposed:   1, edge:  0, firewalled:   3, unreachable: 122, nc: 13, withdrawn: 0 },
+    entered:     { exposed:   2, edge:  0, firewalled:   4, unreachable:   1, nc:  0, withdrawn: 0 },
+  },
+};
+
+/* ── variant A's eight states: the 3x3 with every hole named ────────────
+   The four new names are the point of the variant. Read them aloud. */
+const EIGHT = {
+  order: ["exposed", "edge", "netonly_r", "firewalled", "unreachable", "netonly_nr", "internal", "intunreach"],
+  label: {
+    exposed: "exposed", edge: "edge-only", netonly_r: "internet-reached-only",
+    firewalled: "firewalled", unreachable: "unreachable", netonly_nr: "internet-unreached-only",
+    internal: "internal-only", intunreach: "internally-unreachable",
+  },
+  /* which of the eight are two-legged verdicts and which are one-legged readings */
+  oneLegged: { netonly_r: 1, netonly_nr: 1, internal: 1, intunreach: 1 },
+  split: 3,
+  cells: {
+    exposed:     { exposed: 130, edge:  2, netonly_r:  0, firewalled:   7, unreachable:   4, netonly_nr:  0, internal:  0, intunreach:  0, nc: 12, withdrawn: 0 },
+    edge:        { exposed:   1, edge: 14, netonly_r:  0, firewalled:   1, unreachable:   0, netonly_nr:  0, internal:  0, intunreach:  0, nc:  2, withdrawn: 0 },
+    netonly_r:   { exposed:   5, edge:  0, netonly_r: 41, firewalled:   0, unreachable:   0, netonly_nr:  6, internal:  0, intunreach:  0, nc:  3, withdrawn: 0 },
+    firewalled:  { exposed:   3, edge:  2, netonly_r:  0, firewalled: 890, unreachable:   5, netonly_nr:  0, internal:  0, intunreach:  0, nc: 74, withdrawn: 1 },
+    unreachable: { exposed:   1, edge:  0, netonly_r:  0, firewalled:   3, unreachable: 122, netonly_nr:  0, internal:  0, intunreach:  0, nc: 13, withdrawn: 0 },
+    netonly_nr:  { exposed:   0, edge:  0, netonly_r:  4, firewalled:  12, unreachable:   0, netonly_nr: 88, internal:  0, intunreach:  0, nc:  5, withdrawn: 0 },
+    internal:    { exposed:   0, edge:  0, netonly_r:  0, firewalled:  19, unreachable:   0, netonly_nr:  0, internal: 96, intunreach:  2, nc:  4, withdrawn: 0 },
+    intunreach:  { exposed:   0, edge:  0, netonly_r:  0, firewalled:   0, unreachable:  31, netonly_nr:  0, internal:  1, intunreach: 60, nc:  6, withdrawn: 0 },
+    entered:     { exposed:   2, edge:  0, netonly_r:  1, firewalled:   4, unreachable:   1, netonly_nr:  2, internal:  3, intunreach:  1, nc:  0, withdrawn: 0 },
+  },
+  /* Moves in and out of the four one-legged names. A leg's timeline can only
+     ever OPEN into one of these blocks — once it exists and stops, the value
+     ages out under the currency bound and the Exposure timeline holds a
+     `Gap`, which is not a cell. So the traffic is one-way, and every unit of
+     it is our own aperture rather than the estate. */
+  apertureMoves: [
+    ["internal", "firewalled", 19, "the internet <span class='mono'>Reach</span> timeline opened — the weekly tier got round to this port", true],
+    ["intunreach", "unreachable", 31, "the same opening, one row down", true],
+    ["netonly_nr", "firewalled", 12, "the internal <span class='mono'>Reach</span> timeline opened", true],
+    ["netonly_r", "exposed", 5, "the same opening, one row up", true],
+    ["internal", "intunreach", 2, "the internal leg moved — a real world event, sharing the block", false],
+    ["firewalled", "internal", 0, "cannot happen: a timeline that existed and stopped ages into a <span class='mono'>Gap</span>, never back into a one-legged name", false],
+  ],
+};
+
+/* ── variant B's five states: the status quo, with U1 folded ───────────── */
+const FIVE = {
+  order: ["exposed", "edge", "firewalled", "internal", "unreachable"],
+  label: { exposed: "exposed", edge: "edge-only", firewalled: "firewalled",
+           internal: "internal-only", unreachable: "unreachable" },
+  split: 2,
+  cells: {
+    exposed:     { exposed: 130, edge:  2, firewalled:   7, internal:  0, unreachable:   4, nc: 12, withdrawn: 0 },
+    edge:        { exposed:   1, edge: 14, firewalled:   1, internal:  0, unreachable:   0, nc:  2, withdrawn: 0 },
+    firewalled:  { exposed:   3, edge:  2, firewalled: 890, internal: 19, unreachable:   5, nc: 74, withdrawn: 1 },
+    internal:    { exposed:   0, edge:  0, firewalled:  11, internal: 96, unreachable:   2, nc:  4, withdrawn: 0 },
+    unreachable: { exposed:   1, edge:  0, firewalled:   3, internal:  1, unreachable: 209, nc: 19, withdrawn: 0 },
+    entered:     { exposed:   2, edge:  0, firewalled:   4, internal:  3, unreachable:   2, nc:  0, withdrawn: 0 },
+  },
+  /* the 87 services inside `unreachable` that were never looked at from
+     outside — the cell reads "no vantage reaches it" and one leg has no
+     timeline at all. */
+  falseReassurance: 87,
+};
+
+/* ── the one-legged board: a Reach matrix, two values ───────────────────
+   ADR-0010 made `Reach` a named Derivation leaf, so there is a modelled
+   object to build this over. Before ADR-0010 there was not. */
+const REACH = {
+  order: ["reached", "notreached"],
+  label: { reached: "reached", notreached: "not-reached" },
+  split: 99,
+  cells: {
+    reached:    { reached: 331, notreached:   9, nc: 22, withdrawn: 1 },
+    notreached: { reached:   6, notreached: 848, nc: 76, withdrawn: 0 },
+    entered:    { reached:   3, notreached:   4, nc:  0, withdrawn: 0 },
+  },
+};
+
+const N = (n) => n.toLocaleString();
+
+/* ── generic matrix renderer ────────────────────────────────────────────
+   One function for every board in the prototype, because a board whose
+   totals are authored per variant is a board whose variants can silently
+   disagree. Everything below is summed from `M.cells`. */
+function matrix(M, opts) {
+  const o = opts || {};
+  const ord = M.order;
+  const cols = ord.concat(["nc", "withdrawn"]);
+  const colLabel = (c) => c === "nc" ? "not comparable" : c === "withdrawn" ? "withdrawn" : M.label[c];
+
+  const rowTotal = (r) => cols.reduce((a, c) => a + (M.cells[r][c] || 0), 0);
+  const colTotal = (c) => ord.concat(["entered"]).reduce((a, r) => a + (M.cells[r][c] || 0), 0);
+
+  const before   = ord.reduce((a, r) => a + rowTotal(r), 0);
+  const entered  = rowTotal("entered");
+  const withdrew = colTotal("withdrawn");
+  const notComp  = colTotal("nc");
+  const now      = cols.filter(c => c !== "withdrawn").reduce((a, c) => a + colTotal(c), 0);
+
+  /* quadrant sums, only meaningful where the axes are grouped by a leg */
+  const inA = (s) => ord.indexOf(s) < M.split;          /* internet leg reached */
+  const quad = (fromIn, toIn) => ord.filter(f => inA(f) === fromIn)
+    .reduce((a, f) => a + ord.filter(t => inA(t) === toIn)
+      .reduce((b, t) => b + (f === t ? 0 : (M.cells[f][t] || 0)), 0), 0);
+
+  const cellCls = (f, t) => {
+    if (t === "nc") return "nc";
+    if (t === "withdrawn") return "wd";
+    if (f === t) return "held";
+    if (!o.quadrants) return "";
+    if (!inA(f) && inA(t)) return "q-esc";       /* internet leg opened */
+    if (inA(f) && !inA(t)) return "q-de";        /* internet leg closed */
+    return "";
+  };
+
+  const head = `<tr><th style="width:190px"></th>` +
+    cols.map((c, i) => {
+      const g = (o.quadrants && i === M.split) ? " gcol" : "";
+      const dash = c === "nc" ? ` style="border-left:1px dashed var(--border)"` : "";
+      return `<th class="ch${g}"${dash}>${colLabel(c)}</th>`;
+    }).join("") +
+    `<th class="ch" style="border-left: var(--rule)">was</th></tr>`;
+
+  const body = ord.concat(["entered"]).map((f, ri) => {
+    const grow = (o.quadrants && ri === M.split) ? " grow" : "";
+    const isEnt = f === "entered";
+    const rl = isEnt
+      ? `<th class="rh" style="border-top: var(--rule)"><span class="muted">entered</span></th>`
+      : `<th class="rh"${o.legs ? ` title="${M.legs ? M.legs[f] : ""}"` : ""}>${M.label[f]}</th>`;
+    return `<tr class="${grow}">${rl}` + cols.map((t, ci) => {
+      const v = M.cells[f][t] || 0;
+      const g = (o.quadrants && ci === M.split) ? " gcol" : "";
+      const hot = (o.quadrants && !isEnt && !inA(f) && inA(t) && v > 0) ? " hot" : "";
+      const cls = (isEnt ? (t === "nc" ? "nc" : t === "withdrawn" ? "wd" : "") : cellCls(f, t)) + g + hot;
+      const txt = v === 0 ? `<span class="zero">&middot;</span>` : N(v);
+      return `<td class="${cls}">${txt}</td>`;
+    }).join("") +
+      `<td style="border-left: var(--rule)" class="muted">${isEnt ? N(entered) : N(rowTotal(f))}</td></tr>`;
+  }).join("");
+
+  const foot = `<tr class="grow"><th class="rh" style="border-top: var(--rule-ink-heavy)"><span class="muted">is now</span></th>` +
+    cols.map((c, i) => {
+      const g = (o.quadrants && i === M.split) ? " gcol" : "";
+      return `<td class="muted${g}" style="border-top: var(--rule-ink-heavy)">${c === "withdrawn" ? N(withdrew) : N(colTotal(c))}</td>`;
+    }).join("") +
+    `<td style="border-top: var(--rule-ink-heavy); border-left: var(--rule)" class="muted">${N(now)}</td></tr>`;
+
+  const recon = `${N(before)} before + ${N(entered)} entered &minus; ${N(withdrew)} withdrawn = <b>${N(now)} now</b>, of which ${N(notComp)} not comparable`;
+
+  return {
+    html: `<table class="board"><thead>${head}</thead><tbody>${body}${foot}</tbody></table>`,
+    recon, before, entered, withdrew, notComp, now, colTotal,
+    escalated: o.quadrants ? quad(false, true) : null,
+    deescalated: o.quadrants ? quad(true, false) : null,
+    /* the two on-diagonal blocks: the internet leg held, the internal one moved */
+    sameLeg: o.quadrants ? quad(true, true) + quad(false, false) : null,
+  };
+}
+
+/* ─────────────────────────── chrome ─────────────────────────── */
+const NAV = ["Exposure", "Subjects", "Signals", "Seeds", "Coverage", "Settings"];
+function chrome(body, vantageNote) {
+  return `
+  <header class="nav"><div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <nav class="items">${NAV.map((it, i) => `<a href="#"${i === 0 ? ' class="on"' : ''}>${it}</a>`).join("")}</nav>
+    <div class="nav-right">
+      <span class="status"><span class="dot live"></span>batch b-8851 running</span>
+      <button class="btn sm">Run scan</button>
+    </div>
+  </div></header>
+  <main class="shell">${body}</main>
+  <footer class="ft"><div class="ft-in">
+    <span>v0.9.2</span><span>AGPL-3.0</span><span>self-hosted</span>
+    <span class="sp"></span><span>${vantageNote}</span>
+  </div></footer>`;
+}
+
+/* the vantage panel — which classes this install actually runs */
+function vantages(fill) {
+  const line = (nm, cls, state) => {
+    const col = state === "ok" ? "var(--ok)" : state === "down" ? "var(--danger)" : "var(--text-faint)";
+    const txt = state === "ok" ? "verified 2m" : state === "down" ? "unavailable 3d" : "not configured";
+    return `<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+      <span class="dot" style="background:${col}"></span>
+      <span class="mono">${nm}</span>
+      <span class="ml" style="margin-left:auto">${cls}</span>
+      <span class="mono faint" style="width:110px;text-align:right">${txt}</span></div>`;
+  };
+  const rows = {
+    both:         line("internet-01", "internet", "ok") + line("internal-01", "internal", "ok"),
+    "no-internet": line("&mdash;", "internet", "none") + line("internal-01", "internal", "ok"),
+    "no-internal": line("internet-01", "internet", "ok") + line("&mdash;", "internal", "none"),
+    gap:          line("internet-01", "internet", "down") + line("internal-01", "internal", "ok"),
+  }[fill];
+  return `<div class="card"><div class="card-h"><h2 style="font-size:var(--text-base)">Vantage classes</h2></div>
+    <div style="padding: var(--space-3) var(--space-4)">${rows}</div></div>`;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   VARIANT A — NAME THE HOLES
+   Every cell of ADR-0010's 3x3 gets a state name, so the enum goes from
+   five to eight. Drawn because it is the answer the ticket's title
+   invites, and because the axis is the argument against it.
+   ════════════════════════════════════════════════════════════════════ */
+const A = {
+  name: "Name the holes (8 states)",
+  render(fill) {
+    const m = matrix(EIGHT, { quadrants: true });
+    const oneLeggedCols = Object.keys(EIGHT.oneLegged).map(k => EIGHT.label[k]).join(", ");
+    const apTotal = EIGHT.apertureMoves.filter(x => x[4]).reduce((a, x) => a + x[2], 0);
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">Every cell of the 3&times;3 named. Rows are what a <span class="mono">Service</span> was, columns what it is now.</div>
+    <div class="stack">
+      <div class="d1">Measured over 99.3% of the declared scope. Compared against the batch 2d ago.</div>
+      <div class="card">
+        <div class="card-h"><h2>What moved</h2><span class="sp"></span>
+          <span class="ml">8 states &middot; 4 of them one-legged</span></div>
+        ${m.html}
+        <div class="card-f"><span class="ml">reconciles</span><span class="mono">${m.recon}</span></div>
+      </div>
+
+      <div class="note bad">
+        <span class="ml">what rendering it showed</span>
+        <h3>Four of the eight states are facts about our own vantages, and they share an axis with four facts about the world</h3>
+        <p><span class="mono">${oneLeggedCols}</span> do not say anything about the
+        <span class="mono">Service</span>. They say which vantage classes had a timeline over that port
+        in that batch. Put on the same axis as <span class="mono">exposed</span> and
+        <span class="mono">firewalled</span>, they make a cell move mean two incompatible things.</p>
+        <p><b>${N(apTotal)} of the moves on this board were caused by our aperture, not by the estate</b>
+        &mdash; a leg's timeline opening because a slower tier got round to that port. Under
+        <a href="https://github.com/winniel123/verge-asm/blob/main/docs/adr/0014-only-revealed-generalises.md">ADR-0014</a>
+        those are <b>openings</b>: recorded, unnamed and unalerted, and explicitly not
+        <span class="mono">revealed</span>, because the world did not move and our aperture did not
+        widen &mdash; we got round to looking. Here they are ordinary cells, rendered identically to
+        the ${N(m.escalated)} in the escalation block, and nothing in the matrix distinguishes them.
+        That is the failure <a href="https://github.com/winniel123/verge-asm/issues/28">#28</a>'s
+        <span class="mono">not comparable</span> band exists to prevent, re-entering through the
+        state axis instead of through a cell.</p>
+        <p>The traffic is also <b>one-way</b>, which is the tell. Nothing ever moves back
+        <i>into</i> a one-legged name: once a leg's timeline exists and stops, the value ages out
+        and the <span class="mono">Exposure</span> timeline holds a <span class="mono">Gap</span>,
+        which is not a cell. So four of this board's columns can be entered and never left, and
+        four of its rows can be left and never entered &mdash; an axis whose values are not the same
+        kind of thing.</p>
+        <p>It also breaks the block. The internet leg's boundary now falls in two places at once,
+        because <span class="mono">internet-reached-only</span> sits in the reached group while
+        <span class="mono">internal-only</span> and <span class="mono">internally-unreachable</span>
+        sit in neither &mdash; so the escalation region is no longer contiguous and the headline
+        number cannot be read off the board.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2 style="font-size:var(--text-base)">Traffic across the one-legged names</h2>
+          <span class="sp"></span><span class="ml">${N(apTotal)} of it is ours</span></div>
+        <table><thead><tr><th>From</th><th>To</th><th style="text-align:right">Services</th><th>Cause</th><th style="width:1%">Whose</th></tr></thead>
+        <tbody>${EIGHT.apertureMoves.map(([f, t, n, why, ap]) => `<tr>
+          <td class="m">${EIGHT.label[f]}</td><td class="m">${EIGHT.label[t]}</td>
+          <td class="num">${n === 0 ? '<span class="zero">&middot;</span>' : N(n)}</td>
+          <td class="muted">${why}</td>
+          <td class="m">${ap ? '<span class="st onelegged">ours</span>' : (n === 0 ? '<span class="faint">&mdash;</span>' : '<span class="st reached">the estate</span>')}</td></tr>`).join("")}</tbody></table>
+      </div>
+    </div>`;
+  },
+};
+
+/* ════════════════════════════════════════════════════════════════════
+   VARIANT B — FOLD (STATUS QUO)
+   #14's five states, unchanged. The one-legged internal-`not-reached`
+   reading is absorbed into `unreachable`, which is what the model does
+   today and what this ticket opened on.
+   ════════════════════════════════════════════════════════════════════ */
+const B = {
+  name: "Fold into a neighbour (status quo)",
+  render(fill) {
+    const m = matrix(FIVE, { quadrants: false });
+    const unr = m.colTotal("unreachable");
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">Five states, as shipped by <a href="https://github.com/winniel123/verge-asm/issues/14">#14</a>. Rows are what a <span class="mono">Service</span> was, columns what it is now.</div>
+    <div class="stack">
+      <div class="d1">Measured over 99.3% of the declared scope. Compared against the batch 2d ago.</div>
+      <div class="card">
+        <div class="card-h"><h2>What moved</h2><span class="sp"></span>
+          <span class="ml">rows: was &middot; columns: is now</span></div>
+        ${m.html}
+        <div class="card-f"><span class="ml">reconciles</span><span class="mono">${m.recon}</span></div>
+      </div>
+
+      <div class="row">
+        <div class="col card">
+          <div class="card-h"><h2 style="font-size:var(--text-base)">Cell <span class="mono">unreachable</span> &mdash; ${N(unr)} services</h2>
+            <span class="sp"></span><span class="mono muted">selected</span></div>
+          <table>
+            <thead><tr><th>Service</th><th>Internal <span class="mono">Reach</span></th><th>Internet <span class="mono">Reach</span></th><th style="text-align:right">Held</th></tr></thead>
+            <tbody>
+              <tr><td class="m">203.0.113.51:8080/tcp</td><td><span class="st notreached">not-reached</span></td>
+                  <td><span class="st notreached">not-reached</span></td><td class="num muted">11d</td></tr>
+              <tr><td class="m">203.0.113.52:9200/tcp</td><td><span class="st notreached">not-reached</span></td>
+                  <td><span class="mono faint">no timeline</span></td><td class="num muted">11d</td></tr>
+              <tr><td class="m">203.0.113.52:5432/tcp</td><td><span class="st notreached">not-reached</span></td>
+                  <td><span class="mono faint">no timeline</span></td><td class="num muted">6d</td></tr>
+            </tbody>
+          </table>
+          <div class="card-f"><span class="mono muted">Two of these three were never looked at from outside. The cell says otherwise.</span></div>
+        </div>
+        <div style="width:320px">${vantages(fill)}</div>
+      </div>
+
+      <div class="note bad">
+        <span class="ml">what rendering it showed</span>
+        <h3>${N(FIVE.falseReassurance)} of the ${N(unr)} services in <span class="mono">unreachable</span> have no internet <span class="mono">Reach</span> timeline at all</h3>
+        <p><span class="mono">unreachable</span> is defined as <i>no vantage reaches it</i>. On these
+        ${N(FIVE.falseReassurance)} that sentence is asserted while nobody has ever looked from outside
+        &mdash; <a href="https://github.com/winniel123/verge-asm/issues/14">#14</a>'s own
+        false-reassurance failure, in the one row where #14 did not guard against it. The
+        <span class="mono">firewalled</span> / <span class="mono">internal-only</span> pair exists
+        precisely to keep evidence of absence apart from absence of evidence on the row above, and
+        nothing plays that role here.</p>
+        <p>The rendering adds one thing the description could not: the drill-down has to print
+        <span class="mono">no timeline</span> in a column headed <i>Internet Reach</i>, in the same
+        table as a measured <span class="mono">not-reached</span>. The cell above it already claimed
+        those were the same. Once the two are on screen together the fold is not defensible.</p>
+      </div>
+    </div>`;
+  },
+};
+
+/* ════════════════════════════════════════════════════════════════════
+   VARIANT C — EXPOSURE NEEDS BOTH LEGS
+   `Exposure` is the projection of two VALUED legs, so it has four states
+   and the grid is 2x2, not 3x3. A one-legged reading is not an
+   `Exposure` and gets no name: the surviving leg's `Reach` is rendered
+   on its own, under a statement saying which conclusion is unavailable
+   and why.
+   ════════════════════════════════════════════════════════════════════ */
+const C = {
+  name: "Exposure needs both legs (4 states)",
+
+  twoLegged() {
+    const m = matrix(FOUR, { quadrants: true, legs: true });
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">Rows are what a <span class="mono">Service</span> was, columns what it is now. Both axes are grouped by the internet leg.</div>
+    <div class="stack">
+      <div class="d1">Measured over 99.3% of the declared scope. Compared against the batch 2d ago.</div>
+
+      <div class="row">
+        <div class="col card">
+          <div class="card-h"><h2>What moved</h2><span class="sp"></span>
+            <span class="ml">internet leg &rarr; the heavy rule</span></div>
+          ${m.html}
+          <div class="quads">
+            <div class="quad esc">
+              <span class="ml">Internet leg opened</span>
+              <div class="v">${N(m.escalated)}</div>
+              <div class="cap">The move the product exists to catch. Four cells, one block &mdash;
+                <span class="mono">firewalled &rarr; exposed</span> and
+                <span class="mono">firewalled &rarr; edge-only</span> are the same escalation and are
+                counted together.</div>
+            </div>
+            <div class="quad">
+              <span class="ml">Internet leg closed</span>
+              <div class="v">${N(m.deescalated)}</div>
+              <div class="cap">The mirror block. Never worded as a clear.</div>
+            </div>
+            <div class="quad">
+              <span class="ml">Internal leg only</span>
+              <div class="v">${N(m.sameLeg)}</div>
+              <div class="cap">On-diagonal blocks: the internet leg held, the internal one moved.</div>
+            </div>
+          </div>
+          <div class="card-f"><span class="ml">reconciles</span><span class="mono">${m.recon}</span></div>
+        </div>
+        <div style="width:320px" class="stack">${vantages("both")}
+          <div class="card"><div class="card-h"><h2 style="font-size:var(--text-base)">The four states</h2></div>
+          <table><tbody>${FOUR.order.map(s => `<tr><td><span class="st ${s}">${FOUR.label[s]}</span></td>
+            <td class="m muted" style="font-size:var(--text-xs)">${FOUR.legs[s]}</td></tr>`).join("")}</tbody></table>
+          <div class="card-f"><span class="mono muted" style="font-size:var(--text-xs)">Both legs valued. A reading with one leg is not an <span class="mono">Exposure</span>.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Internet leg opened</h2>
+          <span class="st exposed">${N(m.escalated)} services</span>
+          <span class="sp"></span><span class="mono muted">selected block</span></div>
+        <table>
+          <thead><tr><th>Service</th><th>Name</th><th>Was</th><th>Is now</th><th>Internal leg</th><th style="text-align:right">Moved</th></tr></thead>
+          <tbody>
+            <tr><td class="m">203.0.113.41:6379/tcp</td><td class="m faint">&mdash;</td>
+                <td><span class="st firewalled">firewalled</span></td><td><span class="st exposed">exposed</span></td>
+                <td class="m muted">reached, unchanged</td><td class="num muted">1h</td></tr>
+            <tr><td class="m">203.0.113.44:8443/tcp</td><td class="m">staging-admin.acmecorp.io</td>
+                <td><span class="st firewalled">firewalled</span></td><td><span class="st exposed">exposed</span></td>
+                <td class="m muted">reached, unchanged</td><td class="num muted">22m</td></tr>
+            <tr><td class="m">203.0.113.43:3000/tcp</td><td class="m">grafana.acmecorp.io</td>
+                <td><span class="st firewalled">firewalled</span></td><td><span class="st exposed">exposed</span></td>
+                <td class="m muted">reached, unchanged</td><td class="num muted">4h</td></tr>
+            <tr><td class="m">198.51.100.22:5601/tcp</td><td class="m">kibana.acmecorp.io</td>
+                <td><span class="st firewalled">firewalled</span></td><td><span class="st edge">edge-only</span></td>
+                <td class="m muted">reached &rarr; not-reached</td><td class="num muted">3h</td></tr>
+            <tr><td class="m">198.51.100.22:9300/tcp</td><td class="m faint">&mdash;</td>
+                <td><span class="st firewalled">firewalled</span></td><td><span class="st edge">edge-only</span></td>
+                <td class="m muted">reached &rarr; not-reached</td><td class="num muted">3h</td></tr>
+            <tr><td class="m">203.0.113.61:23/tcp</td><td class="m faint">&mdash;</td>
+                <td><span class="st unreachable">unreachable</span></td><td><span class="st exposed">exposed</span></td>
+                <td class="m muted">not-reached &rarr; reached</td><td class="num muted">9h</td></tr>
+          </tbody>
+        </table>
+        <div class="card-f"><span class="mono muted">Every row here is one fact: the internet
+          <span class="mono">Reach</span> went <span class="mono">not-reached &rarr; reached</span>.
+          Under a hero <i>cell</i> the operator sees three of these six.</span></div>
+      </div>
+
+      <div class="note good">
+        <span class="ml">what rendering it showed</span>
+        <h3>The column move is a block, and the block is the headline</h3>
+        <p>Ordering both axes by the internet leg turns
+        <a href="https://github.com/winniel123/verge-asm/blob/main/docs/adr/0010-exposure-composes-two-reaches.md">ADR-0010</a>'s
+        <i>the flagship is a column move, not a cell move</i> into geometry. The heavy rule is the
+        internet leg; anything crossing it left to right is the escalation, and the count above it
+        is a single number with nothing left out. The board becomes a 2&times;2 of 2&times;2s &mdash;
+        the outer square is the internet leg's transition, the inner one the internal leg's &mdash;
+        which is the composition ADR-0010 defined, drawn.</p>
+        <p><b>It also costs the hero cell, and that is the point.</b>
+        <span class="mono">firewalled &rarr; exposed</span> is no longer promoted over
+        <span class="mono">firewalled &rarr; edge-only</span>; the block is promoted over both.
+        The severity fill stays on the individual cells inside it, so nothing is lost at the
+        drill-down, but the number the operator reads first is the leg's, not one cell's.</p>
+      </div>
+    </div>`;
+  },
+
+  oneLegged(which, silent) {
+    /* `which` is the class that HAS a timeline */
+    const m = matrix(REACH, { quadrants: false });
+    const cls = which === "internal" ? "internal" : "internet";
+    const missing = which === "internal" ? "internet" : "internal";
+    const title = which === "internal" ? "Internal reachability" : "Internet reachability";
+
+    const statement = silent
+      ? `<div class="d2"><div class="ml" style="color:#9a9a90;padding-top:3px;width:120px;flex:none">we stopped looking</div>
+           <div class="body"><b>No <span class="mono">Exposure</span> is being computed.</b>
+           <span class="mono">internet-01</span> has failed every attempt for 3 days, so the internet
+           <span class="mono">Reach</span> holds a <span class="mono">Gap</span> and the composition
+           has nothing to read. This is an outage, not a result: the last two-legged reading was
+           <span class="mono">2026-08-10</span> and the values either side of the gap may be shown
+           together, <b>labelled undatable</b>, once it closes.
+           <br><span class="k">&#9656; why</span>
+           <span class="mono k">ssh: connect to host 198.51.100.9 port 22: Connection timed out</span></div></div>`
+      : `<div class="d2"><div class="ml" style="color:#9a9a90;padding-top:3px;width:120px;flex:none">we never looked</div>
+           <div class="body"><b>No <span class="mono">Exposure</span> is being computed.</b>
+           You run no ${missing} vantage, so the ${missing} <span class="mono">Reach</span> has no
+           timeline and the composition has one leg. Nothing is broken and nothing is hidden:
+           <span class="mono">exposed</span> is a conclusion across two vantage classes and there is
+           only one. What is below is complete and honest for the class you do run.
+           <br><span class="k">unlocks</span>
+           <span class="mono k">add an ${missing} vantage &rarr; Exposure, and
+           <span style="color:#d0d0c6">sensitive-port-reached-from-internet</span></span></div></div>`;
+
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">${silent ? "The internet leg went silent." : "One vantage class configured."} <span class="mono">Reach</span> renders; <span class="mono">Exposure</span> does not.</div>
+    <div class="stack">
+      ${statement}
+      <div class="row">
+        <div class="col card">
+          <div class="card-h"><h2>${title} &mdash; what moved</h2><span class="sp"></span>
+            <span class="ml">${cls} <span style="text-transform:none">Reach</span> &middot; 2 values</span></div>
+          ${m.html}
+          <div class="card-f"><span class="ml">reconciles</span><span class="mono">${m.recon}</span></div>
+        </div>
+        <div style="width:320px" class="stack">
+          ${vantages(silent ? "gap" : (which === "internal" ? "no-internet" : "no-internal"))}
+          <div class="card">
+            <div class="card-h"><h2 style="font-size:var(--text-base)">Not computable</h2></div>
+            <table><tbody>
+              <tr><td><span class="mono">Exposure</span></td><td class="muted">needs both legs</td></tr>
+              <tr><td><span class="mono">sensitive-port-<br>reached-from-internet</span></td>
+                  <td class="muted">${silent ? "not-evaluable &mdash; the leg it reads is in a Gap" : (which === "internal" ? "not-evaluable &mdash; the leg it reads has no timeline" : "evaluable")}</td></tr>
+            </tbody></table>
+            <div class="card-f"><span class="mono muted" style="font-size:var(--text-xs)">Rendered here and on <span class="mono">Coverage</span>, one condition, two screens.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note good">
+        <span class="ml">what rendering it showed</span>
+        <h3>A precondition panel and a board can co-exist, which <a href="https://github.com/winniel123/verge-asm/issues/28">#28</a> assumed they could not</h3>
+        <p>#28's third density is <i>the</i> <span class="mono">precond</span> <i>treatment: no board
+        at all</i>. That is right where the precondition removes every value &mdash; a dead-lettered
+        batch measures nothing. It is wrong here. The composition is unavailable; the legs it would
+        have composed are not. Rendering the full ink panel and nothing else would empty the board
+        that <a href="https://github.com/winniel123/verge-asm/issues/14">#14</a> deliberately built
+        the no-prober install to have, and would report less than we measured.</p>
+        <p>So the third density splits by what the precondition costs. <b>The value is gone</b>
+        &rarr; panel, no board. <b>Only the composition is gone</b> &rarr; ink bar plus the
+        surviving leg's board. Same object, one step down, and the two absences that
+        <a href="https://github.com/winniel123/verge-asm/issues/32">#32</a> told the
+        <span class="mono">Subjects</span> screen never to render alike get one shape and two
+        statements: <i>we never looked</i> and <i>we stopped looking</i>.</p>
+        <p><b>And there is no state to name.</b> The question the ticket asked &mdash; what does the
+        board render in a cell with no name &mdash; dissolves, because the one-legged readings were
+        never cells of this board. They are cells of a different, smaller board over the leg that
+        exists.</p>
+      </div>
+    </div>`;
+  },
+
+  render(fill) {
+    if (fill === "both") return this.twoLegged();
+    if (fill === "no-internet") return this.oneLegged("internal", false);
+    if (fill === "no-internal") return this.oneLegged("internet", false);
+    return this.oneLegged("internal", true);
+  },
+};
+
+/* ─────────────────────────── switcher ─────────────────────────── */
+const VARIANTS = { A, B, C };
+const KEYS = ["A", "B", "C"];
+const FILLS = ["both", "no-internet", "no-internal", "gap"];
+
+function read() {
+  const q = new URLSearchParams(location.search);
+  const v = (q.get("variant") || "A").toUpperCase();
+  const f = q.get("fill") || "both";
+  return { v: KEYS.includes(v) ? v : "A", f: FILLS.includes(f) ? f : "both" };
+}
+
+function draw() {
+  const { v, f } = read();
+  const V = VARIANTS[v];
+  document.getElementById("vkey").textContent = v;
+  document.getElementById("vname").textContent = V.name;
+  document.getElementById("fills").innerHTML =
+    FILLS.map(x => `<button data-fill="${x}" class="${x === f ? "on" : ""}">${x}</button>`).join("");
+  document.getElementById("fills").querySelectorAll("button").forEach(b =>
+    b.onclick = () => go(v, b.dataset.fill));
+
+  /* A and B are drawn only for the two-legged install: the whole point of
+     them is what they do to the state axis, and the axis is the same
+     regardless of fill. C is the variant with something to say per fill. */
+  const eff = (v === "C") ? f : "both";
+  const note = (v !== "C" && f !== "both")
+    ? `<div class="d1" style="margin-bottom:var(--space-4)">Variant ${v} is drawn for the two-legged install only &mdash; switch to C to see the <span class="mono">${f}</span> case.</div>`
+    : "";
+  document.getElementById("app").innerHTML =
+    chrome(note + V.render(eff), "prototype &mdash; issue #45");
+  document.title = `verge-asm — ${v}: ${V.name}`;
+}
+
+function go(v, f) {
+  history.replaceState(null, "", `?variant=${v}&fill=${f}`);
+  draw();
+}
+
+document.getElementById("prev").onclick = () => {
+  const { v, f } = read(); go(KEYS[(KEYS.indexOf(v) + KEYS.length - 1) % KEYS.length], f);
+};
+document.getElementById("next").onclick = () => {
+  const { v, f } = read(); go(KEYS[(KEYS.indexOf(v) + 1) % KEYS.length], f);
+};
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft") document.getElementById("prev").click();
+  if (e.key === "ArrowRight") document.getElementById("next").click();
+});
+
+draw();
+</script>
+</body>
+</html>
