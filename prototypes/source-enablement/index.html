@@ -1,0 +1,930 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #47: "What does the source-enablement prompt
+  render, now that it carries two groups of unresolved questions?"
+
+  #28 drew this surface as ONE LINE inside `Coverage`'s "scopes you have not
+  declared" panel — asked, nobody replied, accept the terms yourself — and that
+  was right at the time. #34 made the toggle load-bearing: the operator flips it
+  by taking on a reading the project declined to make, and that reading is only
+  honest if they are told what is unresolved, in the project's own words, in two
+  marked groups. A two-group document is not a caption.
+
+  Four screens, ?screen=coverage|prompt|accept|stored :
+
+    coverage  the propose panel from #28 variant D, trimmed to the five
+              registries — the ENTRANCE, drawn three ways
+    prompt    the document itself
+    accept    the moment of acceptance: the install has just retrieved and
+              stored the terms (or the retrieval failure) — ?stage=ok|fail
+    stored    the stored copy, verbatim and unannotated, on its own view
+
+  Three placements, ?variant=A|B|C — the "where does it live" fork:
+
+    A  expands in place, inside the Coverage panel
+    B  opens from Coverage as a dialog
+    C  opens from Coverage as its own addressable surface   ← ships
+
+  Six registries, ?source=arin|afrinic|apnic|ripestat|ripedb|lacnic .
+  They are NOT symmetric and the asymmetry is the finding:
+
+    arin      no prompt at all — nothing is unresolved
+    ripestat  both groups populated
+    apnic     both groups populated
+    ripedb    actionable group EMPTY, unanswerable group enumerable
+    afrinic   actionable group EMPTY, unanswerable group enumerable
+    lacnic    actionable group EMPTY, unanswerable group NOT ENUMERABLE
+
+  So three prompt shapes, not four, and the empty groups render rather than
+  disappearing: an omitted heading is an absence the operator cannot read.
+
+  CONSTRAINTS HONOURED, all from the ticket:
+    · no figure, no bar, no percentage anywhere on this surface (#28)
+    · no clause of any source is quoted or paraphrased as a verdict (#34)
+    · the two-group document and the terms document are never on screen
+      together — our words and their words in one view manufactures a mapping
+      between them, which is the verdict the project refused to give
+    · no terms text is bundled here. #27: anything the project SHIPS is a
+      build-time act by us, and no registry grants a licence for it. The
+      stored-copy view renders the record's shape, never a third party's bytes.
+
+  Not production code. No tests, no error handling, no abstractions. Visual
+  language is the real design system (../../design-system). Vocabulary is
+  CONTEXT.md, which overrides the kit where they disagree.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — source-enablement prompt prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 96px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+  .narrow { max-width: 860px; }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+  .sp { margin-left: auto; }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); text-decoration: none; }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); transition: background var(--duration) var(--ease); }
+  .btn:hover { background: #3a3a30; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--surface-sunken); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); }
+  .btn.accent { background: var(--accent); border-color: var(--accent); }
+  .btn.accent:hover { background: var(--accent-hover); }
+
+  .card { background: var(--surface); border: var(--rule); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); }
+  .pad { padding: var(--space-4); }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .tag.on     { border-color: var(--border-ink); color: var(--ink); }
+  .tag.off    { border-style: dashed; color: var(--text-faint); }
+  .tag.invite { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  .note { border: var(--rule); border-left: 3px solid var(--border-ink); background: var(--surface);
+          padding: var(--space-3) var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .note.invite { border-left-color: var(--accent); }
+  .note .ml { display: block; margin-bottom: var(--space-1); }
+  .note.invite .ml { color: var(--accent); }
+
+  .stack > * + * { margin-top: var(--space-4); }
+  .stack-2 > * + * { margin-top: var(--space-2); }
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5);
+         line-height: var(--leading-body); max-width: 760px; }
+
+  .crumb { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-3);
+           font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+  .crumb a { color: var(--text-muted); }
+
+  /* ── THE TWO GROUPS ────────────────────────────────────────────────────
+     Fixed furniture. Both headings render for every prompt, always, and an
+     empty group SAYS it is empty. An omitted heading is an absence the
+     operator cannot read — which is this project's own no-false-absence rule
+     arriving through the interface. The count chip is a count of OUR OWN
+     statements, not a measurement of anything, which is why it is not the
+     figure #28 forbade. */
+  .grp { background: var(--surface); border: var(--rule); }
+  .grp > .hd { display: flex; align-items: baseline; gap: var(--space-3);
+               padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .grp > .hd h3 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold);
+                  letter-spacing: var(--tracking-tight); }
+  .grp.act > .hd { border-bottom: 2px solid var(--accent); }
+  .grp.act > .hd h3 { color: var(--accent); }
+  .grp.non > .hd { border-bottom: var(--rule-ink-heavy); }
+  .cnt { font: var(--weight-semibold) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label);
+         padding: 1px 6px; border: var(--rule); color: var(--text-muted); }
+  .grp.act .cnt { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .grp.non .cnt { border-color: var(--border-ink); color: var(--ink); }
+
+  .q { display: flex; gap: var(--space-4); padding: var(--space-4);
+       border-top: var(--rule-soft); }
+  .grp > .q:first-of-type { border-top: none; }
+  .q .n { flex: none; width: 20px; font: var(--weight-semibold) var(--text-sm)/1.55 var(--font-mono);
+          color: var(--text-faint); }
+  .q .b { min-width: 0; }
+  .q .t { font-size: var(--text-base); line-height: var(--leading-body); color: var(--ink);
+          font-weight: var(--weight-medium); }
+  .q .w { font-size: var(--text-base); line-height: var(--leading-body); color: var(--text-muted);
+          margin-top: var(--space-1); max-width: 640px; }
+
+  /* the empty group. Not a smaller version of a populated one — a statement. */
+  .none { padding: var(--space-4); display: flex; gap: var(--space-4); }
+  .none .n { flex: none; width: 20px; font: var(--weight-semibold) var(--text-sm)/1.55 var(--font-mono);
+             color: var(--text-faint); }
+  .none .t { font-size: var(--text-base); line-height: var(--leading-body); color: var(--text-muted);
+             max-width: 640px; }
+  .none .t b { color: var(--ink); font-weight: var(--weight-semibold); }
+
+  /* LACNIC's third shape: the group exists, and its contents cannot be listed. */
+  .unlist { padding: var(--space-4); background: var(--surface-sunken);
+            border-top: 1px dashed var(--border); }
+  .unlist .t { font-size: var(--text-base); line-height: var(--leading-body); max-width: 640px; }
+  .unlist .ml { display: block; margin-bottom: var(--space-2); }
+
+  /* the "asked, nobody replied" row — an event, not a question, so it does not
+     take a number and does not look like one */
+  .asked { display: flex; gap: var(--space-4); padding: var(--space-4);
+           border-top: var(--rule-soft); background: var(--surface-sunken); }
+  .asked .n { flex: none; width: 20px; color: var(--text-faint); font-family: var(--font-mono);
+              font-size: var(--text-sm); line-height: 1.55; }
+  .asked .t { font-size: var(--text-base); line-height: var(--leading-body); max-width: 640px; }
+
+  /* ── the act block ───────────────────────────────────────────────────── */
+  .act-blk { border: var(--rule-ink); background: var(--surface); }
+  .act-blk .hd { background: var(--surface-ink); color: var(--text-on-ink);
+                 padding: var(--space-3) var(--space-4); }
+  .act-blk .hd .ml { color: #9a9a90; }
+  .act-blk .hd h3 { margin: var(--space-1) 0 0; font-size: var(--text-md);
+                    font-weight: var(--weight-semibold); }
+  .act-blk .bd { padding: var(--space-4); }
+  .act-blk ul { margin: 0; padding-left: var(--space-5); }
+  .act-blk li { font-size: var(--text-base); line-height: var(--leading-body); margin-bottom: var(--space-2); }
+  .act-blk .bar { display: flex; align-items: center; gap: var(--space-3);
+                  padding: var(--space-3) var(--space-4); border-top: var(--rule); background: var(--surface-sunken); }
+
+  /* ── receipt ─────────────────────────────────────────────────────────── */
+  .ink { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+         padding: var(--space-4); font-family: var(--font-mono); font-size: var(--text-sm);
+         line-height: 1.7; overflow-x: auto; }
+  .ink .k { color: #9a9a90; display: inline-block; width: 128px; }
+  .ink .bad { color: #ff8f8f; }
+
+  .kv { width: 100%; border-collapse: collapse; }
+  .kv td { padding: 7px var(--space-4); border-top: var(--rule-soft); font-size: var(--text-base);
+           vertical-align: top; }
+  .kv tr:first-child td { border-top: none; }
+  .kv td.k { width: 190px; font: var(--weight-semibold) var(--text-2xs)/1.9 var(--font-mono);
+             text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .kv td.v { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  .stored-body { border: var(--rule); background: var(--surface-sunken); padding: var(--space-8);
+                 text-align: center; color: var(--text-muted); font-size: var(--text-base);
+                 line-height: var(--leading-body); }
+  .stored-body code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); }
+
+  /* ── dialog (variant B) ──────────────────────────────────────────────── */
+  .scrim { position: fixed; inset: 0; background: rgba(22,22,15,.28); z-index: 40; }
+  .dlg { position: fixed; z-index: 41; left: 50%; top: 40px; transform: translateX(-50%);
+         width: min(840px, calc(100vw - 48px)); max-height: calc(100vh - 140px); overflow: auto;
+         background: var(--surface); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  .dlg > .dh { display: flex; align-items: center; gap: var(--space-3);
+               padding: var(--space-3) var(--space-4); border-bottom: var(--rule-ink-heavy); }
+  .dlg > .dh h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .dlg > .db { padding: var(--space-4); }
+
+  /* ── inline expansion (variant A) ────────────────────────────────────── */
+  .inline-doc { border-top: var(--rule-ink-heavy); background: var(--paper); padding: var(--space-4); }
+
+  .reg-row { padding: var(--space-3) var(--space-4); border-top: var(--rule-soft); }
+  .reg-row:first-of-type { border-top: none; }
+  .reg-row .top { display: flex; align-items: baseline; gap: var(--space-3); }
+  .reg-row .nm { font-family: var(--font-mono); font-size: var(--text-base);
+                 font-weight: var(--weight-semibold); }
+  .reg-row .line { color: var(--text-muted); font-size: var(--text-sm); margin-top: var(--space-2);
+                   max-width: 780px; line-height: var(--leading-body); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+
+  /* switcher — deliberately not part of the design being judged */
+  #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch; max-width: calc(100vw - 24px);
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch .g { display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
+               border-left: 1px solid #3a3a30; }
+  #switch .g:first-child { border-left: none; }
+  #switch .g > span { color: #9a9a90; font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                      text-transform: uppercase; letter-spacing: var(--tracking-label); margin-right: var(--space-1); }
+  #switch button { background: transparent; border: none; color: #9a9a90; cursor: pointer;
+                   font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); padding: 7px 8px; }
+  #switch button:hover { background: #3a3a30; color: var(--text-on-ink); }
+  #switch button.on { background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="switch">
+  <div class="g" data-key="screen"><span>screen</span></div>
+  <div class="g" data-key="variant"><span>placement</span></div>
+  <div class="g" data-key="source"><span>registry</span></div>
+  <div class="g" data-key="stage"><span>retrieval</span></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   THE FIVE REGISTRIES — SIX TOGGLES, FOUR RENDERINGS
+
+   #34's five-registry ship-state table is settled and is not re-opened. Its
+   unresolved-question table is followed row for row, with two additions this
+   prototype had to make to render anything honest:
+
+     · RIPE is TWO toggles, not one. RIPEstat and the RIPE Database have
+       different terms documents, different open questions and — after #34 —
+       different stored records, so the prompt is per SOURCE, which is where
+       CONTEXT.md puts `consent`. Taken on its own the RIPE Database's
+       actionable group is EMPTY, which #34's region-level reading hid.
+     · AFRINIC gains one actionable row. #24 measured a commercial-service
+       prohibition in AFRINIC's own prohibited list and read it as "a resale
+       clause of exactly ARIN's shape [that] does not disqualify the modal
+       operator" — true, and a statement about the MODAL operator. Whether
+       this operator is the modal one is precisely a group-1 question.
+
+   That yields four renderings, not two: no prompt (ARIN), both groups
+   populated (RIPEstat, APNIC, AFRINIC), actionable group empty (RIPE
+   Database, LACNIC), and unanswerable group not enumerable (LACNIC).
+
+   NO ASK DATE IS RENDERED ANYWHERE. #19/#23/#24/#25 all closed "asked, no
+   answer", and between them they record no send date, no send confirmation,
+   and a recipient for one of the four. #24 says it outright — "with the email
+   unsent-or-unanswered this stays unreported". A prompt printing "asked on
+   2026-06-02" would assert a fact the project does not hold, in a product
+   whose spine is that we never assert what we did not measure. What IS held
+   is the determination, and it is dated as one.
+
+   Every string below is the PROJECT's words about what is unresolved. No
+   clause of any registry is quoted, excerpted or characterised as a verdict:
+   #34's rider is that quoting invites the operator to read our summary as our
+   reading, which is the one thing `operator-accepted` exists to avoid.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const DETERMINED = "2026-08-13";   /* when the project recorded the non-answer, not when it wrote */
+
+const R = {
+
+  arin: {
+    key:"arin", name:"ARIN", region:"North America", consent:"unencumbered",
+    toggle:false,
+    /* No prompt. Not an empty prompt — no prompt. The empty-group rule below
+       governs groups INSIDE a document that exists; it does not manufacture a
+       document where there is nothing to say. */
+    coverageLine:"On by default. It is working and it returns nothing for this estate — your resources are delegated by RIPE, not ARIN.",
+    settled:"An operator inventorying their own estate is inside the permission ARIN publishes for operational and technical research. Nothing about its terms was left unresolved, so there is nothing here for you to read and nothing for you to take on.",
+  },
+
+  ripestat: {
+    key:"ripestat", name:"RIPEstat", region:"RIPE", consent:"operator-accepted",
+    toggle:true, shape:"both",
+    buys:"RIPEstat and the RIPE Database are the only way to ask which address blocks are registered under your organisation's name in the RIPE region. The keyless substitute used elsewhere carries no RIPE organisation names at all, so with both of these off there is no organisation-name path here — not a shallower one, none.",
+    actionable:[
+      { t:"Whether you resell.",
+        w:"RIPEstat's terms turn in part on whether its data ends up inside something you sell. Running verge-asm over your own estate is not that; selling a service built on verge-asm to other people is. Which of those you are is a fact about you, and the project has no way to know it." },
+    ],
+    unanswerable:[
+      { t:"Whether writing prefixes into an inventory database is a use RIPEstat's terms restrict.",
+        w:"This reads the same for every install — it does not depend on who you are, so nobody who runs this software is in a better position to answer it than anybody else. Reading it is what the project declined to do." },
+    ],
+    asked:{ who:"RIPE NCC" },
+    terms:{ url:"https://www.ripe.net/about-us/legal/ripestat-service-terms-and-conditions/",
+            ok:true, status:"HTTP 200", bytes:"48,213", type:"text/html",
+            hash:"9f2c41ab7e0d5c83a1b6ef94d20738c5b7ac6e18f0d3925471aa8c6d2b31f0e7" },
+  },
+
+  ripedb: {
+    key:"ripedb", name:"RIPE Database", region:"RIPE", consent:"operator-accepted",
+    toggle:true, shape:"constant-only",
+    buys:"Queries the RIPE Database directly for the objects registered under your organisation's name, rather than through RIPEstat's layer over it. Either one opens the organisation-name path for this region; neither is a substitute for a keyless mirror, because for RIPE there is not one.",
+    actionable:[],
+    unanswerable:[
+      { t:"Whether inventorying your own estate is one of the purposes the Database's terms permit access for at all.",
+        w:"Its terms permit access only for a listed set of purposes, and none of them describes an operator cataloguing their own exposed estate. This is the binding one: it goes to whether access is permitted at all, not to how much may be kept. It reads the same for every install, so no operator is better placed to answer it than the project was." },
+      { t:"Whether one organisation's own records are a small enough part of the Database to be taken, and whether keeping them between runs counts as re-use.",
+        w:"Two documents set that boundary in two different wordings and neither one defines where it falls. Constant across every install." },
+    ],
+    asked:{ who:"RIPE NCC" },
+    terms:{ url:"https://docs.db.ripe.net/HTML-Terms-And-Conditions",
+            ok:true, status:"HTTP 200", bytes:"21,904", type:"text/html",
+            hash:"c1d8046b93e5f27a0c4ba1e8f6539d7284cb0a1e5f7d3298b64ce017a2d95f38" },
+  },
+
+  apnic: {
+    key:"apnic", name:"APNIC", region:"Asia-Pacific", consent:"operator-accepted",
+    toggle:true, shape:"both",
+    buys:"Asks APNIC directly instead of the third-party mirror the keyless path uses. The mirror carries most APNIC organisations but not all, so this reaches the remainder — and it reads the registry as it stands rather than as it was last published. It does not reach an assignment a provider made to you; no APNIC interface does, at any tier.",
+    actionable:[
+      { t:"Whether APNIC has approved, or would approve, your use.",
+        w:"APNIC's terms make room for uses it has approved, and approval is granted to a party rather than to a piece of software. You can put that question to APNIC as one of their account holders. The project cannot ask on your behalf, and did not receive an answer when it asked in general." },
+    ],
+    unanswerable:[
+      { t:"Whether the exception APNIC's terms make for storing their records covers software of this shape.",
+        w:"It reads the same for every install. The exception exists, its edge is not drawn anywhere the project could find, and reading that edge on a stranger's behalf is what the project declined to do." },
+    ],
+    asked:{ who:"APNIC" },
+    terms:{ url:"https://www.apnic.net/manage-ip/using-whois/bulk-access/copyright/",
+            ok:true, status:"HTTP 200", bytes:"33,076", type:"text/html",
+            hash:"4a7e29c0d63b18f5920ae7c41d8b6035fe92c7a4038d15be6c209fa7d34e8b12" },
+  },
+
+  afrinic: {
+    key:"afrinic", name:"AFRINIC", region:"Africa", consent:"operator-accepted",
+    toggle:true, shape:"both",
+    buys:"Your organisation's AFRINIC blocks are already found without this, through the keyless mirror, and the mirror covers every AFRINIC holder. Enabling asks AFRINIC directly: the record as it stands rather than as it was last published, and one fewer party between you and it. It does not reach an assignment a provider made to you — no AFRINIC interface does, at any tier — so what this buys is freshness, not reach.",
+    actionable:[
+      { t:"Whether you are running this as part of something you sell.",
+        w:"AFRINIC's terms forbid their records being used as part of a commercial service or product, including servicing a customer, even where other data is mixed in. A company inventorying its own estate is not doing that; a managed service inventorying somebody else's is. Which of those you are is a fact about you, and the project has no way to know it." },
+    ],
+    unanswerable:[
+      { t:"Whether the uses AFRINIC's terms permit include this one.",
+        w:"The set of uses they permit is closed and sealed — nothing outside it is implied — and it does not name anything of this shape. A closed list that does not name a use is not read in that use's favour. That reads the same for every install; no operator is better placed to resolve it than the project was." },
+    ],
+    asked:{ who:"AFRINIC" },
+    /* The narrower retrieval defect: readable terms, dead documented URL. This
+       is a fact about the RECORD rather than an unresolved question, so it is
+       not a group row — it sits with the act, where it changes what gets
+       stored. */
+    recordCaveat:"Every AFRINIC response names an address for its terms, and that address returns 404. The live text is somewhere else. What will be fetched and stored at acceptance is the page that has the text on it, and the dead address AFRINIC itself points at goes into the record beside it, because which one you were shown is part of what you accepted.",
+    terms:{ url:"https://afrinic.net/whois-terms.html", ok:true, status:"HTTP 200", bytes:"16,551", type:"text/html",
+            hash:"e08b3f5719ad2c6480fb1e93a75c02d6491b8fe37c05a2d9186f4b0c7e35a2d1",
+            documented:"https://afrinic.net/whois/terms", documentedStatus:"HTTP 404 · 146 B" },
+  },
+
+  lacnic: {
+    key:"lacnic", name:"LACNIC", region:"Latin America", consent:"operator-accepted",
+    toggle:true, shape:"unenumerable",
+    buys:"LACNIC is the only way to ask which blocks are registered under your organisation's name in its region. The keyless mirror holds LACNIC records with no organisation names on them at all, so with this off there is no organisation-name path here.",
+    actionable:[],
+    unanswerable:null,   /* ← the third shape: the group exists and cannot be listed */
+    unlistable:"LACNIC states that terms apply to its service and gives an address for them. That address, and four others its own documentation names, all return the same page, and there are no terms in any of them. Nobody has been able to retrieve them — not the project, and not anyone the project could find — so nobody can say what they contain, and this group cannot be written as a list of questions. What you would be taking on is not a reading of terms. It is a source whose terms cannot be read.",
+    asked:{ who:"LACNIC" },
+    terms:{ url:"https://www.lacnic.net/registration-data-access-protocol", ok:false, status:"HTTP 200", bytes:"7,014",
+            type:"text/html — a script shell, no terms in it",
+            hash:"5b91ce4d02a7f83615ed9c47b0a2f8d3197ea6c5024bf1d8639a70e2c4185fb6" },
+  },
+};
+
+const ORDER = ["arin","afrinic","apnic","ripestat","ripedb","lacnic"];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CHROME
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const nav = (here) => `
+<header class="nav"><div class="nav-in">
+  <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+  <nav class="items">
+    <a href="#">Board</a><a href="#">Drift</a><a href="#">Subjects</a>
+    <a href="#" class="${here === "coverage" ? "on" : ""}">Coverage</a><a href="#">Settings</a>
+  </nav>
+</div></header>`;
+
+const foot = () => `
+<footer class="ft"><div class="ft-in">
+  <span>verge-asm v0.9.2</span><span>AGPL-3.0</span>
+  <span class="sp"></span><span>prototype — issue #47</span>
+</div></footer>`;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE DOCUMENT
+   Four blocks, in this order and no other:
+     1  what enabling does, and what it buys        — no figure, ever
+     2  what you may be able to resolve             — always renders
+     3  what nobody has been able to resolve        — always renders
+     4  the act: what is recorded, and the control  — one control, one act
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Block 1. Two halves, and the second half is the one the ticket's fourth
+   bullet turns on. #34's carry-onward calls enabling one of these a
+   "zero→full aperture widening, the largest the product can make". Post
+   ADR-0012 and #43 that is false for all five: every one of them PROPOSES,
+   none of them observes, and a proposer may be added or dropped with no
+   drift consequence whatever — no `revealed`, no `Break`, no version bump.
+   So the prompt states what enabling does NOT do, in terms, because an
+   operator of a drift product who is told their aperture just widened will
+   read the next cadence as their estate growing overnight. */
+function blockWhat(s) {
+  return `
+  <div class="card">
+    <div class="card-h"><h2>What enabling ${s.name} does</h2>
+      <span class="sp"></span><span class="ml">no figure applies here</span></div>
+    <div class="pad">
+      <p style="margin:0 0 var(--space-3);line-height:var(--leading-body);max-width:720px">${s.buys}</p>
+      <div class="note">
+        <span class="ml">and what it does not do</span>
+        Nothing enters your estate. ${s.name} proposes address scopes; a proposal is read by nothing
+        until you confirm it into a seed. Until then nothing is probed, nothing appears, and no
+        timeline moves — so enabling this cannot make anything in your estate look like it changed.
+        The act that changes your estate is confirming a proposal, and it is a separate act on a
+        separate screen.
+      </div>
+    </div>
+  </div>`;
+}
+
+/* Blocks 2 and 3. Both headings are fixed furniture. An empty group renders
+   its emptiness as a sentence, because a heading that vanishes when its
+   contents are empty leaves the operator unable to tell "there is nothing
+   here" from "this product has no such idea" — which is the same failure as
+   an unmeasured absence rendered as a zero. */
+function groupActionable(s) {
+  const n = s.actionable.length;
+  return `
+  <div class="grp act">
+    <div class="hd">
+      <h3>What you may be able to resolve</h3>
+      <span class="sp"></span>
+      <span class="cnt">${n === 0 ? "nothing" : n === 1 ? "1 question" : n + " questions"}</span>
+    </div>
+    ${n === 0 ? `
+      <div class="none">
+        <div class="n">—</div>
+        <div class="t"><b>Nothing.</b> Every question left open under ${s.name} reads the same
+          whoever is running this software, so there is nothing here that being you rather than
+          anybody else would settle. This group is empty, and it is empty because it was checked,
+          not because it was skipped.</div>
+      </div>`
+    : s.actionable.map((q, i) => `
+      <div class="q">
+        <div class="n">${i + 1}</div>
+        <div class="b"><div class="t">${q.t}</div><div class="w">${q.w}</div></div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function groupUnanswerable(s) {
+  const listable = s.unanswerable !== null;
+  const n = listable ? s.unanswerable.length : 0;
+  return `
+  <div class="grp non">
+    <div class="hd">
+      <h3>What nobody has been able to resolve</h3>
+      <span class="sp"></span>
+      <span class="cnt">${listable ? (n === 1 ? "1 question" : n + " questions") : "cannot be listed"}</span>
+    </div>
+    ${listable ? s.unanswerable.map((q, i) => `
+      <div class="q">
+        <div class="n">${i + 1}</div>
+        <div class="b"><div class="t">${q.t}</div><div class="w">${q.w}</div></div>
+      </div>`).join("")
+    : `
+      <div class="unlist">
+        <span class="ml">this group is not a list</span>
+        <div class="t">${s.unlistable}</div>
+      </div>`}
+    <div class="asked">
+      <div class="n">·</div>
+      <div class="t">${s.asked.who} was asked whether verge-asm may query ${s.name} on an operator's
+        behalf by default. No answer came. ${s.name} therefore ships off — not pending, not a
+        refusal, and no length of silence will turn into one.
+        <div class="muted" style="margin-top:var(--space-2);font-size:var(--text-sm)">
+          Recorded <span class="mono">${DETERMINED}</span> and unchanged since. That is the date the
+          project settled the question, not the date anything was sent — no send is evidenced, and a
+          date printed here as if it were would be a claim this software cannot support.</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* Block 4. One control, one act.
+
+   The two-step was drawn and refused. The second act it wanted to gate —
+   the estate consequence — already exists one hop downstream, at confirming
+   a `Proposal` into a `Seed` (#50), which is where ADR-0012 put it and where
+   the operator actually opens the probing gate. A second confirmation here
+   would gate a widening that does not happen, and a step that always says
+   yes teaches the operator to click through the step that matters. */
+function blockAct(s) {
+  return `
+  <div class="act-blk">
+    <div class="hd">
+      <span class="ml">the act</span>
+      <h3>What accepting records</h3>
+    </div>
+    <div class="bd">
+      <ul>
+        <li><b>${s.name} is set to <span class="mono">operator-accepted</span>.</b> That does not
+          record that you are inside ${s.name}'s terms, and it is not read as your certifying so.
+          It records that the project would not read a stranger's terms on your behalf, and that
+          you — the party they bind — made the reading and hold it.</li>
+        <li><b>The terms themselves are fetched and stored, here, now.</b> Not a link to them: the
+          bytes, their hash and the time they were fetched. A link can be rewritten after you
+          accept, with nothing left to compare against. If the fetch fails, the failure is stored
+          in the same slot, and that is a record too.</li>
+        <li><b>Nothing else changes.</b> No scope is added, no address is probed, and no proposal
+          is confirmed. You can turn this off again at any time; turning a proposer off removes
+          nothing you already confirmed.</li>
+      </ul>
+      ${s.recordCaveat ? `<div class="note" style="margin-top:var(--space-3)">
+        <span class="ml">about the copy that will be stored</span>${s.recordCaveat}</div>` : ``}
+      <div class="note invite" style="margin-top:var(--space-3)">
+        <span class="ml">you may get an answer the project could not</span>
+        ${s.asked.who} did not reply to the project. You hold resources in their region and the
+        project does not, which is standing the project has no way to borrow. Nothing here expires:
+        leaving this off costs you nothing you cannot come back for.
+      </div>
+    </div>
+    <div class="bar">
+      <a href="${s.terms.url}" class="mono" target="_blank" rel="noreferrer">Read ${s.name}'s terms on their site →</a>
+      <span class="muted" style="font-size:var(--text-sm)">Not fetched yet. That link is their live page.</span>
+      <span class="sp"></span>
+      <button class="btn ghost">Leave off</button>
+      <button class="btn accent">Accept and enable ${s.name}</button>
+    </div>
+  </div>`;
+}
+
+/* ARIN. Not an empty prompt — no prompt. */
+function noPrompt(s) {
+  return `
+  <div class="card">
+    <div class="card-h"><h2>${s.name} has no prompt</h2><span class="sp"></span>
+      <span class="tag on">${s.consent}</span></div>
+    <div class="pad">
+      <p style="margin:0 0 var(--space-3);line-height:var(--leading-body);max-width:720px">${s.settled}</p>
+      <div class="note">
+        <span class="ml">what coverage says about ${s.name} instead</span>${s.coverageLine}
+      </div>
+      <p class="muted" style="margin:var(--space-3) 0 0;line-height:var(--leading-body);max-width:720px;font-size:var(--text-sm)">
+        An empty group inside a prompt is written down, because you could not otherwise tell it from
+        an omission. A prompt with nothing in either group is not written at all — there is no act to
+        take and no reading to hold, and a page saying so would invent a decision where there is none.
+      </p>
+    </div>
+  </div>`;
+}
+
+function promptDoc(s) {
+  if (!s.toggle) return noPrompt(s);
+  return `
+  <div class="stack">
+    ${blockWhat(s)}
+    ${groupActionable(s)}
+    ${groupUnanswerable(s)}
+    ${blockAct(s)}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: coverage — the entrance, three ways
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function coverageScreen(variant, srcKey) {
+  const s = R[srcKey];
+  const rows = ORDER.map(k => {
+    const r = R[k];
+    const open = variant === "A" && k === srcKey && r.toggle;
+    return `
+    <div class="reg-row">
+      <div class="top">
+        <span class="nm">${r.name}</span>
+        ${r.toggle ? `<span class="tag invite">off</span>` : `<span class="tag on">on</span>`}
+        <span class="mono faint" style="font-size:var(--text-xs)">${r.consent}</span>
+        <span class="sp"></span>
+        ${r.toggle
+          ? `<button class="btn sm accent" onclick="go('source','${k}')">${
+              variant === "A" ? (open ? "Close" : "Review what is unresolved")
+            : variant === "B" ? "Review what is unresolved"
+            : "Review what is unresolved →"}</button>`
+          : ``}
+      </div>
+      <div class="line">${r.toggle
+        ? `${r.asked.who} was asked. No answer came. You can read ${r.name}'s terms and decide for
+           yourself — ${r.actionable.length > 0
+             ? `one part of what is unresolved turns on facts about you`
+             : `nothing left unresolved here turns on who you are`}.`
+        : r.coverageLine}</div>
+      ${open ? `<div class="inline-doc">${promptDoc(r)}</div>` : ``}
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="shell">
+    <h1 class="page">Coverage</h1>
+    <div class="sub">99.3% of what you declared was measured this cycle. What you declared is
+      narrower than it could be.</div>
+    <div class="stack">
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <div class="card-h"><h2>Scopes you have not declared</h2><span class="sp"></span>
+          <span class="ml" style="color:var(--accent)">no figure applies here</span></div>
+        <div class="pad" style="padding-bottom:var(--space-2)">
+          <p class="muted" style="margin:0;max-width:780px;line-height:var(--leading-body)">
+            These registries propose address scopes for you to confirm. None of them can raise the
+            percentage above — coverage is measured against what you declared, so enabling one cannot
+            make us more complete. It can only tell you the estate was larger than you said. That is
+            why nothing here carries a number.</p>
+        </div>
+        ${rows}
+      </div>
+      <div class="note invite">
+        <span class="ml">why four of these are off</span>
+        Four registries were asked whether verge-asm may query them on an operator's behalf by
+        default. None replied, so they ship off. Each one leaves something unresolved, and the
+        unresolved part is written out before you are asked to take it on — some of it you may be
+        able to settle, some of it nobody has settled.
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: accept — the moment of acceptance
+
+   The install has just retrieved and stored the document, or the failure.
+   What renders is the RECEIPT, never the document: our two groups and their
+   terms in one view manufactures a mapping between them, and the operator
+   reads our questions as annotations of their clauses. That is the verdict
+   `operator-accepted` exists to refuse.
+
+   Success and failure render in the same slot at the same weight. For LACNIC
+   the failure IS what was accepted, so a failure treatment that looked like
+   an error would be reporting the expected outcome as a fault.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function acceptScreen(srcKey, stage) {
+  const s = R[srcKey];
+  if (!s.toggle) return `<div class="shell narrow">${noPrompt(s)}</div>`;
+  const ok = stage === "ok" && s.terms.ok;
+  const t = s.terms;
+  const surprise = stage === "fail" && t.ok;   /* the fetch failed where the prompt said it would work */
+
+  const receipt = ok ? `
+<span class="k">requested</span>${t.url}
+<span class="k">at</span>2026-08-13 14:02:31 UTC
+<span class="k">status</span>${t.status}
+<span class="k">bytes</span>${t.bytes}
+<span class="k">content-type</span>${t.type}
+<span class="k">sha-256</span>${t.hash}
+<span class="k">stored</span>the document` : surprise ? `
+<span class="k">requested</span>${t.url}
+<span class="k">at</span>2026-08-13 14:02:31 UTC
+<span class="k">status</span><span class="bad">connection reset after 30s</span>
+<span class="k">bytes</span><span class="bad">0</span>
+<span class="k">stored</span><span class="bad">the failure</span>` : `
+<span class="k">requested</span>${t.url}
+<span class="k">at</span>2026-08-13 14:02:31 UTC
+<span class="k">status</span>${t.status}
+<span class="k">bytes</span>${t.bytes}
+<span class="k">content-type</span><span class="bad">${t.type}</span>
+<span class="k">sha-256</span>${t.hash}
+<span class="k">stored</span>the failure`;
+
+  return `
+  <div class="shell narrow">
+    <div class="crumb"><a href="#" onclick="go('screen','coverage')">Coverage</a> ›
+      <a href="#" onclick="go('screen','prompt')">${s.name}</a> › accepted</div>
+    <h1 class="page">${s.name} is on</h1>
+    <div class="sub">Consent is <span class="mono">operator-accepted</span>. It is your reading, and
+      this is the record of what you read it against.</div>
+
+    <div class="stack">
+      <div class="card">
+        <div class="card-h"><h2>Retrieval</h2><span class="sp"></span>
+          <span class="ml">${ok ? "the document was stored" : "the failure was stored"}</span></div>
+        <div style="padding:var(--space-4)"><div class="ink">${receipt}</div></div>
+        <div class="card-f">
+          ${ok ? `
+            <span class="muted" style="font-size:var(--text-sm)">This copy is what the address served
+              at the moment you accepted. If it is rewritten later, this copy does not change.</span>
+            <div style="margin-top:var(--space-3)">
+              <button class="btn ghost sm" onclick="go('screen','stored')">Open the stored copy →</button>
+            </div>`
+          : surprise ? `
+            <span style="font-size:var(--text-base);line-height:var(--leading-body)">
+              <b>This is not what the prompt said would happen.</b> ${s.name}'s terms were readable
+              when they were last checked, and the fetch at your acceptance failed. What is recorded
+              is the failure, because that is what happened. ${s.name} is on and you can turn it off.</span>
+            <div style="margin-top:var(--space-3)">
+              <button class="btn ghost sm">Retry the fetch</button>
+              <button class="btn ghost sm">Turn ${s.name} back off</button>
+            </div>`
+          : `
+            <span style="font-size:var(--text-base);line-height:var(--leading-body)">
+              This is the expected result and it is not an error. ${s.name}'s terms could not be
+              retrieved before you accepted and they could not be retrieved now. The record holds
+              what came back instead, which is a more honest account of what you accepted than a
+              working link to a page with no terms in it would have been.</span>
+            <div style="margin-top:var(--space-3)">
+              <button class="btn ghost sm" onclick="go('screen','stored')">Open what was stored →</button>
+            </div>`}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>The consent record</h2></div>
+        <table class="kv">
+          <tr><td class="k">source</td><td class="v">${s.name}</td></tr>
+          <tr><td class="k">consent</td><td class="v">operator-accepted</td></tr>
+          <tr><td class="k">accepted by</td><td class="v">l.winnie</td></tr>
+          <tr><td class="k">accepted at</td><td class="v">2026-08-13 14:02:31 UTC</td></tr>
+          <tr><td class="k">terms held</td><td class="v">${ok ? "stored copy · " + t.bytes + " B"
+            : surprise ? "none — retrieval failed" : "none — retrieval failed, failure stored"}</td></tr>
+          ${t.documented ? `<tr><td class="k">documented address</td>
+            <td class="v">${t.documented} · ${t.documentedStatus}</td></tr>` : ``}
+          <tr><td class="k">questions shown</td>
+            <td class="v">${s.actionable.length} resolvable · ${
+              s.unanswerable === null ? "not enumerable" : s.unanswerable.length + " unresolved"}</td></tr>
+        </table>
+        <div class="card-f muted" style="font-size:var(--text-sm);line-height:var(--leading-body)">
+          The record holds what you were shown as well as what you accepted. If the wording of either
+          group changes in a later release, this record still says what the wording was on the day.
+        </div>
+      </div>
+
+      <div class="note">
+        <span class="ml">what happens next, and what does not</span>
+        ${s.name} will be queried on the next cadence and will propose address scopes for you to
+        confirm. Nothing it proposes is in your estate, nothing is probed, and no timeline moves
+        until you confirm one. If it comes back with nothing, you will be told whether that means
+        it found nothing or could not be reached — those are different answers and they are not
+        rendered alike.
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: stored — the copy, on its own view
+
+   Deliberately reachable only from the record, and deliberately not on the
+   same view as the two groups. Verbatim, unannotated, no anchors, no
+   highlighting: annotating a stored document is the reading the project
+   declined to do, arriving through a scrollbar.
+
+   The prototype ships no registry's terms text. #27: anything the project
+   ships is a build-time act by us and no registry licenses it. The record's
+   SHAPE is what is being designed here; the bytes belong to the operator's
+   own install.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function storedScreen(srcKey) {
+  const s = R[srcKey];
+  if (!s.toggle) return `<div class="shell narrow">${noPrompt(s)}</div>`;
+  const t = s.terms;
+  return `
+  <div class="shell narrow">
+    <div class="crumb"><a href="#" onclick="go('screen','coverage')">Coverage</a> ›
+      <a href="#" onclick="go('screen','prompt')">${s.name}</a> ›
+      <a href="#" onclick="go('screen','accept')">accepted</a> › stored copy</div>
+    <h1 class="page">${s.name} — the copy stored at your acceptance</h1>
+    <div class="sub">Exactly as it was fetched on <span class="mono">2026-08-13</span>. Nothing here is
+      highlighted, indexed or summarised, and nothing on this page is verge-asm's reading of it.</div>
+    <div class="stack">
+      <table class="kv card">
+        <tr><td class="k">from</td><td class="v">${t.url}</td></tr>
+        <tr><td class="k">fetched</td><td class="v">2026-08-13 14:02:31 UTC</td></tr>
+        <tr><td class="k">status</td><td class="v">${t.status} · ${t.bytes} B · ${t.type}</td></tr>
+        <tr><td class="k">sha-256</td><td class="v">${t.hash}</td></tr>
+      </table>
+      ${t.ok ? `
+      <div class="stored-body">
+        <code>[ ${t.bytes} bytes of ${s.name}'s terms, as fetched ]</code>
+        <div style="margin-top:var(--space-3);max-width:520px;margin-left:auto;margin-right:auto">
+          The running product renders the stored bytes here. This prototype does not carry them:
+          shipping a third party's document inside this repository is a build-time act by the
+          project, and none of these registries licenses it.
+        </div>
+      </div>`
+      : `
+      <div class="stored-body">
+        <code>[ ${t.bytes} bytes — ${t.type} ]</code>
+        <div style="margin-top:var(--space-3);max-width:560px;margin-left:auto;margin-right:auto">
+          What was stored is not terms. It is what the address served, kept because a record that
+          cannot produce what was consented to is not a record — and because <b>nothing was
+          retrieved</b> is a claim that has to be evidenced like any other.
+        </div>
+      </div>`}
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN: prompt — the document, at its three placements
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function promptScreen(variant, srcKey) {
+  const s = R[srcKey];
+
+  /* A — expands in place. Drawn so the cost is visible rather than argued:
+     the document is a screen's worth of reading nested two levels inside a
+     card that also has to render five other registries, and the operator
+     loses the Coverage page they were on. */
+  if (variant === "A") return coverageScreen("A", srcKey);
+
+  /* B — a dialog. Correct-looking, and it dies on the record: a dialog has no
+     afterlife, so there is nowhere to come back to and read what you accepted,
+     and nowhere for onboarding to link to. It also has to host a network fetch
+     that can fail. */
+  if (variant === "B") return `
+    ${coverageScreen("B", srcKey)}
+    ${s.toggle ? `
+    <div class="scrim"></div>
+    <div class="dlg">
+      <div class="dh"><h2>${s.name}</h2>
+        <span class="mono faint" style="font-size:var(--text-xs)">operator-accepted</span>
+        <span class="sp"></span><button class="btn ghost sm">✕</button></div>
+      <div class="db">${promptDoc(s)}</div>
+    </div>` : ``}`;
+
+  /* C — its own addressable surface, opened from Coverage. Ships. */
+  return `
+  <div class="shell narrow">
+    <div class="crumb"><a href="#" onclick="go('screen','coverage')">Coverage</a> ›
+      scopes you have not declared › ${s.name}</div>
+    <h1 class="page">${s.name}</h1>
+    <div class="sub">${s.toggle
+      ? `Off. Turning it on means taking on a reading of ${s.name}'s terms that this project would not
+         make for you. What that reading leaves open is below — the part you may be able to settle
+         first, then the part nobody has settled.`
+      : `On, and nothing about it was left unresolved.`}</div>
+    ${promptDoc(s)}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ROUTER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const SCREENS  = ["coverage","prompt","accept","stored"];
+const VARIANTS = ["A","B","C"];
+const STAGES   = ["ok","fail"];
+
+function q(k, d) { const v = new URLSearchParams(location.search).get(k); return v || d; }
+function go(k, v) {
+  const p = new URLSearchParams(location.search); p.set(k, v);
+  location.search = p.toString(); return false;
+}
+
+function render() {
+  const screen  = SCREENS.includes(q("screen"))   ? q("screen")  : "prompt";
+  const variant = VARIANTS.includes(q("variant")) ? q("variant") : "C";
+  const source  = ORDER.includes(q("source"))     ? q("source")  : "ripestat";
+  const stage   = STAGES.includes(q("stage"))     ? q("stage")   : "ok";
+
+  const body =
+      screen === "coverage" ? coverageScreen(variant, source)
+    : screen === "prompt"   ? promptScreen(variant, source)
+    : screen === "accept"   ? acceptScreen(source, stage)
+    :                         storedScreen(source);
+
+  document.getElementById("app").innerHTML =
+    nav(screen === "coverage" || (screen === "prompt" && variant !== "C") ? "coverage" : "")
+    + body + foot();
+
+  const opts = { screen: SCREENS, variant: VARIANTS, source: ORDER, stage: STAGES };
+  const cur  = { screen, variant, source, stage };
+  document.querySelectorAll("#switch .g").forEach(g => {
+    const k = g.dataset.key;
+    g.querySelectorAll("button").forEach(b => b.remove());
+    opts[k].forEach(o => {
+      const b = document.createElement("button");
+      b.textContent = o; b.className = cur[k] === o ? "on" : "";
+      b.onclick = () => go(k, o);
+      g.appendChild(b);
+    });
+  });
+}
+render();
+</script>
+</body>
+</html>
