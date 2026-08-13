@@ -74,6 +74,45 @@ and what new measurement it requires — and the last of those is a **scope** co
 weighed, never a correctness objection. A bar erected to protect the list rather than the
 property would have excluded #35 on exactly that confusion.
 
+### Amendment — [#44](https://github.com/winniel123/verge-asm/issues/44): `not-evaluable` needs a subject, and this ADR's worked example does not have one
+
+The rule above stands unchanged. What is corrected is its **example**, and the correction
+matters because the example is what an implementer would build from.
+
+[ADR-0014](./0014-only-revealed-generalises.md) settled that a `Batch` whose recorded scope
+excludes a thing **never touches its timeline**, so a `Gap` — which is a span — does not open
+where there was never a timeline to interrupt. Applied here: on a `third-party` address only
+the ports the `Name` implies are probed, so no `Service` on a sensitive-list `(port,
+transport)` pair is ever *observed* there. No subject exists. A signal cannot return
+`not-evaluable` about a subject that is not in the estate, so the sentence *"port-facts rules
+have no evidence there"* describes something real that this term cannot express.
+
+The **harm** the rule names is unchanged and is if anything larger, because it arrives through
+the **census** rather than through a per-subject outcome: a rule reporting *0 fired, 0 did not
+fire* over a population that is empty for an aperture reason is the bill of health the estate
+never earned, written as a number instead of a word. The modal cloud-resident install of
+[#26](https://github.com/winniel123/verge-asm/issues/26) with the `custody extension` left off
+— correctly left off — hits exactly that.
+
+So the rule is carried by **two** mechanisms, split on whether the subject exists:
+
+- **The subject exists and its evidence does not** — per-subject `not-evaluable`, on `Signals`,
+  as the third member of the rule's census, counted over the rule's **predicate domain** and
+  never over the timelines it happens to hold. Each row carries the cause, which is read off
+  the `Gap` where there is one.
+- **No subject exists, because we never looked** — no row is possible, ever. It is an
+  **aperture** fact and it renders as a standing statement on `Coverage`, carrying counts of
+  our own rules and lists (closed and enumerable) and never a count or proportion of the
+  operator's estate, for the reason [#28](https://github.com/winniel123/verge-asm/issues/28)
+  gave the propose half of source coverage.
+
+The same correction applies to [#29](https://github.com/winniel123/verge-asm/issues/29)'s claim
+that a batch measuring no UDP makes the six UDP pairs *"report `not-evaluable` … obtained for
+free rather than by policy"*. They report nothing at all: no `Service` is observed on 161/udp,
+so there is no subject to hold the outcome. That is why the string appears nowhere in #28's
+prototype, and why [#21](https://github.com/winniel123/verge-asm/issues/21) §6.1's stated
+justification needed a screen rather than an inference.
+
 ## Consequences
 
 - **The v1 set is:** certificate expired / not-yet-valid / expiring within N days (one rule,
