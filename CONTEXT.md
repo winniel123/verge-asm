@@ -141,7 +141,7 @@ and manufacture drift in the flagship value. It is what `Reach` is measured per,
 and therefore what makes `Exposure` a conclusion across two classes rather than a reading from
 one prober. The cost is stated rather than hidden: a vantage inside operator address space the
 operator never declared verifies as `internet`, which over-reports `exposed`. That is the loud
-failure and the intended one — a false `exposed` is investigated, a false `internal-only` is
+failure and the intended one — a false `exposed` is investigated, a false quiet reading is
 not — and the undeclared space surfaces as a coverage question. See
 [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
 _Avoid_: external, network position, inside/outside
@@ -333,15 +333,23 @@ _Avoid_: reachable, probe result, port state, not-checked
 
 **Exposure**:
 The reachability conclusion for a `Service`, composed from the internet `Reach` and the
-internal `Reach` rather than observed by any one vantage. Its five values — `exposed`
-(both `reached`), `firewalled`, `internal-only`, `edge-only`, `unreachable` — are a
-**projection** of those two legs, so a rule reads a leg and never a value. The internet
-leg going `not-reached` → `reached` is the move the product exists to catch, and it spans
-two of the five. Reads `Availability`, and therefore composes its version. Held as a `Span`
+internal `Reach` rather than observed by any one vantage. It exists only where **both** legs
+hold a value, and its four values — `exposed` (both `reached`), `edge-only`, `firewalled`,
+`unreachable` (both `not-reached`) — are a **projection** of that 2×2, so a rule reads a leg
+and never a value. A **one-legged reading is not an `Exposure` and gets no name**: where a
+vantage class was never configured the surviving leg's `Reach` is rendered on its own under
+*we never looked*, and where a configured leg went silent the `Exposure` timeline holds a
+`Gap` under *we stopped looking*. `internal-only` was a fifth value until
+[ADR-0017](./docs/adr/0017-exposure-needs-both-legs.md) and is withdrawn — it named a
+one-legged reading, which is a fact about which vantages the operator runs rather than about
+the `Service`. The internet leg going `not-reached` → `reached` is the move the product exists
+to catch, and it spans **half the grid** rather than one cell. Reads `Availability`, and
+therefore composes its version. Held as a `Span`
 written once under the version that produced it, never recomputed on read — a correction ships
 as a new version and a `Break`, not as rewritten history. See
-[ADR-0010](./docs/adr/0010-exposure-composes-two-reaches.md).
-_Avoid_: open, reachable, public
+[ADR-0010](./docs/adr/0010-exposure-composes-two-reaches.md) and
+[ADR-0017](./docs/adr/0017-exposure-needs-both-legs.md).
+_Avoid_: open, reachable, public, internal-only
 
 **Signal**:
 A named, versioned rule evaluated over observations — and over other Derived values, in
