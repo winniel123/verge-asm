@@ -83,6 +83,13 @@ batch rather than trusted as configuration. Declared, but carries a Derived
 **Availability** — the one property in the model whose layer differs from its term's.
 _Avoid_: prober location, scanner, agent
 
+**Vantage class**:
+Which side of the operator's boundary a `Vantage` sits on — `internet` or `internal` —
+declared as intent and re-verified every batch against the seeds and registry ranges the
+system already holds. It is what `Reach` is measured per, and therefore what makes
+`Exposure` a conclusion across two classes rather than a reading from one prober.
+_Avoid_: external, network position, inside/outside
+
 **Scan**:
 The operator's configured recurring intent — which scopes, which ports, which vantages,
 what cadence. The configured thing, never the executed one.
@@ -184,17 +191,29 @@ _Avoid_: in scope, authorized, mine
 **Availability**:
 Whether a `Vantage` is currently able to observe, concluded from its recent batch
 outcomes over a fixed window rather than measured directly. A vantage that has failed
-every attempt across the window is `unavailable`, and `Exposure` that would need it
-cannot be constructed. Derived, though the `Vantage` it belongs to is Declared — we
+every attempt across the window is `unavailable`, which opens a `Gap` on the `Reach` of
+its class — so `Exposure` that would need it is absent rather than quietly computed from
+the class that still answers. Derived, though the `Vantage` it belongs to is Declared — we
 never measured the vantage, we inferred it from what failed.
 _Avoid_: health, status, up, reachable
 
+**Reach**:
+What vantages of one `Vantage class` found for one `Service` — `reached` or `not-reached`,
+and nothing else. There is no value for *we did not look*: a `Batch` whose recorded scope
+excludes the port never feeds the timeline, so the absence is a `Gap`. A named `Derivation`
+leaf, so a rule may read one leg and compose that leaf alone.
+_Avoid_: reachable, probe result, port state, not-checked
+
 **Exposure**:
-The reachability conclusion for a `Service`, computed across vantages rather than
-observed by any one of them. `firewalled` → `exposed` is the transition the product
-exists to catch. Reads `Availability`, and therefore composes its version. Held as a `Span`
+The reachability conclusion for a `Service`, composed from the internet `Reach` and the
+internal `Reach` rather than observed by any one vantage. Its five values — `exposed`
+(both `reached`), `firewalled`, `internal-only`, `edge-only`, `unreachable` — are a
+**projection** of those two legs, so a rule reads a leg and never a value. The internet
+leg going `not-reached` → `reached` is the move the product exists to catch, and it spans
+two of the five. Reads `Availability`, and therefore composes its version. Held as a `Span`
 written once under the version that produced it, never recomputed on read — a correction ships
-as a new version and a `Break`, not as rewritten history.
+as a new version and a `Break`, not as rewritten history. See
+[ADR-0010](./docs/adr/0010-exposure-composes-two-reaches.md).
 _Avoid_: open, reachable, public
 
 **Signal**:
