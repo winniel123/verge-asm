@@ -116,11 +116,16 @@ read them on a stranger's behalf, so the operator — the party actually bound b
 makes the call and bears it. It is not a certification to us that they are inside the
 terms, and it covers terms that cannot be retrieved at all, which is why *we could not read
 them* is a fact about our own assessment rather than a fourth value here. An
-`operator-credentialed` source runs only once the operator supplies their own credential,
-under their own account's terms. The distinction is not cosmetic — the same
-service can sit in two different states depending on how it is reached — and it decides
+`operator-credentialed` source runs only once the source has **granted** that operator
+permission, so it runs under their own terms rather than the public ones — usually an API key
+they supply, but a countersigned agreement is the same thing without a token. A grant is not a
+reading: where the operator adjudicates a tension they bear, the value is `operator-accepted`;
+where the source actually said yes to them, it is this one. The distinction is not cosmetic —
+the same service can sit in two different states depending on how it is reached, so `consent`
+keys on the **instrument**, never on the registry or vendor behind it — and it decides
 what is in the aperture, which makes it a property of the observation pipeline rather than
-of the deployment. See [ADR-0003](./docs/adr/0003-third-party-source-consent-bar.md).
+of the deployment. See [ADR-0003](./docs/adr/0003-third-party-source-consent-bar.md) and
+[ADR-0018](./docs/adr/0018-a-clear-conditional-is-not-an-ambiguity.md).
 _Avoid_: enabled, licensed, tier
 
 **Vantage**:

@@ -880,6 +880,32 @@ is map note *"Redistribution is a separate permission from use"* ([#27](https://
 arriving on a path we would previously have classified as a plain query, and it is not resolved here
 — see §13.9.
 
+> **Amendment, [#46](https://github.com/winniel123/verge-asm/issues/46), 2026-08-13 — the quote above
+> is truncated, and the omission changes the answer.** Two corrections, and the second is the
+> substantive one.
+>
+> **The header has a third sentence.** **[re-measured]** against the live file (53,489,652 B,
+> `Last-Modified: Thu, 13 Aug 2026 15:02:41 GMT`, unauthenticated HTTP `206` range request), the
+> quoted two sentences are verbatim-accurate and the block ends early. In full, after *"…copyright
+> holders."*: *"Any use of this material to target advertising or similar activities are explicitly
+> forbidden and will be prosecuted. APNIC requests to be notified of any such activities or
+> suspicions thereof."* That is the header's only **named** prohibited purpose, and it is not ours.
+>
+> **The header does not define *"agreed"*, and the page it is reproduced on does.**
+> <https://www.apnic.net/manage-ip/using-whois/bulk-access/> carries this header verbatim under
+> *"Restricted rights to the APNIC Whois Database"*, directly beneath: *"Bulk access to whois data,
+> including domain objects, is available under an Acceptable Use Policy (AUP). … **Requestors must
+> sign the AUP agreement and lodge it with APNIC.**"* and *"To request access to the Whois data for
+> bulk download, please complete and return the APNIC whois data acceptable use agreement."* So the
+> carve-out is a **conditional prohibition with a published, per-requestor route through it**, not an
+> ambiguity — which is what [#46](https://github.com/winniel123/verge-asm/issues/46) ruled on, and it
+> closes §13.9 item 3.
+>
+> Recorded as the **fifth** instance of §13.7's habit and the first that is a *truncation* rather than
+> a misattribution: **verifying a quote against its source is not the same as verifying it against
+> its context.** A clause quoted out of the document that qualifies it can be word-perfect and still
+> wrong about what it permits.
+
 ### 13.6 LACNIC and AFRINIC — one works, one does not, and neither for the reason expected
 
 **LACNIC reaches PA renters by name. It is ARIN's pattern exactly**, and it is the second region where
@@ -1014,12 +1040,22 @@ own, and in APNIC and AFRINIC it honestly does not.
 2. **LACNIC was not counted, only demonstrated.** LACNIC publishes no bulk database dump, so §13.6's
    LACNIC row has a worked chain and no population figure. Its 100-result cap makes enumeration by
    repeated name search impractical and, given #25's unanswered terms, inappropriate to attempt.
-3. **Whether an indexed local copy of a registry dump is "stored in a retrieval system"** (§13.5) is a
+3. ~~**Whether an indexed local copy of a registry dump is "stored in a retrieval system"** (§13.5) is a
    licence question this note cannot answer, and it gates the *only* instrument that reaches APNIC's
    657,044 named PA assignments. It is precisely the shape of question [#27](https://github.com/winniel123/verge-asm/issues/27)
    settled for CAIDA — a build-time or storage-time act by the project rather than a runtime query by
    the operator — and it deserves its own ticket rather than an inference here. Note the RIPE and
-   AFRINIC dumps carry their own terms which were likewise not assessed.
+   AFRINIC dumps carry their own terms which were likewise not assessed.~~
+   **Closed by [#46](https://github.com/winniel123/verge-asm/issues/46)
+   ([ADR-0018](../adr/0018-a-clear-conditional-is-not-an-ambiguity.md)), 2026-08-13.** It *is* storing
+   it in a retrieval system, and the header permits that on a condition whose route is published: sign
+   APNIC's bulk-access AUP and lodge it. The header is therefore **clear, not ambiguous** — no email
+   was sent — and the tier would be `operator-credentialed`, a grant rather than a reading. The
+   capability nonetheless **does not ship in v1**: `ftp.apnic.net` gates nothing, so the toggle would
+   be a self-certification in front of an open door, which is ADR-0003's rejected declared-status bar
+   rebuilt by us, and [#43](https://github.com/winniel123/verge-asm/issues/43) prices deferring a
+   proposer at zero. **No third-party bulk registry dump enters v1**, which disposes of the unassessed
+   RIPE and AFRINIC dump terms as a class rather than one at a time.
 4. **The `org:`-vs-LIR test is structural, not semantic.** §13.3 and §13.6 classify an org handle as
    "an LIR" if it also appears on an `ALLOCATED` object in the same file. That is exact for AFRINIC's
    purposes and slightly *under*-counts LIRs in RIPE, where an LIR may hold allocations under a
