@@ -115,3 +115,39 @@ the operator saying so" is a modelled fact rather than a deployment convention.
 | **Declared-status bar** — ask at onboarding whether the deployment is commercial, and compute the default set from the answer | Buys one source for a permanent onboarding question, and invites operators to self-certify into permissions they may not hold. It also puts the project in the position of having designed the loophole |
 | **Presume unknown terms restrictive** — crt.sh to Tier 2 for publishing no terms | Would drop the only keyless way to get all certificates for `%.example.com` in one request, on the basis of a document that does not exist. crt.sh's real risks — 50% request failure, spurious 404s, an operator who has cut limits twice for abuse — are answered by the hard 5 req/min throttle, an identifying User-Agent, per-domain caching, and the rule that a non-200 produces no observation rather than an observation of absence |
 | **Ship the ambiguous source on, with a deadline for the source operator to object** | Converts "we did not get permission" into "we waited long enough", which is the same guess the corollary declines to make, with a timer attached |
+
+## Amendment — 2026-08-13
+
+The four registry enquiries this ADR's ambiguity corollary set in motion —
+[#19](https://github.com/winniel123/verge-asm/issues/19) (RIPE NCC),
+[#23](https://github.com/winniel123/verge-asm/issues/23) (APNIC),
+[#24](https://github.com/winniel123/verge-asm/issues/24) (AFRINIC) and
+[#25](https://github.com/winniel123/verge-asm/issues/25) (LACNIC) — have all closed as
+**asked, no answer**. The decision above is unchanged and its *"indefinitely if none does"*
+branch is now the spec's settled answer rather than a pending state. Three corrections to
+the Consequences follow.
+
+**"What is lost is first-run *depth*, not the capability" is false for two regions.** That
+line was written while RIPEstat was the only source in question, before
+[#20](https://github.com/winniel123/verge-asm/issues/20) measured the keyless fallbacks. It
+holds for APNIC (84.36% opaque-id coverage via CAIDA ⋈ delegated-stats) and AFRINIC (100%).
+It does **not** hold for **RIPE** — CAIDA carries no opaque-id for RIPE, 0 of 39,640 — or
+for **LACNIC**, whose CAIDA records carry no organisation names at all. For those two
+regions the operator's toggle is not extra depth; it is the entirety of org→prefix coverage.
+
+**"First-run discovery depth is registry-dependent" understates the current position.** The
+recorded framing of ARIN as carrying the keyless default set alone is stale in the
+operator's favour: [#20](https://github.com/winniel123/verge-asm/issues/20) closed AFRINIC
+and APNIC keylessly. The residue is Europe and Latin America, and the reason to state at
+first run is now uniform and final — *we asked, nobody replied, and you can accept the terms
+yourself* — which is not a wait.
+
+**`operator-accepted` is carrying two cases the two-limb bar does not decide.** APNIC's
+*"stored in a retrieval system"* restriction is a **limb 1** question, and limb 1 fails
+*"regardless of who the operator is"* — so an operator has no standing to consent past it,
+and a limb-2 instrument is being applied to it. And LACNIC has no retrievable terms, so the
+consent record specified in [#15](https://github.com/winniel123/verge-asm/issues/15)
+(account, timestamp, terms URL) cannot be completed and its prompt has no restriction to
+state; AFRINIC is a narrower instance, its terms readable but its documented URL a 404. Both
+are open as [#34](https://github.com/winniel123/verge-asm/issues/34), which may yet amend
+this ADR further.
