@@ -69,6 +69,24 @@ that a vantage sits outside every operator-owned range.
 `unknown` failing closed is the whole point. An address we cannot classify is an address
 whose owner we have not identified, which is the case where scanning is least defensible.
 
+> **Amended 2026-08-13 by [#40](https://github.com/winniel123/verge-asm/issues/40) — see
+> [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md), which carries the
+> reasoning in full rather than being inlined here.** Four things in this ADR are superseded:
+>
+> - **`Ownership` is renamed `Custody`** and means **control of the listener**, not registry
+>   title. This ADR's text is left unrewritten; read every `Ownership` below as `Custody`.
+> - **`unknown` is deleted.** With the derivation reading `Seed`s alone there is no lookup left
+>   to fail, so the sentence above has no producer. Its *intent* is unchanged — everything not
+>   covered by a `Seed` is `third-party`, which is the closed direction.
+> - **A name-scope `Seed` may carry a `custody extension`**, declaring that the addresses its
+>   names resolve to are under the operator's custody. Off by default; transitivity stops where
+>   the resolution chain leaves the declared zone. This is what lets the cloud-resident modal
+>   operator of [#26](https://github.com/winniel123/verge-asm/issues/26) be described at all.
+> - **The derivation's inputs are no longer all Declared**, so the gate now moves on
+>   measurement. The rejected alternatives below are all unaffected — in particular *"ask the
+>   operator to confirm each discovered address"* stays rejected, and ADR-0013 rejects it again
+>   in its own terms.
+
 ## Consequences
 
 - **Exposure attribution splits by ownership.** For an `owned` address, exposure belongs
