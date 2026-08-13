@@ -41,11 +41,28 @@ address scopes the operator declares are not theirs. Excluding a name that still
 queried. Registry lookups **propose** seeds and never author them: a `Proposal` the operator
 has not confirmed is not a `Seed`, asserts nothing, and is read by nothing, which is what
 keeps a third party's file out of the probing gate. Declining one is an exclusion of this kind
-rather than a suppression, since it is a claim about where the estate ends. See
+rather than a suppression, since it is a claim about where the estate ends. A name scope may
+additionally carry a **custody extension** — see below. See
 [ADR-0002](./docs/adr/0002-ownership-gates-probing.md),
 [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md) and
 [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
 _Avoid_: target, root domain, scope target
+
+**Custody extension**:
+A property of a **name scope** alone: the operator's declaration that the addresses its names
+resolve to are inside the boundary, and therefore under their `Custody`. Off by default, declared
+once on a scope the operator already authors — one act, never a queue of discovered addresses to
+approve. It is what makes the model describe a **cloud-resident estate**, where the operator holds
+no registry resources and every address they use is titled to somebody else. Transitivity stops
+where the resolution chain **leaves the declared zone**: a direct A record extends, a CNAME to a
+foreign name does not, and that boundary is measured rather than read off a list of providers. Its
+extension is recomputed rather than typed, which is a safety property and not a convenience — a
+literal address scope over a released elastic address holds the gate open on whoever holds it
+next, while an extension simply stops covering it. What it cannot see is an `ALIAS` flattened into
+an A record at a zone apex, so the declaration states that case in the operator's own words and the
+current extension is rendered for them to read — display, never per-address approval. See
+[ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md).
+_Avoid_: transitive scope, auto-discovery, implicit seed, follow-the-DNS
 
 **Source**:
 Anything that can produce observations, carrying three properties: **authority**
@@ -114,9 +131,13 @@ _Avoid_: prober location, scanner, agent
 
 **Vantage class**:
 Which side of the operator's boundary a `Vantage` sits on — `internet` or `internal` —
-declared as intent and re-verified every batch against the `Seed`s the system already holds,
-and against nothing else: no registry file may decide which side of the boundary a prober is
-on, for the same reason none may open the probing gate. It is what `Reach` is measured per,
+declared as intent and re-verified every batch against the **address-scope** `Seed`s the system
+already holds, and against nothing else: no registry file may decide which side of the boundary a
+prober is on, for the same reason none may open the probing gate, and **no `custody extension`
+either**. This is the one place where two things fairly called *the operator's addresses* mean
+different sets, deliberately: `Custody` may move on a resolution, and a `Vantage` whose class
+moved because a DNS answer changed would shuttle observations between the two legs of `Exposure`
+and manufacture drift in the flagship value. It is what `Reach` is measured per,
 and therefore what makes `Exposure` a conclusion across two classes rather than a reading from
 one prober. The cost is stated rather than hidden: a vantage inside operator address space the
 operator never declared verifies as `internet`, which over-reports `exposed`. That is the loud
@@ -259,18 +280,29 @@ _Avoid_: provenance chain, lineage, discovery path
 
 ### Derived
 
-**Ownership**:
-Whether an `Address` is `owned`, `third-party`, or `unknown`, computed against `Seed`s
-**alone**. Registry data proposes seeds to the operator; it is never read by the
-derivation, so no third party's file can open the probing gate. Governs what may be
-probed, not merely how it is displayed — see
-[ADR-0002](./docs/adr/0002-ownership-gates-probing.md) and
-[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md). It is the one Derived value whose
-change carries a safety consequence, so it holds a `Span` timeline: closing the gate opens a
-`Gap` beneath the address rather than withdrawing anything, and opening it reveals services
-that are `revealed`, never `appeared`. Derived from Declared input only — its inputs never
-drift, so it moves exactly when the operator moves it.
-_Avoid_: in scope, authorized, mine
+**Custody**:
+Whether an `Address` is under the `operator`'s control or is `third-party`, computed against
+`Seed`s **alone**. It means **control of what listens**, never registry title: the party who
+can consent to a scan is whoever controls the listener, and a cloud provider holds title to
+every address it rents while being unable to say whether a tenant's port should be open. Named
+`Ownership` until [ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md),
+which renamed it because the old word reads as title and had already produced a ticket arguing
+the model could not describe its own modal operator. Registry data proposes seeds to the
+operator; it is never read by the derivation, so no third party's file can open the probing
+gate. Governs what may be probed, not merely how it is displayed — see
+[ADR-0002](./docs/adr/0002-ownership-gates-probing.md),
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md) and
+[ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md). There is **no
+third value**: *covered by a `Seed`?* is a total question with no lookup left to fail, so
+everything not covered is `third-party`, which is the closed direction. It is the one Derived
+value whose change carries a safety consequence, so it holds a `Span` timeline. Alone among
+Derived values its inputs are **not** all Declared — a `custody extension` makes it a function
+of measured resolutions, so it moves when the world moves and not only when the operator does.
+Its two causes part cleanly: the operator withdrawing an extension closes the gate and opens a
+`Gap` beneath addresses that are still cited, while a resolution ceasing to cite an address
+withdraws the `Address` itself, which takes its timelines with it and leaves no `Gap` behind.
+Opening the gate reveals services that are `revealed`, never `appeared`.
+_Avoid_: ownership, owned, in scope, authorized, mine
 
 **Availability**:
 Whether a `Vantage` is currently able to observe, concluded from its recent batch
