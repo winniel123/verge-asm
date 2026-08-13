@@ -25,7 +25,11 @@ comparison path at all.
 
 **Seed**:
 An operator's assertion of where the estate ends — either a *name scope* (a registrable
-domain) or an *address scope* (a CIDR). It declares a boundary, not a starting point.
+domain) or an *address scope* (a CIDR). It declares a boundary, not a starting point. A
+boundary can be drawn inwards too: a seed carries **exclusions**, exact names or subtrees
+the operator declares are not theirs. Excluding a name that still resolves is legal —
+*not mine* is a different claim from *not there* — and an excluded name is no longer
+queried. See [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md).
 _Avoid_: target, root domain, scope target
 
 **Source**:
@@ -44,7 +48,11 @@ How far a source's claim of existence is believed. The operator's zone file is
 Whether a source's *silence* may mean absence. An `enumerable` source returns a complete
 set over a declared scope, so silence within that scope is evidence. A `corroborative`
 source can only ever assert presence — certificate transparency is append-only, so a
-certificate's absence from a query means nothing, however the query went.
+certificate's absence from a query means nothing, however the query went. The scope need
+not be one the operator declared, and may be as small as a single subject: our own
+resolver is `enumerable` over one `Name`, because a Name Error is a complete answer to
+whether that name exists. What the rule requires is that the `Batch` record the scope,
+not that anyone else have drawn it.
 
 **Consent**:
 Whose permission a source runs on. `unencumbered` sources run by default. An
@@ -69,23 +77,31 @@ _Avoid_: job, scan job
 
 **Annotation**:
 Operator opinion attached to a subject — a suppression, an accepted risk. Kept separate
-from observations so that opinion is never mistaken for measurement.
+from observations so that opinion is never mistaken for measurement. It never removes a
+subject: that is a claim about where the estate ends, so it belongs to `Seed`.
 _Avoid_: status, triage state, finding state
 
 ### Observed
 
 **Subject**:
 Anything an observation can be about. Exactly four kinds — `Name`, `Address`, `Service`,
-`Endpoint` — each with its own natural key and its own lifecycle.
+`Endpoint` — each with its own natural key, and each with its own lifecycle except
+`Address`.
 _Avoid_: asset, entity, target
 
 **Name**:
-A fully-qualified domain name. Has DNS records; has no ports.
+A fully-qualified domain name. Has DNS records; has no ports. The only subject whose
+departure needed deciding: it leaves when our own resolver measures a Name Error from
+every available vantage, never because time passed. Under a `Shadowed` answer it cannot
+leave at all, and stays visibly unconfirmed until the operator supplies coverage or
+excludes it. See [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md).
 _Avoid_: domain, subdomain, hostname, host
 
 **Address**:
 An IP address. Has ports; has no DNS records. Reached from a `Name` only through an
-observed resolution, never a fixed relationship.
+observed resolution, never a fixed relationship. Alone among the subjects it has no
+lifecycle of its own — nothing ever observes an address's *existence* — so it is in the
+estate exactly while a current resolution cites it or a `Seed` covers it.
 _Avoid_: IP, host, node
 
 **Service**:
@@ -109,6 +125,16 @@ Which aspect of a subject an observation measured — `resolution`, `dns-record`
 its values, not a new way to detect change.
 _Avoid_: attribute, field, property
 
+**Shadowed**:
+The value a `resolution` observation takes when the answer matches a wildcard's measured
+poison signature — neither the synthesised answer nor a failure. Recorded as a measured
+value rather than discarded, because *we cannot see here* is a fact the operator needs and
+the alternative manufactures drift: repoint one wildcard and every fictional name beneath
+it reports a resolution change the same night. Whether a name is admitted under a wildcard
+turns on its `Citation`, not on this answer — a certificate SAN survives, a guessed label
+does not.
+_Avoid_: unverifiable, synthetic, wildcard hit
+
 **Certificate**:
 An X.509 certificate, held as an immutable value and shared by fingerprint across every
 endpoint presenting it. A certificate cannot change, so it cannot drift; what changes is
@@ -126,7 +152,9 @@ _Avoid_: run, scan run, execution, sweep
 **Citation**:
 The single-hop link from a subject to the observation that introduced it. Following
 citations backwards always terminates at a `Seed` or a `declared` source, which is what
-makes "why is this here?" answerable for everything in the estate.
+makes "why is this here?" answerable for everything in the estate. It is load-bearing in
+both directions: a subject whose last citation goes stale has no chain back to a `Seed`,
+which withdraws it *and* closes the probing gate on it.
 _Avoid_: provenance chain, lineage, discovery path
 
 ### Derived
