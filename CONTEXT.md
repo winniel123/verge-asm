@@ -340,7 +340,10 @@ _Avoid_: health, status, up, reachable
 **Reach**:
 What vantages of one `Vantage class` found for one `Service` — `reached` or `not-reached`,
 and nothing else. There is no value for *we did not look*: a `Batch` whose recorded scope
-excludes the port never feeds the timeline, so the absence is a `Gap`. A named `Derivation`
+excludes the port never feeds the timeline, so the absence is a `Gap` where the timeline was
+already running and **nothing at all** where it never began — a `Gap` is a span, and an
+absent timeline has none, per
+[ADR-0014](./docs/adr/0014-only-revealed-generalises.md). A named `Derivation`
 leaf, so a rule may read one leg and compose that leaf alone.
 _Avoid_: reachable, probe result, port state, not-checked
 
@@ -363,7 +366,13 @@ evidence. It has no lifecycle of its own; its lifecycle is its evidence's. Versi
 per rule, never one set-wide version, so an edit to one rule leaves the rest comparable.
 A signal carries no severity: it is a named fact, and urgency belongs to the transition
 that surfaced it. Evaluated where its evidence is absent it returns `not-evaluable`,
-which is not the same as not firing. It is **named for the fact it reads** — never for a
+which is not the same as not firing — but that word needs a **subject**, and where the
+aperture never produced one there is no outcome to return and no row to render, so the
+honesty lands on the aperture statement rather than on the rule. Its census is therefore
+three members over one population — fired, did not fire, `not-evaluable` — counted over the
+rule's **predicate domain** and never over the timelines it happens to hold, or the
+never-evaluable population is invisible by construction and the census is the clean bill of
+health this term exists to refuse. It is **named for the fact it reads** — never for a
 conclusion its evidence cannot carry, and never for a protocol — and its scope is however many
 protocols happen to express that fact, so covering exactly one is not disqualifying while three
 protocols expressing one fact must be one signal rather than three. Being true of *most* of the
