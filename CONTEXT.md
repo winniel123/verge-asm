@@ -48,9 +48,14 @@ certificate's absence from a query means nothing, however the query went.
 
 **Consent**:
 Whose permission a source runs on. `unencumbered` sources run by default. An
-`operator-accepted` source runs only once the operator has accepted that source's terms
-themselves; an `operator-credentialed` one only once the operator supplies their own
-credential, under their own account's terms. The distinction is not cosmetic — the same
+`operator-accepted` source runs only once the operator has taken on a reading the project
+declined to make: we could not clear the source's terms for the modal operator and will not
+read them on a stranger's behalf, so the operator — the party actually bound by them —
+makes the call and bears it. It is not a certification to us that they are inside the
+terms, and it covers terms that cannot be retrieved at all, which is why *we could not read
+them* is a fact about our own assessment rather than a fourth value here. An
+`operator-credentialed` source runs only once the operator supplies their own credential,
+under their own account's terms. The distinction is not cosmetic — the same
 service can sit in two different states depending on how it is reached — and it decides
 what is in the aperture, which makes it a property of the observation pipeline rather than
 of the deployment. See [ADR-0003](./docs/adr/0003-third-party-source-consent-bar.md).

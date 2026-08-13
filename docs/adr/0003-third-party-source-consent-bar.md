@@ -151,3 +151,113 @@ consent record specified in [#15](https://github.com/winniel123/verge-asm/issues
 state; AFRINIC is a narrower instance, its terms readable but its documented URL a 404. Both
 are open as [#34](https://github.com/winniel123/verge-asm/issues/34), which may yet amend
 this ADR further.
+
+## Second amendment — 2026-08-13
+
+[#34](https://github.com/winniel123/verge-asm/issues/34) resolves what an operator is doing
+at the toggle. The decision above is unchanged; one sentence of it is **scoped**, one value
+it introduced is **redefined**, and the consent record
+[#15](https://github.com/winniel123/verge-asm/issues/15) specified is **replaced**.
+
+### The first amendment named the wrong axis
+
+It treated APNIC as the outlier — a limb-1 question wearing a limb-2 remedy. Reading all
+four non-answers side by side, the axis that matters is not which limb the ambiguity sits
+in but whether the residual unknown **varies by operator or is constant across every
+install**:
+
+| Source | Unresolved question | Varies by operator? |
+| --- | --- | --- |
+| RIPEstat | does *"re-package, compile"* reach writing prefixes to an inventory database? | **No** |
+| RIPEstat | is the operator reselling a service built on it? | Yes |
+| RIPE Database | is estate inventory an Article 3 purpose? (Art. 4.1) | **No** |
+| APNIC | does the retrieval-system clause's carve-out cover us? | **No** |
+| APNIC | is inventory an *"operational purpose approved by APNIC"*? | Yes — approval is per-party |
+| AFRINIC | does the closed permitted-use list name our use? | **No** |
+| LACNIC | unknowable — the terms cannot be retrieved | — |
+
+`operator-accepted` was designed for the SSLMate shape — *"personal or evaluation
+purposes"*, where the project genuinely cannot know who the operator is and the operator
+genuinely can. **Every one of the four toggles gates at least one constant question**, so
+APNIC was never special, and an answer scoped to APNIC would have left the same defect
+standing under three other toggles.
+
+### Limb 1 governs the default, not the capability
+
+*"A clause forbidding storage in another retrieval system … fails here regardless of who
+the operator is"* is a test for **shipping enabled by default** — the decision sentence it
+sits under says so — and it is silent on whether the capability may exist behind an
+informed opt-in. Read the other way it would delete the org→prefix entry point in four of
+five regions to protect a rule about defaults, at a point where
+[#27](https://github.com/winniel123/verge-asm/issues/27) has established the address-seed
+path is 100% covered in all five.
+
+### `operator-accepted` is the operator's reading, not their compliance
+
+The value does **not** mean the operator has certified to us that they are inside the
+terms. It means: *the project could not clear these terms for the modal operator and will
+not read them on a stranger's behalf; the operator, who is the party actually bound by
+them, makes the reading and bears it.* That is this ADR's founding move applied one step
+further out, not an exception to it — and it is why the rejected **declared-status bar**
+stays rejected: that alternative computed the *default set* from a self-certification,
+where this leaves the default off and moves nothing.
+
+The reading only holds if the operator is told what is unresolved, so the prompt states it
+**in the project's own words, never the source's**, in **two marked groups**:
+
+- **what you may be able to resolve** — the operator-varying rows above; they can seek
+  APNIC's approval and they know whether they resell;
+- **what nobody has been able to resolve** — the constant rows, plus *we asked, nobody
+  replied*.
+
+Collapsing the two into one list buries the only actionable half under questions no one can
+answer, which reads as *this is hopeless, leave it off*.
+
+### Unretrievable terms do not get a fourth value
+
+LACNIC asserts binding terms and serves a 7,014 B JavaScript shell at the URL its own RDAP
+advertises. The toggle **survives**: the operator can do the one thing the project cannot —
+ask LACNIC as a resource holder in their own region — and refusing the toggle forecloses
+that permanently. `Consent` gains **no fourth value**; *we could not read the terms* is an
+epistemic fact about our own assessment, and putting it on a property whose values all
+answer *whose permission does this run on* would be a second property wearing an enum
+case's clothes. It belongs in the prompt and the record, which is where the operator meets
+it. *"Absence of terms clears the bar"* still does not reach this — unreadable is not
+absent, or any source could earn `unencumbered` by breaking its own link.
+
+### The consent record stores the document, not a pointer
+
+[#15](https://github.com/winniel123/verge-asm/issues/15)'s **account, timestamp and terms
+URL** is withdrawn. The record stores the **retrieved terms themselves** — bytes, a hash,
+the retrieval timestamp — with the URL as metadata, and where retrieval failed it stores
+**the failure** in the same slot. A record that cannot produce what was consented to is not
+a record: AFRINIC's documented `afrinic.net/whois/terms` 404s, and a live URL can be
+rewritten after acceptance with nothing to compare against. Note the boundary
+[#27](https://github.com/winniel123/verge-asm/issues/27) drew: the copy is made **by the
+operator's own install, at their own acceptance**, and is never bundled or redistributed by
+the project.
+
+### What ships, in what state, and what the operator is asserting
+
+| Registry | Keyless (`unencumbered`) path | Live path | At the toggle, the operator asserts |
+| --- | --- | --- | --- |
+| **ARIN** | full org→prefix, ships on | — | — |
+| **AFRINIC** | full org→prefix via CAIDA ⋈ delegated-stats | RDAP, `operator-accepted` | their own reading of a closed permitted-use list that does not name our use; terms readable, documented URL dead |
+| **APNIC** | 84.36% of opaque-ids | registry, `operator-accepted` | their own reading of the retrieval-system carve-out, and whether they hold or will seek APNIC approval |
+| **RIPE** | none | RIPEstat + RIPE Database, `operator-accepted` | their own reading of *"re-package, compile"* and of Article 3's purpose list, and whether they resell |
+| **LACNIC** | none | registry, `operator-accepted` | that they accept a source whose terms **nobody has been able to retrieve**, stated as such |
+
+### Consequences of this amendment
+
+- **The name `operator-accepted` is kept.** It is underspecified about its object rather
+  than false — unlike [#32](https://github.com/winniel123/verge-asm/issues/32)'s
+  `sensitive-port-exposed`, which collided with a state that exists in the model and that
+  the rule did not read. A glossary entry is the right instrument for underspecification,
+  and a rename would strand the name across five closed tickets and this ADR.
+- **The aperture rule is untouched.** Enabling any of these still widens the aperture for
+  that install, and a subject first observed under a widened aperture is not *appeared*.
+  For RIPE and LACNIC it is a zero→full widening, the largest the product can make.
+- **This does not decide [#46](https://github.com/winniel123/verge-asm/issues/46).** A
+  header that *clearly* bars us is not an ambiguity, and no toggle cures a plain no — so
+  whether APNIC's bulk file may be indexed still turns on the clear-or-ambiguous fork that
+  ticket owns.
