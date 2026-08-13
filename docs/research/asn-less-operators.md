@@ -377,6 +377,15 @@ attribute naming the end customer often enough to be searchable — and whether 
 given that #20 measured `type-filter=inetnum` returning HTTP 400 on multi-word queries and RIPE's
 RDAP entity search returning 500 — is open. §12 records it; §11 turns it into a ticket.
 
+> **Answered in [§13](#13-are-provider-aggregatable-assignments-name-searchable-outside-arin)**
+> ([#38](https://github.com/winniel123/verge-asm/issues/38), 2026-08-13). Short version: the *policy*
+> generalises to all five RIRs — RIPE and AFRINIC compel it with **no** prefix floor, stricter than
+> ARIN's /29 — and the *name search* generalises to RIPE and LACNIC but not to APNIC or AFRINIC. The
+> `org:` attribute this paragraph guessed at turns out to be the wrong thing to have measured: it is
+> populated on **6.98 %** of RIPE `ASSIGNED PA` objects and names a genuine End User on only 4.24 %.
+> The route that works reads `descr:`, which is populated on 89.48 %. **Every non-ARIN path found sits
+> behind `operator-accepted`, so the keyless default set does not move** (§13.8).
+
 ---
 
 ## 8. What an ASN-less operator's estate looks like in address terms
@@ -580,8 +589,13 @@ discovery depth is registry-dependent, and says so"* survives intact — this no
    2026-08-13), and the obvious alternative — PeeringDB's `info_type` — is both self-selected toward
    peering networks and, per #20, ambiguous on terms. So the claim stands as inference only, and it
    makes the true small-business ASN rate *lower* than §3.1's upper bounds, never higher.
-3. **PA-assignment reachability outside ARIN is open** (§7.3). This is the one gap that could
-   materially move the answer, because it governs whether the §7 correction is ARIN-only or general.
+3. ~~**PA-assignment reachability outside ARIN is open** (§7.3). This is the one gap that could
+   materially move the answer, because it governs whether the §7 correction is ARIN-only or
+   general.~~ **Closed by [§13](#13-are-provider-aggregatable-assignments-name-searchable-outside-arin)**
+   ([#38](https://github.com/winniel123/verge-asm/issues/38)). It did move the answer: §7's correction
+   is general as a *capability* (three of five regions) and ARIN-only as a *default*, and §11's
+   pricing of the RIPE and LACNIC asks is withdrawn as a result (§13.8.2). §13.9 records what §13
+   in turn left open.
 4. **Record counts are not CIDR counts.** §9 counts delegated-stats *records* per organisation. The
    NRO specification notes that *"records of the same type for the same opaque-id for the same date
    can be held to be a single assignment or allocation"*, and adjacent records may aggregate into
@@ -605,3 +619,479 @@ discovery depth is registry-dependent, and says so"* survives intact — this no
    found ambiguous and #19 is asking about. To avoid leaning on an unresolved source, §6 measured
    only `rdap.db.ripe.net/entity/<handle>`; the name→handle leg is #20's measurement, not this
    note's.
+
+---
+
+## 13. Are provider-aggregatable assignments name-searchable outside ARIN?
+
+Research ticket [#38](https://github.com/winniel123/verge-asm/issues/38), answering the question §7.3
+left open and §12.4 named as *"the one gap that could materially move the answer"*. Everything in this
+section was retrieved with `curl` on **2026-08-13 UTC** from a single commercial IP, throttled to one
+request every 3–6 s against live registry endpoints, and counted locally with `awk`. No summarising
+fetch layer was used for any quoted text; every policy quotation below was verified against the
+registry's own published document, not a secondary write-up — a discipline that earned its keep here
+(§13.7).
+
+### 13.1 Summary
+
+The ticket offered *"ARIN is unique because NRPM is unique"* as an acceptable negative result. **It is
+the wrong answer, and it is wrong in the more useful direction.** The two layers separate cleanly:
+
+| | Answer |
+|---|---|
+| **Does the policy generalise?** | **Yes, completely.** All five RIRs compel registration of PA assignments naming the End User. NRPM is not unusual — it is the *median*. RIPE and AFRINIC compel it with **no prefix floor at all**, which is stricter than ARIN's /29 — §13.2 |
+| **Does the name search generalise?** | **No — it splits 3–2.** ARIN, RIPE and LACNIC reach PA renters by name. APNIC and AFRINIC do not, at any consent tier — §13.3–§13.6 |
+| **Does the *default set* change?** | **No, not at all.** Every non-ARIN path found here sits behind `operator-accepted`. The keyless default still reaches PA renters in ARIN only — §13.8 |
+| **Is §7 a correction to one region or to the finding?** | **To the finding, as a capability; to one region, as a default.** The distinction is the whole of §13.8 and it is what the onboarding message turns on |
+
+The headline is a population, and it is the largest number in this note:
+
+> **[measured]** RIPE's `ASSIGNED PA` layer alone holds **1,127,002** assignments whose customer name
+> string is unique in the entire database — against the **128,233** organisations worldwide that hold
+> any RIR delegation (§3). The PA layer is roughly **8.8×** the entire registered population this note
+> spent §3–§9 measuring. §26's "the registered population is tiny" stands; **"and therefore nobody is
+> reachable" does not.** The reachable population is an order of magnitude larger than the delegation
+> layer, and it is made of exactly the small commercial organisations ADR-0003 describes.
+
+### 13.2 The policy layer — every RIR compels it, and two compel more than ARIN
+
+The ticket asked for *"the equivalent of ARIN's NRPM §4.2.3.7.1"* per RIR, and treated its absence as
+the likely finding. It is present everywhere. **[cited]**, each retrieved 2026-08-13 and quoted from
+the registry's own document:
+
+| RIR | Document | Floor | Compels the End User's *name*? |
+|---|---|---|---|
+| **ARIN** | [NRPM §4.2.3.7.1](https://www.arin.net/participate/policy/nrpm/) | **/29** | Yes — *"must include each customer name"* |
+| **RIPE** | [ripe-733 §4.0, §6.2](https://www.ripe.net/publications/docs/ripe-733/) | **none** | Yes — *"registered separately with the contact details of the End User"* |
+| **APNIC** | [APNIC-127 §3.1.2, §5.3.1](https://www.apnic.net/community/policy/resources/) | **> /30** | Yes, but **publication is opt-in and defaults to hidden** |
+| **LACNIC** | [Policy Manual v2.21 §2.3.2.13](https://www.lacnic.net/innovaportal/file/680/1/manual-politicas-en-2-21.pdf) | **/29** | Yes — *"organization name"* required |
+| **AFRINIC** | [CPM v1.6 §5.2.1.2, §5.3.2, §5.5.1.8](https://afrinic.net/consolidated-policy-manual.html) | **none** | Yes — *"registered with the contacts of the end-user"* |
+
+ARIN's rule, re-verified verbatim today rather than carried over from §7.2:
+
+> "Each IPv4 reassignment or reallocation containing a /29 or more addresses shall be registered via
+> SWIP or a directory services system which meets the standards set forth in section 3.2.
+> Reassignment registrations must include each customer name, except where specifically exempted by
+> this policy."
+
+**RIPE is stricter than ARIN, and this is the finding that reframes the question.** ripe-733 §4.0:
+
+> "All assignments and allocations must be registered in the RIPE Database. This is necessary to
+> ensure uniqueness and to support network operations.
+>
+> Only allocations and assignments registered in the RIPE Database are considered valid."
+
+and §6.2, which is the direct analogue of NRPM §4.2.3.7.1 and carries **no prefix floor**:
+
+> "When an End User has a network using public address space this must be registered separately with
+> the contact details of the End User. Where the End User is an individual rather than an
+> organisation, the contact information of the service provider may be substituted for the End
+> Users."
+
+Note the exemption is *individuals*, exactly ARIN's residential carve-out (§7.2) and LACNIC's
+(§2.3.2.13.1.2). **A small commercial organisation is inside the mandate in all five regions.**
+
+**LACNIC's §2.3.2.13 is a structural twin of NRPM §4.2.3.7.1** — same floor, same name requirement,
+same residential exemption, and a tighter deadline than ARIN's seven days:
+
+> "All IPv4 address block assignments of a /29 or larger block made by an ISP to customers connected
+> to their network and users of services provided must be registered on LACNIC's WHOIS database no
+> more than 7 days after the assignment."
+
+> "Assignments registered on LACNIC's WHOIS database must include the following information regarding
+> the assignee: organization name; address; administrative contact, technical contact, and contact in
+> case of abuse […]"
+
+**APNIC compels registration and then makes publication optional — this is the whole APNIC story**,
+and it is a policy fact, not a protocol defect. APNIC-127 §3.1.2:
+
+> "Account holders that receive an allocation from APNIC can choose whether their customer assignment
+> registrations should be publicly available are not.
+>
+> If the account holder does not indicate a choice, or chooses to hide its customer assignment
+> registrations, then those records will not be visible in the public Whois database. Whois queries on
+> these records will return details of the allocation."
+
+with the floor at §5.3.1: *"Delegations made to networks greater than a /30 for IPv4 and /48 for IPv6
+must be registered."*
+
+**AFRINIC compels it with no floor**, CPM §5.3.2: *"All allocations, PI assignments, PA assignments,
+sub-allocations and other types of resource assignments will be registered in the AFRINIC database.
+Any unregistered resources will be considered invalid."*
+
+So the ticket's proposed negative result is falsified at the policy layer. **ARIN's coverage is not a
+policy artefact peculiar to ARIN.** Whatever makes ARIN special is downstream of policy.
+
+### 13.3 RIPE — `org:` coverage is 7 %, and it is the wrong attribute to have measured
+
+The ticket asked to *"measure `org:` coverage across `ASSIGNED PA` rather than assuming it"*. Measured,
+from the RIPE Database split file (`ripe.db.inetnum.gz`, 222,676,573 B, `Last-Modified: Wed, 12 Aug
+2026 22:24:10 GMT`, retrieved 2026-08-13):
+
+| RIPE `inetnum` status | Objects | with `org:` | with `descr:` |
+|---|---:|---:|---:|
+| **ASSIGNED PA** | **3,906,074** | **272,665 (6.98 %)** | **3,495,226 (89.48 %)** |
+| ALLOCATED PA | 66,388 | 66,388 (100 %) | 3,803 |
+| SUB-ALLOCATED PA | 17,710 | 10,284 | 5,740 |
+| ASSIGNED PI | 19,469 | 19,462 | 3,080 |
+| LEGACY | 105,373 | 33,498 | 93,843 |
+| *(all statuses)* | 4,133,936 | — | — |
+
+**`org:` is worse than 6.98 % makes it look, because most of it points at the LIR rather than the
+customer.** Comparing the org-handle sets on `ASSIGNED PA` against those on `ALLOCATED PA` (which are
+by definition LIR handles):
+
+- **[measured]** 41,570 distinct org handles appear on `ASSIGNED PA`; 2,577 of them are also LIR
+  handles.
+- **[measured]** of the 272,665 `ASSIGNED PA` records carrying `org:`, **107,082 point at an LIR** and
+  only **165,583 point at a non-LIR organisation** — i.e. a genuine End User is named by `org:` on
+  **4.24 %** of RIPE's PA assignments.
+
+**The registrations are there; they are just in `descr:`.** 89.48 % of `ASSIGNED PA` objects carry a
+free-text `descr:`, and RIPE registers *far* below ARIN's floor, as ripe-733 §6.2's lack of a floor
+predicts:
+
+- **[measured]** **3,036,888** `ASSIGNED PA` objects (**77.75 %**) are a **/29 or smaller** — below or
+  at the prefix where ARIN's SWIP obligation stops.
+- **[measured]** **1,519,525** (38.90 %) are a **/30 or smaller**, which ARIN does not compel at all.
+
+Quality of `descr:`, which matters because free text is not a name field — **[measured]** across the
+3,487,319 `ASSIGNED PA` objects with a non-empty first `descr:` there are **1,418,684 distinct**
+strings, of which **1,127,002 occur exactly once**. The head is placeholder-heavy and the tail is
+real:
+
+| first `descr:` | records |
+|---|---:|
+| `STATIC IP` | 232,890 |
+| `OBS CUSTOMER` | 82,029 |
+| `BT-ADSL` | 67,287 |
+| `A1 TELEKOM AUSTRIA AG - BUSINESS CUSTOMER` | 50,940 |
+| `NONE SPECIFIED` | 14,334 |
+
+So **[inferred]** the 1,127,002 once-only strings are the honest estimate of distinct named End Users;
+the 1,418,684 figure is an upper bound and the 291,682 repeated strings are mostly ISP bulk labels.
+
+### 13.4 RIPE — the route is open, and #20's blocked route has two alternatives
+
+#20 measured `type-filter=inetnum` returning HTTP 400 for multi-word org names and RIPE RDAP entity
+search 500ing, and #38 asked *"whether another exists"*. **Two do.** All are `operator-accepted`
+(RIPE Database, #19/#23 unanswered).
+
+Worked end to end against *****REMOVED*****, selected mechanically from the dump as an
+`ASSIGNED PA` /28 (`***REMOVED***.48 - ***REMOVED***.63`, `mnt-by: TELIANET-LIR`) — a small commercial
+organisation renting PA space from Telia with no ASN, i.e. precisely the case #26 assumed unreachable:
+
+```sh
+# A. name -> org handle. HTTP 200, 2,445 B. #20 tried this with type-filter=inetnum.
+curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***%20AB&type-filter=organisation&flags=r'
+#    -> <object type="organisation"> ***REMOVED***
+
+# B. org handle -> prefixes, inverse lookup. HTTP 200, 2,360 B.
+curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***&inverse-attribute=org&type-filter=inetnum&flags=r'
+#    -> inetnum ***REMOVED***.48 - ***REMOVED***.63 | netname SE-***REMOVED*** | status ASSIGNED PA
+
+# C. #20's route, reproduced exactly. HTTP 400, 416 B, "invalid search key".
+curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***%20AB&type-filter=inetnum&flags=r'
+```
+
+**The one-request route is full-text search, and it is the one that matters**, because it reads
+`descr:` and therefore reaches the 89 % rather than the 4 %. Worked against
+*****REMOVED*** Eiland Tholen W Brons** — a Dutch veterinary practice on a **/29**
+(`***REMOVED***.56 - ***REMOVED***.63`), `ASSIGNED PA`, **carrying no `org:` attribute at all**:
+
+```sh
+# F. HTTP 200, 1,953 B, numFound=2.
+curl -A "$UA" 'https://rest.db.ripe.net/fulltextsearch/select?q=%22***REMOVED***+Eiland+Tholen%22&wt=xml&rows=5'
+#    -> object-type inetnum | ***REMOVED***.56 - ***REMOVED***.63 | descr "***REMOVED*** Eiland Tholen W Brons"
+#       | status ASSIGNED PA
+```
+
+That is the exact RIPE analogue of §7.1's ARIN result — an organisation with no registry resources of
+its own, no ASN, and no `org:` record, found by name and yielding its CIDR.
+
+**#20's RDAP 500 is real but narrower than recorded, and the difference is the wildcard.**
+**[measured]**, same endpoint, same organisation, one variable changed:
+
+| Request | Result |
+|---|---|
+| `rdap.db.ripe.net/entities?fn=***REMOVED***%20AB` (exact) | **HTTP 200**, 4,213 B, returns `***REMOVED***` |
+| `rdap.db.ripe.net/entities?fn=***REMOVED****` (wildcard) | **HTTP 500**, 703 B |
+| `rdap.db.ripe.net/entities?fn=Hauraton%20GmbH%26CoKG` (exact, control) | **HTTP 200**, 4,908 B |
+| `rdap.db.ripe.net/entities?fn=***REMOVED****` (wildcard, control) | **HTTP 500**, 703 B |
+
+So RIPE RDAP entity search **works on exact names and 500s on wildcards** — the opposite convention to
+ARIN, where §7.1's whole method is `fn=Acme*`. A client written against ARIN's wildcard idiom gets a
+500 from RIPE and, per §6.3's rule, must map it to `unknown` rather than to an empty estate.
+
+### 13.5 APNIC — the data exists, is named, and is unreachable by name at any tier
+
+This is the region #26 §6.2 called "the real casualty", and #38 asked whether *any other* APNIC
+interface reaches sub-allocations by name. **[measured]** from `apnic.db.inetnum.gz` (53,489,652 B,
+`Last-Modified: Thu, 13 Aug 2026 15:02:41 GMT`, retrieved 2026-08-13):
+
+| APNIC `inetnum` status | Objects | with `org:` | with `descr:` |
+|---|---:|---:|---:|
+| **ASSIGNED NON-PORTABLE** (the PA analogue) | **1,102,994** | **140 (0.013 %)** | **1,102,994 (100 %)** |
+| ALLOCATED NON-PORTABLE | 87,014 | 78 | 87,014 |
+| ALLOCATED PORTABLE | 47,195 | 20,659 | 47,195 |
+| ASSIGNED PORTABLE | 14,513 | 7,289 | 14,513 |
+| *(all statuses)* | 1,251,716 | — | — |
+
+The `descr:` values are real customer names, at ARIN-like and finer granularity — sampled
+mechanically, they include `Ebisu Servers Pte Ltd` on a /27, `jiangyin yongshenguanda metal Co.,Ltd`
+on a /30, `DELHI PUBLIC SCHOOL FARIDABAD`, and `SMECDO2013091269817_DOUGHBAKE, INC.` on a **single
+address**. **[measured]** 746,325 distinct first-`descr:` strings, **657,044 occurring exactly once**.
+
+**Every name-search interface APNIC exposes fails on it.** All `operator-accepted`:
+
+```sh
+# APNIC RDAP entity search, wildcard AND exact. Both HTTP 200 with "entitySearchResults":[]
+curl -H 'Accept: application/rdap+json' 'https://rdap.apnic.net/entities?fn=Ebisu%20Servers*'      # 200, 851 B, []
+curl -H 'Accept: application/rdap+json' 'https://rdap.apnic.net/entities?fn=Ebisu%20Servers%20Pte%20Ltd'  # 200, 873 B, []
+
+# APNIC whois, port 43, free-text name
+printf 'Ebisu Servers Pte Ltd\r\n' >&3   # -> %ERROR:101: no entries found
+
+# control, same object by address -- proves the record is present and named
+printf '203.211.144.16\r\n' >&3
+#   inetnum: 203.211.144.16 - 203.211.144.47
+#   netname: EBISUSERVERS-SG
+#   descr:   Ebisu Servers Pte Ltd # 225
+#   status:  ASSIGNED NON-PORTABLE
+```
+
+This reproduces #20's and #26's 200-with-empty-array exactly, and extends it: the stub is not a
+wildcard artefact (exact match is equally empty), and port 43 is no better. **[measured]** 657,044
+uniquely-named APNIC PA assignments exist in a file we can download and cannot query by name through
+any APNIC interface.
+
+**The bulk file is the only instrument that reaches them, and its own header may forbid the use.**
+`apnic.db.inetnum.gz` opens with:
+
+> "Restricted rights.
+>
+> Except for agreed Internet operational purposes, no part of this publication may be reproduced,
+> **stored in a retrieval system**, or transmitted, in any form or by any means, electronic,
+> mechanical, recording, or otherwise, without prior permission of APNIC on behalf of the copyright
+> holders."
+
+Indexing a registry dump so it can be searched by name **is** storing it in a retrieval system. This
+is map note *"Redistribution is a separate permission from use"* ([#27](https://github.com/winniel123/verge-asm/issues/27))
+arriving on a path we would previously have classified as a plain query, and it is not resolved here
+— see §13.9.
+
+### 13.6 LACNIC and AFRINIC — one works, one does not, and neither for the reason expected
+
+**LACNIC reaches PA renters by name. It is ARIN's pattern exactly**, and it is the second region where
+§7's correction holds. Ground truth first, then the search — `operator-accepted` throughout (#25
+unanswered):
+
+```sh
+# whois.lacnic.net, port 43, by address: a compelled /29 reassignment with the customer's own handle
+printf '190.196.20.1\r\n' >&3
+#   inetnum:    190.196.20.0/29
+#   status:     reallocated
+#   owner:      Typack S.A.
+#   ownerid:    CL-TYSA-LACNIC
+#   inetnum-up: 190.196.20.0/25
+
+# now by NAME, keylessly.  HTTP 200, 2,038 B -- exactly one entity
+curl -H 'Accept: application/rdap+json' 'https://rdap.lacnic.net/rdap/entities?fn=Typack*'
+#   -> "handle":"CL-TYSA-LACNIC", "fn":"Typack S.A."
+
+# second request yields the prefix, same asymmetry as ARIN (#26 §6.3).  HTTP 200, 5,132 B
+curl -H 'Accept: application/rdap+json' 'https://rdap.lacnic.net/rdap/entity/CL-TYSA-LACNIC'
+#   -> "handle":"190.196.20.0/29", startAddress 190.196.20.0, endAddress 190.196.20.7
+```
+
+**Two LACNIC-specific defects bound the path, and both fail silently.** **[measured]**:
+
+1. **The query matches a single token only. Any space returns an empty 200.** Consistent across three
+   independent names: `fn=Typack*` → 1 hit; `fn=Typack%20S*` → **0**, 796 B; `fn=Typack%20S.A.` → **0**;
+   `fn=Universidad*` → 100 hits; `fn=Universidad%20del%20Pacifico` → **0**; `fn=SEP*` → 80 hits;
+   `fn=SEP%20Instituto*` → **0** (against `SEP Instituto Tecnológico de Mérida`, confirmed present via
+   `entity/MX-ITME-LACNIC`). A client that sends the operator's full organisation name gets nothing,
+   with no error.
+2. **Results are hard-capped at 100**, stated in the response's own notices: *"Search results are
+   limited to 100 per query."* `fn=Instituto*` and `fn=Universidad*` both returned exactly 100.
+
+Both are the #26 §6.3 hazard in a new dress: **a 200 that means "your query shape was wrong" and a 200
+that means "truncated" must both map to `unknown`, never to an empty estate.**
+
+**AFRINIC does not reach PA renters, and the reason is that `org:` names the LIR.** **[measured]** from
+`afrinic.db.gz` (10,399,463 B, retrieved 2026-08-13):
+
+| AFRINIC `inetnum` status | Objects | with `org:` | with `descr:` |
+|---|---:|---:|---:|
+| **ASSIGNED PA** | **172,392** | **10,594 (6.15 %)** | **172,392 (100 %)** |
+| ALLOCATED PA | 3,826 | 3,826 | 3,826 |
+| SUB-ALLOCATED PA | 365 | 364 | 365 |
+| ASSIGNED PI | 1,640 | 1,640 | 1,640 |
+
+- **[measured]** only **105 distinct org handles** appear across all 172,392 `ASSIGNED PA` objects, and
+  **102 of them are themselves allocation holders**. Of the 10,594 records carrying `org:`, **10,237
+  point at an allocation holder** and only **357 (0.21 % of all PA assignments)** name a non-LIR
+  organisation. AFRINIC's `org:` on a PA assignment is the ISP, not the customer.
+- `descr:` is 100 % but frequently an internal code rather than a name — sampled mechanically:
+  `ZOL V6 SK 564008`, `core-223`, `gbssat00077`, `Assignment made to SEACOM Customers.` The four most
+  repeated are `XNEELO-TSCOLO` (8,782), `CLOUD INNOVATION LTD` (7,671), an abuse-contact sentence
+  (6,808) and `MTN BUSINESS SA CUSTOMER` (2,980). **[measured]** 70,221 distinct strings, 59,978
+  once-only.
+- AFRINIC exposes **no full-text search**, so `descr:` is unreachable by name. `whois.afrinic.net`
+  port 43 on `Cloud Innovation Ltd` returns the `organisation:` object alone (`ORG-CIL1-AFRINIC`) with
+  no `inetnum`; `rdap.afrinic.net/rdap/entities?fn=` returns organisation entities with their **own
+  delegations** (`154.192.0.0/11`, `156.224.0.0/11`, …), never the PA assignments beneath them.
+
+So #26 §6.1's "AFRINIC's ASN-less operators lose nothing in capability terms" is correct **for
+delegation holders** and does not extend to PA renters. AFRINIC is APNIC's situation reached by a
+different route: the policy compels the registration (§13.2, and with *no* floor), the data is
+published, and no interface indexes the name.
+
+### 13.7 One quotation that did not survive checking
+
+Worth recording because it is the fourth time this project has caught it. A secondary summary of
+AFRINIC policy asserts that *"All IP block assignments equal or larger than a /29 … must be registered
+and documented in AFRINIC Whois database no later than seven (7) business days after the assignment"*
+— a clean ARIN/LACNIC-shaped rule, and the obvious thing to quote.
+
+**[measured]** the current CPM (v1.6, retrieved 2026-08-13) contains **zero** occurrences of `/29` and
+**zero** of `business days`. The sentence comes from a pre-CPM archived policy, not from the manual in
+force. Had it been taken at face value, this section would have reported AFRINIC as having ARIN's
+floor when it in fact has **none** — an error in the *lenient* direction that would have understated
+AFRINIC's mandate while overstating its similarity to ARIN. Map note *"verify quotes against the
+source, not a summarising layer"* ([#21](https://github.com/winniel123/verge-asm/issues/21)) paid for
+itself again.
+
+### 13.8 What this does to the default set — nothing, and that is the point
+
+The ticket's stake was that *"if it generalises, the keyless default set reaches materially more
+operators than [#20] or [#26] credited it with."* **The capability generalises; the keyless default
+set does not move at all.** Consent tier per finding, which is the constraint #38 asked to have
+recorded explicitly:
+
+| Region | PA renters reachable by name? | Instrument | Consent tier | In the default set? |
+|---|---|---|---|---|
+| **ARIN** | **Yes** | `rdap.arin.net` `entities?fn=` → `entity/C…` | **`unencumbered`** | **Yes** (§7) |
+| **RIPE** | **Yes** | `rest.db.ripe.net/fulltextsearch` (or organisation→inverse `org:`) | `operator-accepted` — #19/#23 *asked, no answer* | **No** |
+| **LACNIC** | **Yes** | `rdap.lacnic.net` `entities?fn=` → `entity/<handle>` | `operator-accepted` — #25 *asked, no answer* | **No** |
+| **APNIC** | **No** | none at any tier; bulk file only, and its header restricts storage | `operator-accepted` + an unresolved redistribution question | **No** |
+| **AFRINIC** | **No** | none — `org:` names the LIR, `descr:` is not indexed | `operator-accepted` — #24 *asked, no answer* | **No** |
+
+Three consequences bind:
+
+1. **§7 is a correction to the finding, not to one region — but only as a *capability*.** Three of five
+   regions reach PA renters by name. "ARIN is unique because NRPM is unique" is false twice over: NRPM
+   is not unique (§13.2), and ARIN is not the only region that reaches them (§13.6). What ARIN is
+   uniquely is **keyless**.
+2. **The four registry non-answers cost more than §11 priced them at, and the increase is large.**
+   §11 concluded that unlocking RIPE and LACNIC *"converts a sub-1 % population from
+   `operator-accepted` to `unencumbered` depth"*. That is now measurably wrong about the population.
+   The RIPE and LACNIC asks do not only buy depth inside the 128,233 delegation holders — they buy the
+   **PA-renter layer beneath them**, which for RIPE alone is 1,127,002 uniquely-named assignments
+   (§13.3). §11's "if anything the priority falls" should be read as **withdrawn for RIPE and LACNIC**
+   and left standing for AFRINIC and APNIC, where the terms buy nothing because no name path exists to
+   unlock.
+3. **§10.3's "exactly one honest missing-capability annotation" is now two, and both are regional.**
+   §10.3 named APNIC. **AFRINIC joins it** for the PA-renter case specifically: unlike §10.4's reading,
+   the AFRINIC terms email does not buy PA-renter reachability, because AFRINIC's `org:` names the ISP
+   (§13.6). §10.4 remains correct for AFRINIC *delegation holders*; it does not cover renters.
+
+**The onboarding message is unchanged in substance and sharpened in honesty.** §10.2's *"declare your
+CIDRs directly, this path is not for you"* survives, because for the modal cloud-resident operator it
+is still true. What changes is what an install may claim once the operator *has* accepted terms: in
+RIPE and LACNIC an org→prefix lookup now honestly reaches a renter with no registry resources of their
+own, and in APNIC and AFRINIC it honestly does not.
+
+### 13.9 What was not established
+
+1. **`descr:` strings are not organisation names, and the gap is unquantified.** §13.3's 1,127,002 and
+   §13.5's 657,044 count *strings unique in the database*, which is a proxy. Some are addresses, some
+   are internal codes (§13.6 shows AFRINIC's are heavily so), and some organisations appear under two
+   spellings. The direction is knowable — the once-only filter removes the bulk ISP labels that
+   dominate the head — but no measurement here establishes what fraction of a once-only string set is
+   a name an operator would type. **[inferred]** the true count is materially below 1,127,002 for RIPE
+   and far below 59,978 for AFRINIC.
+2. **LACNIC was not counted, only demonstrated.** LACNIC publishes no bulk database dump, so §13.6's
+   LACNIC row has a worked chain and no population figure. Its 100-result cap makes enumeration by
+   repeated name search impractical and, given #25's unanswered terms, inappropriate to attempt.
+3. **Whether an indexed local copy of a registry dump is "stored in a retrieval system"** (§13.5) is a
+   licence question this note cannot answer, and it gates the *only* instrument that reaches APNIC's
+   657,044 named PA assignments. It is precisely the shape of question [#27](https://github.com/winniel123/verge-asm/issues/27)
+   settled for CAIDA — a build-time or storage-time act by the project rather than a runtime query by
+   the operator — and it deserves its own ticket rather than an inference here. Note the RIPE and
+   AFRINIC dumps carry their own terms which were likewise not assessed.
+4. **The `org:`-vs-LIR test is structural, not semantic.** §13.3 and §13.6 classify an org handle as
+   "an LIR" if it also appears on an `ALLOCATED` object in the same file. That is exact for AFRINIC's
+   purposes and slightly *under*-counts LIRs in RIPE, where an LIR may hold allocations under a
+   different handle than the one it stamps on assignments. The direction favours the conclusion being
+   argued against, so RIPE's 4.24 % is an **upper** bound on genuine End-User `org:` coverage.
+5. **Only IPv4 was measured.** All five policies quoted in §13.2 carry IPv6 clauses with their own
+   floors (APNIC's `/48`, for instance). Nothing here measures IPv6 assignment registration or its
+   searchability.
+6. **The worked chains are three, not a sample.** ***REMOVED***, ***REMOVED*** Eiland Tholen
+   W Brons and Typack S.A. were each drawn mechanically from a bulk file or a whois walk, and each
+   demonstrates that the path *can* resolve. As §12.7 already says of §6's four, they do not measure
+   how often the registered string matches what an operator would type — and §13.6's LACNIC
+   single-token defect makes that gap operationally worse, not better.
+
+### 13.10 Commands
+
+```sh
+UA='verge-asm-research/1.0 (spec research; contact logan.m.winnie@gmail.com)'
+
+# --- policy layer (primary sources, all 2026-08-13) ---
+curl -sSL -o ripe-ipv4-policy.html   'https://www.ripe.net/publications/docs/ripe-733/'
+curl -sSL -o apnic-127.html          'https://www.apnic.net/community/policy/resources/'
+curl -sSL -o afrinic-cpm.html -A "$UA" 'https://afrinic.net/consolidated-policy-manual.html'
+curl -sSL -o arin-nrpm.html   -A "$UA" 'https://www.arin.net/participate/policy/nrpm/'
+curl -sSL -o lacnic-221.pdf   -A "$UA" \
+  'https://www.lacnic.net/innovaportal/file/680/1/manual-politicas-en-2-21.pdf'
+pdftotext -layout lacnic-221.pdf lacnic-221.txt
+
+# --- bulk registry data ---
+curl -sS -o ripe.db.inetnum.gz  'https://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz'
+curl -sS -o ripe.db.organisation.gz 'https://ftp.ripe.net/ripe/dbase/split/ripe.db.organisation.gz'
+curl -sS -o apnic.db.inetnum.gz 'https://ftp.apnic.net/apnic/whois/apnic.db.inetnum.gz'
+curl -sS -o afrinic.db.gz       'https://ftp.afrinic.net/dbase/afrinic.db.gz'
+
+# status tally + org:/descr: coverage + size distribution
+# (ripecount.awk: objects are blank-line-delimited; key on status:, flag org:/descr:,
+#  size from the inetnum: range; ASSIGNED PA bucketed at <=8 and <=4 addresses)
+gzip -dc ripe.db.inetnum.gz    | awk -f ripecount.awk
+gzip -dc apnic.db.inetnum.gz   | awk -f ripecount.awk
+gzip -dc afrinic.db.gz         | awk -f ripecount.awk
+
+# is an ASSIGNED PA org: handle an End User, or the LIR?
+# (ripeorg.awk emits "<status>\t<org-handle>" per inetnum carrying org:)
+gzip -dc ripe.db.inetnum.gz | awk -f ripeorg.awk > ripe-org-pairs.txt
+awk -F'\t' '$1=="ASSIGNED_PA"{print $2}'  ripe-org-pairs.txt | sort -u > org-assigned-pa.txt
+awk -F'\t' '$1=="ALLOCATED_PA"{print $2}' ripe-org-pairs.txt | sort -u > org-allocated-pa.txt
+comm -12 org-assigned-pa.txt org-allocated-pa.txt | wc -l
+
+# distinct / once-only customer-name strings
+# (descr1.awk emits the first descr: of every inetnum whose status == WANT, upper-cased)
+gzip -dc ripe.db.inetnum.gz  | awk -v WANT="ASSIGNED PA"            -f descr1.awk \
+  | sort | uniq -c | sort -rn > ripe-descr-freq.txt
+awk '$1==1' ripe-descr-freq.txt | wc -l
+gzip -dc apnic.db.inetnum.gz | awk -v WANT="ASSIGNED NON-PORTABLE" -f descr1.awk | sort -u | wc -l
+gzip -dc afrinic.db.gz       | awk -v WANT="ASSIGNED PA"            -f descr1.awk | sort -u | wc -l
+
+# --- live paths, throttled 3-6 s between requests ---
+curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***%20AB&type-filter=organisation&flags=r'
+curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***&inverse-attribute=org&type-filter=inetnum&flags=r'
+curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***%20AB&type-filter=inetnum&flags=r'
+curl -sS -A "$UA" 'https://rest.db.ripe.net/fulltextsearch/select?q=%22***REMOVED***+Eiland+Tholen%22&wt=xml&rows=5'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.db.ripe.net/entities?fn=***REMOVED***%20AB'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.db.ripe.net/entities?fn=***REMOVED****'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.apnic.net/entities?fn=Ebisu%20Servers*'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.apnic.net/entities?fn=Ebisu%20Servers%20Pte%20Ltd'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.lacnic.net/rdap/entities?fn=Typack*'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.lacnic.net/rdap/entity/CL-TYSA-LACNIC'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.afrinic.net/rdap/entities?fn=Cloud%20Innovation%20Ltd'
+
+# whois port 43 (bash /dev/tcp), one query per connection
+exec 3<>/dev/tcp/whois.apnic.net/43   ; printf 'Ebisu Servers Pte Ltd\r\n' >&3 ; cat <&3
+exec 3<>/dev/tcp/whois.apnic.net/43   ; printf '203.211.144.16\r\n'        >&3 ; cat <&3
+exec 3<>/dev/tcp/whois.lacnic.net/43  ; printf '190.196.20.1\r\n'          >&3 ; cat <&3
+exec 3<>/dev/tcp/whois.afrinic.net/43 ; printf 'Cloud Innovation Ltd\r\n'  >&3 ; cat <&3
+```
