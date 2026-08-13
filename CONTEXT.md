@@ -60,7 +60,9 @@ extension is recomputed rather than typed, which is a safety property and not a 
 literal address scope over a released elastic address holds the gate open on whoever holds it
 next, while an extension simply stops covering it. What it cannot see is an `ALIAS` flattened into
 an A record at a zone apex, so the declaration states that case in the operator's own words and the
-current extension is rendered for them to read — display, never per-address approval. See
+current extension is rendered for them to read — display, never per-address approval, and a **census
+with no denominator**, since how many addresses it *ought* to cover is completeness of the estate,
+which the operator is the only source for. See
 [ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md).
 _Avoid_: transitive scope, auto-discovery, implicit seed, follow-the-DNS
 
