@@ -211,7 +211,12 @@ facet-agnostic. It does mean writing **six things** — a value space, a **decod
 carries the qtype), and a **batch-scope obligation** naming what its silence covers. Every value
 space is a **closed union**, never a record with optional fields, because each facet's measured
 negatives — `NoTLS`, `NotHTTP`, a Name Error — are values and must not collapse into *we did not
-look*. See [ADR-0011](./docs/adr/0011-a-facet-is-six-parts.md).
+look*. The two costs are **asymmetric**, and it is the asymmetry that decides what must be settled
+early: adding a *facet* is strictly additive and costs `revealed` plus one message, while widening
+an existing facet's *value space* moves the output of rows that already produced observations and
+therefore `Break`s every timeline it has. A facet's value space is decided once; the rules read
+over it are free forever. See [ADR-0011](./docs/adr/0011-a-facet-is-six-parts.md) and
+[ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md).
 _Avoid_: attribute, field, property
 
 **Shadowed**:
@@ -345,8 +350,14 @@ evidence. It has no lifecycle of its own; its lifecycle is its evidence's. Versi
 per rule, never one set-wide version, so an edit to one rule leaves the rest comparable.
 A signal carries no severity: it is a named fact, and urgency belongs to the transition
 that surfaced it. Evaluated where its evidence is absent it returns `not-evaluable`,
-which is not the same as not firing. See
-[ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md).
+which is not the same as not firing. It is **named for the fact it reads** — never for a
+conclusion its evidence cannot carry, and never for a protocol — and its scope is however many
+protocols happen to express that fact, so covering exactly one is not disqualifying while three
+protocols expressing one fact must be one signal rather than three. Being true of *most* of the
+estate is likewise not a defect: a signal is a census, urgency is the transition's, and narrowing
+a rule to make it fire less often is the model-layer damping `Drift` refuses. See
+[ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md) and
+[ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
 
 **Derivation**:
