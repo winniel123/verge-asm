@@ -1,0 +1,661 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #10: "Core UI screens and the landing view".
+
+  Three variants of the verge-asm landing view, switchable via ?variant=A|B|C
+  and a floating bottom bar. Each is a different answer to the question the
+  ticket exists to force: what does the operator see first?
+
+    A — Inventory first      "here is everything you own"
+    B — Changes first        "here is what changed since Tuesday"
+    C — Exposure board       "here is the shape of your exposure, and what moved"
+
+  Secondary question, ?state=empty : what day one looks like, before any batch
+  has completed. Each variant answers it differently, on purpose.
+
+  Not production code. No tests, no error handling, no abstractions. Visual
+  language is the real design system (../../design-system); vocabulary is
+  CONTEXT.md, which overrides the kit where they disagree.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — landing view prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  /* ── prototype-local layout only; all values come from tokens ───────── */
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  /* micro-label — the signature motif */
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  /* top nav */
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); text-decoration: none; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); color: var(--ok); }
+
+  /* buttons */
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); transition: background var(--duration) var(--ease); }
+  .btn:hover { background: #3a3a30; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--surface-sunken); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); }
+
+  /* cards + tables */
+  .card { background: var(--surface); border: var(--rule); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .sp { margin-left: auto; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: middle; }
+  tbody tr:first-child td { border-top: none; }
+  tbody tr:hover { background: var(--surface-sunken); }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num { text-align: right; font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  /* stat strip */
+  .stats { display: flex; background: var(--surface); border: var(--rule); }
+  .stat { padding: var(--space-4) var(--space-5); flex: 1; border-left: var(--rule-soft); }
+  .stat:first-child { border-left: none; }
+  .stat .v { font: var(--weight-semibold) var(--text-2xl)/var(--leading-tight) var(--font-mono); color: var(--ink); margin-top: var(--space-2); }
+  .stat .v.danger { color: var(--danger); }
+  .stat .d { font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); margin-top: var(--space-1); }
+  .up { color: var(--danger); } .down { color: var(--ok); } .flat { color: var(--text-muted); }
+
+  /* severity + tags */
+  .sev { display: inline-block; padding: 2px 6px; color: #fff;
+         font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  .sev.critical { background: var(--sev-critical); }
+  .sev.high     { background: var(--sev-high); }
+  .sev.medium   { background: var(--sev-medium); color: var(--sev-medium-text); }
+  .sev.low      { background: var(--sev-low); }
+  .sev.info     { background: var(--sev-info); }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .tag.owned { border-color: var(--border-ink); color: var(--ink); }
+  .tag.third { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+
+  /* exposure state pills */
+  .st { display: inline-block; padding: 1px 6px;
+        font: var(--weight-semibold) var(--text-2xs)/1.5 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  .st.exposed      { background: var(--danger); color: #fff; }
+  .st.firewalled   { background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok); }
+  .st.internal     { background: var(--surface-sunken); color: var(--text-muted); border: var(--rule); }
+  .st.edge         { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .st.unreachable  { background: transparent; color: var(--text-faint); border: 1px dashed var(--border); }
+
+  /* change verbs */
+  .verb { display: inline-block; min-width: 78px; padding: 1px 6px;
+          font: var(--weight-semibold) var(--text-2xs)/1.5 var(--font-mono);
+          text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  .verb.appeared    { background: var(--ink); color: var(--text-on-ink); }
+  .verb.disappeared { background: transparent; color: var(--text-muted); border: 1px dashed var(--border); }
+  .verb.changed     { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+
+  /* ink panel — evidence / citation blocks */
+  .ink { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+         padding: var(--space-3) var(--space-4); font-family: var(--font-mono); font-size: var(--text-sm);
+         line-height: var(--leading-snug); }
+  .ink .k { color: #9a9a90; }
+
+  /* empty state */
+  .empty { background: var(--surface); border: var(--rule); padding: var(--space-12) var(--space-8);
+           text-align: center; }
+  .empty h2 { margin: 0 0 var(--space-2); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+              letter-spacing: var(--tracking-tight); }
+  .empty p { margin: 0 auto var(--space-6); max-width: 520px; color: var(--text-muted); }
+  .empty .acts { display: flex; gap: var(--space-2); justify-content: center; }
+
+  /* callout — the scope-completeness warning */
+  .warn-box { border: var(--rule-ink); background: var(--warn-soft); padding: var(--space-3) var(--space-4);
+              display: flex; gap: var(--space-3); align-items: flex-start; }
+  .warn-box .body { font-size: var(--text-base); line-height: var(--leading-body); }
+
+  .row { display: flex; gap: var(--space-4); }
+  .col { flex: 1; min-width: 0; }
+  .stack > * + * { margin-top: var(--space-4); }
+  .toolbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4);
+             border-bottom: var(--rule); background: var(--surface); }
+  .input { height: var(--control-h-sm); padding: 0 var(--space-2); border: var(--rule);
+           background: var(--surface); font: 400 var(--text-sm)/1 var(--font-mono); border-radius: var(--radius); }
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+  .ft-in .sp { margin-left: auto; }
+
+  /* ── the switcher: deliberately NOT part of the design being judged ── */
+  #switch { position: fixed; left: 50%; bottom: var(--space-6); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch;
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch button { background: transparent; border: none; color: var(--text-on-ink); cursor: pointer;
+                   font: var(--weight-semibold) var(--text-base)/1 var(--font-mono); padding: 0 var(--space-3); }
+  #switch button:hover { background: #3a3a30; }
+  #switch .lbl { padding: var(--space-2) var(--space-4); color: var(--text-on-ink); white-space: nowrap;
+                 font: var(--weight-medium) var(--text-sm)/1.5 var(--font-mono);
+                 border-left: 1px solid #3a3a30; border-right: 1px solid #3a3a30; }
+  #switch .lbl b { font-weight: var(--weight-semibold); }
+  #switch .st-toggle { padding: 0 var(--space-3); display: flex; align-items: center; gap: var(--space-2);
+                       border-left: 1px solid #3a3a30; }
+  #switch .st-toggle span { color: #9a9a90; font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                            text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  #switch .st-toggle button { padding: 4px 8px; color: #9a9a90; font-size: var(--text-2xs);
+                              text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  #switch .st-toggle button.on { background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div id="switch">
+  <button id="prev" title="Previous variant (←)">←</button>
+  <div class="lbl"><b id="vkey">A</b> — <span id="vname"></span></div>
+  <button id="next" title="Next variant (→)">→</button>
+  <div class="st-toggle">
+    <span>day</span>
+    <button data-state="populated">populated</button>
+    <button data-state="empty">one</button>
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────── fake estate ───────────────────────────
+   Vocabulary is CONTEXT.md: Seed, Name, Address, Service, Endpoint,
+   Observation, Batch, Vantage, Citation, Ownership, Exposure, Signal.
+   No "asset" as a modelled thing, no "finding", no "host", no "scan run".
+*/
+const DATA = {
+  seeds: [
+    { scope: "acmecorp.io",     kind: "name",    ground: true,  names: 312 },
+    { scope: "acme-cdn.net",    kind: "name",    ground: false, names: 41  },
+    { scope: "203.0.113.0/24",  kind: "address", ground: true,  names: 0   },
+  ],
+  subjects: [
+    { name: "api.acmecorp.io",           addr: "203.0.113.41", svc: "443/tcp",  own: "owned",       exp: "exposed",     sigs: [["high","tls-weak-protocol"]],            seen: "2m",  seed: "acmecorp.io" },
+    { name: "edge-gw-03.acmecorp.io",    addr: "203.0.113.41", svc: "22/tcp",   own: "owned",       exp: "edge",        sigs: [],                                        seen: "2m",  seed: "acmecorp.io" },
+    { name: "—",                         addr: "203.0.113.41", svc: "6379/tcp", own: "owned",       exp: "exposed",     sigs: [["critical","unauthenticated-redis"]],    seen: "1h",  seed: "203.0.113.0/24" },
+    { name: "staging-admin.acmecorp.io", addr: "203.0.113.44", svc: "8443/tcp", own: "owned",       exp: "exposed",     sigs: [["high","tls-self-signed"],["medium","http-directory-listing"]], seen: "22m", seed: "acmecorp.io" },
+    { name: "vpn.acmecorp.io",           addr: "203.0.113.42", svc: "443/tcp",  own: "owned",       exp: "exposed",     sigs: [["low","tls-expiring-14d"]],              seen: "2m",  seed: "acmecorp.io" },
+    { name: "mail.acmecorp.io",          addr: "203.0.113.42", svc: "25/tcp",   own: "owned",       exp: "firewalled",  sigs: [],                                        seen: "2m",  seed: "acmecorp.io" },
+    { name: "cdn.acmecorp.io",           addr: "198.51.100.17",svc: "443/tcp",  own: "third-party", exp: "exposed",     sigs: [],                                        seen: "5m",  seed: "acme-cdn.net" },
+    { name: "—",                         addr: "203.0.113.42", svc: "5900/tcp", own: "owned",       exp: "internal",    sigs: [["medium","vnc-reachable-internally"]],   seen: "2d",  seed: "203.0.113.0/24" },
+    { name: "grafana.acmecorp.io",       addr: "203.0.113.43", svc: "3000/tcp", own: "owned",       exp: "firewalled",  sigs: [],                                        seen: "2m",  seed: "acmecorp.io" },
+    { name: "legacy-jenkins.acmecorp.io",addr: "192.0.2.88",   svc: "8080/tcp", own: "unknown",     exp: "unreachable", sigs: [],                                        seen: "1d",  seed: "acmecorp.io" },
+  ],
+  changes: [
+    { verb: "changed",     facet: "reachability", subject: "203.0.113.41:6379/tcp",  kind: "Service",
+      detail: "firewalled → exposed", from: "firewalled", to: "exposed", hero: true, t: "1h",
+      vantage: "internet-01", batch: "b-8842", cite: "measured · tcp-connect · 2026-08-13 01:14 UTC" },
+    { verb: "appeared",    facet: "dns-record",   subject: "staging-admin.acmecorp.io", kind: "Name",
+      detail: "first observed in a certificate SAN", t: "22m",
+      vantage: "instance", batch: "b-8851", cite: "inferred · ct-log · corroborative" },
+    { verb: "changed",     facet: "certificate",  subject: "api.acmecorp.io:443/tcp",   kind: "Endpoint",
+      detail: "presented certificate replaced", t: "3h",
+      vantage: "internet-01", batch: "b-8839", cite: "sha256:4f2a…c19b → sha256:9d71…0e33" },
+    { verb: "disappeared", facet: "dns-record",   subject: "legacy-jenkins.acmecorp.io",kind: "Name",
+      detail: "absent from the zone file", t: "1d",
+      vantage: "instance", batch: "b-8790", cite: "declared · zone-file · enumerable over acmecorp.io" },
+    { verb: "changed",     facet: "resolution",   subject: "mail.acmecorp.io",          kind: "Name",
+      detail: "198.51.100.17 → 203.0.113.42", t: "2d",
+      vantage: "instance", batch: "b-8744", cite: "measured · resolver · enumerable" },
+    { verb: "appeared",    facet: "reachability", subject: "203.0.113.42:5900/tcp",     kind: "Service",
+      detail: "open, internal vantage only", t: "2d",
+      vantage: "internal-01", batch: "b-8744", cite: "measured · tcp-connect" },
+  ],
+  /* exposure transition counts since the previous comparable batch */
+  matrix: {
+    order: ["exposed","firewalled","internal","edge","unreachable"],
+    label: { exposed:"exposed", firewalled:"firewalled", internal:"internal-only", edge:"edge-only", unreachable:"unreachable" },
+    held:  { exposed: 142, firewalled: 806, internal: 231, edge: 18, unreachable: 87 },
+    moved: [
+      { from:"firewalled",  to:"exposed",     n: 3, hero: true },
+      { from:"unreachable", to:"exposed",     n: 1 },
+      { from:"exposed",     to:"firewalled",  n: 7 },
+      { from:"internal",    to:"firewalled",  n: 2 },
+      { from:"exposed",     to:"unreachable", n: 4 },
+      { from:"edge",        to:"exposed",     n: 1 },
+    ],
+  },
+};
+
+const NAV_ON  = (l) => `<a href="#" class="on">${l}</a>`;
+const NAV_OFF = (l) => `<a href="#">${l}</a>`;
+
+function chrome(items, body, empty) {
+  const status = empty
+    ? `<span class="status" style="color:var(--text-muted)"><span class="dot" style="background:var(--text-faint)"></span>no batches yet</span>`
+    : `<span class="status"><span class="dot live"></span>batch b-8851 running</span>`;
+  return `
+  <header class="nav"><div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <nav class="items">${items.map((it,i) => i===0 ? NAV_ON(it) : NAV_OFF(it)).join("")}</nav>
+    <div class="nav-right">
+      ${status}
+      <button class="btn sm"${empty ? ` disabled style="opacity:.45"` : ``}>Run scan</button>
+    </div>
+  </div></header>
+  <main class="shell">${body}</main>
+  <footer class="ft"><div class="ft-in">
+    <span>v0.9.2</span><span>AGPL-3.0</span><span>self-hosted</span>
+    <span class="sp"></span><span>★ Star on GitHub</span><span>Report an issue</span>
+  </div></footer>`;
+}
+
+const sigTags = (sigs) => sigs.length
+  ? sigs.map(([s,n]) => `<span class="sev ${s}">${s}</span> <span class="mono">${n}</span>`).join("<br>")
+  : `<span class="faint mono">—</span>`;
+
+const ownTag = (o) => o === "owned"       ? `<span class="tag owned">owned</span>`
+                    : o === "third-party" ? `<span class="tag third">third-party</span>`
+                                          : `<span class="tag">unknown</span>`;
+
+const stPill = (s) => `<span class="st ${s}">${DATA.matrix.label[s]}</span>`;
+
+/* ══════════════════════════════════════════════════════════════════════
+   VARIANT A — INVENTORY FIRST
+   "Here is everything you own." The estate is the object; change is a
+   column and a filter on it. Nav leads with Inventory.
+   ══════════════════════════════════════════════════════════════════════ */
+const A = {
+  name: "Inventory first",
+  nav: ["Inventory","Changes","Signals","Seeds","Settings"],
+  populated() {
+    return `
+    <h1 class="page">Inventory</h1>
+    <div class="sub">1,284 subjects across 3 seeds. Last complete batch 2m ago.</div>
+
+    <div class="stack">
+      <div class="stats">
+        <div class="stat"><div class="ml">Names</div><div class="v">353</div><div class="d up">+2</div></div>
+        <div class="stat"><div class="ml">Addresses</div><div class="v">61</div><div class="d flat">0</div></div>
+        <div class="stat"><div class="ml">Services</div><div class="v">1,284</div><div class="d up">+4</div></div>
+        <div class="stat"><div class="ml">Exposed</div><div class="v danger">142</div><div class="d up">+3</div></div>
+        <div class="stat"><div class="ml">Open signals</div><div class="v">27</div><div class="d down">−5</div></div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <input class="input" style="width:280px" value="acmecorp.io" >
+          <button class="btn sm ghost">All seeds ▾</button>
+          <button class="btn sm ghost">All exposure ▾</button>
+          <button class="btn sm ghost">Changed since ▾</button>
+          <span style="margin-left:auto" class="ml">10 of 1,284</span>
+          <button class="btn sm ghost">Export CSV</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Address</th><th>Service</th><th>Ownership</th>
+            <th>Exposure</th><th>Signals</th><th style="text-align:right">Last seen</th>
+          </tr></thead>
+          <tbody>
+          ${DATA.subjects.map(s => `
+            <tr>
+              <td class="m">${s.name === "—" ? `<span class="faint">—</span>` : s.name}</td>
+              <td class="m">${s.addr}</td>
+              <td class="m">${s.svc}</td>
+              <td>${ownTag(s.own)}</td>
+              <td>${stPill(s.exp)}</td>
+              <td>${sigTags(s.sigs)}</td>
+              <td class="num muted">${s.seen}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="row">
+        <div class="col card">
+          <div class="card-h"><h2>Recent changes</h2><span class="sp"></span><a href="#" class="mono">View all →</a></div>
+          <table><tbody>
+          ${DATA.changes.slice(0,3).map(c => `
+            <tr>
+              <td style="width:96px"><span class="verb ${c.verb}">${c.verb}</span></td>
+              <td class="m">${c.subject}</td>
+              <td class="muted">${c.detail}</td>
+              <td class="num muted" style="width:56px">${c.t}</td>
+            </tr>`).join("")}
+          </tbody></table>
+        </div>
+      </div>
+    </div>`;
+  },
+  empty() {
+    return `
+    <h1 class="page">Inventory</h1>
+    <div class="sub">Nothing has been observed yet.</div>
+    <div class="empty">
+      <h2>No seeds declared</h2>
+      <p>A seed is where you say your estate ends — a registrable domain, or a CIDR range.
+         Declare one and the first batch starts immediately.</p>
+      <div class="acts">
+        <button class="btn">Declare a seed</button>
+        <button class="btn ghost">Import from a zone file</button>
+      </div>
+    </div>`;
+  },
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   VARIANT B — CHANGES FIRST
+   "Here is what changed since Tuesday." The change is the object, with its
+   own lifecycle: it is acknowledged, not just listed. Inventory demotes to
+   a place you arrive at by drilling into a change. Nav leads with Changes.
+   ══════════════════════════════════════════════════════════════════════ */
+const B = {
+  name: "Changes first",
+  nav: ["Changes","Inventory","Signals","Seeds","Settings"],
+  populated() {
+    const hero = DATA.changes[0];
+    const rest = DATA.changes.slice(1);
+    return `
+    <h1 class="page">Changes</h1>
+    <div class="sub">6 changes since the previous comparable batch, 2d ago. 1 unacknowledged escalation.</div>
+
+    <div class="stack">
+      <!-- the hero: the transition the product exists to catch -->
+      <div class="card" style="border-color: var(--sev-critical); border-width:2px">
+        <div class="card-h" style="border-bottom-color: var(--sev-critical)">
+          <span class="sev critical">escalation</span>
+          <h2>A service became reachable from the internet</h2>
+          <span class="sp"></span><span class="mono muted">${hero.t}</span>
+        </div>
+        <div style="padding: var(--space-4)">
+          <div style="display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-3)">
+            <span class="mono" style="font-size:var(--text-md)">${hero.subject}</span>
+            ${stPill("firewalled")} <span class="mono muted">→</span> ${stPill("exposed")}
+          </div>
+          <div class="ink" style="margin-bottom: var(--space-3)">
+            <span class="k">facet</span>    reachability<br>
+            <span class="k">vantage</span>  ${hero.vantage} <span class="k">(internet position re-verified this batch)</span><br>
+            <span class="k">batch</span>    ${hero.batch}<br>
+            <span class="k">evidence</span> ${hero.cite}<br>
+            <span class="k">citation</span> 203.0.113.0/24 → seed (declared address scope)
+          </div>
+          <div style="display:flex; align-items:center; gap:var(--space-2)">
+            <button class="btn">Acknowledge</button>
+            <button class="btn ghost">Suppress on this service</button>
+            <button class="btn ghost">Open subject →</button>
+            <span class="sp" style="margin-left:auto"></span>
+            <span class="mono muted" style="font-size:var(--text-xs)">carries 1 critical signal · unauthenticated-redis</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <h2>Everything else that moved</h2>
+          <span class="sp"></span>
+          <button class="btn sm ghost">All facets ▾</button>
+          <button class="btn sm ghost">Since: last batch ▾</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Change</th><th>Subject</th><th>Kind</th><th>Facet</th><th>Detail</th>
+            <th>Vantage</th><th style="text-align:right">When</th>
+          </tr></thead>
+          <tbody>
+          ${rest.map(c => `
+            <tr>
+              <td><span class="verb ${c.verb}">${c.verb}</span></td>
+              <td class="m">${c.subject}</td>
+              <td class="muted">${c.kind}</td>
+              <td class="m muted">${c.facet}</td>
+              <td class="m">${c.detail}</td>
+              <td class="m muted">${c.vantage}</td>
+              <td class="num muted">${c.t}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- scope completeness stated as a capability difference, not a stat -->
+      <div class="warn-box">
+        <span class="ml" style="color:var(--warn); padding-top:2px">blind spot</span>
+        <div class="body">
+          Removal detection is off inside <span class="mono">acme-cdn.net</span>.
+          Nothing in that seed can tell you when something disappears — only corroborative
+          sources reach it, and their silence means nothing.
+          <a href="#">Upload a zone file</a> to turn it on.
+        </div>
+      </div>
+    </div>`;
+  },
+  empty() {
+    return `
+    <h1 class="page">Changes</h1>
+    <div class="sub">Change needs two batches to compare. You have none.</div>
+    <div class="empty">
+      <h2>Nothing to compare yet</h2>
+      <p>Declare a seed and run a batch. The first batch establishes the baseline;
+         the second is the first one that can show you change.</p>
+      <div class="acts">
+        <button class="btn">Declare a seed</button>
+        <button class="btn ghost">Import from a zone file</button>
+      </div>
+    </div>
+    <div class="warn-box" style="margin-top: var(--space-4)">
+      <span class="ml" style="color:var(--warn); padding-top:2px">before you start</span>
+      <div class="body">
+        Upload the zone file for any domain you control. Without it, verge-asm can tell you when
+        something <em>appears</em> in that scope, but never when something <em>disappears</em> —
+        certificate logs are append-only, so their silence is not evidence.
+      </div>
+    </div>`;
+  },
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   VARIANT C — EXPOSURE BOARD
+   Neither a list of things nor a list of events: a board of derived states,
+   and the count that moved between each pair. Answers "what is the shape of
+   my exposure, and which cells moved?" Drill from a cell into its subjects.
+   Nav leads with Exposure; Inventory becomes "Subjects".
+   ══════════════════════════════════════════════════════════════════════ */
+const C = {
+  name: "Exposure board",
+  nav: ["Exposure","Subjects","Signals","Seeds","Settings"],
+  populated() {
+    const M = DATA.matrix, ord = M.order;
+    const get = (f,t) => M.moved.find(m => m.from===f && m.to===t);
+    const cell = (f,t) => {
+      if (f === t) return `<td class="num faint" style="background:var(--surface-sunken)">${M.held[f].toLocaleString()}</td>`;
+      const m = get(f,t);
+      if (!m) return `<td class="num faint">·</td>`;
+      const hero = m.hero
+        ? `background:var(--sev-critical); color:#fff; font-weight:var(--weight-semibold)`
+        : (t === "exposed" ? `background:var(--danger-soft); color:var(--danger)` : ``);
+      return `<td class="num" style="${hero}; cursor:pointer">${m.n}</td>`;
+    };
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">1,284 services, resolved across 2 vantages. Compared against the batch 2d ago.</div>
+
+    <div class="stack">
+      <div class="row">
+        <div class="col card">
+          <div class="card-h">
+            <h2>What moved</h2>
+            <span class="sp"></span>
+            <span class="ml">rows: was · columns: is now</span>
+          </div>
+          <table>
+            <thead><tr>
+              <th style="width:120px"></th>
+              ${ord.map(t => `<th class="m" style="text-align:right">${M.label[t]}</th>`).join("")}
+            </tr></thead>
+            <tbody>
+            ${ord.map(f => `
+              <tr>
+                <th style="border-bottom:none; border-top: var(--rule-soft); text-align:left">${M.label[f]}</th>
+                ${ord.map(t => cell(f,t)).join("")}
+              </tr>`).join("")}
+            </tbody>
+          </table>
+          <div style="padding: var(--space-3) var(--space-4); border-top: var(--rule); display:flex; gap:var(--space-4); align-items:center">
+            <span class="ml">legend</span>
+            <span class="mono" style="font-size:var(--text-xs)">
+              <span style="background:var(--sev-critical); color:#fff; padding:1px 5px">3</span> escalation ·
+              <span class="faint">diagonal = held</span> ·
+              <span class="faint">· = no movement</span>
+            </span>
+          </div>
+        </div>
+
+        <div style="width:300px" class="stack">
+          <div class="card">
+            <div class="stat" style="border-left:none">
+              <div class="ml">Escalations</div>
+              <div class="v danger">5</div>
+              <div class="d up">firewalled → exposed, and worse</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="stat" style="border-left:none">
+              <div class="ml">De-escalations</div>
+              <div class="v">11</div>
+              <div class="d down">closed since last batch</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h2 style="font-size:var(--text-base)">Vantages</h2></div>
+            <div class="mono" style="padding: var(--space-3) var(--space-4); font-size:var(--text-sm)">
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+                <span class="dot" style="background:var(--ok)"></span>internet-01 <span class="faint">verified 2m</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px">
+                <span class="dot" style="background:var(--ok)"></span>internal-01 <span class="faint">verified 2m</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <h2>firewalled → exposed</h2>
+          <span class="sev critical">3 services</span>
+          <span class="sp"></span><span class="mono muted">selected cell</span>
+        </div>
+        <table>
+          <thead><tr><th>Service</th><th>Name</th><th>Ownership</th><th>Signals</th><th style="text-align:right">Moved</th></tr></thead>
+          <tbody>
+            <tr><td class="m">203.0.113.41:6379/tcp</td><td class="m faint">—</td><td>${ownTag("owned")}</td>
+                <td><span class="sev critical">critical</span> <span class="mono">unauthenticated-redis</span></td><td class="num muted">1h</td></tr>
+            <tr><td class="m">203.0.113.44:8443/tcp</td><td class="m">staging-admin.acmecorp.io</td><td>${ownTag("owned")}</td>
+                <td><span class="sev high">high</span> <span class="mono">tls-self-signed</span></td><td class="num muted">22m</td></tr>
+            <tr><td class="m">203.0.113.43:3000/tcp</td><td class="m">grafana.acmecorp.io</td><td>${ownTag("owned")}</td>
+                <td><span class="faint mono">—</span></td><td class="num muted">4h</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  },
+  empty() {
+    return `
+    <h1 class="page">Exposure</h1>
+    <div class="sub">Exposure is derived across vantages. You have none configured.</div>
+    <div class="empty">
+      <h2>No exposure can be computed</h2>
+      <p>Exposure is a conclusion drawn by comparing what an internet vantage can reach against
+         what an internal one can. With no internet vantage, "exposed" cannot be constructed —
+         it is not hidden from you, it does not yet exist.</p>
+      <div class="acts">
+        <button class="btn">Declare a seed</button>
+        <button class="btn ghost">Add an internet vantage</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top: var(--space-4)">
+      <div class="col card">
+        <div class="card-h"><h2 style="font-size:var(--text-base)">Setup</h2></div>
+        <table><tbody>
+          <tr><td style="width:28px" class="faint mono">1</td><td>Declare a seed</td><td class="num"><span class="tag">todo</span></td></tr>
+          <tr><td class="faint mono">2</td><td>Upload a zone file <span class="muted">— enables removal detection</span></td><td class="num"><span class="tag">todo</span></td></tr>
+          <tr><td class="faint mono">3</td><td>Add an internet vantage <span class="muted">— enables exposure</span></td><td class="num"><span class="tag">todo</span></td></tr>
+          <tr><td class="faint mono">4</td><td>Run the first batch <span class="muted">— establishes the baseline</span></td><td class="num"><span class="tag">todo</span></td></tr>
+        </tbody></table>
+      </div>
+    </div>`;
+  },
+};
+
+/* ─────────────────────────── switcher ─────────────────────────── */
+const VARIANTS = { A, B, C };
+const KEYS = ["A","B","C"];
+
+function params() {
+  const p = new URLSearchParams(location.search);
+  const v = (p.get("variant") || "A").toUpperCase();
+  return { v: KEYS.includes(v) ? v : "A", s: p.get("state") === "empty" ? "empty" : "populated" };
+}
+function go(v, s) {
+  const p = new URLSearchParams();
+  p.set("variant", v); p.set("state", s);
+  history.replaceState(null, "", "?" + p.toString());
+  render();
+}
+function render() {
+  const { v, s } = params();
+  const V = VARIANTS[v];
+  const empty = s === "empty";
+  document.getElementById("app").innerHTML = chrome(V.nav, empty ? V.empty() : V.populated(), empty);
+  document.getElementById("vkey").textContent = v;
+  document.getElementById("vname").textContent = V.name;
+  document.querySelectorAll("#switch .st-toggle button").forEach(b =>
+    b.classList.toggle("on", b.dataset.state === s));
+}
+const cycle = (d) => { const { v, s } = params();
+  go(KEYS[(KEYS.indexOf(v) + d + KEYS.length) % KEYS.length], s); };
+
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+document.querySelectorAll("#switch .st-toggle button").forEach(b =>
+  b.onclick = () => go(params().v, b.dataset.state));
+document.addEventListener("keydown", (e) => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+render();
+</script>
+</body>
+</html>
