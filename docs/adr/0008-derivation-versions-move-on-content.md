@@ -1,0 +1,266 @@
+# Derivation versions move on content, and a Break clamps the horizon
+
+- **Status:** Accepted
+- **Date:** 2026-08-13
+- **Ticket:** [#18 How does a Derived value's effective version avoid moving every release?](https://github.com/winniel123/verge-asm/issues/18)
+- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+
+## Context
+
+[ADR-0007](./0007-drift-is-a-timeline-of-spans.md) made comparison legal only within one
+derivation and enforced it with a `Break` rather than by discipline. It also named the bill it
+had run up. An `Exposure` span's effective version composes at least four inputs — the exposure
+rule, `Availability`'s version, the `reachability` canonicaliser, and the staleness bound `k` —
+and [ADR-0004](./0004-signals-are-release-coupled-rules.md)'s composition rule makes each
+compose automatically. A release touching any one breaks **every `Exposure` span in the estate
+at once**, and the exposure board is a matrix over a time window, so one break inside that
+window was taken to make the whole board not-comparable.
+
+Read that way the model gets *worse as it gets more correct*: every newly composed input is
+another release-coupled trigger, and the screen carrying the entire differentiation spends its
+life saying *not comparable* — honest and useless.
+
+The composite cannot be shrunk. Each of the four genuinely changes what an `Exposure` span
+concludes: the rule obviously; `Availability`'s window because it decides whether exposure is
+constructible at all; the `reachability` canonicaliser because it decides what a connect
+outcome *is*; and `k` because it decides where a `Gap` opens, which decides where spans close.
+So there is no composition trick that drops an input, and the two available levers are **how
+often the composite moves** and **what a `Break` actually costs**.
+
+## Decision
+
+| Concern | Decision |
+| --- | --- |
+| What moves a version | An **output-affecting change only** — never because a release shipped |
+| What stops it moving | A **golden corpus in CI**, over every named versioned derivation, **per rule** |
+| Version shape | A **vector** of named component versions — one leaf per named `Derivation` |
+| Composition | Absorb the **whole vector** of every derivation read, **flattened and deduped** |
+| Where it lives | A `derivation` row; every `Span` carries a reference to it |
+| Break scope | **Every span of that derivation, uniformly** — no predicate, no recompute-to-test |
+| Break storage | **None** — the edge and its component diff are derived on read |
+| A view across a break | **Clamps its horizon** to the most recent break; the census still renders |
+| Duration and counts | **Never cross a break**; render as a **labelled floor** |
+| Alerting across a break | One **re-baseline message** per alerting derivation whose vector moved |
+| The difference set | A **description computed once at the cause** — never a `Transition` |
+
+## Rationale
+
+### "Release-coupled" was a ceiling, not a coupling
+
+[ADR-0004](./0004-signals-are-release-coupled-rules.md) used the phrase to mean that a rule's
+reference data may change **only** at release boundaries — an upper bound on change frequency,
+and the property that separates a `Signal` from a signature database. This ticket read it as
+*a version moves with each release*, which is a different and far worse claim, and most of the
+alarm follows from the misreading. A version tracks the **content** of a derivation; the
+release cadence is only the ceiling on how often that content is permitted to move.
+
+With that removed the arithmetic changes. `k` is fixed at 2 and nothing has proposed moving it.
+The availability window is fixed on [ADR-0005](./0005-scan-execution-model.md)'s blast-radius
+grounds. The `reachability` canonicaliser maps a small closed value space — unlike the
+certificate canonicaliser, which is genuinely churny and does not feed `Exposure` at all. The
+exposure rule is a five-state table settled in [#14](https://github.com/winniel123/verge-asm/issues/14).
+That is one or two bumps in the first year and close to none after.
+
+The churn that is real lands elsewhere. [#21](https://github.com/winniel123/verge-asm/issues/21)
+measured attesting sources moving much faster than release-coupling assumes — BOD 22-01 revoked
+mid-2026, CISA's CPG 2.W renumbered into 3.S, CIS abandoning named ports for an abstraction,
+Prometheus *softening* its position after gaining native TLS. All of it lands on the
+sensitive-port list, which breaks `sensitive-port-exposed` and nothing else.
+
+So the problem is real but concentrated, and it is solved **once** rather than twice: one
+mechanism, calibrated on the case that actually bites.
+
+### A version moves on output, and a corpus is what says so
+
+The ticket raised *bump only on output-affecting change* and dismissed it as "the kind of
+discipline this project has consistently refused to rely on". That is right about discipline
+and wrong about the options, because between discipline and automation sits a mechanical gate.
+
+Neither obvious instrument tracks the right thing. A content hash of the derivation's **code**
+bumps on every refactor, breaking the estate for a rename. A content hash of its **declared
+parameters** is silent on a behavioural bug fix in code — the case that most needs to break.
+What we care about is neither: it is the derivation's **output**.
+
+So the version is hand-maintained per derivation, and CI holds a checked-in **golden corpus** —
+fixed observations with their expected derived outputs. If an output moves and the version did
+not, the build fails. The judgement stays human, because no machine knows that a refactor was
+*meant* to be behaviour-preserving; the **check** is mechanical. That is the same move
+[ADR-0007](./0007-drift-is-a-timeline-of-spans.md) made in enforcing comparability structurally
+rather than by rule. This project has refused discipline throughout the comparison path; it has
+never refused a failing test.
+
+The corpus covers **every** named versioned derivation, not only the span-producing ones, and
+per rule, matching ADR-0004's per-rule versioning. For a signal a row is *these observations →
+fires / does not fire / `not-evaluable`*; for the sensitive-port list the output is which
+`(port, transport)` pairs the rule fires on, generable from
+[#21](https://github.com/winniel123/verge-asm/issues/21)'s cited table. Scoping the gate to
+spans alone would leave the churniest thing in the product ungated, which is precisely
+backwards.
+
+### The version is a vector, and its leaves are derivations
+
+A composed scalar can say *something moved* and nothing more.
+[#22](https://github.com/winniel123/verge-asm/issues/22) settled that the not-comparable
+treatment is **one visual treatment carrying stated reasons**, and a break that cannot name its
+cause cannot meet that.
+
+So the stored thing is a **vector of named component versions**, held in one `derivation` row
+that every `Span` references. Composition is by absorbing the whole vector of every derivation
+read, flattened and deduped:
+
+- `Exposure` → `{exposure, availability, reachability-canon, currency}`
+- `sensitive-port-exposed` → `{its own rule, sensitive-list}` ∪ `Exposure`'s
+
+One leaf per **named derivation**, not one per knob: a derivation's version covers its rule and
+its declared parameters together, so the availability window sits *inside* `availability`
+rather than beside it, and `k` sits inside `currency` — which every span in the model composes,
+including one folded straight from observations.
+
+Flattened rather than nested, so equality stays a set comparison and a break names a **leaf**.
+*The reachability canonicaliser moved* is a sentence an operator can act on; a path through the
+composition graph is a stack trace.
+
+The component set is declared **per derivation**, never as one global schema. A shared schema
+means adding a component perturbs every derivation at once — which is the set-wide version
+ADR-0004 refused, arriving through another door.
+
+The `Break` itself **stores nothing**. Both spans carry a reference to their `derivation` row,
+so the edge and its component diff are computed on read. That is the treatment ADR-0007 already
+gives `Transition`, for the reason it gave: storing it is a second representation of one fact.
+
+### A break is uniform, because the alternative fails silently
+
+With a vector in hand a narrower break becomes expressible: a release could ship a predicate —
+*this change can only have moved spans whose value was `edge-only`* — and write breaks only
+where it matches. It is the largest available reduction in break volume, and it is refused.
+
+Weigh the failure modes against each other rather than the savings. A break that fires too
+widely fails **loudly**: the board clamps, names the leaf that moved, and recovers within a
+cadence. A predicate that is too narrow fails **silently**: we compare across a real derivation
+change and emit a `Transition` that is an artefact of our own release, estate-wide — the single
+failure this entire apparatus exists to prevent. The corpus catches a wrong predicate only
+where it happens to cover that case.
+
+The neighbouring lever goes the same way. *Recompute history to test whether it would have
+differed, without storing the recomputation* makes comparability a function of today's release,
+which is ADR-0007's stated objection to re-derivation moved one level up and no better for the
+move.
+
+What makes uniformity affordable is the next section: a break costs one cadence, not a dark
+screen. The predicate would buy a large reduction in a cost that is no longer large, and attach
+a silent failure mode to it.
+
+### A break clamps the horizon rather than blanking the board
+
+The ticket assumed a break inside the board's window makes the whole board not-comparable. That
+does not follow. A `Break` is an **edge on a timeline**, not a loss of data — what it withdraws
+is the licence to reach *back across* it.
+
+So a view bounds its horizon by the most recent break on the timelines it reads: *change since
+the derivation upgraded four hours ago*. Immediately after a break no timeline has a
+predecessor under the new derivation, so the matrix has no rows — but the **current-state
+census renders in full**, because a census is not a comparison. The board degrades to *here is
+where you stand; change resumes at the next cycle*, and is a matrix again after one cadence.
+
+This is not a new rendering. [#22](https://github.com/winniel123/verge-asm/issues/22)
+established that **day one and degraded day are the same object** — "no internet vantage, so
+exposure cannot be constructed" and "vantage unavailable for three days, so exposure cannot be
+constructed" are one statement differing only in whether the capability was ever present. A
+derivation upgrade is a third instance of it: no history under this derivation *yet*. Built
+separately, the post-upgrade state — the one that appears while the operator's attention is on
+the upgrade — would get the least care of the three.
+
+Breaks are also **per timeline**. A change to the certificate canonicaliser breaks certificate
+timelines and leaves the board untouched; only a move in one of `Exposure`'s own four leaves
+clamps it.
+
+### Duration does not cross a break, and has to say so
+
+This is the real cost, and it is not the board. ADR-0007 made duration the concrete form of the
+differentiation — *exposed for eleven days*, *flapped forty times this week*, the sentences no
+count-shaped diff can produce — and a break truncates every one of them in the estate at once.
+
+Worse, it truncates them **plausibly**. After an upgrade *exposed for 4 days* reads as a fact
+rather than an artefact, and the operator has no way to tell the difference. Strictly we cannot
+even assert the value was unchanged across the break, because that assertion *is* the forbidden
+comparison.
+
+So duration never crosses, and every truncated duration or count renders as a **floor with its
+reason attached**: *exposed for at least 4 days (derivation changed 4 days ago)*, *flapped 12
+times in the 4 days since*. A bare understated number is a lie the operator cannot detect; a
+labelled floor is true. This is the one place a derivation upgrade genuinely degrades the
+product's headline claim, and it degrades it for a full window rather than for a cadence.
+
+### The alert hole, and what may be said across a break
+
+The clamp rescues the board and not the alert stream. Across a break no `Transition` is emitted,
+so a genuine `firewalled` → `exposed` straddling the upgrade is **never alerted** — the flagship
+event, dropped silently, on the night the operator is watching an upgrade instead.
+
+Dual-running both derivations was rejected in both forms. **Backward** dual-run — computing the
+new derivation over past observations so an overlap exists — is re-derivation with a fig leaf:
+the old rows survive, but every transition on the new timeline is still a function of today's
+release. **Forward-only** dual-run avoids that and does buy the boundary comparison on the old
+derivation, at the price of doubled derivation cost, a retirement policy, and deliberately
+showing the operator conclusions we have just decided are wrong for a full window.
+
+The coverage class carries it instead. One **re-baseline message** per alerting derivation whose
+vector moved: *your `Exposure` derivation changed; under the new one twelve services are exposed
+where ten were, and these three differ.* It is ADR-0004's *"your rules changed"* presentation
+given an actual payload; it fires **on the cause, never per affected subject** per ADR-0007,
+where the cause is our own release; and an empty difference set suppresses the message entirely,
+which is legal precisely because ADR-0007 put all damping in notification. The break is still
+written and the horizon still clamps — an empty difference set is a fact about values, not a
+licence to compare them.
+
+One constraint keeps it honest. The difference set is a **description computed once at the
+cause**: never persisted as a `Transition`, never entering drift history, never appearing on the
+board. Without that the forbidden comparison walks back in through the notification layer —
+which is exactly how it re-entered through the failure path in
+[ADR-0005](./0005-scan-execution-model.md), and is worth naming the second time.
+
+## Consequences
+
+- **[`CONTEXT.md`](../../CONTEXT.md) gains `Derivation`**, and `Break`'s first cause is restated:
+  not *a derivation version changed* but *a `Derivation` vector changed*. The phrase "derivation
+  version" had been load-bearing across ADR-0004, ADR-0005 and ADR-0007 without ever being a
+  glossary term.
+- **Every named versioned derivation acquires a second artefact** — its golden corpus — and it
+  is a build-time obligation rather than a test-suite nicety. Without it, "bump on
+  output-affecting change" is discipline again, and the corpus catches only what it covers.
+- **Retention's hard floor is now read per derivation.** ADR-0007 ruled that the open span and
+  the one preceding it may never be compacted. Across a break the predecessor sits under a
+  different vector and carries no licence anyway, so the floor holds *within one derivation* —
+  and a break inside the retained window makes `returned` detection unrecoverable rather than
+  merely shallow.
+- **The coverage class gains a member whose cause is us.** A `Vantage` going `unavailable` and
+  coverage crossing a threshold are the world or our own infrastructure failing; a re-baseline
+  is our release. After ADR-0006's `resolving → shadowed` and ADR-0007's `revealed` and `owned`
+  → `third-party`, the three notification classes now also have to carry *we changed how we
+  look*.
+- **The board and `Subjects` inherit a labelling obligation.** Every duration and count they
+  render must be able to declare itself a floor, which is a presentation requirement neither was
+  prototyped against.
+- **Nothing here becomes operator-configurable.** ADR-0005 fixed the availability window and
+  ADR-0007 fixed `k` on blast-radius grounds; a dial that moved a version would be the same
+  failure with an extra step.
+
+## Alternatives rejected
+
+| Alternative | Why not |
+| --- | --- |
+| Versions coupled to releases | ADR-0004's "release-coupled" is a ceiling on how often content may change, never a claim that a version moves because a release shipped |
+| Content hash of the derivation's code | Bumps on every refactor — breaks the whole estate for a rename |
+| Content hash of declared parameters only | Silent on a behavioural bug fix in code, which is the case that most needs to break |
+| Hand-maintained version with no gate | Discipline, refused everywhere else in the comparison path |
+| One composed scalar version | Says *something moved* and never which leaf, so a `Break` cannot meet [#22](https://github.com/winniel123/verge-asm/issues/22)'s stated-reason requirement |
+| A fixed global component schema | Adding a component perturbs every derivation at once — ADR-0004's set-wide version by another door |
+| Nested rather than flattened vectors | Equality stops being a set comparison, and a break names a path instead of a leaf |
+| A declared blast-radius predicate per bump | Fails **silently** when too narrow, emitting release artefacts as `Transition`s estate-wide; the uniform break fails loudly and now costs one cadence |
+| Recomputing history to test comparability | Makes the break set a function of today's release — ADR-0007's objection to re-derivation, one level up |
+| Storing the `Break` and its component diff | A second representation of one fact; both spans already carry their `derivation` reference |
+| Blanking the board across a break | A break withdraws the licence to reach back, not the data — and a census is not a comparison |
+| Backward dual-run across a transition window | Re-derivation with the old rows kept; every transition on the new timeline is still a function of today's release |
+| Forward-only dual-run | Doubles derivation cost, needs a retirement policy, and shows the operator conclusions we have just decided are wrong |
+| Carrying duration across a break | Asserts the value was unchanged, which is the comparison the break forbids |
+| Re-baseline emitted as a `Transition` | Puts the forbidden comparison into drift history through the notification layer |

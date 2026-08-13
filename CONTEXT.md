@@ -20,7 +20,9 @@ The rule is therefore not *never diff Derived* but **never compare across differ
 derivations** — and it is enforced by a `Break` rather than left to discipline. Observations
 are never compared to each other either; they are folded into `Span`s, and every `Span` is
 Derived, because even one folded straight from observations composes a canonicaliser version
-and a staleness bound. See [ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
+and a staleness bound. See [ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md). What a
+derivation *is*, and what makes its version move, is
+[ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md).
 
 A fourth group, **Operational**, sits outside the table on purpose: it records what the
 system *did*, never what is true of the estate. Nothing in it may be read by the
@@ -206,6 +208,17 @@ which is not the same as not firing. See
 [ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
 
+**Derivation**:
+The named, versioned procedure that produced a Derived value. Its version moves on an
+**output-affecting change** and never because a release shipped — enforced by a golden corpus
+in CI rather than by discipline, since neither a hash of the code (bumps on a refactor) nor a
+hash of the parameters (silent on a behavioural fix) tracks what we care about. A `Span`
+carries the **vector** of derivation versions it was produced under: one leaf per named
+derivation, flattened across everything that derivation reads, with parameters held inside
+their own leaf rather than beside it. Comparison is legal exactly where two vectors are equal.
+See [ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md).
+_Avoid_: rule version, schema version, algorithm
+
 **Span**:
 One period during which a timeline held a single value, keyed by `(subject, facet, vantage,
 source)` — one timeline per source, so two sources that disagree hold two true facts rather
@@ -223,9 +236,14 @@ _Avoid_: change, event, diff, delta
 
 **Break**:
 A boundary between two `Span`s that may not be compared, though both hold values. Two causes
-only: a derivation version changed, or the aperture widened. Nothing is compared across a
-break, so a break emits no `Transition` and alerts nothing. Distinct from `Gap`, which is the
-absence of a value rather than of a licence to compare.
+only: a `Derivation` vector changed, or the aperture widened. Nothing is compared across a
+break, so it emits no `Transition`, alerts nothing, and **no duration or count crosses it** —
+a truncated one renders as a labelled floor, never as a bare number. What it withdraws is the
+licence to reach *back across* it and not the data, so a view **clamps its horizon** to the
+most recent break rather than going blank, and the current-state census still renders. Derived
+on read from the two spans' vectors and never stored, which is what lets it name the leaf that
+moved. Distinct from `Gap`, which is the absence of a value rather than of a licence to
+compare.
 _Avoid_: seam (reserved for architectural boundaries), fault, discontinuity, version bump
 
 **Gap**:
