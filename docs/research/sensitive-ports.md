@@ -1018,12 +1018,12 @@ be wrong within a year.
    credentials are never submitted. What can be established without crossing that line is unresolved.
 3. **Does the signal fire on `edge-only` as well as `exposed`?** §4.1 argues it must. This should be
    stated in the rule definition rather than left to the implementer, because the failure is silent.
-4. **Do the three ports still excluded for want of attestation deserve another pass?** 111/tcp
-   rpcbind, 389/tcp LDAP, 79/tcp finger. A targeted search admitted 2049/tcp and 873/tcp on the
-   strength of `nfs(5)` and upstream `rsyncd.conf(5)`, which is direct evidence that the remaining
-   three are a search problem rather than a settled verdict — though §2.7 argues 111 genuinely has
-   no owner willing to state a position. Any such pass must happen **before** v1 ships, because
-   adding a row later costs a comparability cycle (§7.2).
+4. ~~**Do the three ports still excluded for want of attestation deserve another pass?**~~
+   **Closed by §9** ([#30](https://github.com/winniel123/verge-asm/issues/30)). 111/tcp rpcbind,
+   389/tcp LDAP and 79/tcp finger were all re-searched against their specifications, reference
+   implementations and shipped defaults. **None is admitted; the list stays at 38.** The pass was
+   right to run — the precedent of 2049 and 873 was sound — and it was not a null result, because
+   111 and 389 moved from *no evidence found* to *evidence found pointing the other way*.
 5. **Should the `reg.` disclosure surface in the product?** Several rows rest on convention rather
    than IANA registration. When the signal fires on 9200 it is asserting Elasticsearch on a port
    registered to `wap-wsp`, and on 623/udp it is asserting IPMI on a number where the string "IPMI"
@@ -1031,6 +1031,528 @@ be wrong within a year.
 6. **Does this note's evidence standard generalise to the other v1 signals?** The claim/attestation/
    determinacy structure was built for the one signal with curated reference data, but "state the
    claim, cite the source that owns it" is not specific to ports.
+7. **Should Claim 1's unstated qualifier be written into §2.1?** §9.3.3 found that Claim 1 read
+   literally admits every anonymous public service — finger, WHOIS, HTTP — and that only an
+   unwritten "the anonymous operations must be ones that would otherwise require authority" keeps
+   them out. Every existing Class A row satisfies the stated version, so this is a documentation
+   fix; but an unstated admission criterion is precisely what makes a curated list unfalsifiable.
+   Fixing it means re-checking the whole list against the stated criterion, which is why it is a
+   question rather than an edit.
+8. **Class B has a permanent blind spot — should §2.1 say so rather than leaving it in §9.2?**
+   RFC 6335 §9 tells implementers to prefer in-band security negotiation over split ports, and §9.2
+   showed LDAP is the working instance: StartTLS and Microsoft's LDAP signing both harden 389 *on
+   389*, so there is no plaintext port to condemn and no Class B row is constructible. This is a
+   structural coverage limit of `sensitive-port-exposed`, not a wording defect, and the pressure it
+   creates discharges the same way §5's middle band did — into a future observation-driven rule
+   (*did this listener require confidentiality before accepting a credential?*), not into a row.
+
+---
+
+## 9. Second attestation pass: 111/tcp rpcbind, 389/tcp LDAP, 79/tcp finger
+
+Research ticket [#30](https://github.com/winniel123/verge-asm/issues/30), resolving §8 question 4
+before v1 ships. The pass was worth running on precedent: 2049/tcp and 873/tcp were admitted late on
+`nfs(5)` and upstream `rsyncd.conf(5)`, both found only on a targeted second look, so absence of a
+citation had already proven to be weak evidence of absence of a position.
+
+**Result: none of the three is admitted. The list stays at 38 `(port, transport)` pairs and §1 is
+unchanged.** But the pass is not a null result, because for two of the three the footing moved from
+*no evidence found* to *evidence found, pointing the other way*. That is a materially stronger place
+to leave an exclusion than §2.7 left 111, and it is the difference between a row we could not
+justify and a row we can say is wrong.
+
+The pass also surfaced two defects in the standard itself, which are recorded here and carried into
+§8 rather than acted on: **Claim 1 is missing a qualifier it has always relied on** (§9.3.3), and
+**Class B's successor-on-another-port clause turns out to be the load-bearing half of the claim
+rather than a scoping detail** (§9.2).
+
+Every quote below was retrieved with `curl` and verified against the retrieved bytes. The retrieval
+hazards, and the one widely-repeated claim about RFC 4513 that turns out to be simply false, are
+disclosed in §9.5.
+
+### 9.1 111/tcp rpcbind — not admitted, and now on positive grounds
+
+§2.7 excluded 111 because *"we could not find anyone entitled to say it isn't"* defensible. That
+survives re-checking, and it understates the result. The protocol's owners do speak; what they say
+is that the exposure problem was answered **inside the software**, and that the port answers from
+every interface by design.
+
+**The two confirmed non-statements hold.** RFC 1833's Security Considerations section reads, in its
+entirety, *"Security issues are not discussed in this memo."* (re-verified against
+[the retrieved text](https://www.rfc-editor.org/rfc/rfc1833.txt)). The upstream `rpcbind(8)` roff
+source has `NAME`, `SYNOPSIS`, `DESCRIPTION`, `OPTIONS`, `FILES`, `NOTES`, `SEE ALSO` and
+`LINUX PORT` — and no `SECURITY` section.
+
+**But the man page does contain a security sentence, and it cuts against the row.** From the
+`-i` option:
+
+> "'Insecure' mode. Allow calls to SET and UNSET from any host. Normally rpcbind accepts these
+> requests only from the loopback interface for security reasons."
+> — [`rpcbind(8)`, upstream `man/rpcbind.8`](https://git.linux-nfs.org/?p=steved/rpcbind.git;a=blob_plain;f=man/rpcbind.8;hb=HEAD)
+> (quoted from the rendered form; cross-checked against
+> [Debian's rendering](https://manpages.debian.org/unstable/rpcbind/rpcbind.8.en.html), which agrees verbatim)
+
+Read carefully, that is the maintainers drawing the line themselves and putting it in a different
+place than a row would need. The **mutating** operations — the ones that let a caller register or
+unregister an RPC service — are loopback-only in the shipped default, "for security reasons", in
+the project's own words. What remains answerable to a remote client is the lookup path.
+
+**Upstream then removed the remaining internet-facing hazard by disabling it at build time.** The
+indirect-call machinery (`RPCBPROC_CALLIT` / `RPCBPROC_INDIRECT`, RFC 1833 §§511-573) is the
+proxying and amplification surface that CISA TA14-017A measured. It is off in a default build:
+
+> `AC_ARG_ENABLE([rmtcalls],`
+> `  AS_HELP_STRING([--enable-rmtcalls], [Enables Remote Calls @<:@default=no@:>@]))`
+> — [upstream `configure.ac`](https://git.linux-nfs.org/?p=steved/rpcbind.git;a=blob_plain;f=configure.ac;hb=HEAD)
+> (`@<:@` and `@:>@` are autoconf quadrigraphs for `[` and `]`; the help string renders as
+> "Enables Remote Calls [default=no]")
+
+Debian says the same thing in prose and dates it:
+
+> "Since version 1.2.5 due to security concerns upstream has turned off the remote calls
+> functionality by default and added a configuration flag at build time to enable it. This
+> functionality caused rpcbind to open up random listening ports."
+> — [`debian/README.debian`, rpcbind 1.2.7-1](https://sources.debian.org/data/main/r/rpcbind/1.2.7-1/debian/README.debian)
+
+This is the single most important finding for 111, and it is easy to read backwards. It is **not**
+an upstream admission that rpcbind is indefensible on the internet. It is upstream identifying the
+specific feature that made exposure dangerous and taking it out of the default build — the same
+shape as memcached disabling UDP in 1.5.6, which §3.1 cites as *supporting* a row, but with the
+opposite consequence, because memcached pairs it with a "you *must not* expose" sentence and rpcbind
+pairs it with nothing.
+
+**Every shipped default binds to the world.** Upstream's own socket unit:
+
+> `ListenStream=0.0.0.0:111`
+> `ListenDatagram=0.0.0.0:111`
+> `ListenStream=[::]:111`
+> `ListenDatagram=[::]:111`
+> — [upstream `systemd/rpcbind.socket`](https://git.linux-nfs.org/?p=steved/rpcbind.git;a=blob_plain;f=systemd/rpcbind.socket;hb=HEAD)
+
+And Debian ships the loopback restriction **present but commented out**, which is as explicit a
+statement of intended default as a config file can make:
+
+> `OPTIONS="-w"`
+> `# Uncomment the following line to restrict rpcbind to localhost only for UDP requests`
+> `# OPTIONS="${OPTIONS} -h 127.0.0.1 -h ::1"`
+> — [`debian/rpcbind.default`, rpcbind 1.2.7-1](https://sources.debian.org/data/main/r/rpcbind/1.2.7-1/debian/rpcbind.default)
+
+**This closes the last available route.** §2.2 admits three forms of attestation, and the third —
+the documented shipped default — is the weak one that carries 5432, 5984 and 9042. For 111 it does
+not merely fail to help; it points the other way. PostgreSQL's `listen_addresses = localhost` is on
+the list because it is a maintainer position expressed in code. `ListenStream=0.0.0.0:111` is the
+same kind of statement with the opposite content, and a standard that reads one as evidence must
+read the other as evidence too.
+
+**Claim 3 fails on the facts, and the man page is the one that says so.** rpcbind's whole function
+is answering remote lookups:
+
+> "When a client wishes to make an RPC call to a given program number, it first contacts rpcbind on
+> the server machine to determine the address where RPC requests should be sent."
+> — [`rpcbind(8)`, DESCRIPTION](https://git.linux-nfs.org/?p=steved/rpcbind.git;a=blob_plain;f=man/rpcbind.8;hb=HEAD)
+
+A protocol whose defined client is a remote client cannot satisfy "the intended clients are other
+components of the same system".
+
+**The source that comes closest is a distribution hardening guide, and §2.3 bars it.** Red Hat's
+RHEL 7 Security Guide §4.3.4 is the only document in the corpus that characterises rpcbind's
+security posture in its own voice:
+
+> "It has weak authentication mechanisms and has the ability to assign a wide range of ports for the
+> services it controls. For these reasons, it is difficult to secure." … "It is important to use TCP
+> Wrappers to limit which networks or hosts have access to the rpcbind service since it has no
+> built-in form of authentication."
+> — [RHEL 7 Security Guide §4.3.4, "Securing rpcbind"](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/security_guide/sec-securing_services)
+> (read via an [Internet Archive snapshot dated 2024-02-22](http://web.archive.org/web/20240222061242/https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/security_guide/sec-securing_services) — see §9.5)
+
+Three reasons it cannot carry the row, in increasing order of force:
+
+1. **Red Hat does not own the protocol.** §2.3's rule is that the claim must be attested "by a
+   source that owns the protocol". Microsoft qualifies for SMB and Dell for DRAC because they
+   designed the thing; Red Hat packages rpcbind, and its Security Guide is a Red Hat documentation
+   product rather than an rpcbind project document.
+2. **It is a hardening instruction, not a legitimacy statement.** "Limit which networks or hosts
+   have access" is the exact shape of the NSA/CISA sentence §4.4 refused for 6443 — a preference
+   expressed against a real supported architecture. Note also that Red Hat's *own* enumeration in
+   the neighbouring §4.3.3, "Services that should be carefully implemented and behind a firewall",
+   lists `auth`, `nfs-server`, `smb and nbm (Samba)`, `yppasswdd`, `ypserv` and `ypxfrd` — and
+   **omits rpcbind**.
+3. **Red Hat contradicts itself across products, in the AWS pattern of §2.3.** The Storage
+   Administration Guide's firewall procedure directs the reader to "Allow TCP and UDP port 111
+   (rpcbind/sunrpc)."
+   ([RHEL 6 Storage Administration Guide §9.7.3](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/6/html/storage_administration_guide/s2-nfs-nfs-firewall-config)).
+   One vendor, one port, opposite instructions in two manuals — which is precisely why §2.3 exists.
+
+The same guide adds the observation that is the honest practical advice and is *not* a position on
+exposure: "Securing rpcbind only affects NFSv2 and NFSv3 implementations, since NFSv4 no longer
+requires it." The correct answer for most estates is that rpcbind should not be *running*, which is
+a different claim from the one this list makes.
+
+**Determinacy is not the problem.** IANA registers both `sunrpc,111,tcp,SUN Remote Procedure Call`
+and `sunrpc,111,udp` to Chuck McManis, with no competing usage and an empty Unauthorized Use
+Reported field (registry CSV retrieved 2026-08-13).
+
+**Verdict: 111/tcp and 111/udp remain excluded**, and §2.7's reasoning is upgraded rather than
+replaced — not "nobody will say it", but "the people entitled to say it shipped the opposite
+default and fixed the actual hazard in the code". **The criterion that would change the verdict:**
+an upstream, Sun/Oracle or nfs-utils statement on network placement, or a change to
+`systemd/rpcbind.socket` binding loopback. Neither is a watchable-event stretch; both are exactly
+the trigger §8 question 1 describes.
+
+### 9.2 389/tcp LDAP — not admitted, and the case tests Class B rather than LDAP
+
+§4.6 excluded 389 in one line: RFC 4513 §6.3.3 discourages cleartext credentials "unless the data on
+the session is protected using TLS", so the port is not the discriminator. That verdict is correct
+and it now rests on three independent attestations instead of one. The interesting part is what the
+case does to **Class B**.
+
+**Falsified first, because it is the premise everyone brings to this port.** RFC 4513 does *not*
+deprecate `ldaps://` on 636. It does not mention them. The strings `636` and `ldaps://` occur
+**zero times** across RFC 4510, RFC 4511, RFC 4513, RFC 4516 and the obsoleted RFC 2830 — every
+document in the LDAP technical specification that could plausibly carry such a statement, retrieved
+and counted. (The trap: a case-insensitive search for `ldaps` matches `LDAPString`, which appears
+throughout RFC 4511's ASN.1. That false positive is almost certainly the origin of the belief.)
+
+The IETF's position on the split-port pattern for LDAP is expressed **by omission**, and the
+omission is total: the standards-track LDAP suite defines TLS via StartTLS *on the LDAP port* and
+never defines, registers or references a TLS-on-a-separate-port variant. IANA's 636 row is a bare
+legacy registration — `ldaps,636,tcp,ldap protocol over TLS/SSL (was sldap)`, assigned to Pat
+Richard, with no RFC reference — sitting beside `ldap,389,tcp,Lightweight Directory Access
+Protocol`, assigned to Tim Howes.
+
+**The protocol's reference implementation states the preference directly.** OpenLDAP:
+
+> "OpenLDAP supports negotiation of TLS (SSL) via both StartTLS and ldaps://. See the Using TLS
+> chapter for more information. StartTLS is the standard track mechanism."
+> — [OpenLDAP 2.6 Administrator's Guide §14.2, Data Integrity and Confidentiality Protection](https://www.openldap.org/doc/admin26/security.html)
+
+**So Class B's central clause is not satisfiable for LDAP, and that is the whole finding.** Claim 2
+requires "credentials or session content in cleartext, **with a standardised encrypted successor
+reachable on a different port**". §4.2 already explained that the successor clause is not a
+scoping detail — "the encrypted sibling is not an exception to the rule, it *is* the rule — its
+existence is what makes the plaintext port wrong". LDAP is the case that proves the clause is
+doing real work: the standardised encrypted form of LDAP is reachable on **the same port**, so
+there is no plaintext port to condemn. 23 is wrong because 22 exists; 389 is not wrong, because
+389 is also where the fix lives.
+
+**RFC 4513 §6.3.3 says this in its own construction, and it is worth quoting at the length that
+shows it.** The prohibition is conditional, and the mandate is *per session*:
+
+> "The use of clear text passwords and other unprotected authentication credentials is strongly
+> discouraged over open networks when the underlying transport service cannot guarantee
+> confidentiality. LDAP implementations SHOULD NOT by default support authentication methods using
+> clear text passwords and other unprotected authentication credentials unless the data on the
+> session is protected using TLS or other data confidentiality and data integrity protection."
+> — [RFC 4513](https://www.rfc-editor.org/rfc/rfc4513.txt), §6.3.3
+
+> "To mitigate the security risks associated with the transfer of passwords, a server implementation
+> that supports any password-based authentication mechanism that transmits passwords in the clear
+> MUST support a policy mechanism that at the time of authentication or password modification,
+> requires that: A TLS layer has been successfully installed. OR Some other data confidentiality
+> mechanism that protects the password value from eavesdropping has been provided. OR The server
+> returns a resultCode of confidentialityRequired for the operation"
+> — [RFC 4513](https://www.rfc-editor.org/rfc/rfc4513.txt), §6.3.3
+
+The MUST is the sharpest available statement of why a port-keyed list cannot answer this question.
+RFC 4513 mandates a mechanism that decides, **at the time of the bind, for that session**, whether
+the credential is protected. Two connections to the same `(389, tcp)` pair can land on opposite
+sides of that decision. A signal keyed on the pair sees neither.
+
+RFC 4513 §2 is the same shape one level up: implementations "MUST be capable of protecting this
+name/password authentication using TLS as established by the StartTLS operation" and "SHOULD
+disallow the use of the name/password authentication mechanism by default when suitable data
+security services are not in place" — a requirement on the *session state*, never on the port.
+
+**The dominant vendor's remedy is also on-port, and its current shipped default enforces it.**
+Microsoft's answer to cleartext credentials against Active Directory is LDAP signing and channel
+binding, negotiated over the existing connection:
+
+> "When you enforce LDAP signing on a domain controller, it rejects SASL LDAP binds that don't
+> request signing and rejects simple binds performed over nonencrypted connections."
+> — [Microsoft, LDAP signing for Active Directory Domain Services](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/ldap-signing)
+
+> "**LDAP signing**: All new Active Directory deployments require LDAP signing by default through
+> the "Domain controller: LDAP server signing requirements enforcement" policy."
+> — same page, "Windows Server 2025 and later"
+
+Under §2.2 a shipped default is an attestation, and this one attests a **hardened 389**, not a
+migration to 636. The honest counterweight, recorded because it is the strongest thing available to
+the other side: on "Windows Server 2019 and earlier" the same page records "**LDAP signing**:
+Optional by default" and "**LDAP channel binding**: Set to "Never" by default". That is a permissive
+default, and it is evidence the vendor tolerated cleartext binds — not evidence that exposure is
+illegitimate — and the current release reverses it.
+
+**Claim 3 fails explicitly, in the reference implementation's first sentence on the subject.**
+
+> "OpenLDAP Software is designed to run in a wide variety of computing environments from
+> tightly-controlled closed networks to the global Internet."
+> — [OpenLDAP 2.6 Administrator's Guide §14, Security Considerations](https://www.openldap.org/doc/admin26/security.html)
+
+That is a protocol owner naming the public internet as an intended deployment environment, which is
+the same disqualification §4.4 applied to 6443 and §4.6 applied to Jenkins. The shipped default
+agrees:
+
+> "slapd will by default serve ldap:/// (LDAP over TCP on all interfaces on default LDAP port).
+> That is, it will bind using INADDR_ANY and port 389."
+> — [`slapd(8)`, `-h URLlist`](https://www.openldap.org/software/man.cgi?query=slapd&sektion=8)
+
+OpenLDAP's own guidance on simple binds is, once again, conditional and session-scoped rather than
+port-scoped: the mechanism "offers no eavesdropping protection (e.g., the password is set in the
+clear)", so "it is recommended that it be used only in tightly controlled systems or when the LDAP
+session is protected by other means (e.g., TLS, IPsec)" (§14.3.1). And OpenLDAP's network-security
+advice is generic firewalling — §14.1.2 observes only that "slapd(8) listens on port 389/tcp for
+ldap:// sessions and port 636/tcp for ldaps://) sessions" (upstream's stray parenthesis preserved).
+
+**Determinacy is not the problem.** `ldap,389,tcp` and `ldap,389,udp` are registered to Tim Howes
+with an empty Unauthorized Use Reported field.
+
+**Verdict: 389/tcp remains excluded**, and the reason is upgraded from "the port is not the
+discriminator" to "the encrypted successor is on the same port, and the protocol's owner calls that
+the standards-track mechanism." **The criterion that would change the verdict:** none that is
+reachable by re-reading sources. 389 becomes listable only if the IETF or OpenLDAP moves the
+standards-track encrypted form off 389, which is the opposite of the direction RFC 6335 §9 pushes.
+
+**What this does to the standard.** §4.2 noted that RFC 6335 §9 makes Class B a *closing* category
+because the IETF discourages new split-port pairs. LDAP is the concrete instance of the pattern the
+IETF prefers instead — in-band negotiation on one port — and it is **unlistable by construction**.
+So Class B is not merely closing; the alternative that replaced it is structurally invisible to a
+port-keyed list. That is a real and permanent coverage boundary of `sensitive-port-exposed`, it is
+not a defect in the claim's wording, and it belongs in §8.
+
+### 9.3 79/tcp finger — not admitted, on two independent grounds
+
+The ticket framed this as the sharpest question of the three: is disclosure-by-design one of the
+three admitted claims, or a fourth claim class? **Answer: neither. It is not a fourth class, and the
+reason is that it does not discriminate.** 79 also fails determinacy independently, which is the
+more mechanical of the two grounds and the more decisive.
+
+#### 9.3.1 The RFC's position is conditional, and the two famous sentences are about different things
+
+RFC 1288 §3.2 is unusually vivid for an RFC, and it is routinely quoted in a way that merges two
+separate passages. The full paragraph:
+
+> "Warning!! Finger discloses information about users; moreover, such information may be considered
+> sensitive. Security administrators should make explicit decisions about whether to run Finger and
+> what information should be provided in responses. One existing implementation provides the time
+> the user last logged in, the time he last read mail, whether unread mail was waiting for him, and
+> who the most recent unread mail was from! This makes it possible to track conversations in
+> progress and see where someone's attention was focused. Sites that are information-security
+> conscious should not run Finger without an explicit understanding of how much information it is
+> giving away."
+> — [RFC 1288](https://www.rfc-editor.org/rfc/rfc1288.txt), §3.2, RUIP security
+
+The "sleep of system administrators" line is **not** in that paragraph and is not about the protocol
+at large. It is in §3.2.4, and it is scoped to one optional feature:
+
+> "Allowing an RUIP to return information out of a user-modifiable file should be seen as equivalent
+> to allowing any information about your system to be freely distributed. That is, it is potentially
+> the same as turning on all specifiable options. This information security breach can be done in a
+> number of ways, some cleverly, others straightforwardly. This should disturb the sleep of system
+> administrators who wish to control the returned information."
+> — [RFC 1288](https://www.rfc-editor.org/rfc/rfc1288.txt), §3.2.4, User information files
+
+Precision matters here because the merged version reads as a prohibition and neither half is one.
+§3.2's operative sentence is an **informed-consent condition** — do not run it *without
+understanding what it gives away* — which is the same grammatical shape as Prometheus's "unless you
+know what you are doing and have taken appropriate measures", refused in §4.3. Compare the sentences
+that actually carry rows: memcached's "you _must not_ expose memcached directly to the internet",
+Elastic's "Never expose an unprotected node to the public internet", Microsoft's "It is unlikely
+that any SMB communication originating from the internet or destined for the internet is
+legitimate". Those are verdicts. §3.2 is a disclosure requirement placed on the administrator.
+
+**And RFC 1288 places finger on the internet by design, in the immediately preceding section.**
+
+> "Finger is one of the avenues for direct penetration, as the Morris worm pointed out quite
+> vividly. Like Telnet, FTP and SMTP, Finger is one of the protocols at the security perimeter of a
+> host."
+> — [RFC 1288](https://www.rfc-editor.org/rfc/rfc1288.txt), §3.1, Implementation security
+
+"At the security perimeter of a host" is the specification describing an internet-facing service and
+demanding it be implemented to that standard. The rest of the document assumes the same: §2.5.5
+specifies how network-reachable vending machines should answer queries, and the `{Q2}` cross-host
+forwarding feature is *recommended off by default* (§3.2.1) rather than forbidden, which is a
+statement that forwarding is a supported mode. RFC 1288 is still a **Draft Standard** on the IETF
+datatracker; it was never reclassified Historic.
+
+#### 9.3.2 Disclosure-by-design cannot be a fourth claim class
+
+A new claim class is a change to the standard, not a row, so it has to be tested by naming what else
+it would admit. Drawn honestly — *the protocol's purpose is to disclose information about the system
+to whoever asks* — it admits:
+
+| Also admitted | Why that is fatal |
+|---|---|
+| 43/tcp WHOIS | Disclosure to anonymous internet clients is the entire specification. Universally, correctly internet-facing |
+| 53/tcp+udp DNS | Same, at planetary scale |
+| 389/tcp LDAP anonymous bind | RFC 4513 §2: servers **MUST** support anonymous simple bind. §9.2 just excluded it |
+| 11/tcp `systat`, 15/tcp `netstat` | "Active Users" and a netstat dump, by registration. Nobody would argue, and nobody probes them either |
+| 111/tcp rpcbind `DUMP` | Discloses the host's RPC service inventory to any caller — §9.1 just excluded it |
+
+A class that admits WHOIS and DNS is not a class. The failure is structural, and naming it is the
+useful output of this ticket:
+
+> **All three existing claims name a *mismatch* between what the protocol assumes and what an
+> internet vantage supplies.** Claim 1: no authentication, where the operations need authority.
+> Claim 2: cleartext credentials, where a standardised encrypted pair already exists elsewhere.
+> Claim 3: a same-system audience, where the internet is not one. **Disclosure by design is not a
+> mismatch — it is the protocol working as specified.** There is nothing for the claim to be
+> *against*.
+
+The intuition that finger is different from WHOIS is real, but it is about *what* is disclosed —
+usernames, login times, mail activity — not about *whether* disclosure is the design. That is a
+judgement about data sensitivity, and it is exactly the kind of judgement §2.1 exists to keep out of
+this list, because it has no owner entitled to attest it and no bright line once admitted.
+
+#### 9.3.3 Claim 1 fits finger literally, and refusing it exposes a missing qualifier
+
+This is the pass's most useful by-product and it should not be buried. Claim 1 as written is "**No
+authentication in the protocol as shipped.** The service, in the configuration its maintainers ship,
+admits anonymous commands." Finger satisfies that sentence completely — it has no authentication
+mechanism of any kind, precisely as 69/udp TFTP does, and 69/udp is on the list under Claim 1 with
+the reason "The protocol has no authentication mechanism of any kind, by specification."
+
+Finger is refused anyway, and the refusal only works because Claim 1 has always carried an unstated
+qualifier. Read literally it admits every public web server, every WHOIS server and every
+authoritative nameserver. The qualifier the Class A rows all rely on but the text never states:
+
+> The anonymous commands must be ones that would otherwise require **authority** — writing data,
+> executing code, reading data not intended for the caller, controlling a runtime — not the
+> operations the protocol exists to answer.
+
+Every Class A row satisfies that once it is written down: `FLUSHALL` on Redis, container control on
+2375, cluster Secrets on 2379, arbitrary file read on TFTP. Finger does not: its anonymous
+operations are the ones RFC 1288 specifies it to answer. **This is a wording defect in §2.1, not a
+list change**, and it is recorded in §8 rather than fixed here, because editing the claim text after
+the list was built against the unstated version would need the whole list re-checked against the
+stated one.
+
+#### 9.3.4 79/tcp fails determinacy, and it fails on the registry's own text
+
+The more mechanical ground, and the one that would exclude 79 even if a claim had fitted. IANA's
+79/tcp row is:
+
+> `finger,79,tcp,Finger,[David_Zimmerman],[David_Zimmerman],,,,,Unauthorized use by some mail users (see [RFC4146] for details),`
+> — [IANA Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv) (retrieved 2026-08-13)
+
+Following that reference to the RFC it names:
+
+> "With this technique, the server sends the string "nm_notifyuser" immediately followed by CRLF to
+> the finger port on the IP address for the user who has received new mail. The finger port is 79.
+> Note that only the port for finger is used; the finger protocol itself is not used." … "On the
+> client system, a process must be listening to the finger port"
+> — [RFC 4146, Simple New Mail Notification](https://www.rfc-editor.org/rfc/rfc4146.txt), §3
+
+> "The notify mail hack (and this document) should be included as an additional usage for port 79."
+> — [RFC 4146](https://www.rfc-editor.org/rfc/rfc4146.txt), §6, IANA Considerations
+
+So a listener on 79/tcp may be a **mail client waiting for a new-mail notification**, running a
+protocol that is not finger, on a usage IANA was asked to record as additional. This is the §2.4
+version-dependence failure mode with the registry on record instead of an inference of ours: the
+`(port, transport)` pair does not determine one service, and a signal firing "finger exposed" on an
+email client's notification listener is exactly the unactionable firing the gate exists to prevent.
+
+Worth stating explicitly that §2.4's caution about the `Unauthorized Use Reported` field is
+respected. That field "marks squatting on a number without registration, a registry-hygiene matter.
+It is not a security judgement and is not used as one here." It is used here only as evidence about
+**what else listens on the port** — determinacy — which is the one thing it is actually competent
+to say.
+
+#### 9.3.5 Implementations and shipped defaults: no position anywhere
+
+Exhausted per the ticket, and every one is a negative:
+
+- **OpenBSD `fingerd(8)`** — `NAME`, `SYNOPSIS`, `DESCRIPTION`, options, `SEE ALSO`, `STANDARDS`,
+  `HISTORY`. No `SECURITY` section, no exposure statement. Its `-s` flag ("Enable secure mode.
+  Forwarding of queries to other remote hosts is denied") is opt-in, so OpenBSD does not even apply
+  RFC 1288 §3.2.1's RECOMMENDED default ([man.openbsd.org/fingerd.8](https://man.openbsd.org/fingerd.8),
+  page dated March 31, 2022).
+- **The OpenBSD data point that cuts hardest.** §3.4 carries the rows for 512, 513 and 514 on
+  OpenBSD's position "expressed by deletion rather than prose" — `rlogin(1)`, `rlogind(8)` and
+  `rexecd(8)` removed in 3.2, `rsh(1)` in 5.6, all four man pages now 404. **`fingerd(8)` was not
+  deleted.** It is in the current tree with a current man page. A project that states positions by
+  removal has declined to state this one, and that is a stronger negative than silence.
+- **FreeBSD `fingerd(8)`** — likewise no `SECURITY` section and no exposure statement
+  ([man.freebsd.org](https://man.freebsd.org/cgi/man.cgi?query=fingerd&sektion=8)).
+- **GNU inetutils ships no finger daemon at all.** The string "finger" occurs **zero** times in the
+  [inetutils manual](https://www.gnu.org/software/inetutils/manual/inetutils.html), which documents
+  `telnetd`, `tftpd` and `whois` (38, 28 and 40 occurrences respectively — counted to confirm the
+  extraction was working rather than the file empty). An absence, not an attestation.
+- **Fedora** still ships a finger daemon, as an optional `finger-server` subpackage built from
+  `bsd-finger`, carrying `in.fingerd`, `finger.socket` and `finger@.service`, with the description
+  "The server daemon (fingerd) must be started using systemctl to receive finger requests"
+  ([`finger.spec`, rawhide](https://src.fedoraproject.org/rpms/finger/raw/rawhide/f/finger.spec)).
+- **Debian** has no plain `fingerd` source package — only `cfingerd`, `efingerd`, `ffingerd` and
+  `xfingerd`, none of them the reference implementation
+  ([sources.debian.org](https://sources.debian.org/api/search/fingerd/)).
+
+Absent-by-default is where the distribution evidence lands, and it does not reach §2.2's third form.
+That form needs a documented **listen** default, the way PostgreSQL documents `listen_addresses`. An
+inetd- or socket-activated service that is simply not installed documents nothing about where it
+listens when it is.
+
+**Verdict: 79/tcp remains excluded**, on two independent grounds either of which suffices: no
+admitted claim fits and disclosure-by-design cannot become one, and the pair fails determinacy
+against a usage IANA itself records. **The criterion that would change the verdict:** a fourth claim
+class that survives the naming test in §9.3.2 — which, on the analysis above, does not exist — plus
+a determinacy answer for RFC 4146. Neither is close.
+
+### 9.4 What this pass changed
+
+**Nothing on the list.** Still 38 `(port, transport)` pairs; §1's summary table, §3's tables and
+§6.1's containment arithmetic are all untouched. §8 question 4 is closed.
+
+**Two things about the evidence standard**, both carried into §8 rather than acted on here:
+
+1. **Claim 1 needs its unstated qualifier written down** (§9.3.3). Read literally it admits every
+   anonymous public service, and only an unwritten "the anonymous operations must be ones requiring
+   authority" keeps finger, WHOIS and HTTP out. Every existing Class A row satisfies the stated
+   version, so this is a documentation fix — but an unstated criterion is exactly what makes a
+   curated list unfalsifiable, which is the failure §2 exists to prevent.
+2. **Class B has a permanent blind spot, and it is not a wording problem** (§9.2). In-band upgrade
+   on a single port — StartTLS, LDAP signing — is the pattern RFC 6335 §9 tells implementers to
+   prefer over split ports, and it is invisible to a list keyed on `(port, transport)`. The pressure
+   this creates discharges the same way §5 said the middle band's did: into an observation-driven
+   rule (*did this listener require confidentiality before accepting a credential?*), not into a
+   softer list.
+
+**And one thing about the method.** §8 question 4 was written on the belief that the remaining three
+were "a search problem rather than a settled verdict", on the precedent of 2049 and 873. The search
+was run properly and the belief was wrong for these three — but the pass was still worth its cost,
+because it converted two exclusions from *no evidence found* to *evidence found pointing the other
+way*, which is the difference between a gap and a finding. Done before v1, it cost nothing; after
+v1 it would have cost a comparability cycle on the product's best signal whichever way it came out
+(§7.2).
+
+### 9.5 Retrieval hazards and errors caught
+
+Recorded in the spirit of §3.4's `xhost` note and §4.6's WinRM paragraph — the near-misses are part
+of the deliverable.
+
+- **"RFC 4513 deprecates `ldaps://` on 636" is false.** The document does not mention either. Nor
+  do RFC 4510, 4511, 4516 or 2830 — `636` occurs zero times in all five, `ldaps://` zero times in
+  all five. A case-insensitive search for `ldaps` returns many hits in RFC 4511, all of them
+  `LDAPString`, which is very likely how the belief propagated. This claim was in the framing of
+  the ticket that commissioned this pass and it did not survive the bytes.
+- **`docs.redhat.com` and `access.redhat.com` refuse `curl`** — both return an edge "Access Denied"
+  page regardless of user-agent. The RHEL 7 Security Guide and RHEL 6 Storage Administration Guide
+  text quoted in §9.1 was read from Internet Archive snapshots (the Security Guide snapshot carries
+  `x-archive-orig-date: Thu, 22 Feb 2024`). That is one step weaker than direct retrieval and it is
+  flagged rather than smoothed over — though it does not affect the verdict, since §9.1 declines the
+  source on ownership grounds anyway.
+- **`git.linux-nfs.org` serves an expired TLS certificate** (`SEC_E_CERT_EXPIRED`). The rpcbind
+  `man/rpcbind.8`, `README`, `configure.ac` and `systemd/rpcbind.socket` were retrieved with
+  certificate verification disabled. The man page text was independently cross-checked against
+  [Debian's rendering of the shipped page](https://manpages.debian.org/unstable/rpcbind/rpcbind.8.en.html),
+  which agrees verbatim on the `-i` paragraph, so the content is corroborated even though the
+  channel was not authenticated.
+- **`learn.microsoft.com` returns a JavaScript shell to `curl`.** The LDAP signing quotes in §9.2
+  were taken from the article's source Markdown in Microsoft's own public docs repository
+  ([`MicrosoftDocs/windowsserverdocs`, `WindowsServerDocs/identity/ad-ds/ldap-signing.md`](https://raw.githubusercontent.com/MicrosoftDocs/windowsserverdocs/main/WindowsServerDocs/identity/ad-ds/ldap-signing.md),
+  `ms.date: 01/15/2026`), which is the same first-party content before rendering.
+- **Not exhausted, and recorded as such:** the non-reference finger daemons in Debian (`cfingerd`,
+  `efingerd`, `ffingerd`, `xfingerd`) were not read. None is the protocol's reference
+  implementation, so none could attest under §2.2, but the claim "no finger implementation states a
+  position" is scoped to the reference implementations and GNU inetutils, not to all of them.
 
 ---
 
@@ -1048,15 +1570,18 @@ Government and standards bodies
 - [CISA #StopRansomware Guide v3.0](https://www.cisa.gov/sites/default/files/2025-03/StopRansomware-Guide%20508.pdf)
 - [NSA/CISA Kubernetes Hardening Guidance v1.2](https://media.defense.gov/2022/Aug/29/2003066362/-1/-1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF) (August 2022)
 - [IANA Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml) — registry data retrieved as [CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv), last updated 2026-08-11
-- [RFC 1282 (BSD Rlogin)](https://www.rfc-editor.org/rfc/rfc1282.txt) · [RFC 1350 (TFTP)](https://www.rfc-editor.org/rfc/rfc1350.txt) · [RFC 2577 (FTP Security Considerations)](https://www.rfc-editor.org/rfc/rfc2577.txt) · [RFC 3410 (SNMP framework)](https://www.rfc-editor.org/rfc/rfc3410.txt) · [RFC 3617 (TFTP URI scheme + security concerns)](https://www.rfc-editor.org/rfc/rfc3617.txt) · [RFC 4248 (telnet URI scheme)](https://www.rfc-editor.org/rfc/rfc4248.txt) · [RFC 4513 (LDAP authentication methods)](https://www.rfc-editor.org/rfc/rfc4513.txt) · [RFC 6143 (RFB / VNC)](https://www.rfc-editor.org/rfc/rfc6143.txt) · [RFC 6335 (port registry procedures)](https://www.rfc-editor.org/rfc/rfc6335.txt) · [RFC 8314 (cleartext mail considered obsolete)](https://www.rfc-editor.org/rfc/rfc8314.txt)
-- Checked and citable only as **non-statements**: RFC 854 (Telnet) has no Security Considerations section and no occurrence of "security", "password", "encrypt" or "authentic"; [RFC 1833](https://www.rfc-editor.org/rfc/rfc1833.txt)'s Security Considerations reads in full: "Security issues are not discussed in this memo."
+- [RFC 1282 (BSD Rlogin)](https://www.rfc-editor.org/rfc/rfc1282.txt) · [RFC 1288 (Finger)](https://www.rfc-editor.org/rfc/rfc1288.txt) · [RFC 1350 (TFTP)](https://www.rfc-editor.org/rfc/rfc1350.txt) · [RFC 2577 (FTP Security Considerations)](https://www.rfc-editor.org/rfc/rfc2577.txt) · [RFC 3410 (SNMP framework)](https://www.rfc-editor.org/rfc/rfc3410.txt) · [RFC 3617 (TFTP URI scheme + security concerns)](https://www.rfc-editor.org/rfc/rfc3617.txt) · [RFC 4146 (Simple New Mail Notification — the second registered usage of port 79)](https://www.rfc-editor.org/rfc/rfc4146.txt) · [RFC 4248 (telnet URI scheme)](https://www.rfc-editor.org/rfc/rfc4248.txt) · [RFC 4513 (LDAP authentication methods)](https://www.rfc-editor.org/rfc/rfc4513.txt) · [RFC 6143 (RFB / VNC)](https://www.rfc-editor.org/rfc/rfc6143.txt) · [RFC 6335 (port registry procedures)](https://www.rfc-editor.org/rfc/rfc6335.txt) · [RFC 8314 (cleartext mail considered obsolete)](https://www.rfc-editor.org/rfc/rfc8314.txt)
+- Retrieved for §9.2 and citable only for what they **do not** contain — `636` and `ldaps://` occur zero times in each: [RFC 4510 (LDAP roadmap)](https://www.rfc-editor.org/rfc/rfc4510.txt) · [RFC 4511 (LDAP protocol)](https://www.rfc-editor.org/rfc/rfc4511.txt) · [RFC 4516 (LDAP URL)](https://www.rfc-editor.org/rfc/rfc4516.txt) · [RFC 2830 (obsoleted LDAP StartTLS extension)](https://www.rfc-editor.org/rfc/rfc2830.txt)
+- [RFC 5531 (ONC RPC v2)](https://www.rfc-editor.org/rfc/rfc5531.txt) §14 — checked for §9.1. Its Security Considerations govern RPC *auth flavours* (AUTH_SYS, AUTH_DH, RPCSEC_GSS), never rpcbind or port 111, so it attests nothing about exposure
+- Checked and citable only as **non-statements**: RFC 854 (Telnet) has no Security Considerations section and no occurrence of "security", "password", "encrypt" or "authentic"; [RFC 1833](https://www.rfc-editor.org/rfc/rfc1833.txt)'s Security Considerations reads in full: "Security issues are not discussed in this memo."; [RFC 1288](https://www.rfc-editor.org/rfc/rfc1288.txt) §6 reads in full: "Security issues are discussed in Section 3." — and RFC 1288 remains a **Draft Standard** on the [IETF datatracker](https://datatracker.ietf.org/api/v1/doc/document/rfc1288/), never reclassified Historic
 - [CIS Amazon Web Services Foundations Benchmark v1.2.0](https://d1.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf) (05-23-2018) — the CIS-authored PDF, ungated. Current versions are behind a registration form at [learn.cisecurity.org/benchmarks](https://learn.cisecurity.org/benchmarks); the "remote server administration ports" phrasing in v3.0.0+ was **not** verified against a CIS document and is second-hand via AWS's mapping page
 
 Cloud providers
 - AWS: [default security group](https://docs.aws.amazon.com/vpc/latest/userguide/default-security-group.html) · [Trusted Advisor security checks](https://docs.aws.amazon.com/awssupport/latest/user/security-checks.html) (check `HCP4007jGY`) · [Security Hub EC2 controls](https://docs.aws.amazon.com/securityhub/latest/userguide/ec2-controls.html) (EC2.13, EC2.14, EC2.19, EC2.21) · [CIS mapping](https://docs.aws.amazon.com/securityhub/latest/userguide/cis-aws-foundations-benchmark.html)
 - Azure: [NSG default security rules](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview) · [Defender for Cloud networking recommendations](https://learn.microsoft.com/en-us/azure/defender-for-cloud/recommendations-reference-networking) · [just-in-time VM access](https://learn.microsoft.com/en-us/azure/defender-for-cloud/enable-just-in-time-access)
 - Google Cloud: [VPC firewall rules, including the default network's pre-populated rules](https://docs.cloud.google.com/firewall/docs/firewalls)
-- Microsoft (non-cloud): [Preventing SMB traffic from lateral connections](https://support.microsoft.com/en-us/topic/preventing-smb-traffic-from-lateral-connections-and-entering-or-leaving-the-network-c0541db7-2244-0dce-18fd-14a3ddeb282a) · [Secure SMB traffic in Windows Server](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic) · [SQL Server installation security considerations](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation)
+- Microsoft (non-cloud): [Preventing SMB traffic from lateral connections](https://support.microsoft.com/en-us/topic/preventing-smb-traffic-from-lateral-connections-and-entering-or-leaving-the-network-c0541db7-2244-0dce-18fd-14a3ddeb282a) · [Secure SMB traffic in Windows Server](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic) · [SQL Server installation security considerations](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation) · [LDAP signing for Active Directory Domain Services](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/ldap-signing) — quoted from [its source Markdown](https://raw.githubusercontent.com/MicrosoftDocs/windowsserverdocs/main/WindowsServerDocs/identity/ad-ds/ldap-signing.md) because the rendered page is a JavaScript shell (§9.5)
+- Red Hat (§9.1) — **corroboration only; declined as sole grounds on §2.3 ownership**, and self-contradictory across products. Both pages refuse direct retrieval and were read via Internet Archive snapshots: [RHEL 7 Security Guide §4.3, Securing Services](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/security_guide/sec-securing_services) ("difficult to secure", "no built-in form of authentication") · [RHEL 6 Storage Administration Guide §9.7.3, Running NFS Behind a Firewall](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/6/html/storage_administration_guide/s2-nfs-nfs-firewall-config) ("Allow TCP and UDP port 111 (rpcbind/sunrpc).")
 
 Upstream projects
 - [Redis security](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)
@@ -1082,6 +1607,9 @@ Upstream projects
 - [Neo4j security checklist](https://neo4j.com/docs/operations-manual/current/security/checklist/)
 - [Xsecurity(7)](https://man.openbsd.org/Xsecurity.7) · [xhost(1), X.Org](https://www.x.org/releases/current/doc/man/man1/xhost.1.xhtml)
 - [nfs(5)](https://man7.org/linux/man-pages/man5/nfs.5.html) · [rsyncd.conf(5), upstream Samba copy](https://download.samba.org/pub/rsync/rsyncd.conf.5)
+- rpcbind upstream (§9.1), all retrieved from `git.linux-nfs.org` with certificate verification disabled — see §9.5: [`man/rpcbind.8`](https://git.linux-nfs.org/?p=steved/rpcbind.git;a=blob_plain;f=man/rpcbind.8;hb=HEAD) · [`configure.ac`](https://git.linux-nfs.org/?p=steved/rpcbind.git;a=blob_plain;f=configure.ac;hb=HEAD) (`--enable-rmtcalls [default=no]`) · [`systemd/rpcbind.socket`](https://git.linux-nfs.org/?p=steved/rpcbind.git;a=blob_plain;f=systemd/rpcbind.socket;hb=HEAD) (`ListenStream=0.0.0.0:111`) · [`README`](https://git.linux-nfs.org/?p=steved/rpcbind.git;a=blob_plain;f=README;hb=HEAD) (contains no security text). Cross-checked against [Debian's rendering of `rpcbind(8)`](https://manpages.debian.org/unstable/rpcbind/rpcbind.8.en.html) and Debian's packaging: [`debian/README.debian`](https://sources.debian.org/data/main/r/rpcbind/1.2.7-1/debian/README.debian) · [`debian/rpcbind.default`](https://sources.debian.org/data/main/r/rpcbind/1.2.7-1/debian/rpcbind.default)
+- OpenLDAP (§9.2): [Administrator's Guide §14, Security Considerations](https://www.openldap.org/doc/admin26/security.html) · [§16, Using TLS](https://www.openldap.org/doc/admin26/tls.html) · [`slapd(8)`](https://www.openldap.org/software/man.cgi?query=slapd&sektion=8) (default `-h` is `ldap:///`, i.e. `INADDR_ANY:389`)
+- Finger implementations (§9.3.5), all checked and none carrying a SECURITY section or exposure statement: [OpenBSD `fingerd(8)`](https://man.openbsd.org/fingerd.8) — notably **not** removed, unlike `rlogind(8)`/`rexecd(8)`/`rsh(1)` · [FreeBSD `fingerd(8)`](https://man.freebsd.org/cgi/man.cgi?query=fingerd&sektion=8) · [GNU inetutils manual](https://www.gnu.org/software/inetutils/manual/inetutils.html), which ships no finger daemon at all · [Fedora `finger.spec`](https://src.fedoraproject.org/rpms/finger/raw/rawhide/f/finger.spec) (optional `finger-server` subpackage) · [Debian source search for `fingerd`](https://sources.debian.org/api/search/fingerd/) (no reference implementation packaged)
 - [OpenBSD 3.2 changelog](https://www.openbsd.org/plus32.html) (removal of rlogin/rlogind/rexecd) · [OpenBSD 5.6 changelog](https://www.openbsd.org/plus56.html) (removal of rsh)
 - [Microsoft, Security considerations for PowerShell Remoting using WinRM](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/winrm-security) · [Azure network security best practices](https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices)
 - [HP Printing Security Best Practices](https://h10032.www1.hp.com/ctg/Manual/c05318850.pdf) — cited for the position that 9100 "should always be enabled"
