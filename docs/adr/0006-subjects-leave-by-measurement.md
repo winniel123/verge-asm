@@ -45,6 +45,35 @@ estate-wide removal — *we stopped looking* rendered as *everything was removed
 So the residue stays in the estate, visibly unconfirmed, and leaves by one of two honest
 routes: the operator supplies coverage, or the operator declares it out of scope.
 
+## Amendment — [#35](https://github.com/winniel123/verge-asm/issues/35): the residue has a
+second member, and `resolution` has a fifth outcome
+
+This ADR's residue was measured as one population — names below a wildcard — and that is
+now known to be incomplete. Two changes, neither of which disturbs the decision above.
+
+**`resolution` gains a fifth outcome, `Lame`.** Beside Name Error, NODATA, `Shadowed` and
+*source error*, a `Name` whose parent zone delegates it to nameservers that were **reached
+and do not serve it** holds `Lame` — RFC 8499 §7's lame delegation. This is an observed
+value and not a source error, because the delegated authorities were queried **directly**
+and answered; the distinction is only purchasable that way, since a recursive resolver's
+SERVFAIL cannot separate a dead delegation from our own bad upstream. A delegation only
+partly lame is not this value: the name still resolves, so `resolution` has not moved, and
+the per-nameserver detail is recorded on `dns-record`.
+
+**Names beneath a `Lame` delegation are a second un-disconfirmable population.** With
+nobody left to answer, no Name Error can ever arrive for them, so they can no more leave
+than a shadowed name can. They are **not** `Shadowed` and they do not inherit `Lame` —
+under [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) we hold no value for them at all,
+which is a `Gap`. That is the correct record and it needs no new machinery: the `Gap` says
+*we stopped being able to look*, this ADR's no-cascade-down rule already forbids inferring
+absence beneath, and one lame delegation therefore produces one alert over an arbitrarily
+large burst of `Gap`s — ADR-0007's alert-at-the-cause rule, unmodified.
+
+The residue's escape routes are unchanged, and it is worth noting the asymmetry: unlike a
+wildcard, a lame delegation is a **defect the operator can fix**, so the third route out is
+the one this ADR could not offer before — repair the delegation and the names beneath
+become measurable again.
+
 ## Consequences
 
 - **`Seed` gains exclusions** — exact names and subtrees, not patterns. Excluding a
