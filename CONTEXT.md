@@ -132,7 +132,12 @@ _Avoid_: port, open port, socket
 
 **Endpoint**:
 A `(Name, Service)` pair — the only key under which HTTP identity is single-valued,
-because two names on one address and port legitimately serve different content.
+because two names on one address and port legitimately serve different content. The `Name`
+may be **absent**, meaning *the default response to a client that names nothing*: a real,
+distinguishable measurement mode rather than a null in a key, and the only one available on an
+address-scope `Seed` where no name is known yet. It closes when **either** leg withdraws — its
+`Name` or its `Service` — so a nameless endpoint simply has one leg. See
+[ADR-0011](./docs/adr/0011-a-facet-is-six-parts.md).
 _Avoid_: URL, site, web asset, vhost
 
 **Observation**:
@@ -143,8 +148,14 @@ _Avoid_: result, record, datapoint, scan result
 
 **Facet**:
 Which aspect of a subject an observation measured — `resolution`, `dns-record`,
-`reachability`, `certificate`, `http-identity`. Adding one means adding a way to compare
-its values, not a new way to detect change.
+`reachability`, `certificate`, `http-identity`, `tls-acceptance`. Adding one never means
+writing a new way to detect change: the fold, `Span`, `Break`, `Gap` and `Transition` are
+facet-agnostic. It does mean writing **six things** — a value space, a **decoder** per source, a
+**canonicaliser**, a **differ**, a **discriminator** (empty for all but `dns-record`, which
+carries the qtype), and a **batch-scope obligation** naming what its silence covers. Every value
+space is a **closed union**, never a record with optional fields, because each facet's measured
+negatives — `NoTLS`, `NotHTTP`, a Name Error — are values and must not collapse into *we did not
+look*. See [ADR-0011](./docs/adr/0011-a-facet-is-six-parts.md).
 _Avoid_: attribute, field, property
 
 **Shadowed**:
@@ -154,7 +165,10 @@ value rather than discarded, because *we cannot see here* is a fact the operator
 the alternative manufactures drift: repoint one wildcard and every fictional name beneath
 it reports a resolution change the same night. Whether a name is admitted under a wildcard
 turns on its `Citation`, not on this answer — a certificate SAN survives, a guessed label
-does not.
+does not. It is a value on `dns-record` as well as `resolution`, since a wildcard synthesises
+answers for *any* qtype. Deciding it takes two measurements — the name's answer and the zone's
+poison signature — so like `Lame`, `NoTLS` and `NotHTTP` it is decided by the **measurement
+binary inside one batch**, never assembled afterwards from two observations.
 _Avoid_: unverifiable, synthetic, wildcard hit
 
 **Lame**:
@@ -167,14 +181,30 @@ queries the delegated authorities directly: a recursive resolver's SERVFAIL cann
 dead delegation from a bad upstream, and attribution by inference is the *whose fault was
 it* judgement that would make this a coverage gap wearing a value's clothes. A delegation
 only *partly* lame is not this value — the name still resolves, so `resolution` has not
-moved — and is recorded per nameserver on `dns-record`.
+moved — and is recorded per nameserver on `dns-record`, whose NS qtype therefore holds an RRset
+of `(nameserver, serves | does-not-serve)` pairs rather than a name list. Like `Shadowed` it is
+also a value on `dns-record`: the authorities were reached and refused to serve, so every qtype
+is equally unanswerable.
 _Avoid_: servfail, dangling, broken delegation, dead NS
 
 **Certificate**:
 An X.509 certificate, held as an immutable value and shared by fingerprint across every
 endpoint presenting it. A certificate cannot change, so it cannot drift; what changes is
-which certificate an `Endpoint` presents.
-_Avoid_: cert record, TLS config
+which certificate an `Endpoint` presents — held as the **ordered chain of fingerprints, leaf
+first**, since order is on the wire. What the handshake *negotiated* is not here and is not a
+property of a certificate: a negotiated version is a function of our own ClientHello, so it
+would move estate-wide on a library upgrade with nothing in the world having changed. See
+`tls-acceptance`.
+_Avoid_: cert record, TLS config, negotiated version, cipher
+
+**tls-acceptance**:
+The facet holding which protocol versions and cipher suites a `Service` **accepted** — measured
+by enumeration on the weekly tier, one handshake per candidate, and attempted against every open
+service rather than a curated implicit-TLS port list. *Accepted* is the measured verb; *supported*
+is a capability claim the measurement cannot carry. The **candidate set is the `Batch`'s recorded
+scope, never part of the value**, so an offer of nine ciphers can never assert the tenth was
+refused — and widening the offer is an aperture change yielding `revealed`.
+_Avoid_: tls config, tls support, cipher scan
 
 **Batch**:
 One source, executed once, against one scope, from one vantage — recording the scope its
@@ -254,8 +284,10 @@ See [ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md).
 _Avoid_: rule version, schema version, algorithm
 
 **Span**:
-One period during which a timeline held a single value, keyed by `(subject, facet, vantage,
-source)` — one timeline per source, so two sources that disagree hold two true facts rather
+One period during which a timeline held a single value, keyed by `(subject, facet, discriminator,
+vantage, source)` — the discriminator being facet-defined and empty for all but `dns-record`,
+which carries the qtype, or a batch covering MX and not TXT would assert an empty TXT RRset it
+never measured. One timeline per source, so two sources that disagree hold two true facts rather
 than forcing an arbitration. It opens, it is current, it closes; the open span is the current
 state. Carries the versions it was derived under, which is what makes comparison legal. See
 [ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).

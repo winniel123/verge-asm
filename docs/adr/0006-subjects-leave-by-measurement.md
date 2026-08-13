@@ -74,6 +74,24 @@ wildcard, a lame delegation is a **defect the operator can fix**, so the third r
 the one this ADR could not offer before — repair the delegation and the names beneath
 become measurable again.
 
+## Amendment — [#36](https://github.com/winniel123/verge-asm/issues/36): a key component may be
+absent from the start
+
+The cascade rule below — *a subject leaves when a component of its natural key leaves* — is
+general and stands unchanged. What needs saying is that its worked example named only one
+component, and a reader carrying the example rather than the rule now gets the wrong answer.
+
+[ADR-0011](./0011-a-facet-is-six-parts.md) lets an `Endpoint`'s `Name` be **absent**, meaning
+*the default response to a client that names nothing* — the only endpoint available on an
+address-scope `Seed` before any name is known. Such an endpoint has no `Name` to withdraw, so
+*"an `Endpoint` whose `Name` has gone is not a measurable thing"* never fires and, read as the
+whole rule, it would keep a live endpoint under a dead port forever.
+
+The `Service` leg was always there and always necessary; it went unnoticed because a withdrawing
+`Service` normally arrives alongside a withdrawing `Name`. Stated explicitly: **an `Endpoint`
+closes when either its `Name` or its `Service` withdraws**, and a nameless one simply has one
+leg. Reason `cascaded` is unchanged, so the endpoints return coherently if the port comes back.
+
 ## Consequences
 
 - **`Seed` gains exclusions** — exact names and subtrees, not patterns. Excluding a

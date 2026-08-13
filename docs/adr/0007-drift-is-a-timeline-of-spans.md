@@ -39,7 +39,7 @@ Six prior decisions arrive with obligations attached:
 | Stored object | A **`Span`** — one row per period a value was held |
 | Comparison unit | The **timeline**, never a batch pair |
 | Ingest | A **fold over completed batches**, incremental |
-| Timeline key | `(subject, facet, vantage, source)` — **one per source** |
+| Timeline key | `(subject, facet, vantage, source)` — **one per source**; gains a facet-defined discriminator, see the [#36](https://github.com/winniel123/verge-asm/issues/36) amendment |
 | Operator state on a span | **None** — spans are immutable |
 | Comparison | Over a **canonical value**, structurally; a hash is only an index |
 | Canonicalisers | **Versioned**, and they compose |
@@ -244,7 +244,8 @@ from an internal vantage impossible rather than forbidden.
 
 Aperture is also broader than [#15](https://github.com/winniel123/verge-asm/issues/15) framed it.
 It has **three inputs — enabled sources, port tiers, and the ownership gate** — and all three
-produce `revealed` rather than `appeared`.
+produce `revealed` rather than `appeared`. [#36](https://github.com/winniel123/verge-asm/issues/36)
+adds two more; see the amendment below.
 
 ### Alert on the cause, record the consequence
 
@@ -264,6 +265,29 @@ And a gate *opening* reveals a burst of services at once.
 In all three cases one operator action or one registry change produces a burst of consequences,
 so the rule is stated once rather than rediscovered three times: **alerting fires at the cause,
 never per affected subject**, while every consequence is fully recorded.
+
+## Amendment — [#36](https://github.com/winniel123/verge-asm/issues/36): the key carries a
+discriminator, and aperture has five inputs
+
+Two corrections, both of things this ADR asserted in substance and did not write down. Neither
+disturbs the decision above.
+
+**The timeline key is `(subject, facet, discriminator, vantage, source)`**, where the
+discriminator is facet-defined and empty for every facet but `dns-record`, which carries the
+qtype. Without it one `Name`'s `dns-record` timeline must hold every qtype in a single value, and
+a batch that queried MX but not TXT writes a value asserting an empty TXT RRset it never measured
+— [ADR-0009](./0009-verge-core-is-a-union.md)'s `{161}` defect arriving through the key instead of
+the port list. The generalisation is evidence rather than convenience: `reachability` never needed
+a discriminator **only because its subject `Service` already carries port and transport**, which
+is the same fix applied one level up, hand-made, before anyone named it.
+
+**Aperture has five inputs, not three.** Beside enabled sources, port tiers and the ownership
+gate sit the **queried qtype set** and the **TLS candidate set** — the versions and ciphers a
+handshake offers. Both start timelines that did not exist, so both yield `revealed` rather than
+`appeared`, and pricing them here is what stops a release that adds CAA reporting a first-ever
+record as `appeared`, or a TLS library upgrade that widens the client's offer reporting an
+estate's worth of newly-accepted ciphers as change in the world. See
+[ADR-0011](./0011-a-facet-is-six-parts.md).
 
 ## Consequences
 
