@@ -35,10 +35,13 @@ comparison path at all.
 **Seed**:
 An operator's assertion of where the estate ends — either a *name scope* (a registrable
 domain) or an *address scope* (a CIDR). It declares a boundary, not a starting point. A
-boundary can be drawn inwards too: a seed carries **exclusions**, exact names or subtrees
-the operator declares are not theirs. Excluding a name that still resolves is legal —
+boundary can be drawn inwards too: a seed carries **exclusions** — exact names, subtrees, or
+address scopes the operator declares are not theirs. Excluding a name that still resolves is legal —
 *not mine* is a different claim from *not there* — and an excluded name is no longer
-queried. See [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md).
+queried. Declining a `Proposal` is an exclusion of this kind rather than a suppression, since
+it is a claim about where the estate ends. See
+[ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md) and
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
 _Avoid_: target, root domain, scope target
 
 **Source**:
@@ -46,8 +49,26 @@ Anything that can produce observations, carrying three properties: **authority**
 (`declared` / `measured` / `inferred`), **completeness** (`enumerable` /
 `corroborative`) and **consent** (`unencumbered` / `operator-accepted` /
 `operator-credentialed`). The first two say how far to believe it; the third says whether
-it may run without the operator having said so.
+it may run without the operator having said so. A thing that produces **no** observations is
+not a source, however registry-shaped it looks: it yields `Proposal`s, and only `consent`
+applies to it. See [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
 _Avoid_: provider, feed, integration
+
+**Proposal**:
+A candidate address scope offered to the operator by a source that *proposes* rather than
+observes — a registry path returning ranges it believes the operator holds. It is real only
+once confirmed into a `Seed`, and until then it is read by nothing: it never gates probing and
+never enters the estate. Declared, though the direction of travel is the reverse of every
+other Declared term — this is what we tell the *operator*, and it earns its layer because its
+only consumer is the operator's declaration act, and because like `Seed` it is input and does
+not drift. It carries **`consent` alone**: `authority` governs admission and a proposal admits
+nothing, `completeness` governs whether silence is evidence and a proposal's silence licenses
+nothing. It records **which kind of record produced it** — an RIR delegation, or a compelled
+reassignment written by an upstream provider — because those carry different caveats and the
+operator is the one judging them. Confirming one retains it as provenance on the resulting
+`Seed`; declining one is a `Seed` exclusion. See
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
+_Avoid_: suggestion, candidate range, discovered scope, pending seed
 
 **Authority**:
 How far a source's claim of existence is believed. The operator's zone file is
@@ -85,9 +106,15 @@ _Avoid_: prober location, scanner, agent
 
 **Vantage class**:
 Which side of the operator's boundary a `Vantage` sits on — `internet` or `internal` —
-declared as intent and re-verified every batch against the seeds and registry ranges the
-system already holds. It is what `Reach` is measured per, and therefore what makes
-`Exposure` a conclusion across two classes rather than a reading from one prober.
+declared as intent and re-verified every batch against the `Seed`s the system already holds,
+and against nothing else: no registry file may decide which side of the boundary a prober is
+on, for the same reason none may open the probing gate. It is what `Reach` is measured per,
+and therefore what makes `Exposure` a conclusion across two classes rather than a reading from
+one prober. The cost is stated rather than hidden: a vantage inside operator address space the
+operator never declared verifies as `internet`, which over-reports `exposed`. That is the loud
+failure and the intended one — a false `exposed` is investigated, a false `internal-only` is
+not — and the undeclared space surfaces as a coverage question. See
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
 _Avoid_: external, network position, inside/outside
 
 **Scan**:
@@ -225,9 +252,13 @@ _Avoid_: provenance chain, lineage, discovery path
 ### Derived
 
 **Ownership**:
-Whether an `Address` is `owned`, `third-party`, or `unknown`, computed against seeds and
-registry data. Governs what may be probed, not merely how it is displayed — see
-[ADR-0002](./docs/adr/0002-ownership-gates-probing.md). It is the one Derived value whose
+Whether an `Address` is `owned`, `third-party`, or `unknown`, computed against `Seed`s
+**alone** — registry data proposes scopes for the operator to confirm and feeds this
+derivation nothing, so no third party's file can open the gate. Governs what may be probed,
+not merely how it is displayed — see
+[ADR-0002](./docs/adr/0002-ownership-gates-probing.md) as amended by
+[#27](https://github.com/winniel123/verge-asm/issues/27), and
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md). It is the one Derived value whose
 change carries a safety consequence, so it holds a `Span` timeline: closing the gate opens a
 `Gap` beneath the address rather than withdrawing anything, and opening it reveals services
 that are `revealed`, never `appeared`.
