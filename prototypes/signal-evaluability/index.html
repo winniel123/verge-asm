@@ -1,0 +1,727 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #44: "Where does the operator see a signal that
+  is not-evaluable?"
+
+  #21 §6.1 kept six UDP rows on the sensitive list on the stated grounds that
+  doing so "makes the coverage gap visible in the product instead of invisible
+  in a list file". #29 asserted the visibility fell out of ADR-0004 for free.
+  Measured in #28's `Coverage` prototype: the string `not-evaluable` occurs
+  nowhere. This prototype exists to find out why, by drawing it.
+
+  The finding it is built to expose: `not-evaluable` is one word over two
+  populations, and ADR-0014's timeline-existence test separates them.
+
+    A subject exists and its evidence timeline holds no value
+        → a row, on `Signals`, carrying the cause
+    No subject exists at all, because we never looked at that pair/port/leg
+        → no row is possible, ever. It is an APERTURE fact, and it belongs
+          on `Coverage` with no figure over subjects.
+
+  Two screens, ?screen=signals|coverage :
+
+    signals   — the rule census at three members, and the not-evaluable
+                treatment with its four causes
+    coverage  — the standing aperture statement, which is the only place the
+                second population can be seen
+
+  Four fills, ?fill=mixed|outage|modal|noprober :
+
+    mixed     a working estate, all four causes present at once
+    outage    internet-01 unavailable 3d — every sensitive-port evaluation
+              goes not-evaluable, "we stopped looking"
+    modal     #26/#40's cloud-resident install with the custody extension
+              OFF. The flagship rule has an EMPTY population. This is the
+              case the product must not report as clean.
+    noprober  #14's internal-only install, no internet vantage ever
+              configured — "we never looked", which is not the same absence
+
+  Not production code. Vocabulary is CONTEXT.md; visual language is the real
+  design system (../../design-system). Every census total is summed from its
+  members, per #28's rule that a census is derived from its own partition.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — signal evaluability prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 96px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); text-decoration: none; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); }
+
+  .card { background: var(--surface); border: var(--rule); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .sp { margin-left: auto; }
+  .pad { padding: var(--space-4); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5);
+         max-width: 78ch; line-height: var(--leading-body); }
+  .stack > * + * { margin-top: var(--space-4); }
+  .stack-2 > * + * { margin-top: var(--space-2); }
+  .row { display: flex; gap: var(--space-4); align-items: flex-start; }
+
+  /* ── THE RULE ROW ─────────────────────────────────────────────────────
+     One rule, one census, three members. No severity, no ordering by
+     badness — ADR-0004. The rules render in the order they are declared. */
+  .rule { background: var(--surface); border: var(--rule); }
+  .rule + .rule { border-top: none; }
+  .rule-h { display: flex; align-items: baseline; gap: var(--space-4);
+            padding: var(--space-3) var(--space-4); }
+  .rule-h .nm { font: var(--weight-semibold) var(--text-base)/1.3 var(--font-mono); color: var(--ink); }
+  .rule-h .ver { font: var(--weight-medium) var(--text-2xs)/1 var(--font-mono); color: var(--text-faint);
+                 letter-spacing: var(--tracking-label); }
+  .rule-h .sp { margin-left: auto; }
+
+  /* the census — three members over one population, summed from its cells */
+  .cens { display: flex; align-items: stretch; border-top: var(--rule-soft); }
+  .cens .m { flex: 1; padding: var(--space-3) var(--space-4); border-left: var(--rule-soft); }
+  .cens .m:first-child { border-left: none; }
+  .cens .m .v { font: var(--weight-semibold) var(--text-xl)/1 var(--font-mono); color: var(--ink);
+                margin-top: var(--space-2); display: block; }
+  .cens .m.ne .v { color: var(--text-muted); }
+  .cens .m.pop { background: var(--surface-sunken); flex: 0 0 auto; min-width: 190px; }
+  .cens .m.pop .v { color: var(--ink); }
+  .cens .m .d { font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono);
+                margin-top: var(--space-1); color: var(--text-muted); }
+
+  /* the arithmetic, stated rather than implied — #28 */
+  .recon { padding: var(--space-2) var(--space-4); border-top: var(--rule-soft);
+           background: var(--surface-sunken);
+           font: var(--weight-medium) var(--text-xs)/1.5 var(--font-mono); color: var(--text-muted); }
+  .recon b { color: var(--ink); font-weight: var(--weight-semibold); }
+
+  /* ── THE APERTURE FOOTNOTE ────────────────────────────────────────────
+     A pointer, never a count. Enabling UDP cannot raise this rule's census;
+     it can only reveal that the census was of the wrong population. That is
+     #28's propose-half rule arriving on `Signals`, so: no figure. */
+  .apf { padding: var(--space-3) var(--space-4); border-top: var(--rule-soft);
+         border-left: 3px solid var(--border-ink);
+         font-size: var(--text-base); line-height: var(--leading-body); color: var(--text); }
+  .apf .ml { display: block; margin-bottom: var(--space-1); }
+  .apf a { color: var(--accent); }
+  .apf.hard { border-left-color: var(--ink); background: var(--surface-sunken); }
+
+  /* ── THE NOT-EVALUABLE TREATMENT ──────────────────────────────────────
+     One treatment carrying a stated reason, per #22's not-comparable band.
+     Sunken ground, dashed hairline, cause as a micro-label. No colour and no
+     rank: ranking evaluability gaps is severity through the back door. */
+  .ne-list { border-top: var(--rule-soft); }
+  .ne-row { display: flex; gap: var(--space-4); align-items: baseline;
+            padding: var(--space-3) var(--space-4); border-top: var(--rule-soft);
+            background: var(--surface-sunken); }
+  .ne-row:first-child { border-top: none; }
+  .ne-row .subj { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink);
+                  flex: 0 0 260px; word-break: break-all; }
+  .ne-row .why { flex: 1; min-width: 0; }
+  .ne-row .why .cause { display: block;
+                        font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label);
+                        color: var(--text-faint); }
+  .ne-row .why .det { display: block; margin-top: 2px; font-size: var(--text-sm);
+                      color: var(--text-muted); line-height: var(--leading-snug); }
+  .ne-row .why .det a { color: var(--accent); }
+  /* the last known outcome — never omitted (implies gone), never restated as
+     current (implies true). Muted role plus an explicit as-of, which is
+     ADR-0008's labelled-floor pattern applied to a value instead of a span. */
+  .ne-row .last { flex: 0 0 250px; text-align: right;
+                  font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+  .ne-row .last b { font-weight: var(--weight-semibold); color: var(--text); }
+  .ne-row .last .asof { display: block; font-size: var(--text-2xs); color: var(--text-faint);
+                        letter-spacing: var(--tracking-label); text-transform: uppercase;
+                        font-weight: var(--weight-semibold); margin-top: 2px; }
+  /* the fault marker fires only where something failed — #28. Never on an
+     aperture the operator correctly closed, never on a measured value. */
+  .ne-row.fault { border-left: 3px solid var(--danger); }
+  .ne-row.fault .why .cause { color: var(--danger); }
+
+  .ne-empty { padding: var(--space-3) var(--space-4); border-top: var(--rule-soft);
+              font-size: var(--text-base); color: var(--text-muted); }
+
+  /* the empty-population case — the one that must not read as clean */
+  .hollow { border: var(--rule-ink); background: var(--surface); }
+  .hollow .hd { background: var(--ink); color: var(--text-on-ink);
+                padding: var(--space-3) var(--space-4); display: flex; align-items: baseline; gap: var(--space-3); }
+  .hollow .hd .ml { color: #9a9a90; }
+  .hollow .hd .nm { font: var(--weight-semibold) var(--text-base)/1.3 var(--font-mono); }
+  .hollow .bd { padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .hollow .bd p { margin: 0 0 var(--space-3); max-width: 82ch; }
+  .hollow .bd p:last-child { margin-bottom: 0; }
+  .hollow .bd a { color: var(--accent); }
+
+  /* ── THE APERTURE STATEMENT (Coverage) ────────────────────────────────
+     What we do not look at. Constant, so it never escalates and never gets a
+     second density. Carries counts of OUR OWN RULES — closed and enumerable —
+     and never a count or proportion of subjects, because the denominator is
+     the estate-completeness figure #28 refused to score. */
+  .ap { background: var(--surface); border: var(--rule); }
+  .ap-row { display: flex; gap: var(--space-4); padding: var(--space-4);
+            border-top: var(--rule-soft); align-items: flex-start; }
+  .ap-row:first-of-type { border-top: none; }
+  .ap-row .inp { flex: 0 0 190px; }
+  .ap-row .inp .k { font-family: var(--font-mono); font-size: var(--text-sm);
+                    font-weight: var(--weight-semibold); color: var(--ink); }
+  .ap-row .inp .s { display: block; margin-top: 2px;
+                    font: var(--weight-semibold) var(--text-2xs)/1.3 var(--font-mono);
+                    text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-faint); }
+  .ap-row .bod { flex: 1; min-width: 0; font-size: var(--text-base); line-height: var(--leading-body); }
+  .ap-row .bod .costs { display: block; margin-top: var(--space-2);
+                        font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+  .ap-row .bod .costs b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .ap-row .bod code { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .ap-row .act { flex: 0 0 200px; text-align: right; }
+  .ap-row .act .none { font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                       text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-faint); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); }
+
+  .note { border: var(--rule); border-left: 3px solid var(--border-ink); background: var(--surface);
+          padding: var(--space-3) var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .note .ml { display: block; margin-bottom: var(--space-1); }
+  .note a { color: var(--accent); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+  .ft-in .sp { margin-left: auto; }
+
+  #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch;
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch .grp { display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
+                 border-left: 1px solid #3a3a30; }
+  #switch .grp:first-child { border-left: none; }
+  #switch .grp > span { color: #9a9a90; font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); margin-right: var(--space-1); }
+  #switch button { background: transparent; border: none; color: #9a9a90; cursor: pointer;
+                   font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); padding: 7px 8px; }
+  #switch button:hover { background: #3a3a30; color: var(--text-on-ink); }
+  #switch button.on { background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div id="switch">
+  <div class="grp" data-key="screen"><span>screen</span></div>
+  <div class="grp" data-key="fill"><span>fill</span></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   THE FOUR CAUSES
+
+   Read off ADR-0014's test — did the timeline exist? — and then off the
+   `Gap`'s own recorded cause, which #42 made load-bearing rather than
+   decorative by refusing a fourth transition name on the strength of it.
+
+     never-looked  the evidence timeline never existed. Not a `Gap`: a
+                   `Gap` is a span and there was none. Nothing failed.
+     stopped       the timeline exists and holds a `Gap`. Ours failed, or
+                   aged out, or the gate closed under it.
+     unanswered    a `Gap` whose cause is the OPERATOR's infrastructure —
+                   #35's names beneath a lame delegation. Cites the signal
+                   that already reports it rather than raising a second fault.
+     inapplicable  the evidence is PRESENT and is a value the predicate
+                   cannot read — `Shadowed`. Nothing is missing and nothing
+                   failed; ADR-0004 names this case for both DNS rules.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const CAUSE = {
+  "never-looked": { label: "we never looked",   fault: false },
+  "stopped":      { label: "we stopped looking", fault: true  },
+  "unanswered":   { label: "you stopped answering", fault: false },
+  "inapplicable": { label: "we measured; this rule cannot read the answer", fault: false },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FAKE ESTATE — four installs, deliberately different in kind
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Rules render in declaration order. Not by count, not by "how bad the gap
+   is" — ADR-0004 forbids severity, and ordering by unevaluability is
+   severity wearing a coverage hat. */
+const RULES = [
+  { id:"sprfi",  name:"sensitive-port-reached-from-internet", ver:"reach/4 · sensitive-list/11",
+    domain:"Services on a sensitive-list (port, transport) pair" },
+  { id:"lame",   name:"lame-delegation",              ver:"resolution/2",
+    domain:"Names with a delegation of their own" },
+  { id:"cnerr",  name:"cname-target-name-error",      ver:"resolution/2",
+    domain:"Names whose resolution chain contains a CNAME" },
+  { id:"expiry", name:"certificate-expiring",         ver:"certificate/3",
+    domain:"Endpoints presenting a certificate" },
+  { id:"plain",  name:"plaintext-http-no-https",      ver:"http-identity/5",
+    domain:"Endpoints on 80/tcp" },
+];
+
+/* Every census is authored as its NOT-EVALUABLE rows plus two scalars, and
+   the population is summed from all three. #28: a census is derived from its
+   own partition, or two numbers over one population disagree on screen. */
+const FILLS = {
+
+  /* ── a working estate with all four causes present ─────────────────── */
+  mixed: {
+    banner: { kind:"ok", text:"internet-01 · last complete cadence 4h ago" },
+    aperture: { udp:true, custody:{ addresses:39, extension:"partial" }, qtype:true, tls:true },
+    rules: {
+      sprfi:  { fired:3, notFired:211, ne:[
+        { subj:"198.51.100.24:6379/tcp", cause:"stopped",
+          det:"Batch dead-lettered 2026-08-12 04:10. Its recorded scope is empty, so it licenses no absence.",
+          last:"reached from internet", asof:"as measured 2026-08-11 04:07" },
+        { subj:"198.51.100.24:9200/tcp", cause:"stopped",
+          det:"Batch dead-lettered 2026-08-12 04:10. Its recorded scope is empty, so it licenses no absence.",
+          last:"not-reached from internet", asof:"as measured 2026-08-11 04:07" },
+        { subj:"203.0.113.90:5432/tcp", cause:"stopped",
+          det:"Custody of this address moved to third-party 2026-08-06 when the extension stopped covering it. The gate is closed, so nothing feeds this leg.",
+          last:"not-reached from internet", asof:"as measured 2026-08-06 04:07" },
+      ]},
+      lame:   { fired:1, notFired:806, ne:[
+        { subj:"legacy.acmecorp.io", cause:"inapplicable",
+          det:"resolution is Shadowed — a wildcard at *.acmecorp.io answers for this name, so there is no delegation of its own to walk.",
+          last:"did not fire", asof:"as measured 2026-07-02, before the wildcard" },
+      ]},
+      cnerr:  { fired:0, notFired:141, ne:[
+        { subj:"assets.acmecorp.io", cause:"inapplicable",
+          det:"resolution is Shadowed — the wildcard answers, so there is no chain of its own to follow.",
+          last:"never evaluated", asof:"no prior value" },
+        { subj:"mail.eu.acmecorp.io", cause:"unanswered",
+          det:"Beneath a lame delegation of eu.acmecorp.io. Reported by lame-delegation, which is firing.",
+          last:"did not fire", asof:"as measured 2026-08-09" },
+        { subj:"mx2.eu.acmecorp.io", cause:"unanswered",
+          det:"Beneath a lame delegation of eu.acmecorp.io. Reported by lame-delegation, which is firing.",
+          last:"never evaluated", asof:"no prior value" },
+      ]},
+      expiry: { fired:4, notFired:612, ne:[] },
+      plain:  { fired:11, notFired:398, ne:[] },
+    },
+  },
+
+  /* ── the internet vantage went silent ──────────────────────────────── */
+  outage: {
+    banner: { kind:"bad", text:"internet-01 unavailable 3d — Availability opened a Gap on the internet Reach" },
+    aperture: { udp:true, custody:{ addresses:39, extension:"partial" }, qtype:true, tls:true },
+    rules: {
+      sprfi:  { fired:0, notFired:0, neBulk:{ n:214, cause:"stopped",
+        det:"internet-01 has failed every attempt for 3 days, so Availability is unavailable and the internet Reach holds a Gap. This is not a clear: the last value stands beside each row and is not current.",
+        sample:[
+          { subj:"198.51.100.24:6379/tcp", last:"reached from internet", asof:"as measured 2026-08-10 04:07" },
+          { subj:"198.51.100.41:3306/tcp", last:"not-reached from internet", asof:"as measured 2026-08-10 04:07" },
+          { subj:"203.0.113.7:2375/tcp",   last:"reached from internet", asof:"as measured 2026-08-10 04:07" },
+        ]}, ne:[] },
+      lame:   { fired:1, notFired:806, ne:[
+        { subj:"legacy.acmecorp.io", cause:"inapplicable",
+          det:"resolution is Shadowed — a wildcard answers for this name.",
+          last:"did not fire", asof:"as measured 2026-07-02, before the wildcard" },
+      ]},
+      cnerr:  { fired:0, notFired:143, ne:[] },
+      expiry: { fired:4, notFired:612, ne:[] },
+      plain:  { fired:11, notFired:398, ne:[] },
+    },
+  },
+
+  /* ── #26/#40's modal install: cloud-resident, custody extension OFF ── */
+  modal: {
+    banner: { kind:"ok", text:"internet-01 · last complete cadence 4h ago" },
+    aperture: { udp:true, custody:{ addresses:412, extension:"off" }, qtype:true, tls:true },
+    rules: {
+      sprfi:  { fired:0, notFired:0, ne:[], hollow:"custody" },
+      lame:   { fired:0, notFired:806, ne:[] },
+      cnerr:  { fired:0, notFired:143, ne:[] },
+      expiry: { fired:4, notFired:612, ne:[] },
+      plain:  { fired:11, notFired:398, ne:[] },
+    },
+  },
+
+  /* ── #14's internal-only install: no internet vantage ever configured ─ */
+  noprober: {
+    banner: { kind:"flat", text:"no internet-class vantage configured — internal inventory only" },
+    aperture: { udp:true, custody:{ addresses:0, extension:"on" }, qtype:true, tls:true, novantage:true },
+    rules: {
+      sprfi:  { fired:0, notFired:0, neBulk:{ n:214, cause:"never-looked",
+        det:"No internet-class vantage has ever been configured, so the internet Reach has no timeline. Nothing failed and nothing was lost; this rule has simply never been able to run.",
+        sample:[
+          { subj:"198.51.100.24:6379/tcp", last:"never evaluated", asof:"no prior value" },
+          { subj:"198.51.100.41:3306/tcp", last:"never evaluated", asof:"no prior value" },
+          { subj:"203.0.113.7:2375/tcp",   last:"never evaluated", asof:"no prior value" },
+        ]}, ne:[] },
+      lame:   { fired:1, notFired:806, ne:[] },
+      cnerr:  { fired:0, notFired:143, ne:[] },
+      expiry: { fired:4, notFired:612, ne:[] },
+      plain:  { fired:11, notFired:398, ne:[] },
+    },
+  },
+};
+
+/* The six UDP pairs #21 §6.1 kept on the sensitive list, and #29 believed
+   would report `not-evaluable` for free. They do not: a batch that never
+   probes UDP never observes a Service on 161/udp, so no subject exists to
+   carry the outcome. They are visible here and nowhere else. */
+const UDP_PAIRS = ["69/udp", "137/udp", "138/udp", "161/udp", "623/udp", "11211/udp"];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DERIVED — the census is summed, never authored
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const neCount = (r) => (r.ne ? r.ne.length : 0) + (r.neBulk ? r.neBulk.n : 0);
+const population = (r) => r.fired + r.notFired + neCount(r);
+const num = (n) => n.toLocaleString();
+
+/* A roll-up is legal only as a sum over the per-rule partitions — computing
+   it any other way is #28's two-numbers-over-one-population hazard. */
+const rollup = (F) => RULES.reduce((a, R) => a + neCount(F.rules[R.id]), 0);
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CHROME
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const NAV = ["Exposure","Subjects","Signals","Seeds","Coverage","Settings"];
+
+function chrome(active, body, F) {
+  const b = F.banner;
+  const st = b.kind === "bad"
+    ? `<span class="status" style="color:var(--danger)"><span class="dot" style="background:var(--danger)"></span>${b.text}</span>`
+    : b.kind === "flat"
+    ? `<span class="status muted"><span class="dot" style="background:var(--text-faint)"></span>${b.text}</span>`
+    : `<span class="status muted"><span class="dot live"></span>${b.text}</span>`;
+  return `
+<header class="nav"><div class="nav-in">
+  <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+  <nav class="items">${NAV.map(n =>
+    `<a href="?screen=${n === "Coverage" ? "coverage" : "signals"}&fill=${FILL}" class="${n === active ? "on" : ""}">${n}</a>`).join("")}</nav>
+  <div class="nav-right">${st}</div>
+</div></header>
+<div class="shell">${body}</div>
+<footer class="ft"><div class="ft-in">
+  <span>prototype · issue #44</span><span class="sp"></span>
+  <span>vocabulary: CONTEXT.md</span>
+</div></footer>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SIGNALS — where a subject exists and its evidence does not
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function neRow(r, extraLast) {
+  const c = CAUSE[r.cause];
+  return `
+  <div class="ne-row ${c.fault ? "fault" : ""}">
+    <div class="subj">${r.subj}</div>
+    <div class="why">
+      <span class="cause">${c.label}</span>
+      <span class="det">${r.det}</span>
+    </div>
+    <div class="last">${r.last === "never evaluated"
+        ? `<span class="faint">never evaluated</span>`
+        : `<b>${r.last}</b>`}
+      <span class="asof">${r.asof}</span></div>
+  </div>`;
+}
+
+function bulkRows(bulk) {
+  const c = CAUSE[bulk.cause];
+  return `
+  <div class="ne-row ${c.fault ? "fault" : ""}" style="align-items:flex-start">
+    <div class="subj"><b>${num(bulk.n)} Services</b></div>
+    <div class="why">
+      <span class="cause">${c.label}</span>
+      <span class="det">${bulk.det}</span>
+    </div>
+    <div class="last"><span class="faint">last known value per row</span>
+      <span class="asof">expand to read</span></div>
+  </div>
+  ${bulk.sample.map(s => `
+  <div class="ne-row" style="padding-left:calc(var(--space-4) + var(--space-4))">
+    <div class="subj muted">${s.subj}</div>
+    <div class="why"><span class="det faint">…and ${num(bulk.n - bulk.sample.length)} more on the same cause</span></div>
+    <div class="last">${s.last === "never evaluated"
+        ? `<span class="faint">never evaluated</span>` : `<b>${s.last}</b>`}
+      <span class="asof">${s.asof}</span></div>
+  </div>`).join("")}`;
+}
+
+function hollowRule(R, F) {
+  /* The population is empty, and the reason is an aperture the operator
+     correctly closed. No fault treatment, no Enable button, no number —
+     and emphatically not a census of zero, which is the clean bill of
+     health ADR-0004 exists to refuse. */
+  return `
+  <div class="hollow">
+    <div class="hd"><span class="ml">no population</span><span class="nm">${R.name}</span></div>
+    <div class="bd">
+      <p>This rule reads the internet <code>Reach</code> of a <code>Service</code> on a
+      sensitive-list <code>(port, transport)</code> pair. Your estate contains no such
+      <code>Service</code> — not because none is listening, but because none has been measured.
+      All <b>${num(F.aperture.custody.addresses)}</b> addresses your names resolve to are
+      <code>third-party</code>, so the probing gate is closed on them and only the ports your
+      names imply are probed.</p>
+      <p><b>There is no clean bill of health here, and no defect either.</b> You are right that
+      you do not control those listeners. What follows is that this rule has nothing to say
+      about your estate at all, and will not acquire anything to say until the aperture changes.</p>
+      <p>The aperture is stated in full on <a href="?screen=coverage&fill=${FILL}">Coverage</a>.</p>
+    </div>
+  </div>`;
+}
+
+function apertureFootnote(R, F, r) {
+  /* One line per aperture input that removes subjects from THIS rule's
+     population. A pointer, never a count: enabling UDP cannot raise this
+     census, only reveal that it was of the wrong population. */
+  const lines = [];
+  if (R.id === "sprfi") {
+    lines.push(`Six of the 38 sensitive pairs are UDP — <span class="mono">${UDP_PAIRS.join(", ")}</span> —
+      and UDP is not probed, so no <code>Service</code> on them is ever observed and none appears above.`);
+    if (F.aperture.custody.extension !== "on" && F.aperture.custody.addresses > 0) {
+      lines.push(`The probing gate is closed on <span class="mono">${num(F.aperture.custody.addresses)}</span>
+        addresses, whose sensitive-list ports are never probed.`);
+    }
+  }
+  if (!lines.length) return "";
+  return `
+  <div class="apf">
+    <span class="ml">outside the aperture</span>
+    ${lines.join(" ")}
+    <span style="display:block;margin-top:var(--space-2)" class="muted">These do not appear in the
+    numbers above and cannot. Read the full aperture on
+    <a href="?screen=coverage&fill=${FILL}">Coverage</a>.</span>
+  </div>`;
+}
+
+function ruleCard(R, F) {
+  const r = F.rules[R.id];
+  if (r.hollow) return hollowRule(R, F);
+  const ne = neCount(r), pop = population(r);
+  return `
+  <div class="rule">
+    <div class="rule-h">
+      <span class="nm">${R.name}</span>
+      <span class="ver">${R.ver}</span>
+      <span class="sp"></span>
+      <span class="mono muted">${R.domain}</span>
+    </div>
+    <div class="cens">
+      <div class="m"><span class="ml">fired</span><span class="v">${num(r.fired)}</span>
+        <span class="d">subjects the rule is true of</span></div>
+      <div class="m"><span class="ml">did not fire</span><span class="v">${num(r.notFired)}</span>
+        <span class="d">evaluated, and false</span></div>
+      <div class="m ne"><span class="ml">not-evaluable</span><span class="v">${num(ne)}</span>
+        <span class="d">evidence absent — listed below</span></div>
+      <div class="m pop"><span class="ml">population</span><span class="v">${num(pop)}</span>
+        <span class="d">subjects in this rule's domain</span></div>
+    </div>
+    <div class="recon">
+      <b>${num(r.fired)}</b> fired + <b>${num(r.notFired)}</b> did not fire +
+      <b>${num(ne)}</b> not-evaluable = <b>${num(pop)}</b> in population
+    </div>
+    ${ne === 0
+      ? `<div class="ne-empty">Every subject in this rule's domain was evaluated this cadence.</div>`
+      : `<div class="ne-list">${r.neBulk ? bulkRows(r.neBulk) : ""}${(r.ne || []).map(x => neRow(x)).join("")}</div>`}
+    ${apertureFootnote(R, F, r)}
+  </div>`;
+}
+
+function signalsScreen(F) {
+  const total = rollup(F);
+  return chrome("Signals", `
+  <h1 class="page">Signals</h1>
+  <p class="sub">A signal is a named fact with evidence and no severity. Where its evidence is absent
+  it is <b>not-evaluable</b>, which is not the same as not firing — so each rule's census has three
+  members over one population, and the third is listed rather than summarised away.</p>
+
+  <div class="note" style="margin-bottom:var(--space-5)">
+    <span class="ml">across all rules</span>
+    <span class="mono"><b>${num(total)}</b></span> evaluations are not-evaluable this cadence, summed
+    from the five partitions below and computed no other way. Subjects that are outside the aperture
+    are not in any of these populations and are not counted here —
+    see <a href="?screen=coverage&fill=${FILL}">Coverage</a>.
+  </div>
+
+  <div>${RULES.map(R => ruleCard(R, F)).join("")}</div>`, F);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   COVERAGE — the aperture statement: where NO subject exists
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function apertureScreen(F) {
+  const cust = F.aperture.custody;
+  const rows = [];
+
+  rows.push({
+    k: "port tiers", s: "verge-core",
+    body: `UDP is not probed. Six of the 38 <code>(port, transport)</code> pairs on the sensitive
+      list are UDP — <span class="mono">${UDP_PAIRS.join(", ")}</span> — so no <code>Service</code>
+      is ever observed on them, no timeline exists for them, and
+      <span class="mono">sensitive-port-reached-from-internet</span> is never evaluated there.`,
+    costs: `<b>6</b> of <b>38</b> sensitive pairs unread · <b>1</b> of <b>${RULES.length}</b> rules affected`,
+    act: `<button class="btn ghost sm">Enable UDP probing</button>`,
+    note: `Enabling this is an aperture widening: the timelines it opens are new, and open as
+      <code>revealed</code>.`,
+  });
+
+  rows.push({
+    k: "custody gate", s: "ADR-0002",
+    body: cust.extension === "off"
+      ? `Every address your names resolve to is <code>third-party</code>, because
+         <span class="mono">acmecorp.io</span> carries no custody extension. Only the ports your
+         names imply are probed there — 80 and 443 — so nothing on the sensitive list is measured,
+         and no <code>Service</code> exists on those pairs to be evaluated.
+         <b>This is the correct configuration if you do not control those listeners.</b>`
+      : cust.addresses > 0
+      ? `<span class="mono">${num(cust.addresses)}</span> addresses are <code>third-party</code>,
+         so their sensitive-list ports are not probed and no <code>Service</code> exists there.`
+      : `Every address your names resolve to is under your custody. Nothing is withheld by this input.`,
+    costs: cust.addresses > 0
+      ? `<b>${num(cust.addresses)}</b> addresses outside the gate · <b>1</b> of <b>${RULES.length}</b> rules reads nothing there`
+      : `nothing withheld`,
+    act: cust.extension === "off"
+      ? `<span class="none">no action — this is yours to judge</span>`
+      : `<span class="none">no action</span>`,
+    note: cust.extension === "off"
+      ? `Declaring a custody extension is a claim that you control what listens on the addresses
+         your names resolve to. If that is not true, leaving it off is the right answer and this
+         line is permanent.`
+      : ``,
+  });
+
+  if (F.aperture.novantage) {
+    rows.push({
+      k: "vantage classes", s: "#14",
+      body: `No <code>internet</code>-class vantage is configured. The internet <code>Reach</code>
+        has no timeline at all, so this is <b>we never looked</b> and not <b>we stopped looking</b> —
+        nothing failed. Services still in your estate appear on <span class="mono">Signals</span> as
+        not-evaluable, because the subjects exist even though the evidence never did.`,
+      costs: `<b>1</b> of <b>${RULES.length}</b> rules cannot run · <b>214</b> subjects carry the absence`,
+      act: `<button class="btn sm">Add an internet vantage</button>`,
+      note: ``,
+    });
+  }
+
+  rows.push({
+    k: "qtype set", s: "dns-record",
+    body: `Six qtypes are queried. A qtype outside the set has no timeline, so its RRset is never
+      asserted empty and no rule reads it.`,
+    costs: `<b>0</b> of <b>${RULES.length}</b> rules affected`,
+    act: `<span class="none">no action</span>`, note: ``,
+  });
+
+  rows.push({
+    k: "TLS candidates", s: "tls-acceptance",
+    body: `Nine cipher suites and four protocol versions are offered. An offer of nine can never
+      assert that a tenth was refused, so nothing outside the candidate set is measured.`,
+    costs: `<b>0</b> of <b>${RULES.length}</b> rules affected`,
+    act: `<span class="none">no action</span>`, note: ``,
+  });
+
+  rows.push({
+    k: "sources", s: "consent",
+    body: `Which sources may run is the other half of the aperture, and it is measured rather than
+      stated — it appears above as source coverage, with the propose half carrying no figure.`,
+    costs: ``,
+    act: `<span class="none">see source coverage</span>`, note: ``,
+  });
+
+  return chrome("Coverage", `
+  <h1 class="page">Coverage</h1>
+  <p class="sub">Two different incompletenesses live here. <b>Measurement coverage</b> is how much of
+  what you declared we actually measured, and it carries a figure. <b>Aperture</b> is what we do not
+  look at at all — and it carries no figure over your estate, because there is no honest denominator:
+  widening the aperture cannot raise a coverage figure, it can only reveal the figure was of the wrong
+  population.</p>
+
+  <div class="card" style="margin-bottom:var(--space-5)">
+    <div class="card-h"><h2>Measurement coverage</h2><span class="sp"></span>
+      <span class="mono muted">per Seed scope, per Vantage</span></div>
+    <div class="pad muted" style="font-size:var(--text-base)">
+      Rendered by <a href="https://github.com/winniel123/verge-asm/tree/main/prototypes/coverage">#28's
+      prototype</a> and unchanged by this one. Shown as a stub so the two objects can be seen apart.
+    </div>
+  </div>
+
+  <div class="ap">
+    <div class="card-h"><h2>Aperture</h2><span class="sp"></span>
+      <span class="mono muted">what is not looked at</span></div>
+    ${rows.map(r => `
+    <div class="ap-row">
+      <div class="inp"><span class="k">${r.k}</span><span class="s">${r.s}</span></div>
+      <div class="bod">${r.body}
+        ${r.costs ? `<span class="costs">${r.costs}</span>` : ""}
+        ${r.note ? `<span class="costs muted" style="font-family:var(--font-sans);font-size:var(--text-sm)">${r.note}</span>` : ""}
+      </div>
+      <div class="act">${r.act}</div>
+    </div>`).join("")}
+  </div>
+
+  <div class="note" style="margin-top:var(--space-4)">
+    <span class="ml">why there is no percentage here</span>
+    Every count above is a count of <b>our own rules and lists</b>, which are closed and enumerable.
+    A count of <em>your</em> subjects would need a denominator nobody can measure — how many services
+    would exist if we looked at UDP — which is the estate-completeness figure this product refuses to
+    invent.
+  </div>`, F);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BOOT
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const OPTS = { screen:["signals","coverage"], fill:["mixed","outage","modal","noprober"] };
+const qs = new URLSearchParams(location.search);
+const pick = (k) => OPTS[k].includes(qs.get(k)) ? qs.get(k) : OPTS[k][0];
+const SCREEN = pick("screen"), FILL = pick("fill");
+
+const F = FILLS[FILL];
+document.getElementById("app").innerHTML =
+  SCREEN === "coverage" ? apertureScreen(F) : signalsScreen(F);
+
+document.querySelectorAll("#switch .grp").forEach(g => {
+  const k = g.dataset.key;
+  OPTS[k].forEach(v => {
+    const b = document.createElement("button");
+    b.textContent = v;
+    if ((k === "screen" ? SCREEN : FILL) === v) b.className = "on";
+    b.onclick = () => {
+      const p = new URLSearchParams({ screen:SCREEN, fill:FILL });
+      p.set(k, v); location.search = p.toString();
+    };
+    g.appendChild(b);
+  });
+});
+</script>
+</body>
+</html>
