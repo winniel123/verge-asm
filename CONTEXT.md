@@ -95,8 +95,13 @@ How far a source's claim of existence is believed. The operator's zone file is
 `declared`, our own prober is `measured`, a certificate SAN is `inferred`. It governs
 **admission** — whose word is enough to put a subject in the estate — and nothing else. It is
 not a precedence ordering: sources that disagree are both reported, never ranked, or a zone
-file would keep a name alive that no longer resolves. See
-[ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
+file would keep a name alive that no longer resolves. Disagreeing at all takes **two
+`enumerable` sources** holding current values on one timeline key: a `corroborative` source's
+difference is its own staleness, two `vantage`s measure different facts and compose, and a
+`Seed` observes nothing. In v1 exactly one such pair exists — the operator's zone file against
+our own resolver, on `dns-record`. See
+[ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md) and
+[ADR-0020](./docs/adr/0020-a-conflict-needs-two-enumerable-sources.md).
 
 **Completeness**:
 Whether a source's *silence* may mean absence. An `enumerable` source returns a complete
@@ -346,7 +351,9 @@ _Avoid_: open, reachable, public
 **Signal**:
 A named, versioned rule evaluated over observations — and over other Derived values, in
 which case its version composes theirs — citing the observations that triggered it as
-evidence. It has no lifecycle of its own; its lifecycle is its evidence's. Versions are
+evidence. It has no lifecycle of its own; its lifecycle is its evidence's — **not its
+subject's membership**, so a rule whose evidence is still current fires on a `Name` that has
+withdrawn. Versions are
 per rule, never one set-wide version, so an edit to one rule leaves the rest comparable.
 A signal carries no severity: it is a named fact, and urgency belongs to the transition
 that surfaced it. Evaluated where its evidence is absent it returns `not-evaluable`,

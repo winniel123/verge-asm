@@ -316,6 +316,24 @@ ADR-0014 also settles what this ADR left implicit: **`Gap` → value is an ordin
 a fourth member of the opening family, and the `Gap` records its cause the way a cascaded closure
 records `cascaded`.
 
+## Amendment — [#48](https://github.com/winniel123/verge-asm/issues/48): the conflict lands on
+`dns-record`, and only two enumerable sources can have one
+
+Two clarifications, recorded in full as
+[ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md). Neither disturbs the decision above.
+
+**The worked example under *One timeline per source* names two sources and one name and not the
+facet.** It is `dns-record`: the operator's zone file is a **reading** and cannot produce a
+`resolution` value, which [ADR-0011](./0011-a-facet-is-six-parts.md) divided on walk-versus-reading
+and which the two prober-decided values `Lame` and `Shadowed` settle independently.
+
+**A conflict needs two `enumerable` sources.** *Reported, never resolved* governs the `source`
+component of the key alone. A `corroborative` source holds no closing events, so a difference from
+it is its own staleness; two `vantage`s measure different facts and **compose** — reading this
+sentence as covering vantage would make [ADR-0010](./0010-exposure-composes-two-reaches.md) illegal,
+and ADR-0006 already met the split-horizon case; and a `Seed` observes nothing at all. In v1
+exactly one pair qualifies, which is what discharges the last consequence below.
+
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md)'s three-layer table is amended.** *Derived — drifts? No,
@@ -348,7 +366,10 @@ records `cascaded`.
 - **Zone-declared names that do not resolve become visible** as a by-product of refusing to
   arbitrate between sources. That is a rule over observations, which is to say a `Signal`, and
   [#16](https://github.com/winniel123/verge-asm/issues/16) closed the v1 set — so it is recorded
-  as an opportunity, not smuggled in here.
+  as an opportunity, not smuggled in here. **Discharged by
+  [#48](https://github.com/winniel123/verge-asm/issues/48)** as two rules,
+  `zone-declared-name-returns-name-error` and `resolved-name-absent-from-zone`; the set was never
+  closed ([#35](https://github.com/winniel123/verge-asm/issues/35)).
 
 ## Alternatives rejected
 
