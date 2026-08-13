@@ -131,6 +131,20 @@ justification needed a screen rather than an inference.
   where it can be hedged. Neither contains a threshold: persistence is the span's duration, not
   a count the rule takes. On a `Shadowed` name both yield **`not-evaluable`** — there is no
   delegation of its own to walk and no chain of its own to follow.
+- **Two source-disagreement signals join the set** under
+  [#48](https://github.com/winniel123/verge-asm/issues/48) and
+  [ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md):
+  **`zone-declared-name-returns-name-error`** (the operator's zone file holds a record for a
+  `Name` whose `resolution` composes to `NameError` across every available vantage) and
+  **`resolved-name-absent-from-zone`** (a `Name` whose `resolution` composes to `Resolved`, inside
+  a zone the operator supplied, that the file does not contain). Zero rows of reference data, no
+  new measurement, and **no new field on any facet** — so neither carried an
+  [ADR-0015](./0015-the-value-space-is-the-commitment.md) deadline; they ship because the zone
+  file's `completeness` has no other consumer. Both are `not-evaluable` on `Lame`, on `Shadowed`,
+  where no declared source is enumerable over the name, and where the declared timeline has aged
+  into a `Gap`. `NoData` is an ordinary non-firing evaluation. The first is the only v1 signal
+  whose firing population is the **withdrawn** one, and the first pair whose messages must name
+  **which of the two sources moved**.
 - **Stages 3–4 of [#4](https://github.com/winniel123/verge-asm/issues/4)'s takeover ladder stay
   out** — a CNAME-target provider fingerprint list and a known-error-body matcher are
   `can-i-take-over-xyz`, which is worthless release-coupled. So the shipped signals are
