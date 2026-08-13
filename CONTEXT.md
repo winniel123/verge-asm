@@ -15,6 +15,10 @@ A term's layer determines whether it may appear in a change report. Anything Der
 function of our own rules or thresholds, so diffing it would report a change in the
 observer as a change in the world.
 
+A fourth group, **Operational**, sits outside the table on purpose: it records what the
+system *did*, never what is true of the estate. Nothing in it may be read by the
+comparison path at all.
+
 ## Language
 
 ### Declared
@@ -54,7 +58,8 @@ _Avoid_: enabled, licensed, tier
 
 **Vantage**:
 A network position observations are made from, declared as intent and re-verified every
-batch rather than trusted as configuration.
+batch rather than trusted as configuration. Declared, but carries a Derived
+**Availability** — the one property in the model whose layer differs from its term's.
 _Avoid_: prober location, scanner, agent
 
 **Scan**:
@@ -112,7 +117,10 @@ _Avoid_: cert record, TLS config
 
 **Batch**:
 One source, executed once, against one scope, from one vantage — recording the scope its
-silence covers. The unit of like-against-like comparison.
+silence covers. The unit of like-against-like comparison. The recorded scope is what the
+batch **completed**, never what it attempted, so a batch that failed outright covers
+nothing and licenses no absence. It may be partitioned along any dimension its source
+still retains completeness over, and no further.
 _Avoid_: run, scan run, execution, sweep
 
 **Citation**:
@@ -129,10 +137,18 @@ registry data. Governs what may be probed, not merely how it is displayed — se
 [ADR-0002](./docs/adr/0002-ownership-gates-probing.md).
 _Avoid_: in scope, authorized, mine
 
+**Availability**:
+Whether a `Vantage` is currently able to observe, concluded from its recent batch
+outcomes over a fixed window rather than measured directly. A vantage that has failed
+every attempt across the window is `unavailable`, and `Exposure` that would need it
+cannot be constructed. Derived, though the `Vantage` it belongs to is Declared — we
+never measured the vantage, we inferred it from what failed.
+_Avoid_: health, status, up, reachable
+
 **Exposure**:
 The reachability conclusion for a `Service`, computed across vantages rather than
 observed by any one of them. `firewalled` → `exposed` is the transition the product
-exists to catch.
+exists to catch. Reads `Availability`, and therefore composes its version.
 _Avoid_: open, reachable, public
 
 **Signal**:
@@ -145,6 +161,16 @@ that surfaced it. Evaluated where its evidence is absent it returns `not-evaluab
 which is not the same as not firing. See
 [ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
+
+### Operational
+
+**Dispatch**:
+One firing of one `Scan` at one scheduled time, holding the resulting fan-out of batches,
+its progress, and the `Scan` config it was fired under. It exists for display and
+operational visibility; it carries no observations, and **the comparison path must never
+read it**. Batches anchor scope, timelines anchor comparison, a dispatch anchors neither.
+See [ADR-0005](./docs/adr/0005-scan-execution-model.md).
+_Avoid_: scan run, run, execution, job group
 
 ## Terms deliberately not used
 
@@ -173,4 +199,5 @@ They remain fine as verbs.
 A scan fires many batches, and grouping them is useful for progress display, not for
 comparison. Making it a domain term invites change to be defined as a function of
 consecutive runs — which breaks as soon as two scans run on different cadences over
-different port sets.
+different port sets. The display need is met by `Dispatch`, which is Operational precisely
+so that the grouping cannot be reached from the comparison path.
