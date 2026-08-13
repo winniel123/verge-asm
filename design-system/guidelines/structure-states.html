@@ -1,0 +1,22 @@
+<!-- @dsCard group="Structure" viewport="700x190" subtitle="Hover, selected, focus, disabled" name="Interaction states" -->
+<!DOCTYPE html><html><head><link rel="stylesheet" href="../styles.css"><style>
+.wrap{padding:16px 20px;display:flex;gap:20px}
+.col{flex:1;display:flex;flex-direction:column;gap:8px}
+code{font:400 10px var(--font-mono);color:var(--text-muted)}
+.rowd{background:var(--surface);border:1px solid var(--border);font:400 12px var(--font-mono);padding:8px 12px}
+.btn{height:32px;padding:0 12px;display:inline-flex;align-items:center;background:var(--ink);color:var(--text-on-ink);font:500 13px var(--font-sans);width:max-content}
+</style></head><body>
+<div class="wrap">
+  <div class="col">
+    <div class="rowd">rest · vpn.acmecorp.io</div>
+    <div class="rowd" style="background:var(--surface-sunken)">hover · vpn.acmecorp.io</div>
+    <div class="rowd" style="background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)">selected · vpn.acmecorp.io</div>
+    <code>rows: sunken hover · accent-soft + 2px inset bar selected</code>
+  </div>
+  <div class="col">
+    <div style="display:flex;gap:10px;align-items:center"><span class="btn">Rest</span><span class="btn" style="background:#3a3a30">Hover</span><span class="btn" style="box-shadow:var(--focus-ring)">Focus</span><span class="btn" style="opacity:.45">Disabled</span></div>
+    <code>primary: hover #3a3a30 · focus 2px paper + 2px accent ring · disabled 45%</code>
+    <div style="font-size:12px;color:var(--text-muted)">120ms ease; background/opacity only. One ambient animation: <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);animation:verge-pulse 1.6s infinite;vertical-align:baseline"></span> verge-pulse on live dots.</div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#101013; }
+a { color:#7db8ff; } a:hover { color:#a8ceff; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+</style>
+</helmet>
+<section style="display:flex; gap:56px; align-items:flex-start; flex-wrap:wrap; padding:48px; font-family:'Space Grotesk',sans-serif;">
+
+  <div id="1a" style="width:880px; flex:none;">
+    <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:14px;">
+      <span style="background:#3dff6e; color:#04140a; font:700 13px 'IBM Plex Mono',monospace; padding:3px 8px;">1a</span>
+      <span style="color:#eafff0; font-size:17px; font-weight:600;">Dark SOC console</span>
+      <span style="color:#7d8f82; font-size:13px;">near-black · phosphor green · all-mono · sharp corners</span>
+    </div>
+    <div style="background:#070a08; border:1px solid #1c2b1f; font-family:'IBM Plex Mono',monospace; color:#c9e8cf;">
+      <div style="display:flex; align-items:center; gap:24px; padding:14px 20px; border-bottom:1px solid #1c2b1f; background:repeating-linear-gradient(0deg,#0a0f0b,#0a0f0b 2px,#080c09 2px,#080c09 4px);">
+        <div style="display:flex; align-items:baseline; gap:8px;"><span style="color:#3dff6e; font-weight:700; font-size:15px; letter-spacing:.08em;">VERGE</span><span style="color:#5f7a66; font-weight:500; font-size:15px; letter-spacing:.08em;">ASM</span></div>
+        <div style="display:flex; gap:20px; font-size:12px; letter-spacing:.1em;">
+          <span style="color:#3dff6e; border-bottom:1px solid #3dff6e; padding-bottom:2px;">DASHBOARD</span><span style="color:#7d8f82;">INVENTORY</span><span style="color:#7d8f82;">FINDINGS</span><span style="color:#7d8f82;">GRAPH</span><span style="color:#7d8f82;">REPORTS</span>
+        </div>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.1em; color:#3dff6e;"><span style="width:7px; height:7px; background:#3dff6e; animation:pulse 1.6s infinite;"></span>SCAN RUNNING</div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #1c2b1f;">
+        <div style="padding:16px 20px; border-right:1px solid #1c2b1f;"><div style="font-size:10px; letter-spacing:.15em; color:#5f7a66; margin-bottom:6px;">ASSETS</div><div style="font-size:26px; font-weight:600; color:#eafff0;">1,284</div><div style="font-size:11px; color:#3dff6e; margin-top:2px;">+12 / 24H</div></div>
+        <div style="padding:16px 20px; border-right:1px solid #1c2b1f;"><div style="font-size:10px; letter-spacing:.15em; color:#5f7a66; margin-bottom:6px;">OPEN FINDINGS</div><div style="font-size:26px; font-weight:600; color:#eafff0;">87</div><div style="font-size:11px; color:#7d8f82; margin-top:2px;">−5 / 24H</div></div>
+        <div style="padding:16px 20px; border-right:1px solid #1c2b1f;"><div style="font-size:10px; letter-spacing:.15em; color:#5f7a66; margin-bottom:6px;">CRITICAL</div><div style="font-size:26px; font-weight:600; color:#ff5c5c;">4</div><div style="font-size:11px; color:#ff5c5c; margin-top:2px;">+1 NEW</div></div>
+        <div style="padding:16px 20px;"><div style="font-size:10px; letter-spacing:.15em; color:#5f7a66; margin-bottom:6px;">NEW SERVICES</div><div style="font-size:26px; font-weight:600; color:#eafff0;">9</div><div style="font-size:11px; color:#7d8f82; margin-top:2px;">LAST SCAN</div></div>
+      </div>
+      <div style="padding:12px 20px 6px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:10px; letter-spacing:.15em; color:#5f7a66;">LATEST FINDINGS</span><span style="font-size:11px; color:#3dff6e;">VIEW ALL →</span></div>
+      <div style="display:grid; grid-template-columns:110px 1fr 220px 90px; gap:0 16px; padding:9px 20px; border-top:1px solid #101a13; font-size:12px; align-items:center;"><span style="color:#ff5c5c; border:1px solid #ff5c5c; padding:2px 6px; font-size:10px; letter-spacing:.1em; justify-self:start;">CRITICAL</span><span style="color:#eafff0;">CVE-2026-1187 · Apache 2.4.58 RCE</span><span style="color:#7d8f82;">edge-gw-03.acmecorp.io</span><span style="color:#5f7a66; text-align:right;">4m</span></div>
+      <div style="display:grid; grid-template-columns:110px 1fr 220px 90px; gap:0 16px; padding:9px 20px; border-top:1px solid #101a13; font-size:12px; align-items:center;"><span style="color:#ffa94d; border:1px solid #ffa94d; padding:2px 6px; font-size:10px; letter-spacing:.1em; justify-self:start;">HIGH</span><span style="color:#eafff0;">Exposed .git directory</span><span style="color:#7d8f82;">staging.acmecorp.io</span><span style="color:#5f7a66; text-align:right;">22m</span></div>
+      <div style="display:grid; grid-template-columns:110px 1fr 220px 90px; gap:0 16px; padding:9px 20px; border-top:1px solid #101a13; font-size:12px; align-items:center;"><span style="color:#ffa94d; border:1px solid #ffa94d; padding:2px 6px; font-size:10px; letter-spacing:.1em; justify-self:start;">HIGH</span><span style="color:#eafff0;">TLS certificate expires in 6 days</span><span style="color:#7d8f82;">vpn.acmecorp.io</span><span style="color:#5f7a66; text-align:right;">1h</span></div>
+      <div style="display:grid; grid-template-columns:110px 1fr 220px 90px; gap:0 16px; padding:9px 20px; border-top:1px solid #101a13; font-size:12px; align-items:center;"><span style="color:#ffe066; border:1px solid #ffe066; padding:2px 6px; font-size:10px; letter-spacing:.1em; justify-self:start;">MEDIUM</span><span style="color:#eafff0;">Open port 5900 (VNC) on new host</span><span style="color:#7d8f82;">203.0.113.44</span><span style="color:#5f7a66; text-align:right;">3h</span></div>
+      <div style="display:grid; grid-template-columns:110px 1fr 220px 90px; gap:0 16px; padding:9px 20px; border-top:1px solid #101a13; font-size:12px; align-items:center;"><span style="color:#6ea8fe; border:1px solid #6ea8fe; padding:2px 6px; font-size:10px; letter-spacing:.1em; justify-self:start;">LOW</span><span style="color:#eafff0;">SPF record missing</span><span style="color:#7d8f82;">mail.acmecorp.io</span><span style="color:#5f7a66; text-align:right;">1d</span></div>
+      <div style="display:flex; gap:16px; padding:12px 20px; border-top:1px solid #1c2b1f; font-size:10px; letter-spacing:.12em; color:#5f7a66; align-items:center;"><span>v0.9.2</span><span>AGPL-3.0</span><span style="color:#3dff6e;">★ STAR ON GITHUB</span><span style="margin-left:auto; color:#3dff6e; background:#0d1a10; border:1px solid #1c2b1f; padding:4px 10px;">+ NEW SCAN</span></div>
+    </div>
+  </div>
+
+  <div id="1b" style="width:880px; flex:none;">
+    <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:14px;">
+      <span style="background:#38e1ff; color:#06222b; font:700 13px 'IBM Plex Mono',monospace; padding:3px 8px; border-radius:5px;">1b</span>
+      <span style="color:#eafff0; font-size:17px; font-weight:600;">Modern dev-tool dark</span>
+      <span style="color:#7d8f82; font-size:13px;">deep slate · electric cyan · grotesk + mono data · soft radius</span>
+    </div>
+    <div style="background:#0e1118; border:1px solid #222a3a; border-radius:12px; font-family:'Space Grotesk',sans-serif; color:#e6eaf2; box-shadow:0 12px 32px rgba(0,0,0,.45); overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:26px; padding:14px 22px; border-bottom:1px solid #1b2230; background:#12161f;">
+        <div style="display:flex; align-items:center; gap:8px;"><span style="width:10px; height:10px; border-radius:3px; background:linear-gradient(135deg,#38e1ff,#1f8fb8);"></span><span style="font-weight:700; font-size:15px;">Verge <span style="color:#8b94a7; font-weight:500;">ASM</span></span></div>
+        <div style="display:flex; gap:4px; font-size:13px; font-weight:500;">
+          <span style="color:#eafcff; background:#1b2230; padding:5px 12px; border-radius:7px;">Dashboard</span><span style="color:#8b94a7; padding:5px 12px;">Inventory</span><span style="color:#8b94a7; padding:5px 12px;">Findings</span><span style="color:#8b94a7; padding:5px 12px;">Graph</span><span style="color:#8b94a7; padding:5px 12px;">Reports</span>
+        </div>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font:500 12px 'JetBrains Mono',monospace; color:#38e1ff; background:rgba(56,225,255,.08); border:1px solid rgba(56,225,255,.25); padding:5px 12px; border-radius:999px;"><span style="width:7px; height:7px; border-radius:50%; background:#38e1ff; animation:pulse 1.6s infinite;"></span>scan running</div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; padding:18px 22px 6px;">
+        <div style="background:#141926; border:1px solid #1f2735; border-radius:10px; padding:14px 16px;"><div style="font-size:12px; color:#8b94a7; margin-bottom:6px;">Assets</div><div style="font:600 26px 'JetBrains Mono',monospace;">1,284</div><div style="font:500 11px 'JetBrains Mono',monospace; color:#38e1ff; margin-top:4px;">+12 · 24h</div></div>
+        <div style="background:#141926; border:1px solid #1f2735; border-radius:10px; padding:14px 16px;"><div style="font-size:12px; color:#8b94a7; margin-bottom:6px;">Open findings</div><div style="font:600 26px 'JetBrains Mono',monospace;">87</div><div style="font:500 11px 'JetBrains Mono',monospace; color:#8b94a7; margin-top:4px;">−5 · 24h</div></div>
+        <div style="background:#141926; border:1px solid rgba(248,113,113,.35); border-radius:10px; padding:14px 16px;"><div style="font-size:12px; color:#8b94a7; margin-bottom:6px;">Critical</div><div style="font:600 26px 'JetBrains Mono',monospace; color:#f87171;">4</div><div style="font:500 11px 'JetBrains Mono',monospace; color:#f87171; margin-top:4px;">+1 new</div></div>
+        <div style="background:#141926; border:1px solid #1f2735; border-radius:10px; padding:14px 16px;"><div style="font-size:12px; color:#8b94a7; margin-bottom:6px;">New services</div><div style="font:600 26px 'JetBrains Mono',monospace;">9</div><div style="font:500 11px 'JetBrains Mono',monospace; color:#8b94a7; margin-top:4px;">last scan</div></div>
+      </div>
+      <div style="padding:14px 22px 4px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:14px; font-weight:600;">Latest findings</span><span style="font-size:13px; color:#38e1ff;">View all →</span></div>
+      <div style="margin:8px 22px 0; border:1px solid #1f2735; border-radius:10px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:96px 1fr 220px 70px; gap:0 16px; padding:10px 16px; font-size:13px; align-items:center; background:#12161f;"><span style="justify-self:start; font:600 11px 'JetBrains Mono',monospace; color:#f87171; background:rgba(248,113,113,.12); padding:3px 9px; border-radius:999px;">critical</span><span>CVE-2026-1187 · Apache 2.4.58 RCE</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#8b94a7;">edge-gw-03.acmecorp.io</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#5b6474; text-align:right;">4m</span></div>
+        <div style="display:grid; grid-template-columns:96px 1fr 220px 70px; gap:0 16px; padding:10px 16px; font-size:13px; align-items:center; border-top:1px solid #1a2130;"><span style="justify-self:start; font:600 11px 'JetBrains Mono',monospace; color:#fb923c; background:rgba(251,146,60,.12); padding:3px 9px; border-radius:999px;">high</span><span>Exposed .git directory</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#8b94a7;">staging.acmecorp.io</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#5b6474; text-align:right;">22m</span></div>
+        <div style="display:grid; grid-template-columns:96px 1fr 220px 70px; gap:0 16px; padding:10px 16px; font-size:13px; align-items:center; border-top:1px solid #1a2130;"><span style="justify-self:start; font:600 11px 'JetBrains Mono',monospace; color:#fb923c; background:rgba(251,146,60,.12); padding:3px 9px; border-radius:999px;">high</span><span>TLS certificate expires in 6 days</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#8b94a7;">vpn.acmecorp.io</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#5b6474; text-align:right;">1h</span></div>
+        <div style="display:grid; grid-template-columns:96px 1fr 220px 70px; gap:0 16px; padding:10px 16px; font-size:13px; align-items:center; border-top:1px solid #1a2130;"><span style="justify-self:start; font:600 11px 'JetBrains Mono',monospace; color:#facc15; background:rgba(250,204,21,.1); padding:3px 9px; border-radius:999px;">medium</span><span>Open port 5900 (VNC) on new host</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#8b94a7;">203.0.113.44</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#5b6474; text-align:right;">3h</span></div>
+        <div style="display:grid; grid-template-columns:96px 1fr 220px 70px; gap:0 16px; padding:10px 16px; font-size:13px; align-items:center; border-top:1px solid #1a2130;"><span style="justify-self:start; font:600 11px 'JetBrains Mono',monospace; color:#60a5fa; background:rgba(96,165,250,.12); padding:3px 9px; border-radius:999px;">low</span><span>SPF record missing</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#8b94a7;">mail.acmecorp.io</span><span style="font:400 12px 'JetBrains Mono',monospace; color:#5b6474; text-align:right;">1d</span></div>
+      </div>
+      <div style="display:flex; gap:18px; padding:14px 22px; align-items:center; font-size:12px; color:#5b6474; margin-top:10px; border-top:1px solid #1b2230;"><span style="font-family:'JetBrains Mono',monospace;">v0.9.2</span><span style="font-family:'JetBrains Mono',monospace;">AGPL-3.0</span><span style="color:#8b94a7;">★ Star on GitHub</span><span style="margin-left:auto; color:#06222b; background:#38e1ff; font-weight:600; font-size:13px; padding:7px 14px; border-radius:8px;">+ New scan</span></div>
+    </div>
+  </div>
+
+  <div id="1c" style="width:880px; flex:none;">
+    <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:14px;">
+      <span style="background:#f2f2ee; color:#16160f; font:700 13px 'IBM Plex Mono',monospace; padding:3px 8px;">1c</span>
+      <span style="color:#eafff0; font-size:17px; font-weight:600;">Utilitarian open-source light</span>
+      <span style="color:#7d8f82; font-size:13px;">flat · high-contrast ink · 1px rules · engineered, unflashy</span>
+    </div>
+    <div style="background:#f7f7f4; border:1px solid #16160f; font-family:Helvetica,Arial,sans-serif; color:#1a1a16;">
+      <div style="display:flex; align-items:center; gap:28px; padding:13px 20px; border-bottom:2px solid #16160f; background:#ffffff;">
+        <div style="display:flex; align-items:baseline; gap:7px;"><span style="font-weight:700; font-size:15px; letter-spacing:-.01em;">Verge</span><span style="font:600 11px 'IBM Plex Mono',monospace; color:#f7f7f4; background:#16160f; padding:2px 6px;">ASM</span></div>
+        <div style="display:flex; gap:22px; font-size:13px; font-weight:500;">
+          <span style="color:#16160f; border-bottom:2px solid #2d4fd4; padding-bottom:12px; margin-bottom:-15px;">Dashboard</span><span style="color:#6b6b62;">Inventory</span><span style="color:#6b6b62;">Findings</span><span style="color:#6b6b62;">Graph</span><span style="color:#6b6b62;">Reports</span>
+        </div>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font:500 11px 'IBM Plex Mono',monospace; color:#16160f;"><span style="width:8px; height:8px; border-radius:50%; background:#2f9e44; animation:pulse 1.6s infinite;"></span>scan running</div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #d8d8d0; background:#ffffff;">
+        <div style="padding:16px 20px; border-right:1px solid #d8d8d0;"><div style="font-size:11px; color:#6b6b62; margin-bottom:6px; text-transform:uppercase; letter-spacing:.06em;">Assets</div><div style="font:600 26px 'IBM Plex Mono',monospace;">1,284</div><div style="font-size:12px; color:#2f9e44; margin-top:2px;">+12 in 24h</div></div>
+        <div style="padding:16px 20px; border-right:1px solid #d8d8d0;"><div style="font-size:11px; color:#6b6b62; margin-bottom:6px; text-transform:uppercase; letter-spacing:.06em;">Open findings</div><div style="font:600 26px 'IBM Plex Mono',monospace;">87</div><div style="font-size:12px; color:#6b6b62; margin-top:2px;">−5 in 24h</div></div>
+        <div style="padding:16px 20px; border-right:1px solid #d8d8d0;"><div style="font-size:11px; color:#6b6b62; margin-bottom:6px; text-transform:uppercase; letter-spacing:.06em;">Critical</div><div style="font:600 26px 'IBM Plex Mono',monospace; color:#c92a2a;">4</div><div style="font-size:12px; color:#c92a2a; margin-top:2px;">+1 new</div></div>
+        <div style="padding:16px 20px;"><div style="font-size:11px; color:#6b6b62; margin-bottom:6px; text-transform:uppercase; letter-spacing:.06em;">New services</div><div style="font:600 26px 'IBM Plex Mono',monospace;">9</div><div style="font-size:12px; color:#6b6b62; margin-top:2px;">last scan</div></div>
+      </div>
+      <div style="padding:14px 20px 8px; display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; font-weight:700;">Latest findings</span><a href="#1c" style="font-size:13px; color:#2d4fd4;">View all →</a></div>
+      <div style="display:grid; grid-template-columns:92px 1fr 220px 70px; gap:0 16px; padding:9px 20px; font-size:13px; align-items:center; background:#ffffff; border-top:1px solid #d8d8d0;"><span style="justify-self:start; font:600 10px 'IBM Plex Mono',monospace; color:#fff; background:#c92a2a; padding:3px 7px; text-transform:uppercase; letter-spacing:.05em;">Critical</span><span style="font-weight:500;">CVE-2026-1187 · Apache 2.4.58 RCE</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#6b6b62;">edge-gw-03.acmecorp.io</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#9a9a90; text-align:right;">4m</span></div>
+      <div style="display:grid; grid-template-columns:92px 1fr 220px 70px; gap:0 16px; padding:9px 20px; font-size:13px; align-items:center; background:#ffffff; border-top:1px solid #ecece4;"><span style="justify-self:start; font:600 10px 'IBM Plex Mono',monospace; color:#fff; background:#e8590c; padding:3px 7px; text-transform:uppercase; letter-spacing:.05em;">High</span><span style="font-weight:500;">Exposed .git directory</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#6b6b62;">staging.acmecorp.io</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#9a9a90; text-align:right;">22m</span></div>
+      <div style="display:grid; grid-template-columns:92px 1fr 220px 70px; gap:0 16px; padding:9px 20px; font-size:13px; align-items:center; background:#ffffff; border-top:1px solid #ecece4;"><span style="justify-self:start; font:600 10px 'IBM Plex Mono',monospace; color:#fff; background:#e8590c; padding:3px 7px; text-transform:uppercase; letter-spacing:.05em;">High</span><span style="font-weight:500;">TLS certificate expires in 6 days</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#6b6b62;">vpn.acmecorp.io</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#9a9a90; text-align:right;">1h</span></div>
+      <div style="display:grid; grid-template-columns:92px 1fr 220px 70px; gap:0 16px; padding:9px 20px; font-size:13px; align-items:center; background:#ffffff; border-top:1px solid #ecece4;"><span style="justify-self:start; font:600 10px 'IBM Plex Mono',monospace; color:#16160f; background:#ffd43b; padding:3px 7px; text-transform:uppercase; letter-spacing:.05em;">Medium</span><span style="font-weight:500;">Open port 5900 (VNC) on new host</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#6b6b62;">203.0.113.44</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#9a9a90; text-align:right;">3h</span></div>
+      <div style="display:grid; grid-template-columns:92px 1fr 220px 70px; gap:0 16px; padding:9px 20px; font-size:13px; align-items:center; background:#ffffff; border-top:1px solid #ecece4; border-bottom:1px solid #d8d8d0;"><span style="justify-self:start; font:600 10px 'IBM Plex Mono',monospace; color:#fff; background:#1971c2; padding:3px 7px; text-transform:uppercase; letter-spacing:.05em;">Low</span><span style="font-weight:500;">SPF record missing</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#6b6b62;">mail.acmecorp.io</span><span style="font:400 12px 'IBM Plex Mono',monospace; color:#9a9a90; text-align:right;">1d</span></div>
+      <div style="display:flex; gap:18px; padding:13px 20px; align-items:center; font:400 11px 'IBM Plex Mono',monospace; color:#6b6b62;"><span>v0.9.2</span><span>AGPL-3.0</span><a href="#1c" style="color:#2d4fd4;">★ Star on GitHub</a><span style="margin-left:auto; color:#fff; background:#16160f; font:500 13px Helvetica,Arial,sans-serif; padding:8px 14px;">+ New scan</span></div>
+    </div>
+  </div>
+
+</section>
+</x-dc>
+</body>
+</html>

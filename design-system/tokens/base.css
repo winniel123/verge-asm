@@ -1,0 +1,15 @@
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--text-body);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--text-link); text-decoration: none; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+code, kbd, pre, samp { font-family: var(--font-mono); }
+::selection { background: var(--accent-soft); }
+
+@keyframes verge-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }

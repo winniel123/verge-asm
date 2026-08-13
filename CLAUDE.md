@@ -13,3 +13,7 @@ The five canonical triage roles, each label string equal to its name. See `docs/
 ### Domain docs
 
 Single-context — one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Design system
+
+All visual work — production UI, prototypes, mocks, slides — uses the Verge ASM design system at `design-system/`. Invoke the `verge-asm-design` skill before writing markup. See `docs/agents/design-system.md`.

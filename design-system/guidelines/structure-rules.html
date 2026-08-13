@@ -1,0 +1,21 @@
+<!-- @dsCard group="Structure" viewport="700x170" subtitle="Hairlines for layout, ink rules for structure" name="Rules & borders" -->
+<!DOCTYPE html><html><head><link rel="stylesheet" href="../styles.css"><style>
+.wrap{padding:18px 20px;display:flex;gap:24px}
+.col{flex:1;display:flex;flex-direction:column;gap:10px}
+code{font:400 10px var(--font-mono);color:var(--text-muted)}
+.line{height:0}
+</style></head><body>
+<div class="wrap">
+  <div class="col">
+    <div class="line" style="border-top:2px solid var(--border-ink)"></div><code>--rule-ink-heavy · 2px #16160f · header, table head</code>
+    <div class="line" style="border-top:1px solid var(--border-ink)"></div><code>--rule-ink · 1px #16160f · dialogs, terminal, frames</code>
+    <div class="line" style="border-top:1px solid var(--border)"></div><code>--rule · 1px #d8d8d0 · default card border</code>
+    <div class="line" style="border-top:1px solid var(--border-soft)"></div><code>--rule-soft · 1px #ecece4 · row separators</code>
+  </div>
+  <div class="col" style="flex:.8">
+    <div style="border:1px solid var(--border);background:var(--surface);padding:10px 12px;font-size:12px">Ordinary card — hairline</div>
+    <div style="border:1px solid var(--border-ink);background:var(--surface);padding:10px 12px;font-size:12px">Emphasized — ink outline</div>
+    <code>radius 0 everywhere</code>
+  </div>
+</div>
+</body></html>

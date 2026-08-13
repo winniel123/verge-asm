@@ -1,0 +1,55 @@
+<!-- @dsCard group="Components" viewport="700x560" subtitle="SeverityBadge, Badge, Tag, Stat, StatusDot, Table, Card, Wordmark" name="Display & data" -->
+<!DOCTYPE html><html><head>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="../../components/dev-loader.js" data-base="../../"></script>
+<style>body{padding:16px 20px}.lab{font:600 10px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:16px 0 8px}.lab:first-child{margin-top:0}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}</style>
+</head><body><div id="root"></div>
+<script type="text/jsx-run">
+const NS=(()=>{for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Table&&v.SeverityBadge)return v}catch(e){}}return {}})();
+const {SeverityBadge,Badge,Tag,Stat,StatusDot,Table,Card,Wordmark}=NS;
+const rows=[
+ {id:1,sev:"critical",title:"CVE-2026-1187 · Apache 2.4.58 RCE",asset:"edge-gw-03.acmecorp.io",age:"4m"},
+ {id:2,sev:"high",title:"Exposed .git directory",asset:"staging.acmecorp.io",age:"22m"},
+ {id:3,sev:"medium",title:"Open port 5900 (VNC) on new host",asset:"203.0.113.44",age:"3h"},
+];
+function Demo(){
+  const [sel,setSel]=React.useState(1);
+  return <div>
+    <div className="lab">Severity · Badge · Tag</div>
+    <div className="row">
+      <SeverityBadge severity="critical"/><SeverityBadge severity="high"/><SeverityBadge severity="medium"/><SeverityBadge severity="low"/><SeverityBadge severity="info"/>
+      <span style={{width:10}}/>
+      <Badge tone="ok">Active</Badge><Badge tone="warn">Expiring</Badge><Badge solid>New</Badge>
+      <span style={{width:10}}/>
+      <Tag active>port:443</Tag><Tag onRemove={()=>{}}>env:prod</Tag>
+    </div>
+    <div className="lab">Stat strip · StatusDot</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",background:"var(--surface)",border:"1px solid var(--border)"}}>
+      <Stat label="Assets" value="1,284" delta="+12 in 24h" deltaTone="ok" style={{borderRight:"1px solid var(--border)"}}/>
+      <Stat label="Open findings" value="87" delta="−5 in 24h" style={{borderRight:"1px solid var(--border)"}}/>
+      <Stat label="Critical" value="4" delta="+1 new" tone="danger" deltaTone="danger"/>
+    </div>
+    <div className="row" style={{marginTop:10,gap:20}}>
+      <StatusDot tone="ok" pulse label="scan running"/><StatusDot tone="warn" label="cert expires 6d"/><StatusDot tone="danger" label="scan failed"/><StatusDot tone="neutral" label="paused"/>
+    </div>
+    <div className="lab">Table in a Card (click a row)</div>
+    <Card eyebrow="Latest findings" action={<a href="#">View all →</a>} pad={false}>
+      <Table rowKey="id" selectedKey={sel} onRowClick={r=>setSel(r.id)}
+        columns={[
+          {key:"sev",label:"Severity",width:96,render:r=><SeverityBadge severity={r.sev}/>},
+          {key:"title",label:"Finding"},
+          {key:"asset",label:"Asset",mono:true,muted:true,width:200},
+          {key:"age",label:"Age",mono:true,muted:true,align:"right",width:60},
+        ]} rows={rows}/>
+    </Card>
+    <div className="row" style={{marginTop:14,gap:24,alignItems:"baseline"}}>
+      <Wordmark size="lg"/><Wordmark/><span style={{background:"var(--surface-ink)",padding:"8px 12px"}}><Wordmark onInk/></span>
+    </div>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script>
+<script>__runJsxTags();</script></body></html>

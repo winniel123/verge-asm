@@ -1,0 +1,48 @@
+<!-- @dsCard group="Components" viewport="700x400" subtitle="Button, IconButton, Input, Select, Checkbox, Radio, Switch" name="Forms" -->
+<!DOCTYPE html><html><head>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="../../components/dev-loader.js" data-base="../../"></script>
+<style>body{padding:16px 20px}.lab{font:600 10px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:16px 0 8px}.lab:first-child{margin-top:0}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}</style>
+</head><body><div id="root"></div>
+<script type="text/jsx-run">
+const NS=(()=>{for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Button&&v.Checkbox)return v}catch(e){}}return {}})();
+const {Button,IconButton,Input,Select,Checkbox,Radio,Switch}=NS;
+function Demo(){
+  const [ck,setCk]=React.useState(true);
+  const [r,setR]=React.useState("daily");
+  const [sw,setSw]=React.useState(true);
+  return <div>
+    <div className="lab">Buttons</div>
+    <div className="row">
+      <Button>Run scan</Button>
+      <Button variant="secondary">Add target</Button>
+      <Button variant="ghost">Cancel</Button>
+      <Button variant="danger">Delete</Button>
+      <Button disabled>Run scan</Button>
+      <Button size="sm" variant="secondary">Export CSV</Button>
+      <IconButton label="Refresh" variant="secondary">⟳</IconButton>
+      <IconButton label="Download">↓</IconButton>
+      <IconButton label="Close" size="sm">✕</IconButton>
+    </div>
+    <div className="lab">Text fields</div>
+    <div className="row" style={{alignItems:"flex-start"}}>
+      <Input label="Target" mono placeholder="acmecorp.io or 203.0.113.0/24" hint="Domain, IP, or CIDR range" style={{width:240}}/>
+      <Input label="Name" defaultValue="acme-prod" error="A target with this name exists" style={{width:190}}/>
+      <Select label="Severity" options={["All","Critical","High","Medium","Low","Info"]} style={{width:150}}/>
+    </div>
+    <div className="lab">Selection controls</div>
+    <div className="row" style={{gap:20}}>
+      <Checkbox label="Include subdomains" checked={ck} onChange={setCk}/>
+      <Checkbox label="Passive only" checked={false} onChange={()=>{}}/>
+      <Radio name="f" value="daily" label="Daily" checked={r==="daily"} onChange={setR}/>
+      <Radio name="f" value="weekly" label="Weekly" checked={r==="weekly"} onChange={setR}/>
+      <Switch label="Notify on critical" checked={sw} onChange={setSw}/>
+    </div>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script>
+<script>__runJsxTags();</script></body></html>

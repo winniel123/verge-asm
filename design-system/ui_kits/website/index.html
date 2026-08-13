@@ -1,0 +1,171 @@
+<!-- @dsCard group="Website" viewport="1440x900" subtitle="Marketing homepage: hero, terminal, features, community" name="verge-asm.org" -->
+<!DOCTYPE html><html><head>
+<meta charset="utf-8"><title>Verge ASM — know your surface</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@0.462.0/dist/umd/lucide.min.js"></script>
+<script src="../../components/dev-loader.js" data-base="../../"></script>
+<script>
+window.NS=(function(){for(var k in window){try{var v=window[k];if(v&&typeof v==="object"&&v.Button&&v.Table&&v.TopNav)return v}catch(e){}}return {}})();
+</script>
+</head><body><div id="root"></div>
+<script type="text/jsx-run">
+const { Button, Badge, Wordmark, Card, SeverityBadge, StatusDot } = window.NS;
+
+const TERMINAL = [
+  { p: "$", c: "docker run -d -p 8443:8443 vergeasm/verge" },
+  { p: "$", c: "verge scan --target acmecorp.io \\" },
+  { p: "", c: "    --include-subdomains" },
+  { p: "", c: "discovery      412 domains · 519 hosts · 353 services", dim: true },
+  { p: "", c: "fingerprint    1,284 assets checked in 4m 12s", dim: true },
+  { p: "", c: "findings       ", sev: true },
+  { p: "", c: "report         written to ./acme-2026-07-30.pdf", dim: true },
+];
+
+function Icon({ name, size = 18 }) {
+  return <i data-lucide={name} style={{ width: size, height: size, display: "inline-block", flex: "none" }}></i>;
+}
+
+const FEATURES = [
+  { icon: "radar", t: "Continuous discovery", d: "Subdomains, IPs, ports, and certificates found the way attackers find them — passively and actively, on a schedule." },
+  { icon: "fingerprint", t: "Service fingerprinting", d: "Banners, TLS metadata, and tech stacks identified per service, with version-aware vulnerability matching." },
+  { icon: "shield-alert", t: "Findings that rank", d: "Critical to Info, no invented scores. Every finding ships evidence you can replay with curl." },
+  { icon: "share-2", t: "Surface graph", d: "Your whole edge as a graph — domain to host to service — so blast radius is a glance, not a query." },
+  { icon: "file-text", t: "Reports & exports", d: "Executive PDF, full CSV, delta JSON. Scheduled, webhook-delivered, and diffable." },
+  { icon: "plug", t: "Integrations", d: "Webhooks, Slack/Matrix alerts, and a full REST API. Your data stays in your database." },
+];
+
+const STEPS = [
+  ["01", "Deploy", "One container, one binary, or docker-compose. Your infra, your data."],
+  ["02", "Point it at a domain", "Seed with domains or CIDR ranges; Verge maps everything reachable."],
+  ["03", "Act on findings", "Ranked, evidenced, and pushed wherever your team already looks."],
+];
+
+function Home() {
+  React.useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+  return (
+    <div data-screen-label="Homepage" style={{ background: "var(--paper)" }}>
+      <header style={{ display: "flex", alignItems: "center", gap: 28, padding: "0 40px", height: 60, background: "var(--surface)", borderBottom: "2px solid var(--border-ink)" }}>
+        <Wordmark />
+        <nav style={{ display: "flex", gap: 24, font: "500 13px var(--font-sans)" }}>
+          <a href="#" style={{ color: "var(--text-muted)" }}>Features</a>
+          <a href="#" style={{ color: "var(--text-muted)" }}>Docs</a>
+          <a href="#" style={{ color: "var(--text-muted)" }}>Community</a>
+          <a href="#" style={{ color: "var(--text-muted)" }}>Changelog</a>
+        </nav>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={{ font: "400 11px var(--font-mono)", color: "var(--text-muted)" }}>★ 4,218</span>
+          <Button variant="secondary" size="sm">GitHub</Button>
+          <Button size="sm">Get started</Button>
+        </div>
+      </header>
+
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 40px 64px", display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 56, alignItems: "center" }}>
+        <div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            <Badge tone="accent">Free & open source</Badge>
+            <Badge>AGPL-3.0</Badge>
+            <Badge>Self-hosted</Badge>
+          </div>
+          <h1 style={{ font: "700 48px/1.05 var(--font-sans)", letterSpacing: "-0.01em", color: "var(--ink)", margin: "0 0 18px", textWrap: "balance" }}>Know your attack surface before they do.</h1>
+          <p style={{ font: "400 16px/1.6 var(--font-sans)", color: "var(--text-muted)", margin: "0 0 26px", maxWidth: 520 }}>
+            Verge ASM continuously discovers, fingerprints, and ranks everything your organization exposes to the internet — and hands you the evidence. On your servers, under your control, free forever.
+          </p>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <Button size="lg">Deploy with Docker</Button>
+            <Button variant="secondary" size="lg">View on GitHub</Button>
+          </div>
+          <div style={{ marginTop: 18, font: "400 11px var(--font-mono)", color: "var(--text-faint)" }}>v0.9.2 · 212 contributors · no telemetry, no phone-home</div>
+        </div>
+        <div style={{ border: "1px solid var(--border-ink)", background: "var(--surface-ink)", boxShadow: "var(--shadow-hard)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: "1px solid #2e2e26" }}>
+            <span style={{ font: "600 10px var(--font-mono)", letterSpacing: "0.06em", textTransform: "uppercase", color: "#8a8a7e" }}>verge — terminal</span>
+            <StatusDot tone="ok" pulse label="scanning" style={{ marginLeft: "auto" }} />
+          </div>
+          <div style={{ padding: "16px 18px 18px", display: "flex", flexDirection: "column", gap: 7, overflow: "hidden" }}>
+            {TERMINAL.map((l, i) => (
+              <div key={i} style={{ font: "400 12.5px/1.5 var(--font-mono)", color: l.dim ? "#8a8a7e" : "var(--text-on-ink)", display: "flex", gap: 10, whiteSpace: "pre" }}>
+                {l.p && <span style={{ color: "var(--ok)" }}>{l.p}</span>}
+                {l.sev ? (
+                  <span>{l.c}<span style={{ color: "#ff8787" }}>1 critical</span> · <span style={{ color: "#ffa94d" }}>2 high</span> · <span style={{ color: "var(--sev-medium)" }}>2 medium</span></span>
+                ) : <span>{l.c}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 40px", display: "grid", gridTemplateColumns: "repeat(3,1fr)" }}>
+          {STEPS.map(([n, t, d], i) => (
+            <div key={n} style={{ padding: "28px 28px 30px", borderLeft: i ? "1px solid var(--border)" : "none", display: "flex", gap: 16 }}>
+              <span style={{ font: "600 13px var(--font-mono)", color: "var(--accent)" }}>{n}</span>
+              <div>
+                <div style={{ font: "600 15px var(--font-sans)", color: "var(--ink)", marginBottom: 5 }}>{t}</div>
+                <div style={{ font: "400 13px/1.55 var(--font-sans)", color: "var(--text-muted)" }}>{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "64px 40px" }}>
+        <div style={{ font: "600 10px var(--font-mono)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>What it does</div>
+        <h2 style={{ font: "700 34px/1.15 var(--font-sans)", letterSpacing: "-0.01em", color: "var(--ink)", margin: "0 0 28px", maxWidth: 560 }}>An attacker's view of your estate, working for defense.</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+          {FEATURES.map((f) => (
+            <div key={f.t} style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "20px 22px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, color: "var(--ink)" }}>
+                <Icon name={f.icon} />
+                <span style={{ font: "600 15px var(--font-sans)" }}>{f.t}</span>
+              </div>
+              <div style={{ font: "400 13px/1.55 var(--font-sans)", color: "var(--text-muted)" }}>{f.d}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ background: "var(--surface-ink)", borderTop: "1px solid var(--border-ink)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "52px 40px", display: "flex", alignItems: "center", gap: 48 }}>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ font: "700 26px/1.2 var(--font-sans)", letterSpacing: "-0.01em", color: "var(--text-on-ink)", margin: "0 0 10px" }}>Free software, in the strong sense.</h2>
+            <p style={{ font: "400 14px/1.6 var(--font-sans)", color: "#b8b8ac", margin: 0, maxWidth: 560 }}>
+              AGPL-3.0 licensed: run it, read it, fork it — and if you offer it as a service, share your changes back. No open-core bait, no feature gates, no telemetry.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 36, font: "400 11px var(--font-mono)", color: "#8a8a7e", textAlign: "right" }}>
+            <div><div style={{ font: "600 26px var(--font-mono)", color: "var(--text-on-ink)" }}>4,218</div>github stars</div>
+            <div><div style={{ font: "600 26px var(--font-mono)", color: "var(--text-on-ink)" }}>212</div>contributors</div>
+            <div><div style={{ font: "600 26px var(--font-mono)", color: "var(--text-on-ink)" }}>96</div>releases</div>
+          </div>
+        </div>
+      </section>
+
+      <footer style={{ background: "var(--surface)", borderTop: "2px solid var(--border-ink)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "36px 40px 28px", display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 32 }}>
+          <div>
+            <Wordmark />
+            <div style={{ font: "400 12px/1.6 var(--font-sans)", color: "var(--text-muted)", marginTop: 10, maxWidth: 260 }}>Defensive attack surface management. Community-built, self-hosted, AGPL-3.0.</div>
+          </div>
+          {[["Project", ["Features", "Changelog", "Roadmap", "Security policy"]], ["Community", ["GitHub", "Matrix chat", "Contributing", "Good first issues"]], ["Docs", ["Installation", "Configuration", "API reference", "Self-hosting guide"]]].map(([h, links]) => (
+            <div key={h}>
+              <div style={{ font: "600 10px var(--font-mono)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>{h}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {links.map((l) => <a key={l} href="#" style={{ font: "400 13px var(--font-sans)", color: "var(--text)" }}>{l}</a>)}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "14px 40px 22px", display: "flex", gap: 18, font: "400 11px var(--font-mono)", color: "var(--text-faint)", borderTop: "1px solid var(--border-soft)" }}>
+          <span>v0.9.2</span><span>AGPL-3.0</span><span>© 2026 the Verge ASM contributors</span>
+          <span style={{ marginLeft: "auto" }}>no cookies · no tracking</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Home />);
+</script>
+<script>__runJsxTags();</script></body></html>

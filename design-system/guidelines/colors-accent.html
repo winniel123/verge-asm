@@ -1,0 +1,21 @@
+<!-- @dsCard group="Colors" viewport="700x170" subtitle="One working blue — links, selection, focus" name="Accent" -->
+<!DOCTYPE html><html><head><link rel="stylesheet" href="../styles.css"><style>
+.row{display:flex;gap:8px;padding:16px;align-items:stretch}
+.sw{flex:1}
+.chip{height:64px;border:1px solid var(--border)}
+.sw b{display:block;font:var(--weight-semibold) 11px/1.4 var(--font-sans);margin-top:6px}
+.sw code{font:400 10px/1.4 var(--font-mono);color:var(--text-muted)}
+.demo{flex:1.6;border:1px solid var(--border);background:var(--surface);padding:10px 12px;font-size:12px;display:flex;flex-direction:column;gap:6px;justify-content:center}
+.selrow{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent);padding:4px 8px;font-family:var(--font-mono);font-size:11px}
+</style></head><body>
+<div class="row">
+  <div class="sw"><div class="chip" style="background:var(--accent)"></div><b>accent</b><code>#2d4fd4</code></div>
+  <div class="sw"><div class="chip" style="background:var(--accent-hover)"></div><b>accent-hover</b><code>#2440ad</code></div>
+  <div class="sw"><div class="chip" style="background:var(--accent-soft)"></div><b>accent-soft</b><code>#e9edfb</code></div>
+  <div class="demo">
+    <span><a href="#">View all findings →</a></span>
+    <div class="selrow">selected row · edge-gw-03.acmecorp.io</div>
+    <span style="font:600 10px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)">Used sparingly — severity owns loud color</span>
+  </div>
+</div>
+</body></html>

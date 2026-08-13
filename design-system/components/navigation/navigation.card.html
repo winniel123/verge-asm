@@ -1,0 +1,31 @@
+<!-- @dsCard group="Components" viewport="700x240" subtitle="TopNav, Tabs, Footer" name="Navigation" -->
+<!DOCTYPE html><html><head>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="../../components/dev-loader.js" data-base="../../"></script>
+<style>body{padding:0}</style>
+</head><body><div id="root"></div>
+<script type="text/jsx-run">
+const NS=(()=>{for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.TopNav&&v.Tabs)return v}catch(e){}}return {}})();
+const {TopNav,Tabs,Footer,StatusDot}=NS;
+function Demo(){
+  const [nav,setNav]=React.useState("Dashboard");
+  const [tab,setTab]=React.useState("Overview");
+  return <div>
+    <TopNav
+      items={["Dashboard","Inventory","Findings","Graph","Reports"].map(l=>({label:l,active:l===nav}))}
+      onSelect={it=>setNav(it.label)}
+      status={<StatusDot tone="ok" pulse label="scan running"/>}
+      style={{paddingLeft:20,paddingRight:20,gap:20}}/>
+    <div style={{padding:"16px 20px"}}>
+      <Tabs items={["Overview","Services","Findings","History"]} value={tab} onChange={setTab}/>
+      <div style={{font:"400 12px var(--font-sans)",color:"var(--text-muted)",padding:"12px 0 4px"}}>{tab} content</div>
+    </div>
+    <Footer links={[{label:"Docs"},{label:"Report an issue"}]} stars="4,218" style={{paddingLeft:20,paddingRight:20}}/>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script>
+<script>__runJsxTags();</script></body></html>

@@ -1,0 +1,35 @@
+:root {
+  /* Two families only. Sans for prose/UI, mono for anything technical:
+     hostnames, IPs, ports, counts, CVE ids, timestamps, micro-labels. */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* ── Size scale ─────────────────────────────────────── */
+  --text-2xs: 10px;   /* mono micro-labels only */
+  --text-xs: 11px;    /* table meta, footers */
+  --text-sm: 12px;    /* dense table cells, captions */
+  --text-base: 13px;  /* app body */
+  --text-md: 14px;    /* section titles, emphasized rows */
+  --text-lg: 16px;    /* card titles, dialog titles */
+  --text-xl: 20px;    /* page titles */
+  --text-2xl: 26px;   /* KPI numerals (mono) */
+  --text-3xl: 34px;   /* marketing/doc headings */
+  --text-4xl: 48px;   /* marketing hero */
+
+  /* ── Weights ────────────────────────────────────────── */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ── Line heights ───────────────────────────────────── */
+  --leading-tight: 1.15;  /* numerals, headings */
+  --leading-snug: 1.35;   /* table cells, UI */
+  --leading-body: 1.55;   /* prose */
+
+  /* ── The micro-label (signature style) ──────────────
+     font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+     text-transform: uppercase; letter-spacing: var(--tracking-label); */
+  --tracking-label: 0.06em;
+  --tracking-tight: -0.01em; /* large sans headings */
+}

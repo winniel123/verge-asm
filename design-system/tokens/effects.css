@@ -1,0 +1,25 @@
+:root {
+  /* Sharp corners everywhere. No exceptions — pills and dots are the
+     only round things in the system (status indicators). */
+  --radius: 0px;
+  --radius-dot: 50%;
+
+  /* Flat system: no soft shadows. Elevation = ink border + hard offset. */
+  --shadow-none: none;
+  --shadow-hard: 6px 6px 0 rgba(22, 22, 15, 0.1);   /* dialogs, popovers, menus */
+  --shadow-hard-sm: 3px 3px 0 rgba(22, 22, 15, 0.1); /* tooltips, dropdowns */
+
+  /* Rules */
+  --rule-ink: 1px solid var(--border-ink);
+  --rule-ink-heavy: 2px solid var(--border-ink);   /* header/table-head rule */
+  --rule: 1px solid var(--border);
+  --rule-soft: 1px solid var(--border-soft);
+
+  /* Focus: visible, square, accent */
+  --focus-ring: 0 0 0 2px var(--paper), 0 0 0 4px var(--accent);
+
+  /* Motion: fast and functional; fades + background shifts only */
+  --duration: 120ms;
+  --duration-slow: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0.4, 1);
+}
