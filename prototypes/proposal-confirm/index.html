@@ -1,0 +1,985 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #50: "What does the operator see when
+  confirming or declining a Proposal?"
+
+  #27 created the confirmation act (registry expansion stopped feeding the
+  probing gate and started proposing scopes the operator turns into `Seed`s).
+  #39 named the object and added the decline path. ADR-0012 made `Proposal`
+  Declared, timeline-less, and carrying `consent` alone. ADR-0013 made the
+  decline path the *expected* one for the modal cloud-resident install.
+  None of them drew the surface. This does.
+
+  The screen is `Seeds` — the nav destination #22 created and nobody has
+  drawn. Both outcomes of the act are `Seed` writes: confirming makes a
+  scope, declining makes an exclusion. There is no seventh nav item and no
+  inbox.
+
+  Four variants, ?variant=A|B|C|D — four answers to the load-bearing
+  question, which is whether bulk confirmation exists at all:
+
+    A  inbox        checkbox list, one action bar, `Confirm selected`.
+                    Drawn in order to lose. Set fill=cloud and read the
+                    button label.
+    B  ledger       symmetric per-row Confirm / Decline, plus a group
+                    `Decline all`. Loses on the symmetry itself.
+    C  one at a time forced sequential review, `1 of 177`. Loses on the
+                    modal case being 177 declines.
+    D  CHOSEN       grouped by the lookup that produced it. Confirm is
+                    per-scope and its label carries the address count;
+                    decline is available over the whole group. The two
+                    acts are deliberately NOT symmetric.
+
+  Seven fills, ?fill=single|cloud|swip|nothing|blind|declined|reoffer :
+
+    single    #26's modal registry holder — 79.1% hold exactly one block
+    cloud     #27's forcing measurement — one AWS-resident seed expands to
+              177 resources and 76,046,336 addresses. The whole design is
+              aimed at this fill.
+    swip      #39's PA-renter path — `C…` customer objects, /29 floor, a
+              name string typed by the upstream ISP
+    nothing   a load-bearing zero: the registry answered and holds nothing
+    blind     #43's hazard — three instruments failing silently with HTTP
+              200 beside one honest zero. `we looked and you hold nothing`
+              versus `nobody could look`, which only this screen renders.
+    declined  the durable side of a decline: exclusions, restorable, and
+              the one case where a decline is load-bearing rather than inert
+    reoffer   the upstream re-SWIPs a different range under the same name.
+              A NEW `Proposal`, never an existing one changed.
+
+  Rules this surface is held to:
+    · `Proposal` is Declared and does not drift (ADR-0012) — nothing here
+      renders as a `Transition`. No before/after, no arrows, no "changed".
+    · The propose half carries no percentage, no bar, no `unknown` in a
+      cost column (#28). Address counts are arithmetic over a CIDR, not
+      coverage, and they are the only figures on the screen.
+    · A per-address approval queue stays rejected (ADR-0002, #27, ADR-0013).
+      A scope is one act. 177 scopes are 177 acts or one decline.
+    · Vocabulary is CONTEXT.md: `Seed`, `Proposal`, `Custody`, `Span`,
+      `revealed`. Never `Ownership`, `owned`, `in scope`, `Host`, `Finding`.
+
+  Not production code. No tests, no error handling, no abstractions. The
+  visual language is the real design system (../../design-system).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — proposal confirm/decline prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 96px; }
+
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+  .sp { margin-left: auto; }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink);
+         font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); transition: background var(--duration) var(--ease); }
+  .btn:hover { background: #3a3a30; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--surface-sunken); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); padding: 0 10px; }
+  .btn.accent { background: var(--accent); border-color: var(--accent); }
+  .btn.accent:hover { background: var(--accent-hover); }
+  .btn[disabled] { opacity: .4; cursor: not-allowed; }
+  .btn .n { font-family: var(--font-mono); font-weight: var(--weight-semibold); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { margin: 0 0 var(--space-6); font-size: var(--text-base); color: var(--text-muted);
+         line-height: var(--leading-body); max-width: 78ch; }
+
+  .card { background: var(--surface); border: var(--rule); margin-bottom: var(--space-5); }
+  .card.ink { border: var(--rule-ink); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); background: var(--surface-sunken); }
+  .pad { padding: var(--space-4); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: top; }
+  tbody tr:first-child td { border-top: none; }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num, th.num { text-align: right; }
+  td.num { font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap; }
+  td.act { text-align: right; white-space: nowrap; }
+  tr.sel td { background: var(--accent-soft); }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted);
+         white-space: nowrap; }
+  .tag.ink   { border-color: var(--border-ink); color: var(--ink); }
+  .tag.warn  { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .tag.blue  { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .tag.gone  { border-style: dashed; color: var(--text-faint); }
+
+  /* ── THE GROUP HEADER ──────────────────────────────────────────────────
+     Everything the operator needs before reading a single row: who holds
+     the record, what kind of record it is, how much address space the
+     whole group is, and — the part #43 says only this screen can carry —
+     whether the instrument answered at all. */
+  .grp-h { border-bottom: var(--rule-ink-heavy); padding: var(--space-4);
+           display: flex; align-items: flex-start; gap: var(--space-5); flex-wrap: wrap; }
+  .grp-h .who { min-width: 260px; }
+  .grp-h .who .h { font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .grp-h .who .hh { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
+  .grp-h .fig { text-align: right; }
+  .grp-h .fig .v { font: var(--weight-semibold) var(--text-2xl)/var(--leading-tight) var(--font-mono); color: var(--ink); }
+  .grp-h .fig .v.big { color: var(--danger); }
+  .grp-h .fig .k { margin-top: 3px; }
+
+  /* the origin line — which act produced these, in the operator's own terms */
+  .origin { background: var(--surface-sunken); border-bottom: var(--rule);
+            padding: var(--space-2) var(--space-4);
+            font: var(--weight-medium) var(--text-xs)/1.5 var(--font-mono); color: var(--text-muted); }
+  .origin b { color: var(--ink); font-weight: var(--weight-semibold); }
+
+  /* ── THE ANSWERED STATEMENT ────────────────────────────────────────────
+     #43 §2: the propose half has no `Batch` and therefore no structural
+     guard against false absence. Three instruments fail silently with an
+     HTTP 200. The distinction between "the registry answered and holds
+     nothing" and "nobody could look" survives here or nowhere, so it is
+     a first-class row rather than a footnote, and the second case never
+     renders as an empty estate. */
+  .ans { border-top: var(--rule-soft); padding: var(--space-3) var(--space-4);
+         display: flex; gap: var(--space-3); align-items: baseline; font-size: var(--text-base); }
+  .ans:first-child { border-top: none; }
+  .ans .who2 { font-family: var(--font-mono); font-size: var(--text-sm); min-width: 30ch; font-weight: var(--weight-semibold); }
+  .ans .txt { line-height: var(--leading-body); }
+  .ans .txt .why { display: block; color: var(--text-muted); font-size: var(--text-sm); margin-top: 2px; }
+  .ans.ok    { }
+  .ans.zero  { background: var(--surface); }
+  .ans.blind { background: var(--surface-sunken); border-left: 3px solid var(--warn); }
+  .ans.blind .txt b { color: var(--warn-dark, #7a5f00); }
+
+  /* ── THE ASYMMETRY ─────────────────────────────────────────────────────
+     Confirm and decline are drawn as different kinds of thing on purpose.
+     Confirm is per-scope, ink, and its label carries the address count it
+     opens the gate on. Decline is a group act, ghost, and carries the
+     count of scopes rather than of addresses — because declining nothing
+     opens nothing. */
+  .grp-act { padding: var(--space-3) var(--space-4); border-top: var(--rule);
+             background: var(--surface-sunken); display: flex; align-items: center; gap: var(--space-3); }
+  .grp-act .note { font-size: var(--text-sm); color: var(--text-muted); line-height: var(--leading-snug); }
+
+  .rowsub { display: block; margin-top: 3px; font-size: var(--text-sm); color: var(--text-muted);
+            line-height: var(--leading-snug); }
+  .rowsub .mono { font-size: var(--text-xs); }
+
+  /* the completeness affordance — #43 §3's opaque-id boundary. An
+     affordance, never a disclaimer: it has a next action. No figure. */
+  .edge { border: var(--rule); border-left: 3px solid var(--accent); background: var(--surface);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          display: flex; gap: var(--space-4); align-items: baseline; font-size: var(--text-base); }
+  .edge .txt { line-height: var(--leading-body); max-width: 80ch; }
+
+  /* declined ledger */
+  .decl-load { border-left: 3px solid var(--ink); }
+  .decl-inert { border-left: 3px solid var(--border); }
+
+  /* the org-name box */
+  .box { display: flex; gap: var(--space-2); align-items: center; }
+  input[type=text] { height: var(--control-h); padding: 0 10px; border: var(--rule-ink);
+                     background: var(--surface); font: 400 var(--text-base)/1 var(--font-mono);
+                     border-radius: var(--radius); min-width: 320px; color: var(--ink); }
+  input[type=text]:focus { outline: none; box-shadow: var(--focus-ring); }
+  input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--accent); }
+
+  /* ── the confirm dialog: the one place the gate is opened ─────────────
+     Hard offset shadow + ink border, per the kit. The consequence sentence
+     is stated in the operator's terms and the count is repeated in the
+     button, because the button is the thing they cannot skip reading. */
+  .scrim { position: fixed; inset: 0; background: rgba(22,22,15,.28); z-index: 80;
+           display: flex; align-items: center; justify-content: center; }
+  .dlg { background: var(--surface); border: var(--rule-ink); box-shadow: var(--shadow-hard);
+         width: 560px; max-width: calc(100vw - 48px); }
+  .dlg .h { padding: var(--space-4); border-bottom: var(--rule-ink-heavy); display: flex; align-items: baseline; gap: var(--space-3); }
+  .dlg .h h3 { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+  .dlg .b { padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .dlg .b dl { display: grid; grid-template-columns: 16ch 1fr; gap: var(--space-2) var(--space-4);
+               margin: 0 0 var(--space-4); }
+  .dlg .b dt { font: var(--weight-semibold) var(--text-2xs)/1.6 var(--font-mono);
+               text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .dlg .b dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .dlg .b dd.sans { font-family: var(--font-sans); font-size: var(--text-base); }
+  .dlg .conseq { border: var(--rule); border-left: 3px solid var(--ink); background: var(--surface-sunken);
+                 padding: var(--space-3); }
+  .dlg .f { padding: var(--space-3) var(--space-4); border-top: var(--rule); display: flex;
+            gap: var(--space-2); align-items: center; }
+
+  /* the #51 seat — drawn as a labelled region, deliberately not filled in */
+  .seat { border: 1px dashed var(--border); background: var(--surface-sunken);
+          padding: var(--space-4); margin-bottom: var(--space-5); }
+  .seat .txt { font-size: var(--text-sm); color: var(--text-muted); line-height: var(--leading-body);
+               margin-top: var(--space-2); max-width: 84ch; }
+
+  .seedrow { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+             border-top: var(--rule-soft); }
+  .seedrow:first-child { border-top: none; }
+  .seedrow .k { font-family: var(--font-mono); font-size: var(--text-base); font-weight: var(--weight-semibold); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+
+  /* ── switcher: deliberately NOT part of the design being judged ─────── */
+  #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch;
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch .grp { display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
+                 border-left: 1px solid #3a3a30; }
+  #switch .grp:first-child { border-left: none; }
+  #switch .grp > span { color: #9a9a90; font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); margin-right: var(--space-1); }
+  #switch button { background: transparent; border: none; color: #9a9a90; cursor: pointer;
+                   font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); padding: 7px 8px; }
+  #switch button:hover { background: #3a3a30; color: var(--text-on-ink); }
+  #switch button.on { background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="modal"></div>
+
+<div id="switch">
+  <div class="grp" data-key="variant"><span>variant</span></div>
+  <div class="grp" data-key="fill"><span>fill</span></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   DATA
+   Every measurement below is quoted from a closed ticket. Nothing here is
+   invented except the operator's own names.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const n = (x) => x.toLocaleString("en-US");
+
+/* record kinds. ADR-0012 requires a `Proposal` to carry which kind of
+   record produced it, because the caveats differ and the operator is the
+   one judging them. There are exactly two. */
+const KIND = {
+  delegation: {
+    label: "RIR delegation",
+    caveat: "Written by the registry. Allocated, not necessarily in current use."
+  },
+  reassignment: {
+    label: "Reassignment",
+    caveat: "Written by your upstream provider under a /29 floor. The name string was typed by them, not by the registry."
+  }
+};
+
+/* the four proposers that can answer an org-name box, and the one that
+   answers an address expansion. `state` is what this screen exists to
+   render: answered / honest-zero / could-not-look. */
+const P = {
+  arinOK:   { who: "ARIN entities?fn=",       state: "ok" },
+  arinZero: { who: "ARIN entities?fn=",       state: "zero",
+              txt: "ARIN holds nothing else under this name.",
+              why: "Searched North America. A complete answer over that registry." },
+  lacnic:   { who: "LACNIC entities?fn=",     state: "blind",
+              txt: "LACNIC could not be searched for this name.",
+              why: "Its fn= matches a single token, so a name containing a space returns an empty answer with an HTTP 200. Read this as unknown, never as an empty estate." },
+  apnic:    { who: "APNIC entities?fn=",      state: "blind",
+              txt: "APNIC returns nothing to any name.",
+              why: "Its RDAP entity search answers every query with an empty array. This is broken software rather than terms, so no setting changes it." },
+  caida:    { who: "CAIDA as-org2info",       state: "blind",
+              txt: "The CAIDA table could not be fetched.",
+              why: "The monthly file is fetched on demand and this fetch failed. An unfetched table joins to nothing, which looks exactly like holding nothing." },
+  caidaOK:  { who: "CAIDA as-org2info",       state: "ok" },
+  siblings: { who: "delegated-stats siblings", state: "ok" }
+};
+
+/* ── the seven fills ──────────────────────────────────────────────────── */
+
+const FILLS = {
+
+  /* #26: 79.1% of ASN-less holders hold exactly one IPv4 block. */
+  single: {
+    origin: ["Expanded from the address scope you declared", "198.51.100.7/32"],
+    answers: [P.siblings],
+    groups: [{
+      holder: "Example Corporation", handle: "EXAMPLE-CORP-1", kind: "delegation",
+      scopes: 1, addresses: 256, opaque: 1,
+      rows: [{ cidr: "198.51.100.0/24", addr: 256, kind: "delegation",
+               shares: "The only resource under this holder." }]
+    }],
+    edge: true
+  },
+
+  /* #27's forcing measurement, verbatim: one address-scope seed inside AWS
+     shares its delegated-stats opaque-id with 177 resources totalling
+     76,046,336 IPv4 addresses, against a median ARIN holder of 512. */
+  cloud: {
+    origin: ["Expanded from the address scope you declared", "52.1.2.3/32"],
+    answers: [P.siblings],
+    groups: [{
+      holder: "Amazon Technologies Inc.", handle: "AMAZON-04", kind: "delegation",
+      scopes: 177, addresses: 76046336, opaque: 177, alarming: true,
+      rows: [
+        { cidr: "3.0.0.0/9",      addr: 8388608, kind: "delegation", shares: "1 of 177 resources under AMAZON-04." },
+        { cidr: "52.0.0.0/11",    addr: 2097152, kind: "delegation", shares: "1 of 177 resources under AMAZON-04." },
+        { cidr: "54.144.0.0/12",  addr: 1048576, kind: "delegation", shares: "1 of 177 resources under AMAZON-04." },
+        { cidr: "18.32.0.0/11",   addr: 2097152, kind: "delegation", shares: "1 of 177 resources under AMAZON-04." },
+        { cidr: "44.192.0.0/11",  addr: 2097152, kind: "delegation", shares: "1 of 177 resources under AMAZON-04." }
+      ],
+      more: 172
+    }],
+    edge: true
+  },
+
+  /* #39: 227 of 257 entities in one ARIN response carried C… handles.
+     NRPM 4.2.3.7.1 compels reassignment down to a /29. */
+  swip: {
+    origin: ["Searched the organisation name", "Northwind Logistics"],
+    answers: [P.arinOK, P.caidaOK, P.lacnic, P.apnic],
+    groups: [
+      { holder: "Northwind Logistics Ltd", handle: "C07214883", kind: "reassignment",
+        scopes: 2, addresses: 16, opaque: 2, upstream: "Level 3 Parent, LLC",
+        rows: [
+          { cidr: "203.0.113.24/29", addr: 8, kind: "reassignment",
+            shares: "Reassigned to you inside 203.0.113.0/24, held by Level 3 Parent, LLC." },
+          { cidr: "203.0.113.96/29", addr: 8, kind: "reassignment",
+            shares: "Reassigned to you inside 203.0.113.0/24, held by Level 3 Parent, LLC." }
+        ] },
+      { holder: "Northwind Logistics Holdings", handle: "NWLH-1", kind: "delegation",
+        scopes: 1, addresses: 256, opaque: 1,
+        rows: [
+          { cidr: "192.0.2.0/24", addr: 256, kind: "delegation",
+            shares: "The only resource under this holder." }
+        ] }
+    ],
+    edge: false
+  },
+
+  /* the load-bearing zero. This is a claim, and it is only makeable
+     because the instrument that produced it is known good for this query. */
+  nothing: {
+    origin: ["Searched the organisation name", "Northwind Logistics"],
+    answers: [P.arinZero, P.caidaOK, P.lacnic, P.apnic],
+    groups: [],
+    edge: false
+  },
+
+  /* #43 §2 — three instruments failing silently with HTTP 200 beside one
+     honest zero. If this screen levels them, nothing else in the system
+     will ever notice: `Custody` never reads a proposal. */
+  blind: {
+    origin: ["Searched the organisation name", "Universidad del Pacifico"],
+    answers: [P.arinZero, P.lacnic, P.apnic, P.caida],
+    groups: [],
+    edge: false
+  },
+
+  /* the durable side. A decline is a boundary claim, not a dismissal, so
+     it is listed, dated, and reversible — and the surface says which
+     declines are load-bearing and which are inert. */
+  declined: {
+    origin: ["Searched the organisation name", "Northwind Logistics"],
+    answers: [P.arinOK, P.caidaOK, P.lacnic, P.apnic],
+    groups: [
+      { holder: "Northwind Logistics Ltd", handle: "C07214883", kind: "reassignment",
+        scopes: 1, addresses: 8, opaque: 1, upstream: "Level 3 Parent, LLC",
+        rows: [
+          { cidr: "203.0.113.96/29", addr: 8, kind: "reassignment",
+            shares: "Reassigned to you inside 203.0.113.0/24, held by Level 3 Parent, LLC." }
+        ] }
+    ],
+    edge: false,
+    showDeclined: true
+  },
+
+  /* the fifth Establish bullet. `Proposal` is Declared and has no timeline,
+     so a record re-offered with different contents cannot be the same
+     proposal changed. It is a new one, and the wording must say so or a
+     Declared object grows a timeline in the interface. */
+  reoffer: {
+    origin: ["Searched the organisation name", "Northwind Logistics"],
+    answers: [P.arinOK, P.caidaOK, P.lacnic, P.apnic],
+    groups: [
+      { holder: "Northwind Logistics Ltd", handle: "C07214883", kind: "reassignment",
+        scopes: 1, addresses: 16, opaque: 1, upstream: "Level 3 Parent, LLC",
+        rows: [
+          { cidr: "203.0.113.16/28", addr: 16, kind: "reassignment",
+            shares: "Reassigned to you inside 203.0.113.0/24, held by Level 3 Parent, LLC.",
+            prior: { cidr: "203.0.113.24/29", when: "2026-07-02", act: "declined" } }
+        ] }
+    ],
+    edge: false,
+    showDeclined: true
+  }
+};
+
+/* the declined ledger — the same object in every fill that shows it */
+const DECLINED = [
+  { cidr: "52.0.0.0/11 and 176 others", addr: 76046336, seed: "52.1.2.3/32",
+    when: "2026-08-11", holder: "Amazon Technologies Inc. (AMAZON-04)",
+    loadBearing: false,
+    effect: "Nothing changed when you declined these: no Seed covered them, so their Custody was already third-party. The exclusion stops them being offered again.",
+    bulk: 177 },
+  { cidr: "198.51.100.128/25", addr: 128, seed: "198.51.100.0/24",
+    when: "2026-07-28", holder: "Example Corporation (EXAMPLE-CORP-1)",
+    loadBearing: true,
+    effect: "This one carved a hole in a scope you had confirmed. 128 addresses stopped being probed; their Custody reads third-party from 2026-07-28.",
+    bulk: 1 },
+  { cidr: "203.0.113.24/29", addr: 8, seed: "northwind.example",
+    when: "2026-07-02", holder: "Northwind Logistics Ltd (C07214883)",
+    loadBearing: false,
+    effect: "Nothing changed when you declined this. The exclusion stops it being offered again.",
+    bulk: 1 }
+];
+
+/* the Seeds already declared, so the screen is a real screen and not a
+   floating panel. Drawn thin: the Seed list itself is not this ticket. */
+const SEEDS = [
+  { kind: "name scope",    label: "northwind.example",  meta: "custody extension on — 14 addresses", ext: true },
+  { kind: "address scope", label: "198.51.100.0/24",    meta: "confirmed from a Proposal, 2026-07-14 · 1 exclusion" },
+  { kind: "address scope", label: "52.1.2.3/32",        meta: "typed, 2026-08-11 · 177 exclusions" }
+];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CHROME
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const NAV = ["Exposure","Subjects","Signals","Seeds","Coverage","Settings"];
+
+function chrome(body) {
+  return `
+  <header class="nav"><div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <nav class="items">${NAV.map(x => x === "Seeds"
+      ? `<a href="#" class="on">${x}</a>` : `<a href="#">${x}</a>`).join("")}</nav>
+    <div class="nav-right">
+      <span class="status" style="color:var(--ok)"><span class="dot live"></span>batch b-8851 running</span>
+      <button class="btn sm">Run scan</button>
+    </div>
+  </div></header>
+  <main class="shell">${body}</main>
+  <footer class="ft"><div class="ft-in">
+    <span>v0.9.2</span><span>AGPL-3.0</span><span>self-hosted</span>
+  </div></footer>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SHARED PIECES
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function seedList() {
+  return `
+  <div class="card">
+    <div class="card-h"><h2>Declared scopes</h2>
+      <span class="ml sp">3 seeds</span></div>
+    ${SEEDS.map(s => `
+      <div class="seedrow">
+        <span class="tag">${s.kind}</span>
+        <span class="k">${s.label}</span>
+        <span class="muted" style="font-size:var(--text-sm)">${s.meta}</span>
+        <span class="sp"></span>
+        <button class="btn ghost sm">Open</button>
+      </div>`).join("")}
+    <div class="card-f"><button class="btn sm">Declare a scope</button></div>
+  </div>`;
+}
+
+/* The #51 seat. Both tickets put something under a `Seed` that is a list
+   of address scopes, and they must not read alike: one is display, the
+   other is an act. Drawn as a labelled region rather than filled in. */
+function extensionSeat() {
+  return `
+  <div class="seat">
+    <span class="ml">Under northwind.example — custody extension, current extension</span>
+    <div class="txt">
+      Reserved for <b>#51</b>. ADR-0013 §7 requires the addresses a custody extension
+      currently covers to be rendered, each with the name citing it, as <b>display and never
+      approval</b>. It sits here, under the Seed it belongs to, and it must not be drawn as a
+      list of rows with per-row controls — that is the shape of the section below, and the two
+      would read as one queue. This region carries no buttons at all.
+    </div>
+  </div>`;
+}
+
+/* The org-name box. #43 shipped it for three regions. Its enablement
+   toggles live on Coverage (#22, #47) and are linked, never duplicated. */
+function orgBox(fill) {
+  const term = FILLS[fill].origin[0].startsWith("Searched") ? FILLS[fill].origin[1] : "";
+  return `
+  <div class="card">
+    <div class="card-h"><h2>Find scopes you hold</h2></div>
+    <div class="pad">
+      <div class="box">
+        <input type="text" value="${term}" placeholder="Your organisation name, as a registry has it">
+        <button class="btn">Search</button>
+      </div>
+      <div class="muted" style="font-size:var(--text-sm);margin-top:var(--space-3);line-height:var(--leading-body);max-width:82ch">
+        Registries answer on organisation name, not on domain. Nothing found here enters the
+        estate until you confirm it. Two registries are off until you accept their terms —
+        <a href="#">Coverage</a> has the wording and the toggles.
+      </div>
+    </div>
+  </div>`;
+}
+
+/* The answered statement. Rendered for every proposer that was asked,
+   including the ones that found something — otherwise the operator cannot
+   tell an unasked proposer from a silent one. */
+function answers(list) {
+  if (!list.length) return "";
+  const line = (p) => {
+    if (p.state === "ok")
+      return `<div class="ans ok"><span class="who2">${p.who}</span>
+        <span class="txt">Answered.</span></div>`;
+    if (p.state === "zero")
+      return `<div class="ans zero"><span class="who2">${p.who}</span>
+        <span class="txt">${p.txt}<span class="why">${p.why}</span></span></div>`;
+    return `<div class="ans blind"><span class="who2">${p.who}</span>
+      <span class="txt"><b>${p.txt}</b><span class="why">${p.why}</span></span></div>`;
+  };
+  const blind = list.filter(p => p.state === "blind").length;
+  return `
+  <div class="card">
+    <div class="card-h"><h2>What answered</h2>
+      <span class="sp"></span>
+      <span class="ml">${blind ? n(blind) + " could not be searched" : "all searched"}</span></div>
+    ${list.map(line).join("")}
+    ${blind ? `<div class="card-f" style="font-size:var(--text-sm);line-height:var(--leading-body)">
+      An empty answer from a registry that could not be searched is <b>not</b> evidence that you
+      hold nothing there. All three of these failures return HTTP 200, so nothing downstream will
+      ever notice them — a Proposal has no Batch and no recorded scope to license silence.
+    </div>` : ``}
+  </div>`;
+}
+
+/* #43 §3 — the opaque-id boundary. An affordance with a next action, not a
+   disclaimer. Deliberately carries no figure: "100% coverage in all five
+   RIRs" is 100% of one holder, and quoting it here is the failure. */
+function edgeNote() {
+  return `
+  <div class="edge">
+    <span class="ml" style="white-space:nowrap">Where this stops</span>
+    <span class="txt">
+      This is everything registered to the holder of the address you declared. A subsidiary
+      registered under its own handle has a different holder and is not in this list, and
+      nothing about the result will look incomplete. If you have one, search its name.
+      <a href="#">Search a name</a>
+    </span>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE FOUR VARIANTS
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const V = {};
+
+/* ── A — inbox. Drawn in order to lose. ────────────────────────────────
+   One checkbox column, one action bar, and `Confirm selected` sitting
+   beside `Decline selected` as if they were the same kind of act. Set
+   fill=cloud and read the button. This is what would undo #27. */
+V.A = (f) => {
+  const g = f.groups[0];
+  if (!g) return emptyResult(f);
+  const rows = allRows(f);
+  const total = rows.reduce((a,r) => a + r.addr, 0);
+  return `
+  ${f.groups.map(gr => `
+  <div class="card">
+    <div class="card-h"><h2>Proposed scopes</h2>
+      <span class="sp"></span><span class="ml">${n(gr.scopes)} scopes</span></div>
+    <table>
+      <thead><tr>
+        <th style="width:34px"><input type="checkbox" checked></th>
+        <th class="m">Scope</th><th>Record</th><th>Holder</th><th class="num">Addresses</th>
+      </tr></thead>
+      <tbody>
+        ${gr.rows.map(r => `<tr class="sel">
+          <td><input type="checkbox" checked></td>
+          <td class="m">${r.cidr}</td>
+          <td><span class="tag">${KIND[r.kind].label}</span></td>
+          <td class="m">${gr.handle}</td>
+          <td class="num">${n(r.addr)}</td></tr>`).join("")}
+        ${gr.more ? `<tr><td colspan="5" class="muted" style="text-align:center">
+          + ${n(gr.more)} more, all selected</td></tr>` : ``}
+      </tbody>
+    </table>
+  </div>`).join("")}
+  <div class="card ink">
+    <div class="grp-act">
+      <button class="btn" onclick="openDialog('${rows[0].cidr}','${g.handle}','${g.holder}','${rows[0].kind}',${total},${allScopes(f)})">
+        Confirm <span class="n">${n(allScopes(f))}</span> selected
+      </button>
+      <button class="btn ghost">Decline <span class="n">${n(allScopes(f))}</span> selected</button>
+      <span class="note">Two buttons, one gesture, opposite consequences. The left one puts
+        <b>${n(total)}</b> addresses inside the probing gate.</span>
+    </div>
+  </div>`;
+};
+
+/* ── B — symmetric ledger. ─────────────────────────────────────────────
+   Per-row Confirm and Decline, plus a group Decline all. Better than A,
+   and it still teaches the operator that the two acts are peers. */
+V.B = (f) => {
+  if (!f.groups.length) return emptyResult(f);
+  return f.groups.map(g => `
+  <div class="card">
+    <div class="card-h"><h2>${g.holder}</h2><span class="tag ink">${g.handle}</span>
+      <span class="sp"></span><span class="ml">${n(g.scopes)} scopes · ${n(g.addresses)} addresses</span></div>
+    <table>
+      <thead><tr><th class="m">Scope</th><th>Record</th><th class="num">Addresses</th><th class="num"></th></tr></thead>
+      <tbody>
+        ${g.rows.map(r => `<tr>
+          <td class="m">${r.cidr}</td>
+          <td><span class="tag">${KIND[r.kind].label}</span></td>
+          <td class="num">${n(r.addr)}</td>
+          <td class="act">
+            <button class="btn sm" onclick="openDialog('${r.cidr}','${g.handle}','${g.holder}','${r.kind}',${r.addr},1)">Confirm</button>
+            <button class="btn ghost sm">Decline</button></td></tr>`).join("")}
+        ${g.more ? `<tr><td colspan="4" class="muted" style="text-align:center">+ ${n(g.more)} more</td></tr>` : ``}
+      </tbody>
+    </table>
+    <div class="grp-act">
+      <button class="btn ghost sm">Decline all <span class="n">${n(g.scopes)}</span></button>
+      <span class="note">Confirm and decline drawn as peers. They are not peers.</span>
+    </div>
+  </div>`).join("");
+};
+
+/* ── C — one at a time. ────────────────────────────────────────────────
+   Maximum deliberation per scope. Correct for `single`, unusable for
+   `cloud`, which is the fill that matters. */
+V.C = (f) => {
+  const rows = allRows(f);
+  if (!rows.length) return emptyResult(f);
+  const g = f.groups[0], r = rows[0];
+  return `
+  <div class="card ink" style="max-width:640px">
+    <div class="card-h" style="border-bottom:var(--rule-ink-heavy)">
+      <h2>Proposed scope</h2><span class="sp"></span>
+      <span class="ml">1 of ${n(allScopes(f))}</span></div>
+    <div class="pad">
+      <div style="font:var(--weight-semibold) var(--text-2xl)/1.15 var(--font-mono)">${r.cidr}</div>
+      <div class="muted" style="margin-top:var(--space-2);font-size:var(--text-base)">
+        ${n(r.addr)} addresses · ${KIND[r.kind].label} · ${g.holder}</div>
+      <div style="margin-top:var(--space-4);font-size:var(--text-base);line-height:var(--leading-body)">
+        ${KIND[r.kind].caveat}<br>${r.shares}</div>
+    </div>
+    <div class="grp-act">
+      <button class="btn" onclick="openDialog('${r.cidr}','${g.handle}','${g.holder}','${r.kind}',${r.addr},1)">Confirm</button>
+      <button class="btn ghost">Decline</button>
+      <button class="btn ghost">Skip</button>
+      <span class="note">${allScopes(f) > 10
+        ? `<b>${n(allScopes(f) - 1)} more to go.</b> The modal cloud install would decline every one of them.`
+        : `Fine here. Not fine at 177.`}</span>
+    </div>
+  </div>`;
+};
+
+/* ── D — CHOSEN. ───────────────────────────────────────────────────────
+   Grouped by holder, because that is the unit the operator judges: the
+   AWS case is not 177 decisions, it is one recognition. The group header
+   carries the holder, the record kind and the address total before any
+   row is read. Confirm is per-scope and its label carries the count of
+   addresses it opens the gate on. Decline is a group act. The two are
+   deliberately different shapes. */
+V.D = (f) => {
+  if (!f.groups.length) return emptyResult(f);
+  return f.groups.map(g => `
+  <div class="card ${g.alarming ? "ink" : ""}">
+    <div class="grp-h">
+      <div class="who">
+        <span class="ml">Registered holder</span>
+        <div class="h">${g.holder}</div>
+        <div class="hh">${g.handle}${g.upstream ? ` · reassigned by ${g.upstream}` : ``}</div>
+        <div style="margin-top:var(--space-3)"><span class="tag ${g.kind === "reassignment" ? "warn" : "ink"}">${KIND[g.kind].label}</span></div>
+        <div class="muted" style="font-size:var(--text-sm);margin-top:var(--space-2);max-width:44ch;line-height:var(--leading-snug)">
+          ${KIND[g.kind].caveat}</div>
+      </div>
+      <div class="sp"></div>
+      <div class="fig">
+        <div class="v ${g.alarming ? "big" : ""}">${n(g.addresses)}</div>
+        <div class="ml k">addresses</div>
+      </div>
+      <div class="fig">
+        <div class="v">${n(g.scopes)}</div>
+        <div class="ml k">scopes</div>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr>
+        <th class="m">Scope</th><th class="num">Addresses</th><th>What else is on this record</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${g.rows.map(r => `<tr>
+          <td class="m" style="font-weight:var(--weight-semibold)">${r.cidr}
+            ${r.prior ? `<span class="rowsub"><span class="tag gone">new record</span>
+              You declined <span class="mono">${r.prior.cidr}</span> on
+              <span class="mono">${r.prior.when}</span>. This is a different record under the
+              same name, not that one changed.</span>` : ``}</td>
+          <td class="num">${n(r.addr)}</td>
+          <td class="muted" style="font-size:var(--text-sm)">${r.shares}</td>
+          <td class="act">
+            <button class="btn sm" onclick="openDialog('${r.cidr}','${g.handle}','${g.holder}','${r.kind}',${r.addr},1)">
+              Confirm <span class="n">${n(r.addr)}</span> addresses</button></td></tr>`).join("")}
+        ${g.more ? `<tr><td colspan="4" class="muted" style="text-align:center;padding:var(--space-4)">
+          <b class="mono">${n(g.more)}</b> more scopes under ${g.handle}.
+          <a href="#">Show all</a></td></tr>` : ``}
+      </tbody>
+    </table>
+
+    <div class="grp-act">
+      <button class="btn ghost">Decline all <span class="n">${n(g.scopes)}</span>
+        ${g.scopes === 1 ? "scope" : "scopes"}</button>
+      <span class="note">
+        ${g.alarming
+          ? `Declining is one act over the whole holder. Confirming is one act per scope, because
+             the two fail in opposite directions: a wrong decline costs coverage, a wrong confirm
+             opens the probing gate.`
+          : `Declining records that these are not yours, so they are not offered again. It is a
+             boundary claim, not a dismissal, and it is reversible on this screen.`}
+      </span>
+    </div>
+  </div>`).join("");
+};
+
+function allRows(f) { return f.groups.flatMap(g => g.rows); }
+function allScopes(f) { return f.groups.reduce((a,g) => a + g.scopes, 0); }
+
+/* what an empty result looks like — the whole point of `nothing` vs `blind`
+   is that this block reads completely differently between them, and it is
+   the `answers` card above that carries the difference. */
+function emptyResult(f) {
+  const blind = f.answers.filter(p => p.state === "blind").length;
+  return `
+  <div class="card">
+    <div class="pad" style="text-align:center;padding:var(--space-12) var(--space-4)">
+      <div class="ml">No scopes proposed</div>
+      <div style="margin-top:var(--space-3);font-size:var(--text-md);max-width:70ch;margin-left:auto;margin-right:auto;line-height:var(--leading-body)">
+        ${blind
+          ? `Nothing was proposed, and <b>${n(blind)} of ${n(f.answers.length)}</b> registries could not
+             be searched. Read this as unknown rather than as an empty estate — the panel above says
+             which, and why.`
+          : `Nothing was proposed. Every registry that could be searched was searched, and holds
+             nothing else under this name.`}
+      </div>
+      <div style="margin-top:var(--space-4)">
+        <button class="btn ghost sm">Declare a scope by hand</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── the declined ledger ────────────────────────────────────────────────
+   A decline is a `Seed` exclusion (ADR-0012, ADR-0006) — durable, dated,
+   and a claim about where the estate ends. So it is listed rather than
+   forgotten, and the surface states which declines are load-bearing:
+   one that carves a confirmed scope closes the probing gate on live
+   addresses, one over space no Seed covers changes nothing at all. */
+function declinedLedger() {
+  return `
+  <div class="card">
+    <div class="card-h"><h2>Declined scopes</h2>
+      <span class="sp"></span><span class="ml">${n(DECLINED.length)} exclusions</span></div>
+    <div class="pad" style="border-bottom:var(--rule);font-size:var(--text-sm);color:var(--text-muted);line-height:var(--leading-body)">
+      Declining says a scope is not yours. It is recorded on the Seed the search ran from, so it
+      is not offered again, and it can be undone here. Undoing returns the scope to the proposals
+      above — it never confirms it.
+    </div>
+    <table>
+      <thead><tr><th class="m">Scope</th><th>On Seed</th><th class="m">Declined</th>
+        <th>What it did</th><th></th></tr></thead>
+      <tbody>
+        ${DECLINED.map(d => `<tr>
+          <td class="m ${d.loadBearing ? "decl-load" : "decl-inert"}" style="font-weight:var(--weight-semibold);padding-left:13px">
+            ${d.cidr}
+            <span class="rowsub"><span class="mono">${n(d.addr)}</span> addresses ·
+              ${d.holder}${d.bulk > 1 ? ` · declined as one act` : ``}</span></td>
+          <td class="m">${d.seed}</td>
+          <td class="m">${d.when}</td>
+          <td class="muted" style="font-size:var(--text-sm);max-width:44ch">
+            ${d.loadBearing ? `<span class="tag ink" style="margin-right:6px">closed the gate</span>` : ``}${d.effect}</td>
+          <td class="act"><button class="btn ghost sm">Undo</button></td></tr>`).join("")}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE CONFIRM DIALOG
+   The only place in the product where the probing gate is opened on space
+   the operator did not type by hand. It states the consequence in the
+   operator's terms, and repeats the count in the button, because the
+   button is the one thing they cannot skip reading. There is no threshold
+   and no size cap — #27 refused both — and no typed confirmation, which
+   is a threshold wearing a keyboard.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function openDialog(cidr, handle, holder, kind, addr, scopes) {
+  const many = scopes > 1;
+  document.getElementById("modal").innerHTML = `
+  <div class="scrim" onclick="if(event.target===this)closeDialog()">
+    <div class="dlg">
+      <div class="h"><h3>Confirm ${many ? n(scopes) + " scopes" : "this scope"}</h3>
+        <span class="sp"></span><span class="ml">opens the probing gate</span></div>
+      <div class="b">
+        <dl>
+          <dt>Scope</dt><dd>${many ? n(scopes) + " scopes under " + handle : cidr}</dd>
+          <dt>Addresses</dt><dd style="font-weight:var(--weight-semibold)">${n(addr)}</dd>
+          <dt>Record</dt><dd class="sans">${KIND[kind].label} — ${holder} <span class="mono">${handle}</span></dd>
+        </dl>
+        <div class="conseq">
+          Confirming writes a Seed. <b class="mono">${n(addr)}</b> addresses come under your
+          <b>Custody</b> and are probed from the next batch. Services first seen there are
+          recorded as <b>revealed</b> rather than appeared, and one message is sent for the
+          widening rather than one per service.
+          <div style="margin-top:var(--space-3);color:var(--text-muted)">
+            ${KIND[kind].caveat}
+          </div>
+        </div>
+        ${many ? `<div style="margin-top:var(--space-4);color:var(--danger)">
+          This dialog only exists in variant A. Confirming ${n(scopes)} scopes in one gesture is
+          what the chosen variant refuses.</div>` : ``}
+      </div>
+      <div class="f">
+        <button class="btn" onclick="closeDialog()">Confirm <span class="n">${n(addr)}</span> addresses</button>
+        <button class="btn ghost" onclick="closeDialog()">Cancel</button>
+        <span class="sp"></span>
+        <span class="muted" style="font-size:var(--text-sm)">Reversible: remove the Seed on this screen.</span>
+      </div>
+    </div>
+  </div>`;
+}
+function closeDialog() { document.getElementById("modal").innerHTML = ""; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PAGE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const HEAD = {
+  single:   ["One scope proposed", "The modal registry holder. 79.1% of ASN-less holders hold exactly one IPv4 block, and 97.5% hold ten or fewer, which is the whole argument that a confirm-all affordance is not needed."],
+  cloud:    ["177 scopes proposed", "#27's forcing measurement. One address-scope Seed inside AWS shares its delegated-stats opaque-id with 177 resources totalling 76,046,336 addresses, against a median ARIN holder of 512. ADR-0013 makes declining all of it the expected act for the majority of installs."],
+  swip:     ["Three scopes proposed", "#39's PA-renter path. Two of these are customer objects compelled to a /29 by ARIN policy, with a name string typed by the upstream provider rather than by the registry — which is why a Proposal records which kind of record produced it."],
+  nothing:  ["Nothing proposed", "A load-bearing zero. The registry answered, and the answer was that you hold nothing else under this name."],
+  blind:    ["Nothing proposed", "The dangerous case. Three of four instruments failed silently with an HTTP 200, and nothing downstream will ever notice — Custody never reads a Proposal, so the distinction survives on this screen or nowhere."],
+  declined: ["One scope proposed", "The durable side of the decline path. A decline is a Seed exclusion and therefore a boundary claim, so it is listed, dated and reversible — and the ledger says which declines were load-bearing."],
+  reoffer:  ["One scope proposed", "The upstream re-SWIPed a different range under the same name. A Proposal is Declared and has no timeline, so this is a new Proposal rather than an existing one changed, and the wording says so."]
+};
+
+function page(variant, fill) {
+  const f = FILLS[fill];
+  const [h, s] = HEAD[fill];
+  const isSearch = f.origin[0].startsWith("Searched");
+  return `
+    <h1 class="page">Seeds</h1>
+    <div class="sub">Where your estate ends. Scopes you declared, scopes proposed to you, and
+      scopes you have declared are not yours.</div>
+
+    ${seedList()}
+    ${extensionSeat()}
+    ${isSearch ? orgBox(fill) : ``}
+    ${answers(f.answers)}
+
+    <div class="origin">
+      ${f.origin[0]} <b>${f.origin[1]}</b> · <span>2026-08-13 09:14 UTC</span>
+      · nothing here is in the estate until you confirm it
+    </div>
+    <div style="height:var(--space-3)"></div>
+
+    <h2 style="margin:0 0 var(--space-1);font-size:var(--text-lg);font-weight:var(--weight-semibold)">${h}</h2>
+    <div class="sub" style="margin-bottom:var(--space-4)">${s}</div>
+
+    ${f.edge ? edgeNote() : ``}
+    ${V[variant](f)}
+    ${f.showDeclined ? declinedLedger() : ``}
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SWITCHER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const VARIANTS = ["A","B","C","D"];
+const FILLKEYS = ["single","cloud","swip","nothing","blind","declined","reoffer"];
+const VNAME = { A:"inbox — drawn to lose", B:"symmetric ledger", C:"one at a time",
+                D:"CHOSEN — grouped by holder, confirm per scope, decline per group" };
+
+function params() {
+  const p = new URLSearchParams(location.search);
+  const g = (k, list, d) => { const v = p.get(k); return list.includes(v) ? v : d; };
+  return { variant: g("variant", VARIANTS, "D"), fill: g("fill", FILLKEYS, "cloud") };
+}
+function go(next) {
+  const s = { ...params(), ...next };
+  history.replaceState(null, "", "?" + new URLSearchParams(s).toString());
+  closeDialog(); render();
+}
+function render() {
+  const { variant, fill } = params();
+  document.getElementById("app").innerHTML = chrome(page(variant, fill));
+  buildSwitch({ variant, fill });
+}
+function buildSwitch(cur) {
+  const sets = { variant: VARIANTS, fill: FILLKEYS };
+  document.querySelectorAll("#switch .grp").forEach(g => {
+    const key = g.dataset.key;
+    g.querySelectorAll("button").forEach(b => b.remove());
+    sets[key].forEach(v => {
+      const b = document.createElement("button");
+      b.textContent = v;
+      b.title = key === "variant" ? VNAME[v] : v;
+      if (v === cur[key]) b.classList.add("on");
+      b.onclick = () => go({ [key]: v });
+      g.appendChild(b);
+    });
+  });
+}
+document.addEventListener("keydown", (e) => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.isContentEditable)) return;
+  const c = params();
+  if (e.key === "Escape") closeDialog();
+  if (e.key === "ArrowRight") go({ fill: FILLKEYS[(FILLKEYS.indexOf(c.fill)+1) % FILLKEYS.length] });
+  if (e.key === "ArrowLeft")  go({ fill: FILLKEYS[(FILLKEYS.indexOf(c.fill)+FILLKEYS.length-1) % FILLKEYS.length] });
+  if (e.key === "ArrowUp" || e.key === "ArrowDown")
+    go({ variant: VARIANTS[(VARIANTS.indexOf(c.variant)+1) % VARIANTS.length] });
+});
+render();
+</script>
+</body>
+</html>
