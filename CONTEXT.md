@@ -298,10 +298,16 @@ everything not covered is `third-party`, which is the closed direction. It is th
 value whose change carries a safety consequence, so it holds a `Span` timeline. Alone among
 Derived values its inputs are **not** all Declared — a `custody extension` makes it a function
 of measured resolutions, so it moves when the world moves and not only when the operator does.
-Its two causes part cleanly: the operator withdrawing an extension closes the gate and opens a
-`Gap` beneath addresses that are still cited, while a resolution ceasing to cite an address
-withdraws the `Address` itself, which takes its timelines with it and leaves no `Gap` behind.
-Opening the gate reveals services that are `revealed`, never `appeared`.
+Its two causes part cleanly: the operator withdrawing an extension closes the gate beneath
+addresses that are still cited, while a resolution ceasing to cite an address withdraws the
+`Address` itself, which takes its timelines with it and leaves no `Gap` behind. Closing the
+gate does **not** open a `Gap` directly — it stops feeding those timelines, and the last value
+ages out under the currency bound, so a toggle inside one cadence is a non-event rather than a
+`value → Gap → value` burst. The aged value is not a stale attribution, because this timeline
+is current from the instant of the toggle and reads `third-party` beside it. Opening the gate
+produces both a `revealed` opening on addresses never probed before and a closing `Gap` on
+addresses that were. See
+[ADR-0014](./docs/adr/0014-only-revealed-generalises.md).
 _Avoid_: ownership, owned, in scope, authorized, mine
 
 **Availability**:
@@ -366,9 +372,17 @@ _Avoid_: interval, state, record, period, snapshot
 
 **Transition**:
 The adjacency between two consecutive `Span`s on one timeline. Derived on read, never stored
-— storing it alongside the spans would be a second representation of one fact. Membership
-transitions distinguish three ways in: `appeared` (discovery), `returned` (a decommission
-undone), and `revealed` (a widened aperture — *we* started looking, the world did not move).
+— storing it alongside the spans would be a second representation of one fact. Three ways in
+are named, and they do not all live in the same place: `appeared` (discovery) and `returned`
+(a decommission undone) are **membership only**, because they describe a subject, while
+`revealed` (a widened aperture — *we* started looking, the world did not move) belongs to
+**any** timeline, because membership is a property of a subject and aperture is a property of
+looking, which is per-timeline. An opening caused by neither is recorded, unnamed and
+unalerted — a `certificate` timeline opens days after its `Service` did because TLS sits on
+the weekly tier, and nothing about the world or our aperture moved. A `Gap` closing is none of
+these: it is an ordinary adjacency, and always an observer event, since a `Gap` exists only
+where we could not say. See
+[ADR-0014](./docs/adr/0014-only-revealed-generalises.md).
 _Avoid_: change, event, diff, delta
 
 **Break**:
@@ -387,7 +401,15 @@ _Avoid_: seam (reserved for architectural boundaries), fault, discontinuity, ver
 A `Span` holding no value — the period over which we could not say. Opened by a dead-lettered
 `Batch`'s empty scope, by a `Vantage` becoming `unavailable`, by evidence absent where a
 `Signal` would be `not-evaluable`, and by an observation ageing past its currency bound. A gap
-never withdraws a subject: ceasing to measure is not measuring absence.
+never withdraws a subject: ceasing to measure is not measuring absence. It **records its
+cause**, which is what makes a fourth opening kind unnecessary: a value arriving after a gap
+is accounted for by the gap sitting before it. Distinct from a timeline that never existed —
+a batch whose recorded scope excludes a thing does not touch its timeline at all, so there is
+no span to hold. Nothing is compared across a gap and no `Transition` crosses one, but the
+values on either side **may be shown together, labelled as undatable**: unlike a `Break`, both
+are the same kind of thing under one derivation, and what is missing is *when* it moved, not
+the licence to compare. See
+[ADR-0014](./docs/adr/0014-only-revealed-generalises.md).
 _Avoid_: outage, downtime, missing, unknown, stale
 
 **Drift**:
