@@ -277,7 +277,9 @@ One source, executed once, against one scope, from one vantage — recording the
 silence covers. The unit of like-against-like comparison. The recorded scope is what the
 batch **completed**, never what it attempted, so a batch that failed outright covers
 nothing and licenses no absence. It may be partitioned along any dimension its source
-still retains completeness over, and no further.
+still retains completeness over, and no further. It also records the **`Derivation` leaf versions
+of the measurement procedures it ran**, since a prober leaf's content is fixed when the measurement
+happens and not when the fold reads it.
 _Avoid_: run, scan run, execution, sweep
 
 **Citation**:
@@ -366,14 +368,23 @@ a rule to make it fire less often is the model-layer damping `Drift` refuses. Se
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
 
 **Derivation**:
-The named, versioned procedure that produced a Derived value. Its version moves on an
+The named, versioned procedure that produced a Derived value — or, inside the measurement
+binary, that **decided** an observed value rather than reporting it. Something is a derivation
+exactly where **its output can move while the world does not**, which is why five decision
+procedures inside the one binary are named leaves (`connect-outcome`, `tls-handshake`,
+`http-exchange`, `resolution-walk`, `wildcard-discrimination`) while the binary itself is not:
+a leaf is named for what it decides, never for the artefact that ships it. Its version moves on an
 **output-affecting change** and never because a release shipped — enforced by a golden corpus
 in CI rather than by discipline, since neither a hash of the code (bumps on a refactor) nor a
-hash of the parameters (silent on a behavioural fix) tracks what we care about. A `Span`
+hash of the parameters (silent on a behavioural fix) tracks what we care about. The gate runs
+**both ways**: a version may move only where a corpus row's output moved, a declared parameter
+changed, or an uncovered move was recorded — so a version that moves for nothing fails the build
+as loudly as an output that moves for free. A `Span`
 carries the **vector** of derivation versions it was produced under: one leaf per named
 derivation, flattened across everything that derivation reads, with parameters held inside
 their own leaf rather than beside it. Comparison is legal exactly where two vectors are equal.
-See [ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md).
+See [ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md) and
+[ADR-0021](./docs/adr/0021-a-version-leaf-is-a-decision-not-a-binary.md).
 _Avoid_: rule version, schema version, algorithm
 
 **Span**:
