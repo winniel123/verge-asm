@@ -39,6 +39,10 @@ boundary can be drawn inwards too: a seed carries **exclusions**, exact names or
 the operator declares are not theirs. Excluding a name that still resolves is legal —
 *not mine* is a different claim from *not there* — and an excluded name is no longer
 queried. See [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md).
+Registry lookups **propose** seeds and never author them: a proposal the operator has not
+confirmed is not a `Seed`, asserts nothing, and is read by nothing. That is what keeps a
+third party's file out of the probing gate — see
+[ADR-0002](./docs/adr/0002-ownership-gates-probing.md).
 _Avoid_: target, root domain, scope target
 
 **Source**:
@@ -173,12 +177,15 @@ _Avoid_: provenance chain, lineage, discovery path
 ### Derived
 
 **Ownership**:
-Whether an `Address` is `owned`, `third-party`, or `unknown`, computed against seeds and
-registry data. Governs what may be probed, not merely how it is displayed — see
+Whether an `Address` is `owned`, `third-party`, or `unknown`, computed against `Seed`s
+**alone**. Registry data proposes seeds to the operator; it is never read by the
+derivation, so no third party's file can open the probing gate. Governs what may be
+probed, not merely how it is displayed — see
 [ADR-0002](./docs/adr/0002-ownership-gates-probing.md). It is the one Derived value whose
 change carries a safety consequence, so it holds a `Span` timeline: closing the gate opens a
 `Gap` beneath the address rather than withdrawing anything, and opening it reveals services
-that are `revealed`, never `appeared`.
+that are `revealed`, never `appeared`. Derived from Declared input only — its inputs never
+drift, so it moves exactly when the operator moves it.
 _Avoid_: in scope, authorized, mine
 
 **Availability**:
