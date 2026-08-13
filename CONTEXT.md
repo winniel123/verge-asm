@@ -38,8 +38,11 @@ domain) or an *address scope* (a CIDR). It declares a boundary, not a starting p
 boundary can be drawn inwards too: a seed carries **exclusions** — exact names, subtrees, or
 address scopes the operator declares are not theirs. Excluding a name that still resolves is legal —
 *not mine* is a different claim from *not there* — and an excluded name is no longer
-queried. Declining a `Proposal` is an exclusion of this kind rather than a suppression, since
-it is a claim about where the estate ends. See
+queried. Registry lookups **propose** seeds and never author them: a `Proposal` the operator
+has not confirmed is not a `Seed`, asserts nothing, and is read by nothing, which is what
+keeps a third party's file out of the probing gate. Declining one is an exclusion of this kind
+rather than a suppression, since it is a claim about where the estate ends. See
+[ADR-0002](./docs/adr/0002-ownership-gates-probing.md),
 [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md) and
 [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
 _Avoid_: target, root domain, scope target
@@ -258,15 +261,15 @@ _Avoid_: provenance chain, lineage, discovery path
 
 **Ownership**:
 Whether an `Address` is `owned`, `third-party`, or `unknown`, computed against `Seed`s
-**alone** — registry data proposes scopes for the operator to confirm and feeds this
-derivation nothing, so no third party's file can open the gate. Governs what may be probed,
-not merely how it is displayed — see
-[ADR-0002](./docs/adr/0002-ownership-gates-probing.md) as amended by
-[#27](https://github.com/winniel123/verge-asm/issues/27), and
+**alone**. Registry data proposes seeds to the operator; it is never read by the
+derivation, so no third party's file can open the probing gate. Governs what may be
+probed, not merely how it is displayed — see
+[ADR-0002](./docs/adr/0002-ownership-gates-probing.md) and
 [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md). It is the one Derived value whose
 change carries a safety consequence, so it holds a `Span` timeline: closing the gate opens a
 `Gap` beneath the address rather than withdrawing anything, and opening it reveals services
-that are `revealed`, never `appeared`.
+that are `revealed`, never `appeared`. Derived from Declared input only — its inputs never
+drift, so it moves exactly when the operator moves it.
 _Avoid_: in scope, authorized, mine
 
 **Availability**:

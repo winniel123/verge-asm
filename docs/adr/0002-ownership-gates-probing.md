@@ -39,6 +39,33 @@ expansion of their organisation's ranges. That machinery is already required —
 [#14](https://github.com/winniel123/verge-asm/issues/14) computes exactly this to verify
 that a vantage sits outside every operator-owned range.
 
+> **Amended 2026-08-13 by [#27](https://github.com/winniel123/verge-asm/issues/27) — the
+> registry half of that sentence is withdrawn.** `Ownership` is computed from **`Seed`s
+> alone**. Registry expansion does not feed the derivation; it *proposes* address scopes
+> that the operator confirms into `Seed`s, and an unconfirmed proposal is read by nothing.
+>
+> The measurement that forced it: the RIR delegated-stats opaque-id groups every held
+> prefix by resource holder, and one address-scope seed inside AWS shares its opaque-id
+> with **177 resources totalling 76,046,336 IPv4 addresses**. Under the original sentence
+> that expansion derives `owned` and this ADR's gate opens on all of it — 96 ARIN holders
+> exceed a million addresses, against a median holder of 512. Since
+> [#26](https://github.com/winniel123/verge-asm/issues/26) established the cloud-resident
+> operator as the *modal* case, that is the common path and not an edge.
+>
+> A size cap and a hyperscaler exclusion list were both rejected: the first is an invented
+> threshold sitting inside the safety path, the second is a signature database wearing a
+> different hat, which [#31](https://github.com/winniel123/verge-asm/issues/31) drew a line
+> against. Operator confirmation was already this ADR's escape hatch — *"the fix is the
+> operator declaring an address scope, which is a `Seed`, so the mechanism already
+> exists"* — and this uses it in the widening direction rather than only the correcting one.
+>
+> **The safety property gets stronger, not weaker.** With registry data out of the
+> derivation, no third party's file can open the gate, and a stale table can no longer
+> silently change what we probe. The cost is that address space the operator acquires and
+> never declares stays `unknown` and is picked up more slowly; it surfaces on
+> [#22](https://github.com/winniel123/verge-asm/issues/22)'s `Coverage` rather than
+> vanishing.
+
 `unknown` failing closed is the whole point. An address we cannot classify is an address
 whose owner we have not identified, which is the case where scanning is least defensible.
 
@@ -59,11 +86,18 @@ whose owner we have not identified, which is the case where scanning is least de
 - **Classification needs an operator escape hatch.** Addresses will be misclassified, and
   the fix is the operator declaring an address scope — which is a `Seed`, so the
   mechanism already exists.
+- **RDAP accuracy is no longer a safety property** *(amended by
+  [#27](https://github.com/winniel123/verge-asm/issues/27))*. It was, while expansion fed
+  the derivation; now a wrong expansion produces a wrong *proposal*, which the operator
+  declines. Accuracy governs how much typing onboarding saves, not what gets probed. The
+  registry files' own caveat — that they record where a range was *allocated*, not who
+  uses it now — is thereby survivable rather than load-bearing.
 
 ## Alternatives rejected
 
 | Alternative | Why not |
 | --- | --- |
 | Ownership as a label only; scan everything discovered | Wider surface map, but it scans hosts the operator cannot consent for, and ships that behaviour as the default to every self-hosted deployment |
-| Ask the operator to confirm each discovered address before probing | Consent machinery the map explicitly scoped out, and it makes discovery a foreground task |
+| Ask the operator to confirm each discovered address before probing | Consent machinery the map explicitly scoped out, and it makes discovery a foreground task. **Still rejected after [#27](https://github.com/winniel123/verge-asm/issues/27)**, which is a different act and must not be read as reversing this row: #27 confirms a *proposed address scope* once, at onboarding, producing a `Seed` — an authoring step the operator already performs — whereas this row confirms *every discovered address*, forever, inside the discovery loop. One is a boundary declaration; the other is a per-subject approval queue |
+| Cap the expansion by group size, or exclude known hyperscaler holders | Considered and rejected in [#27](https://github.com/winniel123/verge-asm/issues/27). A cap is an invented threshold inside the safety path — the model refuses those everywhere else — and it fails silently in both directions: too low and a genuine /16 holder is denied, too high and a mid-sized provider's tenants are scanned. An exclusion list is reference data deciding what an answer *means*, which is [#31](https://github.com/winniel123/verge-asm/issues/31)'s signature-database line, and it would need updating out of band forever |
 | Probe `third-party` addresses at a gentler rate | Rate is not the objection — authority is. A slow scan of a stranger's host is still a scan of a stranger's host |
