@@ -261,3 +261,64 @@ the project.
   header that *clearly* bars us is not an ambiguity, and no toggle cures a plain no — so
   whether APNIC's bulk file may be indexed still turns on the clear-or-ambiguous fork that
   ticket owns.
+
+## Third amendment — 2026-08-13
+
+Two closed tickets landed against this ADR in the same cadence and neither edited it, to
+avoid colliding with the other. Both corrections are recorded here.
+
+### The clear-or-ambiguous fork has a third position
+
+[#46](https://github.com/winniel123/verge-asm/issues/46) resolved the question the second
+amendment's last bullet left open, and in doing so **withdrew that bullet's framing**.
+*"A header that clearly bars us is not an ambiguity, and no toggle cures a plain no"*
+treats *clear* and *barring* as one thing. They are separable, and APNIC's bulk-file header
+is the case that separates them: it is **clear and conditionally permitting** — a plain
+prohibition with a plain carve-out (*"Except for **agreed** Internet operational purposes"*)
+and a **published mechanism** for reaching it, since
+&lt;https://www.apnic.net/manage-ip/using-whois/bulk-access/&gt;, which reproduces the header
+verbatim, says *"Requestors must sign the AUP agreement and lodge it with APNIC."*
+
+So the ask-don't-read corollary is not triggered, [#27](https://github.com/winniel123/verge-asm/issues/27)'s
+*clear text is not ambiguity* governs, and **nothing was sent** — the AUP is signed by the
+party holding the data, so the project cannot be the requestor at all. Before reaching for
+the corollary, look for the mechanism and ask **whose** act it is.
+
+The full instrument is recorded separately as
+[ADR-0018](./0018-a-clear-conditional-is-not-an-ambiguity.md), which is deliberately a new
+ADR rather than a fourth amendment here: it states a general test about reading terms, not
+a correction to this bar. It also broadens `operator-credentialed` — a **grant the source
+actually made to that operator** (an API key or a countersigned agreement alike) as against
+`operator-accepted`'s **reading the operator makes and bears** — and establishes that
+`consent` keys on the **instrument**, never on the registry behind it, so one registry may
+hold two values. The second amendment's table row for APNIC is therefore true of the
+**live** path and does not govern the **bulk** one.
+
+### Enabling these five widens no aperture
+
+[#47](https://github.com/winniel123/verge-asm/issues/47) **withdraws** the second
+amendment's Consequences bullet reading *"The aperture rule is untouched. Enabling any of
+these still widens the aperture for that install… For RIPE and LACNIC it is a zero→full
+widening, the largest the product can make."*
+
+All five registry paths *propose*; none produces an observation.
+[ADR-0012](./0012-a-proposer-is-not-a-source.md) states that nothing about a proposer widens
+an aperture, and [#43](https://github.com/winniel123/verge-asm/issues/43) prices a
+proposer's addition or removal at *no `revealed`, no `Break`, no version bump* — the only
+class of third-party dependency in this project of which that is true. The withdrawn
+sentence was written while these paths were still called `Source`s and **survived the
+rename by three tickets**, which is the hazard worth carrying: a decision that renames what
+a thing *is* should grep the closed tickets for claims about what it *does*.
+
+What is true of RIPE and LACNIC is a **capability** statement, not an aperture one: without
+the toggle there is no org→prefix path in those regions at all. The enablement prompt states
+it that way and states the negative in terms — nothing enters the estate, a proposal is read
+by nothing until confirmed, no timeline moves. The aperture act is confirming a `Proposal`
+into a `Seed`, which is where ADR-0012 put it and where
+[ADR-0022](./0022-confirmation-is-singular.md) now draws it.
+
+The rule the withdrawn sentence generalised from is **unchanged**: enabling a genuine
+`Source` widens the aperture, and a subject first observed under a widened aperture is not
+*appeared*. It simply does not reach these five. The claim returns the moment any of these
+paths feeds an observation rather than a proposal — RIPEstat's BGP leg is the live
+candidate.
