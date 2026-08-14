@@ -33,7 +33,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -147,6 +147,26 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > **distributor** that installs one gains operativeness and not ownership, so its packaging
 > corroborates under §2.3 and is **never sole grounds for a row**. Read §12 before applying this
 > section to a configuration file.
+
+> **Amended by §13** ([#70](https://github.com/winniel123/verge-asm/issues/70)). **The footing table
+> above has now been re-derived from the shipped configuration bytes of every row that has any, and
+> every surviving cell is confirmed.** No footing moves and no `(port, transport)` pair moves. The
+> prohibition tier is `6379`, `11211`, `3306`, `1433`, `9200`, `873`, `445`, `623` and `9042`; the
+> scoping tier is `27017`/`27018`/`27019`, `2049`, `2181`, `25672` and `2376`; **the weak tier is
+> `5432` and `5984`**. Two rows strengthen inside their tier — rsync's shipped `rsyncd.conf.5` puts the
+> supported public listener on **874** with `873` on loopback behind it, and `nfs(5)` says *"NFS was
+> developed to allow file sharing between systems residing on a local area network"* — and three
+> (`27017`/`27018`/`27019`, `5432`, `5984`) have their footing re-founded on the owner's bytes rather
+> than on a documentation page. **[measured]** Across fourteen artefacts from twelve projects, **no
+> shipped configuration file names the public internet as a supported deployment environment**, so
+> §10.3's failure condition is not met anywhere; three near-misses are examined and refused in §13.3.
+>
+> **Two things this table does not yet say, both routed rather than fixed here.** It places **19 of the
+> 37 pairs**, and seven listed rows in its own subject matter have no cell —
+> [#76](https://github.com/winniel123/verge-asm/issues/76), §13.7; the `2379`/`2380` etcd pair may
+> belong in the weak tier, which would make it four rows rather than two. And **`1433`, `445` and `623`
+> have no shipped configuration artefact at all**, so §13 adds no evidence about them in either
+> direction. Read §13.9 before quoting this table as measured.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -2532,6 +2552,13 @@ it is, in its own bytes, and the two categories never blur:
 | Cassandra `conf/cassandra.yaml` | no template disclaimer anywhere; `listen_address: localhost` and `rpc_address: localhost` both active | **Operative** |
 | Debian `debian/memcached.conf` | *"memcached default config file … This configuration file is read by the start-memcached script provided as part of the Debian GNU/Linux distribution."*, `-l 127.0.0.1` active | **Operative (distributor's)** |
 
+> **Amended by §13.6** ([#70](https://github.com/winniel123/verge-asm/issues/70)). **Ten artefacts,
+> nine self-declarations.** **[measured]** etcd's `etcd.conf.yml.sample` opens *"This is the
+> configuration file for the etcd server."* — an operative self-description on a `.sample` file nothing
+> installs. Limb (a)'s second sentence resolves it and the outcome is unchanged, but *nine for nine* is
+> a sample rather than a law, exactly as §12.8 anticipated. The `.sample` **suffix** is not a
+> self-declaration either — that is surface syntax arriving through the filename.
+
 **Nine for nine.** The distinction limb (a) turns on is not a judgement about deployment reality; it
 is a sentence in the artefact, retrievable by the same method §9.5 and §11.9 already require. That is
 what makes §12 a test read off the document rather than the counterfactual §10.1 deleted.
@@ -2723,6 +2750,14 @@ if that is also silent the artefact is simply silent. That is the safe direction
 this measurement is not. What is established is that the sentence is in the current shipped bytes,
 which is precisely what §2.2's footing table asserts the absence of.
 
+> **Discharged by §13** ([#70](https://github.com/winniel123/verge-asm/issues/70)). The sentence is
+> confirmed at `cassandra-5.0.2`, `cassandra-5.0.6` and `cassandra-5.0.9`. §13 also found it appears
+> **four times rather than twice** in each of them — the two occurrences §12.7 did not record name
+> `7000` and `7001`, neither of which is on the list ([#75](https://github.com/winniel123/verge-asm/issues/75),
+> §13.5). That is not a defect in this section's ruling; it is a defect in the **extent** of its
+> retrieval, and it is the measurement behind
+> [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md).
+
 ### 12.9 Retrieval method and hazards, recorded per §9.5
 
 **Every default quoted in §12 was read from shipped bytes, never from a rendered documentation page.**
@@ -2745,10 +2780,344 @@ remaining upstream files were fetched as raw bytes at release tags: `postgres/po
   configuration file, and it took reading the bytes to find it. This is the general hazard rather than
   a fact about Cassandra, and it is routed to [#70](https://github.com/winniel123/verge-asm/issues/70)
   rather than fixed by inspection here: the footing table is a published claim about **nine other
-  rows** whose shipped configuration bytes have never been read.
+  rows** whose shipped configuration bytes have never been read. **Discharged by §13** — they have now
+  been read, every cell held, and the hazard recurred one level in: the two ports in §13.5 were in a
+  file this ticket *had* opened.
 - **PostgreSQL was checked three ways because its footing is the note's weakest row** — the sample
   file, the sample file's own statement about what a commented line means, and the compiled-in default
   in `guc_tables.c`. All three agree on `localhost`.
+
+## 13. The footing table re-derived from shipped configuration bytes
+
+Wayfinder ticket [#70](https://github.com/winniel123/verge-asm/issues/70), on the defect §12.9 recorded
+and routed rather than fixed: §2.2's footing table was built from the projects' **web documentation**,
+one file's bytes falsified one of its cells, and the other rows were assessed the same way. This
+section **amends §2.2, §12.2 and §12.8 by reference**; earlier text stands and is marked, per the
+name-and-withdraw convention, and where §13 and an earlier section disagree, **§13 governs**.
+
+**Headline result, stated first.**
+
+> **The footing table is right, and it is now right for a better reason.** Every row in it was
+> re-derived from the owner's shipped configuration artefact, retrieved as bytes and with its path
+> resolved from the repository tree. **No footing moves. No `(port, transport)` pair moves. The list
+> stays at 37 pairs and the weak tier stays at two rows — 5432 PostgreSQL and 5984 CouchDB.**
+>
+> **Claim 3's failure condition was tested and is not met anywhere.** §10.3 fails a Class C row where
+> *"the owner names the public internet as a supported deployment environment"*, and §12 makes a
+> configuration file's prose an owner statement, so a config file is a place that sentence could live.
+> **[measured]** Across fourteen artefacts from twelve projects, no shipped configuration file carries
+> such a sentence. Three near-misses were examined at length and all three were refused on the rule
+> rather than on taste (§13.3).
+>
+> **Two things fall out that a row-scoped read could not have found**, and both are routed rather than
+> decided. Cassandra's prohibition names **`7000` and `7001` as well as `9042`** — two ports that are
+> not on the list ([#75](https://github.com/winniel123/verge-asm/issues/75), §13.5). And the footing
+> table places **19 of the 37 pairs**, with seven listed rows in its own subject matter having no cell
+> at all ([#76](https://github.com/winniel123/verge-asm/issues/76), §13.7). The instrument behind both
+> is [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md): **an
+> attestation is retrieved over the artefact, not over the row.**
+
+### 13.1 What was retrieved
+
+Fourteen artefacts, from twelve projects, plus the four §12 had already read. Every path was resolved
+from the project's own repository tree or release tarball listing, never guessed — §12.9's CouchDB
+`default.ini.tpl` hazard is why, and it was met again in a smaller form (§13.10).
+
+| Project | Artefact, at the tag or release named | Kind, per §12.2 |
+|---|---|---|
+| Redis | `redis.conf` — `redis/redis` `8.0` (§12 read `7.4`) | Operative |
+| Apache Cassandra | `conf/cassandra.yaml` — `apache/cassandra` `cassandra-5.0.2`, `cassandra-5.0.6`, `cassandra-5.0.9` | Operative |
+| rsync | `rsyncd.conf.5.md`, `packaging/systemd/rsync.service`, `rsync@.service`, `rsync.socket`, `packaging/lsb/rsync.xinetd`, `README.md` — `RsyncProject/rsync` `v3.5.0` | Operative (units); owner's prose (man page source) |
+| memcached | `scripts/memcached.sysconfig` — `memcached/memcached` `1.6.45` | Operative (upstream's own RPM `Source1`) |
+| MySQL | `packaging/deb-in/extra/mysqld.cnf`, `my.cnf.fallback`, `mysql.cnf`, `packaging/rpm-common/my.cnf.in` — `mysql/mysql-server` `mysql-9.7.2` | Operative (Oracle's own packaging) |
+| Elasticsearch | `distribution/src/config/elasticsearch.yml` **and** `distribution/docker/src/docker/config/elasticsearch.yml` — `elastic/elasticsearch` `v9.5.1` | Operative (both) |
+| MongoDB | `rpm/mongod.conf` **and** `debian/mongod.conf` — `mongodb/mongo` `r8.3.8` | Operative (MongoDB Inc's own packaging) |
+| nfs-utils | `nfs.conf`, `utils/mount/nfs.man`, `utils/exportfs/exports.man` — `nfs-utils-2.9.2.tar.xz` from `kernel.org`, extracted locally | Operative (`nfs.conf`); owner's prose (man pages) |
+| ZooKeeper | `conf/` in full — `apache/zookeeper` `release-3.9.5` (§12 read `release-3.9.3`) | Example (`zoo_sample.cfg`); no operative file exists |
+| RabbitMQ | `deps/rabbit/docs/rabbitmq.conf.example` — `rabbitmq/rabbitmq-server` `v4.3.4` (§12 read `v3.13.7`) | Example, self-declared |
+| Docker | `contrib/init/systemd/docker.service` + `docker.socket`, `contrib/init/sysvinit-debian/docker.default`, `contrib/init/openrc/docker.confd` — `moby/moby` `docker-v29.7.2` | Operative |
+| PostgreSQL | `src/backend/utils/misc/postgresql.conf.sample` **and `src/backend/libpq/pg_hba.conf.sample`** — `postgres/postgres` `REL_18_STABLE` (§12 read `REL_17_STABLE`, and only the first file) | Record of defaults |
+| CouchDB | `rel/overlay/etc/default.ini` — `apache/couchdb` `3.5.0` (§12 read `3.4.2`) | Operative |
+| etcd | `etcd.conf.yml.sample`, `contrib/systemd/etcd.service` — `etcd-io/etcd` `v3.7.1` | Neither, and §13.6 is about that |
+
+**Three rows have no artefact to read, and that is a finding rather than a gap.** `1433/tcp` MS SQL
+Server, `445/tcp` SMB with `139/tcp` and `137`, `138/udp`, and `623/udp` IPMI. Microsoft configures
+SMB and SQL Server through setup and the registry rather than through a file it ships, and a BMC's
+configuration is firmware. **There is nothing to open, so nothing in these rows can move on this
+ticket** — recorded per §11.8's rule that a negative retrieval is a verdict, and per
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3 that
+it is a verdict about what was read.
+
+### 13.2 The re-derivation, row by row
+
+| Row and current tier | What the shipped bytes carry | Verdict |
+|---|---|---|
+| **6379/tcp Redis** — prohibition | *"binding to all the interfaces is dangerous and will expose the instance to everybody on the internet"*, with `bind 127.0.0.1 -::1` and `protected-mode yes` **active** | **Stands.** A §12(b) position, in the bytes as well as on the web page |
+| **9042/tcp Cassandra** — prohibition (promoted by §12.7) | the prohibition, verbatim, above `native_transport_port: 9042` and `rpc_address: localhost` | **Stands**, and now confirmed at three releases rather than one — §12.8's version flag discharged |
+| **873/tcp rsync** — prohibition | *"Do not expose a cleartext daemon to an untrusted network: front it with a TLS proxy … or run it over ssh"* in shipped `rsyncd.conf.5.md`; and the same file's **SSL/TLS Daemon Setup** puts the public listener on **874** with *"server local-rsync 127.0.0.1:873"* behind it, adding *"You should limit the access to the backend-rsyncd port to only allow the proxy to connect. If it is on the same host as the proxy, then configuring it to only listen on localhost is a good idea."* | **Stands, and strengthens.** The owner does not merely prohibit exposure of 873 — it publishes the supported alternative and puts 873 on loopback inside it |
+| **11211/tcp+udp memcached** — prohibition | upstream ships **no** `memcached.conf`; the only file of that name in the tree is `t/sasl/memcached.conf`, a test fixture. Its own RPM's `Source1` is `scripts/memcached.sysconfig`, which carries `OPTIONS=""` and no `-l` | **Stands, unchanged.** Permissive, therefore **silent** under §10.4; the row rests on the wiki sentence, as §3.4 says. Debian's `memcached.conf` corroborates and carries nothing (§12(c), §12.5) |
+| **3306/tcp MySQL** — prohibition | four Oracle-authored packaging files, none carrying a `bind-address` and none carrying a sentence about networks | **Stands, unchanged.** Permissive, therefore silent; the row rests on the Security Guidelines |
+| **9200/tcp Elasticsearch** — prohibition | the tarball config records the default — *"By default Elasticsearch is only accessible on localhost"* — with `#network.host` commented. **[measured]** Elastic's **official Docker image** config ships `network.host: 0.0.0.0` **active** | **Stands, unchanged**, and see §13.3: the same owner ships two operative defaults pointing opposite ways, and §10.4's one-way rule disposes of it without adjudication |
+| **1433 MS SQL · 445 SMB · 623 IPMI** — prohibition | no artefact exists (§13.1) | **Stand, untouched.** Nothing to read |
+| **27017/27018/27019 MongoDB** — scoping | `bindIp: 127.0.0.1` **active** in both `rpm/mongod.conf` and `debian/mongod.conf`, which are **MongoDB Inc's own** packaging and therefore an owner's shipped default, not a distributor's. The rpm copy's trailing *"# Enter 0.0.0.0,:: to bind to all IPv4 and IPv6 addresses or, alternatively, use the net.bindIpAll setting."* is a **label** under §12(b) | **Stands.** The tier is unchanged; what changes is that the *default* limb is now read off the owner's bytes rather than off a documentation page |
+| **2049/tcp NFS** — scoping | `nfs.conf` ships every setting commented, `# host=` included → permissive → silent. The scoping sentence §3.4 quotes is in the shipped source verbatim (`utils/mount/nfs.man`), **and** the same page's DESCRIPTION carries one nobody had quoted: *"NFS was developed to allow file sharing between systems residing on a local area network."* | **Stands, and strengthens inside its tier** — that is a locality claim in the owner's own words, which is exactly what §10.3's boundary limb asks for |
+| **2181/tcp ZooKeeper** — scoping | `conf/` holds `zoo_sample.cfg`, `configuration.xsl` and `logback.xml` and nothing else. The sample carries `clientPort=2181` and **no address or bind directive of any kind** | **Stands, unchanged.** #69's finding confirmed at a later release; the row rests on the Administrator's Guide |
+| **25672/tcp RabbitMQ** — scoping | `rabbitmq.conf.example` still self-declares *"This file is AN EXAMPLE. It is NOT MEANT TO BE USED IN PRODUCTION."*, and `distribution.listener.port_range.min = 25672` is **commented** | **Stands, unchanged.** The file attests nothing (§12(a), §12(d)); the row rests on the networking guide |
+| **2376/tcp Docker** — scoping | `docker.socket` ships `ListenStream=/run/docker.sock` and `docker.service` `ExecStart=… -H fd://`. **The operative default has no TCP listener at all**; `docker.default` and `docker.confd` offer `DOCKER_OPTS` empty or commented | **Stands, unchanged.** A restricting default, admissible under §10.4 and corroborating; no prose position anywhere in the bytes |
+| **5432/tcp PostgreSQL** — **shipped default only** | `postgresql.conf.sample` is as §12.5 found it. **`pg_hba.conf.sample` had never been opened**, and it is a **second, independent** restricting default: the only `host` records shipped are `127.0.0.1/32` and `::1/128`, under *"If you want to allow non-local connections, you need to add more \"host\" records."* Neither file contains a sentence about untrusted networks, exposure, or the internet | **Stays in the weak tier**, and stays §4.5's weakest row. Two restricting defaults are still two defaults |
+| **5984/tcp CouchDB** — **shipped default only** | `bind_address = 127.0.0.1` **active** under `[chttpd]`, labelled *"These settings affect the main, clustered port (5984 by default)"*, and again under `[httpd]` and `[prometheus]`. No prose position anywhere in the file | **Stays in the weak tier.** The label names the listed port, which is worth having and is not a position |
+
+**No cell moves.** Two rows are stronger inside their tier (`873`, `2049`), three have their footing
+re-founded on the owner's bytes rather than a rendered page (`27017`/`27018`/`27019`, `5432`, `5984`),
+and one has its version-specificity flag discharged (`9042`).
+
+### 13.3 Claim 3's failure condition, tested — three near-misses, all refused
+
+§10.3 is the only route by which this ticket could have moved a **row** rather than a footing: *"Where
+the owner names the public internet as a supported deployment environment, Claim 3 fails however
+strongly a third party disapproves."* §12(b) makes config-file prose an owner statement, so a shipped
+config is somewhere that sentence could live. It was searched for and it is not there. Three artefacts
+came close enough to argue about.
+
+**1. rsync's systemd units quote rsync's own README, and the quoted sentence says *public*.**
+**[measured]** `packaging/systemd/rsync.service` and `rsync@.service` both carry:
+
+```
+# Citing README.md:
+#
+#   [...] Using ssh is recommended for its security features.
+#
+#   Alternatively, rsync can run in `daemon' mode, listening on a socket.
+#   This is generally used for public file distribution, [...]
+```
+
+That is upstream's prose about upstream's daemon, in bytes upstream ships, and it names a public
+deployment. **It is refused, on the same document that carries the prohibition.** The `rsyncd.conf.5`
+SSL/TLS Daemon Setup section shows the supported public deployment in full, and in it the public
+listener is on **874** and `873` is a loopback backend the owner says *"should limit … to only allow
+the proxy to connect"*. So the owner names a supported public deployment **of the service** and
+explicitly does not name one **of `873` cleartext**, which is the listed pair. §10.3's failure
+condition is about the row, not about the product.
+
+**Two riders, both #46's shape.** The unit's own `[...]` **truncates** the README, which continues
+*"although authentication and access control are available"* — the truncated-conditional hazard §9.5
+recorded, met here in a first-party file. And the comment's stated purpose is the opposite of an
+endorsement: it cites the sentence to justify `ProtectSystem=full`, `PrivateDevices=on` and
+`NoNewPrivileges=on`, i.e. *"let's assume some extra security is more than welcome here"*. A session
+that quotes the fragment without the two lines under it has read it backwards.
+
+**2. nfs-utils' `exports(5)` describes an example export as reaching *every host in the world*.**
+**[measured]** Against the sample line `/pub  *(ro,insecure,all_squash)`: *"Line 5 exports the public
+FTP directory to every host in the world, executing all requests under the nobody account."* **Refused
+on §12(b): that is a label**, and the clearest instance of one in the corpus — it describes what the
+directive above it does, sentence by sentence, for eight numbered lines. It is also about the **export
+access list** rather than about a network, and it is in a man page's worked example rather than in a
+shipped configuration. The same project's `nfs(5)` points the other way in its own DESCRIPTION
+(§13.2).
+
+**3. Elastic's official Docker image binds every interface.** **[measured]**
+`distribution/docker/src/docker/config/elasticsearch.yml` is two lines, and one of them is
+`network.host: 0.0.0.0` — **active**, in an operative shipped default, from the owner. Two facts make
+it silent rather than damaging. It is a **directive**, and §12(b) says a directive attests only through
+the third form. And through the third form it is **permissive**, which §10.4 makes silent in both
+directions. **The case is worth recording because it is the cleanest demonstration that §10.4's
+one-way rule does real work**: one owner ships two operative defaults that contradict each other on
+the same setting — `localhost` in the tarball, `0.0.0.0` in the image — and the rule resolves it with
+no adjudication at all, because the restricting one attests and the permissive one is silent. The
+alternative reading, in which a bind address is a position, would have the owner of `9200` naming the
+world as its supported deployment and would take the row off the list.
+
+**Nothing else came within reach.** A sweep of all fourteen artefacts for `internet`, `untrusted`,
+`expose`, `public network`, `firewall` and `insecure` returns four hits in total: Elasticsearch's
+*"address here to expose this node on the network"* (a label), `docker.service`'s
+`After=… firewalld.service` (an ordering dependency), and two CouchDB comments about an unrelated
+option and about replication logging.
+
+### 13.4 The ruling
+
+> **§2.2's footing table is confirmed as it stands after §11.6 and §12.7. No row moves and no footing
+> moves.** The prohibition tier is `6379`, `11211`, `3306`, `1433`, `9200`, `873`, `445`, `623` and
+> `9042`; the trusted-network-scoping tier is `27017`/`27018`/`27019`, `2049`, `2181`, `25672` and
+> `2376`; **the weak tier is `5432` and `5984`, and it is two rows.**
+>
+> **What changes is the table's warrant rather than its content.** It was a claim derived from web
+> documentation about artefacts nobody had opened; it is now a claim derived from the artefacts. §12.9
+> called that *"a published claim … known to have been built the wrong way"*. It has now been built the
+> right way, and it came out the same.
+
+**The result is deflating and that is most of its value.** #69 opened one file and found one cell
+wrong, which is the strongest possible reason to expect more. The measured answer is that the error
+rate was one cell in a table of nineteen pairs, and that the surviving eighteen are correct — so
+§2.2's disclosure can be quoted as measured rather than as derived, which is what §4.5 and the map's
+curation patch both lean on when they call the weak tier a watch list.
+
+### 13.5 By-catch: the prohibition names two more ports, and neither is on the list
+
+**[measured]** `conf/cassandra.yaml` carries *"For security reasons, you should not expose this port to
+the internet. Firewall it if needed."* **four times**, not twice, and identically at `cassandra-5.0.2`
+— the tag §12.7 read — `cassandra-5.0.6` and `cassandra-5.0.9`:
+
+```
+# For security reasons, you should not expose this port to the internet.  Firewall it if needed.
+storage_port: 7000
+```
+
+```
+# For security reasons, you should not expose this port to the internet. Firewall it if needed.
+ssl_storage_port: 7001
+```
+
+`7000/tcp` is Cassandra's inter-node storage and gossip port and `7001/tcp` its TLS twin — Claim 3's
+paradigm case, an inter-node transport with no internet client under any topology — carrying the same
+first-party sentence, naming each port by number, in the same shipped file.
+
+**They are not admitted here, on two grounds.** A footing ticket may not add a row: an addition bumps
+the rule version, `Break`s every evaluation and widens `verge-core`, which is the pricing §11.6 paid to
+*remove* `161/udp`, and it belongs to a ticket scoped to pay it. And **§2.4's determinacy gate is live
+and may sink both**: IANA registers `7000/tcp` to `afs3-fileserver` and `7001/tcp` to `afs3-callback`,
+so Cassandra squats on each, and §4.3 excludes high ports that are conventionally anything. The
+strongest sentence in the corpus does not clear a gate it does not speak to. Routed to
+[#75](https://github.com/winniel123/verge-asm/issues/75), which **blocks
+[#12](https://github.com/winniel123/verge-asm/issues/12)**, because unlike #70 it is a candidate row
+rather than a footing.
+
+**The instrument is the finding.** #69 opened the right file, at the right tag, and read the two lines
+it had gone looking for. It recorded the sentence as appearing twice; it appears four times, and the
+two it did not record are the interesting ones. A retrieval scoped to the rows a table already holds
+can confirm those rows and can discover nothing. That is
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md).
+
+### 13.6 A tenth artefact, and the first that does not declare itself
+
+§12.2's *"nine artefacts, nine self-declarations"* is what makes §12 limb (a) mechanical rather than a
+judgement. A tenth was retrieved here and it is the first near-miss.
+
+**[measured]** `etcd.conf.yml.sample`, `etcd-io/etcd` `v3.7.1`, opens:
+
+```
+# This is the configuration file for the etcd server.
+```
+
+That is an **operative** self-description, on a file whose name ends `.sample` and which nothing
+installs — `contrib/systemd/etcd.service` runs `/usr/bin/etcd` with no `--config-file`. Under a
+syntax-reading it would be an example; under its own first sentence it would be the configuration.
+
+**§12 handles it without strain, through the limb it was built with.** Limb (a)'s second sentence —
+*"where the party documents a default elsewhere and the two disagree, the documented default
+governs"* — resolves it, because etcd documents `--listen-client-urls` and `--listen-peer-urls` and
+their defaults independently of this file, and the file agrees with them (`http://localhost:2379`,
+`http://localhost:2380`). **So the outcome is the same whichever way the file is read**, which is why
+this is recorded rather than ticketed.
+
+**What it costs is the strength of the 9-for-9 count, and §12.8 predicted exactly this**: *"a file that
+is neither installed nor self-disclaiming would fall through to limb (a)'s second sentence."* It did,
+and the fallback worked. The count is now **ten artefacts, nine self-declarations and one that
+describes itself as the thing it is not** — still enough for limb (a) to be a test read off the
+document, and no longer quotable as a law.
+
+### 13.7 The table's coverage gap — seven listed rows have no footing cell
+
+Counting the table's cells against the list, which nobody had done: **§2.2's footing table places 19 of
+the 37 `(port, transport)` pairs**, after §11.6 struck `161 SNMP` and §12.7 promoted `9042`.
+
+Eleven of the eighteen uncovered pairs are outside the table's subject and are correctly absent. The
+table discriminates §2.2's **second** and **third** forms, documentation against shipped default, and
+says so in its own lead-in. Class B's seven rows (`23`, `21`, `512`, `513`, `514`, `5900`, `6000`) and
+`69/udp` rest on the **first** form — a specification, IANA's registry, or OpenBSD's deletions — and
+`139/tcp`, `137/udp` and `138/udp` are carried by the same Microsoft sentence as `445` and sit inside
+that row's ambit.
+
+**Seven do not have that excuse**, and each rests on the owner's documentation or on a shipped default:
+`2375/tcp` Docker, `4369/tcp` epmd, `9300/tcp` Elasticsearch, `10250/tcp` and `10255/tcp` kubelet, and
+`2379/tcp` and `2380/tcp` etcd. Two are clerical — `2375` shares Docker's sentences with `2376`, and
+RabbitMQ's *"these ports should not be publicly exposed"* names `4369` alongside `25672` — and the
+other five need a ruling this ticket is not scoped to make.
+
+**The etcd pair is why this is filed rather than noted.** **[measured]** `etcd.conf.yml.sample` ships
+`listen-client-urls: http://localhost:2379` and `listen-peer-urls: http://localhost:2380`, a
+**restricting** default. etcd's own sentence in §3.4 is a **consequence** (*"can expose its data to any
+clients"*) rather than a position, and the *"ideally only the API server should have access to it"*
+sentence is **kubernetes.io** — a different party speaking about its own use of etcd, which §10.5 makes
+corroboration. If etcd's own prose states no position, `2379` and `2380` rest on **a shipped default
+and nothing else**, and **the weak tier goes from two rows to four**. That is not a row move — a
+footing is not a claim — but the map's curation patch reads the weak tier as the **curator's watch
+list** for ADR-0032 §8's silent de-attestation, and a watch list missing half its members is worse than
+one that is honestly short. Routed to [#76](https://github.com/winniel123/verge-asm/issues/76), which
+does **not** block [#12](https://github.com/winniel123/verge-asm/issues/12).
+
+### 13.8 Every dependent figure, checked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged** |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged.** No row changes class, because no row's claim changes |
+| §2.2 footing table | prohibition 9 labels · scoping 5 · weak 2 | **unchanged in every cell**, and now derived from the artefacts rather than from web pages |
+| §2.6's boast | true of all 37 | **unchanged**, and marginally better founded: the rows it covers were re-checked against the owners' own bytes |
+| §4.5 *the list's weakest row* | 5432/tcp | **unchanged.** `pg_hba.conf.sample` adds a second restricting default and no sentence, which is the same footing twice |
+| §6.1 containment arithmetic | 28 in the hot set + 4 + 5 = 37 | **unchanged** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical, so no evaluation is made non-comparable. Free in the strong sense |
+| §12.7's *"one footing changes"* | `9042` promoted | **unchanged and now confirmed at three releases** — §12.8's *"measured on 5.0.2 alone"* is discharged |
+| §12.2's nine-for-nine | nine artefacts, nine self-declarations | **ten artefacts, nine self-declarations** — §13.6 |
+| §12.9's *"a published claim … built the wrong way"* | open, routed to #70 | **discharged.** The table was rebuilt from the artefacts and came out the same |
+
+**Outside this note.** Nothing. ADR-0009, ADR-0008 and ADR-0032 are untouched;
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) is added and
+is a method rather than a table edit.
+
+### 13.9 Thin ground, flagged per the standing rule
+
+**The negative result is the thin part, and it is thin in a stated way.** The claim *no shipped
+configuration file names the public internet as a supported deployment environment* is established
+over **fourteen artefacts from twelve projects**, chosen because §2.2's table names their rows. It is
+not established over every file every one of those projects ships, and by
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3 it may
+be relied on only inside that extent. Each artefact was read end to end, which is the whole of the
+improvement over §12's pass.
+
+**Three rows were verified by finding nothing to verify.** `1433`, `445` and `623` have no shipped
+configuration artefact, so this ticket's instrument cannot reach them at all. Their footings are
+exactly as strong as they were before — carried by Microsoft's and Dell's prose — and this pass adds
+no evidence in either direction. A reader who takes §13 as *the whole table has now been measured
+against bytes* has over-read it by three rows.
+
+**The rsync refusal in §13.3 is the thinnest single judgement.** It turns on the listed pair being
+`873` cleartext rather than the rsync daemon in general, and on the owner's own SSL/TLS section putting
+the public listener on `874`. That is a good argument and it is not an airtight one: a reader could say
+that a project whose README calls daemon mode *"generally used for public file distribution"* has named
+a public deployment and that §10.3 does not ask which port. **The criterion that would reopen it:** an
+rsync sentence endorsing a **cleartext** daemon on an untrusted network, or the removal of the
+`rsyncd.conf.5` guidance that puts `873` behind a proxy on loopback. Either would put the row in
+genuine jeopardy; neither is in the current bytes.
+
+### 13.10 Retrieval method and hazards, recorded per §9.5
+
+**Every artefact quoted in §13 was read as shipped bytes, never as a rendered page**, at a named tag or
+release, with paths resolved from the repository tree or tarball listing. `sources.debian.org` and
+`salsa.debian.org` were not used and still serve a proof-of-work JavaScript challenge to a plain
+client (§11.9); no distributor packaging was needed, because every project in this pass ships its own.
+
+- **`nfs-utils` has no upstream forge mirror that serves bytes, and the release tarball does.**
+  `nfs-utils-2.9.2.tar.xz` was taken from `kernel.org/pub/linux/utils/nfs-utils/`, verified by
+  extracting it locally, and `nfs.conf`, `nfs(5)` and `exports(5)` read from the extracted tree. Going
+  to a distribution's rendering of `nfs(5)` would have reproduced §10.5's error class — §3.4 already
+  cites `nfs(5)` to `man7.org`, which is a rendering, and the shipped source agrees with it word for
+  word, which is worth having on the record.
+- **The `.sample` suffix is not a self-declaration and one project proves it.** etcd's
+  `etcd.conf.yml.sample` calls itself *"the configuration file for the etcd server"* (§13.6). Reading
+  the suffix as the answer is the surface-syntax error §12.2 already refused for commented lines,
+  arriving through the filename instead.
+- **An owner can ship two operative defaults that contradict each other**, and Elastic does: `localhost`
+  in the tarball config, `0.0.0.0` in the official Docker image config (§13.3). A session that opens one
+  of the two and stops has measured a coin flip. Both paths were resolved from the same tree listing in
+  the same query.
+- **The hazard §12.9 named as general is now measured twice.** §12.9 recorded that the cell which moved
+  was in a file no earlier pass had opened. This pass found the same shape one level in: **the two
+  Cassandra ports in §13.5 were in a file an earlier pass *had* opened**, sixty lines from the quoted
+  line. *Opened* is not *read*, and only the second is a retrieval.
+- **The count in §13.7 was done by hand against §3's tables and is the kind of thing that goes wrong.**
+  It is stated as 19 covered and 18 uncovered, summing to 37, with the eighteen enumerated by name so
+  the arithmetic is checkable rather than assertable.
 
 ---
 
@@ -2822,6 +3191,24 @@ Shipped configuration bytes (§12) — read as bytes at a release, never as a re
 - Kafka [`config/server.properties`](https://raw.githubusercontent.com/apache/kafka/3.8.0/config/server.properties) (`#listeners=PLAINTEXT://:9092`, commented) · Kibana [`config/kibana.yml`](https://raw.githubusercontent.com/elastic/kibana/v8.15.0/config/kibana.yml) (*"The default is 'localhost'"*)
 - net-snmp [`EXAMPLE.conf.def`](https://raw.githubusercontent.com/net-snmp/net-snmp/master/EXAMPLE.conf.def) — *"An example configuration file"*, *"Some entries are deliberately commented out, and will need to be explicitly activated"*
 - Debian packaging from [`deb.debian.org`](https://deb.debian.org/debian/pool/main/)'s pool as tarballs, extracted locally, because `sources.debian.org` and `salsa.debian.org` serve a proof-of-work challenge (§11.9): `rpcbind_1.2.7-1.debian.tar.xz` → `debian/rpcbind.default` (*"Uncomment the following line to restrict rpcbind to localhost only"*, **commented**) and `debian/rpcbind.socket` (`ListenStream=0.0.0.0:111`, **active**) · `memcached_1.6.45-1.debian.tar.xz` → `debian/memcached.conf` (`-l 127.0.0.1` and `-l ::1`, **active**)
+
+Shipped configuration bytes (§13) — the footing-table re-derivation; every path resolved from the repository tree or tarball listing, never guessed
+- Apache Cassandra `conf/cassandra.yaml` at [`cassandra-5.0.2`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.2/conf/cassandra.yaml), [`cassandra-5.0.6`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.6/conf/cassandra.yaml) and [`cassandra-5.0.9`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/conf/cassandra.yaml) — the prohibition appears **four times** in each, above `storage_port: 7000`, `ssl_storage_port: 7001`, `native_transport_port: 9042` and `rpc_address: localhost` (§13.5, [#75](https://github.com/winniel123/verge-asm/issues/75))
+- rsync [`rsyncd.conf.5.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsyncd.conf.5.md) — *"Do not expose a cleartext daemon to an untrusted network: front it with a TLS proxy … or run it over ssh"*, and the SSL/TLS Daemon Setup section putting the public listener on **874** with `127.0.0.1:873` behind it · [`packaging/systemd/rsync.service`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/packaging/systemd/rsync.service), [`rsync@.service`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/packaging/systemd/rsync%40.service), [`rsync.socket`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/packaging/systemd/rsync.socket) (`ListenStream=873`) · [`README.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/README.md) (*"generally used for public file distribution, although authentication and access control are available"* — §13.3)
+- nfs-utils `nfs-utils-2.9.2.tar.xz` from [`kernel.org`](https://www.kernel.org/pub/linux/utils/nfs-utils/2.9.2/), extracted locally — `nfs.conf` (every setting commented, `# host=` included) · `utils/mount/nfs.man` (*"on a trusted physical network between trusted hosts, it is entirely adequate"*; *"NFS was developed to allow file sharing between systems residing on a local area network"*) · `utils/exportfs/exports.man` (*"exports the public FTP directory to every host in the world"* — a §12(b) label, §13.3)
+- MongoDB [`rpm/mongod.conf`](https://raw.githubusercontent.com/mongodb/mongo/r8.3.8/rpm/mongod.conf) and [`debian/mongod.conf`](https://raw.githubusercontent.com/mongodb/mongo/r8.3.8/debian/mongod.conf) — `bindIp: 127.0.0.1` **active** in both, MongoDB Inc's own packaging
+- Elasticsearch [`distribution/src/config/elasticsearch.yml`](https://raw.githubusercontent.com/elastic/elasticsearch/v9.5.1/distribution/src/config/elasticsearch.yml) (*"By default Elasticsearch is only accessible on localhost"*, `#network.host` commented) **and** [`distribution/docker/src/docker/config/elasticsearch.yml`](https://raw.githubusercontent.com/elastic/elasticsearch/v9.5.1/distribution/docker/src/docker/config/elasticsearch.yml) (`network.host: 0.0.0.0`, **active**) — one owner, two operative defaults, opposite directions (§13.3)
+- MySQL [`packaging/deb-in/extra/mysqld.cnf`](https://raw.githubusercontent.com/mysql/mysql-server/mysql-9.7.2/packaging/deb-in/extra/mysqld.cnf), [`my.cnf.fallback`](https://raw.githubusercontent.com/mysql/mysql-server/mysql-9.7.2/packaging/deb-in/extra/my.cnf.fallback), [`mysql.cnf`](https://raw.githubusercontent.com/mysql/mysql-server/mysql-9.7.2/packaging/deb-in/extra/mysql.cnf), [`packaging/rpm-common/my.cnf.in`](https://raw.githubusercontent.com/mysql/mysql-server/mysql-9.7.2/packaging/rpm-common/my.cnf.in) — no `bind-address`, no security prose in any of the four
+- memcached [`scripts/memcached.sysconfig`](https://raw.githubusercontent.com/memcached/memcached/1.6.45/scripts/memcached.sysconfig) (`OPTIONS=""`, upstream's own RPM `Source1`) — upstream ships no `memcached.conf`; the only file of that name in the tree is `t/sasl/memcached.conf`, a test fixture
+- Docker [`contrib/init/systemd/docker.socket`](https://raw.githubusercontent.com/moby/moby/docker-v29.7.2/contrib/init/systemd/docker.socket) (`ListenStream=/run/docker.sock`) and [`docker.service`](https://raw.githubusercontent.com/moby/moby/docker-v29.7.2/contrib/init/systemd/docker.service) (`-H fd://`) — no TCP listener in the operative default
+- PostgreSQL [`pg_hba.conf.sample`](https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/backend/libpq/pg_hba.conf.sample) — shipped `host` records are `127.0.0.1/32` and `::1/128` only, under *"If you want to allow non-local connections, you need to add more \"host\" records."* A second restricting default, never opened before §13 · [`postgresql.conf.sample`](https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/backend/utils/misc/postgresql.conf.sample) at `REL_18_STABLE`, agreeing with §12's `REL_17_STABLE` reading
+- CouchDB [`rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.5.0/rel/overlay/etc/default.ini) at `3.5.0` — `bind_address = 127.0.0.1` **active** under `[chttpd]`, `[httpd]` and `[prometheus]`
+- ZooKeeper [`conf/zoo_sample.cfg`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.5/conf/zoo_sample.cfg) at `release-3.9.5` · RabbitMQ [`rabbitmq.conf.example`](https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/v4.3.4/deps/rabbit/docs/rabbitmq.conf.example) at `v4.3.4` — both confirm §12's readings at a later release
+- etcd [`etcd.conf.yml.sample`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/etcd.conf.yml.sample) (*"This is the configuration file for the etcd server."* — the tenth artefact and the first that does not declare itself, §13.6) and [`contrib/systemd/etcd.service`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/contrib/systemd/etcd.service) (runs `/usr/bin/etcd` with no `--config-file`)
+
+No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
+- **1433/tcp** Microsoft SQL Server and **445/tcp** SMB with **139/tcp**, **137**, **138/udp** — configured through setup and the registry rather than through a file Microsoft ships
+- **623/udp** IPMI — a BMC's configuration is firmware
 
 Checked and found to contain **no** position, which is itself the finding
 - `rpcbind(8)` — no security section, no exposure statement
