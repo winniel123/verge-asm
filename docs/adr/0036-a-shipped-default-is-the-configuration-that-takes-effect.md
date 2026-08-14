@@ -1,0 +1,156 @@
+# ADR-0036: A shipped default is the configuration that takes effect — and installing one transfers operativeness, not ownership
+
+- **Status:** Accepted
+- **Date:** 2026-08-14
+- **Ticket:** [#69 An upstream example config a distributor ships as the default: documentation, or a shipped default?](https://github.com/winniel123/verge-asm/issues/69)
+- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+
+## Context
+
+[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) ruled that an evidence
+standard attaches to a **curated table** rather than to a rule, and that of
+[#21](https://github.com/winniel123/verge-asm/issues/21)'s three gates only the **middle** one —
+*state the claim, and cite the source that owns it* — generalises to other tables. That gate is
+`sensitive-ports.md` §2.2, and it admits three forms of attestation: a specification, the project's
+own documentation, and **the project's shipped default, as documented by the project**.
+
+The third form has a seam ADR-0032 did not touch, because it is not about reach. **The same bytes can
+be an example in one party's hand and an operative configuration in another's.**
+[#66](https://github.com/winniel123/verge-asm/issues/66) met it while removing `161/udp`: net-snmp
+ships `EXAMPLE.conf.def` with the loopback line active and the all-interfaces line commented out, and
+Debian installs that file verbatim as `/etc/snmp/snmpd.conf`. Under one reading the file is upstream
+documentation — an example, not a default — and the agent's real default is permissive and therefore
+**silent** under §10.4's one-way rule. Under the other it is a distributor's shipped default that
+**restricts**, which §10.5 admits *"on exactly the same terms as any other shipped default"*, and so
+it **admits**. Two readings, opposite answers, one file, and §2.2, §10.4 and §10.5 each speak to one
+hand without saying which governs. #66 recorded it as a general defect rather than deciding it,
+because both readings lost on that row for an unrelated reason.
+
+The pattern is common enough to decide the next case rather than the last one: an upstream
+`EXAMPLE.conf` / `*.conf.sample` / `*.conf.example` that a distribution installs as-is. And it bears
+on the **weakest** part of the one curated table this repo has already published — §2.2's tier of
+rows that rest on a shipped default and nothing else.
+
+## Decision
+
+**A shipped default is the configuration that takes effect, in the hand of the party being quoted.
+Installing another party's bytes transfers operativeness and not ownership.**
+
+Four limbs. They are stated in full, with their walk, as `sensitive-ports.md` **§12**; this ADR
+carries the part that travels.
+
+1. **The third form reads what takes effect, and what the party documents as its default — both.** A
+   file the party does not install is not that party's shipped default, whoever wrote it. Where the
+   file's own text disclaims operativeness, that disclaimer is the author's statement and settles it.
+   Where the party documents a default elsewhere and the two disagree, **the documented default
+   governs**.
+2. **A directive is not a position; prose in a config file may be.** The documentation form takes a
+   quotable position wherever the owner wrote it, and a comment in a shipped configuration file is
+   the owner's prose exactly as a manual page is. It does not take a **directive** — an instruction
+   to software attests only through the shipped-default form — nor a **label** describing what the
+   directive beneath it does.
+3. **Installation transfers operativeness, not ownership.** A distributor that installs upstream's
+   bytes as its package's operative configuration holds a shipped default **of that package**, which
+   attests **about that package**. Where the claims a table admits are claims about a thing the
+   distributor did not design, its packaging **corroborates and is never sole grounds**.
+4. **An example is silent in both directions.** It cannot admit and it cannot exclude, and in
+   particular it is not a restricting act for the purposes of any exclusion route: an act that takes
+   effect nowhere was not taken.
+
+## Rationale
+
+**The costly-act test decides it, and it decides against the reading it appears to support.**
+`sensitive-ports.md` §10.4 admits a restricting default because a restriction is a **costly act** —
+it *"buys friction at first run and the maintainer paid for it anyway"*. The tempting argument for
+admitting an example is that arranging which line is active is also a choice. It is, and it is a free
+one: a file no daemon reads produces no first run, so its author pays nothing and supports nobody.
+The cost is the whole reason the third form exists, and where the cost **is** paid — because a
+distributor installed the file — the party who paid is the distributor, which is limb 3.
+
+**The test is read off the artefact, not judged.** The objection that would sink limb 1 is that
+*takes effect* sounds like an adjudication. **[measured]** across the nine configuration artefacts
+retrieved for #69, every one declares its own status in its own bytes, and the two categories never
+blur: net-snmp's *"An example configuration file … deliberately commented out, and will need to be
+explicitly activated"* and RabbitMQ's *"This file is AN EXAMPLE. It is NOT MEANT TO BE USED IN
+PRODUCTION."* against PostgreSQL's *"The commented-out settings shown in this file represent the
+default values."*, CouchDB's *"Upgrading CouchDB will overwrite this file."* and Redis's *"So by
+default we uncomment the following bind directive"*. **Surface syntax carries no information at all**
+— a commented `listen_addresses` line in PostgreSQL's sample **is** the default, a commented
+`agentAddress` line in net-snmp's example is the branch not taken, and a commented `-h 127.0.0.1` in
+Debian's `rpcbind.default` is an offer to the operator. Only the file's own prose separates them,
+which is why limb 1 keys on that and nothing else.
+
+**Limb 3 is composed rather than invented.** #21's claims are answered from the specification or from
+the owner — §10.1 says so in terms for the unauthenticated claim, §10.3 says so for the boundary
+claim — so a distributor's artefact cannot reach any of them however operative it is. §10.5's
+*"artefact, not party"* survives intact and keeps a distributor's **packaging** distinct from its
+**security-guide prose**; what limb 3 adds is that the artefact route terminates at the owner gate.
+
+**Why this is an ADR and not only a note edit.** ADR-0032 ruled that the attestation gate is the one
+instrument that travels to other curated tables. This is a refinement of that gate, so it travels
+with it: any future curated table admitting an owner's shipped default inherits all four limbs. Where
+such a table's claims are claims about a **distributor's own artefact**, limb 3 does not bite —
+because there the distributor *is* the owner, and limb 3 keys on who owns the claim rather than on
+the word "distributor".
+
+## Consequences
+
+- **No `(port, transport)` pair moves.** `sensitive-ports.md` stays at **37 pairs**; §1's count, §3's
+  class totals (12 / 7 / 18), §6.1's containment arithmetic and
+  [ADR-0009](./0009-verge-core-is-a-union.md)'s union are all unchanged, each checked rather than
+  asserted (§12.7). **No rule version moves and no evaluation `Break`s**
+  ([ADR-0008](./0008-derivation-versions-move-on-content.md)) — this is free in the strong sense, not
+  merely the vacuous-before-first-install sense.
+- **One footing changes.** **[measured]** Apache Cassandra's shipped `conf/cassandra.yaml` carries
+  *"For security reasons, you should not expose this port to the internet. Firewall it if needed."*
+  immediately above both `native_transport_port: 9042` and `rpc_address: localhost`. §2.2's footing
+  table says the weak tier has *"no prohibition … upstream"*; that is false for this row on the
+  shipped bytes. **`9042/tcp` leaves the weak tier, which is now two rows rather than three.** A
+  footing is evidence for a claim and not a claim, so the row keeps its class and its place.
+- **`161/udp` does not come back.** #66 removed it on the owner requirement and the closed claim set,
+  and this ADR touches neither. Had the ruling gone the other way the row would still fail.
+- **Nothing in the negative space re-opens.** All sixteen of §4.6's exclusions were walked against the
+  admitting reading, `111/tcp` first because it is the artefact the question was built on:
+  **[measured]** Debian's `rpcbind.default` carries the loopback line **commented** under *"Uncomment
+  the following line to restrict…"* while `rpcbind.socket` ships `ListenStream=0.0.0.0:111`
+  **active** — the restriction was offered to the operator and not taken.
+- **A published claim is now known to have been built the wrong way.** §2.2's footing table was
+  derived from the projects' web documentation, and one file's bytes falsified one of its cells. The
+  other rows were assessed the same way and their configuration bytes have never been read. Routed to
+  [#70](https://github.com/winniel123/verge-asm/issues/70), which does **not** block
+  [#12](https://github.com/winniel123/verge-asm/issues/12): a footing is not a claim, so a re-derived
+  tier moves no row by itself.
+- **Thin ground, flagged.** Limb 2's directive-versus-label line is the thinnest part. A comment that
+  argues for its own directive sits between *"# Listen for connections from the local system only"*
+  and *"you should not expose this port to the internet"*, and the only instrument offered for placing
+  it is the existing position-versus-preference discrimination. A case in that gap should be ticketed
+  rather than decided by whoever meets it.
+
+## Alternatives rejected
+
+**The artefact reading — the distributor's install governs.** §10.5 keys on the artefact, and the
+artefact the operator's daemon reads is the distributor's. It is a real argument and it is why the
+question was ticketed. It loses three ways. It **answers a different question**: the forms are routes
+to a claim about the protocol, not a description of the modal install, and deployment share is what
+corroborator sources were refused for. It is **not stable under repackaging** — **[measured]** the
+same Debian archive ships net-snmp bound to loopback and rpcbind bound to `0.0.0.0:111`, so the
+verdict would depend on which of one distributor's files a reader opened. And it **re-opens the door
+the corroborator rule holds shut**, one level down: a packaging choice would carry a normative row,
+arriving through a `.deb` instead of a government PDF.
+
+**A coherence gate — a restricting default attests only where the restriction describes a deployment
+somebody actually runs.** This is the sharpest distinction available between PostgreSQL's
+`listen_addresses = localhost`, which describes a real and common deployment, and a loopback-only
+SNMP agent, which can be polled by no management station at all. **Refused on ADR-precedent ground**:
+*does anybody run this?* is a judgement about deployment reality with no owner, and it is exactly the
+shape §10.1 deleted when it removed *"would otherwise require authority"* for asking a reviewer to
+imagine a counterfactual. It would also need frequency evidence, which the note excludes as a matter
+of framing. **The criterion that would reopen it:** a candidate row passing on the owner's own
+operative default where the same owner's documentation elsewhere calls that configuration unusable —
+attested incoherence rather than reasoned incoherence.
+
+**Withdrawing §10.5's distributor admission outright.** Limb 3 makes it inert for this table, so
+deleting it is tempting. Refused: the sentence does real work distinguishing a distributor's
+**packaging** from its **security-guide prose**, which is the distinction it was written for, and it
+is live for any future table whose claims are about a distributor's own artefacts. Its reach is
+stated instead of removed.
