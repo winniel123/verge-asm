@@ -28,6 +28,12 @@ corroborator rule and §10.5's owner definition, which is the thing this ticket 
 refusal of routes (a) and (c), the boundary on gate-1 exemption, and the third kind of weak row. What
 stays here is the table, its footing, and the working.
 
+> **Notation, because the two documents' section numbers overlap.** A bare section reference is to
+> [`sensitive-ports.md`](./sensitive-ports.md) wherever it names a part of **the evidence standard**:
+> §2.1's three claims, §2.2's attestation routes and its third form, §2.3's corroborator rule, §2.7's
+> refusal, §10.4's one-way shipped-default rule, §10.5's owner definition, §10.6's two kinds of weak
+> row. **Every other bare reference is to a section of this note.**
+
 Four constraints bind before any evidence is gathered:
 
 1. **No severity.** A weak key and a deprecated signature are **one rule and one fact**, per the
@@ -89,7 +95,7 @@ Per [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rul
 | Gate | Status here |
 |---|---|
 | **Gate 1 — a named claim from a closed set** | **Does not transfer.** `sensitive-ports.md` §2.1's three claims are closed over what an **internet vantage** supplies, and exactly one v1 rule reads `Exposure`. This table owes its **own** closed set, derived the same way from what **its** rule reads — §2.2 |
-| **Gate 2 — attestation by the owner** | **Binds in full.** This table asserts about the world (*this key or algorithm is weak*), so §2.2's attestation route and §2.3's corroborator rule govern every row — §2.3, §3.3 |
+| **Gate 2 — attestation by the owner** | **Binds in full.** This table asserts about the world (*this key or algorithm is weak*), so §2.2's attestation route and §2.3's corroborator rule govern every row — worked below at 2.3 and 3.3 |
 | **Gate 3 — determinacy** | **Outside the domain.** The surrogate gate has one v1 instance and this is not it — §2.4 |
 | **The weak-tier disclosure** | **Binds**, in its stronger form: a disclosed weakness names the retrieval that would resolve it — §9 |
 
