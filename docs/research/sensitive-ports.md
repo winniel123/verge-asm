@@ -168,6 +168,33 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > have no shipped configuration artefact at all**, so §13 adds no evidence about them in either
 > direction. Read §13.9 before quoting this table as measured.
 
+> **Amended by §16** ([#76](https://github.com/winniel123/verge-asm/issues/76)). **The seven listed
+> rows §13.7 counted as having no cell are placed, and the table now states its own coverage.** The
+> table below supersedes the one above. **[measured]** `2379`/`2380` etcd do **not** join the weak
+> tier: `THREAT_MODEL.md` at `etcd-io/etcd` `v3.7.1` states *"It **must not** be exposed to untrusted
+> networks or the public internet"* and names both ports by number, so §13.7's prediction is refuted
+> (§16.3). **The weak tier grows to three on a different row** — `10255/tcp` kubelet, whose owner
+> states no network position and whose shipped config API carries `readOnlyPort` *"Default: 0
+> (disabled)"* (§16.5). **No `(port, transport)` pair moves and no row moves.**
+>
+> | Footing | Pairs |
+> |---|---|
+> | **Explicit prohibition** in the owner's own words | 6379 Redis · 11211/tcp + 11211/udp memcached · 3306 MySQL · 1433 MS SQL · 9200 **and 9300** Elasticsearch · 873 rsync · 445 SMB · 623 IPMI · 9042 Cassandra · **2379 and 2380 etcd** — **13 pairs** |
+> | **Explicit trusted-network scoping**, slightly weaker than a prohibition | 27017/27018/27019 MongoDB · 2049 NFS · 2181 ZooKeeper · 25672 RabbitMQ · **4369 epmd** · 2376 **and 2375** Docker · **10250 kubelet** — **10 pairs** |
+> | **Shipped default only** — no prohibition exists upstream | **5432 PostgreSQL · 5984 CouchDB · 10255 kubelet** — **3 pairs** |
+> | *Outside this table's subject, and correctly absent* | *Class B's seven (23, 21, 512, 513, 514, 5900, 6000) and 69/udp rest on §2.2's **first** form — a specification, IANA's registry, or OpenBSD's deletions. 139/tcp, 137/udp and 138/udp are carried by the same Microsoft sentence as 445 and sit inside that row's cell — **11 pairs*** |
+>
+> **This table places 26 of the list's 37 pairs; the remaining 11 are the fourth row, and 26 + 11 =
+> 37.** The coverage line is stated here so that a reader never has to count — §13.7 had to, and
+> §13.10 recorded the hand count as *"the kind of thing that goes wrong"*.
+>
+> **Two cells are thin and are flagged rather than smoothed** (§16.9). `10250`'s scoping rests on a
+> **table cell** — kubernetes.io's `Used By: Self, Control plane` — rather than on a sentence naming a
+> network, which makes it the weakest member of its tier. And `4369`'s rests on an Erlang/OTP sentence
+> about **distributed nodes** that does not name epmd or the port; RabbitMQ's sentence, which §3.4
+> cites for it, is a **non-owner's** under §10.5 and corroborates only (§16.6). Read §16.9 before
+> quoting either cell.
+
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
 This is the load-bearing methodological finding, and it took the most work to establish.
@@ -721,6 +748,66 @@ VU# should be attributed to the hash-disclosure class.
 IANA registers 623/**udp** as `asf-rmcp` — "ASF Remote Management and Control Protocol" — and
 623/**tcp** as `oob-ws-http`, the DMTF out-of-band web services management protocol. They are
 different protocols on the same number, and §6 shows this has already caused a concrete error.
+
+> **Amended by §16** ([#76](https://github.com/winniel123/verge-asm/issues/76)). **Four rows in this
+> section are attested by a document it does not cite, and one is attested by a party that does not
+> own the port.** Added rather than substituted, per the name-and-withdraw convention; the quotes
+> above stand and §16 says what each is now doing.
+>
+> **etcd — the owner does state a position, and it is not on the website.** The two sentences above
+> are a **consequence** and a **third party's** (kubernetes.io, §10.5). etcd's position is in the bytes
+> it ships:
+>
+> > "etcd Server assumes it is deployed within a strictly isolated, private network segment. It
+> > **must not** be exposed to untrusted networks or the public internet." … "etcd clients communicate
+> > with etcd Servers over Port 2379." … "etcd Server members communicate with other cluster members
+> > over Port 2380 to run Raft consensus."
+> > — `THREAT_MODEL.md`, [etcd-io/etcd](https://github.com/etcd-io/etcd/blob/v3.7.1/THREAT_MODEL.md) `v3.7.1` (present at `v3.7.0`; **absent at `v3.6.14` and `v3.5.33`** — §16.9)
+>
+> **Elasticsearch — *"Never expose an unprotected node"* reaches 9300, and the owner's own page makes
+> the link.** The warning sits in the file that configures both interfaces, which defines the node as
+> its two interfaces and whose `network.host` *"Sets the address of this node for **both HTTP and
+> transport traffic**"*, with `transport.port` *"Defaults to `9300-9400`"*:
+>
+> > "Each Elasticsearch node has two different network interfaces. Clients send requests to
+> > Elasticsearch's REST APIs using its HTTP interface, but nodes communicate with other nodes using
+> > the transport interface." … "By default Elasticsearch binds only to `localhost` which means it
+> > cannot be accessed remotely." … "**Never expose an unprotected node to the public internet.**"
+> > — `docs/reference/elasticsearch/configuration-reference/networking-settings.md`, [elastic/elasticsearch](https://github.com/elastic/elasticsearch/blob/v9.5.1/docs/reference/elasticsearch/configuration-reference/networking-settings.md) `v9.5.1`
+>
+> **kubelet — the CLI-reference quotes above are from a generated page the shipped source
+> contradicts.** **[measured]** `--anonymous-auth` defaults to `false`, `--authorization-mode` to
+> `Webhook` and `--read-only-port` to `0`, in `kubernetes/kubernetes` `v1.34.1`. That bears on **Claim
+> 1** and is routed to [#83](https://github.com/winniel123/verge-asm/issues/83), which **blocks
+> [#12](https://github.com/winniel123/verge-asm/issues/12)**; §3.4's parenthetical *"the 10255 default
+> verified directly against the rendered page"* should be read as the hazard §11.9 records rather than
+> as a verification. What carries the two footings is:
+>
+> > "`| TCP | Inbound | 10250 | Kubelet API | Self, Control plane |`"
+> > — `content/en/docs/reference/networking/ports-and-protocols.md`, [kubernetes/website](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/networking/ports-and-protocols.md) `release-1.34`. **`10255` does not appear in this file at all.**
+>
+> > "readOnlyPort is the read-only port for the Kubelet to serve on with no authentication/authorization." … "Setting this field to 0 disables the read-only service." … "**Default: 0 (disabled)**"
+> > — `staging/src/k8s.io/kubelet/config/v1beta1/types.go`, [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes/blob/v1.34.1/staging/src/k8s.io/kubelet/config/v1beta1/types.go) `v1.34.1`
+>
+> **epmd — RabbitMQ does not own it, and Erlang/OTP does.** The RabbitMQ sentence above carries
+> `25672`, which is RabbitMQ's own port, and **corroborates only** for `4369` (§10.5, §12(c), §16.6).
+> Erlang/OTP's own words:
+>
+> > "Starting a distributed node without also specifying `-proto_dist inet_tls` will expose the node to
+> > attacks that may give the attacker complete access to the node and by extension the cluster. **When
+> > using insecure distributed nodes, make sure that the network is configured to keep potential
+> > attackers out.**"
+> > — `system/doc/reference_manual/distributed.md`, [erlang/otp](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/reference_manual/distributed.md) `OTP-29.0.5`
+>
+> > "The `epmd` daemon accepts messages from both the local host and remote hosts. However, only the
+> > query commands are answered (and acted upon) if the query comes from a remote host." … "**To
+> > restrict access further, firewall software must be used.**"
+> > — `erts/doc/references/epmd_cmd.md`, [erlang/otp](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/references/epmd_cmd.md) `OTP-29.0.5`, section *Access Restrictions*
+>
+> Neither Erlang/OTP sentence names `4369`, which is why §16.9 flags this as the table's thinnest cell.
+> **[measured]** No cookie is involved in epmd's remote exchange, so §3.1's *"why"* cell for the row
+> describes the distribution transport's protection rather than epmd's — routed to
+> [#84](https://github.com/winniel123/verge-asm/issues/84).
 
 ---
 
@@ -3159,6 +3246,22 @@ list** for ADR-0032 §8's silent de-attestation, and a watch list missing half i
 one that is honestly short. Routed to [#76](https://github.com/winniel123/verge-asm/issues/76), which
 does **not** block [#12](https://github.com/winniel123/verge-asm/issues/12).
 
+> **Discharged by §16** ([#76](https://github.com/winniel123/verge-asm/issues/76)). **All seven are
+> placed, the table now states its own coverage — 26 of 37, with the other 11 named as out of subject
+> — and this paragraph's prediction is refuted.** **[measured]** etcd ships `THREAT_MODEL.md`
+> (`etcd-io/etcd` `v3.7.1`) saying *"It **must not** be exposed to untrusted networks or the public
+> internet"* and naming **Port 2379** and **Port 2380** by number, so both go to the **explicit
+> prohibition** tier rather than the weak tier. The paragraph was right that etcd's website states no
+> position and that kubernetes.io is corroboration; it was wrong that the project states none, and the
+> document is at the repository root rather than where §3.4's citation points — ADR-0037 again.
+> **The weak tier does grow, to three rather than four, and on a row this paragraph did not name:**
+> `10255/tcp` kubelet, whose owner states no network position and whose shipped config API ships
+> `readOnlyPort` *"Default: 0 (disabled)"* (§16.5). `9300` joins the prohibition tier and `2375`,
+> `4369` and `10250` the scoping tier. **No `(port, transport)` pair moves**, so #12 stays unblocked by
+> this line — but §16.5's by-catch, that §3.4's kubelet defaults are quoted from a generated page the
+> shipped source contradicts, is routed to [#83](https://github.com/winniel123/verge-asm/issues/83),
+> which **does** block #12.
+
 ### 13.8 Every dependent figure, checked rather than asserted
 
 | Where | Was | Is |
@@ -3872,6 +3975,459 @@ second party places a partially compatible protocol on the number and declares n
 findings were bytes at named tags; this section's retrievals are documents read for a sentence. The
 distinction matters because the standard this section writes is about **documents**, so the artefacts
 are the right kind — but no claim in §15 should be quoted as measured.
+## 16. The footing table's seven uncovered rows are placed, and it now states its own coverage
+
+Wayfinder ticket [#76](https://github.com/winniel123/verge-asm/issues/76), on the coverage gap §13.7
+counted and routed rather than filled. This section **amends §2.2 and §3.4 by reference**; earlier
+text stands and is marked, per the name-and-withdraw convention, and where §16 and an earlier section
+disagree, **§16 governs**.
+
+**Headline result, stated first.**
+
+> **All seven are placed, the table now says what it covers, and the ticket's central prediction was
+> wrong in the direction that matters.** §13.7 expected `2379`/`2380` etcd to fall into the **weak
+> tier** on a shipped default alone, taking it from two rows to four. **[measured]** etcd ships
+> `THREAT_MODEL.md` at `etcd-io/etcd` `v3.7.0` and `v3.7.1`, and it says *"It **must not** be exposed
+> to untrusted networks or the public internet"* — naming **Port 2379** and **Port 2380** by number in
+> the same document. Both go to the **explicit prohibition** tier.
+>
+> **The weak tier does grow, by one, and not from etcd.** `10255/tcp` kubelet joins it: the owner
+> states no network position anywhere, and what exists is a **restricting** shipped default —
+> `readOnlyPort` *"Default: 0 (disabled)"* in the shipped config API. **The weak tier is three rows —
+> `5432` PostgreSQL, `5984` CouchDB and `10255` kubelet.** The map's curation patch reads the weak
+> tier as the curator's watch list, so the watch list gains a member.
+>
+> **The table now places 26 of the 37 pairs, and the remaining eleven are named in the table itself
+> as deliberately out of its subject** — §13.7's count had to be done by hand, and #70 had to do it
+> twice. The coverage line is now part of the artefact rather than a fact about it.
+>
+> **No `(port, transport)` pair moves and no row moves.** A footing is evidence for a claim and not a
+> claim ([ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md), §12.7),
+> so this changes §2.2's **disclosure** and nothing the rule reads: the list stays at **37 pairs**,
+> class totals stay **12 / 7 / 18**, no rule version bumps and `verge-core` does not move.
+>
+> **Two by-catch findings are routed rather than decided**, both of them row grounds rather than
+> footings, and both found by [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)'s
+> instrument: §3.4's kubelet defaults are quoted from a **generated page the shipped source
+> contradicts** (§16.5), and `4369/tcp`'s attestation is a **non-owner's** (§16.6).
+
+### 16.1 What was retrieved
+
+Every artefact was read as shipped bytes at a named tag or release branch, with paths resolved from
+the project's own repository tree rather than guessed — §11.9's and §13.10's discipline, and the
+reason `THREAT_MODEL.md` was found at all.
+
+| Project | Artefact, at the tag or branch named | What it settles |
+|---|---|---|
+| etcd | `THREAT_MODEL.md` — `etcd-io/etcd` `v3.7.1`, `v3.7.0` and `main` | `2379`, `2380` |
+| etcd | `etcd.conf.yml.sample` — `v3.7.1` (re-read; §13.6's artefact) | corroborating default |
+| etcd | `content/en/docs/v3.6/op-guide/security.md` — `etcd-io/website` `main` | the website states **no** position |
+| Elasticsearch | `docs/reference/elasticsearch/configuration-reference/networking-settings.md` — `elastic/elasticsearch` `v9.5.1` | `9300` |
+| Elasticsearch | `distribution/src/config/elasticsearch.yml` — `v9.5.1` (re-read; §13.1's artefact) | no transport prose anywhere in it |
+| Kubernetes | `staging/src/k8s.io/kubelet/config/v1beta1/types.go`, `pkg/kubelet/apis/config/v1beta1/defaults.go` — `kubernetes/kubernetes` `v1.34.1` | `10255`, and §16.5's by-catch |
+| Kubernetes | `content/en/docs/reference/networking/ports-and-protocols.md` — `kubernetes/website` `release-1.34` | `10250` |
+| Kubernetes | `content/en/docs/reference/command-line-tools-reference/kubelet.md` — `release-1.34` | the stale generated page |
+| Erlang/OTP | `erts/doc/references/epmd_cmd.md`, `system/doc/reference_manual/distributed.md` — `erlang/otp` `OTP-29.0.5` | `4369`, and §16.6's by-catch |
+
+`2375/tcp` Docker needed no retrieval: the sentence is already in §3.4, cited for its cell-mate.
+
+### 16.2 The two clerical placements
+
+**`2375/tcp` Docker → trusted-network scoping, with `2376`.** §3.4 already carries *"It is also
+recommended to ensure that it is reachable only from a trusted network or VPN"* from Docker Engine
+security, and the sentence is about the daemon's remote API rather than about either port
+individually. `2376` sits in the scoping tier on it; `2375` is the same sentence's other port. The
+placement is clerical in the strict sense — no new evidence, and refusing it would put two ports of
+one API in two tiers on one sentence.
+
+Two things deliberately do **not** promote it. Docker's *"anyone with access to that port has full
+Docker access; so it's not advisable on an open network"* is a **preference** in §2.3's and §4.4's
+sense, not a prohibition. And §13.2 found Docker's operative default has **no TCP listener at all**,
+which is a restricting default under §10.4 — that corroborates, and the tier records the strongest
+form available, which here is the second form's scoping sentence.
+
+**`4369/tcp` epmd → trusted-network scoping, with `25672`. The placement is right and the ticket's
+reason for it is not** — see §16.6, which is why this row took a retrieval after all.
+
+### 16.3 `2379` and `2380` etcd — the ticket's crux, and it resolves the other way
+
+§13.7's hypothesis was precise and testable: etcd's own sentence in §3.4 is a **consequence**
+(*"An etcd cluster which doesn't enable security features can expose its data to any clients"*), the
+*"only the API server should have access to it"* sentence is **kubernetes.io** and therefore
+corroboration under §10.5, and if etcd's own prose states no position then both ports rest on a
+shipped default alone.
+
+**The first two limbs are confirmed and the third is false.** **[measured]** `etcd-io/website`'s
+current `v3.6/op-guide/security.md` carries the consequence sentence verbatim and nothing else: a
+sweep for `internet`, `untrusted`, `expose`, `firewall`, `trusted network` and `public` returns the
+consequence sentence, two TLS certificate mechanics, and no position. **So a session that looked
+where §3.4 points would have confirmed the hypothesis.**
+
+**The position is in the repository, not on the website.** **[measured]** `THREAT_MODEL.md`,
+`etcd-io/etcd` `v3.7.1`:
+
+```
+### The Network Boundary
+
+etcd Server assumes it is deployed within a strictly isolated, private network segment.
+It **must not** be exposed to untrusted networks or the public internet.
+Both the **etcd Client** and the **etcd Server** reside inside this protected perimeter.
+```
+
+And the same document names both listed ports, by number, in its own section headings:
+
+```
+### The Client-to-Server Boundary
+
+etcd clients communicate with etcd Servers over Port 2379.
+```
+
+```
+### The Peer-to-Peer Boundary
+
+etcd Server members communicate with other cluster members over Port 2380 to run Raft consensus.
+This boundary must be strictly limited to authorized cluster members using dedicated, private peer
+certificates (mTLS).
+```
+
+That is the owner — etcd, the project that designed the protocol and authors the reference
+implementation — writing *must not be exposed to … the public internet* in bytes it ships, and
+binding it to each of the two listed ports. It is a **position** under §12(b), not a directive and
+not a label: it has no configuration setting beneath it to describe. **Both ports go to the explicit
+prohibition tier.**
+
+**The strongest objection, and it is a good one.** The commit that created the file
+(2026-05-19) is titled *"Define THREAT_MODEL for etcd to decentivize agents reporting CVEs outside
+it"*, and the document's second line reads *"Automated vulnerability scanners and security
+researchers MUST evaluate any security concern against these baseline boundaries."* A reader can
+say the file's purpose is **triage scope** — what etcd will accept as a vulnerability report — rather
+than deployment guidance, and that reading it as a prohibition is reading a disclaimer as an
+instruction.
+
+**It is refused, on three grounds, and the third is the one that decides it.**
+
+1. **The sentence is prescriptive, not descriptive.** The paragraph has two sentences and they do
+   different work: *"etcd Server **assumes** it is deployed within…"* is the assumption, and *"It
+   **must not** be exposed to untrusted networks or the public internet"* is the requirement, in the
+   project's own bolded RFC-2119 register. §12(b) takes *"a quotable position wherever the owner
+   wrote it"*, and does not ask what the surrounding document is for.
+2. **A threat model is a stronger commitment than a hardening tip, not a weaker one.** Declaring
+   internet exposure outside the trust boundary is the project stating it **will not defend** that
+   deployment. Every other prohibition in the corpus is a recommendation the owner could quietly walk
+   back; this one has a cost attached, in the §10.4 sense — etcd pays for it by declining reports.
+3. **The purpose reading proves too much, and §13.3 already refused its mirror image.** rsync's
+   systemd unit quotes a README sentence naming *public* file distribution, and §13.3 refused to read
+   it as an endorsement partly because *"the comment's stated purpose is the opposite"* — it cites the
+   sentence to justify hardening. Purpose was allowed to inform the reading there and it is allowed
+   to here, and it points the same way both times: a document written to bound what the project
+   defends is a document about where the project expects to be deployed.
+
+**Version scope, stated rather than smoothed.** **[measured]** `THREAT_MODEL.md` is present at
+`v3.7.0` and `v3.7.1` and **absent at `v3.6.14` and `v3.5.33`** — it is a 3.7-era document, and §3.4
+still cites `etcd.io/docs/**v3.5**/op-guide/security/`. The Network Boundary paragraph is
+**byte-identical at `v3.7.0`, `v3.7.1` and `main`**, across the one revision the file has had
+(2026-07-31, which added triage disposition rules and left this paragraph untouched). §13.1 read etcd
+at `v3.7.1`; this section reads the same tag, which is the consistent choice. §16.9 flags what that
+costs.
+
+### 16.4 `9300` Elasticsearch — the *node* sentence does reach the transport port, and the owner says so
+
+§13.7 framed this as the open question: `9200`'s *"Never expose an unprotected node to the public
+internet"* is about a **node**, so it may reach `9300` too. **[measured]** It does, and the link is
+made by the owner's own document rather than by inference.
+
+The sentence lives in `networking-settings.md`, which is the page that configures **both** interfaces,
+and it appears immediately after the two paragraphs that establish that:
+
+> "Each Elasticsearch node has two different network interfaces. Clients send requests to
+> Elasticsearch's REST APIs using its **HTTP interface**, but nodes communicate with other nodes using
+> the **transport interface**." … "By default Elasticsearch binds only to `localhost` which means it
+> cannot be accessed remotely."
+> — `docs/reference/elasticsearch/configuration-reference/networking-settings.md`, `elastic/elasticsearch` `v9.5.1`
+
+> "**Never expose an unprotected node to the public internet.** If you do, you are permitting anyone
+> in the world to download, modify, or delete any of the data in your cluster."
+> — same file, in a `warning` admonition three lines below
+
+And the setting the warning is about governs both ports explicitly:
+
+> "`network.host` … Sets the address of this node for **both HTTP and transport traffic**." …
+> "`transport.port` … The port to bind for communication between nodes. … Defaults to `9300-9400`."
+
+So *node* is the owner's own unit of exposure here, the page defines the node as its two interfaces,
+and the transport interface is the listed pair. **`9300` goes to the explicit prohibition tier, in the
+same cell as `9200`.** §3.4's transport-specific sentence — *"Transport connections between
+Elasticsearch nodes are security-critical and you must protect them carefully"* — stands underneath it
+and is not what carries the row: on its own it is an instruction to protect rather than a position on
+placement, which is precisely why the row needed this retrieval.
+
+**[measured]** The shipped `elasticsearch.yml` at `v9.5.1` contains **no** prose about the transport
+interface or about `9300` at all; its Network section is about `network.host` and `http.port` only. A
+session that had gone to the config file — the §13 instrument — would have found nothing. The
+attestation is in the documentation source, retrieved from the same tree at the same tag.
+
+### 16.5 `10250` and `10255` kubelet — one to scoping, one to the weak tier
+
+**`10250/tcp` → trusted-network scoping.** Kubernetes owns the kubelet: it authors the reference
+implementation, so kubernetes.io speaking about the kubelet is the owner speaking, which is exactly
+what it is **not** doing for etcd in §16.3. **[measured]** `ports-and-protocols.md` at
+`kubernetes/website` `release-1.34` places the port in both the control-plane and the worker-node
+table, with the same scope in both:
+
+```
+| Protocol | Direction | Port Range | Purpose      | Used By             |
+| TCP      | Inbound   | 10250      | Kubelet API  | Self, Control plane |
+```
+
+That names the boundary — the node itself and the cluster's control plane — which is what §10.3's
+boundary limb asks for. The shipped default is `Address = "0.0.0.0"`
+(`pkg/kubelet/apis/config/v1beta1/defaults.go`, `v1.34.1`), permissive and therefore **silent** under
+§10.4, so the second form is all there is. **Scoping tier**, and it is the weakest member of that tier
+— §16.9.
+
+**`10255/tcp` → the weak tier.** **[measured]** The port does not appear in `ports-and-protocols.md`
+at all, and `kubelet-authn-authz.md` says nothing about network placement. The owner states **no
+position** on `10255` anywhere that was retrieved. What exists is a restricting shipped default, in
+the config API's own bytes:
+
+```go
+// readOnlyPort is the read-only port for the Kubelet to serve on with
+// no authentication/authorization.
+// The port number must be between 1 and 65535, inclusive.
+// Setting this field to 0 disables the read-only service.
+// Default: 0 (disabled)
+ReadOnlyPort int32 `json:"readOnlyPort,omitempty"`
+```
+— `staging/src/k8s.io/kubelet/config/v1beta1/types.go`, `kubernetes/kubernetes` `v1.34.1`
+
+*"Default: 0 (disabled)"* is a **restricting** default and admissible under §10.4; the sentence above
+it is the §3.4 quote and is a **description of what the port serves**, not a position on where it may
+be reached from. So `10255` rests on a shipped default and nothing else. **It joins `5432` and `5984`
+in the weak tier, which is now three rows.**
+
+**The generated CLI page says the opposite, and §10.4's one-way rule disposes of it without
+adjudication.** **[measured]** `kubernetes/website` `release-1.34`'s
+`command-line-tools-reference/kubelet.md` — the page §3.4 cites, and cites as *"verified directly
+against the rendered page"* — still carries `--read-only-port int32  Default: 10255`. Two of the
+owner's own artefacts disagree, which is **exactly** §13.3's Elastic case (`localhost` in the tarball,
+`0.0.0.0` in the Docker image) in a second instance: the **restricting** one attests and the
+**permissive** one is silent, and no judgement about which page is authoritative is required. §13.3
+called that case *"the cleanest demonstration that §10.4's one-way rule does real work"*; it now has
+company, and the company arrived from a different project and a different artefact class.
+
+> **By-catch, routed rather than decided — §3.4's kubelet defaults are quoted from a page the shipped
+> source contradicts, and it bears on Claim 1 rather than on a footing.** §3.4 quotes the same
+> generated reference for `--anonymous-auth  Default: true` and `--authorization-mode string
+> Default: "AlwaysAllow"`, and §3.1's *"why"* cell for `10250` rests on both. **[measured]**
+> `pkg/kubelet/apis/config/v1beta1/defaults.go` at `v1.34.1` sets
+> `obj.Authentication.Anonymous.Enabled = ptr.To(false)` and
+> `obj.Authorization.Mode = …KubeletAuthorizationModeWebhook`, and `cmd/kubelet/app/options/options.go`
+> registers both flags with the **already-defaulted struct value** as the flag default
+> (`fs.BoolVar(&c.Authentication.Anonymous.Enabled, "anonymous-auth", c.Authentication.Anonymous.Enabled, …)`),
+> so the flags inherit the config defaults rather than contradicting them. If the kubelet as shipped
+> does not admit anonymous commands, `10250`'s **Claim 1** grounds are in question — which is a row
+> question, priced as a removal, and not this ticket's to answer. Routed to
+> [#83](https://github.com/winniel123/verge-asm/issues/83), which **blocks
+> [#12](https://github.com/winniel123/verge-asm/issues/12)**.
+
+### 16.6 `4369` epmd — the placement §13.7 called clerical, and the reason it is not
+
+§13.7 read this row as the easiest of the seven: RabbitMQ's *"these ports should not be publicly
+exposed"* names `4369` alongside `25672`, `25672` is already in the scoping tier, so `4369` follows
+its cell-mate. **The tier is right and the warrant is wrong, and the defect is the one §10.5 exists to
+catch.**
+
+**RabbitMQ does not own epmd.** §10.5 defines the owner as *"the party that designed the protocol, or
+that authors the reference implementation, speaking about the thing it designed or wrote."* The
+Erlang Port Mapper Daemon is Ericsson's: it is specified and implemented in Erlang/OTP
+(`erts/epmd/src/epmd.c`), and RabbitMQ is a **consumer** of it that ships it. RabbitMQ's sentence
+about `4369` is therefore a different party speaking about its own use of somebody else's daemon —
+**the same shape as kubernetes.io speaking about etcd**, which §13.7 spotted and this row's entry in
+the same paragraph did not. Under §10.5 and §12(c) it corroborates under §2.3 and is **never sole
+grounds**.
+
+**The distinction is per-port, not per-sentence, and that is the general point.** One RabbitMQ
+sentence names two ports; RabbitMQ **owns** `25672`, its own inter-node port, and **does not own**
+`4369`. So the same sentence carries one of its two ports and cannot carry the other. This is
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)'s finding
+seen from the ownership side, and it is worth stating as a rule:
+
+> **Ownership is tested per port, not per sentence.** Where one attestation names several ports, each
+> port must be tested against §10.5 separately. A sentence that is an owner's for one of the ports it
+> names may be a third party's for another, and the corroborator rule then applies to that port alone.
+
+**What actually carries `4369` is Erlang/OTP's own warning, which this note had never cited.**
+**[measured]** `system/doc/reference_manual/distributed.md`, `erlang/otp` `OTP-29.0.5`:
+
+> "Starting a distributed node without also specifying `-proto_dist inet_tls` will expose the node to
+> attacks that may give the attacker complete access to the node and by extension the cluster. **When
+> using insecure distributed nodes, make sure that the network is configured to keep potential
+> attackers out.**"
+
+That is the owner directing that the distribution mechanism sit inside a network the operator
+controls — trusted-network scoping in §2.2's second form. And epmd's own reference page carries a
+consistent, weaker sentence in a section built for the question:
+
+> "The `epmd` daemon accepts messages from both the local host and remote hosts. However, only the
+> query commands are answered (and acted upon) if the query comes from a remote host." … "**To
+> restrict access further, firewall software must be used.**"
+> — `erts/doc/references/epmd_cmd.md`, `OTP-29.0.5`, section *Access Restrictions*
+
+**`4369` goes to the trusted-network scoping tier**, carried by Erlang/OTP with RabbitMQ demoted to
+corroboration. Its shipped default does not help in either direction: **[measured]** epmd listens on
+all interfaces unless `-address` or `ERL_EPMD_ADDRESS` is given, both opt-in, so the default is
+permissive and **silent** under §10.4. §16.9 flags how thin this is.
+
+> **Second by-catch, routed rather than decided.** §3.1's *"why"* cell for `4369` reads *"Cluster-discovery
+> channel whose only protection is a shared Erlang cookie."* **[measured]** The magic cookie protects
+> the **distribution handshake**, not epmd: `epmd_cmd.md`'s *Access Restrictions* section describes
+> epmd answering port queries and name listings to any remote host with no cookie in the exchange at
+> all. The cell describes the wrong port's protection, which is §10.7's *"why"*-cell shape — the row's
+> grounds, not its colour — and §3.1 is not this section's to edit. Routed to
+> [#84](https://github.com/winniel123/verge-asm/issues/84), which does **not** block #12.
+
+### 16.7 The ruling — the table restated, with its coverage in the table
+
+> **§2.2's footing table now places 26 of the 37 `(port, transport)` pairs.** The **explicit
+> prohibition** tier is `6379`, `11211` (tcp and udp), `3306`, `1433`, `9200`, `873`, `445`, `623`,
+> `9042`, **`9300`**, **`2379`** and **`2380`**. The **trusted-network scoping** tier is
+> `27017`/`27018`/`27019`, `2049`, `2181`, `25672`, `2376`, **`2375`**, **`4369`** and **`10250`**.
+> **The weak tier is `5432`, `5984` and `10255`, and it is three rows.**
+>
+> **The eleven uncovered pairs are uncovered by design, and the table now says so rather than leaving
+> the next reader to count.** Class B's seven (`23`, `21`, `512`, `513`, `514`, `5900`, `6000`) and
+> `69/udp` rest on §2.2's **first** form — a specification, IANA's registry, or OpenBSD's deletions —
+> which is not what this table discriminates. `139/tcp`, `137/udp` and `138/udp` are carried by the
+> same Microsoft sentence as `445` and sit inside that row's cell. 26 + 11 = 37.
+
+**What changed and what did not.** Two placements are clerical (§16.2), one confirms a reading §13.7
+proposed (`9300`), one refutes the reading §13.7 proposed (`2379`/`2380`), one is new evidence nobody
+had looked for (`10255`), and one is right for a reason nobody had checked (`4369`). **The weak tier
+grows by one and shrinks by nothing**, which is the result the map's curation patch needs to hear:
+the watch list was missing a member, and it was not either of the two §13.7 predicted.
+
+**The coverage sentence is the deliverable §13.7 actually asked for.** §13.10 recorded that the
+count *"was done by hand against §3's tables and is the kind of thing that goes wrong"*. A table that
+carries its own extent cannot go wrong that way: the arithmetic is in the artefact, and a reader who
+disagrees is disagreeing with a claim rather than reconstructing one.
+
+### 16.8 Every dependent figure, checked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged.** No row changes class, because no row's claim changes |
+| §2.2 footing table — coverage | 19 of 37 pairs (§13.7) | **26 of 37**, with the remaining 11 named in the table as out of subject |
+| §2.2 footing table — prohibition tier | 10 pairs (9 labels) | **13 pairs.** `+9300`, `+2379`, `+2380` |
+| §2.2 footing table — scoping tier | 7 pairs | **10 pairs.** `+2375`, `+4369`, `+10250` |
+| §2.2 footing table — **weak tier** | **2 rows** (`5432`, `5984`) | **3 rows.** `+10255` |
+| §13.4's *"the weak tier is two rows"* | 2 | **superseded — three.** §13.4 was correct over the 19 pairs it had placed |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** `10255` joins the tier and does not displace §4.5's row: `5432`'s upstream states *no position at all*, while `10255`'s owner is silent only on network placement |
+| §12.2's artefact count | ten artefacts, nine self-declarations (§13.6) | **unchanged.** Nothing retrieved here is a configuration artefact in §12.2's sense — `THREAT_MODEL.md` and the man-page sources are prose, and `types.go` is the config API's definition rather than a config file |
+| §13.1's *"three rows have no artefact to read"* | `1433`, `445`, `623` | **unchanged**, and untouched by this pass |
+| §6.1 containment arithmetic | 28 in the hot set + 4 + 5 = 37 | **unchanged** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical, so no evaluation is made non-comparable |
+| §13.7's *"seven listed rows have no footing cell"* | open, routed to #76 | **discharged.** All seven are placed |
+| §13.7's *"the weak tier goes from two rows to four"* | predicted | **refuted.** etcd goes to the prohibition tier; the weak tier goes to **three**, on `10255` |
+
+**Outside this note.** The map's *how the tiered port sets are curated* patch names the weak tier as
+the curator's watch list and must record **three** rows rather than two.
+
+**[ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8 is amended,
+and it was already stale before this ticket touched it.** Its silent-de-attestation blockquote
+enumerates the watch list as *"5432/tcp, 5984/tcp and 9042/tcp"* — but `9042` left the weak tier at
+§12.7 (#69) and **nobody propagated the change to the ADR**, which is the exact failure
+`docs/agents/domain.md` records for #27's `Vantage class` sentence: a clause that goes on saying
+something a later decision withdrew, because nobody searched for the other place it lived. The
+amendment re-enumerates the list as **`5432/tcp`, `5984/tcp` and `10255/tcp`** and records that the
+count is coincidentally three again, so a reader comparing counts rather than members would see
+nothing move.
+
+**No ADR is added.** Every ruling here applies §10.4, §10.5, §12(b) and ADR-0037 as they stand, and
+§16.6's per-port ownership rule is a statement of what §10.5 already requires rather than a new
+decision.
+
+### 16.9 Thin ground, flagged per the standing rule
+
+**`10250`'s scoping cell is the thinnest placement in the table, and it is thinner than every other
+member of its tier.** Every other scoping row has a **sentence** naming a network — MongoDB's *"only
+accessible on trusted networks"*, ZooKeeper's *"behind a firewall"*, NFS's *"on a trusted physical
+network between trusted hosts"*, RabbitMQ's *"not exposed to the public Internet"*, Docker's *"a
+trusted network or VPN"*. `10250`'s is a **table cell**, `Used By: Self, Control plane`, which names
+the port's clients rather than its permitted network, and sits under a page framed as *"useful to be
+aware of"* for firewall planning. It is admitted because §10.3's boundary limb asks the owner to name
+the boundary and this does name one. **The criterion that would change the verdict:** a kubernetes.io
+sentence placing the kubelet API on an untrusted network as a supported deployment would remove it
+from the tier outright; the absence of any stronger sentence than the table cell would justify moving
+it to the weak tier, on the argument that `Used By` is a §12(b) **label**. That argument was
+considered and lost only narrowly.
+
+**`4369`'s cell rests on a sentence that does not name the port, and that is a real gap.**
+Erlang/OTP's *"make sure that the network is configured to keep potential attackers out"* is about
+distributed nodes and the distribution transport; epmd is the mechanism's registry rather than the
+transport, and the page that **is** about epmd declines to prohibit anything, saying only that a
+firewall is what further restriction takes. A reader who says Erlang/OTP has stated a position about
+the distribution port and no position about `4369` has a live argument, and on that reading `4369`
+has **no admissible owner attestation at all** — RabbitMQ's and CouchDB's sentences are both
+non-owners' — which is §10.6's finding for `161/udp` in a second instance, and would be priced as a
+row removal rather than as a footing. **The criterion that would settle it:** an Erlang/OTP sentence
+naming `4369` or epmd specifically, in either direction. None is in the current bytes.
+
+**`2379`/`2380` rest on a document that is one major version old and has existed for three months.**
+`THREAT_MODEL.md` appeared 2026-05-19 and is absent from the `3.5` and `3.6` lines, which are what
+most deployments run and what §3.4 still cites. The finding is honest at `v3.7.x` and it is exposed
+to exactly [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's
+silent de-attestation from the other direction: a young document can be withdrawn as easily as a
+default can be flipped, and this one was written to bound CVE triage rather than to guide operators.
+**The criterion that would change the verdict:** removal or material weakening of the Network
+Boundary paragraph, at which point both ports fall to the **weak tier** on
+`listen-client-urls: http://localhost:2379` alone — which is precisely §13.7's prediction, deferred
+rather than refuted. Both ports are therefore worth watching even though they are not in the weak
+tier.
+
+**The `9300` placement is the most confident of the seven and is still an inference of one step.**
+The owner writes *node*, the owner defines the node as its two interfaces on the same page, and the
+setting the warning concerns governs both — but the owner does not write `9300`. The step is smaller
+than `4369`'s and is not zero.
+
+### 16.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9 and §13.10
+
+**Every artefact was read as shipped bytes at a named tag or release branch, with paths resolved from
+the repository tree.** No rendered documentation site was used as a source of record; where a rendered
+page is quoted (`kubelet.md`, `ports-and-protocols.md`) it is quoted **from its source file in the
+project's own docs repository at a release branch**, which is the shipped byte of the page.
+
+- **The document that decided this ticket is not where the row's citation points, and only a tree
+  listing found it.** §3.4 cites `etcd.io/docs/v3.5/op-guide/security/` for etcd; the position is in
+  `THREAT_MODEL.md` at the repository root. It was found by listing the tree at `v3.7.1` and reading
+  what was there, which is [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+  working exactly as §13.5 described it — *"a retrieval scoped to the rows a table already holds can
+  confirm those rows and can discover nothing."* A session that fetched the cited URL would have
+  confirmed §13.7's hypothesis and been wrong.
+- **A generated reference page can be stale against the source that generates it, and the corpus now
+  has an instance.** `kubelet.md` at `release-1.34` says `--read-only-port … Default: 10255`; the
+  shipped `types.go` at `v1.34.1` says `Default: 0 (disabled)`. §3.4's parenthetical *"the 10255
+  default verified directly against the rendered page"* names the hazard it walked into: **verifying
+  against a rendering is not verifying**, and §11.9 had already recorded the same class for net-snmp's
+  `man2html` pages.
+- **The `.sample` trap from §13.6 has a sibling in file *purpose*, and it was met.** etcd's
+  `THREAT_MODEL.md` was written to scope CVE triage, and reading the purpose as the answer would have
+  discarded a prohibition — the mirror of reading `.sample` as the answer and discarding a default.
+  §16.3 rules on the sentence and records the purpose argument in full rather than suppressing it.
+- **Ownership was checked per port rather than inherited from a cell-mate**, which is what turned
+  `4369` from clerical into a retrieval. The check that catches it is cheap and was not previously
+  part of the method: for each port a sentence names, ask who wrote the sentence and who wrote the
+  daemon.
+- **Erlang/OTP tags are not semantic-version tags** — the repository uses `OTP-29.0.5`, and a guessed
+  `OTP-28.1.2` returns 404. The tag list was read before any path was resolved, per §13.10's rule that
+  paths come from the tree rather than from expectation.
+- **`10255`'s absence was verified positively rather than assumed.** A search of `kubernetes/website`
+  for `10255` returns eight files, of which the English-language substantive ones are the CLI
+  reference, `kubelet-config-file.md` and a standalone-kubelet tutorial; none states a network
+  position, and `ports-and-protocols.md` — the page that would carry one — does not list the port.
+  Per §11.8, a negative retrieval is a verdict, and per ADR-0037 limb 3 it is a verdict about what was
+  read.
 
 ---
 
@@ -3978,6 +4534,17 @@ Placement statements (§15) — the determinacy source rule and the walk. **Read
 - **Open Mobile Alliance, *Wireless Session Protocol* `OMA-WAP-TS-WSP-V1_0-20110315-A`** — [openmobilealliance.org](https://www.openmobilealliance.org/release/Browser_Protocol_Stack/V2_1-20110315-A/OMA-WAP-TS-WSP-V1_0-20110315-A.pdf). Cited for what it **is not**: an archived release of a suite no party currently ships, so under limb 4 it places nothing and `9200/tcp` stays uncontested (§15.3). **Not retrieved:** OMA's own WDP specification, which is the primary for the WDP/UDP bearer-port claim §15.3 rests its second ground on
 - **RFC 4146** — already in the standards list above, and **re-cited here as the carrying artefact for `79/tcp`'s determinacy limb**, with IANA's `Unauthorized use by some mail users` annotation demoted to corroboration (§15.5, amending §9.3.4's footing rather than its verdict)
 - Walked and found to carry **no competing placement statement** (§15.4): [Kubernetes ports and protocols](https://kubernetes.io/docs/reference/networking/ports-and-protocols/) for `10250` and `10255` · [RabbitMQ networking](https://www.rabbitmq.com/docs/networking) for `25672`, derived as `NODE_PORT + 20000` · [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/r3.9.3/zookeeperAdmin.html) for `2181` · [xhost(1), X.Org](https://www.x.org/releases/current/doc/man/man1/xhost.1.xhtml) for `6000`
+Shipped bytes (§16) — the footing table's seven uncovered rows; every path resolved from the repository tree at a named tag or release branch, and where a rendered page is quoted it is quoted from its **source file** in the project's own docs repository
+- **etcd [`THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/v3.7.1/THREAT_MODEL.md) at `v3.7.1`** — **the document that decided this ticket, and it is not where §3.4's citation points.** *"etcd Server assumes it is deployed within a strictly isolated, private network segment. It **must not** be exposed to untrusted networks or the public internet."* · *"etcd clients communicate with etcd Servers over Port 2379."* · *"etcd Server members communicate with other cluster members over Port 2380 to run Raft consensus."* Present at [`v3.7.0`](https://github.com/etcd-io/etcd/blob/v3.7.0/THREAT_MODEL.md), **absent at `v3.6.14` and `v3.5.33`**; the Network Boundary paragraph is byte-identical at `v3.7.0`, `v3.7.1` and `main`. Created 2026-05-19 as *"Define THREAT_MODEL for etcd to decentivize agents reporting CVEs outside it"* — the purpose argument §16.3 states in full and refuses
+- etcd [`etcd.conf.yml.sample`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/etcd.conf.yml.sample) at `v3.7.1` — re-read (§13.6's artefact); `listen-peer-urls: http://localhost:2380` and `listen-client-urls: http://localhost:2379`, a restricting default that now **corroborates** a prohibition rather than standing alone
+- **Elasticsearch [`docs/reference/elasticsearch/configuration-reference/networking-settings.md`](https://github.com/elastic/elasticsearch/blob/v9.5.1/docs/reference/elasticsearch/configuration-reference/networking-settings.md) at `v9.5.1`** — *"Never expose an unprotected node to the public internet"* in a `warning` admonition, three lines below *"Each Elasticsearch node has two different network interfaces"* and *"By default Elasticsearch binds only to `localhost`"*; `network.host` *"Sets the address of this node for **both HTTP and transport traffic**"*; `transport.port` *"Defaults to `9300-9400`"*. **The owner's own page is what links the *node* sentence to `9300`**
+- Elasticsearch [`distribution/src/config/elasticsearch.yml`](https://github.com/elastic/elasticsearch/blob/v9.5.1/distribution/src/config/elasticsearch.yml) at `v9.5.1` — re-read (§13.1's artefact); **contains no prose about the transport interface or `9300` at all**, which is why this row needed the docs source
+- **Kubernetes [`staging/src/k8s.io/kubelet/config/v1beta1/types.go`](https://github.com/kubernetes/kubernetes/blob/v1.34.1/staging/src/k8s.io/kubelet/config/v1beta1/types.go) at `v1.34.1`** — `readOnlyPort` *"Setting this field to 0 disables the read-only service. **Default: 0 (disabled)**"*. The restricting default that puts `10255` in the weak tier
+- Kubernetes [`pkg/kubelet/apis/config/v1beta1/defaults.go`](https://github.com/kubernetes/kubernetes/blob/v1.34.1/pkg/kubelet/apis/config/v1beta1/defaults.go) and [`cmd/kubelet/app/options/options.go`](https://github.com/kubernetes/kubernetes/blob/v1.34.1/cmd/kubelet/app/options/options.go) at `v1.34.1` — `obj.Address = "0.0.0.0"` (permissive, therefore silent under §10.4) · `obj.Authentication.Anonymous.Enabled = ptr.To(false)` · `obj.Authorization.Mode = …KubeletAuthorizationModeWebhook`, with each flag registered against the already-defaulted struct value. **Routed to [#83](https://github.com/winniel123/verge-asm/issues/83)** as a Claim 1 question
+- Kubernetes [`content/en/docs/reference/networking/ports-and-protocols.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/networking/ports-and-protocols.md) at `release-1.34` — `10250` `Kubelet API` `Used By: Self, Control plane`, in both the control-plane and worker-node tables. **`10255` does not appear.** §16.9 flags this as the thinnest cell in the tier, because it is a table cell rather than a sentence naming a network
+- Kubernetes [`content/en/docs/reference/command-line-tools-reference/kubelet.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kubelet.md) at `release-1.34` — the **generated** page §3.4 cites, still carrying `--read-only-port int32  Default: 10255`, `--anonymous-auth  Default: true` and `--authorization-mode string  Default: "AlwaysAllow"`. Retrieved as the *contradicted* artefact, not as evidence; §10.4's one-way rule makes the permissive one silent without adjudication (§16.5)
+- **Erlang/OTP [`system/doc/reference_manual/distributed.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/reference_manual/distributed.md) at `OTP-29.0.5`** — *"When using insecure distributed nodes, make sure that the network is configured to keep potential attackers out."* What actually carries `4369`, in place of RabbitMQ's non-owner sentence (§10.5, §16.6)
+- Erlang/OTP [`erts/doc/references/epmd_cmd.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/references/epmd_cmd.md) at `OTP-29.0.5`, section *Access Restrictions* — *"only the query commands are answered … if the query comes from a remote host"* · *"To restrict access further, firewall software must be used."* · `-address` / `ERL_EPMD_ADDRESS` are **opt-in**, so epmd's default is permissive and silent. **No cookie appears in epmd's remote exchange**, which is the §3.1 *"why"*-cell defect routed to [#84](https://github.com/winniel123/verge-asm/issues/84)
 
 No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
 - **1433/tcp** Microsoft SQL Server and **445/tcp** SMB with **139/tcp**, **137**, **138/udp** — configured through setup and the registry rather than through a file Microsoft ships
@@ -3987,6 +4554,8 @@ Checked and found to contain **no** position, which is itself the finding
 - `rpcbind(8)` — no security section, no exposure statement
 - [Apache Kafka security overview](https://kafka.apache.org/43/security/security-overview/) — "security is optional - non-secured clusters are supported"
 - PostgreSQL `ssl-tcp.html` and `client-authentication.html` — no statement on network placement (§4.5)
+- **[etcd.io `v3.6/op-guide/security`](https://github.com/etcd-io/website/blob/main/content/en/docs/v3.6/op-guide/security.md)**, `etcd-io/website` `main` — the page §3.4 cites for etcd. A sweep for `internet`, `untrusted`, `expose`, `firewall`, `trusted network` and `public` returns the **consequence** sentence *"can expose its data to any clients"*, TLS certificate mechanics, and **no position**. §13.7's hypothesis was correct about this page and wrong about the project (§15.3)
+- Kubernetes [`content/en/docs/reference/access-authn-authz/kubelet-authn-authz.md`](https://github.com/kubernetes/website/blob/main/content/en/docs/reference/access-authn-authz/kubelet-authn-authz.md) — nothing about network placement for either kubelet port; the `10255` search across `kubernetes/website` returns eight files and no position (§15.10)
 
 Consulted and deliberately not used as evidence
 - `nmap-services` open-frequency data — frequency, and 2008-vintage. Used in §6.1 only to state where a port ranks, never to justify a verdict
