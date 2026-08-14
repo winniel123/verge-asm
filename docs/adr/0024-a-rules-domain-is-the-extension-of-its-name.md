@@ -323,7 +323,8 @@ domain difference and there is nothing for a message to explain.
 **The stated cost that follows is recorded rather than left implicit.** A rule that was `fired` and
 leaves its domain goes quiet with no message, and a rule that **opens at `fired`** on entering its
 domain reaches nobody except through the census of a message above it. ADR-0026 §4 confirms both as
-v1's answer and states the cost.
+v1's answer and states the cost; the residue is
+[#65](https://github.com/winniel123/verge-asm/issues/65).
 
 **One count in this ADR is the one other documents got wrong.** *"Writing all **sixteen** out is
 what tested the rule"* is correct, and the *ten v1 signals* in

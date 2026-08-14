@@ -196,7 +196,8 @@ The only additions are payload: two more producers of a census shape that alread
   starting to present an expired certificate, a `tls-acceptance` timeline opening at `fired` on its
   own weekly `Scan` — reaches nobody. It is refused here rather than left open, because a carrier
   needs the three-way case analysis on *why the timeline opened* that ADR-0031 rejected in terms,
-  and the version that avoids it fires on every internal deploy. It does not block
+  and the version that avoids it fires on every internal deploy. It is
+  [#65](https://github.com/winniel123/verge-asm/issues/65), and it does not block
   [#12](https://github.com/winniel123/verge-asm/issues/12): v1's answer is silence with the cost
   stated.
 
