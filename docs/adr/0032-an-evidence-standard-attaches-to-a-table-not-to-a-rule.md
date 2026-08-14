@@ -52,6 +52,15 @@ nine signals?* — has a false presupposition in it, and finding that is most of
 | An attestation moving under a shipped rule | **Already fully specified**, and needs nothing new: it is an output-affecting change at release cadence. What is new is the failure *shape* — §10.4's one-way rule makes de-attestation **silent** |
 | Where this lives | **A new ADR.** ADR-0004 governs *may this ship as a rule*; this governs *what licenses the content of a table*, whose population includes tables no rule reads |
 
+> **Amended by [ADR-0036](./0036-a-shipped-default-is-the-configuration-that-takes-effect.md)**
+> ([#69](https://github.com/winniel123/verge-asm/issues/69)). Gate 2 is the gate that generalises, so
+> its refinements generalise with it. A **shipped default** means the configuration that **takes
+> effect** and that the party **documents as its default** — an example file is silent in both
+> directions — and installing another party's bytes transfers **operativeness, not ownership**, so a
+> distributor's packaging corroborates and is never sole grounds where the claim is about something it
+> did not design. Any future table admitted under gate 2 inherits all four limbs. No row moved and no
+> rule version moved; one footing did.
+
 ## Amendment — [#67](https://github.com/winniel123/verge-asm/issues/67): `N` is attested, and the claim recorded against it was never derived
 
 Three rows above say `certificate-expiring`'s `N` is **inside gate 2 and currently unattested** —
