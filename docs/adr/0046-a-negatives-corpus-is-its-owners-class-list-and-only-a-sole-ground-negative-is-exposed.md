@@ -88,6 +88,15 @@ The list is short, it is fixed before the search starts, and **an owner cannot i
 to defeat a sweep**. That is the difference between this and a general *somebody may have said this
 somewhere*, and it is why ADR-0040's *bounded* rather than *permanent* is available here at all.
 
+> **Read *fixed* as fixing the TAXONOMY, never the MEMBERSHIP** — the
+> [#93](https://github.com/winniel123/verge-asm/issues/93) amendment below, which says in terms that
+> this phrase *"could be read as making a finished sweep finished for all time"* and then left it
+> readable that way. An owner's class list is **fixed at the time of the sweep, not for all time**; a
+> class sweep's output is a **dated** negative, disclosed as *the class had no member at release R,
+> dated D*. Marked at the sentence per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+> by [#106](https://github.com/winniel123/verge-asm/issues/106).
+
 **The measurement that makes the point cheapest.** PostgreSQL is the note's weakest row and its
 negative is the strongest-sounding in the corpus — *upstream states no position at all on network
 placement*. It has **two** classes and #70 read both. There is nothing left to open, so §4.5's
