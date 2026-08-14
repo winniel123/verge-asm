@@ -322,3 +322,130 @@ The rule the withdrawn sentence generalised from is **unchanged**: enabling a ge
 *appeared*. It simply does not reach these five. The claim returns the moment any of these
 paths feeds an observation rather than a proposal — RIPEstat's BGP leg is the live
 candidate.
+
+## Fourth amendment — 2026-08-13
+
+[#57](https://github.com/winniel123/verge-asm/issues/57) went looking for the evidence behind
+*asked, nobody replied* and did not find it. The **decision above is unchanged**, and so is
+every ship state in the second amendment's table. What is withdrawn is a **claim about the
+project's own conduct** that this ADR has been making since its first amendment, and that
+four operator-facing surfaces inherited from it.
+
+### The ask is unevidenced, in both directions
+
+The first amendment records that
+[#19](https://github.com/winniel123/verge-asm/issues/19),
+[#23](https://github.com/winniel123/verge-asm/issues/23),
+[#24](https://github.com/winniel123/verge-asm/issues/24) and
+[#25](https://github.com/winniel123/verge-asm/issues/25) *"have all closed as **asked, no
+answer**"*, and gives the first-run reason as *"we asked, nobody replied, and you can accept
+the terms yourself"*. **The first half of that sentence is not something this project can
+produce.** Measured across the four tickets, their GitHub timelines, and every file in the
+repository's history:
+
+- **No send confirmation of any kind**, on any of the four.
+- **No recipient for three of the four.** #19 names `stat@ripe.net`; #23 and #25 say only
+  *"Write to APNIC"* / *"Write to LACNIC"*; #24 names *"AFRINIC hostmaster"* with no address,
+  the terms text having redacted it.
+- **No send date.** The only timestamps in existence are GitHub lifecycle events.
+- **No artefact anywhere in the repository.** Every file ever added on any branch is a
+  glossary, an ADR, an agent doc, a research note, a prototype or the design system. There
+  has never been a correspondence directory, a draft, or a mail log.
+- **The four determinations were made in one batch, in under four minutes.** All four were
+  assigned between `08:34:06Z` and `08:34:13Z` and closed between `08:37:37Z` and
+  `08:37:43Z`. Under the wayfinder skill a session claims a ticket *before any work*, so the
+  working window on each was about three and a half minutes, and one session wrote all four
+  resolutions in one pass.
+- **#24 says the quiet part in its own resolution**: *"With the email
+  **unsent-or-unanswered** this stays unreported."* The session recording the non-answer did
+  not know whether a question existed.
+
+So the project cannot distinguish **sent and ignored** from **never sent**. That is not a
+finding that the emails were never sent — it is a finding that **the project has no record
+either way, and never had a mechanism to have one.** Writing to a third party is an act no
+agent session can perform; these were `wayfinder:task` tickets of the kind the skill says
+must be handed to the human as a checklist, and no such handoff, acceptance or report-back
+is recorded.
+
+### *We did not ask* is the same defect with the sign flipped
+
+The tempting correction is to replace *asked, no answer* with *we did not ask*. It is refused.
+A surface saying the project did not write is asserting a fact about the project's past acts
+on exactly the evidence that failed to support the opposite claim. That is
+[ADR-0004](./0004-signals-are-release-coupled-rules.md)'s *absent evidence yields
+`not-evaluable`, never "did not fire"* arriving through the copy deck.
+
+The honest statement is the one this project already has vocabulary for. **No reply has ever
+been received** — a genuine negative the project can stand behind, since a reply would have
+been recorded as everything else in this effort was. **Whether anything was sent is a `Gap`**,
+and a `Gap` states its cause: the project keeps no record of outbound communications.
+
+### The toggle does not rest on the ask, and never did
+
+`operator-accepted` **survives untouched**, and the reason is already written down. The
+second amendment defines it as *"the project could not clear these terms for the modal
+operator and will not read them on a stranger's behalf; the operator, who is the party
+actually bound by them, makes the reading and bears it"*, and
+[`CONTEXT.md`](../../CONTEXT.md)'s entry says the same. **No clause of either depends on an
+email.** The value rests on the project's *refusal to read*, which is a standing position and
+not an event. The ask was the corollary's **procedure**; the toggle's legitimacy rests on the
+corollary's **substance**.
+
+This matters because the over-correction is expensive and available: concluding that the
+toggles are illegitimate would delete the org→prefix entry point in four of five regions,
+which is the second amendment's rejected option 1 with a new reason attached. A finding about
+the project's filing is not evidence about a stranger's terms.
+
+Two things do change. **The reason line loses its first half** — the wording is
+[#57](https://github.com/winniel123/verge-asm/issues/57)'s and renders as *no reply has ever
+come, and no record of an approach exists*. And **the ambiguity corollary's procedure has not
+been shown to have been followed**, which is a debt against this ADR rather than against the
+sources: whether it is discharged by sending or by formally recording that nothing was sent
+is an outbound act and belongs to the dev, carried by
+[#59](https://github.com/winniel123/verge-asm/issues/59). The ship states do not wait on it,
+because *ambiguous terms ship off indefinitely* produces the identical result whether the
+question was asked and ignored or never put at all. **Only what the project may claim
+differs.**
+
+### The project records outbound communications, or may not claim them
+
+Outbound messages were the only class of project act in this effort with no artefact, and
+the cost is measurable: [#28](https://github.com/winniel123/verge-asm/issues/28)'s `Coverage`
+prototype shipped the sentence *"Asked 2026-06-02. Nobody replied."* — a **fabricated date**,
+not a stale one, since it precedes the repository's first commit by two months. A surface
+needed a precise fact, no artefact existed to supply one, and prose invented it.
+
+So an outbound message is recorded as an artefact under `docs/correspondence/`, holding the
+message **as sent** — recipient, date, full body, and any reply appended verbatim. The
+governing rule is [ADR-0005](./0005-scan-execution-model.md)'s applied to the project's own
+conduct rather than to a `Batch`: **record what completed, never what was attempted.**
+#19–#25 recorded an *intention to write* and four surfaces then read it as evidence of a
+send, which is a dead-lettered batch asserting absences it never measured, one layer up.
+Absence of a file is therefore evidence of absence, which is what converts today's `Gap` into
+a value the moment the dev acts. Drafts live under `docs/correspondence/drafts/` and are
+evidence of nothing; sending means moving the file up one level.
+
+The rider that generalises past this ADR: **the project may only claim an act it can
+produce**, and this is the first time the rule has been turned on the project itself rather
+than on a source or a measurement.
+
+### The four resolution comments stand
+
+#19, #23, #24 and #25 are not edited. [ADR-0007](./0007-drift-is-a-timeline-of-spans.md)
+refuses to re-derive history — a wrong record is corrected by a new entry, never by a
+rewrite — and a closed ticket is a record of what a session concluded on the day. Each
+carries a correcting comment pointing here and at
+[#57](https://github.com/winniel123/verge-asm/issues/57) instead.
+
+### One habit, from how the defect reports were lost
+
+#24 and #25 each bundled two different acts into one message: a **question the project
+needs answered** and a **defect report the source needs** — AFRINIC's documented terms URL
+returning 404, LACNIC serving a 7,014 B script shell at five documented policy addresses.
+Both defects remain unreported because they were attached to a question that is itself
+unevidenced. **Do not bundle a question the project needs with a courtesy the source needs.**
+They have different recipients and different urgency, only one of them is ADR-0003's
+business, and the courtesy has no fallback — it is simply dropped with the question. Neither
+defect blocks anything: the second amendment's consent record already stores *the retrieval
+failure* in the same slot as the document, so a fix at either registry is upside rather than
+a dependency.
