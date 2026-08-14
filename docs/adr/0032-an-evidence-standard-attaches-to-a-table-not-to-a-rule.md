@@ -46,8 +46,8 @@ nine signals?* — has a false presupposition in it, and finding that is most of
 | Gate 3, determinacy | **The surrogate gate.** It binds any table whose key is not the fact the rule names. v1 has exactly one surrogate, so elsewhere the question does not arise — this is *outside the domain*, not a pass |
 | Where the gate does **not** apply | A table about **our own measurement** (`k`, the availability window, the prober's retry budget, the frequency half of `verge-core`, the coverage threshold). There is no owner to attest a fact about us |
 | Two instruments or three | **Three, and they partition on what the table does** — what we **ask** (ADR-0030), what we **conclude** (#31), what we **assert** (#21). One rule may compose tables under two of them |
-| `certificate-expiring`'s `N = 30 days` | **Inside gate 2 and currently unattested.** It ships, disclosed, and the retrieval is [#67](https://github.com/winniel123/verge-asm/issues/67). A row may not move on a re-reading of text already held |
-| `certificate-weak-key-or-signature`'s thresholds | **A third curated table, and it has never been written.** It must be authored under gate 2, which is [#68](https://github.com/winniel123/verge-asm/issues/68) — and it **blocks [#12](https://github.com/winniel123/verge-asm/issues/12)** |
+| `certificate-expiring`'s `N = 30 days` | ~~**Inside gate 2 and currently unattested.** It ships, disclosed, and the retrieval is [#67](https://github.com/winniel123/verge-asm/issues/67).~~ **`N` IS ATTESTED** — the [#67](https://github.com/winniel123/verge-asm/issues/67) amendment below, which also finds the claim recorded against it was never derived. A row may not move on a re-reading of text already held |
+| `certificate-weak-key-or-signature`'s thresholds | ~~**A third curated table, and it has never been written.** It must be authored under gate 2, which is [#68](https://github.com/winniel123/verge-asm/issues/68) — and it **blocks [#12](https://github.com/winniel123/verge-asm/issues/12)**~~ — **the table HAS been written** ([`weak-key-and-signature.md`](../research/weak-key-and-signature.md), five rows) and **#68 no longer blocks [#12](https://github.com/winniel123/verge-asm/issues/12)**, per the #68 amendment below |
 | The weak-tier disclosure | **Generalises — to every instrument's own document, and to no screen in v1.** Its consumer is the curator, not the operator |
 | An attestation moving under a shipped rule | **Already fully specified**, and needs nothing new: it is an output-affecting change at release cadence. What is new is the failure *shape* — §10.4's one-way rule makes de-attestation **silent** |
 | Where this lives | **A new ADR.** ADR-0004 governs *may this ship as a rule*; this governs *what licenses the content of a table*, whose population includes tables no rule reads |
@@ -64,9 +64,17 @@ nine signals?* — has a false presupposition in it, and finding that is most of
 ## Amendment — [#67](https://github.com/winniel123/verge-asm/issues/67): `N` is attested, and the claim recorded against it was never derived
 
 Three rows above say `certificate-expiring`'s `N` is **inside gate 2 and currently unattested** —
-the Decision table, §5's gate-2 table, and the v1 walk. They stand unrewritten per the
-name-and-withdraw convention. **`N` is attested**, and the route to the attestation is a defect in
+the Decision table, §5's gate-2 table, and the v1 walk. ~~They stand unrewritten per the
+name-and-withdraw convention.~~ **`N` is attested**, and the route to the attestation is a defect in
 this ADR rather than a discovery about the world.
+
+> **That reading of the convention is WITHDRAWN by [#106](https://github.com/winniel123/verge-asm/issues/106).**
+> Name-and-withdraw is *left standing **and marked***, never *left standing unmarked* — the
+> [`sensitive-ports.md`](../research/sensitive-ports.md) §3 sentence it derives from reads *"left
+> standing … **marked here** rather than deleted"*. Under
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+> by #106, an amendment does not discharge a clause elsewhere in its own file, so all three rows —
+> and the three the #68 amendment below leaves the same way — are now marked at the sentence.
 
 **§3 obliged a second table to derive its own closed claim set from what its rule reads, and this
 ADR did not perform that derivation for `N`.** It filled the slot with #60's prose gloss — *"the
@@ -252,7 +260,7 @@ measurement, so the reason is stated rather than buried."*
 | Table | About | Gate 2 |
 | --- | --- | --- |
 | The 38 sensitive `(port, transport)` pairs | The world — *this exposure is never correct* | **Applies.** Attested for 37 rows; `161/udp` disclosed, [#66](https://github.com/winniel123/verge-asm/issues/66) |
-| `certificate-expiring`'s `N = 30 days` | The world — *this is the last point the operator can still act* | **Applies. Currently unattested**, [#67](https://github.com/winniel123/verge-asm/issues/67) |
+| `certificate-expiring`'s `N = 30 days` | The world — *this is the last point the operator can still act* | ~~**Applies. Currently unattested**~~ — **ATTESTED**, and this claim gloss was **never derived**, per the [#67](https://github.com/winniel123/verge-asm/issues/67) amendment above |
 | `certificate-weak-key-or-signature`'s thresholds | The world — *this key or algorithm is weak* | **Applies. Never written**, [#68](https://github.com/winniel123/verge-asm/issues/68) |
 | `k` cadences; the availability window; the coverage threshold | Our own measurement | Inapplicable. ADR-0008 governs alone |
 | The prober's timeout and retry budget | Our own measurement | Inapplicable. ADR-0021's leaves govern |
@@ -473,9 +481,9 @@ The claim that thirteen rules carry no curated table is checkable, so it is chec
 | --- | --- | --- |
 | `certificate-expired` | none — `not_after` vs the clock, RFC 5280 field | — |
 | `certificate-not-yet-valid` | none — `not_before` vs the clock | — |
-| `certificate-expiring` | **`N = 30 days`** | **#21 gate 2 — unattested, [#67](https://github.com/winniel123/verge-asm/issues/67)** |
+| `certificate-expiring` | **`N = 30 days`** | **#21 gate 2 — ~~unattested~~ ATTESTED**, per the [#67](https://github.com/winniel123/verge-asm/issues/67) amendment above |
 | `certificate-self-signed` | none — issuer ≡ subject, self-signature verifies. **No trust store**, which is why the rule is not named `untrusted` | — |
-| `certificate-weak-key-or-signature` | **thresholds and a deprecated-algorithm set — never written** | **#21 gate 2 — [#68](https://github.com/winniel123/verge-asm/issues/68)** |
+| `certificate-weak-key-or-signature` | **thresholds and a deprecated-algorithm set — ~~never written~~ WRITTEN**, [`weak-key-and-signature.md`](../research/weak-key-and-signature.md), five rows | **#21 gate 2 — [#68](https://github.com/winniel123/verge-asm/issues/68), which no longer blocks [#12](https://github.com/winniel123/verge-asm/issues/12)** |
 | `certificate-hostname-san-mismatch` | none — RFC 6125 matching, leftmost-label wildcards. **Reaching for a public suffix list would create one** | — |
 | `tls-1.0-accepted` | none asserted; its domain is the **TLS candidate set** | ADR-0030 |
 | `plaintext-http-no-https` | none — the `80/tcp` literal was withdrawn at ADR-0024 | — |
@@ -506,11 +514,19 @@ written for.
   `161/udp` and `5432/tcp` do. #37's precedent binds: a row may not move on a re-reading of text
   already held, only on a **retrieval**. So #67 and #68 are retrievals, not blockers on the number
   they concern.
-- **[#68](https://github.com/winniel123/verge-asm/issues/68) blocks
-  [#12](https://github.com/winniel123/verge-asm/issues/12).** A v1 rule with no predicate content
+- ~~**[#68](https://github.com/winniel123/verge-asm/issues/68) blocks
+  [#12](https://github.com/winniel123/verge-asm/issues/12).**~~ A v1 rule with no predicate content
   cannot be assembled into a spec, and #12 must carry sixteen rules per
   [#64](https://github.com/winniel123/verge-asm/issues/64). #67 does not block it — `N` is fixed at
-  30 and the spec can carry it with the disclosure.
+  30 and ~~the spec can carry it with the disclosure~~ **the disclosure is spent, `N` being attested
+  per the #67 amendment above**.
+  > **The blocker is DISCHARGED**, per the #68 amendment above: the table **has been written**
+  > ([`weak-key-and-signature.md`](../research/weak-key-and-signature.md), five rows), so the rule has
+  > predicate content and **#68 no longer blocks #12**. The general reasoning — a rule with no
+  > predicate content cannot be assembled into a spec — stands. Marked at the sentence per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+  > by [#106](https://github.com/winniel123/verge-asm/issues/106); this is the one site in this file
+  > where the unmarked clause reaches **[#12](https://github.com/winniel123/verge-asm/issues/12)**.
 - **[#68](https://github.com/winniel123/verge-asm/issues/68) will test §10.5's owner definition on a
   case it was not built for.** *Owner* keys on the artefact — the party that designed the protocol
   or authors the reference implementation. A claim about the WebPKI's key and algorithm floor is
@@ -524,8 +540,17 @@ written for.
   the precedent. The edit this ADR would make is one clause on `Signal`: *where a rule reads a
   curated table asserting about the world, the table is governed by ADR-0032 and the rule's naming
   discipline is what usually means there is no such table.*
-- **The map's curation patch gains its first concrete task** — the three shipped-default rows are the
-  watch list, and nobody has checked whether any of the three defaults has already moved.
+- **The map's curation patch gains its first concrete task** — ~~the three shipped-default rows are the
+  watch list~~, and nobody has checked whether any of the three defaults has already moved.
+  > **The equation is WITHDRAWN at §8 above and here too.** The watch list is defined by **shape**,
+  > not by the weak tier, per
+  > [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md)
+  > ([#71](https://github.com/winniel123/verge-asm/issues/71)).
+  > [#102](https://github.com/winniel123/verge-asm/issues/102) struck the §8 statement and left this
+  > restatement of it standing 159 lines below — the one-sibling-got-the-mark failure #102 itself
+  > recorded inside [ADR-0009](./0009-verge-core-is-a-union.md), committed again in the same pass.
+  > Marked per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+  > as widened by [#106](https://github.com/winniel123/verge-asm/issues/106).
 
 ## Alternatives rejected
 

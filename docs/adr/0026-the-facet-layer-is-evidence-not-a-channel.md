@@ -50,10 +50,10 @@ membership is at the `Reach`, `Signal` and membership layers above it.**
 | Facet | Transitions that are messages | Everything else, and why |
 | --- | --- | --- |
 | `resolution` | → `Shadowed` (coverage member 1, existing law) · → `Lame` (coverage member 6, existing law, carried by `lame-delegation`) · `Shadowed`/`Lame`/`Gap` → a value, which is coverage member 7 fired **at the cause** with the census of what it restored sight to · **and one new message, §2** | `Resolved` → `NameError` is `withdrawn` and silent ([ADR-0006](./0006-subjects-leave-by-measurement.md)); `NameError` → `Resolved` is `returned` and belongs to membership (ADR-0031); `Resolved` → `NoData`, and any move that only removes addresses, is the shrinking direction ADR-0029 §4 and ADR-0006 both silence |
-| `dns-record` | **none, in any direction** | No v1 rule reads `dns-record` directly — [#48](https://github.com/winniel123/verge-asm/issues/48)'s two signals read the *composed* `resolution` — and a message per RRset move is ADR-0007's named burst shape verbatim: *a `dns-record` rule that fires per qtype per name*. Growth reached through a record — an MX or CNAME target entering — is a `Name` `appeared` and membership carries it |
+| `dns-record` | ~~**none, in any direction**~~ **none, except where the move opens a rule at `fired`** — amended by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below | No v1 rule reads `dns-record` directly — [#48](https://github.com/winniel123/verge-asm/issues/48)'s two signals read the *composed* `resolution` — and a message per RRset move is ADR-0007's named burst shape verbatim: *a `dns-record` rule that fires per qtype per name*. Growth reached through a record — an MX or CNAME target entering — is a `Name` `appeared` and membership carries it |
 | `reachability` | the internet `Reach` leg `not-reached` → `reached` (ADR-0029 §2), **payload widened by §3** | `refused` ↔ `no-response` never moves `Reach`, so it is recorded and silent — the model's own proof that the cut is below the facet; internet `reached` → `not-reached` silent (ADR-0029 §4); the internal leg silent in both directions (ADR-0029 §3) |
-| `certificate` | **none** | `Presented(c1)` → `Presented(c2)` is renewal, the modal event on an ACME estate, and what matters about it is read by the clock rules; `Presented` → `NoTLS`/`TLSRefused` is the shrinking direction and a domain exit, which §4 rules is not a transition |
-| `http-identity` | **none** | `Responded(…)` → `Responded(…)` moves on every deploy — status, `Location`, `Server`, title — and is the burst shape one facet across; `Responded` ↔ `NoHTTPResponse` is a domain entry or exit, §4 |
+| `certificate` | ~~**none**~~ **none, except where the move opens a rule at `fired`** — amended by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below, this reason never addressing `NoTLS` → `Presented` | `Presented(c1)` → `Presented(c2)` is renewal, the modal event on an ACME estate, and what matters about it is read by the clock rules; `Presented` → `NoTLS`/`TLSRefused` is the shrinking direction and a domain exit, which §4 rules is not a transition |
+| `http-identity` | ~~**none**~~ **none, except where the move opens a rule at `fired`** — amended by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below | `Responded(…)` → `Responded(…)` moves on every deploy — status, `Location`, `Server`, title — and is the burst shape one facet across; `Responded` ↔ `NoHTTPResponse` is a domain entry or exit, §4 |
 | `tls-acceptance` | **none** | The accepted version and cipher sets moving is exactly what `tls-1.0-accepted` is named for, and §5 makes that rule's own edge the message |
 
 ### 2. The one new facet message: a `resolution` transition that admits ground nothing else covers
@@ -94,9 +94,16 @@ of that shape "would be a signal that the shape is right"; this is the third and
 
 This is [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s plain text — *a subject
 outside the domain is not rendered as a member, a row, a state or a **transition*** — and
-ADR-0014's, and it is confirmed rather than extended. A rule that **opens at `fired`** is carried
+ADR-0014's, and it is confirmed rather than extended. ~~A rule that **opens at `fired`** is carried
 by the census of a message above it where one exists (§2, §3, ADR-0031 §3) and by nothing where
-none does. ADR-0024's stated **reason** is withdrawn; see §7.
+none does.~~ ADR-0024's stated **reason** is withdrawn; see §7.
+
+> **NARROWED by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below.** A rule
+> that opens at `fired` is carried **by the census where one exists, by the move beneath it where
+> there is one, and by nothing where the timeline merely opened.** This section's ruling that domain
+> entry and exit are **not** transitions is untouched. Marked here rather than only at the amendment,
+> per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as
+> widened by [#106](https://github.com/winniel123/verge-asm/issues/106).
 
 ### 5. The signal layer, per rule — where the drift class actually lives
 
