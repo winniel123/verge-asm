@@ -1904,6 +1904,18 @@ two phrasings, and the gap is where the Red Hat question lives.
 > Its **security-guide prose** about a protocol it did not design is a third-party hardening opinion,
 > and §2.3 governs it: corroboration, never sole grounds.
 
+> **Amended by [#68](https://github.com/winniel123/verge-asm/issues/68) — the artefact class this
+> definition did not enumerate.** A **cryptographic primitive's owner is the body whose standard
+> specifies the primitive**, speaking about the primitive it specified: NIST owns SHA-1, the SHA-2
+> family, ECDSA and the P-curves because FIPS 180-4, FIPS 186-5 and SP 800-186 are what those
+> algorithms **are**, exactly as the IETF owns what its RFCs specify. **A body that specifies which
+> primitives a population may *accept* — the CA/Browser Forum over the WebPKI, a root programme over
+> its own trust store — is not thereby an owner of the primitive.** It is in the distributor position
+> above: its restriction is admissible under §2.2's third form **over its own artefact**, and §2.3
+> governs its prose. §10.4 rules *whether* a shipped default attests and never *what about*, so a
+> floor over a relying party's acceptance attests about that acceptance and not about the algorithm.
+> See [ADR-0035](../adr/0035-a-cryptographic-primitives-owner-is-its-specifier.md). No row moves.
+
 **This is not a new line; it is the line §9.1 already walked and could not explain.** §9.1 read
 Debian's `rpcbind.default` as evidence in the same breath as declining Red Hat's Security Guide, and
 "a distributor is never the vendor" cannot account for both. The **artefact**, not the party, is what
