@@ -35,7 +35,7 @@ observation, never an observation of absence.**
 | --- | --- |
 | Unit of work | **One queue job = one `Batch`** |
 | Batch partitioning | Along any dimension the source **retains enumerability** over |
-| Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence *(amended to **four** by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), on this row's own reasoning: `tls-acceptance`'s weekly enumeration is a fourth `Scan` whose scope is the open `Service` population and the TLS candidate set, not a port tier)* |
+| Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence *(amended to **four** by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), on this row's own reasoning: `tls-acceptance`'s weekly enumeration is a fourth `Scan` whose scope is the open `Service` population and the TLS candidate set, not a port tier)*. *(Read **two** port tiers and **three** `Scan`s after [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly tier — see the amendment under "Port tiers are three `Scan`s".)* |
 | Tick firing | **Any worker**, under a Postgres advisory lock, idempotent on `(scan, scheduled_time)` |
 | Fan-out | **Atomic** — the `Dispatch` row and all its job rows commit in one transaction |
 | Overlap | **Skip**, recorded as a first-class operational event |
@@ -182,6 +182,27 @@ hand-picked port set produces a batch whose scope no configured object accounts 
 an aperture change with nothing to point at. A manual dispatch **does not reset the cadence**,
 or an operator clicking "run now" each morning silently disables the cron they believe is
 protecting them.
+
+> **Amended 2026-08-14 by [#80](https://github.com/winniel123/verge-asm/issues/80) — two things,
+> one a count and one a limb this section was missing.**
+>
+> **The count.** [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly
+> top-1000 tier, so this section's *"~140-port hot set daily, nmap top-1000 weekly and full range
+> opt-in"* is two tiers, not three, and ADR-0028's amendment reads **three `Scan`s, not four**.
+> Nothing in either argument depends on the number.
+> [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md)'s *"one declared set across
+> all three reachability `Scan`s"* is stranded the same way and reads **two**.
+>
+> **The limb.** The ad-hoc prohibition above rests on the *configured object* alone, and there is a
+> second and stronger reason it never stated: **a one-off has no cadence, so it has no currency
+> bound.** ADR-0028 sets currency at `k` cadences of the covering Declared `Scan` and
+> [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md) publishes the
+> full-range row as 60 days on that arithmetic. A batch dispatched once leaves `k × cadence`
+> undefined for every timeline it opens, so its observations either render as current forever or
+> open a `Gap` at a time no rule can compute. That is why *"run the full range once at onboarding"*
+> is not a cheaper version of the full-range tier but an inexpressible object, and why the widest
+> tier ships **configured and disabled** with an empty scope list —
+> [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md).
 
 ### Vantage availability is Derived, and its window is fixed
 

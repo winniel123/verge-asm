@@ -35,7 +35,7 @@ it.
 | Host discovery | **Skipped** (`-Pn` equivalent) | §3.4 — targets are operator-seeded, not discovered by sweep |
 | Continuous port set | **`verge-core`: ~140 curated TCP ports** (nmap top-100 minus ephemeral noise, plus a modern-services supplement) | §2 |
 | Weekly port set | **Retired** — there is no warm tier | §2.4, and [`nmap-services-licence.md`](./nmap-services-licence.md) §12 ruling 3 |
-| Full-range 1–65535 | **Off by default**; opt-in, per-target, rate-capped, monthly at most | §2.4 |
+| Full-range 1–65535 | **Off by default**; opt-in **per `Seed` scope**, rate-capped, monthly at most. It ships as a configured-and-**disabled** `Scan` with an empty scope list, and it never runs unasked — including at onboarding | §2.4, and [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md) |
 | UDP | **Off by default** | §2.5 |
 | Port-scan rate | **≤ 50 packets/sec per target host**, ≤ 20 concurrent connections per host | §6 |
 | Connect timeout | 3 s, 2 retries | §6 |
@@ -203,8 +203,8 @@ Recommended tiering:
 
 | Tier | Port set | Default cadence | Purpose |
 |---|---|---|---|
-| Hot | `verge-core` (~140) | daily | drift detection, low latency |
-| Cold | full 1–65535 | **opt-in**, monthly ceiling | onboarding baseline + rare discovery |
+| Hot | `verge-core` — the union, whose membership [ADR-0009](../adr/0009-verge-core-is-a-union.md) owns | daily | drift detection, low latency |
+| Cold | full 1–65535 | **opt-in per `Seed` scope**, monthly ceiling | rare discovery |
 
 **The warm tier is retired**, by [`nmap-services-licence.md`](./nmap-services-licence.md) §12
 ruling 3. It was the one place the project defined a set *by reference to nmap's own ranking* — a
@@ -215,15 +215,46 @@ modern service the product exists to notice (Redis, Docker, MongoDB, etcd, the K
 kubelet, Cassandra, CouchDB) ranks below 1,441 or is absent from the file entirely. Those ports fall
 to the cold tier, at 30-day rather than 7-day latency.
 
-The full-range sweep should also run **once at target onboarding**, so the operator gets a complete
-baseline immediately and the daily hot scan has something to diff against. Onboarding is the one
-moment the operator is present and watching — the right time to spend the load.
+**There is no unconditional onboarding sweep.** This paragraph used to say the full-range sweep
+*"should also run once at target onboarding"*, on the argument that onboarding is the one moment the
+operator is present and watching. [#80](https://github.com/winniel123/verge-asm/issues/80) settled it
+against that reading and [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md) carries the
+reasoning. Four things decided it:
 
-**Whether that onboarding sweep is itself opt-in is now load-bearing and is not settled here** — the
-table marks the cold tier opt-in and this paragraph does not repeat the qualifier. With the warm
-tier retired, that ambiguity is the difference between a default-settings install seeing those ~900
-ports **once** and seeing them **never**. Open as
-[#80](https://github.com/winniel123/verge-asm/issues/80).
+- **§6.4 forbids the mechanism that would make the operator present.** *"Never scan on config save.
+  Adding a target should queue a scan, not fire one."* A queued sweep runs at the next tick, under
+  jitter, inside quiet hours — overnight and unattended. The premise was false under this note's own
+  scheduling rules.
+- **A one-off has no cadence, so it has no currency.** [ADR-0028](../adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md)
+  sets currency at `k` cadences of the covering `Scan` and publishes the full-range figure as two
+  months; a sweep that runs once leaves `k × cadence` undefined for every timeline it opens.
+- **No configured object accounts for its scope**, which [ADR-0005](../adr/0005-scan-execution-model.md)
+  refuses outright for ad-hoc runs.
+- **It would make [#44](https://github.com/winniel123/verge-asm/issues/44)'s standing aperture
+  statement non-constant** — *1–65535* for one night and `verge-core` ever after — falsifying the
+  premise that discharged its three-densities obligation.
+
+The onboarding baseline is real and it already exists as an operator act:
+[#51](https://github.com/winniel123/verge-asm/issues/51)'s first-run step 4, *Run the first batch*,
+which dispatches whichever `Scan`s the operator has enabled. If they enabled the cold tier, the
+baseline is full-range; if they did not, it is `verge-core`. Either way it is a button, not a default.
+
+**So a default-settings install measures `verge-core` and nothing else, permanently** — including the
+~900 tail ports the retired warm tier used to cover. That is the honest statement of v1's aperture,
+and it is stated on `Coverage` rather than left to be discovered: the port-tier line names the tier,
+its cadence and its off state, and carries `0 of 37 sensitive pairs unread` and `0 of 16 rules
+unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
+puts every sensitive pair inside the hot set, and of the sixteen rules one names a port (fully
+covered), four read `Name`s, and eleven read a facet on a subject. **The tier bounds which subjects
+exist, never which rules can speak**, so what the cold tier buys is drift breadth rather than signal
+correctness. A count of unmeasured ports is deliberately absent: it is knowable, which is what makes
+it tempting, and it is [#28](https://github.com/winniel123/verge-asm/issues/28)'s refused
+estate-completeness score in port clothing.
+
+**No middle tier replaces the retired warm one**, and the refusal does not rest on
+[`nmap-services-licence.md`](./nmap-services-licence.md) §3. Under ADR-0009's union, any set authored
+on the project's own signal-mapping rule is already inside `verge-core` or is the cold tier's
+population at the cold tier's cadence. There is no middle to occupy.
 
 ### 2.5 UDP
 
@@ -662,8 +693,27 @@ Per target host:
 - **Port scanning:** ≤ 50 connection attempts/sec, ≤ 20 concurrent. 3 s connect timeout (matching
   naabu's `DefaultPortTimeoutConnectScan = 3 * time.Second`
   ([default.go](https://github.com/projectdiscovery/naabu/blob/main/pkg/runner/default.go))),
-  2 retries. At 50/s, `verge-core` (~140 ports) completes in under 3 s per host; even a full
-  65,535-port sweep finishes in ~22 minutes — entirely acceptable for a monthly job.
+  2 retries. At 50/s, `verge-core` completes in under 3 s per host; even a full 65,535-port sweep
+  finishes in ~22 minutes — entirely acceptable for a monthly job.
+
+  > **Corrected by [#80](https://github.com/winniel123/verge-asm/issues/80) — "~22 minutes" is the
+  > best case, not the figure.** It assumes the host answers closed ports with an RST, so each
+  > attempt resolves in one RTT and the 50/s **rate** cap binds: 65,535 ÷ 50 = **21 min 51 s**, with
+  > about one of the twenty concurrent slots in use and no retries, because an RST is an answer.
+  >
+  > On a host that **drops** — the default cloud security-group posture, and the common case on an
+  > internet-facing address — every attempt runs to the 3 s timeout and the **concurrency** cap binds
+  > instead: 20 ÷ 3 s = **6.67 attempts/s**, one seventh of the rate cap. One pass is **2 h 44 min**
+  > and the 2 retries take it to **8 h 11 min**. The dominant term is timeout × concurrency, which
+  > this bullet never multiplied out.
+  >
+  > Two consequences, and they point in opposite directions. **Peak load is unchanged**: both tiers
+  > run under identical caps, so §1's middlebox state-table hazard — bounded by concurrency, 20
+  > either way — is no worse for a full-range sweep than for the daily one. **Duration is not**: at
+  > the 200 pkt/s global ceiling the estate figure is 5.5 min/address answering and 16.4 min/address
+  > dropping-with-retries, so at §9's own `/22` range cap a single pass is **3.9 to 11.6 days**. The
+  > cap exists to stop a typo becoming a multi-day scan; it does not stop this one. That arithmetic
+  > is why the full-range tier stays opt-in — [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md).
 - **HTTP:** ≤ 10 req/s, ≤ 5 concurrent, 10 s timeout (httpx's default —
   `"timeout in seconds (default 10)"`
   ([usage](https://docs.projectdiscovery.io/tools/httpx/usage))), 1 retry.
@@ -914,10 +964,10 @@ operator.
 |---|---|---|
 | **Rate limit (per host)** | 50 pkt/s | The single most likely thing to hurt production. Some operators run fragile embedded/OT/legacy devices — nmap notes crash reports are "usually older legacy devices" ([legal-issues](https://nmap.org/book/legal-issues.html)). Must be settable to near-zero, and **per-target**, not just globally: one fragile appliance should not force the whole estate to crawl. |
 | **Concurrency (per host / global)** | 20 / 200 | Bounded by the scanner's own link, the target's connection-tracking table, and any shared-tenancy limits. Naabu itself says to tune when not on a VPS ([README](https://github.com/projectdiscovery/naabu/blob/main/README.md)). |
-| **Port set (per tier)** | `verge-core` / top-1000 / off | Estates differ wildly; the shipped list is a prior, not a truth. Must be an editable file, and per-target-group (DMZ web hosts and a management VLAN want different sets). |
-| **Full-range sweep** | off | Genuinely risky against stateful middleboxes; genuinely necessary for some estates. Explicit opt-in, with a rate cap that cannot be disabled. |
+| **Port set (per tier)** | `verge-core` / full range | Estates differ wildly; the shipped list is a prior, not a truth. Must be an editable file, and per-target-group (DMZ web hosts and a management VLAN want different sets). **The top-1000 tier is retired** ([#78](https://github.com/winniel123/verge-asm/issues/78)), and only the **frequency half** of `verge-core` is editable ([ADR-0009](../adr/0009-verge-core-is-a-union.md)). |
+| **Full-range sweep** | off | Genuinely risky against stateful middleboxes; genuinely necessary for some estates. Explicit opt-in **per `Seed` scope**, with a rate cap that cannot be disabled, and it never runs unasked — including at onboarding ([ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)). |
 | **UDP scanning** | off | Low yield (49 % even at top-1000, [performance-port-selection](https://nmap.org/book/performance-port-selection.html)), high cost, but essential for operators exposing DNS/SNMP/IPMI. |
-| **Scan cadence per tier** | daily / weekly / monthly | Compliance regimes and change-velocity vary. Must allow *slower*, not just faster. |
+| **Scan cadence per tier** | daily / monthly | Compliance regimes and change-velocity vary. Must allow *slower*, not just faster. (The weekly tier is retired — [#78](https://github.com/winniel123/verge-asm/issues/78).) |
 | **Quiet hours / maintenance windows** | none set | Scanning during a deploy produces pure-noise drift findings. Must be per-target. |
 | **Follow redirects** | off | Some estates redirect everything at the edge; without following, every finding is "301". Sub-knob: same-host-only (default on when following is enabled). |
 | **HTTP probe paths** | small curated list | The most likely thing to trip a WAF. Operators must be able to shrink it to `/` only — or extend it for their own products. |
