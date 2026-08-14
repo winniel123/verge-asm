@@ -428,6 +428,27 @@ that check belongs to the curation patch, which is where the watch lives.
 >
 > **No gate changes and no rule version moves.** The list stays at **37 pairs**.
 
+> **Amendment — [#95](https://github.com/winniel123/verge-asm/issues/95): `10248/tcp` joins the watch
+> list, and the sequence is now 3 → 2 → 3 → 2 → 3.** The line above is left standing per the
+> name-and-withdraw convention and is **superseded**. `10248/tcp` kubelet healthz is admitted to the
+> sensitive list in the **weak** footing tier, on a restricting `healthzBindAddress: "127.0.0.1"` shipped
+> default **and nothing else** — no owner sentence, and **[measured]** `security-checklist.md` at
+> `release-1.34` does not name the port, so ADR-0050's category statement does not reach it
+> ([`sensitive-ports.md`](../research/sensitive-ports.md) §27.5, §27.12). **The weak tier is the watch
+> list, so the watch list grows with it.**
+>
+> > **The rows exposed to silent de-attestation are `5432/tcp`, `5984/tcp` and `10248/tcp`.**
+>
+> **Two riders.** `10248` is exposed in the sharpest available form: its default is documented in a
+> **published config-API doc comment** rather than in prose, so the artefact a curator must watch is a
+> Go source file's comment, which one contributor can change in one commit without any release note.
+> And §8's own lesson fires a **third** time — this correction is indistinguishable by count from the
+> `3 → 2 → 3` before it, and it is the *membership* that moved.
+>
+> **Recorded in the merge reconciliation rather than by #95 itself**, which stated the delta in its own
+> figure table and did not reach this file. **No gate changes and no rule version moves** on this
+> account; a footing tier is not reference data. The list is **41 pairs**.
+
 ## The v1 walk — all sixteen rules, walked rather than asserted
 
 The claim that thirteen rules carry no curated table is checkable, so it is checked.

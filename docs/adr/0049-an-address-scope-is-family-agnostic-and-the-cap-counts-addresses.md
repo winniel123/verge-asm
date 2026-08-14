@@ -86,13 +86,23 @@ refused, and it is refused by the same instrument that refuses a typo'd `/8`, sa
 ### It really is unmeasurable, and the arithmetic is ours rather than anybody's opinion
 
 Following ADR-0047's own method — attempts ÷ §6.3's 200 pkt/s global ceiling, against
-[ADR-0009](./0009-verge-core-is-a-union.md)'s ~140 pairs on the daily tier:
+[ADR-0009](./0009-verge-core-is-a-union.md)'s ~~~140 pairs~~ **136 pairs, 131 probed** on the daily
+tier:
 
 | Scope | Addresses | Attempts per hot pass | One pass at 200 pkt/s |
 | --- | --- | --- | --- |
 | `/22` (IPv4, the shipped cap) | 1,024 | 143,360 | **11 min 57 s** |
 | `/118` (IPv6, the same cap) | 1,024 | 143,360 | **11 min 57 s** |
 | `/64` (IPv6, the smallest thing anyone is assigned) | 18,446,744,073,709,551,616 | 2.58 × 10²¹ | **≈ 4.1 × 10¹¹ years** |
+
+> **`~140` was never `verge-core`'s size** — **[measured]** by
+> [#97](https://github.com/winniel123/verge-asm/issues/97), the frequency half is **123, all TCP** and
+> the union is **136 pairs, 131 probed on default settings** ([`sensitive-ports.md`](../research/sensitive-ports.md)
+> §29, composed with [#95](https://github.com/winniel123/verge-asm/issues/95)). At 131 the table reads
+> **134,144 attempts / 11 min 11 s** for both `/22` and `/118`, and **2.42 × 10²¹ / ≈ 3.8 × 10¹¹ years**
+> for the `/64`. **The original figures stand per the name-and-withdraw convention and the ruling does
+> not move**: 3.8 × 10¹¹ years is still roughly thirty times the age of the universe, which is the whole
+> of the argument.
 
 That is roughly thirty times the age of the universe, for the *daily* tier, on the *smallest* IPv6
 subnet the architecture defines. It is not an expensive request that a knob could buy; it is a

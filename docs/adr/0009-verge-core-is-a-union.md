@@ -9,10 +9,16 @@
 
 Two port lists exist, built for different questions on incompatible evidence standards.
 
-[#4](https://github.com/winniel123/verge-asm/issues/4) built the ~140-port **`verge-core` hot
+[#4](https://github.com/winniel123/verge-asm/issues/4) built the ~~~140-port~~ **`verge-core` hot
 set** on frequency — *how likely is this port to be found open in a small org's estate?* — from
 `nmap-services` open-frequency data with a modern-services supplement, keyed on **bare port
 numbers**, and specified that it ship "as an editable list file, not compiled in".
+
+> **`~140` was never this set's size.** **[measured]** by
+> [#97](https://github.com/winniel123/verge-asm/issues/97): the frequency half is **123, all TCP**, and
+> `verge-core` — this ADR's union — is **136 pairs** as composed after
+> [#95](https://github.com/winniel123/verge-asm/issues/95). The label is left standing above per the
+> name-and-withdraw convention; nothing in this ADR's Decision reads it.
 
 [#21](https://github.com/winniel123/verge-asm/issues/21) built the **38-pair sensitive list** on a
 normative standard — *given the port is open to the internet, is that ever correct?* — keyed on
@@ -304,9 +310,17 @@ kube-proxy is **refused** — §24. The list is **39** pairs.
 - **The definition does not move and neither does the arithmetic's shape.** This is the second
   widening in two sections, and it is the same act: the sensitive half is edited, the union follows
   by construction, and nothing has to be remembered.
-- **§6's one-directional invariant forces two more hot-set additions**, taking the missing-TCP group
+- ~~**§6's one-directional invariant forces two more hot-set additions**~~, taking the missing-TCP group
   from six to eight and §6.1's containment arithmetic to `28 + 8 + 5 = 41`. The UDP half is untouched
   at five, both new pairs being TCP.
+  > **The invariant clause is WITHDRAWN, on the same ground the #97 amendment below withdraws #91's.**
+  > #95 was resolved concurrently with #97 and inherited the mechanism from #91's amendment above.
+  > **This ADR dissolved it**: nothing fires and nothing is forced, and `10249/tcp` and `10248/tcp` were
+  > inside `verge-core` from the instant §27 admitted them.
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) is why the
+  > withdrawal is made here rather than only at #97's amendment. **The arithmetic is untouched** — the
+  > missing-TCP group really is eight and `28 + 8 + 5 = 41`; what is withdrawn is the mechanism that
+  > sentence names.
 - **§24's flagged membership check is discharged rather than passed on again.** The amendment above
   left *"the addition must be checked against [#4](https://github.com/winniel123/verge-asm/issues/4)
   §2.3's modern-services supplement at merge"*. **[measured]**
@@ -330,7 +344,9 @@ one **sentence inside it** — written in this ADR, and contradicting the Decisi
 
 [#97](https://github.com/winniel123/verge-asm/issues/97) enumerated the frequency half from
 [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 and tested all 39 sensitive pairs against
-it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29.
+it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29. **The list is 41 as composed**, and
+#95's two are measured against the same limb with the same answer (§27.12): neither is in the
+frequency half.
 
 - **The membership claim is confirmed and is now measured.** **[measured]** The frequency half is
   **123 ports, all TCP** — 81 retained from nmap's top-100 after 19 deletions, plus 44 net-new from
@@ -343,6 +359,11 @@ it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29.
 - **`verge-core` is 134 pairs** — 123 from the frequency half plus the 11 the sensitive half
   contributes alone (6 TCP: `512`, `4369`, `25672`, `27019`, `10259`, `10257`; 5 UDP: `69`, `137`,
   `138`, `623`, `11211`). 129 of those are probed on default settings, UDP being off.
+  > **Composed with the #95 amendment above, which landed in the same merge: `verge-core` is 136
+  > pairs** — 123 from the frequency half plus the **13** the sensitive half contributes alone (**8
+  > TCP**: the six named here, `+ 10249`, `+ 10248`; 5 UDP: unchanged). **131** are probed on default
+  > settings. **The frequency half does not move** — neither new pair is in it, measured against the
+  > same orchestration limb. This is the figure to quote; `134` is #97's against the pre-#95 list.
 - **The clause *"§6's one-directional invariant fires for the first time in earnest … forces two
   hot-set additions"* is WITHDRAWN.** It describes the mechanism **this ADR dissolved**: the Decision
   table reads *"The invariant: **Dissolved**"* and *"Enforcement: **None, anywhere**"*, and the
@@ -354,7 +375,8 @@ it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29.
 - **The widening, the price and the coupling direction are all unaffected.** *Cost yields to
   correctness* still names why the union runs this way. **[measured]** the yield is **+1.6 %** of the
   daily tier's per-host probe budget — 127 → 129 TCP pairs, 19.0 s → 19.3 s per pass on a dropping
-  host under §6.3's caps — with no change to technique, to the zero-added-capabilities budget, or to
+  host under §6.3's caps; **composed with #95's two, 127 → 131 TCP pairs, 19.0 s → 19.6 s, +3.1 %** —
+  with no change to technique, to the zero-added-capabilities budget, or to
   the concurrency bound that governs the middlebox hazard. [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md)
   does not bite: both pairs join a configured `Scan` at a daily cadence, so they have currency.
 - **This ADR is the second site where the dissolved mechanism was written forward**, the first being

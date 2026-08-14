@@ -189,7 +189,12 @@ protecting them.
 > **The count.** [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly
 > top-1000 tier, so this section's *"~140-port hot set daily, nmap top-1000 weekly and full range
 > opt-in"* is two tiers, not three, and ADR-0028's amendment reads **three `Scan`s, not four**.
-> Nothing in either argument depends on the number.
+> **And the port count in the same phrase is wrong in its own right**: **[measured]** by
+> [#97](https://github.com/winniel123/verge-asm/issues/97), `verge-core`'s frequency half is **123, all
+> TCP** and the union is **136 pairs** — *"~140"* was never reproducible from
+> [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3's own two limbs
+> ([`sensitive-ports.md`](../research/sensitive-ports.md) §29).
+> Nothing in either argument depends on either number.
 > [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md)'s *"one declared set across
 > all three reachability `Scan`s"* is stranded the same way and reads **two**.
 >

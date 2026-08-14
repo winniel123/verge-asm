@@ -212,8 +212,19 @@ are how that selection was made, not a transformation applied to somebody else's
 > without removing the five duplicates gets 130, which is the nearest plausible route to it.
 > §6.2 parked the reconciliation as out of scope for a licence question; it is discharged here.
 > **`verge-core` itself is larger than this set and is not a list at all**: ADR-0009 makes it
-> `frequency-set ∪ sensitive-list`, which is **134 pairs** — these 123, plus the 11 the sensitive
-> half contributes alone (6 TCP, 5 UDP). 129 are probed on default settings, UDP being off (§2.5).
+> `frequency-set ∪ sensitive-list`, which is ~~**134 pairs** — these 123, plus the 11 the sensitive
+> half contributes alone (6 TCP, 5 UDP). 129 are probed on default settings~~ — **composed, 136 pairs:
+> these 123, plus the 13 the sensitive half contributes alone (8 TCP, 5 UDP), of which 131 are probed
+> on default settings**, UDP being off (§2.5).
+>
+> > **Merge reconciliation.** [#95](https://github.com/winniel123/verge-asm/issues/95) admitted
+> > `10249/tcp` and `10248/tcp` to the sensitive list in a pass concurrent with #97's, taking it to **41
+> > pairs**. **This section's own measurement does not move**: `F` is **123, all TCP**, and **neither
+> > new pair is in it** — the orchestration limb below still reads `2375, 2376, 2379, 2380, 6443, 10250,
+> > 10255` and stops at the kubelet ([`sensitive-ports.md`](./sensitive-ports.md) §27.12). What moves is
+> > the sensitive half's contribution, `|S \ F|`, from 11 to 13. The frequency half is editable and the
+> > union is not ([ADR-0009](../adr/0009-verge-core-is-a-union.md)); a sensitive-list admission changes
+> > `verge-core` without changing anything on this page.
 >
 > **This limb reaches no kube control-plane component beyond the kubelet.** The orchestration limb is
 > `2375, 2376, 2379, 2380, 6443, 10250, 10255` and stops there, so `10259/tcp` kube-scheduler and
@@ -281,8 +292,8 @@ baseline is full-range; if they did not, it is `verge-core`. Either way it is a 
 **So a default-settings install measures `verge-core` and nothing else, permanently** — including the
 ~900 tail ports the retired warm tier used to cover. That is the honest statement of v1's aperture,
 and it is stated on `Coverage` rather than left to be discovered: the port-tier line names the tier,
-its cadence and its off state, and carries `0 of 39 sensitive pairs unread` and `0 of 16 rules
-unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
+its cadence and its off state, and carries ~~`0 of 39 sensitive pairs unread`~~ **`0 of 41 sensitive
+pairs unread`** and `0 of 16 rules unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
 puts every sensitive pair inside the hot set, and of the sixteen rules one names a port (fully
 covered), four read `Name`s, and eleven read a facet on a subject. **The tier bounds which subjects
 exist, never which rules can speak**, so what the cold tier buys is drift breadth rather than signal
@@ -293,6 +304,11 @@ estate-completeness score in port clothing.
 > **Denominator corrected by [#97](https://github.com/winniel123/verge-asm/issues/97): `0 of 37` reads
 > `0 of 39`.** [#80](https://github.com/winniel123/verge-asm/issues/80) measured it when the sensitive
 > list was 37 pairs; [#91](https://github.com/winniel123/verge-asm/issues/91) took it to 39.
+>
+> **And it reads `0 of 41` as composed.** [#95](https://github.com/winniel123/verge-asm/issues/95)
+> admitted `10249/tcp` and `10248/tcp` in a pass concurrent with #97's, which is precisely the motion
+> the paragraph below anticipates: **the denominator moved a third time and the numerator did not move
+> at all.**
 >
 > **Read the identity rather than the numeral, because the list is still moving.** The **numerator is
 > `0` for every possible `N`** — it is not a measurement that can come out otherwise, since ADR-0009's
@@ -305,7 +321,8 @@ estate-completeness score in port clothing.
 > Two ADRs quote this line at the stale `0 of 37` — [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)
 > and [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) — and are deliberately left
 > for a single reconciliation pass rather than hand-patched while `|S|` is in motion
-> ([`sensitive-ports.md`](./sensitive-ports.md) §29.9).
+> ([`sensitive-ports.md`](./sensitive-ports.md) §29.9). **That pass has run and both now read `0 of
+> 41`.**
 
 **No middle tier replaces the retired warm one**, and the refusal does not rest on
 [`nmap-services-licence.md`](./nmap-services-licence.md) §3. Under ADR-0009's union, any set authored
@@ -805,8 +822,10 @@ learns something real about their infrastructure.
 **Port-count sanity check.** Naabu ships `-port-threshold` for this reason. If a host reports an
 implausible number of open ports, a firewall is SYN/ACK-ing everything and every "finding" is
 fictional. Default: if > 100 ports respond open on `verge-core`, mark the whole host result
-`suspect-firewall` and suppress the individual findings rather than emitting ~~140~~ **129** false positives
-into the operator's inbox.
+`suspect-firewall` and suppress the individual findings rather than emitting ~~140~~ ~~129~~ **131** false positives
+into the operator's inbox — the probed-on-default-settings count, which
+[#95](https://github.com/winniel123/verge-asm/issues/95) took from 129 to 131 by admitting two TCP
+pairs to the sensitive half. The 100-port threshold is untouched and is nowhere near either figure.
 
 ### 6.4 Scheduling
 

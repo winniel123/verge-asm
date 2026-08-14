@@ -171,11 +171,19 @@ denominator, and inventing one is [#28](https://github.com/winniel123/verge-asm/
 estate-completeness score arriving through the port axis.
 
 So the aperture statement's port-tier line states the tier, its cadence and its off state; it carries
-`0 of 37 sensitive pairs unread` and `0 of 16 rules unevaluable`, both of which are ours, closed and
+~~`0 of 37 sensitive pairs unread`~~ **`0 of 41 sensitive pairs unread`** and `0 of 16 rules
+unevaluable`, both of which are ours, closed and
 true; and it says in prose that ports outside `verge-core` produce no `Service`, so nothing on them
 is measured, evaluated **or counted**. Unlike #44's custody row it may carry a pointer to the `Scan`
 configuration, because here an action genuinely exists and recommending it tells the operator nothing
 false about themselves.
+
+> **Denominator corrected in the five-pass merge reconciliation.** #80 measured this at 37 pairs; the
+> sensitive list is **41**. **The numerator is `0` for every `|S|`** — ADR-0009's union puts every
+> sensitive pair inside `verge-core` by construction — so the correction is a denominator and nothing
+> in this ADR's reasoning reads it. `0 of 16 rules unevaluable` is unchanged.
+> [`safe-active-probing.md`](../research/safe-active-probing.md) §2.4 and
+> [`sensitive-ports.md`](../research/sensitive-ports.md) §29.9.
 
 ### Opting in is per `Seed` scope, because the widening is the largest the product can perform
 
@@ -257,9 +265,11 @@ position ever changes.
   > alternatives is the shipped worst case rather than a hypothesis — the losing option's arithmetic
   > becomes unconditional. And the hot tier at that same cap costs **12 to 36 minutes per day** at
   > the 200 pkt/s ceiling, which is the figure this ADR could not state and the reason the surviving
-  > default fits inside its own cadence. `0 of 37 sensitive pairs unread` is untouched: it is a
+  > default fits inside its own cadence. ~~`0 of 37 sensitive pairs unread`~~ **`0 of 41 sensitive
+  > pairs unread`** is untouched **by the enumeration**: it is a
   > count over our own list, evaluated per `Service`, and enumeration only widens the population it
-  > is true over.
+  > is true over. The denominator moved because the **list** moved — 37 → 39 → 41 — and the numerator
+  > is `0` for every value of it.
 
 ## Alternatives rejected
 
