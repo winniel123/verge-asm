@@ -115,10 +115,19 @@ it may run without the operator having said so. Observing a facet is the usual w
 admits a subject and **not the only one**: certificate transparency observes no facet at all —
 a log entry witnesses that a certificate was issued, never that anything presented it — and it
 is still a source, because `authority: inferred` is exactly the property it exercises over the
-`Name`s a SAN carries. A thing that admits **nothing** is not a source, however
+`Name`s a SAN carries. That property has a **boundary**, and it is where a SAN stops naming
+anything: a **wildcard** SAN carries no `Name` at all — it denotes a set of names rather than one,
+matches `foo.example.com` and never `example.com`, and is a matching construct in a *presented*
+identifier rather than a domain name. So it admits none of the names beneath it, no name of its
+own, and not the parent either, and a certificate whose SANs are all wildcards admits nothing —
+which is a documented limit of certificate transparency rather than a hole, since a wildcard
+certificate conceals an estate's names rather than disclosing them. Admitting on some of a
+batch's rows and nothing on others is what `corroborative` `completeness` already absorbs. A thing
+that admits **nothing at all** is not a source, however
 registry-shaped it looks: it yields `Proposal`s, and only `consent` applies to it. See
-[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md) and
-[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md).
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md),
+[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md) and
+[ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md).
 _Avoid_: provider, feed, integration
 
 **Proposal**:
@@ -302,6 +311,18 @@ only — labels joined by dots, no trailing dot, computed on read, the same stri
 renders no U-label at all. Comparison is label-wise octet equality, and containment is label-wise
 **suffix** equality, so no test in the model ever compares a name as a string. See
 [ADR-0055](./docs/adr/0055-a-names-key-is-the-label-sequence-and-we-fold-only-what-the-protocol-folds.md).
+A **wildcard** is not one of these, anywhere: `*.example.com` keys as a label sequence like any
+other — the key function reads no octet's meaning — but it **denotes a set of names rather than a
+name**, so there is no thing for a subject to be, and it is a subject from **no source**. In a
+certificate it is a matching construct in a *presented* identifier and admits nothing, which is
+what `authority` grades; in a zone file it is the rule an authority applies, whose effects the
+model already measures as the wildcard poison signature. The refusal takes the protocol's own test
+where the protocol supplies one and the blunt one where it does not: only a leftmost label of
+exactly `*` is a wildcard in DNS — `the*` and `**` are ordinary labels and ordinary names, and a
+literal asterisk label is written `\042` — while in a certificate a partial wildcard is a pattern
+to one client and a label to the next, so **no certificate identity containing an asterisk in any
+label admits a `Name`**. See
+[ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md).
 The only subject whose
 departure needed deciding: it leaves when our own resolver measures a Name Error from
 every available vantage, never because time passed. Under a `Shadowed` answer it cannot
@@ -406,7 +427,14 @@ value rather than discarded, because *we cannot see here* is a fact the operator
 the alternative manufactures drift: repoint one wildcard and every fictional name beneath
 it reports a resolution change the same night. Whether a name is admitted under a wildcard
 turns on its `Citation`, not on this answer — a certificate SAN survives, a guessed label
-does not. It is a value on `dns-record` as well as `resolution`, since a wildcard synthesises
+does not. That rule governs names **beneath** a wildcard and is the whole of the question, because
+the wildcard name itself is a subject nowhere: it denotes a set rather than a thing, so nothing is
+left for this value to be undecided about. It is also why no query is ever made for a name whose
+leftmost label is `*` — such a query is answered by exact match and would read as its own poison
+signature, and the ruling that it is not a subject closes that by construction rather than by a
+carve-out in a leaf
+([ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md)).
+It is a value on `dns-record` as well as `resolution`, since a wildcard synthesises
 answers for *any* qtype. Deciding it takes two measurements — the name's answer and the zone's
 poison signature — so like `Lame`, `NoTLS` and `NoHTTPResponse` it is decided by the **measurement
 binary inside one batch**, never assembled afterwards from two observations.
