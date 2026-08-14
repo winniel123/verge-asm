@@ -161,6 +161,22 @@ the word "distributor".
   and *"you should not expose this port to the internet"*, and the only instrument offered for placing
   it is the existing position-versus-preference discrimination. A case in that gap should be ticketed
   rather than decided by whoever meets it.
+  > **Discharged — [#100](https://github.com/winniel123/verge-asm/issues/100), 2026-08-14.** The case was
+  > met by [#95](https://github.com/winniel123/verge-asm/issues/95) in a **third artefact class** — a
+  > published config-API doc comment — ticketed rather than decided, and decided there.
+  > [ADR-0061](./0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md): **a
+  > comment takes a position only where it outlives the value it annotates.** Change the value: a comment
+  > that remains true and operative is a **candidate position**; one that goes false or moot is a
+  > **label**. Necessary and not sufficient — the position-versus-preference discrimination runs
+  > **second**, on the survivor. **Limb 2 is unchanged.** ADR-0061 supplies the instrument limb 2 said it
+  > lacked and explains limb 2's poles rather than correcting them: *a comment that argues for its own
+  > directive* turns out **not** to be in the middle, because Cassandra's sentence goes on binding the
+  > operator who overrides `rpc_address` while net-snmp's simply stops describing. **[measured]** the test
+  > reproduces all nine comment verdicts in [`sensitive-ports.md`](../research/sensitive-ports.md), across
+  > five projects and three artefact classes, eight of them at step one (§31.5). ADR-0061 also carries
+  > what limb 1 does not reach: in a **config API** the third form's two limbs live in two artefacts, the
+  > doc comment answers *documented as its default* only, and **the costly act is paid entirely by the
+  > defaulting code**. **No row, footing, tier or figure moves.**
 
 ## Alternatives rejected
 
