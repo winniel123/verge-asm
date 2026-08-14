@@ -35,7 +35,7 @@ earlier batches offered.
 | Concern | Decision |
 | --- | --- |
 | Does ADR-0011's argument generalise to every client-side offer? | **No.** It generalises to every offer the **value enumerates over**, and to no other |
-| The test | An offer is batch scope exactly where the value carries a **per-candidate negative** — *we asked about X and X was not there*. Otherwise it is a **declared parameter** of the leaf that made it |
+| The test | ~~An offer is batch scope exactly where **the value** carries a per-candidate negative~~ — **this wording is WITHDRAWN by the [#62](https://github.com/winniel123/verge-asm/issues/62) amendment below.** The test is asked of the **offer**: an offer is scope where **any** value it feeds carries a **per-candidate negative** — *we asked about X and X was not there* — and then it is scope for **every** batch that makes it. Otherwise it is a **declared parameter** of the leaf that made it |
 | ALPN and the HTTP versions we speak | **Declared parameter** of `http-exchange`. Not an aperture input |
 | EDNS options and buffer size | **Declared parameter** of `resolution-walk` and `wildcard-discrimination`. Not an aperture input |
 | DNS transport and fallback policy | **Declared parameter** of `resolution-walk`. Not an aperture input |
@@ -66,9 +66,14 @@ exactly — a record asserting an absence over something it never touched — an
 the mechanism that already exists for it. The connect timeout indexes nothing: `no-response` is one
 member of a three-value closed union, not a set with a missing member.
 
-> **An offer belongs to the `Batch`'s recorded scope exactly where the value carries a
+> ~~**An offer belongs to the `Batch`'s recorded scope exactly where the value carries a
 > *per-candidate negative*. Where the offer merely *conditions* a single value, it is a declared
-> parameter of the leaf that made it.**
+> parameter of the leaf that made it.**~~
+>
+> **WITHDRAWN by the [#62](https://github.com/winniel123/verge-asm/issues/62) amendment below**, which
+> asks the test of the **offer** rather than of each facet it touches: *an offer is scope where **any**
+> value it feeds carries a per-candidate negative, and then it is scope for **every** batch that makes
+> it.* The `conditions a single value` half stands.
 
 The test recovers all six settled aperture inputs and correctly excludes the settled parameters,
 which is the tell that it is the cut and not a rationalisation:

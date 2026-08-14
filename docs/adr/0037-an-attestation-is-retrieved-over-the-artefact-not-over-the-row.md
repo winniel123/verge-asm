@@ -39,7 +39,10 @@ a candidate for the table, whether or not the table already holds it.**
 
 Three limbs.
 
-1. **Read the whole artefact.** Where an owner's artefact is opened to attest a row, it is read end to
+1. **Read the whole artefact.** Where an owner's artefact is opened ~~to attest a row~~ **in the
+   table's service — for any purpose the table's gates require: attestation, determinacy, ownership,
+   class-list construction or claim analysis** (the narrow trigger is **WITHDRAWN** by the
+   [#95](https://github.com/winniel123/verge-asm/issues/95) amendment below) — it is read end to
    end for **every** subject in the table's domain that it names — every port it names, for
    `sensitive-ports.md`; every algorithm or key size, for a cryptographic table. A retrieval that
    stops at the row it came for is **not a negative result about the rest of the file**, and must not
@@ -126,10 +129,17 @@ not attestation, and it names three numbers the table does not hold — `10249` 
 `10248` kubelet healthz, `10258` cloud-controller-manager. Limb 1's *letter* does not reach a
 determinacy retrieval; its **rationale** — a retrieval keyed on the rows you already have returns only
 the intersection — reaches it exactly. §24.11 records the by-catch on the rationale and routes it on
-limb 2, and declines to widen the limb, on the ground that one instance is not a measurement. **The
+limb 2, and ~~declines to widen the limb, on the ground that one instance is not a measurement. **The
 criterion that would force the widening:** a second determinacy retrieval turning up a candidate the
-table lacks. `10249` is the first, and it looks strong — **[measured]** kube-proxy's metrics server is
+table lacks.~~ `10249` is the first, and it looks strong — **[measured]** kube-proxy's metrics server is
 also entirely unauthenticated and its only protection is a loopback default.
+
+> **The question is CLOSED and the stated criterion is SPENT** — the
+> [#95](https://github.com/winniel123/verge-asm/issues/95) amendment below widened limb 1, and on a
+> **different** and stronger measurement than the one named here: the *first* determinacy retrieval
+> paid out. Nothing in this note is now open. Marked here rather than only at the amendment, per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened by
+> [#106](https://github.com/winniel123/verge-asm/issues/106).
 
 ### Amendment — [#95](https://github.com/winniel123/verge-asm/issues/95): limb 1's trigger is widened, and limb 2's second cycle is complete
 

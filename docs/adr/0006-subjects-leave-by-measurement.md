@@ -148,7 +148,17 @@ also silent.
 - **Appearance splits in two.** *Appeared* is discovery; *returned* is a decommission being
   undone, and it is the one of the pair worth an alert — withdrawal is the most common
   intentional change in an estate, and alerting on it trains the operator to ignore the
-  channel. The split is also where
+  channel.
+  > **RESTRICTED by the [#63](https://github.com/winniel123/verge-asm/issues/63) amendment above**,
+  > which names this split and adds the limb it *"needs and never had"*: **a membership message fires
+  > only on a `Name` or an `Address`, and never on a `Service` or an `Endpoint`.** Read alone, this
+  > bullet fires one alertable `Service` `returned` per `(port, transport)` in `verge-core` when one
+  > `Address` returns. Marked at the sentence per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+  > by [#106](https://github.com/winniel123/verge-asm/issues/106) — the amendment sits **above** this
+  > sentence, which an order-based reading of the rule would miss.
+
+  The split is also where
   [ADR-0003](./0003-third-party-source-consent-bar.md)'s aperture rule can finally sit: *first
   observed under a widened aperture* is a third member of the same family, and a model with
   one appearance transition has nowhere to put it.
