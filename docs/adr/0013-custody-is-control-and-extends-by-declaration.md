@@ -293,6 +293,33 @@ addresses their names resolve to, measured and self-correcting, which is what th
 blind. §6's deliberate two-sets divergence is untouched — `Vantage class` still reads literal
 address scopes alone.
 
+## Amendment — [#85](https://github.com/winniel123/verge-asm/issues/85): §6's containment test is over every address the vantage holds, and §4's warning does not reach the prober's own address
+
+[ADR-0049](./0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md) makes an
+address scope family-agnostic, which is the first time a `Vantage` could hold addresses in two
+families against a `Seed` that might cover one of them. Three things follow and §6's design is
+untouched by all three.
+
+**The test is *every* address, not *any*.** §6 says the class is re-verified against the
+address-scope `Seed`s the system holds; it never said what a **dual-stacked** prober is verified
+against. It is verified `internal` only where **every** address it holds is covered, of either
+family — the closed direction, matching `Custody`'s *everything not covered is `third-party`*. The
+permissive reading would let a prober whose IPv4 address is declared verify `internal` while its
+IPv6 address sits somewhere undeclared, and a vantage wrongly verified `internal` moves observations
+onto the leg that **never alerts** — which is §6's own *"a false `exposed` is investigated, a false
+quiet reading is not"*, applied to itself.
+
+**A target's family never moves a leg.** `Vantage class` is a property of where the prober sits, not
+of what it probes, so an `internal` prober measuring an IPv6 target records on the `internal` leg
+exactly as it does for IPv4. §6's deliberate two-sets divergence is unchanged: the `custody
+extension` still may not decide a vantage's class, in either family.
+
+**§4's perishability warning does not reach a prober's own `/128`.** A v6-only internal prober has no
+route to verify `internal` through the extension — §6 bars it by design — so its route is a literal
+`/128` address scope naming its own address, which the cap admits at one address. §4's hazard is a
+cloud provider reallocating a *released* address to a stranger; the operator's own prober is a
+machine they control and can see, and this is not the estate.
+
 ## Consequences
 
 - **The modal install can evaluate the flagship signal.** A cloud-resident operator types the
