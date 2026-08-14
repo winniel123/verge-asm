@@ -335,8 +335,27 @@ Off by default. Nmap's own data puts top-100 UDP coverage at 39 % and top-1000 a
 ([performance-port-selection.html](https://nmap.org/book/performance-port-selection.html)) — i.e.
 even a 1,000-port UDP scan misses half of what is open, while costing far more time because
 open|filtered states must be resolved by timeout. The signal-to-cost ratio does not justify making
-it a default for a tool that runs unattended. Offer it as an opt-in for a hand-picked list
-(53, 123, 161, 500, 623, 1900, 5353) where a finding is genuinely actionable.
+it a default for a tool that runs unattended. ~~Offer it as an opt-in for a hand-picked list
+(53, 123, 161, 500, 623, 1900, 5353) where a finding is genuinely actionable.~~
+
+> **The hand-picked list is WITHDRAWN — superseded by
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md), and written here by
+> [#102](https://github.com/winniel123/verge-asm/issues/102) under
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
+>
+> **The *off by default* ruling above stands and is not revisited** — ADR-0009 says so in terms.
+> What is withdrawn is the **list**. ADR-0009: *"measured against the sensitive list that list is
+> wrong in the same way `verge-core` was: it covers `161` and `623` and **misses `69/udp`,
+> `137/udp`, `138/udp` and `11211/udp`**, four sensitive pairs. Under the union it is superseded
+> rather than amended: the UDP leg is **`verge-core`'s UDP pairs** … **Nobody maintains a UDP list by
+> hand again.**"* The two numbers the old list carried that are **not** `(port, transport)` sensitive
+> pairs — `161` and `623` — are the TCP spellings ADR-0009 removed; the UDP ones are carried by the
+> union.
+>
+> **This is the withdrawal that had to be written here.** §2.3 one section up was struck for ADR-0009
+> by [#97](https://github.com/winniel123/verge-asm/issues/97) and §2.5 was not, so a session
+> enumerating the UDP opt-in from this paragraph alone builds a seven-member hand list missing four
+> sensitive pairs — and §1's summary row routes it straight here.
 
 ---
 

@@ -286,12 +286,21 @@ kube-proxy is **refused** — §24. The list is **39** pairs.
 
 - **The union widens by two members**, both in the sensitive half, both **TCP**. The UDP arithmetic
   above is **untouched** and still reads five.
-- **§6's one-directional invariant fires for the first time in earnest.** Neither new pair is in the
+- ~~**§6's one-directional invariant fires for the first time in earnest.** Neither new pair is in the
   frequency half, so *every pair on the sensitive list MUST be a member of the hot set* forces **two
-  hot-set additions**. This is the coupling direction this ADR chose, spending itself exactly as
-  designed: probe cost yields to correctness. The addition must be checked against
+  hot-set additions**.~~ This is the coupling direction this ADR chose, spending itself exactly as
+  designed: probe cost yields to correctness. ~~The addition must be checked against
   [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3's modern-services supplement at merge —
-  §24.10 flags the membership claim as asserted rather than measured.
+  §24.10 flags the membership claim as asserted rather than measured.~~
+  > **Struck at the sentence by [#102](https://github.com/winniel123/verge-asm/issues/102).** The
+  > withdrawal was ruled by the #97 amendment below and by
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), but it
+  > was written only there — 78 lines down, in a different amendment section — while the **identical
+  > clause in the #95 amendment above was struck inline**. One sibling got the mark and the other did
+  > not, which is the *"two screens below the row dissolving it"* failure ADR-0058's own Context
+  > names, committed inside the ADR that names it. **Nothing fires and nothing is forced**, and the
+  > deferred merge-check is **spent**: §29.2 measured it and neither pair is in the frequency half.
+  > **The two pairs still enter and the union still widens by two** — by construction, not by force.
 - **The price is real this time, and it is the pre-release price.** Adding a pair bumps
   `sensitive-port-reached-from-internet`'s rule version
   ([ADR-0008](./0008-derivation-versions-move-on-content.md)), `Break`s every evaluation and
