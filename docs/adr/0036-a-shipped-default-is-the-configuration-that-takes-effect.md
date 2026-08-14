@@ -57,6 +57,42 @@ carries the part that travels.
    particular it is not a restricting act for the purposes of any exclusion route: an act that takes
    effect nowhere was not taken.
 
+## Amendment — [#83](https://github.com/winniel123/verge-asm/issues/83), 2026-08-14
+
+Limb 1 was written for a party's **artefact** disagreeing with its **documentation**. #83 met the
+case it does not name: a party shipping **two defaults for one setting, both operative in one
+binary**, with the operator's invocation selecting between them. Two readings of limb 1 travel out of
+that case, and both are readings rather than new limbs.
+
+1. **A default the party's own bytes label *legacy* or *deprecated* is not that party's shipped
+   default, however operative it is.** Limb 1 requires both halves — the configuration that **takes
+   effect** *and* the one the party **documents as its default**. A compatibility shim the owner
+   routes operators away from satisfies the first half and fails the second. The test stays read off
+   the artefact: the party says which is which.
+2. **§10.4's one-way rule reads the default, not the artefact class that records it.** A permissive
+   default is silent because *"the absence of an act is not a position"*, and that reason is a
+   property of the default rather than of where it is written down. An owner's prose describing its
+   own permissive default is the same silence in prose. Otherwise every documented permissive default
+   re-enters through the documentation form and §10.4 is inoperative. This is limb 2 in its other
+   direction: a **directive** is not a position, a **label** is not a position, and a **description
+   of a permissive default** is not one either.
+
+**[measured]** `kubernetes/kubernetes` at `v1.34.1` and `v1.36.3`: the kubelet's config API defaults
+`anonymous-auth` to `false`, `authorization-mode` to `Webhook` and documents `readOnlyPort`
+*"Default: 0 (disabled)"*, while `cmd/kubelet/app/options/options.go`'s `applyLegacyDefaults`
+overwrites all three with `true`, `AlwaysAllow` and `10255` *"in order to preserve the command line
+API"* — flags the same file marks deprecated with *"This parameter should be set via the config file
+specified by the Kubelet's `--config` flag."* Both take effect; one is labelled legacy. Under this
+amendment the shipped default is the restricting set, which moves `10250/tcp` from Class A to Class C
+in `sensitive-ports.md` **without moving a `(port, transport)` pair**. The walk is `sensitive-ports.md`
+**§18**; the argument for making this a new ADR instead lost on placement, since it refines limb 1
+and travels exactly where limb 1 travels.
+
+**Thin ground, flagged.** Limb 1 was measured across nine configuration artefacts from as many
+projects before it was stated. This amendment has **one project** behind it — the deprecation label
+appears three times, but all three are Kubernetes. It is stated because it is a reading of limb 1
+rather than a new limb; the shallow measurement is worth knowing before it is relied on elsewhere.
+
 ## Rationale
 
 **The costly-act test decides it, and it decides against the reading it appears to support.**
