@@ -27,6 +27,9 @@ On a one-vantage-class internal install:
   [#48](https://github.com/winniel123/verge-asm/issues/48)). [ADR-0010](./0010-exposure-composes-two-reaches.md)
   refused to gate any of them on internet reach, precisely so this would be true.
 - **Membership drift runs** — `Name`s, `Address`es, `Service`s and `Endpoint`s appear and withdraw.
+  *Corrected by [#63](https://github.com/winniel123/verge-asm/issues/63) /
+  [ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md): true of the drift,
+  false of the messages — only `Name` and `Address` membership notifies. See the amendment below.*
 - **The coverage class runs in full** — all eight members.
 - **The clock class runs** — certificate expiry.
 
@@ -67,6 +70,10 @@ overwhelmingly the operator's own remediation, and the ways it could mean someth
 carried elsewhere — a closing custody gate, a `Vantage` becoming `unavailable`, and a service moving
 address, which is a `Service` `appeared` beside it. Flap suppression on this alert belongs to the
 notification patch, which owns all damping ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)).
+*Corrected by [#63](https://github.com/winniel123/verge-asm/issues/63) /
+[ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md): the third carrier is
+an **`Address`** `appeared`, not a `Service` `appeared`, and it is narrower than stated. See the
+amendment below.*
 
 **5. The predicate does not change when a second vantage class arrives.** It is keyed on
 `Vantage class`, which is a property of the leg and not of the deployment, so it reads identically
@@ -143,3 +150,35 @@ ADR-0017's aperture ruling exists to secure.
 | **Keep `Exposure` as the only alert source and rule bare `Reach` silent** | Consistent, and it drops the flagship entirely on the internet-only install #14 §7 supports — the product's headline event, lost to a deployment choice the product itself classifies automatically. It also contradicts ADR-0010 and ADR-0017, both of which already define the flagship as a leg move |
 | **Suppress the aperture message's census, per #42's literal payload** | #42 wrote *count of timelines opened, no comparison* to stop the safer payload inheriting the riskier one's apparatus, and that concern is met: a census is not a comparison. Withholding it would hand the operator *1,412 timelines opened* on the night their first internet vantage lands, and make them go and look to find out whether anything is exposed |
 | **Alert the newly-composed `exposed` services individually when the first prober arrives** | The escalation burst ADR-0017 exists to prevent. Nothing moved; we started looking. It would report a configuration act as 37 world events, which is what `revealed` is for |
+
+## Amendment — [#63](https://github.com/winniel123/verge-asm/issues/63): two sentences about
+membership are wrong, and the ruling they support survives
+
+[ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md) ruled `appeared`, and
+in doing so tested the assumption this ADR made about it twice. **The load-bearing claim holds**:
+membership drift is a live alerting surface on a one-vantage-class install, because `Name` and
+`Address` `appeared` and `returned` all fire there. Nothing in the Decision moves. Two supporting
+sentences are withdrawn as written.
+
+**The Context bullet *"Membership drift runs — `Name`s, `Address`es, `Service`s and `Endpoint`s
+appear and withdraw"* is true of the drift and false of the messages.** All four kinds drift and
+all four are recorded; only `Name` and `Address` membership is ever a message, because `Service`
+and `Endpoint` have keys the model composes from what it already holds and so can bring no ground
+it was not already accounting for. The install's alerting surface is still four things deep.
+
+**Decision 4's third carrier is an `Address` `appeared`, not a `Service` `appeared`, and it is
+narrower.** There is no `Service` `appeared` message under ADR-0031. Where a service moves to an
+address **new to the estate**, the `Address` `appeared` message fires with its census and the
+carrier is intact. Where it moves to an address **already in the estate**, no membership message
+fires at all: the residue is a `resolution` `Transition` recorded on the `Name`'s own timeline,
+and whether that notifies is not yet decided. The direction cut on the internet leg therefore
+rests on three carriers of which one is now conditional, and the other two — a closing custody
+gate and a `Vantage` becoming `unavailable` — are untouched.
+
+**This ADR's stated cost survives with a stronger reason.** *"A `Service` `appeared` fires when
+its `Address` appears, across the whole of `verge-core` including the closed ports, so membership
+does not cover it"* reached the right conclusion by the wrong route. Membership does not cover an
+internal port opening because a `Service` `appeared` is **never** a message — and the version of
+membership that would have covered it, one where only answering ports enter the estate, is
+refused by ADR-0031 precisely because it would re-admit through membership the transition this
+ADR ruled silent.
