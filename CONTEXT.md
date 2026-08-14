@@ -135,10 +135,20 @@ they supply, but a countersigned agreement is the same thing without a token. A 
 reading: where the operator adjudicates a tension they bear, the value is `operator-accepted`;
 where the source actually said yes to them, it is this one. The distinction is not cosmetic —
 the same service can sit in two different states depending on how it is reached, so `consent`
-keys on the **instrument**, never on the registry or vendor behind it — and it decides
-what is in the aperture, which makes it a property of the observation pipeline rather than
-of the deployment. See [ADR-0003](./docs/adr/0003-third-party-source-consent-bar.md) and
-[ADR-0018](./docs/adr/0018-a-clear-conditional-is-not-an-ambiguity.md).
+keys on the **instrument**, never on the registry or vendor behind it. It **names the door,
+never who walked through it**: the value is authored by the project, ships in the release and
+is the same for every install, so an operator's own act *satisfies* it and never moves it —
+what varies per install is the consent record, or the credential in use. Of the three values
+only `operator-credentialed` asserts anything about a **third party's** own conduct, so it is
+honest only where the instrument **enforces** the grant and the request fails without it; an
+unenforced grant carried as this value is the declared-status bar ADR-0003 rejected. An
+operator may be taken at their word about themselves, and never about somebody else. Where the
+instrument observes, `consent` also decides what is in the aperture; where it only *proposes*
+it decides whether the request may be made and nothing more. Either way it is a property of
+the observation pipeline rather than of the deployment. See
+[ADR-0003](./docs/adr/0003-third-party-source-consent-bar.md),
+[ADR-0018](./docs/adr/0018-a-clear-conditional-is-not-an-ambiguity.md) and
+[ADR-0023](./docs/adr/0023-consent-names-the-door.md).
 _Avoid_: enabled, licensed, tier
 
 **Vantage**:
