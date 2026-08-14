@@ -35,7 +35,7 @@ observation, never an observation of absence.**
 | --- | --- |
 | Unit of work | **One queue job = one `Batch`** |
 | Batch partitioning | Along any dimension the source **retains enumerability** over |
-| Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence |
+| Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence *(amended to **four** by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), on this row's own reasoning: `tls-acceptance`'s weekly enumeration is a fourth `Scan` whose scope is the open `Service` population and the TLS candidate set, not a port tier)* |
 | Tick firing | **Any worker**, under a Postgres advisory lock, idempotent on `(scan, scheduled_time)` |
 | Fan-out | **Atomic** — the `Dispatch` row and all its job rows commit in one transaction |
 | Overlap | **Skip**, recorded as a first-class operational event |
@@ -167,6 +167,15 @@ keeps the glossary definition intact and makes the aperture a configured object 
 hidden field — which matters because [#5](https://github.com/winniel123/verge-asm/issues/5)'s
 scope records exist precisely so an aperture change cannot manufacture drift. "The operator
 disabled the weekly deep scan" becomes a legible state.
+
+*Amended by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md): **four `Scan`s,
+not three.*** `tls-acceptance` is measured by enumerating N candidates per service, which
+[#4](https://github.com/winniel123/verge-asm/issues/4) put on a weekly cadence on cost grounds
+alone — a cadence, never a port set. Hanging it off the daily `Scan` as "every seventh run" is the
+tiered-cadence shape this section rejects, so it takes a `Scan` of its own: weekly, scope the open
+`Service` population plus the TLS candidate set, **no port tier**. Everything in this ADR applies
+to it unchanged. The `certificate` handshake, by contrast, adds no `Scan` at all — it is a step in
+the exchange that produces `reachability`, so it rides whichever of the three port tiers ran it.
 
 **Manual runs dispatch an existing `Scan`**, never an ad-hoc one-off: an ad-hoc run with a
 hand-picked port set produces a batch whose scope no configured object accounts for, which is

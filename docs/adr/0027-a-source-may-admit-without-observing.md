@@ -247,6 +247,9 @@ install either.
   `certificate` timeline opens six days later"* and `CONTEXT.md` repeats it. It decides
   `certificate`'s currency bound and therefore when a `Gap` opens under the expiry signals.
   Recorded as stale on one side or the other rather than guessed at, and opened as its own ticket.
+  *Settled by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md): ADR-0011 is
+  vindicated and ADR-0014's example is withdrawn. The handshake is a step in the exchange that
+  produces `reachability`, so there is no single tier — `certificate` inherits the `Service`'s.*
 - **Nothing about the discovery aperture moves.** `crt.sh` ships enabled exactly as ADR-0003 left
   it, admitting exactly the names it admitted before. This ADR changes what we say it does, not
   what it does.

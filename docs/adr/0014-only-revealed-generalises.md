@@ -68,10 +68,18 @@ cause, and #31 produces one of each. Nothing needed choosing between them.
 ### Only `revealed` generalises, and the reason is not a carve-out
 
 The obvious move is to widen the whole family to any timeline. A slow cadence shows why that
-over-reaches. A `Service` appears at 02:00; TLS is attempted on the weekly tier; its `certificate`
-timeline opens six days later. That opening is not the world moving — the service was there all
-along — and not our aperture widening, since the aperture always included it. We simply got round
-to looking. A uniformly widened family has no name for it and would have to mint one.
+over-reaches. A `Service` appears at 02:00 and is exchanged with on the daily tier; its
+`tls-acceptance` timeline opens six days later, when the weekly enumeration next runs. That opening
+is not the world moving — the service was there all along — and not our aperture widening, since
+the aperture always included it. We simply got round to looking. A uniformly widened family has no
+name for it and would have to mint one.
+
+*Amended by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md): this example
+originally read "TLS is attempted on the weekly tier; its `certificate` timeline opens six days
+later", which put the `certificate` handshake on a `Scan` it does not ride. The handshake is a step
+in the exchange that produces `reachability`, so a `certificate` timeline opens with its `Service`.
+The rule this example establishes is untouched, and `tls-acceptance`'s weekly enumeration is an
+instance of the identical shape — same six days, same conclusion.*
 
 The line that holds instead: **membership is a property of a subject, aperture is a property of
 looking, and looking is per-timeline.** So `appeared` and `returned` stay where ADR-0006 put them,
