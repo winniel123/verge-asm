@@ -443,6 +443,30 @@ is what keeps it to one message: a `Service` entering is never a message.
   arrive by resolution; but an *address scope* over IPv6 enumerates, and `/22` is IPv4 notation that
   means 2¹⁰⁶ addresses in v6. Ticketed separately — under the bounding reading it did not arise.
 
+## Amendment — [#85](https://github.com/winniel123/verge-asm/issues/85): the cap counts addresses, and the exponent was the only accidentally-IPv4 thing here
+
+[ADR-0049](./0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md) states this
+ADR's own cap in the unit it always had. **Nothing here is amended in substance and no figure moves.**
+
+- **The range size cap is `1,024` addresses per scope**, checked at declaration, per scope, never on
+  a sum, operator-configurable. **`/22` is that count's IPv4 spelling and `/118` is its IPv6 one** —
+  one knob at one setting, not two rules. Everything this ADR argues about the cap — that it
+  adjudicates *cost, not truth*, that it is not [#27](https://github.com/winniel123/verge-asm/issues/27)'s
+  refused cap, that it does not reach a `custody extension` — is unchanged and now family-blind.
+- **An address scope is family-agnostic.** A CIDR is a CIDR; there is no family check anywhere in
+  the model, the `Seed` kind does not split, and no third kind appears. The enumeration reads
+  **2^(width−n)** — the `32` above is the only accidentally-IPv4 thing in this document, and it sits
+  in the sentence a reader takes the enumeration rule from.
+- **The consequence for IPv6 is arithmetic, not a policy.** `/118` and longer are declarable, of
+  which the usable member is the `/128`; `/117` and shorter are refused by the cap, which is every
+  prefix an operator is assigned. One `/64` on the daily tier is ≈ 4.1 × 10¹¹ years at §6.3's
+  ceiling, so **IPv6 space is not swept and no configuration makes it sweepable**. The IPv6 estate's
+  route is a **name scope with a `custody extension`**, which is family-agnostic and already works,
+  since AAAA is in the shipped resolution offer.
+- **This ADR's ≈287,000 `Reach` timelines for a `/22` is therefore a ceiling**, not a point in an
+  open range: 1,024 addresses is the most any single address-scope declaration can open, in either
+  family, at the shipped default.
+
 ## Alternatives rejected
 
 | Alternative | Why not |

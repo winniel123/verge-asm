@@ -37,19 +37,26 @@ An operator's assertion of where the estate ends — either a *name scope* (a re
 domain) or an *address scope* (a CIDR). It declares a boundary, not a starting point: no name is
 ever generated from a name scope, and no seed is a starting **gun**, since declaring one queues a
 scan rather than firing one. **An address scope is nevertheless its own complete extension, and it
-enumerates.** Every address inside it is a subject from the declaration — all 2^(32−n) of them,
+enumerates.** Every address inside it is a subject from the declaration — all 2^(width−n) of them,
 since exempting the network and broadcast addresses would infer a subnetting we never measure —
 walked every cadence whether or not anything has ever answered there. That is what gives *no ports
 responded* a subject to be a fact about, and what lets a listener appearing in declared space fire
 the flagship `Reach` move instead of arriving as a line in a membership census. A **name** scope
 enumerates nothing: its addresses are reached only by measured resolution, and only under a
 `custody extension`. So an address scope has a `Coverage` denominator and a name scope has none,
-which is the same fact twice. An address scope carries a **range size cap** — `/22` by default,
-operator-configurable, checked when the scope is declared and applied per scope rather than to a
-sum — because a boundary asserting a measurement the shipped configuration cannot complete inside
-its own cadence is not a boundary; custody at a larger scale belongs to a `custody extension`. The
-cap is a statement about what we can measure and never about whether the claim is true, so a false
-declaration is as unprevented as it ever was. Declaring or widening an address scope is an
+which is the same fact twice. An address scope carries a **range size cap** — **1,024 addresses** by
+default, operator-configurable, checked when the scope is declared and applied per scope rather than
+to a sum — because a boundary asserting a measurement the shipped configuration cannot complete
+inside its own cadence is not a boundary; custody at a larger scale belongs to a `custody extension`.
+The cap is a statement about what we can measure and never about whether the claim is true, so a
+false declaration is as unprevented as it ever was. **A CIDR is family-agnostic and the cap counts
+addresses**: `/22` is that count's IPv4 spelling and `/118` its IPv6 one, one knob at one setting
+rather than a rule about families. So an IPv6 address scope is declarable at `/118` and longer — in
+practice the `/128`, which is how a v6-only prober's own address is covered — and every prefix an
+operator is actually assigned is refused by the cap, since a `/64` would take on the order of 10¹¹
+years to walk. **IPv6 space is not swept and no configuration makes it sweepable**; an IPv6 estate is
+reached by a name scope with a `custody extension`, which is family-agnostic and already works,
+AAAA being in the shipped resolution offer. Declaring or widening an address scope is an
 **aperture widening** — `revealed`, one coverage-class message at the scope carrying a count of
 timelines opened, never one message per address. A
 boundary can be drawn inwards too: a seed carries **exclusions** — exact names, subtrees, or
@@ -62,8 +69,9 @@ rather than a suppression, since it is a claim about where the estate ends. A na
 additionally carry a **custody extension** — see below. See
 [ADR-0002](./docs/adr/0002-ownership-gates-probing.md),
 [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md),
-[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md) and
-[ADR-0047](./docs/adr/0047-an-address-scope-is-its-own-enumeration.md).
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md),
+[ADR-0047](./docs/adr/0047-an-address-scope-is-its-own-enumeration.md) and
+[ADR-0049](./docs/adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md).
 _Avoid_: target, root domain, scope target
 
 **Custody extension**:
@@ -189,7 +197,10 @@ Which side of the operator's boundary a `Vantage` sits on — `internet` or `int
 declared as intent and re-verified every batch against the **address-scope** `Seed`s the system
 already holds, and against nothing else: no registry file may decide which side of the boundary a
 prober is on, for the same reason none may open the probing gate, and **no `custody extension`
-either**. This is the one place where two things fairly called *the operator's addresses* mean
+either**. The test is over **every address the vantage holds**, of either family: one uncovered
+address and it verifies `internet`, which is the closed direction, because a vantage wrongly read as
+`internal` moves observations onto the leg that never alerts. A **target's** family moves nothing —
+the class says where the prober sits, not what it is looking at. This is the one place where two things fairly called *the operator's addresses* mean
 different sets, deliberately: `Custody` may move on a resolution, and a `Vantage` whose class
 moved because a DNS answer changed would shuttle observations between the two legs of `Exposure`
 and manufacture drift in the flagship value. It is what `Reach` is measured per,
@@ -200,8 +211,12 @@ composition covers, and because `Exposure` needs both legs there is nothing ther
 ([ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md)). The cost is stated rather than hidden: a vantage inside operator address space the
 operator never declared verifies as `internet`, which over-reports `exposed`. That is the loud
 failure and the intended one — a false `exposed` is investigated, a false quiet reading is
-not — and the undeclared space surfaces as a coverage question. See
-[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
+not — and the undeclared space surfaces as a coverage question. A prober that holds only an IPv6
+address inside the operator's own network has one route and only one: a `/128` address scope naming
+that address, since the extension is barred here by design. See
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md),
+[ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md) §6 and
+[ADR-0049](./docs/adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md).
 _Avoid_: external, network position, inside/outside
 
 **Scan**:
