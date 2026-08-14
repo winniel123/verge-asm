@@ -62,7 +62,7 @@ Three decisions already made shape the answer before any evidence is gathered:
 | New `Facet`(s) | **One**, `listener-negotiation`, on `Service`, holding a closed two-field tuple. The HTTP-shaped members need **none** — `http-identity` already carries the status code, on `Endpoint` — §8 |
 | One signal or several | **Two**, split on the fact measured and never on the protocol — §9 |
 | Does it read `Exposure` | **Yes, both**, and that is precisely what separates them from `tls-1.0-negotiated`, which does not — §9.3 |
-| Closest call | **SMB signing not required** — a real, spec-defined, credential-free fact, excluded because a rule covering one protocol is a per-protocol signal by another name — §9.2 |
+| Closest call | ~~**SMB signing not required** — a real, spec-defined, credential-free fact, excluded because a rule covering one protocol is a per-protocol signal by another name~~ — **restated by [#104](https://github.com/winniel123/verge-asm/issues/104): still the closest call, still excluded, and on neither of the two grounds this row gave.** Both are withdrawn; what excludes it is the **aperture** — reading `SMB2_NEGOTIATE_SIGNING_REQUIRED` needs the wire prober and `listener-negotiation`, which ADR-0015 put out of scope for this map — §9.2 |
 
 Two headline results, and the second is the one that changes what v1 should build.
 
@@ -744,6 +744,75 @@ Real, credential-free, spec-defined facts. But **signing is integrity, not confi
 guest/null-session access needs `SESSION_SETUP`**, so SMB contributes to neither of the two rules
 cleanly. §9.2 records it as the closest call in the note.
 
+> **Amended and measured by [#104](https://github.com/winniel123/verge-asm/issues/104).** Four
+> corrections to the row above, all from MS-SMB2 rev. 87.0.
+>
+> - **Only one of the two bits carries information.** §3.3.5.4 obliges every conformant server to set
+>   `SMB2_NEGOTIATE_SIGNING_ENABLED` unconditionally — *"**SecurityMode** MUST have the
+>   SMB2_NEGOTIATE_SIGNING_ENABLED bit set"* — and to add `SMB2_NEGOTIATE_SIGNING_REQUIRED` only where
+>   `RequireMessageSigning` is TRUE. So `ENABLED` is a constant and **`REQUIRED` is the whole
+>   signal**, a 1:1 render of one server configuration bit with no third state and no *unknown*
+>   encoding. (Samba's `smb.conf` says the same from the other side: for SMB2 *"by design, signing
+>   cannot be disabled"* — offering it is mandatory, requiring it is not.)
+> - **The clear bit is a positive statement, not an absence.** §3.1.1's ADM: *"If not set, this node
+>   does not require that any messages be signed"*, and §3.2.5.3.1 resolves `Session.SigningRequired`
+>   to FALSE — an unsigned session is the **negotiated outcome**, which is what makes this a value
+>   rather than a `Gap`.
+> - **The exchange carries no identity at all**, which is stronger than *authentication is somewhere
+>   else*: §2.2.1.2 requires `SessionId` to be **0** on both the NEGOTIATE request and its response,
+>   and §2.2.3's request structure has no field able to carry a user identity. §3.2.4.2 orders the
+>   client algorithm *negotiate* (step 2) then *authenticate* (step 3), with `UserCredentials` an
+>   input to step 3 alone.
+> - **SMB 3.1.1 pre-auth integrity does not answer this question and must not be read as doing so.**
+>   It hashes the handshake into the signing-key KDF and forces a signature on the *final*
+>   `SESSION_SETUP` response — a rule stated over `Connection.Dialect` and never over
+>   `Session.SigningRequired` — so a 3.1.1 server may sign that one response and then run a wholly
+>   unsigned session. The two mechanisms are orthogonal.
+>
+> **The value varies, and the insecure value is the shipped default on current systems.** MS-SMB2
+> Appendix A note `<90>`: *"By default, Windows-based servers set the **RequireMessageSigning** value
+> to TRUE for domain controllers and FALSE for all other machines."* Samba's `server signing` default
+> is identical — required on an AD DC, *"disabled otherwise"*. And the Windows 11 24H2 / Server 2025
+> hardening is narrower than its headline: Server 2025 *"requires **outbound** SMB signing only"*,
+> which is the SMB **client**, so a current, fully-patched Windows **file server** still answers with
+> `REQUIRED` clear unless it is a DC or was configured. Under
+> [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) that default is
+> the configuration that takes effect, and it is what keeps the fact worth reading.
+>
+> **Probe cost, computed from the spec's own fixed sizes.** 4-byte Direct TCP header (§2.1) + 64-byte
+> SYNC header (§2.2.1.2, `StructureSize` MUST be 64) + 36-byte NEGOTIATE fixed part (§2.2.3,
+> `StructureSize` MUST be 36) + 2 bytes per dialect = **112 bytes** offering four dialects, 106 with
+> one. The response is ≥ 133 bytes (§2.2.4, `StructureSize` MUST be 65) plus the SPNEGO buffer. One
+> connection, one round trip, **under 512 bytes**, and — offering only dialects ≤ `0x0302` — a
+> **fixed constant byte string**, since every field is a literal or a client-global. Offering
+> `0x0311` forfeits that: it makes an `SMB2_PREAUTH_INTEGRITY_CAPABILITIES` context mandatory with a
+> per-request CSPRNG salt, and adds a `NetName` context carrying the target's own hostname, for no
+> gain here because `SecurityMode` is returned identically under every dialect.
+>
+> **No server state, and one protocol rule to respect.** No session, tree connect, handle, lease or
+> mount entry — contrast NFSv3 `MNT`, which §9.2's generality box records as *adding an entry to the
+> server's mount list*. §3.3.5.4 requires the server to **disconnect without replying** on a second
+> NEGOTIATE, so it is exactly one per connection and never a retry on the same socket.
+>
+> **The safety question ADR-0015 routed here is now specific, and it is not closed.** Event `4625`
+> cannot fire — every field it carries presupposes a logon and SPNEGO is not engaged until
+> `SESSION_SETUP`. The live exposure is `SMBServer/Audit` **3021/3022** on Windows 11 24H2 and Server
+> 2025, which are **off by default** and aimed at clients that do not *support* signing; the probe
+> should therefore set `SMB2_NEGOTIATE_SIGNING_ENABLED` in its **own** request, which costs zero
+> bytes. **Microsoft does not document which message triggers 3021/3022**, so whether a NEGOTIATE-only
+> probe is silent on an audit-enabled server is **unverified** — a lab measurement, not a reading, and
+> the cheapest form §7.2's unbudgeted-safety question has ever had.
+>
+> **A negative worth recording**: no Microsoft documentation was found describing *any* Security-log
+> audit event emitted on SMB2 NEGOTIATE alone. That is an absence of documentation, which is weaker
+> than a statement, and it is written here as such.
+>
+> **SMB1 expresses the same fact more expressively and is out of scope anyway.** MS-CIFS §2.2.4.52.2
+> carries `NEGOTIATE_SECURITY_SIGNATURES_ENABLED` and `..._REQUIRED` in an 8-bit `SecurityMode`, and
+> there the `ENABLED` bit *is* informative — three states rather than two. It is not worth probing:
+> Microsoft has deprecated SMB1 and stopped installing it by default since Windows 10 1709, and *a
+> listener speaking SMB1 at all* is a different and larger finding than its signing posture.
+
 **MongoDB.** TLS is negotiated on the same port rather than a sibling — `net.tls.mode` takes
 `disabled`, `allowTLS`, `preferTLS`, `requireTLS`, where the middle two mean "the server accepts both
 TLS and non-TLS"
@@ -1233,6 +1302,17 @@ refused*. Keying this on `Service` would average two true facts into one false o
 **Proposal: one new facet, `listener-negotiation`, on `Service`**, holding the two-field closed tuple
 of §7.4.
 
+> **Amended by [#104](https://github.com/winniel123/verge-asm/issues/104): whoever specifies this
+> facet owes a decision on a *third* field — integrity — and it is the one part of the deferred work
+> that is not free to defer twice.** §9.2's SMB signing fact is neither `transport` nor
+> `authentication`, so it needs a field of its own; and
+> [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) is explicit that a facet's value space
+> is **decided once** and widened afterwards at the cost of a `Break` on every timeline it holds.
+> While this facet does not exist the third field costs nothing to add and nothing to omit. The day
+> it ships with two fields, adding the third stops being free. So the field question is owed **at
+> specification time**, ahead of and independently of whether any rule reads it — which is ADR-0015's
+> own finding about `http-identity`'s status class, one level down.
+
 *Why on `Service` and not `Endpoint`.* None of the wire protocols in §5 is name-addressed. A
 PostgreSQL listener's answer to `SSLRequest` does not vary by DNS name because nothing in the
 exchange carries one. `(Address, port, transport)` is the key the fact is actually single-valued
@@ -1327,25 +1407,106 @@ SMB-signing-not-required. It is refused:
   `PROTOCOL_RDP` has accepted a mode with no TLS, which is `transport = upgrade-absent` and belongs
   to the first signal already. Nothing is lost.
 - **SMB signing is the closest call in the note.** `SMB2_NEGOTIATE_SIGNING_REQUIRED` is a real,
-  spec-defined, credential-free bit, and its absence is a genuine and well-known weakness. But it is
-  integrity rather than confidentiality, so it fits neither rule, and ~~a rule built for it would cover
+  spec-defined, credential-free bit, and its absence is a genuine and well-known weakness. But ~~it is
+  integrity rather than confidentiality, so it fits neither rule~~, and ~~a rule built for it would cover
   exactly one protocol — which is §9.1's per-protocol signal wearing a general-sounding name~~.
   **Excluded from v1**, with the underlying question recorded in §12 rather than argued away: a
   single-protocol rule may be legitimate, and this note has not established that it is not.
 
-  > **The struck half of this exclusion's ground is gone.**
-  > [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) corrected §9.1's principle — a
-  > single-protocol rule **is** legitimate where the fact is genuinely single-protocol — and this
-  > sentence's *"which is §9.1's per-protocol signal wearing a general-sounding name"* is the
-  > withdrawn reading. Recorded here by [#102](https://github.com/winniel123/verge-asm/issues/102)
-  > under [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+  > **Both halves of this exclusion's ground are now struck, and the verdict survives on a third
+  > ground this section never wrote down.** Ruled by
+  > [#104](https://github.com/winniel123/verge-asm/issues/104) under
+  > [ADR-0065](../adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md),
+  > completing the repair [#102](https://github.com/winniel123/verge-asm/issues/102) began under
+  > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
   >
-  > **The verdict is NOT reversed here, and must not be read as reversed.** The *other* half of the
-  > ground — *"it is integrity rather than confidentiality, so it fits neither rule"* — is untouched
-  > and may carry the exclusion on its own; deciding that is a v1 signal-set question, which is a row
-  > change and not a document repair. It is **ticketed**, and the note's own §12 q2 is the question
-  > being answered. Until that ticket lands, `smb-signing-not-required` stays **excluded from v1**,
-  > now on one ground rather than two.
+  > - **The per-protocol half** was withdrawn by
+  >   [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) — a single-protocol rule **is**
+  >   legitimate where the fact is genuinely single-protocol — and struck here by #102.
+  > - **The integrity-versus-confidentiality half is withdrawn too.** *"It fits neither rule"* is a
+  >   claim about **the two rules this section admits**, never about SMB, and a fact fitting neither
+  >   is a candidate for a **third** rule rather than a reason to drop the fact. ADR-0015 said as much
+  >   while withdrawing the other half — *"it would be a third signal in any case — signing is
+  >   integrity, which is neither of the two facts the other rules read"* — treating *third* as the
+  >   shape of the answer and not as an objection to it.
+  >
+  > **What excludes it is the aperture, and that ground was true all along.** ADR-0015: *"SMB signing
+  > is therefore admissible whenever the prober that can read `SMB2_NEGOTIATE_SIGNING_REQUIRED`
+  > exists. It stays out of v1 because that prober does not."* Reading the field needs an SMB2
+  > `NEGOTIATE` exchange — application bytes v1 does not send, under an `Offer` v1 has not declared —
+  > and a facet to hold the result, which is §8.2's `listener-negotiation`, ruled **out of scope for
+  > this map** by ADR-0015. `445/tcp` being a `verge-core` pair buys the **connect**, never the
+  > exchange, so nothing here is free.
+  >
+  > **Three riders on the deferral.**
+  > 1. **Where its coverage would actually be is not where this section assumed.** `445/tcp` is on the
+  >    sensitive list in the explicit-prohibition tier, so `sensitive-port-reached-from-internet`
+  >    already fires on it from the internet leg — Microsoft's own perimeter directive is the
+  >    attestation. An integrity rule therefore adds **nothing** there, and its whole prize is the
+  >    **internal** leg, which is the one place v1 is silent by design. That is why the row was the
+  >    closest call, and it is also why the rule's relationship to `Exposure` is the open question
+  >    below rather than a settled inheritance from §9.3.
+  > 2. **It would not ship under the name `smb-signing-not-required`.** ADR-0015's corrected test
+  >    forbids naming a rule for a protocol; the rule is named for the integrity fact, and its scope is
+  >    however many protocols express that fact.
+  > 3. **The deferral is free.** ADR-0014 and ADR-0015 price a new facet plus a new rule at `revealed`
+  >    plus one coverage-class message with **no `Break`**, so there is no deadline and nothing bought
+  >    by admitting it now. Admitting it early buys less than nothing: per ADR-0004's #44 amendment no
+  >    subject would exist, so the rule would render **no row at all** — not even `not-evaluable` —
+  >    while moving every *sixteen* in the corpus to *seventeen*.
+  >
+  > **ADR-0015's generality check is closed here rather than deferred, and it is measured.** The test
+  > asks how many protocols express the fact, because three expressing one fact must be one signal.
+  > Stated protocol-neutrally the fact has four load-bearing properties — **server-originated**,
+  > **pre-credential**, **listener-scoped**, and a **requirement rather than a capability** — and
+  > across eight protocols checked against their own specifications, **SMB is the only one where all
+  > four hold at once**:
+  >
+  > | Protocol | Expresses it? | Pre-credential? | Why it fails |
+  > |---|---|---|---|
+  > | **SMB2/3** | **yes**, `SIGNING_REQUIRED` | **yes** | — **the only full match** |
+  > | SMB1 | yes, and with three states | yes | full match, but the protocol is deprecated and out of scope (§5.8) |
+  > | NFSv3 `MNT` | partially, `auth_flavors` | nearly | **per-export**, wants AUTH_UNIX, and **mutates the server's mount list** |
+  > | NFSv4 `SECINFO` | yes, `rpc_gss_svc_t` | **no** | **per-filehandle**; needs a current FH reachable only by iterating flavours; designed as `NFS4ERR_WRONGSEC` recovery, not discovery |
+  > | LDAP | **no** | no | the root DSE holds capability lists only; the requirement appears only as a rejected bind — which needs a credential and is **more invasive than the SMB probe** |
+  > | SNMPv3 | **no** | no | discovery returns `snmpEngineID` alone; `vacmAccessSecurityLevel` is per-access-entry behind authentication |
+  > | PostgreSQL | **no** | no | the vendor says so: *"the protocol itself does not provide a way for the server to force SSL encryption"* — it surfaces *"as a byproduct of authentication checking"* |
+  > | AMQP / RabbitMQ | **no** | n/a | enforced by **port separation**, so the fact is port inventory and v1 already has it |
+  > | SSH | **degenerate** | yes | `"none"` must be explicitly listed to be acceptable, so the answer is **always** *required* and the reading carries no information |
+  > | IMAP `LOGINDISABLED` | same **pattern**, different fact | yes | a statement about **credential exposure**, not session integrity |
+  >
+  > So the rule is **genuinely single-protocol**, which ADR-0015 makes legitimate, and the conclusion
+  > runs the other way from the one the count suggests: **do not build a cross-protocol
+  > integrity-requirement abstraction.** It would carry one real implementation and a set of
+  > degenerate ones. The honest framing is that `SecurityMode` is a **uniquely cheap read of a fact
+  > that is expensive or impossible to obtain elsewhere** — LDAP's costs an authentication attempt,
+  > NFSv3's costs persistent state on the target.
+  >
+  > **Reopens** with the wire-protocol prober, and only with it. Two things travel to whoever picks it
+  > up: the **third-field** obligation at §8.2's box, owed at specification time and not at rule time;
+  > and §5.8's **one unverified safety item**, which is now a named lab measurement rather than an
+  > open-ended question.
+  >
+  > **One question is deliberately left open, and the evidence genuinely underdetermines it.**
+  > Whether an integrity rule reads `Exposure`. §9.2's two rules both do (§9.3), and this one probably
+  > should not — which is exactly what would make the **internal** leg its coverage, since
+  > `sensitive-port-reached-from-internet` already covers `445/tcp` on the internet leg and
+  > [#58](https://github.com/winniel123/verge-asm/issues/58) refused an internal counterpart. But #58
+  > refused it for want of an attestation that the internal configuration is never correct, and the
+  > measured evidence pulls both ways at once:
+  >
+  > - **Against** — the owners' **shipped defaults** leave signing not required off the domain
+  >   controller, in both Windows (note `<90>`) and Samba. Under
+  >   [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) that is the
+  >   configuration that takes effect, and firing on the vendor's own default internally is #58's
+  >   shape exactly — *a Redis on 6379 is the documented default*.
+  > - **For** — both owners are moving, and the direction is an owner statement in itself: Windows 11
+  >   24H2 requires signing in both directions and Server 2025 requires it outbound, so *unsigned* is
+  >   being withdrawn as the intended end state rather than defended as correct.
+  >
+  > Neither is decisive, and #104 does not force it. It is a question about a rule's **domain**, and
+  > settling a domain before its facet exists is the wrong order — the answer also moves as the
+  > owners' defaults move, which is a curation trigger's shape and not a spec's.
 
 ### 9.3 Both read `Exposure`, and that is the difference from `tls-1.0-negotiated`
 
@@ -1499,6 +1660,13 @@ rather than dropping them.
    > [#102](https://github.com/winniel123/verge-asm/issues/102) writes it in under
    > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
    > See §9.1's box for the corrected test and §9.2's for what it does and does not move.
+   >
+   > **And the row it was raised from is settled too, so nothing is parked here any longer.**
+   > [#104](https://github.com/winniel123/verge-asm/issues/104) ruled the SMB verdict: the fact is
+   > **admissible** — single-protocol scope is legitimate, and it would be a **third** rule reading
+   > **integrity**, which is neither fact §9.2's two rules read — and it is **excluded from v1 on the
+   > aperture**, which is the only ground §9.2 never wrote down. See
+   > [ADR-0065](../adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md).
 3. **Does the `revealed` treatment of a widened dispatch table actually hold in the presence of a
    `Gap`?** §7.3 leans on ADR-0008. But a `Service` already carrying `not-evaluable` under route 5
    has a timeline; widening the aperture over it looks like a value appearing where a `Gap` was, not
@@ -1554,6 +1722,21 @@ rather than dropping them.
 - Docker: [Docker daemon attack surface](https://docs.docker.com/engine/security/) · [Protect the Docker daemon socket](https://docs.docker.com/engine/security/protect-access/) · [Deprecated features](https://docs.docker.com/engine/deprecated/)
 - Elastic: [Self-managed security setup](https://www.elastic.co/docs/deploy-manage/security/self-setup) · [Minimal security](https://www.elastic.co/docs/deploy-manage/security/set-up-minimal-security) · [Get cluster info](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-info)
 - Nmap: [nmap-service-probes](https://raw.githubusercontent.com/nmap/nmap/master/nmap-service-probes) · [Service and Version Detection file format](https://nmap.org/book/vscan-fileformat.html)
+
+**Added by [#104](https://github.com/winniel123/verge-asm/issues/104) — SMB signing, and the generality check across protocols** *(MS-SMB2 revision 87.0, 2026-07-14)*
+- Microsoft, MS-SMB2: [§2.1 Transport](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/1dfacde4-b5c7-4494-8a14-a09d3ab4cc83) · [§2.2.1.2 Packet Header — SYNC](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/fb188936-5050-48d3-b350-dc43059638a4) · [§2.2.3 NEGOTIATE Request](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/e14db7ff-763a-4263-8b10-0c3944f52fc5) · [§2.2.4 NEGOTIATE Response](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/63abf97c-0d09-47e2-88d6-6bfa552949a5) · [§3.1.1.1 Global ADM](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/95a74d96-93a7-42ea-af1a-688c17c522ee) · [§3.1.3 Initialization](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/b4d73f32-7e27-4a5e-b1a4-c8b4331864a9) · [§3.2.4.2 Requesting a Connection to a Share](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/61c68667-0b8c-4300-ac8a-246a86f2b11d) · [§3.2.4.2.2.2 SMB2-Only Negotiate](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/77f696b8-9aa0-4ed1-abb2-c097c0ccb05a) · [§3.2.5.2 Receiving a NEGOTIATE Response](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/3b29f3af-86f9-4962-8cf3-43471cb59363) · [§3.2.5.3.1 Handling a New Authentication](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/7fd079ca-17e6-4f02-8449-46b606ea289c) · [§3.3.5.4 Receiving a NEGOTIATE Request](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/b39f253e-4963-40df-8dff-2f9040ebbeb1) · [Appendix A, product-behaviour note `<90>`](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb2/a64e55aa-1152-48e4-8206-edd96444e7f7)
+- Microsoft, MS-CIFS: [§2.2.4.52 SMB_COM_NEGOTIATE](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cifs/96ccc2bd-67ba-463a-bb73-fd6a9265199e) · [§2.2.4.52.2 Response](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cifs/a4229e1a-8a4e-489a-a2eb-11b7f360e60c) · [§3.2.5.2 Receiving the response](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cifs/8ab14111-9b41-4ede-ac94-dbea557451c6)
+- Microsoft product documentation: [Overview of SMB signing in Windows](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-signing-overview) · [Control SMB signing behavior](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-signing) · [SMB security hardening in Windows Server and Windows Client](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-security-hardening) · [Microsoft network server: digitally sign communications (always)](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/microsoft-network-server-digitally-sign-communications-always) · [4625(F) An account failed to log on](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4625) · [Manage LDAP signing using Group Policy](https://learn.microsoft.com/en-us/windows-server/identity/manage-ldap-signing-group-policy)
+- [Samba `smb.conf(5)`, `server signing`](https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html)
+- [RFC 2203 — RPCSEC_GSS](https://datatracker.ietf.org/doc/html/rfc2203#section-5) §5 · [RFC 1813 — NFSv3](https://datatracker.ietf.org/doc/html/rfc1813#section-5.2.1) §5.2.1, §5.2.5 · [RFC 7530 — NFSv4](https://datatracker.ietf.org/doc/html/rfc7530#section-3.3) §3.3, §13.1.6.3, §16.31, §19
+- [RFC 4253 — SSH transport](https://datatracker.ietf.org/doc/html/rfc4253#section-6.4) §6.4, §7.1 · [RFC 3414 — SNMPv3 USM](https://datatracker.ietf.org/doc/html/rfc3414#section-4) §3.2, §4 · [RFC 3415 — VACM](https://datatracker.ietf.org/doc/html/rfc3415#section-4) §4
+- [RFC 4512](https://datatracker.ietf.org/doc/html/rfc4512#section-5.1) §5.1, §5.1.7 and [RFC 4513](https://datatracker.ietf.org/doc/html/rfc4513#section-6) §5.2.1.4, §6.1 — re-read for the generality check
+- [PostgreSQL, Frontend/Backend Protocol — SSL Session Encryption](https://www.postgresql.org/docs/current/protocol-flow.html) · [RabbitMQ — TLS Support](https://www.rabbitmq.com/docs/ssl)
+
+**Checked by #104 and found to state no position, which is the finding**
+- **Microsoft does not document which message triggers `SMBServer/Audit` events 3021/3022.** Whether a NEGOTIATE-only probe is silent on an audit-enabled Windows Server 2025 is therefore **unverified**, and §5.8 routes it to a lab measurement rather than asserting it
+- **No Microsoft page documents any Security-log audit event emitted on SMB2 NEGOTIATE alone.** An absence of documentation, weaker than a statement, and recorded as such
+- **No primary source gives the shipped default of `LDAPServerIntegrity` on a fresh domain controller**; secondary sources disagree, so no default is asserted
 
 **Measured in the course of this note**
 - `nmap-service-probes` directive counts (§2.1) — 187 `Probe`, 11,968 `match`, 203 `softmatch`, 12 `fallback`, over 17,154 lines of the current file

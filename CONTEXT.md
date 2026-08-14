@@ -703,7 +703,12 @@ never the spread of thresholds the estate happens to produce, since a declared p
 and constant in every install while a statistic over the estate is neither, and is not a member of
 the partition. A rule is **four parts** — its domain, its predicate, its `not-evaluable` case
 and its version vector — plus one cost, the new measurement it requires, which is weighed and is
-never a correctness objection. It is **named for the fact it reads** — never for a
+never a correctness objection. A cost weighed and **declined** is a complete exclusion needing no
+principle beside it, and a fact fitting none of the rules we already have is a candidate for a new
+rule rather than a reason to drop the fact — the shape of the set is a fact about the set, and rules
+are versioned per rule precisely so that no rule's admission is a fact about any other
+([ADR-0065](./docs/adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md)).
+It is **named for the fact it reads** — never for a
 conclusion its evidence cannot carry, never for a protocol, and never for the **content** of a
 table or parameter that decides the fact, which is why no rule reading a curated table encodes
 that table in its name — and its scope is however many
@@ -731,8 +736,9 @@ See
 [ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md) — whose v1 table
 enumerates **sixteen** rules, against the stale *ten* in three ADRs —
 [ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md),
-[ADR-0032](./docs/adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) and
-[ADR-0033](./docs/adr/0033-a-move-carries-the-rule-that-opens-at-fired.md).
+[ADR-0032](./docs/adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md),
+[ADR-0033](./docs/adr/0033-a-move-carries-the-rule-that-opens-at-fired.md) and
+[ADR-0065](./docs/adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
 
 **Predicate domain**:
