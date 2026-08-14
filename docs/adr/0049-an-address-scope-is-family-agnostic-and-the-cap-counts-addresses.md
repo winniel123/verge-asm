@@ -261,7 +261,11 @@ untouched — the extension still may not decide a vantage's class, in either fa
   no stated canonical form, and IPv6 has many textual spellings of one address where IPv4 effectively
   has one. This is live **today** through AAAA and is not caused by this ruling — but a ruling that
   says *a CIDR is a CIDR* is the point at which somebody will ask what `2001:db8::1` is equal to.
-  [#89](https://github.com/winniel123/verge-asm/issues/89).
+  [#89](https://github.com/winniel123/verge-asm/issues/89). **Discharged by
+  [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md)**,
+  which keys an `Address` on the address rather than on any spelling of it and holds an address scope
+  in the same form — so this ADR is **confirmed rather than amended**, and its `/128` route and its
+  every-address containment test now run on a stated form instead of an assumed one.
 
 ## Alternatives rejected
 
