@@ -228,10 +228,17 @@ certificate being short-lived rather than by anything about our own machinery, a
 read as an outage.
 
 What this ADR does **not** decide is what `certificate-expiring`'s census then says
-([#72](https://github.com/winniel123/verge-asm/issues/72)'s), where the `not-evaluable` renders
-([#44](https://github.com/winniel123/verge-asm/issues/44)'s), or whether a member that becomes most
-of a population is drillable ([#74](https://github.com/winniel123/verge-asm/issues/74)'s, open). It
-moves an input to all three and is handed to them as such.
+([#72](https://github.com/winniel123/verge-asm/issues/72)'s), or where the `not-evaluable` renders
+([#44](https://github.com/winniel123/verge-asm/issues/44)'s). It moves an input to both and is handed
+to them as such.
+
+The remaining worry — that on the cold tier this ruling can make `not-evaluable` the **largest** of
+the clock class's three census members — was answered independently by
+[#74](https://github.com/winniel123/verge-asm/issues/74), closed the same day: a census member that
+is most of the estate "renders the same list, in full, ordered by subject", with no truncation,
+sample, roll-up or threshold, because #74 also took the rows off the census card entirely. So the
+growth in `not-evaluable` this ADR produces is absorbed by a surface that is already constant in the
+size of the member. Nothing here asks #74 to be reopened.
 
 ### Not a dial, re-checked
 
@@ -343,12 +350,14 @@ occurs, and on the published lifetime schedule, rather than on how often it occu
 - **The modal estate sees nothing.** On the hot tier the horizon binds only below a four-day validity
   period, and none exists. ADR-0028's *two days modally* is exactly as true after this ADR as before,
   which is why the `Break` is affordable.
-- **An input moves for three open questions and is decided by none of them here.**
-  [#72](https://github.com/winniel123/verge-asm/issues/72) owns what the census says,
-  [#44](https://github.com/winniel123/verge-asm/issues/44) owns where a `not-evaluable` renders, and
-  [#74](https://github.com/winniel123/verge-asm/issues/74) — open — owns whether a member that is most
-  of a population is drillable. On the cold tier this ruling can make `not-evaluable` the largest of
-  the clock class's three census members, which is #74's question arriving with a concrete instance.
+- **An input moves for the census questions and is decided by none of them here.**
+  [#72](https://github.com/winniel123/verge-asm/issues/72) owns what `certificate-expiring`'s census
+  says and [#44](https://github.com/winniel123/verge-asm/issues/44) owns where a `not-evaluable`
+  renders; both are closed and neither is reopened. On the cold tier this ruling can make
+  `not-evaluable` the **largest** of the clock class's three census members —
+  [#74](https://github.com/winniel123/verge-asm/issues/74), closed the same day, had already ruled
+  that a member which is most of the estate renders in full and that nothing about a member view is a
+  function of how many rows it holds, so the surface absorbs this without change.
 - **An input moves for [#80](https://github.com/winniel123/verge-asm/issues/80).** #78 left the ~900
   tail ports covered by the cold tier, which is opt-in, so on a default install they are reached only
   by the onboarding baseline sweep. A single observation ages past its horizon within `N` and past
