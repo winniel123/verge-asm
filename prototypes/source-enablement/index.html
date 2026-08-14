@@ -5,7 +5,8 @@
 
   #28 drew this surface as ONE LINE inside `Coverage`'s "scopes you have not
   declared" panel — asked, nobody replied, accept the terms yourself — and that
-  was right at the time. #34 made the toggle load-bearing: the operator flips it
+  was right at the time. (#57 has since withdrawn the "asked" half: no reply has
+  ever come, and no record of an approach exists. The copy here reflects that.) #34 made the toggle load-bearing: the operator flips it
   by taking on a reading the project declined to make, and that reading is only
   honest if they are told what is unresolved, in the project's own words, in two
   marked groups. A two-group document is not a caption.
@@ -170,8 +171,10 @@
   .unlist .t { font-size: var(--text-base); line-height: var(--leading-body); max-width: 640px; }
   .unlist .ml { display: block; margin-bottom: var(--space-2); }
 
-  /* the "asked, nobody replied" row — an event, not a question, so it does not
-     take a number and does not look like one */
+  /* the no-reply row — not a question, so it does not take a number and does not
+     look like one. #57 corrected what it is: it was written as an EVENT ("was
+     asked, no answer came") and it is a STATE with a gap in its cause — no reply
+     has ever come, and whether anything was sent cannot be established. */
   .asked { display: flex; gap: var(--space-4); padding: var(--space-4);
            border-top: var(--rule-soft); background: var(--surface-sunken); }
   .asked .n { flex: none; width: 20px; color: var(--text-faint); font-family: var(--font-mono);
@@ -300,7 +303,10 @@
    reading, which is the one thing `operator-accepted` exists to avoid.
    ═══════════════════════════════════════════════════════════════════════ */
 
-const DETERMINED = "2026-08-13";   /* when the project recorded the non-answer, not when it wrote */
+/* The one date this surface may render. Not a send date: #57 established there is
+   no send to evidence, and no ask date will ever be renderable unless #59 files a
+   sent message under docs/correspondence/. */
+const DETERMINED = "2026-08-13";   /* when the project settled the question */
 
 const R = {
 
@@ -514,13 +520,15 @@ function groupUnanswerable(s) {
       </div>`}
     <div class="asked">
       <div class="n">·</div>
-      <div class="t">${s.asked.who} was asked whether verge-asm may query ${s.name} on an operator's
-        behalf by default. No answer came. ${s.name} therefore ships off — not pending, not a
-        refusal, and no length of silence will turn into one.
+      <div class="t">No reply from ${s.asked.who} has ever come. Whether anything was ever sent to
+        them cannot be established: the project keeps no record of outbound communications, so it
+        can produce no message, no recipient and no date. ${s.name} ships off either way — not
+        pending, not a refusal, and no length of silence will turn into one.
         <div class="muted" style="margin-top:var(--space-2);font-size:var(--text-sm)">
-          Recorded <span class="mono">${DETERMINED}</span> and unchanged since. That is the date the
-          project settled the question, not the date anything was sent — no send is evidenced, and a
-          date printed here as if it were would be a claim this software cannot support.</div>
+          What leaves this to you is the project's refusal to read ${s.name}'s terms on your behalf,
+          and that refusal stands whether or not anything was ever sent. Recorded
+          <span class="mono">${DETERMINED}</span> and unchanged since — the date the question was
+          settled, not the date of any send.</div>
       </div>
     </div>
   </div>`;
@@ -629,7 +637,8 @@ function coverageScreen(variant, srcKey) {
           : ``}
       </div>
       <div class="line">${r.toggle
-        ? `${r.asked.who} was asked. No answer came. You can read ${r.name}'s terms and decide for
+        ? `No reply from ${r.asked.who} has ever come, and no record of an approach exists. You can
+           read ${r.name}'s terms and decide for
            yourself — ${r.actionable.length > 0
              ? `one part of what is unresolved turns on facts about you`
              : `nothing left unresolved here turns on who you are`}.`
