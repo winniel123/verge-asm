@@ -207,6 +207,11 @@ documentation.
   operational purposes"*; the copyright page says *"Internet operational purposes approved by APNIC"*
   and adds a bulk-redistribution sentence the header lacks. Nothing here turns on the difference, but
   a session quoting one should not represent it as the other.
+- **§4's reasoning is a property of the tier, not a fact about one instrument** —
+  [ADR-0023](./0023-consent-names-the-door.md). *"Without the credential the request fails"* is what makes
+  `operator-credentialed` honest anywhere, so an unenforced grant may not carry the value at all, and the
+  live registry path can no more hold it than the bulk file can. §3's broadening to a token-less grant
+  stands as a definition and has **no v1 instance**.
 
 ## Alternatives rejected
 
