@@ -1,4 +1,4 @@
-# ADR-0049: An owner's category statement reaches the members its own artefacts place inside it
+# ADR-0050: An owner's category statement reaches the members its own artefacts place inside it
 
 - **Status:** Accepted
 - **Date:** 2026-08-14
