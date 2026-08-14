@@ -157,7 +157,10 @@ different sets, deliberately: `Custody` may move on a resolution, and a `Vantage
 moved because a DNS answer changed would shuttle observations between the two legs of `Exposure`
 and manufacture drift in the flagship value. It is what `Reach` is measured per,
 and therefore what makes `Exposure` a conclusion across two classes rather than a reading from
-one prober. The cost is stated rather than hidden: a vantage inside operator address space the
+one prober. It is also an **aperture input**: the first vantage of a class widens what the
+composition covers, and because `Exposure` needs both legs there is nothing there to break — it
+**opens** the `Reach` and `Exposure` timelines, yielding `revealed` and one coverage-class message
+([ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md)). The cost is stated rather than hidden: a vantage inside operator address space the
 operator never declared verifies as `internet`, which over-reports `exposed`. That is the loud
 failure and the intended one — a false `exposed` is investigated, a false quiet reading is
 not — and the undeclared space surfaces as a coverage question. See
@@ -351,7 +354,12 @@ excludes the port never feeds the timeline, so the absence is a `Gap` where the 
 already running and **nothing at all** where it never began — a `Gap` is a span, and an
 absent timeline has none, per
 [ADR-0014](./docs/adr/0014-only-revealed-generalises.md). A named `Derivation`
-leaf, so a rule may read one leg and compose that leaf alone.
+leaf, so a rule may read one leg and compose that leaf alone. It is also the object **alerting**
+reads: the internet leg going `not-reached` → `reached` is the product's flagship message, fired
+whether or not the other leg exists, while the internal leg is recorded and **never** alerted in
+either direction — an internal port opening or closing is the commonest intentional change on that
+leg, which is the ground on which a withdrawal is not alerted either. See
+[ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md).
 _Avoid_: reachable, probe result, port state, not-checked
 
 **Exposure**:
@@ -366,7 +374,10 @@ vantage class was never configured the surviving leg's `Reach` is rendered on it
 [ADR-0017](./docs/adr/0017-exposure-needs-both-legs.md) and is withdrawn — it named a
 one-legged reading, which is a fact about which vantages the operator runs rather than about
 the `Service`. The internet leg going `not-reached` → `reached` is the move the product exists
-to catch, and it spans **half the grid** rather than one cell. Reads `Availability`, and
+to catch, and it spans **half the grid** rather than one cell — so the alert is fired by that
+**leg** and never by this value, which makes `Exposure` a board axis and a census and **never an
+alert source**, and makes the flagship fire identically on a one-legged install where no `Exposure`
+exists at all ([ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md)). Reads `Availability`, and
 therefore composes its version. Held as a `Span`
 written once under the version that produced it, never recomputed on read — a correction ships
 as a new version and a `Break`, not as rewritten history. See
