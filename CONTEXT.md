@@ -202,7 +202,19 @@ _Avoid_: status, triage state, finding state
 **Subject**:
 Anything an observation can be about. Exactly four kinds — `Name`, `Address`, `Service`,
 `Endpoint` — each with its own natural key, and each with its own lifecycle except
-`Address`.
+`Address`. The four split on **who supplies the key**: the world supplies a `Name`'s FQDN and
+an `Address`'s IP, while the model composes a `Service`'s from an `Address` already in the
+estate and `verge-core`, which is ours, and an `Endpoint`'s from two subjects already in the
+estate. So a **membership message fires on a `Name` or an `Address` alone** — the other two
+can bring no ground the model was not already accounting for, and their membership is another
+subject's membership restated, recorded and never notified in either direction. It fires
+**once, at the root of the entering sub-tree**: the entering subject whose own `Citation`
+points at something already in the estate, a `Seed` or a `Batch`. That message carries the
+**census** of what entered beneath it, and it is the only carrier a new subject has, since
+every timeline beneath it *opens* and no alerting predicate in the product is opening-shaped.
+A subject first observed under a widened aperture is not `appeared` at all — it is `revealed`,
+which is what makes a first run one coverage-class message with no special case. See
+[ADR-0031](./docs/adr/0031-membership-alerts-at-the-root-of-the-entering-subtree.md).
 _Avoid_: asset, entity, target
 
 **Name**:
@@ -531,16 +543,8 @@ looking, which is per-timeline. An opening caused by neither is recorded, unname
 unalerted — a `certificate` timeline opens days after its `Service` did because TLS sits on
 the weekly tier, and nothing about the world or our aperture moved. A `Gap` closing is none of
 these: it is an ordinary adjacency, and always an observer event, since a `Gap` exists only
-where we could not say. A membership transition is a **message** on a `Name` or an `Address`
-alone — `Service` and `Endpoint` have keys the model composes from what it already holds, so
-their membership is another subject's membership restated and is recorded and never notified,
-in either direction — and it fires **once, at the root of the entering sub-tree**: the entering
-subject whose own `Citation` points at something already in the estate, a `Seed` or a `Batch`.
-The message carries the **census** of what entered beneath it, which is the only carrier a new
-subject has, since every timeline beneath it opens and no predicate in the product is
-opening-shaped. See
-[ADR-0014](./docs/adr/0014-only-revealed-generalises.md) and
-[ADR-0031](./docs/adr/0031-membership-alerts-at-the-root-of-the-entering-subtree.md).
+where we could not say. See
+[ADR-0014](./docs/adr/0014-only-revealed-generalises.md).
 _Avoid_: change, event, diff, delta
 
 **Break**:

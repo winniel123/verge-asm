@@ -197,6 +197,27 @@ written and are corrected in the amendment to ADR-0029:
 That narrowing touches one of three carriers for one direction cut. The other two — a closing
 custody gate and a `Vantage` becoming `unavailable` — are untouched.
 
+### What this does to [#61](https://github.com/winniel123/verge-asm/issues/61)
+
+[ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), resolved in parallel with
+this ticket, rejects a slower *reachability* tier as a replacement worked example for ADR-0014
+with a claim about this ticket's subject: *"where the slower tier is what discovers the
+`Service`, the subject enters the estate and its timelines open with it, so `appeared` carries
+the news at the cause and the opening is not unnamed at all."*
+
+**That sentence is withdrawn, and its conclusion gets stronger rather than weaker.** A `Service`
+appearing is never a message under §2, so where a slower reachability tier discovers a `Service`
+beneath an `Address` already in the estate, the root walk terminates at that `Address` and **no
+membership message fires at all** — the opening is unnamed and unalerted after all, exactly as
+ADR-0014 describes. So a slower reachability tier is not disqualified as ADR-0014's worked
+example for the reason ADR-0028 gives; it is disqualified only by ADR-0028's own primary
+argument, that `certificate`'s value space has no variant meaning *the port was shut*.
+
+The correction cuts ADR-0028's way. It means scheduling `reachability` slowly would lose the
+discovery news outright rather than having it carried by membership, which is a **cost** of the
+alternative ADR-0028 rejected, not a relief. Nothing in ADR-0028's Decision moves; one
+rejected-alternative sentence does.
+
 ### The constraint about damping is met by construction
 
 No threshold and no count appears in any predicate here. §1 walks a `Citation` chain, which is
@@ -206,9 +227,11 @@ stay where ADR-0007 put them, in the notification patch.
 
 ## Consequences
 
-- **[`CONTEXT.md`](../../CONTEXT.md) is amended in three entries.** `Transition` gains the root
-  rule and the kind restriction; `Service` states that its membership is `Address` membership
-  restated, so a port opening is a `Reach` move and never a membership event; `Reach` states
+- **[`CONTEXT.md`](../../CONTEXT.md) is amended in three entries.** `Subject` gains the
+  who-supplies-the-key split, the kind restriction and the root rule — the better home for it
+  than `Transition`, since ADR-0014's own line is that *membership is a property of a subject*;
+  `Service` states that its membership is `Address` membership restated, so a port opening is a
+  `Reach` move and never a membership event; `Reach` states
   that a leg **opening** at `reached` emits no `Transition` and is carried by the entering
   subject's membership message and its census, never by the flagship predicate.
 - **ADR-0029 §4 and its Context bullet are corrected**, and its stated cost survives with a
@@ -241,10 +264,14 @@ stay where ADR-0007 put them, in the notification patch.
   ADR-0017 rules a leg's timeline opening *"when a slower tier first covers that port"*
   recorded, unnamed and unalerted, so a sensitive port that first answers on a slower tier days
   after its `Address` entered is silent: it opened, so no `Transition` exists, and the
-  membership message has already fired. Whether the census is emitted incrementally per
-  completed `Batch`, or the membership message waits for a defined set of tiers, is the
-  notification patch's and [#4](https://github.com/winniel123/verge-asm/issues/4)'s profile's,
-  and it is recorded as fog rather than guessed at here.
+  membership message has already fired. [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md)
+  narrows this rather than removing it: `certificate` now rides the `reachability` exchange and
+  so opens *with* its `Service`, inside the census — but there are still three port tiers, and
+  `tls-acceptance` has a weekly `Scan` of its own whose openings the census cannot contain.
+  Whether the census is emitted incrementally per completed `Batch`, or the membership message
+  waits for a defined set of tiers, is the notification patch's and
+  [#4](https://github.com/winniel123/verge-asm/issues/4)'s profile's, and it is recorded as fog
+  rather than guessed at here.
 - **Decided on thin ground, in one place.** That provisioning a name is a common enough
   intentional change to have made *`appeared` is silent* tempting is an unmeasured base rate, of
   exactly the kind ADR-0006 asserted about decommissioning and ADR-0029 flagged twice. This
