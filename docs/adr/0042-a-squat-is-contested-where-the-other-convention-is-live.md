@@ -144,8 +144,9 @@ is a larger loss than a missing row.
   ([#68](https://github.com/winniel123/verge-asm/issues/68)) has no determinacy gate and gains none.
 - **The rest of §2.4 still has no evidence standard.** This ADR settles *liveness*; it does not say
   which classes of source may establish a convention at all, the way §2.2 says which sources may
-  attest a claim. `sensitive-ports.md` §8 question 10 carries it. **No row turns on the answer** —
-  §14's sources are all first-party about their own products — so it does not block #12.
+  attest a claim. `sensitive-ports.md` §8 question 10 carries it, routed to
+  [#82](https://github.com/winniel123/verge-asm/issues/82). **No row turns on the answer** — §14's
+  sources are all first-party about their own products — so it does not block #12.
 
 ## Alternatives rejected
 

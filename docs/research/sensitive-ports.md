@@ -1183,7 +1183,8 @@ be wrong within a year.
     whichever authoritative-looking document is nearest, or blocked by one. **No row moves on the
     answer** — §14's sources are first-party about their own products, which is the strongest class
     on any plausible standard — so it does not block
-    [#12](https://github.com/winniel123/verge-asm/issues/12).
+    [#12](https://github.com/winniel123/verge-asm/issues/12). Routed to
+    [#82](https://github.com/winniel123/verge-asm/issues/82).
 
 ---
 
@@ -3478,7 +3479,7 @@ else, so it could not have moved a row resting on Claim 3. `2375`/`2376` remains
   IANA annotation and a rendered manual against each other with nothing in the standard to rank them.
   The ruling does not turn on the gap — every source used is first-party about its own product, which
   is the strongest class on any plausible standard — but the gap is real and is opened as §8
-  question 10.
+  question 10, routed to [#82](https://github.com/winniel123/verge-asm/issues/82).
 
 ### 14.7 Every dependent figure, walked rather than asserted
 
