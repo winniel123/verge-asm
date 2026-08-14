@@ -294,3 +294,14 @@ not exist the third field costs nothing either way; the day it ships with two fi
 `Break`s every timeline it holds. So whoever builds the prober owes the **field** decision at
 specification time, ahead of and independently of any rule reading it — exactly what this ADR ruled
 for `http-identity`'s status class. Recorded at §8.2.
+
+**One thing this ADR left open is closed rather than carried forward.** The corrected test — *"its
+scope is however many protocols happen to express that fact"* — is a question, and #104 answered it by
+measurement: across eight protocols read against their own specifications, SMB is the **only** one
+where the integrity requirement is simultaneously server-originated, pre-credential, listener-scoped
+and a requirement rather than a capability. LDAP and SNMPv3 do not express it before authentication at
+all, NFS expresses it per-export or per-filehandle and (v3) mutates the server's mount list to answer,
+and SSH's answer is a constant *required*. So the rule is legitimately single-protocol, and the
+conclusion inverts the instinct: **a cross-protocol integrity abstraction would carry one real
+implementation and a set of degenerate ones.** The table is at
+[`insecure-listener-rules.md`](../research/insecure-listener-rules.md) §9.2.
