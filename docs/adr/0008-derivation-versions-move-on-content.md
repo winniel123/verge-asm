@@ -252,6 +252,56 @@ board. Without that the forbidden comparison walks back in through the notificat
 which is exactly how it re-entered through the failure path in
 [ADR-0005](./0005-scan-execution-model.md), and is worth naming the second time.
 
+### A declared parameter is authored by the project and ships in the release
+
+*Added by [#60](https://github.com/winniel123/verge-asm/issues/60), which found the Consequences
+sentence below contradicting [ADR-0004](./0004-signals-are-release-coupled-rules.md)'s v1 set in
+plain text, both on `main`.*
+
+*"Nothing here becomes operator-configurable"* is **narrowed in what it governs and widened in
+what it reaches**, and it is the widening that matters. Read literally it is a claim about the
+whole product, which is false — [#22](https://github.com/winniel123/verge-asm/issues/22)'s coverage
+alert threshold is operator-configurable and always was. Read as this ADR's Consequences section
+frames it, it is a claim about the four `Exposure` leaves it was written over, which is too narrow
+to have caught `certificate-expiring`'s `N`. The rule it was reaching for is neither:
+
+> A **declared parameter** is authored by the project and ships in the release. An operator's dial
+> may sit anywhere **outside** every derivation, and nowhere inside one.
+
+That governs every derivation this ADR versions rather than the four it was written over — the
+availability window, `k`, [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s
+timeouts, retry counts and wire libraries, and now `certificate-expiring`'s horizon — and it says
+nothing at all about the notification layer, where #22's threshold lives and stays.
+
+The line is #22's own, restated in this ADR's vocabulary: **inside the comparison path or outside
+it**. A declared parameter is by construction inside, because this ADR put parameters *inside their
+leaf* rather than beside it, so moving one moves a version and a moved version is a `Break`. That
+is the whole mechanism, and an operator's settings field is the one actor in the system that can
+move a version without a release, without a corpus row moving, and without knowing it did.
+
+Two supports, both of which arrived after this ADR and neither of which it could have cited.
+
+**ADR-0021's gate has no honest reading under a per-install parameter.** The gate is bidirectional
+— a version moves only on a moved corpus row, a changed declared parameter, or a recorded uncovered
+move — and all three are checkable *because the parameter set is declared data in the repository*.
+A parameter living in an install's database is checkable by nothing, so the corpus gates a function
+no operator runs and the build's guarantee is void wherever the dial was turned.
+
+**[ADR-0023](./0023-consent-names-the-door.md) already made this move one property across.**
+`consent` is authored by the project and ships in the release; an operator's act **satisfies** it
+and never moves it, because reading the value as the carrier gives the model two representations of
+one fact. A declared parameter is the same shape: the leaf names what decided the output, and an
+install-local parameter makes the name stop naming it while the string stays equal. Two installs on
+one release would compare as comparable and would not be.
+
+What an operator may still have is unchanged and worth stating, because the refusal reads broader
+than it is. Everything outside every derivation stays theirs — #22's alert threshold, notification
+routing and all flap suppression ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md) put damping
+there on purpose), the frequency half of `verge-core`
+([ADR-0009](./0009-verge-core-is-a-union.md)), `Seed`s and exclusions, source enablement, and the
+`custody extension`. The dial is refused in exactly one place, and it is the place where turning it
+is indistinguishable from shipping a release.
+
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) gains `Derivation`**, and `Break`'s first cause is restated:
@@ -276,7 +326,11 @@ which is exactly how it re-entered through the failure path in
   prototyped against.
 - **Nothing here becomes operator-configurable.** ADR-0005 fixed the availability window and
   ADR-0007 fixed `k` on blast-radius grounds; a dial that moved a version would be the same
-  failure with an extra step.
+  failure with an extra step. *(Narrowed and widened by
+  [#60](https://github.com/winniel123/verge-asm/issues/60) — see "A declared parameter is authored
+  by the project and ships in the release" above. This sentence is a rule about **declared
+  parameters of derivations**, not about the product: #22's coverage alert threshold is
+  operator-configurable and is outside every derivation.)*
 
 ## Alternatives rejected
 
