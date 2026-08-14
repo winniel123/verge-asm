@@ -240,6 +240,43 @@ which is a different axis. The check is recorded so the next session does not re
 - **No new owner is admitted.** Kubernetes was already the kubelet's owner under §10.5 and §16.5
   says so; this ADR changes what its sentences reach, never who may speak.
 
+## Amendment — [#90](https://github.com/winniel123/verge-asm/issues/90): `623/udp`'s membership limb is satisfied, and this ADR was not needed for it
+
+The one item this ADR left open is discharged. **The Decision, all three limbs and the unit rule are
+unchanged**; what moves is a factual premise about one row, and it moves because the retrieval this
+ADR declined to perform was performed.
+
+[#90](https://github.com/winniel123/verge-asm/issues/90) retrieved the **IPMI Specification, Second
+Generation, v2.0, Document Revision 1.1, 1 October 2013** (Intel, Hewlett-Packard, NEC, **Dell**) and
+the **DMTF Alert Standard Format Specification DSP0136 v2.0, 23 April 2003** as shipped bytes.
+**[measured]** IPMI §13.1.2 and Table 13-1 place the *Primary RMCP Port* at **623 (26Fh)** under *"two
+well-known ports under **UDP**"*; DSP0136 §3.2.1 reserves it independently and **owns** the assignment,
+which IPMI cites normatively and inherits. [`sensitive-ports.md`](../research/sensitive-ports.md) §23.
+
+- **The Rationale §5 finding *"the number that connects it to the row comes from CISA's 'usually UDP
+  port 623', a corroborator"* is withdrawn.** The number is two specifications', one of them Dell's
+  own. **This ADR's qualifier was exactly right and is why it ticketed rather than ruled** — *"limb 2
+  unsatisfied **on the artefacts the note holds**"*. The artefacts it did not hold satisfy it.
+- **The unit-rule finding is not withdrawn and is not needed.** *"DRAC's"* is still a product line and
+  a product line is still not a category. What changes is that **nothing has to reach**: the owner
+  numbers the port, so `623/udp` belongs in §18.5's *"numbered by the owner, so the rule is not
+  needed"* bucket, alongside `3306`, `2379`, `2380`, `9042`, `25672` and `10250`. The row is a
+  concatenation of three owner statements — Dell placing the DRAC inside IPMI by enumerating which
+  IPMI version each DRAC firmware ships (VU#843044, read in full for the first time), the
+  specifications placing IPMI-over-LAN on `623/udp`, and Dell stating the position — with no reader
+  inference at any hop. **§23.6 argues the objection rather than dismissing it.**
+- **`4369/tcp` is still not rescued**, for the reason Rationale §5 gives, unchanged.
+- **No `(port, transport)` pair moves and no footing cell moves between tiers.** `623/udp` stays in the
+  explicit prohibition tier, re-founded where it sits — §20's shape rather than §18's. The list stays
+  at **37**; classes **11 / 7 / 19**; tiers **prohibition 15 · scoping 9 · weak 2**; coverage **26 of
+  37**; [ADR-0009](./0009-verge-core-is-a-union.md)'s union unchanged; no rule version moves and no
+  `Break`. **[#12](https://github.com/winniel123/verge-asm/issues/12) is unblocked** — the row removal
+  it was priced against does not happen.
+- **No new ADR was minted**, on #76's and #84's precedent. The rule the case might have wanted — *a
+  vendor that co-authored the protocol's specification owns the protocol, not merely its product* — is
+  [`sensitive-ports.md`](../research/sensitive-ports.md) §10.5 as already written, *"the party that
+  **designed the protocol**"*, and it is what separates this case from §11.8's Cisco-and-SNMP fence.
+
 ## Alternatives rejected
 
 | Alternative | Why not |
