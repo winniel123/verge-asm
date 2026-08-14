@@ -323,6 +323,24 @@ which rows rest on convention rather than registration (§3, "reg." column).
 > §4.3 and §4.6 have been doing since §21. This section still carries **no stated evidence standard**
 > for determinacy the way §2.2 carries one for attestation — §8 question 10.
 
+> **Amended by §15** ([#82](https://github.com/winniel123/verge-asm/issues/82)). **This section now has
+> an evidence standard, and the sentence above about *"no stated evidence standard"* is withdrawn.** A
+> determinacy finding is made on **placement statements** — a party's statement, in its own current
+> documentation or its own shipped bytes, that **its own software listens on a given
+> `(port, transport)` pair by default** — and on nothing else. A convention is **established** by the
+> candidate's own owner; **contested** where another party places a *different protocol* on the same
+> pair, or **displaced** where the candidate's own owner puts its service elsewhere or makes the pair
+> version-dependent; **one statement suffices** and a survey is never claimed. The unit is the
+> **protocol, not the vendor** — ScyllaDB on `9042` and OpenSearch on `9200` declare the row's own
+> protocol and are one convention with it, not a contest. *Live* means **current**, never **numerous**.
+> Everything else corroborates and never carries: IANA rows and the `Unauthorized Use Reported` field,
+> `nmap-services`' name column, cloud-provider and government port tables, and **this project's own
+> frequency half**. And **every determinacy refusal must name the artefact that defeated the
+> convention** — a refusal citing no document is not a finding. See
+> [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md). **No row
+> moves**; two exclusion grounds are restated and both strengthen (§4.3's `9090`, §9.3.4's `79`). Read
+> §15 before applying this section.
+
 ### 2.5 What was excluded from evidence entirely
 
 - **`nmap-services` open-frequency data.** Frequency, and 2008-vintage —
@@ -834,6 +852,17 @@ frequency instrument would have got it wrong in both directions.
 > separating this paragraph's `9100` from §3.3's `9200` is now written down as
 > [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md). §14.3, §14.4.
 
+> **Amended by §15** ([#82](https://github.com/winniel123/verge-asm/issues/82)). **`9090`'s ground
+> moves and its verdict does not.** *"`nmap-services` still lists it as `zeus-admin`"* is a catalogue,
+> and [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md) limb 5
+> makes a catalogue **corroboration and never grounds**. The exclusion does not need it: Red Hat's own
+> current RHEL 8 and RHEL 9 web-console documentation states that the console *communicates through
+> TCP port 9090*, which is a first-party **placement statement** for Cockpit — a different protocol
+> with no compatibility declared either way. This paragraph's own sentence *"9090 is conventionally
+> Cockpit"* was right and is now footed. **The ten generic ports above are grandfathered as a class**,
+> and each owes its artefact the first time it is individually relied on, per the refusal artefact
+> rule. §15.5.
+
 ### 4.4 The closest call: 6443, kube-apiserver — excluded
 
 This is the single hardest exclusion and the one most likely to be challenged, so the working is
@@ -1172,7 +1201,19 @@ be wrong within a year.
    **removed**. The list is 37 pairs. (Opened by §10.6 on the ground that the boundary limb was
    carried by CISA TA17-156A, a corroborator, while RFC 3410 §8.2 attests the *insecurity* and not
    the *boundary*.)
-10. **What evidence establishes that a convention is contested?** Opened by §14.6. §2.2 has three
+10. ~~**What evidence establishes that a convention is contested?**~~ **Closed by §15**
+    ([#82](https://github.com/winniel123/verge-asm/issues/82)). A **placement statement** does, and
+    nothing else: a party's statement, in its own current documentation or its own shipped bytes, that
+    its own software listens on a `(port, transport)` pair by default. The unit is the **protocol, not
+    the vendor**; *live* means **current**, never numerous; every other class — IANA rows, the
+    `Unauthorized Use Reported` field, `nmap-services`, cloud and government port tables, and this
+    project's own frequency half — corroborates and never carries; and **every determinacy refusal must
+    name the artefact that defeated the convention**.
+    [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md). All nine
+    convention-resting rows were walked (§15.4) and **no `(port, transport)` pair moves**; two
+    exclusion grounds are restated and both strengthen. The original text follows.
+
+    **What evidence establishes that a convention is contested?** Opened by §14.6. §2.2 has three
     attestation forms and an owner definition (§10.5); §2.1 has a claim set closed by construction
     (§10.2). **§2.4 has *"uncontested convention"* and no account of what establishes it** — and §14
     is the first ruling to rest entirely on that gate, weighing a vendor's product-port table, a
@@ -1596,6 +1637,15 @@ respected. That field "marks squatting on a number without registration, a regis
 It is not a security judgement and is not used as one here." It is used here only as evidence about
 **what else listens on the port** — determinacy — which is the one thing it is actually competent
 to say.
+
+> **Amended by §15** ([#82](https://github.com/winniel123/verge-asm/issues/82)). **The care above is
+> vindicated and the footing is strengthened one step further.** Under
+> [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md) an IANA row is
+> a **record of a registrant's placement declaration** rather than an authority, so the annotation
+> **corroborates** and the carrying artefact is the one it points at: **RFC 4146 itself**, in force,
+> in which the IETF specifies that *"a process must be listening to the finger port"* for a protocol
+> that is not finger. That is the specifying party's own statement about its own protocol — the
+> defeating placement statement, quoted above. **The verdict is unchanged.** §15.5.
 
 #### 9.3.5 Implementations and shipped defaults: no position anywhere
 
@@ -3554,6 +3604,277 @@ this note has no standing to revise. **The criterion that would reopen it:** a v
 
 ---
 
+## 15. §2.4 gets an evidence standard — a convention is evidenced by placement, never by catalogue
+
+Wayfinder ticket [#82](https://github.com/winniel123/verge-asm/issues/82), the gap
+[ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md) named in its own
+Consequences and §14.6 recorded as a hazard met. This section **amends §2.4, §4.3, §8 and §9.3.4 by
+reference**; earlier text stands and is marked, per the name-and-withdraw convention, and where §15
+and an earlier section disagree, **§15 governs**.
+
+**Headline result, stated first.**
+
+> **A determinacy finding is made on *placement statements* and on nothing else** — a party's
+> statement, in its own current documentation or its own shipped bytes, that **its own software
+> listens on a given `(port, transport)` pair by default**. Everything else — IANA rows, the
+> `Unauthorized Use Reported` field, `nmap-services`' name column, cloud-provider and government port
+> tables, and **this project's own frequency half** — corroborates and never carries, which is §2.3's
+> rule one gate across with a descriptive population instead of a normative one.
+> [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md).
+>
+> **No `(port, transport)` pair moves. The list stays at 37.** Nine rulings were re-run against the
+> stated criterion rather than assumed — ADR-0042's six, plus `7001`, `9090` and the convention-resting
+> rows walked individually in §15.4 — and every verdict reproduces.
+>
+> **Two grounds move, both on exclusions, and both get stronger.** `9090/tcp` was excluded on
+> `nmap-services`' name column, which limb 5 makes inadmissible as grounds; it is re-founded on Red
+> Hat's own current documentation putting **Cockpit** on 9090. `79/tcp`'s determinacy limb was carried
+> by IANA's `Unauthorized Use` annotation; it is re-founded on **RFC 4146** itself, with the annotation
+> corroborating.
+>
+> **One limb was forced by the walk and is the section's real finding.** `9200/tcp` and `9042/tcp`
+> both have current first-party placement statements from parties other than the row's own owner —
+> OpenSearch and the Wazuh indexer on 9200, ScyllaDB on 9042. **The unit is the protocol, not the
+> vendor**: parties that declare they speak the row's own protocol are one convention, not two.
+> Without that limb this standard would have deleted two rows nobody thinks are wrong.
+>
+> **And the phrase that would have let frequency back in is withdrawn.** ADR-0042 explains `9200` with
+> *"WAP has no deployed population"*. **Liveness is the currency of a declaration, not the size of a
+> population**, and §15.3 re-founds `9200` on that footing.
+
+### 15.1 The standard
+
+> **Placement statement.** A party's statement, in its **own current documentation** or its **own
+> shipped or compiled bytes**, that **its own software listens on a given `(port, transport)` pair by
+> default**.
+
+| Limb | Rule |
+|---|---|
+| **1 — establishing** | A row's convention is established by the **candidate's own owner's** placement statement, in §10.5's sense of owner. Not by us, not by a catalogue |
+| **2 — defeating** | **Contested** where another party has a current placement statement on the same pair for a **different protocol**; **displaced** where the candidate's own owner puts its service on a different pair or makes the pair version-dependent. **One statement suffices**; a survey is never required and never claimed (§14.9) |
+| **3 — the unit** | The unit is the **protocol**, not the vendor. Two parties placing the same protocol on a pair are **one** convention. Compatibility is read off the second party's own declaration, never judged by us |
+| **4 — currency** | **Current** means the party still presents the statement as applicable: bytes at a supported release, docs for a supported product, or a specification **in force** — not obsoleted, withdrawn, or reclassified Historic. *Live* means current, **never** numerous |
+| **5 — everything else** | Corroborates and never carries. IANA rows and the `Unauthorized Use Reported` field, `nmap-services`' name column, cloud and government port tables, third-party port references, and **this project's own frequency half** |
+
+> **The refusal artefact rule.** Determinacy is a **defeasible presumption**: once limb 1 is met it
+> holds until a document defeats it. **Every refusal on determinacy names the artefact that defeated
+> it**, quoted and dated, in §4.6's negative space. A determinacy refusal citing no document is not a
+> finding. This is the operative change for the next session, and it is the direct answer to the
+> asymmetry §14 exposed — an admission leaves a row to argue with and a refusal, until now, left
+> nothing.
+
+**Two riders.** *First-party is a property of the row, not of the document* — Apple's ports table is
+first-party about `AirPlay · 7000 · TCP` and third-party about anything else in it, which is
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)'s shape on
+the other gate. And *a registration reaches the limbs only through its registrant* — an IANA row is a
+**record of a placement declaration**, not an authority, so it is followed to the registrant's current
+documents and stands or falls with them.
+
+**Where it comes from, in one paragraph.** [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
+§6 cut three instruments on where a table sits relative to the wire — what we **ask**, what a byte
+**means**, what a value means **normatively**. §2.1 and §2.2 are *after* the wire; **§2.4 is at it**,
+which is what ADR-0032 meant by calling determinacy the **surrogate** gate. So determinacy's evidence
+standard is [#31](https://github.com/winniel123/verge-asm/issues/31)'s and not
+[#21](https://github.com/winniel123/verge-asm/issues/21)'s: *a table deciding what an answer means is
+a signature database*, and a port-to-service mapping asserted by a third party is exactly that —
+`nmap-services` **is** one. A placement statement is the port-number analogue of #31's spec-defined
+field: the field is defined by the party that defines the software. **No fourth instrument is minted
+and the table does not move between them.**
+
+**And there is no second sense of *owner*.** The ticket asks whether Apple, owning AirPlay but not
+port 7000, needs naming as an **owner of a convention** the way
+[ADR-0035](../adr/0035-a-cryptographic-primitives-owner-is-its-specifier.md) named the primitives
+case. **No.** §10.5's *owner* is a normative entitlement — *who may say exposure is wrong* — and
+determinacy asks a factual question nobody is entitled to answer, which the registry disclaims in
+capitals. Minting the second sense would make Apple's prose about `7000` admissible under §2.2. What
+Apple's table is instead is a **self-declaration**, falsifiable by running the software and
+self-interested in the direction that makes it reliable: a vendor that misstates its own default port
+ships a product that does not work. That is §12.2's *"nine artefacts, nine self-declarations"*
+applied one gate across.
+
+### 15.2 This project may not supply its own determinacy evidence — §14.4's passing refusal, stated as a rule
+
+§14.4 fact 3 declined to let [`safe-active-probing.md`](./safe-active-probing.md) §2.3's *HTTP-ish
+alternates* label decide `7001`, and did it in a subordinate clause. **Promoted to limb 5, on three
+grounds where one was given.**
+
+- **§6's invariant is one-directional.** Deriving the sensitive list from the hot set would make
+  frequency a precondition of normativity. Letting the hot set's **labels refuse** a sensitive row is
+  the same laundering with the sign flipped.
+- **The labels are frequency artefacts.** *HTTP-ish alternate* is a probe-scheduling grouping produced
+  by [#4](https://github.com/winniel123/verge-asm/issues/4)'s frequency question. It is not a claim
+  about what listens on a number and it was never retrieved from anybody.
+- **§2.2's first sentence already binds.** *"The claim may not be asserted by us."* Determinacy
+  inherits it **in both directions**: we may not establish a convention either, so no row may be
+  admitted because our own list says a number means something.
+
+The **product-coherence** use §14.4 made of it is untouched and stays: recording that this product's
+two port lists disagree about `7001` is worth seeing, and is not evidence.
+
+### 15.3 `9200/tcp` re-founded — the phrase that would have let frequency back in
+
+ADR-0042's reconstruction table explains the note's oldest determinacy asymmetry with the words
+**"No — WAP has no deployed population"**. That is a population sentence inside a rule that forbids
+population sentences, and left alone it is the crack the next session widens: if *no deployed
+population* establishes uncontestedness, *a large deployed population* is one step from establishing
+contestedness, and §1's exclusion of frequency is gone.
+
+**Re-founded on two grounds, in order of force, with the weaker one marked.**
+
+1. **No current placement statement for WSP on `9200/tcp` was found.** The registrant is the WAP
+   Forum, absorbed into the Open Mobile Alliance in 2002; the surviving specification —
+   [*Wireless Session Protocol* `OMA-WAP-TS-WSP-V1_0-20110315-A`](https://www.openmobilealliance.org/release/Browser_Protocol_Stack/V2_1-20110315-A/OMA-WAP-TS-WSP-V1_0-20110315-A.pdf) —
+   sits in an archived release of a suite no party currently ships or supports. Under limb 4 that is
+   **not current**, and it places nothing.
+2. **The WAP bearer ports are UDP, so they are not this key.** WSP runs over WDP, and the four
+   standard WDP ports are `9200`-`9203` **UDP**. This table is keyed on `(port, transport)` pairs;
+   `9200/tcp` and `9200/udp` are different keys, and a competing convention on the wrong transport
+   cannot contest a pair it is not on. **Marked as corroborated rather than measured** — the transport
+   fact is taken from a third-party protocol reference and from the IANA row, both limb-5 sources, and
+   the primary that would settle it is OMA's own WDP specification, which was not retrieved (§15.7).
+
+**And a third party now places a live service on the number, which is why limb 3 exists.** OpenSearch
+defaults `http.port` to the `9200-9300` range in its own network-settings documentation, and the Wazuh
+indexer is distributed on the same number. Both declare the Elasticsearch REST API, so under limb 3
+they are **the same convention**, not a contest — and a firing that names Elasticsearch and finds
+OpenSearch has named the service at the granularity the row asserts: same protocol, same Claim 3, same
+remediation.
+
+**What the re-founding costs, stated plainly.** The rule is deliberately non-monotone in deployment
+size, in both directions. Had WAP a hundred million handsets in the field and no current placement
+document, `9200/tcp` would still be listed; had AirPlay a thousand installs and a current Apple page,
+`7000/tcp` would still be refused. That is uncomfortable and it is the price of a gate a reviewer can
+run as a retrieval instead of a judgement — the same trade §10.1 made when it deleted *"would
+otherwise require authority"* and §12.4 made when it refused a coherence gate.
+
+### 15.4 The walk — every row resting on convention rather than registration
+
+#37's discipline: the standard is not repaired against a list nobody re-tested. §3's `reg.` column
+marks the rows that rest on convention with `sq.` or `--`. **All nine are walked, and each names what
+was looked for.**
+
+| Row | Registration | Competing placement statement found? | Verdict |
+|---|---|---|---|
+| `9200/tcp` Elasticsearch | `sq.` `wap-wsp` | **No.** WSP: no current statement, and the WAP bearer is UDP (§15.3). OpenSearch and Wazuh indexer: **same protocol**, limb 3 | **Listed, unchanged** |
+| `9300/tcp` Elasticsearch transport | `sq.` `vrace` | **No.** No current placement document for *Virtual Racing Service* found under that name or its registrant. OpenSearch's transport range is the same protocol | **Listed, unchanged** |
+| `2181/tcp` ZooKeeper | `sq.` `eforward` | **No.** Every current first-party document found on 2181 is ZooKeeper's own or a ZooKeeper **client's** connection string, which places nothing of its own | **Listed, unchanged** |
+| `9042/tcp` Cassandra | `--` unassigned | **No contest.** ScyllaDB's configuration reference defaults `native_transport_port` to `9042` — a different vendor and a different product, declaring **CQL**, so limb 3 makes it one convention | **Listed, unchanged** |
+| `10250/tcp` kubelet | `--` unassigned | **No.** Kubernetes' own ports-and-protocols reference is the only current placement statement found; an upstream proposal to reuse the number inside the same project places nothing | **Listed, unchanged** |
+| `10255/tcp` kubelet read-only | `--` unassigned | **No.** Same corpus, same result | **Listed, unchanged** |
+| `25672/tcp` RabbitMQ inter-node | `--` unassigned | **No.** RabbitMQ's own networking guide derives it as `NODE_PORT + 20000`; nothing else found | **Listed, unchanged** |
+| `6000/tcp` X11 display :0 | `--` per §3.2 | **No.** Registered to `x11` across 6000-6063 per §2.4, and the registrant is the placer | **Listed, unchanged** |
+| `623/udp` IPMI | `yes` per §3.3, `sq.` per ADR-0042 | **No contest.** `asf-rmcp` is the **transport IPMI rides**, not a rival service, so limb 3 disposes of it whichever way the cell reads | **Listed, unchanged** |
+
+**Two `reg.` cells are inconsistent with §2.4 and neither changes a verdict.** §3.2 marks `6000/tcp`
+`--` while §2.4 states that *"6000/tcp is registered, as `x11`, across the 6000-6063 range"*; and
+§3.3 marks `623/udp` `yes` while §2.4's own table and ADR-0042 treat it as a squat on `asf-rmcp`.
+Both rows survive on either reading, so the cells are **recorded here rather than corrected** — the
+tables are in another session's lane this week, and a `reg.` cell is disclosure rather than
+qualification by §3's own sentence.
+
+### 15.5 The exclusion side — the two grounds that move, and §4.3's grandfathering
+
+**`9090/tcp` — ground replaced, verdict unchanged.** §4.3 excludes it partly because *"`nmap-services`
+still lists it as `zeus-admin`"*, and limb 5 makes that inadmissible **as grounds**. The exclusion does
+not need it: Red Hat's current RHEL 8 and RHEL 9 web-console documentation states that the console
+*communicates through TCP port 9090*, which is a first-party placement statement for **Cockpit** — a
+completely different protocol from Prometheus exposition, with no compatibility declared in either
+direction. §4.3's own sentence — *"9090 is conventionally Cockpit"* — was right and is now footed.
+
+**`79/tcp` — ground strengthened, verdict unchanged.** §9.3.4 leans its determinacy limb on IANA's
+`Unauthorized use by some mail users` annotation, carefully limited to *"evidence about what else
+listens on the port"*. Under this standard the annotation **corroborates**, and the carrying artefact
+is the one it points at: **RFC 4146**, in force, in which the IETF specifies that *"a process must be
+listening to the finger port"* for a protocol that is not finger. That is the specifying party's own
+statement about its own protocol — limb 2, cleanly — and §9.3.4's care about the field is vindicated
+rather than reversed.
+
+**§4.3's ten generic ports are grandfathered as a class, and the refusal artefact rule is prospective
+for them.** `8080`, `8000`, `8888`, `8443`, `3000`, `5000`, `9000`, `9090`, `8088` and `10000` are
+excluded as a category, and re-founding all ten on cited artefacts is not this ticket's work. **Each
+owes its artefact the first time it is individually relied on** — the first row-level ruling that
+turns on one of these numbers names the document, as `9090` now does. Grandfathering a category and
+pricing the next individual use is §10.4.3's shape and not an exemption.
+
+### 15.6 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged** — no row is admitted or removed |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 | **unchanged.** No row enters or leaves a class |
+| §2.2 footing table | prohibition 9 · scoping 5 · weak 2, placing 19 of 37 | **unchanged in every cell**, and its denominator stays **37** — this section touches determinacy only, which takes no footing cell ([#76](https://github.com/winniel123/verge-asm/issues/76) works against the same 37) |
+| §2.6's boast | true of all 37 | **unchanged** — no row's *attestation* is touched |
+| §4.5 *the list's weakest row* | 5432/tcp | **unchanged.** §4.5's weakness is an attestation weakness and this section adds nothing to it in either direction |
+| §4.6 exclusions | 18 named | **18, unchanged.** Two entries (`9100`, and `79` via §9.3.4) have their determinacy ground restated; none is added or removed |
+| §6.1 containment arithmetic | 28 in the hot set + 4 missing TCP + 5 UDP = 37 | **unchanged** — no member enters or leaves either half |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged.** No amendment needed |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical. No version bump, no aperture change, no comparability cycle |
+| §8 | 10 questions, question 10 open | **10 — question 10 closed** |
+| ADR-0042's reconstruction table | six verdicts, one criterion | **six verdicts unchanged**, two grounds restated (`9200`, and `79` in this note); limb 3 added |
+
+**Outside this note.**
+[ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md) is added.
+[ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md) is amended in one
+phrase and keeps its criterion. ADR-0008, ADR-0009, ADR-0032, ADR-0035, ADR-0036 and ADR-0037 are
+untouched — and **ADR-0032's §4 prediction is confirmed by use rather than by argument**: it said any
+future rule keying on a surrogate owes a determinacy argument, and the surrogate gate has now acquired
+the source rule that makes such an argument checkable.
+
+### 15.7 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10 and §14.6
+
+- **The walk's negatives are searched, not read as bytes, and that is the section's main limitation.**
+  §15.4's *no competing placement statement found* cells rest on searches over vendor and project
+  documentation for each number, not on the artefact-by-artefact reading
+  [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) requires
+  of an **attestation**. That is defensible under the standard's own burden — a negative here is a
+  presumption not yet defeated, never a proven absence (§14.9's rule, generalised) — but a session that
+  needs *proven absence* has not got it here, and per
+  [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) the corpus is named
+  rather than implied: vendor and project documentation reachable by search, plus the IANA row for each
+  registered competitor. **The smallest extension that could change an answer** is a first-party
+  document from any party shipping software on one of these nine numbers.
+- **The positives are stronger than the negatives, and deliberately so.** Every *defeating* artefact
+  cited in §15.5 and in ADR-0048's reproduction table is a named, current, first-party document. The
+  asymmetry is the standard's, not the retrieval's: one document defeats, and no number of documents
+  proves a negative.
+- **`9200`'s transport limb rests on a corroborator.** The claim that the WAP bearer ports are UDP is
+  taken from a third-party protocol reference and the IANA registration, both limb-5 sources. It is
+  offered as the **second** ground behind currency for exactly that reason, and the primary that would
+  settle it is OMA's own WDP specification, unretrieved.
+- **The `9090` re-founding was checked against Red Hat's current documentation rather than against
+  memory**, in both the RHEL 8 and RHEL 9 web-console guides, because a single-version citation is the
+  §12.8 hazard.
+- **The temptation this section had to refuse by name.** The obvious way to write a liveness standard
+  is *the competing service must be widely deployed*, and it is available in every source. It is
+  frequency, §1 excludes it, ADR-0042 limb 3 excludes it, and limb 4 is the fence: **currency, not
+  size.** Recording it because the word *live* invites the substitution and the next session will feel
+  the same pull.
+
+### 15.8 Thin ground, flagged per the standing rule
+
+**Limb 2's *one statement suffices* is the thinnest structural choice here.** Somewhere on the
+internet a party can probably be found documenting some product on almost any number, and one such
+find would defeat a row. Two things hold it: the placement must be a **documented default of a
+generally available product**, which excludes *our software can be configured on 3306*; and the
+error direction is the one this table has always chosen — §4.4's *"the list's entire value is that a
+firing is never arguable"*. **The criterion that would falsify it** is the walk itself: if a later
+pass finds defeaters for most convention-resting rows, the gate is too easy to trip and this standard
+is wrong. This pass found none for nine of nine.
+
+**Limb 3 is the newest sentence in the section and had no prior instance until this walk.** It is
+read off §4.6's *"completely different services"* and confirmed on two rows (`9200`, `9042`) plus a
+third by construction (`623/udp`). Its test — *does the second party declare it speaks the first's
+protocol?* — is mechanical where the declaration exists and has no answer where a second party is
+simply silent about compatibility. **The criterion that would sharpen it:** a candidate row where a
+second party places a partially compatible protocol on the number and declares neither.
+
+**Nothing here is measured in the `[measured]` sense the note reserves for bytes.** §14's Cassandra
+findings were bytes at named tags; this section's retrievals are documents read for a sentence. The
+distinction matters because the standard this section writes is about **documents**, so the artefacts
+are the right kind — but no claim in §15 should be quoted as measured.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -3649,6 +3970,14 @@ Shipped configuration and compiled bytes (§14) — the `7000`/`7001` ruling; ev
 - IANA registry CSV, retrieved 2026-08-14 — `afs3-fileserver,7000,tcp,file server itself` with an **empty** Unauthorized Use field, and `afs3-callback,7001,tcp,callbacks to cache managers,…,Known Unauthorized Use on port 7001`. The annotation is used only as evidence about **what else listens on the port**, per §9.3.4
 - `nmap-services` at `nmap/nmap` `master` — **rank and name column only**, on §2.5's and §6.1's existing terms: `afs3-fileserver 7000/tcp 0.001995` (**146th** of 8,387 TCP rows) and `afs3-callback 7001/tcp 0.000891` (**232nd**), against a top-100 boundary at `0.003149`. Neither is in the top-100, so neither entered `verge-core`'s frequency half that way
 - [`safe-active-probing.md`](./safe-active-probing.md) §2.3 — **this project's own** modern-services supplement, which lists `7001` under *"HTTP-ish alternates"*. Recorded in §14.4 as corroboration and as a product-coherence defect, **never as grounds**, because §6 forbids the frequency half deciding a normative question
+
+Placement statements (§15) — the determinacy source rule and the walk. **Read as documents for a sentence, not as bytes at a tag**, and the negatives are searched rather than exhausted (§15.7)
+- **Red Hat, RHEL web console (Cockpit) on `9090`** — [Managing systems using the RHEL 9 web console, ch. 1](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/managing_systems_using_the_rhel_9_web_console/getting-started-with-the-rhel-9-web-console_system-management-using-the-rhel-9-web-console) and the [RHEL 8 equivalent](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html/managing_systems_using_the_rhel_8_web_console/getting-started-with-the-rhel-8-web-console_system-management-using-the-rhel-8-web-console) — the console *communicates through TCP port 9090*. **The artefact that re-founds §4.3's `9090` exclusion**, replacing an `nmap-services` name-column citation that limb 5 makes inadmissible as grounds
+- **OpenSearch on `9200`** — [Network settings](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/network-settings/), `http.port` defaulting to the `9200-9300` range. A **different vendor** on a listed row's number, declaring the row's own protocol: limb 3's first instance, and the reason limb 3 exists
+- **ScyllaDB on `9042`** — [Configuration parameters](https://docs.scylladb.com/manual/stable/reference/configuration-parameters.html), `native_transport_port` defaulting to `9042`, declaring **CQL**. Limb 3's second instance
+- **Open Mobile Alliance, *Wireless Session Protocol* `OMA-WAP-TS-WSP-V1_0-20110315-A`** — [openmobilealliance.org](https://www.openmobilealliance.org/release/Browser_Protocol_Stack/V2_1-20110315-A/OMA-WAP-TS-WSP-V1_0-20110315-A.pdf). Cited for what it **is not**: an archived release of a suite no party currently ships, so under limb 4 it places nothing and `9200/tcp` stays uncontested (§15.3). **Not retrieved:** OMA's own WDP specification, which is the primary for the WDP/UDP bearer-port claim §15.3 rests its second ground on
+- **RFC 4146** — already in the standards list above, and **re-cited here as the carrying artefact for `79/tcp`'s determinacy limb**, with IANA's `Unauthorized use by some mail users` annotation demoted to corroboration (§15.5, amending §9.3.4's footing rather than its verdict)
+- Walked and found to carry **no competing placement statement** (§15.4): [Kubernetes ports and protocols](https://kubernetes.io/docs/reference/networking/ports-and-protocols/) for `10250` and `10255` · [RabbitMQ networking](https://www.rabbitmq.com/docs/networking) for `25672`, derived as `NODE_PORT + 20000` · [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/r3.9.3/zookeeperAdmin.html) for `2181` · [xhost(1), X.Org](https://www.x.org/releases/current/doc/man/man1/xhost.1.xhtml) for `6000`
 
 No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
 - **1433/tcp** Microsoft SQL Server and **445/tcp** SMB with **139/tcp**, **137**, **138/udp** — configured through setup and the registry rather than through a file Microsoft ships
