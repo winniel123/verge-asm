@@ -216,6 +216,30 @@ If one is ever wanted it is legal, because #22's line puts it outside the compar
 is not wanted now, and minting it here would be the second constant
 [#28](https://github.com/winniel123/verge-asm/issues/28) refused.
 
+### Amendment — [#33](https://github.com/winniel123/verge-asm/issues/33): the curated count is three, and what licenses a table's content is a separate question from this ADR's
+
+Two things are corrected, both in the Consequences below, and neither touches this ADR's test.
+
+**"`sensitive-port-reached-from-internet` is the only signal whose reference data we curate" is now
+wrong by two.** #60's amendment above already made it two; walking all sixteen rules for
+[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) makes it **three**. The
+third is **`certificate-weak-key-or-signature`**, whose key-size floor and deprecated-algorithm set
+have never been written down anywhere in this repo — it appears in the Consequences list below and in
+[ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s domain table, and nowhere else.
+That is [#68](https://github.com/winniel123/verge-asm/issues/68), which **blocks**
+[#12](https://github.com/winniel123/verge-asm/issues/12).
+
+**The cadence test is not an evidence standard, and this ADR should not be read as one.** The test
+here asks *may this ship as a rule* — a question about how often reference data may move.
+[#21](https://github.com/winniel123/verge-asm/issues/21)'s claim/attestation/determinacy standard
+asks *is this row's content licensed*, and ADR-0032 rules that it attaches to a **table**, never to a
+rule, so thirteen of the sixteen rules have nothing for it to govern. Two questions, two documents:
+this ADR's sentence *"that is a statement about cadence, not correctness — hence #21"* is exactly
+right and is the boundary. What a table asserting about the **world** additionally owes — an
+attestation per row, its own closed claim set derived from what its rule reads, and a determinacy
+argument where its key is a surrogate — is ADR-0032's, and it is the **table's** accounting rather
+than a fifth part of a rule.
+
 ## Consequences
 
 - **The v1 set is:** certificate expired / not-yet-valid / expiring within N days (one rule,
