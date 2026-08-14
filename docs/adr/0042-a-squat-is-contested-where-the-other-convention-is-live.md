@@ -69,6 +69,38 @@ Three limbs.
    matter of framing. A contested convention stays contested however rare the competitor is, and an
    uncontested one is not made contested by a competitor being popular somewhere else.
 
+> **Amendment — [#82](https://github.com/winniel123/verge-asm/issues/82): the criterion stands, the
+> source rule arrives, and one phrase below is withdrawn.** This ADR settled *what makes a squat
+> contested* and left open *which classes of source may establish a convention at all*, as its own
+> Consequences record. That is now
+> [ADR-0048](./0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md): a determinacy
+> finding is made on **placement statements** and on nothing else, and every other class — IANA rows,
+> `nmap-services`, cloud and government port tables, and this project's own frequency half —
+> corroborates and never carries. Three things follow for this ADR.
+>
+> **Limb 3 gains a limb of its own: the unit is the protocol, not the vendor.** Two parties placing
+> the **same** protocol on a pair are one convention, not two, with compatibility read off the second
+> party's own declaration. The reconstruction table below never met the case; the #82 walk did.
+> OpenSearch and the Wazuh indexer are current first-party placements on `9200`, and ScyllaDB is one
+> on `9042`. Without this limb both rows would leave the list, wrongly. `sensitive-ports.md` §15.1
+> limb 3.
+>
+> **The table's `9200` cell is withdrawn as a *ground* and stands per the name-and-withdraw
+> convention.** *"No — WAP has no deployed population"* is a **population** sentence inside a rule
+> that forbids population sentences, and it is the crack through which frequency would return. The
+> finding is unchanged and re-founded: **no party currently publishes a placement statement for WSP on
+> `9200/tcp`** — the surviving OMA specification is an archived release of a suite nobody ships, and
+> the WAP bearer ports are UDP besides. **Liveness is the currency of a declaration, not the size of a
+> population**, which is limb 3 of this ADR read strictly rather than a change to it.
+> `sensitive-ports.md` §15.3.
+>
+> **`79/tcp`'s cell is strengthened.** Its defeating artefact is RFC 4146 itself, in force, with
+> IANA's annotation corroborating rather than carrying.
+>
+> **No verdict in the table below moves, and no `(port, transport)` pair moves.** Nine rulings were
+> re-run under the source rule — these six plus `7001`, `9090` and the nine convention-resting rows
+> individually — and the list stays at 37.
+
 ## Rationale
 
 **It is not a new rule; it is the rule the table has been applying.** Every ruling in the note falls
