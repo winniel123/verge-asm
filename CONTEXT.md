@@ -412,17 +412,42 @@ which is not the same as not firing — but that word needs a **subject**, and w
 aperture never produced one there is no outcome to return and no row to render, so the
 honesty lands on the aperture statement rather than on the rule. Its census is therefore
 three members over one population — fired, did not fire, `not-evaluable` — counted over the
-rule's **predicate domain** and never over the timelines it happens to hold, or the
+rule's `Predicate domain` and never over the timelines it happens to hold, or the
 never-evaluable population is invisible by construction and the census is the clean bill of
-health this term exists to refuse. It is **named for the fact it reads** — never for a
+health this term exists to refuse. That census is current state and never a comparison, so it
+may not be rendered as a delta, a trend or a series — subtracting two of them conflates a moved
+domain with a moved predicate, which is the comparison the drift model already makes correctly
+one level down. A rule is **four parts** — its domain, its predicate, its `not-evaluable` case
+and its version vector — plus one cost, the new measurement it requires, which is weighed and is
+never a correctness objection. It is **named for the fact it reads** — never for a
 conclusion its evidence cannot carry, and never for a protocol — and its scope is however many
 protocols happen to express that fact, so covering exactly one is not disqualifying while three
 protocols expressing one fact must be one signal rather than three. Being true of *most* of the
 estate is likewise not a defect: a signal is a census, urgency is the transition's, and narrowing
 a rule to make it fire less often is the model-layer damping `Drift` refuses. See
-[ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md) and
-[ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md).
+[ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md),
+[ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md) and
+[ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
+
+**Predicate domain**:
+The population one `Signal` is asked about — the denominator of its census, and one of the four
+parts of a rule. It is **the extension of the rule's name**: the subjects of which the fact the
+rule is named for could be asserted. So it may exclude a subject only where that fact could not
+be true of it, and excluding one the rule would have fired on is the model-layer damping `Drift`
+refuses, whatever it is called. It may be **measured** rather than structural — `NoTLS` puts an
+endpoint outside every certificate rule's domain — and it may cite only evidence the rule itself
+declares, so it composes no leaf the rule does not already compose and sits **inside** the rule's
+own leaf rather than beside it. Editing one is an output-affecting change: the leaf moves and the
+rule `Break`s uniformly. A subject outside the domain is **not rendered at all** — not a census
+member, not a row, not a state, and not a transition — because it left the domain by a
+`Transition` on the facet timeline underneath, which is already stored and already alerted, and
+naming it again is a second representation of one fact. Distinct from `not-evaluable`, which is
+a value about **our own sight** (`Shadowed`), and from a `Gap`, which is no value at all: outside
+the domain means *the question does not arise*. A **total** domain is legal. An **empty** one is
+legal too and renders as a no-population panel, never as a census of zeroes. See
+[ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md).
+_Avoid_: scope, filter, applicability, eligible set, in-scope subjects
 
 **Derivation**:
 The named, versioned procedure that produced a Derived value — or, inside the measurement
