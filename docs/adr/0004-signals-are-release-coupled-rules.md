@@ -134,6 +134,88 @@ certificate rules. And the v1 set's *plaintext HTTP with no HTTPS* loses the por
 been carrying: its domain is *`Endpoint`s that answered HTTP*, so it fires on plaintext HTTP wherever
 it listens rather than on 80/tcp alone.
 
+### Amendment — [#60](https://github.com/winniel123/verge-asm/issues/60): `N` is release-coupled, and both halves of *"one rule, operator-configurable N"* are withdrawn
+
+The Consequences below read *"expiring within N days (one rule, operator-configurable N)"*. That
+parenthetical stands unrewritten, per this repo's name-and-withdraw convention, and **both of its
+halves are withdrawn**. They were wrong for different reasons and only one of them had been
+noticed.
+
+**`N` is not operator-configurable.** It is a declared parameter of `certificate-expiring`, so
+under [ADR-0008](./0008-derivation-versions-move-on-content.md) it sits inside that rule's own leaf
+and under [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md) a changed declared
+parameter is one of the three things that may move a version. A dial on it is therefore a settings
+field that `Break`s a rule — uniformly, since ADR-0008 refused predicate-scoped breaks — clamping
+every `certificate-expiring` timeline in the estate, rendering its durations as labelled floors for
+a full window, and firing a re-baseline message. `N` is now **fixed at the release**, project-authored
+like every other declared parameter, and shipped at **30 days**.
+
+Three things kill the dial, and the first two were already on `main`.
+
+[#35](https://github.com/winniel123/verge-asm/issues/35) ruled this for both DNS rules and its
+reasoning transfers with nothing changed: *"[#22](https://github.com/winniel123/verge-asm/issues/22)
+drew the configurable/fixed line at inside-versus-outside the comparison path. A signal is squarely
+inside, so an operator-configurable `N` was out on existing precedent."* That was this question
+answered, for two rules, and never carried back to the one rule that had an `N`.
+
+This ADR's own stated reason for the dial does not survive
+[ADR-0015](./0015-the-value-space-is-the-commitment.md).
+[#16](https://github.com/winniel123/verge-asm/issues/16) made `N` configurable because *"a 30-day
+warning is right for manual renewals and noise for a team on ACME"* — and **noise is not a defect**:
+ADR-0015 settled that a signal being true of most of the estate is the design working, that the
+transitions are the subject, and that narrowing a rule to quieten it is the model-layer damping
+[ADR-0007](./0007-drift-is-a-timeline-of-spans.md) refused. An operator-configurable `N` is that
+same damping with the dial handed outward, which is worse than the version it refused, because the
+person pulling it cannot see what it costs.
+
+And the corpus stops gating the thing that runs. ADR-0008 makes the golden corpus the mechanism
+that replaces discipline, and [ADR-0014](./0014-only-revealed-generalises.md) calls it *"the whole
+guarantee"*. Under a per-install `N`, CI gates one function and every install evaluates a different
+one, under the same version string — so two installs on one release hold different content behind
+one leaf, and a leaf is meant to name what decided the output.
+
+**"One rule" is withdrawn too, and [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)
+had already withdrawn it without saying so.** ADR-0024's v1 domain table names
+`certificate-expired`, `-not-yet-valid` and `-expiring` as three rules sharing one domain, and this
+ADR's own per-rule versioning and #44's per-rule census make three names three leaves and three
+censuses. #16's *"expired is N=0"* was a compression, not a model.
+
+Two consequences fall out of the split, and the second corrects a claim made below.
+
+**Of the three clock-reading rules, exactly one contains a number we chose.** `certificate-expired`
+and `certificate-not-yet-valid` compare `not_after` and `not_before` against the clock and take no
+parameter — they are world facts. Only `-expiring` carries a horizon, which is what makes it the
+only member of the family that could ever have been dialled.
+
+**The clock class has three members, not one**, so the Consequences sentence below — *"a
+clock-crossing signal — a certificate expiring"* — understates it. All three certificate-lifetime
+rules become true or false with no new observation, and they are the only rules in the v1 set of
+which that is true.
+
+Two obligations follow for the corpus and for what may be said about `N`.
+
+**A corpus row for a clock-reading rule carries its evaluation instant as part of its input.**
+Without it a row's output moves every day with no version change, and ADR-0021's bidirectional gate
+either fails the build for nothing or passes by accident. This is the only place in the corpus where
+an input is not a measurement.
+
+**`certificate-expiring` is the second signal whose reference data we curate**, which falsifies the
+Consequences claim below that `sensitive-port-exposed` is the only one. `N` passes the cadence test
+trivially — one integer is as closed and enumerable as reference data gets — and it is fixed by
+fiat on the same footing as `k` and the availability window, revisable at release cadence for one
+`Break` on one rule for one cadence. Unlike `k`, it makes a claim about the **world** rather than
+about our own measurement, so the reason is stated rather than buried: 30 days is where the ACME
+clients in the modal estate already trigger renewal, so it is the last point at which the operator
+still has the action the signal is telling them to take.
+
+**The operator gets no dial, and none is minted elsewhere.** #16's real complaint — an ACME estate
+renewing at 30 days makes the rule fire and clear every cycle — is a **flap**, and ADR-0007 put all
+damping in notification precisely so the model keeps the flap count as a fact. The remedy is the
+notification layer's existing suppression, not a second constant and not a per-operator threshold.
+If one is ever wanted it is legal, because #22's line puts it outside the comparison path — but it
+is not wanted now, and minting it here would be the second constant
+[#28](https://github.com/winniel123/verge-asm/issues/28) refused.
+
 ## Consequences
 
 - **The v1 set is:** certificate expired / not-yet-valid / expiring within N days (one rule,
