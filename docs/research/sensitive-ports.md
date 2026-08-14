@@ -953,6 +953,34 @@ different protocols on the same number, and §6 shows this has already caused a 
 > corroborates only — see §20.7, which also records that CouchDB's **ports table** is the stronger of
 > its two statements about `4369`. No row moves and no tier moves.
 
+> **Amended by §26** ([#93](https://github.com/winniel123/verge-asm/issues/93)). **The prose footings in
+> this section have now been swept class by class, and no quote above is withdrawn.** Three additions,
+> all of them warrant **inside** an existing tier; **no footing changes tier, no row moves and no count
+> in §2.2's table changes** (§26.7).
+>
+> **`3306/tcp` — the quotation above drops the sentence that names the internet.** MySQL's *Security
+> Guidelines* reads, in three consecutive sentences: *"**Try to scan your ports from the Internet using a
+> tool such as `nmap`.** MySQL uses port 3306 by default. This port should not be accessible from
+> untrusted hosts."* The passage is restored because §20.8's tier criterion is read off the sentence, and
+> reading the second sentence without the first understates the owner —
+> [#46](https://github.com/winniel123/verge-asm/issues/46)'s truncated-conditional hazard running in the
+> generous direction for once (§26.5).
+>
+> **`873/tcp` — a second owner imperative, in a shipped man page nobody had opened.** *"A direct daemon
+> connection (`host::module` or `rsync://`) is **not encrypted** and its authentication is comparatively
+> weak, so do not send sensitive data across an untrusted network."* — `rsync.1.md`,
+> [`RsyncProject/rsync`](https://github.com/RsyncProject/rsync/blob/v3.5.0/rsync.1.md) `v3.5.0`,
+> § *SECURITY*. rsync's **deployment class** is `SECURITY.md` at the repository root; it was opened for
+> the first time and **[measured]** it states no network position, and no rsync artefact names the
+> internet anywhere (§26.3). **§20.8's *"every prohibition-tier sentence names the public internet"* is
+> refuted on this row and the defect is reported to the curator rather than applied**, because applying it
+> moves tier counts.
+>
+> **`25672/tcp` — the footing rests on a second class, and it was gathered by §17.4 rather than here.**
+> RabbitMQ's production checklist restricts *"all other ports (inter node communication, CLI tools and so
+> on)"* to *"hosts running RabbitMQ nodes or CLI tools"*, which is `25672` in the owner's own taxonomy
+> (§26.5).
+
 ---
 
 ## 4. The boundary cases
@@ -8040,6 +8068,554 @@ for staying out of that file while concurrent passes are running.
 
 ---
 
+## 26. The positive half of the class sweep — §3.4's prose footings, class by class
+
+Wayfinder ticket [#93](https://github.com/winniel123/verge-asm/issues/93), on the question §17.8 named
+and put out of scope: *"It does not certify that every **positive** footing was gathered under
+ADR-0040's rule; §13 did that work for the shipped-configuration half, and the prose half of §3.4 has
+never been re-derived class by class."* [#84](https://github.com/winniel123/verge-asm/issues/84) is the
+first counter-instance — §20 replaced `4369`'s warrant from a class #76's corpus did not contain — and
+this section runs the same instrument over the rest.
+
+**Headline result, stated first.**
+
+> **Nothing moves.** No `(port, transport)` pair, no row, no tier, no count, no coverage figure. The
+> **24** prose-tier pairs were enumerated; the ticket's three filters carried **21**, a fourth filter the
+> ticket did not name carried a **22nd**, and the **2** that survived every filter were retrieved. Both
+> footings stand.
+>
+> **What the section adds is the thing §17 gave the negatives**: the positive footings can now name a
+> **searched corpus with a stated boundary** rather than an unexamined sufficiency. And the boundary
+> has a date on it, which is the section's other output — see §26.6.
+>
+> **Two findings a reviewer should read before the arithmetic.** `2049/tcp`'s specification class had
+> never been opened and it contains the IETF naming **the Internet as a stated design goal for NFSv4** —
+> §10.3's failure condition knocking, and the closest this note has come to a refutation. It is ruled
+> **not met**, on contested ground, in §26.4. And **§20.8's tier criterion is refuted as a universal** on
+> `873/tcp` (§26.3), reported to the curator rather than applied because applying it moves tier counts.
+
+### 26.1 The population, enumerated rather than asserted — and it is 24, not 23
+
+ADR-0040's disclosure rule binds this section's own output, so the population is listed. It is §2.2's
+footing table's two **prose** tiers: **explicit prohibition** and **explicit trusted-network scoping**.
+The **weak** tier is excluded because a weak-tier row's footing *is* a negative and was therefore swept
+by §17 (rows 7 and 8 of §17.1); the eleven pairs the table names as out of subject are excluded because
+they rest on §2.2's **first** form, and a specification is not a class list.
+
+**[measured] The population is 24 pairs and #93 was written against 23.** The ticket quotes §16.7's
+`13 / 10` split. §18.6 restated the table as `15 / 9`, which is the same total plus one:
+[#88](https://github.com/winniel123/verge-asm/issues/88) moved `10250/tcp` from scoping to prohibition —
+inside the population — and `10255/tcp` from the **weak** tier to prohibition, which brings a pair
+**into** it. This is §17.8's fixed point firing exactly as written: a footing move re-arms the sweep for
+the row that moved, and `10255` arrived in this population by a footing move made after the ticket was
+filed. It is swept below like any other member.
+
+### 26.2 The class of every prose footing, enumerated before any retrieval
+
+ADR-0040's classes are the **specification**, the **operational or deployment** recommendation and the
+**implementation guidance**, plus §2.2's third form, the **shipped default**. For a positive footing the
+question ADR-0040 asks is the mirror of §17.1's: **which class did the cited sentence come from, and
+which classes of that owner were never opened.**
+
+| # | Pair | Owner | Class the cited sentence is in | Filter |
+|---|---|---|---|---|
+| 1 | `6379/tcp` Redis | Redis | **deployment / security** — `redis.io` *Security*, under *operate → management* | **A** |
+| 2-3 | `11211/tcp`+`/udp` memcached | memcached | **deployment** — the project wiki's `ConfiguringServer` | **A** |
+| 4 | `3306/tcp` MySQL | Oracle | **security** — *Security Guidelines*, Reference Manual §8.1.1 | **C** |
+| 5 | `1433/tcp` MS SQL | Microsoft | **security** — *Security considerations for a SQL Server installation* | **A** |
+| 6 | `9200/tcp` Elasticsearch | Elastic | **implementation guidance** — the networking configuration reference | **A** |
+| 7 | `9300/tcp` Elasticsearch | Elastic | **security** — *Secure cluster communications*, under *deploy-manage → security* | **A** |
+| 8 | `873/tcp` rsync | the rsync project | **implementation guidance** — `rsyncd.conf(5)` | **retrieval — §26.3** |
+| 9 | `445/tcp` SMB (+`139/tcp`, `137`/`138/udp` in-cell) | Microsoft | **security** — *Preventing SMB traffic…* and *Secure SMB traffic in Windows Server* | **A** |
+| 10 | `623/udp` IPMI | Dell | **vendor statement carried in a third party's advisory** — CERT/CC VU#843044 | **A**, and see the rider |
+| 11 | `9042/tcp` Cassandra | Apache Cassandra | **shipped default** — `conf/cassandra.yaml`, already re-derived by §13 | **A** |
+| 12-13 | `2379`/`2380/tcp` etcd | etcd | **security** — `THREAT_MODEL.md` | **A** |
+| 14-15 | `10250`/`10255/tcp` kubelet | Kubernetes | **security** — `security-checklist.md` | **A** |
+| 16-18 | `27017`/`27018`/`27019/tcp` MongoDB | MongoDB Inc | **security** — *Security hardening*, under *manual → core* | **C** |
+| 19 | `2049/tcp` NFS | the Linux NFS project | **implementation guidance** — `nfs(5)` SECURITY CONSIDERATIONS | **retrieval — §26.4** |
+| 20 | `2181/tcp` ZooKeeper | Apache ZooKeeper | **deployment** — the *Administrator's Guide* — **and security** — `security.html` | **C** |
+| 21 | `25672/tcp` RabbitMQ | RabbitMQ | **implementation guidance** — the networking guide | **D — §26.5** |
+| 22 | `4369/tcp` epmd | Erlang/OTP | **deployment / security** — `secure_coding.md`, rule `DEP-001` | **C**, by §20 |
+| 23-24 | `2375`/`2376/tcp` Docker | Docker | **security** — *Docker Engine security* and *Protect the Docker daemon socket* | **C** |
+
+**One structural fact falls out of the table and it is the reason this half yields less than §17 did.**
+**[measured] Not one prose-tier footing rests on a specification.** ADR-0040 was measured on
+[#68](https://github.com/winniel123/verge-asm/issues/68)'s failure — five documents read, every one a
+specification, the deployment class never opened — and its whole subject is *a specification's silence
+is not the owner's silence*. §3.4's prose tiers contain **no** specification-class footing at all: the
+spec-footed rows are exactly the eleven pairs §16.7's table already names as out of its subject. The
+positive half was, by the shape of its evidence, never standing where ADR-0040's failure mode lives.
+That is a finding about **why the yield is low**, not an argument that the sweep was unnecessary — #84
+found the one case that mattered, and it was in the one tier position where the footing came from
+neither a specification nor a security document.
+
+### 26.3 `873/tcp` rsync — the deployment class exists, it was never opened, and it is silent
+
+**The class list, enumerated before the search.** rsync is
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)'s
+*single project, documentation only* shape with one complication: it publishes a descriptive protocol
+note, so it has a nominal specification class as well. Every path below was resolved from the
+`RsyncProject/rsync` tree listing at tag **`v3.5.0`**, per §16.10.
+
+| Class | Member | Searched | What it decided |
+|---|---|---|---|
+| **Specification** | `csprotocol.txt` | Yes | The daemon wire protocol, and it disclaims itself — *"This is kind of informal and may be wrong, but it helped me."* It places the daemon on the port (*"connections to port 873 rather than invocations over a remote shell"*) and states no network position |
+| **Deployment / security guidance** | **`SECURITY.md`** — **never opened** | **Yes — the class this ticket was run for** | A genuine threat model and residual-risk register: *Robustness against malicious peers*, symlink-race-safe path resolution, *Known residuals*, daemon authentication digest. **Its scope is the peer and the filesystem, never the network.** **[measured]** the strings `internet` and `public` occur in it **zero** times |
+| **Implementation guidance** | `rsyncd.conf.5.md`, `rsync.1.md`, **`rsync-ssl.1.md`**, **`support/rrsync.1.md`** | Yes — the last two for the first time | `rsyncd.conf.5.md` carries the row. `rsync.1.md`'s own `## SECURITY` section carries a sibling sentence nobody had quoted |
+| **Shipped default** | `packaging/systemd/rsync.socket`, `rsync.service`, `rsync@.service`, `packaging/lsb/rsync.xinetd`, `support/instant-rsyncd` | Yes — §13 read most of these | `rsync.socket` is `ListenStream=873` with `Accept=true` and **no address restriction** → permissive → **silent** under §10.4. **rsync ships no default `rsyncd.conf` at all**, so the daemon cannot start until an operator authors one |
+
+**The finding is a negative and it is a verdict about what was read** (§11.8,
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3).
+**[measured] No rsync-owned sentence names the internet in connection with the daemon or with `873`,
+anywhere.** A code search of the repository at `v3.5.0` for `internet` returns six files and every one
+is off-subject — a troubleshooting line telling the reader to *search* the internet, an attribution in
+`NEWS.md`, the RPM `Group: Applications/Internet` category string, two `lib/inet_*.c` source comments,
+and a Debian-mirroring paper in the website tree. The rendered `rsync.1.html` and `rsyncd.conf.5.html`
+at `download.samba.org` return zero matches, and `rsync.samba.org/FAQ.html` contains neither word.
+
+**Two things the class sweep did return, both inside the tier.**
+
+1. **A second imperative, in a man page section nobody had quoted.** `rsync.1.md`'s `## SECURITY`:
+
+   > "A direct daemon connection (`host::module` or `rsync://`) is **not encrypted** and its
+   > authentication is comparatively weak, so do not send sensitive data across an untrusted network."
+   > — `rsync.1.md`, [`RsyncProject/rsync`](https://github.com/RsyncProject/rsync/blob/v3.5.0/rsync.1.md) `v3.5.0`, § *SECURITY* → *Use an authenticated, encrypted transport*
+
+   The footing now rests on two owner sentences in two shipped man pages rather than one, which is the
+   §20 shape — **warrant strengthened inside a tier, membership untouched**.
+
+2. **The deployment class is not absent from rsync, it is absent from rsync's *man pages*.**
+   `rsyncd.conf.5.md`'s `## SECURITY` section opens *"The following is a practical checklist; the
+   project's `SECURITY.md` describes the underlying threat model."* **Operational-recommendation content
+   is carried inside an implementation-guidance artefact**, and the standalone deployment document it
+   points at turns out to be about a different attack surface. Recorded because it is a class-assignment
+   hazard the corpus had not met: the class a sentence *reads as* and the artefact it *ships in* can
+   disagree, and §26.2's table assigns on the artefact.
+
+**One near-miss, already refused, and it is refused again here.** §13.3 examined
+`README.md`'s *"Alternatively, rsync can run in `daemon' mode, listening on a socket. This is generally
+used for public file distribution, although authentication and access control are available"* and refused
+it because the supported public deployment the owner actually documents puts the listener on **874** with
+`873` on loopback behind it. Nothing in `SECURITY.md` or in the two newly-read man pages disturbs that,
+and §10.3's failure condition is not met.
+
+**One artefact that looks like the deployment class and is not**, recorded because the corpus now has two
+instances of the shape. `rsync.samba.org/security.html` is titled *Rsync Security Advisories* and is a
+per-release CVE table — a **disclosure page**, not a posture document. §20.1 scored Erlang/OTP's
+`system/doc/vulnerabilities/vulnerabilities.md` the same way — *"it is an OpenVEX publication policy, not a
+posture document"* — and this is the second. **A page named *security* is not the security class**; what
+makes a class member is that it states a position, and a CVE register states a process.
+
+#### The by-catch, and it is reported rather than applied
+
+**[measured] §20.8's tier criterion is refuted as a universal, on this row.** §20.8 draws the boundary
+between the prohibition tier and the scoping tier on **vocabulary** — *"Every prohibition-tier sentence
+names **the public internet**"* — and used it to keep `4369` in the scoping tier, because `DEP-001` says
+*trusted network*. rsync's diction is the same as `DEP-001`'s and it is **consistent across every artefact
+the owner ships**: *"do not expose a cleartext daemon to an **untrusted network**"*, *"do not send
+sensitive data across an **untrusted network**"*, *"reachable by anyone who can reach the port"*. rsync
+scopes by trust boundary and never by network topology, so no retrieval can supply the missing word — the
+class list is now exhausted and the sentence does not exist.
+
+**Walked across the whole tier rather than asserted for one row.** Of the 15 prohibition-tier pairs, **13
+carry a sentence naming the internet in the owner's voice**; `3306/tcp` is **marginal** — the prohibition
+clause names *untrusted hosts* and *"the Internet"* is in the immediately preceding sentence of the same
+passage, which §3.4 drops (§26.5) — and **`873/tcp` fails outright**.
+
+> **`873/tcp` stays where it is and this section moves nothing.** Applying §20.8's criterion would demote
+> the cell to the scoping tier and change the tier counts from `15 / 9` to `14 / 10` — a table
+> [#88](https://github.com/winniel123/verge-asm/issues/88) restated days ago and that
+> [#90](https://github.com/winniel123/verge-asm/issues/90), [#91](https://github.com/winniel123/verge-asm/issues/91)
+> and [#92](https://github.com/winniel123/verge-asm/issues/92) are moving concurrently. **§17.6's house
+> precedent is explicit and §20.8 invoked it in the promoting direction**: *a footing found in one lane
+> does not re-tier a row placed in another.* It binds identically in the demoting direction.
+>
+> **This is a *detectable defect*, not a watch**, and it is the sibling of the one the map's curation
+> patch already carries from [#83](https://github.com/winniel123/verge-asm/issues/83) — *a row whose
+> footing tier disagrees with its class*. This one is **a row whose footing tier disagrees with the
+> tier's own stated vocabulary criterion**, it is cheap to check for the same reason (the tiers and the
+> sentences are both written down), and it is now measured for the whole tier: **one clear failure, one
+> marginal, thirteen clean.** Reported to the curator.
+>
+> **It moves no row.** An imperative prohibition scoped to untrusted networks is still an owner's
+> position under §10.3 and is stronger than the scoping tier's weakest member; `873/tcp` is a Class C row
+> and nothing in this sweep touches its claim. **The question is which of two cells of §2.2's table the
+> footing sits in, and no count outside that table depends on the answer.**
+
+### 26.4 `2049/tcp` NFS — the specification class was never opened, and it is the closest this sweep came to moving a row
+
+NFS is the population's only **split-owner** row: the protocol is the IETF's and the cited
+implementation is the Linux NFS project's. §10.5 makes both owners for their own artefacts, so both
+class lists are enumerated. Everything the note holds for this row comes from **one class of one of
+them** — `nfs(5)`, an nfs-utils man page.
+
+**Owner A — the IETF.** Enumerated from the complete `rfc-index.txt`, swept for the whole NFS family
+rather than sampled.
+
+| Class | Member | Searched | What it decided |
+|---|---|---|---|
+| **Specification** | RFC 1094 (v2, Informational) · RFC 1813 (v3, Informational) · **RFC 7530 (v4.0)** · **RFC 8881 (v4.1)** · RFC 7862 (v4.2) | **Yes — never opened before** | The whole of this subsection. RFC 1094 contains the string `security` **zero** times; RFC 1813 §8 defers entirely to RPC |
+| **Operational / deployment (BCP)** | — | — | **[measured] The class is empty.** Not one RFC in the NFS family carries status `BEST CURRENT PRACTICE`. RFC 2623, whose title reads like one, is a **Proposed Standard** about MOUNTv3 flavour-negotiation downgrades; RFC 8000, the only NFS RFC with *Deployment* in its title, scopes to identity and namespace |
+| **Implementation guidance** | — | — | The IETF publishes none; the implementations are third parties' |
+
+**Owner B — the Linux NFS project.** Read from the shipped release artefact
+`nfs-utils-2.9.2.tar.xz` at `kernel.org`.
+
+| Class | Member | Searched | What it decided |
+|---|---|---|---|
+| **Implementation guidance** | 32 man pages, of which `nfs.man`, **`exports.man`**, `nfsd.man`, `mountd.man` are the relevant ones | Yes — all 32 grepped; §13 had read two | `nfs(5)` carries the row. `exports(5)` states **no** network boundary |
+| **Deployment / security guidance** | — | — | **[measured] The class is empty.** The tree's only prose is `README` (build instructions), `INSTALL` and component notes. **No `SECURITY` file, no `doc/` directory, no hardening guide**; the kernel.org release directory ships the tarball, a changelog and signatures. **The man pages are the entire corpus** |
+| **Shipped default** | `nfs.conf` | Yes — §13 read it | Every setting commented → permissive → silent under §10.4 |
+
+**Two empty classes, in two owners, measured rather than assumed — and that is worth more than it
+looks.** ADR-0046's table gives a standards body **three** classes and a single-project owner **two**.
+Here one of the IETF's three has no member and one of nfs-utils' two has none. **A class can exist in
+the taxonomy and be empty in the release**, which is precisely the distinction §26.6 turns on, arrived at
+independently of the Erlang measurement that forced it.
+
+#### The finding, and it points both ways in the same current document
+
+**[measured] The IETF names the Internet as a stated design goal for NFSv4**, in identical text in both
+current version specifications:
+
+> "o  Improved access and good performance on the Internet.
+>
+>        The protocol is designed to transit firewalls easily, perform well where latency is high and
+>        bandwidth is low, and scale to very large numbers of clients per server."
+> — [RFC 7530](https://www.rfc-editor.org/rfc/rfc7530.txt) §1.2, *NFS Version 4 Goals*; the same bullet is [RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt) §1.1
+
+RFC 7530's Abstract adds *"attention has been applied to making NFS version 4 operate well in an Internet
+environment."* **This is §10.3's failure condition knocking**, and it is the strongest such candidate
+anywhere in the corpus — Standards Track text, from the protocol's owner, in the current specification.
+
+**And the same owner, in the same current document, records the goal as unmet.** RFC 8881 **Appendix C**,
+*Security Issues That Need to Be Addressed* — an ordinary appendix of the NFSv4.1 standard:
+
+> "Initial analysis of the existing security issues with NFSv4.1 has made it likely that a revised
+> Security Considerations section for the existing protocol (one containing a threat analysis) would be
+> likely to conclude that **NFSv4.1 does not meet the goal of secure use on the Internet.**"
+
+#### The ruling — the row stands, on grounds that need restating
+
+> **`2049/tcp` does not move, and §10.3's failure condition is not met.** An owner that names an
+> environment as a **goal** and, in the same current document, records that it **does not meet** that
+> goal has not named it as a **supported deployment environment**. §10.4's one-way rule is the nearest
+> instrument and it points the same way: a permissive **default** is the absence of a position, and an
+> **aspiration** is the absence of an attestation. Reading §1.1's bullet without Appendix C is
+> [#46](https://github.com/winniel123/verge-asm/issues/46)'s truncated-conditional hazard — a clause
+> lifted out of the document that gives it its operative meaning — met for the third time in this note
+> after §11.2's *administrative domain* and §17.6's CouchDB *public*.
+
+**Two supporting reasons, each sufficient on its own.**
+
+1. **The owner draws the version line itself.** RFC 8000 §1, Standards Track: UNIX-centric numeric IDs
+   *"are **not designed for Internet scaling**"*, attributed to RFC 2624 §6.1. So the Internet goal is
+   **v4's**, and the owner says v2/v3 was not built for it.
+2. **The pro-Internet corpus outside the two current specs is Informational and superseded.** RFC 2624
+   (1999, *Design Considerations*, the strongest pro-Internet language found — *"NFS's protocol design
+   should allow its use via Internet firewalls"*) is a pre-protocol **requirements** document, and
+   Appendix C is the 2020 verdict on whether the requirement was met. WebNFS (RFC 2054/2055, 1996,
+   Informational, explicitly *"across the Internet"*) is a v2/v3 extension whose public filehandle RFC
+   8881 §4.1 now refers to in the **past tense** as a reason MOUNT was dropped.
+
+> **This is the closest the sweep came to a refutation and the ruling is contested rather than obvious.**
+> A reader who holds that a Standards Track goals list naming the Internet *is* the owner naming a
+> supported environment reaches the opposite verdict, and on that reading `2049/tcp` leaves the list and
+> the consequence is a **row removal** priced to [#12](https://github.com/winniel123/verge-asm/issues/12).
+> **The criterion that would move it:** an IETF or nfs-utils sentence recommending or supporting an
+> internet-facing NFS deployment in the present tense, rather than naming it as an objective. Neither
+> owner has one in the documents read. Recorded per
+> [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2, which
+> requires a finding of this shape to be **reported rather than acted on** — the same routing §17.5 used
+> for Kafka.
+
+#### Three repairs to the footing, none of which moves a tier
+
+**1. The specification class supplies a stronger sentence than the one the note holds, and it is
+unscoped.** RFC 8881 §21 (and near-identically RFC 7530 §19) on the same AUTH_SYS model `nfs(5)` is
+quoted about:
+
+> "Historically, the authentication model of NFS was based on the entire machine being the NFS client,
+> with the NFS server trusting the NFS client to authenticate the end-user. … While such a model is easy
+> to implement and simple to deploy and use, **it is unsafe.**"
+> — [RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt) §21; RFC 7530 §19 ends *"it is certainly not a safe model."*
+
+**The two owners disagree in tone about the same mechanism**: the implementation calls it *"entirely
+adequate"* on a trusted network and the specification calls it *"unsafe"* flat, with no carve-out. Both
+are owners under §10.5 and neither is withdrawn. The row's warrant is strengthened and now rests on two
+classes of two owners rather than one class of one; **the tier is untouched, because neither RFC sentence
+names a network.**
+
+**2. §3.3's *"why"* cell and §3.4's quotation are both citing more broadly than the source supports.**
+Corrected here rather than in §3's tables, per §10.7's convention; **the row's grounds do not change and
+the row does not move.** **[measured]** *"This is an easy system to spoof, but on a trusted physical
+network between trusted hosts, it is entirely adequate"* is not a general statement about NFS
+deployment: it sits in `nfs(5)`'s `.SS "Using non-privileged source ports"` subsection and is scoped to
+the AUTH_SYS-plus-privileged-port trust model. §3.4's ellipsis joins it to a passage roughly 140 lines
+earlier; both are genuinely inside SECURITY CONSIDERATIONS, so the attribution is sound and only the
+precision is wrong. Cite it as `nfs(5)`, SECURITY CONSIDERATIONS, *Using non-privileged source ports*.
+
+**3. §13's strengthening sentence has a neighbour that cuts the other way, and it is disclosed.**
+§13.2 added `nfs(5)`'s DESCRIPTION line — *"NFS was developed to allow file sharing between systems
+residing on a local area network"* — as evidence the row *"strengthens inside its tier"*. **[measured]
+The sentence immediately preceding it is *"NFS is an Internet Standard protocol."*** That is a statement
+about the protocol's **standardisation**, not about its deployment, and it does not weaken the row — but
+a reader checking the source hits it first, and §26.5's MySQL finding is the same hazard running in the
+opposite direction. **Both truncations are recorded and neither moves anything.**
+
+**One artefact checked because a session going looking will find it.** `exports(5)`'s EXAMPLE section
+glosses `/pub  *(ro,insecure,all_squash)` as exporting *"to every host in the world"*. §13.3 already
+refused it as a **label** under §12(b) — it describes what the directive above it does, and it is about
+the **export access list** rather than about a network. Refused again on the same ground, with the added
+detail that the example is read-only and `all_squash`ed.
+
+### 26.5 What the filters carried, and what a filter is not
+
+**The arithmetic, stated so the residue is falsifiable rather than asserted.**
+
+> **24 prose-tier pairs. Filter A carries 13, Filter B carries 0, Filter C carries 8, a fourth filter
+> the ticket did not name carries 1, and 2 were retrieved.** 13 + 0 + 8 + 1 + 2 = 24.
+
+**Filter A — an owner's prohibition naming the public internet — carries 13.** `6379`, `11211/tcp`,
+`11211/udp`, `1433`, `9200`, `9300`, `445`, `623`, `9042`, `2379`, `2380`, `10250`, `10255`. The
+argument is the positive mirror of §17.2's exposure test: where the footing already stands at the
+strongest grade the table has, a document from an unopened class can restate it and cannot improve it.
+
+**Filter B — a single-class owner whose list is already exhausted — carries 0, and that is worth
+saying rather than glossing.** The filter was cut for §17.6's PostgreSQL, and PostgreSQL is in the
+**weak** tier, which is not in this population. **[measured]** Every one of the 24 pairs has an owner
+with at least two classes, and most have three or four. Filter B is inert here by construction, not by
+accident, and a reader who expected it to do work should know it did none.
+
+**Filter C — the cited sentence is already from the deployment or security class — carries 8.** `3306`,
+`27017`, `27018`, `27019`, `2181`, `4369`, `2375`, `2376`. This is the filter that is true *by
+definition*: the class ADR-0040 exists to make a session open is the class the sentence came out of.
+`4369` is carried by it only because [#84](https://github.com/winniel123/verge-asm/issues/84) put it
+there — before §20 it was the residue, and it was the one that returned a sentence.
+
+**A fourth filter the ticket did not name, and it carries `25672/tcp`.** RabbitMQ's **deployment** class
+was opened by §17.4, from the negative side, for `5672`/`15672`. What it returned covers `25672`
+**in the owner's own taxonomy** rather than by inference:
+
+> "Ports used by RabbitMQ can be broadly put into one of two categories: Ports used by client libraries
+> …; All other ports (inter node communication, CLI tools and so on). Access to ports from the latter
+> category generally should be restricted to hosts running RabbitMQ nodes or CLI tools."
+> — [RabbitMQ production checklist](https://www.rabbitmq.com/docs/production-checklist), *Firewall Configuration* (§17.4)
+
+`25672` is RabbitMQ's inter-node port and §17.4 already says so — *"'All other ports (inter node
+communication, CLI tools and so on)' is exactly 4369 and 25672"*. So the pair's deployment class was
+swept before this ticket existed, and its footing now rests on two documents in two classes rather than
+one. **A class sweep run for a negative sweeps the positives of the same owner for free**, because the
+corpus is the owner's, not the row's — which is ADR-0046 limb 2 paying a dividend nobody had priced.
+
+#### What a filter is not, stated plainly
+
+**Twenty-two of the twenty-four pairs were carried by a filter rather than by a retrieval, and a filter
+is an argument about sufficiency, not a measurement of completeness.** Naming what stays unswept:
+
+- **Filter A does not test the *refutation* direction.** An unopened class could contain the owner
+  naming the internet as a **supported** environment, which is §10.3's failure condition and would move a
+  **row** — the shape §17.4 actually found for `5672`/`15672`. Three things bound it and none closes it.
+  §13.3 measured the shipped-default class across fourteen artefacts from twelve projects and found no
+  such sentence. §18.5 walked every prose-tier row against
+  [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+  limb 3, whose defeat condition is exactly this, over the artefacts the note holds. And §17.4 is the
+  corpus's only positive instance, on two ports the note **excludes**. **What is not measured is the
+  refutation direction over the *prose* deployment class for the 13 pairs Filter A carries.** That is a
+  **bounded** residue in ADR-0040's sense — falsifiable by naming one owner document that contemplates an
+  internet-facing deployment of a listed port as supported — and it is disclosed here rather than swept,
+  because sweeping it is 13 retrievals whose expected yield the corpus prices at near zero.
+- **`623/udp`'s Filter A pass is conditional on an open ticket.** Dell's *"not designed nor intended to
+  be placed on or connected to the internet"* names the internet in a vendor's voice, which is what
+  Filter A asks. Whether Dell is the **owner** for this pair, and whether a corroborator may supply the
+  **number**, is [#90](https://github.com/winniel123/verge-asm/issues/90)'s question (§18.5). **If #90
+  removes the row the cell leaves with it** (§18.6); **if #90 re-founds the cell on the IPMI or ASF
+  specification, this pair returns to the residue and owes the retrieval this section did not spend on
+  it.** Recorded so the sweep's coverage claim does not silently outlive its premise.
+- **A filter carries a pair *as of a class list with a date on it*** — §26.6.
+
+### 26.6 An owner's class list is fixed at the time of the sweep, not for all time
+
+This is the question #93 says it must answer, and it is the only thing in this section that reaches
+beyond `sensitive-ports.md`.
+
+**The measurement that forces it is #84's, and it is clean.** **[measured]**
+`system/doc/design_principles/secure_coding.md` is **absent from Erlang/OTP at `OTP-28.4` and earlier**
+and **present at the tag `OTP-28.5`**, released **2026-04-23** — four months before §20 read it (§20.3).
+Before that release Erlang/OTP's *Deployment / security guidance* class had **no member**. §16.9 swept
+`4369` over a corpus that was, at the moment it was swept, complete.
+
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+limb 2 reads: *"The list is short, it is fixed before the search starts, and **an owner cannot invent a
+fourth class to defeat a sweep**."* Read as written, that sentence looks falsified by #84. It is not,
+and the distinction is the whole answer.
+
+> **ADR-0046 limb 2 closes the *taxonomy*, not the *membership*.** There are four kinds of document —
+> specification, deployment or operational recommendation, implementation guidance, shipped default —
+> and Ericsson invented no fifth. What it did was publish a **member** into a class that existed and was
+> **empty**. A taxonomy is a property of the owner's *shape* and does not move. A class's membership is
+> a property of the owner's *release*, and moves whenever the owner ships.
+
+**So the sweep's output is a dated negative, not a permanent one**, and the note already has the
+instrument for saying so. [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)
+([#86](https://github.com/winniel123/verge-asm/issues/86)) ruled that an owner's documentation is what it
+has **issued**, that **issuance is per version**, and that a negative therefore *"names the release and
+the date and never says never issued."* A class sweep is a search over issued documents; it inherits
+that rule without amendment. The disclosure form a sweep owes is not *the class is empty* but **the
+class had no member at release R, dated D**.
+
+#### The ruling
+
+> **It is a rider on ADR-0046. It is not a new trigger for the map's curation watch, and no ADR is
+> minted for it.**
+
+**Why a rider and not an ADR.** It overturns nothing, and both of the general rules it composes were
+already accepted: ADR-0046 limb 2 supplies the closed taxonomy, ADR-0045 supplies per-version issuance,
+and ADR-0040's *bounded rather than permanent* supplies the falsification clause that actually fires.
+§20.9 declined an ADR on exactly this test — *"Both general rules this section applies were available"* —
+and §16.6 declined one before it. Minting a decision record to say that two accepted decisions compose
+is the ceremony [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) exists
+to forbid.
+
+**Why not a curation-watch trigger, which is the option that lost and it is a real argument.** The case
+for it: the map's patch already carries **eight** triggers, two of which are neighbours — (3) *a footing
+never checked against the standard it is now held to*, and (7) *a drafted owner document becoming issued*
+(#86). A new owner document appearing in a release is visibly the same species as (7), and #84's is the
+first instance of it. Making it a ninth trigger would put the obligation somewhere a curator reads.
+
+**Why it loses, and the reason is what a watch costs rather than what it covers.** Trigger (7) is priced
+in the map as *"the cheapest, because it is **announced, by a release**"* — and that pricing is only true
+because the **draft is already known**. Kafka's `security-model.md` sits on the `4.4` branch with no tag;
+the watch is *check whether that file's branch gets tagged*, one named artefact, one owner. Nothing
+announced `secure_coding.md`. It was authored and released in a single motion, in a class that had never
+had a member, in a repository nobody was watching for it. The corresponding watch is **read every release
+of every owner in the table, forever, for a document that did not previously exist** — twenty-odd owners
+on independent cadences — which is precisely the *"general somebody may have said this somewhere"*
+standing obligation ADR-0046 §2 was written to deny. **A watch that cannot be run is worse than a bounded
+disclosure, because it converts an unbounded obligation into a checked box.** Trigger (7) is not widened
+to cover this; it keeps its cheapness by keeping its scope.
+
+**What discharges it instead, and it has already fired once.**
+[ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) requires a surviving
+weakness to be **bounded** — *"falsifiable by naming one document outside the boundary"*. A dated class
+list is exactly that, and §20.4 records the clause firing for the first time: §16.9 stated its corpus,
+#84 named a document outside it, the residue was withdrawn. **The falsification clause is the watch**, and
+it costs nothing until somebody actually holds a document, which is the only moment at which anything can
+move. What the rider adds is that the disclosure must carry the **date** that makes it falsifiable, which
+§16.9 did not and §20.2 did.
+
+**Two consequences, both cheap.**
+
+1. **A class-sweep disclosure names the release and the date it was taken at**, per owner, exactly as
+   ADR-0045 requires of an issuance negative. §26.9 does this for both retrievals in this section, and
+   §17's own disclosures are **not** retrospectively re-dated — they are correct as of the table state
+   §17.8 already names, which is the qualifier doing its job.
+2. **Trigger (3) stays *a backlog with an end*.** The end is §17.8's fixed point — *finished when no
+   row's footing has moved since the last sweep* — and this rider does not add a second clock to it. What
+   it removes is the reading under which a finished sweep is finished **for all time**, which is a claim
+   §17.8 never made and ADR-0046's prose could be read as making.
+
+**Thin ground, and it is named rather than smoothed.** The taxonomy/membership distinction is doing all
+the work, and it is a distinction nobody had to draw before because until #84 no sweep had met an owner
+whose class was empty *at sweep time* and populated later. A reader who thinks *Deployment / security
+guidance* was not a class of Erlang/OTP's at `OTP-28.4` — that a class with no member is no class — reaches
+the opposite conclusion: that limb 2 **was** falsified and the taxonomy is open. That reading is refused
+because it makes the class count depend on the subject's publication history rather than on the owner's
+shape, which is the property ADR-0046's table of owner shapes exists to assert. But it is a ruling, not a
+measurement, and it is the thinnest thing in this section.
+
+### 26.7 Every dependent figure, checked rather than asserted
+
+> `FIGURE DELTA: none — footings only; no row moves, no class-total change, no coverage change.`
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 11 / 7 / 19 (§19) | **unchanged.** No row changes class; this section touches no claim |
+| §2.2 footing table — tiers and counts | prohibition 15 · scoping 9 · weak 2 (§18.6, composed with §20 per §2.2's merge-reconciliation note) | **unchanged in every cell.** Two footings gain a second supporting document **inside** their existing tier (`873`, `25672`); no cell changes tier |
+| §2.2 footing table — coverage | 26 of 37 | **unchanged.** No pair enters or leaves the table |
+| §2.2's weak tier | `5432`, `5984` | **unchanged.** The weak tier is not in this section's population |
+| §6.1 containment arithmetic | 28 in the hot set + 4 + 5 = 37 | **unchanged** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
+| §17.1's population of negatives | fourteen | **unchanged.** This section sweeps **positives**; nothing here creates or retires a sole-ground negative |
+| §17.8's *fixed point* | finished as of a table state | **not re-armed.** No row's footing changes **tier**; two change **warrant within** a tier, which §20.9 already ruled is not a re-arming event |
+| §20.8's tier criterion | *"Every prohibition-tier sentence names the public internet"* | **refuted as a universal** (§26.3). 13 clean · 1 marginal (`3306`) · 1 failing (`873`). **Reported, not applied** — applying it moves tier counts |
+| §3.4's MySQL quotation | begins *"MySQL uses port 3306 by default"* | **the preceding sentence of the same passage is restored** (§26.5 amendment to §3.4). No footing and no tier moves |
+| §16.7 / §18.6's *"two cells are thin"* successor note | one cell — `10250` | **unchanged.** Nothing here is added to or removed from that flag |
+
+**Nothing in this section is routed to [#12](https://github.com/winniel123/verge-asm/issues/12).** #12
+carries the list and its count; this section moves neither, and the one refutation it records is of a
+**characterisation of a tier boundary**, not of a row. The
+[#86](https://github.com/winniel123/verge-asm/issues/86) shape — a sweep returning a sentence that
+refutes a listed row — **did not occur**.
+
+### 26.8 Thin ground, flagged per the standing rule
+
+**The section's honest summary is that two-thirds of its population was carried by an argument rather
+than by a retrieval, and the arguments are not equally strong.** Filter C is close to tautological and
+Filter A is not: it asserts that a footing already at the table's strongest grade cannot be improved,
+which is true of *strengthening* and says nothing about *refutation*. §26.5 states that residue and
+prices it; it is the thinnest structural thing here.
+
+**The taxonomy/membership distinction in §26.6 is a ruling and not a measurement**, and §26.6 names the
+reading that would overturn it.
+
+**Class assignment is a judgement in at least three of the twenty-four cells**, and §26.3 met the reason
+why: the class a document *reads as* and the artefact it *ships in* can disagree. `rsyncd.conf.5.md`'s
+`## SECURITY` is a deployment checklist inside a man page; `nfs(5)`'s SECURITY CONSIDERATIONS is the
+same shape; Kubernetes' `security-checklist.md` is a security document that lives in a website
+repository. §26.2 assigns on the **artefact**, which is the rule §12.2 already uses for configuration
+files and is the only assignment a reader can check. But a session that assigned on **content** would
+carry `873` and `2049` on Filter C and spend no retrievals at all — and would have missed
+`SECURITY.md`. **The artefact rule is the conservative one and it is chosen for that reason**, not
+because the content reading is obviously wrong.
+
+**`623/udp` is inside this population and outside this section's competence** — §26.5's second rider.
+
+### 26.9 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10 and §17.10
+
+**Every artefact was read as shipped bytes at a named tag, with paths resolved from the repository tree
+rather than guessed**, and **every class list in this section carries the release it was taken at**,
+which is §26.6's rider binding its own output.
+
+- **rsync: `RsyncProject/rsync` at tag `v3.5.0`.** The tree was enumerated in full before any path was
+  resolved; there is **no `doc/` directory**, which is why `SECURITY.md` at the repository root is the
+  deployment class and why a session looking for a docs tree would have reported the class empty. This
+  is §16.10's etcd `THREAT_MODEL.md` hazard for the second time — **the deployment document is at the
+  repository root, where no citation points.**
+- **A page named *security* is not the security class.** `rsync.samba.org/security.html` is a CVE
+  advisory register. §20.1 scored Erlang/OTP's `vulnerabilities.md` the same way. **Two instances now,
+  and it is a filing hazard rather than a one-off**: the string in the filename is a topic, and a class
+  member is defined by stating a position.
+- **The negative was bounded positively rather than by judgement**, per §20.2's method: a repository-wide
+  search for the literal `internet`, enumerated to six files, each disposed of individually, plus the
+  rendered man pages and the project FAQ checked independently. Naming the hits is what makes the
+  negative falsifiable.
+- **NFS: the IETF at `rfc-index.txt` as published, and nfs-utils at the shipped release artefact
+  `nfs-utils-2.9.2.tar.xz` from `kernel.org`.** The IETF class list was established by sweeping the
+  **complete index** for the NFS family rather than by searching for likely titles — which is what makes
+  *"no NFS RFC carries status `BEST CURRENT PRACTICE`"* a measurement rather than an impression, and it
+  is the instrument §17.3 used on the SNMP family.
+- **A title is not a class, and NFS supplies both halves of the trap.** RFC 2623 is titled *NFS Version 2
+  and Version 3 Security Issues…* and is a **Proposed Standard** about flavour-negotiation downgrades;
+  RFC 8000 is the only NFS RFC with *Deployment* in its title and scopes to namespace identity. Neither
+  is the operational class, and a session filing by title would have reported that class searched. This
+  is the sibling of the *a page named security is not the security class* hazard above — **class
+  membership is decided by what a document does, not by what it is called** — and the two together are
+  now the corpus's standing warning about class-list construction.
+- **`git.linux-nfs.org` is serving an expired TLS certificate and could not be retrieved.** The
+  kernel.org release tarball was used instead and is the stronger source under §12 in any case — it is
+  what the project **ships**. Recorded because the next session will meet the same failure, and because a
+  retrieval that silently substitutes a different host is how §12.9's `default.ini.tpl` hazard happens.
+- **The finding that matters was in an appendix.** RFC 8881's Internet goal is in §1.1 and its
+  withdrawal is in **Appendix C**; a session that read the goals list and the Security Considerations
+  section and stopped would have found the failure condition met. §17.3 and
+  [#73](https://github.com/winniel123/verge-asm/issues/73) both turned on appendices, and this is the
+  third instance: **read the appendices.**
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -8219,3 +8795,12 @@ Retrieved for §22 ([#87](https://github.com/winniel123/verge-asm/issues/87)) �
 - EUR-Lex, retrieved because it could only weaken the finding, and did (§22.10): [CELEX `32007R0633`](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32007R0633) — *"No longer in force, Date of end of validity: 04/10/2023; Repealed by 32023R1771"* · [CELEX `32023R1771`](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32023R1771), which folds ATM/ANS systems requirements into [Implementing Regulation (EU) 2017/373](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32017R0373), whose consolidated text does not name FMTP. **It carries the finding in neither direction** — limb 4 keys currency to the party, not to a legislature — and it is `8500`'s reopening pressure (§22.6)
 - [Adobe, ColdFusion, *Connect to web servers*](https://guides.adobe.com/coldfusion/en/docs/install-and-configure-coldfusion/web-server-management.html) — *"By default in the server configuration, the built-in web server listens on port 8500"*, in a documentation set covering **ColdFusion (2025 release)**. The **independent second defeater** on `8500`, and the one with no currency question
 - [HashiCorp, Consul agent configuration reference](https://developer.hashicorp.com/consul/docs/reference/agent/configuration-file/general) — *"The HTTP API, -1 to disable. Default 8500. TCP only."*, limb 1 for the candidate
+
+Retrieved for §26 ([#93](https://github.com/winniel123/verge-asm/issues/93)) — the **positive** half of the class sweep. Two rows survived every filter; both class lists are recorded **with the release they were taken at**, per §26.6's rider
+
+- **rsync, `RsyncProject/rsync` at tag `v3.5.0`** — the whole class list, the tree enumerated before any path was resolved. **[`SECURITY.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/SECURITY.md)**, the **deployment class and never opened**: a genuine threat model and residual register (*Robustness against malicious peers*, symlink-race-safe path resolution, *Known residuals*, daemon authentication digest) whose scope is the peer and the filesystem and never the network — **[measured]** `internet` and `public` occur in it **zero** times · [`rsync.1.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/rsync.1.md) § *SECURITY*, which carries a second owner imperative nobody had quoted — *"A direct daemon connection … is **not encrypted** and its authentication is comparatively weak, so do not send sensitive data across an untrusted network"* · [`rsyncd.conf.5.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/rsyncd.conf.5.md) § *SECURITY*, re-confirmed at the tag · `rsync-ssl.1.md` and `support/rrsync.1.md`, both read for the first time and both silent · `csprotocol.txt`, the self-disclaiming protocol note · `packaging/systemd/rsync.socket` (`ListenStream=873`, `Accept=true`, **no address restriction** → permissive → silent under §10.4; and **rsync ships no default `rsyncd.conf` at all**). **[measured] No rsync artefact names the internet in connection with the daemon or with `873`** — a repository-wide search returns six files, every one off-subject, and the rendered [`rsync.1.html`](https://download.samba.org/pub/rsync/rsync.1.html), [`rsyncd.conf.5.html`](https://download.samba.org/pub/rsync/rsyncd.conf.5.html) and [FAQ](https://rsync.samba.org/FAQ.html) return zero matches
+- [rsync Security Advisories](https://rsync.samba.org/security.html) — **checked and refused as a class member.** A per-release CVE register is a **disclosure page**, not a posture document; §20.1 scored Erlang/OTP's `vulnerabilities.md` the same way and this is the second instance (§26.9)
+- **NFS, the IETF side** — the class list established by sweeping the **complete** [`rfc-index.txt`](https://www.rfc-editor.org/rfc-index.txt) for the family rather than by searching likely titles, which is what makes the empty-class finding a measurement. [RFC 7530](https://www.rfc-editor.org/rfc/rfc7530.txt) §1.2 and [RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt) §1.1 — *"Improved access and good performance on the Internet. The protocol is designed to transit firewalls easily…"*, the corpus's strongest §10.3 candidate · **RFC 8881 Appendix C**, which withdraws it — *"NFSv4.1 does not meet the goal of secure use on the Internet"* · RFC 8881 §21 and RFC 7530 §19 on AUTH_SYS — *"it is **unsafe**"*, unscoped, and **stronger than the `nfs(5)` sentence the row holds** · [RFC 8000](https://www.rfc-editor.org/rfc/rfc8000.txt) §1 — v3's numeric IDs *"are **not designed for Internet scaling**"* · [RFC 1094](https://www.rfc-editor.org/rfc/rfc1094.txt) (v2, Informational; the string `security` occurs **zero** times) · [RFC 1813](https://www.rfc-editor.org/rfc/rfc1813.txt) §8 (v3, Informational, with an IESG Note disclaiming IETF involvement). **[measured] The IETF's operational class is empty for NFS: not one RFC in the family carries status `BEST CURRENT PRACTICE`.** [RFC 2623](https://www.rfc-editor.org/rfc/rfc2623.txt) reads like the exception and is a Proposed Standard about MOUNTv3 downgrade attacks
+- **NFS, retrieved because they could only weaken the finding, and did** (§26.4): [RFC 2624](https://www.rfc-editor.org/rfc/rfc2624.txt) §7, §10.1 — *"NFS's protocol design should allow its use via Internet firewalls"*, the strongest pro-Internet language in the corpus, **Informational, 1999, and a pre-protocol requirements document** · [RFC 2054](https://www.rfc-editor.org/rfc/rfc2054.txt) / [RFC 2055](https://www.rfc-editor.org/rfc/rfc2055.txt) (WebNFS, Informational, 1996) — *"NFS servers **across the Internet**"*, an extension whose public filehandle RFC 8881 §4.1 now names in the **past tense**
+- **NFS, the implementation side** — `nfs-utils-2.9.2.tar.xz`, the project's own shipped release artefact from [`kernel.org`](https://www.kernel.org/pub/linux/utils/nfs-utils/2.9.2/). **All 32 shipped man pages** grepped for `internet`, `firewall`, `LAN`, `trusted` and `public`: `nfs.man` carries the row and **[measured]** its *"entirely adequate"* sentence sits in the `.SS "Using non-privileged source ports"` subsection rather than in the section preamble (§26.4); `exports.man` states **no** network boundary and its `/pub *(ro,insecure,all_squash)` gloss is §13.3's refused **label**; `nfs.conf` ships fully commented → permissive → silent. **[measured] nfs-utils publishes no deployment or security document of any kind** — no `SECURITY` file, no `doc/` directory, no hardening guide. Retrieval hazard: **`git.linux-nfs.org` is serving an expired TLS certificate**, so the shipped tarball was used, which §12 makes the stronger source anyway (§26.9)
+- [MySQL 8.4 *Security Guidelines*](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html) §8.1.1, re-read for §26.5 — **[measured]** the sentence §3.4 quotes is preceded, in the same passage, by *"Try to scan your ports from the Internet using a tool such as `nmap`"*, which §3.4 drops
