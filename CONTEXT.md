@@ -228,8 +228,11 @@ facet-agnostic. It does mean writing **six things** — a value space, a **decod
 **canonicaliser**, a **differ**, a **discriminator** (empty for all but `dns-record`, which
 carries the qtype), and a **batch-scope obligation** naming what its silence covers. Every value
 space is a **closed union**, never a record with optional fields, because each facet's measured
-negatives — `NoTLS`, `NotHTTP`, a Name Error — are values and must not collapse into *we did not
-look*. The two costs are **asymmetric**, and it is the asymmetry that decides what must be settled
+negatives — `NoTLS`, `TLSRefused`, `NoHTTPResponse`, a Name Error — are values and must not collapse
+into *we did not look*. A negative is named for **the exchange we made**, never for a property of
+the listener our own offer decided: `http-identity`'s was `NotHTTP` until
+[ADR-0025](./docs/adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md), which is a
+claim about the world that an `http/1.1`-only offer cannot carry against an h2-only listener. The two costs are **asymmetric**, and it is the asymmetry that decides what must be settled
 early: adding a *facet* is strictly additive and costs `revealed` plus one message, while widening
 an existing facet's *value space* moves the output of rows that already produced observations and
 therefore `Break`s every timeline it has. A facet's value space is decided once; the rules read
@@ -246,7 +249,7 @@ it reports a resolution change the same night. Whether a name is admitted under 
 turns on its `Citation`, not on this answer — a certificate SAN survives, a guessed label
 does not. It is a value on `dns-record` as well as `resolution`, since a wildcard synthesises
 answers for *any* qtype. Deciding it takes two measurements — the name's answer and the zone's
-poison signature — so like `Lame`, `NoTLS` and `NotHTTP` it is decided by the **measurement
+poison signature — so like `Lame`, `NoTLS` and `NoHTTPResponse` it is decided by the **measurement
 binary inside one batch**, never assembled afterwards from two observations.
 _Avoid_: unverifiable, synthetic, wildcard hit
 
@@ -270,7 +273,10 @@ _Avoid_: servfail, dangling, broken delegation, dead NS
 An X.509 certificate, held as an immutable value and shared by fingerprint across every
 endpoint presenting it. A certificate cannot change, so it cannot drift; what changes is
 which certificate an `Endpoint` presents — held as the **ordered chain of fingerprints, leaf
-first**, since order is on the wire. What the handshake *negotiated* is not here and is not a
+first**, since order is on the wire. Its two negatives are distinct and both are values:
+**`TLSRefused`** where the peer spoke TLS and accepted no candidate we offered, and **`NoTLS`**
+where nothing on the port spoke TLS at all. Collapsing them files an SSLv3-only or SNI-required
+listener under *not a TLS server*. What the handshake *negotiated* is not here and is not a
 property of a certificate: a negotiated version is a function of our own ClientHello, so it
 would move estate-wide on a library upgrade with nothing in the world having changed. See
 `tls-acceptance`.
@@ -282,7 +288,13 @@ by enumeration on the weekly tier, one handshake per candidate, and attempted ag
 service rather than a curated implicit-TLS port list. *Accepted* is the measured verb; *supported*
 is a capability claim the measurement cannot carry. The **candidate set is the `Batch`'s recorded
 scope, never part of the value**, so an offer of nine ciphers can never assert the tenth was
-refused — and widening the offer is an aperture change yielding `revealed`.
+refused. The candidate set is **declared by us and recorded as what went on the wire, never taken
+from the TLS library's defaults**: a default is not a declaration, and one left in place hides a
+TLS-1.0-only listener as `NoTLS` on exactly the estate `tls-1.0-accepted` exists for. Widening the
+offer is an aperture change, and because the candidate set sits inside the **value** rather than in
+the key it costs a **`Break`** on every timeline of this facet — not a `revealed`, which is an
+opening kind and opens nothing here. See
+[ADR-0025](./docs/adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md).
 _Avoid_: tls config, tls support, cipher scan
 
 **Batch**:
@@ -290,9 +302,12 @@ One source, executed once, against one scope, from one vantage — recording the
 silence covers. The unit of like-against-like comparison. The recorded scope is what the
 batch **completed**, never what it attempted, so a batch that failed outright covers
 nothing and licenses no absence. It may be partitioned along any dimension its source
-still retains completeness over, and no further. It also records the **`Derivation` leaf versions
-of the measurement procedures it ran**, since a prober leaf's content is fixed when the measurement
-happens and not when the fold reads it.
+still retains completeness over, and no further. Every dimension of the recorded scope is recorded
+**by content** — what we asked for, as it went on the wire — and never by the identity of the
+library that chose it for us, since a widening is detected by diffing named dimensions and two
+version strings cannot tell a widening from a narrowing. It also records the **`Derivation` leaf
+versions of the measurement procedures it ran**, since a prober leaf's content is fixed when the
+measurement happens and not when the fold reads it.
 _Avoid_: run, scan run, execution, sweep
 
 **Citation**:
