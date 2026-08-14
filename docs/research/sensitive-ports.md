@@ -34,7 +34,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -403,6 +403,44 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > **Three amendment blocks in this section now state a tier line from three different baselines** — this
 > one, §27's and §30's. They are not in disagreement and are deliberately not patched into agreement:
 > each records what its own pass did, and each carries the composed line beside it.
+
+> **Amended by §31** ([#100](https://github.com/winniel123/verge-asm/issues/100)). **Every tier, count and
+> coverage figure is unchanged — prohibition 14 · scoping 13 · weak 3 · outside-subject 11 · coverage 30
+> of 41 — and the block above's flagged joint is closed rather than moved.** §27 said `10248/tcp` was the
+> first row admitted on a default documented in a **published config-API doc comment** and flagged the
+> extension as its thinnest. #100 rules on the artefact class and on the line beneath it.
+>
+> **A published config-API doc comment is this table's ordinary artefact reached by the ordinary route,
+> and it answers *one* of the third form's two limbs.** It is *documented as its default*; it can never be
+> *takes effect*, because a type definition executes nothing, so the **defaulting code is the other limb
+> and must be retrieved**. **[measured]** it was, for all three rows that have one — `10248/tcp` (§27.6),
+> `10249/tcp` (§27.2) and `10255/tcp` (§16.5 with ADR-0036's [#83](https://github.com/winniel123/verge-asm/issues/83)
+> amendment) — and all three agree. **The class is not weaker; the artefact is narrower.** Its **issuance**
+> is not in question: a doc comment in a module the owner releases is issued under
+> [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) limbs 1 and 5.
+>
+> **And §12's *costly act* reads the code, never the comment** — a comment compiles to nothing and buys no
+> friction at first run, which is §12(a)'s example-config reasoning and
+> [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md)'s executable reasoning
+> a third artefact class over. **Where a comment and the code it annotates state different defaults, the
+> third form is not satisfied at all.**
+>
+> > **[ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md): a
+> > comment takes a position only where it *outlives the value it annotates*.** Change the value: a comment
+> > that remains true and operative is a **candidate position**; one that goes false or moot is a **label**.
+> > **Necessary and not sufficient** — §2.3's and §4.4's position-versus-preference discrimination runs
+> > **second**, on the survivor. **Artefact class does not grade a tier**: ADR-0059 limb 1 counts premises
+> > between a **sentence** and the proposition, and the artefact carrying the sentence is not a premise.
+>
+> **[measured]** *"the port of the **localhost** healthz endpoint"* does **not** survive — set
+> `healthzBindAddress: "0.0.0.0"` and it is false — so it is a **label** and **`10248/tcp` stays in the
+> weak tier**, on a second and independent ground as well: the comment's only truth-maker is the default
+> the weak cell already records, and promoting on it counts one maintainer act twice, which §24.12's
+> *"more than a default"* criterion forbids. §16.5's `10255/tcp` verdict is **re-founded rather than
+> disturbed** — that sentence survives its value and is refused at the **second** step. **[measured]** the
+> instrument reproduces all nine comment verdicts the note carries, across five projects and three
+> artefact classes (§31.5). **No `(port, transport)` pair moves, no row moves, no tier moves, no `Break`.**
+> Read §31.6 and §31.11 before quoting `10248`'s cell.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -3440,6 +3478,31 @@ where §12 and an earlier section disagree, **§12 governs**.
 > exclude one. In particular it is **not** a §10.4.3 remedy: that route needs a restricting act the
 > owner **took**, and an act that takes effect nowhere was not taken.
 
+> **Amended by §31** ([#100](https://github.com/winniel123/verge-asm/issues/100)). **Limb (b) is unchanged
+> and gains the instrument it said it lacked.** §12.8 flagged the directive-versus-label line as this
+> section's thinnest and asked for a case in the gap to be ticketed; #100 is that ticket, met in a **third
+> artefact class** — a published config-API doc comment.
+>
+> > **(b.1) A comment takes a position only where it *outlives the value it annotates*.** Take the value
+> > the comment sits above — a directive in a configuration file, a documented default in a config API —
+> > and change it, within the value space the artefact itself enumerates. A comment that **remains true
+> > and operative** is a **candidate position**: it constrains a configuration other than the one beneath
+> > it. A comment that goes **false or moot** is a **label**: its content is exhausted by the value, and
+> > reading it as a second attestation counts one maintainer act twice. **Necessary and not sufficient** —
+> > §2.3's and §4.4's position-versus-preference discrimination is unchanged and runs **second**, on the
+> > survivor. [ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md).
+>
+> **It explains limb (b)'s poles rather than restating them, and the *comment that argues for its own
+> directive* turns out not to be in the middle.** Cassandra's *"you should not expose this port to the
+> internet"* argues for `rpc_address: localhost` and is a **position** because it goes on binding the
+> operator who sets `0.0.0.0`; net-snmp's *"# Listen for connections from the local system only"* stops
+> describing anything the moment `agentAddress` changes. **[measured]** run over all nine comments in a
+> configuration artefact this note holds — five projects, three artefact classes — the test returns the
+> recorded verdict every time, and **eight of the nine fail at step one** (§31.5). Limb (a) is untouched;
+> limb (b.1) reads **prose**, limb (a) reads **operativeness**, and §31.3 adds that in a config API the
+> two limbs of the third form live in two files and the **costly act is paid only by the code**. **No row
+> and no footing moves.**
+
 **Why §10.4's own test decides this, against the reading it appears to support.** The ticket's
 argument for admitting the example is that a maintainer who comments out one line and leaves the
 other active has made a choice and paid for it — §10.4's *costly act*. Applied rather than invoked,
@@ -4954,6 +5017,24 @@ ReadOnlyPort int32 `json:"readOnlyPort,omitempty"`
 it is the §3.4 quote and is a **description of what the port serves**, not a position on where it may
 be reached from. So `10255` rests on a shipped default and nothing else. **It joins `5432` and `5984`
 in the weak tier, which is now three rows.**
+
+> **Amended by §31** ([#100](https://github.com/winniel123/verge-asm/issues/100)). **This paragraph's
+> verdict is re-founded and not disturbed, and the cell it assigns has since moved for an unrelated
+> reason** — `10255/tcp` left the weak tier for the **prohibition** tier at §18 on Kubernetes' category
+> statement ([ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)),
+> so its footing no longer depends on `readOnlyPort` at all.
+>
+> **What #100 supplies is the test this paragraph reached its verdict without.**
+> [ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md): a
+> comment takes a position only where it **outlives the value it annotates**, and the test is **necessary
+> and not sufficient**. **[measured]** at `k8s.io/kubelet` `v0.34.0` the sentence *"the read-only port for
+> the Kubelet to serve on with no authentication/authorization"* **survives** — set `readOnlyPort: 10255`
+> and it is still true — so it is a **candidate position**, and it is refused at the **second** step on
+> exactly the ground this paragraph states: it describes what the port serves, not where it may be reached
+> from. **`10248/tcp`'s comment fails at the *first* step instead** (§31.6), which is how two doc comments
+> twelve lines apart in one struct reach the same outcome by different routes and is the measurement that
+> makes *necessary-and-not-sufficient* a structure rather than a hedge. **The artefact class refuses
+> neither of them**, and §31.7 rules that artefact class never grades a tier. **No cell moves.**
 
 **The generated CLI page says the opposite, and §10.4's one-way rule disposes of it without
 adjudication.** **[measured]** `kubernetes/website` `release-1.34`'s
@@ -10903,6 +10984,17 @@ section has taken the conservative branch — the one that does not move a tier 
 it. It is routed at §27.14 rather than settled here, and if it is later decided the other way `10248`
 moves from the weak tier to scoping and the tiers read 15 / 13 / 2.
 
+> **Discharged by §31** ([#100](https://github.com/winniel123/verge-asm/issues/100)). **The conservative
+> branch is confirmed, on an instrument rather than on a citation, and the tier does not move.**
+> [ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md): a
+> comment takes a position only where it **outlives the value it annotates**. **[measured]** set
+> `healthzBindAddress: "0.0.0.0"` and *"the port of the localhost healthz endpoint"* is **false**, so it is
+> a **label** and never reaches §2.3's and §4.4's discrimination. A second and independent ground refuses
+> the promotion too: the comment's only truth-maker is the default the weak cell already records, so
+> promoting on it counts one maintainer act twice, which §24.12's *"more than a default"* criterion for
+> the scoping tier forbids. **The `15 / 13 / 2` priced above — `14 / 14 / 2` on the composed state — is
+> not spent.** §31.4, §31.6.
+
 **`10258`'s refusal rests on a negative about a *population* rather than about a document.** *"No
 cloud provider's own documentation places its CCM on `10258` and names a boundary"* is not something
 this section established; what it established is that **Kubernetes** does not, and that Kubernetes
@@ -10941,6 +11033,11 @@ concentration is real and is recorded so that a curator can see it.
   stop being a label* patch. It is the first instance of that gap met in a **published API doc
   comment** rather than in a shipped config file, which is a third artefact class the patch does not
   contemplate. Routed to the curator.
+  > **Discharged.** [#100](https://github.com/winniel123/verge-asm/issues/100), §31 — the artefact class
+  > is the ordinary one answering the third form's *documented* limb only, the **costly act reads the
+  > code**, artefact class never grades a tier, and a comment is a position only where it **outlives the
+  > value it annotates**. `10248/tcp` stays in the weak tier and **the map's patch closes**.
+  > [ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md).
 - **`kubernetes/website`'s generated reference pages carry all three numbers and were deliberately not
   quoted.** `kube-proxy.md`, `kube-proxy-config.v1alpha1.md`, `kubelet.md` and
   `kubelet-config.v1beta1.md` are generated from the source this section quotes directly; §19.7's rule
@@ -12574,6 +12671,561 @@ twice — and it is recorded here so that a later reader does not cite the tidin
 
 ---
 
+## 31. A comment is a position only where it outlives the value it annotates — the map's oldest open patch, closed on an instrument rather than on a citation
+
+Wayfinder ticket [#100](https://github.com/winniel123/verge-asm/issues/100), the case
+[#95](https://github.com/winniel123/verge-asm/issues/95) met and was forbidden to decide. It is the
+first section of this note whose whole subject is an **instrument** rather than a row: the map has
+carried *where a config-file comment stops being a label* as an open patch since
+[#69](https://github.com/winniel123/verge-asm/issues/69), and the rule two sections have been applying
+by citation had never been written down.
+
+> **FIGURE DELTA: nothing moves.** No `(port, transport)` pair, no class, no claim, no footing tier, no
+> coverage figure, no exclusion and no watch-list member. The list stays at **41 pairs**, class totals
+> `12 / 7 / 22`, tiers **prohibition 14 · scoping 13 · weak 3 · outside-subject 11**, coverage **30 of
+> 41**, §6.1's `28 + 8 + 5 = 41`, §4.6's **20** exclusions, ADR-0032 §8's watch list `5432`, `5984`,
+> `10248`, and `verge-core` **136 pairs**. [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)
+> is **not** triggered and nothing `Break`s. **[ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)
+> is minted.**
+>
+> **The basis, named rather than assumed.** Every figure above is read off `main` at commit
+> `c0881ae` — the composed post-merge state after §27, §28, §29 and §30, which is what §1's merge
+> reconciliation table carries. **Three siblings were resolving concurrently with this one**, so if a
+> figure here disagrees with §1, §1 governs: this section adds to none of them and subtracts from none
+> of them, and that is true on every baseline.
+
+**What the ticket priced, and it is not spent.** Decided the other way, `10248/tcp` would move from the
+weak tier to scoping and the tiers would read `15 / 13 / 2` against #95's own baseline — **`14 / 14 / 2`
+against the composed state this section walks from**. It is refused at §31.6 and the option is stated at
+length at §31.9, because it is a good argument.
+
+### 31.1 What was retrieved, and this section's retrieval is unusually small on purpose
+
+The question is about **instruments**, and the artefacts it turns on are already in this note at named
+tags. Three files were nonetheless re-read first-hand rather than cited, because §27.15 ruled in terms
+that *"a by-catch note states what a pass saw at the extent it read, and the next pass owes it a
+re-reading, not a citation"* — and the sentence this whole section turns on is a quotation §27.6 made.
+
+- **`k8s.io/kubelet` `v0.34.0`, `config/v1beta1/types.go`** — `HealthzPort`, `HealthzBindAddress` and
+  `ReadOnlyPort` read whole, comments included. **[measured]** §27.6's and §16.5's quotations are
+  **exact**, including `// +optional` markers the note omits without loss.
+- **`kubernetes/kubernetes` `v1.34.0`, `pkg/kubelet/apis/config/v1beta1/defaults.go`** — the other limb
+  of §2.2's third form for `10248`, re-read because
+  [ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md) limb 3
+  makes it mandatory rather than corroborative. **[measured]** `obj.HealthzPort = ptr.To[int32](10248)`
+  and `obj.HealthzBindAddress = "127.0.0.1"`, both guarded on the field being unset. **And a finding
+  §16.5 did not have: the file sets no `ReadOnlyPort` default at all** (§31.12).
+- **`k8s.io/kube-proxy` `v0.34.0`, `config/v1alpha1/types.go`** — `HealthzBindAddress` and
+  `MetricsBindAddress`, for the two comments §31.5's walk needs from a second component.
+
+**Everything else in this section is quoted from a section of this note that measured it, and the
+section is named at the quote.** No new project was opened, no new number was examined, and no negative
+is asserted that this section did not itself measure — which is the discipline §11.8 and
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3 require,
+kept honest by the smallness of the claim rather than by the size of the corpus. §31.13 records what that
+costs.
+
+### 31.2 The class question — a doc comment is the ordinary artefact reached by the ordinary route, and it answers one limb of two
+
+The ticket's first bullet asks whether a published config-API doc comment is an owner artefact of the
+**same standing** as shipped config bytes under
+[ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)'s *takes effect*
+test, a **weaker class**, or the **same class reached by a different route**. **It is the third, and the
+route is shorter than the question assumes.**
+
+**§2.2's third form has always had two limbs** — *the project's shipped default, **as documented by the
+project***, which §12 states as *the configuration that **takes effect** without the operator acting*
+**and** *the one the project **documents as its default***. ADR-0036 limb 1 already contemplates the two
+limbs living in different artefacts; it says so in terms — *"where the party documents a default
+elsewhere and the two disagree, the documented default governs"*.
+
+**A config-API doc comment answers the second limb and can never answer the first.** It is a **schema**,
+not an instance: a type definition executes nothing, binds nothing and produces no first run. What
+answers the first limb is the defaulting code. For `10248` both were retrieved, and they agree:
+
+> ```go
+> // healthzPort is the port of the localhost healthz endpoint (set to 0 to disable).
+> // A valid number is between 1 and 65535.
+> // Default: 10248
+> // +optional
+> HealthzPort *int32 `json:"healthzPort,omitempty"`
+> // healthzBindAddress is the IP address for the healthz server to serve on.
+> // Default: "127.0.0.1"
+> // +optional
+> HealthzBindAddress string `json:"healthzBindAddress,omitempty"`
+> ```
+> — `k8s.io/kubelet` `v0.34.0`, `config/v1beta1/types.go`, re-read for this section
+
+> ```go
+> if obj.HealthzPort == nil {
+> 	obj.HealthzPort = ptr.To[int32](10248)
+> }
+> if obj.HealthzBindAddress == "" {
+> 	obj.HealthzBindAddress = "127.0.0.1"
+> }
+> ```
+> — `kubernetes/kubernetes` `v1.34.0`, `pkg/kubelet/apis/config/v1beta1/defaults.go`
+
+**So the artefact is not a weaker class; it is a narrower one.** It carries half of the third form
+perfectly and the other half not at all, and the half it carries is the half §2.2 has always required in
+prose. **[measured]** §27.6 retrieved both halves and §16.5 did too (through
+[ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)'s
+[#83](https://github.com/winniel123/verge-asm/issues/83) amendment, which measured
+`applyLegacyDefaults` overwriting the config-API defaults and ruled the config-API set operative on the
+owner's own deprecation label), so **the obligation ADR-0061 limb 3 creates is already discharged for
+every row that has one** — the population is `10248`, `10249` and `10255`, and all three were paired at
+the time.
+
+**And the artefact's issuance is not the question, which is worth saying because it is the first thing a
+reader reaches for.** `k8s.io/kubelet` `v0.34.0` is a **release module the owner publishes**. Under
+[ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) limb 1 a document *carried by a
+release artefact the owner publishes* is issued, and limb 5 says issuance is **not rendering** — so a doc
+comment inside a published module is issued exactly as a manual page in a tarball is, and it is **not
+weakened by also being compiled past**. `10248`'s comment fails, where it fails, on being a **label**;
+it never fails on being unread. That closes off the cheapest available disposal of this ticket and
+forces it onto the axis the map's patch names.
+
+### 31.3 The costly-act question — it reads the code, and the comment is free
+
+The ticket's second bullet asks whether §12's *costly act* test reads the comment or the code it
+annotates, when the two could in principle disagree.
+
+**It reads the code, and the reasoning is ADR-0036's own, one artefact class over.** §10.4.2 admits a
+restricting default because a restriction is a **costly act** — it *"buys friction at first run and the
+maintainer paid for it anyway"*. §12 refused an example config on the same instrument: *"a file nobody's
+daemon reads produces no first run, so it costs its author nothing and it is cheap talk"*, and
+[ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md) carried that sentence
+from configuration files into executables. **A doc comment is the same object a third time.** It
+compiles to nothing. No daemon reads it. No operator meets it at first run. The friction that makes
+`healthzBindAddress: "127.0.0.1"` a maintainer position is bought entirely by
+`pkg/kubelet/apis/config/v1beta1/defaults.go` — every operator who wants healthz off-node must act, and
+the maintainers support that decision — and the comment describes the purchase without contributing to
+it.
+
+**In a shipped configuration file nobody had to separate them**, which is why the question is new. A
+`cassandra.yaml` both states `rpc_address: localhost` and enacts it; the cost and the documentation
+arrive in one artefact. A config API splits them across two files, and only then does *which one does the
+test read* have an answer to give.
+
+> **The rule, and it is stated for the disagreement rather than for the agreement.** §2.2's third form
+> is **conjunctive**. Where a config-API doc comment and the defaulting code state different defaults,
+> **the third form is not satisfied at all**: the comment cannot supply the act, and the code cannot
+> supply the documentation. A comment claiming a restriction the code does not perform is the direction
+> that matters — it would otherwise admit a row on an act nobody took, which is §2.2's opening sentence,
+> *the claim may not be asserted by us*, failing through the owner's own typo.
+
+**This does not re-open §16.5, and the near-miss is worth naming.** §16.5 met **two of the owner's own
+artefacts disagreeing** — `types.go`'s `readOnlyPort` *"Default: 0 (disabled)"* against the generated CLI
+page's `--read-only-port int32  Default: 10255` — and §10.4's one-way rule disposed of it *"without
+adjudication"*: the restricting one attests, the permissive one is silent. That is **two documentations**
+disagreeing, not a **documentation and its code**, and the one-way rule reaches it. ADR-0061 limb 3
+reaches only the case where the *documented* default and the *operative* default are different values,
+which nothing in the corpus exhibits. §31.11 records that limb 3 is therefore derived rather than
+measured.
+
+### 31.4 The instrument — a comment is a position only where it outlives the value it annotates
+
+The map's patch says the two poles are clear and *"a comment that **argues for** its own directive sits
+between them"*, with only §2.3's and §4.4's position-versus-preference test — built for vendor prose —
+available to place it. **The patch is right that the existing instrument does not reach the case, and
+wrong that the case is between the poles.** It is the poles read at the wrong grain.
+
+> **ADR-0061 limb 1 — the survival test.** Take the value the comment annotates — a directive in a
+> configuration file, a documented default in a config API — and change it, within the value space the
+> artefact itself enumerates. A comment that **remains true and operative** is a **candidate position**:
+> it constrains a configuration other than the one it sits above, so it says something the value does
+> not. A comment that goes **false or moot** is a **label**: its content is exhausted by the value, and
+> reading it as a second attestation counts one maintainer act twice.
+>
+> **The test is *necessary* and not *sufficient*.** A surviving comment is not thereby a position; §2.2's
+> second form still requires that what it says be a **position on the proposition the row asserts**,
+> which is §2.3's and §4.4's discrimination, unchanged and now running **second** rather than alone.
+
+**Why this is the right instrument rather than a convenient one — it explains ADR-0036's poles instead of
+restating them.** Cassandra's *"For security reasons, you should not expose this port to the internet.
+Firewall it if needed."* sits immediately above `rpc_address: localhost` and **argues for it** — the
+shape the patch names as the hard middle. It is a position not because it is emphatic but because it
+**binds the operator who overrides the value**: it goes on being the owner's instruction after
+`localhost` becomes `0.0.0.0`. net-snmp's *"# Listen for connections from the local system only"* does
+not bind anybody; change `agentAddress` and it simply stops describing. **The difference is not force,
+and it is not how close the sentence sits to its directive. It is whether the sentence survives the
+directive.**
+
+**And it is the kind of test this note keeps and the kind §10.1 deleted, on the right side of that
+line.** §10.1 removed *"would otherwise require authority"* and §12.4 refused a coherence gate, both
+because they asked a reviewer to imagine **the world** — *does anybody run this?* — with no owner to
+answer. The survival test asks about **the artefact**: the comment's own words, under one substitution
+the artefact itself enumerates (`healthzBindAddress` is a string field of IP addresses; `rpc_address`
+takes an address). It is answered by re-reading a sentence, not by modelling a deployment. That is the
+same line §12.2 drew when it made *takes effect* a reading rather than an adjudication, and §31.11
+records that it is drawn one notch finer here.
+
+**It is also compatible with the adjacent column by construction.**
+[ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) limb 2
+made mood, force and hedging inadmissible for the **tier**. A label/position line that keyed on
+emphasis would put the two columns in contradiction — a hedged sentence outranking an imperative in one
+and the reverse in the other. The survival test reads neither mood nor force, so the two columns grade
+different things without disagreeing about any sentence.
+
+### 31.5 The walk — nine comments, five projects, three artefact classes, and every existing verdict reproduced
+
+This is the test ADR-0042 set for itself and ADR-0059 met: **a reconstructed rule must reproduce the
+verdicts already recorded**, or it is a rewrite with a verdict attached. Run over every comment in a
+configuration artefact this note holds:
+
+| Comment | Change the value | Limb 1 | The note's existing verdict |
+|---|---|---|---|
+| net-snmp `# Listen for connections from the local system only` | `agentAddress udp:0.0.0.0:161` → **false** | **Label** | §12(b)'s own pole |
+| Cassandra *"For security reasons, you should not expose this port to the internet. Firewall it if needed."* | `rpc_address: 0.0.0.0` → **still true, still binding** | **Candidate**; §4.4 confirms a position on placement | §12(b)'s other pole; `9042` prohibition tier (§12.7) |
+| Redis *"it is not a good idea to expose the Redis instance directly to the internet"* | bind directive changed → **still true** | **Candidate**, position | `6379` prohibition tier (§3.4, ADR-0059) |
+| Redis *"IF YOU ARE SURE YOU WANT YOUR INSTANCE TO LISTEN TO ALL THE INTERFACES COMMENT OUT THE FOLLOWING LINE."* | line commented → **moot** | **Label** — a menu | never used as a footing (§12.2 reads it for operativeness only) |
+| `exports(5)`'s `/pub *(ro,insecure,all_squash)` gloss — *"every host in the world"* | `*` narrowed → **false** | **Label** | §13.3's refused label |
+| MongoDB *"Enter 0.0.0.0,::"* | value changed → **moot** | **Label** — a menu | #70's label |
+| kube-proxy `metricsBindAddress`'s *"(Set to `0.0.0.0:10249` / `[::]:10249` to bind on all interfaces.)"* | value set → **moot** | **Label** — a menu, MongoDB's object exactly | §27.4 reads it as a **reachability frame** under [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) limb 2, never as an attestation |
+| kubelet `readOnlyPort`'s *"the read-only port for the Kubelet to serve on with no authentication/authorization"* | `readOnlyPort: 10255` → **still true** | **Candidate**, refused at step two — it describes what the port serves, not where it may be reached from | §16.5's verdict, **re-founded at a different step** |
+| kubelet `healthzPort`'s *"the port of the **localhost** healthz endpoint"* | `healthzBindAddress: "0.0.0.0"` → **false** | **Label** | §27.6's verdict, **re-founded at step one** |
+
+**[measured] Nine comments, nine verdicts, and every one of them is the verdict the note already
+carries.** Eight fail at step one; exactly one reaches step two.
+
+**The two kubelet fields separate at two different steps, twelve lines apart in one struct in one file** —
+and that is the finding that makes *necessary and not sufficient* a structure rather than a hedge. A
+one-step rule would have to give `readOnlyPort` and `healthzPort` the same answer, and the note has
+always given them different ones: §16.5 said *description of what the port serves*, §27.6 said *name for
+the default*. Two different reasons, one instrument, and the instrument reproduces both without being
+told which is which.
+
+**One row of the table is new and is recorded because a reader will otherwise think it was overlooked.**
+kube-proxy's `metricsBindAddress` parenthetical is the owner naming the wildcard bind in its own prose,
+and §27.4 used it — correctly — as ADR-0054 limb 2's discriminator for **where reachability is read**,
+which is a frame question and not an attestation. Limb 1 classes it a **label**, so nothing about
+`10249`'s footing composes wrongly, and §10.3's failure condition is not reached in any case: `10249` is
+Class A on Claim 1, so its boundary limb is not what carries it (§27.5).
+
+### 31.6 `10248/tcp` — the word *localhost* is a label, and #95's conservative branch is confirmed
+
+> ```go
+> // healthzPort is the port of the localhost healthz endpoint (set to 0 to disable).
+> ```
+
+**[measured]** Set `healthzBindAddress` to `"0.0.0.0"` — a value the same struct's sibling field admits,
+in the same commit, with no other change — and the sentence *"the port of the localhost healthz
+endpoint"* is **false**. It does not survive the value it annotates. It is a **label** under ADR-0061
+limb 1, and it never reaches §2.3's and §4.4's discrimination.
+
+> **`10248/tcp` stays in the weak footing tier.** Its footing is `healthzBindAddress: "127.0.0.1"` and
+> nothing else. §27.6's ruling is **confirmed**, and what has changed is that it now rests on a test
+> rather than on a citation of #69's line. **No tier moves; the tiers are 14 / 13 / 3 / 11 and coverage
+> is 30 of 41.**
+
+**The second ground, and it is independent of limb 1 entirely.** Even a reader who rejects the survival
+test has to answer this: the comment's **only truth-maker is the default twelve lines below it**. The
+sentence is true because `healthzBindAddress` defaults to `"127.0.0.1"`, and for no other reason.
+Promoting the row on the comment therefore counts **one maintainer act twice** and calls the second count
+a second support — which is precisely what §24.12's criterion for the scoping tier forbids, since that
+criterion is *"more than a default"*. `10259/tcp` and `10257/tcp` sit in that tier on **two artefacts and
+two acts**: the owner's ports-table cell *and* kubeadm's `--bind-address=127.0.0.1`. `10249/tcp` sits
+there on **two acts**: a restricting `metricsBindAddress` default *and* `source-ip.md` placing the caller
+at `localhost` on the node. `10248/tcp` has **one act, described once and read twice**. The tiers are
+disclosure, and a disclosure that double-counts is worse than no disclosure.
+
+**The comparison §27.6 drew stands and is sharpened.** `10248` and `10256` serve substantially the same
+thing and end in opposite places because the owner's own artefacts separate them; `10248` and `10255`
+carry doc comments in the same file and separate because one survives its value and the other does not.
+**In both pairs the discriminator is the owner's, not ours** — which is what §2.2's opening sentence
+requires and what a *conservative branch taken without an instrument* could not have shown.
+
+### 31.7 The tier question — artefact class is not a premise
+
+The ticket's third bullet asks whether the artefact class changes the **footing tier** as well as
+admissibility. **It does not, and ADR-0059 already contains the reason.**
+
+Limb 1 of that ADR grades *"the distance between the owner's own sentence and the proposition the row
+asserts, counted in premises the reader has to supply"*. **Where the sentence was written is not a
+premise.** A reader who has the sentence has it; whether it arrived in a Go file, a YAML file inside a
+tarball or a paragraph on a documentation site changes nothing about how much of the row's proposition
+the owner said. Reading a class discount into the column would be grading **distance to the reader of the
+artefact** rather than distance to the proposition — a second dimension, silently added to a column
+ADR-0059 had just finished making one-dimensional, and it is ADR-0059 limb 2's shape exactly: *mood, force
+and hedging are inadmissible* because they are facts about the **utterance** rather than about the gap
+between the utterance and the proposition. *Where it was written* is the same kind of fact.
+
+**And a class discount is measured breaking two cells nobody asked to move.** **[measured]** `9042/tcp`
+Cassandra's **prohibition-tier** footing is a comment in a YAML file inside a source tarball (§12.7), and
+`5984/tcp` CouchDB's rests on a line in `rel/overlay/etc/default.ini` — the artefact §12.5 calls *"the
+cleanest instance of §2.2's third form in the note"*. A rule that demotes a form's cleanest instance is
+measuring the wrong thing.
+
+**What the artefact class does bear on is volatility, and that is a different column.** ADR-0032 §8's
+watch list exists because a restricting default can be flipped in one commit with nothing announcing it,
+and #95's own amendment to that ADR named `10248` as *"exposed in the sharpest available form: its
+default is documented in a **published config-API doc comment** rather than in prose, so the artefact a
+curator must watch is a Go source file's comment, which one contributor can change in one commit without
+any release note."* **That observation is correct and it belongs where #95 put it.** It is not a reason
+to move a tier; it is a reason the map's open *should the watch list key on tier or on volatility* patch
+now has a **third** candidate axis beside tier and evidence age — **artefact class** — and §31.12 reports
+it as fog rather than sharpening it here.
+
+### 31.8 The ruling
+
+> - **A published config-API doc comment is §2.2's ordinary artefact reached by the ordinary route, and
+>   it answers *one* of the third form's two limbs.** It is *documented as its default*; it can never be
+>   *takes effect*, because a type definition executes nothing. The defaulting code is the other limb and
+>   must be **retrieved**. **[measured]** both were retrieved for all three rows that have one — `10248`,
+>   `10249`, `10255` — and all three agree (§31.2). **The class is not weaker; the artefact is narrower.**
+> - **Its issuance is not in question.** A doc comment in a module the owner releases is **issued** under
+>   ADR-0045 limb 1 and is not weakened by also being compiled past (§31.2).
+> - **§12's costly act reads the code, never the comment.** Friction at first run is bought by the
+>   defaulting function; a comment buys none, which is ADR-0036 limb 4 and ADR-0056 one artefact class
+>   further over. **Where the comment and the code state different defaults the third form is not
+>   satisfied at all** (§31.3).
+> - **A comment takes a position only where it outlives the value it annotates** — change the value: a
+>   comment that stays true and operative is a **candidate position**, one that goes false or moot is a
+>   **label** and attests only what the third form already attests. **Necessary and not sufficient**;
+>   §2.3's and §4.4's position-versus-preference discrimination runs second on the survivor (§31.4).
+>   **[ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)
+>   is minted.**
+> - **[measured] *"the port of the localhost healthz endpoint"* does not survive**: set
+>   `healthzBindAddress: "0.0.0.0"` and it is false. It is a **label**. **`10248/tcp` stays in the weak
+>   tier**, and it stays there on a second, independent ground as well — promoting it counts one
+>   maintainer act twice, which §24.12's *"more than a default"* criterion forbids (§31.6).
+> - **Artefact class does not grade a footing tier** (§31.7). ADR-0059 limb 1 counts premises between a
+>   **sentence** and the proposition, and the artefact carrying the sentence is not one. Class bears on
+>   **volatility** — ADR-0032 §8's watch list — and that is a different column.
+> - **The instrument reproduces every verdict already recorded**: nine comments, five projects, three
+>   artefact classes, nine matches, eight of them at step one (§31.5).
+> - **Nothing moves.** 41 pairs · `12 / 7 / 22` · tiers 14 / 13 / 3 / 11 · coverage 30 of 41 · `28 + 8 +
+>   5 = 41` · 20 exclusions · watch list `5432`, `5984`, `10248`. **The map's *where does a config-file
+>   comment stop being a label* patch closes.**
+
+### 31.9 The options that lost
+
+**Rule *"the port of the localhost healthz endpoint"* a position and move `10248` to the scoping tier.**
+The strongest losing option, the one the ticket priced, and the one a reader will arrive with. **Its case
+is good.** *localhost* is a **network locality**, not a function; the owner did not have to write the
+word and could have written *"the port of the healthz endpoint"*; §10.3's boundary limb asks the owner
+to **name the boundary** and *localhost* is the narrowest boundary that exists; and §27.6 itself conceded
+the word does evidential work — *"the label tells you the default is deliberate"*. **It loses twice.**
+On limb 1, because the sentence does not survive its own value: flip `healthzBindAddress` and it is
+false, which is what distinguishes it from `readOnlyPort`'s comment in the same struct. And on
+**double-counting**, independently of limb 1: the sentence's only truth-maker is the default the
+weak-tier cell already records, so the promotion counts one act twice, and §24.12's criterion for that
+tier is *more than a default* rather than *the default said twice*. **The cost of being wrong here is
+one cell in a disclosure column** — no row, no class, no claim, no rule version — which is why it can be
+recorded honestly rather than defended anxiously.
+
+**Rule the doc comment a weaker artefact class and discount the footing.** Its case: a Go struct comment
+is further from a reader than a documentation page; §16.5 accepted the artefact for a **footing** only,
+on a row that was already listed; and §27.13 named admission on it as the note's thinnest joint, adding
+that PostgreSQL's default *"is documented in prose on the project's documentation site"* while `10248`'s
+is not — *"one difference that cuts against it"*. **It loses on ADR-0059 limb 4's reasoning at §31.7**:
+the artefact is not a premise. And it loses on **measurement**: **[measured]** the same discount applied
+honestly demotes `9042/tcp` Cassandra out of the **prohibition** tier — its sentence is a YAML comment in
+a tarball — and weakens `5984/tcp` CouchDB, whose artefact §12.5 calls the note's cleanest instance of
+the third form. Two cells move on a question nobody asked, which is §30.7's refusal shape met a second
+time.
+
+**Rule the doc comment not an owner artefact at all — a code comment is code, not documentation.** The
+purest version of the sceptical reading, and it has §19.7's provenance instinct behind it. **It loses on
+ADR-0045 limb 1**: `k8s.io/kubelet` `v0.34.0` is a release artefact the owner publishes, so the comment is
+**issued**, and limb 5 makes issuance independent of rendering — a document in a release artefact but not
+on the website is issued. It loses again on **cost**, and the cost is disqualifying under this ticket's
+own constraints: it takes `10255`'s footing (§16.5) and `10249`'s scoping cell (§27.5) with it, and it
+leaves `10248/tcp` with **no footing cell at all** while its row stands — a listed row with an empty cell,
+which is the gap §13.7 found and §16.7's coverage line exists to prevent. It would also re-open `10248`'s
+**admission**, since #95 settled that on §10.3's first branch *named by a restricting shipped default in
+the owner's own config API*, and this ticket forbids re-opening it.
+
+**Make the survival test sufficient as well as necessary.** Tempting, because it would make the whole
+question a single retrieval and limb 1 is otherwise built for exactly that property. **It loses on
+`readOnlyPort`.** *"The read-only port for the Kubelet to serve on with no authentication/authorization"*
+survives every value flip — it is true whether the port is `0` or `10255` — and it is plainly not a
+position on network placement. Sufficiency would promote §16.5's measured **description** into a position
+and move a **prohibition**-tier cell as a side effect. This is ADR-0059 limb 3's shape — *necessary for
+the top verdict, not sufficient* — met in a second column, and it is recorded as an inheritance rather
+than invented here.
+
+**Decline the ADR and record #95's branch as settled.** The house default: §16.6's test declined an ADR
+at §20.9, §23 and §24.9, and #90 and #91 declined one too. **It loses for ADR-0059's reason exactly.**
+Every prior declination could name **two general rules** that between them decided the case. Here the
+deciding rule was written down **nowhere** — ADR-0036 says so in its own *Thin ground*, §16.5 and §27.6
+each concluded *label* by citation, #70 applied the line three times across fourteen artefacts without
+reaching a case in the middle, and the map has carried the gap as an open patch for the whole life of the
+note. ADR-0042 refused *"leave it unwritten and decide case by case"* on precisely this ground.
+
+**Answer the artefact-class question and leave the label/position line alone.** Narrower, and it is what
+the ticket's three bullets literally ask. **It loses because the three bullets are one question.** The
+class question is only live because a **label** is what the doc comment turned out to be: had the comment
+survived its value, the class question would have been answered by ADR-0045 in one line and the tier
+question would never have arisen. A section that ruled on the class and left the line open would have
+re-routed the same case a third time, which is what §27.13 was complaining about.
+
+### 31.10 Every dependent figure, walked rather than asserted
+
+Walked against `main` at commit `c0881ae` — the composed post-merge state after §27, §28, §29 and §30,
+which §1's merge-reconciliation table carries. **This section's delta is empty in every state of the
+world**, which is why the walk is a confirmation rather than an arithmetic: it adds to no count and
+subtracts from none, so a sibling landing after it changes the numerals below without changing a single
+verdict.
+
+| Where | As read at `c0881ae` | §31's effect on it |
+|---|---|---|
+| **§2.2 weak tier — `10248/tcp`'s cell** | **3 rows: `5432`, `5984`, `10248`** | **Unchanged. This is the section's whole subject and it does not move** — the promotion is refused at §31.6 on two independent grounds |
+| §2.2 scoping tier | 13 pairs | **13, unchanged.** `10248` does not join it |
+| §2.2 prohibition tier | 14 pairs | **14, unchanged.** `9042` and `5984` are *tested* against the class-discount option (§31.9) and neither moves |
+| §2.2 *outside this table's subject* | 11 pairs | **11, unchanged.** `14 + 13 + 3 + 11 = 41` |
+| §2.2 footing coverage | 30 of 41 | **30 of 41, unchanged.** No pair enters or leaves the table and none moves between its rows |
+| §1 pair count | 41 | **41, unchanged.** `10248`'s admission is not re-opened — the ticket forbids it and §31.9's third option is refused partly for reaching it |
+| §3.1 / §3.2 / §3.3 class totals | `12 / 7 / 22` | **unchanged.** No claim cell is read here |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged**, and §27.13's *"`10248` is thinner than §4.5's"* stands: this section refuses to make the row stronger, which is the opposite of curing it |
+| §4.6 exclusions | 20 | **unchanged.** Nothing is refused and nothing re-opens |
+| §6.1 containment arithmetic | `28 + 8 + 5 = 41` | **unchanged** — [#97](https://github.com/winniel123/verge-asm/issues/97) owns the figure and nothing here reaches it |
+| §10.1's Class A walk | twelve rows | **unchanged** |
+| §12.1 limb (b) | poles stated, middle unavailable | **amended in place** — limb 1 is the instrument limb (b) said it lacked. **Limb (b) is not corrected**, and §2.3's and §4.4's discrimination is not withdrawn; it runs **second** |
+| §12.2's artefact count | ten artefacts, nine self-declarations | **unchanged.** §31.5's walk reads **comments**, not operativeness self-declarations, and adds no artefact to that population |
+| §16.5's `10255/tcp` ruling | *"a description of what the port serves, not a position on where it may be reached from"* | **re-founded, not disturbed.** It fails at limb 1's **second** step. The row's footing has been the prohibition tier's since §18 and does not depend on the comment today |
+| §17.1's population of negatives | fifteen | **unchanged.** No negative is created or retired |
+| §17.8's and §22.8's residue | zero | **unchanged.** This is not a determinacy pass |
+| §24.12's *"more than a default"* scoping criterion | stated, applied to `10259`/`10257` | **applied a second time, in the refusing direction** (§31.6). Its first refusal, and the first time it has done work rather than been quoted |
+| §27.6's *localhost* refusal | applied by citation, flagged at §27.13 | **confirmed on an instrument.** The verdict is identical; its ground is now a test |
+| §27.13's fourth *thin ground* paragraph | *"applied and not argued"*, routed to #100 | **discharged** |
+| §27.14's second by-catch bullet | routed to the curator | **discharged** |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984`, `10248` | **unchanged.** The weak tier does not move, so the watch list does not. §8's *sequence* stays `3 → 2 → 3 → 2 → 3` |
+| [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) | limb 2 stated; *Thin ground* flags the gap | **limb 2 unchanged; the flag is discharged.** ADR-0036 gains an amendment note pointing at ADR-0061 |
+| [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) | five limbs | **untouched as a rule, and used**: limbs 1 and 5 are what make a published doc comment *issued* (§31.2) |
+| [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) | limb 2's frame | **untouched.** §31.5's `metricsBindAddress` row confirms that a **frame** reading and an **attestation** reading of one sentence do not collide |
+| [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) | three limbs | **untouched as a rule; gains a *confirmed by use* note.** Limb 2 is read one column over by ADR-0061 limb 4 |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | 136 pairs | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet` is byte-identical; a footing, a tier and an artefact class are all evidence-side |
+| [`weak-key-and-signature.md`](./weak-key-and-signature.md) | — | **untouched.** It has no config comments and no footing tier |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted, and ADR-0036, ADR-0040, ADR-0045, ADR-0048, ADR-0056 and ADR-0059 all set the precedent for staying out of that file while concurrent passes are running |
+| ADR count | 0059 highest at `c0881ae` | **0061 minted.** 0060, 0062 and 0063 are reserved to concurrent passes; 0039, 0041, 0052, 0053 and 0057 remain gaps |
+
+**Nothing is routed to [#12](https://github.com/winniel123/verge-asm/issues/12).** The spec carries the
+list, the claims and the containment arithmetic; none of them reads a footing, a tier or an artefact
+class, and #100's own pricing said so from both sides.
+
+### 31.11 Thin ground, flagged per the standing rule
+
+**The survival test is a counterfactual, and §10.1 deleted a counterfactual.** §10.1 removed *"would
+otherwise require authority"* for asking a reviewer to imagine something, and §12.4 refused a coherence
+gate — *a restricting default attests only where the restriction describes a deployment somebody actually
+runs* — on the same ground. *Change the value and re-read the sentence* is also an imagining. **The
+defence is a real distinction and it is thinner than §12.2's.** The deleted counterfactuals asked about
+**the world** — *does anybody run this?* — a question with no owner to answer it. This one asks about
+**the artefact**: the comment's own words, under one substitution the artefact itself enumerates. But
+§12.2's test was *a sentence already in the file*, and this one is *a sentence plus an operation*, which
+is one notch further from a pure reading. **The criterion that would change the verdict:** a comment whose
+survival two competent readers answer differently. None of the nine at §31.5 is close — eight go plainly
+false or moot and one plainly survives — but nine is a sample and the note has been wrong about *nine for
+nine* before (§13.6).
+
+**Limb 1's admitting half is unexercised.** Every candidate position the walk finds was already a known
+position, and no comment in the corpus survives its value *and* takes a placement position without having
+been read as a position long ago. So *necessary-and-not-sufficient* has **one** instance on the
+sufficient side (`readOnlyPort`, and its step-two verdict is §16.5's, inherited rather than re-derived)
+and **zero** on the admitting one. The rule is **correct and untested in the direction that adds
+evidence**, which is [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md)'s
+position exactly and is named as the same cost §25.6 priced.
+
+**Limb 3 is derived rather than measured.** No config-API doc comment in the corpus disagrees with its
+defaulting code; all three pairs agree. So the disagreement rule is written for a case that has not
+happened, on an argument — the comment is free, the code is not — rather than on an instance. The nearest
+thing the note holds is §16.5's `readOnlyPort`, where two of the owner's own **documentations** disagree
+and §10.4's one-way rule already disposes of it. **The criterion that would change the verdict:** a
+config-API comment stating a restricting default the defaulting code does not set, at which point limb 3
+either does the work it was written for or is found to be reaching for §10.4's one-way rule under another
+name.
+
+**`10248/tcp` is not made stronger by this section and remains where a reviewer should push.** §27.13
+called it *"the thinnest row this section adds and thinner than §4.5's"*, and that stands unchanged: one
+restricting default, documented in a Go struct comment, no owner sentence anywhere. This section refuses
+its **promotion**, which is the conservative direction; it does not cure the row and does not claim to.
+§27.13's own reopening criterion is untouched and is expressly refused here rather than left open — a
+ruling that §2.2's third form requires **prose** documentation rather than a published API surface would
+re-open `10255`'s footing and `10249`'s cell, and §31.9's third option prices it.
+
+**One instrument, one section, and it decides a patch that has been open since #69.** ADR-0059 was
+minted three days ago on a criterion two sections had reconstructed differently; this one is minted on a
+criterion **no** section had reconstructed at all. The counterfactual is the defence — without it,
+`readOnlyPort` and `healthzPort` are indistinguishable on the written rules, and the next session
+meeting a config comment has nothing to read but two examples — but a rule whose whole warrant is that
+it reproduces nine existing verdicts has demonstrated **consistency**, not **correctness**. A rule that
+reproduced every verdict and was still wrong would look exactly like this.
+
+**The retrieval is the smallest of any ruling section in this note.** Three files, one project. §31.13
+records why that is adequate here and where it would not be.
+
+### 31.12 By-catch and open items, routed rather than acted on
+
+- **[measured] `defaults.go` sets no `ReadOnlyPort` default, so `readOnlyPort`'s documented `Default: 0
+  (disabled)` is Go's zero value rather than an assignment the owner wrote.** `pkg/kubelet/apis/config/v1beta1/defaults.go`
+  at `v1.34.0` sets `HealthzPort` and `HealthzBindAddress` explicitly and does not touch `ReadOnlyPort`;
+  the documented value and the operative value agree, and the mechanism producing the operative one is
+  the **language's**, not the party's. §27.2 already leaned on a zero value in the **refusing** direction
+  — *"`enableProfiling` has no defaulting function and no documented default … so it is Go's zero value,
+  `false`"* — so there are **two instances pointing in opposite directions** and ADR-0036's *takes
+  effect* limb does not say whether a default the owner never wrote is the owner's act. **Ticketed**, per
+  ADR-0037 limb 2, and **nothing in the note depends on the answer today**: `10255/tcp`'s footing has been
+  the prohibition tier's since §18 and its row is Class A on Claim 1, so no cell turns on it.
+- **Does a new *reading instrument* re-arm a finished class sweep?** §17.8 and §26.6 fix a sweep's result
+  *as of a stated table state*, and every re-arming trigger the map's curation patch enumerates is
+  **world-side** — an owner publishing, a footing moving, a competitor starting to document. ADR-0061 is
+  **reader-side**. **[measured] it is answered for this corpus rather than left open**: §31.5 runs the
+  instrument over every comment in a configuration artefact the note holds and reproduces every verdict,
+  so nothing is owed and no sweep is re-armed. Reported as fog, deliberately **not** ticketed — the
+  general question is real but has no live instance, and the map's ninth-trigger proposal was already
+  refused on cost.
+- **The generated config-API reference pages carry these comments verbatim and were deliberately not
+  quoted.** `kubelet-config.v1beta1.md` and `kube-proxy-config.v1alpha1.md` at `kubernetes/website`
+  `release-1.34` are generated from the source this section reads directly; §19.7's rule, obeyed at no
+  cost because the source was being read anyway. §27.14 recorded the same thing for the same pages.
+- **Artefact class is a third candidate axis for ADR-0032 §8's watch list**, beside footing tier and
+  evidence age (§31.7). The map's *a row can be exposed to silent de-attestation without being in the weak
+  tier* patch already carries the question and already says it is not sharp because nobody has proposed
+  what evidence age would be **measured on**. Artefact class has the opposite property — it is trivially
+  measurable and it is not obviously the right axis. Reported to the curator as a sharpening of that
+  patch, not as a ticket.
+
+### 31.13 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10 and §30.10
+
+- **A quotation this note has made twice was re-read rather than cited, and that was the right call even
+  though it changed nothing.** §27.6 quoted `healthzPort`'s comment and §16.5 quoted `readOnlyPort`'s;
+  both are **exact** at `v0.34.0`. §27.15 established the obligation in the opposite case — a by-catch
+  record that was **wrong** about pprof — and the honest report is that obeying the rule here confirmed
+  rather than corrected. **A rule that only pays out when it catches something is a rule nobody will
+  run.** Recorded so the negative result is visible.
+- **The section's whole ruling rests on one sentence in one file, and the sentence was verified before
+  the ruling was written rather than after.** Had the comment read *"the port of the healthz endpoint"*
+  with no `localhost`, this ticket would have had no subject and §27.6's refusal would have been trivial.
+  Ordering matters here in a way it did not in §30, where the sentences were the ones already in §3.4.
+- **The retrieval is three files from one project, which is the smallest of any ruling section here, and
+  it is adequate only because the question is about an instrument.** §31.5's walk quotes eight comments
+  from **sections of this note** rather than from re-fetched bytes — net-snmp's, Cassandra's, Redis's
+  two, `exports(5)`'s, MongoDB's and kube-proxy's — at the tags those sections name. That is a citation
+  where §27.15 asked for a re-reading, and the defence is narrow: **the ruling does not turn on any of
+  their contents**, only on whether the instrument reproduces verdicts those sections already reached, so
+  a misquotation would show up as a *disagreement with the recorded verdict* rather than as a silent
+  error. **Where it would not be adequate** is a section that moved a cell on one of those eight, and none
+  is moved. Named rather than smoothed, because §13.10 called an unchecked hand count *"the kind of thing
+  that goes wrong"* and this is its cousin.
+- **A negative this section rules on is a negative this section measured.** *"`defaults.go` sets no
+  `ReadOnlyPort` default"* (§31.12) is read off the file retrieved here, not inferred from §16.5's
+  silence, and it is stated as *not set at `v1.34.0` in that file* rather than as *never set anywhere* —
+  ADR-0037 limb 3, and ADR-0036's #83 amendment already measured `applyLegacyDefaults` setting it on the
+  flag path.
+- **No cluster was run, no port was probed, and no counterfactual was executed.** The survival test is a
+  reading of a sentence under a substitution, not an experiment: nobody set `healthzBindAddress` to
+  `"0.0.0.0"` and observed anything. §31.11 records that this is the test's thinnest property and the
+  reason it is nonetheless on the right side of §10.1's line.
+- **The walk was run before the ruling and in both directions.** The nine comments at §31.5 were
+  classified before `10248`'s verdict was written, and the promoting direction — *which comments would
+  the test admit that the note currently refuses?* — was run and returned **none**. A criterion run in one
+  direction only is §30.10's *rewrite with a verdict attached*, and this one was run the other way first
+  for that reason.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -12800,3 +13452,10 @@ Retrieved for §26 ([#93](https://github.com/winniel123/verge-asm/issues/93)) �
 Retrieved for §30 ([#98](https://github.com/winniel123/verge-asm/issues/98))
 - **MySQL, the same passage at a second *issued* version, per [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s per-version rule.** [MySQL **9.7** *Security Guidelines*](https://dev.mysql.com/doc/refman/9.7/en/security-guidelines.html) §8.1.1, the current innovation release, alongside [**8.4**](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html), the LTS. **[measured]** the three-sentence run — *"Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by default. This port should not be accessible from untrusted hosts."* — is present in **both**, identical in wording and order, and both pages also carry the numbered guideline *"Do not transmit plain (unencrypted) data over **the Internet**."* **[measured]** all three sentences sit inside a **single `<p>`**, the first element of the **only** `<li>` of the *Checklist* sub-list under *"Invest in a firewall … Put MySQL behind the firewall or in a demilitarized zone (DMZ)"*; the `telnet server_host 3306` example and *"If **telnet** hangs or the connection is refused, the port is blocked, **which is how you want it to be**"* are siblings inside the same `<li>`. **There is no block boundary between *from the Internet* and the prohibition**, which is what discharges §26.5's *marginal* verdict (§30.3). **Retrieval hazard:** `refman/**9.4**/` returns **HTTP 302** to `refman/9.7/` rather than a 404, so a session citing 9.4 in good faith cites a URL that silently serves a different version — §12.9's substitution hazard arriving through a redirect (§30.10)
 - **rsync at `v3.5.0`, re-measured rather than inherited**, because the absence is what §30 rules on (§11.8, [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3). **[measured]** case-insensitive `internet` returns **0** matches in [`rsync.1.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsync.1.md) (251,801 B), [`rsyncd.conf.5.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsyncd.conf.5.md) (72,903 B) and [`SECURITY.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/SECURITY.md) (34,054 B), with non-empty payloads confirmed for each so a zero is a measurement and not a failed fetch. Both owner sentences re-confirmed at the tag; **[measured]** the `rsyncd.conf.5.md` bullet carries **no quotation marks in the source** — the marks in §3.4 and §13.2 are the note's, and the bullet's own heading is *"**Encrypt the connection.**"* (§30.10)
+
+Retrieved for §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — three files, one project, and the smallest retrieval of any ruling section here, because the question is about an **instrument** rather than a row (§31.13)
+- **[`k8s.io/kubelet` `v0.34.0`, `config/v1beta1/types.go`](https://raw.githubusercontent.com/kubernetes/kubelet/v0.34.0/config/v1beta1/types.go)** — `HealthzPort`, `HealthzBindAddress` and `ReadOnlyPort` re-read whole with their doc comments, per §27.15's rule that the next pass owes a by-catch record a **re-reading rather than a citation**. **[measured]** §27.6's and §16.5's quotations are **exact**: *"healthzPort is the port of the localhost healthz endpoint (set to 0 to disable). … Default: 10248"*, *"healthzBindAddress is the IP address for the healthz server to serve on. … Default: `"127.0.0.1"`"*, and *"readOnlyPort is the read-only port for the Kubelet to serve on with no authentication/authorization. … Default: 0 (disabled)"*. The two sentences this section's ruling turns on, and they separate at two different steps of ADR-0061 limb 1 twelve lines apart in one struct
+- **[`kubernetes/kubernetes` `v1.34.0`, `pkg/kubelet/apis/config/v1beta1/defaults.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/kubelet/apis/config/v1beta1/defaults.go)** — the *takes effect* limb, retrieved because [ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md) limb 3 makes the pairing **mandatory** rather than corroborative. **[measured]** `obj.HealthzPort = ptr.To[int32](10248)` and `obj.HealthzBindAddress = "127.0.0.1"`, each guarded on the field being unset — so both limbs of §2.2's third form are met for `10248/tcp` and they agree. **And the by-catch §16.5 did not have: this file sets no `ReadOnlyPort` default at all**, so `readOnlyPort`'s documented *"Default: 0 (disabled)"* is produced by Go's **zero value** rather than by an assignment the owner wrote (§31.12). Stated as *not set at `v1.34.0` in this file*, never as *never set anywhere* — ADR-0037 limb 3, and ADR-0036's [#83](https://github.com/winniel123/verge-asm/issues/83) amendment already measured `applyLegacyDefaults` setting it on the flag path
+- **[`k8s.io/kube-proxy` `v0.34.0`, `config/v1alpha1/types.go`](https://raw.githubusercontent.com/kubernetes/kube-proxy/v0.34.0/config/v1alpha1/types.go)** — `HealthzBindAddress` and `MetricsBindAddress`, for the two comments §31.5's walk needs from a second component. **[measured]** §27.2's quotation is exact, including the parenthetical *"(Set to `0.0.0.0:10249` / `[::]:10249` to bind on all interfaces.)"* that §31.5 classes a **label** and §27.4 reads as ADR-0054 limb 2's reachability frame
+- **Quoted from this note rather than re-fetched, and named as such** — the other eight comments in §31.5's walk (net-snmp's, Cassandra's, Redis's two, `exports(5)`'s, MongoDB's and kube-proxy's) come from §12.2, §12.7, §13.3 and §27.2 at the tags those sections name. **The ruling turns on none of their contents**, only on whether the instrument reproduces the verdicts those sections reached, so a misquotation would surface as a disagreement with a recorded verdict rather than as a silent error. §31.13 records why that is adequate here and where it would not be
+- **Located and deliberately not quoted**, per §19.7 and §27.14 — the **generated** config-API reference pages [`kubelet-config.v1beta1.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/config-api/kubelet-config.v1beta1.md) and `kube-proxy-config.v1alpha1.md`, which carry these comments verbatim and are generated from the source read above
