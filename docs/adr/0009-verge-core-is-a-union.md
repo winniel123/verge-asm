@@ -294,6 +294,50 @@ kube-proxy is **refused** — §24. The list is **39** pairs.
 - **The *"Correcting a mis-aimed port"* worked example is unaffected**: it turns on a transport
   mismatch and neither new pair has a UDP sibling in either half.
 
+### Amendment — [#97](https://github.com/winniel123/verge-asm/issues/97): the membership claim is measured, and the mechanism above it is withdrawn from this ADR's own body
+
+The Decision is unchanged for the third time. What moves is the **evidence** under #91's amendment and
+one **sentence inside it** — written in this ADR, and contradicting the Decision table two screens up.
+
+[#97](https://github.com/winniel123/verge-asm/issues/97) enumerated the frequency half from
+[#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 and tested all 39 sensitive pairs against
+it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29.
+
+- **The membership claim is confirmed and is now measured.** **[measured]** The frequency half is
+  **123 ports, all TCP** — 81 retained from nmap's top-100 after 19 deletions, plus 44 net-new from
+  the supplement, less this ADR's own removal of `161/tcp` and `623/tcp`. §2.3's orchestration limb is
+  `2375, 2376, 2379, 2380, 6443, 10250, 10255` and stops there, so **neither `10259/tcp` nor
+  `10257/tcp` is in the frequency half**. #91's *"neither new pair is in the frequency half"* holds,
+  and *"the addition must be checked against #4 §2.3's modern-services supplement at merge"* is
+  **discharged**. Independently re-derived, and it reproduces
+  [`nmap-services-licence.md`](../research/nmap-services-licence.md) §6.2's count exactly.
+- **`verge-core` is 134 pairs** — 123 from the frequency half plus the 11 the sensitive half
+  contributes alone (6 TCP: `512`, `4369`, `25672`, `27019`, `10259`, `10257`; 5 UDP: `69`, `137`,
+  `138`, `623`, `11211`). 129 of those are probed on default settings, UDP being off.
+- **The clause *"§6's one-directional invariant fires for the first time in earnest … forces two
+  hot-set additions"* is WITHDRAWN.** It describes the mechanism **this ADR dissolved**: the Decision
+  table reads *"The invariant: **Dissolved**"* and *"Enforcement: **None, anywhere**"*, and the
+  Consequences say the test *"is **not written**"*. Nothing fires and nothing is forced. **The union
+  widens by two because the sensitive half gained two members the frequency half does not carry** —
+  which is what the Decision's *"Derived: `frequency-set ∪ sensitive-list`"* row already says, and it
+  needs no invariant to say it. `10259/tcp` and `10257/tcp` were inside `verge-core` from the instant
+  §24 admitted them; there was never a separate addition to perform or a gate to pass.
+- **The widening, the price and the coupling direction are all unaffected.** *Cost yields to
+  correctness* still names why the union runs this way. **[measured]** the yield is **+1.6 %** of the
+  daily tier's per-host probe budget — 127 → 129 TCP pairs, 19.0 s → 19.3 s per pass on a dropping
+  host under §6.3's caps — with no change to technique, to the zero-added-capabilities budget, or to
+  the concurrency bound that governs the middlebox hazard. [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md)
+  does not bite: both pairs join a configured `Scan` at a daily cadence, so they have currency.
+- **This ADR is the second site where the dissolved mechanism was written forward**, the first being
+  [`sensitive-ports.md`](../research/sensitive-ports.md) §6, which was never amended and which #91
+  read. The Consequences section anticipated a confused reader and answered with a **pointer** —
+  *"A reader finding §6 and no test in the codebase should read this ADR"* — which reaches only a
+  reader who arrives holding the ADR. Two passes did not, and the second carried the mechanism into
+  [#97](https://github.com/winniel123/verge-asm/issues/97)'s own stated stakes, one hop from the spec.
+  [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) is the rule
+  that forces the withdrawal to happen at the superseded site instead. §6, §6.1, §6.3, §7.1 and §1's
+  summary row are amended in place.
+
 ## Alternatives rejected
 
 **Keep the lists independent with a build-time test** — [#21](https://github.com/winniel123/verge-asm/issues/21)

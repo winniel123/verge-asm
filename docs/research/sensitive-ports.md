@@ -39,7 +39,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
 | High ports that are conventionally anything | **Excluded by the determinacy gate**, which is a gate on the *port*, not on the service — §4.3. **Amended by §14 — a squat is contested where the other convention is *live*, which is why 9200 is listed and 9100, 7000 and 7001 are not ([ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md))** |
 | Does the list have a middle | **No middle, one signal, binary** — and not because the middle is empty, but because it is not a property of the port — §5 |
-| Hot-set containment | **Independent lists, one-directional build-time invariant `sensitive ⊆ hot`** — §6 |
+| Hot-set containment | **Independent lists, one-directional build-time invariant `sensitive ⊆ hot`** — §6. **Superseded by [ADR-0009](../adr/0009-verge-core-is-a-union.md) and never amended here until §29 ([#97](https://github.com/winniel123/verge-asm/issues/97)): `verge-core` is the *union* `frequency-set ∪ sensitive-list`, so containment is **analytic** and **nothing enforces it anywhere** — no build-time test, no config-load check, no runtime check. The lists stay independent and the coupling direction is unchanged; what is withdrawn is the mechanism.** **[measured]** §6.1's arithmetic `28 + 6 + 5 = 39` is re-derived against the 123-member frequency half and **every cell is confirmed** — §29 |
 | Closest call | **6443 kube-apiserver, excluded** — §4.4 |
 
 The headline result is the one that would not have come out of a frequency instrument:
@@ -1414,6 +1414,25 @@ every (port, transport) on the sensitive list MUST be a member of the hot set
 
 with a test that fails the build otherwise.
 
+> **Withdrawn by [ADR-0009](../adr/0009-verge-core-is-a-union.md), and amended here only by §29
+> ([#97](https://github.com/winniel123/verge-asm/issues/97)) — three passes read this paragraph in the
+> interval and two of them wrote its mechanism forward.** ADR-0009 made `verge-core` the **union**
+> `frequency-set ∪ sensitive-list`, a definition rather than a maintained list. Its Decision table
+> reads *"The invariant: **Dissolved.** `sensitive ⊆ verge-core` holds by construction"* and
+> *"Enforcement: **None, anywhere** — no build-time test, no config-load check, no runtime check"*,
+> and its Consequences state that the test *"is **not written**"*. **`S ⊆ F ∪ S` is true of every `S`
+> and every `F`**, so there is no state in which containment fails, nothing to test, and no build to
+> go red. A sentence of the form *"the invariant fires"* or *"forces a hot-set addition"* is
+> describing a mechanism that does not exist.
+>
+> **Everything below this box that is not the mechanism still stands.** The two lists remain
+> independent, keep their separate evidence standards and separate governance, and the coupling still
+> runs from correctness to cost — ADR-0009 preserved all of that deliberately and removed *"only the
+> part that had to be remembered"*. What a later pass must not do is re-derive an enforcement point
+> from the paragraph above, or route one to [#12](https://github.com/winniel123/verge-asm/issues/12).
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) is the
+> rule this paragraph's survival forced.
+
 **Why not derive it from the hot set.** They answer different questions with incompatible evidence
 standards. The hot set's membership rule is *likely to be found open in a small org's estate* —
 frequency. The sensitive list's is *never legitimately internet-facing* — position. Selecting the
@@ -1469,6 +1488,30 @@ off by default on signal-to-cost grounds, and the hot set is TCP-only.
 > supplement**, because this subsection enumerates the *sensitive* list's members and not the hot
 > set's — flagged at §24.10 rather than smoothed over.
 
+> **Checked by §29 ([#97](https://github.com/winniel123/verge-asm/issues/97)) — the arithmetic holds
+> in every cell, and the sentence above it does not.** **[measured]** The frequency half was
+> enumerated from [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 — 81 retained from
+> nmap's top-100 after 19 deletions, plus 44 net-new from the supplement, less ADR-0009's removal of
+> `161/tcp` and `623/tcp` — giving **123 ports, all TCP**. All 39 pairs were tested against it, not
+> only the two #91 added.
+>
+> - **`28 + 6 + 5 = 39` is confirmed.** No second cell is wrong. §24.10's *"asserted from #91"* and
+>   §24.12's *"must be verified against #4 §2.3 at merge"* are **discharged**.
+> - **Neither `10259/tcp` nor `10257/tcp` is in the frequency half**, so `hot set +2` is the right
+>   figure. §2.3's orchestration limb is `2375, 2376, 2379, 2380, 6443, 10250, 10255` and stops there.
+> - **This subsection's enumeration of the 28 is set-exact** — identical in both directions to the
+>   set computed from `F`, having survived `161/udp`'s removal and `10250/tcp`'s change of class.
+> - **The *"§6's one-directional invariant forces two additions"* clause is withdrawn** — see §6's
+>   box. The union widens by two because the sensitive half gained two members `F` does not carry;
+>   nothing fires and nothing is forced.
+>
+> **Read the identity, not the three numerals**, because three passes are moving `|S|` concurrently.
+> Cell 1 is `|{p ∈ S : tcp ∧ p ∈ F}|`, cell 2 is `|{p ∈ S : tcp ∧ p ∉ F}|`, and **cell 3 is
+> `|{p ∈ S : udp}|`, which measures nothing against the hot set at all** — `F` is TCP-only, so
+> `S_udp ∩ F = ∅` by construction for every possible `S`. A TCP row added outside `F` lands in cell 2
+> alone; a class change moves neither. The per-row membership table and the derived-set arithmetic
+> (`|verge-core| = 123 + 11 = 134` pairs) are at §29.2 and §29.3.
+
 **These must be `not-evaluable`, not clean.** An operator on default settings has six UDP rows on
 the sensitive list that are never measured. Reporting those as not-firing would be exactly the
 "bill of health it never earned" ADR-0004 forbids. There are two honest options — drop the UDP rows,
@@ -1495,7 +1538,15 @@ over bare integers would have passed and the bug would have survived.
 
 The invariant is mechanical, so it wants a test, not a person. But the two lists still need
 different owners' *judgement* on revision, because their evidence standards differ — and that is the
-governance question the map still carries as fog. This note settles what the sensitive list is and
+governance question the map still carries as fog.
+
+> **Amended by §29 ([#97](https://github.com/winniel123/verge-asm/issues/97)).** The first sentence is
+> **withdrawn**: the invariant wants neither a test nor a person, because
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md) made it a definition and *"a definition cannot
+> fail, because the violating state is not expressible"*. **The rest of this subsection is
+> untouched** — the two source lists still need different owners' judgement on revision, and who
+> revises them on what trigger is still fog. ADR-0009 was explicit that it *"changes who maintains the
+> **derived** set (nobody) and nothing about who maintains the inputs"*. This note settles what the sensitive list is and
 what admits a row to it; it does not settle who revises it or on what trigger. §8 records that.
 
 ---
@@ -1517,6 +1568,13 @@ signal there are four distinct routes, and an implementation that collapses them
 3. **Tier cadence.** A sensitive port sitting in the warm (weekly) or cold (monthly, opt-in) tier
    rather than the hot set is unmeasured between probes. This is why §6's invariant targets the
    **hot** set specifically: it is the only tier with a guaranteed cadence.
+   *(Two corrections, neither of which moves the route. **The warm tier is retired** —
+   [`nmap-services-licence.md`](./nmap-services-licence.md) §12 ruling 3, via
+   [#78](https://github.com/winniel123/verge-asm/issues/78) — so there are two tiers, not three. And
+   there is **no invariant to target**: [ADR-0009](../adr/0009-verge-core-is-a-union.md) made
+   containment a definition, so what puts a sensitive pair on the hot tier is the union itself
+   (§6's box, §29). The reason is unchanged and is the one stated — the hot tier is the only tier
+   with a guaranteed cadence.)*
 4. **Transport not probed.** The six UDP rows, per §6.1.
 
 ### 7.2 What a revision costs, and the case for stopping here
@@ -9606,6 +9664,377 @@ which is §26.6's rider binding its own output.
   section and stopped would have found the failure condition met. §17.3 and
   [#73](https://github.com/winniel123/verge-asm/issues/73) both turned on appendices, and this is the
   third instance: **read the appendices.**
+
+---
+
+## 29. The hot set enumerated from its own source — the containment arithmetic survives, and the mechanism above it does not
+
+Research ticket [#97](https://github.com/winniel123/verge-asm/issues/97).
+
+[#91](https://github.com/winniel123/verge-asm/issues/91) admitted `10259/tcp` and `10257/tcp` and wrote
+`hot set +2` into §6.1's containment arithmetic, flagging at §24.10 and in its
+[ADR-0009](../adr/0009-verge-core-is-a-union.md) amendment that **the figure was asserted rather than
+measured**: §6.1 enumerates the *sensitive* list, not the hot set, so the pass had nothing to check the
+addition against. This section enumerates the hot set from
+[`safe-active-probing.md`](./safe-active-probing.md) §2.3 — its actual source — and tests **all 39**
+pairs against it rather than the two the ticket asked about.
+
+**Two results, and the second is larger than the first.** The arithmetic is **correct in every cell**;
+`28 + 6 + 5 = 39` survives re-derivation and no second cell is wrong. But the *mechanism* §6, §6.1, §1
+and #91's ADR-0009 amendment all name — a one-directional invariant **enforced at build time**, which
+**forces** two hot-set additions — was **dissolved by ADR-0009 three years of tickets ago** and has no
+enforcement point anywhere. Nothing fires, nothing is forced, and no build can fail.
+
+### 29.1 The frequency half, enumerated
+
+`verge-core` is not a list. [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s Decision makes it
+**`frequency-set ∪ sensitive-list`**, a *definition* rather than a maintained set. So "the hot set" in
+§6.1's sense — the thing a sensitive pair might be missing from — is the **frequency half** alone, and
+that is what [`safe-active-probing.md`](./safe-active-probing.md) §2.3 specifies.
+
+| Component | Count |
+|---|---|
+| nmap top-100 TCP, reproduced verbatim at [`safe-active-probing.md`](./safe-active-probing.md) §2.1 | 100 |
+| §2.3's project-chosen deletions — `1025–1029`, `49152–49157`, `2717`, `5101`, `5190`, `6646`, `3986`, `5051`, `5009`, `1755` | **−19** |
+| Retained from nmap's ranking | **81** |
+| §2.3's modern-services supplement — 49 entries across six limbs, of which 5 are already retained (`10000`, `9100`, `3389`, `5900`, `5800`) | **+44 net-new** |
+| The frequency half as [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 specifies it | **125** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s removal of `161/tcp` and `623/tcp` | **−2** |
+| **The frequency half today** | **123, all TCP** |
+
+**[measured]** This reproduces
+[`nmap-services-licence.md`](./nmap-services-licence.md) §6.2's table exactly, arrived at
+independently. That matters twice over. It is a second derivation of a figure that had only one, and
+it means **the enumeration this ticket was opened to perform had already been done once, in
+[#78](https://github.com/winniel123/verge-asm/issues/78), for a licence question — and was never read
+back into §6.1**. #91 could have checked its assertion against a measurement already in the
+repository, one file across. Nothing pointed from here to there.
+
+**Two properties of the frequency half do all the work below.** It is **TCP-only**
+([#4](https://github.com/winniel123/verge-asm/issues/4) §2.5, restated in ADR-0009's §11 amendment),
+and its supplement's orchestration limb is exactly `2375, 2376, 2379, 2380, 6443, 10250, 10255` — it
+stops at the kubelet and reaches no other control-plane component.
+
+### 29.2 The membership test, all 39 rows
+
+`F` is the 123-member frequency half. A row is *in* where its `(port, transport)` pair is a member of
+`F`; since `F` is TCP-only, every UDP row is out by construction.
+
+| Pair | Class | In `F`? | Where it enters `F`, or why it does not |
+|---|---|---|---|
+| `2375/tcp` | A | **yes** | supplement — orchestration |
+| `2379/tcp` | A | **yes** | supplement — orchestration |
+| `2380/tcp` | A | **yes** | supplement — orchestration |
+| `10255/tcp` | A | **yes** | supplement — orchestration |
+| `6379/tcp` | A | **yes** | supplement — data stores |
+| `11211/tcp` | A | **yes** | supplement — data stores |
+| `11211/udp` | A | **no** | UDP; `F` is TCP-only |
+| `2181/tcp` | A | **yes** | supplement — messaging/coordination |
+| `4369/tcp` | A | **no** | not in the top-100, not in the supplement |
+| `9042/tcp` | A | **yes** | supplement — data stores |
+| `69/udp` | A | **no** | UDP |
+| `23/tcp` | B | **yes** | top-100, retained |
+| `21/tcp` | B | **yes** | top-100, retained |
+| `512/tcp` | B | **no** | ranks 239th by open-frequency, outside the top-100 — while `513` and `514` are inside it |
+| `513/tcp` | B | **yes** | top-100, retained |
+| `514/tcp` | B | **yes** | top-100, retained |
+| `5900/tcp` | B | **yes** | top-100, retained; named again in the supplement's remote-access limb |
+| `6000/tcp` | B | **yes** | top-100, retained |
+| `10250/tcp` | C | **yes** | supplement — orchestration |
+| `2376/tcp` | C | **yes** | supplement — orchestration |
+| `3306/tcp` | C | **yes** | top-100, retained |
+| `5432/tcp` | C | **yes** | top-100, retained |
+| `1433/tcp` | C | **yes** | top-100, retained |
+| `27017/tcp` | C | **yes** | supplement — data stores |
+| `27018/tcp` | C | **yes** | supplement — data stores |
+| `27019/tcp` | C | **no** | the supplement took `27017` and `27018` and stopped one short |
+| `9200/tcp` | C | **yes** | supplement — HTTP-ish alternates |
+| `9300/tcp` | C | **yes** | supplement — HTTP-ish alternates |
+| `5984/tcp` | C | **yes** | supplement — data stores |
+| `25672/tcp` | C | **no** | the supplement took `5672` and `15672` — the two ports §4.6 *excludes* — and omitted the one the prohibition names |
+| `445/tcp` | C | **yes** | top-100, retained |
+| `139/tcp` | C | **yes** | top-100, retained |
+| `137/udp` | C | **no** | UDP |
+| `138/udp` | C | **no** | UDP |
+| `2049/tcp` | C | **yes** | top-100, retained |
+| `873/tcp` | C | **yes** | top-100, retained |
+| `623/udp` | C | **no** | UDP — and `623/tcp`, the sibling §6.2 caught, left `F` by ADR-0009 |
+| **`10259/tcp`** | C | **no** | the orchestration limb ends at `10255`; not in the top-100 either |
+| **`10257/tcp`** | C | **no** | same |
+
+**28 in · 6 TCP out · 5 UDP out.** `28 + 6 + 5 = 39`.
+
+**§6.1's enumeration of the 28 is exact.** Its list — `21, 23, 139, 445, 513, 514, 873, 2049, 2181,
+2375, 2376, 2379, 2380, 3306, 5432, 1433, 5900, 5984, 6000, 6379, 9042, 9200, 9300, 10250, 10255,
+11211/tcp, 27017, 27018` — is set-identical to the *in* column above, in both directions. It was
+written against 38 pairs, survived `161/udp`'s removal, survived `10250/tcp` changing class, and is
+still right. **Whoever wrote it enumerated correctly against a hot set nobody has enumerated since**,
+which is the one part of this that needed no repair.
+
+### 29.3 The containment identity, in re-derivable form
+
+The three cells are not the same kind of fact, and reading them as one arithmetic is what let the
+mechanism error survive. Written out, with `S` the sensitive list and `F` the frequency half:
+
+```
+cell 1 = |{ p ∈ S : transport(p) = tcp  ∧  p ∈ F }|      28   ← the only cell measured against F
+cell 2 = |{ p ∈ S : transport(p) = tcp  ∧  p ∉ F }|       6   ← the only other cell measured against F
+cell 3 = |{ p ∈ S : transport(p) = udp             }|      5   ← not a containment fact at all
+                                                         ──
+cell 1 + cell 2 = |S_tcp| = 34 ;  + cell 3 = |S| = 39
+```
+
+**Cell 3 measures nothing against the hot set.** `F` is TCP-only, so `S_udp ∩ F = ∅` holds by
+construction for every possible `S`; the cell is a count of the sensitive list's own UDP rows and
+moves only when a UDP row is added or removed. A pass re-deriving these figures should re-run cells 1
+and 2 and simply **count** cell 3.
+
+**And the derived set:**
+
+```
+|verge-core| = |F| + |S \ F| = 123 + (6 + 5) = 134 pairs — 129 TCP, 5 UDP
+```
+
+**What the three concurrent passes do to these figures.** Stated so the parent re-derives rather than
+hand-patches. A row added to the sensitive list on a **TCP** port outside `F` lands in **cell 2** and
+in `|S \ F|`, moving `|S|`, cell 2 and `|verge-core|` by one each and leaving cells 1 and 3 alone —
+which is what all three of `10249/tcp`, `10248/tcp` and `10258/tcp` would do, none of them being in
+`F`. A row **changing class** moves §3's class totals and **nothing here**, so `623/udp` moving Class
+C → Class A leaves `28 + 6 + 5` untouched. A **footing tier** move touches §2.2 and nothing here.
+
+> **The two `28`s in this note are different numbers and must not be reconciled with each other.**
+> §2.2's footing coverage is **28 of 39** and §6.1's containment first cell is **28**, out of the same
+> 39. They share a value by coincidence: one counts pairs the footing table places, the other counts
+> pairs the frequency half carries, and their memberships are not the same set — §2.2's 28 excludes
+> Class B's seven and `69/udp` as out of subject, all seven of Class B's TCP rows bar `512/tcp` being
+> inside §6.1's 28. A pass moving one and propagating to the other would corrupt both.
+
+### 29.4 The two ports the ticket asked about
+
+**Neither `10259/tcp` nor `10257/tcp` is in the frequency half.** #91's assertion is confirmed, and it
+is now measured rather than asserted: §2.3's supplement names seven orchestration ports and stops at
+`10250`/`10255`, and neither number appears in the top-100 §2.1 reproduces. §24.10's flag is
+discharged and §24.12's *"must be verified against #4 §2.3 at merge"* is spent.
+
+**So the union genuinely widens by two, and `hot set +2` is the right figure.** What is wrong is the
+sentence around it.
+
+### 29.5 The mechanism does not exist — §6's build-time test was dissolved, and three documents still assert it
+
+§6's opening reads:
+
+> the relationship between them is a one-directional invariant enforced at build time … with a test
+> that fails the build otherwise
+
+[ADR-0009](../adr/0009-verge-core-is-a-union.md)'s Decision table says the opposite, in two adjacent
+rows:
+
+| Concern | Decision |
+| --- | --- |
+| The invariant | **Dissolved.** `sensitive ⊆ verge-core` holds by construction |
+| Enforcement | **None, anywhere** — no build-time test, no config-load check, no runtime check |
+
+and its Consequences say so a third time: *"The `sensitive ⊆ hot` test #21 §6 specified is **not
+written**."* The containment is **analytic**. `S ⊆ F ∪ S` is true of every `S` and every `F`, so there
+is no state in which it fails, nothing to test, and no build to go red.
+
+**ADR-0009 foresaw exactly this reader and left the trap open anyway.** Its Consequences continue: *"A
+reader finding §6 and no test in the codebase should read this ADR: the invariant was not dropped, it
+was made unfalsifiable."* That is a pointer from the **superseding** document to the **superseded**
+one, and it only reaches a reader who arrives holding the ADR. Two did not:
+
+1. **§6, §6.1 and §1's summary row** were never amended and still specify the test.
+2. **#91's ADR-0009 amendment** — inside the very ADR that dissolved it — reads *"**§6's
+   one-directional invariant fires for the first time in earnest** … forces **two hot-set
+   additions**"*, and §24.12 restates it as *"§6's one-directional invariant forces both into the hot
+   set"*. The mechanism was written **forward, into the ADR's own body**, past its own dissolution.
+3. **[#97](https://github.com/winniel123/verge-asm/issues/97)'s own framing** inherited it at one
+   further hop and stated the stakes as *"an addition to the sensitive list that is not in the hot set
+   does not silently degrade, it **fails the build**"* — and priced the ticket as blocking
+   [#12](https://github.com/winniel123/verge-asm/issues/12) on *"handing implementation a build-time
+   invariant with an unverified term is handing it a build that may not go green."*
+
+**That third hop is the cost, and it is the one that reaches code.** #12 is the spec. Carried
+forward, it would have instructed implementation to write a build-time containment test — the
+mechanism ADR-0009 rejected **on its failure mode**, not on cost: *"a test is a mechanism that can be
+absent, and the state it guards against is one a definition simply cannot express."* Writing it would
+not be harmless redundancy; it would re-introduce a skippable guard over an unfalsifiable property and
+invite a later reader to conclude the union is maintained by the test rather than by the definition.
+
+The rule this forces is
+[ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): **a
+superseded mechanism is withdrawn at the site that specifies it, not only at the site that supersedes
+it.** §6, §6.1 and §1 are amended in place below.
+
+**Nothing about the widening changes.** ADR-0009's price — the rule version bump, the `Break`, the
+`revealed` — is charged by the sensitive half gaining two members, and is unaffected by there being no
+test. What changes is that **no separate act of hot-set addition exists to perform, and no gate exists
+to pass**. `10259/tcp` and `10257/tcp` were inside `verge-core` from the instant §24 admitted them.
+
+### 29.6 What the widening costs, priced against #4's own safety reasoning
+
+ADR-0009 says *cost yields to correctness* and prices the yield at *"probing one more port per host
+per day"*. That was an estimate. Measured against
+[`safe-active-probing.md`](./safe-active-probing.md) §6.3's shipped caps:
+
+| | Before §24 | After §24 |
+|---|---|---|
+| `verge-core` pairs | 132 | **134** |
+| Probed on default settings (UDP off, §2.5) | 127 TCP | **129 TCP** |
+| One pass, host answering closed ports with RST — the 50/s **rate** cap binds | 2.54 s | **2.58 s** |
+| One pass, host **dropping** — the 20-concurrent × 3 s **concurrency** cap binds at 6.67/s | 19.0 s | **19.3 s** |
+| Same, with §6.3's 2 retries | 57.1 s | **58.1 s** |
+
+**+1.6 % of the daily tier's per-host probe budget**, and the widening changes nothing structural:
+
+- **The technique is untouched.** §3's TCP connect, non-root, `cap_drop: [ALL]` posture is a property
+  of *how* a port is probed, not *how many*. The zero-added-capabilities budget §1's Framing sets is
+  unaffected.
+- **Peak load is unchanged.** Both caps are per target host and neither binds harder at 129 than at
+  127; §1's middlebox state-table hazard is bounded by **concurrency**, 20 either way, which is
+  [#80](https://github.com/winniel123/verge-asm/issues/80)'s own reading of the same arithmetic.
+- **The 200 pkt/s global ceiling is untouched** in rate, and moves only duration.
+- **§6.3's `suspect-firewall` threshold is 100 open ports on `verge-core`** and is nowhere near.
+- **[ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md) does not bite.** Its objection is
+  to an aperture with no cadence behind it. Both pairs join the **hot** tier, which is a configured
+  `Scan` at a daily cadence, so `k × cadence` is defined for the timelines they open and the two
+  ports have currency from the first run. Had they landed anywhere else, they would not.
+
+**The honest half of the price is yield, not load.** Both ports are bound to `127.0.0.1` by the
+owner's own installer (§3.3, §24.6), so on a correctly-configured cluster they will read `not-reached`
+every day forever. That is not a defect — a measured `not-reached` is a value with a subject
+([ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md)), and a sensitive-port rule exists
+for the misconfigured minority — but the cost is paid on every estate and the finding is collected
+from few. It is the shape ADR-0009's coupling direction commits to, priced rather than assumed.
+
+### 29.7 The ruling
+
+1. **The hot set is a superset of the sensitive list, and always was — analytically, not
+   measurably.** `verge-core = F ∪ S` makes `S ⊆ verge-core` unfalsifiable. There is no containment
+   gap and there never can be.
+2. **`10259/tcp` and `10257/tcp` are not in the frequency half.** #91's assertion is **confirmed by
+   measurement**. The union widens by two, `hot set +2` stands, §24.10's flag is discharged.
+3. **`28 + 6 + 5 = 39` is correct in all three cells**, re-derived from `F` rather than carried
+   forward. §6.1's enumeration of the 28 is set-exact. **No second cell is wrong**, and
+   [#43](https://github.com/winniel123/verge-asm/issues/43)'s question — *coverage of what?* — is
+   answered: of the 123-member frequency half, named.
+4. **The build-time invariant does not exist and must not reach
+   [#12](https://github.com/winniel123/verge-asm/issues/12).** §6, §6.1 and §1's summary row are
+   amended in place; ADR-0009 gains a #97 amendment withdrawing *"forces two hot-set additions"*;
+   [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+   records the rule. **What #12 must carry is the union definition and the decomposition, never a
+   test.**
+5. **`~140` is not the frequency half's size and has never been.** It is **123**, and 134 for the
+   union. Corrected at [`safe-active-probing.md`](./safe-active-probing.md) §2.3 and routed onward —
+   §29.9.
+
+### 29.8 Every dependent figure, walked rather than asserted
+
+> `FIGURE DELTA`
+>
+> **Moved:**
+> - `safe-active-probing.md` §1 + §2.3 — frequency half `~140` → **123 TCP** (`125` as #4 specified it, less ADR-0009's two removals)
+> - `safe-active-probing.md` §2.4 — aperture line `0 of 37 sensitive pairs unread` → **`0 of 39`** (numerator is `0` for every `N` by ADR-0009's union; only the denominator tracks the list)
+> - `sensitive-ports.md` §1 summary row *Hot-set containment* — *"independent lists, one-directional build-time invariant"* → **the union, no enforcement**
+> - `sensitive-ports.md` §6 head + §6.1 — the build-time-test claim **withdrawn**; the arithmetic **confirmed, not moved**
+> - `ADR-0009` #91 amendment — *"§6's invariant … forces two hot-set additions"* **withdrawn**; *"neither new pair is in the frequency half"* **upgraded from asserted to measured**
+>
+> **Checked and left alone:**
+> - §1 pair count **39** · §3 class totals **11 / 7 / 21** · §2.2 footing coverage **28 of 39** and tiers **15 / 11 / 2 / 11** · §4.6 exclusions **19** · §6.1 arithmetic **28 + 6 + 5 = 39** · §2.2 weak tier **`5432`, `5984`** · ADR-0032 §8 watch list · §17.8's fixed point · §8's twelve questions · ADR-0008's rule version and `Break`
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 39 | **39, unchanged.** This section admits and refuses nothing |
+| §3.1 / §3.2 / §3.3 class totals | 11 / 7 / 21 | **unchanged.** No row changes class |
+| §2.2 footing table — coverage and tiers | 28 of 39; 15 / 11 / 2 / 11 | **unchanged in every cell.** No footing is retrieved. **See §29.3's warning**: this `28` is not §6.1's `28` |
+| §2.2's weak tier | `5432`, `5984` | **unchanged** |
+| §4.6 exclusions | 19 | **unchanged.** `10256/tcp`'s refusal is untouched; it is also not in `F`, which is now measured and changes nothing, the row not being on the list |
+| **§6.1 containment arithmetic** | `28 + 6 + 5 = 39`, **asserted** for the hot-set term | **`28 + 6 + 5 = 39`, measured.** Every cell confirmed against `F`; §6.1's enumeration of the 28 is set-exact. **The figure does not move; its evidence does** |
+| **§6 / §6.1 / §1 — the enforcement claim** | one-directional invariant **enforced at build time**, with a test that fails the build | **withdrawn.** ADR-0009 dissolved it; containment is analytic and nothing enforces it anywhere ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) |
+| §7.1 route 3 — *"§6's invariant targets the hot set specifically"* | a live invariant | **restated.** The tier-cadence route to `not-evaluable` is unaffected and its reason is now the union rather than a test — the hot tier is still the only tier with a guaranteed cadence |
+| §6.3 *"the invariant is mechanical, so it wants a test, not a person"* | true | **withdrawn.** It wants neither; it is a definition. The **governance** half of §6.3 — who revises either input list — is untouched and stays fog |
+| §6.2's `161/tcp` / `623/tcp` defect | a live defect in the shipped hot set | **discharged, and now visible in the count.** ADR-0009 removed both; `F` is 123 rather than 125 because of it, and §2.3's prose had never been told |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | widened by two TCP pairs, membership **asserted** | **unchanged as a definition; the membership claim is measured.** `verge-core` is **134 pairs** — 123 frequency + 11 sensitive-only. Gains a #97 amendment |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | spent by §24 | **not re-spent.** `sensitive-port-reached-from-internet`'s reference data is byte-identical to §24's; this section moves no row |
+| [`safe-active-probing.md`](./safe-active-probing.md) §2.3 | *"Roughly 140 TCP ports"*, Management/OOB limb listing `161 (TCP), 623` | **123, and the limb annotated** — ADR-0009 removed both and §2.3 had never been amended. Edited in place |
+| [`safe-active-probing.md`](./safe-active-probing.md) §2.4 | `0 of 37 sensitive pairs unread` | **`0 of 39`.** The **numerator** is `0` for every `N` by the union and is not a measurement of anything that can move; the denominator is `|S|` |
+| [`nmap-services-licence.md`](./nmap-services-licence.md) §6.2 | 81 / +44 / 125 / 123 | **confirmed by independent re-derivation.** Its parenthetical parking `~140` as out of scope is now discharged, elsewhere |
+| [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md), [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) | quote `0 of 37 sensitive pairs unread` | **stale denominators, deliberately not edited here** — §29.9 |
+| §8 | 12 questions, all closed | **12, unchanged** |
+
+**Routed to [#12](https://github.com/winniel123/verge-asm/issues/12), and it is a subtraction rather
+than an addition.** #12 must carry §6's containment as **ADR-0009's definition plus §29.3's
+decomposition**, and must **not** carry a build-time test. The ticket that produced this section
+priced itself on the opposite reading; the price was real and it was owed in the other direction.
+
+### 29.9 Thin ground, flagged per the standing rule
+
+**Nothing here is thin as a measurement, and one thing is thin as a judgement.** The enumeration is
+arithmetic over two lists both written down in this repository, checked twice and reproducing #78's
+independent count exactly. The judgement is §29.5's: that §6's surviving prose is a **defect** rather
+than a **historical record of what #21 decided**. A reader could hold that §6 correctly reports #21's
+ruling and ADR-0009 correctly reports its supersession, and that nothing is wrong. That reading is
+refused because §6 is written in the present tense about a mechanism in the shipped product, and
+because it has now demonstrably misled two passes — but it is a ruling about how this note narrates
+its own history, and ADR-0058 is built on one measured instance with two hops, not on a population.
+
+**`~140` is corrected where it is a claim about the frequency half and left alone where it is load in
+somebody else's arithmetic.** [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md),
+[ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) §345 and
+[ADR-0049](../adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md) §89 size
+scan durations and row volumes against *"ADR-0009's ~140 pairs"*. The true figure is **134**, or
+**129** probed on default settings — so those ADRs **overstate** duration and volume by 4–8 %, which
+is the conservative direction and moves no ruling. They are **not edited here**: three passes are
+moving `|S|` concurrently, so a hand-patched denominator would be stale before it merged, and the
+right repair is one edit after all five land. Ticketed rather than smoothed — §29.10.
+
+**`0 of 39 sensitive pairs unread` is a numerator this section did not re-measure.** It is `0` because
+ADR-0009's union puts every sensitive pair inside `verge-core`, and the five UDP pairs are excluded
+from the count on [#44](https://github.com/winniel123/verge-asm/issues/44)'s ground that they hold no
+subject at all rather than on any ground this section establishes. The **denominator** is corrected
+here; the numerator's warrant is #44's and is untouched.
+
+**The cost table in §29.6 is arithmetic over shipped defaults, not a measurement of a running
+scanner.** It inherits [#80](https://github.com/winniel123/verge-asm/issues/80)'s correction that the
+concurrency cap rather than the rate cap binds on a dropping host, which is the figure that matters
+and the one #4 §6.3 originally got wrong. No packet has been sent.
+
+### 29.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6 and §16.10
+
+- **The ticket's own premise was the first thing checked, and it was false.** #97 states §6's
+  invariant is *"enforced one-directionally at build time (ADR-0009)"* and cites the ADR for it. The
+  ADR says the reverse in three places. **A ticket citing a document for a claim is not evidence the
+  document makes it** — the sibling of §19.7's rendering hazard, one layer up: a ticket is a
+  *rendering* of the map's understanding, and carries no provenance about which of the ADR's positions
+  it renders. Had the premise been accepted, this section would have measured two ports correctly and
+  handed #12 a build gate that ADR-0009 refused.
+- **The figure had already been measured, in a note nobody had reason to open.**
+  [`nmap-services-licence.md`](./nmap-services-licence.md) §6.2 computed `81 / +44 / 125 / 123` for a
+  copyright question in [#78](https://github.com/winniel123/verge-asm/issues/78), and explicitly
+  parked `~140` as *"not reconciled here and out of scope"*. §6.1 has been carried forward by nine
+  passes since, none of which found it. **The retrieval that answers your question may have been done
+  for a different question**, and the only instrument that would have found it is a search for the
+  *number*, not for the topic. Recorded because it is cheap and nobody does it.
+- **§2.3's prose was stale against an ADR that had superseded it for two of its own members.** The
+  Management/OOB limb still reads `161 (TCP), 623` — the exact pair ADR-0009 removed and §6.2
+  diagnosed. A session enumerating from §2.3's text alone gets **125** and never learns otherwise;
+  #78 caught it only because it was counting for a different reason. This is §29.5's rule firing a
+  **second time in the same pass**, on a different document, and it is why ADR-0058 is minted rather
+  than left as an observation about §6.
+- **Both `28`s were tested against each other before either was quoted.** §2.2's footing coverage and
+  §6.1's first cell are both `28 of 39` and are different sets. They were enumerated separately and
+  the memberships compared; the coincidence is real and the sets differ. §13.10 recorded a hand count
+  as *"the kind of thing that goes wrong"*, and two equal counts over one denominator in one file is
+  the version of that hazard that survives a careful reader.
+- **The supplement's duplicates were counted before the total was.** Five of §2.3's 49 supplement
+  entries — `10000`, `9100`, `3389`, `5900`, `5800` — are already retained from the top-100, so a
+  session adding `81 + 49` gets **130** and a plausible-looking approach to *"roughly 140"*. The
+  arithmetic only closes on 125 if the overlap is taken out, which is the step that makes `44` rather
+  than `49` the net-new figure #78 also reports.
+- **No new external artefact was retrieved.** Every source here is in-repo: `safe-active-probing.md`
+  §2.1, §2.3, §2.4, §6.3; `sensitive-ports.md` §3, §6, §24; `nmap-services-licence.md` §6.2;
+  ADR-0009. That is unusual for this note and it is stated rather than glossed — the question was
+  *what do our own documents say*, so an external retrieval would have answered a different one.
 
 ---
 
