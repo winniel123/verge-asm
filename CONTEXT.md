@@ -189,12 +189,17 @@ _Avoid_: external, network position, inside/outside
 **Scan**:
 The operator's configured recurring intent — which scopes, which ports, which vantages,
 what cadence. The configured thing, never the executed one. **Not every `Scan` is a port
-tier**: three are, and the fourth is `tls-acceptance`'s weekly enumeration, whose scope is the
+tier**: two are, and the third is `tls-acceptance`'s weekly enumeration, whose scope is the
 open `Service` population and the TLS candidate set. A measurement that needs a cadence of its
 own takes a `Scan` of its own, because a slower cadence hidden inside another `Scan` makes the
-aperture a hidden field rather than a configured object. See
-[ADR-0005](./docs/adr/0005-scan-execution-model.md) and
-[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md).
+aperture a hidden field rather than a configured object. **Recurring is load-bearing and not
+incidental**: currency is `k` cadences of the covering `Scan`, so a measurement with no cadence
+has no currency bound, which is why there is no one-off measurement in the model and why the
+widest port tier ships **configured and disabled** rather than running once unasked. A `Scan`
+whose scope list is empty is a legible state; an aperture with nothing configured behind it is
+not. See [ADR-0005](./docs/adr/0005-scan-execution-model.md),
+[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) and
+[ADR-0044](./docs/adr/0044-a-one-off-measurement-has-no-currency.md).
 _Avoid_: job, scan job
 
 **Annotation**:
