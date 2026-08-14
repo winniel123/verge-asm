@@ -62,7 +62,7 @@ Three decisions already made shape the answer before any evidence is gathered:
 | New `Facet`(s) | **One**, `listener-negotiation`, on `Service`, holding a closed two-field tuple. The HTTP-shaped members need **none** — `http-identity` already carries the status code, on `Endpoint` — §8 |
 | One signal or several | **Two**, split on the fact measured and never on the protocol — §9 |
 | Does it read `Exposure` | **Yes, both**, and that is precisely what separates them from `tls-1.0-negotiated`, which does not — §9.3 |
-| Closest call | **SMB signing not required** — a real, spec-defined, credential-free fact, excluded because a rule covering one protocol is a per-protocol signal by another name — §9.2 |
+| Closest call | ~~**SMB signing not required** — a real, spec-defined, credential-free fact, excluded because a rule covering one protocol is a per-protocol signal by another name~~ — **restated by [#104](https://github.com/winniel123/verge-asm/issues/104): still the closest call, still excluded, and on neither of the two grounds this row gave.** Both are withdrawn; what excludes it is the **aperture** — reading `SMB2_NEGOTIATE_SIGNING_REQUIRED` needs the wire prober and `listener-negotiation`, which ADR-0015 put out of scope for this map — §9.2 |
 
 Two headline results, and the second is the one that changes what v1 should build.
 
@@ -1233,6 +1233,17 @@ refused*. Keying this on `Service` would average two true facts into one false o
 **Proposal: one new facet, `listener-negotiation`, on `Service`**, holding the two-field closed tuple
 of §7.4.
 
+> **Amended by [#104](https://github.com/winniel123/verge-asm/issues/104): whoever specifies this
+> facet owes a decision on a *third* field — integrity — and it is the one part of the deferred work
+> that is not free to defer twice.** §9.2's SMB signing fact is neither `transport` nor
+> `authentication`, so it needs a field of its own; and
+> [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) is explicit that a facet's value space
+> is **decided once** and widened afterwards at the cost of a `Break` on every timeline it holds.
+> While this facet does not exist the third field costs nothing to add and nothing to omit. The day
+> it ships with two fields, adding the third stops being free. So the field question is owed **at
+> specification time**, ahead of and independently of whether any rule reads it — which is ADR-0015's
+> own finding about `http-identity`'s status class, one level down.
+
 *Why on `Service` and not `Endpoint`.* None of the wire protocols in §5 is name-addressed. A
 PostgreSQL listener's answer to `SSLRequest` does not vary by DNS name because nothing in the
 exchange carries one. `(Address, port, transport)` is the key the fact is actually single-valued
@@ -1327,25 +1338,67 @@ SMB-signing-not-required. It is refused:
   `PROTOCOL_RDP` has accepted a mode with no TLS, which is `transport = upgrade-absent` and belongs
   to the first signal already. Nothing is lost.
 - **SMB signing is the closest call in the note.** `SMB2_NEGOTIATE_SIGNING_REQUIRED` is a real,
-  spec-defined, credential-free bit, and its absence is a genuine and well-known weakness. But it is
-  integrity rather than confidentiality, so it fits neither rule, and ~~a rule built for it would cover
+  spec-defined, credential-free bit, and its absence is a genuine and well-known weakness. But ~~it is
+  integrity rather than confidentiality, so it fits neither rule~~, and ~~a rule built for it would cover
   exactly one protocol — which is §9.1's per-protocol signal wearing a general-sounding name~~.
   **Excluded from v1**, with the underlying question recorded in §12 rather than argued away: a
   single-protocol rule may be legitimate, and this note has not established that it is not.
 
-  > **The struck half of this exclusion's ground is gone.**
-  > [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) corrected §9.1's principle — a
-  > single-protocol rule **is** legitimate where the fact is genuinely single-protocol — and this
-  > sentence's *"which is §9.1's per-protocol signal wearing a general-sounding name"* is the
-  > withdrawn reading. Recorded here by [#102](https://github.com/winniel123/verge-asm/issues/102)
-  > under [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+  > **Both halves of this exclusion's ground are now struck, and the verdict survives on a third
+  > ground this section never wrote down.** Ruled by
+  > [#104](https://github.com/winniel123/verge-asm/issues/104) under
+  > [ADR-0065](../adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md),
+  > completing the repair [#102](https://github.com/winniel123/verge-asm/issues/102) began under
+  > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
   >
-  > **The verdict is NOT reversed here, and must not be read as reversed.** The *other* half of the
-  > ground — *"it is integrity rather than confidentiality, so it fits neither rule"* — is untouched
-  > and may carry the exclusion on its own; deciding that is a v1 signal-set question, which is a row
-  > change and not a document repair. It is **ticketed**, and the note's own §12 q2 is the question
-  > being answered. Until that ticket lands, `smb-signing-not-required` stays **excluded from v1**,
-  > now on one ground rather than two.
+  > - **The per-protocol half** was withdrawn by
+  >   [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) — a single-protocol rule **is**
+  >   legitimate where the fact is genuinely single-protocol — and struck here by #102.
+  > - **The integrity-versus-confidentiality half is withdrawn too.** *"It fits neither rule"* is a
+  >   claim about **the two rules this section admits**, never about SMB, and a fact fitting neither
+  >   is a candidate for a **third** rule rather than a reason to drop the fact. ADR-0015 said as much
+  >   while withdrawing the other half — *"it would be a third signal in any case — signing is
+  >   integrity, which is neither of the two facts the other rules read"* — treating *third* as the
+  >   shape of the answer and not as an objection to it.
+  >
+  > **What excludes it is the aperture, and that ground was true all along.** ADR-0015: *"SMB signing
+  > is therefore admissible whenever the prober that can read `SMB2_NEGOTIATE_SIGNING_REQUIRED`
+  > exists. It stays out of v1 because that prober does not."* Reading the field needs an SMB2
+  > `NEGOTIATE` exchange — application bytes v1 does not send, under an `Offer` v1 has not declared —
+  > and a facet to hold the result, which is §8.2's `listener-negotiation`, ruled **out of scope for
+  > this map** by ADR-0015. `445/tcp` being a `verge-core` pair buys the **connect**, never the
+  > exchange, so nothing here is free.
+  >
+  > **Three riders on the deferral.**
+  > 1. **Where its coverage would actually be is not where this section assumed.** `445/tcp` is on the
+  >    sensitive list in the explicit-prohibition tier, so `sensitive-port-reached-from-internet`
+  >    already fires on it from the internet leg — Microsoft's own perimeter directive is the
+  >    attestation. An integrity rule therefore adds **nothing** there, and its whole prize is the
+  >    **internal** leg, which is the one place v1 is silent by design. That is why the row was the
+  >    closest call, and it is also why the rule's relationship to `Exposure` is the open question
+  >    below rather than a settled inheritance from §9.3.
+  > 2. **It would not ship under the name `smb-signing-not-required`.** ADR-0015's corrected test
+  >    forbids naming a rule for a protocol; the rule is named for the integrity fact, and its scope is
+  >    however many protocols express that fact.
+  > 3. **The deferral is free.** ADR-0014 and ADR-0015 price a new facet plus a new rule at `revealed`
+  >    plus one coverage-class message with **no `Break`**, so there is no deadline and nothing bought
+  >    by admitting it now. Admitting it early buys less than nothing: per ADR-0004's #44 amendment no
+  >    subject would exist, so the rule would render **no row at all** — not even `not-evaluable` —
+  >    while moving every *sixteen* in the corpus to *seventeen*.
+  >
+  > **Reopens** with the wire-protocol prober, and only with it. Two things travel to whoever picks
+  > that up: the **third-field** obligation at §8.2's box, which is owed at specification time and
+  > not at rule time; and the **generality check** ADR-0015's test requires — if another protocol
+  > expresses the same integrity fact readably before authentication, it is **one** signal covering
+  > both and never two.
+  >
+  > **One question is deliberately left open**, and #104 flags it as such rather than ruling it.
+  > Whether an integrity rule reads `Exposure` — §9.2's two rules both do (§9.3) and this one
+  > plausibly does not, which is exactly what would make the **internal** leg its coverage, since
+  > `sensitive-port-reached-from-internet` already covers `445/tcp` on the internet leg and
+  > [#58](https://github.com/winniel123/verge-asm/issues/58) refused an internal counterpart for want
+  > of an attestation that the internal configuration is never correct. That is a question about a
+  > rule's domain, and settling a domain before its facet exists is the wrong order.
 
 ### 9.3 Both read `Exposure`, and that is the difference from `tls-1.0-negotiated`
 
@@ -1499,6 +1552,13 @@ rather than dropping them.
    > [#102](https://github.com/winniel123/verge-asm/issues/102) writes it in under
    > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
    > See §9.1's box for the corrected test and §9.2's for what it does and does not move.
+   >
+   > **And the row it was raised from is settled too, so nothing is parked here any longer.**
+   > [#104](https://github.com/winniel123/verge-asm/issues/104) ruled the SMB verdict: the fact is
+   > **admissible** — single-protocol scope is legitimate, and it would be a **third** rule reading
+   > **integrity**, which is neither fact §9.2's two rules read — and it is **excluded from v1 on the
+   > aperture**, which is the only ground §9.2 never wrote down. See
+   > [ADR-0065](../adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md).
 3. **Does the `revealed` treatment of a widened dispatch table actually hold in the presence of a
    `Gap`?** §7.3 leans on ADR-0008. But a `Service` already carrying `not-evaluable` under route 5
    has a timeline; widening the aperture over it looks like a value appearing where a `Gap` was, not
