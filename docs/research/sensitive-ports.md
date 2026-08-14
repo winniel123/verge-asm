@@ -7517,6 +7517,8 @@ perform.
 > unchanged; prohibition tier **15 pairs** unchanged; §6.1 containment **28 + 4 + 5 = 37** unchanged;
 > [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union unchanged; no rule version moves.
 
+> **Merge reconciliation.** The pass above ran against 37 pairs, `11 / 7 / 19` and `26 of 37`, and its verdict is therefore read as a delta and not as an absolute: §24 ([#91](https://github.com/winniel123/verge-asm/issues/91)) admitted `10259/tcp` and `10257/tcp` in a pass that ran concurrently with this one, so the note's composed state is **39 pairs**, class totals **`11 / 7 / 21`**, §2.2 footing coverage **28 of 39**, §6.1 containment **28 + 6 + 5 = 39**, and §4.6 exclusions **19**. §1 carries the current absolutes. What this section did is unchanged by that; what the note totals is not.
+
 §18.5 exposed `623/udp` on two grounds: the sentence that carries it names **DRACs**, a product line
 that [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)'s unit rule
 excludes, and *"the number that connects it to the row is **CISA's**"*, which
@@ -8653,6 +8655,8 @@ for staying out of that file while concurrent passes are running.
 > row. **Read `6379`'s correction before concluding otherwise: on the shipped default it reaches
 > nothing at all, and §25.4 is the whole reason the row stays.**
 
+> **Merge reconciliation.** The audit above ran against 37 pairs, `11 / 7 / 19` and `26 of 37`, and its verdict is therefore read as a delta and not as an absolute: §24 ([#91](https://github.com/winniel123/verge-asm/issues/91)) admitted `10259/tcp` and `10257/tcp` in a pass that ran concurrently with this one, so the note's composed state is **39 pairs**, class totals **`11 / 7 / 21`**, §2.2 footing coverage **28 of 39**, §6.1 containment **28 + 6 + 5 = 39**, and §4.6 exclusions **19**. §1 carries the current absolutes. What this section did is unchanged by that; what the note totals is not.
+
 [#84](https://github.com/winniel123/verge-asm/issues/84) §20.6 established that §10.1's Class A walk
 is a table of **attestations** and audited it against §10.5 — finding two Step 1 cells resting on a
 non-owner, repairing one, and ticketing the other. It also found that `4369`'s **Step 2** cell named
@@ -9512,6 +9516,10 @@ measurement, and it is the thinnest thing in this section.
 ### 26.7 Every dependent figure, checked rather than asserted
 
 > `FIGURE DELTA: none — footings only; no row moves, no class-total change, no coverage change.`
+
+> **Merge reconciliation.** The sweep above ran against 37 pairs and `26 of 37`, and its verdict is therefore read as a delta and not as an absolute: §24 ([#91](https://github.com/winniel123/verge-asm/issues/91)) admitted `10259/tcp` and `10257/tcp` in a pass that ran concurrently with this one, so the note's composed state is **39 pairs**, class totals **`11 / 7 / 21`**, §2.2 footing coverage **28 of 39**, §6.1 containment **28 + 6 + 5 = 39**, and §4.6 exclusions **19**. §1 carries the current absolutes. What this section did is unchanged by that; what the note totals is not.
+>
+> **And one consequence this section named in advance has fired.** §26.5 made `623/udp`'s Filter A pass conditional: *if #90 re-founds the cell on the IPMI/ASF specification, that pair returns to the residue and owes a retrieval this ticket did not spend.* §23 did re-found it, on IPMI v2.0 §13.1.2 and DMTF DSP0136 §3.2.1. **`623/udp` is therefore back in the residue and owes a positive-footing class retrieval** — ticketed rather than swept here.
 
 | Where | Was | Is |
 |---|---|---|
