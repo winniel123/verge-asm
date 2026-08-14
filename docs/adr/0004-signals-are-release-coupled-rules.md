@@ -302,12 +302,22 @@ row's expected output is underdetermined.
 
 ## Consequences
 
-- **The v1 set is:** certificate expired / not-yet-valid / expiring within N days (one rule,
-  operator-configurable N), self-signed, hostname-SAN mismatch, weak key or signature
+- **The v1 set is:** certificate expired / not-yet-valid / expiring within ~~N days (one rule,
+  operator-configurable N)~~ **a fraction of the certificate's own lifetime** — see below —,
+  self-signed, hostname-SAN mismatch, weak key or signature
   algorithm, TLS 1.0/1.1 negotiated, plaintext HTTP with no HTTPS, a redirect that does not
   upgrade to TLS, a redirect to a host outside the operator's estate, and
   `sensitive-port-exposed`. Excluded: directory-listing pages, default-install pages,
   admin-panel titles.
+  > **Both halves of *"one rule, operator-configurable N"* are WITHDRAWN** by the
+  > [#60](https://github.com/winniel123/verge-asm/issues/60) amendment above, which names this very
+  > sentence, and the horizon was then re-specified by the
+  > [#67](https://github.com/winniel123/verge-asm/issues/67) amendment as a **fraction of the
+  > certificate's own lifetime**. `N` is a **declared parameter**,
+  > project-authored and fixed at the release; it is **never operator-configurable**. Marked here
+  > rather than only at the amendments, per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+  > by [#106](https://github.com/winniel123/verge-asm/issues/106).
 - **Two DNS signals join the set** under [#35](https://github.com/winniel123/verge-asm/issues/35):
   **`lame-delegation`** (the `Name`'s `resolution` is `Lame` — its delegated nameservers were
   reached and none serves it) and **`cname-target-name-error`** (the CNAME chain terminates at
