@@ -307,7 +307,11 @@ which certificate an `Endpoint` presents — held as the **ordered chain of fing
 first**, since order is on the wire. Its two negatives are distinct and both are values:
 **`TLSRefused`** where the peer spoke TLS and accepted no candidate we offered, and **`NoTLS`**
 where nothing on the port spoke TLS at all. Collapsing them files an SSLv3-only or SNI-required
-listener under *not a TLS server*. What the handshake *negotiated* is not here and is not a
+listener under *not a TLS server*. The handshake feeding this facet sends **SNI equal to the
+`Endpoint`'s name** — no SNI for the nameless one — and **no ALPN extension at all**, so that a
+listener refusing our application protocols cannot cost us a chain we could otherwise read: ALPN
+belongs to `http-exchange`, and a value a *second* leaf's parameter can decide is the `NotHTTP`
+defect one facet across. What the handshake *negotiated* is not here and is not a
 property of a certificate: a negotiated version is a function of our own ClientHello, so it
 would move estate-wide on a library upgrade with nothing in the world having changed. See
 `tls-acceptance`. **Certificate transparency is not a source of this facet**, and cannot be:
@@ -341,10 +345,33 @@ is **declared by us and recorded as what went on the wire, never taken
 from the TLS library's defaults**: a default is not a declaration, and one left in place hides a
 TLS-1.0-only listener as `NoTLS` on exactly the estate `tls-1.0-accepted` exists for. Widening the
 offer is an aperture change, and because the candidate set sits inside the **value** rather than in
-the key it costs a **`Break`** on every timeline of this facet — not a `revealed`, which is an
-opening kind and opens nothing here. See
-[ADR-0025](./docs/adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md).
+the key it costs a **`Break`** on every timeline of this facet **and on every `certificate`
+timeline** — the same one declared set is carried by both TLS exchanges — not a `revealed`, which is
+an opening kind and opens nothing here. Versions are enumerated TLS 1.0–1.3; **cipher suites only
+for TLS 1.0–1.2**, because Go's `Config.CipherSuites` is ignored for TLS 1.3 and a per-candidate
+negative over candidates we did not choose would move estate-wide on a library upgrade. See
+[ADR-0025](./docs/adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md),
+[ADR-0030](./docs/adr/0030-an-offer-is-admitted-on-a-finding-or-on-a-falsity-it-prevents.md) and
+the list itself in [`docs/spec/measurement-offers.md`](./docs/spec/measurement-offers.md).
 _Avoid_: tls config, tls support, cipher scan
+
+**Offer**:
+What the measurement binary puts on the wire to decide what a value is *able* to say — the TLS
+candidate set, the queried qtype set, the ALPN list, the EDNS options, the DNS transport policy.
+Never a library default: a default is not a declaration, and one left in place is recorded either
+as a version string that cannot tell a widening from a narrowing or as a parameter that is silent
+on the change that matters. An offer is the `Batch`'s recorded **scope** where any value it feeds
+carries a **per-candidate negative** — *we asked about X and X was not there* — and then it is scope
+for every batch that makes it; otherwise it is a **declared parameter** of the leaf that made it.
+A candidate is admitted on one of two limbs, never on an attestation, because an offer asserts
+nothing about the world: its **acceptance is a finding**, or its **absence would make the
+measurement false**. The recorded scope is what went on the wire and never what we intended, so
+the build fails where a declared candidate is not offerable by the linked library. None of the five
+is operator-configurable: an offer the operator can narrow is a finding the operator can silence.
+See [ADR-0025](./docs/adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md),
+[ADR-0030](./docs/adr/0030-an-offer-is-admitted-on-a-finding-or-on-a-falsity-it-prevents.md) and
+[`docs/spec/measurement-offers.md`](./docs/spec/measurement-offers.md).
+_Avoid_: client config, scan settings, probe options, default
 
 **Batch**:
 One source, executed once, against one scope, from one vantage — recording the scope its
