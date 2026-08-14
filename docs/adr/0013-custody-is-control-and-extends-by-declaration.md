@@ -160,6 +160,112 @@ So the hole is carried two ways:
 The second is **display, not approval**. The declaration remains one act per scope, so ADR-0002's
 rejected per-address approval queue stays rejected.
 
+Both carriers are **point-in-time and the extension is continuous**, which is a stated cost this
+section originally left unstated. It is repaired by the amendment below.
+
+## Amendment — [#55](https://github.com/winniel123/verge-asm/issues/55): §7 gains a third carrier, because the first two fire once and the extension is recomputed forever
+
+[#51](https://github.com/winniel123/verge-asm/issues/51) wrote §7's declaration and drew §7's
+census, and found that the pair **discharges the tick-time hazard fully and the continuous hazard
+not at all**. The operator reads the declaration once, checks the address list once, and ticks.
+Everything after that belongs to whoever administers their DNS: point a name at a CDN on Tuesday,
+and on Wednesday's cadence an edge address enters the extension, the gate opens over it, and on
+the model's own accounting nothing unusual happened — an `Address` `appeared` and its `Service`s
+`appeared`, which is the ordinary shape of an estate growing.
+
+**So a live `custody extension` gaining an address notifies**, in the **coverage class**, one
+message per extending scope per cadence, fired at the cause.
+
+### Why it is a message rather than a stated cost
+
+A live extension is the one place in this model where the probing gate opens over an address with
+**no Declared act at all**. This ADR's own rejected-alternatives table refuses automatic extension
+on the ground that *"every legitimate widening in this model traces back to a Declared act"* — and
+the declaration is such an act, made **once**, about a set that is **recomputed**. Between one
+cadence and the next, the party who moves the boundary is the operator's DNS administrator or
+their provider. Leaving that silent is not a stated cost of the same kind as the ones this project
+has accepted elsewhere; those all state a cost the operator can *see*.
+
+### What it may assert, and what it may not
+
+The message states the **difference and nothing else**: which addresses entered the extension this
+cadence, the name citing each, and the resulting count — the same count the census renders, read
+from the **same computation** and never counted independently
+([#51](https://github.com/winniel123/verge-asm/issues/51)). It carries **no verdict**. It does not
+say the addresses may not be the operator's, does not name a provider, does not flag the apex, and
+contains **no number the product chose**. Its job is to return the operator's attention to §7's
+second carrier at the moment that carrier's content changed — the census is the check, and the
+message is the reason to look at it.
+
+Three predicates were considered and refused, each on an instrument this project has already
+declined:
+
+| Refused predicate | Why |
+| --- | --- |
+| *The address falls outside every address scope declared or proposed* | On the modal cloud-resident install there **are** no address scopes ([#26](https://github.com/winniel123/verge-asm/issues/26), and §6 of this ADR), so it is true of the whole extension and discriminates nothing — and its second limb reads a `Proposal`, which [ADR-0012](./0012-a-proposer-is-not-a-source.md) says is read by nothing |
+| *The address is cited by the apex specifically* | This ADR's own rejected-alternatives table already calls *apex* a heuristic standing in for a rule, because Route 53 aliases and Cloudflare flattening **both apply below the apex** — so it misses the motivating case (`www` re-pointed at a CDN) while reading as coverage |
+| *Only entries caused by an existing name re-pointing* | The most attractive of the three, and it fails on **§7's own criterion**: it is silent on a new name pointed at somebody else's edge, so it claims a property it does not have, which is *"a safety precondition whose reliability we have not established is worse than a stated cost"* one level down |
+
+### Why it is the coverage class and not a fifth cause
+
+The coverage class already holds **a closing custody gate**, and this ADR's Consequences already
+put the gate *opening by operator act* there too — `revealed`, one message at the cause. What had
+no message was the gate opening **because the world moved under a standing declaration**. That is
+the same aperture input in the same direction, so **no fifth cause, no fourth class, and no sixth
+aperture input** — this ADR's *"no new notification class"* survives unamended. What is new is the
+**agency**: it is the first coverage-class member caused by neither our act nor the operator's,
+after [#48](https://github.com/winniel123/verge-asm/issues/48) added the first one caused by the
+operator's own input.
+
+### The nag test
+
+An estate that legitimately grows every week must not be told weekly that it may have
+over-asserted, or the message trains the operator to ignore the one channel carrying a safety
+property. Three things carry it, none of them a form of words alone:
+
+- **The operator who was right to leave the extension off never sees this message at all.** There
+  is no live extension, so there is nothing to gain an address. §7's hazard and §7's message have
+  the same population.
+- **It fires at the cause, carrying a set** ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)),
+  so a CDN cutover that moves a whole zone in one night is one message and not forty.
+- **It reports a boundary, not a suspicion.** *The addresses `example.com` covers have changed* is
+  the register; *you may have over-asserted* is not, and the second is what the nag test forbids.
+  An operator who added two machines this week reads two addresses they recognise, which is the
+  same five-second act §7 already asks of them once.
+
+Two riders. **A departure does not fire it** — an address leaving is §4's self-correction working
+and the gate narrowing, so the message triggers on a gain and may then state the whole difference.
+And **an address re-entering within the currency bound does not re-fire**, reusing the bound
+already in the model rather than a second constant — a blue-green flip between two addresses is
+the toggle-inside-one-cadence non-event under another name.
+
+### It is not the approval queue arriving through the notification layer
+
+This is the objection worth answering in terms, because a per-cadence list of new addresses looks
+exactly like ADR-0002's rejected queue delivered by mail.
+[#51](https://github.com/winniel123/verge-asm/issues/51)'s six census/queue discriminators bind the
+**message** as well as the panel: **no per-address control and no per-address act**, no pending
+state (every address listed is already in force and already being probed), no count that goes down
+as the operator works, and the only act remains the one act on the whole declaration. A message
+that offered *approve* or *exclude* per row would be the queue, and it is refused here explicitly
+so that nobody re-derives it as an ergonomic improvement —
+[ADR-0022](./0022-confirmation-is-singular.md)'s reason verbatim: the request arrives as a usability
+complaint rather than as a safety proposal, which is how it would get through. That ADR's unit rule
+also settles the message's shape without further argument: **the unit is the scope, never the
+address**, which is why this fires once per extending scope and not once per entry.
+
+### Thin ground, stated rather than smoothed
+
+The message inherits [#51](https://github.com/winniel123/verge-asm/issues/51)'s unmeasured
+assumption whole: it works only if the operator reads it and recognises their own addresses. It
+converts the continuous half of §7's hazard from *no carrier* to *a carrier resting on the same
+unmeasured assumption as the tick-time one*. That is a real improvement and it is not a proof, and
+the spec should say so in those words rather than claiming §7 is discharged. The sharpest available
+repair remains the one [#51](https://github.com/winniel123/verge-asm/issues/51) recorded and left
+unpriced — a PTR on an entering address is a **measurement** rather than a list and so clears
+[#31](https://github.com/winniel123/verge-asm/issues/31)'s line, but it is a new measurement
+carrying [ADR-0011](./0011-a-facet-is-six-parts.md)'s six obligations and is a scope decision.
+
 ## Consequences
 
 - **The modal install can evaluate the flagship signal.** A cloud-resident operator types the
