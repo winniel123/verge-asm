@@ -71,13 +71,18 @@ its count is read from the same computation as the census. See
 _Avoid_: transitive scope, auto-discovery, implicit seed, follow-the-DNS
 
 **Source**:
-Anything that can produce observations, carrying three properties: **authority**
+Anything whose word can put a subject in the estate, carrying three properties: **authority**
 (`declared` / `measured` / `inferred`), **completeness** (`enumerable` /
 `corroborative`) and **consent** (`unencumbered` / `operator-accepted` /
 `operator-credentialed`). The first two say how far to believe it; the third says whether
-it may run without the operator having said so. A thing that produces **no** observations is
-not a source, however registry-shaped it looks: it yields `Proposal`s, and only `consent`
-applies to it. See [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
+it may run without the operator having said so. Observing a facet is the usual way a source
+admits a subject and **not the only one**: certificate transparency observes no facet at all —
+a log entry witnesses that a certificate was issued, never that anything presented it — and it
+is still a source, because `authority: inferred` is exactly the property it exercises over the
+`Name`s a SAN carries. A thing that admits **nothing** is not a source, however
+registry-shaped it looks: it yields `Proposal`s, and only `consent` applies to it. See
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md) and
+[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md).
 _Avoid_: provider, feed, integration
 
 **Proposal**:
@@ -222,8 +227,11 @@ An `(Address, port, transport)` triple — the subject reachability is measured 
 _Avoid_: port, open port, socket
 
 **Endpoint**:
-A `(Name, Service)` pair — the only key under which HTTP identity is single-valued,
-because two names on one address and port legitimately serve different content. The `Name`
+A `(Name, Service)` pair — the only key under which HTTP identity **and the presented
+certificate chain** are single-valued, because two names on one address and port legitimately
+serve different content and, under SNI, different certificates. Keyed on `Service` instead,
+`certificate` would either force the arbitration `Span` refuses or record whichever name was
+probed last, manufacturing drift on every virtual host every run. The `Name`
 may be **absent**, meaning *the default response to a client that names nothing*: a real,
 distinguishable measurement mode rather than a null in a key, and the only one available on an
 address-scope `Seed` where no name is known yet. It closes when **either** leg withdraws — its
@@ -296,7 +304,12 @@ where nothing on the port spoke TLS at all. Collapsing them files an SSLv3-only 
 listener under *not a TLS server*. What the handshake *negotiated* is not here and is not a
 property of a certificate: a negotiated version is a function of our own ClientHello, so it
 would move estate-wide on a library upgrade with nothing in the world having changed. See
-`tls-acceptance`.
+`tls-acceptance`. **Certificate transparency is not a source of this facet**, and cannot be:
+the value space's two variants are both outcomes of a wire exchange, and a log entry witnesses
+issuance rather than presentation — so CT admits `Name`s and holds no timeline here or anywhere.
+Attributing a logged certificate to an `Endpoint` nobody watched serve it would assert a
+presence no scope record can catch, which is the no-false-absence rule read in the direction
+that has no guard. See [ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md).
 _Avoid_: cert record, TLS config, negotiated version, cipher
 
 **tls-acceptance**:
@@ -332,7 +345,12 @@ The single-hop link from a subject to the observation that introduced it. Follow
 citations backwards always terminates at a `Seed` or a `declared` source, which is what
 makes "why is this here?" answerable for everything in the estate. It is load-bearing in
 both directions: a subject whose last citation goes stale has no chain back to a `Seed`,
-which withdraws it *and* closes the probing gate on it.
+which withdraws it *and* closes the probing gate on it. Where a source **admits without
+observing** there is no observation to point at, and the hop is that source's `Batch` —
+which already records the source, the vantage, the time and the scope, so the chain still
+terminates at the `Seed` that scope was drawn from and a bad source is still identified by
+traversing everything it introduced. See
+[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md).
 _Avoid_: provenance chain, lineage, discovery path
 
 ### Derived

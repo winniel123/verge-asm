@@ -37,7 +37,7 @@ six: [#16](https://github.com/winniel123/verge-asm/issues/16) filed *TLS 1.0/1.1
 | `dns-record` | One timeline **per qtype**; TTL **excluded**; `Shadowed` and `Lame` are values here too |
 | `dns-record`, qtype NS | An RRset of `(nameserver, serves │ does-not-serve)` pairs — where partial lameness lives |
 | `reachability` | `connected │ refused │ no-response` — three values, projecting to `Reach`'s two |
-| `certificate` | `Presented(ordered chain fingerprints, leaf first) │ NoTLS` |
+| `certificate` | `Presented(ordered chain fingerprints, leaf first) │ NoTLS`, on **`Endpoint`** — see [ADR-0027](./0027-a-source-may-admit-without-observing.md) |
 | `http-identity` | `Responded(status, Location, WWW-Authenticate, Server, title) │ NotHTTP` |
 | Negotiated TLS parameters | **Not `certificate`.** A sixth facet, **`tls-acceptance`** |
 | `tls-acceptance` | Accepted versions and accepted ciphers; the **candidate set is batch scope**, never value |
@@ -55,11 +55,21 @@ six: [#16](https://github.com/winniel123/verge-asm/issues/16) filed *TLS 1.0/1.1
 ### The decoder is a second derivation, and per-source keying already paid for it
 
 ADR-0007 implied one canonicaliser per facet. But a timeline is keyed **per source**, and two
-sources deliver one facet in unrecognisably different shapes: a live TLS handshake against a
-`crt.sh` JSON row, our resolver's wire answer against the operator's zone file. One canonicaliser
-swallowing every shape means fixing the `crt.sh` parser moves its version and `Break`s every
-`certificate` timeline in the estate — including the ones our own handshake produced, which
-nothing touched.
+sources deliver one facet in unrecognisably different shapes: our resolver's wire answer against
+the operator's zone file, on `dns-record`. One canonicaliser swallowing both shapes means fixing
+the zone-file parser moves its version and `Break`s every `dns-record` timeline in the estate —
+including the ones our own resolver produced, which nothing touched.
+
+*Amended by [#56](https://github.com/winniel123/verge-asm/issues/56) /
+[ADR-0027](./0027-a-source-may-admit-without-observing.md) in its example, not its rule.* This
+paragraph originally led with *"a live TLS handshake against a `crt.sh` JSON row"*, and that pair
+cannot exist: a CT log entry witnesses issuance rather than presentation, so it can produce neither
+variant of this facet's union, and **[measured] `crt.sh`'s JSON carries no certificate fingerprint
+at all** while `Certificate` is shared by fingerprint. `crt.sh` therefore has no `certificate`
+decoder and no decoder of any kind. The rule is unchanged and better founded on the pair that
+survives, which is the one with **measured** churn —
+[ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md)'s *stripper per provider convention,
+forever* — and the only two-source facet in v1.
 
 One canonicaliser per `(facet, source)` avoids that and costs more than it saves: the two sources
 then produce values in different spaces, and ADR-0007's *source conflict is reported, never
@@ -359,8 +369,13 @@ seventh facet, writes a canonicaliser, and silently skips the batch-scope obliga
   alone. It does not: the prober decides `Shadowed`, `Lame`, `NoTLS` and `NotHTTP` regardless of
   #41. Every *canonicaliser* corpus, by contrast, is structured rows — decoders absorb the wire —
   so the hard half is entirely the prober's.
-- **A `certificate` timeline now exists for every open `Service`**, most holding `NoTLS` forever.
-  Storage, not correctness, and it lands on the retention patch rather than here.
+- **Every open `Service` now carries at least one `certificate` timeline**, most holding `NoTLS`
+  forever. Storage, not correctness, and it lands on the retention patch rather than here.
+  *Corrected by [ADR-0027](./0027-a-source-may-admit-without-observing.md): this originally read
+  "a `certificate` timeline now exists for every open `Service`", which read as a keying claim and
+  contradicted this ADR's own rationale.* The facet keys on **`Endpoint`**; what is true per
+  `Service` is the **floor**, the nameless `Endpoint`'s timeline, and the count multiplies again
+  by names per service.
 - **`tls-acceptance` puts a weekly-cadence input under a v1 signal.** ADR-0007's currency rule is
   `k` cadences of the covering `Scan`, so this is legal without new machinery — but
   `tls-1.0-accepted` is now the slowest-moving signal in the set, and a `Gap` opens two weeks after
@@ -370,7 +385,7 @@ seventh facet, writes a canonicaliser, and silently skips the batch-scope obliga
 
 | Alternative | Why not |
 | --- | --- |
-| One canonicaliser per facet, swallowing every source shape | A `crt.sh` parser fix breaks every `certificate` timeline including our own handshake's |
+| One canonicaliser per facet, swallowing every source shape | A zone-file parser fix breaks every `dns-record` timeline including our own resolver's — originally argued from a `crt.sh` `certificate` decoder, withdrawn by [ADR-0027](./0027-a-source-may-admit-without-observing.md) |
 | One canonicaliser per `(facet, source)` | Two sources' values land in different spaces, and ADR-0007's *report the conflict* has nothing to compare |
 | A record with optional fields per facet | Collapses every measured negative into *we did not look*, and `plaintext-HTTP-with-no-HTTPS` goes `not-evaluable` where it is true |
 | The CNAME chain inside `resolution` | A rotated intermediate alias closes the span with identical addresses on both sides — drift in our route, not the world's answer |
