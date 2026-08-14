@@ -33,7 +33,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are 14 / 12 / 2** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -258,6 +258,41 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > the DRAC inside IPMI. **No `(port, transport)` pair moves, no tier moves, no `Break`.** §23.7 carries
 > the ruling and §23.10 the flags. Read §23 before treating a specification that numbers a port as one
 > that takes a position — it supplies **membership and determinacy, never a prohibition**.
+
+> **Amended by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)). **One cell moves
+> between two rows of this table, and it is the first time this section has said what the rows are
+> graded *by*.** **`873/tcp` rsync leaves the explicit prohibition tier for the explicit
+> trusted-network scoping tier.** **[measured]** §26.3 found §20.8's tier criterion — *"every
+> prohibition-tier sentence names the public internet"* — **refuted as a universal** on this row: rsync
+> scopes by **trust boundary** in every artefact it ships and the string `internet` occurs **zero**
+> times in `rsync.1.md`, `rsyncd.conf.5.md` and `SECURITY.md` at `v3.5.0`, so no retrieval can cure it.
+> §30 applies the criterion rather than restating it, and the criterion becomes **true** over the
+> fourteen-member tier that remains.
+>
+> **The tiers are prohibition 14 pairs · scoping 12 pairs · weak 2 rows**, coverage **unchanged at 28 of
+> 39**, and 14 + 12 + 2 + 11 = **39**. **No `(port, transport)` pair moves, no row moves, no class total
+> moves, and [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered** — a
+> footing tier is not reference data. §18.6's table carries the restated membership and §30.2 the
+> verdict for every one of its 26 covered pairs, stated per row so a reader re-derives the totals rather
+> than trusting them.
+>
+> **This section's *"slightly weaker than a prohibition"* now has a referent.**
+> [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md): **a
+> footing tier grades the distance between the owner's own sentence and the proposition the row asserts,
+> counted in premises the reader has to supply — never the owner's conviction.** Naming the **public
+> internet** leaves **zero** premises; naming a **trust boundary** leaves **one**, *the internet lies
+> outside it*, which is true, obvious and still the reader's step. **Mood, force, hedging and priority
+> label are inadmissible in both directions** — which is why `6379` Redis's *"usually it is not a good
+> idea"* outranks `873` rsync's flat *"Do not expose"*, and why that is the rule working rather than
+> failing.
+>
+> **Two riders, both measured, both disclosed rather than smoothed.** The lexical test is **necessary
+> and not sufficient**: `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ sit in the **scoping** tier
+> carrying owner sentences that *do* name the Internet, and neither is promoted here (§30.7). And the
+> **scoping tier is no longer sorted on one dimension** — §24 placed `10259/tcp` and `10257/tcp` in it
+> on a footing that is **not a sentence**, so ten of its twelve members are graded by premise count and
+> two by §24's relative-strength reasoning. Read §30.7 and §30.9 before quoting this table's scoping row
+> as homogeneous.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -1047,6 +1082,30 @@ different protocols on the same number, and §6 shows this has already caused a 
 > RabbitMQ's production checklist restricts *"all other ports (inter node communication, CLI tools and so
 > on)"* to *"hosts running RabbitMQ nodes or CLI tools"*, which is `25672` in the owner's own taxonomy
 > (§26.5).
+
+> **Amended by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)). **No quote in this
+> section is withdrawn, added or reworded, and one row's quotes now carry it in a different tier.**
+>
+> **`873/tcp` — the defect §26 reported is applied.** Both rsync sentences above stand and go on
+> carrying the row; what changes is that the row's footing sits in the **explicit trusted-network
+> scoping** tier rather than the **explicit prohibition** tier, because rsync names a **trust boundary**
+> where the fourteen remaining prohibition-tier sentences name **the public internet**. §26's *"the
+> defect is reported to the curator rather than applied"* is **superseded** — #98 is the pass whose
+> question it was. **The row does not move, the claim is untouched, and §13.2's finding that the owner's
+> own SSL/TLS Daemon Setup puts the supported public listener on 874 with `873` on loopback is
+> unchanged.** §30.
+>
+> **`3306/tcp` — the restored passage is confirmed at a second issued version, and the cell is *clean*
+> rather than marginal.** **[measured]** the three-sentence run above is present, in the same order, in
+> the MySQL **9.7** Reference Manual §8.1.1 as well as in **8.4**, and `refman/9.4/` returns a **302**
+> to it; **[measured]** all three sentences sit inside a **single `<p>`**, the first element of the
+> **only** `<li>` of the *Checklist* sub-list. There is no block boundary between *from the Internet* and
+> the prohibition. §26.5's *marginal* verdict is **discharged**. §30.3.
+>
+> **Two sentences already in this section are by-catch and are reported rather than acted on** —
+> ZooKeeper's *"not exposed directly to the Internet"* and RabbitMQ's *"not exposed to the public
+> Internet"*, both the owner's for their own port, both in the **scoping** tier. §20.8's criterion is
+> **necessary and not sufficient**, so neither is promoted here. §30.7.
 
 ---
 
@@ -5735,6 +5794,30 @@ That flag is discharged.
 > > which is strictly more than the shipped-default-only footing carrying `5432` and `5984`. Every
 > > other cell in this table stands. 15 + 11 + 2 + 11 = **39**.
 >
+> > **Amended by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)). **`873/tcp` rsync
+> > moves from the prohibition row to the scoping row, and it is the only cell that moves.** §20.8's
+> > tier criterion is **applied** rather than restated: **[measured]** no rsync artefact names the
+> > internet anywhere at `v3.5.0` (§26.3), so the footing stands **one** reader-supplied premise from
+> > the row's proposition where the other fourteen stand at none —
+> > [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md).
+> > **The tiers read prohibition 14 · scoping 12 · weak 2, coverage 28 of 39, and 14 + 12 + 2 + 11 =
+> > 39.** The restated membership:
+> >
+> > - **Explicit prohibition — 14 pairs:** `6379` · `11211/tcp` · `11211/udp` · `3306` · `1433` ·
+> >   `9200` · `9300` · `445` · `623` · `9042` · `2379` · `2380` · `10250` · `10255`
+> > - **Explicit trusted-network scoping — 12 pairs:** `27017` · `27018` · `27019` · `2049` · `2181` ·
+> >   `25672` · `4369` · `2375` · `2376` · `10259` · `10257` · **`873`**
+> > - **Shipped default only — 2 rows:** `5432` · `5984` — **unchanged**
+> > - *Outside this table's subject — 11 pairs* — **unchanged**
+> >
+> > **No `(port, transport)` pair moves and no row moves.** `873/tcp` is not the scoping tier's weakest
+> > member — it rests on two owner imperatives in two shipped man pages plus a deployment section that
+> > puts the port on loopback — and the §18.7 / §19.12 thin-cell flags are unchanged, still naming
+> > `10255` and `10250` in the **prohibition** tier. §30.2 carries the verdict for every covered pair
+> > and §30.8 states the delta **parametrically**, so the totals survive whatever
+> > [#95](https://github.com/winniel123/verge-asm/issues/95) and
+> > [#96](https://github.com/winniel123/verge-asm/issues/96) do to the population.
+>
 > **Both kubelet cells are conditional on [#83](https://github.com/winniel123/verge-asm/issues/83)**,
 > which is deciding whether either row survives Class A on the finding that the shipped source
 > contradicts the generated reference page. A footing is evidence for a claim and not a claim
@@ -6695,6 +6778,52 @@ the house precedent that **a footing found in one lane does not re-tier a row pl
 > naming `4369` in an imperative rather than an advisory. Neither is in the current bytes, and unlike
 > §16.9's criterion this one is a genuine absence over a **four-class** corpus rather than a two-class
 > one.
+
+> **Amended by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)). **The `4369` ruling
+> stands and is re-founded; the sentence that carried it was false when written and is now true; and one
+> of the three reasons above is withdrawn as a ground.** Added rather than substituted, per the
+> name-and-withdraw convention.
+>
+> **The criterion was refuted as a universal on `873/tcp`** — **[measured]** §26.3
+> ([#93](https://github.com/winniel123/verge-asm/issues/93)): rsync scopes by **trust boundary** in every
+> artefact it ships and the string `internet` occurs **zero** times in `rsync.1.md`, `rsyncd.conf.5.md`
+> and `SECURITY.md` at `v3.5.0`, so no retrieval can cure it. §30 **applies** the criterion rather than
+> restating it: **`873/tcp` moves to the scoping tier**, the prohibition tier is **14 pairs**, and
+> *"every prohibition-tier sentence names the public internet"* becomes a **true** statement about a
+> fourteen-member tier — made true by moving the counterexample, not by widening the words. **No
+> `(port, transport)` pair moves.**
+>
+> **What the tier grades is now written down, and this section's *"vocabulary, not force"* is a proxy
+> for it rather than a fact about diction.**
+> [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md): **a
+> footing tier grades the distance between the owner's own sentence and the proposition the row asserts,
+> counted in premises the reader has to supply — it does not grade the owner's conviction.** Naming the
+> public internet is what makes that count **zero**; naming a trust boundary leaves **one** — *the
+> internet lies outside it* — which is true, obvious, and still the reader's step. `DEP-001` names a
+> boundary, so `4369` is one premise away, and **that** is why it is scoping.
+>
+> **Reason 2 above is *withdrawn as a ground*.** *"And 'you are advised to' is an advisory, where the
+> tier above is populated by imperatives"* is **inadmissible** under ADR-0059 limb 2 — mood, force,
+> hedging and priority label are not read, in either direction. The observation is true and it decides
+> nothing; withdrawing it costs the ruling nothing, because reason 1 carries it alone. The proof that
+> mood is inadmissible is in the tier itself: `6379` Redis is carried by *"usually it is **not a good
+> idea**"* and `873` rsync by a flat *"**Do not** expose"*, and after §30 the hedge outranks the
+> imperative.
+>
+> **Reason 3 — §17.6's house precedent — is *spent*, not withdrawn.** *"A footing found in one lane does
+> not re-tier a row placed in another"* was right for #84 and right for #93, and it is what routed this
+> question to a pass of its own. It binds unchanged for the next pass.
+>
+> **The *criterion that would move the cell* is restated.** Its second half — *"or naming `4369` in an
+> imperative rather than an advisory"* — is **withdrawn**; its first half stands, now stated as what it
+> always was: **an Erlang/OTP sentence that closes the premise gap by naming the network the row is
+> about.** RabbitMQ's sentence that does name the public Internet remains a **non-owner's** for this port
+> (§10.5, §16.6, §20.7) and cannot close it.
+>
+> **One thing this criterion never said, and §30.7 measures:** it is **necessary** for the prohibition
+> tier and **not sufficient**. Two scoping-tier rows — `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ —
+> carry owner sentences that *do* name the Internet and are **not** promoted. Read §30.7 before quoting
+> this sentence as a membership test.
 
 ### 20.9 Every dependent figure, checked rather than asserted
 
@@ -9289,6 +9418,28 @@ passage, which §3.4 drops (§26.5) — and **`873/tcp` fails outright**.
 > and nothing in this sweep touches its claim. **The question is which of two cells of §2.2's table the
 > footing sits in, and no count outside that table depends on the answer.**
 
+> **Amended by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)). **The report above is
+> acted on: the criterion is *applied*, and `873/tcp` moves to the scoping tier.** *"`873/tcp` stays
+> where it is and this section moves nothing"* is **superseded as a disposition** and stands as a
+> statement about what §26 did; **every measurement in this section is unchanged and is what §30
+> applies.** The tiers read **prohibition 14 · scoping 12 · weak 2**, coverage unchanged at **28 of
+> 39**, and **no `(port, transport)` pair moves** — which is exactly the last paragraph above, confirmed
+> rather than revised.
+>
+> **Two of this section's figures are superseded, and only by resolution.** *"13 clean · 1 marginal
+> (`3306`) · 1 failing"* becomes **14 clean · 1 failing**: §30.3 disposes of `3306`'s marginal verdict on
+> a currency check and a structural measurement, leaving `873/tcp` as the **sole** counterexample — the
+> configuration in which the *restate it* option carried its maximum weight and still lost. And the
+> pairs quoted here as the composed state were `15 / 9`; the composed state at §30 is `15 / 11` after
+> §24, which is the count §30 walks from.
+>
+> **What §30 adds beyond the cell** is the thing this section could not supply and did not claim to: a
+> written statement of **what the tier grades** —
+> [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md),
+> *evidential distance, never the owner's conviction*. This section's *"no retrieval can cure it; the
+> class list is now exhausted and the sentence does not exist"* is what makes the demotion an
+> application rather than a gap.
+
 ### 26.4 `2049/tcp` NFS — the specification class was never opened, and it is the closest this sweep came to moving a row
 
 NFS is the population's only **split-owner** row: the protocol is the IETF's and the cited
@@ -9591,7 +9742,7 @@ measurement, and it is the thinnest thing in this section.
 | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
 | §17.1's population of negatives | fourteen | **unchanged.** This section sweeps **positives**; nothing here creates or retires a sole-ground negative |
 | §17.8's *fixed point* | finished as of a table state | **not re-armed.** No row's footing changes **tier**; two change **warrant within** a tier, which §20.9 already ruled is not a re-arming event |
-| §20.8's tier criterion | *"Every prohibition-tier sentence names the public internet"* | **refuted as a universal** (§26.3). 13 clean · 1 marginal (`3306`) · 1 failing (`873`). **Reported, not applied** — applying it moves tier counts |
+| §20.8's tier criterion | *"Every prohibition-tier sentence names the public internet"* | **refuted as a universal** (§26.3). 13 clean · 1 marginal (`3306`) · 1 failing (`873`). **Reported, not applied** — applying it moves tier counts. **Superseded by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)): **applied**, `873/tcp` demotes, the tiers read **14 / 12 / 2**, and the walk resolves to **14 clean · 1 failing** once §30.3 disposes of `3306` |
 | §3.4's MySQL quotation | begins *"MySQL uses port 3306 by default"* | **the preceding sentence of the same passage is restored** (§26.5 amendment to §3.4). No footing and no tier moves |
 | §16.7 / §18.6's *"two cells are thin"* successor note | one cell — `10250` | **unchanged.** Nothing here is added to or removed from that flag |
 
@@ -10038,6 +10189,478 @@ and the one #4 §6.3 originally got wrong. No packet has been sent.
 
 ---
 
+## 30. §20.8's tier criterion is applied rather than restated — `873/tcp` moves to the scoping tier, and the tier's grading dimension is written down
+
+Wayfinder ticket [#98](https://github.com/winniel123/verge-asm/issues/98), on the defect
+[#93](https://github.com/winniel123/verge-asm/issues/93) §26.3 measured and deliberately declined to
+apply: §20.8 asserts *"Every prohibition-tier sentence names **the public internet**"* and §2.2's own
+table refutes it on `873/tcp`. This section **amends §20.8, §2.2, §18.6, §3.4 and §26.3 by reference**;
+earlier text stands and is marked, per the name-and-withdraw convention, and where §30 and an earlier
+section disagree, **§30 governs**.
+
+**Headline result, stated first.**
+
+> **The criterion is applied. `873/tcp` rsync moves from the explicit prohibition tier to the explicit
+> trusted-network scoping tier, and §20.8's sentence becomes a true universal over a fourteen-member
+> tier — made true by moving its counterexample, not by widening its words.**
+>
+> **`3306/tcp`'s marginal verdict is disposed of and it is clean**, so `873/tcp` ends as the **sole**
+> counterexample and the losing option carried its maximum weight. **[measured]** MySQL's *Security
+> Guidelines* names the Internet **one sentence** before the prohibition, **inside the same `<p>` of the
+> same list item**, at **two issued versions** — 8.4 (LTS) and 9.7 (the current innovation release,
+> which `refman/9.4/` now redirects to). §30.3.
+>
+> **One cell moves. No `(port, transport)` pair moves, no row moves, no class total moves, no coverage
+> figure moves, and [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered.**
+>
+> **The restatement option lost, and it lost on its extension as well as on its principle.** *A
+> prohibition-tier sentence forbids deployment beyond a trust boundary the owner names* is a criterion
+> read on **mood**, and applied honestly it promotes `4369/tcp` epmd — whose `DEP-001` is titled *Do Not
+> Expose Default Erlang Distribution on Untrusted Networks*, carried at `Critical`, advising the daemon
+> be disabled **unconditionally** — reversing §20.8's central ruling as a side effect. **[measured] a
+> criterion that stretches to fit its one counterexample takes its neighbours with it**, which is the
+> ADR-0042 / §15.7 warning firing on the option that invoked it. §30.5.
+>
+> **What the section adds beyond the cell** is the thing the ticket could not be answered without: a
+> written statement of **what the footing tier grades**. [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md).
+
+### 30.1 The question is not *which tier* — it is *what the tier grades*, and nobody had written it down
+
+§2.2 has graded footings since the note was written and has never said in what respect one tier is
+weaker than another. Its words are *"**Explicit trusted-network scoping**, slightly weaker than a
+prohibition"*. Weaker at **what** is the whole of #98.
+
+**Two sections have answered it in passing, in two different vocabularies, and both were
+reconstructions from the members rather than statements of the sort.**
+
+| Section | Ticket | The criterion it states | The vocabulary it is in |
+|---|---|---|---|
+| §18.6 | [#88](https://github.com/winniel123/verge-asm/issues/88) | *"an unqualified negative about internet exposure and names **no trusted network**, which is what makes it a prohibition rather than a scoping"* | **grammatical** — the shape of the directive |
+| §20.8 | [#84](https://github.com/winniel123/verge-asm/issues/84) | *"The tier boundary in this note is drawn on **vocabulary**, not on force. Every prohibition-tier sentence names *the public internet*"* | **lexical** — the nouns the sentence uses |
+
+**They are not in conflict** — §18.6's phrase contains *"about internet exposure"*, so the internet does
+work in both — and the temptation to read them as rival criteria and pick one is refused here, because
+it would let this section choose the reading that suits the row it is deciding. What they are is **two
+proxies with no stated principal**, and the gap between them is where `873/tcp` fell.
+
+**The question this section must answer first, therefore, is not *does rsync's sentence qualify* but
+*what is being measured when a footing is called weaker*.** The answer is
+[ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) and it
+is stated in three limbs there. In one sentence:
+
+> **A footing tier grades the distance between the owner's own sentence and the proposition the row
+> asserts, counted in premises the reader has to supply. It does not grade the owner's conviction.**
+
+The row asserts *this pair being reachable from an internet vantage is never correct*. An owner sentence
+naming **the public internet** entails that with nothing supplied. An owner sentence naming a **trust
+boundary** entails it through one reader-supplied premise — *the internet lies outside that boundary* —
+which is true, obvious, and still the reader's step rather than the owner's. **That premise is exactly
+what §2.2 exists to disclose**: *"the two forms are not equally strong, and the list must not hide the
+difference."*
+
+So §20.8's lexical test is not arbitrary diction-policing. It is a **readable proxy for a premise
+count**, and it is the right proxy for *this* table because the public internet is the network
+`sensitive-port-reached-from-internet` reads.
+
+### 30.2 The walk — every tier-assigned pair, verdict stated per row rather than per count
+
+**[measured]** Read against the composed post-merge state — §2.2 tiers **prohibition 15 · scoping 11 ·
+weak 2**, coverage **28 of 39** (§18.6 as amended by §24), not the `15 / 9` the ticket's parent figures
+were drafted against.
+
+**The prohibition tier, all fifteen.** The test is limb 3's: does the owner's own sentence, at the
+version the note cites, name the public internet?
+
+| # | Pair | The owner sentence the footing rests on | Names the internet | Verdict |
+|---|---|---|---|---|
+| 1 | `6379/tcp` Redis | *"usually it is not a good idea to expose the Redis instance directly to **the internet**"* | **yes** | **Clean.** Hedged, and limb 2 says the hedge is irrelevant |
+| 2 | `11211/tcp` memcached | *"you **must not** expose memcached directly to **the internet**"* | **yes** | **Clean** |
+| 3 | `11211/udp` memcached | same sentence | **yes** | **Clean** |
+| 4 | `3306/tcp` MySQL | *"Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by default. This port should not be accessible from untrusted hosts."* | **yes** | **Clean** — the marginal verdict is disposed of, §30.3 |
+| 5 | `1433/tcp` MS SQL | *"don't connect your SQL Server instances directly to **the Internet**"* | **yes** | **Clean** |
+| 6 | `9200/tcp` Elasticsearch | *"Never expose an unprotected node to **the public internet**"* | **yes** | **Clean** |
+| 7 | `9300/tcp` Elasticsearch | same sentence, reaching the transport port per §16.4 | **yes** | **Clean** |
+| 8 | **`873/tcp` rsync** | *"Do not expose a cleartext daemon to an **untrusted network**"*; *"do not send sensitive data across an **untrusted network**"* | **no** — **[measured]** `internet` occurs **0** times in `rsync.1.md` (251,801 B), `rsyncd.conf.5.md` (72,903 B) and `SECURITY.md` (34,054 B) at `v3.5.0` | **FAILS → scoping** |
+| 9 | `445/tcp` SMB (+`139/tcp`, `137`/`138/udp` in-cell) | *"unlikely that any SMB communication originating from **the internet** … is legitimate"*; *"Block TCP port 445 inbound from **the internet**"* | **yes** | **Clean** |
+| 10 | `623/udp` IPMI | Dell: *"not designed nor intended to be placed on or connected to **the internet**"* | **yes** | **Clean**, subject to [#96](https://github.com/winniel123/verge-asm/issues/96) — see the rider |
+| 11 | `9042/tcp` Cassandra | shipped `conf/cassandra.yaml`: *"you should not expose this port to **the internet**"* | **yes** | **Clean** |
+| 12 | `2379/tcp` etcd | `THREAT_MODEL.md`: *"**must not** be exposed to untrusted networks or **the public internet**"* | **yes** | **Clean** |
+| 13 | `2380/tcp` etcd | same sentence | **yes** | **Clean** |
+| 14 | `10250/tcp` kubelet | *"The Kubernetes API, kubelet API and etcd are not exposed publicly on **Internet**"* | **yes** | **Clean** |
+| 15 | `10255/tcp` kubelet | same sentence | **yes** | **Clean** |
+
+> **14 clean · 1 failing · 0 marginal.** #93's *13 clean · 1 marginal · 1 failing* is **superseded** by
+> §30.3's disposal of `3306`, not contradicted: the marginal cell resolves clean, so `873/tcp` is the
+> **sole** counterexample.
+
+**The scoping tier, all eleven — checked for the opposite failure.** A criterion applied in one direction
+that quietly promotes rows in the other is not an application, it is a rewrite. Limb 3 forecloses it —
+the lexical test is **necessary and not sufficient** — but the check is run rather than asserted.
+
+| # | Pair | The owner sentence | Names the internet | Verdict |
+|---|---|---|---|---|
+| 1-3 | `27017`/`27018`/`27019` MongoDB | *"only accessible on **trusted networks**"* | no | **Stays** — one premise |
+| 4 | `2049/tcp` NFS | `nfs(5)`: *"on a **trusted physical network** between trusted hosts, it is entirely adequate"* | no | **Stays** — one premise. §26.4's RFC 7530 §1.2 *does* name the Internet and is a **goal the same document records as unmet** (RFC 8881 Appendix C), so it is not a position; §26.4's RFC 8881 §21 *"it is unsafe"* names no network at all. **The tier's closest call and it does not move** |
+| 5 | `2181/tcp` ZooKeeper | Administrator's Guide: *"recommended deploying ZooKeeper **behind a firewall**"* — **and** `security.html`: *"intended for use inside a trusted network, **not exposed directly to the Internet**"* | **yes** | **Stays — by-catch, §30.7.** Limb 3: the test is necessary, not sufficient, and promotion is a question #98 did not ask |
+| 6 | `25672/tcp` RabbitMQ | networking guide: *"only expose these ports to the hosts and subnets that run other cluster nodes … and **not exposed to the public Internet**"* | **yes** | **Stays — by-catch, §30.7.** Same reason |
+| 7 | `4369/tcp` epmd | `DEP-001`: *"This configuration should **only** be used in a **trusted network**"*; *"you are therefore advised to disable the default EPMD"* | **no** — Erlang/OTP names no internet; RabbitMQ's sentence that does is a **non-owner's** for this port (§10.5, §16.6, §20.7) | **Stays** — §20.8's ruling is unchanged and re-founded, §30.6 |
+| 8 | `2375/tcp` Docker | *"reachable only from a **trusted network** or VPN"*; *"not advisable on an **open network**"* | no | **Stays** — one premise |
+| 9 | `2376/tcp` Docker | same | no | **Stays** |
+| 10 | `10259/tcp` kube-scheduler | **no sentence** — the owner's ports table plus `--bind-address=127.0.0.1` in the owner's installer (§24.8) | n/a | **Stays.** ADR-0059 limb 1 counts premises between a **sentence** and a proposition and does not reach a non-prose footing — §30.7 |
+| 11 | `10257/tcp` kube-controller-manager | same | n/a | **Stays** |
+
+**The weak tier is not in this section's subject.** `5432/tcp` PostgreSQL and `5984/tcp` CouchDB rest on
+a restricting default with no owner sentence at all; there is no sentence for the criterion to read.
+Unchanged, and [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's
+watch list is unchanged with them.
+
+**The eleven pairs outside the table's subject are untouched** — Class B's seven, `69/udp`, and
+`139/tcp` + `137`/`138/udp` inside `445`'s cell.
+
+> **Twenty-four prose footings walked, one cell moved, and it is the cell the criterion was already
+> measured to refute.** That is
+> [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md)'s reconstruction
+> test — *"Every ruling in the note falls out of it without strain, which is the test a reconstruction
+> has to pass"* — passed at 23 of 24, with the 24th the ticket.
+
+**The `623/udp` rider.** Its Filter A pass and its prohibition cell both rest on Dell's statement, and
+[#96](https://github.com/winniel123/verge-asm/issues/96) is deciding the row's class in a concurrent
+pass. **A cell cannot outlive its row** (§18.6): if #96 removes `623/udp`, the prohibition tier reads
+**13** and the coverage denominator falls with it. If #96 only moves the row's **class**, nothing here
+moves at all — a footing is about network position and is indifferent to which claim the row rests on
+(§18.6's identical rider for `10250`).
+
+### 30.3 `3306/tcp` disposed of — clean, and the retrieval is a currency check rather than a new sentence
+
+#93 §26.5 already moved the quotation; #98 asks whether that alone promotes the cell. **It does.**
+
+**[measured]**, retrieved for this section at two **issued** versions per
+[ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md):
+
+> "Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by
+> default. This port should not be accessible from untrusted hosts. As a simple way to check whether
+> your MySQL port is open, try the following command from some remote machine …" … "If **telnet** hangs
+> or the connection is refused, the port is blocked, **which is how you want it to be**."
+> — MySQL Reference Manual §8.1.1 *Security Guidelines*, at [**8.4**](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html) (LTS) and at [**9.7**](https://dev.mysql.com/doc/refman/9.7/en/security-guidelines.html) (current innovation release; `refman/9.4/` returns **302** to it), **identical in wording and order**
+
+**Three measurements decide it, and none of them is a judgement about how firmly Oracle speaks.**
+
+1. **The separation is one sentence, and there is no block boundary.** **[measured]** all three sentences
+   sit inside a **single `<p>`**, which is the first element of the **only** `<li>` of the *Checklist*
+   sub-list under the numbered guideline *"Invest in a firewall … Put MySQL behind the firewall or in a
+   demilitarized zone (DMZ)."* There is no paragraph, list-item or section boundary between *from the
+   Internet* and *should not be accessible from untrusted hosts*. The two are one sentence-run.
+2. **The note's own standing hazard requires reading them together.** [#46](https://github.com/winniel123/verge-asm/issues/46)'s
+   truncated-conditional rule — *a clause lifted out of the sentence-run that gives it its operative
+   meaning misreads the owner* — has now fired four times in this note: §11.2's `administrative domain`,
+   §17.6's CouchDB *public*, §26.4's RFC 8881 Appendix C, and §26.5's own restoration of this passage.
+   In every prior instance it ran **against** the row. Applying it only when it cuts against a row and
+   not when it cuts for one would be the arbitrariness §2.2's founding paragraph names.
+3. **The Internet is the vantage the prohibition is stated from, not an aside.** Oracle instructs the
+   reader to scan **from the Internet**, states the port, states the prohibition, then gives a remote
+   `telnet` test whose *pass* condition is *the connection is refused*. The internet is the operative
+   test position for the very sentence in question. Zero reader-supplied premises.
+
+> **`3306/tcp` is clean and stays in the prohibition tier.** No cell moves and no count moves on this
+> row. §3.4's quotation already carries the restored passage (§26's amendment block); §30 adds the
+> **9.7 currency check** and the **structural measurement**, neither of which existed before.
+
+**The honest consequence, and #98 named it in advance.** With `3306` clean, **`873/tcp` is the sole
+counterexample**, which is the configuration in which *"a criterion that stretches to fit its one
+counterexample"* is at its most damning. The restatement option is therefore refused on its strongest
+ground rather than on a weakened one — §30.5.
+
+### 30.4 The ruling
+
+> - **§20.8's criterion is *applied*, not restated in its extension.** **`873/tcp` rsync moves from the
+>   explicit prohibition tier to the explicit trusted-network scoping tier.**
+> - **§2.2's footing tiers read prohibition 14 · scoping 12 · weak 2**, coverage **28 of 39**
+>   unchanged; 14 + 12 + 2 + 11 = **39**.
+> - **§20.8's sentence is now true.** All fourteen prohibition-tier pairs carry an owner sentence naming
+>   the public internet, measured row by row in §30.2.
+> - **§20.8's *ground* is restated in place, and its extension is not** — the criterion is recorded as a
+>   readable proxy for a **premise count** rather than as a fact about diction, so the next session
+>   cannot mistake it for a force ranking. §30.6.
+> - **[ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)
+>   is minted**: *a footing tier grades evidential distance, never the owner's conviction.* Three limbs
+>   — premise count · mood and force inadmissible · the lexical test is necessary and not sufficient.
+> - **`3306/tcp` is clean** (§30.3) and `873/tcp` is the **sole** counterexample.
+> - **`4369/tcp` epmd is not rescued**, and §20.8's ruling on it is re-founded rather than merely
+>   preserved (§30.6).
+> - **No `(port, transport)` pair moves, no row moves, and nothing is routed to
+>   [#12](https://github.com/winniel123/verge-asm/issues/12).**
+
+**Why the row does not move, stated because it is the constraint #98 made the failure signal.** A
+prohibition scoped to an untrusted network is still an owner's position under §10.3; `873/tcp` is a
+Class C row on Claim 3 and nothing here touches its claim; §13.2's finding that the owner's own SSL/TLS
+Daemon Setup puts the supported public listener on **874** with `873` on loopback behind it is untouched
+and still refuses §10.3's failure condition (§13.3). **The tier records how strong the footing is, not
+whether the row qualifies** — which is why the answer was available on either option and why a candidate
+answer that moved a row would have been the wrong one.
+
+**And the demotion moves the tier's most forceful sentence downward, which is the clearest possible
+demonstration of what the column does not measure.** rsync's *"Do not expose a cleartext daemon to an
+untrusted network"* is flatter and more imperative than Redis's *"usually it is not a good idea"*, and
+after this section rsync sits below Redis. `873/tcp` is not the scoping tier's weakest member; on any
+reading of force it is its strongest, resting on **two** owner imperatives in **two** shipped man pages
+plus a shipped deployment section that puts the port on loopback. **The tier is not a ranking of owners
+and this row is the proof.**
+
+### 30.5 The options that lost, stated at length because one of them is a good argument
+
+**Option A — restate the criterion to read on the imperative and its scope.** *A prohibition-tier
+sentence forbids deployment beyond a trust boundary the owner names.* #98's own second option and the
+strongest losing argument. Its case is real: it admits `873` on its face, leaves the other thirteen
+where they are, moves no count at all, and it answers the genuine intuition that rsync is not saying
+anything weaker than Redis — it is saying the same thing in a vocabulary that has no word for the
+internet.
+
+**It loses three times, and the third is a measurement.**
+
+1. **It grades mood, and mood is force wearing grammar's clothes.** The restatement's operative word is
+   *imperative*. To prefer *"Do not expose"* over *"usually it is not a good idea"* is to rank how firmly
+   each owner speaks — which is the severity-shaped reasoning
+   [ADR-0004](../adr/0004-signals-are-release-coupled-rules.md) and §2 exist to keep out, and which
+   ADR-0042 refused **by name** in its *Alternatives*: *"gate on the candidate's attestation strength
+   instead … it converts the gates into a ranking."* ADR-0042 refused it for a **gate**; the footing tier
+   is a **disclosure**, which is a difference in what it costs to be wrong and not a difference in kind.
+2. **It replaces a retrieval with a judgement, which is §15.7's named temptation arriving on schedule.**
+   *Does the sentence name the public internet?* is answered by opening the artefact. *Is this sentence
+   an imperative forbidding deployment, or a permission conditioned on a boundary?* is answered by
+   parsing intent, and the two forms are logically interchangeable — *only on a trusted network* and *not
+   on an untrusted network* are the same proposition. §15.7 recorded the identical pull for ADR-0042's
+   *live* — *"the word **live** invites the substitution and the next session will feel the same pull"*
+   — and the word **prohibition** invites exactly this one.
+3. **[measured] Applied honestly it does not stop at `873`.** `DEP-001` is titled ***Do Not Expose**
+   Default Erlang Distribution on **Untrusted Networks***, is carried at priority `Critical`, one of six
+   in the document, and its EPMD paragraph advises disabling the daemon **unconditionally**. That is an
+   imperative negative scoped to a trust boundary the owner names — the restatement's own test, passed on
+   its face. So the restatement **promotes `4369/tcp`**, reversing §20.8's central ruling as a side
+   effect of repairing §20.8's sentence, and moving a second cell on a question #98 explicitly did not
+   ask. **A criterion that stretches to fit its one counterexample takes its neighbours with it.** This
+   is the ADR-0042 / §15.7 warning #98 asked to be weighed seriously, weighed, and it does not merely
+   apply in the abstract — it is measured firing on the very next row.
+
+   *The reply available to Option A, and why it does not save it.* One could add a limb — *and the
+   sentence must be in the imperative rather than the advisory mood* — to keep `4369` out on *"you are
+   advised to"*. That rescues the extension and **deepens** objection 1: the criterion would then turn on
+   the difference between *do not* and *you are advised to*, which is force, explicitly, with no proxy
+   left. It also contradicts §20.8's own second reason in the same breath as repairing its first.
+
+**Option B — refuse both, and mark §20.8's sentence as an approximation.** The cheapest option, and it
+has a real case: the tier moves nothing downstream, no row turns on it, and a note that says *"this is
+true of thirteen of fourteen and the exception is `873`"* is not lying to anyone. **It loses because the
+note would then assert, in its own voice, a universal its own table refutes** — the defect §2 exists to
+prevent, with a repair costing one cell and no rows. #93 declined it for a reason that has now expired:
+*a pass does not move a count that was not its question.* This pass's question is the count.
+
+**Option C — move `873` and mint no ADR**, recording the ruling at §-level as §16.6, §20.9, §23, §24,
+[#90](https://github.com/winniel123/verge-asm/issues/90) and
+[#91](https://github.com/winniel123/verge-asm/issues/91) all did. **The house default, and it nearly
+wins.** Every one of those sections declined an ADR on the same test — *"both general rules this section
+applies were available"*. **It loses because here they were not.** What the tier grades was available
+nowhere, which is precisely why §18.6 and §20.8 reconstructed it in two vocabularies and §26.3 had to
+report the note contradicting itself. ADR-0042 refused *"leave it unwritten and decide case by case"* on
+exactly this ground, and its test — *"an unstated criterion cannot be argued against"* — is met here
+rather than merely invoked: #93 could not argue against §20.8 without a criterion behind it, so it
+reported instead.
+
+**Option D — demote `873` and promote `2181` and `25672` in the same pass**, on the ground that the
+criterion should be applied symmetrically. **It loses on the criterion's own logic**, not on scope
+convenience. §20.8's sentence is a **universal over the prohibition tier**, so it says something about
+every member of that tier and **nothing whatever** about the scoping tier. `873` is inside the question:
+it is the row that makes the universal false. `2181` and `25672` are outside it: promoting them would
+turn a necessary condition into a sufficient one, which is a new rule rather than an application of the
+old one. Recorded as by-catch, §30.7.
+
+### 30.6 §20.8 amended in place — the ground is restated, the extension is not
+
+§20.8's `4369` ruling **stands**, and this section makes it stronger rather than weaker, because it
+re-founds it on the principal instead of on the proxy.
+
+- **§20.8's first reason survives and is re-founded.** *"`DEP-001`'s operative sentence is 'This
+  configuration should **only** be used in a trusted network', which is the **scoping** vocabulary"* is
+  correct, and the reason it is correct is now stated: Erlang/OTP named a **boundary**, so the step to
+  *not from an internet vantage* is the reader's. One premise. Scoping.
+- **§20.8's second reason is *withdrawn as a ground*** per the name-and-withdraw convention. *"And 'you
+  are advised to' is an advisory, where the tier above is populated by imperatives"* is **inadmissible**
+  under ADR-0059 limb 2: mood is not read, in either direction. The observation is true and it decides
+  nothing. Withdrawing it costs the ruling nothing, because the first reason carries it alone.
+- **§20.8's third reason — §17.6's house precedent — is spent rather than withdrawn.** *"A footing found
+  in one lane does not re-tier a row placed in another"* was correct for #84 and correct for #93; #98
+  **is** the lane, and the precedent is what routed the question here rather than letting either earlier
+  pass decide it. It binds unchanged for the next pass.
+- **§20.8's *"criterion that would move the cell"* is restated.** It read *"an Erlang/OTP sentence naming
+  the public internet, or naming `4369` in an imperative rather than an advisory"*. The **second half is
+  withdrawn** — mood is not read — and the first half stands and is now stated as what it always was:
+  an Erlang/OTP sentence that closes the premise gap by naming the network the row is about.
+
+**And §20.8's universal is now true.** *"Every prohibition-tier sentence names the public internet"* is
+a correct statement about a **fourteen**-member tier, measured row by row in §30.2. It was made true by
+moving the counterexample, which is the only repair that leaves the sentence saying what it said.
+
+### 30.7 By-catch — reported and not applied, and it is two findings rather than one
+
+**Finding 1: two scoping-tier rows carry owner sentences that name the Internet.**
+
+> "ZooKeeper is a coordination service intended for use inside a trusted network, **not exposed directly
+> to the Internet**." — [zookeeper.apache.org/security.html](https://zookeeper.apache.org/security.html), quoted in §3.4
+
+> "It is important to only expose these ports to the hosts and subnets that run other cluster nodes, or
+> where CLI tools are used, and **not exposed to the public Internet**." — [RabbitMQ networking](https://www.rabbitmq.com/docs/networking), quoted in §3.4, covering `25672`
+
+Both are the owner's for their own port — Apache ZooKeeper for `2181`, RabbitMQ for `25672` — and both
+are already in §3.4. **Neither is promoted here**, on ADR-0059 limb 3 and on §30.5's Option D: the
+criterion is **necessary** for the prohibition tier and the note has never stated what is **sufficient**.
+Promoting them would answer that question by accident, in a pass whose subject is a different one, and
+would move two more cells while three siblings are moving figures in this file.
+
+**This is a *detectable defect*, not a watch**, and it is the third of the shape: the map's curation
+patch already carries *a row whose footing tier disagrees with its class* from
+[#83](https://github.com/winniel123/verge-asm/issues/83), §26.3 added *a row whose footing tier
+disagrees with the tier's own stated criterion*, and this is *rows whose sentences satisfy the top
+tier's criterion and sit below it*. All three are cheap to check for the same reason: the tiers and the
+sentences are both written down. Ticketed rather than parked.
+
+**Finding 2: the scoping tier is no longer sorted on one dimension.** §24
+([#91](https://github.com/winniel123/verge-asm/issues/91)) placed `10259/tcp` and `10257/tcp` in it on a
+footing that is **not a sentence** — the owner's ports table plus a restricting loopback default —
+reasoning **relatively** (*"strictly more than the shipped-default-only footing carrying `5432` and
+`5984`"*) rather than lexically. ADR-0059 limb 1 counts premises between a **sentence** and a
+proposition and therefore does not reach them. That placement stands and is not disturbed here, but the
+scoping tier now holds **ten** prose footings sorted by premise count and **two** non-prose footings
+placed by relative strength. **Disclosed rather than smoothed**, and it is the same shape as §2.2's
+original disclosure that the second and third forms *"are not equally strong"* — a tier holding two kinds
+of evidence needs to say so. Routed to the same ticket as Finding 1.
+
+### 30.8 Every dependent figure, walked rather than asserted
+
+> `FIGURE DELTA: §2.2 prohibition tier 15 → 14 · §2.2 scoping tier 11 → 12. Every other figure in the note checked and unchanged. No row moves.`
+
+**Stated parametrically as well as numerically, because three concurrent passes are moving figures in
+this file.** The delta this section applies is, in every state of the world:
+
+> **prohibition tier := (prohibition tier as composed) − {`873/tcp`}**
+> **scoping tier := (scoping tier as composed) + {`873/tcp`}**
+> **every other tier, count, denominator and total := unchanged.**
+
+So the numeric result below is `15 → 14` and `11 → 12` **against the composed state at the time of
+writing**; if [#95](https://github.com/winniel123/verge-asm/issues/95) adds a row that takes a scoping
+cell the scoping tier is `13` rather than `12`, and if
+[#96](https://github.com/winniel123/verge-asm/issues/96) removes `623/udp` the prohibition tier is `13`
+rather than `14` and the coverage denominator falls to `27 of 38`. **The membership verdict per row is
+in §30.2 so the totals can be re-derived rather than hand-patched.**
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 39 | **39, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 11 / 7 / 21 (§24) | **unchanged.** This section touches no claim and no class |
+| **§2.2 footing table — prohibition tier** | **15 pairs** | **14 pairs.** `873/tcp` leaves. Membership: `6379` · `11211/tcp` · `11211/udp` · `3306` · `1433` · `9200` · `9300` · `445` · `623` · `9042` · `2379` · `2380` · `10250` · `10255` |
+| **§2.2 footing table — scoping tier** | **11 pairs** | **12 pairs.** `873/tcp` joins. Membership: `27017` · `27018` · `27019` · `2049` · `2181` · `25672` · `4369` · `2375` · `2376` · `10259` · `10257` · **`873`** |
+| §2.2 footing table — weak tier | 2 rows (`5432`, `5984`) | **2, unchanged.** Not in this section's subject |
+| §2.2 footing table — *outside this table's subject* | 11 pairs | **11, unchanged.** 14 + 12 + 2 + 11 = **39** |
+| §2.2 footing table — coverage | 28 of 39 | **28 of 39, unchanged.** No pair enters or leaves the table; one moves between two of its rows |
+| §2.2's thin-cell note (composed §18.7 / §19.12) | `10255` and `10250`, both in the prohibition tier | **unchanged.** `873` is not thin on any reading and is not added; it is the scoping tier's **best**-founded prose member |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** `873` moves tier, not toward weakness as a **row**; its claim is untouched |
+| §6.1 containment arithmetic | 28 + 6 + 5 = 39 | **unchanged.** [#97](https://github.com/winniel123/verge-asm/issues/97) owns this figure and nothing here reaches it |
+| §4.6 exclusions | 19 | **unchanged** |
+| §10.1's Class A walk | eleven rows | **unchanged.** `873/tcp` is Class C; no claim cell is read here |
+| §13.2's rsync strengthening | `rsyncd.conf.5` puts the public listener on **874** with `873` on loopback | **unchanged and still refusing §10.3's failure condition** (§13.3). A tier move is not a claim move |
+| §17.8's *fixed point* | finished as of a table state | **re-armed for `873/tcp` and discharged in the same breath.** A footing move re-arms the sweep for the row that moved; §26.3 swept rsync's **complete** class list at `v3.5.0` days ago, so the re-armed sweep is already run and returns the same result |
+| §17.1's population of negatives | fourteen | **unchanged.** No sole-ground negative is created or retired; `873`'s footing is a **positive** in both tiers |
+| §20.8's tier criterion | *"Every prohibition-tier sentence names the public internet"* — **refuted as a universal** (§26.3) | **true**, over a fourteen-member tier. Applied rather than restated; its **ground** is restated (§30.6) and its extension is not |
+| §26.3's *"`873/tcp` stays where it is and this section moves nothing"* | reported to the curator | **superseded** — the report is acted on here. §26.3's measurement is unchanged and is what this section applies |
+| §26.7's row for §20.8's criterion | *13 clean · 1 marginal · 1 failing. Reported, not applied* | **superseded** — **14 clean · 1 failing**, and applied. The marginal cell resolves clean (§30.3) |
+| §3.4's `873` quotes | two owner imperatives, `v3.5.0` | **unchanged and not withdrawn.** Both go on carrying the row, in the scoping tier |
+| §3.4's MySQL quotation | the restored three-sentence passage (§26) | **unchanged**, and confirmed at a **second issued version**, 9.7 (§30.3) |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s reference data is byte-identical; a footing tier is not reference data |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984` | **unchanged.** The weak tier does not move |
+| [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) | limb 2's routing | **used twice** — §30.7's two by-catch findings are reported and ticketed, never applied |
+| [`weak-key-and-signature.md`](./weak-key-and-signature.md) | — | **untouched.** It has no footing tier (ADR-0059's last consequence) |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted, and ADR-0048 set the precedent for staying out of that file while concurrent passes are running |
+
+**Nothing is routed to [#12](https://github.com/winniel123/verge-asm/issues/12).** #12 carries the list,
+the claims and the containment arithmetic; none of them reads a tier, and #98's own pricing said so from
+both sides. **[measured]** the moved cell changes no input to any of the sixteen rules.
+
+### 30.9 Thin ground, flagged per the standing rule
+
+**The sufficient condition for the prohibition tier is still unstated, and this section relies on that
+being acceptable.** ADR-0059 limb 3 says the lexical test is necessary and not sufficient, which is
+honest and is also an admission: a **necessary** condition can refuse a member and cannot place one. The
+tier assignments were made row by row over eight sections and the criterion was reconstructed from them
+afterwards — §20.8 read the boundary off the thirteen existing members in order to decide `4369`. **This
+section makes the reconstruction true; it does not make it complete.** §30.7's Finding 1 is that
+incompleteness with two names attached. **The criterion that would change this section's shape:** a
+ruling that the lexical test is sufficient as well as necessary, on which `2181` and `25672` promote and
+the tiers read `16 / 10 / 2`. That is a question about §2.2, not about rsync, and it is ticketed.
+
+**ADR-0059 limb 1's *premise count* is a ruling and not a measurement**, and its unit is soft at the
+edges. *The internet is an untrusted network* is one premise on any counting; whether Docker's *"an open
+network"* is a boundary term or a near-naming of the internet is a judgement this section made in the
+easy direction (boundary, therefore scoping, therefore unchanged) without having to defend it, because
+nothing turned on it. **A row will eventually arrive where it does turn on it** — an owner sentence
+saying *"do not expose to a public network"* or *"to the wider internet"* would sit exactly on the line.
+This section does not price that case and should not be quoted as having settled it.
+
+**The intuition Option A serves is correct and is not answered — it is relocated.** rsync really is
+saying the same thing Redis is saying. ADR-0059's reply is that the tier does not record what the owner
+means, it records how much of it the owner **wrote**; a reader who holds that a footing table should
+grade what an owner has committed to rather than which words it used reaches the opposite verdict, and
+that reader has an argument this section refuses rather than defeats. **What decides it against them is
+falsifiability, not correctness**: their reading cannot be checked by opening a document, and §2's whole
+architecture is that every cell can be.
+
+**One row's clean verdict is conditional on a concurrent pass.** `623/udp`'s prohibition cell rests on
+Dell's statement and [#96](https://github.com/winniel123/verge-asm/issues/96) is deciding the row. Its
+§30.2 verdict is *clean*, which is a verdict about the **sentence** and survives a class move; it does
+not survive a **row** removal, and the arithmetic if #96 removes the row is written out in §30.8 rather
+than left to be discovered.
+
+**`873/tcp`'s new neighbours are a coincidence worth not over-reading.** The demotion puts rsync beside
+Docker's *"trusted network or VPN"* and epmd's *"only … in a trusted network"*, which is lexically apt
+and looks like confirmation. It is not evidence — it is the same criterion producing the same answer
+twice — and it is recorded here so that a later reader does not cite the tidiness as a second ground.
+
+### 30.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10 and §17.10
+
+- **This section spent one retrieval and it was a *currency* check, not a search for a sentence.** The
+  MySQL passage was already held by §26.5; what §30.3 adds is (a) the same passage at a **second issued
+  version**, per [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s per-version
+  rule, and (b) a **structural** measurement of the rendered HTML. Both are the kind of fact §26.5 could
+  not have supplied by quoting harder.
+- **`refman/9.4/` is a 302, not a 404, and the version you get is not the version you asked for.**
+  **[measured]** `https://dev.mysql.com/doc/refman/9.4/en/security-guidelines.html` returns **302** to
+  `refman/9.7/`. A session that cited `9.4` in good faith would have cited a URL that silently serves a
+  different version — the §12.9 hazard (*a retrieval that silently substitutes*) arriving through a
+  redirect rather than through a host swap. **Cite the version the server returns, not the one you
+  requested.**
+- **The structural claim is read off the markup, not off a rendering's appearance.** *"One sentence
+  apart, in one `<p>`, in the only `<li>` of the Checklist sub-list"* is a statement about the document's
+  own structure. It matters because #46's truncated-conditional rule is about **sentence runs**, and a
+  session that judged adjacency from the rendered page's whitespace would be judging a stylesheet.
+- **rsync's absence was re-confirmed rather than inherited.** §26.3's *"`internet` occurs zero times"* is
+  a load-bearing negative for this section's whole ruling, so it was re-measured over the fetched bytes
+  rather than taken from the prior section: **[measured]** case-insensitive `internet` returns **0** in
+  `rsync.1.md` (251,801 B), `rsyncd.conf.5.md` (72,903 B) and `SECURITY.md` (34,054 B) at `v3.5.0`, with
+  non-empty payloads confirmed for each so a zero is a measurement and not a failed fetch. **A negative
+  this section rules on is a negative this section measures** — §11.8 and
+  [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3.
+- **The `rsyncd.conf.5.md` bullet carries no quotation marks in the source.** §3.4 and §13.2 render it as
+  a quotation, correctly, but a session diffing the note against the bytes will find the marks are the
+  note's. Recorded because it is the smallest version of the hazard §12.9 records at scale.
+- **No footing was reopened, and that was the constraint rather than an economy.** #98 fenced the
+  evidence under the footings as #93's completed work. Every sentence in §30.2's two tables is quoted
+  from §3.4 as the note already holds it; the only bytes fetched are MySQL's two manual pages and
+  rsync's three files, and the rsync fetch exists solely to re-measure a negative this section rules on.
+- **The walk was run in both directions before the ruling, not after it.** The demoting direction found
+  one row; the promoting direction found two (§30.7) and neither was applied. A criterion applied in one
+  direction only is a rewrite with a verdict attached, and running the other direction first is what
+  turned Option D from an oversight into a refused option.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -10249,3 +10872,7 @@ Retrieved for §26 ([#93](https://github.com/winniel123/verge-asm/issues/93)) �
 - **NFS, retrieved because they could only weaken the finding, and did** (§26.4): [RFC 2624](https://www.rfc-editor.org/rfc/rfc2624.txt) §7, §10.1 — *"NFS's protocol design should allow its use via Internet firewalls"*, the strongest pro-Internet language in the corpus, **Informational, 1999, and a pre-protocol requirements document** · [RFC 2054](https://www.rfc-editor.org/rfc/rfc2054.txt) / [RFC 2055](https://www.rfc-editor.org/rfc/rfc2055.txt) (WebNFS, Informational, 1996) — *"NFS servers **across the Internet**"*, an extension whose public filehandle RFC 8881 §4.1 now names in the **past tense**
 - **NFS, the implementation side** — `nfs-utils-2.9.2.tar.xz`, the project's own shipped release artefact from [`kernel.org`](https://www.kernel.org/pub/linux/utils/nfs-utils/2.9.2/). **All 32 shipped man pages** grepped for `internet`, `firewall`, `LAN`, `trusted` and `public`: `nfs.man` carries the row and **[measured]** its *"entirely adequate"* sentence sits in the `.SS "Using non-privileged source ports"` subsection rather than in the section preamble (§26.4); `exports.man` states **no** network boundary and its `/pub *(ro,insecure,all_squash)` gloss is §13.3's refused **label**; `nfs.conf` ships fully commented → permissive → silent. **[measured] nfs-utils publishes no deployment or security document of any kind** — no `SECURITY` file, no `doc/` directory, no hardening guide. Retrieval hazard: **`git.linux-nfs.org` is serving an expired TLS certificate**, so the shipped tarball was used, which §12 makes the stronger source anyway (§26.9)
 - [MySQL 8.4 *Security Guidelines*](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html) §8.1.1, re-read for §26.5 — **[measured]** the sentence §3.4 quotes is preceded, in the same passage, by *"Try to scan your ports from the Internet using a tool such as `nmap`"*, which §3.4 drops
+
+Retrieved for §30 ([#98](https://github.com/winniel123/verge-asm/issues/98))
+- **MySQL, the same passage at a second *issued* version, per [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s per-version rule.** [MySQL **9.7** *Security Guidelines*](https://dev.mysql.com/doc/refman/9.7/en/security-guidelines.html) §8.1.1, the current innovation release, alongside [**8.4**](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html), the LTS. **[measured]** the three-sentence run — *"Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by default. This port should not be accessible from untrusted hosts."* — is present in **both**, identical in wording and order, and both pages also carry the numbered guideline *"Do not transmit plain (unencrypted) data over **the Internet**."* **[measured]** all three sentences sit inside a **single `<p>`**, the first element of the **only** `<li>` of the *Checklist* sub-list under *"Invest in a firewall … Put MySQL behind the firewall or in a demilitarized zone (DMZ)"*; the `telnet server_host 3306` example and *"If **telnet** hangs or the connection is refused, the port is blocked, **which is how you want it to be**"* are siblings inside the same `<li>`. **There is no block boundary between *from the Internet* and the prohibition**, which is what discharges §26.5's *marginal* verdict (§30.3). **Retrieval hazard:** `refman/**9.4**/` returns **HTTP 302** to `refman/9.7/` rather than a 404, so a session citing 9.4 in good faith cites a URL that silently serves a different version — §12.9's substitution hazard arriving through a redirect (§30.10)
+- **rsync at `v3.5.0`, re-measured rather than inherited**, because the absence is what §30 rules on (§11.8, [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3). **[measured]** case-insensitive `internet` returns **0** matches in [`rsync.1.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsync.1.md) (251,801 B), [`rsyncd.conf.5.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsyncd.conf.5.md) (72,903 B) and [`SECURITY.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/SECURITY.md) (34,054 B), with non-empty payloads confirmed for each so a zero is a measurement and not a failed fetch. Both owner sentences re-confirmed at the tag; **[measured]** the `rsyncd.conf.5.md` bullet carries **no quotation marks in the source** — the marks in §3.4 and §13.2 are the note's, and the bullet's own heading is *"**Encrypt the connection.**"* (§30.10)
