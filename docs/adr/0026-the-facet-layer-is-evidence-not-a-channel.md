@@ -215,3 +215,36 @@ The only additions are payload: two more producers of a census shape that alread
 | **Route §2's message to the coverage class** | The world moved: the operator's name now reaches ground it did not reach. Our looking did not change. Filing it as coverage would be ADR-0031's *rooting an appearance at the `Seed`* defect one facet across — a world event under an observer cause |
 | **Give the clearing edge one uniform answer, loud or silent** | Loud fires on every remediation in the estate. Silent contradicts #35, which established in terms that `cname-target-name-error` clears when somebody else may have claimed the orphaned name. #35's own wording — *not always* — is a per-rule claim, and pretending otherwise is manufacturing a consensus neither reading supports |
 | **Mint a fifth cause for *a name now reaches new ground*** | It is *the world moved*, which is the cause it has always been. The map's constraint is that a fifth cause needs a reason and not a slot, and the four causes carry this one without strain |
+
+## Amendment — [#65](https://github.com/winniel123/verge-asm/issues/65): the growing direction was under-enumerated, and the refused carrier needed no case analysis
+
+[ADR-0033](./0033-a-move-carries-the-rule-that-opens-at-fired.md) took the residue this ADR
+ticketed. **The Decision stands and is applied rather than overturned** — a `Transition` is a
+message exactly where it is the sole carrier of a fact the operator asked for, and ADR-0033 finds
+one more place where it is. Three rows of §1 and one sentence of §4 move.
+
+**§1's table is amended in three rows, each of which is *none* by a reason that does not cover the
+growing direction.** `certificate`'s reason addresses renewal and `Presented` → `NoTLS` and never
+addresses `NoTLS` → `Presented`. `http-identity`'s routes `Responded` ↔ `NoHTTPResponse` to §4 in
+both directions at once. And `dns-record`'s — *growth reached through a record is a `Name`
+`appeared` and membership carries it* — is sound for a CNAME target that exists and false for one
+that does not, which is the only case that fires a rule. Each of the three now reads **none, except
+where the move opens a rule at `fired`**.
+
+**§4 is narrowed.** *A rule that opens at `fired` is carried by the census of a message above it
+where one exists and by nothing where none does* becomes: by the census where one exists, by the
+move beneath it where there is one, and by nothing where the timeline merely opened. §4's ruling
+that domain entry and exit are **not transitions** is untouched and is what ADR-0033 rests on: the
+message is the facet move's, not a `Signal`-layer edge.
+
+**This ADR's stated reason for refusing the carrier does not survive, and its instinct does.** The
+refusal rested on the narrow form needing *the three-way case analysis on why the timeline opened
+that ADR-0031 rejected by name*. It needs no analysis: a `Transition` either exists beneath the
+opening or does not, and because none crosses a `Gap` or a `Break` and an opening emits none, that
+one test excludes membership, aperture, a closing `Gap` and a slower tier at once. The general
+form's burst objection was right and survives — ADR-0033 fires on neither shape of a deploy,
+because a deploy either mints subjects whose timelines *open* or leaves `http-identity` at
+`Responded` with no domain to enter.
+
+**The census payload has five producers, not four** — the fifth being a move that opens a rule at
+`fired`.

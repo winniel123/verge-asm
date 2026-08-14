@@ -326,6 +326,15 @@ domain reaches nobody except through the census of a message above it. ADR-0026 
 v1's answer and states the cost; the residue is
 [#65](https://github.com/winniel123/verge-asm/issues/65).
 
+*Half of that cost is since discharged.*
+[ADR-0033](./0033-a-move-carries-the-rule-that-opens-at-fired.md) rules that where a subject enters
+a domain because a value the rule reads **moved**, the facet `Transition` beneath carries the
+opening — so the uncarried population is now only the opening with no move beneath it, where a
+slower `Scan` reached the facet for the first time. The leaving half is unchanged and deliberately
+so. **This ADR's fourth binding is what ruled out the screen answer**: the census may never be
+rendered as a delta, so `Signals` renders the newly-`fired` row and is forbidden to render that it
+is new, which is why the fact needed a message rather than a rendering.
+
 **One count in this ADR is the one other documents got wrong.** *"Writing all **sixteen** out is
 what tested the rule"* is correct, and the *ten v1 signals* in
 [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md),
