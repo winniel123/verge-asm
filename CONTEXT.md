@@ -51,7 +51,10 @@ inside its own cadence is not a boundary; custody at a larger scale belongs to a
 The cap is a statement about what we can measure and never about whether the claim is true, so a
 false declaration is as unprevented as it ever was. **A CIDR is family-agnostic and the cap counts
 addresses**: `/22` is that count's IPv4 spelling and `/118` its IPv6 one, one knob at one setting
-rather than a rule about families. So an IPv6 address scope is declarable at `/118` and longer — in
+rather than a rule about families. An address scope is held in the same form its addresses are —
+family, prefix octets, length — and **containment is family-matched prefix comparison**, so the
+`Custody` lookup and `Vantage class`'s re-verification are tests over addresses and never over
+their spellings, which is what keeps the probing gate from turning on a rendering. So an IPv6 address scope is declarable at `/118` and longer — in
 practice the `/128`, which is how a v6-only prober's own address is covered — and every prefix an
 operator is actually assigned is refused by the cap, since a `/64` would take on the order of 10¹¹
 years to walk. **IPv6 space is not swept and no configuration makes it sweepable**; an IPv6 estate is
@@ -249,7 +252,17 @@ Anything an observation can be about. Exactly four kinds — `Name`, `Address`, 
 `Address`. The four split on **who supplies the key**: the world supplies a `Name`'s FQDN and
 an `Address`'s IP, while the model composes a `Service`'s from an `Address` already in the
 estate and `verge-core`, which is ours, and an `Endpoint`'s from two subjects already in the
-estate. So a **membership message fires on a `Name` or an `Address` alone** — the other two
+estate. A natural key is the **thing denoted, never the text that named it** — a rendering is
+whatever printed it, and keying on one would make subject identity a function of a step that is
+not part of the measurement. So the normalisation from what a source delivered to the thing it
+denotes is **fixed at v1 and carries no version**: it is not a canonicaliser, it composes no
+`Derivation` leaf, and it may consult only the single value being keyed. That is not uniformity
+foregone but the only honest shape available, since moving one re-keys subjects rather than moving
+values, and a re-key is a sentence the model has no object for — a `Break` says two values may not
+be compared, not that this timeline belongs to a different row. A **composed** key holds the
+subject, never its rendering. See
+[ADR-0051](./docs/adr/0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md).
+So a **membership message fires on a `Name` or an `Address` alone** — the other two
 can bring no ground the model was not already accounting for, and their membership is another
 subject's membership restated, recorded and never notified in either direction. It fires
 **once, at the root of the entering sub-tree**: the entering subject whose own `Citation`
@@ -272,7 +285,21 @@ return a Name Error and the names beneath hold a `Gap` rather than a value. See
 _Avoid_: domain, subdomain, hostname, host
 
 **Address**:
-An IP address. Has ports; has no DNS records. Reached from a `Name` only through an
+An IP address. Has ports; has no DNS records. Its key is the **address**, never a spelling of it:
+the family and the octets, four for IPv4 and sixteen for IPv6, compared as octets and never as a
+string. The world hands us those octets — an A record is 32 bits of RDATA, an AAAA record 128, a
+certificate `iPAddress` SAN an OCTET STRING — so the text is *ours*, and one address having many
+legal spellings in IPv6 costs nothing. RFC 5952 §4 for IPv6 and the dotted quad for IPv4 are how it
+is **rendered**, computed on read and never compared. An **IPv4-mapped** address (`::ffff:0:0/96`)
+keys as the IPv4 address it represents — one subject, since that block is defined as a way of
+writing an IPv4 address rather than as an address, and a listener answering there answered on IPv4.
+Nothing else folds: the IPv4-compatible block contains `::` and `::1`, and NAT64, 6to4 and Teredo
+addresses are real IPv6 addresses reachable only by their own paths. A textual form with two
+denotations — a leading zero read as octal, a packed integer — is **refused rather than
+interpreted**, and an address that cannot be keyed is not a subject: it is absent from the `Batch`'s
+recorded scope and writes no value and no `Gap`. See
+[ADR-0051](./docs/adr/0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md).
+Reached from a `Name` only through an
 observed resolution, never a fixed relationship. Alone among the subjects it has no
 lifecycle of its own — nothing ever observes an address's *existence* — so it is in the
 estate exactly while a current resolution cites it or a `Seed` covers it. The two limbs are
@@ -286,7 +313,10 @@ and takes its timelines with it, unless a current resolution still cites it. See
 _Avoid_: IP, host, node
 
 **Service**:
-An `(Address, port, transport)` triple — the subject reachability is measured against. It exists
+An `(Address, port, transport)` triple — the subject reachability is measured against. The
+`Address` in it is the **subject**, never a rendering of one, so this key and `Endpoint`'s above it
+inherit the address form rather than restating it; a triple built from a string would put a second
+normalisation site in the model and two spellings back on one host. It exists
 for every `(port, transport)` in the recorded scope, **open or closed**, which is what gives
 `unreachable` a subject to be a verdict about; so its membership is its `Address`'s membership
 restated, and a port opening is a `Reach` move and **never** a membership event. See

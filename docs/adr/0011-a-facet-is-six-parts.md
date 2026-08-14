@@ -115,6 +115,16 @@ Addresses are an **unordered set**, A and AAAA together, because round-robin reo
 change. The cost is real and correct: a load balancer changing its rotation is invisible to this
 facet.
 
+*Amended by [#89](https://github.com/winniel123/verge-asm/issues/89) /
+[ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md) in one
+detail, disturbing neither the rule nor the count.* This ADR left *what an address is* unstated, and
+in IPv6 one address has many legal spellings — so two spellings of one member would make the set
+unequal and close the `Span`. The members are held in `Address`'s **key form**, which is the address
+itself rather than any rendering of it; those members are the very things that admit the `Address`
+subjects, and a set holding something other than the addresses it admitted would be incoherent. So
+this canonicaliser **composes** that form and does not restate it, and **a facet is still six
+parts** — the fix lands on the subject key, not on a seventh part.
+
 ### The key needed a discriminator, and `reachability` had one all along
 
 `dns-record` cannot be one timeline per `Name`. Under ADR-0007's key there is no room for qtype, so
