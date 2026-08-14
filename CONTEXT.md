@@ -539,13 +539,18 @@ construction *something got worse*; `fired` → `not-fired` is **silent except w
 could have caused the clearing**, which is exactly the four rules whose clearing condition is a
 name somebody else can claim; `fired` → `not-evaluable` and `not-evaluable` → any value are both
 coverage class, the second fired at the cause and stating the value it closed to. Entering or
-leaving a `Predicate domain` is neither, and a rule that **opens at `fired`** is carried by the
-census of a message above it or by nothing. See
+leaving a `Predicate domain` is neither — it is not a `Transition` — but a rule that **opens at
+`fired`** is nonetheless carried, and by exactly one of two things: the census of a message above
+it where one exists, or **the facet `Transition` beneath it** where the subject entered the domain
+because a value the rule reads moved. Where there is neither — the timeline merely opened, on a
+slower `Scan` we authored — it reaches nobody, because a schedule arriving is not the world moving.
+See
 [ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md),
 [ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md),
 [ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md) — whose v1 table
-enumerates **sixteen** rules, against the stale *ten* in three ADRs — and
-[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md).
+enumerates **sixteen** rules, against the stale *ten* in three ADRs —
+[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md) and
+[ADR-0033](./docs/adr/0033-a-move-carries-the-rule-that-opens-at-fired.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
 
 **Predicate domain**:
@@ -564,7 +569,12 @@ nothing for a message to explain. *(The earlier reason — that the subject left
 facet `Transition` "already stored and already alerted" — is **withdrawn** by
 [ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md): most facet transitions
 are stored and silent. The stated cost is that a rule leaving its domain while `fired` goes quiet
-with no message, and one entering at `fired` reaches nobody except through a census above it.)*
+with no message — the shrinking direction, and overwhelmingly the operator's own remediation.)*
+A rule **entering** its domain at `fired` is carried by the move that admitted it, where the
+subject entered because a value the rule reads moved
+([ADR-0033](./docs/adr/0033-a-move-carries-the-rule-that-opens-at-fired.md)); what stays uncarried
+is only the opening with no move beneath it, where a slower `Scan` reached the facet for the first
+time.
 Distinct from `not-evaluable`, which is
 a value about **our own sight** (`Shadowed`), and from a `Gap`, which is no value at all: outside
 the domain means *the question does not arise*. A **total** domain is legal. An **empty** one is
@@ -627,9 +637,16 @@ the sole carrier of a fact the operator asked for** — the layer it sits in nev
 `not-reached` → `reached` is a message and `refused` ↔ `no-response` beneath it is not, though
 both are facet moves and only one moves the projection a predicate reads. Where two layers would
 report one fact the message fires at the cause and the other rides its census, which is why
-`sensitive-port-reached-from-internet`'s firing edge never fires a message of its own. See
+`sensitive-port-reached-from-internet`'s firing edge never fires a message of its own. **A move
+carries the rule that opens at `fired` beneath it**, once per `Transition` and with the census of
+every rule that opened, since entering a `Predicate domain` is not itself a `Transition` and has no
+edge of its own — and because no `Transition` crosses a `Gap` or a `Break` and an opening emits
+none, that one test excludes a membership entry, an aperture widening, a closing `Gap` and a slower
+tier without a case for any of them. See
 [ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md) for the enumeration over
-all six facets, and
+all six facets,
+[ADR-0033](./docs/adr/0033-a-move-carries-the-rule-that-opens-at-fired.md) for the growing
+direction it under-enumerated, and
 [ADR-0014](./docs/adr/0014-only-revealed-generalises.md) — whose worked example this was, and
 which named `certificate` until
 [ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) found that
