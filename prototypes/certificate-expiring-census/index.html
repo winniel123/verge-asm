@@ -1,0 +1,478 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #72: "What does certificate-expiring's census
+  say when every endpoint carries its own horizon?"
+
+  #67 / ADR-0034 moved `N` from a fixed 30 days to a fraction of the
+  certificate's OWN validity period — one third, and one half below a ten-day
+  validity. #60's surviving objection was that this "makes the census
+  incomparable between endpoints". #67 answered it with an argument and
+  flagged the argument as thin. Nobody had drawn it.
+
+  This file draws it. Everything here is computed from `not_before`,
+  `not_after` and one evaluation instant, so the arithmetic on screen is real
+  arithmetic and the contradiction it exposes is a real contradiction.
+
+  THE HAZARD, DRAWN:  dev.example.com:443 has 49 days remaining and FIRES.
+                      edge.example.com:443 has 4 days remaining and DOES NOT.
+  Under a days-remaining-only rendering those two rows are unreadable side by
+  side. That is #60's objection, and it is a rendering defect rather than a
+  predicate defect — ADR-0034 says the remedy is the rendering, never `N`.
+
+  Three header treatments, ?header=none|rule|range :
+    none    the census with nothing behind it — the name is the whole gloss
+    rule    the predicate glossed as the fraction, both limbs      ← SHIPS
+    range   the observed spread of horizons, drawn properly so it can be
+            seen to fail: #28's two-numbers hazard, and a statistic about
+            the operator's estate rather than about our rule
+
+  Three drill-down row treatments, ?row=days|both|fraction :
+    days      days remaining alone — one number, incomparable between rows
+    both      days remaining against the row's own horizon, with the
+              validity period that produced it                     ← SHIPS
+    fraction  position within validity — comparable, and useless to act on
+
+  Three fills, ?fill=mixed|shortlived|empty :
+    mixed       412 certificate-presenting endpoints, lifetimes 6d to 398d
+    shortlived  an all-six-day estate. Under the fraction 6 of 412 fire;
+                under #60's fixed N = 30 every row fires every night forever
+                (ADR-0034 §4's degenerate predicate, shown as a footing)
+    empty       no endpoint presents a certificate — #44 decision 9's
+                no-population panel, whose copy #53 rewrote for the measured
+                reason. Note it carries NO numerals, so the fraction gloss
+                must not leak into it.
+
+  Not production code. Vocabulary is CONTEXT.md; visual language is the real
+  design system (../../design-system). No severity, no ranking, no per-row
+  control, no delta — ADR-0004, ADR-0024, #51.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — certificate-expiring census prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 108px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5);
+         max-width: 84ch; line-height: var(--leading-body); }
+
+  /* ── THE RULE CARD ────────────────────────────────────────────────────
+     Carried over unchanged from prototypes/signal-evaluability (#44), so
+     what this ticket adds is visible as an addition rather than a redraw. */
+  .rule { background: var(--surface); border: var(--rule); }
+  .rule-h { display: flex; align-items: baseline; gap: var(--space-4);
+            padding: var(--space-3) var(--space-4); }
+  .rule-h .nm { font: var(--weight-semibold) var(--text-base)/1.3 var(--font-mono); color: var(--ink); }
+  .rule-h .ver { font: var(--weight-medium) var(--text-2xs)/1 var(--font-mono); color: var(--text-faint);
+                 letter-spacing: var(--tracking-label); }
+  .rule-h .sp { margin-left: auto; }
+
+  /* THE PREDICATE GLOSS — this ticket's addition to the header.
+     It states the rule's own parameter, which is ours, closed, and identical
+     in every install. It never states a quantity derived over the estate. */
+  .pred { padding: var(--space-2) var(--space-4) var(--space-3);
+          border-top: var(--rule-soft); border-left: 3px solid var(--ink);
+          font-size: var(--text-base); line-height: var(--leading-body); color: var(--text); }
+  .pred .ml { display: block; margin-bottom: var(--space-1); }
+  .pred b { font-family: var(--font-mono); font-weight: var(--weight-semibold); }
+
+  .cens { display: flex; align-items: stretch; border-top: var(--rule-soft); }
+  .cens .m { flex: 1; padding: var(--space-3) var(--space-4); border-left: var(--rule-soft); }
+  .cens .m:first-child { border-left: none; }
+  .cens .m .v { font: var(--weight-semibold) var(--text-xl)/1 var(--font-mono); color: var(--ink);
+                margin-top: var(--space-2); display: block; }
+  .cens .m.ne .v { color: var(--text-muted); }
+  .cens .m.pop { background: var(--surface-sunken); flex: 0 0 auto; min-width: 190px; }
+  .cens .m .d { font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono);
+                margin-top: var(--space-1); color: var(--text-muted); }
+  /* the losing variant: a spread of horizons rendered as a fourth cell */
+  .cens .m.spread { background: var(--warn-soft); flex: 0 0 auto; min-width: 190px; }
+  .cens .m.spread .v { color: var(--ink); }
+
+  .recon { padding: var(--space-2) var(--space-4); border-top: var(--rule-soft);
+           background: var(--surface-sunken);
+           font: var(--weight-medium) var(--text-xs)/1.5 var(--font-mono); color: var(--text-muted); }
+  .recon b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .recon .asof { float: right; color: var(--text-faint); }
+
+  /* ── DRILL-DOWN ───────────────────────────────────────────────────────
+     One list per census member. Ordered by subject, never by days remaining:
+     ordered by what needs attention is a queue, ordered by the subject is a
+     census (#51). No control in any row, no badge, no colour ramp. */
+  .dd { border-top: var(--rule); }
+  .dd-h { display: flex; align-items: baseline; gap: var(--space-3);
+          padding: var(--space-3) var(--space-4); background: var(--surface-sunken);
+          border-bottom: var(--rule-soft); }
+  .dd-h .ml { color: var(--ink); }
+  .dd-h .note { font-size: var(--text-xs); color: var(--text-muted); margin-left: auto; }
+
+  table.rows { width: 100%; border-collapse: collapse; }
+  table.rows td { padding: var(--table-row-pad-y) var(--table-cell-pad-x);
+                  border-bottom: var(--rule-soft); vertical-align: baseline; }
+  table.rows tr:last-child td { border-bottom: none; }
+  td.subj { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); width: 34%; }
+  td.left { font-family: var(--font-mono); font-size: var(--text-md); color: var(--ink);
+            font-weight: var(--weight-semibold); white-space: nowrap; width: 20%; }
+  td.hor  { font-size: var(--text-base); color: var(--text-muted); line-height: var(--leading-snug); }
+  td.hor b { font-family: var(--font-mono); font-weight: var(--weight-semibold); color: var(--text); }
+  td.hor .why { color: var(--text-faint); }
+  .flag { display: inline-block; margin-left: var(--space-2); padding: 1px 5px;
+          background: var(--surface-ink); color: var(--text-on-ink);
+          font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+          letter-spacing: var(--tracking-label); text-transform: uppercase; }
+
+  /* ── THE NO-POPULATION PANEL ──────────────────────────────────────────
+     #44 decision 9 / #53. Black head, prose, NO NUMERALS AT ALL, no button.
+     The predicate gloss is a property of the census; where there is no
+     census there is no gloss, so nothing from ?header= reaches this. */
+  .nopop { background: var(--surface); border: var(--rule-ink); }
+  .nopop .hd { background: var(--surface-ink); color: var(--text-on-ink);
+               padding: var(--space-3) var(--space-4);
+               font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+               text-transform: uppercase; letter-spacing: var(--tracking-label); }
+  .nopop .bd { padding: var(--space-5) var(--space-4); max-width: 74ch; }
+  .nopop .bd p { margin: 0 0 var(--space-3); font-size: var(--text-base); line-height: var(--leading-body); }
+  .nopop .bd p:last-child { margin-bottom: 0; color: var(--text-muted); }
+
+  /* ── ANNOTATION APPARATUS (prototype chrome, not product) ─────────────── */
+  .verdict { border: var(--rule-ink); background: var(--surface); margin-bottom: var(--space-4); }
+  .verdict .hd { display: flex; gap: var(--space-3); align-items: baseline;
+                 padding: var(--space-2) var(--space-4); border-bottom: var(--rule);
+                 background: var(--surface-sunken); }
+  .verdict .hd .tag { font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                      text-transform: uppercase; letter-spacing: var(--tracking-label);
+                      padding: 2px 6px; background: var(--ink); color: var(--text-on-ink); }
+  .verdict .hd .tag.lose { background: var(--surface); color: var(--text-muted); border: var(--rule); }
+  .verdict .bd { padding: var(--space-3) var(--space-4); font-size: var(--text-base);
+                 line-height: var(--leading-body); max-width: 96ch; }
+  .verdict .bd b { color: var(--ink); }
+  .verdict .bd code { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--surface-sunken); padding: 0 3px; }
+
+  .foot { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface-ink);
+          color: var(--text-on-ink); border-top: var(--rule-ink); z-index: 20; }
+  .foot-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-2) var(--page-pad);
+             display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; }
+  .foot .grp { display: flex; align-items: center; gap: var(--space-2); }
+  .foot .grp > .ml { color: var(--text-faint); }
+  .foot a { color: var(--text-on-ink); opacity: .55; text-decoration: none;
+            font: var(--weight-medium) var(--text-xs)/1 var(--font-mono);
+            padding: 5px 8px; border: 1px solid transparent; }
+  .foot a:hover { opacity: 1; }
+  .foot a.on { opacity: 1; border-color: var(--text-on-ink); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-in">
+    <span class="wordmark"><b>Verge</b><span class="chip">ASM</span></span>
+    <nav class="items">
+      <a href="#">Exposure</a><a href="#">Subjects</a><a href="#" class="on">Signals</a>
+      <a href="#">Seeds</a><a href="#">Coverage</a><a href="#">Settings</a>
+    </nav>
+    <span class="nav-right mono faint">example.com</span>
+  </div>
+</header>
+
+<div class="shell" id="shell"></div>
+<div class="foot"><div class="foot-in" id="foot"></div></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   ADR-0034's predicate, implemented rather than described.
+   N = ⅓ × (not_after − not_before), and ½ × it where validity ≤ 10 days.
+   ═══════════════════════════════════════════════════════════════════════ */
+const NOW = Date.UTC(2026, 7, 14, 4, 7);          /* the evaluation instant */
+const DAY = 86400000;
+const d = (s) => Date.parse(s + "T00:00:00Z");
+
+function evaluate(c) {
+  const validity  = Math.round((d(c.na) - d(c.nb)) / DAY);
+  const limb      = validity <= 10 ? "half" : "third";
+  const horizon   = Math.round(validity / (limb === "half" ? 2 : 3));
+  const remaining = Math.round((d(c.na) - NOW) / DAY);
+  return { ...c, validity, limb, horizon, remaining, fired: remaining <= horizon };
+}
+
+const P = new URLSearchParams(location.search);
+const HEADER = P.get("header") || "rule";
+const ROW    = P.get("row")    || "both";
+const FILL   = P.get("fill")   || "mixed";
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE ESTATE. Lifetimes span the range ADR-0034 measured: Let's Encrypt's
+   six-day short-lived profile (GA 2026-01-15), its 45-day tlsserver
+   profile, its 90-day default, a 200-day commercial certificate under the
+   CA/B ceiling in force, a 365-day internal CA, and a 398-day legacy.
+   ═══════════════════════════════════════════════════════════════════════ */
+const MIXED = [
+  { subj:"api.example.com:443",        nb:"2026-06-15", na:"2026-09-13", ca:"Let's Encrypt" },
+  { subj:"cdn-origin.example.com:443", nb:"2026-02-10", na:"2026-08-29", ca:"DigiCert" },
+  { subj:"dev.example.com:443",        nb:"2025-10-02", na:"2026-10-02", ca:"example-internal-ca" },
+  { subj:"id.example.com:443",         nb:"2026-05-25", na:"2026-08-23", ca:"Let's Encrypt" },
+  { subj:"mail.example.com:8443",      nb:"2026-07-11", na:"2026-08-25", ca:"Let's Encrypt tlsserver" },
+  { subj:"metrics.example.com:9443",   nb:"2026-08-10", na:"2026-08-16", ca:"Let's Encrypt short-lived" },
+  { subj:"shop.example.com:443",       nb:"2025-08-01", na:"2026-09-03", ca:"Sectigo" },
+  { subj:"staging.example.com:443",    nb:"2026-05-30", na:"2026-08-28", ca:"Let's Encrypt" },
+  { subj:"vpn.example.com:443",        nb:"2026-08-11", na:"2026-08-17", ca:"Let's Encrypt short-lived" },
+  /* did not fire — and two of them sit BELOW fired rows on days remaining,
+     which is the whole of #60's objection made visible */
+  { subj:"edge.example.com:443",       nb:"2026-08-13", na:"2026-08-19", ca:"Let's Encrypt short-lived" },
+  { subj:"grafana.example.com:3443",   nb:"2026-07-30", na:"2026-09-13", ca:"Let's Encrypt tlsserver" },
+  { subj:"legacy.example.com:443",     nb:"2025-12-18", na:"2027-01-20", ca:"Sectigo" },
+  { subj:"www.example.com:443",        nb:"2026-08-01", na:"2026-10-30", ca:"Let's Encrypt" },
+].map(evaluate);
+
+const SHORTLIVED = [
+  { subj:"a.example.com:443",  nb:"2026-08-11", na:"2026-08-17", ca:"Let's Encrypt short-lived" },
+  { subj:"b.example.com:443",  nb:"2026-08-10", na:"2026-08-16", ca:"Let's Encrypt short-lived" },
+  { subj:"c.example.com:443",  nb:"2026-08-12", na:"2026-08-18", ca:"Let's Encrypt short-lived" },
+  { subj:"d.example.com:443",  nb:"2026-08-13", na:"2026-08-19", ca:"Let's Encrypt short-lived" },
+  { subj:"e.example.com:443",  nb:"2026-08-09", na:"2026-08-15", ca:"Let's Encrypt short-lived" },
+].map(evaluate);
+
+/* Only the drill-down rows are authored; the census scalars are summed from
+   the domain, per #28's rule that a census is derived from its own partition
+   and never counted independently. */
+const FILLS = {
+  mixed:      { population: 412, rows: MIXED,      firedTotal: 9,   note: null },
+  shortlived: { population: 412, rows: SHORTLIVED, firedTotal: 3,
+                note: "Every certificate in this estate has a six-day validity. Under #60's fixed "
+                    + "N = 30 days this rule was true of all 412, every night, from issuance to "
+                    + "expiry — a predicate that cannot be false has stopped partitioning "
+                    + "(ADR-0034 §4)." },
+  empty:      { population: 0,   rows: [],         firedTotal: 0,   note: null },
+};
+
+const num = (n) => n.toLocaleString("en-GB");
+const days = (n) => n + (n === 1 ? " day" : " days");
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HEADER — three treatments
+   ═══════════════════════════════════════════════════════════════════════ */
+function predicateGloss() {
+  if (HEADER === "none") return "";
+  return `<div class="pred">
+    <span class="ml">what this rule counts</span>
+    Fires where less than <b>a third</b> of the certificate's own validity period remains —
+    <b>half</b>, below a ten-day validity. Every endpoint below is measured against its own
+    certificate, so one rule is counted everywhere and no two thresholds need be alike.</div>`;
+}
+
+function censusRow(F) {
+  const fired = F.firedTotal, pop = F.population, notFired = pop - fired;
+  const spread = F.rows.filter(r => r.fired);
+  const lo = spread.length ? Math.min(...spread.map(r => r.horizon)) : 0;
+  const hi = spread.length ? Math.max(...spread.map(r => r.horizon)) : 0;
+  return `
+  <div class="cens">
+    <div class="m"><span class="ml">fired</span><span class="v">${num(fired)}</span>
+      <span class="d">subjects the rule is true of</span></div>
+    <div class="m"><span class="ml">did not fire</span><span class="v">${num(notFired)}</span>
+      <span class="d">evaluated, and false</span></div>
+    <div class="m ne"><span class="ml">not-evaluable</span><span class="v">0</span>
+      <span class="d">evidence absent</span></div>
+    ${HEADER === "range" ? `<div class="m spread"><span class="ml">horizons</span>
+      <span class="v">${lo}–${hi}d</span>
+      <span class="d">spread across the fired set</span></div>` : ``}
+    <div class="m pop"><span class="ml">population</span><span class="v">${num(pop)}</span>
+      <span class="d">endpoints presenting a certificate</span></div>
+  </div>
+  <div class="recon">
+    <span class="asof">evaluated 2026-08-14 04:07 UTC</span>
+    <b>${num(fired)}</b> fired + <b>${num(notFired)}</b> did not fire + <b>0</b> not-evaluable
+    = <b>${num(pop)}</b> in population
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DRILL-DOWN — three row treatments
+   ═══════════════════════════════════════════════════════════════════════ */
+function rowCells(r) {
+  if (ROW === "days") {
+    return `<td class="left">${days(r.remaining)} left</td>
+            <td class="hor"><span class="why">expires ${r.na}</span></td>`;
+  }
+  if (ROW === "fraction") {
+    const pct = Math.round(100 * r.remaining / r.validity);
+    return `<td class="left">${pct}% of validity left</td>
+            <td class="hor"><span class="why">expires ${r.na}</span></td>`;
+  }
+  return `<td class="left">${days(r.remaining)} left</td>
+          <td class="hor">horizon <b>${days(r.horizon)}</b>
+            <span class="why">— ${r.limb === "half" ? "half" : "a third"} of its
+            ${days(r.validity)} validity</span></td>`;
+}
+
+function memberList(title, rows, note) {
+  if (!rows.length) return "";
+  const sorted = [...rows].sort((a, b) => a.subj.localeCompare(b.subj));
+  return `<div class="dd">
+    <div class="dd-h"><span class="ml">${title}</span>
+      <span class="mono muted">${rows.length} shown, ordered by subject</span>
+      ${note ? `<span class="note">${note}</span>` : ``}</div>
+    <table class="rows">${sorted.map(r => `<tr>
+      <td class="subj">${r.subj}</td>${rowCells(r)}</tr>`).join("")}</table></div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE READING TEST — the two rows that decide the row treatment
+   ═══════════════════════════════════════════════════════════════════════ */
+function readingTest(F) {
+  if (FILL !== "mixed") return "";
+  const a = F.rows.find(r => r.subj.startsWith("api."));
+  const b = F.rows.find(r => r.subj.startsWith("grafana."));
+  const c = F.rows.find(r => r.subj.startsWith("dev."));
+  const e = F.rows.find(r => r.subj.startsWith("edge."));
+  const verdicts = {
+    days: [`lose`, `<b>Unreadable, and the estate produced a worse case than the ticket described.</b>
+      <code>api.example.com:443</code> and <code>grafana.example.com:3443</code> both read
+      <b>${days(a.remaining)} left</b> — the identical number — and one is in <i>fired</i> while
+      the other is in <i>did not fire</i>. The ticket anticipated an incomparable column; what a
+      days-only rendering actually produces is a <b>visible contradiction</b>, two rows with equal
+      values in opposite census members. Sorting makes it worse rather than better, because it puts
+      them adjacent. <code>dev.example.com:443</code> fires at <b>${days(c.remaining)}</b> while
+      <code>edge.example.com:443</code> does not fire at <b>${days(e.remaining)}</b>, which is the
+      same defect at a distance. This is #60's objection landing exactly where ADR-0034 said the
+      remedy belongs — on the rendering.`],
+    fraction: [`lose`, `<b>Comparable and unactionable.</b> Every row is now on one scale, and the
+      operator has lost the only number they can put in a calendar. It also states our own
+      arithmetic back at them instead of a fact about their certificate. Days remaining is a world
+      fact and has been the honest per-subject value since before there was a horizon; a percentage
+      is not a substitute for it.`],
+    both: [`win`, `<b>Legible, including on the pair that breaks the days-only rendering.</b>
+      <code>api.example.com:443</code> fires at <b>${days(a.remaining)}</b> because its horizon is
+      <b>${days(a.horizon)}</b>, a third of a ${days(a.validity)} validity;
+      <code>grafana.example.com:3443</code> does not fire at the same <b>${days(b.remaining)}</b>
+      because its horizon is <b>${days(b.horizon)}</b>, a third of a ${days(b.validity)} validity.
+      The two numbers are one comparison read from one
+      certificate by one route, so they cannot disagree with each other — which is what separates
+      this from #28's two-numbers hazard. The validity period beside the horizon is what makes the
+      difference the operator's CA's doing rather than ours.`],
+  };
+  const [kind, text] = verdicts[ROW];
+  return `<div class="verdict"><div class="hd">
+      <span class="tag ${kind === "lose" ? "lose" : ""}">${kind === "lose" ? "loses" : "ships"}</span>
+      <span class="ml">row treatment · ?row=${ROW}</span></div>
+    <div class="bd">${text}</div></div>`;
+}
+
+function headerVerdict() {
+  const v = {
+    none: [`lose`, `<b>The numerator has no stated meaning.</b> Under a fixed 30 days an operator
+      could at least learn the horizon once and carry it. <i>Expiring</i> now denotes a position
+      inside each certificate's own life, and nothing on the screen says which position. The census
+      is the only place a rule's population and predicate are stated to the operator (#53), so an
+      unglossed numerator is a number they cannot act on or check.`],
+    rule: [`win`, `<b>States our parameter, which is ours, closed, and identical in every install.</b>
+      Both limbs are named: dropping the half-below-ten-days clause would make the gloss false on
+      exactly the short-lived certificates that forced the fraction (ADR-0034 §4). It carries no
+      quantity derived over the estate, so nothing here can disagree with the census beneath it.`],
+    range: [`lose`, `<b>A statistic about the operator's estate wearing a census member's clothes.</b>
+      Three defects, and the third is fatal. It is a second number over one population that the
+      operator must reconcile with the first — #28's hazard. Its own denominator is undecidable:
+      the spread across the <i>fired</i> set and the spread across the <i>whole domain</i> are both
+      computable, both plausible, and nothing on screen recovers which was meant — #53's
+      two-total-decompositions argument arriving at the header. And it is a fact about which CAs
+      the operator buys from, not about what this rule concluded; #44 decision 7 already ruled that
+      a rule's own surface counts our rules and lists and never a figure over the estate.`],
+  }[HEADER];
+  return `<div class="verdict"><div class="hd">
+      <span class="tag ${v[0] === "lose" ? "lose" : ""}">${v[0] === "lose" ? "loses" : "ships"}</span>
+      <span class="ml">header treatment · ?header=${HEADER}</span></div>
+    <div class="bd">${v[1]}</div></div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════════════════════════════ */
+function noPopulation() {
+  return `<div class="nopop">
+    <div class="hd">no population</div>
+    <div class="bd">
+      <p>There is no clean bill of health here, and no defect either.
+      No endpoint in your estate presents a certificate, so there is nothing this rule can be
+      asked about.</p>
+      <p>This is what your estate measured, not something you configured. If an endpoint starts
+      presenting a certificate it enters this rule's population on the next cadence and this panel
+      goes away.</p>
+    </div></div>
+  <div class="verdict" style="margin-top:var(--space-4)"><div class="hd">
+      <span class="tag">confirmed</span><span class="ml">#53's copy, unchanged by the fraction</span></div>
+    <div class="bd">The panel fires on an empty <b>domain</b>, and ADR-0034 left the domain
+      untouched — <code>certificate</code> is <code>Presented</code>, with <code>NoTLS</code>
+      outside it. So the copy stands.
+      <br><br><b>The interaction this ticket had to catch:</b> #44 decision 9 puts <i>no numerals
+      at all</i> on this panel, and the header gloss ruled above contains <code>a third</code> and
+      <code>ten-day</code>. Switch <code>?header=</code> with this fill selected and nothing moves,
+      because <b>the gloss is a property of the census and there is no census here.</b> A gloss
+      attached to the rule rather than to its census would have leaked four numerals onto the one
+      panel in the product that may hold none.</div></div>`;
+}
+
+function render() {
+  const F = FILLS[FILL];
+  const body = FILL === "empty" ? noPopulation() : `
+    ${headerVerdict()}
+    ${readingTest(F)}
+    <div class="rule">
+      <div class="rule-h">
+        <span class="nm">certificate-expiring</span>
+        <span class="ver">certificate/4 · renewal-fraction/1</span>
+        <span class="sp"></span>
+        <span class="mono muted">Endpoints presenting a certificate</span>
+      </div>
+      ${predicateGloss()}
+      ${censusRow(F)}
+      ${memberList("fired", F.rows.filter(r => r.fired),
+         "complete · no control in any row · no ordering by days remaining")}
+      ${memberList("did not fire", F.rows.filter(r => !r.fired),
+         "a sample of " + num(F.population - F.firedTotal) + ", drawn here so the two members can be read against each other")}
+      ${F.note ? `<div class="pred" style="border-left-color:var(--border);border-top:var(--rule)">
+          <span class="ml">why this estate is the test</span>${F.note}</div>` : ``}
+    </div>`;
+
+  document.getElementById("shell").innerHTML = `
+    <h1 class="page">Signals</h1>
+    <p class="sub">A signal is a named fact with evidence and no severity. Each rule renders a
+    census of three members over one population — and never as a delta, a trend or a series
+    (ADR-0024). This screen shows one rule, <span class="mono">certificate-expiring</span>, whose
+    horizon is now a fraction of each certificate's own validity period rather than a fixed number
+    of days.</p>${body}`;
+
+  const link = (k, v, cur) => `<a href="?header=${k==='header'?v:HEADER}&row=${k==='row'?v:ROW}&fill=${k==='fill'?v:FILL}" class="${cur===v?'on':''}">${v}</a>`;
+  document.getElementById("foot").innerHTML = `
+    <span class="grp"><span class="ml">header</span>${["none","rule","range"].map(v=>link("header",v,HEADER)).join("")}</span>
+    <span class="grp"><span class="ml">row</span>${["days","both","fraction"].map(v=>link("row",v,ROW)).join("")}</span>
+    <span class="grp"><span class="ml">fill</span>${["mixed","shortlived","empty"].map(v=>link("fill",v,FILL)).join("")}</span>
+    <span class="grp" style="margin-left:auto"><span class="ml">issue #72 · prototype</span></span>`;
+}
+render();
+</script>
+</body>
+</html>
