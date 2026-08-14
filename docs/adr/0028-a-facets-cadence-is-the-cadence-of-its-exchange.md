@@ -185,6 +185,17 @@ timelines open with it, so `appeared` carries the news at the cause and the open
 at all. ADR-0017's *"a leg's timeline opens when a slower tier first covers that port"* survives for
 the same reason it was correct — there the subject already existed on the other vantage's leg.
 
+*Amended by [#63](https://github.com/winniel123/verge-asm/issues/63) /
+[ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md), landed the same day.*
+The sentence *"`appeared` carries the news at the cause and the opening is not unnamed at all"* is
+**withdrawn**. A `Service` `appeared` is never a message: membership alerts fire at the **root of
+the entering sub-tree** and only a `Name` or an `Address` can be a root, so where a slower tier
+discovers a `Service` beneath an `Address` already in the estate, the root walk terminates at that
+`Address` and **nothing carries the discovery at all**. The Decision does not move, and the
+correction **strengthens** it — the rejected alternative loses the news outright rather than having
+membership carry it, which is a cost of the alternative rather than a relief. ADR-0017's clause is
+untouched, its subject having already existed.
+
 ### Repaired or recorded: ADR-0020's test is whether a reader acting on the text goes wrong
 
 [ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md) set the precedent for recording rather
