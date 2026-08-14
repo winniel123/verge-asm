@@ -397,6 +397,16 @@ sanity cap on range size so a fat-fingered `/8` cannot be entered.
 Losing OS fingerprinting is not a loss at all: it is one of the more intrusive things a scanner
 does, and an ASM tool for owned infrastructure gets better OS data from the operator's own inventory.
 
+> **Confirmed 2026-08-14 by [#81](https://github.com/winniel123/verge-asm/issues/81) —
+> [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md).** This paragraph is the
+> clearest statement in the repository of a question that was open until now, and it is **not
+> corrected**. *"Targets are seeded by the operator, not discovered by sweeping"* refuses **host
+> discovery**, not range enumeration: the operator's declared IP ranges are walked in full, under
+> `-Pn`, and *"no ports responded"* is recorded as a diffable observation about a real subject. An
+> address-scope `Seed` therefore **enumerates**; a name-scope `Seed` does not, and §10's refused
+> wordlist brute-force is why. The *"cannot be entered"* clause is the operative half of §9's range
+> size cap: it is checked at declaration, not applied as a filter while a batch runs.
+
 ---
 
 ## 4. HTTP probing
@@ -979,7 +989,7 @@ operator.
 | **Per-target enable/disable + pause-all** | enabled | An incident is exactly when the operator wants the scanner to stop immediately. A global kill switch must exist and take effect mid-run. |
 | **Adaptive back-off aggressiveness** | halve on error | Operators with lossy links need it gentler; operators with headroom find it too timid. |
 | **`suspect-firewall` port threshold** | 100 open ports | Depends on the estate; some hosts legitimately listen on many ports. |
-| **Target range size cap** | /22 per target | Prevents a typo'd `/8` from becoming a multi-day scan. |
+| **Target range size cap** | /22 per target | Prevents a typo'd `/8` from becoming a multi-day scan. **Checked when an address scope is *declared*** — §3.4's *"cannot be entered"* — and applied **per scope, never to a sum**, so four `/22`s are four deliberate acts. It bounds a Declared act's cost and asserts nothing about whether the claim is true; custody at a larger scale belongs to a `custody extension`, which the cap does not reach ([ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md)). |
 
 ---
 

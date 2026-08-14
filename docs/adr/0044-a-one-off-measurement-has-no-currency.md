@@ -249,6 +249,18 @@ position ever changes.
   citation. Every load figure in this ADR is stated per address for that reason. Ticketed
   separately — it is not this ADR's to settle.
 
+  > **Settled 2026-08-14 by [#81](https://github.com/winniel123/verge-asm/issues/81) —
+  > [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md): it enumerates.** Nothing in this
+  > ADR is amended and its per-address figures stand. Two things resolve. The estate limb stops
+  > being given twice: for an address-scope `Seed` the multiplier is the **declared size**, at most
+  > **1,024** at §9's cap, so the *3.9-to-11.6-day* pass in the rationale and in the rejected
+  > alternatives is the shipped worst case rather than a hypothesis — the losing option's arithmetic
+  > becomes unconditional. And the hot tier at that same cap costs **12 to 36 minutes per day** at
+  > the 200 pkt/s ceiling, which is the figure this ADR could not state and the reason the surviving
+  > default fits inside its own cadence. `0 of 37 sensitive pairs unread` is untouched: it is a
+  > count over our own list, evaluated per `Service`, and enumeration only widens the population it
+  > is true over.
+
 ## Alternatives rejected
 
 | Alternative | Why not |
