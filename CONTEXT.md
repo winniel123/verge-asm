@@ -62,7 +62,11 @@ next, while an extension simply stops covering it. What it cannot see is an `ALI
 an A record at a zone apex, so the declaration states that case in the operator's own words and the
 current extension is rendered for them to read — display, never per-address approval, and a **census
 with no denominator**, since how many addresses it *ought* to cover is completeness of the estate,
-which the operator is the only source for. See
+which the operator is the only source for. Because both of those carriers are point-in-time and the
+extension is recomputed, a live extension **gaining** an address also notifies, in the coverage
+class, once per scope per cadence: it is the only place the probing gate opens with no Declared act
+behind it. That message states the difference and carries no verdict — it is not a `Transition`, and
+its count is read from the same computation as the census. See
 [ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md).
 _Avoid_: transitive scope, auto-discovery, implicit seed, follow-the-DNS
 
