@@ -388,6 +388,17 @@ So 111 is excluded — not because it is defensible on the internet, but because
 anyone entitled to say it isn't.** That is an uncomfortable result and it is the correct one; the
 alternative is a list whose rows are backed by whichever authoritative-looking document was nearest.
 
+> **Amended by §17** ([#79](https://github.com/winniel123/verge-asm/issues/79)). *"We could not find
+> anyone entitled to say it isn't"* is this note's model sentence for a negative, and
+> [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) requires that such a
+> sentence name the **document classes** searched rather than the documents. §17.1 does that for every
+> negative the note stands on, and finds that **`111/tcp`'s carries no weight**: §10.1 Step 1 refuses
+> Claim 1 independently and §10.4.3's remedy route is a second independent ground, so no document
+> retrieved from any class could re-admit the row. The negative is **bounded on arrival** — it is
+> preserved here as the standard's clearest statement of its own tightness, not as a live ground.
+> **Two negatives elsewhere in the note were exposed and swept, and one of them found a sentence**;
+> read §17 before quoting this paragraph as the model.
+
 ---
 
 ## 3. The list
@@ -1185,6 +1196,27 @@ be wrong within a year.
     on any plausible standard — so it does not block
     [#12](https://github.com/winniel123/verge-asm/issues/12). Routed to
     [#82](https://github.com/winniel123/verge-asm/issues/82).
+11. **Has [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md)'s
+    liveness test ever been run on `esmagent` and `fmtp`?** Opened by §17.8. **[measured] No.** Two of
+    §4.6's exclusions — `5601/tcp` Kibana and `8500/tcp` Consul — rest on **owner-silence plus a
+    squat**, and §17.1 finds they are the only two rows in the note whose exclusion is not
+    overdetermined. ADR-0042 made *contested* testable by keying it to the competing owner's current
+    documentation, and neither `Enterprise Security Agent` nor `Flight Message Transfer Protocol` has
+    been checked for a living owner. If either registration is dead, that row's determinacy gate
+    passes and its exclusion rests on owner-silence alone — a sole-ground negative that
+    [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) then obliges someone
+    to sweep by document class. **No row moves on the answer today** and both are currently excluded,
+    so it does not block [#12](https://github.com/winniel123/verge-asm/issues/12). Routed to
+    [#87](https://github.com/winniel123/verge-asm/issues/87), after
+    [#82](https://github.com/winniel123/verge-asm/issues/82).
+12. **Is an owner's unreleased document the owner's documentation?** Opened by §17.5. §2.2's second
+    form reads *"the project's or vendor's own documentation"* and does not say whether that means
+    what the project **publishes** or what sits in its **tree**; §12 answered the equivalent question
+    for **configuration** and nothing answers it for **prose**. The first case to turn on it is
+    `9092/tcp`, where a first-party sentence exists on `trunk`, is absent from release tag `4.3.1` and
+    404s on the published site. **The list is definitively 37 under the standard as written**, so it
+    does not block [#12](https://github.com/winniel123/verge-asm/issues/12). Routed to
+    [#86](https://github.com/winniel123/verge-asm/issues/86).
 
 ---
 
@@ -1878,6 +1910,18 @@ one of the sixteen was excluded because "same system" was too narrow:
 doing.** And it does not let the government lists back in through the side door: §2.3 is untouched,
 so CISA's category verdict still cannot carry a row, and the *boundary* limb still needs an owner —
 which is what §10.6 finds is missing for one row.
+
+> **Amended by §17** ([#79](https://github.com/winniel123/verge-asm/issues/79)). The walk above tests
+> each exclusion's ground against a **wording** change and correctly finds none moves. It does not test
+> whether the ground itself was established over the right **document classes**, which is
+> [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s question and did not
+> exist when this table was written. §17.1 runs that test on every negative in it. **Two rows' stated
+> grounds change and neither row moves:** `5672`/`15672` — not in the table above, and excluded on *the
+> prohibition names 4369 and 25672, not these* — becomes an owner **naming public networks as
+> supported** for exactly those two ports, which is this section's own failure condition met from the
+> other side (§17.4); and `9092/tcp` Kafka's *"security is optional"* is joined by a prohibition-shaped
+> sentence in an unreleased first-party document (§17.5). **The `111/tcp`, `389/tcp` and `79/tcp` rows
+> above are unchanged and are un-exposed**, each carrying a second ground no document can reach.
 
 ### 10.4 Defect 3 — a shipped default attests in one direction only
 
@@ -3554,6 +3598,491 @@ this note has no standing to revise. **The criterion that would reopen it:** a v
 
 ---
 
+## 17. The class audit — which negatives rest on specifications alone
+
+Wayfinder ticket [#79](https://github.com/winniel123/verge-asm/issues/79), applying
+[ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s rule that **a
+specification's silence is not the owner's silence** to every negative this note is standing on. Each
+was established before that rule existed. This section **amends §2.7, §4.5, §4.6, §10.3, §11.8 and
+§12.6 by reference**: earlier text is left standing and marked, per the name-and-withdraw convention,
+and where §17 and an earlier section disagree, **§17 governs**. The general rule it establishes is
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md).
+
+**Two sibling sections landed while this one was being written, and both touch it.**
+[#82](https://github.com/winniel123/verge-asm/issues/82)'s §15 gave §2.4's determinacy gate a source
+rule — [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md), *a
+convention is evidenced by placement, never by catalogue* — and walked the nine **listed** rows resting
+on convention. It did **not** walk the **excluded** rows' squats, which is where §17.8's residue lives.
+And [#76](https://github.com/winniel123/verge-asm/issues/76)'s §16 placed the footing table's seven
+uncovered rows and **moved `10255/tcp` into the weak tier**, which created a fourteenth sole-ground
+negative after this audit's population had been fixed. It is swept in §17.6 rather than left out, and
+what that costs the *sweep terminates* claim is stated in §17.8 rather than smoothed.
+
+**Headline result, stated first.**
+
+> **No row moves. The list stays at 37 `(port, transport)` pairs and no footing cell is edited.**
+> Fourteen load-bearing negatives are enumerated; **six are overdetermined** — a gate no document can
+> reach already refuses the row — **five were swept**, **one had its class list already exhausted**, and
+> **two are the named residue**. `161/udp` does **not** re-open: the IETF's operational class, which #66
+> never opened, contains no placement sentence and contains the opposite. `5672`/`15672`'s negative
+> **strengthens into a positive**. Two previously-unopened owner documents do carry the sentence the
+> note says does not exist — for `9092/tcp`, **which is in no release and on no published page**, and
+> for `10255/tcp`, **which names the category and not the port**. Both are questions about the standard
+> rather than about the row, and both are handed on rather than answered here.
+
+### 17.1 The population, enumerated rather than asserted
+
+ADR-0040's disclosure rule binds this section's own output, so the corpus is listed. A negative is
+**load-bearing** where this note cites an absence as a reason. *Classes* are the three ADR-0040 §1
+names — the defining **specification**, the **operational or deployment** recommendation, and the
+**implementation guidance** — plus §2.2's third form, the **shipped default**.
+
+| # | The negative, and where it lives | Classes searched | Classes that exist and were **not** searched | Sole ground? | Verdict |
+|---|---|---|---|---|---|
+| 1 | **`161/udp`** — no first-party sentence places SNMPv1/v2c inside a boundary (§11, the negative that **removed a row**) | specification ×9 (RFC 3411/3412/3413/3414/3417/3584/2570/1157/6353) · applicability statement (RFC 3410) · implementation ×5 (net-snmp `snmpd(8)`, `snmpd.conf(5)`, FAQ, wiki, `EXAMPLE.conf.def`) · distributor default (Debian) | **operational** — the IETF's OPS-area documents | **Yes** | **Swept (§17.3). Survives, bounded** |
+| 2 | **`111/tcp`** — *"we could not find anyone entitled to say it isn't"* (§2.7, §9.1) | specification (RFC 1833, RFC 5531) · implementation (`rpcbind(8)`, `configure.ac`, `rpcbind.socket`) · distributor (Debian) · third-party operational (Red Hat, declined on §2.3) | none material — ONC RPC has no IETF deployment document | **No** — §10.1 Step 1 refuses Claim 1 independently, and §10.4.3's remedy route is a second | **Bounded on arrival** |
+| 3 | **`389/tcp`** — RFC 4513 does not mention `ldaps://` or `636` (§9.2) | specification ×5 (RFC 4510/4511/4513/4516/2830) · implementation (OpenLDAP Administrator's Guide, `slapd(8)`) · vendor (Microsoft LDAP signing) | LDAP has no IETF deployment BCP | **No** — OpenLDAP names *"the global Internet"*; §10.8 makes Class B structurally unavailable | **Bounded on arrival** |
+| 4 | **`79/tcp`** — no implementation states a position (§9.3.5) | specification (RFC 1288) · implementation ×5 (OpenBSD, FreeBSD, GNU inetutils, Fedora, Debian) | — | **No** — fails determinacy against RFC 4146, and §10.1 Step 1 | **Bounded on arrival** |
+| 5 | **`9092/tcp`** — *"upstream declines to take any network posture"* (§4.6, §10.3, §12.6) | project documentation (`security-overview`) · shipped default (`config/server.properties`) | **the project's own security-model document** | **Yes** | **Swept (§17.5). A sentence exists and is not shipped** |
+| 6 | **`5672`/`15672`** — the prohibition names 4369 and 25672, not these (§4.6, §10.3, §12.6) | project documentation ×3 (networking, access control, clustering) · example config (`rabbitmq.conf.example`) | **the deployment class — the production checklist** | **Yes** | **Swept (§17.4). Survives, and now points the other way** |
+| 7 | **`5432/tcp`** — PostgreSQL states **no position at all** on network placement (§4.5, the note's weakest row) | manual ×4 (`runtime-config-connection`, `ssl-tcp`, `client-authentication`, `server-start`) · shipped bytes ×3 (`postgresql.conf.sample`, `guc_tables.c`, `pg_hba.conf.sample`) | **none — PostgreSQL ships one manual, and #70 read both classes** | **Yes** | **Bounded — the class list is exhausted (§17.6)** |
+| 8 | **`5984/tcp`** — the *"do not expose"* warning covers the Erlang distribution port, not 5984 (§2.2) | project documentation ×2 (cluster setup, HTTP config) · shipped bytes (`default.ini`, `local.ini`) | **the security introduction** | **Yes** | **Swept (§17.6). Survives; near-miss recorded** |
+| 9 | **`5985`/`5986`** — no first-party Microsoft sentence prohibits internet exposure of WinRM (§4.6) | vendor guidance (`winrm-security`) · vendor deployment, cloud-scoped (Azure) | the DMTF WS-Management specification | **No** — remote administration is the express purpose, and Microsoft's own sentence refutes the Claim 2 argument | **Bounded on arrival** |
+| 10 | **`3389/tcp`** — no first-party non-Azure prohibition was found (§4.6) | vendor deployment, cloud-scoped (Azure) · third-party (CISA) | Microsoft's on-premises hardening guidance | **No** — express purpose; GCP ships it open to `0.0.0.0/0` | **Bounded on arrival** |
+| 11 | **`5601/tcp`** — Elastic states no prohibition (§4.6, §12.6) | project documentation (Kibana settings) · shipped default (`kibana.yml`) | Elastic's deployment guidance for Kibana | **Partly** — the second ground is a squat on `esmagent`, and ADR-0042's liveness test has **never been run on it** | **Exposed, not swept — §17.8** |
+| 12 | **`8500/tcp`** — the position is only that external access *"should be considered"* (§4.6, §12.6) | project documentation ×3 (security model, ACL config, ports) · no configuration file ships | HashiCorp's deployment guidance | **Partly** — same shape: the second ground is a squat on `fmtp`, untested under ADR-0042 | **Exposed, not swept — §17.8** |
+| 13 | **`1433`, `445`, `623`** — *"no shipped configuration artefact exists"* (§13.1) | — | — | **No** — it is a negative about an **artefact's existence**, not about an owner's silence, and all three rows rest on prose in the prohibition tier | **Not a class negative** |
+| 14 | **`10255/tcp`** — *"The owner states **no position** on `10255` anywhere that was retrieved"* (§16.5, [#76](https://github.com/winniel123/verge-asm/issues/76)) — **created after this population was fixed** | project documentation ×2 (`ports-and-protocols.md`, `kubelet-authn-authz.md`) · shipped bytes (`types.go`, `defaults.go`) · generated CLI reference | **the project's security documentation** | **Yes** — it is the weak tier's third row and rests on a restricting default alone | **Swept (§17.6). A category prohibition exists in the owner's voice, and whether it reaches the port is a footing question** |
+
+### 17.2 The filter, and it is what makes the sweep affordable
+
+Six of the fourteen are **overdetermined**, and that is a property of an evidence standard with more
+than one gate rather than good luck.
+
+> **A negative is exposed to ADR-0040's class sweep only where it is the row's *sole* ground.** Where
+> the row is also refused by **determinacy**, by the **closed claim set** (§10.2), or by an **owner
+> sentence naming the internet as supported** (§10.3), a document retrieved from an unopened class
+> changes the note's footing and cannot change its verdict. None of those three gates is a silence, so
+> none of them has a class list to enumerate.
+
+**The arithmetic.** Fourteen negatives. **Six are un-exposed** — rows 2, 3, 4, 9, 10 and 13. **Eight
+are exposed**, and they divide three ways: **five were searched** (rows 1, 5, 6, 8 and 14), **one had
+its class list already exhausted before this ticket** (row 7, PostgreSQL — §17.6), and **two are the
+residue** (rows 11 and 12, whose second ground is an untested determinacy call — §17.8).
+
+The classes are still **enumerated** for all fourteen, because that is what ADR-0040 actually requires
+and it costs a table. Only the five were **searched**.
+
+### 17.3 `161/udp` — the operational class, opened for the first time, and it points the other way
+
+#66 read ten RFCs and five net-snmp artefacts. **[measured]** Every one of the ten is a
+**specification**, a **coexistence transition document** (RFC 3584) or an **applicability statement**
+(RFC 3410); the net-snmp five are **implementation guidance** and a **shipped example**. The IETF's
+**operational** class — the OPS-area documents that tell an operator how to run a managed network —
+was never opened. #66's own re-admission criterion is *"a first-party sentence from the IETF or from
+net-snmp placing SNMPv1/v2c inside a network boundary"*, and if one exists this is where it is.
+
+Three documents were retrieved as bytes and searched directly.
+
+| Retrieved | What it is | Did it place SNMP? |
+|---|---|---|
+| **RFC 3512** | *Configuring Networks and Devices with SNMP* (Informational, April 2003) — the SNMP family's own deployment guide | **No** |
+| **RFC 3871** | *Operational Security Requirements for Large ISP IP Network Infrastructure* (Informational, September 2004) | **No — and §2.2 says the opposite** |
+| **RFC 4778** | *Operational Security Current Practices in Internet Service Provider Environments* (Informational, January 2007) | **No — and it is a survey, not a position** |
+
+**RFC 3512 is the closest thing the SNMP family has to a deployment BCP, and its security sections are
+about everything except placement.** §6.2 *Secure Agent Considerations* is about shipped community
+strings — *"Vendors should not ship a device with a community string 'public' or 'private'"* — and
+about SNMPv3 being *"recommended for all network management applications"*. §6.3 is about
+authentication-notification defaults, §6.4 about MIB object sensitivity. **[measured]** the strings
+`management network`, `segregat`, `firewall`, `separate network`, `isolated network`, `private
+network`, `untrusted network`, `public network` and `out of band` occur **five times** in the whole
+document, and not one describes where an SNMP agent belongs: two are about trap delivery, one is the
+title of an ITU-T reference in the bibliography, and two are about VPN forwarding as a MIB example.
+
+**RFC 3871's SNMP paragraph is the boilerplate, and the boilerplate is a version statement.**
+
+> "Furthermore, deployment of SNMP versions prior to SNMPv3 is NOT RECOMMENDED. Instead, it is
+> RECOMMENDED to deploy SNMPv3 and to enable cryptographic security. It is then a customer/operator
+> responsibility to ensure that the SNMP entity giving access to MIB objects is properly configured"
+> — [RFC 3871](https://www.rfc-editor.org/rfc/rfc3871.txt), §9, *Security Considerations*
+
+This is the strongest unscoped IETF sentence about SNMPv1/v2c anywhere in the corpus and **it is not a
+placement sentence**. It is §11.5's structure exactly: the IETF's stated remedy is the **version**, and
+the version is reached on `161/udp` itself (RFC 3417 §3.2). RFC 3410 §8.2's *"framework of choice"* is
+the same body saying the same thing nine years earlier, and #66 held it and correctly declined it. Its
+second clause hands the boundary to the operator, which is the delegation §11.2 refused.
+
+**And the decisive sentence points the other way.** RFC 3871 §2.2, introducing the in-band management
+requirements:
+
+> "There are many situations where in-band management makes sense, is used, and/or is the only option.
+> The following requirements are meant to provide means of securing in-band management traffic."
+> — [RFC 3871](https://www.rfc-editor.org/rfc/rfc3871.txt), §2.2, *In-Band Management Requirements*
+
+The IETF's operational-security document enumerates in-band management's disadvantages — including
+*"Since public interfaces/channels are used, it is possible for attackers to directly address and reach
+the device"* — and then specifies requirements for **doing it anyway**. Its out-of-band section (§2.3)
+is a parallel set of requirements for a different topology, introduced by *"trade-offs that must be
+weighed in considering which is appropriate to a given situation"*. That is a conditional deferring to
+the reader's architecture, which is the shape §9.3.1 refused for finger, §4.4 refused for 6443 and
+§11.2 refused for RFC 3410.
+
+**RFC 4778 is the frequency trap in the class most likely to contain it.** Its title is the most
+placement-shaped in the corpus and it is a **survey of what operators already do**:
+
+> "In all large ISPs that were interviewed, HTTP management was never used"
+> — [RFC 4778](https://www.rfc-editor.org/rfc/rfc4778.txt), §2.3
+
+> "In instances where SNMP is used, some legacy devices only support SNMPv1, which then requires the
+> provider to mandate its use across all infrastructure devices for operational simplicity. SNMPv2 is
+> primarily deployed since it is easier to set up than v3."
+> — [RFC 4778](https://www.rfc-editor.org/rfc/rfc4778.txt), §2.4
+
+*Primarily deployed.* This is *frequency is not a position* in the source's own words — the shape #73
+met in RFC 8422 §5.1.1 and §14 refused again on `7000` — and it arrives in the **deployment class**,
+which is where the ticket predicted it would. **A deployment document is where frequency arguments
+live, and the operational-practices genre is a measurement by construction.** Recorded so that the next
+session reaching for an operational document knows to check its genre before its content.
+
+**One scope note that would have mattered had anything been found.** RFC 3871's own abstract addresses
+*"vendors"* on behalf of *"large Internet Service Provider (ISP) IP networks (routers and switches)"* —
+a body addressing a constituency, which is ADR-0035 §7's scope-weakness shape. A placement sentence
+found there would have been scoped rather than unscoped and would have needed that argued. None was
+found, so it does not arise.
+
+> **Ruling: `161/udp` does not re-open.** #66's negative is **bounded** rather than merely unsearched:
+> the class it never opened has now been opened, and it contains no placement sentence and one sentence
+> pointing the other way. §11.8's criterion is unchanged and now has a shorter boundary — a placement
+> sentence would have to come from a class outside {specification, applicability statement, operational
+> recommendation, reference implementation}, and the IETF has no fifth. **Re-admission, if it ever
+> came, would be [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s removal plus addition, priced
+> separately, never a reversal of §11.6.**
+
+### 17.4 `5672`/`15672` RabbitMQ — the negative strengthens into a positive
+
+§4.6 excludes both on *"Upstream's 'should not be publicly exposed' sentence covers 4369 and 25672
+specifically, not these"* — a **scoping** negative about a document already held, which §10.3 and §12.6
+each re-confirmed without adding evidence. The class never opened is RabbitMQ's **deployment**
+documentation: its production checklist.
+
+> "Ports used by RabbitMQ can be broadly put into one of two categories: Ports used by client libraries
+> (AMQP 0-9-1, AMQP 1.0, MQTT, STOMP, HTTP API); All other ports (inter node communication, CLI tools
+> and so on). Access to ports from the latter category generally should be restricted to hosts running
+> RabbitMQ nodes or CLI tools. Ports in the former category should be accessible to hosts that run
+> applications, **which in some cases can mean public networks, for example, behind a load balancer.**"
+> — [RabbitMQ production checklist](https://www.rabbitmq.com/docs/production-checklist), *Firewall Configuration*
+
+Two findings, and the second is the one that matters.
+
+1. **The scoping negative is confirmed in a second class, in the owner's own taxonomy.** *"All other
+   ports (inter node communication, CLI tools and so on)"* is exactly 4369 and 25672, and it is exactly
+   those that *"should be restricted to hosts running RabbitMQ nodes"*. §4.6's reading of the
+   prohibition's scope was correct and now rests on two documents rather than one.
+2. **The negative becomes a positive.** `5672` is AMQP 0-9-1 and 1.0; `15672` is the HTTP API. Both are
+   in the **first** category, and the owner says that category *"in some cases can mean public
+   networks"*. That is **§10.3's failure condition met from the other side** — *"Where the owner names
+   the public internet as a supported deployment environment, Claim 3 fails however strongly a third
+   party disapproves"* — and it is the [#30](https://github.com/winniel123/verge-asm/issues/30) shape a
+   third time. §4.6's *"AMQP brokers are sometimes legitimately public"*, which was an assertion of ours
+   and the weakest clause in that table, is **withdrawn and replaced by the owner's own sentence**.
+
+**No row moves**, because both were already excluded. What changes is that two exclusions move from
+*the prohibition does not reach them* to *the owner names their audience as possibly public*, which is
+the difference §9.4 called *the difference between a gap and a finding*.
+
+### 17.5 `9092/tcp` Kafka — the sentence exists, and it is not shipped
+
+§4.6 excludes Kafka on *"Upstream declines to take any network posture. Its only relevant sentence is
+neutral: 'security is optional - non-secured clusters are supported'"*. **[measured]** That sentence is
+still exactly where §4.6 found it: `docs/security/security-overview.md` at release tag `4.3.1`, 2,068
+bytes, verified against the retrieved file.
+
+The class never opened is the project's own **security-model** document, which is a different file:
+
+> "**Security is off by default.** A freshly-installed Apache Kafka cluster accepts unauthenticated
+> `PLAINTEXT` connections on every listener and applies no authorization. This is appropriate only for
+> closed test environments. Production deployments **must** explicitly configure authentication,
+> authorization, and transport encryption before being exposed to any untrusted network."
+> — [`apache/kafka`, `docs/security/security-model.md`](https://raw.githubusercontent.com/apache/kafka/trunk/docs/security/security-model.md), `trunk`
+
+That is not neutral, and finding it is a **retrieval** on
+[ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) §4's test — the claim is
+about a **different document's content**, not about the **import** of one already held.
+
+**The row does not move, on two independent grounds.**
+
+1. **[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2
+   governs.** *A subject the artefact names and the table lacks is a finding, and it is ticketed rather
+   than admitted* — the artefact supplies the **attestation limb only**, and the claim and determinacy
+   gates were not what this retrieval was scoped to answer. `7000/tcp` is the measured precedent for
+   what happens when a session sweeps them in together: the strongest sentence in the corpus, sunk by a
+   different gate. `9092/tcp` squats on `XmlIpcRegSvc` and §2.4's liveness test under ADR-0042 has not
+   been run on that registration either.
+2. **[measured] The sentence is not shipped.** `docs/security/security-model.md` is present on
+   `apache/kafka` `trunk`; it is **absent from release tag `4.3.1`** (HTTP 404 on the raw path, against
+   HTTP 200 for `security-overview.md` at the same tag); and
+   `kafka.apache.org/documentation/security/security-model/` returns **HTTP 404**, while
+   `kafka.apache.org/43/security/security-overview/` returns 200.
+
+**The second ground is a gap in this standard rather than an application of it.** §12 ruled what an
+**example configuration** attests — nothing, in either direction — and §2.2's second form reads *"the
+project's or vendor's own documentation"* without saying whether that means what the project
+**publishes** or what sits in its **tree**. The two readings give opposite verdicts here, and the
+question has never been asked because until now no case turned on it. **The parallel is exact and it is
+why the answer is probably the same:** §12's rule is that operativeness is read off what **takes
+effect**, and a document no release contains and no page serves takes effect on nobody.
+
+> **Ruling: `9092/tcp` remains excluded, and the list remains definitively 37.** §4.6's stated reason
+> is **narrowed**: it is no longer *"upstream declines to take any network posture"* — upstream has
+> taken one, in its repository — but *the document taking it is in no release and on no published page,
+> so it does not reach §2.2's second form on the reading §12 committed this note to for configuration.*
+> **The criterion that would change the verdict:** the file appearing in a release tag or on
+> `kafka.apache.org`, at which point the row is a candidate whose claim and determinacy gates are
+> untested. Routed to [#86](https://github.com/winniel123/verge-asm/issues/86), with the standards
+> question, rather than settled here — §8 question 12.
+
+**This does not block [#12](https://github.com/winniel123/verge-asm/issues/12)**, and the difference
+from ADR-0037's routing of `7000` is worth stating. There, two subjects had passed the attestation gate
+**on shipped bytes** and only determinacy stood between them and the list, so the count was genuinely in
+doubt. Here the artefact fails §2.2 before any gate is reached, so the count is not in doubt under the
+standard as written. If the standard changes, the row is a **new admission** under ADR-0009, priced
+then.
+
+### 17.6 The weak tier, all three rows, and one class list that was already exhausted
+
+**[#76](https://github.com/winniel123/verge-asm/issues/76)'s §16.5 made the weak tier three rows —
+`5432/tcp`, `5984/tcp` and `10255/tcp` — and the map's curation patch names the tier as the watch
+list.** Every row in it rests on a **negative**, the absence of an owner prohibition, so every one is
+sole-ground and every one is exposed. Do not quote a weak-tier membership from an earlier section: it
+was `5432`/`5984`/`9042` before §12, `5432`/`5984` after it, and it is three again for a different
+reason.
+
+**`5432/tcp` PostgreSQL — nothing left to open, and that is the finding.** §4.5's negative is the
+strongest-sounding in this note: *"PostgreSQL is the one service surveyed whose upstream documentation
+states no position at all on network placement."* Its owner has **two** document classes — one manual
+and its shipped bytes — and #70 read both, at two release branches. There is no deployment BCP because
+there is no standards body, and no separate implementation guidance because the implementation and the
+specification are the same project. **§4.5's disclosure was already complete before ADR-0040 existed; it
+simply could not say so.** It can now: the corpus is the manual and the shipped configuration, the
+result is empty, and the smallest extension that could change it is a PostgreSQL manual page that does
+not exist today.
+
+**`5984/tcp` CouchDB — the class was opened, and the near-miss is recorded rather than smoothed.**
+§2.2's negative is that CouchDB's *"do not expose"* warning covers the **Erlang distribution port, not
+5984**. CouchDB's security introduction was never read, and it contains the corpus's nearest miss:
+
+> "If you are in a production environment, however, you need to reconsider. Will your CouchDB instance
+> communicate over a **public network**? Even a LAN shared with other collocation customers is public.
+> There are multiple ways to secure communication between you or your application and CouchDB that
+> exceed the scope of this documentation. CouchDB as of version 1.1.0 comes with SSL built in."
+> — [CouchDB documentation, *Security*](https://docs.couchdb.org/en/stable/intro/security.html), §1.5.1.2
+
+Read carelessly this is §10.3's failure condition — the owner contemplating a public network. It is
+not, on the sentence's own next clause: **CouchDB defines what it means by *public* in the following
+sentence, and it means a shared LAN.** *"Even a LAN shared with other collocation customers is public"*
+makes *public* the opposite of *exclusively yours*, not a synonym for *the internet*. This is
+[#46](https://github.com/winniel123/verge-asm/issues/46)'s truncated-conditional finding in the smallest
+possible space — a term lifted out of the sentence that gives it its only operative meaning — and it is
+the same error §11.2 caught on `administrative domain`.
+
+And the remedy the passage offers is **SSL**, which is a §10.4.3 remedy that stops short of the port and
+bears on Claim 2 rather than on Claim 3. The row rests on Claim 3 plus the restricting default, and
+neither is touched.
+
+**`10255/tcp` kubelet read-only — the class was opened and it is not empty, and the finding is reported
+rather than applied.** §16.5's negative is fresh and it is precise: **[measured]** the port appears
+nowhere in `ports-and-protocols.md`, `kubelet-authn-authz.md` says nothing about network placement, and
+the row rests on `readOnlyPort`'s *"Default: 0 (disabled)"*. The class those two documents do not
+belong to is Kubernetes' **security documentation**, and it contains this:
+
+> "- [ ] The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet."
+> — [`kubernetes/website`, `content/en/docs/concepts/security/security-checklist.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/security-checklist.md), `release-1.34`, *Network security*
+
+> "The kubelet API access should be restricted and not exposed publicly, the default authentication and
+> authorization settings, when no configuration file specified with the `--config` flag, are permissive."
+> — same document, *Authentication & Authorization*
+
+**This is the owner naming a boundary**, in the owner's own voice, about the owner's own component —
+§10.3's boundary limb and, in the first quote, a prohibition rather than a scoping. `10255/tcp` serves
+the kubelet API read-only and without authentication, which §3.4's own quote for the row states.
+
+**Two reasons it is reported here and not applied.**
+
+1. **It would move a footing cell, and the footing table is
+   [#76](https://github.com/winniel123/verge-asm/issues/76)'s.** Promoting `10255` out of the weak tier
+   changes §2.2's tier counts and §16.7's restated table, both written this week by another pass. A
+   negative swept in one lane may not silently re-tier a row placed in another.
+2. **The honest counter-argument is real and it is §2.3's.** Neither sentence names `10255` by number;
+   both name *"the kubelet API"* as a **category**, and §2.3's rule is that a source attesting a
+   category and not a port *"is therefore excellent corroboration and useless as the sole grounds for
+   any individual row"*. What is different here — and it is the whole of the argument for promotion —
+   is that §2.3's refusal was aimed at **CISA and the cloud providers**, parties that do not own the
+   protocol, whereas Kubernetes both owns the kubelet **and** defines what *the kubelet API* contains.
+   Whether an **owner's** category statement reaches a port the owner has not numbered is a question
+   §2.3 has never had to answer, because until now every category statement in the corpus came from a
+   non-owner.
+
+> **`10255/tcp` stays in the weak tier today, and its footing is disclosed as *under-stated rather than
+> absent*.** §16.5's *"the owner states no position on `10255` anywhere that was retrieved"* is
+> **withdrawn as a statement about the owner** and stands as a statement about the two documents it
+> names. **The criterion that would move the cell:** a ruling that an owner's category statement reaches
+> its own unnumbered members — which is a question about §2.2 and §2.3, not about kubelet. Reported to
+> the curator rather than ticketed, because it belongs to a pass that is running now.
+
+> **All three weak-tier rows survive their class sweep as *rows*, and no row moves.** What changes is
+> that the tier's disclosure can now name a **searched corpus with a stated boundary** rather than an
+> unexamined silence, which is what ADR-0040 requires of a surviving weakness — and that one of the
+> three has a candidate footing on the record.
+
+### 17.7 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged** |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged.** No row enters or leaves |
+| §2.2 footing table, as restated by §16.7 | [#76](https://github.com/winniel123/verge-asm/issues/76)'s tiers and coverage | **unchanged in every cell by this section**, and the denominator stays **37**. §17.6 records a **candidate** move for `10255/tcp` and does not make it — the cell is #76's |
+| §2.2 weak tier, as §16.5 left it | `5432`, `5984`, `10255` | **three, unchanged.** All three survive §17.6; `10255`'s footing is disclosed as **under-stated rather than absent** |
+| §2.6's boast | true of all 37 | **unchanged** |
+| §4.5 *the list's weakest row* | 5432/tcp | **unchanged**, and its corpus is now stated as exhausted rather than open |
+| §4.6 exclusions | 18 named | **18 named.** No entry is added or removed; three have their **stated reason** corrected (`5672`/`15672` in §17.4, `9092` in §17.5) without any grounds moving |
+| §6.1 containment arithmetic | 28 + 4 + 5 = 37 | **unchanged** — no row enters the sensitive half |
+| §11.6's removal of `161/udp` | performed | **confirmed on a wider corpus.** §11.8's criterion is unmet in the one class it had not covered |
+| §8 | 10 questions | **12** — question 11 opened (§17.8, routed to [#87](https://github.com/winniel123/verge-asm/issues/87)) and question 12 opened (§17.5, routed to [#86](https://github.com/winniel123/verge-asm/issues/86)) |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | unchanged | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
+
+**Outside this note.**
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+is added and is a rule about **which negatives ADR-0040's obligation applies to and how the resulting
+backlog terminates**, not a table edit. ADR-0008, ADR-0009, ADR-0032, ADR-0035, ADR-0036, ADR-0037,
+ADR-0040, ADR-0042 and ADR-0048 are untouched.
+[`weak-key-and-signature.md`](./weak-key-and-signature.md) §14 carries the same audit for the other
+curated table. **One finding is reported to the curator rather than applied**: §17.6's candidate
+footing for `10255/tcp`, which would move a cell in §16.7's restated table.
+
+### 17.8 Does the sweep have an end? Yes, and the residue is named
+
+The map's curation patch has carried, since [#66](https://github.com/winniel123/verge-asm/issues/66),
+*a row's footing was never checked against the standard it is now held to* as **a backlog with an end
+rather than a watch**, and asks whoever discharges the patch to say whether that backlog is finished.
+**For this table, it is — as of a stated table state, and that qualifier is not a hedge.**
+
+The reason it terminates is not diligence. It is that **a class list is a property of the owner, not of
+the subject**, and no owner has an unbounded one: a standards body has three, a single-project owner
+usually two, a project with a reference implementation three, a vendor two. The list is fixed before the
+search begins, and an owner cannot invent a fourth class to defeat a sweep. That is the whole difference
+between this and a general *somebody may have said this somewhere*, and it is
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)'s
+second limb.
+
+**And the qualifier earned itself during this ticket, which is the most useful thing in this section.**
+The population was fixed at thirteen negatives, and while the sweep was running
+[#76](https://github.com/winniel123/verge-asm/issues/76)'s §16.5 moved `10255/tcp` into the weak tier
+on a **restricting default alone** — manufacturing a fourteenth sole-ground negative out of a row that
+had not had one. It was swept (§17.6) and it was the one that returned a sentence.
+
+> **A class sweep is complete as of a table state, and a *footing* move re-arms it for exactly the row
+> that moved.** A row whose footing changes tier acquires or loses a sole-ground negative, so the
+> backlog's end is a **fixed point** rather than a date: it is finished when no row's footing has moved
+> since the last sweep. That is cheap to check — the footing table names the tiers — and it is a
+> different obligation from the *watch* the map's curation patch already prices, which fires when the
+> **world** moves. **This one fires when *we* move**, and it had never been named.
+
+Its first application is already owed: `10255/tcp` entered the weak tier this week, and §17.6 swept it
+the same week. Had the two passes run in the other order, the sweep would have reported *finished* over
+a population that was about to grow by one.
+
+**The residue is two rows, and it is a different gate's backlog rather than this one's.** `5601/tcp`
+Kibana and `8500/tcp` Consul are each excluded on owner-silence **plus** a squat — `esmagent` and
+`fmtp` — and [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md) made
+*contested* testable by keying it to the competing owner's **current documentation**. **[measured]
+Nobody has run that test on either registration**, so their second ground is asserted rather than
+established, and until it is, neither row's owner-silence negative can be called overdetermined with
+confidence. That is **§2.4's backlog**, not §2.2's, it is the smallest extension of this section's
+corpus that could change an answer, and it is opened as §8 question 11 and routed to
+[#87](https://github.com/winniel123/verge-asm/issues/87) — after
+[#82](https://github.com/winniel123/verge-asm/issues/82), which supplies the evidence standard the
+test needs — rather than swept in here. Same routing §14.6 used, and for the same reason.
+
+**One thing this section does not establish**, stated because a reader will otherwise assume it. The
+audit covers negatives **this note is standing on**. It does not certify that every *positive* footing
+was gathered under ADR-0040's rule; §13 did that work for the shipped-configuration half, and the prose
+half of §3.4 has never been re-derived class by class. That is a different question, it moves no row on
+any answer, and it is out of scope here.
+
+### 17.9 Thin ground, flagged per the standing rule
+
+**The exposure filter is a rule about this note's own gates, and it inherits their soundness.** Calling
+eleven negatives overdetermined depends on §10.2's closed claim set, §2.4's determinacy gate and §10.3's
+owner requirement each being right. §10.2's own thin-ground paragraph already flags that the closure
+rests on *an internet vantage supplies exactly three things*, read off `Exposure`'s definition rather
+than measured. If that derivation fails, several rows in §17.1's *Sole ground?* column change value and
+the sweep is larger than four. The dependency is stated rather than buried.
+
+**The `10255` finding is a checklist item, and a checklist is a genre with its own hazard.**
+*"- [ ] The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"* is a box for an
+operator to tick, which is grammatically a **hardening instruction** — the shape §9.1 refused for Red
+Hat's *"use TCP Wrappers to limit which networks or hosts have access"* and §4.4 refused for the
+NSA/CISA Kubernetes guidance. The reply is that both of those were refused on **ownership**, and
+Kubernetes owns the kubelet; but a reader who holds that a checklist is a preference however
+well-owned has a real argument, and it is a second reason the cell is reported rather than moved.
+
+**The Kafka finding rests on the absence of a file at one tag and one URL.** `4.3.1` is the current
+release and `trunk` is upstream's own branch; intermediate release branches were not enumerated, and a
+`4.4.x` that ships the file would change the verdict tomorrow. The claim made is narrow — *not at
+`4.3.1`, not on the published site on 2026-08-14* — and it is not *never shipped*.
+
+**`5601` and `8500` were classified without being searched, and that is a decision rather than an
+omission.** Their exclusions rest partly on a determinacy call whose test has not been run, so a class
+sweep of Elastic's and HashiCorp's deployment documentation could not have settled either row on its own
+— it would have produced an attestation answer for a row whose other gate is open, which is the sequencing
+mistake ADR-0037 limb 2 forbids. They are named as the residue instead.
+
+**No claim is made that these owners have no further documents.** What is established is that each
+owner's **class list** was enumerated and each existing class was either searched or shown not to be
+sole-ground. A reader who names a document of a class not in an owner's list falsifies this section,
+which is the property ADR-0040 requires of a bounded weakness and a permanent caveat lacks.
+
+### 17.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10 and §14.6
+
+Every RFC was fetched with `curl` as plain text from `rfc-editor.org` and searched over the retrieved
+bytes, never through a rendering or a summarising layer, per
+[#46](https://github.com/winniel123/verge-asm/issues/46). Every artefact opened was read end to end for
+every subject in this table's domain that it names, per ADR-0037 limb 1.
+
+- **A document's *genre* has to be read before its content, and RFC 4778 is the case.** *Operational
+  Security Current Practices* is a **survey**, and a session that greps it for `management network` and
+  quotes the hit has founded a row on interview data. The tell is in the document's own sentences —
+  *"In all large ISPs that were interviewed"* — not in its title or its category. This is the operational
+  class's characteristic hazard, and it is the reason ADR-0040's *deployment recommendation* class needs
+  reading with §2.5's rule in hand.
+- **`kafka.apache.org/documentation/` and `/43/documentation.html` both serve a JavaScript shell** to a
+  plain client — 19,879 and 19,985 bytes of navigation with no prose — in the `learn.microsoft.com` shape
+  §9.5 recorded and the `docs.oracle.com` shape §14.6 recorded. The Kafka documents were read from
+  `raw.githubusercontent.com` at `trunk` and at tag `4.3.1`, which is the shipped source rather than a
+  rendering of it. **The 404 that carries §17.5's second ground was taken against the rendered site**,
+  where a JavaScript shell would have returned 200 — so it is a real absence and not a retrieval failure.
+- **`www.rabbitmq.com` returns HTTP 403 to a plain client** and 200 with a browser user-agent. The
+  production checklist was read from the second response, with markup stripped locally. That is one step
+  weaker than a raw artefact and it is flagged; the quoted passage was cross-checked against the page's
+  own section anchor (`Firewall Configuration`).
+- **The `LDAPString` trap has a Kafka analogue and it was avoided.** A search for `expose` in Kafka's
+  documentation matches *"the broker does not expose the controller listener"* and *"brokers expose one
+  or more listeners"* — the verb in its ordinary technical sense — far more often than it matches an
+  exposure position. The §17.5 quote was located by reading the file, not by grepping for the word.
+- **Not exhausted, and recorded as such.** Kafka's `docs/security/` holds ten files and
+  `docs/operations/` thirteen; four were read (`security-model.md`, `security-overview.md`,
+  `listener-configuration.md`, `multi-tenancy.md`). **[measured]** the string `internet` occurs **zero**
+  times in all four. The remaining files are about SASL mechanisms, SSL configuration, ACL syntax and
+  Connect/Streams, and none is a network-posture document — but that is a judgement from their titles,
+  not a measurement of their contents.
+- **RFC 3512's five hits were each read in context rather than counted.** Two are about trap delivery
+  during a denial-of-service flood, one is an ITU-T bibliography entry (*Recommendation M.3010*), and two
+  are VPN forwarding used as a MIB-design example. A count alone would have read as five near-misses.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -3649,6 +4178,14 @@ Shipped configuration and compiled bytes (§14) — the `7000`/`7001` ruling; ev
 - IANA registry CSV, retrieved 2026-08-14 — `afs3-fileserver,7000,tcp,file server itself` with an **empty** Unauthorized Use field, and `afs3-callback,7001,tcp,callbacks to cache managers,…,Known Unauthorized Use on port 7001`. The annotation is used only as evidence about **what else listens on the port**, per §9.3.4
 - `nmap-services` at `nmap/nmap` `master` — **rank and name column only**, on §2.5's and §6.1's existing terms: `afs3-fileserver 7000/tcp 0.001995` (**146th** of 8,387 TCP rows) and `afs3-callback 7001/tcp 0.000891` (**232nd**), against a top-100 boundary at `0.003149`. Neither is in the top-100, so neither entered `verge-core`'s frequency half that way
 - [`safe-active-probing.md`](./safe-active-probing.md) §2.3 — **this project's own** modern-services supplement, which lists `7001` under *"HTTP-ish alternates"*. Recorded in §14.4 as corroboration and as a product-coherence defect, **never as grounds**, because §6 forbids the frequency half deciding a normative question
+
+The class audit (§17) — the document classes nobody had opened, retrieved as bytes and searched directly
+- **The IETF's operational class for SNMP**, opened for the first time by [#79](https://github.com/winniel123/verge-asm/issues/79) and citable chiefly for the absence of a placement sentence: [RFC 3512, *Configuring Networks and Devices with SNMP*](https://www.rfc-editor.org/rfc/rfc3512.txt) (Informational, April 2003) — §6.2–§6.4, the SNMP family's own deployment guide; the placement strings §11.1 counted occur **five** times and not one describes where an agent belongs · [RFC 3871, *Operational Security Requirements for Large ISP IP Network Infrastructure*](https://www.rfc-editor.org/rfc/rfc3871.txt) (Informational, September 2004) — §2.2, *"There are many situations where in-band management makes sense, is used, and/or is the only option"*, and §9's boilerplate *"deployment of SNMP versions prior to SNMPv3 is NOT RECOMMENDED"*, a **version** statement whose remedy is on 161 · [RFC 4778, *Operational Security Current Practices in Internet Service Provider Environments*](https://www.rfc-editor.org/rfc/rfc4778.txt) (Informational, January 2007) — §2.3, §2.4. **A survey, not a position**: *"In all large ISPs that were interviewed"*, *"SNMPv2 is primarily deployed since it is easier to set up than v3"*. The most placement-shaped title in the corpus and the clearest instance of frequency in a deployment document
+- **[RabbitMQ production checklist](https://www.rabbitmq.com/docs/production-checklist)**, *Firewall Configuration* — the deployment class, never opened. Divides RabbitMQ's ports into client-library ports and everything else, restricts the second category to *"hosts running RabbitMQ nodes or CLI tools"*, and says the first *"should be accessible to hosts that run applications, which in some cases can mean **public networks**, for example, behind a load balancer."* **Turns §4.6's `5672`/`15672` negative into a positive** (§17.4). Retrieval hazard: `www.rabbitmq.com` returns HTTP 403 to a plain client and 200 with a browser user-agent
+- **Apache Kafka**, read from `raw.githubusercontent.com` at `trunk` and at release tag `4.3.1` because `kafka.apache.org` serves a JavaScript shell (§17.10): [`docs/security/security-model.md`](https://raw.githubusercontent.com/apache/kafka/trunk/docs/security/security-model.md) — *"Security is off by default … This is appropriate only for closed test environments. Production deployments **must** explicitly configure authentication, authorization, and transport encryption before being exposed to any untrusted network."* **[measured] Present on `trunk`; HTTP 404 at tag `4.3.1`; HTTP 404 at `kafka.apache.org/documentation/security/security-model/`** · [`docs/security/security-overview.md`](https://raw.githubusercontent.com/apache/kafka/4.3.1/docs/security/security-overview.md) at tag `4.3.1`, 2,068 B — **the shipped document**, still carrying *"security is optional - non-secured clusters are supported"*, the sentence §4.6 quotes · `docs/security/listener-configuration.md` and `docs/operations/multi-tenancy.md` — read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1; **[measured]** the string `internet` occurs **zero** times across all four files
+- **[CouchDB documentation, *Security*](https://docs.couchdb.org/en/stable/intro/security.html)** §1.5.1.2 — the class never opened for `5984/tcp`, and the corpus's nearest miss: *"Will your CouchDB instance communicate over a public network? Even a LAN shared with other collocation customers is public."* The second sentence defines what the first means by *public*, and it is not the internet (§17.6)
+- **Kubernetes' security documentation**, the class §16.5 did not open for `10255/tcp`: [`kubernetes/website`, `content/en/docs/concepts/security/security-checklist.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/security-checklist.md) at `release-1.34` — *"The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"*, and *"The kubelet API access should be restricted and not exposed publicly"*. **The owner naming a boundary about its own component, and naming it by category rather than by port** (§17.6) · [`controlling-access.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/controlling-access.md) at the same tag — read end to end, and it contains no port and no placement statement
+- **Named as the boundary and not searched, because the row's other gate is untested**: Elastic's deployment guidance for Kibana and HashiCorp's for Consul. §17.8 and §8 question 11 — routed to [#87](https://github.com/winniel123/verge-asm/issues/87)
 
 No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
 - **1433/tcp** Microsoft SQL Server and **445/tcp** SMB with **139/tcp**, **137**, **138/udp** — configured through setup and the registry rather than through a file Microsoft ships
