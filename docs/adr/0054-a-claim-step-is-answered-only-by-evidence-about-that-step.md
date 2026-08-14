@@ -134,3 +134,47 @@ falls under (1); the kubelet's `anonymous-auth: false` demands one, so `10250/tc
   answer is no for both limbs: nothing states limb 1, and limb 2's extension of §19.6 from row
   admission to Step 2 is a choice whose alternative empties seven of eleven rows out of Class A.
   §20.6's own rule is untouched and remains an ADR-less corollary.
+
+## Annotation — [#96](https://github.com/winniel123/verge-asm/issues/96)
+
+**The Decision and both limbs are unchanged.** What is recorded is a gap limb 2 left, found the first
+time the frame was applied to a row outside Class A.
+
+Limb 2 answers Step 2's reachability *"holding the **authentication** configuration at its shipped
+default"*. **All eleven Class A rows have a shipped default to hold. `623/udp` IPMI has none**, and
+the owner says so: **[measured]** IPMI v2.0 rev 1.1 §22.22, page 300 — *"The choice of factory default
+setting for the non-volatile parameters is **left to the implementer or system integrator**."* The
+specification is a multi-vendor consortium's and ships no implementation; a BMC's configuration is
+firmware ([`sensitive-ports.md`](../research/sensitive-ports.md) §13.1).
+
+> **Where the owner ships no configuration, the frame reads the specification's own dispatch.** This
+> is §10.1 as written — both steps are answered *"from the specification or the owner's own
+> documentation"* — and for IPMI the dispatch is **Table G-1's `p` notation**, which marks the
+> commands executable before a session is established. A **vendor's** firmware default is admissible
+> under §2.2's third form **over that vendor's own product** and, for the protocol, falls under
+> §10.5's distributor fence as amended by §12: never sole grounds.
+
+**It did not decide the row, which is why it is an annotation and not an ADR.** Two of the four
+co-authors turned out to document a **restricting** default — Dell's `iDRAC.IPMILan.Enable — 0 -
+Disabled`, HPE's *"This setting is disabled by default"* — and limb 2's own first bullet already rules
+that a default withholding the port neither answers Step 2 nor defeats Claim 1. `623/udp` stays
+**Class C**: Claim 1 is available at Step 1 and fails at Step 2, because nothing in the pre-session set
+writes, deletes, registers, deregisters, executes, controls, or reads content carried for another
+party. §28.4, §28.5, §28.6.
+
+**Two arguments were refused that a later session will re-derive if this is not written down.**
+**Cipher Suite 0** — the specification marks RAKP-none `M` for BMC *support* (Table 13-17) and states
+it *"provides a way to enable access to the BMC without requiring a username and password"* (§13.28.2)
+— loses because mandatory **support** is not a shipped **configuration**, and because the reading that
+collapses them moves `5432/tcp` PostgreSQL to Class A on its `trust` method, along with `3306`, `1433`
+and `2049`. And **RAKP Message 2's password-keyed `HMAC_K[UID]`**, disclosed before the caller proves
+anything (§13.31), loses because a handshake message is not an **operation**, because the value is
+computed rather than carried, and because it is a **Claim 2**-shaped fact on a protocol where §10.8
+already makes Claim 2 structurally unavailable — IPMI negotiates encryption in-band on `26Fh` rather
+than on a successor port, which is RFC 6335 §9's pattern this instrument is blind to by construction.
+**§10.2's closed claim set met its sharpest candidate fourth to date and held**: a leaky authenticator
+is a property of the protocol, not a fourth property of an internet vantage.
+
+**No `(port, transport)` pair moves, no row moves, no class total moves, no tier moves.** The list
+stays at **39 pairs**, classes **`11 / 7 / 21`**, coverage **28 of 39**. **No ADR is minted and 0057 is
+left unused**, on the precedent of #76, #84, #87, #90, #91 and #93.
