@@ -32,7 +32,7 @@ Three constraints from decisions already made shape the answer before any eviden
 
 | Decision | Answer |
 |---|---|
-| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates** |
+| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle** |
 | Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
@@ -259,6 +259,27 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > the ruling and §23.10 the flags. Read §23 before treating a specification that numbers a port as one
 > that takes a position — it supplies **membership and determinacy, never a prohibition**.
 
+> **Amended by §24** ([#91](https://github.com/winniel123/verge-asm/issues/91)) **and §27**
+> ([#95](https://github.com/winniel123/verge-asm/issues/95)). **Four pairs enter the table and the
+> tiers move twice.** §24 added `10259/tcp` and `10257/tcp` to the **scoping** tier — the owner's
+> ports-table cell plus kubeadm's `--bind-address=127.0.0.1` — taking scoping to **11**; §27 adds
+> `10249/tcp` kube-proxy metrics to **scoping** on a restricting `metricsBindAddress:
+> 127.0.0.1:10249` default plus `source-ip.md` placing the caller at `localhost` on the node, and
+> `10248/tcp` kubelet healthz to the **weak** tier on `healthzBindAddress: "127.0.0.1"` and nothing
+> else. **The tiers are prohibition 15 · scoping 12 · weak 3 · outside-subject 11, and coverage is 30
+> of 41.**
+>
+> **The weak tier is three rows for the first time — `5432`, `5984` and `10248` — and
+> [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list
+> grows with it.** `10248` is also the first row admitted to the **list** on a default documented in a
+> published **config API doc comment** rather than in the owner's prose documentation; §16.5 accepted
+> that artefact for a *footing* (`readOnlyPort`) on a row that was already listed, and §27.13 flags
+> the extension as this section's thinnest joint. **[measured]** `security-checklist.md` at
+> `release-1.34` contains **zero** occurrences of `kube-proxy`, `proxy`, `metrics`, `10249`, `10248`
+> or `10258`, so §18's category statement reaches none of them — the third instance of ADR-0050
+> limb 2 failing, after `4369` (§18.5) and §24.5. Read §27.5, §27.6 and §27.13 before quoting either
+> new cell.
+
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
 This is the load-bearing methodological finding, and it took the most work to establish.
@@ -405,6 +426,8 @@ numbers generally. Many of the best-known sensitive ports are **squatted, not re
 | 623/udp | `asf-rmcp`. The string "IPMI" appears **nowhere** in the registry | IPMI |
 | 10250/tcp, 10255/tcp, 9042/tcp, 15672/tcp | **inside explicit "Unassigned" ranges** | kubelet, Cassandra, RabbitMQ mgmt |
 | 10256/tcp, 10257/tcp, 10259/tcp | **inside one explicit "Unassigned" range**, `,10254-10259,,Unassigned,,,,,,,,` — added by §24, retrieved 2026-08-14 | kube-proxy healthz, kube-controller-manager, kube-scheduler |
+| 10248/tcp, 10249/tcp | **inside one explicit "Unassigned" range**, `,10202-10251,,Unassigned,,,,,,,,` — added by §27, retrieved 2026-08-14 | kubelet healthz, kube-proxy metrics |
+| 10258/tcp | **inside the `10254-10259` "Unassigned" range** — added by §27. Refused at the claim gate, and its convention is not **established** either, Kubernetes shipping no binary that listens on it ([ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md), §27.7) | cloud-controller-manager |
 
 The strings `elasticsearch`, `cassandra`, `kubelet`, `kubernetes`, `ipmi` and `jetdirect` return
 **zero matches** across all 14,531 rows of the registry — name, description and assignee. 6000/tcp
@@ -568,6 +591,17 @@ qualification: convention, not registration, is the determinacy test.
 | 4369/tcp | Erlang port mapper (epmd) | yes | Cluster-discovery channel whose only protection is a shared Erlang cookie |
 | 9042/tcp | Cassandra native protocol | -- | Authentication and authorization are disabled by default so that nodes can find each other |
 | 69/udp | TFTP | yes | The protocol has no authentication mechanism of any kind, by specification |
+| 10249/tcp | kube-proxy metrics server | -- | A bare `PathRecorderMux` on a plain listener — no authentication filter, no authorization filter and no TLS — serving `/metrics`, `/metrics/slis`, `/proxyMode` and `/configz`, the last of which returns the whole `KubeProxyConfiguration` as JSON. Upstream's own metrics documentation says reading metrics requires authorization via a user, group or ServiceAccount with a ClusterRole, and names kube-proxy among the components it is speaking about, so publication is not the purpose (§27.3, §27.4) |
+
+> **Added by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). **Class A is twelve
+> rows and the list is 41 pairs.** `10249/tcp` is the first row in this class admitted on a **Step 1**
+> finding that turned on [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)
+> limb 1 — the owner's authorization sentence is prescriptive and describes a deployment it does not
+> ship for this port, which limb 1 expressly permits, *"the gap between the two is the Claim 1 row"*.
+> It is also the **third** row in the class to rest on Step 2's **read** limb rather than its
+> mutation limb, after `10255/tcp` and `4369/tcp`, and the **eighth of twelve** whose shipped default
+> withholds the port — `metricsBindAddress` defaults to `127.0.0.1:10249`, which ADR-0054 limb 2 case
+> (1) makes the network act the frame already assumes.
 
 > **Amended by §10.7** ([#37](https://github.com/winniel123/verge-asm/issues/37)). Two "why" cells
 > lead with something that is not the row's grounds. **11211/udp** leads with spoofed-source
@@ -638,6 +672,17 @@ trade against the determinacy gate.
 | 623/udp | IPMI / ASF-RMCP (BMC) | yes | CISA directs that IPMI be restricted to trusted internal networks, and Dell states BMCs are "not designed nor intended to be placed on or connected to the internet" |
 | 10259/tcp | kube-scheduler secure serving port (HTTPS) | -- | Upstream places the port with `Used By: **Self**` in its control-plane ports table — the node itself, and no other client, which is §10.3's narrowest branch; the owner's own installer binds it to `127.0.0.1`. The shipped configuration serves only `/healthz`, `/livez` and `/readyz` anonymously and `403`s everything else, so it is not a Claim 1 row (§24.3, §24.6) |
 | 10257/tcp | kube-controller-manager secure serving port (HTTPS) | -- | Same table, same `Used By: **Self**` cell, same loopback default in the owner's installer; `/healthz` alone is served anonymously (§24.3, §24.6) |
+| 10248/tcp | kubelet healthz | -- | A stdlib `ServeMux` carrying `/healthz` and nothing else, on plain HTTP with no authentication or authorization. Claim 1 fails at both steps — the anonymous caller gets a liveness boolean, and the owner's shipped RBAC grants `get` on `/healthz` to `system:unauthenticated` by name. Upstream's published config API calls it *"the port of the **localhost** healthz endpoint"* and ships `healthzBindAddress` defaulting to `"127.0.0.1"`, which is §10.3's first branch — the same system — named by a restricting default (§27.6) |
+
+> **Added by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). **Class C is 22 rows
+> and the list is 41 pairs.** `10248/tcp`'s footing is the **weak tier** — a restricting shipped
+> default and nothing else, which is `5432/tcp`'s form — and it is the first row admitted to the list
+> on a default documented in a published **config API doc comment**. It is also the mirror of §24.7's
+> inversion: `10248` and `10256` serve substantially the same thing and separate on the owner's own
+> artefacts alone, `10256` being wildcard-bound with a documented off-node caller at `${NODE_IP}` and
+> `10248` loopback-bound with no caller placed off the node anywhere in
+> `kubernetes/website`. The third candidate §24.11 routed, `10258/tcp`
+> cloud-controller-manager, is **refused** and is in §4.6.
 
 > **Added by §24** ([#91](https://github.com/winniel123/verge-asm/issues/91)). **Class C is 21 rows and
 > the list is 39 pairs.** The two rows close two of §19.8's three ADR-0037 candidates; the third,
@@ -1329,6 +1374,20 @@ it refuses.
 > which the port is legitimately reached, never how bad it would be if it were. **The criterion that
 > would change the verdict** is at §24.10.
 
+> **Amended by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). **One entry is added
+> and the table is twenty.**
+>
+> | Excluded | The ground |
+> |---|---|
+> | `10258/tcp` cloud-controller-manager | **No claim in the closed set fits, and beneath the claim gate the owner ships no binary that listens on the number.** Claim 1 is unavailable on §10.1 Step 1 and Step 2 — `k8s.io/cloud-provider/options` builds §24.3's delegating stack exactly, so the anonymous caller gets the health paths and a `403` for everything else. Claim 2 is inapplicable: the port is HTTPS. **Claim 3's boundary limb has nothing to answer it** — `ports-and-protocols.md` does not carry the number, `security-checklist.md` does not name the component, the shipped bind default is `NewSecureServingOptions()`'s permissive `0.0.0.0` and therefore silent under §10.4, kubeadm installs no CCM, and **[measured]** a code search over the whole `kubernetes/website` repository for `10258` returns **zero** results in any language. Underneath, **[measured]** `cmd/cloud-controller-manager/main.go` at `v1.34.0` opens *"This file should be written by each cloud provider … it uses fake parameters"* and `hack/lib/golang.sh` lists the target in none of its build sets — the number is a constant Kubernetes publishes for other parties to build on ([ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md), §27.7) |
+>
+> **The exclusion is overdetermined**, so under ADR-0046 limb 1 it is bounded on arrival and is not an
+> exposed sole-ground negative; it opens no §2.4 residue, because no convention was defeated and none
+> was established. **The criterion that would change the verdict** is at §27.13, and it belongs to a
+> different party: any one cloud provider's own current documentation placing its
+> cloud-controller-manager on `10258` by default *and* naming a boundary admits the row **on that
+> vendor's attestation**, which is ADR-0056's third limb.
+
 **The WinRM case deserves its own paragraph, because the tempting argument is factually false.**
 5985 is the WinRM *HTTP* listener, and the natural inference — HTTP transport, therefore cleartext
 credentials, therefore Claim 2 — is contradicted by Microsoft directly:
@@ -1468,6 +1527,22 @@ off by default on signal-to-cost grounds, and the hot set is TCP-only.
 > be checked against [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3's modern-services
 > supplement**, because this subsection enumerates the *sensitive* list's members and not the hot
 > set's — flagged at §24.10 rather than smoothed over.
+
+> **Amended by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). **The missing-TCP
+> group is eight and the arithmetic is 28 + 8 + 5 = 41**, `10249/tcp` kube-proxy metrics and
+> `10248/tcp` kubelet healthz being admitted and neither being in the hot set — two more forced
+> additions under §6's one-directional invariant, on top of §24's two. The UDP group is untouched at
+> five, both new rows being TCP.
+>
+> **And §24's flagged check is discharged rather than passed on again.** §24.12 asserted the hot-set
+> membership of `10257` and `10259` from [#91](https://github.com/winniel123/verge-asm/issues/91) and
+> left it *"checked against [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 by whoever
+> merges this"*. **[measured]** [`safe-active-probing.md`](./safe-active-probing.md) §2.3's
+> modern-services supplement reads, in full for this family, *"Orchestration/control planes: 2375,
+> 2376, 2379, 2380, 6443, 10250, 10255"*, and none of `10248`, `10249`, `10257`, `10258` or `10259`
+> appears in it or in nmap's top-100. So §24's *four → six* is confirmed and this section's own
+> additions take it to eight. A flag handed to *whoever merges this* has no owner; the cheapest place
+> to close it was the next pass that needed the same number.
 
 **These must be `not-evaluable`, not clean.** An operator on default settings has six UDP rows on
 the sensitive list that are never measured. Reporting those as not-firing would be exactly the
@@ -2256,6 +2331,7 @@ That last row is worth pausing on. **The repaired Claim 1 refuses 111/tcp on cla
 | 4369/tcp epmd | No — *"only expose these ports to the hosts and subnets that run other cluster nodes"* | Registers and deregisters node names |
 | 9042/tcp Cassandra | No — the docs frame authentication as the thing that is off | Writes |
 | 69/udp TFTP | No — RFC 1350 warns about *"the rights granted to a TFTP server process so as not to violate the security of the server hosts file system"*, i.e. the corpus is the operator's filesystem, not a designated public one | `WRQ` writes; `RRQ` reads the host's filesystem |
+| 10249/tcp kube-proxy metrics — **added by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)) | No — Kubernetes' own metrics documentation states that *"reading metrics requires authorization via a user, group or ServiceAccount with a ClusterRole that allows accessing `/metrics`"*, in a document that names kube-proxy in its own list of components exposing the endpoint. Prescriptive, and ADR-0054 limb 1 permits it | **[measured]** at `v1.34.0` `serveMetrics` hands a `mux.NewPathRecorderMux` straight to `&http.Server{}` with no `WithAuthentication`, no `WithAuthorization` and no TLS. Reads `/metrics` and `/configz` — `cz.Set(config)` registers the whole `KubeProxyConfiguration`, which `configz.go` serves *"in JSON format"*. **Read limb only**; there is no mutation limb. pprof, `flagz` and `statusz` are **not** installed on the shipped default (§27.2) |
 
 **All twelve survive. Class A is unchanged, and no row changes class.** The one row that needs Step
 2's read limb rather than its mutation limb is 10255/tcp, and it needs no reclassification: Claim 1
@@ -2304,6 +2380,21 @@ and Claim 3 are adjacent on that row and Claim 1 still fits.
 > and its rule that a claim's cells are attestations too all stand exactly as written. Read §20's
 > closing *"all twelve rows still survive"* as **every surviving row has a clean or repaired cell** —
 > §20 removed no row, and §19's move was of a different support.
+
+> **Amended by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). **This walk is
+> twelve rows again, and the twelfth is a new one rather than the one that left.** `10249/tcp`
+> kube-proxy metrics is admitted to Class A and enters with both cells written from the shipped
+> dispatch at `v1.34.0`. Three things it changes and one it does not. **§25.4's arithmetic moves**:
+> *seven of eleven* Class A rows whose shipped default withholds the port becomes **eight of
+> twelve**, `metricsBindAddress` defaulting to `127.0.0.1:10249`, and
+> [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) limb 2 case
+> (1) covers it exactly. **The population that needs Step 2's read limb goes from two to three** —
+> `10255`, `4369`, `10249` — and `10249` is the first of the three with **no** mutation limb at all.
+> And **ADR-0054 limb 1 decides a cell for the first time**, in both directions: the owner's
+> authorization sentence *answers* Step 1, and the owner's *"run this in a shell on the node"*
+> instruction for `http://localhost:10249/proxyMode` is a **placement** statement and is barred from
+> answering it — limb 1 cuts both ways, and §25.9's disclosure that *"no cell in this pass turns on
+> it"* is discharged. **No existing row moves and none changes class.**
 
 **What the qualifier costs, stated plainly.** It makes Claim 1 slightly harder to reach than the
 sentence a reader would infer from its title, and a future candidate that is unauthenticated,
@@ -8561,6 +8652,30 @@ this file concurrently; opening children of the map is the curator's act, not a 
 by-catch is **routed to the curator** — which is §17.6's precedent for a finding that belongs to a
 lane that is not this one.
 
+> **Disposed by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). **All three are
+> decided: `10249/tcp` admitted to Class A on Claim 1, `10248/tcp` admitted to Class C on Claim 3,
+> `10258/tcp` refused.** ADR-0037 limb 2's **second** full cycle, and it split the same two-to-one
+> way as the first — on the **claim** gate again, with determinacy passing for both admitted numbers
+> and deciding neither.
+>
+> **One cell of the table above is wrong and is corrected rather than left standing.** `10249`'s entry
+> reads *"serving `/metrics`, `/configz` … `/proxyMode` and pprof"*. **[measured]** pprof is **not**
+> served on the shipped default — `enableProfiling` has no defaulting function and no documented
+> default, so it is `false` — and neither `flagz` nor `statusz` is installed either, both gates being
+> alpha and default `false` at `v1.34.0`. The row does not need any of them (§27.2). **A by-catch
+> record is a scoped retrieval like any other**, and limb 3's *state your own extent* applies to it in
+> the positive direction as well as the negative.
+>
+> `CloudControllerManagerWebhookPort` is **still** not retrieved, and §27.14 records it as **disposed
+> by rule rather than by retrieval**: whatever the number is, it is a library constant for a binary
+> Kubernetes does not ship, which is `10258`'s case under
+> [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md).
+>
+> **And limb 1's trigger question this subsection raised is answered: it fires on any owner artefact
+> opened in the table's service, whatever the retrieval was for** (§27.9, ADR-0037 amended). The
+> forcing measurement is this subsection's own payout — a determinacy retrieval that decided nothing
+> produced two rows.
+
 ### 24.12 Every dependent figure, walked rather than asserted
 
 Walked against §22.7's composed state, which is the note as it stands before §23, §25 and §26 land.
@@ -8854,6 +8969,13 @@ Step 2 rather than at row admission, and the arithmetic behind it is this pass's
 > answers *no* wherever the shipped default withholds the port empties **seven of eleven** rows out
 > of Class A, which is not a walk finding — it is a misreading of the question.
 
+> **Restated by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)): **eight of twelve.**
+> `10249/tcp` kube-proxy metrics joins Class A with `metricsBindAddress` defaulting to
+> `127.0.0.1:10249` — a loopback bind stated in the owner's own published config API — and falls under
+> limb 2 case (1), because reaching it remotely takes one config line and demands a credential of
+> nobody. The proportion this measurement exists to make a point about is unchanged, and it is the
+> same point.
+
 **Redis is nonetheless different from the other six, and the difference is stated rather than
 smoothed.** The other six need one operator act, and it is the act of exposing the port. Redis needs
 **two**: rebinding, and a separate `protected-mode no` whose only content is to switch off a
@@ -9006,6 +9128,11 @@ oversimplification is common and the cell would look overstated to a reader hold
   a good reason and it is not a measurement *of the rule* — it measures that prohibitions do not
   discriminate between classes, from which the rule follows by an inference a reader could decline.
   §25.6 argues the counterfactual and it is the honest weakest point of this section.
+  > **Discharged by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). A cell turns on
+  > limb 1 now, and in both directions: `10249/tcp`'s Step 1 is **answered** by the owner's
+  > authorization sentence and is barred from being **refused** by the owner's *"run this in a shell
+  > on the node"* placement instruction. §25.6's counterfactual defence is no longer the only support
+  > the limb has.
 - **§25.1's re-founding depends on reading a prescriptive sentence as evidence about the protocol's
   intended callers.** *"Any client request must prove its identity"* is in the imperative register
   and describes a deployment etcd does not ship. The reading is defended at §25.1 and it is a
@@ -9609,6 +9736,830 @@ which is §26.6's rider binding its own output.
 
 ---
 
+## 27. `10249` and `10248` are admitted, `10258` is refused — the by-catch of a determinacy retrieval pays out, and it pays out on the claim gate
+
+Wayfinder ticket [#95](https://github.com/winniel123/verge-asm/issues/95), disposing of the three
+numbers §24.11 recorded as by-catch and routed rather than admitted. It is the **second** completed
+cycle of [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+limb 2, and the first whose candidates came out of a **determinacy** retrieval rather than an
+attestation one — which is why §27.9 decides limb 1's trigger rather than deferring it again.
+
+> **FIGURE DELTA: pairs 39 → 41 (+2: `10249/tcp`, `10248/tcp`); Class A 11 → 12, Class B 7 → 7,
+> Class C 21 → 22; footing coverage 28/39 → 30/41; footing tiers prohibition 15 → 15, scoping 11 →
+> 12, weak 2 → 3, outside-subject 11 → 11; §6.1 containment 28 + 6 + 5 = 39 → 28 + 8 + 5 = 41; §4.6
+> exclusions 19 → 20 (`10258/tcp` enters); §10.1's Class A walk 11 rows → 12; §25.4's *seven of
+> eleven* → **eight of twelve**; §10.1's *rows that need Step 2's read limb* 2 → 3; ADR-0032 §8's
+> watch list `5432`, `5984` → `5432`, `5984`, `10248`; `verge-core` union widened by two TCP pairs;
+> hot set +2. `10258/tcp` is refused and adds no pair.**
+>
+> **The baseline this section walks from is the composed post-§24 state — 41 is reached from 39
+> pairs · classes 11 / 7 / 21 · prohibition 15 · scoping 11 · weak 2 · outside 11 · coverage 28 of
+> 39 · §6.1 `28 + 6 + 5` · exclusions 19.** §26, §25 and this section were resolved concurrently
+> with three other passes moving figures in this file.
+
+**This is the second section of this note to spend
+[ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s price, and §24 was the first.** Two
+pairs enter, so `sensitive-port-reached-from-internet`'s content moves again, its rule version bumps,
+every evaluation `Break`s, [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union widens a second
+time, and §6's one-directional invariant forces two more hot-set additions. That was the ticket's
+stated price and it is paid knowingly.
+
+### 27.1 What was retrieved
+
+Everything below is quoted from bytes retrieved for this section, at a named tag, per §18.2's reason
+for existing and §19.7's rule that a rendering carries no provenance about **which** of an owner's
+positions it renders.
+
+**`kubernetes/kubernetes` at `v1.34.0`** — the tag §24 used, chosen for comparability with the pass
+this section discharges. `pkg/cluster/ports/ports.go` (read **whole**) ·
+`cmd/kube-proxy/app/server.go` · `cmd/kube-proxy/app/options.go` ·
+`pkg/proxy/apis/config/v1alpha1/defaults.go` (read **whole**) ·
+`cmd/kubeadm/app/phases/addons/proxy/manifests.go` (read **whole**) ·
+`cmd/kubeadm/app/componentconfigs/kubeproxy.go` · `pkg/kubelet/apis/config/v1beta1/defaults.go` ·
+`cmd/kubelet/app/server.go` · `pkg/kubelet/server/server.go` ·
+`staging/src/k8s.io/component-base/configz/configz.go` (read **whole**) ·
+`staging/src/k8s.io/component-base/zpages/features/kube_features.go` (read **whole**) ·
+`staging/src/k8s.io/cloud-provider/ports.go` (read **whole**) ·
+`staging/src/k8s.io/cloud-provider/options/options.go` ·
+`staging/src/k8s.io/apiserver/pkg/server/options/serving.go` · `cmd/cloud-controller-manager/main.go`
+(read **whole**) · `hack/lib/golang.sh` (read **whole**, for the build targets).
+
+**The published component-config APIs**, which are the artefacts the project documents its defaults
+in: `k8s.io/kube-proxy` `v0.34.0` `config/v1alpha1/types.go` and `k8s.io/kubelet` `v0.34.0`
+`config/v1beta1/types.go`.
+
+**`kubernetes/website` at `release-1.34`.**
+`content/en/docs/concepts/cluster-administration/system-metrics.md`, read **whole** ·
+`content/en/docs/tutorials/services/source-ip.md` ·
+`content/en/docs/tasks/administer-cluster/kubelet-config-file.md` ·
+`content/en/docs/concepts/security/security-checklist.md`, read **whole** · and a code search over
+the whole repository for each of the three numbers, to bound the negatives at §27.6, §27.7 and §27.13.
+
+**The IANA registry**, CSV form, downloaded 2026-08-14 for this section and searched with a literal
+match rather than through a rendering — §24.13's hazard, obeyed.
+
+**This project's own [`safe-active-probing.md`](./safe-active-probing.md) §2.3**, read for the hot-set
+membership check §24.10 flagged and left to whoever merged it.
+
+### 27.2 `10249/tcp` — a bare mux, and two defaults twelve lines apart
+
+**The mux, first, because §24.11 recorded it from a distance and one clause of that record is
+wrong.**
+
+> ```go
+> func serveMetrics(ctx context.Context, bindAddress string, proxyMode kubeproxyconfig.ProxyMode, enableProfiling bool, flagzReader flagz.Reader, errCh chan error) {
+> 	if len(bindAddress) == 0 {
+> 		return
+> 	}
+>
+> 	proxyMux := mux.NewPathRecorderMux(kubeProxy)
+> 	healthz.InstallHandler(proxyMux)
+> 	slis.SLIMetricsWithReset{}.Install(proxyMux)
+>
+> 	proxyMux.HandleFunc("/proxyMode", func(w http.ResponseWriter, r *http.Request) { … })
+>
+> 	proxyMux.Handle("/metrics", legacyregistry.Handler())
+>
+> 	if enableProfiling {
+> 		routes.Profiling{}.Install(proxyMux)
+> 		routes.DebugFlags{}.Install(proxyMux, "v", routes.StringFlagPutHandler(logs.GlogSetter))
+> 	}
+>
+> 	configz.InstallHandler(proxyMux)
+> 	…
+> 	server := &http.Server{Handler: proxyMux}
+> 	err = server.Serve(listener)
+> ```
+> — `cmd/kube-proxy/app/server.go`, `kubernetes/kubernetes` `v1.34.0`
+
+**[measured]** a `PathRecorderMux` handed straight to an `http.Server` with **no** handler chain: no
+`WithAuthentication`, no `WithAuthorization`, no TLS. That is `10256`'s shape (§24.3) on a port that
+serves considerably more than a boolean. What the anonymous caller reaches on the **shipped** default
+is `/healthz` and its subpaths, `/metrics`, `/metrics/slis`, `/proxyMode` and `/configz` — and
+`/configz` is not a summary:
+
+> ```go
+> cz, err := configz.New(kubeproxyconfig.GroupName)
+> …
+> cz.Set(config)
+> ```
+> — same file, `newProxyServer`; `configz.InstallHandler` mounts `/configz`, which
+> `staging/src/k8s.io/component-base/configz/configz.go` documents as serving *"all registered
+> ComponentConfigs in JSON format"*
+
+The object set is the whole `KubeProxyConfiguration` — bind addresses, `clusterCIDR`,
+`hostnameOverride`, `nodePortAddresses`, the kubeconfig path, every sync period and every feature
+gate.
+
+**Three of §24.11's clauses are corrected, and the correction is the point of reading the artefact
+rather than the record of it.** §24.11 wrote that `10249` serves *"`/metrics`, `/configz` … and
+pprof"*. **[measured]** pprof is **not** served on the shipped default: `enableProfiling` has no
+defaulting function and no documented default in
+`k8s.io/kube-proxy` `v0.34.0` `config/v1alpha1/types.go`, so it is Go's zero value, `false`. Nor are
+the two newer pages — `flagz` is installed only when `flagzReader != nil`, which
+`cmd/kube-proxy/app/options.go` gates on the `ComponentFlagz` feature gate, and `statusz` on
+`ComponentStatusz`; **[measured]** both are declared
+`{Version: version.MustParse("1.32"), Default: false, PreRelease: featuregate.Alpha}` in
+`staging/src/k8s.io/component-base/zpages/features/kube_features.go`. **The row does not need any of
+them and is not rested on any of them.** Recorded because a by-catch note is written by a pass that
+was not scoped to check it, which is limb 3's whole point read in the direction nobody reads it.
+
+**The second measurement is the one this ruling turns on, and it is two doc comments twelve lines
+apart in the same struct.**
+
+> ```go
+> // healthzBindAddress is the IP address and port for the health check server to
+> // serve on, defaulting to "0.0.0.0:10256" (if bindAddress is unset or IPv4), or
+> // "[::]:10256" (if bindAddress is IPv6).
+> HealthzBindAddress string `json:"healthzBindAddress"`
+> // metricsBindAddress is the IP address and port for the metrics server to serve
+> // on, defaulting to "127.0.0.1:10249" (if bindAddress is unset or IPv4), or
+> // "[::1]:10249" (if bindAddress is IPv6). (Set to "0.0.0.0:10249" / "[::]:10249"
+> // to bind on all interfaces.)
+> MetricsBindAddress string `json:"metricsBindAddress"`
+> ```
+> — `k8s.io/kube-proxy` `v0.34.0`, `config/v1alpha1/types.go`
+
+and the bytes agree with the prose:
+
+> ```go
+> func getDefaultAddresses(bindAddress string) (defaultHealthzAddress, defaultMetricsAddress string) {
+> 	if netutils.ParseIPSloppy(bindAddress).To4() != nil {
+> 		return "0.0.0.0", "127.0.0.1"
+> 	}
+> 	return "[::]", "[::1]"
+> }
+> ```
+> — `pkg/proxy/apis/config/v1alpha1/defaults.go`, `v1.34.0`, the same function §24.3 quoted for
+> `10256`
+
+**[measured]** one function, one file, one commit, and it returns the **wildcard for healthz and
+loopback for metrics**. §24.7 found the same discrimination in kubeadm — *"the owner restricts two of
+the three and deliberately does not restrict the third"* — and it is here in the component's own
+config API as well, which makes it the owner's position twice over rather than an installer's choice.
+**[measured]** kubeadm applies no override: `cmd/kubeadm/app/componentconfigs/kubeproxy.go`'s
+`Default` sets `bindAddress`, `clusterCIDR` and `clientConnection.kubeconfig` and nothing else, and
+`cmd/kubeadm/app/phases/addons/proxy/manifests.go` passes only `--config`, so a default kubeadm node
+runs `metricsBindAddress: 127.0.0.1:10249` and `healthzBindAddress: 0.0.0.0:10256`.
+
+### 27.3 Claim 1's Step 1 — the live question, and it is answered by one sentence in the owner's own metrics document
+
+§10.1 Step 1 is dispositive and first, and the ticket named it correctly as the question a metrics
+endpoint makes live: *is publication the purpose?* A Prometheus exposition endpoint looks like the
+easiest *yes* in the corpus — it exists to serialise counters to a scraper, in a format the owner
+itself describes as *"structured plain text, designed so that people and machines can both read it"*.
+
+**It is a `no`, and the owner says so in the document whose subject is exactly this.**
+
+> "If your cluster uses RBAC, reading metrics requires authorization via a user, group or
+> ServiceAccount with a ClusterRole that allows accessing `/metrics`."
+> — `content/en/docs/concepts/cluster-administration/system-metrics.md`, `kubernetes/website`
+> `release-1.34`
+
+and the **same document**, seventeen lines above, places kube-proxy inside the population that
+sentence is about:
+
+> "In most cases metrics are available on `/metrics` endpoint of the HTTP server. For components that
+> don't expose endpoint by default, it can be enabled using `--bind-address` flag. Examples of those
+> components: kube-controller-manager, **kube-proxy**, kube-apiserver, kube-scheduler, kubelet"
+> — same document, same tag
+
+That is
+[ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+satisfied on all three limbs inside one artefact: **standing**, Kubernetes speaking about the
+component it authors; **membership**, established by the owner's own artefact rather than by a
+corroborator's port number — and established in the same file as the statement, which is the tightest
+form the rule has yet been met in; and **defeat per member**, tested and absent, because nothing
+retrieved has Kubernetes naming a supported internet-facing kube-proxy metrics endpoint.
+
+**Under [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) limb 1
+this is exactly the admissible shape.** Limb 1 says what *does* answer Step 1 is *"an owner's
+statement about its **intended caller population** or about whether its callers are **identified**"*.
+*A user, group or ServiceAccount with a ClusterRole* is the owner naming an identified caller. It is
+not a boundary sentence and not a prohibition, so limb 1's bar is cleared rather than skirted.
+
+**The obvious objection, and ADR-0054 answers it in terms.** The sentence is conditioned on RBAC, and
+RBAC never sees a request to `10249` — the mux at §27.2 has no authorizer to consult. So the sentence
+describes a deployment Kubernetes does not ship for this port. ADR-0054 limb 1:
+
+> "Such a sentence may be **prescriptive** and may describe a deployment the owner does not ship. That
+> is not a defect: Step 1 reads the owner's statement of whom the protocol is for, and Step 2 reads
+> the shipped bytes for what an unidentified caller actually gets. **The gap between the two is the
+> Claim 1 row.**"
+
+`10249` is that sentence's cleanest instance to date. The owner says metrics are for an authorized
+principal; the shipped bytes ask nobody for anything. **Claim 1 is available.**
+
+**And the owner's own bytes say it a second time, in a place nobody would look.** **[measured]** the
+`ComponentStatusz` gate's declaration comment reads *"Enables /statusz endpoint for a component making
+it accessible to users with the **system:monitoring** cluster role"* — the same model, in Go, for the
+sibling page on the same mux. It is recorded as corroboration and the ruling does not rest on it,
+because a feature-gate comment is a weaker artefact than an issued documentation page and §24.10
+already warned against leaning on Go identifiers.
+
+**A second sentence exists and is deliberately *not* used for Step 1.** **[measured]**
+`source-ip.md` at `release-1.34` tells the reader to run
+`curl http://localhost:10249/proxyMode` *"in a shell on the node you want to query"*. Read carelessly
+that is *the owner instructing an anonymous fetch*, and it would refuse Step 1. **It may not answer
+Step 1 in either direction, and ADR-0054 limb 1 is why:** it is a statement about **where the caller
+stands**, which is Claim 3's subject, and limb 1 bars a placement sentence from Step 1 without regard
+to which way it points. **Limb 1 cuts both ways, and this section is the first place that has
+mattered** — the discipline that stopped §25.1 substituting a prohibition for a Step 1 answer is the
+same discipline that stops this section substituting a locality instruction for a Step 1 refusal. The
+sentence is used at §27.5, where it belongs, as a footing.
+
+### 27.4 Claim 1's Step 2, read at ADR-0054's frame — and the loopback default does two jobs, not one
+
+**Step 2's limbs, against what the anonymous remote caller actually reaches.** `10249` writes nothing,
+deletes nothing, registers nothing, executes no code — pprof is off (§27.2) — and controls no runtime.
+It rests entirely on the **read** limb: *read content the protocol carries on behalf of a party other
+than the caller.* `/configz` serialises the operator's whole `KubeProxyConfiguration` to a stranger,
+and `/metrics` serialises the component's operational series.
+
+**The read limb is wide, and §10.1 says so about itself rather than being made to.** §10.1's
+justification for putting Step 1 first is *"Step 2 alone admits a public web server, because a web
+server's corpus is operator-supplied content served to a stranger"*. That sentence is only true if
+operator-supplied content served to a stranger **satisfies** Step 2 — the whole architecture of the
+two-step test presupposes it, and Step 1 is what refuses the web server. So a session narrowing the
+read limb to *another party's stored objects* would be rebuilding the defect §10.1 repaired, one step
+over. `/configz` is inside the limb on the note's own reading, and `10255/tcp`'s cell — *"reads node
+and pod status the kubelet carries on behalf of the control plane"* — is the corpus's demonstration
+that a component serving somebody else's configuration state satisfies it.
+
+**This makes `10249` the third row on the list to need Step 2's read limb rather than its mutation
+limb**, after `10255/tcp` and `4369/tcp` (§20.9, §25.8). It is recorded because §10.1 has counted that
+population twice and both counts are cited.
+
+**Reachability, at ADR-0054 limb 2's frame.** The shipped default binds `10249` to loopback, and read
+literally that answers Step 2 *no*. Limb 2 disposes of it without strain:
+
+> "A shipped default that **withholds the port** — does not listen, listens on a unix socket, binds
+> loopback, or refuses non-loopback peers **by address** — is the network act the frame assumes. It
+> neither answers Step 2 nor defeats Claim 1."
+
+and the discriminator limb 2 supplies for the hard case is met on the permissive side: *"whether the
+operator can reach anonymous remote service **without supplying a credential**"*. Setting
+`metricsBindAddress: 0.0.0.0:10249` — the owner's own parenthetical, *"(Set to `0.0.0.0:10249` /
+`[::]:10249` to bind on all interfaces.)"* — demands a credential of nobody. `10249` falls under limb
+2 case (1), which is `6379/tcp`'s and `9042/tcp`'s position exactly.
+
+**§25.4's arithmetic moves, and it moves in the direction that strengthens limb 2 rather than
+straining it.** Seven of eleven Class A rows did not serve an anonymous remote caller on their shipped
+default; with `10249` the count is **eight of twelve**. The rule that would refuse `10249` on its
+loopback bind is the rule that empties two thirds of Class A.
+
+**And the same default does a second, different job, which is the ticket's third question.** §10.4's
+one-way rule asks whether a shipped default **attests**, and it answers *yes where it restricts*.
+`metricsBindAddress: 127.0.0.1:10249` restricts, it is the configuration that takes effect, and the
+owner documents it as its default in the published config API — so it satisfies both of
+[ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)'s limbs and
+attests. **The two rulings are not in tension because they answer different questions.** ADR-0054 limb
+2 asks *in which configuration is reachability read* and answers *the one where the port is reached*;
+§10.4 asks *does this default carry evidence* and answers *yes, about the maintainer's position*. A
+session that reads limb 2 as making a loopback default **silent** has confused the frame with the
+attestation, and it would take `5432/tcp` off the list. §27.10 records the ruling and §27.11 the option
+that lost.
+
+**The kubeadm asymmetry is the honest half.** The binary's own `bindAddress` default is `0.0.0.0` and
+is **permissive**, so it is silent in both directions; the metrics bind is the restricting one and it
+is the one that attests. That is §24.6's two-defaults disposal reached without needing §19.3's
+tie-break, in a second instance — and here the two defaults are for **different servers of the same
+process** rather than for the same server, which is a shape the corpus had not met.
+
+### 27.5 `10249/tcp` — admitted, Class A, Claim 1; and the row does not depend on the class
+
+> **`10249/tcp` kube-proxy metrics — admitted to Class A on Claim 1.** Step 1 passes: the owner's own
+> metrics document says reading metrics requires authorization via a user, group or ServiceAccount
+> with a ClusterRole, and names kube-proxy in the same file's list of components that expose
+> `/metrics` (§27.3). Step 2 passes on the read limb: a bare `PathRecorderMux` with no
+> authentication and no authorization filter serves `/metrics` and `/configz` — the whole
+> `KubeProxyConfiguration` — over plaintext HTTP to any caller that reaches the port (§27.2, §27.4).
+> **The list is 41 pairs. Class totals 12 / 7 / 22.**
+
+**The footing is the scoping tier**, and it is `10259`/`10257`'s shape rather than `5432`'s. §24.12
+set the criterion for that tier as *"more than a default"*, and `10249` has two supports of different
+kinds:
+
+1. **A restricting shipped default**, in the bytes and in the published config API's own prose —
+   `"127.0.0.1:10249"`, against `"0.0.0.0:10256"` twelve lines above it (§27.2).
+2. **An owner document placing the caller on the node.** *"You can query the kube-proxy mode by
+   fetching `http://localhost:10249/proxyMode` **on the node where kube-proxy is running**"*, and
+   *"Get the proxy mode on one of the nodes (kube-proxy listens on port 10249)"*, over a code block
+   commented *"Run this in a shell on the node you want to query"* — `source-ip.md`,
+   `kubernetes/website` `release-1.34`. That is §10.3's **first and narrowest** branch, the same
+   system, named by the owner in an issued document ([ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)),
+   and it is the exact mirror of the `${NODE_IP}:10256/healthz` sentence that defeated `10256`
+   (§24.7). The owner puts one probe at the node's routable address and the other at `localhost`, in
+   its own documentation, and the list follows it both times.
+
+**It is not the prohibition tier**, because no sentence anywhere retrieved tells anyone not to expose
+`10249`; and **§18's category statement does not reach it**. **[measured]** `security-checklist.md` at
+`release-1.34`, read whole, contains **zero** occurrences of `kube-proxy`, `proxy`, `metrics`,
+`10249`, `10248` or `10258`, so ADR-0050 limb 2 fails for all three of this section's subjects exactly
+as §24.5 found it failing for §24's. That is the negative's **third** instance after `4369` (§18.5)
+and §24.5's, and it is now the reliable half of that rule: the category statement covers the API
+server, the kubelet API and etcd, and it has never yet reached anything else.
+
+**Why the row's admission does not depend on Step 1, and the class does.** If a reviewer takes the
+other side of §27.3 and rules that publication *is* a metrics endpoint's purpose, Claim 1 becomes
+unavailable and the row falls to **Claim 3**, whose boundary limb is answered by exactly the two
+supports above — a restricting default plus an owner sentence naming the locality, which is strictly
+more than `5432/tcp` has and is what §24.6 admitted `10259` and `10257` on. **The row survives either
+ruling; only its class turns on Step 1.** That is worth stating plainly, because it bounds what a
+reviewer who disagrees with §27.3 is actually disagreeing about: one cell in §3, not one pair in §1.
+
+### 27.6 `10248/tcp` kubelet healthz — Claim 1 fails at both steps, and Claim 3 carries it on `5432`'s form
+
+**What is there.** **[measured]** `cmd/kubelet/app/server.go` at `v1.34.0`:
+
+> ```go
+> if s.HealthzPort > 0 {
+> 	mux := http.NewServeMux()
+> 	healthz.InstallHandler(mux)
+> 	go wait.Until(func() {
+> 		err := http.ListenAndServe(net.JoinHostPort(s.HealthzBindAddress, strconv.Itoa(int(s.HealthzPort))), mux)
+> ```
+
+A stdlib `ServeMux` with one handler installed on it, on `http.ListenAndServe` — no TLS, no
+authentication, no authorization. The kubelet's own auth filter lives in `pkg/kubelet/server`'s
+`NewServer` and is not reached from here. This is **weaker** than `10256`, not stronger: `10256` at
+least carries `/livez` beside `/healthz`; `10248` carries `/healthz` and its two subpaths and nothing
+else at all.
+
+**Claim 1 is unavailable, and it is overdetermined.** **Step 2 fails**: the anonymous caller writes
+nothing, deletes nothing, registers nothing, executes nothing, controls nothing, and reads a liveness
+boolean about the process answering it. That is §24.3's sentence for `10259`/`10257`, and it applies
+here without the `/metrics` complication because there is no `/metrics` on this port. **Step 1 fails
+independently**, on §24.3's measurement at the same tag: the owner grants `get` on `/healthz` to
+`system:unauthenticated` **by name**, through a role it calls `system:public-info-viewer` and
+documents as *"a role which provides just enough power read insensitive cluster information"*. Health
+is what the owner has declared answerable to whoever asks. **Claim 2 is unavailable**: the port
+carries no credentials.
+
+**So the row lives or dies on Claim 3's boundary limb, and the owner names the boundary in a word.**
+
+> ```go
+> // healthzPort is the port of the localhost healthz endpoint (set to 0 to disable).
+> // A valid number is between 1 and 65535.
+> // Default: 10248
+> HealthzPort *int32 `json:"healthzPort,omitempty"`
+> // healthzBindAddress is the IP address for the healthz server to serve on.
+> // Default: "127.0.0.1"
+> HealthzBindAddress string `json:"healthzBindAddress,omitempty"`
+> ```
+> — `k8s.io/kubelet` `v0.34.0`, `config/v1beta1/types.go`
+
+**[measured]** the restricting default is stated in the published config API, and it takes effect —
+`pkg/kubelet/apis/config/v1beta1/defaults.go` sets `HealthzPort` to `10248` and `HealthzBindAddress`
+to `"127.0.0.1"`. Both of ADR-0036's limbs are met, §10.4's one-way rule admits it, and the owner's
+own rendered `kubelet-config-file.md` shows `"healthzPort": 10248, "healthzBindAddress": "127.0.0.1"`
+in a worked example, which corroborates and is not relied on.
+
+> **`10248/tcp` is admitted to Class C on Claim 3.** Its boundary is §10.3's first branch, the same
+> system, named by a restricting shipped default in the owner's own config API.
+
+**This is `5432/tcp`'s footing exactly, and the note already carries two rows on it alone.** The
+**weak tier** takes it — shipped default only, no prohibition upstream — and goes to **three rows**:
+`5432`, `5984`, `10248`. ADR-0032 §8's watch list moves with it.
+
+**The word *localhost* is a label, not a position, and it is deliberately not used to promote the
+row.** *"the port of the **localhost** healthz endpoint"* is tempting: it reads like an owner naming a
+locality in prose, which would put the row in the scoping tier. It is refused on the line
+[#69](https://github.com/winniel123/verge-asm/issues/69) drew and the map still carries as an open
+patch — *"# Listen for connections from the local system only"* **describes what the directive does**;
+*"you should not expose this port to the internet"* **takes a position**. *localhost healthz endpoint*
+is a name for the default, not an instruction about where the port may be reached from, and §16.5
+refused `10255`'s promotion on precisely this distinction. The row rests on the default; the label
+tells you the default is deliberate.
+
+**The comparison a reader will reach for, stated before they do.** `10248` and `10256` serve
+substantially the same thing and end in opposite places. **The two separate on the owner's own
+artefacts and on nothing else**: `10256` is wildcard-bound in the shipped default and the owner
+documents an off-node caller at `${NODE_IP}` by design (§24.7); `10248` is loopback-bound in the
+shipped default and no owner document places any caller off the node — **[measured]** a code search
+over `kubernetes/website` returns six files for `10248`, of which the three English ones are
+`kubelet-config-file.md` and the two **generated** reference pages, and none of them takes a network
+position. §24.7 called its own result *"the note's sharpest inversion"*; this is the inversion read
+from the other side, and it is the same instrument giving the same kind of answer.
+
+### 27.7 `10258/tcp` — refused, because Kubernetes ships nothing that listens on it
+
+`10258` looked like the easy one. §24.11 predicted that *"§24.3's claim analysis likely transfers
+whole"*, and **[measured]** it does: `staging/src/k8s.io/cloud-provider/options/options.go` builds
+`SecureServing: apiserveroptions.NewSecureServingOptions().WithLoopback()` with
+`s.SecureServing.BindPort = cloudprovider.CloudControllerManagerPort`, alongside
+`Authentication: apiserveroptions.NewDelegatingAuthenticationOptions()` and
+`Authorization: apiserveroptions.NewDelegatingAuthorizationOptions()` — §24.3's stack exactly, so
+Claim 1 is unavailable on Step 1 and Step 2 for the same two reasons, and Claim 2 is unavailable
+because the port is HTTPS.
+
+**Claim 3's boundary limb then has nothing to answer it, and the negative is unusually clean.**
+
+- **[measured]** `ports-and-protocols.md` does not carry `10258`; §24.2 enumerates its six subjects and
+  this is not one of them.
+- **[measured]** a code search over the whole `kubernetes/website` repository for `10258` returns
+  **zero** results — in any language, in any file. The owner's documentation does not contain the
+  number.
+- **[measured]** `security-checklist.md`, read whole, does not mention the component.
+- **[measured]** the shipped bind default is `NewSecureServingOptions()`'s
+  `BindAddress: netutils.ParseIPSloppy("0.0.0.0")`, which is **permissive** and therefore **silent**
+  under §10.4. Nothing narrows it: kubeadm installs no cloud-controller-manager.
+
+**And underneath the claim gate there is a second failure, which is this section's ADR.** The number
+is real and the owner writes it down twice — `pkg/cluster/ports/ports.go`'s
+`CloudControllerManagerPort = 10258` and `staging/src/k8s.io/cloud-provider/ports.go`'s identical
+constant. **But Kubernetes ships no binary that listens on it.**
+
+> ```go
+> // This file should be written by each cloud provider.
+> // For a minimal working example, please refer to k8s.io/cloud-provider/sample/basic_main.go
+> // For more details, please refer to k8s.io/kubernetes/cmd/cloud-controller-manager/main.go
+> // The current file demonstrate how other cloud provider should leverage CCM and it uses fake
+> // parameters. Please modify for your own use.
+> ```
+> — `cmd/cloud-controller-manager/main.go`, `kubernetes/kubernetes` `v1.34.0`, its opening comment
+
+**[measured]** and the build agrees with the comment: `hack/lib/golang.sh` at `v1.34.0` lists
+`cmd/kube-proxy`, `cmd/kube-apiserver`, `cmd/kube-controller-manager`, `cmd/kubelet`, `cmd/kubeadm`,
+`cmd/kube-scheduler`, `kube-log-runner`, `kube-aggregator`, `apiextensions-apiserver` and
+`gce/gci/mounter` as `server_targets`; `cmd/kube-apiserver`, `cmd/kube-controller-manager`,
+`cmd/kube-scheduler`, `cmd/kube-proxy` and `cmd/kubectl` as `server_image_targets`; and
+`cmd/kube-proxy`, `cmd/kubeadm`, `cmd/kubelet` and `kube-log-runner` as `node_targets`.
+**`cmd/cloud-controller-manager` appears in none of them.** It is an example program — §12(a)'s
+artefact class, in an executable rather than a configuration file, and it **declares itself** one, in
+§12.2's own terms: *the file always says which it is*.
+
+> **`10258/tcp` is refused. No permitted claim is available to it**, and the reason underneath the
+> claim gate is that `10258` is a **number the owner publishes for other parties to build on**, not a
+> pair the owner's own software listens on. It enters §4.6 and **the exclusion count moves to 20.**
+> [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md) records the rule.
+
+**The refusal is overdetermined**, so under
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+limb 1 it is **bounded on arrival** and is not an exposed sole-ground negative: the claim gate fails
+on its own and the shipped-listener finding fails on its own. §17.8's and §22.8's residue is
+**unchanged at zero** — this opens no §2.4 residue, because the refusal is not a determinacy contest
+and no competing owner is named.
+
+**What the party that *does* ship a listener would change.** AWS, Azure, GCP, OpenStack and the rest
+each build a cloud-controller-manager from this library, and each of those builds has a shipped
+default that its own vendor owns. Under §16.6's per-port rule read one level over, `10258` could be
+re-opened by **one** of those vendors' own current documentation placing its CCM on `10258` and naming
+a boundary — which is ADR-0056's third limb and §27.13's reopening criterion. Nothing of the sort was
+retrieved, and the search that found nothing is named at §27.14 rather than dressed as exhaustive.
+
+### 27.8 §2.4 determinacy, run per ADR-0048 for all three numbers
+
+**Placement, established by the candidate's owner** —
+[ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)'s only admissible
+evidence, which is *a party's statement, in its own current documentation or its own shipped bytes,
+that **its own software listens on a given `(port, transport)` pair by default***.
+
+| Number | Established by | Verdict |
+|---|---|---|
+| `10249/tcp` | `ports.go`'s `ProxyStatusPort = 10249` *"the default port for the proxy metrics server"* · `defaults.go`'s `metricsBindAddress` → `127.0.0.1:10249` · the config API's own prose · `source-ip.md`'s *"kube-proxy listens on port 10249"* | **Established, on four artefacts in two classes** |
+| `10248/tcp` | `ports.go`'s `KubeletHealthzPort = 10248` *"exposes a healthz endpoint from the kubelet"* · the kubelet config API's `Default: 10248` · `cmd/kubelet/app/server.go`'s listener | **Established** |
+| `10258/tcp` | `ports.go` and `cloud-provider/ports.go` name the number — but **no Kubernetes binary listens on it** (§27.7) | **Not established by this owner.** ADR-0048's *established* limb requires the owner's **own software** to listen, and the owner ships none |
+
+**Contested? No, and the registry is silent rather than hostile.** **[measured]** the IANA CSV,
+downloaded 2026-08-14 and searched with a literal match: the strings `10248`, `10249` and `10258`
+return **zero** rows each across all 15,400 lines, and the strings `kube-proxy` and `kubelet` return
+zero. `10248` and `10249` fall inside `,10202-10251,,Unassigned,,,,,,,,`; `10258` inside
+`,10254-10259,,Unassigned,,,,,,,,`, the row §24.4 found. That is `10250`'s and `10255`'s position
+exactly. Under ADR-0048 an unregistered number is not thereby indeterminate — registration
+corroborates and never carries — so the question is only whether another party's **own current
+documentation** places a different protocol there. None was found, and per ADR-0042's rule that
+liveness is read off the competing owner's documentation, **an absent competitor cannot be live**.
+
+**The negative's extent, stated per §9.5 and ADR-0037 limb 3.** The registry cannot name a competitor
+because both ranges are Unassigned, and the vendor hunt behind *"none was found"* is a targeted search
+rather than a sweep — the identical rider §24.4 wrote and §24.10 flagged. It is repeated rather than
+inherited because it is a different pair of numbers.
+
+**Version-dependence.** §24.4 answered this for the `1025x` family by separating the removed insecure
+ports `10251`/`10252` from the secure ones. `10249` and `10248` need no such disposal: **[measured]**
+neither has ever moved, both are present at `v1.34.0` in the same file that has carried them since the
+file was written, and the file's own comment — *"In this file, we can see all default port of cluster.
+It's also an important documentation for us. So don't remove them easily."* — is the owner declaring
+the constants stable. The Hadoop failure mode is absent.
+
+> **`10249/tcp` and `10248/tcp` pass §2.4. `10258/tcp` does not reach it**, being refused at the claim
+> gate; its determinacy weakness is recorded as a second, independent ground rather than as the
+> operative one, so ADR-0048's *name the artefact that defeated the convention* rule is not engaged —
+> no convention was defeated, and none was established.
+
+### 27.9 ADR-0037 limb 1's trigger — widened, and the measurement that forces it
+
+Limb 1 fires *"where an owner's artefact is opened **to attest a row**"*. §24 opened
+`pkg/cluster/ports/ports.go` for **determinacy**, read it whole anyway, and recorded three numbers the
+table lacked — routing them on limb 2's rationale while expressly declining to widen limb 1, on the
+ground that *"one instance is not a measurement"*. The ADR's own note set the criterion: *"a second
+determinacy retrieval turning up a candidate the table lacks"*.
+
+> **Ruled: limb 1 fires wherever an owner's artefact is opened in the table's service, whatever the
+> retrieval was for.** *To attest a row* is withdrawn as the trigger and replaced by *for any purpose
+> the table's gates require* — attestation, determinacy, ownership, class-list construction or claim
+> analysis.
+
+**The measurement, and it is not the one the ADR's note predicted.** The criterion asked for a second
+determinacy retrieval producing a candidate. What has happened instead is stronger and settles the
+question more cleanly: **the first one has now paid out.** §24's determinacy retrieval was, by its own
+account, decisive of nothing — *"determinacy is not what decides this ticket"* — and its by-catch has
+produced **two admitted pairs and one exclusion**, which is a larger movement than any attestation
+retrieval in this note except §24's own. A trigger that would have permitted `ports.go` to be read
+row-scoped is a trigger that would have cost the list `10249/tcp` and `10248/tcp`, and would have left
+`10258/tcp` unexamined in §4.6's negative space. **The rationale was always purpose-blind** — *a
+retrieval keyed on the rows you already have returns only the intersection* — and the letter's
+narrowness is now measured, not merely argued.
+
+**Three riders keep the widening from being an expansion.**
+
+1. **It adds no retrieval.** The obligation is to read a file already fetched, which is ADR-0037's own
+   *"it is cheap where it matters"*. It does **not** re-open the ADR's rejected alternative *"require
+   re-reading every artefact already retrieved, now"*, which was refused on cost and ordering and
+   stays refused.
+2. **Limb 2 is unchanged and is what keeps it from being a licence.** A subject found in a determinacy
+   retrieval is still ticketed and never admitted where it is found — this section is the proof, since
+   two of §24.11's three candidates needed a **claim** analysis the discovering pass was not scoped to
+   run, and the third needed a build-target check.
+3. **The domain is the table's, not the world's.** Limb 1 already reads *"every subject in the table's
+   domain that it names"*, and that clause is untouched: a determinacy retrieval over an owner's
+   artefact enumerates ports, not every identifier in the file.
+
+**The option that lost is at §27.11.** [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+is amended in place with this ruling, per the ticket's instruction that if the answer is *any purpose*
+it is said on the ADR.
+
+### 27.10 The ruling
+
+> - **`10249/tcp` kube-proxy metrics — admitted, Class A, Claim 1.** Step 1 passes on
+>   `system-metrics.md`'s *reading metrics requires authorization via a user, group or ServiceAccount
+>   with a ClusterRole*, in a document that names kube-proxy in its own list of components exposing
+>   `/metrics`; Step 2 passes on the read limb, a bare `PathRecorderMux` with no authn and no authz
+>   serving `/metrics` and `/configz` over plaintext. Footing: **scoping tier** — a restricting
+>   `metricsBindAddress: 127.0.0.1:10249` default plus `source-ip.md` placing the caller at
+>   `localhost` on the node.
+> - **`10248/tcp` kubelet healthz — admitted, Class C, Claim 3.** Claim 1 fails at **both** steps —
+>   Step 2 on a liveness boolean, Step 1 on `system:public-info-viewer`. The boundary is §10.3's first
+>   branch, named by `healthzBindAddress: "127.0.0.1"` in the owner's published config API. Footing:
+>   **weak tier**, `5432`'s form exactly, which takes that tier to three rows.
+> - **`10258/tcp` cloud-controller-manager — refused.** No claim in the closed set, and beneath the
+>   claim gate the owner ships no binary that listens on the number. Enters §4.6.
+> - **Determinacy passes for `10249` and `10248`** (§27.8) and decides neither; `10258` never reaches
+>   it.
+> - **§10.4's one-way rule and ADR-0054 limb 2 answer different questions about the same loopback
+>   default**, and both answers stand (§27.4).
+> - **ADR-0037 limb 1 is widened** to fire on any owner artefact opened in the table's service (§27.9).
+> - **[ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md) is minted.**
+> - **The list is 41 pairs. Class totals 12 / 7 / 22.**
+
+### 27.11 The options that lost
+
+**Refuse `10249` at Step 1 — publication *is* a metrics endpoint's purpose.** The strongest losing
+option and the one the ticket named. Its case is good: the Prometheus exposition format exists to be
+scraped by anyone who asks; `system-metrics.md`'s own overview calls it *"structured plain text,
+designed so that people and machines can both read it"* and tells the reader to point a scraper at it;
+the authorization sentence is conditioned on RBAC, which never sees a request to `10249`; and
+`source-ip.md` instructs a bare unauthenticated `curl`. **It loses on ADR-0054 limb 1, twice.** The
+authorization sentence is an owner statement about whether its callers are **identified**, which is
+what limb 1 says answers Step 1, and limb 1 expressly permits such a sentence to be prescriptive and
+to describe a deployment the owner does not ship — *"the gap between the two is the Claim 1 row"*. And
+the `curl` instruction is a **placement** statement, which limb 1 bars from Step 1 in either
+direction; a session that used it to refuse Step 1 would be doing what §25.1 was stopped from doing,
+with the sign flipped. The discriminator against `10256` is the owner's own, not ours: for `10256` the
+owner documents the unidentified caller **by name and by address**; for `10249` its only statement
+about who reads metrics **requires a ServiceAccount**. **The cost of taking this option is one cell,
+not one row** (§27.5), which is the reason it can be recorded honestly rather than defended
+anxiously.
+
+**Refuse `10248` — a bind address is not the owner naming a boundary.** Its case: the whole of
+`10248` is a liveness boolean; the owner has separately declared health endpoints answerable to
+`system:unauthenticated`; and admitting a row whose entire evidence is one default line grows the
+note's weakest tier by fifty per cent for a port nothing will ever usefully report. **It loses on
+§10.4.1's measurement, one table over.** The reading that refuses `10248` is the reading that a bind
+address cannot name §10.3's first branch — and that reading takes `5432/tcp` and `5984/tcp` off the
+list, the second of which has no other support at all. §10.4.1 refused the symmetric rule because it
+*"deletes roughly half the list"*; refusing this row requires the same move in the admission direction
+and would delete the tier §2.2 discloses rather than hides. Keeping `5432` on a loopback default while
+refusing `10248` on one is the arbitrariness §2.2's founding paragraph says *"destroys a curated
+list's credibility"*.
+
+**Admit `10248` to the scoping tier on the word *localhost*.** Tempting, and it would keep the weak
+tier at two. **It loses on the label-versus-position line #69 drew and §16.5 applied**: *the localhost
+healthz endpoint* names the default, it does not take a position on where the port may be reached
+from, and §16.5 refused `10255`'s identical promotion on a sentence that *"is a description of what
+the port serves, not a position on where it may be reached from"*. Taking it would also decide the
+map's open *where does a config comment stop being a label* patch by accident, in a section that did
+not argue it — which that patch says explicitly must not happen (*"a case in that gap is to be
+ticketed, never decided by whoever meets it"*). §27.14 routes it.
+
+**Admit `10258` alongside them, on the ground that the claim analysis transfers from `10257`.** §24.11
+predicted it would and it does. **It loses on the boundary limb having nothing to answer it.** `10257`
+was admitted on `Used By: Self` plus kubeadm's `--bind-address=127.0.0.1`; `10258` has neither — no
+table cell, no installer, no restricting default, and **zero** occurrences of the number in the
+owner's entire documentation repository. Admitting it would mean admitting a row on a claim analysis
+inherited from a *sibling port* with no attestation of its own, which is §2.2's first sentence — *the
+claim may not be asserted by us* — failing in its plainest form.
+
+**Refuse `10258` on determinacy instead of on the claim gate.** Cleaner-sounding, and it is where the
+interesting finding is. **It loses on ADR-0048's own refusal-artefact rule**: *"every determinacy
+refusal must name the artefact that defeated the convention"*, and there is no such artefact — nobody
+contests `10258`, the range is Unassigned, and the defect is that the convention was never
+**established** by a listener rather than that it was defeated by a competitor. Routing the refusal
+through determinacy would put a finding with no defeating artefact into the one table ADR-0048 built
+to require one. The claim gate carries it, and ADR-0056 records why the determinacy limb also fails,
+where it can be stated without pretending to be a contest.
+
+**Decline ADR-0056 — say that §12(a) and ADR-0048 already require it.** §16.6's test, applied
+seriously, and §20.9, §23 and §24.9 have all declined an ADR on it. **It loses on both halves.** §12(a)
+and [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) are about
+**configuration files** — every one of §12.2's ten artefacts is one — and say nothing about a program
+entry point; extending them to an executable is an extension, not a reading-out. And ADR-0048's *its
+own software listens* clause governs **determinacy only**, which §27.7 expressly declines to rest the
+refusal on, while §2.2's attestation gate and §10.5's owner definition key on **authorship** and never
+ask whether the author ships a listener. The gap is real: on the existing rules, `10258` and `10249`
+are indistinguishable — both are constants in the same file, written by the same party, with the same
+comment shape — and nothing written down separates them. That is what the ADR is for.
+
+**Widen ADR-0037 limb 1 by rewriting limb 2 instead.** Argued because limb 2 is already
+purpose-neutral in its own words and did all the work in §24.11. **It loses because limb 2 is the
+*disposal* rule and limb 1 is the *reading* rule.** Limb 2 tells you what to do with a subject you
+found; it cannot make you find one. The defect §24.11 exposed is that a session may legitimately stop
+reading, and only limb 1 addresses that.
+
+### 27.12 Every dependent figure, walked rather than asserted
+
+Walked against the composed post-§24 state, with §25's and §26's no-move results confirmed against it.
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 39 | **41.** `10249/tcp` and `10248/tcp` are admitted; `10258/tcp` is refused |
+| §3.1 Class A | 11 | **12.** `10249/tcp` joins on Claim 1 |
+| §3.2 Class B | 7 | **7, unchanged.** Untouched by this section |
+| §3.3 Class C | 21 | **22.** `10248/tcp` joins on Claim 3. 12 + 7 + 22 = 41 |
+| §2.2 footing table — coverage | 28 of 39 | **30 of 41.** Both new rows take a footing cell |
+| §2.2 footing table — prohibition tier | 15 pairs | **15, unchanged.** No prohibition sentence names either number, and §18's category statement reaches neither (§27.5) |
+| §2.2 footing table — **scoping tier** | 11 pairs | **12 pairs.** `+10249` — a restricting default *plus* an owner document placing the caller at `localhost` on the node is *more than a default*, which is §24.12's own criterion for this tier |
+| §2.2 footing table — **weak tier** | 2 rows (`5432`, `5984`) | **3 rows.** `+10248`, on a restricting shipped default and nothing else |
+| §2.2 footing table — *outside this table's subject* | 11 pairs | **11, unchanged.** 15 + 12 + 3 + 11 = 41 |
+| §2.4's squat table | lists `10250`, `10255`, `10256`, `10257`, `10259` inside explicit *Unassigned* ranges | **three numbers added** — `10248` and `10249` inside `10202-10251 Unassigned`, `10258` inside `10254-10259 Unassigned` (§27.8) |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** `10248` matches its footing form but §4.5's row is named for PostgreSQL's documented *absence of any position*, which is a stronger disclosure than a missing sentence |
+| §4.6 exclusions | 19 named | **20.** `10258/tcp` enters, on a claim-gate failure with a shipped-listener failure beneath it |
+| §6.1 containment arithmetic | 28 + 6 + 5 = 39 | **28 + 8 + 5 = 41.** Both new rows are TCP. **[measured]** and this figure is no longer asserted: [`safe-active-probing.md`](./safe-active-probing.md) §2.3's modern-services supplement reads *"Orchestration/control planes: 2375, 2376, 2379, 2380, 6443, 10250, 10255"*, and neither `10248` nor `10249` is in it or in nmap's top-100 |
+| §24.10's flagged hot-set check for `10257`/`10259` | asserted from #91, *"checked by whoever merges this"* | **discharged.** The same supplement list names neither `10257` nor `10259`, so §24.12's *missing-TCP group goes 4 → 6* is confirmed, and this section's own additions take it to **8** |
+| §10.1's Class A walk | eleven rows | **twelve.** `10249/tcp` enters with both cells written from the bytes (§27.3, §27.4) |
+| §10.1's *rows that need Step 2's read limb* | two — `10255`, `4369` | **three.** `+10249`, which has no mutation limb at all |
+| §25.4's *seven of eleven Class A rows withhold the port on their shipped default* | 7 of 11 | **8 of 12.** `10249` binds loopback, and ADR-0054 limb 2 case (1) covers it |
+| [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) limb 1 | *no cell in #92 turned on it* | **a cell turns on it now, and in both directions** (§27.3). Its *thin ground* disclosure is discharged |
+| [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) | limb 1's trigger *left open*; limb 2's second cycle outstanding | **both discharged.** Limb 1 widened (§27.9); limb 2's second cycle complete — three candidates ticketed, two admitted, one refused, the same 2:1 split as the first |
+| §24.11's by-catch table | three candidates routed | **disposed, and one entry corrected** — pprof, flagz and statusz are **not** served on `10249`'s shipped default (§27.2). `CloudControllerManagerWebhookPort`, recorded there as unresolved, is **still unresolved** and is routed at §27.14 |
+| §12.2's artefact count | ten artefacts, nine self-declarations | **unchanged.** `cmd/cloud-controller-manager/main.go` self-declares as an example, which is an **eleventh** instance of that finding — but §12.2's population is the footing table's **configuration** artefacts and this is a program, so it is recorded at §27.7 and the count is left alone |
+| §17.1's population of negatives | fourteen | **fifteen**, `10258`'s entering §4.6. It is **overdetermined** under ADR-0046 limb 1 and therefore bounded on arrival and **not** exposed; it is swept for the record at §27.7 over Kubernetes' three document classes |
+| §17.8's and §22.8's *residue zero* | zero | **unchanged.** This section opens no §2.4 residue: determinacy passes for both admitted numbers, and `10258`'s refusal is a claim-gate refusal |
+| §8 | 12 questions, all closed | **12, unchanged.** §27.14's items are routed, not parked |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | widened by two TCP pairs at §24 | **widened by two more.** The definition is unchanged; the sensitive half gains `10249/tcp` and `10248/tcp`, and §6's one-directional invariant forces both into the hot set. The UDP arithmetic — *five* from the sensitive half — is **untouched** |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | spent once, at §24 | **spent a second time.** Two more members, content moves, version bumps, every evaluation `Break`s |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984` | **`5432`, `5984`, `10248`.** The weak tier grew, so the watch list grew with it |
+| [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) | configuration artefacts | **extended to an executable** by [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md), which cites it. ADR-0036 itself is **not** amended |
+| [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md) | limb 2 measured to fail for §24's three | **fails for these three too**, on the same artefact read whole — and limb 2 is met **positively** for the first time inside a single file, at §27.3 |
+| ADR count | 0054 highest | **0056 minted.** 0055 and 0057–0059 belong to concurrent passes |
+
+**Outside this note.** [ADR-0009](../adr/0009-verge-core-is-a-union.md) gains an amendment recording
+the second two-member widening, in the shape §24's took.
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) is amended
+with limb 1's widened trigger (§27.9).
+[ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) gains a
+*confirmed by use* note recording that limb 1 cuts both ways.
+[ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md) is minted. ADR-0008
+is **not** amended — the version bump is the ADR working, not the ADR changing. ADR-0032, ADR-0036,
+ADR-0040, ADR-0042, ADR-0045, ADR-0046, ADR-0048 and ADR-0050 are untouched as rules, and
+[`weak-key-and-signature.md`](./weak-key-and-signature.md) is untouched.
+[`CONTEXT.md`](../../CONTEXT.md) is **not** edited — no term is minted, and ADR-0048 set the precedent
+for staying out of that file while concurrent passes are running.
+
+### 27.13 Thin ground, flagged per the standing rule
+
+**`10249`'s Step 1 rests on one sentence, and the sentence is conditioned.** *"If your cluster uses
+RBAC, reading metrics requires authorization…"* is a single clause in a single document, its
+protasis names a mechanism that is not in the request path for this port, and the whole ruling on the
+row's **class** turns on it. ADR-0054 limb 1 licenses exactly this reading and §27.11 argues it, but
+one conditioned sentence is thinner evidence than §24.3's `system:public-info-viewer` finding was for
+the opposite conclusion. **The criterion that would change the verdict:** a Kubernetes document
+describing `10249`'s metrics as intended for unauthenticated collection, at which point Step 1 refuses
+and the row moves to Class C on §27.5's two supports. **It would not remove the row**, and that bound
+is the honest measure of how much weight this sentence is carrying.
+
+**`10248` is the thinnest row this section adds and it is thinner than §4.5's.** `5432` is disclosed
+as the list's weakest row because PostgreSQL states *no position at all*; `10248` is in the same
+position with one difference that cuts against it — PostgreSQL's default is documented in prose on the
+project's documentation site, while `10248`'s is a doc comment on a Go struct field in a published
+API. §16.5 admitted `readOnlyPort`'s identical artefact for `10255`'s **footing**, but that row was
+already on the list on Claim 1; this is the first time a config-API doc comment has been asked to
+carry **admission**. It is inside §2.2's third form on both of ADR-0036's limbs and it is a real
+maintainer act, and it is where a reviewer should push. **The criterion that would change the
+verdict:** a ruling that §2.2's third form requires the default to be documented in the owner's prose
+documentation rather than in its published API surface — which would also re-open `10255`'s footing
+and is therefore not a free move.
+
+**The weak tier grew by fifty per cent in one section, and nobody has re-priced what that tier costs.**
+ADR-0032 §8's watch list exists because a shipped default can be flipped in one commit and nothing
+tells the curator. Two rows was a footnote; three is a population, and the map's *how the tiered port
+sets are curated* patch already carries **whether the watch list should key on tier or on
+volatility** as open fog. This section adds a member to the list without touching the question, which
+is deliberate — but the question is now larger than it was.
+
+**The label-versus-position line was applied and not argued.** §27.6 refuses to promote `10248` on the
+word *localhost* by citing #69's line and §16.5's application of it. The map records that line as an
+open patch and says a case in the gap *"is to be ticketed, never decided by whoever meets it"*.
+**Whether *the localhost healthz endpoint* is a label or a position is a case in that gap**, and this
+section has taken the conservative branch — the one that does not move a tier — rather than deciding
+it. It is routed at §27.14 rather than settled here, and if it is later decided the other way `10248`
+moves from the weak tier to scoping and the tiers read 15 / 13 / 2.
+
+**`10258`'s refusal rests on a negative about a *population* rather than about a document.** *"No
+cloud provider's own documentation places its CCM on `10258` and names a boundary"* is not something
+this section established; what it established is that **Kubernetes** does not, and that Kubernetes
+ships no listener. AWS's, Azure's, GCP's and OpenStack's cloud-controller-managers were **not**
+retrieved, and per ADR-0037 limb 3 the negative is bounded to what was read. **The criterion that
+would change the verdict:** any one of those vendors' current documentation placing its CCM on
+`10258` by default *and* naming a boundary, at which point ADR-0056 limb 3 admits the row on that
+vendor's attestation — and the row would then be that vendor's, not Kubernetes'.
+
+**ADR-0056 is minted on one row.** §25.6 named this cost precisely — *"an ADR minted on an obiter
+ruling rests on argument rather than on a measurement"* — and this one is not obiter, because `10258`
+turns on it, but it is a single instance. Its counterfactual is the defence: without it, `10258` and
+`10249` are indistinguishable on the written rules, and a future session meeting
+`CloudControllerManagerWebhookPort` or any other library constant has nothing to read. The honest
+statement is that the rule is **correct and untested**, and its second instance is already visible.
+
+**Two rows added in one section is twice what §24 added, and §24 was the first to spend ADR-0008's
+price at all.** Nothing in the standard rations additions and nothing should — but the note has now
+moved from 37 to 41 pairs in two sections after twenty sections of stability, and every one of the
+four new rows is a Kubernetes component port found by reading one file whole. That is either the
+method working exactly as ADR-0037 designed it, or it is a single owner's artefact being mined harder
+than any other owner's has been. **[measured]** the four are on four different components with four
+different footings, retrieved from three repositories, so it is not one sentence multiplied — but the
+concentration is real and is recorded so that a curator can see it.
+
+### 27.14 By-catch and open items, routed rather than acted on
+
+- **`CloudControllerManagerWebhookPort` is still unresolved.** §24.11 recorded that its value was not
+  retrieved. **[measured]** it is `cpoptions.CloudControllerManagerWebhookPort`, imported into
+  `pkg/cluster/ports/ports.go` from `k8s.io/cloud-provider/options`; the constant's value was **not**
+  retrieved here either, because ADR-0056 disposes of it in advance — whatever the number is, it is a
+  library constant for a binary Kubernetes does not ship, so it is `10258`'s case and not a new one.
+  Recorded as **disposed by rule rather than by retrieval**, which is a weaker disposal and is named
+  as one.
+- **The label-versus-position case at §27.13 and §27.11** belongs to the map's open *where does a config comment
+  stop being a label* patch. It is the first instance of that gap met in a **published API doc
+  comment** rather than in a shipped config file, which is a third artefact class the patch does not
+  contemplate. Routed to the curator.
+- **`kubernetes/website`'s generated reference pages carry all three numbers and were deliberately not
+  quoted.** `kube-proxy.md`, `kube-proxy-config.v1alpha1.md`, `kubelet.md` and
+  `kubelet-config.v1beta1.md` are generated from the source this section quotes directly; §19.7's rule
+  is the reason and it cost nothing to obey, because the source was being read anyway.
+
+### 27.15 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10 and §22.10
+
+- **A by-catch record is a scoped retrieval too, and this one had a wrong clause in it.** §24.11 wrote
+  that `10249` serves pprof. **[measured]** it does not, on the shipped default, and neither `flagz`
+  nor `statusz` is installed either — both gates are alpha and default `false`. Had this section
+  inherited the record instead of re-reading `serveMetrics`, it would have written *"and pprof"* into
+  a §3.1 cell and the row's most quotable fact would have been false. **ADR-0037 limb 3 is usually
+  read as a rule about negatives; this is the positive-direction instance** — a by-catch note states
+  what a pass saw at the extent it read, and the next pass owes it a re-reading, not a citation.
+- **The two defaults are in the same function and a row-scoped read would have found only one.**
+  `getDefaultAddresses` returns healthz and metrics addresses together, and §24.3 quoted it **for
+  `10256`** — the wildcard half — while the loopback half sat in the same four lines. That is
+  ADR-0037's Cassandra case exactly, in a file this note had already opened, and it is the second
+  independent reason §27.9 widens limb 1: §24 read the whole file and routed the number, which is why
+  it was available to be read properly here.
+- **The registry was searched as bytes.** The IANA CSV was downloaded for this section and searched
+  with literal matches; the `10202-10251` and `10254-10259` **range** rows are how these numbers are
+  covered, and a search of the rendered XHTML for `10249` would have returned nothing and produced a
+  correct *"not in the registry"* for the wrong reason. §24.13's hazard, met again and avoided the
+  same way.
+- **A missing file is not an absent fact, and one path in the ticket does not exist.** The ticket
+  named `cmd/kube-proxy/app/ports.go`; there is no such file at `v1.34.0` — the constants are in
+  `pkg/cluster/ports/ports.go` and the serving code in `cmd/kube-proxy/app/server.go`. Directory
+  paths were resolved before any file was quoted, per §24.13.
+- **The build system was read to establish a negative that no source file states.** *"Kubernetes ships
+  no cloud-controller-manager"* is not written down in any document; it is read off
+  `hack/lib/golang.sh`'s target lists, which is an artefact class this note has not used before. The
+  negative's extent is exactly those four lists at `v1.34.0`, and it does not claim that no
+  Kubernetes-adjacent project ships such a binary — the SIG-owned provider repositories plainly do,
+  which is ADR-0056 limb 3 rather than a counter-example.
+- **The hot-set check was performed rather than deferred.** §24.10 left it to the merger.
+  [`safe-active-probing.md`](./safe-active-probing.md) §2.3 was read here, and it discharges §24's
+  flag as well as answering this section's own question. Recorded because a flag handed to *whoever
+  merges this* has no owner, and the cheapest place to close it was the next pass that needed the same
+  number.
+- **What was not done.** No cluster was run and no port was probed. Every verdict is a reading of a
+  dispatch or of a documented default at a named tag, and where a claim depends on what a handler
+  returns — `/configz`'s serialised object — the section says what the **code registers** rather than
+  quoting a response body it did not obtain.
+
+---
 ## Sources
 
 Government and standards bodies
