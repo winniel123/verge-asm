@@ -108,6 +108,29 @@ would have read as a law rather than as a sample of nine had its extent not been
   [ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md)'s owner definition makes
   each of them a candidate subject.
 
+### Note — [#91](https://github.com/winniel123/verge-asm/issues/91): limb 2 completes its first full cycle, and limb 1's trigger is narrower than its rationale
+
+**Limb 2 has now been run end to end.** [#83](https://github.com/winniel123/verge-asm/issues/83) read
+`ports-and-protocols.md` whole for `10250`'s claim and ticketed the three subjects it named that the
+table lacked ([`sensitive-ports.md`](../research/sensitive-ports.md) §19.8);
+[#91](https://github.com/winniel123/verge-asm/issues/91) disposed of all three — **`10259/tcp` and
+`10257/tcp` admitted, `10256/tcp` refused** (§24). **Both halves of limb 2's design held.** The
+candidates were not admitted where they were found, and the gates unexamined at discovery did real
+work: determinacy passed for all three and decided none of them, while the **claim** gate — the one
+the discovering retrieval was not scoped to answer — split the set two-to-one. This is the pattern
+`7000/tcp` predicted, with the split falling on a different gate.
+
+**A trigger question this ADR should be read as leaving open.** Limb 1 fires *"where an owner's
+artefact is opened **to attest a row**"*. §24 opened `pkg/cluster/ports/ports.go` for **determinacy**,
+not attestation, and it names three numbers the table does not hold — `10249` kube-proxy metrics,
+`10248` kubelet healthz, `10258` cloud-controller-manager. Limb 1's *letter* does not reach a
+determinacy retrieval; its **rationale** — a retrieval keyed on the rows you already have returns only
+the intersection — reaches it exactly. §24.11 records the by-catch on the rationale and routes it on
+limb 2, and declines to widen the limb, on the ground that one instance is not a measurement. **The
+criterion that would force the widening:** a second determinacy retrieval turning up a candidate the
+table lacks. `10249` is the first, and it looks strong — **[measured]** kube-proxy's metrics server is
+also entirely unauthenticated and its only protection is a loopback default.
+
 ## Alternatives rejected
 
 **Leave it as a retrieval habit rather than a rule.** The objection is that *read the whole file* is

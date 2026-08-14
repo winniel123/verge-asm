@@ -267,6 +267,33 @@ pairs.
   first install both are vacuous — *not waived*, per the pre-release section above — which is the whole
   reason #66 was worth running before v1 rather than after.
 
+### Amendment — [#91](https://github.com/winniel123/verge-asm/issues/91): the sensitive half gains `10259/tcp` and `10257/tcp`, so the union widens
+
+The Decision is unchanged again, and this is the **first widening**. Every prior move to the sensitive
+half has been a removal ([#66](https://github.com/winniel123/verge-asm/issues/66)) or no move at all.
+
+[#91](https://github.com/winniel123/verge-asm/issues/91) disposed of the three candidates
+[ADR-0037](./0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2 obliged
+[`sensitive-ports.md`](../research/sensitive-ports.md) §19.8 to ticket rather than admit. `10259/tcp`
+kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** on Claim 3; `10256/tcp`
+kube-proxy is **refused** — §24. The list is **39** pairs.
+
+- **The union widens by two members**, both in the sensitive half, both **TCP**. The UDP arithmetic
+  above is **untouched** and still reads five.
+- **§6's one-directional invariant fires for the first time in earnest.** Neither new pair is in the
+  frequency half, so *every pair on the sensitive list MUST be a member of the hot set* forces **two
+  hot-set additions**. This is the coupling direction this ADR chose, spending itself exactly as
+  designed: probe cost yields to correctness. The addition must be checked against
+  [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3's modern-services supplement at merge —
+  §24.10 flags the membership claim as asserted rather than measured.
+- **The price is real this time, and it is the pre-release price.** Adding a pair bumps
+  `sensitive-port-reached-from-internet`'s rule version
+  ([ADR-0008](./0008-derivation-versions-move-on-content.md)), `Break`s every evaluation and
+  **widens** the aperture. Before the first install all three are vacuous — *not waived* — which is
+  again the whole reason the ticket was run before v1 rather than after.
+- **The *"Correcting a mis-aimed port"* worked example is unaffected**: it turns on a transport
+  mismatch and neither new pair has a UDP sibling in either half.
+
 ## Alternatives rejected
 
 **Keep the lists independent with a build-time test** — [#21](https://github.com/winniel123/verge-asm/issues/21)
