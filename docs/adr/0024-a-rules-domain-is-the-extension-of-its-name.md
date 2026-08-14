@@ -167,7 +167,7 @@ not the same thing, and the difference is in what the value is *about*:
 
 | The evidence says | Register | Rendered as |
 | --- | --- | --- |
-| A fact about the world under which the rule's question does not arise (`NoTLS`, `NotHTTP`, no CNAME, a non-sensitive port) | **outside the domain** | nothing — the subject is not in this rule's population |
+| A fact about the world under which the rule's question does not arise (`NoTLS`, `NoHTTPResponse`, no CNAME, a non-sensitive port) | **outside the domain** | nothing — the subject is not in this rule's population |
 | A fact about **our own sight** (`Shadowed` — ADR-0007's *a value meaning we cannot see*) | **`not-evaluable`** | a census member and a row, cause *we measured; this rule cannot read the answer* |
 | No value at all | **`Gap`** | a census member and a row, cause *we never looked* / *we stopped looking* / *you stopped answering* |
 
@@ -251,9 +251,9 @@ all sixteen out is what tested the rule.
 | `certificate-expired` · `-not-yet-valid` · `-expiring` · `-self-signed` · `-weak-key-or-signature` | `certificate` is `Presented` | `NoTLS` |
 | `certificate-hostname-san-mismatch` | `certificate` is `Presented` **and** the `Endpoint` has a `Name` | `NoTLS`; a nameless `Endpoint` (ADR-0011) |
 | `tls-1.0-accepted` | the `Service` completed at least one handshake in the batch's candidate set | a `Service` that accepted no TLS at all |
-| `plaintext-http-no-https` | `http-identity` is `Responded` | `NotHTTP` — **not** a port |
-| `redirect-does-not-upgrade-to-tls` · `redirect-to-host-outside-estate` | `http-identity` is `Responded` with a 3xx and a `Location` | `NotHTTP`; any non-redirect response |
-| `unauthenticated-request-answered` | `http-identity` is `Responded` with a 2xx or a 401/403 | `NotHTTP`; a **3xx**, which ADR-0015 called "outside the predicate" and meant this |
+| `plaintext-http-no-https` | `http-identity` is `Responded` | `NoHTTPResponse` — **not** a port |
+| `redirect-does-not-upgrade-to-tls` · `redirect-to-host-outside-estate` | `http-identity` is `Responded` with a 3xx and a `Location` | `NoHTTPResponse`; any non-redirect response |
+| `unauthenticated-request-answered` | `http-identity` is `Responded` with a 2xx or a 401/403 | `NoHTTPResponse`; a **3xx**, which ADR-0015 called "outside the predicate" and meant this |
 | `sensitive-port-reached-from-internet` | `Service`s whose `(port, transport)` is on the sensitive list | every other `(port, transport)` |
 | `lame-delegation` | every `Name` in the estate — **a total domain is legal** | nothing; `Shadowed` is `not-evaluable`, inside |
 | `cname-target-name-error` | `Name`s whose `dns-record` holds a CNAME | a `Name` with no CNAME; `Shadowed` is `not-evaluable`, inside |
