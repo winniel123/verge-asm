@@ -269,3 +269,39 @@ question was posed on the assumption that the prober ships.
 | Suppress the second signal where both fire on one `Service` | Severity through the back door, and it would fuse two `Derivation` vectors so a move in either breaks both |
 | Keep §9.2's rule that a single-protocol signal is illegitimate | Excludes rules for the wrong reason; the harm is a name per protocol, not a scope of one |
 | One combined `insecure-listener` signal | Different evidence, different remediation — it would fire without telling the operator which thing to do |
+
+## Annotation — [#104](https://github.com/winniel123/verge-asm/issues/104), 2026-08-14: the SMB row is ratified, and it leaves one obligation behind
+
+The Decision row *"SMB signing — admissible in principle; **out of v1** for want of the prober, not
+for want of a principle"* **stands unchanged**, and #104 ratified it after carrying it back to
+[`insecure-listener-rules.md`](../research/insecure-listener-rules.md) §9.2, which had never heard of
+it. **The v1 rule set stays at sixteen.**
+
+Two things this ADR did not say, added rather than corrected.
+
+**Both of §9.2's grounds are gone, not one.** This ADR withdrew the per-protocol half explicitly. Its
+surviving half — *"it is integrity rather than confidentiality, so it fits neither rule"* — is a claim
+about §9.2's **two rules** and not about SMB, so it never excluded anything; this ADR's own *"it would
+be a third signal in any case"* already treated *third* as the shape of the answer. Generalised as
+[ADR-0065](./0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md):
+an exclusion rests on **the fact** or on **the aperture**, and the shape of the existing set is
+neither.
+
+**The deferral is free for the rule and not for the field.** This ADR's own central finding applies to
+the thing it deferred: the integrity fact is neither of `listener-negotiation`'s two proposed fields
+(§7.4), so it needs a **third** — and a facet's value space is decided **once**. While that facet does
+not exist the third field costs nothing either way; the day it ships with two fields, adding the third
+`Break`s every timeline it holds. So whoever builds the prober owes the **field** decision at
+specification time, ahead of and independently of any rule reading it — exactly what this ADR ruled
+for `http-identity`'s status class. Recorded at §8.2.
+
+**One thing this ADR left open is closed rather than carried forward.** The corrected test — *"its
+scope is however many protocols happen to express that fact"* — is a question, and #104 answered it by
+measurement: across eight protocols read against their own specifications, SMB is the **only** one
+where the integrity requirement is simultaneously server-originated, pre-credential, listener-scoped
+and a requirement rather than a capability. LDAP and SNMPv3 do not express it before authentication at
+all, NFS expresses it per-export or per-filehandle and (v3) mutates the server's mount list to answer,
+and SSH's answer is a constant *required*. So the rule is legitimately single-protocol, and the
+conclusion inverts the instinct: **a cross-protocol integrity abstraction would carry one real
+implementation and a set of degenerate ones.** The table is at
+[`insecure-listener-rules.md`](../research/insecure-listener-rules.md) §9.2.
