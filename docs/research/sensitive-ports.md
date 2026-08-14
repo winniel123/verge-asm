@@ -34,7 +34,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -76,6 +76,30 @@ Three constraints from decisions already made shape the answer before any eviden
 > sibling has since moved, it is marked in place and points here — per
 > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), a figure
 > that would mislead a reader who meets it alone is not withdrawn by being corrected somewhere else.
+>
+> ---
+>
+> #### §32's delta on top of the table above — [#101](https://github.com/winniel123/verge-asm/issues/101), stated separately because it was walked from `main` at `c0881ae`
+>
+> **§32 moves two cells between two rows of the footing table and moves nothing else.** It was resolved
+> in a batch with siblings that are also editing tier arithmetic in this file, so its delta is recorded
+> here **as a delta on the composed state above** rather than patched into that table's cells — which is
+> the same discipline §30.8 adopted for the same reason, one merge earlier.
+>
+> | Figure | Above | After §32 | How it composes |
+> |---|---|---|---|
+> | §2.2 **prohibition** tier | 14 | **16** | `+ 2181/tcp` `+ 25672/tcp` — §32 |
+> | §2.2 **scoping** tier | 13 | **11** | `− 2181/tcp` `− 25672/tcp` — §32 |
+> | §2.2 **weak** tier | 3 | **3, unchanged** | §32.9's Option F, which would have emptied it, is refused |
+> | §2.2 *outside this table's subject* | 11 | **11, unchanged** | `16 + 11 + 3 + 11 = 41` |
+> | §2.2 footing coverage | 30 of 41 | **30 of 41, unchanged** | no pair enters or leaves the table |
+> | Everything else in the table above | — | **unchanged** | §32 touches no pair, no class, no claim, no exclusion and no arithmetic |
+>
+> **In prose, and parametrically, so a merger re-derives rather than patches:** *the prohibition tier
+> gains `{2181/tcp, 25672/tcp}`, the scoping tier loses the same two, and every other tier, count,
+> denominator and total is unchanged.* **The delta is `+2 / −2` on any baseline**; if a sibling moves the
+> composed figures before §32 merges, the membership lists at §32.11 are what the totals should be
+> re-derived from. §32.11 and §32.12 state the basis and its risk.
 
 The headline result is the one that would not have come out of a frequency instrument:
 
@@ -441,6 +465,56 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > instrument reproduces all nine comment verdicts the note carries, across five projects and three
 > artefact classes (§31.5). **No `(port, transport)` pair moves, no row moves, no tier moves, no `Break`.**
 > Read §31.6 and §31.11 before quoting `10248`'s cell.
+
+> **Amended by §32** ([#101](https://github.com/winniel123/verge-asm/issues/101)). **Two cells move
+> between two rows of this table, and it is the first time this section's top row has had a *membership
+> test* rather than a universal true of its members.** **`2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ
+> leave the explicit trusted-network scoping tier for the explicit prohibition tier.**
+>
+> **§20.8's criterion is *sufficient* as well as necessary**, on the four-limb conjunction ADR-0059
+> limb 3 already enumerated and declined to add up: the statement must be the **owner's** for this port
+> (§10.5, §16.6), must reach **this `(port, transport)` pair** (§2.3,
+> [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)),
+> must name **the public internet** (§20.8), and must take a **position** rather than record an
+> aspiration (§26.4) or a label (§27.6). **A footing satisfying all four leaves the reader nothing to
+> supply, and zero supplied premises is the top tier by ADR-0059 limb 1's own definition.** §32.2.
+>
+> **The tiers are prohibition 16 pairs · scoping 11 pairs · weak 3 rows · outside-subject 11**,
+> coverage **unchanged at 30 of 41**, and 16 + 11 + 3 + 11 = **41** — walked against `main` at
+> `c0881ae`, the state §27 and §30 composed to. **No `(port, transport)` pair moves, no row moves, no
+> class total moves, and [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not
+> triggered.** §32.11 states the delta parametrically — **prohibition gains `{2181, 25672}`, scoping
+> loses the same two, everything else is unchanged** — so a merger re-derives the totals rather than
+> patching them.
+>
+> **[measured] The criterion does not take its neighbours with it**, which is the failure §30.5
+> measured its own losing option committing. Run in the **promoting** direction across all thirteen
+> scoping members it promotes **exactly two**: `4369/tcp` epmd is refused on limb 1 — the sentence
+> naming the public Internet is RabbitMQ's and RabbitMQ is a **non-owner** for that port (§16.6, §20.7)
+> — and `2049/tcp` NFS on limb 4, RFC 7530 §1.2's Internet sentence being a goal RFC 8881 records as
+> **unmet** (§26.4). Run in the **demoting** direction it refuses **none** of the fourteen sitting
+> members. §32.3, §32.4.
+>
+> **This table's scoping row is homogeneous again, and §30.7's *"read §30.7 before quoting it as
+> homogeneous"* is superseded.** ADR-0059 limb 1's unit is **the owner's statement of the port's
+> permitted network**, not a *sentence*; prose is one form of it and a boundary named in a ports-table
+> cell or an issued document is another. On that reading §24.12's *"more than a default"* and limb 1's
+> *"one premise"* are the **same test**, §16.5 was already running it in §12(b)'s vocabulary in the
+> section that created the weak tier, and **no non-prose cell moves**: `10259`, `10257` and `10249`
+> stay scoping on a boundary the owner names, and `5432`, `5984` and `10248` stay weak on a restricting
+> default that names none. §32.7.
+>
+> **No ADR is minted and ADR-0062 is left unused.** Every limb was a standing rule of this note; what
+> was missing was the statement that the list of them is **closed**, and the note's only precedent for
+> closing an enumeration — §10.2's claim set — is a **section**. **ADR-0059 is amended in place**
+> instead, per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md):
+> its *"not sufficient"* and *"prose footings only"* sentences are wrong after this section and are
+> withdrawn where they are specified. **Limb 1's premise-count mechanism and limb 2's inadmissibility
+> of mood, force, hedging and priority label are untouched.** §32.10.
+>
+> **Read §32.12 before quoting the four limbs as exhaustive.** The closure is a ruling, not a
+> measurement; **direction** — inbound versus outbound — is the named candidate for a fifth limb and
+> no member of either tier turns on it today.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -1278,6 +1352,42 @@ different protocols on the same number, and §6 shows this has already caused a 
 > ZooKeeper's *"not exposed directly to the Internet"* and RabbitMQ's *"not exposed to the public
 > Internet"*, both the owner's for their own port, both in the **scoping** tier. §20.8's criterion is
 > **necessary and not sufficient**, so neither is promoted here. §30.7.
+
+> **Amended by §32** ([#101](https://github.com/winniel123/verge-asm/issues/101)). **No quote in this
+> section is withdrawn or reworded, one is added, and two rows' quotes now carry them in a different
+> tier.**
+>
+> **`2181/tcp` and `25672/tcp` — the by-catch §30 reported is applied.** Both owner sentences above
+> stand and go on carrying their rows; what changes is that both footings sit in the **explicit
+> prohibition** tier rather than the **explicit trusted-network scoping** tier, because §20.8's
+> criterion is now sufficient as well as necessary (§32.2). §30's *"neither is promoted here"* is
+> **superseded** — #101 is the pass whose question it was, which is §26.3 → §30 happening a second time
+> on the same table.
+>
+> **Both sentences were re-retrieved in their own context for §32 rather than relied on as quoted
+> here**, per [#46](https://github.com/winniel123/verge-asm/issues/46)'s truncated-conditional rule, and
+> **the rule fired once.** ZooKeeper's sentence **opens** its *Security model* section with nothing
+> before it to condition it, and survives unchanged. RabbitMQ's does **not** stand alone: the sentence
+> immediately before it is *"RabbitMQ nodes will listen for inbound connections from **peers and CLI
+> tools**"*, which is what confines *"these ports"* to the peer/CLI ports rather than to the whole
+> enumerated list in that section — a list that includes `5672`/`15672`, the two ports §4.6 excludes and
+> §17.4 found the owner naming **public networks as supported** for. **Quoted without its antecedent the
+> sentence would be a category statement defeated for two of its members; quoted with it, it reaches
+> `25672` and stops.** §32.6.
+>
+> **One RabbitMQ sentence is added, and it is not relied on.** **[measured]** the owner's
+> `rabbitmq.conf` documentation for `distribution.listener.interface` — the setting that binds the
+> inter-node listener, which is `25672` — carries *"For multi-node clusters, nodes **must** listen on an
+> 'internal network-local' interface that would allow cluster peers to connect but **not be exposed to
+> the public Internet**"*. It is a second, independent, port-specific instance of all four limbs. It is
+> **firmer in mood** than the sentence the promotion rests on and ADR-0059 limb 2 makes that difference
+> inadmissible; it is recorded as **redundancy**, which is a fact about volatility rather than about
+> strength. §32.6.
+>
+> **The RabbitMQ Internet clause is hyperlink anchor text and its destination is a third party's.**
+> **[measured]** *"not exposed to the public Internet"* links to an Erlang Ecosystem Foundation post.
+> **The words are RabbitMQ's; the destination is not**, the linked post is neither read nor relied on,
+> and the hazard is recorded at §32.13 as a corroborator reachable from inside an owner's own sentence.
 
 ---
 
@@ -7142,6 +7252,36 @@ the house precedent that **a footing found in one lane does not re-tier a row pl
 > carry owner sentences that *do* name the Internet and are **not** promoted. Read §30.7 before quoting
 > this sentence as a membership test.
 
+> **Amended by §32** ([#101](https://github.com/winniel123/verge-asm/issues/101)). **The `4369` ruling
+> stands a second time and is not re-founded again; what changes is that the sentence carrying it is now
+> a *membership test* and no longer only a universal.** Added rather than substituted, per the
+> name-and-withdraw convention.
+>
+> **The criterion is *sufficient* as well as necessary** — on the four-limb conjunction at §32.2, of
+> which this section's lexical test is limb 3. **[measured]** the sentence above becomes a correct
+> statement about a **sixteen**-member tier: `2181/tcp` and `25672/tcp` are promoted into it (§32.5,
+> §32.6), and the tier is now **exactly** the set of footings satisfying the conjunction. §30's *"true,
+> not complete"* is discharged.
+>
+> **The block immediately above is superseded in one clause and confirmed in the rest.** *"It is
+> necessary for the prohibition tier and **not sufficient**"* is **withdrawn**; *"read §30.7 before
+> quoting this sentence as a membership test"* is **discharged** — §32 is what makes it one. §30.7's
+> two by-catch findings are both applied.
+>
+> **`4369/tcp` is refused by the sufficient condition too, and it is refused on a different limb than
+> the one this section argued.** §20.8 and §30.6 refuse it on limb 3 — Erlang/OTP names a **boundary**,
+> so `DEP-001` is one premise away. The conjunction refuses it a second time on **limb 1**: the sentence
+> that *does* name the public Internet and *does* cover `4369` is **RabbitMQ's**, and RabbitMQ is a
+> **non-owner** for this port (§10.5, §16.6, §20.7). **The promotion this section argued and refused is
+> offered again by a criterion built to place members rather than only to refuse them, and it is refused
+> again.** That is the test [#101](https://github.com/winniel123/verge-asm/issues/101) set — *a criterion
+> that stretches to fit its counterexamples takes its neighbours with it* — run on this row and passed.
+> §32.3.
+>
+> **The *"criterion that would move the cell"* is unchanged.** An Erlang/OTP sentence that closes the
+> premise gap by naming the network the row is about. §32 adds nothing to it and removes nothing from
+> it; RabbitMQ's sentence still cannot close it, and now there is a named limb saying why.
+
 ### 20.9 Every dependent figure, checked rather than asserted
 
 | Where | Was | Is |
@@ -12553,6 +12693,34 @@ smoothed**, and it is the same shape as §2.2's
 original disclosure that the second and third forms *"are not equally strong"* — a tier holding two kinds
 of evidence needs to say so. Routed to the same ticket as Finding 1.
 
+> **Both findings discharged by §32** ([#101](https://github.com/winniel123/verge-asm/issues/101)), the
+> ticket this subsection routed them to.
+>
+> **Finding 1 is applied.** `2181/tcp` and `25672/tcp` are **promoted** to the explicit prohibition
+> tier. §20.8's criterion is sufficient as well as necessary, on the four-limb conjunction ADR-0059
+> limb 3 enumerated (§32.2), and both sentences satisfy all four — re-retrieved in their own context
+> first, which caught a truncated antecedent in RabbitMQ's (§32.6). **The tiers read prohibition 16 ·
+> scoping 11 · weak 3 · outside-subject 11**, coverage 30 of 41 unchanged.
+>
+> **Finding 2 is dissolved rather than resolved, and the tier has one population.** ADR-0059 limb 1's
+> unit is **the owner's statement of the port's permitted network**, not a *sentence* — limb 1 wrote
+> the narrower word because every footing it walked was prose. On that reading §24.12's *"more than a
+> default"* **is** limb 1's *"one premise"*: what the non-prose footings have beyond a default is, in
+> every instance decided, the owner **naming a boundary**, and naming a boundary is one premise.
+> §16.5 was already running that test in §12(b)'s vocabulary — `Used By: Self, Control plane` to
+> **scoping** as a boundary the owner names, `readOnlyPort` *"Default: 0 (disabled)"* and nothing else
+> to the **weak** tier — fourteen sections before ADR-0059 gave it a unit. **No non-prose cell moves.**
+> §32.7.
+>
+> **This subsection's open question is answered.** *"Which of this finding's two populations `10249`
+> belongs to"* has no answer of the kind it asks for, because there is one population: `10249` is
+> scoping on `source-ip.md` placing the caller on the node, which is a boundary, which is one premise.
+>
+> **§30.9's *"read §30.7 before quoting this table's scoping row as homogeneous"* is superseded.** It is
+> homogeneous. What should be read before quoting the **prohibition** row as complete is §32.12 — the
+> conjunction's closure is a ruling and **direction**, inbound versus outbound, is the named candidate
+> for a fifth limb.
+
 ### 30.8 Every dependent figure, walked rather than asserted
 
 > `FIGURE DELTA: §2.2 prohibition tier 15 → 14 · §2.2 scoping tier 11 → 12. Every other figure in the note checked and unchanged. No row moves.`
@@ -13243,6 +13411,710 @@ records why that is adequate here and where it would not be.
   the test admit that the note currently refuses?* — was run and returned **none**. A criterion run in one
   direction only is §30.10's *rewrite with a verdict attached*, and this one was run the other way first
   for that reason.
+
+---
+
+## 32. §20.8's criterion is sufficient as well as necessary — `2181` and `25672` promote, and the scoping tier goes back to being sorted on one dimension
+
+Wayfinder ticket [#101](https://github.com/winniel123/verge-asm/issues/101), on the incompleteness
+§30.9 named as its own thin ground: *"This section makes the reconstruction **true**; it does not make
+it **complete**."* [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)
+limb 3 states the lexical test as **necessary and not sufficient**, and a necessary condition can
+refuse a member and cannot place one. This section **amends §2.2, §3.4, §20.8, §30.7 and ADR-0059**;
+earlier text stands and is marked, per the name-and-withdraw convention, and where §32 and an earlier
+section disagree, **§32 governs**. **§16.5's, §24.12's and §27.5's non-prose placements are
+*ratified*, not amended** — no cell of theirs moves and §32.7 supplies the principal they were decided
+on.
+
+**Headline result, stated first.**
+
+> **The criterion is sufficient as well as necessary, and the sufficient condition is the conjunction
+> ADR-0059 limb 3 already enumerated and declined to call one.** Limb 3 says the lexical test does not
+> promote *by itself* and then lists what else is required — the statement must be the owner's (§10.5),
+> about the port (§2.3, [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)),
+> and a **position** rather than an aspiration (§26.4). **This section rules that the list is closed.**
+> A statement satisfying all four leaves the reader **nothing** to supply, and zero supplied premises
+> **is** the top tier by limb 1's own definition. §32.2.
+>
+> **`2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are promoted to the explicit prohibition tier.** Both
+> owner sentences were **retrieved in their own context** for this section rather than quoted from
+> §3.4, and both survive the reading. §32.5, §32.6.
+>
+> **[measured] The criterion does not take its neighbours with it, which is the test #101 set and the
+> test Option A failed at §30.5.** Run in the promoting direction across all thirteen scoping-tier
+> members, it promotes **exactly two** and refuses the other eleven, `4369/tcp` epmd among them — the
+> RabbitMQ sentence that names the public Internet covers `4369` too and is a **non-owner's** for it
+> (§16.6, §20.7), so limb 1 refuses it. **§20.8's central ruling is untouched.** §32.3. Run in the
+> demoting direction it refuses **none** of the fourteen sitting members. §32.4.
+>
+> **The scoping tier's second population is dissolved rather than accommodated.** ADR-0059 limb 1's
+> unit was written as *sentence* because every footing it walked was prose; the unit it was always
+> counting from is **the owner's statement of the port's permitted network**, in any form §2.2 admits.
+> On that reading §24.12's *"more than a default"* and limb 1's *"one premise"* are the **same test**,
+> §30.7's Finding 2 is discharged, and the question §30.7 expressly left open — which population
+> `10249/tcp` belongs to — has a one-word answer, because there is only one. **No non-prose cell
+> moves.** §32.7.
+>
+> **Two cells move. No `(port, transport)` pair moves, no row moves, no class total moves, no coverage
+> figure moves, and [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered.**
+>
+> **No ADR is minted and ADR-0062 is left unused**, as `0039`, `0041` and `0053` are. Every rule this
+> section applies was available; what was missing was the statement that the list of them is closed,
+> and that belongs in **ADR-0059's own body** rather than in a second ADR about the same column.
+> ADR-0059 gains an amendment. §32.9, §32.10.
+
+### 32.1 The question is *how many gaps the proposition has*, and limb 3 already listed them
+
+§20.8's criterion was read off the members. §30 made it a **true universal** over the fourteen-member
+tier that remained, and stopped there, because #98's question was the falsehood rather than the
+membership test. The residue is exact and §30.9 wrote it down: *"a **necessary** condition can refuse
+a member and cannot place one."*
+
+**Why the gap existed, stated because it explains the shape of the repair.** §20.8's sentence reads on
+**one term** of the row's proposition. The row asserts *this `(port, transport)` pair being reachable
+from an internet vantage is never correct*, and that proposition has more than one term:
+
+| Term of the row's proposition | What closes it | Where the note already ruled it |
+|---|---|---|
+| **who** is asserting | the statement is the **owner's** for this port | §10.5; §16.6 — *ownership is tested per port, not per sentence* |
+| **what** it is about | the statement reaches **this pair** | §2.3, ADR-0050; §18.5's ratification walk |
+| **which network** | the statement names **the public internet** | §20.8, ADR-0059 limb 3 |
+| **in what mood** | the statement takes a **position** | §26.4; §27.6 — *label* versus *position*; ADR-0050 limb 3 |
+
+§20.8 tested the third row of that table and nothing else, because it was written to decide `4369` and
+the third row is where `4369` fails. Reading a one-term test as a membership test for a four-term
+proposition is the error, and it is an error of **extent** rather than of substance — which is why the
+repair adds no new rule and only says how far the existing ones reach.
+
+**ADR-0059 limb 3 states all four rows and then declines to add them up.** Its own words: *"A footing
+whose sentence passes it is **not thereby promoted**: tier membership still requires the sentence to be
+the owner's (§10.5), to be about the port (§2.3, ADR-0050), and to state a **position** rather than an
+aspiration (§26.4)."* That is the conjunction, written out, in an Accepted ADR, followed by *"the note
+has never stated the sufficient condition and this ADR does not invent one."* **The enumeration
+existed; the closure claim did not.** #101 is the closure claim.
+
+### 32.2 The sufficient condition, stated in four limbs
+
+> **A footing is in the explicit prohibition tier if and only if the owner has published a statement
+> that closes every gap between itself and the row's proposition. Four limbs, all required, and every
+> one of them answered by opening an artefact rather than by judging one.**
+>
+> 1. **Standing.** The statement is the **owner's for this port** under §10.5, tested per port and
+>    never per sentence (§16.6).
+> 2. **Reach.** The statement is about **this `(port, transport)` pair** — either the owner numbers the
+>    pair, or ADR-0050's three limbs carry it there on the owner's own artefacts.
+> 3. **Network.** The statement names **the public internet**. §20.8's lexical test, unchanged and not
+>    widened by a syllable.
+> 4. **Modality.** The statement takes a **position** rather than recording an aspiration (§26.4), a
+>    label (§27.6) or a preference against an architecture the owner elsewhere names as supported
+>    (ADR-0050 limb 3, §10.3's failure condition).
+>
+> **A footing satisfying all four sits at zero reader-supplied premises, and zero premises is the top
+> tier by ADR-0059 limb 1's own definition.** A footing failing limb 3 alone, on a statement that names
+> a **boundary** instead, sits at one — *the internet lies outside it* — and is **scoping**. A footing
+> failing limbs 1, 2 or 4 is not evidence of the row's proposition at all and does not enter the
+> grading; the tier then records the strongest form that does (§28).
+
+**What is new here is the word *sufficient* and nothing else.** Limbs 1, 2 and 4 are the note's
+existing admissibility rules, applied to the footing column instead of to the claim column; limb 3 is
+§20.8's. The section adds the claim that **there is no fifth limb** — that once who said it, what it is
+about, which network it names and whether it is a position are all fixed, there is nothing left for a
+reader to supply. That claim is a **ruling** and it is flagged as one at §32.12.
+
+**It is closed the way §10.2 closed the claim set, and that is the note's only precedent for closing an
+enumeration.** §10.2 — *"the three claims are closed, and closed by **construction**"* — did not close
+the set by surveying candidates and finding none left; it argued that the space the claims partition
+has three parts. This closure is the same move on a smaller object: **the row's proposition has four
+terms, a reader-supplied premise can only be needed for a term, and the note has a rule for each of the
+four.** A fifth limb requires a fifth term, which is what §32.12 says a challenger should go looking
+for. Note where §10.2 lives: it is a **section of this note**, not an ADR — which is the precedent
+§32.10 follows on the artefact question as well as on the reasoning.
+
+**The conjunction stays a retrieval, which is the property §30.5 spent three paragraphs protecting.**
+Each limb is answered by opening a document: *is this party the owner of this port*, *does the owner's
+own artefact place this pair inside the statement's subject*, *does the string appear*, *does the owner
+elsewhere name an internet-facing deployment as supported*. None of them asks how firmly the owner
+speaks, so **ADR-0059 limb 2 is untouched in both directions** and the force ranking §15.7 named as the
+standing temptation does not enter through this door either.
+
+### 32.3 The walk in the promoting direction — all thirteen scoping-tier members, verdict per row
+
+**[measured]** Against the composed state of `main` at `c0881ae` — §2.2 tiers **prohibition 14 ·
+scoping 13 · weak 3 · outside-subject 11**, coverage **30 of 41**. This is the state §30 and §27
+composed to and the state this section walked; it is **not** #98's `15 / 11 / 2` line and it is not
+§30.9's uncomposed `16 / 10 / 2` projection.
+
+| # | Pair | 1. Owner's? | 2. Reaches the pair? | 3. Names the public internet? | 4. A position? | Verdict |
+|---|---|---|---|---|---|---|
+| 1-3 | `27017`/`27018`/`27019` MongoDB | yes | yes (§18.5) | **no** — *"only accessible on **trusted networks**"* | — | **Stays** — one premise |
+| 4 | `2049/tcp` NFS | yes | yes | `nfs(5)` names none; **RFC 7530 §1.2 does** | **no** — RFC 8881 Appendix C records it as a goal **unmet** (§26.4) | **Stays.** The tier's closest call twice running, and limb 4 is what holds it |
+| 5 | **`2181/tcp` ZooKeeper** | **yes** — Apache ZooKeeper's own issued site | **yes** — §18.5 ratified ADR-0050 limbs 1-3 for this pair | **yes** — *"not exposed directly to **the Internet**"* | **yes** | **PROMOTES** — §32.5 |
+| 6 | **`25672/tcp` RabbitMQ** | **yes** | **yes** — the owner **numbers** `25672` in the same document (§18.5) | **yes** — *"not exposed to **the public Internet**"* | **yes** | **PROMOTES** — §32.6 |
+| 7 | `4369/tcp` epmd | **NO** for the sentence that names the internet | — | Erlang/OTP: **no**. RabbitMQ's sentence: **yes**, and RabbitMQ is a **non-owner** for `4369` (§16.6, §20.7) | — | **Stays.** §20.8's ruling is untouched — see below |
+| 8-9 | `2375`/`2376` Docker | yes | yes | **no** — *"a **trusted network** or VPN"*, *"an **open network**"* | — | **Stays** — one premise |
+| 10 | `873/tcp` rsync | yes | yes (§18.5) | **no** — **[measured]** `internet` occurs **0** times across `rsync.1.md`, `rsyncd.conf.5.md` and `SECURITY.md` at `v3.5.0` (§26.3, re-measured §30.10) | — | **Stays** where §30 put it |
+| 11 | `10259/tcp` kube-scheduler | non-prose footing | — | — | — | **Stays** — §32.7 |
+| 12 | `10257/tcp` kube-controller-manager | non-prose footing | — | — | — | **Stays** — §32.7 |
+| 13 | `10249/tcp` kube-proxy | non-prose footing | — | — | — | **Stays** — §32.7 |
+
+> **Two promote · eleven stay · zero ambiguous.** Thirteen members walked, two cells moved.
+
+**`4369/tcp` is the whole test and it is worth stating on its own.** #101 required any candidate
+criterion to be run in the promoting direction across the tier **before** adoption, because §30.5
+measured Option A promoting `4369` as a side effect of repairing §20.8 — *"a criterion that stretches
+to fit its one counterexample takes its neighbours with it"*. This criterion is run in that direction
+and **it does not reach `4369`**, and it fails to reach it for a reason that is structural rather than
+lucky: the sentence that would promote `4369` is RabbitMQ's, RabbitMQ does not own epmd, and **limb 1
+is the first limb**. Erlang/OTP's own `DEP-001` names a trust boundary and leaves the premise standing,
+which is exactly §20.8's re-founded ground at §30.6. **The neighbour is offered and refused.**
+
+**And `2049/tcp` is the second test, on the other limb.** NFS is the only scoping row with an owner
+document that names the Internet, and it is refused on **limb 4** rather than on limb 3 — RFC 7530
+§1.2's *"the Internet"* sentence is a design goal the same protocol's later RFC records as unmet, which
+§26.4 already measured and called *"the closest this sweep came to moving a row"*. A criterion that
+promoted `2049` on a retracted aspiration would be reading the corpus for keywords. Limb 4 is doing
+real work on a real row, which is the evidence that it is a limb and not a decoration.
+
+### 32.4 The walk in the demoting direction — the conjunction refuses none of the fourteen
+
+A sufficient condition is also a **membership test**, so it must be run backwards: if any sitting
+prohibition-tier member fails one of the four limbs, adopting the conjunction demotes it, and #101's
+*no row moves* constraint has a sibling — **a criterion that empties half its own tier is the wrong
+criterion.**
+
+**The dangerous limb is limb 2, and the danger is measured.** §18.2 ran exactly this experiment for the
+claim column: **[measured]** of the sentences carrying the table's placed pairs, only **five** write
+the port number — `3306`, `2379`/`2380`, `9042`, `25672`, `10250`. Read limb 2 as *the sentence must
+name the number* and the prohibition tier loses Redis, memcached, MS SQL, Elasticsearch, SMB and IPMI
+in one stroke, leaving *"the set of ports whose maintainers happened to type a number"*, which §2.2's
+founding paragraph refuses in advance.
+
+**So limb 2 is read at ADR-0050's standard, which is the standard the table has always been applied
+at**, and the walk is a re-reading of §18.5's ratification rather than a new retrieval:
+
+| Prohibition-tier pairs | How limb 2 is satisfied | Source |
+|---|---|---|
+| `3306` · `2379` · `2380` · `9042` · `10250` | the owner **numbers** the pair in the carrying document | §18.5 |
+| `6379` · `11211/tcp` · `11211/udp` · `1433` · `9200` · `9300` · `445` (+`139`/`137`/`138` in-cell) | ADR-0050 limbs 1-3, ratified on artefacts the note already holds | §18.5, §16.4 |
+| `10255` | the owner's shipped `readOnlyPort` doc comment places the port inside *the kubelet API* | §18.6 |
+| `623/udp` | the **specification** numbers the pair (§23.2); §28 put three co-authors' own first-party documents behind the position | §23, §28 |
+
+**Limbs 1, 3 and 4 are already measured for all fourteen.** Limb 1 is §10.5's work, completed for this
+table at §16.6 and §20.7. Limb 3 is §30.2's row-by-row table — **14 clean · 0 failing** after `873`
+left. Limb 4: every one of the fourteen is a position; none is an unmet goal, a label, or a preference
+against a supported architecture — the one member where the last of those was live, `6443/tcp`, is not
+in the tier because it is not on the list (§4.4, §18.4).
+
+> **Fourteen members, four limbs, zero demotions.** The conjunction is satisfied by the tier as it
+> stands, which is ADR-0042's reconstruction test — *"every ruling in the note falls out of it without
+> strain"* — passed in the direction that would have been expensive to fail.
+
+### 32.5 `2181/tcp` ZooKeeper — retrieved in its own context, and the sentence survives the reading
+
+#101 required the sentence be read in context rather than taken from §30.7's fragment, because
+[#46](https://github.com/winniel123/verge-asm/issues/46)'s truncated-conditional hazard has now fired
+five times in this note and every previous firing changed a verdict. **[measured]**, retrieved for this
+section from the owner's own issued site:
+
+> "ZooKeeper is a coordination service intended for use inside a trusted network, **not exposed directly
+> to the Internet**. The Admin Guide states it plainly: 'A ZooKeeper ensemble is expected to operate in
+> a trusted computing environment. It is thus recommended deploying ZooKeeper behind a firewall.' A
+> fresh ensemble ships with no transport encryption, no peer authentication, and world-readable/writable
+> znodes."
+> — [zookeeper.apache.org/security.html](https://zookeeper.apache.org/security.html), the opening
+> paragraph of its *Security model* section
+
+**Three things the context supplies that the fragment did not, and only one of them is a hazard.**
+
+1. **The sentence opens the section; nothing precedes it to condition it.** There is no *unless*, no
+   carve-out, and no sentence-run of the `3306` shape that a lift would misread. #46's hazard is tested
+   and does not fire.
+2. **It names no port.** The subject is *ZooKeeper*, the coordination service — so the pair is reached
+   by ADR-0050 and not by the sentence, which is limb 2 and is where the retrieval mattered.
+3. **The next sentence attributes the *"behind a firewall"* line to the Admin Guide**, which is the
+   owner citing itself and is the reason §3.4 has always carried the two together.
+
+**Limb 2 is not argued here, because §18.5 already ratified it for this exact pair.** Its words:
+*"Ratified, cell unchanged (limbs 1-3 satisfied on artefacts this note already holds): `6379`,
+`11211/tcp`+`11211/udp`, `1433`, `9200`+`9300`, `873`, `445`+`139`+`137`+`138`,
+`27017`/`27018`/`27019`, `2049`, **`2181`**, `2375`+`2376`. In each the owner states the category and
+the owner's own documentation or shipped configuration numbers the port — for several (`6379`, **`2181`**,
+`27017`) the two are the same file."* The category ZooKeeper spoke about is the same in both sentences
+— the service, the ensemble — so the membership warrant §18.5 established for *"behind a firewall"*
+carries the Internet sentence to `2181` without a second step. **Nothing about the footing is
+reopened; what changes is which tier it lands in once limb 3 is allowed to place rather than only to
+refuse.**
+
+**Limb 4, argued rather than assumed, because a reader will push here.** *"is a coordination service
+intended for use inside a trusted network, not exposed directly to the Internet"* is grammatically
+**descriptive** — a statement about what the software is for — and a reader may say a description is
+not a position. **It loses on the tier's own membership.** `6379` Redis is carried by *"Redis is
+designed to be accessed by trusted clients inside trusted environments. This means that usually it is
+not a good idea to expose the Redis instance directly to the internet"* — the identical shape, a
+description of intended use followed by the negative it entails, and it has been in the prohibition
+tier since the note was written. Refusing ZooKeeper on descriptiveness demotes Redis in the same
+breath, which is the neighbour-taking failure arriving from the demoting side. And §18.3 already
+disposed of the genre objection in general terms: *"The genre is not the defect; the party is."*
+
+**Limb 3's *"directly"* is not a qualifier that costs a premise.** Redis (*"directly to the internet"*),
+memcached (*"directly to the internet"*) and MS SQL (*"directly to the Internet"*) all carry it and all
+sit in the tier. A listener fronted by a proxy is a different listener, which is what *directly*
+excludes; the row is about this pair being reachable from an internet vantage, and that is the case
+*directly* names.
+
+**Limb 1 and ADR-0045.** `security.html` is served on the owner's own published documentation site,
+which §21's second form admits directly; issuance needs no argument here.
+
+### 32.6 `25672/tcp` RabbitMQ — the context narrows the subject, and there is a second owner sentence nobody had opened
+
+**[measured]**, retrieved for this section from the owner's own issued site. The sentence §3.4 and
+§30.7 quote sits in the *Port Access* section, and **the sentence immediately before it is the one that
+matters**:
+
+> "RabbitMQ nodes will listen for inbound connections from **peers and CLI tools**. It is important to
+> only expose these ports to the hosts and subnets that run other cluster nodes, or where CLI tools are
+> used, and **not exposed to the public Internet**."
+> — [rabbitmq.com/docs/networking](https://www.rabbitmq.com/docs/networking), *Port Access*
+
+**The preceding sentence scopes *these ports* to the peer and CLI-tool ports, and that is what makes the
+sentence safe to promote on.** Read without it, *"these ports"* could be taken to reach the whole
+enumerated list in the section — which includes `5672`/`5671` AMQP and `15672` management, the two
+ports §4.6 **excludes** and §17.4 found the owner naming **public networks as supported** for. Under
+that misreading the sentence would be a category statement defeated for two of its members under
+ADR-0050 limb 3, and promoting `25672` on it would require the reader to supply the member-selection
+premise — one premise, therefore scoping, therefore no promotion. **Read with its antecedent, the
+subject is the peer/CLI ports and `25672` is in it by the owner's own definition of the port** (*"used
+for inter-node and CLI tools communication"*, in the section's own bullet). #46's hazard is tested,
+fires, and is disposed of **by retrieval rather than by argument** — which is the fifth firing and the
+second in the generous direction, after §30.3's.
+
+**Limb 2 needs no rule at all here.** §18.5 lists `25672` under *"Numbered by the owner, so the rule is
+not needed"*; the bullet carrying the sentence **is** the `25672` bullet.
+
+**A second owner sentence, in a class this note had not opened for this row.** **[measured]** the
+owner's own `rabbitmq.conf` documentation, in the *Inter-node Communication Interface* section, carries
+the position in the configuration prose that ships with the setting:
+
+> ```
+> # This particular configuration only makes sense for single-node clusters.
+> # For multi-node clusters, nodes must listen on an "internal network-local" interface
+> # that would allow cluster peers to connect but **not be exposed to the public Internet**
+> distribution.listener.interface = 127.0.0.1
+> ```
+> — [rabbitmq.com/docs/networking](https://www.rabbitmq.com/docs/networking), *Inter-node Communication
+> Interface*, on the setting that binds the inter-node listener
+
+That sentence is about the **inter-node communication listener** and nothing else, which is `25672` by
+the owner's own naming, in an **imperative** (*must*), naming the public Internet. It is a second,
+independent, port-specific instance of all four limbs. **It is recorded and it is not relied on** —
+the *Port Access* sentence carries the promotion alone, and ADR-0059 limb 2 forbids reading the second
+sentence's firmer mood as adding anything. What it adds is **redundancy**, which is the one thing
+§16.9's volatility flag says the thin cells lack.
+
+**Limb 4, and the defeat check that goes with it.** ADR-0050 limb 3 asks whether the owner elsewhere
+names an internet-facing deployment of **this member** as supported. §17.4 measured RabbitMQ's
+production checklist doing exactly that — *"Ports in the former category should be accessible to hosts
+that run applications, which in some cases can mean **public networks**"* — and **[measured]**,
+re-read for this section, the *former* category is *"ports used by client libraries"* and `25672` is in
+the **latter**, *"all other ports (inter node communication, CLI tools and so on)"*, which the same
+paragraph says *"should be restricted to hosts running RabbitMQ nodes or CLI tools"*. **The owner splits
+its own port list and puts `25672` on the restricted side of the split.** Limb 3's defeat condition is
+tested per member (§18.4) and fails for `25672` exactly as it succeeded for `5672`/`15672`. The two
+verdicts come from one document and point in opposite directions, and that is the rule working.
+
+### 32.7 The non-prose footings — limb 1's unit was never a sentence, and §24.12's *"more than a default"* is the same test
+
+#101's second question: **how is a footing that is not a sentence tiered at all**, given ADR-0059 limb
+1 counts premises *"between the owner's own sentence and the proposition the row asserts"* and a
+ports-table cell supplies no sentence.
+
+**The answer is that limb 1's unit was misnamed, not misconceived.** Every footing ADR-0059 walked was
+prose, so *sentence* and *the owner's statement of the port's permitted network* were coextensive over
+its whole population and it wrote the narrower word. §2.2 has said since the note was written that the
+third form is *"a maintainer position expressed in **code** rather than prose"* and *"is not a weaker
+substitute"*. **The unit is the statement, and prose is one of its forms.**
+
+> **Restated, and it is limb 1 verbatim with one noun replaced:**
+>
+> - The owner states the port's permitted network and it **excludes the internet by name** → **zero**
+>   premises → **prohibition**.
+> - The owner states the port's permitted network **as a boundary** — a trust boundary in prose, or
+>   `Self`, *the node*, *the same system*, *localhost* named in a table cell or an issued document →
+>   **one** premise, *the internet lies outside it* → **scoping**.
+> - The owner states **no** permitted network and the footing is a **restricting default alone** →
+>   there is no statement to stand at a distance from → **weak**.
+
+**The line between the second and third bullets is already drawn in this note, three times, in the
+words a reader needs — and the first drawing predates ADR-0059 by fourteen sections.**
+
+- **§16.5 ([#76](https://github.com/winniel123/verge-asm/issues/76)) tiered two non-sentence footings
+  against each other and put them in different tiers on exactly this line.** `10250/tcp` went to
+  **scoping** on `Used By: Self, Control plane`, argued as *"a boundary the owner names (§10.3) rather
+  than a §12(b) **label**"*; `10255/tcp` went to the **weak** tier on `readOnlyPort` *"Default: 0
+  (disabled)"* **and nothing else**. §16.9 records the losing reading in terms that name the same line
+  from the other side: *"the competing reading would put it in the weak tier."* **The test that decided
+  those two cells is the test restated above**, run before there was a premise count to state it in.
+- **§27.6 re-ran it for `10248/tcp`** and gave it its sharpest wording: *"'# Listen for connections from
+  the local system only' **describes what the directive does**; 'you should not expose this port to the
+  internet' **takes a position**."*
+- **§10.4 supplies the reason.** A default attests in one direction only because a default is what the
+  software *does*; only a **restricting** one is a maintainer position at all. A default therefore never
+  states a permitted **network** — it states a bind address, and the owner has to say somewhere else
+  that the bind address is a boundary rather than a convenience.
+
+**So the non-prose half of the tier has been sorted on one test since §16, and the test has never been
+written down beside the prose one.** That is §30.7's Finding 2 diagnosed rather than merely observed:
+the two populations were never graded on different **dimensions**, they were graded by two statements
+of the same dimension that nobody had put side by side.
+
+**The walk — every non-prose footing in the table, and nothing moves.**
+
+| Pair | The restricting default | The owner's statement of the permitted network, if any | Premises | Tier, and it is the existing one |
+|---|---|---|---|---|
+| `10259/tcp` kube-scheduler | `--bind-address=127.0.0.1` in kubeadm (§24.6) | **`Used By: Self`** in `ports-and-protocols.md` — §10.3's first and narrowest branch, named by the owner in a document whose entire subject is network placement | **one** | **Scoping** — §24's placement, ratified |
+| `10257/tcp` kube-controller-manager | same file, same argument | same cell | **one** | **Scoping** — §24's placement, ratified |
+| `10249/tcp` kube-proxy | `metricsBindAddress: 127.0.0.1:10249` (§27.2) | **`source-ip.md`**: *"on the node where kube-proxy is running"*, *"Run this in a shell on the node you want to query"* — the owner placing the caller on the node | **one** | **Scoping** — §27's placement, ratified, **and §30.7's open question answered** |
+| `10248/tcp` kubelet healthz | `healthzBindAddress: "127.0.0.1"` | **none.** *"the localhost healthz endpoint"* is a **label** and §27.6 refused it as a position | n/a | **Weak** — §27's placement, ratified |
+| `5432/tcp` PostgreSQL | `listen_addresses = localhost` | **none** | n/a | **Weak** |
+| `5984/tcp` CouchDB | `[chttpd] bind_address = 127.0.0.1` | **none** | n/a | **Weak** |
+
+> **Six non-prose footings walked, zero cells moved, and the weak tier is intact at three rows.** A
+> reading that promoted `5432` — the row §4.5 calls the list's weakest — would have been the signal
+> this one was wrong, and it is the reading limb 1 gives if *sentence* is replaced by *artefact*
+> instead of by *statement of the permitted network*. That alternative is refused at §32.9.
+
+**This is §24.12's criterion with its dimension supplied.** §24.12 placed `10259`/`10257` as *"not
+prohibition (no prohibition sentence names them) and not the weak tier (**they have more than a
+default**)"*, and §27.5 applied *"more than a default"* to `10249` in those words. **More than a default
+is a quantity of evidence; one premise is a distance** — and §30.7's Finding 2 is precisely the
+observation that the tier was being sorted on both. It is not that §24 and §27 reasoned wrongly; it is
+that the *"more"* they required is, in every instance they decided, the owner naming a boundary, and
+naming a boundary is one premise. **The two tests have the same extension over the whole table, so the
+second dimension was never real and is withdrawn rather than reconciled.**
+
+> **§30.7's Finding 2 is discharged.** The scoping tier does not hold ten prose members graded one way
+> and three non-prose members graded another; it holds **eleven** members graded by premises to the
+> row's proposition, of which three take their statement from a table cell or an issued document rather
+> than from a prose sentence. **§30.7's *"read §30.7 before quoting the scoping row as homogeneous"* is
+> superseded** — it is homogeneous, and this section is why.
+
+**And ADR-0059's stated extent is corrected rather than left standing.** Its *"What this ADR does not
+reach"* paragraph says limb 1 *"governs the **prose** footings only"* and that §24's placement *"stands
+and this ADR neither confirms nor disturbs it"*. The placement stands, and is now **confirmed** on the
+principal instead of left unreached. §32.10.
+
+### 32.8 The ruling
+
+> - **§20.8's criterion is sufficient as well as necessary**, on the four-limb conjunction ADR-0059
+>   limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a
+>   position.** The list is **closed**. §32.2.
+> - **`2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ move from the explicit trusted-network scoping tier
+>   to the explicit prohibition tier.** Both sentences retrieved in their own context; both survive
+>   #46's hazard, `25672`'s only because the antecedent sentence narrows *"these ports"*. §32.5, §32.6.
+> - **§2.2's footing tiers read prohibition 16 · scoping 11 · weak 3 · outside-subject 11**, coverage
+>   **30 of 41 unchanged**, and 16 + 11 + 3 + 11 = **41** — against the composed `main` this section
+>   walked (`c0881ae`: 14 · 13 · 3 · 11). Stated parametrically at §32.11 because a sibling is moving
+>   figures in this file.
+> - **§20.8's sentence is now true *and* complete.** After §30 it was a true universal over its tier;
+>   after §32 the tier is **exactly** the set of footings satisfying the conjunction, so the sentence is
+>   a membership test rather than an observation about the members. #98's *"true, not complete"* is
+>   discharged.
+> - **ADR-0059 limb 1's unit is the owner's statement of the port's permitted network, not a sentence**,
+>   which brings the non-prose footings inside limb 1 and dissolves §30.7's Finding 2. **No non-prose
+>   cell moves.** §32.7.
+> - **`4369/tcp` epmd is not promoted and §20.8's central ruling is untouched**, on limb 1: the
+>   RabbitMQ sentence that names the public Internet is a non-owner's for that port. §32.3.
+> - **`2049/tcp` NFS is not promoted**, on limb 4: RFC 7530 §1.2's Internet sentence is a goal RFC 8881
+>   records as unmet. §32.3.
+> - **No ADR is minted. ADR-0059 is amended in place** and **ADR-0062 is left unused**. §32.9, §32.10.
+> - **No `(port, transport)` pair moves, no row moves, and nothing is routed to
+>   [#12](https://github.com/winniel123/verge-asm/issues/12).**
+
+**Why no row moves, stated because #101 made it the failure signal.** A tier records how strong a
+footing is, never whether a row qualifies (§30.4). `2181` and `25672` are Class C rows on Claim 3 and
+Claim 1 respectively; nothing here touches a claim, a determinacy verdict or a class. The promotion
+changes which row of §2.2's table the two pairs are printed in and changes nothing a rule reads —
+**[measured]**, the moved cells change no input to any of the sixteen rules.
+
+### 32.9 The options that lost
+
+**Option A — rule the lexical test sufficient on its own, with no further limbs.** The literal reading
+of #101's own framing and the cheapest possible answer. It reaches the same verdict for `2181` and
+`25672`, which is what makes it tempting. **It loses on the demoting direction, and it loses
+measurably.** A bare lexical test says nothing about **who** spoke, so RabbitMQ's sentence — which
+names the public Internet and covers `4369` in the same clause the note has quoted since §3.4 was
+written — promotes `4369/tcp`, reversing §20.8's central ruling as a side effect. That is the identical
+failure §30.5 measured Option A committing by a different route, and #101 named it as the thing to test
+for. It loses a second time on `2049`: RFC 7530 §1.2 names the Internet, so a bare lexical test promotes
+NFS on an aspiration RFC 8881 records as abandoned, which §26.4 spent a subsection refusing. **The
+conjunction is not a hedge on the lexical test; it is what stops the lexical test taking two
+neighbours.**
+
+**Option B — rule that the tier is graded by a necessary condition plus judgement, and say what bounds
+the judgement.** #101 offered this explicitly and it is the honest second-best. Its case is that the
+tier was in fact assembled row by row over eight sections and that no session has ever applied a
+membership test; declaring one now is a reconstruction claiming more than it can carry. **It loses
+because the judgement it would bound turns out to be empty.** The walk at §32.3 and §32.4 was run
+before the criterion was adopted, in both directions, over all twenty-seven placed prose pairs, and
+**every row resolves on a limb** — none needed a tie-break, none was close on more than one limb, and
+the two that are close (`2049` on limb 4, `4369` on limb 1) are close on a limb that has a documented
+artefact behind it. A judgement with no instance is not a judgement; it is an unstated rule. And
+ADR-0042 refused *"leave it unwritten and decide case by case"* on exactly this ground, which §30.5
+Option C quoted when it minted ADR-0059 rather than ruling at §-level.
+
+**Option C — promote `2181` and `25672` by name, on their own merits, and state no general
+condition.** The narrowest possible act: it moves the two cells §30.7 measured, disturbs nothing, and
+leaves the sufficiency question for a later pass. **It loses on #98's own diagnosis.** §30.9 named the
+defect as *incompleteness of the criterion*, not as *two mislaid cells* — the cells are the symptom.
+A pass that moves them without saying why they moved leaves the next session in exactly §30.1's
+position: reconstructing a criterion from the members, in whatever vocabulary comes to hand, which is
+how §18.6 and §20.8 came to state the boundary in two different languages and how `873` fell into the
+gap between them. **The cells are cheap; the reason they move is the deliverable.**
+
+**Option D — refuse both promotions and record the sufficient condition as permanently unavailable**,
+on the ground that a footing column is a disclosure and a disclosure may be under-inclusive without
+lying. Cheapest of all, and it survives because no rule reads a tier. **It loses because the note's
+own table would then place two footings below a tier whose stated criterion they satisfy on their
+face, with the note itself recording that they satisfy it** — §30.7 and §2.2's own amendment block both
+say so in the note's voice. That is not under-inclusion; it is a table contradicting its own published
+criterion, which is the §2 defect #98 was run to remove and would leave removed by half.
+
+**Option E — mint ADR-0062.** Argued at length at §32.10, and it nearly wins.
+
+**Option F — read limb 1's widened unit as *artefact* rather than as *statement of the permitted
+network*.** A cleaner-sounding generalisation: count premises from whatever the owner published. **It
+loses on a measurement.** `listen_addresses = localhost` is an artefact, and the step from it to *not
+from an internet vantage* is one premise on any counting — *the internet lies outside loopback* — so
+this reading promotes `5432/tcp` and `5984/tcp` to the scoping tier and **empties the weak tier**,
+taking [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch
+list with it. `5432` is the row §4.5 names as the list's weakest. **A criterion that promotes the
+weakest row on the list is refuted by that fact**, and this is the neighbour-taking warning firing on
+the non-prose half — which is why §32.7's unit is the narrower one and why §27.6's label/position line
+is load-bearing rather than decorative.
+
+### 32.10 ADR-0059 amended in place, and ADR-0062 is left unused
+
+**The case for minting ADR-0062 is real, it is put first, and #98 stated it in advance.** ADR-0059's
+body says *"the note has never stated the sufficient condition and this ADR does not invent one"*, and
+its Consequences close with *"The sufficient condition for the prohibition tier is still unstated …
+Routed, not answered."* More pointedly, #98's own by-catch reasoning says promoting these two rows
+*"turns a necessary condition into a sufficient one, **which is a new rule rather than an application of
+the old one**"* — the pass that routed this question called the answer a new rule, in terms, and this
+section agrees with that characterisation. Answering it is a general statement about a disclosure
+column, minted where the answer was available nowhere, which is precisely the test §30.5's Option C
+applied when it declined the house default and minted ADR-0059.
+
+**It loses on three grounds, and the third is the stronger.**
+
+1. **Every rule this section applies was already available.** §10.5, ADR-0050, §26.4 and §20.8's
+   lexical test are all standing rules of this note, and ADR-0059 limb 3 **lists all four in one
+   sentence**. What #101 adds is the claim that the list is closed and the observation that limb 1's
+   unit is a statement rather than a sentence. That is the house test — *"both general rules this
+   section applies were available"* — met in the negative, and §16.6, §20.9, §23, §24, §27,
+   [#90](https://github.com/winniel123/verge-asm/issues/90) and
+   [#91](https://github.com/winniel123/verge-asm/issues/91) all recorded at §-level on it. §24.9 is the
+   nearest precedent and its words fit here unchanged: *"This states what §10.3 already required. No
+   ADR is added."*
+
+   *#98's *"new rule"* answered rather than brushed aside.* It is a new rule **relative to §20.8's
+   universal**, which is the thing #98 was applying and which says nothing about the scoping tier —
+   that is why #98 refused to promote and why the refusal was *"principled rather than convenient"*.
+   It is **not** a new rule relative to the note, because every limb of it is a standing rule of the
+   note and limb 3 lists them. The two statements are about different reference classes and both are
+   true.
+2. **The note's only precedent for closing an enumeration is a *section*, not an ADR.** §10.2 —
+   *"the three claims are closed, and closed by construction"* — is the load-bearing closure in this
+   whole document, the one §24.7's *"no claim means no row"* disposals rest on, and it lives at
+   §-level with no ADR behind it. Closing the footing-tier enumeration is the same act on a smaller
+   object and it goes to the same place.
+3. **A second ADR about the same column would leave the two disagreeing on the record.** ADR-0059
+   states, in its own voice, that the lexical test *"is not sufficient"* and that limb 1 *"governs the
+   **prose** footings only"*. Both sentences are wrong after this section, and a reader who arrives
+   holding ADR-0059 — the reader
+   [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) exists
+   for — must be told at **the site that specifies the rule**, not at a second site that supersedes it.
+   ADR-0058's test applied to ADR-0059: *if the superseded sentence, read alone and in the present
+   tense, would cause a competent session to act on it, it is not withdrawn* — and *"the lexical test is
+   necessary and not sufficient"* read alone would cause the next session to refuse a promotion this
+   section licenses. **Minting ADR-0062 and leaving ADR-0059 unamended is the exact failure ADR-0058
+   was minted to name**, one week old, on the ADR whose gap this ticket exists to close.
+
+> **ADR-0059 gains an amendment** in the shape of ADR-0009's and ADR-0037's, recording that **limb 3 is
+> closed** — the conjunction is sufficient — and that **limb 1's unit is the owner's statement of the
+> port's permitted network rather than a sentence**, which withdraws the *"prose footings only"* extent
+> statement and **confirms** §24's placement instead of leaving it unreached. **Limbs 1's premise-count
+> mechanism and limb 2's inadmissibility of mood, force, hedging and priority label are untouched**;
+> #101 fenced both and this section reopens neither.
+>
+> **ADR-0062 is not minted and the number is left unused**, as `0039`, `0041`, `0052`, `0053` and
+> `0057` are.
+
+### 32.11 Every dependent figure, walked rather than asserted
+
+> `FIGURE DELTA §32: §2.2 prohibition tier 14 → 16 · §2.2 scoping tier 13 → 11. Every other figure in the note checked and unchanged. No row moves. Basis: main at c0881ae.`
+
+**Stated in prose as well as in the table below, because a sibling pass is editing this file's tier
+arithmetic concurrently.** In words: **the prohibition tier gains two pairs and the scoping tier loses
+the same two; the weak tier stays at three rows; the outside-subject row stays at eleven pairs; the
+coverage figure and its denominator do not move, because no pair enters or leaves the table.** Sixteen
+plus eleven plus three plus eleven is forty-one.
+
+**Stated parametrically, so the delta survives whatever a sibling does to the baseline:**
+
+> **prohibition tier := (prohibition tier as composed) + {`2181/tcp`, `25672/tcp`}**
+> **scoping tier := (scoping tier as composed) − {`2181/tcp`, `25672/tcp`}**
+> **every other tier, count, denominator and total := unchanged.**
+
+**The basis is named rather than assumed.** This section walked `main` at commit `c0881ae`, whose
+composed state is **prohibition 14 · scoping 13 · weak 3 · outside-subject 11 · coverage 30 of 41**.
+That is §30 and §27 composed. If a sibling adds or removes a row before this section merges, the
+**delta is still +2 / −2** and the membership lists below are what a merger should re-derive the totals
+from.
+
+| Where — §32's walk | Was, at `main` `c0881ae` | Is, after §32 |
+|---|---|---|
+| **§2.2 footing table — prohibition tier** | **14 pairs** | **16 pairs.** `2181/tcp` and `25672/tcp` join. Membership: `6379` · `11211/tcp` · `11211/udp` · `3306` · `1433` · `9200` · `9300` · `445` · `623/udp` · `9042` · `2379` · `2380` · `10250` · `10255` · **`2181`** · **`25672`** |
+| **§2.2 footing table — scoping tier** | **13 pairs** | **11 pairs.** `2181/tcp` and `25672/tcp` leave. Membership: `27017` · `27018` · `27019` · `2049` · `4369` · `2375` · `2376` · `873` · `10259` · `10257` · `10249` |
+| §2.2 footing table — weak tier | 3 rows (`5432`, `5984`, `10248`) | **3, unchanged.** Option F, which would have emptied it, is refused at §32.9 |
+| §2.2 footing table — *outside this table's subject* | 11 pairs | **11, unchanged.** 16 + 11 + 3 + 11 = **41** |
+| §2.2 footing table — coverage | 30 of 41 | **30 of 41, unchanged.** No pair enters or leaves the table; two move between two of its rows |
+| §1 pair count | 41 | **41, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 22 | **unchanged.** This section touches no claim and no class |
+| §6.1 containment arithmetic | 28 + 8 + 5 = 41 | **unchanged.** [#97](https://github.com/winniel123/verge-asm/issues/97) owns this figure and nothing here reaches it |
+| §4.6 exclusions | 20 | **unchanged.** No exclusion is created or retired |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged**, and §32.9's Option F is refused precisely to keep it where it is |
+| §2.2's thin-cell note | `10255` and `10250`, both in the prohibition tier | **unchanged.** Neither new member is thin: `2181` is ratified at §18.5 and `25672` is numbered by its owner and now carries a **second** owner sentence (§32.6) |
+| §2.4's squat table | `2181/tcp` listed against `eforward` | **unchanged.** A tier move is not a determinacy finding |
+| §10.1's Class A walk | twelve rows | **unchanged.** `2181` is Class A and `25672` is Class C; no claim cell is read here |
+| §17.1's population of negatives | fifteen | **unchanged.** No sole-ground negative is created or retired; both moved footings are **positives** in both tiers |
+| §17.8's *fixed point* | finished as of a table state | **re-armed for two rows and discharged in the same breath.** §26 swept both rows' complete class lists days ago; the retrievals at §32.5 and §32.6 re-read the same artefacts and found the same sentences, plus one more in a class §26 had opened |
+| §20.8's tier criterion | **true** over a fourteen-member tier, membership test unstated | **true and complete** over a sixteen-member tier — a membership test, not an observation about the members |
+| §24.12's *"more than a default"* | the scoping tier's criterion for non-prose footings | **restated on one dimension** — *more than a default* is *the owner names a boundary*, which is one premise. **No cell moves** (§32.7) |
+| §27.5's `10249` footing | scoping, on §24.12's criterion | **unchanged and ratified.** §30.7's open question — which population it belongs to — is answered: there is one |
+| §30.7 Finding 1 | two scoping-tier rows satisfy the top tier's criterion; reported, not applied | **discharged.** Applied here |
+| §30.7 Finding 2 | the scoping tier is sorted on two dimensions; disclosed, not resolved | **discharged.** One dimension, §32.7. *"Read §30.7 before quoting the scoping row as homogeneous"* is **superseded** |
+| §30.9's thin ground | the sufficient condition is unstated | **discharged.** Its predicted figures were `16 / 11 / 3` on the composed state and that is what §32 produces |
+| §3.4's `2181` and `25672` quotes | two owner sentences, in the scoping tier | **unchanged and not withdrawn.** Both go on carrying their rows, in the prohibition tier. One RabbitMQ sentence is **added** (§32.6) and is not relied on |
+| [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) | limb 3 open; limb 1 *"prose footings only"* | **amended.** Limb 3 closed; limb 1's unit widened. **Limbs 1's mechanism and limb 2 untouched** (§32.10) |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984`, `10248` | **unchanged.** The weak tier does not move |
+| [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md) | limbs 1-3 | **used twice and unamended.** Limb 2 carries `2181`; limb 3's per-member defeat test disposes of `25672` against `5672`/`15672` |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s reference data is byte-identical; a footing tier is not reference data |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
+| [ADR-0062](https://github.com/winniel123/verge-asm/issues/101) | reserved for this ticket | **not minted; the number is left unused** (§32.10) |
+| [`weak-key-and-signature.md`](./weak-key-and-signature.md) | — | **untouched.** It has no footing tier |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted, and ADR-0048's precedent for staying out of that file while concurrent passes run applies again |
+
+**Nothing is routed to [#12](https://github.com/winniel123/verge-asm/issues/12).** #12 carries the
+list, the claims and the containment arithmetic; none of them reads a tier, and #101's own pricing said
+so from both sides.
+
+### 32.12 Thin ground, flagged per the standing rule
+
+**The closure claim is a ruling and not a measurement, and it is this section's thinnest joint.** *There
+is no fifth limb* cannot be measured; it is an argument that the row's proposition has four terms and
+that the note has a rule for each. A reader who identifies a fifth gap between an owner's statement and
+the row's proposition defeats §32.2 without touching anything else in the section.
+
+**And the three inherited limbs were never asserted to be jointly exhaustive by the passes that made
+them.** Limb 1 comes from §16.6 ([#76](https://github.com/winniel123/verge-asm/issues/76)), limb 2 from
+ADR-0050 by way of §24.5's measured failure, limb 4 from §26.4
+([#93](https://github.com/winniel123/verge-asm/issues/93)) — three independent sources, each solving
+its own problem, none claiming to complete a set. **Assembling them into a closed list is this
+section's act and nobody else's.** The nearest governing analogy in the corpus is §26.6's
+ruling that *"ADR-0046 limb 2 closes the **taxonomy**, not the **membership**"*, and it cuts the
+helpful way here: §32.2 closes the **kinds** of gap a reader can be asked to bridge, and says nothing
+about what satisfies any one of them — limb 2's satisfaction still moves whenever an owner ships a new
+artefact, exactly as ADR-0050 intends. **What would falsify §32.2 is a fifth kind, not a new instance
+of one of the four. One candidate is already visible and is named rather than left to be found:
+direction.** The row is about an **inbound**
+listener, and an owner sentence forbidding **outbound** traffic to the internet would satisfy all four
+limbs as written while entailing nothing about the row. §3.4 already had to do this work by hand for
+`445/tcp`, distinguishing Microsoft's Azure Files carve-out as *"about **outbound** access to named IP
+ranges"*. **The four limbs are stated as they are because that is how the note's existing rules
+decompose, and no member of either tier turns on direction today** — every sentence in §32.3 and §32.4
+is about a listener being reached. A row will eventually arrive where it does turn on it, and this
+section does not price that case.
+
+**Limb 4 is the softest of the four, and it is soft in a different way from limb 1's premise count.**
+*Position versus aspiration* has one measured instance (§26.4's RFC 8881 Appendix C recording RFC
+7530's goal as unmet) and *position versus label* has one (§27.6's *localhost healthz endpoint*). Two
+instances is a line drawn through two points. `2181`'s promotion turns on limb 4 being satisfied by a
+**descriptive** sentence — *"is a coordination service intended for use inside a trusted network"* —
+and the argument that carries it is a **consistency** argument about Redis rather than a retrieval.
+§32.5 states it that way deliberately. If a later pass rules that description is not position, `2181`
+returns to the scoping tier **and `6379` goes with it**, which is the honest price and the reason the
+argument is not close.
+
+**`25672`'s promotion depends on a sentence's antecedent, and the antecedent is one sentence long.**
+*"RabbitMQ nodes will listen for inbound connections from peers and CLI tools"* is what confines *"these
+ports"* to the peer/CLI ports rather than to the section's whole enumeration. That is a real reading of
+a real page, retrieved for this section, and it is also exactly the kind of joint #46's hazard
+attacks — a session that fetched one sentence would reach a different verdict, in either direction
+depending on which sentence it fetched. **The criterion that would change the verdict:** RabbitMQ
+rewording *Port Access* so the Internet clause sits under the full port list rather than under the
+peer/CLI framing, at which point the sentence becomes a category statement defeated for `5672`/`15672`
+under ADR-0050 limb 3 and `25672` falls back to the scoping tier on the reader-supplied member-selection
+premise. The `distribution.listener.interface` sentence (§32.6) would then become load-bearing rather
+than redundant, which is why it is recorded even though nothing rests on it today.
+
+**The demoting walk at §32.4 is a re-reading rather than a fresh retrieval.** Limb 2's satisfaction for
+the fourteen sitting members is taken from §18.5's ratification and §16.4's, both of which were
+retrievals when they were run and neither of which was re-run here. That is defensible — #101 fenced
+the footings as completed work and forbade reopening them — and it is also a dependency: if §18.5's
+ratification is wrong for any pair, §32.4's *zero demotions* is wrong for that pair. The negatives this
+section **rules on** were re-measured (§32.5, §32.6); the positives it **inherits** were not.
+
+**ADR-0059 limb 1's premise count remains a ruling with a soft unit, and §32.7 does not harden it.**
+§30.9 flagged that *"an owner sentence saying 'do not expose to a public network' or 'to the wider
+internet' would sit exactly on the line"*, and that is still true and still unpriced. §32.7 widens what
+counts as a statement; it does not sharpen how a premise is counted, and a reader should not quote this
+section as having done so.
+
+**Two cells move while a sibling pass is editing this file's tier arithmetic.** The delta is stated
+parametrically at §32.11 for that reason, and the membership lists are given in full so a merger
+re-derives the totals rather than patching them. **If the composed baseline differs from `c0881ae`, the
+numerals in §32.8 and §32.11 are wrong and the parametric statement is right.**
+
+### 32.13 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10 and §22.10
+
+- **Two retrievals were spent, both on sentences the note already held, and both were *context* checks
+  rather than searches.** #101 required the `2181` and `25672` sentences be read in their own context
+  rather than from §30.7's fragments, on the ground that #46's truncated-conditional hazard had already
+  fired four times in this note. **It fired once more, on `25672`, and the retrieval is what caught
+  it** — the phrase *"these ports"* is scoped by the sentence before it, and neither §3.4 nor §30.7
+  carries that sentence.
+- **The RabbitMQ Internet clause is *hyperlink anchor text*, and the destination is a third party's.**
+  **[measured]** *"not exposed to the public Internet"* on `rabbitmq.com/docs/networking` links to an
+  Erlang Ecosystem Foundation post on epmd exposure. **The words are RabbitMQ's; the destination is
+  not.** A session reading the rendered page could attribute the phrase to the linked party and refuse
+  it under §2.3, or could follow the link and rely on a corroborator. Neither happens here: the
+  sentence is RabbitMQ's own prose in RabbitMQ's own document, and the linked post is not read, not
+  quoted and not relied on. Recorded because it is a new shape of the §12.9 substitution hazard —
+  **a corroborator reachable from inside the owner's own sentence.**
+- **A third owner sentence was found and is deliberately not used to promote anything.**
+  `distribution.listener.interface`'s documentation comment carries *"must … not be exposed to the
+  public Internet"* about the inter-node listener. It is stronger in mood than the sentence the
+  promotion rests on, and ADR-0059 limb 2 makes that difference inadmissible; it is recorded as
+  redundancy, which is a fact about volatility rather than about strength.
+- **ZooKeeper's own page now links its Admin Guide at `current`, where §3.4 cites `r3.9.3`.**
+  **[measured]** `security.html` points at `/doc/current/admin-ops/administrators-guide/`. §3.4's pinned
+  citation is the better practice and is not changed, but a session diffing the two will find different
+  URLs for the same sentence — the §30.10 hazard (*cite the version the server returns*) arriving as a
+  drifting cross-reference rather than as a redirect.
+- **The demoting walk was run before the criterion was adopted, and it is the reason the criterion has
+  four limbs rather than one.** §32.4's §18.2 measurement — only **five** carrying sentences write the
+  port number — is what forces limb 2 to be read at ADR-0050's standard rather than literally. A
+  session that adopted the conjunction and walked afterwards would have adopted a criterion that
+  demotes six prohibition-tier pairs.
+- **The promoting walk was run across the whole tier, which #101 made a condition of adoption.** All
+  thirteen scoping members are in §32.3's table with a per-limb verdict, and the two rows that could
+  have been taken as neighbours — `4369` and `2049` — are refused on named limbs with named artefacts
+  behind them. **A criterion tested only on the rows it was written to move is Option A with better
+  manners.**
+- **No footing was reopened and no evidence beneath one was re-litigated.** #101 fenced the footings and
+  ADR-0059 limbs 1 and 2. The only bytes fetched are ZooKeeper's `security.html`, RabbitMQ's
+  `networking` and RabbitMQ's `production-checklist`; every other sentence in this section is quoted
+  from the note as it already holds it.
 
 ---
 
