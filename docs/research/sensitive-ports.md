@@ -618,6 +618,17 @@ trade against the determinacy gate.
 > … In version 27.0 and later, specifying `--tls=false` or `--tlsverify=false` CLI flags causes the
 > daemon to fail to start if it's also configured to accept remote connections over TCP."
 > — [Docker: deprecated features, "Unauthenticated TCP connections"](https://docs.docker.com/engine/deprecated/) (deprecated v26.0, target removal v28.0; verified against the page's own text)
+>
+> **Annotated by §25** ([#92](https://github.com/winniel123/verge-asm/issues/92)). **The hard failure
+> this quote describes has not shipped.** **[measured]** at `moby/moby` `docker-v29.7.2`,
+> `loadListeners()` in `daemon/command/daemon.go` logs *"[DEPRECATION NOTICE] In future versions this
+> will be a hard failure preventing the daemon from starting!"*, sleeps, and starts the daemon; there
+> is no such error path in the tree and `DefaultTLSValue` is `false`. This is §19.4's shape again —
+> the owner's rendered documentation and its shipped bytes disagree — with the **bytes** on the
+> permissive side, so under §10.4's one-way rule they are silent and attest nothing. The row is
+> unaffected and its §10.1 Step 2 cell is **confirmed** rather than threatened: the runtime-control
+> operations are reachable, more plainly than this page suggests. §25.7 names the criterion that
+> would move it.
 
 > "etcd doesn't enable RBAC based authentication or the authentication feature in the transport
 > layer by default to reduce friction for users getting started with the database." … "An etcd
@@ -2146,6 +2157,24 @@ and Claim 3 are adjacent on that row and Claim 1 still fits.
 > for the same reason; the repair exists in etcd's own `THREAT_MODEL.md` and is **ticketed rather than
 > made here**, because this table and §16.3's retrieval belong to other passes. The remaining ten cells
 > are clean and **all twelve rows still survive**.
+
+> **Amended by §25** ([#92](https://github.com/winniel123/verge-asm/issues/92)). **The audit §20.6
+> opened is finished: every cell of this table has now been checked against §10.5, and every Step 2
+> cell has been read off the shipped dispatch.** **All eleven rows survive and none changes class.**
+> Three cells are corrected in §25 rather than in place. `2379/tcp` and `2380/tcp`'s **Step 1** cells
+> are re-founded on etcd's own `THREAT_MODEL.md` at `v3.7.1` — *"Any client request must prove its
+> identity at the transport layer using client certificates"* and *"strictly limited to authorized
+> cluster members"* — and **not** on that document's prohibition, which §25.5 rules may not answer
+> Step 1. `2379`'s **Step 2** read half is re-worded: *"reads every Secret"* is a Kubernetes fact, and
+> the etcd fact is the **entire keyspace**; the row rests on its mutation limb either way. And
+> `6379/tcp`'s Step 2 cell was **factually wrong about reachability**, making it the second such cell
+> after `4369`: **[measured]** at `redis` `8.10.0` protected mode no longer consults `bindaddr_count`
+> and a non-local peer is destroyed at accept with `-DENIED`, so the shipped default serves an
+> anonymous remote caller **nothing at all**. The row survives on §25.5's second limb, which states
+> what §19.6 requires when it is applied to Step 2 rather than to row admission —
+> **[measured]** seven of these eleven rows withhold the port on their shipped default, and the
+> reading that removes `6379` removes all seven. Both limbs are recorded in
+> [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md).
 
 > **Merge reconciliation — §19 and §20 were resolved concurrently**, and §20 audited this walk's
 > cells against the twelve rows it held before §19 landed. **The walk is eleven rows**, `10250/tcp`
@@ -4386,6 +4415,17 @@ still cites `etcd.io/docs/**v3.5**/op-guide/security/`. The Network Boundary par
 (2026-07-31, which added triage disposition rules and left this paragraph untouched). §13.1 read etcd
 at `v3.7.1`; this section reads the same tag, which is the consistent choice. §16.9 flags what that
 costs.
+
+> **Amended by §25** ([#92](https://github.com/winniel123/verge-asm/issues/92)). **This section's
+> verdict, tier and figures are untouched, and the file has one more sentence in it than was
+> quoted.** *The Client-to-Server Boundary* is three sentences and the block above carries the
+> **first**; the third reads *"Any client request must prove its identity at the transport layer
+> using client certificates."* That sentence settles §10.1's Step 1 cell for both ports, which
+> §20.6 had ticketed and §25.1 discharges. It is
+> [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)'s finding
+> recurring at the level of the **section** rather than the file — the right artefact opened at the
+> right tag, and the two lines the pass came for read out of it. The omitted sentence **strengthens**
+> the placement made here; nothing moves.
 
 ### 16.4 `9300` Elasticsearch — the *node* sentence does reach the transport port, and the owner says so
 
@@ -7289,6 +7329,419 @@ yet defeated* rule and §14.9's, restated.
 
 ---
 
+## 25. §10.1's Class A walk audited cell by cell — the etcd Step 1 cells re-founded, and every Step 2 cell read off the dispatch
+
+> **FIGURE DELTA: none — citation repair, cell corrections and confirmation only; §10.1's eleven all
+> survive; no row moves.** §1 stays **37 pairs**; §3's class totals stay **11 / 7 / 19**; §2.2's
+> footing table stays **26 of 37** with tiers **15 / 9 / 2 / 11**; §6.1's `28 + 4 + 5 = 37` is
+> untouched; [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union gains and loses no member;
+> [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s `Break` is not triggered.
+> **No Step 2 cell failed both limbs, so nothing is re-priced and nothing is re-routed to**
+> [**#12**](https://github.com/winniel123/verge-asm/issues/12). Three cells are **corrected** —
+> `2379`/`2380`'s Step 1, `2379`'s Step 2 read half, and `6379`'s Step 2 — and the corrections move no
+> row. **Read `6379`'s correction before concluding otherwise: on the shipped default it reaches
+> nothing at all, and §25.4 is the whole reason the row stays.**
+
+[#84](https://github.com/winniel123/verge-asm/issues/84) §20.6 established that §10.1's Class A walk
+is a table of **attestations** and audited it against §10.5 — finding two Step 1 cells resting on a
+non-owner, repairing one, and ticketing the other. It also found that `4369`'s **Step 2** cell named
+an operation an internet caller cannot reach, and checked no other row's. This section discharges
+both halves of what it left: the `2379`/`2380` Step 1 repair, and the Step 2 walk over every
+remaining cell.
+
+### 25.1 `2379` and `2380`'s Step 1 cells — re-founded, and on a sentence §16.3 stopped one line short of
+
+The defective cell reads *"No — 'ideally only the API server should have access to it'"*, which is
+**kubernetes.io's**, demoted by §16.3 under §10.5 and re-identified by §20.6. A corroborator may not
+answer a step, so the cell has no footing at all today.
+
+**The obvious repair is the prohibition, and it is refused.** §16.3 retrieved
+`etcd-io/etcd` `THREAT_MODEL.md` at `v3.7.1` and quoted *"It **must not** be exposed to untrusted
+networks or the public internet"*. That sentence is available, it is the owner's, and it is bound to
+both listed ports by the document's own headings — but it is a **Claim 3-shaped boundary**, and
+§25.5 rules that a boundary does not answer Step 1. §10.1's own strike-through on `10250` is the
+warning: *"its Step 1 answer was **already** the Claim 3 boundary sentence, which is the tell nobody
+read."* Repairing one non-owner boundary sentence with an owner's boundary sentence would leave the
+cell in exactly the shape that concealed a misclassification for three passes.
+
+**The retrieval the refusal forced.** **[measured]** `THREAT_MODEL.md` at `etcd-io/etcd` `v3.7.1` is
+39 lines and §16.3 quoted three of its five boundary sections. Its *Client-to-Server Boundary*
+section is three sentences and §16.3 quoted the **first**:
+
+```
+### The Client-to-Server Boundary
+
+etcd clients communicate with etcd Servers over Port 2379.
+This boundary requires **mTLS encryption**.
+Any client request must prove its identity at the transport layer using client certificates.
+```
+
+The third sentence is the Step 1 answer, and it answers in Step 1's own vocabulary. Step 1 asks
+whether the anonymously-answerable operations are the ones the specification defines the protocol to
+perform **for callers it does not identify**. *Any client request must prove its identity* is the
+owner stating that there are no such callers. It is not an implicit answer, an inference or a
+boundary read sideways — it is the owner's own sentence about the identification of its own callers,
+in the section headed with the listed port number.
+
+`2380` is answered by the same document one section down, and the sentence §16.3 did quote is the
+one that does the work: *"This boundary must be strictly limited to **authorized cluster members**
+using dedicated, private peer certificates (mTLS)."* The intended caller population is enumerated —
+*authorized cluster members* — which is what §20.6's third reason for `4369` had to infer from two
+sentences written about a different mechanism. Here it is stated.
+
+> **`2379`/`2380`'s Step 1 cells, corrected.**
+>
+> | Row | Step 1 — is publication the purpose? |
+> |---|---|
+> | `2379/tcp` etcd client | **No** — *"Any client request must prove its identity at the transport layer using client certificates."* `THREAT_MODEL.md`, `etcd-io/etcd` `v3.7.1`, *The Client-to-Server Boundary*, the section that names Port 2379 |
+> | `2380/tcp` etcd peer | **No** — *"This boundary must be strictly limited to authorized cluster members using dedicated, private peer certificates (mTLS)."* Same document, *The Peer-to-Peer Boundary*, the section that names Port 2380 |
+>
+> Corroborating from the same owner, and cited as corroboration rather than as grounds: the
+> repository README's statement of purpose — *"etcd is a distributed reliable key-value store for the
+> most critical data of a distributed system"* — whose object is the operator's own data rather than
+> a published corpus.
+
+**The objection, and it is the good one.** Both sentences are **prescriptive** — *must prove*, *must
+be strictly limited* — and describe a deployment etcd does not ship. **[measured]** at `v3.7.1`
+`--client-cert-auth` and `--peer-client-cert-auth` both default `false`, `--auto-tls` and
+`--peer-auto-tls` both default `false`, every cert and key path defaults to `""`, and the default
+listen URLs are `http://localhost:2379` and `http://localhost:2380` — plaintext. A reader can say
+that a sentence describing a hardened deployment cannot be evidence about the protocol as shipped.
+
+**It is refused, and the refusal is what the two steps are for.** Step 1 reads the owner's statement
+of **whom the protocol is specified to answer**; Step 2 reads the **shipped bytes** for what an
+unidentified caller actually gets. The gap between the two *is* the Claim 1 row. Were the mTLS
+sentence read as a description of shipped behaviour it would defeat Step 2 — and §25.2 measures that
+it plainly does not describe shipped behaviour. Reading it at Step 1 is the only reading under which
+both steps have work to do.
+
+**A by-catch, recorded rather than acted on.** §16.3 opened the right file at the right tag and
+quoted the section it came for, stopping one sentence short of the sentence that settles a different
+table's cell. That is [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)'s
+finding — *an attestation is retrieved over the artefact, not over the row* — recurring at the level
+of the **section** rather than the file, and it is the third instance in this note after §16.6's
+Cassandra prohibition and §20.3's `DEP-001`. §16.3's verdict, tier and figures are all untouched:
+the omitted sentence strengthens the placement it made.
+
+### 25.2 The Step 2 walk — eleven cells, read off the dispatch at a named tag
+
+§20.6 walked `4369`. The remaining eleven cells of the twelve-row table are walked here; one of them
+(`10250/tcp`) was withdrawn from the walk by §19.5 and is recorded as such rather than read, so
+**ten live cells were read against shipped source or specification**. The question in every row is
+§20.6's: *can an unauthenticated remote caller actually reach the named operation?* — asked of the
+dispatch, not the prose, at the frame §25.4 states.
+
+| Row | Cell as written | Verdict | What was read |
+|---|---|---|---|
+| `2375/tcp` Docker | Controls a runtime | **Holds** | **[measured]** `moby/moby` `docker-v29.7.2`. `initMiddlewares` (`daemon/command/daemon.go`) assembles the **entire** chain — experimental, version, authorization-plugin — and no authentication middleware exists in the tree. `pkg/authorization/middleware.go` returns `handler(...)` unwrapped when `len(plugins) == 0`, and the plugin list defaults empty; even loaded, it derives identity only from `r.TLS.PeerCertificates`, which is nil on a plaintext listener. `POST /containers/create` and `POST /containers/{name}/exec` register in `daemon/server/router/container/container.go` with no per-route hook |
+| `2379/tcp` etcd client | Writes cluster state; **reads every Secret** | **Holds on the mutation limb; the read half is re-worded** — see §25.3 | **[measured]** `etcd-io/etcd` `v3.7.1`. `apply/auth.go` `Put` → `checkPutAuth` → `IsPutPermitted` → `auth/store.go` `isOpPermitted`, whose first statement is `if !as.IsAuthEnabled() { return nil }`. `as.enabled` is seeded by `storage/schema/auth.go` `unsafeReadAuthEnabled`, which returns `false` whenever the `authEnabled` key is absent — i.e. on every cluster where `auth enable` has never been run. `Range` and `DeleteRange` take the same gate |
+| `2380/tcp` etcd peer | Writes cluster state | **Holds**, and on stronger grounds than assumed | **[measured]** same tag. `etcdserver/api/etcdhttp/peer.go` mounts `/raft`, `/members`, `/members/promote/`, the lease prefixes and `/version` on the peer listener **with no authentication filter of any kind**. See §25.3 |
+| ~~`10250/tcp` kubelet~~ | ~~Controls a runtime~~ | **n/a — withdrawn from the walk by §19.5**, not read here | — |
+| `10255/tcp` kubelet read-only | Reads node and pod status the kubelet carries **on behalf of the control plane** | **Holds**, and the "on behalf of" clause is now measured rather than asserted | **[measured]** `kubernetes/kubernetes` `v1.36.3`. `ListenAndServeKubeletReadOnlyServer` calls `NewServer(..., nil, nil, nil)`; `NewServer` guards `if auth != nil { server.InstallAuthFilter(ctx) }`, so **no authentication filter is installed**. `GET /pods` → `getPods` → `encodePods`, whose own comment reads *"returns a list of pods bound to the Kubelet and their spec"* and which serialises a full `v1.PodList`. Those are the desired-state objects the kubelet holds **for the API server** — the cell's clause, exactly |
+| `6379/tcp` Redis | `FLUSHALL`, and arbitrary writes | **CORRECTED — the cell names an operation the shipped default serves to no remote caller at all.** Row survives, on §25.4 | §25.4 |
+| `11211/tcp` memcached | `set` / `delete` | **Holds** | **[measured]** `memcached/memcached` `1.6.45`. `settings_init()` sets `settings.sasl = false` and `settings.auth_file = NULL`; with no `-Y` the connection is stamped `c->authenticated = true` outright (`memcached.c`). `settings.inter = NULL` is passed to `getaddrinfo` with `AI_PASSIVE`, i.e. the wildcard address |
+| `11211/udp` memcached | Same | **Holds — and the suspicion that UDP answers reads only is refused from the bytes** | **[measured]** same tag. `try_read_udp()` strips the 8-byte frame header, drops multi-packet requests, and hands the payload on verbatim; `try_read_command_udp()` dispatches to the ordinary ASCII or binary parser. **`proto_text.c` contains zero occurrences of `IS_UDP`** — the command layer cannot tell which transport a request arrived on, so `set` and `delete` are processed identically. Default-off (`settings.udpport = 0` since `1.5.6`), which §19.6 disposes of |
+| `2181/tcp` ZooKeeper | World-**writable** znodes | **Holds — and it is the root znode's literal ACL, not the ACL model in the abstract** | **[measured]** `apache/zookeeper` `release-3.9.5`. `DataTree.java` creates the root as `new DataNode(new byte[0], -1L, ...)`; `ReferenceCountedACLCache.convertLong` maps `-1L` (`OPEN_UNSAFE_ACL_ID`) to `Ids.OPEN_ACL_UNSAFE`, which `ZooDefs.java` defines as `ACL(Perms.ALL, Id("world","anyone"))` — `Perms.ALL` including `CREATE`, `WRITE` and `DELETE`. `ZooKeeperServer.checkACL` carries a dedicated early `return` for scheme `world` / id `anyone` and never consults the caller's credentials to reach it. `zookeeper.enforce.auth.enabled` defaults `"false"`; `zookeeper.skipACL` defaults `"no"` and is irrelevant, because it is the **default ACL itself** that grants the write. `conf/zoo_sample.cfg` carries `clientPort=2181` and **no** `clientPortAddress`, so `QuorumPeerConfig` takes the wildcard branch |
+| `4369/tcp` epmd | Registers and deregisters node names | **Already corrected by §20.6**; not re-read, and nothing here disturbs it | — |
+| `9042/tcp` Cassandra | Writes | **Holds** | **[measured]** `apache/cassandra` `cassandra-5.0.9`. `conf/cassandra.yaml` ships the flat scalars `authenticator: AllowAllAuthenticator` and `authorizer: AllowAllAuthorizer` — the nested `class_name:` form appears only in a commented example. `StartupMessage` branches on `requireAuthentication()` and returns `ReadyMessage` when it is false; `ClientState`'s constructor seats `AuthenticatedUser.ANONYMOUS_USER`, `isSuper()` returns true whenever authentication is not required, and `ModificationStatement.authorize` → `ClientState.ensurePermission` returns at its first line because `AllowAllAuthorizer.requireAuthorization()` is `false`. `rpc_address: localhost` is the frame's network act |
+| `69/udp` TFTP | `WRQ` writes; `RRQ` reads the host's filesystem | **Holds on the specification**, which is what §10.1 permits | RFC 1350 §1: *"The only thing it can do is read and write files (or mail) from/to a remote server. It cannot list directories, and currently **has no provisions for user authentication**."* RRQ and WRQ are opcodes 1 and 2 of five. The specification defines the vocabulary of refusal (ERROR code 2, *Access violation*) and delegates the policy entirely to the implementation, so there is no protocol-level gate to read |
+
+**Ten cells read, ten survive, one row's cell factually wrong.** `6379/tcp` is the second Step 2 cell
+in this note found to name an operation the anonymous remote caller does not reach — after `4369` —
+and the **first** where no operation is reachable on the shipped default at all.
+
+### 25.3 The two cells that needed more than confirmation
+
+**`2379`'s read half is a Kubernetes fact standing in a table of etcd facts.** *"reads every Secret"*
+is true of a Kubernetes cluster and says nothing about what the port answers: Secrets are what
+Kubernetes chose to store, not what etcd carries. The etcd fact is larger and is the one the cell
+should hold — an anonymous `Range` over `["", "\x00")` returns **the entire keyspace**, which is
+content etcd carries on behalf of whichever applications wrote it. The row does not depend on the
+repair: `Put` and `DeleteRange` take the identical gate, so the **mutation** limb carries `2379`
+regardless, and unlike `4369` and `10255` this row never reaches the read limb.
+
+> **`2379/tcp`'s Step 2 cell, corrected.** *"Writes and deletes any key, and reads the entire
+> keyspace — content etcd carries on behalf of the applications that wrote it, of which the
+> Kubernetes Secrets §3.1's cell names are one instance."*
+
+**`2380` is stronger than the cell claimed, and the measurement is worth recording.** The concern
+worth testing was whether *"writes cluster state"* names anything an outsider can actually do on a
+consensus port. **[measured]**, at `v3.7.1`, two independent paths:
+
+1. **`GET /members` on the peer port is unauthenticated and returns the member list as JSON**, and
+   `peerMembersHandler.ServeHTTP` sets `X-Etcd-Cluster-ID` on the response before doing anything
+   else. So the peer listener itself discloses both values that guard it.
+2. `pipelineHandler.ServeHTTP` on `/raft` imposes exactly two checks before handing the decoded
+   message to `h.r.Process` — the method must be `POST`, and `checkClusterCompatibilityFromHeader`
+   must pass. `EtcdServer.Process` then gates only on `IsIDRemoved(m.From)` and
+   `s.MemberID() == m.To` before `s.r.Step(ctx, m)`. **Every one of those values is a member ID or a
+   cluster ID**, and step 1 hands all of them to any caller. None of them is a credential.
+3. `POST /members/promote/{id}` reaches `EtcdServer.PromoteMember` → `promoteMember` →
+   `checkMembershipOperationPermission` → `IsAdminPermitted`, whose first statement is again
+   `if !as.IsAuthEnabled() { return nil }`. The handler forwards an `Authorization` header *if one is
+   present* and proceeds when it is not.
+
+The third path is fully determined and needs no forgery: on a cluster where `auth enable` has never
+been run, an anonymous remote caller promotes a learner to a voting member. **The cell stands as
+written.**
+
+### 25.4 `6379/tcp` Redis — the cell is wrong, the row survives, and the reason is the frame
+
+**The measurement first, because it is the surprising one.** **[measured]** `redis/redis` `8.10.0`,
+`src/networking.c`, `clientAcceptHandler()`:
+
+```c
+    /* If the server is running in protected mode (the default) and there
+     * is no password set, nor a specific interface is bound, we don't accept
+     * requests from non loopback interfaces. Instead we try to explain the
+     * user what to do to fix it if needed. */
+    if (server.protected_mode &&
+        DefaultUser->flags & USER_FLAG_NOPASS)
+    {
+        if (connIsLocal(conn) != 1) {
+```
+
+— and on the false branch the server writes `-DENIED …`, increments `stat_rejected_conn` and calls
+`freeClientAsync(c)`. **The connection is destroyed at accept time, before a command is ever
+parsed.** `connIsLocal` is an address test: `!strncmp(cip, "127.", 4) || !strcmp(cip, "::1")`.
+
+**The condition does not consult `bindaddr_count`, and the comment above it is stale.** The clause
+`server.bindaddr_count == 0` is present at `6.2.19` and **absent from `7.0.0` onward** — verified by
+reading the same function at all three tags. So the widely-repeated reading *protected mode only
+engages when no `bind` is configured* describes Redis ≤ 6.2 and is false for every currently
+supported release. Binding to a public address does not lift it.
+
+The shipped configuration engages it on both limbs: `redis.conf` at `8.10.0` carries the uncommented
+`protected-mode yes` (line 112) and leaves `# requirepass foobared` commented (line 1136), and
+`ACLCreateDefaultUser` in `src/acl.c` creates `default` with `+@all ~* &* on nopass`. Redis's own
+binary says so at startup — `warnAboutInsecureConfig` in `src/server.c` logs, for exactly this
+configuration, *"WARNING: Redis does not require authentication. Redis will accept connections from
+any **local** client."*
+
+**So the cell is wrong.** *"`FLUSHALL`, and arbitrary writes"* names operations that, in the
+configuration Redis's maintainers ship, an anonymous **remote** caller cannot reach — not because
+they are gated, but because it is never seated. This is `4369`'s defect one degree worse: epmd's
+`EPMD_ALIVE2_REQ` is loopback-gated and two other request types are not, so §20.6 could re-found the
+row on the read limb. Redis gates the **connection**, so there is no residue and no limb to move to.
+
+**Taken literally, that removes the row. It does not, and the reason is not a rescue.** §19.6 already
+holds that *a default that turns the port off does not defeat Claim 1, which asks whether the
+protocol requires the operator to supply authentication* — and that *the reading that would delete it
+also deletes `2375/tcp` and `11211/udp`*. §25.5 states what that rule requires when it is applied at
+Step 2 rather than at row admission, and the arithmetic behind it is this pass's most useful number:
+
+> **[measured] Seven of §10.1's eleven Class A rows do not serve an anonymous remote caller on their
+> shipped default.** `2375/tcp` listens on a unix socket only (`DefaultHost = "unix://" +
+> DefaultUnixSocket`); `2379/tcp` and `2380/tcp` default to `http://localhost:…`; `10255/tcp`
+> defaults to `readOnlyPort: 0`; `11211/udp` defaults to `settings.udpport = 0`; `9042/tcp` defaults
+> to `rpc_address: localhost`; and `6379/tcp` binds `127.0.0.1 -::1` **and** refuses non-local peers.
+> Only `11211/tcp`, `2181/tcp`, `4369/tcp` and `69/udp` are reachable as shipped. A Step 2 read that
+> answers *no* wherever the shipped default withholds the port empties **seven of eleven** rows out
+> of Class A, which is not a walk finding — it is a misreading of the question.
+
+**Redis is nonetheless different from the other six, and the difference is stated rather than
+smoothed.** The other six need one operator act, and it is the act of exposing the port. Redis needs
+**two**: rebinding, and a separate `protected-mode no` whose only content is to switch off a
+protection that exists *because no password is set*. That second act is authentication-shaped in its
+trigger and network-shaped in its effect, and §25.5 rules on which governs. Two things make the
+answer clear. The escape hatch **requires no credential** — the operator reaches a fully anonymous
+remote Redis without ever supplying authentication, which is precisely what Claim 1 asks about and
+precisely how `10250/tcp` differed when it left Class A in §19.5 on a shipped default that
+*authenticates*. And the refusal is **self-disclosing**: because `-DENIED` is served only when
+`DefaultUser` is `nopass`, an internet-reachable Redis that answers it has proved it has no
+authentication configured. The signal's premise — a sensitive port reached from the internet — is
+satisfied by that instance, and the operator is one `CONFIG SET` from total exposure.
+
+> **`6379/tcp`'s Step 2 cell, corrected.** *"`FLUSHALL`, `SET` and every other command — the shipped
+> `default` user is `+@all ~* &* nopass`, so once the port is reachable there is no second gate.
+> **[measured]** reaching it requires two operator acts at `8.10.0`, a public `bind` and
+> `protected-mode no`; the second is the network act §25.5's frame assumes and demands no credential
+> of anyone."*
+
+### 25.5 The rule the walk applies, in two limbs
+
+**Limb 1 — a claim step is answered only by evidence about that step.** A sentence admissible for one
+claim is not thereby admissible for another claim's step. Specifically, a **Claim 3-shaped boundary
+or prohibition** — *do not expose this to an untrusted network* — is evidence about **where its owner
+supports the deployment**, and Claim 1 Step 1 asks **whom the protocol is specified to answer**. The
+two coincide often and not necessarily, and a prohibition alone therefore does not answer Step 1.
+
+*The measurable ground, and it is why this is a rule rather than a preference.* §18.6's **explicit
+prohibition** tier is 15 pairs and it straddles the classes: `6379`, `11211/tcp`, `11211/udp`,
+`9042`, `2379` and `2380` are Class A, and `3306`, `1433`, `9200`, `9300`, `873`, `445`, `623`,
+`10250` and `10255` are Class C. A sentence-shape compatible with 6 rows in one class and 9 in
+another cannot discriminate between them. **Reading a prohibition as an implicit Step 1 answer would
+let a hardening sentence convert a publication protocol into a Claim 1 row**, which is the direction
+§10.1's *Step 1 first, and it refuses outright* ordering exists to block.
+
+**Limb 2 — Step 2's reachability is read at the internet-reached frame.** §20.6's *can an
+unauthenticated remote caller reach it?* is answered against the configuration in which **the port is
+reached from the internet** — the state `sensitive-port-reached-from-internet` fires on and the only
+state this list is about — holding the **authentication** configuration at its shipped default. It
+follows that:
+
+- A shipped default that **withholds the port** — does not listen, listens on a unix socket, binds
+  loopback, or refuses non-loopback peers by address — is the network act the frame already assumes.
+  It does not answer Step 2 and does not defeat Claim 1. This is §19.6 exactly, applied one table
+  down and with *turns the port off* read for what it does rather than for how it does it.
+- A shipped default that **authenticates the caller** does answer Step 2, in the negative, and
+  defeats Claim 1 with it. This is §19.5's `10250/tcp` exactly.
+- A gate on **particular operations** rather than on the connection is read per operation, and the
+  row survives on whichever limb has an operation left. This is §20.6's `4369/tcp` exactly.
+
+Both limbs are recorded in
+[ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md).
+
+### 25.6 The ADR, and why it goes the other way from §16.6's and §20.9's
+
+§20.9 declined an ADR on §16.6's test — *both limbs state what §10.1 and §10.5 already require* — and
+the ticket asked whether a second instance changes that judgement. **It does, and not by
+re-litigating §20.6's rule, which remains a corollary and is not restated here.** The ground §20.9
+gave does not carry to either of §25.5's limbs.
+
+- **Limb 1 was not available.** Nothing in §10.1, §10.5, §16.6 or §20.6 says a boundary sentence
+  cannot answer Step 1. §10.1's `10250` strike-through **reports the symptom** — *"the tell nobody
+  read"* — and states no rule; §20.6 expressly declined to decide it. It is a decision, not a
+  reading-out.
+- **Limb 2 is forced by a measurement.** Seven of eleven Class A rows turn on it (§25.4). §19.6
+  states the rule for **row admission**; its extension to **Step 2's reachability question** is a
+  choice this pass made and could have made the other way, and the other way empties most of a class.
+  §20.6 never met the question because epmd listens on all interfaces, so the frame never bit.
+
+**The argument against, stated because it is respectable.** Limb 2 is a composition of two existing
+rules rather than a new one, and a session that reads ADR-0036's amendment beside §20.6 will derive
+it. Limb 1 moved **no cell in this pass** — §25.1 re-founds the etcd cells on a sentence that answers
+Step 1 directly, so the ruling is *obiter* here, and an ADR minted on an obiter ruling rests on
+argument rather than on a measurement. Against a corpus that already carries fifty ADRs, that is a
+real cost.
+
+**It loses on the counterfactual.** Had limb 1 been ruled the other way, §25.1 would have been a
+one-line swap to the prohibition and the retrieval that found *"Any client request must prove its
+identity"* would never have been made — the cell would today rest on the shape §10.1 flags as a tell,
+and the note would carry no record of why. A rule that changes what a session goes and looks for is
+not obiter in the way that matters. And limb 2 is not obiter on any reading.
+
+> **[ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) is minted.**
+> §16.6's test is applied, not set aside: it asks whether the rule states what an existing section
+> already requires, and for both limbs the answer is no.
+
+### 25.7 By-catch, reported and not acted on
+
+**`2375/tcp`'s §3.4 quote describes a hard failure that has not shipped.** §3.4 carries
+docs.docker.com's *"In version 27.0 and later, specifying `--tls=false` or `--tlsverify=false` CLI
+flags causes the daemon to fail to start if it's also configured to accept remote connections over
+TCP."* **[measured]** at `moby/moby` `docker-v29.7.2`, `loadListeners()` in
+`daemon/command/daemon.go` does not fail. It logs three warnings including
+*"[DEPRECATION NOTICE] In future versions this will be a hard failure preventing the daemon from
+starting!"*, sleeps one second, and for a non-loopback address without an explicit opt-out logs four
+more and sleeps fifteen. `DefaultTLSValue` is `false`. The daemon starts and serves an unauthenticated
+root-equivalent API.
+
+This is §19.4's shape a second time — **the owner's rendered documentation and the owner's shipped
+bytes disagree, and the bytes are the permissive side.** Three reasons it changes nothing here.
+The row's Step 2 cell is **confirmed** by the divergence rather than threatened by it: the operation
+is reachable, more plainly than the documentation would suggest. §10.4's one-way rule makes the
+permissive bytes **silent**, so they attest nothing in either direction. And the quote is §3.4's,
+which belongs to a different table from the one this section audits — the discipline §17.6 and §20.6
+both used. **Routed to the curator; it does not block
+[#12](https://github.com/winniel123/verge-asm/issues/12).** The criterion that would move it: a moby
+release in which `loadListeners` returns an error on that branch, at which point `2375/tcp`'s Step 2
+cell is in `6379/tcp`'s position and §25.5 limb 2 decides it the same way.
+
+**`11211/udp` bypasses `-Y` token authentication.** **[measured]** at `1.6.45`, `-S` (SASL) together
+with `-U` is a fatal startup error, but `-Y` (ASCII token auth) together with `-U` is not, and the
+UDP branch installs `try_read_command_udp` — which calls `try_read_command_ascii`, never
+`try_read_command_asciiauth`, where the `"CLIENT_ERROR unauthenticated"` check lives. Recorded
+because it **strengthens** the row's cell and because it is the kind of asymmetry a future session
+would otherwise re-derive. No figure moves.
+
+**`in.tftpd` is not read-only by default, quite.** Flagged as a **secondary** observation about an
+implementation and not about `69/udp`'s specification footing, which is RFC 1350's. `in.tftpd(8)`:
+*"Files may be written only if they already exist and are publicly writable, unless the `--create`
+option is specified."* So `-c` is required to **create**, not to **write** — a WRQ over an existing
+world-writable file in the served directory succeeds without it. This is a distributor-and-
+implementation fact under §10.5 and carries nothing; it is recorded only because the opposite
+oversimplification is common and the cell would look overstated to a reader holding it.
+
+### 25.8 Every dependent figure, checked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 11 / 7 / 19 | **unchanged.** No row changes class; `6379` stays Class A on §25.5 limb 2 |
+| §2.2 footing table — coverage and tiers, as §18.6 restated them | 26 of 37; 15 / 9 / 2 / 11 | **unchanged in every cell.** This section audits **claim** cells; no footing is retrieved and no tier is touched |
+| §10.1's Class A walk — *"All twelve survive"* | eleven, per §19 and the merge note | **all eleven survive.** Ten cells read, ten hold; `4369`'s was already repaired by §20.6 |
+| §10.1's walk, `2379`/`2380` Step 1 cells | kubernetes.io sentence, **open** | **corrected** (§25.1) on `THREAT_MODEL.md` `v3.7.1`. §20.6's ticket is discharged |
+| §10.1's walk, `2379` Step 2 cell | *"reads every Secret"* | **corrected** (§25.3) to the entire keyspace. Row unaffected — the mutation limb carries it |
+| §10.1's walk, `6379` Step 2 cell | *"`FLUSHALL`, and arbitrary writes"* | **corrected** (§25.4). Row unaffected — §25.5 limb 2 |
+| §10.1's *"the one row that needs Step 2's read limb"* | two — `10255`, `4369` (§20.9) | **two, unchanged.** `2379`'s read half is re-worded but the row rests on its mutation limb, and `6379` is a mutation-limb row at the frame |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** Nothing here bears on a footing |
+| §12.2's artefact count | ten artefacts, nine self-declarations | **unchanged.** `redis.conf`, `cassandra.yaml` and `zoo_sample.cfg` were read for **claim** facts, not placed as footing artefacts, and §12.2's population is the footing table's |
+| §17.1's population of negatives | fourteen | **unchanged.** No negative is retrieved or relied on here |
+| §17.8's *fixed point* | finished as of a table state | **not re-armed.** No row acquires or sheds a sole-ground negative |
+| §6.1 containment arithmetic | 28 in the hot set + 4 + 5 = 37 | **unchanged** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
+| ADR count | 0050 highest | **0054 minted** (§25.6). 0051–0053 belong to concurrent passes |
+
+### 25.9 Thin ground, flagged per the standing rule
+
+- **§25.5 limb 1 is decided on argument, not forced by a measurement.** No cell in this pass turns on
+  it, because §25.1 found a sentence that answers Step 1 directly. The prohibition-tier arithmetic is
+  a good reason and it is not a measurement *of the rule* — it measures that prohibitions do not
+  discriminate between classes, from which the rule follows by an inference a reader could decline.
+  §25.6 argues the counterfactual and it is the honest weakest point of this section.
+- **§25.1's re-founding depends on reading a prescriptive sentence as evidence about the protocol's
+  intended callers.** *"Any client request must prove its identity"* is in the imperative register
+  and describes a deployment etcd does not ship. The reading is defended at §25.1 and it is a
+  reading. **The criterion that would defeat it:** an etcd document supporting an unidentified client
+  on `2379` — which would make `THREAT_MODEL.md` internally inconsistent, and none was found.
+- **`6379`'s survival rests on the frame rather than on a reachable operation.** Every other Class A
+  row has an operation an anonymous remote caller reaches in *some* shipped-adjacent state that
+  §25.5's frame plainly covers; `6379` alone needs the operator to disable a named protection.
+  If §25.5 limb 2 is ever narrowed, `6379/tcp` is the first row it takes, and the row it would take
+  it to is **Class C** on Redis's own *"trusted clients inside trusted environments"* — not off the
+  list. That is priced here so a future pass need not re-price it.
+- **Version scope, stated rather than smoothed.** The Redis finding is `7.0.0`-and-later. At `6.2.19`
+  and earlier the `bindaddr_count == 0` clause means a public `bind` silently disables protected mode
+  and the cell as originally written is **true**. The 6.2 line is out of support and §2.2's third
+  form reads the current shipped default, so the current answer governs — but a reader who remembers
+  the old behaviour is not misremembering it.
+- **One tag per project, and they are not the same date.** `etcd v3.7.1`, `redis 8.10.0`,
+  `memcached 1.6.45`, `zookeeper release-3.9.5`, `cassandra-5.0.9`, `moby docker-v29.7.2`,
+  `kubernetes v1.36.3`. Each is the current stable line of its own project, which is the consistent
+  choice, and none of the findings is close enough to a boundary that a neighbouring patch release
+  would move it.
+
+### 25.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6 and §16.10
+
+- **Every Step 2 verdict was read from source at a named tag**, fetched raw rather than through a
+  rendered documentation page — the discipline §19.7 imposed after a rendering was found to carry no
+  provenance about **which** of an owner's positions it renders. Where prose was used it was the
+  owner's own repository file, not its website.
+- **The hazard this section actually met, and it is §19's exactly.** The Redis finding is a
+  documentation-versus-bytes divergence: redis.io's *Protected mode* section still describes the
+  server entering protected mode *"when it is executed with the default configuration (binding all
+  the interfaces) and without any password"* — the `bindaddr_count == 0` reading, removed from the
+  code at `7.0.0`. The shipped `redis.conf` comment **has** been updated to match the code. A session
+  reading the website would have concluded the opposite of the truth, and would have concluded it
+  from the owner's own current page.
+- **A negative worth recording: the search for a gate that was not there.** `proto_text.c` was
+  searched for `IS_UDP` and `udp` and returns **zero** matches, which is what settles `11211/udp`.
+  Per §9.5's rule that a negative states its own extent: the search covers memcached's ASCII command
+  layer at `1.6.45` and not the binary or meta-protocol paths, which are dispatched from the same
+  function and share its transport-blindness.
+- **Three of this section's ten confirmations were retrieved by parallel sub-retrievals and every
+  load-bearing one was re-read directly before use.** The Redis `bindaddr_count` finding, the Docker
+  non-failure, and the etcd dispatch chain were each verified a second time against the raw file,
+  because each of them alone would have moved a row.
+- **What was not done.** No daemon was run. Every verdict is a reading of a dispatch, and where a
+  verdict depends on runtime state — `2380`'s raft-message path, which needs a term and index the
+  handler does not check — the section says what the **code** does not gate rather than asserting a
+  working exploit, and rests the row on the fully-determined promote path instead.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -7422,6 +7875,18 @@ The issuance question (§21) — the released artefact, and the absences that de
 - **[`kafka_2.13-4.3.1-site-docs.tgz`](https://archive.apache.org/dist/kafka/4.3.1/kafka_2.13-4.3.1-site-docs.tgz)** — the ASF's own **released documentation artefact** for Kafka 4.3.1, 3,743,173 B, **SHA-512 verified against [the published sum](https://archive.apache.org/dist/kafka/4.3.1/kafka_2.13-4.3.1-site-docs.tgz.sha512)** and listed locally. 208 entries; `site-docs/security/` holds **seven** files and **`security-model.md` is not among them**. This is the instrument §21 limb (a) reads, and it is §12.9's Cassandra method applied to documentation rather than configuration
 - **`apache/kafka` `docs/security/` enumerated at both refs** — **ten** files at `trunk`, **seven** at release tag `4.3.1`; the three `security-model*` documents exist only on `trunk` and on branch **`4.4`**. **[measured]** all seven released files were retrieved as raw bytes and searched: `internet` occurs **zero** times. `docs/security/security-model.md` is **present at branch `4.4`, byte-identical to `trunk` at 15,499 B**, and **HTTP 404 at branches `4.3`, `4.2` and `4.1`**; the latest tag is `4.3.1` and **no `4.4.x` tag exists**. Its history is two commits — `a5c31c4ac6fa` (2026-06-12) *"MINOR: A starting point for a formal security model"* and `23927a2037f2` (2026-07-16)
 - **The published site, with body sizes so a shell cannot pass for a page** — `kafka.apache.org/documentation/security/security-model/`, `/43/security/security-model/` and `/44/security/security-model/` each **HTTP 404 in 196 B**, against `/43/security/security-overview/` at **HTTP 200 in 59,446 B** of real prose and `/documentation/` at **HTTP 200 in 19,879 B** of JavaScript shell (§17.10's figure, reproduced). Retrieved 2026-08-14
+
+The Class A claim-cell audit (§25) — §10.1's two-step test walked cell by cell. Every Step 2 verdict read from **shipped source at a named tag**, fetched raw rather than through a rendered page per §19.7; one tag per project, each the project's current stable line
+- **[`etcd-io/etcd` `THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/v3.7.1/THREAT_MODEL.md) at `v3.7.1`** — 39 lines, five boundary sections, read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md). **[measured]** *The Client-to-Server Boundary* is three sentences and §16.3 quoted the first; the third — *"Any client request must prove its identity at the transport layer using client certificates"* — is what re-founds §10.1's Step 1 cell for `2379`, and *"strictly limited to authorized cluster members"* does the same for `2380` (§25.1)
+- **etcd's dispatch, `etcd-io/etcd` `v3.7.1`** — [`server/etcdserver/apply/auth.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/apply/auth.go), [`server/auth/store.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/auth/store.go) and [`server/storage/schema/auth.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/storage/schema/auth.go). **[measured]** `Put` → `checkPutAuth` → `IsPutPermitted` → `isOpPermitted`, whose first statement is `if !as.IsAuthEnabled() { return nil }`; `as.enabled` is seeded by `unsafeReadAuthEnabled`, which returns `false` whenever the `authEnabled` key is absent · [`server/etcdserver/api/etcdhttp/peer.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/api/etcdhttp/peer.go) mounts `/raft`, `/members` and `/members/promote/` on the **peer** listener with no authentication filter, and `peerMembersHandler` returns the member list while setting `X-Etcd-Cluster-ID` · [`server/etcdserver/api/rafthttp/http.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/api/rafthttp/http.go) and [`server/etcdserver/server.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/server.go) — the only gates before `raft.Step` are a cluster-ID match and `m.To`/`m.From` member IDs, all of which the same listener discloses (§25.3) · [`server/embed/config.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/embed/config.go) — `client-cert-auth` and `peer-client-cert-auth` default `false`, every cert path defaults `""`, listen URLs default to `http://localhost:2379` and `:2380`
+- **[`redis/redis` `src/networking.c`](https://github.com/redis/redis/blob/8.10.0/src/networking.c) at `8.10.0`, `clientAcceptHandler()`** — **the pass's most consequential measurement.** A non-local peer is written `-DENIED` and destroyed at accept whenever `server.protected_mode && DefaultUser->flags & USER_FLAG_NOPASS`. **[measured]** the condition **does not consult `server.bindaddr_count`**: that clause is present at [`6.2.19`](https://github.com/redis/redis/blob/6.2.19/src/networking.c) and absent from [`7.0.0`](https://github.com/redis/redis/blob/7.0.0/src/networking.c) onward, so a public `bind` does not lift protected mode on any supported release, and the comment above the check is stale. Supporting: [`redis.conf`](https://github.com/redis/redis/blob/8.10.0/redis.conf) at `8.10.0` — `bind 127.0.0.1 -::1` (88), `protected-mode yes` (112), `# requirepass foobared` (1136) · [`src/acl.c`](https://github.com/redis/redis/blob/8.10.0/src/acl.c) `ACLCreateDefaultUser` — `+@all ~* &* on nopass` · [`src/server.c`](https://github.com/redis/redis/blob/8.10.0/src/server.c) `warnAboutInsecureConfig` — for this exact configuration the binary logs *"Redis will accept connections from any **local** client"* (§25.4)
+- **Retrieval hazard, recorded per §9.5 and §19.7 — [redis.io *Protected mode*](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)** still describes protected mode engaging *"when it is executed with the default configuration (binding all the interfaces) and without any password"*, i.e. the `bindaddr_count == 0` reading removed from the code at `7.0.0`. **The shipped `redis.conf` comment has been updated to match the code and the website has not.** A session reading the owner's own current page would have concluded the opposite of the truth (§25.10)
+- **[`moby/moby` `daemon/command/daemon.go`](https://github.com/moby/moby/blob/docker-v29.7.2/daemon/command/daemon.go) at `docker-v29.7.2`** — `initMiddlewares` assembles the entire chain (experimental, version, authorization-plugin) and **no authentication middleware exists in the tree**; [`pkg/authorization/middleware.go`](https://github.com/moby/moby/blob/docker-v29.7.2/pkg/authorization/middleware.go) returns the handler unwrapped when the plugin list is empty and derives identity only from `r.TLS.PeerCertificates`. **[measured]** `loadListeners()` does **not** fail on TCP-without-TLS: it logs *"[DEPRECATION NOTICE] In future versions this will be a hard failure preventing the daemon from starting!"* and starts, `DefaultTLSValue` being `false` — so §3.4's docs.docker.com quote describes a change that has not shipped (§25.7)
+- **[`kubernetes/kubernetes` `pkg/kubelet/server/server.go`](https://github.com/kubernetes/kubernetes/blob/v1.36.3/pkg/kubelet/server/server.go) at `v1.36.3`** — `ListenAndServeKubeletReadOnlyServer` passes `nil` for `auth`, and `NewServer` guards `if auth != nil { server.InstallAuthFilter(ctx) }`, so **the read-only server has no authentication filter**. `GET /pods` → `getPods` → `encodePods`, whose comment reads *"returns a list of pods bound to the Kubelet and their spec"* and which serialises a full `v1.PodList`. **[measured]** at this tag `/spec` no longer exists and `/runningpods/` returns 405 from `InstallDebuggingDisabledHandlers` (§25.2)
+- **[`memcached/memcached`](https://github.com/memcached/memcached/blob/1.6.45/memcached.c) at `1.6.45`** — `settings_init()` sets `sasl = false`, `auth_file = NULL`, `inter = NULL` (wildcard via `AI_PASSIVE`) and `udpport = 0`, the last guarded by a compiled-in `verify_default("udp-port", settings.udpport == 0)`; **[measured]** `udpport` is `11211` at [`1.5.5`](https://github.com/memcached/memcached/blob/1.5.5/memcached.c) and `0` at [`1.5.6`](https://github.com/memcached/memcached/blob/1.5.6/memcached.c), confirming the release that flipped it. **The UDP read limb is refused from the bytes**: `try_read_udp()` strips the 8-byte frame header and drops only multi-packet requests, `try_read_command_udp()` dispatches to the ordinary parsers, and [`proto_text.c`](https://github.com/memcached/memcached/blob/1.6.45/proto_text.c) contains **zero** occurrences of `IS_UDP` — so `set` and `delete` are processed identically over UDP (§25.2, §25.7)
+- **[`apache/zookeeper`](https://github.com/apache/zookeeper/tree/release-3.9.5) at `release-3.9.5`** — `server/DataTree.java` creates the root with ACL id `-1L`; `server/ReferenceCountedACLCache.java` maps `OPEN_UNSAFE_ACL_ID = -1L` to `Ids.OPEN_ACL_UNSAFE`; `ZooDefs.java` defines that as `ACL(Perms.ALL, Id("world","anyone"))`; `server/ZooKeeperServer.java` `checkACL` carries a dedicated early `return` for scheme `world` / id `anyone`, reached without consulting the caller's credentials, and `zookeeper.skipACL` defaults `"no"`; `server/AuthenticationHelper.java` defaults `zookeeper.enforce.auth.enabled` to `"false"`; `conf/zoo_sample.cfg` carries `clientPort=2181` and **no** `clientPortAddress`, so `QuorumPeerConfig` takes the wildcard branch. **This is what refutes the reading that "world-writable znodes" describes the ACL model in the abstract** (§25.2)
+- **[`apache/cassandra`](https://github.com/apache/cassandra/blob/cassandra-5.0.9/conf/cassandra.yaml) at `cassandra-5.0.9`** — `conf/cassandra.yaml` ships the flat scalars `authenticator: AllowAllAuthenticator` and `authorizer: AllowAllAuthorizer`, the nested `class_name:` form appearing only in a commented `MutualTlsAuthenticator` example; `auth/AllowAllAuthenticator.java` returns `false` from `requireAuthentication()` and `AuthenticatedUser.ANONYMOUS_USER` from its negotiator; `transport/messages/StartupMessage.java` returns `ReadyMessage` on that branch; `service/ClientState.java` seats the anonymous user in its constructor and returns `true` from `isSuper()`; `cql3/statements/ModificationStatement.authorize` → `ClientState.ensurePermission` returns at its first line. `rpc_address: localhost` and `native_transport_port: 9042` (§25.2)
+- **[RFC 1350](https://www.rfc-editor.org/rfc/rfc1350.txt) §1 and Security Considerations**, already in this list for §3.4 and re-read here as `69/udp`'s **Step 2** footing: *"The only thing it can do is read and write files (or mail) from/to a remote server … currently has no provisions for user authentication."* RRQ and WRQ are opcodes 1 and 2 of five, and the specification delegates the entire permission decision to the implementation (ERROR code 2, *Access violation*), so there is no protocol-level gate to read. Secondary and carrying nothing under §10.5: [`in.tftpd(8)`](https://manpages.debian.org/bookworm/tftpd-hpa/in.tftpd.8.en.html) — *"Files may be written only if they already exist and are publicly writable, unless the `--create` option is specified"*, so `-c` gates **creation** rather than **writing** (§25.7)
 
 No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
 - **1433/tcp** Microsoft SQL Server and **445/tcp** SMB with **139/tcp**, **137**, **138/udp** — configured through setup and the registry rather than through a file Microsoft ships
