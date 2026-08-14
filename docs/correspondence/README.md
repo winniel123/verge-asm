@@ -63,6 +63,46 @@ Bounces and delivery failures are recorded in the same file, under the same rule
 the consent record: a failure stored in the slot where the document would have gone is a
 better record than a silence.
 
+## The mailbox was searched once, and it was empty
+
+[#59](https://github.com/winniel123/verge-asm/issues/59) step 3 — *search your own sent mail* —
+ran on **2026-08-14**. Recorded here rather than in the issue alone so that no later session
+re-runs it, and so that nobody reads more out of it than it holds.
+
+**Searched:** `logan.m.winnie@gmail.com`, via the Gmail API, over **all folders including sent,
+archive, spam, trash and drafts**, with no date bound. Six queries: the four registry domains
+as body text; the four domains as `To:`, `From:` and `Cc:` headers; the registry names and
+`"regional internet registry"`; `RIPEstat`, `verge-asm`, `RDAP`, `whois`, `"attack surface"`,
+`"permitted use"`, `hostmaster`; and the drafts folder on its own.
+
+**Result:** **nothing.** Every registry-scoped query returned zero threads. The one query that
+returned anything returned five threads — GitHub CVE notifications, Portainer newsletters and a
+Cloudflare domain registration — matching on the bare word `whois` and nothing else.
+
+**The search ran.** A control query over sent mail alone returned ~201 threads spanning
+2024-05-10 to 2026-07-21, so the empty results are the mailbox's answer and not a broken query.
+
+### What it settles, and the two things it does not
+
+It **closes the *file the evidence* branch**. There is no message to retrieve and file, so the
+`drafts/` directory stays the whole of the correspondence record and the surfaces keep the
+weaker true sentence.
+
+It does **not** establish that nothing was sent, and no surface may say so. Two limits, both of
+which are the reason this section states its extent:
+
+1. **One mailbox of at least three.** The dev's sent mail shows `lwinnie@itsyourit.com` and
+   `lwinnie@columbia518.com` as correspondents; neither was searched, and neither is reachable
+   from here.
+2. **An empty mailbox is not an empty world.** Mail can be sent from an account that keeps no
+   copy, or deleted past recovery.
+
+Between them, [ADR-0003](../adr/0003-third-party-source-consent-bar.md)'s fourth amendment still
+governs: *we did not ask* is the same defect with the sign flipped, and whether anything was
+sent remains a `Gap` whose cause is that the project kept no record. **This search narrowed
+where the evidence could have been. It did not convert an absence of evidence into evidence of
+absence**, which is the one move the whole directory exists to prevent.
+
 ## One habit worth carrying
 
 **Do not bundle a question the project needs with a courtesy the source needs.**

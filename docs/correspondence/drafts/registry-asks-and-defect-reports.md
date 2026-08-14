@@ -10,11 +10,21 @@ session may send any of this.
 
 ## Before sending
 
-**Confirm every recipient against the organisation's own current contact page.** Only one
-address in this effort is evidenced: `stat@ripe.net`, which
-[#19](https://github.com/winniel123/verge-asm/issues/19) took from RIPEstat's own
-documentation. The other three were never recorded — that is part of what #57 found — and
-each is marked `TO CONFIRM` below. Do not send to an address invented here or anywhere else.
+**Confirm every recipient against the organisation's own current contact page.** Do not send
+to an address invented here or anywhere else.
+
+[#59](https://github.com/winniel123/verge-asm/issues/59) ran that confirmation on 2026-08-14
+for the addresses that could be retrieved. **Four of the six now carry a first-party address**
+— one retrieved from the organisation's own page, quoted below with the URL it came from — and
+**two are still `TO CONFIRM`**, both LACNIC's, because LACNIC's contact page cannot be
+retrieved. Fetching `lacnic.net/630/2/lacnic/contact-us` returns the same JavaScript shell that
+message 6 exists to report, so the defect blocks confirmation of the address the defect would
+be reported to. That is a finding, not an oversight: **open LACNIC's contact page in a browser
+and read the address off it.**
+
+Provenance for each retrieved address is stated inline. An address carried by a search
+engine's rendering rather than by a direct retrieval is marked as such and is **not**
+confirmation — it is a pointer to where to look.
 
 **Send six separate messages, not four.** The two defect reports go on their own, to whatever
 address each registry publishes for its website or documentation. Bundling them into the asks
@@ -25,7 +35,13 @@ is why both are still unreported.
 ## 1 — RIPE NCC · RIPEstat and the RIPE Database
 
 **To:** `stat@ripe.net` (evidenced — RIPEstat's documented address for above-1000/day
-registration). If RIPE publishes a separate contact for RIPE Database terms, copy it.
+registration, taken by [#19](https://github.com/winniel123/verge-asm/issues/19) from RIPEstat's
+own documentation).
+**Cc:** `ripe-dbm@ripe.net` — the RIPE Database administration team, which is the separate
+contact this draft asked for. Retrieved 2026-08-14 from RIPE's own database documentation,
+<https://docs.db.ripe.net/FAQ/>: *"You can get further help by sending an email to
+ripe-dbm@ripe.net."* Questions 3–5 below are RIPE Database questions, not RIPEstat ones, so
+this address is the one that can actually answer the half of the message that matters most.
 **Ticket:** [#19](https://github.com/winniel123/verge-asm/issues/19)
 **Subject:** Query permissions for an open-source, self-hosted attack-surface tool
 
@@ -85,7 +101,10 @@ registration). If RIPE publishes a separate contact for RIPE Database terms, cop
 
 ## 2 — APNIC · the live registry path
 
-**To:** `TO CONFIRM` — APNIC's published helpdesk or whois contact.
+**To:** `helpdesk@apnic.net` — APNIC's published helpdesk. Retrieved 2026-08-14 from APNIC's
+own email policy page, <https://www.apnic.net/about-apnic/apnic-email-policy/>. APNIC's
+`/get-ip/helpdesk/` now 301s to a Salesforce contact form at `help.apnic.net` that publishes no
+address, so the email policy page is the first-party source that still names one.
 **Ticket:** [#23](https://github.com/winniel123/verge-asm/issues/23)
 **Subject:** Query permissions for an open-source, self-hosted attack-surface tool
 
@@ -128,8 +147,17 @@ registration). If RIPE publishes a separate contact for RIPE Database terms, cop
 
 ## 3 — AFRINIC · the live registry path
 
-**To:** `TO CONFIRM` — AFRINIC hostmaster. The address was never recorded, and the terms text
-[#20](https://github.com/winniel123/verge-asm/issues/20) read had redacted it.
+**To:** `membership@afrinic.net` — the address AFRINIC publishes for **Registry Queries**.
+Retrieved 2026-08-14 from AFRINIC's own contact page, <https://afrinic.net/contact>, which
+lists exactly three addresses: `membership@afrinic.net` (Registry Queries),
+`support@afrinic.net` (Technical Support) and `press@afrinic.net` (Media & Press).
+
+This draft originally said *AFRINIC hostmaster*, which #57 could not resolve because the terms
+text [#20](https://github.com/winniel123/verge-asm/issues/20) read had redacted the address.
+`hostmaster@afrinic.net` does appear across AFRINIC's WHOIS documentation, but it is **not** on
+the current contact page and this message is a permitted-use question rather than a WHOIS
+object request — so the published Registry Queries address is the right one, and the
+substitution is deliberate.
 **Ticket:** [#24](https://github.com/winniel123/verge-asm/issues/24)
 **Subject:** Permitted-use question for an open-source, self-hosted attack-surface tool
 
@@ -165,7 +193,12 @@ registration). If RIPE publishes a separate contact for RIPE Database terms, cop
 
 ## 4 — LACNIC · a retrievable statement of terms
 
-**To:** `TO CONFIRM` — LACNIC's published contact.
+**To:** `TO CONFIRM` — **still unconfirmed, and the reason is this message's own subject.**
+LACNIC's contact page, <https://www.lacnic.net/630/2/lacnic/contact-us>, returns the same
+JavaScript shell to a plain HTTP request that the terms URLs do, so no address can be read off
+it directly. A search engine's rendering of that page reports `hostmaster@lacnic.net` as
+LACNIC's address for resource requests — **treat that as a pointer, not a confirmation**, and
+open the page in a browser before sending.
 **Ticket:** [#25](https://github.com/winniel123/verge-asm/issues/25)
 **Subject:** Where can the terms your RDAP links to be retrieved?
 
@@ -202,7 +235,9 @@ registration). If RIPE publishes a separate contact for RIPE Database terms, cop
 
 ## 5 — AFRINIC · defect report, sent separately
 
-**To:** `TO CONFIRM` — whatever AFRINIC publishes for website or documentation problems.
+**To:** `support@afrinic.net` — the address AFRINIC publishes for **Technical Support**, which
+is the nearest of the three on its contact page to a website defect. Retrieved 2026-08-14 from
+<https://afrinic.net/contact>. AFRINIC publishes no separate webmaster address.
 **Ticket:** [#24](https://github.com/winniel123/verge-asm/issues/24)
 **Subject:** Broken link: afrinic.net/whois/terms returns 404
 
@@ -224,7 +259,10 @@ registration). If RIPE publishes a separate contact for RIPE Database terms, cop
 
 ## 6 — LACNIC · defect report, sent separately
 
-**To:** `TO CONFIRM` — whatever LACNIC publishes for website or documentation problems.
+**To:** `TO CONFIRM` — **unconfirmable for the same reason as message 4**, and here the
+circularity is total: LACNIC publishes no retrievable address to report that its pages are
+unretrievable. Read it off the contact page in a browser, or send this to whatever address
+message 4 goes to.
 **Ticket:** [#25](https://github.com/winniel123/verge-asm/issues/25)
 **Subject:** Five documented policy URLs return a script shell instead of content
 
@@ -240,6 +278,12 @@ registration). If RIPE publishes a separate contact for RIPE Database terms, cop
 > it points at. It looks like a client-side rendering path that does not serve content to a
 > plain HTTP request, so a browser may well show the pages correctly while anything else does
 > not.
+>
+> It is not confined to the policy pages. Your contact page at
+> `lacnic.net/630/2/lacnic/contact-us` behaves the same way — a plain HTTP request returns only
+> the document title and no contact details. I mention it because it means someone who cannot
+> read your pages also cannot find out where to tell you, which is the position I was in
+> writing this.
 >
 > No reply needed.
 >
