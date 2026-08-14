@@ -69,7 +69,8 @@ queried. A name scope and its name exclusions are held in the same form their na
 **subtree containment is label-wise suffix comparison** over the key: the candidate's labels end
 with the scope's labels, compared label by label. That is the name-side twin of the address rule
 above, and it is what stops `evilexample.com` reading as inside `example.com`, which a suffix test
-over text would admit and the probing gate would then open on. Registry lookups **propose** seeds and never author them: a `Proposal` the operator
+over text would admit and the probing gate would then open on.
+Registry lookups **propose** seeds and never author them: a `Proposal` the operator
 has not confirmed is not a `Seed`, asserts nothing, and is read by nothing, which is what
 keeps a third party's file out of the probing gate. Declining one is an exclusion of this kind
 rather than a suppression, since it is a claim about where the estate ends. A name scope may
