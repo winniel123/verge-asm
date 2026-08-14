@@ -360,3 +360,46 @@ ours. It bumps the leaf and nothing else.
 | Leaving `certificate` at `Presented │ NoTLS` | Files SSLv3-only, RC4-only and SNI-required listeners under *not a TLS server*, and contradicts the partition ADR-0011 cited to justify `NoTLS` |
 | `TLSRefused` as a `Gap` | We looked and got an answer; `Gap` is reserved for *we did not look*, per ADR-0011's closed-union rule |
 | Calling a widened TLS offer `revealed`, as ADR-0007 and `CONTEXT.md` do | `revealed` is an opening kind and no timeline opens; ADR-0017 already priced the symmetric case as a `Break` |
+
+## Amendment — [#62](https://github.com/winniel123/verge-asm/issues/62): the test is asked of the offer, and widening the TLS offer breaks two facets
+
+Recorded by [ADR-0030](./0030-an-offer-is-admitted-on-a-finding-or-on-a-falsity-it-prevents.md),
+which wrote out the five offers this ADR left as its last consequence. Writing them exposed two
+defects here, both in the TLS half.
+
+**1. The test as stated gives one offer two homes, which rebuilds the trap this ADR disarmed.**
+The Decision table's *"An offer is batch scope exactly where **the value** carries a per-candidate
+negative"* reads as a question about a facet. The TLS candidate set feeds **two** facets with
+different value shapes — `tls-acceptance`'s value is a subset of the set (scope), while
+`certificate`'s is a single global negative (parameter of `tls-handshake`). Since `tls-handshake`
+feeds both facets, that split makes one widening pay a `Break` on `tls-acceptance` twice: once for
+the aperture widening and once for the leaf bump. Same object, one change, doubled — *"they do not
+compose; they double"*, verbatim, arriving through the door the *one fact has one home* argument
+does not cover.
+
+This ADR half-knew: its Consequences say the declared candidate set is *"scope rather than parameter
+and lives on the `Batch`"* with no per-facet split, contradicting its own test. **The consequence
+line is right and the test's wording is withdrawn**, replaced by:
+
+> An offer is scope where **any** value it feeds carries a per-candidate negative, and then it is
+> scope for **every** batch that makes it — including batches whose own facet carries only a global
+> negative. Otherwise it is a declared parameter of the leaf that made it.
+
+The correction changes only the TLS case; ALPN, EDNS and the transport policy stay parameters
+exactly as placed above.
+
+**2. *"a `Break` on every `tls-acceptance` timeline in the estate"* understates the price by one
+facet.** With the set recorded as scope on the `certificate` batch too, widening the offer `Break`s
+`certificate` as well — correctly, since a wider offer genuinely moves `TLSRefused` →
+`Presented(chain)` on a legacy box. Every argument above for settling the list wide *before* v1
+holds a fortiori.
+
+**3. Two smaller corrections.** *"Every offer the measurement binary makes is enumerated in the job
+spec"* has an exception Go imposes: `Config.CipherSuites` is ignored for TLS 1.3, so the TLS 1.3
+suite list cannot be declared — ADR-0030 §4 removes it from `tls-acceptance`'s value rather than
+letting the library own a per-candidate negative. And *"an unofferable candidate is an absence from
+the scope record, visible, and not a silent one"* is discharged by a **build-time offerability
+check** (ADR-0030 §5), not by the scope record alone, which would only reveal the narrowing after
+the `Break` had fired.
+
+The **aperture input count is unchanged at six**, and *"this ticket adds none"* stands for #62 too.
