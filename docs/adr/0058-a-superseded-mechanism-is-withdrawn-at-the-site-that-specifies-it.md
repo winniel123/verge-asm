@@ -75,6 +75,13 @@ the same change.** A note in the superseding document does not discharge the obl
 **The test for a reader:** if the superseded sentence, read alone and out of context, would cause a
 competent session to build or specify the thing — it is not withdrawn.
 
+> **The unit is the *sentence*, and the #106 amendment below settles that it is.** *Site* here means
+> the clause, not the file — so **a document supersedes itself**, and an amendment appended to a file
+> does not discharge a clause standing unmarked earlier in that same file. Read *"the document that
+> specifies the mechanism is amended"* as *"the sentence that specifies the mechanism is marked"*
+> throughout; the two readings differ only in the intra-document case, and
+> [#106](https://github.com/winniel123/verge-asm/issues/106) rules that case **in**.
+
 ## Rationale
 
 ### A pointer is addressed to the reader who does not need it
@@ -136,10 +143,17 @@ old citation finds nothing rather than a redirection. What this ADR adds is that
   document specifying a mechanism, and an ADR dissolving it. It joins the map's *detectable defects*
   group alongside *a row whose footing tier disagrees with its class*
   ([#83](https://github.com/winniel123/verge-asm/issues/83)) rather than its trigger list.
-- **The existing corpus is not swept.** Two instances are known and both are repaired here. Whether
+- ~~**The existing corpus is not swept.** Two instances are known and both are repaired here. Whether
   others exist is unmeasured, and a sweep is not opened — it would be a read of every superseding
   decision in the repository against every document it names, which is exactly the obligation the
-  bullet above declines. It is ticketed as a bounded question instead.
+  bullet above declines.~~ It is ticketed as a bounded question instead.
+  > **Spent, by [#102](https://github.com/winniel123/verge-asm/issues/102)'s annotation below** — the
+  > bounded sweep was opened, run and closed, and the population is in that annotation. This bullet is
+  > marked here rather than only there because the withdrawal was written 88 lines down in the same
+  > file, which is the intra-document defect [#106](https://github.com/winniel123/verge-asm/issues/106)
+  > rules on: **this ADR carried an instance of its own shape.** What survives is the **cost estimate**
+  > — the sweep really did cost a read of the whole corpus, and #102 priced it at 197 moves over
+  > 39,382 lines.
 - [`CONTEXT.md`](../../CONTEXT.md) needs no change. No term is added and none is amended.
 
 ## Alternatives rejected
@@ -229,9 +243,14 @@ without it. It is now named there as the **fourth**.
 superseding one at all, from **intra-document** ones, where a trailing amendment section amends the
 file but the Decision-table row it supersedes stands unmarked hundreds of lines above. This ADR's
 Decision says the withdrawal goes *"at the superseded **site**"* and its test is about a **sentence**
-read alone — on which reading the intra-document cases are instances too. They are reported rather
+read alone — on which reading the intra-document cases are instances too. ~~They are reported rather
 than repaired, because calling them instances widens this rule from *amend the other document* to
-*mark the sentence*, which is a real extension and is not #102's to make silently. The clearest is
+*mark the sentence*, which is a real extension and is not #102's to make silently.~~ The clearest is
 [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md), whose amendment **names the sentence**
 — *"the `32` … sits in the sentence a reader takes the enumeration rule from"* — and leaves it
 unmarked 420 lines above.
+
+> **The held-back clause is WITHDRAWN by the #106 amendment below**, which took the extension #102
+> declined to make silently and made it explicitly: the intra-document cases **are** instances, and
+> the ones this annotation enumerated are repaired rather than reported. The boundary this paragraph
+> drew is dissolved; what survives is its **description** of the two populations, which is accurate.

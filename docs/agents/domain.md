@@ -80,6 +80,13 @@ nobody searched for the other place that sentence lived.
 > one measured — it cost a whole ticket, [#39](https://github.com/winniel123/verge-asm/issues/39)
 > having been filed and worked against a premise ADR-0002 had already withdrawn. Grep the glossary,
 > and then grep everything else the decision names.
+>
+> **And then grep the document you are writing in.** Per
+> [#106](https://github.com/winniel123/verge-asm/issues/106), ADR-0058 is on the **sentence**, so a
+> document supersedes itself: an amendment appended to a file does not discharge the clause it
+> supersedes hundreds of lines above in that same file. The rule's own forcing measurement is of that
+> shape — [#91](https://github.com/winniel123/verge-asm/issues/91) re-asserted a dissolved invariant
+> **inside ADR-0009's own body**, two screens below the Decision row dissolving it.
 
 ## Flag ADR conflicts
 
