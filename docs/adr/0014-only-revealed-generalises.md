@@ -221,6 +221,24 @@ count of timelines opened and **no comparison at all**, because per the additive
 nothing to compare. Writing that down stops the safer payload inheriting the riskier one's
 apparatus for no reason.
 
+## Amendment — [#63](https://github.com/winniel123/verge-asm/issues/63): what the membership
+transition actually carried
+
+This ADR leaves an opening caused by neither the world nor our aperture *recorded, unnamed and
+unalerted*, on the ground that *"the subject's own membership transition already carried that
+news, at the cause"*. That clause was doing more work than had been checked, because `appeared`
+had never been ruled a message at all.
+
+[ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md) keeps the decision
+and qualifies the clause twice. The membership transition carries the news only where the **root
+of the entering sub-tree** was a `Name` or an `Address` — a `Service` or an `Endpoint` entering
+is never a message — and what carries it is the **census** on that message, never the bare fact
+that something appeared. That matters because a newly-entered subject has no transitions at all:
+its `Reach` leg opens *at* `reached` rather than moving to it, its `Exposure` opens, and its
+signal timelines open, so the flagship predicate, the projection and all ten rules are
+transition-shaped and match none of them. The census is the only thing that reaches the operator,
+which makes it load-bearing rather than decorative.
+
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in three entries.** `Transition` now says that
