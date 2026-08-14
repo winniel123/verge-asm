@@ -32,7 +32,7 @@ Three constraints from decisions already made shape the answer before any eviden
 
 | Decision | Answer |
 |---|---|
-| The list | **38 `(port, transport)` pairs** in three classes — §3 |
+| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed** |
 | Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2 |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
@@ -332,6 +332,10 @@ alternative is a list whose rows are backed by whichever authoritative-looking d
 ---
 
 ## 3. The list
+
+> **Amended by §11 ([#66](https://github.com/winniel123/verge-asm/issues/66)): the list is 37 pairs.**
+> `161/udp` is **removed**. Its row is left standing in §3.3 and its quotes in §3.4, marked here rather
+> than deleted, per the name-and-withdraw convention — where §11 and this section disagree, §11 governs.
 
 **38 `(port, transport)` pairs.** The `reg.` column records whether IANA registers the port to the
 service named — `yes` means registered, `sq.` means the service squats on a registration belonging
@@ -1997,6 +2001,377 @@ frequency tried to re-enter — amplification, in an unguarded "why" cell — is
 
 ---
 
+## 11. `161/udp` comes off the list — the retrieval §10.6 called for
+
+Wayfinder ticket [#66](https://github.com/winniel123/verge-asm/issues/66), performing the retrieval
+§10.6 named as the only thing that could move the row. This section **amends §1, §2, §3, §6, §7, §8
+and §10 by reference**: earlier text is left standing and marked, per the name-and-withdraw
+convention, and where §11 and an earlier section disagree, **§11 governs**.
+
+**Headline result, stated first.**
+
+> **`161/udp` SNMP is removed. The list is 37 `(port, transport)` pairs, Class C is 18 rows, and no
+> other row moves.** The IETF's SNMP management-architecture documents were retrieved and read, and
+> **no first-party placement sentence exists anywhere in them**. The reference implementation's
+> position, retrieved, points the other way: net-snmp states that SNMP's secure form accepts or
+> rejects a request *"irrespective of where it originated"*. Claim 3's boundary limb is therefore
+> unattested by an owner, Claims 1 and 2 remain unavailable, and after §10.2 the claim set is closed —
+> so a row that can name none of the three is not admissible.
+
+**And §2.6's headline sentence is restored to every row on the list — by the row leaving, not by the
+row being rescued.** That is the weaker of the two outcomes §10.6 contemplated and it is the honest
+one.
+
+### 11.1 What was retrieved
+
+Ten RFCs and five net-snmp artefacts, all fetched as bytes and searched directly rather than through
+a summarising layer, per §9.5 and [#46](https://github.com/winniel123/verge-asm/issues/46).
+
+| Retrieved | What it is | Did it place SNMP? |
+|---|---|---|
+| RFC 3411 | *An Architecture for Describing SNMP Management Frameworks* (STD 62) | **No** |
+| RFC 3412 | Message Processing and Dispatching (STD 62) | **No** |
+| RFC 3413 | SNMP Applications (STD 62) | **No** |
+| RFC 3414 | User-based Security Model (STD 62) | **No** |
+| RFC 3417 | Transport Mappings (STD 62) | **No** — and it puts SNMPv3 on 161 (§11.5) |
+| RFC 3584 | Coexistence between SNMP versions (BCP 74) | **No** |
+| RFC 3410 | Applicability Statements for SNMP | **No** — §8.2 delegates to the operator (§11.2) |
+| RFC 2570 | RFC 3410's predecessor | **No** |
+| RFC 1157 | SNMPv1 itself (STD 15, Historic) | **No** — and §3.2.5 refuses locality outright (§11.2) |
+| RFC 6353 | TLS Transport Model (Standards Track), the 10161 registration | **No** (§11.5) |
+| net-snmp `snmpd(8)`, `snmpd.conf(5)`, upstream FAQ, wiki `TUT:Security`, `EXAMPLE.conf.def` | the reference implementation | **No** (§11.3, §11.4) |
+
+**The measurement that carries the section.** Across all ten RFCs the strings `management network`,
+`segregat`, `firewall`, `separate network`, `isolated network`, `private network`, `untrusted
+network`, `public network` and `out of band` occur **twice in total**, both in RFC 6353 and both
+about *certificate distribution* — *"a trusted out-of-band mechanism"* for exchanging fingerprints,
+and *"an out-of-band transfer"* of trust anchors. **Zero occurrences of any of them describe where an
+SNMP agent belongs on a network.** This is the §9.2 method applied to SNMP: the documents are citable
+for what they do not contain, and the absence is total rather than partial.
+
+### 11.2 The IETF documents, and the two near-misses that are the whole trap
+
+**`administrative domain` is a naming scope, not a network.** The phrase occurs 8 times in RFC 3411,
+once each in RFC 3412, RFC 3414 and RFC 6353, and **every occurrence bounds an identifier's
+uniqueness**:
+
+> "Within an administrative domain, an snmpEngineID is the unique and unambiguous identifier of an
+> SNMP engine. … Note that it is possible for SNMP entities in different administrative domains to
+> have the same value for snmpEngineID."
+> — [RFC 3411](https://www.rfc-editor.org/rfc/rfc3411.txt), §3.1.1.1
+
+The same for `contextEngineID` (§3.3.2), for the `contextEngineID`/`contextName` pair (§3.3.1) and for
+the `snmpEngineID` textual convention's guidance that a generated value be *"unique in the agent's
+administrative domain"*. `management domain` (§3.3.1) is the same idea for contexts. **Reading either
+phrase as a network boundary is §10.6's error one level down** — a term lifted out of the context that
+gives it its only operative meaning, which is precisely
+[#46](https://github.com/winniel123/verge-asm/issues/46)'s finding.
+
+**RFC 1157 defines SNMP's own membership concept with no locality in it at all.** This is the
+strongest single sentence retrieved, and it points against the row:
+
+> "A pairing of an SNMP agent with some arbitrary set of SNMP application entities is called an SNMP
+> community."
+> — [RFC 1157](https://www.rfc-editor.org/rfc/rfc1157.txt), §3.2.5, *Definition of Administrative Relationships*
+
+*Arbitrary set.* The specification's word for who may talk to an agent is a **credential-scoped
+relationship**, chosen in the section explicitly titled for administrative relationships, and it
+declines to say anything about where those entities sit. RFC 1157's Security Considerations reads in
+full: *"Security issues are not discussed in this memo."*
+
+**RFC 3410 §8.2's deployment sentence is a delegation, not a placement claim.** §10.6 quoted the
+insecurity sentence; the section's *operative* deployment sentence is the next one, and it hands the
+boundary to the operator rather than naming one:
+
+> "Of course, it is important that users deploying multi-lingual systems with insecure protocols
+> exercise sufficient due diligence to insure that configurations limit access via SNMPv1 and SNMPv2c
+> appropriately, **in keeping with the organization's security policy**, just as they should carefully
+> limit access granted via SNMPv3 with a security level of no authentication and no privacy"
+> — [RFC 3410](https://www.rfc-editor.org/rfc/rfc3410.txt), §8.2 (emphasis added)
+
+Two things about it. It governs **access control**, not network position — *limit access*, not *place
+it here*. And it is **conditional on the organisation's own policy**, which is exactly the shape §9.3.1
+refused for finger and §4.4 refused for 6443: a preference expressed against whatever architecture the
+operator actually has. A sentence that defers to the reader's policy cannot be the owner naming a
+boundary.
+
+**RFC 3411 §9 does the same one level up**, and it is the architecture document — the single most
+likely home for a placement sentence:
+
+> "It is the responsibility of the purchaser of an implementation to ensure that: … 2) the Security and
+> Access Control Models utilized satisfy the security and access control needs of the organization"
+> — [RFC 3411](https://www.rfc-editor.org/rfc/rfc3411.txt), §9
+
+**The threat model is retrieved and confirms the shape.** RFC 3411 §1.4 and RFC 3414 §1.1 enumerate
+modification of information and masquerade as principal threats, disclosure and message-stream
+modification as secondary, and expressly exclude denial of service and traffic analysis. Every one is
+a property of the *message*; not one is a property of the *network the agent sits on*. RFC 3414 §1.2's
+four goals are integrity, identity, timeliness and confidentiality — again, no placement.
+
+**The one sentence that reads like locality, and does not survive its context.** RFC 3411 §1.4 says of
+traffic analysis that *"entities may be managed on a regular basis by a relatively small number of
+management stations - and therefore there is no significant advantage afforded by protecting against
+traffic analysis."* It is a **reason for declining to defend against a threat**, and quoting it as a
+statement about SNMP's intended audience is the truncated-conditional shape verbatim.
+
+### 11.3 net-snmp, the reference implementation — and it points the other way
+
+Under §10.5 net-snmp is an **owner**: it authors the reference implementation. Four retrieved facts,
+in increasing order of force.
+
+**Its shipped default is permissive, so under §10.4 it is silent.** The ticket anticipated this:
+
+> "By default, **snmpd** listens for incoming SNMP requests on UDP port 161 on all IPv4 interfaces."
+> — [`snmpd(8)`](http://www.net-snmp.org/docs/man/snmpd.html), LISTENING ADDRESSES
+
+`snmpd.conf(5)` documents `agentaddress` as *"a list of listening addresses, on which to receive
+incoming SNMP requests"* and carries **no exposure statement of any kind**. The only loopback default
+anywhere in the manual belongs to a different port: SMUX on 199, where `--enable-local-smux` *"causes
+it to only listen on 127.0.0.1 by default"*.
+
+**Its access-control default restricts by credential, and confirms Claim 1's unavailability by
+measurement rather than by assertion.** §10.6 refused Claim 1 on the reasoning that a community string
+is a credential; the reference implementation says it outright:
+
+> "By default, the Net-SNMP agent starts up with a completely empty access control configuration. This
+> means that *no* SNMP request would be successful."
+> — [net-snmp FAQ](http://www.net-snmp.org/FAQ.html), *Why does the agent complain about 'no access control information'?*
+
+That is a **restricting** default, so §10.4 admits it — but it restricts on the **principal**, not on
+the network, so it attests against Claim 1 and says nothing about Claim 3.
+
+**Its one sentence about port 161 and a boundary is an option in a menu, not a position.** Under *How
+can I stop other people getting at my agent?* — a question the answer opens by asking *"Firstly, are
+you concerned with read access or write access?"* — the FAQ offers three external mechanisms:
+
+> "Other options include:
+>   - Blocking access to port 161 from outside your organisation (using filters on network routers)
+>   - Using kernel-level network filtering on the system itself (such as IPTables)
+>   - Configuring TCP wrapper support ("--with-libwrap")"
+> — [net-snmp FAQ](http://www.net-snmp.org/FAQ.html)
+
+This is the closest thing to a placement sentence in the entire corpus and it is not one. It is a
+hardening option offered conditionally, on the same footing as `iptables` and `hosts.deny`, and §9.1
+already refused Red Hat's *"use TCP Wrappers to limit which networks or hosts have access"* as exactly
+this shape. It names no boundary SNMP *assumes*; it names a boundary an operator *may impose*.
+
+**And the decisive sentence points the other way.** In the same answer, the owner states that the
+protocol's secure form is location-independent **by design**:
+
+> "For strict security you should use only SNMPv3, which is the secure form of the protocol. However,
+> note that the agent access control mechanisms does not restrict SNMPv3 traffic by location - an
+> SNMPv3 request will be accepted or rejected based purely on the user authentication, **irrespective
+> of where it originated**."
+> — [net-snmp FAQ](http://www.net-snmp.org/FAQ.html) (upstream's *"mechanisms does"* preserved; emphasis added)
+
+**This is the [#30](https://github.com/winniel123/verge-asm/issues/30) shape**: the row moves from
+*no evidence found* to *evidence found pointing the other way*. SNMP's own reference implementation
+says the secured protocol deliberately does not read network position — which is the opposite of a
+protocol that assumes its callers are inside a boundary.
+
+### 11.4 The strongest counter-argument, retrieved and refused
+
+There is a real case for keeping the row and it is not the one §10.6 was worried about. It is a
+**restricting shipped default**, which §10.4 admits and §2.2's weak tier already relies on for
+5432/tcp, 5984/tcp and 9042/tcp.
+
+**[measured]** Upstream net-snmp's `EXAMPLE.conf.def` opens its AGENT BEHAVIOUR block with the
+loopback line **active** and the all-interfaces line **commented out**:
+
+```
+#  Listen for connections from the local system only
+agentAddress  udp:127.0.0.1:161
+#  Listen for connections on all interfaces (both IPv4 *and* IPv6)
+#agentAddress udp:161,udp6:[::]:161
+```
+
+— [`EXAMPLE.conf.def`](https://raw.githubusercontent.com/net-snmp/net-snmp/master/EXAMPLE.conf.def), net-snmp upstream
+
+And Debian **installs that file verbatim as the operative `/etc/snmp/snmpd.conf`** — retrieved from
+`net-snmp_5.9.5.2+dfsg-2.1.debian.tar.xz`, `debian/snmpd.conf`, byte-identical in this block except
+for the commented IPv6 literal. So the modal Debian install of SNMP genuinely binds loopback only.
+
+**It loses, on three independent grounds, and each is worth stating because the next case will look
+like this one.**
+
+1. **Upstream it is an example, not a default.** §2.2's third form is *the project's shipped default*.
+   net-snmp's own FAQ says of `snmpd.conf`: *"It doesn't exist in the distribution as shipped. You need
+   to create it to reflect your local requirement."* The file's own header says *"Some entries are
+   deliberately commented out, and will need to be explicitly activated"*, and its network example is
+   `#rocommunity secret 10.0.0.0/16` under *"Adjust this network address to match your local
+   settings"* — a template to be edited, not a boundary. The agent's **actual** default, documented in
+   `snmpd(8)`, is all IPv4 interfaces.
+2. **Debian's copy is a shipped default, and Debian is not the owner.** §10.5 admits a distributor's
+   packaging under §2.2's third form — so §10.4 does not silence it, because it restricts. But §10.3
+   requires that **the boundary be named by the owner**, and §10.5's other half says a distributor
+   *"owns nothing about the protocol"*. Debian's file attests about Debian's package. It cannot attest
+   about SNMP's intended audience, and admitting it would let a packaging choice carry a normative row
+   — the door §2.3 exists to hold shut, arriving through a `.deb` instead of a government PDF.
+3. **The restriction is incoherent as a statement about SNMP's audience.** An SNMP agent listening only
+   on loopback can be polled by **no management station at all**, which is the protocol's entire
+   purpose. The line is a secure-out-of-the-box posture — configure before use — not a claim about
+   where SNMP belongs. This is the load-bearing difference from 5432/tcp: `listen_addresses =
+   localhost` describes a **real and common** PostgreSQL deployment, an application tier on the same
+   host, so the default and the claim say the same thing. Loopback-only SNMP describes nothing anybody
+   runs.
+
+**Recorded as a general defect in the repaired standard, because it will recur.** The same bytes are
+*silent upstream documentation* under reading 1 and an *admitting shipped default* under reading 2, and
+§2.2/§10.4/§10.5 do not say which governs. It did not decide this row — both readings lose on §10.3 —
+but it decides the next daemon whose upstream ships an `EXAMPLE.conf` a distribution installs. Opened
+as [#69](https://github.com/winniel123/verge-asm/issues/69).
+
+### 11.5 Claim 2 tested against RFC 6353's 10161 — refused, and not on deployment share
+
+The ticket asked whether `snmptls`/`snmpdtls` on 10161 satisfies Claim 2's successor clause, which
+would admit the row without any placement sentence. **It does not.**
+
+**The registration is real, and materially stronger than LDAP's.** RFC 6353 is Standards Track and
+registers four ports itself, with an RFC reference — unlike §9.2's `ldaps,636`, a bare legacy IANA row
+assigned to an individual with no RFC behind it:
+
+> "snmptls 10161/tcp SNMP-TLS [RFC6353] · snmpdtls 10161/udp SNMP-DTLS [RFC6353] · snmptls-trap
+> 10162/tcp SNMP-Trap-TLS [RFC6353] · snmpdtls-trap 10162/udp SNMP-Trap-DTLS [RFC6353]" … "These are
+> the default ports for receipt of SNMP command messages (snmptls and snmpdtls) and SNMP notification
+> messages (snmptls-trap and snmpdtls-trap) over a TLS Transport Model as defined in this document."
+> — [RFC 6353](https://www.rfc-editor.org/rfc/rfc6353.txt), §8 IANA Considerations
+
+**And it still fails, on Claim 2's own discriminator rather than on how much of the internet runs it.**
+§4.2 and §9.2 state the clause's job: *"the encrypted sibling is not an exception to the rule, it is the
+rule — its existence is what makes the plaintext port wrong"*. 23 is wrong **because** 22 exists and
+the fix is not on 23. For SNMP the fix is on 161:
+
+> "It is suggested that administrators configure their SNMP entities supporting command responder
+> applications to listen on UDP port 161."
+> — [RFC 3417](https://www.rfc-editor.org/rfc/rfc3417.txt), §3.2, *Well-known Values* (STD 62)
+
+RFC 3417 is the SNMPv3 framework's own transport mapping, and RFC 3414's fourth goal is to *"Provide,
+when necessary, that the contents of each received SNMP message are protected from disclosure."* So a
+fully authenticated **and encrypted** standards-track SNMP — v3/USM at `authPriv` — is reached on
+`161/udp` itself. **SNMP hardens 161 on 161**, exactly as StartTLS hardens 389 on 389, and §9.2's
+verdict transfers without modification.
+
+**The IETF's own stated remedy was the version, not the port.** RFC 3410 §8.2 declares SNMPv1 and
+SNMPv2c Historic *"to send a clear message that the third version of the Internet Standard Management
+Framework is the framework of choice"* — nine years before RFC 6353 existed. **[measured] the string
+`161` does not occur in RFC 6353 at all** (only `10161` and `10162`). RFC 6353 does not deprecate 161,
+does not reference it, and does not describe itself as its successor; it adds a transport model
+alongside the existing one.
+
+**The scepticism the ticket asked for is not needed, and the note refuses to lean on it.** *A registered
+but undeployed successor* would have been the easy refusal, and it is unavailable on the evidence:
+`snmpd(8)` lists `dtlsudp` among its transport specifiers, so TLSTM is implemented, not vapour. The
+refusal rests on structure — the fix lives on the port — which is the ground that would survive TLSTM
+becoming universal tomorrow.
+
+### 11.6 Ruling, and every number that moves
+
+> **`161/udp` is removed from the list.** No permitted claim is available to it: Claim 1 fails on a
+> credential the reference implementation confirms it demands, Claim 2 fails on §9.2's shape, and
+> Claim 3's boundary limb has **no owner attestation of any kind** after retrieval. §10.2 closed the
+> claim set, so *no claim* means *no row*.
+
+**§10.6's own criterion is met.** It wrote: *"a first-party IETF or SNMP-owner sentence placing
+SNMPv1/v2c inside a management domain admits the row cleanly on Claim 3; its absence means the row rests
+on a corroborator and must be removed before v1 ships."* The retrieval was performed and the sentence
+does not exist. §10.6's *"stays on the list, disclosed"* is **withdrawn**.
+
+**Every dependent figure, walked rather than asserted:**
+
+| Where | Was | Is |
+|---|---|---|
+| §1 summary table | 38 pairs | **37 pairs** |
+| §2.2 footing table, "explicit prohibition" row | includes `161 SNMP` | **`161 SNMP` struck** — §10.7 had already found the cell wrong, and there is now no row to place |
+| §3 preamble, §3.3 Class C | 38 total, 19 Class C rows | **37 total, 18 Class C rows.** Class A 12 + Class B 7 + Class C 18 = 37 |
+| §3.4 SNMP quote block | RFC 3410 §8.2 + CISA TA17-156A | **Retained, marked** — citable now only as the record of what the row rested on |
+| §6.1 "in the hot set already" | 28 of 38 | **28 of 37** |
+| §6.1 "missing, whole transport off by default" | **6** UDP rows: 69, 137, 138, **161**, 623, 11211 | **5** UDP rows: 69/udp, 137/udp, 138/udp, 623/udp, 11211/udp. 28 + 4 + 5 = 37 ✓ |
+| §6.2 | names `161/tcp` vs `161/udp` as a live hot-set defect | **Half discharged.** The 623/tcp-vs-623/udp defect stands; the 161 half dissolves, because containment no longer requires `161/udp` at all |
+| §7.1 route 4 | "The six UDP rows" | **five** |
+| §8 question 9 | open | **closed by §11** |
+| §10.6 | ruling: stays, disclosed | **withdrawn** (above) |
+| §10.9 | "Nothing on the list. 38 pairs" | **Superseded**: one row leaves, on retrieval §10.9 correctly said had not happened |
+
+**Outside this note.** [ADR-0009](../adr/0009-verge-core-is-a-union.md) defines
+`verge-core = frequency-set ∪ sensitive-list`, so the union **narrows by one member**. Its §*UDP is a
+transport capability, not a list* says *"the sensitive half contributes six"* UDP pairs — **now five** —
+and its §*"Correcting a mis-aimed port"* worked example says *"161/udp and 623/udp enter. Plain
+`revealed`"*; **`161/udp` no longer enters**, because the frequency half is TCP-only
+([#4](https://github.com/winniel123/verge-asm/issues/4) §2.5) and ADR-0009 attributes 161 to the
+sensitive half. `161/udp` leaves `verge-core` entirely. Amendment recorded on the ADR.
+[ADR-0004](../adr/0004-signals-are-release-coupled-rules.md)'s
+[#44](https://github.com/winniel123/verge-asm/issues/44) amendment uses *"no `Service` is observed on
+161/udp"* as its worked example of a rule with no subject; the example is now stale in its subject and
+unchanged in its point — any of the five surviving UDP pairs substitutes for it.
+
+**What it costs, per [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) and
+[ADR-0009](../adr/0009-verge-core-is-a-union.md), and why now.** The edit bumps
+`sensitive-port-reached-from-internet`'s rule version and `Break`s every evaluation, and it narrows
+`verge-core`, which is an aperture change. **Both are vacuous before the first install** — ADR-0009
+already ruled that vacuity is not a grace period — so the price today is zero and the price after v1 is
+a comparability cycle on the product's best signal. §7.2's symmetric-cost argument is what makes this
+the right moment: the tight list is better precisely because its errors are discoverable, and this one
+was discovered.
+
+**The honest loss, stated rather than smoothed.** SNMP is among the most exposed management protocols
+on the internet, and after this edit `sensitive-port-reached-from-internet` says **nothing about it**.
+The note accepts that, for the reason §2.7 accepted it for `111/tcp`: we could not find anyone entitled
+to say that exposing it is never correct, and a row backed by whichever authoritative-looking document
+was nearest is the failure this standard exists to prevent. The row that had the most obviously
+"correct" verdict attached to it is the row with no owner behind it, and that is the finding.
+
+### 11.7 What §2.6 now says, and why it is a weaker sentence than it looks
+
+§2.6's boast is **restored, and its second sentence needs one word of care**:
+
+> **No row on this list rests on a government or cloud-provider source alone.** Every one of the **37**
+> is attested by the specification, the project, or the vendor that owns the protocol.
+
+It is now true of every row, because the row that falsified it is gone. Two riders bind whoever quotes
+it next. It was **not** restored by finding an attestation, so it is evidence about the standard's
+tightness and **not** evidence that the standard's coverage is complete — §2.7's `111/tcp` and this
+row are the two measured cases of a port that is indefensible in practice and unlistable on the
+evidence. And §2.6's abandoned escape hatch was drafted to carry **two** rows; one of them is now off
+the list and the other, `623/udp`, is carried by Dell speaking about the DRAC it designed. **The hatch
+would have carried exactly the row that turned out not to belong** — which is the strongest available
+statement that abandoning it was right, and it is a stronger statement than the one §2.6 makes.
+
+### 11.8 Thin ground, and the criterion that would change the verdict
+
+**Flagged per the effort's standing rule.** This is a **negative** finding over a corpus chosen by us.
+The claim is *no first-party placement sentence exists in the SNMP standards family or in the reference
+implementation's documentation*, and it is established over ten RFCs and five net-snmp artefacts —
+which is the family §10.6 named plus RFC 1157, RFC 3417 and the upstream example config. It is not
+established over every SNMP implementation on earth. A vendor SNMP stack — Cisco's, Juniper's — might
+carry a placement sentence about its own agent, and under §10.5 that vendor would own **its** agent and
+not the protocol, which is why those were not pursued: a Cisco sentence cannot attest a `(port,
+transport)` row about SNMP in general, only about Cisco.
+
+**What would change the verdict, in one line.** A first-party sentence from the IETF or from net-snmp
+placing SNMPv1/v2c inside a network boundary — not limiting *access*, not recommending a *filter*, but
+stating that the protocol assumes its callers are inside one. Re-adding the row on such a sentence
+would be a new admission priced at a version bump and an aperture widening, never a reversal of this —
+ADR-0009's rule that a correction is a removal plus an addition, each priced separately.
+
+### 11.9 Retrieval hazards met, recorded per §9.5
+
+- **`sources.debian.org` and `salsa.debian.org` both serve a proof-of-work JavaScript challenge** to a
+  plain client, byte-identical in shape to the LACNIC shell §9.5 recorded. Debian's packaging was
+  obtained instead from `deb.debian.org`'s pool as `net-snmp_5.9.5.2+dfsg-2.1.debian.tar.xz` and
+  extracted locally, which is a retrieval of the shipped bytes rather than of a rendering of them.
+- **The net-snmp wiki page `TUT:Security` contains no security prose** — the retrieved document is a
+  MediaWiki shell in which none of `firewall`, `Internet`, `expose`, `localhost`, `untrusted` or
+  `public network` occurs. Recorded so that a later session does not read its title as a position.
+- **`snmpd.conf(5)` and `snmpd(8)` on net-snmp.org are `man2html` renderings dated 2002 and 2005**, and
+  the pages carry internal `http://localhost/cgi-bin/man/man2html` links from the generator. The
+  substantive text was cross-checked against the current upstream `EXAMPLE.conf.def` on GitHub, which
+  agrees.
+- **The `ldaps`-matches-`LDAPString` trap has an SNMP analogue and it was avoided**: a case-insensitive
+  search for `161` matches page numbers, RFC numbers and `10161`. The counts in §11.5 use a word
+  boundary, which is why RFC 6353 reads zero rather than four.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -2013,6 +2388,7 @@ Government and standards bodies
 - [IANA Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml) — registry data retrieved as [CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv), last updated 2026-08-11
 - [RFC 1282 (BSD Rlogin)](https://www.rfc-editor.org/rfc/rfc1282.txt) · [RFC 1288 (Finger)](https://www.rfc-editor.org/rfc/rfc1288.txt) · [RFC 1350 (TFTP)](https://www.rfc-editor.org/rfc/rfc1350.txt) · [RFC 2577 (FTP Security Considerations)](https://www.rfc-editor.org/rfc/rfc2577.txt) · [RFC 3410 (SNMP framework)](https://www.rfc-editor.org/rfc/rfc3410.txt) · [RFC 3617 (TFTP URI scheme + security concerns)](https://www.rfc-editor.org/rfc/rfc3617.txt) · [RFC 4146 (Simple New Mail Notification — the second registered usage of port 79)](https://www.rfc-editor.org/rfc/rfc4146.txt) · [RFC 4248 (telnet URI scheme)](https://www.rfc-editor.org/rfc/rfc4248.txt) · [RFC 4513 (LDAP authentication methods)](https://www.rfc-editor.org/rfc/rfc4513.txt) · [RFC 6143 (RFB / VNC)](https://www.rfc-editor.org/rfc/rfc6143.txt) · [RFC 6335 (port registry procedures)](https://www.rfc-editor.org/rfc/rfc6335.txt) · [RFC 8314 (cleartext mail considered obsolete)](https://www.rfc-editor.org/rfc/rfc8314.txt)
 - Retrieved for §9.2 and citable only for what they **do not** contain — `636` and `ldaps://` occur zero times in each: [RFC 4510 (LDAP roadmap)](https://www.rfc-editor.org/rfc/rfc4510.txt) · [RFC 4511 (LDAP protocol)](https://www.rfc-editor.org/rfc/rfc4511.txt) · [RFC 4516 (LDAP URL)](https://www.rfc-editor.org/rfc/rfc4516.txt) · [RFC 2830 (obsoleted LDAP StartTLS extension)](https://www.rfc-editor.org/rfc/rfc2830.txt)
+- Retrieved for §11 ([#66](https://github.com/winniel123/verge-asm/issues/66)) — the SNMP standards family, read for a **placement** sentence and citable chiefly for the absence of one. `management network`, `segregat`, `firewall`, `separate network`, `isolated network`, `private network`, `untrusted network`, `public network` and `out of band` occur **twice across all ten**, both in RFC 6353 and both about certificate distribution: [RFC 3411 (SNMP architecture, STD 62)](https://www.rfc-editor.org/rfc/rfc3411.txt) — `administrative domain` ×8, every one an identifier scope · [RFC 3412 (message processing, STD 62)](https://www.rfc-editor.org/rfc/rfc3412.txt) · [RFC 3413 (SNMP applications, STD 62)](https://www.rfc-editor.org/rfc/rfc3413.txt) · [RFC 3414 (USM, STD 62)](https://www.rfc-editor.org/rfc/rfc3414.txt) §1.1–1.2, the threat model, every threat a property of the message · [RFC 3417 (transport mappings, STD 62)](https://www.rfc-editor.org/rfc/rfc3417.txt) §3.2, which puts SNMPv3 command responders on UDP 161 · [RFC 3584 (coexistence, BCP 74)](https://www.rfc-editor.org/rfc/rfc3584.txt) · [RFC 2570 (RFC 3410's predecessor)](https://www.rfc-editor.org/rfc/rfc2570.txt) · [RFC 1157 (SNMPv1, STD 15, Historic)](https://www.rfc-editor.org/rfc/rfc1157.txt) §3.2.5, which defines an SNMP community as a pairing with *"some arbitrary set of SNMP application entities"* and whose Security Considerations reads in full *"Security issues are not discussed in this memo."* · [RFC 6353 (TLS Transport Model)](https://www.rfc-editor.org/rfc/rfc6353.txt) §8, the `snmptls`/`snmpdtls` 10161 and 10162 registrations — the string `161` occurs in it **zero** times
 - [RFC 5531 (ONC RPC v2)](https://www.rfc-editor.org/rfc/rfc5531.txt) §14 — checked for §9.1. Its Security Considerations govern RPC *auth flavours* (AUTH_SYS, AUTH_DH, RPCSEC_GSS), never rpcbind or port 111, so it attests nothing about exposure
 - Checked and citable only as **non-statements**: RFC 854 (Telnet) has no Security Considerations section and no occurrence of "security", "password", "encrypt" or "authentic"; [RFC 1833](https://www.rfc-editor.org/rfc/rfc1833.txt)'s Security Considerations reads in full: "Security issues are not discussed in this memo."; [RFC 1288](https://www.rfc-editor.org/rfc/rfc1288.txt) §6 reads in full: "Security issues are discussed in Section 3." — and RFC 1288 remains a **Draft Standard** on the [IETF datatracker](https://datatracker.ietf.org/api/v1/doc/document/rfc1288/), never reclassified Historic
 - [CIS Amazon Web Services Foundations Benchmark v1.2.0](https://d1.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf) (05-23-2018) — the CIS-authored PDF, ungated. Current versions are behind a registration form at [learn.cisecurity.org/benchmarks](https://learn.cisecurity.org/benchmarks); the "remote server administration ports" phrasing in v3.0.0+ was **not** verified against a CIS document and is second-hand via AWS's mapping page
@@ -2041,6 +2417,7 @@ Upstream projects
 - [Consul security model](https://developer.hashicorp.com/consul/docs/secure/security-model/core) · [ACL configuration](https://developer.hashicorp.com/consul/docs/reference/agent/configuration-file/acl) · [ports reference](https://developer.hashicorp.com/consul/docs/reference/architecture/ports)
 - [Kafka security overview](https://kafka.apache.org/43/security/security-overview/)
 - [Hadoop secure mode](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SecureMode.html) · [cluster setup](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html)
+- net-snmp (§11), the SNMP reference implementation: [`snmpd(8)`](http://www.net-snmp.org/docs/man/snmpd.html) (*"By default, snmpd listens for incoming SNMP requests on UDP port 161 on all IPv4 interfaces"*) · [`snmpd.conf(5)`](http://www.net-snmp.org/docs/man/snmpd.conf.html) (no exposure statement anywhere) · [upstream FAQ](http://www.net-snmp.org/FAQ.html) (*"irrespective of where it originated"*; *"a completely empty access control configuration"*) · [`EXAMPLE.conf.def`](https://raw.githubusercontent.com/net-snmp/net-snmp/master/EXAMPLE.conf.def) (`agentAddress udp:127.0.0.1:161` active) · [wiki `TUT:Security`](http://www.net-snmp.org/wiki/index.php/TUT:Security) — retrieved and found to contain **no** security prose (§11.9). Debian's packaging read from the shipped bytes, `net-snmp_5.9.5.2+dfsg-2.1.debian.tar.xz` `debian/snmpd.conf`, via [`deb.debian.org`](https://deb.debian.org/debian/pool/main/n/net-snmp/), because `sources.debian.org` and `salsa.debian.org` both serve a proof-of-work challenge (§11.9)
 - [Prometheus security model](https://prometheus.io/docs/operating/security/)
 - [Jenkins security](https://www.jenkins.io/doc/book/security/) · [network services](https://www.jenkins.io/doc/book/security/services/)
 - [Oracle Net Listener security](https://docs.oracle.com/en/database/oracle/oracle-database/26/netag/managing-oracle-net-listener-security.html)

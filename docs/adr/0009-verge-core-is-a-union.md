@@ -239,6 +239,34 @@ place.
   about who maintains the inputs.
 - [`CONTEXT.md`](../../CONTEXT.md) needs no change. No term is added and none is amended.
 
+### Amendment — [#66](https://github.com/winniel123/verge-asm/issues/66): the sensitive half loses `161/udp`, so the union narrows
+
+The Decision is unchanged: `verge-core` is still `frequency-set ∪ sensitive-list` and still a
+definition rather than a list. What moves is an **input**, and with it three figures written above.
+
+[#66](https://github.com/winniel123/verge-asm/issues/66) retrieved the SNMP standards family
+(RFC 3411, 3412, 3413, 3414, 3417, 3584, 3410, 2570, 1157 and 6353) and net-snmp's own documentation,
+found **no first-party sentence placing SNMP inside a network boundary**, and removed `161/udp` from
+the sensitive list — [`sensitive-ports.md`](../research/sensitive-ports.md) §11. The list is **37**
+pairs.
+
+- **The UDP arithmetic above is superseded.** *"the sensitive half contributes six"* UDP pairs is now
+  **five** — 69/udp, 137/udp, 138/udp, 623/udp, 11211/udp — and *"The six UDP pairs remain
+  `not-evaluable` on default settings"* reads **five**. (That sentence is separately corrected by
+  [#44](https://github.com/winniel123/verge-asm/issues/44), which found they hold no subject at all;
+  the count moves either way.)
+- **The worked example in *"Correcting a mis-aimed port"* is superseded in one half.** *"An addition.
+  161/udp and 623/udp enter. Plain `revealed`"* — **`161/udp` does not enter.** The frequency half is
+  TCP-only ([#4](https://github.com/winniel123/verge-asm/issues/4) §2.5) and this ADR attributes 161
+  to the sensitive half, so `161/udp` is not in `verge-core` on either leg. `623/udp` is unaffected.
+  The removal half — 161/tcp and 623/tcp leaving — is unaffected, and the decomposition the example
+  exists to demonstrate is unaffected.
+- **The price is the one this ADR already named, and it is vacuous.** Removing a pair from the
+  sensitive list bumps `sensitive-port-reached-from-internet`'s rule version
+  ([ADR-0008](./0008-derivation-versions-move-on-content.md)) and **narrows** the aperture. Before the
+  first install both are vacuous — *not waived*, per the pre-release section above — which is the whole
+  reason #66 was worth running before v1 rather than after.
+
 ## Alternatives rejected
 
 **Keep the lists independent with a build-time test** — [#21](https://github.com/winniel123/verge-asm/issues/21)
