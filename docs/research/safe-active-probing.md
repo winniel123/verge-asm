@@ -34,7 +34,7 @@ it.
 | Scan technique | **TCP connect (`connect()`)**, non-root, no added capabilities | §3 — SYN requires raw sockets *and* root; nmap gates on euid |
 | Host discovery | **Skipped** (`-Pn` equivalent) | §3.4 — targets are operator-seeded, not discovered by sweep |
 | Continuous port set | **`verge-core`: ~140 curated TCP ports** (nmap top-100 minus ephemeral noise, plus a modern-services supplement) | §2 |
-| Weekly port set | nmap **top-1000 TCP** | §2.4 |
+| Weekly port set | **Retired** — there is no warm tier | §2.4, and [`nmap-services-licence.md`](./nmap-services-licence.md) §12 ruling 3 |
 | Full-range 1–65535 | **Off by default**; opt-in, per-target, rate-capped, monthly at most | §2.4 |
 | UDP | **Off by default** | §2.5 |
 | Port-scan rate | **≤ 50 packets/sec per target host**, ≤ 20 concurrent connections per host | §6 |
@@ -160,10 +160,16 @@ the estate being monitored.
 
 ### 2.3 Recommended continuous set — `verge-core`
 
-Roughly 140 TCP ports:
+Roughly 140 TCP ports. **This is the project's own selection, informed by nmap's published ranking
+rather than derived from it** — the wording matters and is
+[`nmap-services-licence.md`](./nmap-services-licence.md) §12 ruling 8's correction to this section.
+Measured there (§6.2): the set retains **81** of nmap's top-100 after **19** project-chosen
+deletions and adds **44** ports net-new that nmap's ranking does not support at any size — 63
+overrides against the source, on a signal-mapping rule of the project's own. The two limbs below
+are how that selection was made, not a transformation applied to somebody else's list:
 
-- **nmap top-100 minus the ephemeral/obsolete tail** (drop 1025–1029, 49152–49157, 2717, 5101,
-  5190, 6646, 3986, 5051, 5009, 1755) — keeps the high-frequency mass that genuinely
+- **Nmap's top-100 as one input, minus the ephemeral/obsolete tail** (drop 1025–1029, 49152–49157,
+  2717, 5101, 5190, 6646, 3986, 5051, 5009, 1755) — keeps the high-frequency mass that genuinely
   correlates with real listeners.
 - **Plus a modern-services supplement**, chosen because each maps to a *named v1 risk signal*
   (exposed admin panel, unexpected open port, plaintext service):
@@ -198,12 +204,26 @@ Recommended tiering:
 | Tier | Port set | Default cadence | Purpose |
 |---|---|---|---|
 | Hot | `verge-core` (~140) | daily | drift detection, low latency |
-| Warm | nmap top-1000 | weekly | catch the 93 % tail |
 | Cold | full 1–65535 | **opt-in**, monthly ceiling | onboarding baseline + rare discovery |
+
+**The warm tier is retired**, by [`nmap-services-licence.md`](./nmap-services-licence.md) §12
+ruling 3. It was the one place the project defined a set *by reference to nmap's own ranking* — a
+set that cannot be evaluated without `nmap-services`, and so the only place we would have reproduced
+nmap's selection whole rather than made our own. It is affordable to retire because §7.4 of that
+note measured what it contributed: its ~900 ports beyond the hot set are 2008's long tail, and every
+modern service the product exists to notice (Redis, Docker, MongoDB, etcd, the Kubernetes API,
+kubelet, Cassandra, CouchDB) ranks below 1,441 or is absent from the file entirely. Those ports fall
+to the cold tier, at 30-day rather than 7-day latency.
 
 The full-range sweep should also run **once at target onboarding**, so the operator gets a complete
 baseline immediately and the daily hot scan has something to diff against. Onboarding is the one
 moment the operator is present and watching — the right time to spend the load.
+
+**Whether that onboarding sweep is itself opt-in is now load-bearing and is not settled here** — the
+table marks the cold tier opt-in and this paragraph does not repeat the qualifier. With the warm
+tier retired, that ambiguity is the difference between a default-settings install seeing those ~900
+ports **once** and seeing them **never**. Open as
+[#80](https://github.com/winniel123/verge-asm/issues/80).
 
 ### 2.5 UDP
 
