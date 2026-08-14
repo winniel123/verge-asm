@@ -195,7 +195,14 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > cites for it, is a **non-owner's** under §10.5 and corroborates only (§16.6). Read §16.9 before
 > quoting either cell.
 
-### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
+> **Amended by §18** ([#84](https://github.com/winniel123/verge-asm/issues/84)). **Every tier, count
+> and coverage figure in the table above is unchanged**, and one line of the note beneath it is not:
+> **there is one thin cell, not two.** `4369`'s scoping is re-founded on Erlang/OTP's *Secure Coding
+> Guidelines* rule `DEP-001` — an owner document naming EPMD, in a **fourth class** #76's corpus did
+> not contain — with RabbitMQ **and** CouchDB's ports table corroborating under §2.3. `10250`'s table
+> cell is now the tier's weakest member on its own. `4369`'s promotion to the **prohibition** tier was
+> argued and **lost on vocabulary** — `DEP-001` names *untrusted networks*, where every prohibition-tier
+> sentence names *the public internet* — and §18.8 records the criterion that would move it.
 
 This is the load-bearing methodological finding, and it took the most work to establish.
 
@@ -480,6 +487,13 @@ qualification: convention, not registration, is the determinacy test.
 > on Claim 1 and the amplification sentence is colour. **161/udp** (§3.3) leads with a CISA
 > directive, which §2.3 permits only as corroboration. Both rows stand; the wording is corrected in
 > §10.7 rather than in place.
+
+> **Amended by §18** ([#84](https://github.com/winniel123/verge-asm/issues/84)). A **third** "why" cell
+> leads with something that is not the row's grounds, and this one names the wrong port's protection
+> outright. **4369/tcp** reads *"whose only protection is a shared Erlang cookie"*; **[measured]** the
+> cookie is compared during the **distribution handshake** and appears nowhere in epmd's exchange,
+> which answers node-name and port queries to any remote caller with no authentication at all. The
+> corrected cell is in §18.5, the row's grounds are unchanged, and the row does not move.
 
 ### 3.2 Class B — credentials in cleartext, encrypted successor on another port (Claim 2)
 
@@ -819,6 +833,19 @@ different protocols on the same number, and §6 shows this has already caused a 
 > **[measured]** No cookie is involved in epmd's remote exchange, so §3.1's *"why"* cell for the row
 > describes the distribution transport's protection rather than epmd's — routed to
 > [#84](https://github.com/winniel123/verge-asm/issues/84).
+
+> **Amended by §18** ([#84](https://github.com/winniel123/verge-asm/issues/84)). **A third Erlang/OTP
+> sentence exists, it names EPMD, and it is what now carries `4369`.** *"Note that the Erlang Port
+> Mapper Daemon (EPMD) service will respond to unauthenticated requests, and can by this leak
+> information about what Erlang nodes exist and what ports they are listening on (CWE-668, CWE-200).
+> You are therefore advised to disable the default EPMD"* — `system/doc/design_principles/secure_coding.md`,
+> [erlang/otp](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/design_principles/secure_coding.md)
+> `OTP-29.0.5`, rule `DEP-001`, *Do Not Expose Default Erlang Distribution on Untrusted Networks*,
+> priority `Critical`. The two sentences above are **not withdrawn** and go on carrying the tier's
+> trusted-network limb; what changes is that the cell no longer rests on a sentence that does not name
+> the daemon. **CouchDB's sentence in this section is a second non-owner's** and, like RabbitMQ's,
+> corroborates only — see §18.7, which also records that CouchDB's **ports table** is the stronger of
+> its two statements about `4369`. No row moves and no tier moves.
 
 ---
 
@@ -1949,6 +1976,18 @@ That last row is worth pausing on. **The repaired Claim 1 refuses 111/tcp on cla
 **All twelve survive. Class A is unchanged, and no row changes class.** The one row that needs Step
 2's read limb rather than its mutation limb is 10255/tcp, and it needs no reclassification: Claim 1
 and Claim 3 are adjacent on that row and Claim 1 still fits.
+
+> **Amended by §18** ([#84](https://github.com/winniel123/verge-asm/issues/84)). **This walk's cells
+> are attestations too, and it was never checked against §10.5.** Both steps are answered *"from the
+> specification or the owner's own documentation"*, so a **non-owner's** sentence cannot answer either
+> — and **two rows' Step 1 cells cite one**. `4369/tcp`'s cites **RabbitMQ**, which §16.6 established
+> does not own epmd, and its Step 2 cell names an operation an internet caller **cannot reach**:
+> **[measured]** `EPMD_ALIVE2_REQ` is gated on `s->local_peer` in the shipped `epmd_srv.c`. Both cells
+> are corrected in §18.6 and Claim 1 survives on the **read** limb, making `4369/tcp` the **second**
+> row to need it. `2379/tcp` and `2380/tcp`'s Step 1 cells cite **kubernetes.io**, which §16.3 demoted
+> for the same reason; the repair exists in etcd's own `THREAT_MODEL.md` and is **ticketed rather than
+> made here**, because this table and §16.3's retrieval belong to other passes. The remaining ten cells
+> are clean and **all twelve rows still survive**.
 
 **What the qualifier costs, stated plainly.** It makes Claim 1 slightly harder to reach than the
 sentence a reader would infer from its title, and a future candidate that is unauthenticated,
@@ -4418,6 +4457,18 @@ non-owners' — which is §10.6's finding for `161/udp` in a second instance, an
 row removal rather than as a footing. **The criterion that would settle it:** an Erlang/OTP sentence
 naming `4369` or epmd specifically, in either direction. None is in the current bytes.
 
+> **Withdrawn by §18** ([#84](https://github.com/winniel123/verge-asm/issues/84)). **The criterion above
+> is met and the removal branch is closed.** Erlang/OTP's *Secure Coding Guidelines* — a **fourth
+> document class** this paragraph's corpus did not contain — carries rule `DEP-001` at priority
+> `Critical`, which names EPMD by name, calls its answering of unauthenticated requests a leak of
+> *"what Erlang nodes exist and what ports they are listening on"*, and directs the operator to disable
+> the default daemon. This paragraph was **correct about the two documents it read** and wrong about
+> the owner, which is [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s
+> pattern for the third time — and it is the first time ADR-0040's **falsification clause** has
+> actually fired, a bounded residue retired by naming one document outside its boundary. `4369` is no
+> longer a thin cell; **`10250` is the only one left**. §18.10 states what is thin about the new
+> footing instead.
+
 **`2379`/`2380` rest on a document that is one major version old and has existed for three months.**
 `THREAT_MODEL.md` appeared 2026-05-19 and is absent from the `3.5` and `3.6` lines, which are what
 most deployments run and what §3.4 still cites. The finding is honest at `v3.7.x` and it is exposed
@@ -4955,6 +5006,403 @@ every subject in this table's domain that it names, per ADR-0037 limb 1.
   during a denial-of-service flood, one is an ITU-T bibliography entry (*Recommendation M.3010*), and two
   are VPN forwarding used as a MIB-design example. A count alone would have read as five near-misses.
 
+## 18. `4369/tcp` epmd — the *"why"* cell, and the owner document nobody had opened
+
+Wayfinder ticket [#84](https://github.com/winniel123/verge-asm/issues/84), routed here by
+[#76](https://github.com/winniel123/verge-asm/issues/76) §16.6 as a *"why"*-cell by-catch and by §16.9
+as the table's thinnest cell. This section **amends §3.1, §3.4, §10.1 and §16.9 by reference**: earlier
+text is left standing and marked, per the name-and-withdraw convention, and where §18 and an earlier
+section disagree, **§18 governs**.
+
+**Headline result, stated first.**
+
+> **The row stands, its class is unchanged, its tier is unchanged, and no figure in §16.7's restated
+> table moves.** What moves is the **warrant**. §16.9's residue — *"an Erlang/OTP sentence naming
+> `4369` or epmd specifically, in either direction. **None is in the current bytes**"* — is
+> **withdrawn**. One exists, it names EPMD, it names the exact hazard, and it is in a document class
+> #76 never opened: Erlang/OTP's **Secure Coding Guidelines**, rule `DEP-001`, priority `Critical`.
+> **[measured]** It says EPMD *"will respond to unauthenticated requests, and can by this leak
+> information about what Erlang nodes exist and what ports they are listening on"* and advises
+> disabling the default EPMD outright.
+>
+> **Two cells were wrong and both are corrected.** §3.1's *"why"* cell describes a **different port's**
+> protection, and the trail shows why: it is CouchDB's distribution-port sentence transposed onto
+> `4369` — the mirror of the transposition §2.2 already caught in the other direction. And §10.1's
+> Class A walk row for `4369` is wrong **twice**: its Step 1 evidence is RabbitMQ's non-owner sentence,
+> and its Step 2 operation — *"Registers and deregisters node names"* — is one an internet caller
+> **cannot reach**. **[measured]** registration is gated on `s->local_peer` in the shipped
+> `epmd_srv.c`. Claim 1 survives on the **read** limb, as `10255/tcp` already does.
+>
+> **The strongest argument against the row is the rpcbind parallel, and it is stated and refused in
+> §18.6.** **This does not block [#12](https://github.com/winniel123/verge-asm/issues/12)**; nothing
+> here is a row removal.
+
+### 18.1 What was retrieved
+
+Every artefact is Erlang/OTP's own bytes at the tag `OTP-29.0.5`, the repository's current tag, with
+paths resolved from the tree listing rather than guessed (§16.10's rule, and §13.10's before it).
+
+| Artefact | Class | What it decided |
+|---|---|---|
+| `system/doc/design_principles/secure_coding.md` — [`erlang/otp`](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/design_principles/secure_coding.md) `OTP-29.0.5`, rule `DEP-001` | **Deployment / security guidance** — **never opened** | The whole ticket |
+| `erts/doc/guides/erl_dist_protocol.md` — [`OTP-29.0.5`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/guides/erl_dist_protocol.md) | **Specification** | EPMD's protocol is a chapter of the **Distribution Protocol**; *"By default the EPMD listens on port 4369"* |
+| `erts/doc/references/epmd_cmd.md` — [`OTP-29.0.5`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/references/epmd_cmd.md) | **Implementation guidance** (re-read) | *Access Restrictions*; `ERL_EPMD_ADDRESS` default is **all interfaces** |
+| `system/doc/reference_manual/distributed.md` — [`OTP-29.0.5`](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/reference_manual/distributed.md) | **Implementation guidance** (re-read) | *"Security here does **not** mean cryptographically secure"*; the cookie is in the **handshake** |
+| `erts/epmd/src/epmd_srv.c` — [`OTP-29.0.5`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/epmd/src/epmd_srv.c) | **Shipped bytes** | Which requests a remote caller can reach |
+| `erts/doc/guides/alt_disco.md` — [`OTP-29.0.5`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/guides/alt_disco.md) | Implementation guidance | *"a well-known port, port 4369"* |
+| `system/doc/vulnerabilities/vulnerabilities.md` — `OTP-29.0.5` | Security policy | Nothing — it is an OpenVEX publication policy, not a posture document |
+| `src/docs/src/setup/cluster.rst` — [`apache/couchdb`](https://github.com/apache/couchdb/blob/3.5.0/src/docs/src/setup/cluster.rst) `3.5.0` | Third party (§18.7) | Which port CouchDB's sentence is about |
+
+### 18.2 Erlang/OTP's class list, enumerated before the search
+
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+§17.8: *"a class list is a property of the owner, not of the subject, and no owner has an unbounded
+one … a project with a reference implementation three."* Erlang/OTP is that shape and it is the
+richest case the corpus has met, because Ericsson is simultaneously the **specifier** of the
+distribution protocol, the **author** of the reference implementation, and the **publisher** of a
+deployment guide. **Four classes exist and all four were opened.**
+
+| Class | Member(s) | Searched |
+|---|---|---|
+| **Specification** | `erl_dist_protocol.md` | Yes |
+| **Implementation guidance** | `epmd_cmd.md`, `distributed.md`, `alt_disco.md`, `erl_cmd.md` | Yes |
+| **Deployment / security guidance** | `secure_coding.md` (§ *Deployment*) | **Yes — the class #76 did not know existed** |
+| **Shipped default** (§2.2's third form) | `erts/epmd/src/*.c`, and the documented `ERL_EPMD_ADDRESS` default | Yes — **permissive, therefore silent** under §10.4 |
+
+**The corpus was bounded positively rather than by judgement.** **[measured]** A GitHub code search of
+`erlang/otp` for the literal `4369` returns eight substantive files; the documentation members are
+exactly `epmd_cmd.md`, `erl_dist_protocol.md` and `alt_disco.md`, and the rest are source, headers and
+test data. A search for `epmd` restricted to `.md` returns twenty-five files, of which the
+non-release-notes, non-HOWTO members are the eight named above plus `kernel_app.md` (the
+`epmd_module` setting), `peer.md`, `ei_connect.md`, `ei_users_guide.md` and
+`jinterface_users_guide.md` — API references that state no network position. **`secure_coding.md` does
+not contain the string `4369`.** It was found by listing `system/doc/` and reading what was there,
+which is [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+working exactly as §16.10 described it for etcd's `THREAT_MODEL.md`: **a retrieval keyed on the port
+number would have missed it.**
+
+### 18.3 The document that settles it — `DEP-001`
+
+**[measured]** `system/doc/design_principles/secure_coding.md` is Erlang/OTP's *Secure Coding
+Guidelines*, copyright Ericsson AB. Its *Rules / Secure Coding Standard* section carries **31 rules**
+across four priorities — `Critical`, `High`, `Medium`, `Recommendation` — of which **six** are
+`Critical`. The **Deployment** group's first rule is one of the six, and its title is the finding:
+
+> #### `DEP-001` — Do Not Expose Default Erlang Distribution on Untrusted Networks
+>
+> "The builtin Erlang distribution makes it possible to easily and transparently communicate between
+> Erlang nodes. By default, communication is performed over an unencrypted TCP connection with a
+> rudimentary cookie based authentication only present in order to prevent mistakes. **This
+> configuration should *only* be used in a trusted network.** …
+>
+> **Note that the Erlang Port Mapper Daemon (EPMD) service will respond to unauthenticated requests,
+> and can by this leak information about what Erlang nodes exist and what ports they are listening on
+> (CWE-668, CWE-200). You are therefore advised to disable the default EPMD and implement your own
+> EPMD module using another port lookup scheme and enable that EPMD module.** The simplest solution,
+> assuming only one Erlang node per IP address, would be to use a statically assigned port, skip
+> registration of nodes, and just assume that a node will be listening on that port."
+>
+> "[Rule priority:] `Critical`"
+> — `system/doc/design_principles/secure_coding.md`, [erlang/otp](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/design_principles/secure_coding.md) `OTP-29.0.5`, § *Deployment*
+
+**Three things this sentence does that no previously-cited sentence did.**
+
+1. **It names EPMD**, which is precisely the criterion §16.9 set and declared unmet.
+2. **It states the hazard in the owner's voice, and the hazard is enumeration** — *what nodes exist and
+   what ports they are listening on* — with two CWE identifiers attached. That is the material for
+   §3.1's *"why"* cell, and it is not a cookie.
+3. **Its remedy reaches the port.** *Disable the default EPMD* removes the `4369` listener; the owner's
+   own `erl` reference documents the switch — *"`-start_epmd true | false` … Specifies whether Erlang
+   should start epmd on startup. By default this is `true`"*. Under **§10.4.3**'s table this is the
+   `11211/udp` and `2375/tcp` shape — the remedy **is** the port — so the remedy route does not
+   exclude, and the row stands on both limbs.
+
+**Is `secure_coding.md` §2.2's second form? Yes, on both readings of it.** It is in the repository, it
+is **in the release** — first shipped at `OTP-28.5` (published 2026-04-23) and present unchanged at
+`OTP-29.0.5` — and it is **on the published page**, `www.erlang.org/doc/system/secure_coding.html`,
+verified 200 with the EPMD paragraph present. **[measured]** Both halves were checked because
+[#86](https://github.com/winniel123/verge-asm/issues/86) is concurrently ruling on what §2.2's *"the
+project's or vendor's own documentation"* form admits, on §17.5's Kafka finding that a sentence can
+exist *"in no release and on no published page"*. **This artefact is in two release lines and on the
+site, so no outcome of #86 can reach it** — the interaction is named and it is not load-bearing.
+
+### 18.4 §16.9's residue is withdrawn — and this is the first time ADR-0040's falsification clause has fired
+
+[ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) requires a surviving
+weakness to be **bounded** — *"falsifiable by naming one document outside the boundary"* — rather than
+permanent. §16.9's `4369` paragraph is a textbook bounded residue: it names the two documents it read,
+states the criterion that would settle it, and does not claim the owner is silent.
+
+**It has now been falsified in exactly the manner it was written to allow.** §16.9 was **correct about
+every document it read** and wrong about the owner — which is [#73](https://github.com/winniel123/verge-asm/issues/73)'s
+finding for [#68](https://github.com/winniel123/verge-asm/issues/68)'s negative repeating for the
+third time, after §17.4's RabbitMQ production checklist and §17.6's Kubernetes security checklist.
+
+> **Withdrawn.** §16.9's *"A reader who says Erlang/OTP has stated a position about the distribution
+> port and no position about `4369` has a live argument, and on that reading `4369` has **no admissible
+> owner attestation at all**"* is **no longer live**, and the row-removal branch it priced is closed.
+> §16.9's sentence stands as a statement about `distributed.md` and `epmd_cmd.md`, which is all it ever
+> claimed.
+
+### 18.5 §3.1's *"why"* cell corrected — and the transposition that produced it
+
+Corrected here rather than in §3's tables, per §10.7's convention. **The row's grounds do not change
+and the row does not move.**
+
+| Row | §3.1 reads | It should read |
+|---|---|---|
+| **`4369/tcp`** epmd (Class A) | "Cluster-discovery channel whose only protection is a shared Erlang cookie" | "Answers node-name and distribution-port queries to any remote caller with **no authentication in the exchange at all**; upstream calls this a leak of *what Erlang nodes exist and what ports they are listening on* and advises disabling the default daemon. **The Erlang cookie is not in epmd's exchange** — it guards the separate distribution handshake" |
+
+**Why the old cell is wrong, in the owner's own words.** The cookie is compared **during connection
+setup between two nodes**, after node names have been exchanged, using hashed challenges —
+`distributed.md` § *Security*, which also opens with *"'Security' here does **not** mean
+cryptographically secure, but rather security against accidental misuse."* The EPMD Protocol chapter of
+`erl_dist_protocol.md` enumerates seven request types and **[measured]** the string `cookie` does not
+appear in it; every cookie reference in that document is in the **handshake** chapter. So the old cell
+attributed to `4369` a protection that lives on a different port and, per its own owner, is not a
+security mechanism in the first place.
+
+**And the cell's provenance is visible.** §3.4 quotes CouchDB: *"If you expose **the distribution
+port** to the Internet or any other untrusted network, then the only thing protecting you is the
+Erlang cookie."* The old cell is that sentence with *the distribution port* silently replaced by
+`4369`. **[measured]** CouchDB's own page makes the substitution impossible: its ports table lists
+`4369` and *"Random tcp above 1024"* as **separate rows**, and the surrounding prose fixes the
+distribution port at the `9100-9200` range it recommends. §2.2 already caught this sentence being
+transposed **onto `5984`** — *"so it must not be transposed onto the HTTP API"* — and did not notice it
+had also been transposed **onto `4369`**. One sentence, two wrong destinations, one of them found five
+sections earlier than the other.
+
+### 18.6 The claim half — §10.1's Class A walk has the same defect, one table down
+
+§16.6 repaired the **attestation** for `4369` and nobody checked the **claim**. §10.1's Class A walk
+cites a *different sentence* for the same row, and it has the identical fault plus a second one.
+
+| §10.1 cell | Reads | Defect |
+|---|---|---|
+| **Step 1** — is publication the purpose? | "No — *'only expose these ports to the hosts and subnets that run other cluster nodes'*" | **RabbitMQ's sentence.** §10.1 requires both steps be *"answered from the specification or the owner's own documentation"*, and §16.6 established RabbitMQ is a **non-owner** for `4369`. A corroborator may not answer a step |
+| **Step 2** — what authority does the anonymous caller get? | "Registers and deregisters node names" | **Factually wrong for the caller the claim is about.** Registration is **loopback-only** |
+
+**[measured], `erts/epmd/src/epmd_srv.c` at `OTP-29.0.5`.** The request dispatch gates four request
+types on `s->local_peer` — `EPMD_ALIVE2_REQ` (register), `EPMD_DUMP_REQ`, `EPMD_KILL_REQ` and
+`EPMD_STOP_REQ` — each returning without a reply and logging *"… from non local address"*. The two
+that are **not** gated are `EPMD_PORT2_REQ` (port query) and `EPMD_NAMES_REQ` (name listing), which
+matches `epmd_cmd.md`'s *Access Restrictions* text exactly. `conn_local_peer_check` admits only
+`127.x.x.x` and the host's own address, and treats a `getpeername` failure as **non**-local.
+
+> **Both cells are corrected, and Claim 1 survives.**
+>
+> **Step 1 — No.** Answered from the owner: `DEP-001` characterises EPMD's answering of unauthenticated
+> requests as an information **leak** (CWE-200, CWE-668) and directs the operator to replace the
+> daemon. A specification whose owner calls the anonymous answering a weakness is not a specification
+> whose statement of purpose is *answer whoever asks*.
+>
+> **Step 2 — the read limb.** A remote caller obtains the **names of the nodes registered on the host
+> and the distribution port each listens on** — content the protocol carries **on behalf of a party
+> other than the caller**, namely the local Erlang nodes that registered it. That is Step 2's fourth
+> alternative, and `4369` joins `10255/tcp` as the second row needing the read limb rather than the
+> mutation limb. §10.1's *"All twelve survive"* is unchanged.
+
+**The option that lost, and it is the strongest argument against this row in the whole note.** Read
+strictly, **`4369` is `111/tcp` rpcbind wearing different clothes.** §10.1 refuses rpcbind at Step 1
+on `rpcbind(8)`'s *"When a client wishes to make an RPC call … it first contacts rpcbind on the server
+machine to determine the address"* — the specification naming a **remote** client as the intended
+recipient of the lookup. Erlang/OTP's specification says the same thing about EPMD: *"A node fetches
+the port number of another node **through the EPMD (at the other host)** to initiate a connection
+request."* Same architecture, same anonymous read-only lookup, same *"well-known port"*. On that
+reading Claim 1 is unavailable, `4369` has no other claim — Claim 2 needs an encrypted successor on a
+different port and EPMD has none, Claim 3's clients are not same-system since the whole point is a
+remote node — and **the row comes off**, which is §10.6's `161/udp` shape a third time.
+
+**Three reasons it loses, in increasing order of force.**
+
+1. **Step 1's text is not specification-only.** It reads *"the specification **or the owner's own
+   documentation**"*, and the owner's own documentation answers it the other way. `DEP-001` did not
+   exist when §10.1 was written; it does now, and §10.6's rule that *a verdict changes on retrieval*
+   cuts in this direction as readily as the other.
+2. **The two owners characterise their own lookup oppositely, and that is the whole disanalogy.**
+   §9.1's finding about rpcbind is that its maintainers took two restricting acts and **neither reached
+   the port**, with no prohibition anywhere. Erlang/OTP's act **reaches the port** — disable the daemon
+   — and arrives attached to a `Critical` deployment rule and two CWE identifiers. The architectures
+   are identical; the owners' positions are opposite; and §2.2 keys on the **owner's position**, never
+   on the architecture.
+3. **The caller populations differ, and the specifications say so.** `rpcbind(8)`'s *client* is
+   whoever an RPC service serves, which is unbounded by design. EPMD's callers are, on the owner's own
+   pages, the **other nodes of the cluster** — `distributed.md` requires every node in a cluster to be
+   mutually trusted and `DEP-001` requires the cluster to sit on a trusted network. *Answer whoever
+   asks* is a claim about the intended population, and Erlang/OTP's intended population is enumerable
+   and bounded. rpcbind's is not.
+
+**Thin, and flagged as such in §18.10.** Reason 3 is the load-bearing one and it is an inference from
+two sentences that were written about the distribution transport rather than about EPMD.
+
+**One row this walk touches that is not `4369`, reported and not fixed.** Applying the same ownership
+check to §10.1's other eleven Class A cells, **exactly one more Step 1 cell cites a non-owner**:
+`2379/tcp` and `2380/tcp` etcd are answered by *"ideally only the API server should have access to
+it"*, which §16.3 established is **kubernetes.io** — the very sentence §16.3 demoted. The repair is
+available (etcd's own `THREAT_MODEL.md`, quoted in §3.4's §16 amendment) but §10.1's table belongs to
+[#37](https://github.com/winniel123/verge-asm/issues/37)'s repair and §16.3's retrieval to a pass that
+closed this week, so it is **ticketed rather than edited here** — the discipline §17.6 used for
+`10255`'s candidate footing. Ten of the twelve cells are clean.
+
+### 18.7 §3.4's attribution — RabbitMQ confirmed as corroboration, and CouchDB is a second instance
+
+**Question 4 of the ticket, confirmed.** RabbitMQ's *"these ports should not be publicly exposed"*
+carries `25672`, which is RabbitMQ's own port, and **corroborates only** for `4369`. §16.6's rule —
+*ownership is tested per port, not per sentence* — stands unchanged and this section adds nothing to
+it.
+
+**Question 5, and the answer is yes with no cost.** CouchDB's *"If you expose the distribution port to
+the Internet … the only thing protecting you is the Erlang cookie"* has **the same non-owner defect**:
+CouchDB is a consumer of Erlang distribution, not its author, so under §10.5 and §16.6 the sentence
+corroborates and is never sole grounds. **It costs nothing, for three reasons that should be recorded
+so nobody re-derives them.**
+
+1. **It is not carrying a row.** §2.2 and §17.6 cite it as a **negative about scope** — *this warning
+   is about the distribution port, not 5984* — which is a statement about what a sentence covers rather
+   than an attestation drawn from it. Ownership does not bear on that use.
+2. **It names neither listed port.** CouchDB's distribution port is the `9100-9200` range its own page
+   recommends; `4369` is a **separate row** in the same table.
+3. **The claim in it is true**, which is what made the transposition in §18.5 so easy. The cookie
+   *does* guard the distribution handshake. It simply does not guard `4369`.
+
+**A by-catch worth having: CouchDB's ports table is a better corroborator than CouchDB's warning.**
+**[measured]** *"4369 | tcp | **`localhost` for single node installs. Private interface if clustered** |
+Erlang port mapper daemon (epmd)"*. That is a network placement for the listed port, in a third
+party's voice — §2.3 corroboration, alongside RabbitMQ's. `4369` therefore has **two** corroborators
+and, since §18.3, an owner. It is no longer the table's thinnest cell.
+
+### 18.8 The tier — scoping, and the promotion that lost
+
+`4369` stays in **explicit trusted-network scoping**. **No tier count in §16.7's restated table
+changes.**
+
+**The promotion argument, stated because it is good.** `DEP-001`'s **title** is an imperative negative
+naming a network class — *Do Not Expose Default Erlang Distribution on Untrusted Networks* — carried
+at `Critical`, one of six in the document; and its EPMD paragraph advises disabling the daemon
+**unconditionally**, which is stronger than any scoping sentence in the tier. On that reading `4369`
+belongs beside `2379`/`2380` in the **prohibition** tier.
+
+**Why it loses.** The tier boundary in this note is drawn on **vocabulary**, not on force. Every
+prohibition-tier sentence names *the public internet* — etcd's *"must not be exposed to untrusted
+networks or the public internet"*, Elasticsearch's *"never expose an unprotected node to the public
+internet"*, memcached's *"must not be exposed directly to the internet"*, Cassandra's *"you should not
+expose this port to the internet"*. `DEP-001`'s operative sentence is *"This configuration should
+**only** be used in a trusted network"*, which is the **scoping** vocabulary — the same shape as
+MongoDB's *"only accessible on trusted networks"* and ZooKeeper's *"behind a firewall"*. And *"you are
+advised to"* is an advisory, where the tier above is populated by imperatives. A second reason,
+weaker but real: promoting the row would move counts in a table
+[#76](https://github.com/winniel123/verge-asm/issues/76) restated this week, and §17.6 has already set
+the house precedent that **a footing found in one lane does not re-tier a row placed in another**.
+
+> **The criterion that would move the cell:** an Erlang/OTP sentence naming the public internet, or
+> naming `4369` in an imperative rather than an advisory. Neither is in the current bytes, and unlike
+> §16.9's criterion this one is a genuine absence over a **four-class** corpus rather than a two-class
+> one.
+
+### 18.9 Every dependent figure, checked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged.** `4369` stays Class A on Claim 1 |
+| §2.2 footing table — tiers and counts, as §16.7 restated them | 13 / 10 / 3 / 11, 26 of 37 | **unchanged in every cell.** `4369`'s **warrant** changes inside the scoping tier; its membership does not |
+| §2.2's *"two cells are thin"* note (§16.7, §16.9) | `10250` **and `4369`** | **one cell — `10250` alone.** `4369` is no longer thin: an owner names EPMD, and two third parties corroborate the port |
+| §16.9's `4369` residue | open, row removal priced | **withdrawn** (§18.4). The removal branch is closed |
+| §3.1's `4369` *"why"* cell | the cookie | **corrected** (§18.5). Grounds unchanged |
+| §10.1's Class A walk, `4369` row | RabbitMQ sentence; "registers and deregisters" | **both cells corrected** (§18.6). *"All twelve survive"* unchanged |
+| §10.1's Class A walk, `2379`/`2380` rows | kubernetes.io sentence at Step 1 | **reported, not corrected.** Ticketed — §18.6 |
+| §10.1's *"the one row that needs Step 2's read limb"* | `10255/tcp` | **two rows.** `4369/tcp` joins it |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** `4369` moves away from weakness, not toward it |
+| §10.4.3's remedy-route analogues | four cases | **a fifth, and it points the same way.** *Disable the default EPMD* reaches the port, so the route does not exclude |
+| §15.4's convention walk | nine rows, `4369` absent (`reg. yes`) | **unchanged**, and incidentally strengthened: **[measured]** three Erlang/OTP documents place epmd on `4369` by default, which is [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md)/[ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md) placement evidence the row never needed |
+| §6.1 containment arithmetic | 28 in the hot set + 4 + 5 = 37 | **unchanged** |
+| §12.2's artefact count | ten artefacts, nine self-declarations | **unchanged.** Nothing retrieved here is a configuration artefact in §12.2's sense — `secure_coding.md` is prose and `epmd_srv.c` is a daemon |
+| §17.1's population | fourteen negatives | **unchanged as a population.** §16.9's `4369` residue was a *bounded disclosure*, not a load-bearing negative in §17.1's sense — the cell rested on a positive that was disclosed as thin, which is why it is absent from that table |
+| §17.8's *fixed point* | finished as of a table state | **not re-armed.** `4369`'s footing changes **warrant within a tier**; no row acquires a sole-ground negative, and one bounded residue is retired |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
+
+**Outside this note.** The map's *how the tiered port sets are curated* patch records
+[#79](https://github.com/winniel123/verge-asm/issues/79)'s answer that the class sweep is finished.
+**That answer is about the *negative* half and this section is the first counter-instance on the
+positive half**: an unopened class replaced a **positive** footing's warrant and retired a disclosed
+weakness. §17.8 named that question and put it out of scope — *"the prose half of §3.4 has never been
+re-derived class by class … it moves no row on any answer"* — which remains true and is now known to
+be a statement about **rows** rather than about **footings**.
+
+**No ADR is added, and that is a decision rather than an omission.** Both general rules this section
+applies were available: §10.5's owner definition reaches §10.1's cells because §10.1 says its steps are
+answered *from the specification or the owner's own documentation*, and §10.1 already read rpcbind's
+mutating path as *"not anonymous from the network at all"* — so *a claim cell names an operation the
+caller in question can reach* is what §10.1 required and never stated. **§16.6 declined an ADR on
+exactly this test** and the same test gives the same answer here.
+
+### 18.10 Thin ground, flagged per the standing rule
+
+**The rpcbind disanalogy is the thinnest thing in this section**, and §18.6 rules on it rather than
+around it. Reason 3 — that EPMD's intended caller population is bounded where rpcbind's is not — is an
+inference from `distributed.md`'s *"all nodes admitted into an Erlang cluster must be trusted"* and
+`DEP-001`'s trusted-network sentence, **neither of which is about EPMD**. Reasons 1 and 2 rest on
+`DEP-001`, which is about EPMD explicitly, so the ruling does not fall if reason 3 does — but a reader
+who holds that Step 1 is a question about the **specification's architecture** and not about the
+owner's opinion of it has a real argument, and on that reading the row comes off. **The criterion that
+would change the verdict:** a ruling that §10.1 Step 1 is answered from the specification alone. That
+is a question about §10.1, not about epmd, and it would reach `2379`/`2380` and others at the same
+time.
+
+**`DEP-001` is four months old in a release, and that is the §16.9 hazard pointed at this section's
+own finding.** **[measured]** `secure_coding.md` is absent at `OTP-28.4` and earlier, first appears at
+`OTP-28.5` (released 2026-04-23) and is present at `OTP-29.0.5`; its first commit dates to 2026-02-18.
+It is materially better placed than etcd's `THREAT_MODEL.md` — **two** maintained release lines rather
+than one, and on the published documentation site — but it is a young document, its own preamble calls
+it *"a living document"*, and [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
+§8's silent de-attestation reaches it in both directions. **The criterion that would change the
+verdict:** removal or material weakening of `DEP-001`'s EPMD paragraph, at which point `4369` falls
+back to §16.9's position and the removal branch re-opens. `4369` is therefore worth watching even
+though it is not in the weak tier — the same disposition §16.9 gave `2379`/`2380`, and a second
+instance of the shape the map's fog already names as *a row exposed to silent de-attestation without
+being in the weak tier*.
+
+**The `4369` cell is now founded on a document whose subject is writing Erlang code.** The rule is in
+a *Deployment* group inside a **secure coding** guide, and a reader who holds that a coding standard is
+addressed to developers rather than to operators — the genre objection §17.9 raised against
+Kubernetes' security **checklist** — has the same argument here. The reply is the same and it is
+stronger: the group is titled *Deployment*, the rule's subject is a network, and Erlang/OTP owns epmd,
+where §9.1's and §4.4's refused documents were third parties' hardening prose.
+
+### 18.11 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6 and §16.10
+
+Every artefact was read as shipped bytes from `raw.githubusercontent.com` at a named tag, never through
+a rendered documentation site. `www.erlang.org` was fetched **once**, and only to establish that the
+document is published as well as shipped (§18.3); nothing is quoted from it.
+
+- **Erlang/OTP tags are not semantic-version tags.** The repository uses `OTP-29.0.5`, and the tag list
+  was read before any path was resolved — §16.10 recorded the same hazard and it was honoured rather
+  than rediscovered. `OTP-29.0.5` is the newest `OTP-`prefixed tag; the repository also carries
+  `patch-base-NN` and historical branch tags that are not releases.
+- **The document that decided this ticket does not contain the port number, so no search keyed on
+  `4369` could have found it.** This is [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+  limb 1 in its purest form yet: §16.6 searched for the row and found the two documents whose titles
+  match the row. The class list, not the row, is what found `DEP-001`.
+- **A class can be invisible because it is new.** #76's retrieval was correct and complete over the
+  classes it knew about; `secure_coding.md` had been in a release for less than four months when #76
+  ran. **An owner's class list is fixed at the time of the sweep, not for all time** — which is a rider
+  ADR-0046 §17.8's *"an owner cannot invent a fourth class to defeat a sweep"* does not quite carry, and
+  it is recorded here because this is the case that produced it. The mitigation is the one already in
+  place: a class list is cheap to re-enumerate, and re-enumeration is what this section did.
+- **Reading the shipped C settled a question the prose could have been read either way on.** `epmd_cmd.md`
+  says registration from a remote host *"is always an error"*; `epmd_srv.c` shows the gate, names the
+  four gated request types and the two ungated ones, and shows that a `getpeername` failure is treated
+  as non-local. §10.1's Step 2 cell would have survived a prose-only reading of the man page as *"epmd
+  registers node names"*; it does not survive the dispatch table.
+- **The determinacy by-catch was checked and dropped rather than used.** Three Erlang/OTP documents
+  place epmd on `4369`, which is exactly ADR-0048's placement evidence — but `4369` is `reg. yes` and is
+  not one of §15.4's nine convention rows, so there is nothing for it to do. Recorded so a later session
+  does not retrieve it again.
+- **CouchDB's page was read as reStructuredText from the repository at `3.5.0`**, not from
+  `docs.couchdb.org`, for the reason §12.9 gives: the rendered page is a build artefact and the ports
+  table is the kind of content that is generated.
+
 ---
 
 ## Sources
@@ -5078,6 +5526,13 @@ The class audit (§17) — the document classes nobody had opened, retrieved as 
 - **[CouchDB documentation, *Security*](https://docs.couchdb.org/en/stable/intro/security.html)** §1.5.1.2 — the class never opened for `5984/tcp`, and the corpus's nearest miss: *"Will your CouchDB instance communicate over a public network? Even a LAN shared with other collocation customers is public."* The second sentence defines what the first means by *public*, and it is not the internet (§17.6)
 - **Kubernetes' security documentation**, the class §16.5 did not open for `10255/tcp`: [`kubernetes/website`, `content/en/docs/concepts/security/security-checklist.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/security-checklist.md) at `release-1.34` — *"The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"*, and *"The kubelet API access should be restricted and not exposed publicly"*. **The owner naming a boundary about its own component, and naming it by category rather than by port** (§17.6) · [`controlling-access.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/controlling-access.md) at the same tag — read end to end, and it contains no port and no placement statement
 - **Named as the boundary and not searched, because the row's other gate is untested**: Elastic's deployment guidance for Kibana and HashiCorp's for Consul. §17.8 and §8 question 11 — routed to [#87](https://github.com/winniel123/verge-asm/issues/87)
+
+Erlang/OTP's four classes (§18) — `4369/tcp`'s owner, enumerated before the search and all four opened. Every artefact read as bytes at `OTP-29.0.5`; **[measured]** OTP tags are `OTP-`prefixed, never semantic-version
+- **Erlang/OTP [`system/doc/design_principles/secure_coding.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/design_principles/secure_coding.md) at `OTP-29.0.5`** — the **deployment / security-guidance class, never opened**, and the document that settles the ticket. Rule **`DEP-001`**, *Do Not Expose Default Erlang Distribution on Untrusted Networks*, priority `Critical` (one of six of the document's thirty-one rules at that priority): *"This configuration should **only** be used in a trusted network."* … *"Note that the Erlang Port Mapper Daemon (EPMD) service will **respond to unauthenticated requests**, and can by this **leak information about what Erlang nodes exist and what ports they are listening on** (CWE-668, CWE-200). You are therefore advised to **disable the default EPMD**"*. **[measured]** the file **does not contain the string `4369`**, so no port-keyed search could reach it; **absent at `OTP-28.4` and earlier, first shipped at `OTP-28.5` (2026-04-23), present at `OTP-29.0.5`**, and published at [`www.erlang.org/doc/system/secure_coding.html`](https://www.erlang.org/doc/system/secure_coding.html) — in a release **and** on the site, which is why no outcome of [#86](https://github.com/winniel123/verge-asm/issues/86)'s §2.2 second-form ruling can reach it (§18.3)
+- Erlang/OTP [`erts/doc/guides/erl_dist_protocol.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/guides/erl_dist_protocol.md) at `OTP-29.0.5` — the **specification** class. *"By default the EPMD listens on port 4369."* · *"A node fetches the port number of another node through the EPMD (at the other host) to initiate a connection request."* — the sentence behind §18.6's rpcbind parallel, stated and refused · the *EPMD Protocol* chapter enumerates seven request types and **[measured]** contains **no occurrence of `cookie`**; every cookie reference in the document is in the **handshake** chapter
+- Erlang/OTP [`erts/epmd/src/epmd_srv.c`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/epmd/src/epmd_srv.c) at `OTP-29.0.5` — the **shipped bytes**, read because the prose could be taken either way. **[measured]** `EPMD_ALIVE2_REQ`, `EPMD_DUMP_REQ`, `EPMD_KILL_REQ` and `EPMD_STOP_REQ` each return early on `if (!s->local_peer)`; `EPMD_PORT2_REQ` and `EPMD_NAMES_REQ` do not. `conn_local_peer_check` admits only `127.x.x.x` and the host's own address and treats a `getpeername` failure as **non**-local. **This is what refutes §10.1's Step 2 cell** (§18.6)
+- Erlang/OTP [`erts/doc/guides/alt_disco.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/guides/alt_disco.md) and [`erts/doc/references/erl_cmd.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/references/erl_cmd.md) at `OTP-29.0.5` — *"the EPMD unix process does this by connecting to the other node on a well-known port, port 4369"* · *"`-start_epmd true | false` … By default this is `true`"*, the switch that makes `DEP-001`'s remedy **reach the port** under §10.4.3. `system/doc/vulnerabilities/vulnerabilities.md` was opened and carries nothing — it is an OpenVEX publication policy
+- **CouchDB [`src/docs/src/setup/cluster.rst`](https://github.com/apache/couchdb/blob/3.5.0/src/docs/src/setup/cluster.rst) at `3.5.0`** — read as the repository's reStructuredText rather than the rendered page. Its ports table gives `4369` a **recommended binding** — *"`localhost` for single node installs. Private interface if clustered"* — which is a placement statement in a **non-owner's** voice, so it corroborates under §2.3 alongside RabbitMQ's. It also fixes what §3.4's CouchDB quote is about: the **distribution port** is the `9100-9200` range the same page recommends, a **separate row** from `4369`, which is what makes §3.1's old *"why"* cell a transposition (§18.5, §18.7)
 
 No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
 - **1433/tcp** Microsoft SQL Server and **445/tcp** SMB with **139/tcp**, **137**, **138/udp** — configured through setup and the registry rather than through a file Microsoft ships
