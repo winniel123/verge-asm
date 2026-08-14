@@ -108,6 +108,20 @@ algorithm floor* as live for #68. That stands. What #67 adds is that #68 must **
 owner** — because an underived claim and a genuine absence are indistinguishable from inside a
 retrieval, and this ADR has now produced one of each.
 
+> **Amendment — [#68](https://github.com/winniel123/verge-asm/issues/68).** Two rows above are now
+> stale in one direction and are left standing per the name-and-withdraw convention.
+> `certificate-weak-key-or-signature`'s table **has been written** —
+> [`docs/research/weak-key-and-signature.md`](../research/weak-key-and-signature.md), five rows —
+> so it is no longer *"never written"*, and **#68 no longer blocks
+> [#12](https://github.com/winniel123/verge-asm/issues/12)**. The Consequences' live question about
+> §10.5's owner definition is **answered**: the definition survives and gains one clause naming a
+> **cryptographic primitive** as an artefact class, recorded in
+> [ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md). Three findings above are
+> confirmed rather than changed — gate 1's *derive your own set* survived its second application and
+> produced **two** claims, not three; gate 3 read **outside the domain** as predicted; and the weak
+> tier is disclosed in the instrument's own document. ADR-0035 adds one thing this ADR did not
+> anticipate: a **third kind of weak row** — a *scope* weakness, which is neither watched nor chased.
+
 ## Rationale
 
 ### 1. The unit is the table, and the ticket's question presupposes otherwise
