@@ -195,6 +195,21 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > cites for it, is a **non-owner's** under §10.5 and corroborates only (§16.6). Read §16.9 before
 > quoting either cell.
 
+> **Amended by §18** ([#88](https://github.com/winniel123/verge-asm/issues/88)). **The table above is
+> superseded in three cells.** An owner's **category** statement reaches the members the owner's own
+> artefacts place inside it
+> ([ADR-0049](../adr/0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)),
+> so `10250/tcp` and `10255/tcp` kubelet are carried by Kubernetes' own *"The Kubernetes API, kubelet
+> API and etcd are not exposed publicly on Internet"* and both join the **explicit prohibition**
+> tier. **The tiers are prohibition 15 pairs · scoping 9 pairs · weak 2 rows**, coverage unchanged at
+> **26 of 37**, and **the weak tier is `5432` and `5984` again**. **No `(port, transport)` pair
+> moves.** Both kubelet cells are **conditional on
+> [#83](https://github.com/winniel123/verge-asm/issues/83)**, which may remove either row; a cell
+> cannot outlive its row. §18.6 carries the restated table and §18.7 flags `10255` as the tier's
+> thinnest member. **One cell in the tier above is newly exposed and is ticketed rather than moved**
+> — `623/udp`, whose owner sentence names a **product line** and whose port number is supplied by a
+> corroborator ([#90](https://github.com/winniel123/verge-asm/issues/90), §18.5).
+
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
 This is the load-bearing methodological finding, and it took the most work to establish.
@@ -279,6 +294,25 @@ be attested per §2.2, by a source that owns the protocol.
 > security-guide prose is corroboration under this section — which is why §9.1 could read Debian's
 > `rpcbind.default` and decline Red Hat's Security Guide in the same breath. The self-contradiction
 > is evidence the line is right, never the ground for it. No row moved.
+
+> **Amended by §18** ([#88](https://github.com/winniel123/verge-asm/issues/88)). **This section's
+> refusal is about *standing*, never about *grammar*, and the two had never been made to disagree**
+> because every category statement in the corpus when it was written came from a non-owner. **An
+> owner's category statement reaches the members the owner's own artefacts place inside it**, on
+> three limbs — standing under §10.5, **membership established by the owner's own artefact and never
+> by a corroborator's port number**, and **defeat per member** wherever the owner elsewhere names
+> that member's internet-facing deployment as supported
+> ([ADR-0049](../adr/0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md),
+> §18.1). The category's unit is a **protocol or interface, never a vendor's product line**
+> ([ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)).
+>
+> **Nothing in this section weakens.** CISA, the CPG, NSA, AWS, Google Cloud and CIS still carry no
+> row, for exactly the reason given above: they cannot close the category-to-port gap, so the reader
+> closes it. What is **withdrawn** is the implication in *"Neither attests a port"* that the
+> grammatical shape of a category statement is the defect — §18.2 measures that reading against the
+> corpus and finds it would leave the list resting on which maintainers happened to type a number.
+> **The hardening-instruction objection of §9.1 and §4.4 is untouched against a non-owner and adds
+> nothing against an owner** that §10.3's failure condition does not already test (§18.3).
 
 ### 2.4 Determinacy: the port must imply the service
 
@@ -4274,6 +4308,18 @@ company, and the company arrived from a different project and a different artefa
 > [#83](https://github.com/winniel123/verge-asm/issues/83), which **blocks
 > [#12](https://github.com/winniel123/verge-asm/issues/12)**.
 
+> **Amended by §18** ([#88](https://github.com/winniel123/verge-asm/issues/88)). **Both placements in
+> this subsection move up, and the negative above is discharged rather than withdrawn.** *"The owner
+> states **no position** on `10255` anywhere that was retrieved"* was already narrowed by §17.6 to a
+> statement about the two documents it names; §18 rules that the owner's position, retrieved by
+> [#79](https://github.com/winniel123/verge-asm/issues/79) from Kubernetes' security documentation,
+> **reaches both ports** — so `10255/tcp` goes to the **explicit prohibition** tier and `10250/tcp`
+> joins it from scoping. The `Used By: Self, Control plane` table cell above stops carrying `10250`'s
+> **position** and carries its **membership**, which is the job it fits (§18.6). `readOnlyPort`'s
+> restricting default is unchanged and is no longer the row's only footing. **No `(port, transport)`
+> pair moves**, and both cells are conditional on
+> [#83](https://github.com/winniel123/verge-asm/issues/83).
+
 ### 16.6 `4369` epmd — the placement §13.7 called clerical, and the reason it is not
 
 §13.7 read this row as the easiest of the seven: RabbitMQ's *"these ports should not be publicly
@@ -4355,6 +4401,14 @@ count *"was done by hand against §3's tables and is the kind of thing that goes
 carries its own extent cannot go wrong that way: the arithmetic is in the artefact, and a reader who
 disagrees is disagreeing with a claim rather than reconstructing one.
 
+> **Amended by §18** ([#88](https://github.com/winniel123/verge-asm/issues/88)). **The blockquoted
+> table above is superseded in three cells and stands in every other**, including its coverage
+> sentence. `10250` and `10255` are both in the **explicit prohibition** tier, the scoping tier is
+> **9 pairs**, and **the weak tier is two rows** — so *"The weak tier grows by one and shrinks by
+> nothing"* is superseded: it grew by one and has now shrunk by that one, on evidence rather than on
+> a correction. §18.6 carries the restated table. The coverage arithmetic is untouched at **26 of
+> 37**, because a re-tiering moves a pair between rows of this table and never in or out of it.
+
 ### 16.8 Every dependent figure, checked rather than asserted
 
 | Where | Was | Is |
@@ -4434,6 +4488,17 @@ tier.
 The owner writes *node*, the owner defines the node as its two interfaces on the same page, and the
 setting the warning concerns governs both — but the owner does not write `9300`. The step is smaller
 than `4369`'s and is not zero.
+
+> **Amended by §18** ([#88](https://github.com/winniel123/verge-asm/issues/88)). **The first flag
+> above is discharged.** `10250`'s cell no longer rests on a table cell for its network position — it
+> rests on the owner's *"The Kubernetes API, kubelet API and etcd are not exposed publicly on
+> Internet"*, and the `Used By` cell now supplies **membership** instead, which is what a table of
+> ports and their clients is fit for. The alternative this subsection recorded as *"considered and
+> lost only narrowly"* — demoting `10250` to the weak tier on the argument that `Used By` is a §12(b)
+> label — is now moot in the other direction. **A new flag opens in its place at §18.7**: `10255` is
+> the thinnest member of the **prohibition** tier, and both kubelet cells rest on a **checklist
+> item** in a documentation release branch, which is this subsection's `2379`/`2380` volatility
+> argument arriving on two more ports.
 
 ### 16.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9 and §13.10
 
@@ -4809,6 +4874,18 @@ the kubelet API read-only and without authentication, which §3.4's own quote fo
 > unexamined silence, which is what ADR-0040 requires of a surviving weakness — and that one of the
 > three has a candidate footing on the record.
 
+> **Amended by §18** ([#88](https://github.com/winniel123/verge-asm/issues/88)). **The candidate is
+> applied and the question is answered: an owner's category statement *does* reach its own unnumbered
+> members**, on §18.1's three limbs. `10255/tcp` leaves the weak tier for **explicit prohibition**,
+> and `10250/tcp` comes with it. Two consequences for this section. *"All three weak-tier rows
+> survive their class sweep as rows"* stands — the row survives; it is the **footing** that moves.
+> And **the fourteenth sole-ground negative this ticket recorded retires rather than being answered**:
+> `10255` no longer rests on an absence, so under
+> [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+> limb 1 it leaves the exposed population, and §17.8's table-state qualifier fires in the
+> **disarming** direction for the first time. The weak tier, and therefore the curator's watch list,
+> is **`5432/tcp` and `5984/tcp`**.
+
 ### 17.7 Every dependent figure, walked rather than asserted
 
 | Where | Was | Is |
@@ -4954,6 +5031,314 @@ every subject in this table's domain that it names, per ADR-0037 limb 1.
 - **RFC 3512's five hits were each read in context rather than counted.** Two are about trap delivery
   during a denial-of-service flood, one is an ITU-T bibliography entry (*Recommendation M.3010*), and two
   are VPN forwarding used as a MIB-design example. A count alone would have read as five near-misses.
+
+---
+
+## 18. An owner's category statement reaches the members its own artefacts place inside it
+
+Wayfinder ticket [#88](https://github.com/winniel123/verge-asm/issues/88), applying
+[ADR-0049](../adr/0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md).
+
+§17.6 retrieved the first **owner** category statement in the corpus and reported it rather than
+applying it, naming the question it turns on: **§2.3 refuses a source that attests a category rather
+than a port — is that refusal about the *grammar* of a category statement, or about the *standing*
+of the party making it?** Every category statement in the corpus when §2.3 was written came from
+CISA or a cloud provider, so the two readings had never been made to disagree.
+
+**They disagree now, and the answer is standing.** This section states the rule, walks it across
+every cell in §16.7's table and every exclusion it could reach, moves two footing cells and no rows,
+and names the one row the rule newly exposes.
+
+**This ticket performed no retrieval.** A row moves on a retrieval and never on a re-reading
+([#37](https://github.com/winniel123/verge-asm/issues/37)); §79's retrieval is the evidence and this
+is the rule over it. Every quote below is already in this note or in §17.
+
+### 18.1 The rule, in three limbs
+
+> **An owner's statement about a category reaches every member of that category that the owner's own
+> artefacts place inside it.** Three limbs, all required:
+>
+> 1. **Standing.** The speaker **owns the protocol** under §10.5 — it designed the protocol or
+>    authors the reference implementation, speaking about the thing it designed or wrote.
+> 2. **Membership.** **The owner's own artefact places the `(port, transport)` pair inside the
+>    category.** The mapping may not be the reader's inference and may not be supplied by a
+>    corroborator. The row is the concatenation of two owner statements.
+> 3. **Defeat, per member.** Reach **fails for any member whose internet-facing deployment the owner
+>    elsewhere names as supported** — §10.3's failure condition, tested per member rather than per
+>    sentence.
+>
+> **The category's unit is a protocol or an interface, never a vendor's product line**
+> ([ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)). *The
+> kubelet API* is an interface of one component and qualifies. *Kubernetes*, *our appliances* or
+> *Dell's DRACs* are product categories and do not.
+>
+> **§2.3 is narrowed, not weakened.** A non-owner's category statement still carries nothing, for
+> exactly the reason §2.3 gives. What is withdrawn is the implication that the **grammar** was the
+> defect.
+
+### 18.2 Why the grammatical reading lost, and it is a measurement rather than a preference
+
+§2.3 states its reason twice and the two sentences come apart here. *"Both attest a category …
+neither attests a port"* is grammatical. *"The mapping from its protocol list to port numbers is
+**the reader's inference**, not CISA's"* is not — it says the defect is that **nobody with standing
+closed the gap**. The two agree on every case §2.3 was written about, because a non-owner cannot
+close the gap: CISA does not get to say which ports are management interfaces.
+
+**[measured] Under the grammatical reading, most of the footing table's prohibition tier falls.** Of
+the sentences carrying §16.7's 26 placed pairs, five write the port number:
+
+| The sentence that carries the row (§3.4) | Owner writes the number? |
+|---|---|
+| Redis — *"expose the Redis instance directly to the internet … the Redis TCP port"* | **No** — a definite description; `redis.conf` ships `port 6379` |
+| memcached — *"you must not expose memcached directly to the internet"* | **No** — the software |
+| MS SQL Server — *"don't connect your SQL Server instances directly to the Internet"* | **No** — instances |
+| Elasticsearch — *"Never expose an unprotected node to the public internet"* | **No** — and §16.4 already ruled it reaches `9300` |
+| rsync — *"Do not expose a cleartext daemon to an untrusted network"* | **No** — the daemon |
+| SMB — *"unlikely that any SMB communication … is legitimate"* | **No** in the sentence; the same document tabulates 445 / 139 / 137 / 138 |
+| MongoDB — *"your `mongod` and `mongos` instances are only accessible on trusted networks"* | **No** — binaries |
+| NFS — *"on a trusted physical network between trusted hosts"* | **No** |
+| ZooKeeper — *"a ZooKeeper ensemble … behind a firewall"* | **No** — the ensemble |
+| Docker — *"reachable only from a trusted network or VPN"* | **No** |
+| IPMI — Dell, *"DRAC's are intended to be on a separate management network"* | **No**, and the number comes from CISA — §18.5 |
+| MySQL `3306` · etcd `2379`/`2380` · Cassandra `9042` · RabbitMQ `25672` · kubelet `10250` | **Yes** — five cells |
+
+That reading leaves the sensitive list as *the set of ports whose maintainers happened to type a
+number*. §2.2's founding paragraph refuses the outcome in advance: a list resting on *"an asymmetry
+driven by a documentation accident rather than by any difference in the two services' deployment
+models"* is *"exactly the kind of arbitrariness that destroys a curated list's credibility."*
+
+And it is not a clean-slate option. **§16.4 is already a decided instance of reach** — it admitted
+`9300` on a sentence about *nodes*, quoted the owner's own definition of a node, and called the
+result *"an inference of one step"*, which is limb 2 without a name. Adopting the grammatical
+reading would remove `9300` from the prohibition tier, unseat `139`/`137`/`138` from the SMB cell
+that carries them, and leave `623` with no footing at all.
+
+### 18.3 The counter-argument, argued rather than dismissed
+
+The retrieved sentence is a **checklist item** — grammatically an instruction to a deployer, which
+is §9.1's Red Hat shape (*"a hardening instruction, not a legitimacy statement"*) and §4.4's
+NSA/CISA shape (*"a hardening preference expressed against a real, supported architecture"*). Both
+were refused. A checklist states a floor for a hardened deployment; it does not say every other
+deployment is illegitimate, and this list's claim is the stronger one.
+
+**Three answers, in increasing order of force.**
+
+1. **§9.1's three grounds were never equal.** Red Hat lost on standing, on shape and on
+   self-contradiction across its own products. Standing is cured here. Self-contradiction is absent
+   for this member and **present for another** — §18.4. Shape is what remains, and it never stood
+   alone.
+2. **The standard already admits weaker modality.** §2.2's third form asserts nothing about
+   legitimacy at all: PostgreSQL's `listen_addresses = localhost` says only what the software does,
+   and it is the **sole** footing for two rows. A sentence in the owner's voice saying the interface
+   *"is not exposed publicly on Internet"* is not weaker than a config default; it is the same
+   position stated out loud.
+3. **[measured] Applied consistently, the objection removes rows nobody proposes removing.** MySQL's
+   *Security Guidelines*, MongoDB's *security hardening*, Microsoft's *Security considerations for a
+   SQL Server installation* and ZooKeeper's *Administrator's Guide* are hardening documents in the
+   owner's voice, and all four carry rows in §3.4 today. **The genre is not the defect; the party
+   is.**
+
+> **Against a non-owner, *this is a hardening instruction* is fatal because limb 1 has already
+> refused the party. Against an owner it adds nothing that §10.3's failure condition does not
+> already test** — an instruction is a *preference* exactly where the architecture it advises
+> against is one the owner supports.
+
+### 18.4 One sentence, three members, and it is defeated for one of them
+
+The retrieved checklist item names **the Kubernetes API, the kubelet API and etcd**. §4.4 excludes
+`6443/tcp` and quotes this very sentence — then quotes what upstream says immediately after it:
+
+> "Be careful, as **many managed Kubernetes distributions are publicly exposing the API server by
+> default**."
+
+So the owner states the category prohibition and, in the next breath, concedes that its own
+ecosystem's dominant deployment violates it **for one member**. For `6443` the checklist item is a
+preference expressed against a real supported architecture — §4.4's words, now demonstrably about
+the owner's own architecture. For the kubelet API the owner concedes nothing of the kind anywhere
+retrieved: `10250` is *Used By: Self, Control plane* and `10255` ships disabled.
+
+> **A category sentence is tested per member, not per sentence** — the sibling of
+> [#76](https://github.com/winniel123/verge-asm/issues/76)'s *ownership is tested per port, not per
+> sentence* (§16.6), and produced by the same defect: a sentence is not a unit of evidence, a claim
+> about a subject is.
+
+**`6443/tcp` does not re-open.** Its exclusion rests on three independent grounds and the
+attestation limb was never one of them — Claim 3 fails on the facts, determinacy fails against
+`sun-sr-https` and against Kubernetes' own *"the API serves on port 443"*, and §4.4's third ground
+is a product judgement about false firings. What changes is §4.4's **disclosure**: the upstream
+quote is an **owner prohibition that this row defeats on other grounds**, not merely *a hardening
+preference*. §4.4's wording is left standing per the name-and-withdraw convention and is corrected
+here.
+
+### 18.5 The walk — every row the rule reaches, and the one it exposes
+
+**Ratified, cell unchanged (limbs 1-3 satisfied on artefacts this note already holds):** `6379`,
+`11211/tcp`+`11211/udp`, `1433`, `9200`+`9300`, `873`, `445`+`139`+`137`+`138`, `27017`/`27018`/`27019`,
+`2049`, `2181`, `2375`+`2376`. In each the owner states the category and the owner's own
+documentation or shipped configuration numbers the port — for several (`6379`, `2181`, `27017`) the
+two are the same file. **Nothing about these cells moves**; what changes is that their warrant is
+now named rather than assumed.
+
+**Numbered by the owner, so the rule is not needed:** `3306`, `2379`, `2380`, `9042`, `25672`,
+`10250` (whose `ports-and-protocols.md` row numbers it).
+
+**Moved — two cells, both up, both conditional on [#83](https://github.com/winniel123/verge-asm/issues/83):**
+`10250/tcp` and `10255/tcp`, §18.6.
+
+**Not rescued — `4369/tcp` epmd.** Erlang/OTP's sentence is about *distributed nodes* and the
+distribution transport; epmd is the mechanism's **registry** rather than the transport, and the
+owner's own epmd page distinguishes them and declines to prohibit anything (§3.4, §16.6). The owner
+does not place `4369` inside the category it spoke about, so **limb 2 fails** and §16.9's *"a reader
+who says Erlang/OTP has stated a position about the distribution port and no position about `4369`
+has a live argument"* survives this section completely intact. This is the load-bearing negative
+result: the rule is not a device for laundering an inference into a citation.
+
+**Newly exposed — `623/udp` IPMI, ticketed and not moved.** Dell's *"DRAC's are intended to be on a
+separate management network"* is the sentence §3.4 says *"actually carries the row"*. It names
+**DRACs**, a product line, which fails the ADR-0048 unit check on its face; and the number that
+connects it to the row is **CISA's** *"usually UDP port 623"*, a corroborator, which limb 2 forbids.
+That is §10.6's shape — *a corroborator standing where an owner should* — in a second instance, in
+the **prohibition** tier, and §10.6 is what took `161/udp` off the list. **It is not decided here:**
+this ticket performed no retrieval, ADR-0037 limb 2 requires a finding of this shape to be ticketed
+rather than acted on, and the likely resolution is that the IPMI or ASF specification numbers the
+port and re-founds the cell on §2.2's **first** form. Routed to
+[#90](https://github.com/winniel123/verge-asm/issues/90), which **blocks
+[#12](https://github.com/winniel123/verge-asm/issues/12)** because it can reach a row removal.
+
+**Exclusions checked and unmoved:** `6443` (§18.4). `5601` Kibana, `8500` Consul, `1099` Java RMI,
+`8080` Jenkins, `9100`, `22`, `3389`, `5985`/`5986`, `111`, `389`, `79`, the Hadoop UIs and the mail
+ports are excluded on grounds that contain no category statement by an owner, so the rule does not
+reach them. `5672`/`15672` RabbitMQ is untouched: §17.4 found the owner naming **public networks as
+supported** for exactly those two ports, which is limb 3's defeat condition met directly.
+
+**One exclusion the rule composes with rather than decides — `9092/tcp` Kafka.** §17.5's sentence
+(*"accepts unauthenticated `PLAINTEXT` connections on **every listener**"*, *"before being exposed to
+any untrusted network"*) names **no port**, so even if
+[#86](https://github.com/winniel123/verge-asm/issues/86) rules the unreleased document admissible as
+the owner's documentation, the sentence needs **this** rule as well to reach `9092`. Limb 2 looks
+satisfiable there on the owner's own shipped `server.properties`, and that is a statement about
+where the evidence would come from, **not** a ruling — the row stays excluded and #86 owns it.
+
+### 18.6 The two cells that move, and the tier table restated
+
+**`10255/tcp` → explicit prohibition.** Limb 1: Kubernetes authors the kubelet's reference
+implementation and §16.5 already records that kubernetes.io speaking about the kubelet is the owner
+speaking. Limb 2: the owner's own shipped bytes place the port inside *the kubelet API* —
+`readOnlyPort` is *"the read-only port for the Kubelet to serve on with no
+authentication/authorization"* (`staging/src/k8s.io/kubelet/config/v1beta1/types.go`, `v1.34.1`).
+Limb 3: nothing retrieved has the owner supporting an internet-facing kubelet. The first §17.6 quote
+is an unqualified negative about internet exposure and names **no trusted network**, which is what
+makes it a prohibition rather than a scoping.
+
+**`10250/tcp` → explicit prohibition**, from the scoping tier. The same two sentences, and the
+membership evidence is the **stronger** of the two: `ports-and-protocols.md` at `release-1.34`
+numbers `10250` as *Kubelet API* in the owner's own table. §16.9 flagged this cell as *"the thinnest
+placement in the table"* precisely because `Used By: Self, Control plane` *"names the port's clients
+rather than its permitted network"* — under this rule the table cell stops carrying the **position**
+and carries the **membership**, which is the job it fits, and the position comes from a sentence.
+That flag is discharged.
+
+> **§2.2's footing table, restated. It places 26 of the 37 pairs; the eleven uncovered are uncovered
+> by design and unchanged from §16.7.**
+>
+> | Footing | Pairs |
+> |---|---|
+> | **Explicit prohibition** in the owner's own words | 6379 Redis · 11211/tcp + 11211/udp memcached · 3306 MySQL · 1433 MS SQL · 9200 and 9300 Elasticsearch · 873 rsync · 445 SMB · 623 IPMI · 9042 Cassandra · 2379 and 2380 etcd · **10250 and 10255 kubelet** — **15 pairs** |
+> | **Explicit trusted-network scoping**, slightly weaker than a prohibition | 27017/27018/27019 MongoDB · 2049 NFS · 2181 ZooKeeper · 25672 RabbitMQ · 4369 epmd · 2376 and 2375 Docker — **9 pairs** |
+> | **Shipped default only** — no prohibition exists upstream | **5432 PostgreSQL · 5984 CouchDB** — **2 rows** |
+> | *Outside this table's subject, and correctly absent* | *Class B's seven (23, 21, 512, 513, 514, 5900, 6000) and 69/udp rest on §2.2's **first** form; 139/tcp, 137/udp and 138/udp sit inside 445's cell — **11 pairs*** |
+>
+> 15 + 9 + 2 + 11 = 37. **No `(port, transport)` pair moves.**
+>
+> **Both kubelet cells are conditional on [#83](https://github.com/winniel123/verge-asm/issues/83)**,
+> which is deciding whether either row survives Class A on the finding that the shipped source
+> contradicts the generated reference page. A footing is evidence for a claim and not a claim
+> ([ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md), §12.7), so a
+> cell cannot outlive its row: if #83 removes a kubelet row, its cell leaves with it and the
+> prohibition tier reads 14 or 13 pairs with the coverage denominator falling to 25 or 24. **If #83
+> moves `10250` from Class A to Class C, nothing here moves at all** — the footing is about network
+> position and is indifferent to which claim the row rests on.
+
+### 18.7 Thin ground, flagged per the standing rule
+
+**`10255`'s cell is the thinnest member of the prohibition tier, and it is thinner than `10250`'s.**
+Its membership evidence is a **doc comment on a config-API field** rather than an entry in the
+owner's ports table; the port appears nowhere in `ports-and-protocols.md` at all (§16.5, verified
+positively). And both cells rest on a **checklist item** — the only cells in the tier that do. The
+tier's other members are prose sentences in reference documentation or shipped configuration
+comments, genres that change slowly. A checklist line in a documentation release branch can be
+edited in one commit by one contributor, which is
+[ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's silent
+de-attestation arriving from the direction §16.9 named for `2379`/`2380` — a young or easily-edited
+**positive** rather than a flippable default. **The criterion that would change the verdict:**
+removal or material weakening of the *Network security* checklist item, at which point `10255` falls
+back to the weak tier on `readOnlyPort` alone and `10250` falls back to the scoping tier on the
+ports table.
+
+**The rule was ruled without a live human, and one limb is thinner than the other two.** Limbs 1 and
+2 are read off existing text — §10.5 defines ownership, and membership is a documentary fact.
+**Limb 3 is the constructed one**: nothing in §2.3, §9.1 or §4.4 says in so many words that the
+hardening-instruction objection reduces to §10.3's failure condition. It is inferred from §9.1's
+three grounds not being equal and from §4.4's own phrase *against a real, supported architecture*,
+and it is confirmed by the one case in the corpus where an owner's category sentence is defeated for
+one member and not another. That is a strong instance and it is **one** instance.
+
+**What was not done.** No artefact was retrieved for this ruling, by design. So the walk in §18.5 is
+a walk over **quotes this note holds**, and where it says an owner numbers a port it means the note
+records that it does. `1433` is the softest of those: Microsoft numbers `1433` widely in its own
+documentation, but no quote in §3.4 does, and §13.1 records that `1433` has **no shipped
+configuration artefact at all**. It is ratified on the strength of the number being uncontroversially
+the owner's, which is an inference of the kind limb 2 exists to discipline. If `623` (§18.5) comes
+back badly, `1433` is the next cell to check.
+
+### 18.8 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged.** No row changes class; no claim moves |
+| §2.2 footing table — coverage | 26 of 37 (§16.7) | **26 of 37, unchanged.** No pair enters or leaves the table's subject |
+| §2.2 footing table — **prohibition tier** | 13 pairs | **15 pairs.** `+10250`, `+10255` |
+| §2.2 footing table — **scoping tier** | 10 pairs | **9 pairs.** `−10250` |
+| §2.2 footing table — **weak tier** | 3 rows (`5432`, `5984`, `10255`) | **2 rows** (`5432`, `5984`). `−10255` |
+| §16.7's restated table | #76's tiers | **superseded by §18.6 in three cells**; every other cell and the coverage sentence stand |
+| §16.9's *`10250` is the thinnest placement in the table* | flagged | **discharged.** The table cell now carries membership, not position. §18.7 opens a new flag on `10255` |
+| §17.6's candidate footing for `10255` | reported, not applied | **applied.** §17.6's *"the criterion that would move the cell"* is met by ADR-0049 |
+| §17.7's *§2.2 weak tier: three, unchanged* | 3 | **superseded — two.** §17.7 was correct on the day it was written |
+| §4.4's characterisation of the upstream quote | *a hardening preference* | **corrected** — an owner prohibition the row defeats on other grounds (§18.4). The exclusion is unchanged |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged**, and now the weak tier's senior member of two rather than three |
+| §4.6 exclusions | 18 named | **18 named.** None is added or removed |
+| §6.1 containment arithmetic | 28 + 4 + 5 = 37 | **unchanged** |
+| §8 | 12 questions | **12.** No question opens here; §18.5's `623` finding is a **row** question and is ticketed rather than parked |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | unchanged | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
+
+**Outside this note.**
+[ADR-0049](../adr/0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+is added. **ADR-0032 §8's watch-list enumeration is amended for the third time** and reads `5432/tcp`
+and `5984/tcp`; the sequence is now 3 → 2 → 3 → 2 with the membership changing at every step, which
+is §8's own *compare members, not counts* lesson in a second instance. The map's *how the tiered port
+sets are curated* patch must record the watch list as **two rows** again.
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)'s
+fourteenth sole-ground negative **retires**: `10255` no longer rests on an absence, so it leaves the
+exposed population, and ADR-0046's table-state qualifier fires in the **disarming** direction for the
+first time. ADR-0036, ADR-0037, ADR-0040, ADR-0042, ADR-0048 and
+[`weak-key-and-signature.md`](./weak-key-and-signature.md) are untouched — the rule travels to that
+table under ADR-0032 and **moves nothing there**, checked against its §13.5 restated tier table,
+where every surviving footing names its own subject.
+
+### 18.9 Retrieval method, recorded per §9.5, §11.9, §12.9, §13.10, §14.6 and §16.10
+
+**No artefact was retrieved.** This is the first numbered section of this note that performs none,
+and it is deliberate: [#37](https://github.com/winniel123/verge-asm/issues/37) rules that a row moves
+on a retrieval and never on a re-reading, and every quote this section relies on was retrieved by
+[#76](https://github.com/winniel123/verge-asm/issues/76) or
+[#79](https://github.com/winniel123/verge-asm/issues/79) and is reproduced from this note rather than
+re-fetched. **Two consequences are worth recording.** No cell here can be stronger than the retrieval
+that produced its quote — `10250`/`10255` inherit §16.10's discipline and its caveats whole. And the
+`623` finding is stated as a **gap in the artefacts this note holds**, which is not the same claim as
+*no owner artefact numbers the port*; that stronger claim needs the search
+[#90](https://github.com/winniel123/verge-asm/issues/90) will run, and ADR-0040 binds its negative.
 
 ---
 
