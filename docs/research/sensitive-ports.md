@@ -75,6 +75,11 @@ Kubernetes API server from consideration in a single stroke — because for each
 a remote client *is* the intended audience, and remote administration over an untrusted network is
 the express purpose the protocol was designed to serve.
 
+> **Amended by §10** ([#37](https://github.com/winniel123/verge-asm/issues/37)). Claim 1 carries a
+> **qualifier** it has always relied on and never stated (§10.1); Claim 3's boundary is wider than
+> the words "same system" (§10.3); and the set of three is **closed by construction** rather than by
+> enumeration (§10.2). No row moved. Read §10.1-§10.3 before applying this section.
+
 ### 2.2 The claim must be attested by the source that owns it
 
 The claim may not be asserted by us. It must be quotable, verbatim, from:
@@ -108,6 +113,13 @@ The last row is the weak footing. PostgreSQL is treated at length in §4.5; Cass
 upstream sentence is an attack-surface observation rather than a prohibition; and CouchDB's actual
 "do not expose" warning covers the **Erlang distribution port, not 5984**, so it must not be
 transposed onto the HTTP API. All three are on the list, and all three are labelled.
+
+> **Amended by §10.4** ([#37](https://github.com/winniel123/verge-asm/issues/37)). A shipped default
+> attests in **one direction only**. A default that *restricts* is a maintainer position; a default
+> that is *permissive* is the absence of one, and may neither admit a row nor exclude one. The
+> separate route [#30](https://github.com/winniel123/verge-asm/issues/30) actually found — a
+> **remedy** aimed at the exposure hazard that stops short of the port — is a different object and is
+> specified in §10.4.3. No row moved.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -185,6 +197,14 @@ sole grounds for any individual row.
 **The rule that follows.** A cloud-provider control, a CIS recommendation, or a government directive
 may corroborate a row. It may never be the only evidence for one. The permitted claims in §2.1 must
 be attested per §2.2, by a source that owns the protocol.
+
+> **Amended by §10.5** ([#37](https://github.com/winniel123/verge-asm/issues/37)). *Owns* is defined:
+> the party that **designed the protocol**, or that **authors the reference implementation**, speaking
+> about the thing it designed or wrote. A **distributor owns its own shipped configuration and owns
+> nothing about the protocol**, so its packaging is admissible under §2.2's third form while its
+> security-guide prose is corroboration under this section — which is why §9.1 could read Debian's
+> `rpcbind.default` and decline Red Hat's Security Guide in the same breath. The self-contradiction
+> is evidence the line is right, never the ground for it. No row moved.
 
 ### 2.4 Determinacy: the port must imply the service
 
@@ -280,6 +300,13 @@ standard's tightness:
 > **No row on this list rests on a government or cloud-provider source alone.** Every one of the 38
 > is attested by the specification, the project, or the vendor that owns the protocol.
 
+> **Amended by §10.6** ([#37](https://github.com/winniel123/verge-asm/issues/37)). That sentence is
+> **established for 37 rows and not for `161/udp`** — the row this escape hatch was drafted to carry,
+> and the one whose first-party attestation this section names as "CISA's SNMP alert", which is a
+> corroborator rather than an owner. `161/udp` **stays on the list** and is now the note's disclosed
+> **second-weakest row** beside 5432 (§4.5). The retrieval that would settle it is
+> [#66](https://github.com/winniel123/verge-asm/issues/66).
+
 ### 2.7 The most tempting laundering instance in the corpus, and why it was refused
 
 `111/tcp` (rpcbind/portmapper) is the case that shows the §2.3 rule earning its keep, so it is worth
@@ -327,6 +354,13 @@ qualification: convention, not registration, is the determinacy test.
 | 4369/tcp | Erlang port mapper (epmd) | yes | Cluster-discovery channel whose only protection is a shared Erlang cookie |
 | 9042/tcp | Cassandra native protocol | -- | Authentication and authorization are disabled by default so that nodes can find each other |
 | 69/udp | TFTP | yes | The protocol has no authentication mechanism of any kind, by specification |
+
+> **Amended by §10.7** ([#37](https://github.com/winniel123/verge-asm/issues/37)). Two "why" cells
+> lead with something that is not the row's grounds. **11211/udp** leads with spoofed-source
+> amplification, which is a **magnitude** and is the exact source class §2.7 refuses; the row rests
+> on Claim 1 and the amplification sentence is colour. **161/udp** (§3.3) leads with a CISA
+> directive, which §2.3 permits only as corroboration. Both rows stand; the wording is corrected in
+> §10.7 rather than in place.
 
 ### 3.2 Class B — credentials in cleartext, encrypted successor on another port (Claim 2)
 
@@ -1031,20 +1065,21 @@ be wrong within a year.
 6. **Does this note's evidence standard generalise to the other v1 signals?** The claim/attestation/
    determinacy structure was built for the one signal with curated reference data, but "state the
    claim, cite the source that owns it" is not specific to ports.
-7. **Should Claim 1's unstated qualifier be written into §2.1?** §9.3.3 found that Claim 1 read
-   literally admits every anonymous public service — finger, WHOIS, HTTP — and that only an
-   unwritten "the anonymous operations must be ones that would otherwise require authority" keeps
-   them out. Every existing Class A row satisfies the stated version, so this is a documentation
-   fix; but an unstated admission criterion is precisely what makes a curated list unfalsifiable.
-   Fixing it means re-checking the whole list against the stated criterion, which is why it is a
-   question rather than an edit.
-8. **Class B has a permanent blind spot — should §2.1 say so rather than leaving it in §9.2?**
-   RFC 6335 §9 tells implementers to prefer in-band security negotiation over split ports, and §9.2
-   showed LDAP is the working instance: StartTLS and Microsoft's LDAP signing both harden 389 *on
-   389*, so there is no plaintext port to condemn and no Class B row is constructible. This is a
-   structural coverage limit of `sensitive-port-exposed`, not a wording defect, and the pressure it
-   creates discharges the same way §5's middle band did — into a future observation-driven rule
-   (*did this listener require confidentiality before accepting a credential?*), not into a row.
+7. ~~**Should Claim 1's unstated qualifier be written into §2.1?**~~ **Closed by §10.1**
+   ([#37](https://github.com/winniel123/verge-asm/issues/37)). The qualifier is written down as a
+   two-step test a reviewer applies to the specification, the whole list was re-checked against the
+   stated criterion, and **all 38 pairs survive it unchanged**.
+8. ~~**Class B has a permanent blind spot — should §2.1 say so rather than leaving it in §9.2?**~~
+   **Closed by §10.8** ([#37](https://github.com/winniel123/verge-asm/issues/37)): yes, §2.1 says so
+   in one sentence, and the pressure is already discharged **out of scope** — the wire-protocol
+   prober and the `listener-negotiation` facet were ruled out of v1 in
+   [#41](https://github.com/winniel123/verge-asm/issues/41), which priced this boundary at six ports
+   and zero net new firings across all 38 rows.
+9. **Is `161/udp`'s Claim 3 boundary attested by an owner?** Opened by §10.6. The row's boundary limb
+   — *SNMPv1/v2c assumes a management network* — is carried in this note by CISA TA17-156A, a
+   corroborator. RFC 3410 §8.2 attests the *insecurity* and not the *boundary*. Routed to
+   [#66](https://github.com/winniel123/verge-asm/issues/66), because it is a retrieval question and a
+   row may not move on a re-reading.
 
 ---
 
@@ -1556,6 +1591,412 @@ of the deliverable.
 
 ---
 
+## 10. Repair of the evidence standard
+
+Wayfinder ticket [#37](https://github.com/winniel123/verge-asm/issues/37), acting on the four defects
+[#30](https://github.com/winniel123/verge-asm/issues/30) surfaced in §9 and recorded rather than
+fixed. This section **amends §2 and §3 in place by reference**: earlier text is left standing and
+marked, per the repo's name-and-withdraw convention, and where §10 and an earlier section disagree,
+§10 governs.
+
+**Headline result, stated first because it is the strongest form the repair can take.**
+
+> **No `(port, transport)` pair is added, and none is removed. The list stays at 38 and §1's summary
+> table, §3's tables and §6.1's containment arithmetic are all untouched.** Every repair below was
+> tested by walking the rows it could plausibly move — all 12 Class A rows for §10.1, all 38 for
+> §10.4, all 16 named exclusions in §4.6 for §10.3 — rather than by asserting that none moves.
+
+Two rows change their **stated reason** and neither changes its grounds (§10.7), and one row's
+footing is **disclosed as thinner than §2.6 claimed** and routed to a retrieval ticket (§10.6).
+
+### 10.1 Defect 1 — Claim 1's qualifier, written down
+
+§9.3.3 found Claim 1 read literally admits finger, WHOIS, DNS and every public web server, and that
+only an unwritten *"the anonymous operations must be ones that would otherwise require authority"*
+keeps them out. That sentence is true and it is **not applicable**: *would otherwise require* asks a
+reviewer to imagine a counterfactual, and *authority* is a judgement with no owner — which is the
+severity-shaped reasoning §2 exists to keep out. The qualifier is therefore restated as a **two-step
+test read off the specification**, in order, the first step dispositive.
+
+> **Claim 1 — No authentication in the protocol as shipped.** The service, in the configuration its
+> maintainers ship, admits anonymous commands. This is a fact about released software, not a
+> judgement. **A row is admitted under Claim 1 only if both steps pass.**
+>
+> **Step 1 — the publication test, and it refuses outright.** If the operations answerable
+> anonymously are the ones the protocol's own specification defines it to **perform for callers it
+> does not identify** — if the specification's statement of purpose is *answer whoever asks* — then
+> Claim 1 is **unavailable**, whatever else is true. Anonymous access is the protocol working as
+> specified, and there is nothing for the claim to be against.
+>
+> **Step 2 — the authority test.** Otherwise, the anonymous operations must **write or delete data,
+> register or deregister a service, execute code, control a runtime, or read content the protocol
+> carries on behalf of a party other than the caller**. If they do none of these, Claim 1 is not
+> satisfied.
+>
+> Both steps are answered from the specification or the owner's own documentation. Neither reads a
+> judgement about how sensitive the disclosed data is, and neither reads how often the port is
+> attacked.
+
+**Why the order is load-bearing and must not be reversed.** Step 2 alone admits a public web server,
+because a web server's corpus is operator-supplied content served to a stranger. Step 1 refuses it
+first, and Step 1's ground is a sentence the protocol's owner wrote. Reversing the steps rebuilds the
+defect.
+
+**Worked refusals** — the test applied to everything §9.3 showed the unqualified claim admitting:
+
+| Refused | Step | The owner's own words |
+|---|---|---|
+| 79/tcp finger | 1 (and 2) | RFC 1288 §3.1 places finger *"at the security perimeter of a host"* alongside Telnet, FTP and SMTP, and §2.5 specifies exactly what a RUIP returns — the corpus is the specification's own. Read-only, so Step 2 fails independently |
+| 43/tcp WHOIS | 1 | Publishing registration data to anonymous queriers is the entire specification |
+| 53/tcp+udp DNS | 1 | A public distributed database answering queries from any resolver. Note also that RFC 2136 UPDATE is *not* anonymous in the shipped default (`allow-update { none; }`), so Step 2 fails too |
+| 80/443 HTTP | 1 | Representations identified by globally-scoped URIs and served to any client; RFC 9110's authentication framework is **opt-in** precisely because publication is the default case. Excluded on determinacy in any event |
+| 11/tcp `systat`, 15/tcp `netstat` | 1 | "Active Users" and a netstat dump, answerable to any caller by registration |
+| 111/tcp rpcbind lookups | 1 | `rpcbind(8)`: *"When a client wishes to make an RPC call … it first contacts rpcbind on the server machine to determine the address"* — the specification names a remote client as the intended recipient |
+
+That last row is worth pausing on. **The repaired Claim 1 refuses 111/tcp on claim grounds, independently of §9.1's attestation grounds.** §9.1's verdict is strengthened rather than disturbed: the mutating path (`SET`/`UNSET`) is loopback-only in the shipped default, so it is not anonymous from the network at all, and the path that *is* anonymous is the lookup the specification exists to answer.
+
+**Every Class A row walked, in full.** The test can only ever *remove*, so this is the whole check:
+
+| Row | Step 1 — is publication the purpose? | Step 2 — what authority does the anonymous caller get? |
+|---|---|---|
+| 2375/tcp Docker | No — *"anyone with access to that port has full Docker access"* | Controls a runtime |
+| 2379/tcp etcd client | No — *"ideally only the API server should have access to it"* | Writes cluster state; reads every Secret |
+| 2380/tcp etcd peer | No — node-to-node | Writes cluster state |
+| 10250/tcp kubelet | No — upstream scopes users to *"Self, Control plane"* | Controls a runtime |
+| 10255/tcp kubelet read-only | No — same scoping | Reads node and pod status the kubelet carries **on behalf of the control plane** |
+| 6379/tcp Redis | No — *"trusted clients inside trusted environments"* | `FLUSHALL`, and arbitrary writes |
+| 11211/tcp memcached | No — *"you must not expose memcached … to any untrusted users"* | `set` / `delete` |
+| 11211/udp memcached | No — same | Same |
+| 2181/tcp ZooKeeper | No — *"a trusted computing environment"* | World-**writable** znodes |
+| 4369/tcp epmd | No — *"only expose these ports to the hosts and subnets that run other cluster nodes"* | Registers and deregisters node names |
+| 9042/tcp Cassandra | No — the docs frame authentication as the thing that is off | Writes |
+| 69/udp TFTP | No — RFC 1350 warns about *"the rights granted to a TFTP server process so as not to violate the security of the server hosts file system"*, i.e. the corpus is the operator's filesystem, not a designated public one | `WRQ` writes; `RRQ` reads the host's filesystem |
+
+**All twelve survive. Class A is unchanged, and no row changes class.** The one row that needs Step
+2's read limb rather than its mutation limb is 10255/tcp, and it needs no reclassification: Claim 1
+and Claim 3 are adjacent on that row and Claim 1 still fits.
+
+**What the qualifier costs, stated plainly.** It makes Claim 1 slightly harder to reach than the
+sentence a reader would infer from its title, and a future candidate that is unauthenticated,
+read-only and carries no third party's content will now be refused where the old text would have
+admitted it. That is the intended direction: an unstated criterion cannot be argued against, and a
+list nobody can argue against is not evidence.
+
+### 10.2 Defect 2 — the three claims are closed, and closed by construction
+
+§9.3.2 named the unifying property — *all three claims name a mismatch between what the protocol
+assumes and what an internet vantage supplies* — and left it as reasoning rather than a rule.
+**Promoted, and the enumeration is derived rather than asserted.**
+
+> **The claim set is closed.** A permitted claim must name a **mismatch between an assumption the
+> protocol makes and something an internet vantage supplies**. An internet vantage — per
+> [ADR-0010](../adr/0010-exposure-composes-two-reaches.md) and
+> [ADR-0017](../adr/0017-exposure-needs-both-legs.md), a `Reach` from a vantage verified outside every
+> scope the operator holds — supplies exactly three things, and there is nothing else it *is*:
+>
+> | The vantage supplies | The protocol assumed | Claim |
+> |---|---|---|
+> | An **unknown principal** | its callers are authorised | **Claim 1** |
+> | An **untrusted path** | its channel is private | **Claim 2** |
+> | A **caller outside the boundary** | its callers are inside one | **Claim 3** |
+>
+> Three properties, three claims. **The set reopens only if someone names a fourth property of an
+> internet vantage**, which is a falsifiable condition rather than a failure of imagination.
+
+**Three candidate fourths were tested and all three fail.**
+
+- **Integrity.** An untrusted path is not only observable, it is modifiable — RFC 6143 §9 names both
+  in one sentence. It is not a fourth claim, because Claim 2's discriminator is the **standardised
+  encrypted successor on another port** (§4.2, §9.2), and the successor fixes observation and
+  tampering together. Integrity never admits a row that confidentiality does not, so it does not
+  split the claim.
+- **Availability and amplification.** An internet vantage supplies arbitrary volume, and three rows
+  sit on UDP where that matters. It is not a fourth claim, because **§2.7 already refused it**: CISA
+  TA14-017A's amplification factor for portmap is a *magnitude*, not a position, and admitting
+  magnitude is exactly how frequency re-enters. Where an amplification sentence appears in a "why"
+  cell it is colour, not grounds — corrected in §10.7.
+- **Disclosure by design.** Refused in §9.3.2 and the refusal now has a home: it is not a mismatch at
+  all. The construction above is why.
+
+**What closure buys.** An open set makes the standard's tightness contingent — the next port with an
+odd shape reopens the question, and a list whose admission rules can be extended on demand is
+unfalsifiable in the slower way. This is
+[ADR-0009](../adr/0009-verge-core-is-a-union.md)'s move applied one level up: a **definition that
+cannot fail** rather than a list that can be added to.
+
+**Thin ground, flagged.** The derivation rests on the claim that an internet vantage supplies exactly
+three things, which is read off `Exposure`'s own definition rather than measured. It is the tightest
+available footing and it is not a proof; if a fourth property is named, the set reopens and this
+paragraph is the record of what would do it.
+
+### 10.3 Claim 3's boundary is wider than "same system" — a wording correction closure forced
+
+Closing the set obliges every row to name one of the three, and that immediately exposes a defect in
+Claim 3's **wording** rather than its content. Two of Claim 3's own rows are management planes whose
+assumed locality is *a network the operator controls*, not *the same host*: `161/udp` SNMP and
+`623/udp` IPMI. Dell's sentence for 623 — *"DRACs are intended to be on a separate management
+network"* — is a locality claim that the words "other components of the same system" do not fit.
+
+> **Claim 3 — The protocol's intended clients are inside a boundary the operator controls**, not
+> internet users: the same system, the same cluster, or a management network the owner names.
+> Database wire protocols, cache protocols, cluster coordination, inter-node transports and
+> out-of-band management interfaces. Exposing these enables no intended use whatsoever; it only
+> enlarges the attack surface.
+>
+> **The boundary must be named by the owner.** Where the owner names the public internet as a
+> supported deployment environment, Claim 3 fails however strongly a third party disapproves — which
+> is the sentence doing all the exclusion work, and it is unchanged.
+
+**This widens the words and not the list, and the check is a walk of every exclusion in §4.6.** Not
+one of the sixteen was excluded because "same system" was too narrow:
+
+| Excluded | The ground, unchanged by the wider wording |
+|---|---|
+| 22/tcp SSH | Remote administration over an untrusted network is the express purpose; GCP ships it open to `0.0.0.0/0` |
+| 3389/tcp RDP | Risk position only; GCP ships it open |
+| 5985/5986 WinRM | No first-party prohibition, and the Claim 2 argument is factually false (§4.6) |
+| 9100/tcp | HP says printing on 9100 *"should always be enabled"* |
+| 111/tcp rpcbind | No owner statement; and now refused at §10.1 Step 1 as well |
+| 389/tcp LDAP | OpenLDAP names *"the global Internet"* as an intended environment |
+| 79/tcp finger | RFC 1288 places it at the security perimeter; fails determinacy independently |
+| 6443/tcp kube-apiserver | Upstream concedes managed distributions publicly expose it by default |
+| 5601/tcp Kibana | No prohibition; routinely fronted on the internet behind auth |
+| 8500/tcp Consul | Position is only that external access *"should be considered"* |
+| 9092/tcp Kafka | *"security is optional - non-secured clusters are supported"* |
+| 5672/15672 RabbitMQ | The prohibition names 4369 and 25672, not these |
+| 8080/tcp Jenkins | Upstream names public-internet deployment as supported |
+| 1099/tcp Java RMI | Modern JDK defaults are secure |
+| Hadoop UIs | Fails determinacy — the port moved between major versions |
+| 110/143/25 mail | The intended audience genuinely is the internet |
+
+**Nothing is admitted by the wider wording. It is a correction to what Claim 3 has always been
+doing.** And it does not let the government lists back in through the side door: §2.3 is untouched,
+so CISA's category verdict still cannot carry a row, and the *boundary* limb still needs an owner —
+which is what §10.6 finds is missing for one row.
+
+### 10.4 Defect 3 — a shipped default attests in one direction only
+
+[#30](https://github.com/winniel123/verge-asm/issues/30) found *"a shipped default is evidence in
+both directions"*, on rpcbind's `ListenStream=0.0.0.0:111` and Debian's commented-out loopback line.
+**That framing is too strong, and the measurement that kills it is a walk of the list itself.**
+
+#### 10.4.1 The option that lost, and what it would have cost
+
+Read symmetrically — *a documented default that binds to the world excludes the row* — the rule
+deletes roughly **half the list**, because binding to all interfaces is the ordinary default of most
+of the services on it:
+
+> **Listed rows whose shipped default binds widely:** 23/tcp Telnet · 21/tcp FTP · 512, 513, 514/tcp ·
+> 5900/tcp VNC · 6000/tcp X11 (`-nolisten tcp` is distribution behaviour X.Org does not document as a
+> default — §3.4) · 3306/tcp MySQL (`bind_address` has defaulted to `*` since 8.0) · 445, 139/tcp and
+> 137, 138/udp SMB and NetBIOS · 2049/tcp NFS · 873/tcp rsync · 161/udp SNMP · 623/udp IPMI ·
+> 25672/tcp RabbitMQ · 4369/tcp epmd · 2181/tcp ZooKeeper · 11211/tcp+udp memcached · 10250, 10255/tcp
+> kubelet (`--address` defaults to `0.0.0.0`) · 69/udp TFTP.
+
+A rule that removes **23/tcp Telnet** and **445/tcp SMB** from a list of ports that are never
+legitimately internet-facing has failed. 445 carries the strongest sentence in the entire corpus —
+Microsoft's *"it is unlikely that any SMB communication originating from the internet or destined for
+the internet is legitimate"* — and it would be deleted by a bind address. The symmetric reading is
+refused on that measurement, not on taste.
+
+#### 10.4.2 The rule
+
+> **§2.2's third form is an admission route only.** A shipped default is an attestation **only where
+> it restricts**: a loopback bind, a feature off by default, a daemon that refuses to start. A
+> restriction is a **costly act** — it buys friction at first run and the maintainer paid for it
+> anyway, which is why etcd can say in its own words that the *absence* of security features exists
+> *"to reduce friction for users getting started with the database"*. A **permissive** default is the
+> absence of that act, and the absence of an act is not a position. It **neither admits a row nor
+> excludes one**; it is silent.
+
+This is why the weak tier holds. 5432 PostgreSQL, 5984 CouchDB and 9042 Cassandra all rest on
+**restricting** defaults — `listen_addresses = localhost`, `bind_address = 127.0.0.1`,
+`rpc_address: localhost` — so the tier rests on a costly signal rather than on an accident, and §2.2's
+disclosure of it is unchanged.
+
+#### 10.4.3 What #30 actually found, stated precisely — the remedy route
+
+The valuable half of #30's finding is not the bind address. It is that rpcbind's maintainers **took
+two restricting acts aimed at the exposure hazard and neither of them reached the port**: `SET`/
+`UNSET` confined to loopback *"for security reasons"*, and `--enable-rmtcalls [default=no]` removing
+the amplification surface from the default build. That is a different object from a default listen
+address, and it does carry evidence against a row.
+
+> **The remedy route (exclusion).** Where the owner has taken a **restricting act directed at the
+> internet-exposure hazard itself**, and that act **stops short of the port** — the hazardous feature
+> disabled, the mutating path confined, while the port goes on answering — the owner has placed the
+> line somewhere other than the port, and Claim 1 or Claim 3 may not be asserted over their heads.
+>
+> **Rider, and it is what keeps the route honest: this applies only where the same owner states no
+> prohibition.** Where a prohibition exists, the prohibition governs and the remedy is a second,
+> compatible act by the same party.
+
+**The route is tested against its three closest analogues and moves no row.**
+
+| Case | Did the remedy reach the port? | Outcome |
+|---|---|---|
+| **11211/udp memcached** — UDP disabled by default in 1.5.6 for the amplification hazard | **Yes** — disabling UDP takes the port out of the default listener set entirely. And upstream pairs it with *"you must not expose memcached directly to the internet"* | Row stands, on both limbs |
+| **2375/tcp Docker** — the daemon refuses to start with TLS disabled on a TCP address | **Yes** — the remedy is the port | Row stands, and is strengthened |
+| **10255/tcp kubelet** — deprecated and slated for removal | **Yes** | Row stands |
+| **111/tcp rpcbind** — mutating path confined, remote calls off, port still answering `0.0.0.0` | **No**, and no prohibition exists anywhere | **Excluded** — and now on a rule rather than on a residue |
+| **389/tcp LDAP** — StartTLS and LDAP signing harden 389 *on 389* | Reaches the port and keeps it | Already excluded (§9.2); consistent |
+
+So §9.1's *"the people entitled to say it shipped the opposite default and fixed the actual hazard in
+the code"* survives with its two halves separated: the opposite default attests nothing, and the fix
+in the code attests everything.
+
+**These are materially different instruments and the ticket was right to ask which.** A permissive
+default is **silent**. A remedy that stops short of the port **excludes**. #30 read them as one
+because rpcbind is the case where both are present.
+
+### 10.5 Defect 4 — what "owns" means, and where a distributor stands
+
+§2.2 says *"the source that owns it"* and §2.3 says *"a source that owns the protocol"*. One idea,
+two phrasings, and the gap is where the Red Hat question lives.
+
+> **Owner.** The party that **designed the protocol**, or that **authors the reference
+> implementation**, speaking about the thing it designed or wrote. Microsoft owns SMB, Dell owns the
+> DRAC, the IETF owns what its RFCs specify, and OpenBSD owns `fingerd(8)` because OpenBSD writes it.
+>
+> **A distributor owns its own shipped configuration and owns nothing about the protocol.** Its
+> packaging — a unit file, a `default` file, a documented listen address — is admissible under §2.2's
+> third form on exactly the same terms as any other shipped default, including §10.4's one-way rule.
+> Its **security-guide prose** about a protocol it did not design is a third-party hardening opinion,
+> and §2.3 governs it: corroboration, never sole grounds.
+
+**This is not a new line; it is the line §9.1 already walked and could not explain.** §9.1 read
+Debian's `rpcbind.default` as evidence in the same breath as declining Red Hat's Security Guide, and
+"a distributor is never the vendor" cannot account for both. The **artefact**, not the party, is what
+the rule keys on.
+
+**The rider the ticket asked for, because it decides the next case.** Would this be the line for a
+distributor that does **not** contradict itself? **Yes, and the contradiction must not be the ground.**
+Red Hat's self-contradiction — *"difficult to secure"* in one manual, *"Allow TCP and UDP port 111"*
+in another — is *evidence that the line is right*, in the AWS pattern §2.3 was built on. It is not the
+reason. Had Red Hat been consistent, its Security Guide would still be a hardening document addressed
+to its own users, and *"use TCP Wrappers to limit which networks or hosts have access"* would still be
+the shape §4.4 refused for 6443: a preference expressed against a real supported architecture. A
+session that finds a consistent distributor and reads the door as open has read the wrong sentence.
+
+**The cost, stated rather than smoothed.** The distributor is frequently the only party to say
+anything at all about a daemon whose upstream is silent, and refusing that prose loses coverage on
+exactly those daemons. The list accepts the loss, because the alternative admits one organisation's
+two manuals with opposite instructions — which is the failure §2.3 exists to prevent, demonstrated on
+the very first instance the standard met.
+
+**No row moves.** 2049/tcp is carried by `nfs(5)` from nfs-utils (the reference implementation, not a
+distributor product); 873/tcp by upstream `rsyncd.conf(5)` cited to the Samba copy precisely to avoid
+a distribution rendering; 512/513/514 by OpenBSD's own deletions, which are OpenBSD speaking as the
+author of the code it removed.
+
+### 10.6 A fifth defect, found by closing the set — `161/udp`'s boundary rests on a corroborator
+
+Closing the claim set (§10.2) obliges every row to name one of the three, and one row cannot.
+
+**`161/udp` SNMP sits in Class C, and Claim 3's boundary limb — *SNMPv1/v2c assumes a management
+network* — is carried in this note by CISA TA17-156A.** CISA is a corroborator under §2.3, not an
+owner under §10.5. RFC 3410 §8.2 is the owner statement and it attests something else: *"SNMPv1 and
+SNMPv2c … support only trivial authentication based on plain-text community strings and, as a result,
+are fundamentally insecure."* That is insecurity, not placement. Claim 2 is unavailable on the §9.2
+shape — SNMPv3 hardens **161 on 161**, exactly as StartTLS hardens 389 on 389 — and Claim 1 is
+unavailable because a community string is a credential, however weak.
+
+**§2.6's boast is therefore established for 37 rows and not for the 38th**, and the coincidence is
+exact: `161/udp` is one of the two rows the abandoned escape hatch was *drafted to carry*, and §2.6
+declares the hatch unnecessary by naming *"CISA's SNMP alert for 161"* as a first-party attestation.
+It is not first-party. `623/udp` is genuinely fine — Dell's statement via CERT/CC is the owner
+speaking about the DRAC it designed — which is why the defect shows on one row and not two.
+
+**Ruling: `161/udp` stays on the list, disclosed as the note's second-weakest row beside 5432/tcp.**
+
+Three reasons for disclosure rather than removal, in increasing order of force. Removing a row costs
+a `Break` on every `sensitive-port-reached-from-internet` evaluation
+([ADR-0008](../adr/0008-derivation-versions-move-on-content.md)) and a `verge-core` narrowing
+([ADR-0009](../adr/0009-verge-core-is-a-union.md)). §4.5 has already set the house style for a row
+whose footing is thin — name it, do not bury it. And decisively, **a row may not move on a re-reading
+of text already in this note**; §9's own precedent is that a verdict changes on **retrieval**, and no
+retrieval was performed here. The IETF's SNMP management-architecture documents (RFC 3411 and its
+family) were **not** read, and the honest position is that a first-party placement sentence may well
+exist and nobody has looked.
+
+**Routed to [#66](https://github.com/winniel123/verge-asm/issues/66)** as a research ticket, on §8's
+new question 9. **The criterion that would change the verdict:** a first-party IETF or SNMP-owner
+sentence placing SNMPv1/v2c inside a management domain admits the row cleanly on Claim 3; its absence
+means the row rests on a corroborator and must be removed before v1 ships, which is free now and
+costs a comparability cycle later (§7.2).
+
+### 10.7 Two "why" cells corrected — the row's grounds, not its colour
+
+Corrected here rather than in §3's tables, per the name-and-withdraw convention. **Neither row's
+grounds change and neither row moves.**
+
+| Row | §3 reads | It should read |
+|---|---|---|
+| **11211/udp** memcached (Class A) | "Spoofed-source amplification vector; upstream disabled UDP by default in 1.5.6 for exactly this reason" | "Admits anonymous `set`/`delete` over UDP; upstream states outright that it must not be exposed to the internet or any untrusted user, and disabled UDP by default in 1.5.6" |
+| **161/udp** SNMP (Class C) | "CISA directs that SNMP traffic be segregated onto a separate management network; SNMPv1/v2c authenticate on cleartext community strings" | "SNMPv1/v2c authenticate on cleartext community strings, which RFC 3410 §8.2 calls *fundamentally insecure*; CISA corroborates that SNMP traffic belongs on a separate management network. **See §10.6 — the boundary limb rests on the corroborator**" |
+
+The 11211/udp correction matters beyond tidiness: as written, the cell leads with a **magnitude**,
+which is the precise source class §2.7 refuses for 111/tcp. A note that refuses amplification as
+grounds in §2.7 and leads with it in §3.1 is arguing against itself, and a reader who noticed would
+be right to.
+
+### 10.8 Class B's coverage boundary, stated in §2.1 rather than left in §9.2
+
+Closes §8 question 8. The ticket that commissioned this repair deliberately kept the boundary out of
+scope, and it is recorded here as the reason Class B is **not** being widened.
+
+> **Claim 2 carries a permanent coverage boundary, and it is not a wording defect.** RFC 6335 §9
+> tells implementers to prefer in-band security negotiation over split ports, and LDAP is the working
+> instance: StartTLS and Microsoft's LDAP signing both harden 389 **on 389**, so there is no plaintext
+> port to condemn and no Class B row is constructible. A `(port, transport)`-keyed signal is
+> structurally blind to in-band upgrade, and RFC 6335 §9 means the pattern it is blind to is the one
+> the IETF is steering implementers toward. Class B is therefore not merely a closing category — its
+> replacement is invisible to this instrument by construction.
+
+**The pressure discharges out of scope, not into a wider claim.** *Did this listener require
+confidentiality before accepting a credential?* is an **observation**, not a curation — the line
+[#31](https://github.com/winniel123/verge-asm/issues/31) drew and
+[ADR-0025](../adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md)'s siblings priced —
+and the wire-protocol prober that would answer it was **ruled out of v1** in
+[#41](https://github.com/winniel123/verge-asm/issues/41), at a measured cost of six ports and **zero
+net new firings across all 38 rows**. Two notes for whoever reopens it: `insecure-listener-rules.md`
+§5 preserves the per-protocol costing, and
+[ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) has since **overturned** §9.2's rule that
+a single-protocol signal is illegitimate — a signal is named for the fact it reads, so a rule covering
+exactly one protocol is legitimate.
+
+### 10.9 What this repair changed
+
+**Nothing on the list.** 38 `(port, transport)` pairs. §1's summary table, §3's tables and §6.1's
+containment arithmetic are untouched, and the arithmetic in
+[ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union is untouched with them. No `Break`, no
+version bump, no aperture change.
+
+**Five things about the standard**, all of them narrowings:
+
+1. Claim 1 has a **stated qualifier**, applied in two ordered steps against the specification (§10.1).
+2. The claim set is **closed by construction**, over the three things an internet vantage supplies,
+   with three candidate fourths tested and refused (§10.2).
+3. Claim 3's boundary is **a boundary the owner names**, not literally "the same system" — a wording
+   correction that admits nothing (§10.3).
+4. A shipped default attests **one way**; the exclusion #30 found belongs to a different object, a
+   **remedy that stops short of the port** (§10.4).
+5. **Owner** is defined, and a distributor owns its **configuration** and not the **protocol** —
+   which is what §9.1 was already doing (§10.5).
+
+**And one thing about the list**: closing the claim set found `161/udp`'s boundary limb resting on a
+corroborator, disclosed rather than smoothed and routed to retrieval (§10.6).
+
+**The test every repair was weighed against.** The standard exists to keep *commonly attacked* out of
+a list of *never correct*. All five changes are restrictive: Claim 1's qualifier refuses the most
+attacked services on the internet by construction; closure shuts the door a fourth class would open;
+Claim 3's rewording admits nothing; the one-way default rule tightens what may admit a row; and the
+owner definition is unchanged in effect. **No repair here lets frequency back in**, and the one place
+frequency tried to re-enter — amplification, in an unguarded "why" cell — is caught and corrected in
+§10.7.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -1624,3 +2065,17 @@ Consulted and deliberately not used as evidence
 - Shodan / Censys internet-exposure studies — frequency. Named as candidates by the ticket; not used anywhere in this note
 - [CISA TA14-017A, UDP-Based Amplification Attacks](https://www.cisa.gov/news-events/alerts/2014/01/17/udp-based-amplification-attacks) — a magnitude source (portmap's bandwidth amplification factor is given as "7 to 28"), not a position. It is the most tempting laundering candidate in the corpus and §2.7 records why it was refused
 - Redis's protected-mode prevalence rhetoric — §2.5
+
+Named in §10 and **not retrieved** — recorded so the gap is visible rather than assumed closed
+- **RFC 3411 and the SNMP management-architecture family.** §10.6 finds `161/udp`'s Claim 3 boundary
+  limb resting on CISA TA17-156A, a corroborator. A first-party IETF sentence placing SNMPv1/v2c
+  inside a management domain may well exist; **nobody has looked**, and §10.6 declines to move the row
+  on a re-reading of text already in this note. The retrieval is
+  [#66](https://github.com/winniel123/verge-asm/issues/66)
+- **RFC 3912 (WHOIS) and RFC 9110 (HTTP semantics).** Cited in §10.1's refusal table for what their
+  statements of purpose are, not quoted. Neither is load-bearing for a row: 43/tcp is refused by the
+  publication test on any reading, and 80/443 fail determinacy independently
+- **Shipped bind-address defaults for the eighteen rows tabulated in §10.4.1.** Compiled to size the
+  option that lost, not to carry any row. The rule the walk establishes — a permissive default is
+  silent — means **no verdict depends on any entry in that list being exact**, which is why it is
+  presented as a measurement of the losing option's blast radius rather than as evidence
