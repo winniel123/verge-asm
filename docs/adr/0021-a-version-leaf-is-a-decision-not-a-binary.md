@@ -321,7 +321,11 @@ is that the mechanism is sound and its frequency is a guess.
   version-bearing. `Batch` records the leaf versions it ran under, beside its completed scope.
 - **`Break`, `Facet` and `Span` are deliberately untouched.** A prober leaf bump is a `Derivation`
   vector change, which is already `Break`'s first cause; a facet is still six parts, because a
-  facet fed only by `crt.sh` has no prober leaf at all; and the `Span` already carries the vector.
+  facet fed only by the operator's zone file has no prober leaf at all; and the `Span` already
+  carries the vector.
+  *(Originally "a facet fed only by `crt.sh`" —
+  [ADR-0027](./0027-a-source-may-admit-without-observing.md) found CT feeds no facet at all.
+  The point is unchanged and the zone file is the surviving instance.)*
   Nothing here needs a seventh part or a third break cause.
 - **[ADR-0011](./0011-a-facet-is-six-parts.md)'s count of four prober-decided values is amended to
   five.** `connected │ refused │ no-response` joins `Shadowed`, `Lame`, `NoTLS` and `NotHTTP`, on a
@@ -340,8 +344,11 @@ is that the mechanism is sound and its frequency is a guess.
 - **A `Signal` reading a prober-decided value composes that value's prober leaf**, by
   [ADR-0004](./0004-signals-are-release-coupled-rules.md)'s existing composition rule and with
   nothing new required. Where a rule reads two timelines from two sources it composes the
-  **union** of their leaves, so a source with no prober leaf — an operator's zone file, `crt.sh` —
-  does not shield the rule from the other side's bumps.
+  **union** of their leaves, so a source with no prober leaf — an operator's zone file — does not
+  shield the rule from the other side's bumps.
+  *(`crt.sh` was named here too and is removed by
+  [ADR-0027](./0027-a-source-may-admit-without-observing.md): it holds no timeline, so no rule can
+  read a side of it.)*
 - **Retention inherits a break cause it cannot control.** ADR-0008 recorded that a break inside the
   retained window makes `returned` detection unrecoverable. Prober leaves move on a **dependency**
   cadence rather than on our own decisions, which is faster than any canonicaliser, so whoever

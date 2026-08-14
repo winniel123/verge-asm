@@ -136,8 +136,15 @@ alone, per #27.
 ## Consequences
 
 - **The three-property interrogation only applies to the fill half.** Any session reaching for a
-  source's `authority` should first ask whether the thing produces observations. If it proposes
+  source's `authority` should first ask whether the thing **admits subjects**. If it proposes
   scopes, two of the three questions have no answer, and getting one anyway means inventing it.
+  *Sharpened by [#56](https://github.com/winniel123/verge-asm/issues/56) /
+  [ADR-0027](./0027-a-source-may-admit-without-observing.md), which found this bullet originally
+  read "whether the thing produces observations" — one word wider than this ADR's own rationale,
+  which argues throughout from admission.* Certificate transparency **admits** `Name`s and observes
+  no facet, so the literal test would have made `crt.sh` a proposer and put 400 CT names behind
+  ADR-0022's singular confirmation. A proposer fails **both** limbs — it admits nothing *and* its
+  silence licenses nothing — so nothing about this ADR's ruling on registry paths moves.
 - **`Proposal` is the third thing a registry path can be.** A registry source is now one of: a
   `Source` that observes, a proposer that yields `Proposal`s, or both — and the properties it
   carries follow from which.
