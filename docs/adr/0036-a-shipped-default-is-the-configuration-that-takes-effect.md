@@ -93,6 +93,66 @@ projects before it was stated. This amendment has **one project** behind it — 
 appears three times, but all three are Kubernetes. It is stated because it is a reading of limb 1
 rather than a new limb; the shallow measurement is worth knowing before it is relied on elsewhere.
 
+## Amendment — [#105](https://github.com/winniel123/verge-asm/issues/105), 2026-08-14
+
+Limb 1 was written for artefacts a party **writes**. It never asks *who performed the act that made
+the configuration take effect*, because in a configuration file the party always did: a line is in
+the file or it is not. [ADR-0061](./0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)
+limb 3 puts limb 1's two halves in two artefacts for a config API, and that split exposes the case
+limb 1 does not name — **a struct field with no defaulting line still has a value**, produced by the
+language rather than by the party. Three readings travel out of it, and all three are readings rather
+than new limbs.
+
+1. **A default's provenance is not read.** *Takes effect* is satisfied by the value the operator meets
+   at first run, **however the shipped software arrives at it** — an assignment, a constructor, a build
+   flag, or **a language's zero value**. Where inside the party's toolchain the value came from is not
+   read, for the reason [ADR-0059](./0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)
+   limb 4 does not read the artefact a sentence was written in: the mechanism is a fact about the
+   utterance, not a step between the utterance and the proposition. `sensitive-ports.md` §10.4's cost
+   is **friction at first run**, and friction is a property of the running software rather than of its
+   source's syntax — so a rule reading the assignment instead would be satisfied by a no-op line that
+   buys nothing and refused by an identical binary that buys the same friction. Limb 4's *"an act that
+   takes effect nowhere was not taken"* is the **converse** case and does not carry here; a zero value
+   takes effect everywhere.
+2. **The conjunction is where a zero value fails when it fails.** Limb 1 requires both halves, and a
+   value the party has not published as its default fails the second one: there is no utterance to
+   quote, and supplying one from the language's type system is `sensitive-ports.md` §2.2's opening
+   sentence failing — *the claim may not be asserted by us*. This is the #83 amendment's half read
+   for an absence rather than for a label. It is not a rule that documentation **converts** a value
+   into an act; a documented default's comment may well be a **label** under ADR-0061 limb 1, and a
+   label is exactly what the documentation half asks for.
+3. **§10.4's one-way rule governs this form and not a claim's own measurement.** A permissive default
+   is silent *as a position*. A value read to establish what the shipped artefact **does** —
+   `sensitive-ports.md` §10.1's two steps, §10.4.3's *did the remedy reach the port?* — asks for no
+   position, is governed by §20.6's owner rule and
+   [ADR-0054](./0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)'s step rule, and
+   reads a zero value in **both** directions, documented or not. **This limb is table-local**: §10.1's
+   claim set is a theorem about one rule and
+   [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) rules it does not
+   travel. Readings 1 and 2 travel with limb 1 as usual.
+
+**[measured]** `kubernetes/kubernetes` at `v1.34.0`. `ReadOnlyPort` occurs **zero** times in
+`pkg/kubelet/apis/config/v1beta1/defaults.go`, so `readOnlyPort`'s documented *"Default: 0
+(disabled)"* is Go's zero value; the only place any maintainer writes a `ReadOnlyPort` value is
+`applyLegacyDefaults`, which writes the **permissive** `10255`. In the same release
+`k8s.io/kube-proxy`'s `enableProfiling` is also a zero value and carries **no documented default at
+all**. **The two separate on the second half of limb 1, in the owner's own bytes** — one is published
+as the default and the other is not — and `sensitive-ports.md` §16.5's and §27.2's opposite-looking
+uses of a zero value are both confirmed. **No `(port, transport)` pair, row, class or footing tier
+moves.** The walk is `sensitive-ports.md` **§34**; the argument for minting a new ADR lost on
+placement, exactly as it did for #83 — this refines limb 1 and travels where limb 1 travels — and on
+reading 3's reach, which ADR-0032 confines to one table.
+
+**Thin ground, flagged.** The two candidate rules — *provenance is not read* and *only a written act
+counts* — have the **same extension over the table today**, because the one cell a provenance rule
+would refuse was superseded three sections earlier. The ruling is therefore decided on principle
+rather than on a measured cell move, which is weaker than every prior ruling in this line
+(ADR-0059, ADR-0061 and §32 each measured their alternative taking a neighbour with it). The nearest
+thing to a measured cost is that a provenance rule cannot assess a default whose owner ships firmware
+rather than source — `623/udp`'s, which `sensitive-ports.md` §28.10 admitted — and that is an argument
+about reach rather than a cell. `sensitive-ports.md` §34.11 records this and the criterion that would
+change the verdict.
+
 ## Rationale
 
 **The costly-act test decides it, and it decides against the reading it appears to support.**
