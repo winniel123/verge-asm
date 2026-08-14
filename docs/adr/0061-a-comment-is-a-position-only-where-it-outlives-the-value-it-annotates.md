@@ -206,6 +206,29 @@ published API surface inherits limbs 2 and 3.
   defaulting code, so the disagreement rule is written for a case that has not happened.
   `sensitive-ports.md` §31.11 records both.
 
+## Confirmed by use — [#105](https://github.com/winniel123/verge-asm/issues/105), 2026-08-14
+
+**Limb 3's retrieval obligation gains the outcome it did not state: what a retrieval that finds *no*
+defaulting code establishes.** Limb 3 says the defaulting code *"must be **retrieved**, not assumed
+from the comment"*. **[measured]** for `10255/tcp` the retrieval finds nothing — `ReadOnlyPort` occurs
+**zero** times in `pkg/kubelet/apis/config/v1beta1/defaults.go` at `kubernetes/kubernetes` `v1.34.0`,
+so the documented *"Default: 0 (disabled)"* is Go's zero value. #105 rules that **a default's
+provenance is not read**: *takes effect* is satisfied by the value the operator meets at first run
+however the shipped software produces it, so an empty retrieval **confirms** the documented default
+rather than failing the limb, and the honest report of the pairing is *the code writes nothing and the
+value the code leaves in place is the documented one*.
+[ADR-0036](./0036-a-shipped-default-is-the-configuration-that-takes-effect.md) carries the rule at its
+own limb 1; `sensitive-ports.md` **§34** carries the working. **All three paired rows are unaffected
+and no limb of this ADR moves.**
+
+**And limb 1's label rule is confirmed as not being in competition with the third form's second
+half.** *"Default: 0 (disabled)"* would fail the survival test if it were asked to take a **position**
+— add the defaulting line and it goes false — and that is consistent rather than awkward: the third
+form's *documented as its default* half asks for a description of the value, which is what a label is.
+Limb 1 governs whether a comment is a §2.2 **second-form position**; it says nothing about whether a
+comment satisfies the third form's documentation half, and §31.2's *"a schema, not an instance … it
+answers* documented as its default*"* already placed it there.
+
 ## Alternatives rejected
 
 **Rule *"the port of the localhost healthz endpoint"* a position, and move `10248/tcp` to the scoping

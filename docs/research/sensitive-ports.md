@@ -34,7 +34,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -100,6 +100,17 @@ Three constraints from decisions already made shape the answer before any eviden
 > denominator and total is unchanged.* **The delta is `+2 / −2` on any baseline**; if a sibling moves the
 > composed figures before §32 merges, the membership lists at §32.11 are what the totals should be
 > re-derived from. §32.11 and §32.12 state the basis and its risk.
+>
+> ---
+>
+> #### §34's delta on top of everything above — [#105](https://github.com/winniel123/verge-asm/issues/105)
+>
+> **The empty delta.** §34 rules on what §2.2's third form reads when the shipped software produces a
+> value nobody wrote, confirms both of the note's zero-value readings, and **adds to no count and
+> subtracts from none**. Every figure in the two tables above stands; §34.10 lists what was checked
+> against `main` at `9a8f1df`, the composed post-#99/#100/#101/#102 state. Four siblings were resolving
+> concurrently, so the statement to carry forward is the parametric one: **where §34 and §1 disagree,
+> §1 governs.**
 
 The headline result is the one that would not have come out of a frequency instrument:
 
@@ -515,6 +526,33 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > **Read §32.12 before quoting the four limbs as exhaustive.** The closure is a ruling, not a
 > measurement; **direction** — inbound versus outbound — is the named candidate for a fifth limb and
 > no member of either tier turns on it today.
+
+> **Amended by §34** ([#105](https://github.com/winniel123/verge-asm/issues/105)). **Every tier, count
+> and coverage figure is unchanged — prohibition 16 · scoping 11 · weak 3 · outside-subject 11 ·
+> coverage 30 of 41 — and the third form gains a reading it has needed since a config API first carried
+> one.** The question is what *takes effect* reads when the shipped software produces a value **nobody
+> wrote**: a struct field with no defaulting line still has one.
+>
+> > **§34 — a default's provenance is not read.** *Takes effect* is satisfied by the value the operator
+> > meets at first run, **however the shipped software arrives at it** — a language's zero value
+> > included; *where inside the owner's toolchain the value came from* is not read, for
+> > [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)
+> > limb 4's reason one column over. **A zero value therefore attests only where the owner documented it
+> > as the default**, on ADR-0036 limb 1's second half unchanged — undocumented, it is not this form at
+> > all, and reading one as a maintainer position is *the claim may not be asserted by us* failing
+> > through the language's type system. **And §10.4's one-way rule governs this gate and not the claim
+> > gate**: a value read to establish what the shipped artefact **does** (§10.1's steps, §10.4.3's
+> > remedy test) is read in both directions, documented or not, under §20.6 and
+> > [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) as before.
+>
+> **[measured]** at `kubernetes/kubernetes` `v1.34.0` the note's two zero-value instances separate in the
+> owner's own bytes and on a limb ADR-0036 already had: `readOnlyPort` carries *"Default: 0 (disabled)"*
+> and `enableProfiling` carries **no default line at all**, while `defaults.go` writes neither value.
+> §16.5's reading is **confirmed** on the limb it did not name, §27.2's on the gate it did not name, and
+> §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **No
+> `(port, transport)` pair moves, no row moves, no tier moves, no `Break`.** No ADR is minted;
+> **ADR-0036 is amended in place** and ADR-0063 is left unused. Read §34.11 before treating the ruling
+> as measured — the losing option moves no cell either, and the decision is taken on principle.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -2930,6 +2968,30 @@ disclosure of it is unchanged.
 > §10.4's *costly act* is the test that decides it, and it decides it **against** the example: the cost
 > §10.4 prices is friction at first run, and a file no daemon reads produces no first run.
 
+> **Amended by §34** ([#105](https://github.com/winniel123/verge-asm/issues/105)). **This rule is
+> unchanged and its reach is stated in two directions it never named.**
+>
+> **The cost is friction, and friction is a property of the running software rather than of its
+> source's syntax.** So *"a restriction is a costly act"* is satisfied by a restricting value the
+> operator meets at first run **however the shipped software produces it** — including a language's
+> **zero value**, which buys the same friction as an assignment and which no line in the owner's source
+> writes. A rule reading the assignment instead would be satisfied by a no-op that buys nothing and
+> refused by an identical binary that buys the same friction, which measures a gesture rather than a
+> cost. §12(a)'s example file and
+> [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md)'s library constant
+> are refused for the **converse** reason — *nothing takes effect* — so their sentence does not carry
+> here. What a zero value can fail is ADR-0036 limb 1's **other** half: undocumented, it is not §2.2's
+> third form at all. §34.3(a), §34.3(b), §34.4.
+>
+> **And this rule governs the attestation gate only.** It silences a permissive default **as a
+> position**, because *"the absence of an act is not a position"*. A value read to establish what the
+> shipped artefact **does** — §10.1's two steps, §10.4.3's *did the remedy reach the port?* below,
+> §27.2's `enableProfiling` — asks for no position and is read in **both** directions, subject to
+> §20.6's owner rule and [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)'s
+> step rule instead. **[measured]** §10.4.1's own killing measurement, the list of listed rows whose
+> shipped default binds widely, is itself a reading of permissive defaults for what they do. §34.3(c),
+> §34.6. **No cell moves.**
+
 #### 10.4.3 What #30 actually found, stated precisely — the remedy route
 
 The valuable half of #30's finding is not the bind address. It is that rpcbind's maintainers **took
@@ -3612,6 +3674,22 @@ where §12 and an earlier section disagree, **§12 governs**.
 > limb (b.1) reads **prose**, limb (a) reads **operativeness**, and §31.3 adds that in a config API the
 > two limbs of the third form live in two files and the **costly act is paid only by the code**. **No row
 > and no footing moves.**
+
+> **Amended by §34** ([#105](https://github.com/winniel123/verge-asm/issues/105)). **Limb (a) is
+> unchanged and gains the reading a config API forced.** *The configuration a user gets **without
+> acting*** is read as an **outcome**: a value the operator meets at first run satisfies it however the
+> shipped software arrives at it, **a language's zero value included**, and the mechanism inside the
+> owner's toolchain is not read. Limb (a) has always keyed on what the artefact says about itself rather
+> than on who typed what, which is §12.2's whole finding; §34 states that the same holds one layer down.
+>
+> **The two limbs of §2.2's third form still both bind, and the second is where a zero value fails when
+> it fails** — a value the owner has not published as its default is not the third form at all. That is
+> the same half §19.3 refused the kubelet's flag-path `readOnlyPort: 10255` on, and it is not a new
+> condition. Limb (b.1)'s label rule is untouched and is not in competition with it: *"Default: 0
+> (disabled)"* is a **label** — add the defaulting line and it goes false — and a label is exactly what
+> the third form's documentation half asks for, which is why (b.1) is *necessary and not sufficient* for
+> a **position** while saying nothing about the third form. §34.3, §34.5. **No row and no footing
+> moves.**
 
 **Why §10.4's own test decides this, against the reading it appears to support.** The ticket's
 argument for admitting the example is that a maintainer who comments out one line and leaves the
@@ -5195,6 +5273,19 @@ company, and the company arrived from a different project and a different artefa
 > pair moves**, and both cells are conditional on
 > [#83](https://github.com/winniel123/verge-asm/issues/83).
 
+> **Amended by §34** ([#105](https://github.com/winniel123/verge-asm/issues/105)). **This subsection's
+> *"'Default: 0 (disabled)' is a **restricting** default and admissible under §10.4"* is confirmed, on a
+> limb it did not name — and the cell it assigned has been the prohibition tier's since §18, so nothing
+> here is load-bearing.** **[measured]** at `kubernetes/kubernetes` `v1.34.0`, `ReadOnlyPort` occurs
+> **zero** times in `pkg/kubelet/apis/config/v1beta1/defaults.go`: the `0` is **Go's zero value**, not an
+> assignment the maintainers wrote, and the only place any maintainer writes a `ReadOnlyPort` value is
+> `applyLegacyDefaults`, which writes `10255` — the **permissive** one (ADR-0036's #83 amendment,
+> §19.2). §34 rules that **a default's provenance is not read**: *takes effect* is satisfied by the
+> value the operator meets at first run however the software produces it, and what carries this cell is
+> the **second** half of ADR-0036 limb 1 — the owner published *"Default: 0 (disabled)"* in its own
+> config API, so the value is documented as well as operative. **Had the owner not written that
+> sentence, this footing would not exist**, which is the whole of §34.3(b). **No cell moves.**
+
 ### 16.6 `4369` epmd — the placement §13.7 called clerical, and the reason it is not
 
 §13.7 read this row as the easiest of the seven: RabbitMQ's *"these ports should not be publicly
@@ -6412,6 +6503,19 @@ the config API documents that result as its default: *"Setting this field to 0 d
 service. Default: 0 (disabled)"* (`staging/src/k8s.io/kubelet/config/v1beta1/types.go`). The
 restriction here is by omission plus documentation rather than by an assignment, which satisfies
 ADR-0036 limb 1's two halves exactly — it takes effect, and the project documents it as the default.
+
+> **Promoted by §34** ([#105](https://github.com/winniel123/verge-asm/issues/105)). **The clause above
+> is this note's first and only statement of a rule two later sections needed and could not find, and it
+> is now stated as one.** *"By omission plus documentation rather than by an assignment"* is §34.3's
+> limbs (a) and (b) in their admitting direction: **a default's provenance is not read**, so *takes
+> effect* is satisfied by the value the operator meets at first run however the software produces it,
+> and the **documentation** half is what a zero value fails on when it fails. What this paragraph did
+> not say — and what let [#100](https://github.com/winniel123/verge-asm/issues/100) set §16.5 beside
+> §27.2 and see a contradiction that was not there — is the **refusing** direction and the boundary with
+> the claim gate. Both are at §34.3; ADR-0036 limb 1 is amended in place so the rule sits at the site
+> that specifies it rather than three sections away
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)). **This
+> paragraph is confirmed and unchanged.**
 
 **The flag defaults permit, and they are not inherited — they are overwritten.** This is the half
 §16.5 got wrong:
@@ -10532,6 +10636,20 @@ the two newer pages — `flagz` is installed only when `flagzReader != nil`, whi
 them and is not rested on any of them.** Recorded because a by-catch note is written by a pass that
 was not scoped to check it, which is limb 3's whole point read in the direction nobody reads it.
 
+> **Confirmed and re-founded by §34** ([#105](https://github.com/winniel123/verge-asm/issues/105)).
+> **The `enableProfiling` reading is correct and is not an instance of §2.2's third form at all**, which
+> is why it never conflicted with §16.5's use of a zero value in the opposite direction. Establishing
+> that pprof is **not on the anonymous caller's surface** is a §10.1 **Step 2** reading — *what
+> authority does the anonymous caller get?* — governed by §20.6's owner rule and
+> [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) limb 2's frame,
+> and **§10.4's one-way rule does not reach it**: that rule silences a permissive default *as a
+> position*, and this reading asks for none. §34.3(c), §34.6. **[measured]** at `kubernetes/kubernetes`
+> `v1.34.0` both clauses are exact — `EnableProfiling` occurs **zero** times in
+> `pkg/proxy/apis/config/v1alpha1/defaults.go`, and its doc comment in
+> `staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go` carries **no `Default:` line**; that file
+> carries none for **any** field, against **112** in the kubelet's, so the silence is house style rather
+> than a field-level decision (§34.2, §34.11). **Nothing in this subsection moves.**
+
 **The second measurement is the one this ruling turns on, and it is two doc comments twelve lines
 apart in the same struct.**
 
@@ -13356,6 +13474,17 @@ records why that is adequate here and where it would not be.
   effect* limb does not say whether a default the owner never wrote is the owner's act. **Ticketed**, per
   ADR-0037 limb 2, and **nothing in the note depends on the answer today**: `10255/tcp`'s footing has been
   the prohibition tier's since §18 and its row is Class A on Claim 1, so no cell turns on it.
+  > **DISCHARGED by §34** ([#105](https://github.com/winniel123/verge-asm/issues/105)), and the sentence
+  > above is **withdrawn** where it says the limb is silent — read alone and in the present tense it would
+  > send the next session to re-open a closed question, which is
+  > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s test.
+  > **A default's provenance is not read**: *takes effect* reads the outcome, so a zero value satisfies
+  > it, and a zero value attests only where the owner **documented** it — ADR-0036 limb 1's second half,
+  > unchanged and amended in place. **The two instances were never in opposite directions**: §16.5 read a
+  > zero value through the **attestation** gate and §27.2 through the **claim** gate, and §10.4's one-way
+  > rule governs only the first. Both readings are confirmed and no cell moves. §34.
+
+
 - **Does a new *reading instrument* re-arm a finished class sweep?** §17.8 and §26.6 fix a sweep's result
   *as of a stated table state*, and every re-arming trigger the map's curation patch enumerates is
   **world-side** — an owner publishing, a footing moving, a competitor starting to document. ADR-0061 is
@@ -14118,6 +14247,457 @@ numerals in §32.8 and §32.11 are wrong and the parametric statement is right.*
 
 ---
 
+## 34. A default's provenance is not read — a zero value takes effect, and it attests only where the owner wrote the default down
+
+Wayfinder ticket [#105](https://github.com/winniel123/verge-asm/issues/105), on the by-catch §31.12
+recorded under [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+limb 2 and was not scoped to dispose of.
+
+**The question.**
+[ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) limb 1 reads §2.2's
+third form as two halves — the configuration that **takes effect** without the operator acting, and the
+one the party **documents as its default**. It never asks *who performed the act that made it take
+effect*, because in a configuration file the party always did: a line is in the file or it is not.
+[ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md) limb 3
+puts the two halves in two artefacts for a config API, and that split exposes a case neither
+contemplates — **a struct field with no defaulting line still has a value.**
+
+**Two instances in this note point in opposite directions.** §16.5 rested `10255/tcp`'s footing on
+`readOnlyPort`'s *"Default: 0 (disabled)"*, calling it *"a **restricting** default … admissible under
+§10.4"* — and that `0` is produced by Go's zero value for `int32`, not by an act the maintainers wrote.
+§27.2 refused to put pprof on `10249`'s shipped default because *"`enableProfiling` has no defaulting
+function and no documented default in `k8s.io/kube-proxy` `v0.34.0` `config/v1alpha1/types.go`, so it is
+Go's zero value, `false`"* — **relying** on a zero value in the **refusing** direction. One project, one
+release, and nothing written down separating them.
+
+**Nothing in the note turns on the answer today, which is the reason to answer it now rather than under
+pressure.** `10255/tcp` has been in the **prohibition** tier since §18 on Kubernetes' category statement
+([ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md))
+and its row is Class A on Claim 1 (§19), so §16.5's cell is superseded and no live cell reads
+`readOnlyPort`. §27.2's use is corroborative by its own statement — *"the row does not need any of them
+and is not rested on any of them"*. **The exposure is prospective and it is the weak tier's**, which
+[ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8 watches precisely
+because a restricting default can be flipped in one commit — and a default that exists only as a zero
+value is flipped by **adding** a line rather than by changing one.
+
+### 34.1 What was retrieved
+
+**Five files at one tag from one project, plus two artefacts from two others opened for the extension
+walk.** The retrieval is small for §31.1's reason and not for §31.1's comfort: the question is about an
+**instrument**, and the instrument's two inputs are named by the two sections that disagree. Everything
+below was fetched for this section rather than cited from the sections that quote it, per §27.15.
+
+| Artefact | Tag | Read for |
+|---|---|---|
+| `pkg/kubelet/apis/config/v1beta1/defaults.go` | `kubernetes/kubernetes` `v1.34.0` | whether any line writes `ReadOnlyPort` |
+| `staging/src/k8s.io/kubelet/config/v1beta1/types.go` | same | `readOnlyPort`'s doc comment, and the file's `Default:` convention |
+| `staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go` | same | `enableProfiling`'s doc comment, and *that* file's convention |
+| `pkg/proxy/apis/config/v1alpha1/defaults.go` | same | whether any line writes `EnableProfiling` |
+| `cmd/kubelet/app/options/options.go` | same | `applyLegacyDefaults` — the one place a maintainer ever writes a `ReadOnlyPort` value |
+| `src/backend/utils/misc/guc_tables.c` | `postgres/postgres` `REL_18_0` | `5432/tcp`'s footing — is `localhost` written, or produced? |
+| `rel/overlay/etc/default.ini` | `apache/couchdb` `3.5.0` | `5984/tcp`'s footing — same question |
+
+### 34.2 The two instances separate in the owner's own bytes, and they separate on a limb ADR-0036 already has
+
+**[measured]** at `v1.34.0`, the two doc comments:
+
+```go
+// readOnlyPort is the read-only port for the Kubelet to serve on with
+// no authentication/authorization.
+// The port number must be between 1 and 65535, inclusive.
+// Setting this field to 0 disables the read-only service.
+// Default: 0 (disabled)
+// +optional
+ReadOnlyPort int32 `json:"readOnlyPort,omitempty"`
+```
+— `staging/src/k8s.io/kubelet/config/v1beta1/types.go`; §16.5's quotation is **exact**
+
+```go
+// enableProfiling enables profiling via web interface on /debug/pprof handler.
+// Profiling handlers will be handled by metrics server.
+EnableProfiling bool `json:"enableProfiling"`
+```
+— `staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go`; §27.2's *"no documented default"* is **exact**
+
+and the two defaulting files: **`ReadOnlyPort` occurs zero times** in
+`pkg/kubelet/apis/config/v1beta1/defaults.go`, whose only port-shaped clauses are the two §31 retrieved —
+
+```go
+if obj.HealthzPort == nil      { obj.HealthzPort = ptr.To[int32](10248) }
+if obj.HealthzBindAddress == ""{ obj.HealthzBindAddress = "127.0.0.1" }
+```
+
+— and **`EnableProfiling` occurs zero times** in `pkg/proxy/apis/config/v1alpha1/defaults.go`, whose
+`getDefaultAddresses` returns `"0.0.0.0", "127.0.0.1"` and touches nothing else §27.2 reads.
+
+**So the two objects are identical in one respect and differ in another.** Both values are produced by
+the language. **One is published by the owner as its default and the other is not** — and *documented as
+its default* is the half ADR-0036 limb 1 has required since #69. **The instances were never in conflict.
+They differ on a limb that was already written down, and neither section quoted it.**
+
+**[measured] and the difference is partly a house convention rather than a per-field decision, which is
+flagged here rather than smoothed.** `k8s.io/kubelet`'s `types.go` carries **112** `// Default:` lines;
+`k8s.io/kube-proxy`'s carries **zero** — the convention does not exist in that file at all. So
+`enableProfiling`'s silence is its component's style and not a maintainer looking at that field and
+declining to speak. **That weakens the separator as evidence of intent and does not weaken it as a
+rule**: §2.2's third form asks whether the owner **published** the default, never why it did not. A
+component documenting no defaults publishes no third-form attestations, which is the answer §21 and
+[ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) already give an owner that
+issues no documentation — *silent in both directions*, not *weakly attesting*.
+
+### 34.3 The rule
+
+> **§34 — a default's provenance is not read.**
+>
+> **(a) *Takes effect* reads the outcome, not the act that produced it.** ADR-0036 limb 1's first half
+> asks what the shipped software does when the operator does nothing. A value the operator meets at
+> first run satisfies it whether the owner wrote an assignment, a constructor, a build flag, or nothing
+> at all — **a language's zero value included**. *Where inside the owner's toolchain the value came
+> from* is not read, and it is not read for
+> [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) limb
+> 4's reason one column over: the mechanism is a fact about the utterance, not a premise between the
+> utterance and the proposition.
+>
+> **(b) The second half is where a zero value fails when it fails.** ADR-0036 limb 1's conjunction is
+> untouched: the third form also requires the default **as documented by the project**. A value the
+> owner has not published as its default is **not §2.2's third form at all** — there is no owner
+> utterance to quote, and supplying one from the language's type system is §2.2's opening sentence
+> failing: *the claim may not be asserted by us*. §10.4's one-way rule then runs unchanged on the
+> survivor — documented and **restricting** admits, documented and **permissive** is silent.
+>
+> **(c) A value read for what the software *does* is not read under §10.4 at all.** §10.4 silences a
+> permissive default **as an attestation**, because *"the absence of an act is not a position"* and a
+> position is what an attestation needs. §10.1's two steps, §10.4.3's *did the remedy reach the port?*
+> and every *what does the anonymous caller reach* reading ask for no position: they ask what the
+> shipped artefact does. §20.6 and
+> [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) already govern
+> who may answer such a question and with what, and neither is relaxed here. **A zero value is fully
+> readable on that path, in both directions, documented or not.**
+
+**Limb (a) and limb (b) together are §19.2's clause promoted from a subordinate clause to a rule.**
+#83 wrote, of this exact field, *"the restriction here is by omission plus documentation rather than by
+an assignment, which satisfies ADR-0036 limb 1's two halves exactly"*. That is limb (a) and limb (b)'s
+admitting direction, stated once, in a section about `10250`'s **class**, three sections away from the
+ADR whose limb it reads. §34.9 records that this is the strongest argument for declining to rule at all,
+and why it loses.
+
+### 34.4 Why limb (a) is right — §10.4's cost is friction, and friction is a property of the running software
+
+The tempting refusal is that §10.4 admits a restricting default because a restriction is a **costly
+act**, and a zero value is nobody's act. Applied rather than invoked, the test says the opposite, and it
+says it three times.
+
+- **§10.4.2 names the cost exactly.** A restriction *"buys friction at first run and the maintainer paid
+  for it anyway"*. The friction is borne by **users at first run** and the maintainer pays for it in
+  support. `readOnlyPort: 0` buys that friction in full: the read-only port really is off, an operator
+  who wants it really must set it, and Kubernetes really does field that. **Nothing about the friction
+  changes if a line is added to `defaults.go` that assigns the value it already has.**
+- **The two artefacts §12 and ADR-0056 refuse are refused for the opposite reason.** §12(a) refuses an
+  example config because *"a file nobody's daemon reads produces no first run"*;
+  [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md) refuses a library
+  constant because *"a module nobody has built produces no first run"*; ADR-0036 limb 4 generalises both
+  as *"an act that takes effect nowhere was not taken"*. **A zero value takes effect everywhere.** It is
+  those sentences' converse, and citing them against it cites them against their own reason.
+- **A provenance rule measures a gesture rather than a cost.** `obj.ReadOnlyPort = 0` and no line at all
+  ship the same binary, produce the same first run and buy the same friction. A rule an owner satisfies
+  by writing a line that changes nothing is not reading an act; it is reading a **signal of intent**,
+  and ADR-0059 limb 2 has already made how firmly an owner speaks inadmissible in the adjacent column.
+
+**And it keeps the test read off the artefact rather than judged**, which is the property ADR-0036 limb 1
+survives on. *What does this shipped software do when the operator does nothing?* is answered by running
+it or by reading the code that runs. *Which layer of the owner's toolchain chose this value?* is answered
+by reading the owner's source — and §34.7 measures the case where there is none to read.
+
+### 34.5 Why limb (b) is the right place for the refusal, and what it is not
+
+**The refusal has to land somewhere, because an undocumented zero value plainly should not carry a row.**
+`enableProfiling` is `false`; so is `bindAddressHardFail`; so is every unset boolean in every Go config
+struct in the corpus. A rule admitting all of them would hand §2.2's third form to the Go specification.
+Limb (b) refuses them **on the limb that was already there**, and three things follow that a
+provenance-based refusal would not give.
+
+1. **It does not disturb ADR-0036's conjunction, it applies it.** #83 already refused a fully-written,
+   fully-operative kubelet default — `readOnlyPort: 10255` on the flag path — on this same second half,
+   because the owner labels it legacy. An undocumented value fails the same half more simply: there is
+   nothing to label.
+2. **It does not make the note's verdicts depend on the implementation language.** Go zero-values an
+   `int32` to `0`; a C struct from `calloc` does the same; a Rust `#[derive(Default)]` does it through a
+   macro nobody typed; a Python configuration object raises instead. Under a provenance rule the *same*
+   maintainer decision — *I did not write a default here* — attests in three languages and does not in
+   the fourth. §2.2's founding paragraph refuses exactly that shape: *"an asymmetry driven by a
+   documentation accident rather than by any difference in the two services' deployment models, which is
+   exactly the kind of arbitrariness that destroys a curated list's credibility."*
+3. **It leaves a route.** An owner whose config API documents nothing can still meet the third form the
+   way `5432`, `5984` and `9042` do — by shipping a configuration file with the restricting line in it.
+   The requirement bites only on the config-API class, where ADR-0061 limb 2 already found there is no
+   shipped instance to read, only a schema, so the documentation is the only thing that says what the
+   schema produces.
+
+**What limb (b) is not: a rule that a comment supplies the act.** *"Default: 0 (disabled)"* would fail
+ADR-0061 limb 1's survival test if it were asked to take a position — add the defaulting line and the
+sentence goes **false**, so it is a **label**. It is not being read as a position and it is not being
+read as an act. It is being read as the third form's **documentation half**, which is where §31.2 put a
+config-API doc comment: *"a schema, not an instance … it answers* documented as its default*"*. **The
+label rule and the third form's second half are not competitors — a label is exactly what the second
+half asks for**, and that is why ADR-0061 limb 1 is *necessary and not sufficient* for a **position**
+while saying nothing at all about the third form.
+
+### 34.6 Why limb (c) is a different gate rather than an exception
+
+§27.2 read `enableProfiling == false` to establish that **pprof is not on the anonymous caller's
+surface**. That is a §10.1 Step 2 reading — *what authority does the anonymous caller get?* — and it is
+governed by §20.6 and ADR-0054 limb 2, not by §2.2's third form.
+
+**The two gates ask different questions and refuse different things.**
+
+| | The attestation gate (§2.2, §10.4) | The claim gate (§10.1, §20.6, ADR-0054) |
+|---|---|---|
+| Asks | *Has the owner taken a position?* | *What does the shipped artefact do?* |
+| Refuses | a permissive default, on §10.4's one-way rule; an undocumented value, on limb (b) | a corroborator answering a step (§20.6); evidence about a different step (ADR-0054 limb 1); an operation the anonymous **remote** caller cannot reach (ADR-0054 limb 2) |
+| Reads a zero value | only where the owner documented it, and only where it restricts | always, in both directions |
+
+**§20.6's rule is not relaxed and is what makes limb (c) safe.** A claim step must still be answered
+*"from the specification or the owner's own documentation"*, and §27.2's evidence is the owner's own
+source at a named tag — the owner speaking, in the strongest artefact the note recognises. What limb (c)
+withdraws is the idea that §10.4's **one-way** rule reaches that reading. It does not: a permissive
+default is silent about the owner's *position* and perfectly loud about the software's *behaviour*, and
+§10.1's Class A walk has depended on exactly that since it was written. **[measured]** §10.4.1's own
+list of *"listed rows whose shipped default binds widely"* is a list of permissive defaults read for
+what they do — the measurement that killed the symmetric reading was itself limb (c) in action.
+
+**This is the sharpest thing this section says, and it is the thing that dissolves the ticket.** The two
+instances were never pulling opposite ways. §16.5 read a zero value through the attestation gate and
+§27.2 read one through the claim gate, and the gates give different answers because they are asking
+different questions.
+
+### 34.7 The walk — every restricting default the footing table rests on, and nothing moves
+
+The test ADR-0042, ADR-0059 and ADR-0061 each set for themselves: **run the rule over the existing cells
+and see what it moves.** Run in the **admitting** direction it admits nothing new; run in the
+**refusing** direction — *which cells would a provenance rule refuse?* — it is the losing option's
+extension that matters, so both are stated.
+
+| Cell | The restricting default | Written by the owner? | §34 verdict | Provenance rule's verdict |
+|---|---|---|---|---|
+| `5432/tcp` PostgreSQL | `listen_addresses = localhost` | **[measured] yes** — `guc_tables.c` at `REL_18_0` carries `"localhost"` as `ListenAddresses`'s boot value | unchanged | unchanged |
+| `5984/tcp` CouchDB | `[chttpd] bind_address = 127.0.0.1` | **[measured] yes** — `rel/overlay/etc/default.ini` at `3.5.0`, an active line | unchanged | unchanged |
+| `9042/tcp` Cassandra | `rpc_address: localhost` | yes — an active line in shipped `conf/cassandra.yaml` (§12.7) | unchanged | unchanged |
+| `10248/tcp` kubelet | `healthzBindAddress: "127.0.0.1"` | **[measured] yes** — an assignment in `defaults.go` | unchanged | unchanged |
+| `10249/tcp` kube-proxy | `metricsBindAddress: 127.0.0.1:10249` | **[measured] yes** — `getDefaultAddresses` returns `"127.0.0.1"` | unchanged | unchanged |
+| `2375/tcp` Docker | the daemon refuses to start with TLS disabled on a TCP address (§10.4.3) | yes — a code path | unchanged | unchanged |
+| `11211/udp` memcached | UDP off by default since 1.5.6 (§10.4.3) | yes — a build/runtime default | unchanged | unchanged |
+| **`623/udp` IPMI** | Dell's `iDRAC.IPMILan.Enable — 0 - Disabled`; HPE's *"This setting is disabled by default"* (§28.10) | **unreadable** — the owners ship firmware, not source | unchanged: documented and restricting | **ungradeable** — there is no artefact in which to look |
+| **`10255/tcp` kubelet** | `readOnlyPort` *"Default: 0 (disabled)"* | **[measured] no** — Go's zero value | unchanged: documented and restricting | **refused** — the cell is superseded, so nothing moves either way |
+
+> **Nine cells walked, zero moved by §34, and zero moved by the option that lost either** — because the
+> only cell a provenance rule would refuse is one §18 superseded three sections before this ticket
+> existed. **The two rules have the same extension over today's table**, which is stated plainly at
+> §34.11 as this section's thinnest property: the ruling is decided on principle and not on a measured
+> cell move.
+
+**What the walk does show is the losing rule's shape, and it shows it on `623/udp`.** §28.10 gave that
+row §2.2's third form for the first time on **[measured]** documented restricting defaults from two
+owners who ship no source at all. Under limb (a) that cell reads exactly like `readOnlyPort`'s — a
+documented restricting default whose mechanism nobody can see — and it is admitted for the same reason.
+Under a provenance rule it cannot be assessed: there is no `defaults.go` for iDRAC firmware. **A rule
+that can only grade open-source owners is measuring the toolchain rather than the owner**, which is
+§2.2's founding arbitrariness read one axis over, and `623/udp` is a prohibition-tier row §28 re-founded
+twice.
+
+### 34.8 The ruling
+
+> - **A default's provenance is not read.** *Takes effect* is satisfied by the value the operator meets
+>   at first run, however the shipped software arrives at it — **a language's zero value included**.
+> - **A zero value attests only where the owner documented it as the default**, on ADR-0036 limb 1's
+>   second half, unchanged. Undocumented, it is not §2.2's third form at all, and reading one as a
+>   maintainer position is the note asserting the claim itself.
+> - **§10.4's one-way rule governs the attestation gate and not the claim gate.** A value read to
+>   establish what the shipped artefact **does** — §10.1's steps, §10.4.3's remedy test — is read in
+>   both directions, documented or not, subject to §20.6's owner rule and ADR-0054's step rule as
+>   before.
+> - **§16.5's `readOnlyPort` reading is confirmed**, on the limb it did not name; **§27.2's
+>   `enableProfiling` reading is confirmed**, on a gate it did not name; **§19.2's *"by omission plus
+>   documentation"* clause is promoted** from a passing clause to the rule it always was. The two
+>   instances never disagreed.
+> - **No `(port, transport)` pair moves, no row moves, no class moves, no footing tier moves, and
+>   [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered.**
+> - **No ADR is minted and ADR-0063 is left unused**, as `0062` was by #101 and as `0039`, `0041`,
+>   `0052`, `0053` and `0057` are. **ADR-0036 is amended in place** per
+>   [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md),
+>   because limb 1 is the sentence a session reads and limb 1 is where the answer belongs — which is
+>   §19.3's own precedent for this ADR, one field over in the same struct.
+
+### 34.9 The options that lost
+
+**Rule *takes effect* to require an act the party performed — the provenance answer.** The ticket's own
+framing, the strongest losing option, and the one a reader will reach for. **Its case is good:** §10.4
+admits a restriction as a **costly act** and nobody performed one; ADR-0036 limb 4 says *"an act that
+takes effect nowhere was not taken"* and there is a real sense in which no act was taken here; it
+separates the note's two instances with no new machinery; and it is **free on today's corpus** —
+§34.7 measures it moving nothing, because the one cell it refuses was superseded at §18.
+
+**It loses three ways, and none of them is a cell count.** On **§10.4's own currency**: the cost priced
+is friction at first run, a zero value buys it in full, and the two artefacts §12(a) and ADR-0056 refuse
+are refused because *nothing takes effect* — the converse case. On **what it measures**: `obj.X = 0` and
+no line ship the same binary and buy the same friction, so the rule is satisfied by a gesture, which is
+ADR-0059 limb 2's inadmissible *how firmly the owner spoke* wearing syntax's clothes. And on
+**extension**, **[measured]**: it makes admissibility depend on the owner shipping readable source, which
+puts `623/udp`'s newly-acquired third form beyond assessment (§34.7) and makes the same maintainer
+decision attest in Go and not in Python. **A criterion that can only grade owners who publish source is
+grading the toolchain.**
+
+**Rule that the documentation *converts* the zero value into an act.** The ticket's third bullet, and it
+reaches the same verdict as the ruling by a different route. **It loses on being both unnecessary and
+unstable.** Unnecessary, because ADR-0036 limb 1 already requires documentation of *every* default,
+written or not — there is nothing to convert, and §19.3 has already refused a fully-written default on
+that same half. Unstable, because a comment that *supplies an act* is a comment doing more than
+describing the value beneath it, and *"Default: 0 (disabled)"* goes **false** the moment the defaulting
+line is added — ADR-0061 limb 1's **label**. Anyone who reads the comment as the act owes an account of
+how a label supplies one. The ruling owes none: the comment is the third form's documentation half and
+nothing else.
+
+**Rule the two instances genuinely in conflict and withdraw §27.2's clause.** The cheapest disposal, and
+it has the ticket's own framing behind it — *"two instances, opposite directions"*. **It loses because
+they are not in conflict**, and the cost of pretending otherwise is enormous: withdrawing a correct
+measurement of what a binary serves would put §10.1's Class A walk under §2.2's attestation gate, and
+**[measured]** §10.4.1's own killing measurement — the list of rows whose shipped default binds widely —
+is a reading of permissive defaults for what they do. It would also reach §24.3, §27.6 and §28.4, every
+one of which reads shipped values to say what a caller gets.
+
+**Decline to rule, on the ground that §19.2 already did.** The house default — §16.6, §20.9, §23, §24.9,
+#90 and #91 all declined — and this is the strongest instance of it the note has seen, because unlike
+ADR-0059's and ADR-0061's cases the deciding sentence was **not** available nowhere. It is in §19.2, in
+terms, about this very field: *"by omission plus documentation rather than by an assignment, which
+satisfies ADR-0036 limb 1's two halves exactly."* **It loses on two things, and the second is the real
+one.** §19.2's clause states only the **admitting** direction — it is silent on the undocumented case and
+silent on the claim gate, which is why #31.12 could set §16.5 beside §27.2 and see a contradiction that
+was not there. And **findability**: the sentence a session actually reads is ADR-0036 limb 1, and
+ADR-0058's whole finding is that *"a pointer from the superseding document reaches only the reader who
+already noticed the absence"* — a rule living three sections from the limb it reads fails the reader who
+never looks. That is cured by amending limb 1 where limb 1 is, which is what this section does.
+
+**Mint ADR-0063.** The alternative to the above, and it nearly wins: the rule travels under ADR-0032 to
+any curated table admitting a shipped default, and the ticket exists because two sections read one limb
+two ways. **It loses on placement, which is §19.3's own recorded reason for the last amendment to this
+same limb** — *"recorded as an amendment to ADR-0036 rather than as a new ADR, because limb 1 is where it
+lives"*. And it loses on **reach**: limb (c) is the genuinely new half, and limb (c) is about §10.1's
+steps, which ADR-0032 expressly rules **do not travel** — *"§2.1's closed claim set is a theorem about
+`sensitive-port-reached-from-internet` specifically"*. A rule half of which cannot leave the table is a
+section, not an ADR.
+
+### 34.10 Every dependent figure, checked rather than asserted
+
+```
+FIGURE DELTA — #105 / §34
+  (empty)                                       nothing moves, in every state of the world
+
+CHECKED AND UNCHANGED  (basis: main @ 9a8f1df, the composed post-#99/#100/#101/#102 state)
+  §1 pair count                      41  ->  41
+  §3.1/§3.2/§3.3 class totals   12/7/22  ->  12/7/22
+  §2.2 prohibition tier              16  ->  16     (2181 and 25672 promoted by §32)
+  §2.2 scoping tier                  11  ->  11
+  §2.2 weak tier                      3  ->  3      5432, 5984, 10248 — none rests on a zero value
+  §2.2 outside-subject               11  ->  11     16 + 11 + 3 + 11 = 41
+  §2.2 footing coverage        30 of 41  ->  30 of 41
+  §4.5 the list's weakest row      5432  ->  5432
+  §4.6 exclusions                    20  ->  20
+  §6.1 containment            28+8+5=41  ->  28+8+5=41
+  §17.1 population of negatives   fifteen -> fifteen
+  ADR-0032 §8 watch list  5432,5984,10248 -> unchanged; its 3->2->3->2->3 sequence gains no step
+  ADR-0009's union             136 pairs  ->  unchanged
+  ADR-0008 rule version / Break              NOT triggered — reference data byte-identical
+```
+
+**Stated against the `main` this section actually read, and named as such.** Every numeral above is off
+commit `9a8f1df`. Four siblings were resolving concurrently, so the safe statement is the parametric one:
+
+> **this ruling's delta is the empty delta.** It adds to no count and subtracts from none, so a sibling
+> landing after it changes the numerals without changing a verdict. Where §34 and §1 disagree, §1 governs.
+
+### 34.11 Thin ground, flagged per the standing rule
+
+1. **The two candidate rules have the same extension over today's table, so the ruling is decided on
+   principle and not on a measurement.** §34.7 walks nine cells and the losing option moves none of them,
+   because the one cell it refuses — §16.5's — was superseded at §18. Every prior ruling in this note
+   that beat its strongest alternative did so partly by **measuring the alternative taking a neighbour
+   with it** (§30.5's `4369`, §31.9's `9042` and `5984`, §32's `2049`). **This one cannot**, and
+   `623/udp` is an argument about a rule's *reach* rather than a cell it would move. **This is a decision
+   taken on thin ground and it is named as such.** The criterion that would change it: a candidate row
+   whose only footing is a documented zero value, where the owner's source is readable and shows the
+   maintainers writing every other default in the same struct.
+2. **The separator is partly a per-component documentation convention.** **[measured]** 112 `Default:`
+   lines in the kubelet's config API and **zero** in kube-proxy's, so `enableProfiling`'s silence is
+   house style rather than a field-level decision (§34.2). Limb (b) is defensible as a rule about what
+   the owner **published**, and it is worth knowing before anyone reads a bare absence as a considered
+   one.
+3. **Limb (c) is described as a second gate and has never been written down as one.** The note has always
+   read shipped values for what they do — §10.1's walks, §10.4.1's own killing list — but nobody stated
+   that §10.4's one-way rule stops at the attestation gate, so the two gates have coexisted without a
+   boundary. Stating the boundary is right and it is **reconstruction**, with the same warrant and the
+   same weakness ADR-0059's reconstruction had: it reproduces the note's verdicts, which demonstrates
+   consistency rather than correctness.
+4. **The refusing half is unexercised.** No row in the note is founded on an **undocumented** zero value,
+   so limb (b)'s refusal has zero instances on the table and one hypothetical (`enableProfiling`, which
+   was never used as an attestation). Correct-and-untested in the direction that removes evidence — the
+   mirror of ADR-0061's own thin ground, and the cost §25.6 priced.
+5. **`623/udp`'s row in §34.7 is argued, not retrieved.** Its footing bytes are quoted from §28.10 rather
+   than re-fetched, and the claim that Dell and HPE ship no readable source for the defaults in question
+   is a **general fact about closed firmware** rather than a measurement of a negative. It carries the
+   extension argument and no cell, so a correction there would weaken an argument rather than move a
+   figure — but it is a citation where §27.15 asked for a re-reading.
+
+### 34.12 By-catch and open items, routed rather than acted on
+
+- **§31.12's first bullet is discharged and is amended in place**, per ADR-0058: *"ADR-0036's* takes
+  effect *limb does not say whether a default the owner never wrote is the owner's act"*, read alone and
+  in the present tense, would send the next session to re-open a closed question.
+- **Reported as a sharpening of the map's watch-list patch, not as a ticket — a zero-value default is the
+  floor of the volatility axis, because there is no line for a diff to watch.** §31.7 and ADR-0061 limb 4
+  put **artefact class** on ADR-0032 §8's candidate-axis list as the thing that bears on volatility
+  rather than on tier. A footing resting on a zero value is that axis's extreme point: flipping it means
+  **adding** a line to a file where the curator is watching lines change, so a diff-based watch sees
+  nothing at all. **[measured] no member of today's weak tier is in that state** — `5432`, `5984` and
+  `10248` all rest on written values (§34.7) — so this is a property of the axis and not a live exposure,
+  and it is reported to the curator rather than ticketed, on #93's ninth-trigger cost reasoning.
+- **The generated config-API reference pages were again not quoted.** `kubelet-config.v1beta1.md` and
+  `kube-proxy-config.v1alpha1.md` at `kubernetes/website` `release-1.34` are generated from the source
+  this section reads directly; §19.7's rule, obeyed at no cost, as §27.14 and §31.12 both recorded.
+- **ADR-0061's retrieval obligation gains a stated outcome for the empty case.** Limb 3 says the
+  defaulting code *"must be retrieved, not assumed"*; it does not say what a retrieval that finds **no**
+  defaulting code establishes. Under limb (a) it establishes that the zero value is what takes effect,
+  which is a reading rather than a change. ADR-0061 gains a *confirmed and read by use* note; no limb
+  moves.
+
+### 34.13 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10 and §31.13
+
+- **Every quotation this section relies on was re-fetched at a named tag rather than cited**, including
+  the two this note has already quoted twice — §16.5's `readOnlyPort` comment and §27.2's
+  `enableProfiling` comment are both **exact** at `v1.34.0`. §31.13 recorded that obeying §27.15's rule
+  confirmed rather than corrected; it did so again here, and a rule that only pays out when it catches
+  something is a rule nobody will run.
+- **Two negatives are stated as file-and-tag facts rather than as universals.** *"`ReadOnlyPort` occurs
+  zero times in `pkg/kubelet/apis/config/v1beta1/defaults.go` at `v1.34.0`"* and the matching statement
+  for `EnableProfiling` are counts over the retrieved files, never *never set anywhere* — ADR-0037 limb
+  3. ADR-0036's #83 amendment already measured `applyLegacyDefaults` setting `ReadOnlyPort` on the flag
+  path, and **[measured]** that function is unchanged at `v1.34.0`: `kc.ReadOnlyPort =
+  ports.KubeletReadOnlyPort`, alongside `Anonymous.Enabled = true` and `Mode = AlwaysAllow`.
+- **The sharpest measurement in the section is a contrast inside one file and it was looked for
+  deliberately.** The only place in the kubelet where any maintainer writes a `ReadOnlyPort` value is
+  `applyLegacyDefaults`, and the value written there is `10255` — **permissive**. Had the ruling gone the
+  other way, the row's restricting footing would have rested on an absence while the owner's one written
+  act pointed the other way. That is stated because it is the strongest fact the losing option has, and
+  it is disclosed rather than left for a reviewer to find.
+- **Two artefacts outside Kubernetes were opened to test the losing option rather than to support the
+  ruling.** PostgreSQL's `guc_tables.c` and CouchDB's `default.ini` were fetched to answer *does a
+  provenance rule move `5432` or `5984`?* — the reading §32.7 names as the signal a footing rule is
+  wrong. It does not, which is a **negative** result for the extension argument and is reported as one
+  at §34.11.
+- **No cluster was run and no binary was executed.** *A zero value takes effect* is read off the Go
+  specification's assignment of zero values and off the absence of a defaulting clause, not observed. The
+  substitution §34.4 argues about — adding `obj.ReadOnlyPort = 0` and observing no change — was reasoned,
+  not performed.
+---
+
 ## Sources
 
 Government and standards bodies
@@ -14351,3 +14931,13 @@ Retrieved for §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) 
 - **[`k8s.io/kube-proxy` `v0.34.0`, `config/v1alpha1/types.go`](https://raw.githubusercontent.com/kubernetes/kube-proxy/v0.34.0/config/v1alpha1/types.go)** — `HealthzBindAddress` and `MetricsBindAddress`, for the two comments §31.5's walk needs from a second component. **[measured]** §27.2's quotation is exact, including the parenthetical *"(Set to `0.0.0.0:10249` / `[::]:10249` to bind on all interfaces.)"* that §31.5 classes a **label** and §27.4 reads as ADR-0054 limb 2's reachability frame
 - **Quoted from this note rather than re-fetched, and named as such** — the other eight comments in §31.5's walk (net-snmp's, Cassandra's, Redis's two, `exports(5)`'s, MongoDB's and kube-proxy's) come from §12.2, §12.7, §13.3 and §27.2 at the tags those sections name. **The ruling turns on none of their contents**, only on whether the instrument reproduces the verdicts those sections reached, so a misquotation would surface as a disagreement with a recorded verdict rather than as a silent error. §31.13 records why that is adequate here and where it would not be
 - **Located and deliberately not quoted**, per §19.7 and §27.14 — the **generated** config-API reference pages [`kubelet-config.v1beta1.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/config-api/kubelet-config.v1beta1.md) and `kube-proxy-config.v1alpha1.md`, which carry these comments verbatim and are generated from the source read above
+
+Retrieved for §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — five files at one tag from one project for the ruling, and two from two others opened **to test the option that lost** rather than to support the ruling (§34.13)
+- **[`kubernetes/kubernetes` `v1.34.0`, `staging/src/k8s.io/kubelet/config/v1beta1/types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/staging/src/k8s.io/kubelet/config/v1beta1/types.go)** — `readOnlyPort`'s doc comment, re-fetched rather than cited per §27.15. **[measured]** §16.5's quotation is **exact**, including *"Setting this field to 0 disables the read-only service. Default: 0 (disabled)"*, and the file carries **112** `// Default:` lines, which is the convention against which §34.2 reads kube-proxy's silence
+- **[`kubernetes/kubernetes` `v1.34.0`, `pkg/kubelet/apis/config/v1beta1/defaults.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/kubelet/apis/config/v1beta1/defaults.go)** — re-fetched for this section rather than inherited from §31. **[measured]** `ReadOnlyPort` occurs **zero** times in the file, whose only port-shaped clauses are `obj.HealthzPort = ptr.To[int32](10248)` and `obj.HealthzBindAddress = "127.0.0.1"`. Stated as *not set at `v1.34.0` in this file*, never as *never set anywhere* — ADR-0037 limb 3
+- **[`kubernetes/kubernetes` `v1.34.0`, `staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go)** — `enableProfiling`'s doc comment. **[measured]** §27.2's *"no documented default"* is **exact** — the comment reads *"enableProfiling enables profiling via web interface on /debug/pprof handler. Profiling handlers will be handled by metrics server."* and nothing more — and the file carries **zero** `// Default:` lines for **any** field, which is the honesty finding at §34.2 and §34.11
+- **[`kubernetes/kubernetes` `v1.34.0`, `pkg/proxy/apis/config/v1alpha1/defaults.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/proxy/apis/config/v1alpha1/defaults.go)** — **[measured]** `EnableProfiling` occurs **zero** times; `getDefaultAddresses` returns `"0.0.0.0", "127.0.0.1"`, confirming §27.2's and §32.7's `10249/tcp` cell rests on a **written** value
+- **[`kubernetes/kubernetes` `v1.34.0`, `cmd/kubelet/app/options/options.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/cmd/kubelet/app/options/options.go)** — `applyLegacyDefaults`, unchanged at this tag: `kc.ReadOnlyPort = ports.KubeletReadOnlyPort` beside `Anonymous.Enabled = true` and `Mode = AlwaysAllow`. **The only place any maintainer writes a `ReadOnlyPort` value, and the value written is the permissive one** — the strongest fact the losing option has, disclosed at §34.13 rather than left to be found
+- **[`postgres/postgres` `REL_18_0`, `src/backend/utils/misc/guc_tables.c`](https://raw.githubusercontent.com/postgres/postgres/REL_18_0/src/backend/utils/misc/guc_tables.c)** — opened to answer *does a provenance rule move `5432/tcp`?*, the reading §32.7 names as the signal a footing rule is wrong. **[measured]** it does not: the `listen_addresses` entry carries `"localhost"` as `ListenAddresses`'s boot value, written by the owner
+- **[`apache/couchdb` `3.5.0`, `rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.5.0/rel/overlay/etc/default.ini)** — the same question for `5984/tcp`. **[measured]** `[chttpd] bind_address = 127.0.0.1` is an active written line, as are the `[httpd]` and `[prometheus]` ones beside it. Both of these are **negative** results for §34's extension argument and are reported as such at §34.11
+- **`623/udp`'s footing quoted from §28.10 rather than re-fetched, and named as such** — Dell's `iDRAC.IPMILan.Enable — 0 - Disabled` and HPE's *"This setting is disabled by default"*. It carries §34.7's extension argument and no cell; a correction there would weaken an argument rather than move a figure (§34.11)
