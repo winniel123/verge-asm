@@ -14521,8 +14521,11 @@ twice.
 >   instances never disagreed.
 > - **No `(port, transport)` pair moves, no row moves, no class moves, no footing tier moves, and
 >   [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered.**
-> - **No ADR is minted and ADR-0063 is left unused**, as `0062` was by #101 and as `0039`, `0041`,
->   `0052`, `0053` and `0057` are. **ADR-0036 is amended in place** per
+> - **No ADR is minted and ADR-0063 is left unused**, as `0039`, `0041`, `0052`, `0053` and `0057` are.
+>   *(`0062` was reserved and left unused by [#101](https://github.com/winniel123/verge-asm/issues/101)
+>   and has since been taken by [#103](https://github.com/winniel123/verge-asm/issues/103), which merged
+>   while this section was being written — a reserved-and-released number is claimable and this one was
+>   claimed.)* **ADR-0036 is amended in place** per
 >   [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md),
 >   because limb 1 is the sentence a session reads and limb 1 is where the answer belongs — which is
 >   §19.3's own precedent for this ADR, one field over in the same struct.
