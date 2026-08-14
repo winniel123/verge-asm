@@ -498,7 +498,14 @@ as loudly as an output that moves for free. A `Span`
 carries the **vector** of derivation versions it was produced under: one leaf per named
 derivation, flattened across everything that derivation reads, with parameters held inside
 their own leaf rather than beside it. Comparison is legal exactly where two vectors are equal.
-See [ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md) and
+A **declared parameter** is therefore authored by the project and ships in the release, and
+**none is ever operator-configurable**: it sits inside a leaf, so moving one moves a version and a
+moved version is a `Break`, which makes a settings field the one actor that could break the estate
+without a release and without a corpus row moving — and it would leave two installs on one release
+comparing as comparable while holding different content behind one leaf. An operator's dial may sit
+anywhere **outside** every derivation and nowhere inside one, which is where the coverage alert
+threshold, notification routing and all flap suppression already are. See
+[ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md) and
 [ADR-0021](./docs/adr/0021-a-version-leaf-is-a-decision-not-a-binary.md).
 _Avoid_: rule version, schema version, algorithm
 
