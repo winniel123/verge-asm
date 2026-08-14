@@ -294,3 +294,26 @@ stay where ADR-0007 put them, in the notification patch.
 | **Special-case the first run in the notification predicate** | An invented state in the comparison-adjacent path for a case the aperture rule already covers. ADR-0003's *first observed under a widened aperture is not "appeared"* was written for exactly this and had never been applied to the largest widening the product makes |
 | **Extend the flagship to *the internet leg opens at `reached`*, and leave membership silent** | Genuinely close, and it loses on the burst rather than on the principle. It fires one message per newly-open service, so one `Address` with three open ports is three messages for one cause; it needs a three-way case analysis on *why* the timeline opened (membership, aperture, slower tier) at the notification layer; and it still tells the operator nothing about a new subject on which nothing answered, which is a fact they asked for when they declared the scope |
 | **A count or threshold in the predicate** — suppress an appearance burst above *N* | ADR-0007 puts damping in notification and refuses it in the model, and [#27](https://github.com/winniel123/verge-asm/issues/27) refuses invented numbers in a safety path. The census gives the operator the count as a fact instead of spending it as a threshold |
+
+## Amendment — [#64](https://github.com/winniel123/verge-asm/issues/64): the half this ADR could not close is closed, and the census shape has four producers
+
+[ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md) took this ADR's own opening
+argument one layer across. Nothing in the Decision moves.
+
+**The *`Name` only* / *`Address` only* hole is closed.** This ADR's rejected-alternatives table
+names both halves of the re-point case and membership closes only one of them: where the name is
+old and re-points at an `Address` **already in the estate**, the `Endpoint`s that mint beneath it
+open under two subjects the model already holds, §1's root walk terminates above them, and no
+membership message fires. ADR-0026 §2 rules that `resolution` `Transition` a message wherever it
+opens an `Endpoint` no membership message in the same fold covers — so the residue this ADR handed
+to #64 is discharged, and the two messages compose rather than doubling, since an empty residue
+fires nothing.
+
+**§3's payload shape now has four producers, not two.** An aperture widening, a membership entry,
+ADR-0029's flagship, and ADR-0026 §2's re-point. This ADR wrote that *"a third would be a signal
+that the shape is right"*; there are two more, and one of them was hiding inside ADR-0029's own
+flagship the whole time.
+
+**One count here is stale.** *"All ten signal rules are transition-shaped"* is right about the
+shape and wrong about the number: [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s
+domain table enumerates **sixteen** rules. Nothing in the argument depends on the count.

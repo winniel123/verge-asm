@@ -305,3 +305,28 @@ clearest available demonstration that a domain is a property of the **rule**, no
 | *Outside the domain* as a fourth census member, state or transition name | A second representation of one fact: the subject left the domain because a facet `Transition` already recorded and alerted. #42 refused a fourth name on this exact ground |
 | A domain free to read any evidence | The cheapest available rebuild of ADR-0007's damping, ADR-0010's refused vantage gate and #22's refused suppression, all at once and all unrecorded |
 | Render the census over a window so a moved denominator is visible | The number conflates a moved domain with a moved predicate; the drift model already makes that comparison correctly, per subject, one level down |
+
+## Amendment — [#64](https://github.com/winniel123/verge-asm/issues/64): the reason is withdrawn, the ruling stands
+
+[ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md) enumerated which `Transition`s are
+messages and found that **most facet transitions are recorded and not alerted**. Two clauses of this
+ADR assumed the opposite and are withdrawn as written.
+
+**The Decision row *"Is outside the domain a third case beside #44's two — No"* stands, and its
+stated reason does not.** The reason given here, and repeated in the rejected-alternatives table as
+*"the subject left the domain because a facet `Transition` already recorded and alerted"*, is false:
+a `Presented` → `NoTLS` move is recorded and silent, as is every other facet transition ADR-0026 §1
+lists. The ruling survives on **this ADR's own fourth binding** instead — a rule's census is current
+state and may never be rendered as a delta, a trend or a series, so the operator is never shown a
+domain difference and there is nothing for a message to explain.
+
+**The stated cost that follows is recorded rather than left implicit.** A rule that was `fired` and
+leaves its domain goes quiet with no message, and a rule that **opens at `fired`** on entering its
+domain reaches nobody except through the census of a message above it. ADR-0026 §4 confirms both as
+v1's answer and states the cost.
+
+**One count in this ADR is the one other documents got wrong.** *"Writing all **sixteen** out is
+what tested the rule"* is correct, and the *ten v1 signals* in
+[ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md),
+[ADR-0029](./0029-an-alert-fires-on-a-leg.md) and
+[ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md) is stale against it.

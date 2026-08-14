@@ -283,8 +283,13 @@ claim about the world that an `http/1.1`-only offer cannot carry against an h2-o
 early: adding a *facet* is strictly additive and costs `revealed` plus one message, while widening
 an existing facet's *value space* moves the output of rows that already produced observations and
 therefore `Break`s every timeline it has. A facet's value space is decided once; the rules read
-over it are free forever. See [ADR-0011](./docs/adr/0011-a-facet-is-six-parts.md) and
-[ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md).
+over it are free forever. A facet is also **evidence and not a channel**: a `Transition` on a facet
+timeline is not a message on its own account, and in v1 exactly one is — a `resolution` move that
+opens an `Endpoint` no membership message covers. `dns-record` has no channel at all, so an MX or
+TXT change is recorded and reaches nobody until a rule reads it. See
+[ADR-0011](./docs/adr/0011-a-facet-is-six-parts.md),
+[ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md) and
+[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md).
 _Avoid_: attribute, field, property
 
 **Shadowed**:
@@ -465,7 +470,11 @@ absent timeline has none, per
 [ADR-0014](./docs/adr/0014-only-revealed-generalises.md). A named `Derivation`
 leaf, so a rule may read one leg and compose that leaf alone. It is also the object **alerting**
 reads: the internet leg going `not-reached` → `reached` is the product's flagship message, fired
-whether or not the other leg exists, while the internal leg is recorded and **never** alerted in
+whether or not the other leg exists — and it **carries the census** of what opened beneath the
+newly-reached `Service`, since `certificate`, `http-identity`, `tls-acceptance` and every rule over
+them open there and an opening reaches nobody
+([ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md)) — while the internal
+leg is recorded and **never** alerted in
 either direction — an internal port opening or closing is the commonest intentional change on that
 leg, which is the ground on which a withdrawal is not alerted either. A leg that **opens** at
 `reached` — a `Service` that was internet-reachable the first time we ever looked at it — emits
@@ -523,10 +532,20 @@ conclusion its evidence cannot carry, and never for a protocol — and its scope
 protocols happen to express that fact, so covering exactly one is not disqualifying while three
 protocols expressing one fact must be one signal rather than three. Being true of *most* of the
 estate is likewise not a defect: a signal is a census, urgency is the transition's, and narrowing
-a rule to make it fire less often is the model-layer damping `Drift` refuses. See
+a rule to make it fire less often is the model-layer damping `Drift` refuses. **Its edges are where
+the drift class actually lives**, and they are cut per rule rather than per facet: `not-fired` →
+`fired` is a message for every rule, since on a subject already in the estate that edge is by
+construction *something got worse*; `fired` → `not-fired` is **silent except where a third party
+could have caused the clearing**, which is exactly the four rules whose clearing condition is a
+name somebody else can claim; `fired` → `not-evaluable` and `not-evaluable` → any value are both
+coverage class, the second fired at the cause and stating the value it closed to. Entering or
+leaving a `Predicate domain` is neither, and a rule that **opens at `fired`** is carried by the
+census of a message above it or by nothing. See
 [ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md),
-[ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md) and
-[ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md).
+[ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md),
+[ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md) — whose v1 table
+enumerates **sixteen** rules, against the stale *ten* in three ADRs — and
+[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
 
 **Predicate domain**:
@@ -539,13 +558,19 @@ endpoint outside every certificate rule's domain — and it may cite only eviden
 declares, so it composes no leaf the rule does not already compose and sits **inside** the rule's
 own leaf rather than beside it. Editing one is an output-affecting change: the leaf moves and the
 rule `Break`s uniformly. A subject outside the domain is **not rendered at all** — not a census
-member, not a row, not a state, and not a transition — because it left the domain by a
-`Transition` on the facet timeline underneath, which is already stored and already alerted, and
-naming it again is a second representation of one fact. Distinct from `not-evaluable`, which is
+member, not a row, not a state, and not a transition — because a census is current state and may
+never be rendered as a delta, so the operator is never shown a domain difference and there is
+nothing for a message to explain. *(The earlier reason — that the subject left the domain by a
+facet `Transition` "already stored and already alerted" — is **withdrawn** by
+[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md): most facet transitions
+are stored and silent. The stated cost is that a rule leaving its domain while `fired` goes quiet
+with no message, and one entering at `fired` reaches nobody except through a census above it.)*
+Distinct from `not-evaluable`, which is
 a value about **our own sight** (`Shadowed`), and from a `Gap`, which is no value at all: outside
 the domain means *the question does not arise*. A **total** domain is legal. An **empty** one is
 legal too and renders as a no-population panel, never as a census of zeroes. See
-[ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md).
+[ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md) and
+[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md).
 _Avoid_: scope, filter, applicability, eligible set, in-scope subjects
 
 **Derivation**:
@@ -596,7 +621,15 @@ looking, which is per-timeline. An opening caused by neither is recorded, unname
 unalerted — a `tls-acceptance` timeline opens days after its `Service` did because the
 enumeration runs on its own weekly `Scan`, and nothing about the world or our aperture moved.
 A `Gap` closing is none of these: it is an ordinary adjacency, and always an observer event,
-since a `Gap` exists only where we could not say. See
+since a `Gap` exists only where we could not say. **A `Transition` is a message only where it is
+the sole carrier of a fact the operator asked for** — the layer it sits in never decides, and the
+**facet layer is evidence rather than a channel**. So the internet `Reach` leg going
+`not-reached` → `reached` is a message and `refused` ↔ `no-response` beneath it is not, though
+both are facet moves and only one moves the projection a predicate reads. Where two layers would
+report one fact the message fires at the cause and the other rides its census, which is why
+`sensitive-port-reached-from-internet`'s firing edge never fires a message of its own. See
+[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md) for the enumeration over
+all six facets, and
 [ADR-0014](./docs/adr/0014-only-revealed-generalises.md) — whose worked example this was, and
 which named `certificate` until
 [ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) found that
