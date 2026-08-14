@@ -376,6 +376,33 @@ weak row must not be collapsed — one is watched, the other is chased.
 finding that sources move. Nobody has checked whether any of the three defaults has already moved;
 that check belongs to the curation patch, which is where the watch lives.
 
+> **Amendment — [#76](https://github.com/winniel123/verge-asm/issues/76): the watch list is
+> re-enumerated, and it was wrong in both directions.** The three rows named above —
+> **`5432/tcp`, `5984/tcp` and `9042/tcp`** — are left standing per the name-and-withdraw convention
+> and are **superseded**. `9042/tcp` left the weak tier at
+> [#69](https://github.com/winniel123/verge-asm/issues/69)
+> ([`sensitive-ports.md`](../research/sensitive-ports.md) §12.7), when its shipped `conf/cassandra.yaml`
+> was found to carry an owner prohibition naming the port — so the watch list has been carrying a row
+> that does not belong on it since before this ADR was written, and no session propagated the change
+> here. **[measured]** #76 adds `10255/tcp` kubelet, which rests on `readOnlyPort` *"Default: 0
+> (disabled)"* in `kubernetes/kubernetes` `v1.34.1` and on no owner prose at all (§15.5).
+>
+> > **The rows exposed to silent de-attestation are `5432/tcp`, `5984/tcp` and `10255/tcp`.**
+>
+> **Three riders, and the second is the reason this amendment is worth making rather than noting.**
+> The count is coincidentally three again, so a reader comparing counts rather than members would see
+> nothing move. `2379/tcp` and `2380/tcp` etcd were expected by §13.7 to join this list and instead
+> went to the **prohibition** tier on `THREAT_MODEL.md` at `etcd-io/etcd` `v3.7.1` — but that document
+> is three months old and absent from the `3.5` and `3.6` lines, so §15.9 flags the pair as worth
+> watching **despite not being on this list**, which is a shape §8 does not currently have a name for.
+> And `4369/tcp` is a **chased** row rather than a watched one, in `161/udp`'s sense above: its
+> weakness is that RabbitMQ, a non-owner, stands where the owner should (§10.5, §15.6), which a release
+> cannot change and a retrieval can — routed to
+> [#84](https://github.com/winniel123/verge-asm/issues/84).
+>
+> **No gate changes and no rule version moves.** A footing is evidence for a claim and not a claim, so
+> `sensitive-port-reached-from-internet` is byte-identical and the list stays at **37 pairs**.
+
 ## The v1 walk — all sixteen rules, walked rather than asserted
 
 The claim that thirteen rules carry no curated table is checkable, so it is checked.
