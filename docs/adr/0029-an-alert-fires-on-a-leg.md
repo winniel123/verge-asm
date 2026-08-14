@@ -182,3 +182,34 @@ internal port opening because a `Service` `appeared` is **never** a message — 
 membership that would have covered it, one where only answering ports enter the estate, is
 refused by ADR-0031 precisely because it would re-admit through membership the transition this
 ADR ruled silent.
+
+## Amendment — [#64](https://github.com/winniel123/verge-asm/issues/64): the third carrier is repaired, the flagship gains a census, and the cost is wider than stated
+
+[ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md) enumerated the facet layer.
+Nothing in this ADR's Decision moves; three things around it do.
+
+**Decision 4's third carrier is repaired.** #63 left it conditional — where a service moves to an
+address already in the estate the sole record is a `resolution` `Transition` nobody had ruled
+alertable. ADR-0026 §2 rules that transition **a message** wherever it opens an `Endpoint` no
+membership message covers, which is exactly that case. All three carriers now stand and the
+direction cut on the internet leg no longer rests on an unruled residue.
+
+**Decision 2's flagship message carries a census.** A `Service` already in the estate whose
+internet leg opens has `certificate`, `http-identity` and `tls-acceptance` timelines **open**
+beneath it, and the rules over them open too. Openings emit no `Transition` and reach nobody, so
+the flagship carries the census of what opened, in §7's shape — computed once at the cause, a
+description and never a `Transition`, no difference set, nothing alerted individually. Without it
+the operator is told a port opened and not that it answers an unauthenticated 200 behind an
+expired certificate.
+
+**The stated cost of Decision 3 is wider than this ADR priced it.** *An internal port opening tells
+nobody* is true of more than the leg move: the same three facets and every rule over them open
+beneath it, and ADR-0026 §4 makes each of those openings silent. The reason given here still holds
+— the install has not measured the question the product asks, and the remedy the operator wants is
+a prober — but the price is larger than stated and is recorded rather than left implicit.
+
+**One count here is stale.** *"Nine of the ten v1 signals"* was written against a set
+[ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s own domain table enumerates at
+**sixteen**. The claim survives in its real form — every rule that does not read the internet
+`Reach` leg is evaluable and fires on a one-vantage-class internal install — but the number does
+not.
