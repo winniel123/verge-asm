@@ -260,6 +260,23 @@ disagree about `7001` is worth seeing, and is not evidence.
   and limb 3 is added to its reconstruction table. Its criterion is untouched.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) is unaffected.** The pair count stays 37
   and definite, as #75 predicted when it wired no blocking edge for this ticket.
+- **First application, [#87](https://github.com/winniel123/verge-asm/issues/87) — the standard's first
+  use on an *excluded* row's squat, and it reproduces both verdicts.** §15.4 walked the nine **listed**
+  rows resting on convention; the two exclusions resting on an untested squat — `5601/tcp` Kibana on
+  `esmagent` and `8500/tcp` Consul on `fmtp` — were left to
+  [#87](https://github.com/winniel123/verge-asm/issues/87), which ran them.
+  **[measured] Both registrations are live and neither row moves; the list stays at 37**
+  (`sensitive-ports.md` §18). Three things this ADR predicted are confirmed by use rather than by
+  argument. **The registrant rider did the work**: `esmagent`'s IANA contact record resolves to AXENT
+  Technologies, whose successor Broadcom places the *CCS Windows Agent* on `5601` in current supported
+  documentation — so following the registration to its registrant beat reading the registry's service
+  name, which had gone stale through a product rename. **Limb 4's *currency, not size* held under
+  pressure in both directions**: Symantec ESM has been out of support since 2016 and the number is still
+  live, while a 2007 EUROCONTROL specification is still current because its owner's 2026 standards
+  catalogue carries it — neither answer is available from deployment share. And **limb 3 fired on a
+  sibling rather than on the row**, disposing of OpenSearch Dashboards on `5601` exactly as it disposed
+  of OpenSearch on `9200`. The **refusal artefact rule** is now satisfied for every determinacy refusal
+  in `sensitive-ports.md` §4.6 except the Hadoop entry, which stays grandfathered on §15.5's pricing.
 - **`CONTEXT.md` is not edited**, deliberately — concurrent sessions are in that file and #37 and
   ADR-0032 both set the precedent. The edit this ADR would make is one clause on `Signal`: *where a
   curated table's key is a surrogate for the fact the rule names, what the key means is evidenced by

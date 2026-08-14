@@ -1190,6 +1190,23 @@ it refuses.
 > stays at **eighteen** and the list at **37**. §21.4 carries the reopening criterion and two
 > claim-gate findings that are recorded and **not** relied on.
 
+> **Amended by §22** ([#87](https://github.com/winniel123/verge-asm/issues/87)). **No entry is added or
+> removed and the table is still eighteen; two entries have their stated reason restated with the
+> artefact that defeated the convention, per
+> [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)'s refusal
+> artefact rule.** **[measured]** `esmagent` and `fmtp` are **both live**, so both squats are contested
+> and both determinacy refusals hold. `5601/tcp`: the registration's registrant is at **AXENT
+> Technologies**, and its successor **Broadcom** places the *CCS Windows Agent* on `5601` in the current
+> Control Compliance Suite *Network ports* table, on a supported release — while **OpenSearch Dashboards
+> does not contest it**, being the same protocol under limb 3. `8500/tcp`: **EUROCONTROL-SPEC-0100** Ed.
+> 2.0 §6.6 says *"FMTP **shall** reserve and make use of TCP port number 8500"* and EUROCONTROL's own
+> 2026-01-20 standards catalogue still carries it, and **Adobe** independently places the ColdFusion
+> built-in web server on `8500` in the 2025 release. **One clause of the `5601` cell is withdrawn as a
+> ground** — *"Kibana is routinely and legitimately fronted on the internet behind auth"* is an
+> assertion of ours, which §2.2's first sentence bars; the ground that survives it is **§2.1's**, which
+> names Kibana directly. **The restated cells are in §22.6, with the reopening criteria.** **No
+> `(port, transport)` pair moves and the list stays at 37.**
+
 **The WinRM case deserves its own paragraph, because the tempting argument is factually false.**
 5985 is the WinRM *HTTP* listener, and the natural inference — HTTP transport, therefore cleartext
 credentials, therefore Claim 2 — is contradicted by Microsoft directly:
@@ -1457,8 +1474,25 @@ be wrong within a year.
     on any plausible standard — so it does not block
     [#12](https://github.com/winniel123/verge-asm/issues/12). Routed to
     [#82](https://github.com/winniel123/verge-asm/issues/82).
-11. **Has [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md)'s
-    liveness test ever been run on `esmagent` and `fmtp`?** Opened by §17.8. **[measured] No.** Two of
+11. ~~**Has [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md)'s
+    liveness test ever been run on `esmagent` and `fmtp`?**~~ **Closed by §22**
+    ([#87](https://github.com/winniel123/verge-asm/issues/87)). It had not been, and it has now.
+    **[measured] Both registrations are live, both squats are contested, and neither row moves — the
+    list stays at 37.** `esmagent`'s registrant is at **AXENT Technologies** and its successor
+    **Broadcom** places the *CCS Windows Agent* on `5601` in current, supported Control Compliance Suite
+    documentation; `fmtp`'s owner **EUROCONTROL** places FMTP on `8500` in a `shall` in
+    `EUROCONTROL-SPEC-0100` §6.6 and still carries that specification in its **2026-01-20** standards
+    catalogue, with **Adobe**'s ColdFusion built-in web server defeating `8500` a second time and
+    independently. **The ticket's own prediction is refuted twice**: limb 3 disposes of OpenSearch
+    Dashboards rather than deciding `esmagent`, and **§17.1's two residue rows were never the same
+    shape** — `5601` was already overdetermined by §2.1's closed claim set, which names Kibana, so §17.1
+    row 11's *Partly* was a mis-score. **§17.8's residue goes to zero and §2.4's backlog is finished**;
+    no [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) class sweep is owed
+    on Elastic or HashiCorp. No ADR is minted — the rule applied is
+    [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)'s, already
+    written. The original text follows.
+
+    **Has ADR-0042's liveness test ever been run on `esmagent` and `fmtp`?** Opened by §17.8. **[measured] No.** Two of
     §4.6's exclusions — `5601/tcp` Kibana and `8500/tcp` Consul — rest on **owner-silence plus a
     squat**, and §17.1 finds they are the only two rows in the note whose exclusion is not
     overdetermined. ADR-0042 made *contested* testable by keying it to the competing owner's current
@@ -4772,6 +4806,20 @@ names — the defining **specification**, the **operational or deployment** reco
 | 13 | **`1433`, `445`, `623`** — *"no shipped configuration artefact exists"* (§13.1) | — | — | **No** — it is a negative about an **artefact's existence**, not about an owner's silence, and all three rows rest on prose in the prohibition tier | **Not a class negative** |
 | 14 | **`10255/tcp`** — *"The owner states **no position** on `10255` anywhere that was retrieved"* (§16.5, [#76](https://github.com/winniel123/verge-asm/issues/76)) — **created after this population was fixed** | project documentation ×2 (`ports-and-protocols.md`, `kubelet-authn-authz.md`) · shipped bytes (`types.go`, `defaults.go`) · generated CLI reference | **the project's security documentation** | **Yes** — it is the weak tier's third row and rests on a restricting default alone | **Swept (§17.6). A category prohibition exists in the owner's voice, and whether it reaches the port is a footing question** |
 
+> **Amended by §22** ([#87](https://github.com/winniel123/verge-asm/issues/87)). **Rows 11 and 12 both
+> move to *Sole ground? **No***, and the residue goes to zero.** Neither was swept and neither needed to
+> be. **`8500/tcp`** was scored correctly when written and its second ground is now **established**:
+> **[measured]** `fmtp` is live — `EUROCONTROL-SPEC-0100` Ed. 2.0 §6.6 places FMTP on `8500` in a
+> `shall` and EUROCONTROL's 2026-01-20 standards catalogue still carries the specification — and Adobe
+> independently places ColdFusion's built-in web server there, so the row is overdetermined by
+> determinacy. **`5601/tcp` was mis-scored**, and the correction needs no retrieval: **§2.1 removes
+> Kibana by name** — *"Applied honestly it removes SSH, RDP, WinRM, **Kibana**, Grafana, Jenkins and the
+> Kubernetes API server from consideration in a single stroke"* — which is §10.2's **closed claim set**,
+> the first of the three un-exposing gates §17.2 lists and the same ground rows 9 and 10 are scored on.
+> Its determinacy half **also** holds (`esmagent` is live under Broadcom's current CCS documentation), so
+> it is overdetermined twice. **§17.2's arithmetic becomes 14 negatives · 8 un-exposed · 5 searched · 1
+> exhausted · 0 residue.** §22.5, §22.7.
+
 ### 17.2 The filter, and it is what makes the sweep affordable
 
 Six of the fourteen are **overdetermined**, and that is a property of an evidence standard with more
@@ -6820,6 +6868,427 @@ status is recorded with its body size.** No rendering, no summarising layer, no 
 
 ---
 
+## 22. ADR-0042's liveness test, run on `esmagent` and `fmtp` — both registrations are live
+
+Wayfinder ticket [#87](https://github.com/winniel123/verge-asm/issues/87), resolving §8 question 11 and
+discharging §17.8's named residue. It is the **first application** of
+[ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md), whose own
+Consequences said so, and it is the first time §15's source rule is pointed at an **excluded** row's
+squat rather than a listed row's. §15.4 walked the nine listed rows and deliberately did not walk these
+two.
+
+**Headline result, stated first.**
+
+> **Both registrations are live, both determinacy refusals hold, and no row moves. The list stays at
+> **37** `(port, transport)` pairs.** `esmagent` is live because the registrant's own corporate
+> successor documents the successor agent on the number **today**: Broadcom's current Control Compliance
+> Suite documentation places the *CCS Windows Agent* on **5601**. `fmtp` is live because EUROCONTROL's
+> specification names **8500** in a `shall` and EUROCONTROL's own **2026** standards catalogue still
+> lists that specification — and `8500` is defeated a second time, independently, by Adobe placing the
+> ColdFusion built-in web server on it in the current release. **§17.8's residue goes to zero**: with
+> both squats established rather than asserted, both rows are **overdetermined**, so neither
+> owner-silence negative is exposed to [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s
+> class sweep and **no sweep of Elastic's or HashiCorp's deployment documentation is owed**. Two
+> by-catch findings are worth more than the verdicts: **§17.1's two residue rows were never the same
+> shape** — `5601` was overdetermined by §2.1's closed claim set before this ticket existed and §17.1
+> row 11 mis-scored it, while `8500` was the genuine two-ground row — and **the ticket's own prediction
+> that limb 3 would decide `esmagent` is refuted**: limb 3 disposes of a *different* competitor and
+> limb **2** decides the row.
+
+### 22.1 What was retrieved
+
+Per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md), over the
+artefact rather than over the row, and per ADR-0048 the corpus is the **placement** class alone.
+
+| Artefact | Party | What it is | Retrieved |
+|---|---|---|---|
+| `service-names-port-numbers.csv` + `.xml` | IANA | The registry rows and the **registrant contact records** behind them | 2026-08-14, as bytes |
+| CCS *Network ports*, `SCU-2025` | Broadcom (Symantec) | Current Control Compliance Suite documentation, the port table | 2026-08-14 |
+| *Symantec ESM End of Life notification*, KB 190945 | Broadcom | The EOL/EOS dates for the registration's original product | 2026-08-14 |
+| CCS *End-of-Life and End-of-Service dates* advisory | Broadcom | Whether CCS itself is a supported product | 2026-08-14 |
+| `config/kibana.yml` at `main` | Elastic | The candidate's own placement, limb 1 | 2026-08-14, as bytes |
+| `config/opensearch_dashboards.yml` at `main` | OpenSearch project | The limb-3 sibling | 2026-08-14, as bytes |
+| **EUROCONTROL-SPEC-0100** *Interoperability and Performance Requirements for the FMTP*, Edition 2.0 | EUROCONTROL | The protocol's defining specification | 2026-08-14, PDF, text extracted locally |
+| **EGIS.COM.FMTP** *Guidelines for Implementation Support*, Edition 2.0 | EUROCONTROL | The deployment class for the same protocol | 2026-08-14, PDF, text extracted locally |
+| *EUROCONTROL Standards Catalogue*, Edition 01.01.00, 2026-01-20 | EUROCONTROL | Whether the specification is still presented as applicable — the **currency** test | 2026-08-14, PDF, text extracted locally |
+| *Flight message transfer protocol address coordination* service page | EUROCONTROL | Whether the party still operates the protocol's registry | 2026-08-14 |
+| CELEX `32007R0633` and `32023R1771` | EUR-Lex | Whether FMTP's EU mandate is still in force | 2026-08-14 |
+| ColdFusion *Connect to web servers* | Adobe | The independent second defeater on `8500` | 2026-08-14, as bytes |
+| Consul agent configuration reference | HashiCorp | The candidate's own placement, limb 1 | 2026-08-14 |
+
+### 22.2 `esmagent` is live — the registration is followed to its registrant, and the registrant's successor still ships on the number
+
+ADR-0048's rider is the whole method here: *"a registration reaches the limbs only through its
+registrant … a registration is followed to the registrant's current documents and stands or falls with
+them."* So the question is never *does IANA still say `esmagent`* — it is *who registered it, and do
+they still place software there*.
+
+**[measured]** The registry rows and the contact record behind them, read from IANA's own CSV and XML:
+
+```
+esmagent,5601,tcp,Enterprise Security Agent,[Kimberly_Gibbs],[Kimberly_Gibbs],,,,,,
+esmagent,5601,udp,Enterprise Security Agent,[Kimberly_Gibbs],[Kimberly_Gibbs],,,,,,
+```
+
+```xml
+<person id="Kimberly_Gibbs">
+  <name>Kimberly Gibbs</name>
+  <uri>mailto:kimgib&amp;ccgate-ut.axent.com</uri>
+</person>
+```
+
+The registrant is at **`axent.com`** — AXENT Technologies, whose *Enterprise Security Manager* is the
+product the registration is named for. AXENT was acquired by Symantec, and Symantec's enterprise
+security business by Broadcom. **The registration's party is therefore Broadcom today**, and the chain
+is confirmed by Broadcom's own documents rather than by corporate history: Broadcom publishes the ESM
+end-of-life notice, and Broadcom's current successor product carries an *ESM Agent Registration* panel.
+
+**The original product is dead, and it is the wrong thing to look at.** Broadcom KB 190945 gives
+Symantec Enterprise Security Manager **End of Life 03/30/2012**, **End of Standard Support Life
+08/27/2015**, **End of Extended Support Life 11/17/2016**, with *"The last security update for Symantec
+Enterprise Security Manager was released on 17 November 2016."* A session that stopped here would
+report the registration dead — and would be wrong, because ADR-0048 limb 4 asks whether **the party**
+still presents a placement as applicable, and the party renamed the product rather than retiring the
+listener.
+
+**[measured] Broadcom's current Control Compliance Suite documentation places the agent on 5601.** From
+the `SCU-2025` *Network ports* table, verbatim:
+
+> | CCS Manager | CCS Windows Agent | **5601** | Required by the CCS Manager to communicate with the CCS Agent. |
+> | CCS Manager | CCS UNIX Agent | 5600 | Required by the CCS Manager to communicate with the CCS Agent. |
+>
+> — [Broadcom TechDocs, Control Compliance Suite, *Network ports*](https://techdocs.broadcom.com/us/en/symantec-security-software/information-security/control-compliance-suite/SCU-2025/network-ports-v122827897-d8e138139.html)
+
+**And the same table states the lineage in the owner's own voice**, which is what ties the current
+placement back to the 2003-era registration rather than leaving it a coincidence of numbers:
+
+> | CCS Agent | CCS Manager | 5600 / 3993 | Default port is 5600. … **If you are upgrading an ESM Manager to CCS Manager, the CCS Manager continues to use the ESM Manager port.** |
+
+Currency under limb 4 is not in doubt. Broadcom's own product advisory lists **Control Compliance Suite
+12.8.0, GA 10/10/2025, with no EOS and no EOL date assigned** — a supported release of a generally
+available product, which is limb 4's first clause exactly.
+
+> **`5601/tcp`'s squat is contested.** The defeating artefact is Broadcom's current CCS *Network ports*
+> table, placing the **CCS Windows Agent** — the `esmagent` registration's own successor — on `5601`.
+> Limb 2, on another party's current placement statement for a different protocol.
+
+### 22.3 The limb-3 check on `5601`, and it disposes of the *other* competitor
+
+`5601` has a second occupant, and it is the one that looks like `9200`'s. **[measured]** the two shipped
+configuration files, read as bytes at `main`:
+
+| File | Line |
+|---|---|
+| `elastic/kibana`, `config/kibana.yml` | `#server.port: 5601` |
+| `opensearch-project/OpenSearch-Dashboards`, `config/opensearch_dashboards.yml` | `# server.port: 5601` |
+
+The first is limb 1 — the candidate's own owner placing Kibana on the pair, which is what makes `5601` a
+convention at all. The second is a **different vendor placing the same protocol**: OpenSearch Dashboards
+is a fork of Kibana and declares the Kibana user interface and its APIs, so under limb 3 the two are
+**one convention, not two**. This is §15.4's `9200` cell one row across, and it is the first time limb 3
+has been applied to an **excluded** row.
+
+**So the ticket's own prediction is refuted, and the refutation is the useful part.** #87 expected limb
+3 — *the same protocol under a different vendor is one convention* — to be the limb that decided
+`esmagent`. It is not: limb 3 **removes** OpenSearch Dashboards from consideration, and had `esmagent`
+been dead the row's determinacy gate would then have **passed**. What decides the row is limb **2**, on
+a party the ticket did not name and whose product no longer carries the registered name. The lesson is
+the rider's: *follow the registration to the registrant*, not to the string in the registry.
+
+### 22.4 `fmtp` is live — the specification names the number in a `shall`, and its owner's 2026 catalogue still lists it
+
+**[measured]** The registry rows and the contact record:
+
+```
+fmtp,8500,tcp,Flight Message Transfer Protocol,[Eivan_Cerasi],[Eivan_Cerasi],2003-12,,,,,
+fmtp,8500,udp,Flight Message Transfer Protocol,[Eivan_Cerasi],[Eivan_Cerasi],2003-12,,,,,
+```
+
+```xml
+<person id="Eivan_Cerasi">
+  <name>Eivan Cerasi</name>
+  <uri>mailto:eivan.cerasi&amp;eurocontrol.int</uri>
+  <updated>2022-08-08</updated>
+</person>
+```
+
+The registrant is at **`eurocontrol.int`**, and the contact record was **updated 2022-08-08** — a
+maintained registration rather than an orphaned one. EUROCONTROL is the protocol's specifier, which is
+§10.5's *owner* and ADR-0048 limb 1's party.
+
+**[measured] The specification places the protocol on the number in normative language.** From
+`EUROCONTROL-SPEC-0100`, *EUROCONTROL Specification of Interoperability and Performance Requirements for
+the Flight Message Transfer Protocol (FMTP)*, Edition Number 2.0, Edition Date 14/06/2007, status
+*Released Issue*, §6.6 *TCP Ports*, read from the PDF's extracted text:
+
+> "FMTP **shall reserve and make use of TCP port number 8500** for operational data exchange, as this
+> port number is used to serve incoming TCP transport connection requests for the purpose of the FMTP."
+
+The deployment-class document says the same thing and cites the registration itself. From
+`EGIS.COM.FMTP`, *EUROCONTROL Guidelines for Implementation Support*, Edition 2.0, §3.2.4:
+
+> "Although implementations are to make use of TCP port 8500, it should be a configuration parameter of
+> the implementation. **NOTES 1. TCP port number 8500 has been registered with the Internet Assigned
+> Numbers Authority (IANA).**"
+
+and, in its own service-interface figure, *"TCP Layer (Server listening port is 8500, Client port is
+selected at random)"*.
+
+**Currency, which is the limb that mattered.** A 2007 specification is exactly the shape that fails limb
+4 — *"not obsoleted, withdrawn, or reclassified Historic"* — so it was tested rather than assumed.
+**[measured]** the *EUROCONTROL Standards Catalogue*, **Edition 01.01.00, edition date 2026-01-20**,
+carries the specification as a live catalogue entry under *Communications, navigation and surveillance*:
+
+> "EUROCONTROL Specification of Interoperability and Performance Requirements for the Flight Message
+> Transfer Protocol (FMTP) — Identification: **EUROCONTROL-SPEC-100 · 2.0 · 2007-06-14**"
+
+**[measured]** the strings `withdrawn` and `superseded` occur **zero** times in that catalogue, so there
+is no withdrawal apparatus the entry could have been marked with and was not. EUROCONTROL also still
+**operates** the protocol's address registry — its *Flight message transfer protocol address
+coordination (FMTP)* service page reports FMTP implementation on behalf of ICAO and maintains an FMTP
+database. That is the party presenting the statement as applicable, in both of the ways limb 4 allows.
+
+**The one thing that moved, recorded because it points the other way.** FMTP's EU legal mandate has
+lapsed. Commission Regulation (EC) No 633/2007 — the instrument the EGIS guidelines cite — reads on
+EUR-Lex as *"No longer in force, Date of end of validity: 04/10/2023; Repealed by 32023R1771"*, and
+Commission Implementing Regulation (EU) 2023/1771 folded ATM/ANS systems requirements into Implementing
+Regulation (EU) 2017/373, whose consolidated text **does not name the flight message transfer protocol**.
+So the sentence *"this EUROCONTROL Specification has been recognised as a Community specification"* in
+EUROCONTROL's own catalogue is describing a status the Union has since restructured. **This does not
+defeat the finding** — limb 4 keys currency to the **party**, not to a legislature, and EUROCONTROL both
+catalogues the specification and runs the registry — but it is the single most likely thing to change,
+and it is the reopening criterion in §22.6 rather than a footnote.
+
+**`8500` is defeated a second time, independently, and by a party with no currency question at all.**
+Adobe's current ColdFusion documentation, **[measured]** read as bytes from the page:
+
+> "By default in the server configuration, the built-in web server listens on port 8500. For example, to
+> access the ColdFusion Administrator through the built-in web server, specify
+> `http://_servername_:8500/CFIDE/administrator/index.cfm`."
+> — [Adobe, ColdFusion, *Connect to web servers*](https://guides.adobe.com/coldfusion/en/docs/install-and-configure-coldfusion/web-server-management.html)
+
+The same documentation set covers **ColdFusion (2025 release)** through Update 9, so this is a documented
+default of a generally available product — §15.8's own qualifier on limb 2, met. Limb 3 does not reach
+it: ColdFusion's built-in server and Consul's HTTP API are both carried over HTTP, but limb 3's test is
+*does the second party declare that it speaks the first's protocol*, and Adobe declares nothing about
+Consul's API. Two services sharing a **transport** are not one convention; §4.6's *"one port, two
+completely different services"* is the discriminator, and it is met here.
+
+> **`8500/tcp`'s squat is contested, twice over.** The defeating artefacts are `EUROCONTROL-SPEC-0100`
+> §6.6, carried as current by EUROCONTROL's 2026-01-20 standards catalogue, and — independently —
+> Adobe's ColdFusion (2025 release) documentation placing the built-in web server on `8500`.
+
+For completeness, the candidate's own placement, limb 1: HashiCorp's Consul agent configuration
+reference documents the `http` port as *"The HTTP API, -1 to disable. Default 8500. TCP only."*
+
+### 22.5 The two residue rows were never the same shape, and §17.1 row 11 mis-scored one of them
+
+§17.8 named `5601` and `8500` as a matched pair — *"each excluded on owner-silence plus a squat"* — and
+§17.1 scored both **Sole ground? Partly**. **That is right for `8500` and wrong for `5601`**, and the
+error is visible in this note's own §2.1 without retrieving anything:
+
+> "Applied honestly it removes SSH, RDP, WinRM, **Kibana**, Grafana, Jenkins and the Kubernetes API
+> server from consideration in a single stroke — because for each of those, a human or a remote client
+> *is* the intended audience, and remote administration over an untrusted network is the express purpose
+> the protocol was designed to serve." — §2.1
+
+That is §10.2's **closed claim set** refusing the row by name, which is the first of the three gates
+§17.2's filter lists as un-exposing, and it is the identical scoring §17.1 rows 9 and 10 give WinRM and
+RDP — *"express purpose"* — from the same sentence. `5601`'s owner-silence negative was therefore
+**never sole-ground**, and its exposure in §17.1 was a clerical consequence of reading §4.6's cell
+(which does not mention Claim 3) instead of §2.1's list (which names Kibana).
+
+`8500` is the genuine article. §4.6's own cell concedes that Consul *"is not secure-by-default"* and
+ships `acl.default_policy = "allow"`, which is a live Claim 1 argument on §10.1's first step, so the row
+is not disposed of by the claim set; its exclusion really did rest on owner-silence **plus** the squat,
+and this section is what converts the second half from asserted to established.
+
+**One clause of §4.6's `5601` cell is withdrawn** under the name-and-withdraw convention. *"Kibana is
+routinely and legitimately fronted on the internet behind auth"* has no owner behind it, is not a §2.2
+attestation, and is precisely the assertion §2.2's first sentence bars — *"The claim may not be asserted
+by us."* It is withdrawn as a **ground**. Nothing rests on it: the surviving grounds are §2.1's Claim 3
+failure, which is this note's own instrument and needs no owner, and the determinacy refusal now footed
+in §22.2. **Also withdrawn as a transposition risk**, restating what §4.6 already flagged: Elastic's
+*"Never expose an unprotected node to the public internet"* is about **Elasticsearch** and carries
+`9200`; it may not be read onto `5601`, which is the error §2.2 records for CouchDB's Erlang port.
+
+### 22.6 The ruling — §4.6's two cells restated with their defeating artefacts
+
+Per ADR-0048's **refusal artefact rule**: *"every refusal on determinacy names the artefact that defeated
+it, quoted and dated, in the note's negative space."* These two cells were the note's only determinacy
+refusals resting on an unnamed competitor.
+
+| Excluded | Why — restated |
+|---|---|
+| **5601/tcp Kibana** | **Two independent grounds, neither of which is an assertion of ours.** §2.1's closed claim set refuses it by name — a human is the intended audience, so Claim 3 fails and §10.2 admits no fourth claim. **And it fails determinacy**: the `esmagent` registration is followed to its registrant at **AXENT Technologies**, whose successor **Broadcom** places the *CCS Windows Agent* on `5601` in the current `SCU-2025` Control Compliance Suite *Network ports* table, on a supported release (**CCS 12.8.0, GA 10/10/2025, no EOS/EOL**), with the ESM lineage stated in the same table. **OpenSearch Dashboards does not contest it** — same protocol, limb 3. Elastic's silence is **not** a ground and never needed to be — §22.2, §22.3, §22.5 |
+| **8500/tcp Consul HTTP API** | **Fails determinacy, on two independent artefacts.** `EUROCONTROL-SPEC-0100` Ed. 2.0 §6.6 — *"FMTP shall reserve and make use of TCP port number 8500 for operational data exchange"* — carried as a live entry in EUROCONTROL's own *Standards Catalogue* Ed. 01.01.00 (**2026-01-20**), with EUROCONTROL still operating the FMTP address-coordination registry. **And** Adobe's ColdFusion (2025 release) documentation — *"the built-in web server listens on port 8500"* — a different protocol with no compatibility declared in either direction. HashiCorp's *"should be considered"* remains too weak to admit the row, and now does not have to carry it — §22.4 |
+
+**The criterion that would change either verdict.** For `5601`: nothing reachable, and that is the
+stronger statement of the two. Even if Broadcom retired CCS tomorrow the row would still be refused by
+§2.1's claim set, which no retrieval can move; re-admitting `5601` would take a change to §10.2's closed
+set, which is a repair of the standard rather than a row move. For `8500`: **Adobe removing the 8500
+default from the ColdFusion built-in web server, *and* EUROCONTROL withdrawing or superseding
+`EUROCONTROL-SPEC-0100` and closing the FMTP address-coordination service** — both, because either alone
+leaves a live competing placement. The EU repeal of Regulation 633/2007 is the visible pressure on the
+second and it is **not** sufficient on its own; the catalogue entry and the running registry are the
+things to re-read. At that point the row would still need an owner sentence from HashiCorp stronger than
+*"should be considered"*, so it is two independent events away from admissibility rather than one.
+
+### 22.7 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged.** No row is admitted and none is removed. This section **could** have added a row — had a registration been dead and a class sweep then returned a prohibition — and it did not |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged.** No row enters or leaves a class |
+| §2.2 footing table, as restated by §16.7 | #76's tiers, placing 26 of 37 | **unchanged in every cell.** Neither `5601` nor `8500` is a row, so neither takes a footing cell, and the denominator stays **37** |
+| §2.2 weak tier | `5432`, `5984`, `10255` | **three, unchanged.** This section touches determinacy only, which takes no footing cell |
+| §2.6's boast | true of all 37 | **unchanged** — no row's attestation is touched |
+| §4.5 *the list's weakest row* | 5432/tcp | **unchanged** |
+| §4.6 exclusions | 18 named | **18 named, unchanged.** No entry is added or removed; **two have their stated reason restated** with cited artefacts (§22.6), and one clause of the `5601` cell is **withdrawn as a ground** (§22.5) |
+| §6.1 containment arithmetic | 28 + 4 + 5 = 37 | **unchanged** — no member enters the sensitive half, so no containment gap can be created |
+| §17.1 row 11, `5601`, *Sole ground?* | **Partly** | **No.** §2.1's closed claim set refuses the row by name; the negative was never exposed (§22.5) |
+| §17.1 row 12, `8500`, *Sole ground?* | **Partly** | **No.** Correct as *Partly* when written; the squat is now **established**, so the row is overdetermined and the negative is no longer exposed |
+| §17.2's arithmetic | 14 negatives · 6 un-exposed · 5 searched · 1 exhausted · **2 residue** | **14 negatives · 8 un-exposed · 5 searched · 1 exhausted · 0 residue.** Rows 11 and 12 move from *exposed* to *un-exposed*; nothing was swept to achieve it |
+| §17.8's residue | two rows, *"§2.4's backlog, not §2.2's"* | **discharged, and the backlog is finished for §2.4 as well** (§22.8) |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged.** No member enters or leaves either half. For the record, neither `5601` nor `8500` is in the frequency half either, so both are reached only by the opt-in full-range tier — the same outcome §14.7 recorded for `7000` and correct for the same reason |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical. No version bump, no aperture change, no comparability cycle. **Free in the strong sense**, not the vacuous-before-v1 sense |
+| §8 | 12 questions, question 11 open | **12 — question 11 closed** |
+| ADR-0048's reproduction table | nine rulings, no verdict moved | **eleven rulings, no verdict moved.** `5601` and `8500` join it as the first **excluded**-row squats walked under the standard |
+
+**Outside this note.**
+[ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md) gains a
+**first-application** note in its Consequences and its criterion is untouched. No ADR is added: this
+section applies a rule already written and mints nothing, which is #76's precedent.
+[ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md),
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md),
+ADR-0008, ADR-0009, ADR-0032, ADR-0035, ADR-0036, ADR-0037 and ADR-0040 are untouched.
+[`CONTEXT.md`](../../CONTEXT.md) is **not** edited — no term is minted, and ADR-0048 set the precedent
+for staying out of that file while concurrent passes are running.
+
+
+> **Merge reconciliation — §18, §19, §20, §21 and §22 were resolved concurrently, and this table was
+> walked against the note as it stood before any of them landed.** Two cells above are superseded,
+> and neither is a disagreement, because §22 moved **no row, no class and no footing**:
+>
+> - *§3.1 / §3.2 / §3.3 class totals* reads **11 / 7 / 19**, moved by §19, which carried `10250/tcp`
+>   from Class A to Class C on the kubelet's shipped defaults.
+> - *§2.2 footing table* reads **prohibition 15 · scoping 9 · weak 2**, moved by §18, which carried
+>   `10250/tcp` and `10255/tcp` into the explicit prohibition tier. Coverage is unchanged at
+>   **26 of 37**, exactly as this table states.
+>
+> §22's own figure — **§1's pair count at 37** — is confirmed rather than superseded, and by all four
+> siblings independently: §18 and §20 moved footings, §19 moved a claim, §21 refused an admission.
+> **The composed state: 37 pairs · classes 11 / 7 / 19 · footing tiers prohibition 15 · scoping 9 ·
+> weak 2 · coverage 26 of 37 · ADR-0032 §8's watch list `5432`, `5984` · §4.6 exclusions 18.**
+
+### 22.8 The residue goes to zero, and what that does to §17.8's *fixed point*
+
+§17.8 established that a class sweep **terminates**, and qualified it: *complete as of a stated table
+state*, with a footing move re-arming it for the row that moved. Its own residue was these two rows,
+handed to §2.4's backlog rather than swept.
+
+> **§2.4's backlog is now finished too, as of the same table state.** Every negative in §17.1 is either
+> un-exposed by a gate that is not a silence, searched, or resting on an exhausted class list. **There
+> is no negative in this note awaiting a retrieval.**
+
+Two things that does **not** mean, stated because a reader will assume both.
+
+**It does not make the *sweep* claim stronger than §17.8 left it.** §17.8's fixed point is about
+**footing** moves re-arming §2.2's sweep; this section moves no footing. What it retires is the separate
+§2.4 backlog — the untested determinacy calls — and that backlog is re-armed by a different event: **a
+competing owner starting or stopping documenting its service on a number this note relies on**, which is
+the trigger the map's curation patch already prices from [#75](https://github.com/winniel123/verge-asm/issues/75).
+`8500` is now the clearest live instance of that trigger anywhere in the note, because its EU legal
+footing has already moved once (§22.4).
+
+**And one determinacy refusal in §4.6 is still unfooted, named rather than swept.** The **Hadoop
+NameNode / YARN UI** entry is refused for version-dependence — *"the web UI port moved from 50070 to
+9870 between major versions"* — and cites no Apache document for the move. That is a limb-2
+**displacement** by the candidate's own owner and is very likely correct, but ADR-0048's refusal artefact
+rule wants the artefact. It is left **grandfathered on §15.5's pricing**: it owes its citation the first
+time it is individually relied on, exactly as §4.3's ten generic ports do, and filing a re-founding
+ticket for it would contradict that pricing. **[measured]** it is the only such entry: every other
+determinacy refusal in §4.6 now names a document — `9100` (HP), `79` (RFC 4146, §15.5), `6443`
+(Kubernetes, §4.4), `7000`/`7001` (Apple and Oracle, §14.8), and these two.
+
+### 22.9 Thin ground, flagged per the standing rule
+
+**The `esmagent` finding rests on a corporate-succession chain, and that is a judgement rather than a
+retrieval.** What is measured is that the registrant's email domain is `axent.com` and that Broadcom
+today documents a *CCS Windows Agent* on `5601` whose manager the same table says inherits *"the ESM
+Manager port"*. What is **inferred** is that AXENT's ESM agent and Broadcom's CCS agent are the same
+lineage. A reader who rejects the inference still loses the row: limb 2 asks only whether **another
+party** has a current placement statement on the pair for a **different protocol**, and Broadcom's CCS
+agent is that whether or not it descends from `esmagent`. The succession is why the *registration* is
+live; the current table is why the *convention* is contested. **The finding survives the weaker
+reading**, and it is stated this way rather than smoothed because a session that needs the succession
+proved has not got it here.
+
+**The FMTP currency limb is the thinnest thing in this section.** A 2007 specification held current by a
+2026 catalogue entry is one bureaucratic tidy-up away from failing, and the protocol's EU mandate has
+**already** lapsed (§22.4). Two things hold it: the catalogue is the owner's own current document and
+uses no withdrawal marking anywhere, and the owner still runs the FMTP address registry as a live
+service. **It is also load-bearing on nothing**, because ColdFusion defeats `8500` independently and
+without a currency question — which is why the second artefact was retrieved rather than stopping at the
+first. A reader who rejects the FMTP limb entirely reaches the same verdict.
+
+**ColdFusion's built-in web server is a development default and Adobe says so** — *"Adobe does not
+recommend using the built-in web server in a production environment"*. That is a **deployment
+recommendation**, not a withdrawal of the default, and §15.8's qualifier asks for a *documented default
+of a generally available product*, which it is. But a reader who holds that a default its own vendor
+steers you away from is a weaker placement than a production one has a real argument, and it is a second
+reason the EUROCONTROL limb was retrieved rather than skipped. **The two artefacts are weak in opposite
+directions**, which is the strongest thing that can be said for the pair.
+
+**§22.5's re-scoring of §17.1 row 11 is a re-reading, not a retrieval, and it does not move a row.**
+[#37](https://github.com/winniel123/verge-asm/issues/37)'s rule is that *a row moves on retrieval, never
+on a re-reading*; nothing here moves a row, and what is corrected is a **classification column** in a
+sibling section's table, on that table's own stated criteria. Recording the distinction because the
+correction would be inadmissible if it had gone the other way.
+
+**No claim is made that no other service listens on `5601` or `8500`.** What is established is that at
+least one does on each, from that service's own party's current documentation. That is sufficient to
+fail a gate requiring convention to be **un**contested, and it is not a survey —
+[ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)'s *presumption not
+yet defeated* rule and §14.9's, restated.
+
+### 22.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6 and §17.10
+
+- **The IANA *people* records are the instrument this section turned on, and nobody had opened them.**
+  Both squats have been discussed since [#21](https://github.com/winniel123/verge-asm/issues/21) by the
+  registry's **service name** — `esmagent`, `fmtp` — and the service name is exactly the thing that goes
+  stale when a product is renamed. The registrant contact is in the registry's **XML** and not in its
+  CSV, and it resolved both rows in one fetch: `axent.com` and `eurocontrol.int`. ADR-0048's rider
+  already said to follow the registration to its registrant; this is what doing so costs.
+- **The EOL notice was the trap, and it is the shape of trap this note keeps meeting.** Broadcom's own
+  KB says Symantec ESM has been out of extended support since 2016. Read as the answer it gives *the
+  registration is dead*, which is the finding the ticket predicted and the opposite of the truth. The
+  tell is that limb 4 asks about the **party**, not the product name — the same distinction ADR-0036 drew
+  between an artefact and its label, one gate across.
+- **PDFs were extracted locally rather than read through a rendering or summarising layer**, per
+  [#46](https://github.com/winniel123/verge-asm/issues/46). `pdftotext -layout` over the retrieved bytes
+  for all three EUROCONTROL documents; the specification's §6.6 and the catalogue's FMTP entry were then
+  read in context rather than grepped for a number. A first attempt to read the specification through a
+  fetch-and-summarise path returned *"the actual specification body … is not legible"* and would have
+  produced a false negative on the strongest sentence in the section.
+- **`techdocs.broadcom.com` and `guides.adobe.com` both serve JavaScript-heavy pages**, the shape §9.5
+  recorded for `learn.microsoft.com` and §14.6 for `docs.oracle.com`. The ColdFusion sentence was
+  confirmed against the raw bytes of the page, where it appears in the embedded document payload; the
+  Broadcom ports table was read from the rendered document and is one step weaker than a raw artefact,
+  and that is flagged. The 5601 row was cross-checked against a second Broadcom document — KB 195968,
+  *"Windows agent listens on port 5601"* — which is corroboration under §2.3 and not a second ground.
+- **The EU-law check was run because it could only hurt, and it did.** Nothing obliged this section to
+  ask whether FMTP's mandate survived; asking turned a clean *specification in force* into a
+  qualification. Recording it because §2's whole discipline is that a retrieval that weakens your own
+  finding is the one worth reporting, and §17.3's `161/udp` sweep is the precedent.
+- **The temptation this section had to refuse by name.** The available shortcut on `5601` is *nobody has
+  run Symantec ESM in a decade, and everybody's 5601 is Kibana* — which is true, and is a **frequency**
+  sentence. §1 excludes it, ADR-0042 limb 3 excludes it, ADR-0048 limb 4 fences it as *currency, not
+  size*, and §15.7 predicted the next session would feel the same pull. It was felt. The answer is that
+  a party with one deployment and a current page contests, and Broadcom has a current page.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -6984,3 +7453,12 @@ Named in §10 and **not retrieved** — recorded so the gap is visible rather th
   option that lost, not to carry any row. The rule the walk establishes — a permissive default is
   silent — means **no verdict depends on any entry in that list being exact**, which is why it is
   presented as a measurement of the losing option's blast radius rather than as evidence
+
+Retrieved for §22 ([#87](https://github.com/winniel123/verge-asm/issues/87)) — the determinacy corpus for `5601/tcp` and `8500/tcp`, all **placement** statements under [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)
+- [IANA Service Name and Transport Protocol Port Number Registry, XML form](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml) — the **registrant contact records** the CSV omits: `Kimberly_Gibbs` at `ccgate-ut.axent.com` for `esmagent`, and `Eivan_Cerasi` at `eurocontrol.int` for `fmtp`, the latter `<updated>2022-08-08</updated>`. This is the instrument §22 turned on, and it had never been opened
+- Broadcom: [Control Compliance Suite *Network ports*, `SCU-2025`](https://techdocs.broadcom.com/us/en/symantec-security-software/information-security/control-compliance-suite/SCU-2025/network-ports-v122827897-d8e138139.html) — *"CCS Manager · CCS Windows Agent · **5601** · Required by the CCS Manager to communicate with the CCS Agent"*, and, in the same table, *"If you are upgrading an ESM Manager to CCS Manager, the CCS Manager continues to use the ESM Manager port"* · [End-of-Life and End-of-Service dates for Control Compliance Suite](https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/product-advisories/End-of-Life-and-End-of-Service-dates-for-Control-Compliance-Suite/16154) (CCS 12.8.0, GA 10/10/2025, no EOS and no EOL — the **currency** check) · [Symantec ESM End of Life notification, KB 190945](https://knowledge.broadcom.com/external/article/190945/symantec-esm-enterprise-security-manager.html) (EOL 03/30/2012, End of Extended Support Life 11/17/2016 — the **trap**, §22.10) · [KB 195968](https://knowledge.broadcom.com/external/article/195968/using-telnet-to-troubleshoot-connectivit.html) (*"Windows agent listens on port 5601"*), corroboration under §2.3 and not a second ground
+- [`elastic/kibana`, `config/kibana.yml` at `main`](https://raw.githubusercontent.com/elastic/kibana/main/config/kibana.yml) (`#server.port: 5601` — limb 1) · [`opensearch-project/OpenSearch-Dashboards`, `config/opensearch_dashboards.yml` at `main`](https://raw.githubusercontent.com/opensearch-project/OpenSearch-Dashboards/main/config/opensearch_dashboards.yml) (`# server.port: 5601` — the **limb 3** sibling, one convention with Kibana and not a contest)
+- EUROCONTROL, all three PDFs retrieved and text-extracted locally per [#46](https://github.com/winniel123/verge-asm/issues/46): [**EUROCONTROL-SPEC-0100**, *Specification of Interoperability and Performance Requirements for the FMTP*, Edition 2.0, 14/06/2007](https://www.eurocontrol.int/sites/default/files/publication/files/20070614-fmtp-spec-v2.0.pdf) §6.6 — *"FMTP **shall** reserve and make use of TCP port number 8500 for operational data exchange"* · [**EGIS.COM.FMTP**, *Guidelines for Implementation Support*, Edition 2.0](https://www.eurocontrol.int/sites/default/files/2019-06/121208-egis-fmtp.pdf) §3.2.4 and Figure 3 (*"Server listening port is 8500"*) · [**EUROCONTROL Standards Catalogue**, Edition 01.01.00, edition date 2026-01-20](https://www.eurocontrol.int/sites/default/files/2026-01/eurocontrol-standards-catalogue-v-01-01-00.pdf) — carries `EUROCONTROL-SPEC-100 · 2.0 · 2007-06-14` as a live entry, and **[measured]** the strings `withdrawn` and `superseded` occur **zero** times in it. The **currency** limb rests on this document · [*Flight message transfer protocol address coordination (FMTP)*](https://www.eurocontrol.int/service/flight-message-transfer-protocol-address-coordination) — the registry EUROCONTROL still operates on behalf of ICAO
+- EUR-Lex, retrieved because it could only weaken the finding, and did (§22.10): [CELEX `32007R0633`](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32007R0633) — *"No longer in force, Date of end of validity: 04/10/2023; Repealed by 32023R1771"* · [CELEX `32023R1771`](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32023R1771), which folds ATM/ANS systems requirements into [Implementing Regulation (EU) 2017/373](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32017R0373), whose consolidated text does not name FMTP. **It carries the finding in neither direction** — limb 4 keys currency to the party, not to a legislature — and it is `8500`'s reopening pressure (§22.6)
+- [Adobe, ColdFusion, *Connect to web servers*](https://guides.adobe.com/coldfusion/en/docs/install-and-configure-coldfusion/web-server-management.html) — *"By default in the server configuration, the built-in web server listens on port 8500"*, in a documentation set covering **ColdFusion (2025 release)**. The **independent second defeater** on `8500`, and the one with no currency question
+- [HashiCorp, Consul agent configuration reference](https://developer.hashicorp.com/consul/docs/reference/agent/configuration-file/general) — *"The HTTP API, -1 to disable. Default 8500. TCP only."*, limb 1 for the candidate
