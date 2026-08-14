@@ -380,6 +380,13 @@ seventh facet, writes a canonicaliser, and silently skips the batch-scope obliga
   `k` cadences of the covering `Scan`, so this is legal without new machinery — but
   `tls-1.0-accepted` is now the slowest-moving signal in the set, and a `Gap` opens two weeks after
   the weekly tier stops rather than two days.
+  *Amended by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md): "the weekly
+  tier" reads as [#4](https://github.com/winniel123/verge-asm/issues/4)'s top-1000 port `Scan` and
+  should read "its weekly `Scan`" — the enumeration is a fourth `Scan` over the open `Service`
+  population, not a port tier, since `verge-core`'s sensitive-only members are not in top-1000.
+  This consequence is otherwise vindicated: `tls-1.0-accepted` is the slowest-moving signal in the
+  set, and it is so precisely because this ADR's own "daily handshake" for `certificate` is
+  correct.*
 
 ## Alternatives rejected
 

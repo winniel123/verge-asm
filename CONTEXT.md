@@ -188,7 +188,13 @@ _Avoid_: external, network position, inside/outside
 
 **Scan**:
 The operator's configured recurring intent — which scopes, which ports, which vantages,
-what cadence. The configured thing, never the executed one.
+what cadence. The configured thing, never the executed one. **Not every `Scan` is a port
+tier**: three are, and the fourth is `tls-acceptance`'s weekly enumeration, whose scope is the
+open `Service` population and the TLS candidate set. A measurement that needs a cadence of its
+own takes a `Scan` of its own, because a slower cadence hidden inside another `Scan` makes the
+aperture a hidden field rather than a configured object. See
+[ADR-0005](./docs/adr/0005-scan-execution-model.md) and
+[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md).
 _Avoid_: job, scan job
 
 **Annotation**:
@@ -309,16 +315,29 @@ the value space's two variants are both outcomes of a wire exchange, and a log e
 issuance rather than presentation — so CT admits `Name`s and holds no timeline here or anywhere.
 Attributing a logged certificate to an `Endpoint` nobody watched serve it would assert a
 presence no scope record can catch, which is the no-false-absence rule read in the direction
-that has no guard. See [ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md).
+that has no guard. The handshake that feeds it is **a step in the exchange that produces
+`reachability`**, not a scan of its own and not a tier: neither negative can be read without
+knowing the port was open, and the value space has no variant meaning *the port was shut*. So the
+facet **has no single cadence** — it rides whichever port tier ran the exchange, and its currency
+is the `Service`'s own, the tightest cadence covering that port. All tiers fold into one timeline
+and therefore declare **one** candidate set between them. See
+[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md) and
+[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md).
 _Avoid_: cert record, TLS config, negotiated version, cipher
 
 **tls-acceptance**:
 The facet holding which protocol versions and cipher suites a `Service` **accepted** — measured
-by enumeration on the weekly tier, one handshake per candidate, and attempted against every open
-service rather than a curated implicit-TLS port list. *Accepted* is the measured verb; *supported*
+by enumeration on **its own weekly `Scan`**, one handshake per candidate, and attempted against
+every open `Service` rather than a curated implicit-TLS port list. *Weekly* is a cadence bought
+against N handshakes per service, never a port tier: scoping it to the top-1000 tier would leave
+`verge-core`'s sensitive-only members unenumerated, since they rank nowhere by frequency. So its
+`Scan`'s scope is the open `Service` population and the candidate set, and it is the fourth `Scan`
+rather than a fifth port set. *Accepted* is the measured verb; *supported*
 is a capability claim the measurement cannot carry. The **candidate set is the `Batch`'s recorded
 scope, never part of the value**, so an offer of nine ciphers can never assert the tenth was
-refused. The candidate set is **declared by us and recorded as what went on the wire, never taken
+refused, and see [ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) for
+why this `Scan`'s candidate set and the `certificate` handshake's need not match. The candidate set
+is **declared by us and recorded as what went on the wire, never taken
 from the TLS library's defaults**: a default is not a declaration, and one left in place hides a
 TLS-1.0-only listener as `NoTLS` on exactly the estate `tls-1.0-accepted` exists for. Widening the
 offer is an aperture change, and because the candidate set sits inside the **value** rather than in
@@ -527,11 +546,14 @@ are named, and they do not all live in the same place: `appeared` (discovery) an
 `revealed` (a widened aperture — *we* started looking, the world did not move) belongs to
 **any** timeline, because membership is a property of a subject and aperture is a property of
 looking, which is per-timeline. An opening caused by neither is recorded, unnamed and
-unalerted — a `certificate` timeline opens days after its `Service` did because TLS sits on
-the weekly tier, and nothing about the world or our aperture moved. A `Gap` closing is none of
-these: it is an ordinary adjacency, and always an observer event, since a `Gap` exists only
-where we could not say. See
-[ADR-0014](./docs/adr/0014-only-revealed-generalises.md).
+unalerted — a `tls-acceptance` timeline opens days after its `Service` did because the
+enumeration runs on its own weekly `Scan`, and nothing about the world or our aperture moved.
+A `Gap` closing is none of these: it is an ordinary adjacency, and always an observer event,
+since a `Gap` exists only where we could not say. See
+[ADR-0014](./docs/adr/0014-only-revealed-generalises.md) — whose worked example this was, and
+which named `certificate` until
+[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) found that
+facet's handshake rides the `reachability` exchange and opens with its `Service`.
 _Avoid_: change, event, diff, delta
 
 **Break**:

@@ -309,9 +309,14 @@ timeline, because membership is a property of a **subject** while aperture is a 
 **looking**, and looking is per-timeline. `appeared` and `returned` stay membership-only. This ADR
 had already committed to it in substance: the #36 amendment above rules that the qtype set and the
 TLS candidate set *"start timelines that did not exist, so both yield `revealed`"*, and those are
-facet timelines. An opening caused by neither the world nor our aperture — a `certificate` timeline
-opening six days after its `Service` did, because TLS is on the weekly tier — is recorded, unnamed
-and unalerted.
+facet timelines. An opening caused by neither the world nor our aperture — a `tls-acceptance`
+timeline opening six days after its `Service` did, because the enumeration runs on its own weekly
+`Scan` — is recorded, unnamed and unalerted. *Corrected by
+[ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md): this originally read "a
+`certificate` timeline opening six days after its `Service` did, because TLS is on the weekly tier",
+restating an example ADR-0014 has since withdrawn. The `certificate` handshake rides the exchange
+that produces `reachability`, so that timeline opens with its `Service`; the rule is unaffected and
+the substituted example is the same shape.*
 
 **A closing probing gate does not open a `Gap` directly.** *"They enter a `Gap`"* under **Alert on
 the cause** above is amended: the gate stops **feeding** those timelines, the last value ages out
