@@ -32,7 +32,7 @@ Three constraints from decisions already made shape the answer before any eviden
 
 | Decision | Answer |
 |---|---|
-| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy** |
+| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §18, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`** |
 | Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
@@ -464,7 +464,6 @@ qualification: convention, not registration, is the determinacy test.
 | 2375/tcp | Docker daemon REST API (plaintext) | yes | Unauthenticated control of the container runtime; Docker deprecated unauthenticated TCP in v26.0 and the daemon now refuses to start with TLS disabled on a TCP address |
 | 2379/tcp | etcd client API | yes | Ships with neither RBAC nor transport authentication; read access to it is read access to every cluster Secret |
 | 2380/tcp | etcd peer API | yes | Same defaults, and it is a node-to-node channel that has no internet client under any topology |
-| 10250/tcp | kubelet API | -- | `--anonymous-auth` defaults to `true` and `--authorization-mode` defaults to `AlwaysAllow`; upstream scopes its users to "Self, Control plane" |
 | 10255/tcp | kubelet read-only port | -- | Upstream describes it as serving "with no authentication/authorization"; deprecated and slated for removal |
 | 6379/tcp | Redis | yes | Designed for trusted clients only; a single unauthenticated `FLUSHALL` destroys the dataset |
 | 11211/tcp | memcached | yes | Upstream states outright that it must not be exposed to the internet or any untrusted user |
@@ -480,6 +479,19 @@ qualification: convention, not registration, is the determinacy test.
 > on Claim 1 and the amplification sentence is colour. **161/udp** (§3.3) leads with a CISA
 > directive, which §2.3 permits only as corroboration. Both rows stand; the wording is corrected in
 > §10.7 rather than in place.
+
+> **Amended by §18** ([#83](https://github.com/winniel123/verge-asm/issues/83)). **`10250/tcp`
+> kubelet has left this class for Class C, and Class A is eleven rows.** **[measured]** the kubelet
+> ships **two** defaults for `anonymous-auth` and `authorization-mode` — a restricting pair in the
+> config API and a permissive pair in `applyLegacyDefaults`, which the owner's own bytes label
+> **legacy** and whose flags the owner marks **deprecated** — so under
+> [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) limb 1 the
+> shipped default is `anonymous-auth: false`, `authorization-mode: Webhook`, and Claim 1 fails.
+> The row moves to Class C on `Used By: Self, Control plane`, the boundary its footing tier was
+> already resting on. **`10255/tcp` stays here**: a default that turns the port **off** does not
+> defeat Claim 1, which asks whether the protocol requires the operator to supply authentication —
+> the reading that would delete it also deletes `2375/tcp` and `11211/udp` (§18.6). **No
+> `(port, transport)` pair moves.**
 
 ### 3.2 Class B — credentials in cleartext, encrypted successor on another port (Claim 2)
 
@@ -501,6 +513,7 @@ trade against the determinacy gate.
 
 | Port/transport | Service implied | reg. | Why internet exposure is never correct |
 |---|---|---|---|
+| 10250/tcp | kubelet API | -- | The kubelet's shipped configuration authenticates (`anonymous-auth: false`, `authorization-mode: Webhook`), so the row is not a Claim 1 row; upstream places the port with `Used By: Self, Control plane` in both its control-plane and worker-node tables — the node and the cluster's control plane, and no other client (§18.5) |
 | 2376/tcp | Docker daemon REST API (TLS) | yes | TLS authenticates the client but does not change the audience; whoever holds the keys has root on the host, and Docker still directs that it be reachable only from a trusted network or VPN |
 | 3306/tcp | MySQL / MariaDB | yes | A database wire protocol whose clients are application tiers; upstream states the port should not be reachable from untrusted hosts |
 | 5432/tcp | PostgreSQL | yes | Same role; upstream ships `listen_addresses` defaulting to loopback (see §4.5 — this is the list's weakest row and it is labelled as such) |
@@ -539,17 +552,36 @@ trade against the determinacy gate.
 > should have access to it."
 > — [kubernetes.io, Operating etcd clusters for Kubernetes](https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/)
 
-> "By default, requests to the kubelet's HTTPS endpoint that are not rejected by other configured
+> ~~"By default, requests to the kubelet's HTTPS endpoint that are not rejected by other configured
 > authentication methods are treated as anonymous requests, and given a username of
-> `system:anonymous` and a group of `system:unauthenticated`."
-> — [kubernetes.io, Kubelet authentication/authorization](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/)
+> `system:anonymous` and a group of `system:unauthenticated`." — kubernetes.io, Kubelet
+> authentication/authorization~~
+> — **withdrawn as an attestation by §18.4** ([#83](https://github.com/winniel123/verge-asm/issues/83)).
+> The page (`kubelet-authn-authz.md`, `release-1.34`) describes the **flag** default and directs the
+> reader to *"start the kubelet with the `--anonymous-auth=false` flag"*, a flag the owner marks
+> deprecated. **§10.4's one-way rule reads the default, not the artefact class that records it**: an
+> owner's prose describing its own permissive default is the same silence in prose, or §10.4 is
+> inoperative.
 
-> "`--anonymous-auth`  Default: true" … "`--authorization-mode string`  Default: "AlwaysAllow"" …
-> "`--read-only-port int32`  Default: 10255"
-> — [kubernetes.io, kubelet CLI reference](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/) (the 10255 default verified directly against the rendered page)
+**Two kubelet quotes survive, and both are below the withdrawn CLI-reference block.** `10250`'s is
+now a Claim 3 quote and is left here beside its former class-mates rather than moved, per the
+name-and-withdraw convention; §3.3 carries the row.
 
-> "readOnlyPort is the read-only port for the Kubelet to serve on with no authentication/authorization."
-> — [kubernetes.io, kubelet config API v1beta1](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/)
+> ~~"`--anonymous-auth`  Default: true" … "`--authorization-mode string`  Default: "AlwaysAllow"" …
+> "`--read-only-port int32`  Default: 10255" — kubernetes.io, kubelet CLI reference (the 10255
+> default verified directly against the rendered page)~~
+> — **withdrawn by §18.7** ([#83](https://github.com/winniel123/verge-asm/issues/83)). These are the
+> **flag** defaults, set by `applyLegacyDefaults` to preserve a command-line API the owner marks
+> deprecated on this same page; they are permissive and therefore silent under §10.4, in this
+> artefact class as in any other (§18.4). The parenthetical is withdrawn because verifying against a
+> rendering cannot establish **which** of an owner's positions the rendering renders.
+
+> "readOnlyPort is the read-only port for the Kubelet to serve on with no authentication/authorization.
+> … Setting this field to 0 disables the read-only service. Default: 0 (disabled)"
+> — `staging/src/k8s.io/kubelet/config/v1beta1/types.go`, [`kubernetes/kubernetes`](https://github.com/kubernetes/kubernetes/blob/v1.36.3/staging/src/k8s.io/kubelet/config/v1beta1/types.go) `v1.34.1` and `v1.36.3` — the shipped bytes behind the rendered config API reference, per §18.1
+
+> "`| TCP | Inbound | 10250 | Kubelet API | Self, Control plane |`"
+> — `content/en/docs/reference/networking/ports-and-protocols.md`, [`kubernetes/website`](https://github.com/kubernetes/website/blob/main/content/en/docs/reference/networking/ports-and-protocols.md) `release-1.34` and `main`, in both the control-plane and worker-node tables. This is `10250`'s Claim 3 boundary (§18.5) as well as its §2.2 footing cell (§16.5)
 
 > "Redis is designed to be accessed by trusted clients inside trusted environments. This means that
 > usually it is not a good idea to expose the Redis instance directly to the internet or, in
@@ -1936,7 +1968,7 @@ That last row is worth pausing on. **The repaired Claim 1 refuses 111/tcp on cla
 | 2375/tcp Docker | No — *"anyone with access to that port has full Docker access"* | Controls a runtime |
 | 2379/tcp etcd client | No — *"ideally only the API server should have access to it"* | Writes cluster state; reads every Secret |
 | 2380/tcp etcd peer | No — node-to-node | Writes cluster state |
-| 10250/tcp kubelet | No — upstream scopes users to *"Self, Control plane"* | Controls a runtime |
+| ~~10250/tcp kubelet~~ | ~~No — upstream scopes users to *"Self, Control plane"*~~ | ~~Controls a runtime~~ — **row withdrawn from this walk by §18.5** ([#83](https://github.com/winniel123/verge-asm/issues/83)): the shipped configuration authenticates, so the row is Class C and never reaches Claim 1's two steps. Note that its Step 1 answer was **already** the Claim 3 boundary sentence, which is the tell nobody read |
 | 10255/tcp kubelet read-only | No — same scoping | Reads node and pod status the kubelet carries **on behalf of the control plane** |
 | 6379/tcp Redis | No — *"trusted clients inside trusted environments"* | `FLUSHALL`, and arbitrary writes |
 | 11211/tcp memcached | No — *"you must not expose memcached … to any untrusted users"* | `set` / `delete` |
@@ -1949,6 +1981,12 @@ That last row is worth pausing on. **The repaired Claim 1 refuses 111/tcp on cla
 **All twelve survive. Class A is unchanged, and no row changes class.** The one row that needs Step
 2's read limb rather than its mutation limb is 10255/tcp, and it needs no reclassification: Claim 1
 and Claim 3 are adjacent on that row and Claim 1 still fits.
+
+> **Amended by §18** ([#83](https://github.com/winniel123/verge-asm/issues/83)). **Eleven, not
+> twelve** — `10250/tcp` leaves Class A, and it leaves on grounds this walk could not have reached:
+> the walk tests what the anonymous caller *gets*, and the defect is that the caller is **not
+> anonymous** in the shipped configuration. `10255/tcp`'s sentence above stands and is now load-
+> bearing: §18.6 turns on Claim 1 and Claim 3 being adjacent on that row without Claim 1 giving way.
 
 **What the qualifier costs, stated plainly.** It makes Claim 1 slightly harder to reach than the
 sentence a reader would infer from its title, and a future candidate that is unauthenticated,
@@ -2143,6 +2181,14 @@ in the code attests everything.
 **These are materially different instruments and the ticket was right to ask which.** A permissive
 default is **silent**. A remedy that stops short of the port **excludes**. #30 read them as one
 because rpcbind is the case where both are present.
+
+> **Confirmed by use — §18.6** ([#83](https://github.com/winniel123/verge-asm/issues/83)). This
+> table's `10255`, `2375` and `11211/udp` rows are the three cases where the remedy takes the port
+> out of the shipped listener set entirely, and #83 asked whether that defeats Claim 1 on a row whose
+> claim is about the port's own authentication. **It does not, and this table is why**: a reading
+> that deletes `10255` deletes `2375/tcp` Docker, which this table records as *strengthened* by
+> exactly that fact. Claim 1 asks whether the protocol requires the operator to supply
+> authentication, not whether the port is on. No cell here moves.
 
 ### 10.5 Defect 4 — what "owns" means, and where a distributor stands
 
@@ -4273,6 +4319,18 @@ company, and the company arrived from a different project and a different artefa
 > question, priced as a removal, and not this ticket's to answer. Routed to
 > [#83](https://github.com/winniel123/verge-asm/issues/83), which **blocks
 > [#12](https://github.com/winniel123/verge-asm/issues/12)**.
+>
+> > **Discharged, and the sentence in bold above is wrong — §18.2**
+> > ([#83](https://github.com/winniel123/verge-asm/issues/83)). **[measured]** the flags do **not**
+> > inherit the config defaults. `options.NewKubeletConfiguration()` applies the scheme defaults and
+> > then calls `applyLegacyDefaults(config)`, which **overwrites** all three with `true`,
+> > `AlwaysAllow` and `10255`; the flag registrations quoted above read the struct *after* that
+> > overwrite. The call site is in the same file, eighty lines above the registrations. So the
+> > kubelet ships **two** operative defaults per setting, selected by whether `--config` is passed —
+> > and the generated page is **not** stale, it renders the flag half correctly and marks it
+> > deprecated on its own face. `10250`'s Claim 1 grounds do fail, but on ADR-0036 limb 1 rather than
+> > on a stale rendering: **the row moves to Class C, no pair moves, and the removal this ticket was
+> > priced for is not spent.**
 
 ### 16.6 `4369` epmd — the placement §13.7 called clerical, and the reason it is not
 
@@ -4407,6 +4465,12 @@ from the tier outright; the absence of any stronger sentence than the table cell
 it to the weak tier, on the argument that `Used By` is a §12(b) **label**. That argument was
 considered and lost only narrowly.
 
+> **Widened by §18.12** ([#83](https://github.com/winniel123/verge-asm/issues/83)). This cell now
+> carries `10250`'s **claim** as well as its footing — the row is Class C on this sentence and has no
+> second support — so the weakness disclosed here is no longer only about how strongly the row is
+> footed. The §12(b) **label** argument was put again on the claim question and lost again; a reader
+> should know it has now lost twice on the same cell. The reopening criterion is unchanged.
+
 **`4369`'s cell rests on a sentence that does not name the port, and that is a real gap.**
 Erlang/OTP's *"make sure that the network is configured to keep potential attackers out"* is about
 distributed nodes and the distribution transport; epmd is the mechanism's registry rather than the
@@ -4449,12 +4513,16 @@ project's own docs repository at a release branch**, which is the shipped byte o
   working exactly as §13.5 described it — *"a retrieval scoped to the rows a table already holds can
   confirm those rows and can discover nothing."* A session that fetched the cited URL would have
   confirmed §13.7's hypothesis and been wrong.
-- **A generated reference page can be stale against the source that generates it, and the corpus now
-  has an instance.** `kubelet.md` at `release-1.34` says `--read-only-port … Default: 10255`; the
+- ~~**A generated reference page can be stale against the source that generates it, and the corpus now
+  has an instance.**~~ `kubelet.md` at `release-1.34` says `--read-only-port … Default: 10255`; the
   shipped `types.go` at `v1.34.1` says `Default: 0 (disabled)`. §3.4's parenthetical *"the 10255
   default verified directly against the rendered page"* names the hazard it walked into: **verifying
   against a rendering is not verifying**, and §11.9 had already recorded the same class for net-snmp's
-  `man2html` pages.
+  `man2html` pages. — **the diagnosis is withdrawn by §18.7** ([#83](https://github.com/winniel123/verge-asm/issues/83)):
+  **the page is not stale.** It renders the **flag** default and `types.go` carries the **config API**
+  default, and both are current at `v1.36.3`. The parenthetical is still withdrawn, for the sharper
+  reason that a rendering carries no provenance about **which** of an owner's positions it renders —
+  a correct rendering of a deprecated interface reads identically to a current one.
 - **The `.sample` trap from §13.6 has a sibling in file *purpose*, and it was met.** etcd's
   `THREAT_MODEL.md` was written to scope CVE triage, and reading the purpose as the answer would have
   discarded a prohibition — the mirror of reading `.sample` as the answer and discarding a default.
@@ -4954,6 +5022,508 @@ every subject in this table's domain that it names, per ADR-0037 limb 1.
 - **RFC 3512's five hits were each read in context rather than counted.** Two are about trap delivery
   during a denial-of-service flood, one is an ITU-T bibliography entry (*Recommendation M.3010*), and two
   are VPN forwarding used as a MIB-design example. A count alone would have read as five near-misses.
+
+---
+
+## 18. The kubelet ships two defaults, not one — `10250` moves to Class C and `10255` stays in Class A
+
+Wayfinder ticket [#83](https://github.com/winniel123/verge-asm/issues/83), on the by-catch §16.5
+routed rather than decided: §3.4's kubelet defaults are quoted from a generated reference page, and
+§16.5 read the shipped source as contradicting it.
+
+**The ticket's premise is refuted, and the refutation is the section.** §16.5's by-catch says the
+flags *"inherit the config defaults rather than contradicting them"*, and #83's body concludes from
+that: *"there is one shipped position and one stale rendering of it, rather than two positions."*
+**[measured]** Both are false. The kubelet ships **two** operative defaults for each of the three
+settings, in one binary, and which one takes effect is selected by whether the operator passes
+`--config`. The generated page is not stale — it renders the flag defaults, accurately, and labels
+every one of them deprecated on its own face.
+
+So the question is not *which artefact is current*. It is **which of an owner's two live defaults is
+its shipped default**, and [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)
+limb 1 already answers it in a case it was not written for.
+
+### 18.1 What was retrieved
+
+Read as shipped bytes at a named tag, paths resolved from the repository tree — §11.9's, §13.10's and
+§16.10's discipline. **Every finding was taken at `v1.34.1`, the tag §16.5 used, and then re-taken at
+`v1.36.3`, the current stable release.** Two minor versions separate them and nothing moved; #73's
+citation-staleness trigger is discharged for this row rather than assumed.
+
+| Repository | Artefact, at the tag or branch named | What it settles |
+|---|---|---|
+| `kubernetes/kubernetes` | `pkg/kubelet/apis/config/v1beta1/defaults.go` — `v1.34.1` **and** `v1.36.3` | the config API's defaults for `anonymous-auth` and `authorization-mode` |
+| `kubernetes/kubernetes` | `staging/src/k8s.io/kubelet/config/v1beta1/types.go` — `v1.34.1` **and** `v1.36.3` | `readOnlyPort`'s documented default, and §3.4's Claim 1 sentence |
+| `kubernetes/kubernetes` | `cmd/kubelet/app/options/options.go` — `v1.34.1` **and** `v1.36.3` | `applyLegacyDefaults`, the flag defaults, and the deprecation of all three flags |
+| `kubernetes/kubernetes` | `cmd/kubelet/app/server.go` — `v1.34.1` | which of the two defaults takes effect, and on what condition |
+| `kubernetes/kubernetes` | `pkg/kubelet/kubeletconfig/util/codec/codec.go` — `v1.34.1` | that loading a config file **runs defaulting**, in the file's own comment |
+| `kubernetes/kubernetes` | `pkg/cluster/ports/ports.go` — `v1.34.1` | `KubeletReadOnlyPort = 10255` |
+| `kubernetes/website` | `content/en/docs/reference/command-line-tools-reference/kubelet.md` — `main` | the generated page, and its own deprecation labels |
+| `kubernetes/website` | `content/en/docs/reference/access-authn-authz/kubelet-authn-authz.md` — `release-1.34` | §3.4's second kubelet quote |
+| `kubernetes/website` | `content/en/docs/reference/networking/ports-and-protocols.md` — `release-1.34` **and** `main` | `10250`'s Claim 3 boundary, and §18.8's four other subjects |
+
+`kubernetes/website` has no `release-1.36` branch — its newest release branch is `release-1.35` and
+current docs live on `main`. Recorded so a later session does not read a 404 as a withdrawal.
+
+### 18.2 The measurement — two defaults, one binary, selected by a flag
+
+**The config API's defaults restrict.** `SetDefaults_KubeletConfiguration`, unchanged between
+`v1.34.1` and `v1.36.3`:
+
+```go
+if obj.Authentication.Anonymous.Enabled == nil {
+	obj.Authentication.Anonymous.Enabled = ptr.To(false)
+}
+if obj.Authentication.Webhook.Enabled == nil {
+	obj.Authentication.Webhook.Enabled = ptr.To(true)
+}
+if obj.Authorization.Mode == "" {
+	obj.Authorization.Mode = kubeletconfigv1beta1.KubeletAuthorizationModeWebhook
+}
+```
+— `pkg/kubelet/apis/config/v1beta1/defaults.go`
+
+There is **no defaulting clause for `ReadOnlyPort` at all**, so the field keeps Go's zero value, and
+the config API documents that result as its default: *"Setting this field to 0 disables the read-only
+service. Default: 0 (disabled)"* (`staging/src/k8s.io/kubelet/config/v1beta1/types.go`). The
+restriction here is by omission plus documentation rather than by an assignment, which satisfies
+ADR-0036 limb 1's two halves exactly — it takes effect, and the project documents it as the default.
+
+**The flag defaults permit, and they are not inherited — they are overwritten.** This is the half
+§16.5 got wrong:
+
+```go
+// NewKubeletConfiguration will create a new KubeletConfiguration with default values
+func NewKubeletConfiguration() (*kubeletconfig.KubeletConfiguration, error) {
+	…
+	scheme.Default(versioned)          // ← the restricting defaults above
+	…
+	applyLegacyDefaults(config)        // ← and then this
+	return config, nil
+}
+
+// applyLegacyDefaults applies legacy default values to the KubeletConfiguration in order to
+// preserve the command line API. …
+func applyLegacyDefaults(kc *kubeletconfig.KubeletConfiguration) {
+	// --anonymous-auth
+	kc.Authentication.Anonymous.Enabled = true
+	// --authorization-mode
+	kc.Authorization.Mode = kubeletconfig.KubeletAuthorizationModeAlwaysAllow
+	// --read-only-port
+	kc.ReadOnlyPort = ports.KubeletReadOnlyPort
+}
+```
+— `cmd/kubelet/app/options/options.go`, `v1.34.1` (identical at `v1.36.3`, line 208 and 215)
+
+`ports.KubeletReadOnlyPort = 10255` (`pkg/cluster/ports/ports.go`). The flag registrations §16.5 and
+#83 both quote — `fs.BoolVar(&c.Authentication.Anonymous.Enabled, "anonymous-auth",
+c.Authentication.Anonymous.Enabled, …)` — read the struct **after** `applyLegacyDefaults` has run, so
+they inherit the *legacy* values and not the config API's. **`kubelet --help` therefore prints
+`Default: true`, `Default: "AlwaysAllow"` and `Default: 10255`, and the generated page renders exactly
+that, correctly.**
+
+**Which one takes effect is a condition, and the condition is in `server.go`:**
+
+```go
+kubeletConfig, err := options.NewKubeletConfiguration()   // legacy defaults
+…
+if len(kubeletFlags.KubeletConfigFile) > 0 {
+	kubeletConfig, err = loadConfigFile(ctx, kubeletFlags.KubeletConfigFile)   // config-API defaults
+}
+…
+if len(kubeletFlags.KubeletConfigFile) > 0 || len(kubeletFlags.KubeletDropinConfigDirectory) > 0 {
+	if err := kubeletConfigFlagPrecedence(kubeletConfig, args); err != nil { … }
+}
+```
+— `cmd/kubelet/app/server.go`, `NewKubeletCommand`
+
+`loadConfigFile` decodes through the kubelet codec factory, and the source says what that does in its
+own words: *"The UniversalDecoder runs defaulting and returns the internal type by default"*
+(`pkg/kubelet/kubeletconfig/util/codec/codec.go`). `kubeletConfigFlagPrecedence` then re-applies only
+the flags the operator **explicitly set**. So:
+
+| Invocation | `anonymous-auth` | `authorization-mode` | `read-only-port` |
+|---|---|---|---|
+| flags only, no `--config` | `true` | `AlwaysAllow` | `10255` |
+| `--config` (or `--config-dir`), nothing set explicitly | `false` | `Webhook` | `0` |
+
+**Two shipped positions, both operative, both current at `v1.36.3`.** Not one position and one stale
+rendering.
+
+### 18.3 Which of the two is the shipped default — read off the artefact, not judged
+
+ADR-0036 limb 1: *"The third form reads what takes effect, and what the party documents as its
+default — both."* Both configurations take effect. Only one is documented as the party's default.
+**The other is documented, by the same party, in the same bytes, as legacy and deprecated:**
+
+- `applyLegacyDefaults`'s own doc comment — *"applies **legacy** default values to the
+  KubeletConfiguration in order to **preserve the command line API**"*.
+- `AddKubeletConfigFlags`'s deferred block — *"All KubeletConfiguration flags are now **deprecated**"*
+  — which stamps every one of them with: *"This parameter should be set via the config file specified
+  by the Kubelet's `--config` flag."*
+- **[measured]** and the generated page §3.4 cites carries that stamp verbatim beside all three
+  defaults. `--anonymous-auth  Default: true` is immediately followed by *"(DEPRECATED: This parameter
+  should be set via the config file specified by the Kubelet's --config flag…)"*, and so are
+  `--authorization-mode` and `--read-only-port`.
+
+> **Where a party ships two defaults for one setting and both take effect, the one its own bytes
+> declare **legacy** or **deprecated** is not its shipped default.** ADR-0036 limb 1 requires both
+> halves — takes effect **and** documented as the party's default — and a compatibility shim the
+> owner routes operators away from fails the second half however operative it is. The test is read
+> off the artefact, exactly as limb 1 requires: the party says which is which.
+
+This is a statement of what limb 1 already requires rather than a new decision, and it is the same
+move §16.6 made for §10.5's ownership rule. It is recorded as an **amendment to ADR-0036** rather
+than as a new ADR, because limb 1 is where it lives and ADR-0036's own Consequences say the four
+limbs travel to any future curated table admitting a shipped default.
+
+**So the kubelet's shipped default is `anonymous-auth: false`, `authorization-mode: Webhook`,
+`readOnlyPort: 0`.**
+
+Note what this does **not** rest on: any judgement about which invocation path is more common.
+Deployment share is what §2.3 refuses corroborator sources for, and ADR-0036's own alternatives
+section refuses the distributor reading partly because *"the forms are routes to a claim about the
+protocol, not a description of the modal install"*. The legacy path loses on the owner's label, not
+on a count.
+
+### 18.4 Documenting a permissive default does not launder it into a position
+
+The obvious rescue for `10250`'s Class A row is that the owner's **prose** states the permissive
+default in terms. **[measured]** `kubelet-authn-authz.md` at `release-1.34` — §3.4's other kubelet
+citation — says *"By default, requests to the kubelet's HTTPS endpoint that are not rejected by other
+configured authentication methods are treated as anonymous requests"*, and *"The default
+authorization mode is `AlwaysAllow`, which allows all requests."* That is §2.2's **second** form, not
+its third, and §10.4's one-way rule is written about the third.
+
+**Refused, and the refusal is a reading of §10.4 rather than an addition to it.**
+
+> **§10.4's one-way rule reads the default, not the artefact class that records it.** A permissive
+> default is silent because *"the absence of an act is not a position"* — and that reason is a
+> property of the default, not of where it is written down. An owner's page describing its own
+> permissive default is a **description of the absence of an act**, which is the same silence in
+> prose. Otherwise §10.4 is inoperative: every documented permissive default would re-enter through
+> the second form, and §10.4.1's walk — which showed the symmetric reading deleting Telnet and SMB —
+> would have been settling nothing.
+
+This is limb 2 of ADR-0036 in its other direction. Limb 2 says a **directive** is not a position and
+a **label** describing what a directive does is not a position; this says a **description of a
+permissive default** is not one either. #76 §16.5 already applied exactly this reasoning to the
+`readOnlyPort` sentence, calling it *"a description of what the port serves, not a position on where
+it may be reached from"*. The reasoning generalises; it was not about that sentence.
+
+### 18.5 `10250/tcp` — Claim 1 fails, Claim 3 holds, and the row changes class
+
+**Claim 1 fails.** Claim 1 is *"the service, in the configuration its maintainers ship, admits
+anonymous commands"*. In the configuration the maintainers ship, an anonymous request to `10250` is
+rejected: `Anonymous.Enabled = false` sends `401 Unauthorized`, and `Authorization.Mode = Webhook`
+would refuse it even if it authenticated. The only evidence pointing the other way is the legacy
+default and the page describing it, and §18.3 and §18.4 dispose of both. **`10250` has no admissible
+Claim 1 grounds.**
+
+**Claim 3 holds, on the owner's own artefact, and it is the artefact §16.5 already found.**
+**[measured]** `ports-and-protocols.md` places `10250` in **both** the control-plane and worker-node
+tables with the same scope in both:
+
+```
+| Protocol | Direction | Port Range | Purpose      | Used By             |
+| TCP      | Inbound   | 10250      | Kubelet API  | Self, Control plane |
+```
+— `kubernetes/website`, `release-1.34` and `main` (byte-identical in both tables and both branches)
+
+§10.3's Claim 3 reads *"the intended clients are inside a boundary the operator controls … the same
+system, the same cluster, or a management network the owner names"*, and *"the boundary must be named
+by the owner"*. Kubernetes owns the kubelet — it authors the reference implementation, which §16.5
+established — and *Self, Control plane* names the node and the cluster's control plane. §10.3's
+failure condition is not met: nothing on the page names the public internet as a supported
+environment for `10250`, and the page's own framing is *"running Kubernetes in an environment with
+strict network boundaries"*.
+
+**The class change was legible in the footing table before it was legible in the class table.** #76
+placed `10250` in the **trusted-network scoping** footing tier — a Claim-3-shaped footing under a
+Claim-1 row — and flagged the cell as the thinnest in its tier without being able to act on it,
+because #76 was scoped to footings and *"a footing is evidence for a claim and not a claim"*. The
+incoherence was the footing tier disagreeing with the class, and this section resolves it in the
+direction the footing was pointing. The row is now a Class C row whose footing tier and whose claim
+rest on the same sentence, which is the ordinary shape for every other Class C row.
+
+**`10250/tcp` moves from Class A to Class C. The `(port, transport)` pair does not move.**
+
+### 18.6 `10255/tcp` — a default-off port does not defeat Claim 1
+
+`10255`'s shipped default is `0`, which means that on the config path **the port does not listen at
+all**. #83 asks whether Claim 1 survives that, and whether §10.4.3's *remedy reaches the port* reading
+survives contact with a row whose claim is about the port's own authentication. **Both survive, and
+the walk is what settles it.**
+
+Read strictly — *Claim 1 requires the port to be serving in the shipped configuration* — the claim is
+defeated not only for `10255` but for two more Class A rows, and §10.4.3 has already ruled both the
+other way:
+
+| Row | Does it serve on that port in the shipped configuration? | What §10.4.3 already says |
+|---|---|---|
+| `2375/tcp` Docker | **No.** §13.2 measured the operative default as having **no TCP listener at all** | *"the daemon refuses to start with TLS disabled on a TCP address … the remedy is the port. Row stands, and is strengthened"* |
+| `11211/udp` memcached | **No.** UDP off by default since 1.5.6 | *"disabling UDP takes the port out of the default listener set entirely … Row stands, on both limbs"* |
+| `10255/tcp` kubelet | **No.** `readOnlyPort: 0` | *"deprecated and slated for removal … Row stands"* |
+
+A reading that deletes `2375/tcp` Docker — the row §10.4.3 says is *strengthened* by the very fact
+being read as fatal — has failed, and it fails on a walk rather than on taste. That is §10.4.1's own
+method: read the candidate rule against the list and see what it removes.
+
+> **Claim 1's *in the configuration its maintainers ship* clause asks whether the protocol requires
+> the operator to supply authentication, not whether the port is on.** A default that turns the port
+> **off** leaves Claim 1 untouched: the operator who turns it on gets an unauthenticated service, and
+> the claim is about what they then have. A default that turns **authentication on** defeats Claim 1:
+> the operator who exposes the port gets an authenticated service. The two are distinguishable, they
+> are read off the same bytes, and neither asks a reviewer to imagine anything — which is §10.1's
+> standard for a qualifier.
+
+This is the qualifier's third statement, after §10.1's two steps, and like them it is **specific to
+this table**. Claim 1 is a theorem about `sensitive-port-reached-from-internet` per §2's
+[#33](https://github.com/winniel123/verge-asm/issues/33) amendment, so it does not travel and must
+not be cited as a general evidence bar.
+
+**It also explains why the signal is unaffected either way.** The rule fires only on an **observed
+open** port reached from the internet. A port that is off in the shipped configuration and open in
+the operator's estate is a port the operator turned on — so *is it on by default* is never a fact the
+rule is in a position to read, and building it into Claim 1 would put a fact about our defaults where
+a fact about their estate belongs.
+
+**`10255`'s attestation, re-founded on the shipped source.** The §3.4 quote is unchanged in content
+and better in provenance:
+
+> "readOnlyPort is the read-only port for the Kubelet to serve on with no authentication/authorization."
+> — `staging/src/k8s.io/kubelet/config/v1beta1/types.go`, `kubernetes/kubernetes` `v1.34.1` and `v1.36.3`
+
+That is §2.2's second form — the owner's own documentation, in the bytes that generate the config
+API reference rather than in the rendering of it. Combined with §10.1's Step 2 read limb, which #37
+walked and passed for this row (*"reads node and pod status the kubelet carries on behalf of the
+control plane"*), Claim 1 stands.
+
+**`10255/tcp` stays in Class A. Its footing is untouched by this section** — see §18.12 for the
+concurrency note.
+
+### 18.7 §3.4's citation corrected, and the parenthetical withdrawn for a better reason than staleness
+
+§3.4's CLI-reference quote and its parenthetical *"the 10255 default verified directly against the
+rendered page"* are **withdrawn**, and §16.10's characterisation of the page as *"stale against the
+source that generates it"* is withdrawn with them.
+
+**The page is not stale.** It renders the flag defaults, which are `applyLegacyDefaults`'s, and it
+renders them correctly. §16.10 compared `kubelet.md`'s `--read-only-port … Default: 10255` against
+`types.go`'s `Default: 0 (disabled)` and read the difference as a generation lag. It is not a lag: it
+is two defaults, and the two files are describing different ones.
+
+**The parenthetical is withdrawn for the reason that survives that correction.** Verifying against a
+rendering established that the rendering says what it says. What it could not establish — and what
+only the source could — is **which of the owner's positions the rendering renders**. §11.9 recorded
+the `man2html` hazard as one of currency; this is the sharper form: a rendering carries no provenance
+about the artefact behind it, and a correct rendering of a deprecated interface reads identically to
+a current one. The cure is the same in both cases and it is ADR-0037's: retrieve over the artefact.
+
+**And the page itself carried the answer.** The deprecation stamp beside all three defaults is in the
+retrieved bytes of the very page §3.4 cites. A reader who read the whole entry rather than the
+`Default:` cell would have seen it. That is ADR-0037 limb 1 — *every subject the artefact names is a
+candidate* — applied to a field of the artefact rather than to a row of the table.
+
+### 18.8 ADR-0037's obligation over `ports-and-protocols.md`
+
+`10250`'s claim now rests on this artefact, so the artefact is read whole rather than for its row.
+**[measured]** it names five subjects besides `10250`:
+
+| Subject | The artefact's own cell | Disposition |
+|---|---|---|
+| `6443/tcp` kube-apiserver | `Used By: All` | Already excluded at §4.4, the note's closest call, and this cell corroborates that exclusion rather than disturbing it |
+| `2379-2380/tcp` etcd | `Used By: kube-apiserver, etcd` | Already listed (Class A), and this is a second owner-adjacent scoping statement for a pair already carrying an explicit prohibition (§16.3) |
+| `10259/tcp` kube-scheduler | `Used By: **Self**` | **Candidate. Ticketed, never admitted** |
+| `10257/tcp` kube-controller-manager | `Used By: **Self**` | **Candidate. Ticketed, never admitted** |
+| `10256/tcp` kube-proxy | `Used By: Self, Load balancers` | **Candidate. Ticketed, never admitted** |
+| `30000-32767` NodePort Services | `Used By: All` | **Refused on the artefact's face** — the owner names the audience as everyone, which is §10.3's failure condition met explicitly. No ticket |
+
+The three candidates carry a boundary statement from the same owner, in the same table, in the same
+cell shape that now carries `10250`'s claim — and `Self` is **narrower** than `Self, Control plane`.
+Whether they clear §2.4's determinacy gate and §10.3's boundary limb on their own retrieval is not
+this ticket's to decide, and ADR-0037 forbids admitting them here. Opened as a child of the map.
+
+**#76 retrieved this artefact for `10250` and did not enumerate its other subjects.** That is
+ADR-0037's own defect one level down, in the pass that produced ADR-0037's second payout — which is
+worth recording without embarrassment, because it is the same shape as §16.5's error: a retrieval
+scoped to what it came for.
+
+### 18.9 The ruling
+
+> **The kubelet ships two defaults for each of `anonymous-auth`, `authorization-mode` and
+> `read-only-port`; the owner's own bytes label one of the two legacy and deprecated; and under
+> [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) limb 1 the
+> other one is its shipped default. On that default:**
+>
+> - **`10250/tcp` moves from Class A to Class C.** Claim 1 fails — the shipped configuration
+>   authenticates. Claim 3 holds on `ports-and-protocols.md`'s `Used By: Self, Control plane`, the
+>   owner naming the boundary, in both of the page's tables.
+> - **`10255/tcp` stays in Class A.** A default that turns the port off does not defeat Claim 1,
+>   which asks whether the protocol requires the operator to supply authentication. Its attestation
+>   is re-founded on the config API's shipped bytes.
+> - **No `(port, transport)` pair moves. The list is 37 pairs.** Class totals move **12 / 7 / 18 →
+>   11 / 7 / 19**.
+> - **No footing cell moves.** §2.2's tiers, its 26-of-37 coverage and the weak tier's membership are
+>   untouched by this section.
+> - **§3.4's CLI-reference quote is withdrawn** and replaced with the shipped source; §16.10's
+>   *"generated page is stale"* characterisation is withdrawn as a mis-diagnosis of a real hazard.
+
+**The ticket was priced as a row removal and does not spend it.** #83 was wired to block
+[#12](https://github.com/winniel123/verge-asm/issues/12) because a removal would bump
+`sensitive-port-reached-from-internet`'s version under
+[ADR-0008](../adr/0008-derivation-versions-move-on-content.md), `Break` every evaluation and narrow
+`verge-core` under [ADR-0009](../adr/0009-verge-core-is-a-union.md). No pair moves, so none of that
+is spent: **free in the strong sense**, in §12.7's and §14.7's phrase.
+
+**A class is not a member.** The rule reads the list of `(port, transport)` pairs (§5: *no middle,
+one signal, binary*), and the classes are this note's presentation of which claim each row makes.
+Moving a row between them changes no content the rule reads. This is #69's rule read the other way
+round: there, a footing moved and the claim did not, so the row kept its class; here the claim moves
+and the pair does not, so the list keeps its member.
+
+### 18.10 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged.** No row is added or removed |
+| §3.1 Class A | 12 | **11.** `10250/tcp` leaves |
+| §3.2 Class B | 7 | **7, unchanged.** Untouched by this section |
+| §3.3 Class C | 18 | **19.** `10250/tcp` joins. 11 + 7 + 19 = 37 |
+| §2.2 footing table — coverage | 26 of 37 | **unchanged.** A claim moved; footings are evidence for claims and did not |
+| §2.2 footing table — tiers | prohibition 13 · scoping 10 · weak 3 | **unchanged in every cell.** `10250` stays in scoping, `10255` stays in the weak tier |
+| §3.4's kubelet quotes | four, one from the generated CLI page | **three.** The CLI-reference quote and its parenthetical are withdrawn; `types.go` is quoted at its tag |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** This section adds no attestation weakness to `5432` in either direction |
+| §4.6 exclusions | 18 named | **18, unchanged.** Three new candidates are ticketed rather than excluded (§18.8), and `30000-32767` is refused on its face without entering the note's negative space, being a range rather than a pair |
+| §6.1 containment arithmetic | 28 in the hot set + 4 missing TCP + 5 UDP = 37 | **unchanged.** `10250` and `10255` are both in the hot set already and neither changes half |
+| §10.1's Class A walk | twelve rows, *"all twelve survive"* | **eleven.** `10250`'s row is annotated in place rather than deleted, per the name-and-withdraw convention |
+| §10.4.3's remedy table | five cases, no row moves | **unchanged, and confirmed by use.** Its `10255` cell is the precedent §18.6 turns on |
+| §16.5's by-catch | routed to #83 | **discharged, and refuted.** The flags do not inherit the config defaults |
+| §16.10's generated-page hazard | *"a generated reference page can be stale against the source that generates it"* | **withdrawn as stated, and replaced** by §18.7's sharper form |
+| §16.9's `10250` thin-ground flag | a footing weakness | **widened to the claim** — §18.12 |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged.** No member enters or leaves either half |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984`, `10255` | **unchanged by this section.** The weak tier is a footing tier and no footing moved |
+
+**Outside this note.** [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)
+gains one amendment (§18.3's two-defaults rule and §18.4's artefact-class rule). **No ADR is added** —
+both are readings of limbs ADR-0036 and §10.4 already carry, and §18.6's Claim 1 qualifier is
+table-specific and follows [#37](https://github.com/winniel123/verge-asm/issues/37)'s precedent of
+amending Claim 1 with no ADR at all. ADR-0008, ADR-0009, ADR-0032, ADR-0037 and ADR-0042 are
+untouched.
+
+### 18.11 The options that lost
+
+**Remove `10250` from the list.** The strongest losing option, and the one the ticket was priced for.
+Its case: Claim 1 fails outright; Claim 3's only support is a **table cell** in a page framed as
+*"useful to be aware of"*, which is arguably a §12(b) **label** describing what the port is used by
+rather than a position on where it may be reached from; and [#66](https://github.com/winniel123/verge-asm/issues/66)
+removed `161/udp` on precisely *"we could not find anyone entitled to say that exposing it is never
+correct"*. **It loses on the owner gate, which is the difference between the two rows.** `161/udp`'s
+boundary came from CISA — a corroborator, §10.6's finding. `10250`'s comes from Kubernetes, which
+authors the kubelet, so §10.5's owner test is passed rather than failed. It loses on repetition too:
+the same cell appears in the control-plane table and the worker-node table, and a page about network
+boundaries naming a port's clients twice is naming a boundary. And removal is the expensive option
+under this note's own pricing, so it must earn its way; a cell that is the owner's, that appears
+twice, and that sits in a document whose subject *is* network placement is enough for Claim 3 on the
+same standard that carries `2376/tcp` Docker and `2049/tcp` NFS.
+
+**Keep `10250` in Class A on the legacy default.** Its case: the legacy default is genuinely
+operative — an operator running `kubelet` without `--config` really does get `AlwaysAllow` and
+anonymous access, and that is a fact about released software, which is what Claim 1 says it wants.
+**It loses twice over.** §10.4's one-way rule makes a permissive default silent regardless of how
+operative it is, so it could not carry the claim even if it were the only default; and ADR-0036 limb
+1 rules it out as *the* shipped default because the owner labels it legacy. Taking it would also have
+required deciding which invocation path is modal, which is a deployment-share judgement with no owner
+— the shape §10.1 deleted and §2.3 refuses corroborators for.
+
+**Remove `10255` on the ground that a port which does not listen has no service to make a claim
+about.** Its case is real and it is the one #83 predicted would be the harder consequence. **It loses
+on §18.6's walk**: the same reading deletes `2375/tcp` Docker and `11211/udp` memcached, and §10.4.3
+has already ruled that both stand — Docker's row *strengthened* by exactly the fact being read as
+fatal.
+
+**Rule that the two defaults make the kubelet's shipped configuration indeterminate, and put both
+rows in the weak tier pending an owner statement.** Its case: honest about a genuine ambiguity, and
+cheap. **It loses because the ambiguity is not genuine** — the owner resolves it in its own bytes,
+three times over, and manufacturing indeterminacy where the artefact declares an answer is the
+mirror of §13.6's `.sample` trap. It would also have put a *claim* problem into a *footing* tier,
+which is the category error ADR-0036's consequences warn against.
+
+**Write a new ADR for the two-defaults rule.** Its case: *"the deprecated one is not the shipped
+default"* is a step beyond limb 1's letter, which was written for artefact-versus-documentation
+rather than default-versus-default. **It loses on placement, not on substance**: the rule refines
+limb 1 and travels exactly where limb 1 travels, so it belongs as an amendment to ADR-0036 — and
+ADR-0003's five amendments are this repo's precedent for extending a decision where it lives rather
+than beside it.
+
+### 18.12 Thin ground, flagged per the standing rule
+
+**`10250`'s Claim 3 now rests on the artefact §16.9 already called the thinnest placement in the
+footing table, and the weakness has been promoted from the footing to the claim.** §16.9's flag reads
+that every other scoping row has a *sentence* naming a network while `10250`'s is a table cell naming
+the port's clients. That was a disclosure about how strongly the row is footed; it is now also a
+disclosure about **whether the row's claim holds at all**, because Claim 3 has no second support on
+this row. §16.9 recorded that the argument for treating `Used By` as a §12(b) label *"was considered
+and lost only narrowly"* — on the footing question. It is put again here, on the claim question, and
+it loses again, but a reader should know it has now lost twice on the same cell rather than once.
+**The criterion that would change the verdict is unchanged and is §16.9's:** a kubernetes.io sentence
+placing the kubelet API on an untrusted network as a supported deployment removes the row outright;
+sustained failure to find any statement stronger than the table cell is the argument for reopening.
+
+**§18.3's rule is stated from three instances in one project.** The deprecation label appears in
+`applyLegacyDefaults`'s comment, in `AddKubeletConfigFlags`'s stamp and on the generated page — but
+all three are Kubernetes, and the rule is written to travel to any future curated table. ADR-0036
+limb 1 was measured across **nine** configuration artefacts from as many projects before it was
+stated; this amendment has one project behind it. It is a reading of limb 1 rather than a new limb,
+which is why it is stated anyway, but the measurement behind it is one project deep and that is worth
+knowing before it is relied on elsewhere.
+
+**Two ports could not be tested against §2.4 because they are not being admitted.** `10259` and
+`10257` are ticketed under ADR-0037 without a determinacy retrieval, so §18.8's table records the
+owner's boundary cell and nothing about whether the numbers are conventionally those services.
+Nothing here should be read as a determinacy finding for them.
+
+**Concurrency note — `10255`'s footing is being worked in parallel and is deliberately not
+reconciled here.** [#88](https://github.com/winniel123/verge-asm/issues/88) is examining `10255`'s
+footing under §2.3 at the same time as this pass. This section touches `10255`'s **claim** and leaves
+its footing cell exactly where §16.5 put it, on the same reasoning that had
+[#76](https://github.com/winniel123/verge-asm/issues/76) decline to re-tier a row placed by a
+concurrently-running pass. If #88 moves the footing, §17.6's sixth trigger — *a footing move re-arms
+the class sweep for exactly the row that moved* — fires for `10255`, and it fires against **this**
+section's claim finding rather than against §16.5's footing finding. Whoever merges the two should
+check that the two passes agree about which of `10255`'s two supports each of them moved.
+
+### 18.13 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6 and §16.10
+
+- **A default read from one function is not the default.** §16.5 read `defaults.go` and the flag
+  registration in `options.go` and concluded the flags inherit the config defaults. The overwrite is
+  in `NewKubeletConfiguration`, **eighty lines above the registrations in the same file**, and
+  reading it changes the answer. This is ADR-0037's *retrieve over the artefact* at function
+  granularity, and it is the second time in this note that a retrieval scoped to what it came for
+  returned a confident wrong answer — §16.10 recorded the first.
+- **A correct rendering of a deprecated interface is indistinguishable from a current one.** The
+  generated `kubelet.md` is accurate about everything it says. What it does not say — until the
+  deprecation stamp beside each entry is read — is that the interface it documents is one the owner
+  routes operators away from. **Reading the `Default:` cell and stopping is the whole defect**, and
+  the cure was three words to the right on the same line.
+- **The finding was re-taken at the current tag rather than inherited.** §16.5 measured at `v1.34.1`;
+  stable is now `v1.36.3`. All three settings, `applyLegacyDefaults`, its call site and the
+  deprecation block are byte-equivalent across both. **[measured]** by fetching both tags rather than
+  by assuming a two-version-old measurement holds — which is #73's citation-staleness trigger applied
+  before it fires rather than after.
+- **`kubernetes/website` has no branch matching the current `kubernetes/kubernetes` release.** Its
+  newest release branch is `release-1.35`; `release-1.36` returns 404 and current docs are on `main`.
+  A session that guessed the branch from the code tag would read a 404 as a withdrawn document. The
+  branch list was read before any path was resolved, per §13.10's rule.
+- **The config loader's defaulting behaviour was taken from the source's own comment rather than
+  inferred from apimachinery's conventions.** *"The UniversalDecoder runs defaulting and returns the
+  internal type by default"* is in `codec.go`, so the claim that a config file gets the restricting
+  defaults is quoted rather than reasoned. The inference — that a `CodecFactory` codec defaults on
+  decode — is true, and it is not what this section rests on.
+- **`ports-and-protocols.md` was read whole and at two branches.** `release-1.34` and `main` are
+  byte-identical in both tables for every row quoted here, which is why §18.8 can enumerate the
+  artefact's other subjects without a currency caveat.
 
 ---
 
