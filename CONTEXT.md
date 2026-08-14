@@ -316,7 +316,10 @@ other — the key function reads no octet's meaning — but it **denotes a set o
 name**, so there is no thing for a subject to be, and it is a subject from **no source**. In a
 certificate it is a matching construct in a *presented* identifier and admits nothing, which is
 what `authority` grades; in a zone file it is the rule an authority applies, whose effects the
-model already measures as the wildcard poison signature. The refusal takes the protocol's own test
+model already measures as the wildcard poison signature — a measurement whose subject is the `Name`
+those effects were probed **under**, never the wildcard, and one v1 holds nowhere
+([ADR-0062](./docs/adr/0062-a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under.md)).
+The refusal takes the protocol's own test
 where the protocol supplies one and the blunt one where it does not: only a leftmost label of
 exactly `*` is a wildcard in DNS — `the*` and `**` are ordinary labels and ordinary names, and a
 literal asterisk label is written `\042` — while in a certificate a partial wildcard is a pattern
@@ -437,8 +440,20 @@ carve-out in a leaf
 It is a value on `dns-record` as well as `resolution`, since a wildcard synthesises
 answers for *any* qtype. Deciding it takes two measurements — the name's answer and the zone's
 poison signature — so like `Lame`, `NoTLS` and `NoHTTPResponse` it is decided by the **measurement
-binary inside one batch**, never assembled afterwards from two observations.
-_Avoid_: unverifiable, synthetic, wildcard hit
+binary inside one batch**, never assembled afterwards from two observations. That signature is a fact
+about **the `Name` the control labels were generated under** — the name whose immediate child space
+the wildcard synthesises into, named by the measurement rather than inferred from it, which is why it
+is not *the apex*; and it admits nothing, since an answer served for a name that does not exist may
+cite no `Address` and open no `Endpoint`. **v1 holds it nowhere and ships no carrier for it.** It is
+an input to this decision and a value on no timeline, so a wildcard being **repointed** is invisible:
+every name beneath it stays `Shadowed` across the move, which is the suppression above working as
+intended on the fictional names and swallowing the real one alongside them. The carrier is named and
+**deferred rather than refused** — a facet of its own, never a value on `dns-record`, whose key is
+already occupied by what the authority served for that subject itself. Where no signature was
+measured beneath a wildcard this value is unavailable and the synthesised answer reads as `Resolved`,
+so **which names are control-probed** is a live question rather than a detail. See
+[ADR-0062](./docs/adr/0062-a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under.md).
+_Avoid_: unverifiable, synthetic, wildcard hit, poison signature (our instrument's name, never the fact)
 
 **Lame**:
 The value a `resolution` observation takes when every nameserver the parent zone delegates
