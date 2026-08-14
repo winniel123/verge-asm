@@ -525,10 +525,16 @@ never-evaluable population is invisible by construction and the census is the cl
 health this term exists to refuse. That census is current state and never a comparison, so it
 may not be rendered as a delta, a trend or a series — subtracting two of them conflates a moved
 domain with a moved predicate, which is the comparison the drift model already makes correctly
-one level down. A rule is **four parts** — its domain, its predicate, its `not-evaluable` case
+one level down. Where the predicate reads a **declared parameter**, the census states that
+parameter **as the rule expresses it** — the fraction, never its product on any one subject and
+never the spread of thresholds the estate happens to produce, since a declared parameter is ours
+and constant in every install while a statistic over the estate is neither, and is not a member of
+the partition. A rule is **four parts** — its domain, its predicate, its `not-evaluable` case
 and its version vector — plus one cost, the new measurement it requires, which is weighed and is
 never a correctness objection. It is **named for the fact it reads** — never for a
-conclusion its evidence cannot carry, and never for a protocol — and its scope is however many
+conclusion its evidence cannot carry, never for a protocol, and never for the **content** of a
+table or parameter that decides the fact, which is why no rule reading a curated table encodes
+that table in its name — and its scope is however many
 protocols happen to express that fact, so covering exactly one is not disqualifying while three
 protocols expressing one fact must be one signal rather than three. Being true of *most* of the
 estate is likewise not a defect: a signal is a census, urgency is the transition's, and narrowing
