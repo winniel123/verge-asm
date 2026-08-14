@@ -315,6 +315,32 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > two by §24's relative-strength reasoning. Read §30.7 and §30.9 before quoting this table's scoping row
 > as homogeneous.
 
+> **Amended by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)). **Every tier, count
+> and coverage figure is unchanged — prohibition 15 · scoping 11 · weak 2 · outside 11 · coverage 28 of
+> 39 — and `623 IPMI` is re-founded a second time, again inside the tier.** §23 left the **position**
+> resting on a single 2014 Dell statement carried in a **third party's advisory**, which is not one of
+> [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s four document
+> classes. §28 opened the three vendor cells §23.4 recorded as blocked. **[measured] Three of the
+> specification's four co-authors now state the position in their own first-party documents:** HPE,
+> *"**Do not connect iLO directly to the Internet.** The iLO processor is a management and
+> administration tool, not an Internet gateway"* (*iLO 7 Security Technology Brief*, PN
+> 30-869C87FF-011, Edition 1, **July 2026**); Dell, *"The iDRAC is not designed nor intended to be
+> placed on, nor connected directly to the Internet"* (*iDRAC10 Security Configuration Guide*, Rev.
+> A00, **December 2024**, restating VU#843044 in Dell's own shipping documentation); and NEC,
+> 「BMCをインターネットに接続しない」 (advisory NV21-002, 2021-01-07). HPE and Dell publish the **same
+> sentence** about the protocol — *"Do not allow IPMI/DCMI traffic from outside the network."*
+>
+> **Two consequences for this table and neither moves a cell.** The footing's class moves from
+> *outside the taxonomy* into the owners' **deployment / security** class, which clears
+> [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) directly rather than through
+> §23.6's issuance argument. And **`623/udp` acquires §2.2's third form for the first time, in the
+> restricting direction** — Dell documents `iDRAC.IPMILan.Enable — 0 - Disabled` and HPE *"This setting
+> is disabled by default"*, so §13.1's *"`623` has no shipped configuration artefact"* is **qualified**
+> (§28.10). The tier records the strongest form available and that is still the prohibition, so the
+> cell does not move. **No `(port, transport)` pair moves, no tier moves, no `Break`.** §28.9 records
+> that **no co-owner names internet-facing IPMI as supported**, discharging §23.10's reopening
+> criterion.
+
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
 This is the load-bearing methodological finding, and it took the most work to establish.
@@ -3653,6 +3679,20 @@ configuration is firmware. **There is nothing to open, so nothing in these rows 
 ticket** — recorded per §11.8's rule that a negative retrieval is a verdict, and per
 [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3 that
 it is a verdict about what was read.
+
+> **Qualified for `623/udp` by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)).
+> **The finding is right about the artefact and too strong about the form.** No configuration *file*
+> exists — a BMC's configuration is firmware — and the IPMI specification declines to set one:
+> **[measured]** §22.22, page 300, *"The choice of factory default setting for the non-volatile
+> parameters is **left to the implementer or system integrator**."* But §2.2's third form reads the
+> configuration that takes effect **and that the project documents as its default**, and two of the
+> specification's four co-authors document one: Dell's *Default Configuration Values* chapter records
+> `iDRAC.IPMILan.Enable — 0 - Disabled` at both iDRAC9 Rev. A01 and iDRAC10 Rev. A00, and HPE's
+> *Access settings options* records *"IPMI/DCMI over LAN … This setting is disabled by default"* with
+> *"The default value is UDP 623"*. **These restrict**, so under §10.4 they attest. They are owners'
+> defaults **over their own implementations** and are not defaults of the protocol — the distinction
+> §10.5's distributor fence exists to keep. **`1433` and `445` are untouched**; nothing here was
+> retrieved about either. No row and no tier moves (§28.10).
 
 ### 13.2 The re-derivation, row by row
 
@@ -7952,6 +7992,18 @@ implementations.** The class list, enumerated before the negative is recorded:
 | Lenovo (implementer) | vendor documentation | XCC2 port assignments | **Yes**, bytes | **No** — numbers the port only |
 | ipmitool (implementation) | implementation | 1.8.19git | **Yes**, source | **No** — numbers the port only |
 
+> **Amended by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)). **The four unresolved
+> cells above are resolved and the verdict is unchanged.** Dell's *vendor documentation* cell is
+> **open** (iDRAC9 SCG Rev. A01, April 2021; iDRAC10 SCG Rev. A00, December 2024) and reads **Yes**;
+> HP/HPE's is **open** (*iLO 5/6/7 Security Technology Briefs* and the *Compute Security Reference
+> Guide*, PN 30-2905B658-019 Ed. 19, July 2026) and reads **Yes**; NEC's is **open** (advisory
+> NV21-002, 2021-01-07, Japanese) and reads **Yes**; and Intel's G37830-002 is **re-verified as the
+> current revision** with a second Intel document read and still reads **No**. The DMTF rows are
+> confirmed at the index, read 2026-08-14, with one document added — **DSP0114 v1.3.0**, a second ASF
+> *specification*, which leaves the class list unchanged because there is still no deployment class.
+> **The negative this table records is untouched**: neither specification takes a placement position.
+> What changes is that the **vendor** column is no longer three-quarters unread. §28.8, §28.9.
+
 **Under ADR-0046 limb 1 this negative is not exposed, because it is not a sole ground.** The
 specification's silence about network placement grounds nothing: the position is carried by Dell's
 statement and corroborated by Supermicro's. A specification that numbers a port and declines to say
@@ -8189,6 +8241,16 @@ iLO IPMI as supported, that is §10.3's failure condition met by a co-owner and 
 **The criterion is stated so that it is falsifiable**, and reaching it needs a browser session rather
 than an argument.
 
+> **Discharged by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)), **and it needed
+> exactly the browser session this paragraph predicted.** Both co-authors' cells are now open.
+> **[measured] HPE does not document internet-facing iLO IPMI as supported — it prohibits it**, in a
+> general-purpose security document current to July 2026: *"Do not connect iLO directly to the
+> Internet."* NEC's cell, recorded here as *could not be located*, is also open and also prohibitive.
+> **§10.3's failure condition is unmet by every co-owner**, the breadth weakness is closed rather than
+> merely bounded, and the row is not back in play. Two near-misses that would be mistaken for
+> refutations — HPE's *iLO Direct Connect*, which is **outbound**, and Intel's *"through LAN or
+> Internet"*, which is **KVM on 443** — are disposed of by name in §28.9.
+
 **Dell's iDRAC port table is unverified, and the ruling deliberately does not rest on it.** The
 retrieval could not get bytes out of `dell.com`. Everything the ruling uses from Dell comes from
 VU#843044, which **was** byte-verified through CERT/CC's API. Stated plainly because the tempting
@@ -8217,6 +8279,15 @@ it and the Class A argument implied by §23.7's in-the-clear session setup was *
 pursued**, because this ticket's question is the attestation limb. A session that wants to move `623`
 from Class C to Class A has a live argument and should open a ticket rather than read it out of this
 section.
+
+> **Discharged by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)). The ticket was
+> opened and the claim gate was re-run. **The row does not move: Claim 1 is available at §10.1 Step 1
+> and fails at Step 2**, measured off Table G-1's `p` notation — the pre-session set is four commands
+> plus the session-establishment exchange, all of them capability discovery or handshake. **This
+> paragraph's instinct was right and its reason was incomplete**: §28.5 found two arguments stronger
+> than the in-the-clear one — Cipher Suite 0, which the specification mandates *support* for, and RAKP
+> Message 2's password-keyed HMAC — and refused both. Also unverified when this was written and
+> **verified now**: Dell's iDRAC port table (§28.11).
 
 ### 23.11 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10 and §22.10
 
@@ -9430,7 +9501,7 @@ which classes of that owner were never opened.**
 | 7 | `9300/tcp` Elasticsearch | Elastic | **security** — *Secure cluster communications*, under *deploy-manage → security* | **A** |
 | 8 | `873/tcp` rsync | the rsync project | **implementation guidance** — `rsyncd.conf(5)` | **retrieval — §26.3** |
 | 9 | `445/tcp` SMB (+`139/tcp`, `137`/`138/udp` in-cell) | Microsoft | **security** — *Preventing SMB traffic…* and *Secure SMB traffic in Windows Server* | **A** |
-| 10 | `623/udp` IPMI | Dell | **vendor statement carried in a third party's advisory** — CERT/CC VU#843044 | **A**, and see the rider |
+| 10 | `623/udp` IPMI | Dell | **vendor statement carried in a third party's advisory** — CERT/CC VU#843044 | **A**, and see the rider — **superseded by §28** |
 | 11 | `9042/tcp` Cassandra | Apache Cassandra | **shipped default** — `conf/cassandra.yaml`, already re-derived by §13 | **A** |
 | 12-13 | `2379`/`2380/tcp` etcd | etcd | **security** — `THREAT_MODEL.md` | **A** |
 | 14-15 | `10250`/`10255/tcp` kubelet | Kubernetes | **security** — `security-checklist.md` | **A** |
@@ -9440,6 +9511,17 @@ which classes of that owner were never opened.**
 | 21 | `25672/tcp` RabbitMQ | RabbitMQ | **implementation guidance** — the networking guide | **D — §26.5** |
 | 22 | `4369/tcp` epmd | Erlang/OTP | **deployment / security** — `secure_coding.md`, rule `DEP-001` | **C**, by §20 |
 | 23-24 | `2375`/`2376/tcp` Docker | Docker | **security** — *Docker Engine security* and *Protect the Docker daemon socket* | **C** |
+
+> **Amended by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)). **Row 10's class cell
+> is re-assigned and its filter changes.** *A third party's advisory* is **not one of ADR-0040's four
+> classes**, which makes `623/udp` the only pair in this population whose cited artefact sat **outside
+> the taxonomy the filters are defined over** — the structural reason it could not be filtered like its
+> neighbours, and the reason §26.5's rider was owed. §28.8 retrieved the owners' own
+> **deployment / security** class: Dell's *iDRAC10 Security Configuration Guide* Rev. A00 (December
+> 2024) restates VU#843044's proposition in Dell's own shipping documentation, and HPE's *iLO 7
+> Security Technology Brief* PN 30-869C87FF-011 (July 2026) states it independently. **Row 10 now reads
+> class `deployment / security guidance`, filter `retrieved — §28`.** No row, tier or coverage figure
+> moves.
 
 **One structural fact falls out of the table and it is the reason this half yields less than §17 did.**
 **[measured] Not one prose-tier footing rests on a specification.** ADR-0040 was measured on
@@ -9701,6 +9783,13 @@ detail that the example is read-only and `all_squash`ed.
 > **24 prose-tier pairs. Filter A carries 13, Filter B carries 0, Filter C carries 8, a fourth filter
 > the ticket did not name carries 1, and 2 were retrieved.** 13 + 0 + 8 + 1 + 2 = 24.
 
+> **Amended by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)). **The arithmetic is
+> now `12 + 0 + 8 + 1 + 3 = 24`.** `623/udp`'s conditional Filter A pass — the rider below — fired when
+> [#90](https://github.com/winniel123/verge-asm/issues/90) re-founded the cell, and §28 spent the
+> retrieval it owed. **Filter A carries 12 and the retrieved column carries 3.** The pair leaves the
+> residue; the footing stands, gains two owner documents in the owners' own deployment/security class,
+> and **does not change tier**.
+
 **Filter A — an owner's prohibition naming the public internet — carries 13.** `6379`, `11211/tcp`,
 `11211/udp`, `1433`, `9200`, `9300`, `445`, `623`, `9042`, `2379`, `2380`, `10250`, `10255`. The
 argument is the positive mirror of §17.2's exposure test: where the footing already stands at the
@@ -9757,6 +9846,13 @@ is an argument about sufficiency, not a measurement of completeness.** Naming wh
   removes the row the cell leaves with it** (§18.6); **if #90 re-founds the cell on the IPMI or ASF
   specification, this pair returns to the residue and owes the retrieval this section did not spend on
   it.** Recorded so the sweep's coverage claim does not silently outlive its premise.
+  **Discharged by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)): #90 re-founded the
+  cell, the condition fired, and the retrieval is spent. The pair leaves the residue. **[measured]**
+  what it returned was the opposite of a refutation — three of the specification's four co-authors
+  state the position in first-party documents and **none names internet-facing IPMI as supported**, so
+  §10.3's failure condition is unmet by every co-owner (§28.9). The rider was worth writing: the
+  retrieval it forced is what moved this footing out of a third party's advisory and into the owners'
+  own deployment class.
 - **A filter carries a pair *as of a class list with a date on it*** — §26.6.
 
 ### 26.6 An owner's class list is fixed at the time of the sweep, not for all time
@@ -10770,6 +10866,640 @@ concentration is real and is recorded so that a curator can see it.
 
 ---
 
+## 28. `623/udp` — Claim 1 read off the specification's own dispatch, and the positive footing's class sweep
+
+Wayfinder ticket [#96](https://github.com/winniel123/verge-asm/issues/96), the residue
+[#90](https://github.com/winniel123/verge-asm/issues/90) and [#93](https://github.com/winniel123/verge-asm/issues/93)
+each left. Two questions, one corpus, one retrieval.
+
+> **FIGURE DELTA: no row, no class, no tier, no coverage figure moves.** §1 stays **39 pairs**;
+> §3 class totals stay **11 / 7 / 21**; §2.2 coverage stays **28 of 39** at tiers
+> **15 / 11 / 2 / 11**; §6.1's `28 + 6 + 5 = 39` is untouched; §4.6 stays **19**;
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union gains and loses no member;
+> [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s `Break` is **not** triggered.
+> **Two figures inside §26 do move**, and only those: §26.5's filter arithmetic goes from
+> `13 + 0 + 8 + 1 + 2` to **`12 + 0 + 8 + 1 + 3`** — `623/udp` leaves Filter A for the retrieved
+> column — and §26.2's class cell for the row is re-assigned. §26.5's rider is discharged.
+
+**Both questions come back the way the row was already standing, and the second comes back much
+better than that.** The Class A argument #90 recorded is refused at §10.1 **Step 2**, measured off
+Table G-1's own dispatch rather than off §13's prose. And the class sweep opens the three vendor
+cells §23.4 recorded as blocked — **[measured]** all three are now open, all three are prohibitive,
+and **no co-owner names an internet-facing IPMI deployment as supported**, which discharges the
+reopening criterion §23.10 armed.
+
+> **`623/udp` stays on the list, stays **Class C** on Claim 3, and stays in the explicit prohibition
+> tier.** What changes is the quality of the warrant: the row no longer rests on a single 2014
+> vendor statement carried in a third party's advisory. **Three of the specification's four
+> co-authors now state the position in first-party documents**, two of them current to 2026, and
+> **two of the four ship IPMI-over-LAN disabled by default**.
+
+### 28.1 What was retrieved, at what revision, and as what
+
+Per ADR-0040's *read shipped bytes at a named version* rule and §13.10's, each artefact is listed
+with what was actually opened. **Every negative in this section carries the release and the date it
+was read at**, which is §26.6's rider binding its own output.
+
+| Artefact | Class | Named version, read off the artefact | How it was read |
+|---|---|---|---|
+| **IPMI Specification v2.0** — Intel, HP, NEC, Dell | Specification | Document Revision 1.1, 1 October 2013 | PDF, **12,037,554 bytes**, `pdftotext` locally (§28.12) |
+| **DMTF DSP0136** *Alert Standard Format* | Specification | Version 2.0, 23 April 2003, **Final** | PDF, **749,846 bytes**, `pdftotext` locally |
+| **HPE iLO 7 *Security Technology Brief*** | Deployment / security | **PN 30-869C87FF-011, Edition 1, July 2026** | `support.hpe.com` rendered HTML, browser session |
+| **HPE iLO 6 *Security Technology Brief*** | Deployment / security | **PN 30-3CC3279C-024, Edition 1, July 2026** | same |
+| **HPE iLO 5 *Security Technology Brief*** | Deployment / security | docId `a00026171en_us` | same |
+| **HPE *Compute Security Reference Guide*** | Deployment / security | **PN 30-2905B658-019, Edition 19, July 2026** | same |
+| **HPE *iLO 7 IPMI User Guide*** | Implementation guidance | **PN 30-62D2E6BA-007, June 2026** | same |
+| **Dell *iDRAC10 Security Configuration Guide*, 1.10.xx** | Deployment / security | **Rev. A00, December 2024** | PDF, 909,763 bytes, `pdftotext` |
+| **Dell *iDRAC9 Security Configuration Guide*, v4.x** | Deployment / security | **Rev. A01, April 2021** | PDF, 1,681,018 bytes, `pdftotext` |
+| **NEC advisory NV21-002** (JVN#38752718) | Vulnerability response | **2021-01-07**, Japanese only | HTML bytes, 26,393 |
+| **NEC *EXPRESSSCOPE Engine 3 User's Guide*** | Implementation guidance | revision `ee3_08` | PDF, 1,258,158 bytes, `pdftotext` |
+| **NEC *Express5800 System Configuration Guide — Server Management*** | Product guide | 28 September 2018 | PDF, 2,863,023 bytes, `pdftotext` |
+| **Intel *Integrated BMC Web Console User Guide*, M70KLP** | Implementation guidance | **Rev. 1.0, June 2021** | PDF, 10,784,959 bytes, `pdftotext` |
+| **Intel *Server Management Guide*** | Implementation guidance | **G37830-002 rev 3.1, October 2012** | PDF, 4,187,453 bytes — **re-verified as the current revision** (§28.9) |
+| **DMTF ASF index and published-documents index** | Class enumeration | read 2026-08-14 | HTML, 87,523 / 529,506 bytes via `curl` |
+
+---
+
+## The class question
+
+### 28.2 The argument for Class A, stated at its strongest before it is answered
+
+§23.7 recorded it and declined to rely on it: IPMI's session startup transacts *Get Channel
+Authentication Capabilities* and *Get Session Challenge* with *"Authentication Type = none ('in
+clear')"* before any authenticated packet. #37's rule is that **a row moves on a retrieval, never on
+a re-reading**, and #90 had already done the re-reading. This section performs the retrieval, and it
+is a retrieval of the **dispatch** — [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)
+limb 2 requires Step 2 be read off what the implementation actually admits rather than off the
+narration, which is the instrument §20.6 used on `epmd_srv.c` and §25.2 on ten more rows.
+
+The retrieval returned **three** candidate arguments, not one, and two of them are stronger than the
+one the ticket was written against. All three are set out and all three are refused.
+
+### 28.3 Step 1 — the publication test does not refuse, and the narrow reading that would is wrong
+
+Two readings of §10.1's Step 1 are available and they must be separated.
+
+- **The narrow reading refuses.** *"The operations answerable anonymously are the ones the
+  specification defines it to perform for callers it does not identify"* — capability discovery
+  before a session is exactly that, by construction.
+- **The broad reading does not.** §10.1 glosses the same clause as *"the specification's statement
+  of purpose is **answer whoever asks**"*, and every one of its six worked refusals — finger, WHOIS,
+  DNS, HTTP, `systat`/`netstat`, rpcbind — is a **whole-protocol publication** case.
+
+> **Ruled: Step 1 does not refuse, and Claim 1 remains available at Step 1.**
+
+**The narrow reading loses on a measurement, not on taste.** It refuses every protocol with a
+pre-authentication handshake — which is most of Class A. `2375/tcp` Docker negotiates TLS before any
+credential; `2379`/`2380` etcd do the same, and §25.1 has just re-founded both Step 1 cells on
+etcd's own *"Any client request must prove its identity at the transport layer using client
+certificates"*. A reading that empties Class A of its handshake-bearing rows is the over-reach
+ADR-0054 limb 2 refused one step later, arriving one step earlier.
+
+**What answers Step 1 for IPMI is the owner's own sentence about its callers**, in ADR-0054's
+required vocabulary — a statement about the **intended caller population** rather than a boundary:
+
+> "**A session must be activated before general IPMI messaging can occur.**"
+> — IPMI v2.0 rev 1.1, **§6.12.7**, page 57
+
+That is the specification stating that its callers are identified before it performs anything, which
+is the etcd shape exactly. IPMI's statement of purpose is not *answer whoever asks*.
+
+### 28.4 Step 2 — the pre-session dispatch, enumerated from Table G-1
+
+Step 2 requires the anonymously-reachable operations to **write or delete data, register or
+deregister a service, execute code, control a runtime, or read content the protocol carries on
+behalf of a party other than the caller**. The specification defines the reachable set by a **table
+notation**, which is the dispatch ADR-0054 limb 2 asks for:
+
+> "In addition, the IPMI commands that are available before a session is established, and commands
+> that are required to activate a session, such as Get System GUID, and Activate Session, also
+> remain available. **These commands are identified with the notation "p" in Table G-1**, Command
+> Number Assignments and Privilege Levels."
+> — §13.27.1, page 156
+
+> "**p = works at any privilege level, can be sent prior to a session being established**"
+> — Table G-1 key, Appendix G, page 586
+
+**[measured] Exactly four commands carry `p` in Table G-1's App network function**, read off the
+table at page 587 where its columns render cleanly:
+
+| Command | NetFn | CMD | G-1 | What the anonymous caller obtains |
+|---|---|---|---|---|
+| Get System GUID | App | `37h` | `p3 p3 p3 p3` | The 16-byte system GUID (§22.14) |
+| Get Channel Authentication Capabilities | App | `38h` | `p3 p3 p3 p3` | Channel capability flags (§22.13, and see below) |
+| Get Session Challenge | App | `39h` | `p3 p3 p3 p3` | A session challenge — a step of the handshake |
+| Activate Session | App | `3Ah` | `p3 p3 p3 p3` | Nothing without a valid AuthCode |
+
+To which the RMCP+ payload types add the session-establishment exchange itself — **RMCP+ Open
+Session Request/Response, RAKP Messages 1–4** (§13.15) — and **Get Channel Cipher Suites**, which
+§13.15 places pre-session for algorithm discovery; and, one layer down, ASF's **Presence Ping /
+Presence Pong** (DSP0136 §3.2.4.3, page 36), whose entire payload is an IANA enterprise number, an
+OEM field, an *"IPMI is supported"* bit and an ASF version.
+
+**Two rows outside the App block are `p`-shaped and could not be attributed to a command by any
+extraction — the bound is stated rather than smoothed** (§28.12). The finding does not rest on
+them, because §6.12.7's general rule disposes of the whole remainder: *general IPMI messaging*
+requires an activated session, and the exceptions are the enumerated ones. Corroborated
+independently by §13.6 footnote 8, which enumerates the null-Session-ID set as *"Get System GUID,
+Get Channel Authentication Capabilities, Get Session Challenge, and RAKP messages"*, and by §22.14's
+*"The Get System GUID will always be accepted outside of an active session."*
+
+**Two precise negatives, recorded because they are the ones a session would guess wrong.**
+**[measured]** *Set Session Privilege Level* (`3Bh`) is marked `X4`, **not** `p` — it operates
+inside a session. And *Get Device ID* (`01h`) is **not** `p`-marked over LAN; it is session-less
+only on the inherently session-less interfaces. No Chassis, Event or Sensor command is placed
+pre-session anywhere in the specification: the strings *"prior to a session being established"*,
+*"before the session is set up"* and *"outside of an active session"* occur in the whole document
+only in the four places quoted above.
+
+> **Step 2 is not satisfied by the discovery surface.** Nothing in the pre-session set writes,
+> deletes, registers, deregisters, executes, controls, or reads content carried on behalf of another
+> party. #90's reading — *"capability discovery is not a command"* — is confirmed, and it is now
+> confirmed **from the dispatch** rather than from the prose, which is what #37 required before the
+> row could move either way.
+
+**How much the discovery surface actually leaks, stated rather than minimised**, because a reader
+should not be able to say the section understated it. Get Channel Authentication Capabilities is
+*"sent in unauthenticated (clear) format"* (§22.13, p.282) and its response discloses the supported
+IPMI versions, the enabled authentication algorithms, the **KG (BMC key) status**, the **Per-message
+and User-Level Authentication disable states**, the **OEM IANA ID and OEM auxiliary data**, and —
+Table 22-15 byte 4 `[2:0]` — the **Anonymous Login status**: *"1b = Anonymous Login enabled (A user
+that has a null username and null password is presently enabled)"*. That is a rich pre-authentication
+disclosure. It is still disclosure, and §10.2 refused *disclosure by design* as a claim when the set
+was closed.
+
+### 28.5 The two stronger arguments the retrieval turned up, argued and refused
+
+**Argument A — Cipher Suite 0, and the specification mandates support for it.** This is stronger
+than the ticket's own argument and the note should own that. **[measured]** Table 22-19 (§22.15.2,
+p.292) defines Cipher Suite **ID 0**, characteristics column **blank**, *"no password"*, algorithms
+`RAKP-none / None / None` — where the table's own key defines the characteristic it lacks as
+*"S = authenticated session setup (correct role, username and password/key required to establish
+session)"*. Table 13-17 (§13.28, p.157) marks RAKP-none **`M`** — mandatory with respect to BMC
+support. And the specification says what it buys, in its own words:
+
+> "**RAKP-none does not provide password authentication** or RAKP packet level data integrity
+> checking. The RAKP steps establish Session IDs and privilege level using only the given
+> username/role. A BMC implementation can be configured with a null username that has a null (all
+> 0's) password. **A BMC configured this way, and using the RAKP-none Authentication Algorithm,
+> provides a way to enable access to the BMC without requiring a username and password.**"
+> — IPMI v2.0 rev 1.1, **§13.28.2**, page 158
+
+A caller in such a session issues ordinary IPMI commands at the negotiated privilege — chassis
+control, user provisioning, Serial-over-LAN. That is Step 2 four times over.
+
+**It loses, on two independent grounds and the second is a measurement.**
+
+1. **Mandatory *support* is not a shipped *configuration*.** §10.1's premise is *"the service, **in
+   the configuration its maintainers ship**, admits anonymous commands"*. The specification mandates
+   that a BMC be **able** to do RAKP-none; enabling it, and creating the null user it needs, are two
+   configuration acts. **[measured]** the specification mandates neither: searched §13.28, §22.15,
+   §23's LAN Configuration Parameters and Table 22-19, **no clause requires Cipher Suite 0 to be
+   enabled**, and LAN parameter 24's own nibble `0h` reads *"Unspecified (given Cipher Suite is
+   unused)"*.
+2. **The reading that admits `623` on this ground admits half the list.** Collapsing *supports an
+   unauthenticated mode* into *ships one* moves `5432/tcp` PostgreSQL to Class A on its `trust`
+   authentication method, `3306` and `1433` on their no-password accounts, and `2049/tcp` on
+   `AUTH_NONE`. `5432` is **§4.5's weakest row**, sitting in Class C on a **restricting** default.
+   A rule that promotes the note's weakest row to its strongest class has failed, and this is
+   §10.4.1's measurement — *the symmetric reading deletes half the list* — run in the admitting
+   direction.
+
+**And the owner has since closed the configuration half from the other side.** §28.7's retrieval
+finds Dell instructing *"Disable Cipher 0"* in its own current security guide, and HPE recommending
+a specific cipher suite in its. Where a co-owner speaks about the setting at all, it speaks against
+it.
+
+**Argument B — RAKP Message 2 discloses a password-derived hash to an unauthenticated caller.**
+This is the strongest of the three, because unlike Argument A it needs **no permissive
+configuration at all**: it happens on a correctly-configured, password-protected BMC using the
+mandatory secure suites. **[measured]**, §13.31, page 163:
+
+> "Message 2: Managed System → Remote Console: SIDM, RC, GUIDC, **HMAC_K[UID] (SIDM, SIDC, RM, RC,
+> GUIDC, RoleM, ULengthM, < UNameM >)**  … where **K[UID] is the user-specific key** that is
+> associated with the given username and role."
+
+and §13.20 (p.149) has the BMC emit it once it has checked only *"that the message contains an
+active Managed System Session ID and that a session can be created using the given user
+information"* — that is, **before the caller has proven any knowledge of the password**. The
+anonymous caller need never send RAKP Message 3. **An owner says so in terms**, which is what makes
+this argument respectable rather than clever:
+
+> "The IPMI specification requires support for RAKP authentication, **which allows remote attackers
+> to obtain password hashes and conduct offline password guessing attacks.** Since this requirement
+> is part of the IPMI protocol, Hewlett Packard Enterprise recommends disabling IPMI over LAN (if
+> not in use) or isolating the IPMI management subnet."
+> — **HPE iLO 6 *Security Technology Brief***, PN 30-3CC3279C-024, Edition 1, July 2026,
+> *Guidelines for using iLO with IPMI or DCMI over LAN*
+
+> **It is refused, on three grounds in increasing order of force.**
+
+1. **It is not an operation.** Step 2's five alternatives are all things the protocol **performs for
+   a caller**. RAKP Message 2 is a message of the authentication handshake — the protocol deciding
+   whether to perform anything. The disanalogy with `4369/tcp` is exact and it is the reason that
+   row survives where this one does not: answering node-name and port queries **is epmd's service**,
+   the thing the daemon exists to do for the callers it exists to serve (§20.6). Emitting a
+   challenge is not IPMI's service.
+2. **The read limb requires content the protocol *carries*.** epmd carries a **registry** — data
+   deposited by third parties and held for retrieval, which is why §20.6 could name the party it is
+   held on behalf of. A BMC does not carry `HMAC_K[UID]`; it **computes** it per exchange over a
+   nonce the caller itself supplied. What the BMC carries is the password, and the password is not
+   disclosed.
+3. **It is a Claim 2-shaped fact, and §10.8 has already ruled Claim 2 structurally unavailable
+   here.** The owners themselves characterise the harm as **credential** exposure — Dell:
+   *"inherent security concerns that potentially allow malicious actors to **discover user
+   credentials** resulting in unauthorized actions"* — and the unauthorized actions arrive **after**
+   an offline crack, at which point the caller is no longer anonymous. §10.2's closed set is not
+   reopened by it either: a leaky authenticator is a property of the **protocol**, not a fourth
+   property of an **internet vantage**, and §10.2 reopens only on the latter.
+
+**§10.8 predicted this class of blindness in advance and this is its first instance.** §10.8 records
+that Claim 2 carries a permanent coverage boundary because RFC 6335 §9 steers implementers to
+in-band security negotiation rather than a split port — and IPMI is a textbook case: §23.8 already
+quotes the specification's *"Authenticated and Encrypted sessions can be established on any UDP
+port, including port 26Fh"*. There is no plaintext port to condemn and no encrypted successor to
+name, so **no Class B row is constructible for IPMI**. The password-hash disclosure lands exactly in
+the one place this instrument is blind to by construction, and it lands there for the reason §10.8
+gave rather than by accident.
+
+### 28.6 The ruling on the class
+
+> **1. `623/udp` stays in Class C on Claim 3.** Claim 1 is available at Step 1 and **fails at
+> Step 2**, measured off Table G-1's `p` notation and §6.12.7's general rule rather than off §13's
+> prose. Claim 2 is **structurally unavailable** under §10.8. §3's class totals do not move.
+>
+> **2. §23.7's disclosure is confirmed, not withdrawn.** *"Session setup is transacted in the clear
+> before authentication"* is true, is now measured, and is **disclosure rather than a claim move** —
+> which is what §23.7 said and declined to rely on. The note is consistent with itself.
+>
+> **3. Two arguments stronger than the ticket's were found and refused**, and both are recorded so
+> the next session does not re-run them: Cipher Suite 0 (§28.5 A) and the RAKP hash disclosure
+> (§28.5 B).
+>
+> **4. §10.1's Class A walk is untouched** — it walks Class A's eleven rows and can only remove; a
+> candidate for **addition** is a different act and is performed here rather than there.
+
+**The `why` cell §23.7 restated stands, and gains its owner citations.** No edit is made to §3.3;
+per §10.7's and §20.5's convention the current text is recorded here:
+
+> | 623/udp | IPMI / ASF-RMCP (BMC) | The IPMI specification puts IPMI-over-LAN on the Primary RMCP Port, and three of that specification's four authors state the position in their own documents — Dell, *"not designed nor intended to be placed on, nor connected directly to the Internet"*; HPE, *"Do not connect iLO directly to the Internet"*; NEC, *"do not connect the BMC to the Internet"*. Session setup is transacted in the clear before authentication, so a caller that reaches the port learns the channel's authentication capabilities without holding a credential (§28.4 — disclosure, not a Claim 1 move) |
+
+---
+
+## The footing question
+
+### 28.7 The footing's class — and it is the corpus's first outside ADR-0040's taxonomy
+
+**This is why the pair could not be filtered like its twenty-three neighbours, and §26 could not
+have known it.** §26.2 filed the row's footing as *"vendor statement carried in a **third party's
+advisory** — CERT/CC VU#843044"*. ADR-0040's classes are the **specification**, the **operational or
+deployment** recommendation, the **implementation guidance**, and §2.2's third form the **shipped
+default**. *A third party's advisory* is none of them. **`623/udp` is the only row in §26.2's
+population of 24 whose cited artefact sits outside the taxonomy the filters are defined over** — so
+a filter asking *which class did this sentence come from* had no cell to tick, and Filter A was
+carrying it on the sentence's **shape** rather than on its class.
+
+§26.8's own hazard is the reason to say this carefully: *the class a document reads as and the
+artefact it ships in can disagree*, and §26.2 assigns on the **artefact**. By content, Dell's
+passage is a deployment recommendation — Dell titles it *Dell Best Practices*. By artefact it is a
+CERT/CC vulnerability note. §26.2's conservative rule put it on the artefact, and being outside is
+precisely what made the retrieval owed rather than filtered.
+
+**Did #93's condition actually fire?** §26.5's rider is *"if #90 re-founds the cell on the IPMI or
+ASF specification, this pair returns to the residue and owes the retrieval this section did not
+spend on it."* Textually yes — §23.7 item 3 and §2.2's §23 amendment both say the cell is
+**re-founded** — and #93's own merge-reconciliation note read §23 and ruled it fired. **It is worth
+recording that what §23 re-founded was the *number*, not the *position*.** §23.11 names refusing
+exactly that conflation as *"the trap this section had to refuse by name"*. So Filter A's premise —
+Dell's sentence names the internet in an **owner's** voice — came out of #90 **stronger** than it
+went in, because #90 established that Dell owns the protocol and not merely the product. The
+retrieval was owed on the letter of the rider and its expected yield was low. **It did not come back
+low**, and §28.8 is why.
+
+### 28.8 The sweep — three blocked cells opened, and every one is prohibitive
+
+§23.4's class list recorded three cells as **unresolved** and one as attempted-and-blocked. All are
+now read. Reading date for every negative below: **2026-08-14**, per §26.6.
+
+| Owner | Class | Was (§23.4) | Is |
+|---|---|---|---|
+| **HP/HPE** (co-author) | vendor deployment / security | *"Attempted five times, blocked"* | **Open. Prohibitive** — three documents, current to **July 2026** |
+| **Dell** (co-author) | vendor deployment / security | *"Attempted, blocked"* | **Open. Prohibitive** — iDRAC9 Rev. A01 and iDRAC10 Rev. A00 |
+| **NEC** (co-author) | vendor documentation | *"Not located"* | **Open. Prohibitive**, and weaker in kind (§28.10) |
+| **Intel** (co-author) | vendor documentation | read at G37830-002 | **Re-verified as current**; a second Intel document read; **no position, either way** |
+| **DMTF** | deployment / operational | *"does not exist"* | **Confirmed** at the index, read 2026-08-14 |
+
+**HPE, and it is the strongest single citation the row has ever had** — unconditional, in a
+general-purpose security document rather than an advisory, and current:
+
+> "**Do not connect iLO directly to the Internet.** The iLO processor is a management and
+> administration tool, not an Internet gateway. Connect to the Internet by using a corporate VPN
+> that provides firewall protection."
+> — **HPE iLO 7 *Security Technology Brief***, PN **30-869C87FF-011**, Edition 1, **July 2026**,
+> *Security guidelines*. The same text is in the iLO 6 brief, PN 30-3CC3279C-024
+
+and, naming the pair's own protocol:
+
+> "Observe the following guidelines when using IPMI or DCMI over LAN: Segment IPMI/DCMI traffic from
+> the rest of the network. … **Do not allow IPMI/DCMI traffic from outside the network.**"
+> — HPE iLO 6 *Security Technology Brief*, *Guidelines for using iLO with IPMI or DCMI over LAN*,
+> which also records *"The IPMI/DCMI port is set to 623 by default"*
+
+**Dell, restating VU#843044's proposition in its own current shipping documentation** — which is the
+single most valuable thing the sweep returned, because it removes the note's dependence on a
+third party's advisory as the artefact:
+
+> "The iDRAC **is intended to be on a separate management network. The iDRAC is not designed nor
+> intended to be placed on, nor connected directly to the Internet.** Doing so could expose the
+> connected system to security and other risks for which Dell is not responsible."
+> — **Dell *iDRAC10 Security Configuration Guide*, 1.10.xx Series, Rev. A00, December 2024**,
+> ch. 26 *Best Practices*. The same bullet is in the **iDRAC9** guide, **Rev. A01, April 2021**,
+> under Dell EMC branding
+
+> "**Do not allow IPMI traffic from outside the network.**"
+> — the same guide, *IPMI Security Best Practices*, item 2 of 4; item 4 is *"Disable Cipher 0"*
+
+**[measured] HPE and Dell publish the same sentence.** *"Do not allow IPMI/DCMI traffic from outside
+the network"* and *"Do not allow IPMI traffic from outside the network"* are two of the four
+co-authors independently, and it is the closest thing to unanimity §10.3 has ever had for a row.
+§10.3 asks only that the boundary be **named by an owner** and does not require unanimity; it now
+has three owners anyway.
+
+**NEC, and this is the cell #90 could not find at all:**
+
+> 「…ファイアウォールなどで保護された安全なイントラネット内のみで製品を使用し、**BMCをインターネットに接続しない**。」
+> *"…use the product only within a safe intranet protected by a firewall or the like, and **do not
+> connect the BMC to the Internet**."*
+> — **NEC advisory NV21-002**, 掲載番号 NV21-002, JVN#38752718, **2021-01-07**, the vendor advisory
+> for CVE-2020-5633, whose title is 「IPMI over LAN を使用した RMCP 接続における認証不備の脆弱性」
+> — *"Improper-authentication vulnerability in RMCP connections that use IPMI over LAN"*
+
+### 28.9 §10.3's failure condition, tested against every co-owner — and it is not met
+
+**This is the criterion §23.10 armed, and discharging it is half of what the ticket was for.** #90
+wrote: *"if HPE turns out to document internet-facing iLO IPMI as supported, that is §10.3's failure
+condition met by a co-owner and the row is back in play."*
+
+> **[measured] No co-owner names an internet-facing IPMI or BMC deployment as supported, anywhere
+> retrieved.** Searched 2026-08-14 across the HPE iLO 5, 6 and 7 *Security Technology Briefs* and the
+> *Compute Security Reference Guide* (PN 30-2905B658-019 Ed. 19, July 2026); the Dell iDRAC9 (Rev.
+> A01) and iDRAC10 (Rev. A00) *Security Configuration Guides* in full extracted text; the three NEC
+> documents; and both Intel documents. **The criterion is discharged in the safe direction and the
+> row is not back in play.**
+
+**Two near-misses, disposed of by name, because each would be mistaken for a refutation by a session
+that met it cold.**
+
+1. **HPE *iLO Direct Connect* is outbound, not inbound.** HPE material on iLO Direct Connect reads
+   like HPE endorsing an internet-reachable iLO. It is the opposite direction: per HPE advisory
+   `a00050194en_us`, Document Version 4, last updated 2019-10-15, *"ensure the firewall or proxy
+   rules will permit communication **from the device to** `https://api.support.hpe.com` over port
+   443"*. That is iLO making an **outbound** client connection through the customer's firewall to
+   HPE's Remote Support data centres. It is not inbound reachability, it is not `623/udp`, and it is
+   not IPMI.
+2. **Intel's *"through LAN or Internet"* is a capability sentence about KVM on 443.** Both Intel
+   documents carry it — *"The advanced management feature enables remote KVM access and control
+   through LAN or Internet"* (M70KLP *Integrated BMC Web Console User Guide*, Rev. 1.0, June 2021,
+   §5) and the same construction for RMM4 in G37830-002. It is refused on three grounds that must
+   travel together: it describes the **web console's KVM on TCP/443**, which the same guide states
+   outright (*"KVM and media use the BMC default web server port: 443"*), not IPMI on `623/udp`; it
+   is a **capability** claim, which is §12(b)'s *label* rather than *position* and the line §23.5
+   drew for the specification's own *management VLAN*; and the same guide immediately assumes a
+   firewalled or NATed private network. **This is §17.4's shape not occurring** — the one place in
+   the corpus where a class sweep did find an owner naming public networks as supported.
+
+**A third thing that is not a refutation and is worth stating because it looks like one.** HPE has
+**not** deprecated or removed IPMI-over-LAN: it still ships and actively revises the *HPE iLO 7 IPMI
+User Guide*, PN 30-62D2E6BA-007, June 2026. What changed is the **default**. A session tempted to
+write *HPE removed IPMI* would be wrong, and §28.10 records what actually happened.
+
+### 28.10 The footing gains a class, a shipped default, and a date
+
+> **The cell is re-assigned from *a third party's advisory* to the owners' own
+> deployment / security class, and it stays in the explicit prohibition tier.**
+
+**Three consequences, none of which moves a tier or a row.**
+
+1. **The footing's class is now inside ADR-0040's taxonomy.** Dell's *iDRAC10 Security Configuration
+   Guide* and HPE's *iLO 7 Security Technology Brief* are deployment/security-class documents issued
+   by the owners on their own documentation sites, which clears
+   [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) directly rather than
+   through §23.6's issuance argument. **§23.6's objection 3 is now moot rather than merely
+   answered** — the row no longer needs the CERT/CC statement to be issued, because the same
+   proposition is in Dell's own guide. VU#843044 is **not withdrawn**; it becomes the earliest of
+   three owner statements rather than the only one.
+2. **`623/udp` acquires §2.2's third form for the first time, and it *restricts*.** **[measured]**
+   Dell's *Default Configuration Values* chapter records `iDRAC.IPMILan.Enable — 0 - Disabled`, in
+   both the iDRAC9 and iDRAC10 guides; HPE's *Access settings options* records *"IPMI/DCMI over LAN
+   … **This setting is disabled by default**"* with *"The default value is UDP 623"*, and HPE's
+   *Recommended security settings* row reads *"IPMI/DCMI over LAN — Disabled (includes port
+   setting)"*. Under §10.4 a **restricting** default attests, so this is an attestation and not
+   silence. **It is an owner's default over its own implementation, and it is not a default of the
+   specification** — §22.22 (p.300) says so in terms: *"The choice of factory default setting for
+   the non-volatile parameters is **left to the implementer or system integrator**."* The distinction
+   is kept because collapsing it would let any BMC vendor's firmware answer for the protocol, which
+   is §10.5's distributor fence.
+3. **No tier moves.** §16.2's rule is that the tier records the **strongest form available**, and
+   that is still the prohibition. The default corroborates inside the tier — the §20 and §26.3
+   shape, *warrant strengthened within a tier, membership untouched*.
+
+**For [#98](https://github.com/winniel123/verge-asm/issues/98), which owns §20.8's tier criterion:**
+`623/udp` is one of §26.3's **13 clean** and is now clean three times over — Dell, HPE and NEC each
+name *the Internet* explicitly. **Nothing here moves §26.3's `13 clean · 1 marginal · 1 failing`
+count**, and it is recorded so that pass does not have to re-check this row.
+
+**The negatives, dated per §26.6 and stated as *no member found at release R on date D*, never as
+*never issued*:**
+
+- **Intel — deployment/operational class empty.** No member found at *Server Management Guide*
+  G37830-002 rev 3.1 (October 2012) or *Integrated BMC Web Console User Guide* M70KLP Rev. 1.0
+  (June 2021), read 2026-08-14. **[measured]** G37830-002 is confirmed **current**: the file Intel
+  serves from its present CDN is the same document, and its own revision history ends at *"3.1 …
+  October 2012"*. §23.8's `dpcproxy` finding is therefore not stale.
+- **NEC — no dedicated BMC security-configuration guide.** No member found on `nec.com`,
+  `jpn.nec.com` or `58support.nec.co.jp`, searched in English and Japanese, read 2026-08-14. NEC has
+  no counterpart to Dell's SCG or HPE's brief; its position is carried by the advisory class.
+- **NEC — `623/udp` is not in the EXPRESSSCOPE Engine 3 *User's Guide* at all.** Its §4 *TCP/IP
+  PORTS* table enumerates remote media, HTTP, HTTPS, remote KVM, SSH, SMTP, LDAP and SNMP; **623 is
+  absent.** Read at revision `ee3_08`, 2026-08-14.
+- **NEC — the shipped default is UNREAD.** Secondary sources state IPMI-over-LAN is enabled by
+  default on the models NV21-002 names. **That was not found in NEC's own bytes and is not
+  asserted**, which is §22.10's ColdFusion rule and §23.10's Dell-port-table rule applied a third
+  time.
+- **DMTF — no deployment or operational class for ASF**, confirmed 2026-08-14. §23.4's finding is
+  **precise as written** and gains one document: `dmtf.org/standards/asf` lists exactly the
+  specification and the 2010 *Overview*, and the published-documents index carries a **second ASF
+  specification**, **DSP0114 v1.3.0** (ASF 1.0), which #90 did not name. Both are Standard-class
+  specifications, so **the class list is unchanged** — there is still no third class to open, and
+  no RMCP-titled DMTF publication exists at all.
+
+### 28.11 Every dependent figure, walked rather than asserted
+
+Walked against the composed post-merge state — 39 pairs, `11 / 7 / 21`, coverage 28 of 39,
+containment `28 + 6 + 5 = 39`, exclusions 19.
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 39 | **39, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 11 / 7 / 21 | **unchanged.** Claim 1 was tested and refused at Step 2; `623/udp` stays Class C on Claim 3 |
+| §2.2 footing table — coverage | 28 of 39 | **28 of 39, unchanged.** No pair enters or leaves the table's subject |
+| §2.2 — prohibition · scoping · weak · outside | 15 · 11 · 2 · 11 | **unchanged in every cell.** `623` is re-founded **inside** the prohibition tier |
+| §2.2's weak tier | `5432`, `5984` | **unchanged.** `623` does not join and does not leave |
+| §6.1 containment arithmetic | 28 + 6 + 5 = 39 | **unchanged.** `623/udp` is still one of the five UDP rows off by default |
+| §4.6 exclusions | 19 | **19, unchanged.** None added, none removed; `664/udp` is still not ticketed (§23.8) |
+| §10.1's Class A walk | eleven rows | **eleven, unchanged.** The walk removes and cannot add; this section performs the addition test and it fails |
+| §10.2's closed claim set | three claims | **unchanged, and tested.** §28.5 B is the sharpest candidate fourth the note has met and it names a property of the **protocol**, not of the vantage |
+| §10.8's Class B coverage boundary | stated, never exercised | **confirmed by use for the first time** (§28.5 B) |
+| §13.1's *"`1433`, `445` and `623` have no shipped configuration artefact"* | stands | **qualified for `623`.** No configuration **file** exists and the specification defers factory defaults to the implementer (§22.22) — but two co-owners now **document** a restricting default, which is §2.2's third form's *as documented by the project* limb (§28.10) |
+| §17.1 row 13 (`1433`/`445`/`623`, *"not a class negative"*) | not exposed | **unchanged, and the reason is unchanged.** §28's new negatives — the vendor classes' silence on internet-facing support — are **bounded on arrival**, not sole ground; the exposed population does not grow. `1433` and `445` are untouched |
+| §17.1's arithmetic | 14 · 8 un-exposed · 5 searched · 1 exhausted · 0 residue | **unchanged** |
+| §23.4's class-list table | 3 cells unresolved, 1 blocked | **all four resolved** (§28.8) |
+| §23.10's HPE reopening criterion | armed, falsifiable | **discharged in the safe direction.** No co-owner names internet-facing IPMI as supported |
+| §23.10's *"Dell's iDRAC port table is unverified"* | unverified | **verified.** iDRAC10 SCG's port table gives `623` / UDP / `RMCP/RMCP+`, and records the port as **not configurable** on iDRAC — the opposite of HPE, which makes it settable |
+| §23.7's in-the-clear disclosure | recorded, not pursued | **pursued, measured, and confirmed as disclosure** (§28.4) |
+| **§26.2's class cell for row 10** | *vendor statement in a third party's advisory* · Filter **A** | **deployment / security guidance** (Dell iDRAC10 SCG Rev. A00; HPE iLO 7 brief) · **retrieved — §28** |
+| **§26.5's filter arithmetic** | `13 + 0 + 8 + 1 + 2 = 24` | **`12 + 0 + 8 + 1 + 3 = 24`.** Filter A carries **12**, retrievals are **3** |
+| §26.5's `623/udp` rider | conditional, fired, owed | **discharged.** The retrieval is spent and the pair leaves the residue |
+| §26.3's tier-vocabulary measurement | 13 clean · 1 marginal · 1 failing | **unchanged.** `623` was clean and is now clean on three owners |
+| §26.7's *"nothing is routed to #12"* | true of §26 | **true of §28.** No row and no count moves |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | unchanged | **unchanged** — no member enters or leaves; the sensitive half still contributes five UDP pairs |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984` | **unchanged, two rows** |
+| §8 | 12 questions | **12.** None opens and none closes here |
+| [#12](https://github.com/winniel123/verge-asm/issues/12) | blocked by #96 | **unblocked on this ticket's close.** Neither the class move nor the row removal it was priced against happens |
+
+**Outside this note.** [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)
+gains an **annotation** recording the gap this row found in its limb 2 — the frame holds the
+authentication configuration *at its shipped default*, and this is the first row whose owner
+specification expressly declines to set one. **No ADR is minted; 0057 is left unused** (§28.12).
+ADR-0037, ADR-0040, ADR-0045, ADR-0046, ADR-0048 and ADR-0050 are each **applied** here and none is
+changed by the application, which is recorded so the next session does not re-check.
+`CONTEXT.md` needs no change and no domain term is added or amended.
+[`weak-key-and-signature.md`](./weak-key-and-signature.md) is untouched.
+
+**Why no ADR, stated rather than assumed.** Five candidate rules were considered against §16.6's
+test — *does the rule state what an existing section already requires?*
+
+| Candidate | Why it is not an ADR |
+|---|---|
+| *Capability discovery does not answer Step 2* | **§10.1 Step 2 as written** — it enumerates five alternatives and discovery is none of them |
+| *A capability the specification mandates support for is not a shipped configuration* | **§10.1's premise as written** — *"in the configuration its maintainers ship"* |
+| *A handshake message is not an operation, and a leaky authenticator is not a fourth claim* | **§10.2's closed set as written** — a fourth claim needs a fourth property of the **vantage** |
+| *A BMC vendor's firmware default answers for its own product and not for the protocol* | **§10.5 as amended by §12** — the artefact, not the party; a distributor's default is never sole grounds |
+| *A footing whose artefact sits outside the taxonomy is swept over the owner's classes* | **ADR-0046 as written** — the corpus is the **owner's**, not the row's, which §26.5 states in terms |
+
+This is #76's, #84's, #87's, #90's, #91's and #93's precedent applied a seventh time. **The one
+thing that is genuinely unstated is small enough to be an annotation rather than a decision** —
+ADR-0054 limb 2 assumes a shipped default exists, and all eleven Class A rows have one. Recording
+the exception where the ADR already lives is cheaper than a fifty-first decision record, and §25.6's
+counterfactual test does not save it: the ruling here does **not** turn on the gap, because the
+vendors' defaults turned out to **restrict**, and a restricting default neither answers Step 2 nor
+defeats Claim 1 under limb 2's own first bullet.
+
+### 28.12 Thin ground, flagged per the standing rule
+
+**Two `p`-shaped strings in Table G-1 could not be attributed to a command.** On document page 588
+the table renders as three independent text streams — command names, `section`/`NetFn`/`CMD`, and
+privilege markings — offset from one another by roughly fourteen rows, so `pp p p` appears on the
+visual line of *Set Power Restore Policy* and of `S/E 17h` without belonging to either. **The
+attribution is not made and the finding does not rest on it.** What disposes of the remainder is
+§6.12.7's general rule — *a session must be activated before general IPMI messaging can occur* —
+together with the four enumerated exceptions, each corroborated in the specification's prose. **The
+honest bound: if some Chassis command were pre-session, Step 2 would be satisfied and this ruling
+would be wrong.** Three things make that unlikely and none of them is a proof: the spec's prose
+enumerations name no such command; `p` means *works at any privilege level*, which no chassis
+control could be; and the strongest candidate for one of the two strings is **Get Channel Cipher
+Suites** (App `55h`), which is on the same page and which §13.15 independently places pre-session.
+**The falsifying act is cheap and is named:** read page 588 of the PDF in a renderer that preserves
+column association.
+
+**The RAKP refusal is a ruling, not a measurement, and it is the finding a reviewer should attack
+first.** A reader who holds that `HMAC_K[UID]` **is** content the protocol carries on behalf of the
+operator reaches the opposite verdict, and on that reading `623/udp` moves to **Class A** on Step 2's
+read limb — the same limb `4369/tcp` and `10255/tcp` already survive on, which is what makes the
+argument live rather than eccentric. Three things bound it: the value is computed rather than held;
+an owner characterises the harm as **credential discovery**, which is Claim 2's subject; and §10.8
+independently makes Claim 2 unavailable here. **The criterion that would move it:** a ruling that
+Step 2's read limb reaches values **derived from** stored secrets and not only content **held for**
+third parties — which is a general change to §10.1 and would have to be made there, not read out of
+this row.
+
+**NEC's footing is real, first-party and weaker in kind than the other two.** It sits in a
+**vulnerability-response** artefact scoped to five named models, dated 2021-01-07 and published only
+in Japanese, rather than in a standing deployment document. It is treated as a **third** owner
+statement and the row does not depend on it: HPE's and Dell's each carry the position alone. The
+translation in §28.8 is this session's own and the Japanese is quoted so a reader can check it.
+
+**Class assignment for the footing was a judgement, and §26.8's hazard is why.** *A third party's
+advisory* is not one of ADR-0040's four classes, and calling it *outside the taxonomy* rather than
+*a deployment recommendation filed oddly* is a choice. The conservative reading was taken — the same
+one §26.2 took — and it is the reading that **spent** a retrieval rather than saving one, which is
+the direction to err in.
+
+**What was not done.** No determinacy gate was re-run; §15.4's cell and the `reg.` inconsistency it
+records are untouched, and §3's tables are in a sibling's lane this week. `623/tcp` is not revisited
+beyond confirming §23.8. `1433` and `445` share this row's *no configuration artefact* shape and
+were **not** re-tested against Claim 1 — that is a different retrieval on different owners, and
+§18.7's trigger for `1433` remains unfired.
+
+### 28.13 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §23.11 and §26.9
+
+- **`intel.com` now returns HTTP 403 to every non-browser client**, on every path and every
+  user-agent, behind Akamai. **This is a change since #90**, which fetched the IPMI specification
+  from `intel.com` directly, and it is recorded because the next session will hit it. The bytes were
+  recovered from the **Wayback Machine's raw (`id_`) endpoint over Intel's own hosted copy**, and
+  the substitution is defensible only because it was **verified**: two independent snapshots
+  (2022-02-02 and 2023-01-07) return **byte-identical** files of **12,037,554 bytes**, which is also
+  the size §23.1 recorded. A retrieval that silently substitutes a different host is §26.9's
+  `git.linux-nfs.org` hazard; this one is substituted **and checked**.
+- **Wayback reported HTTP 200 and wrote a 531-byte Akamai error page.** The first `id_` fetch
+  claimed the right size and delivered an error document. **Check the magic bytes** — `%PDF` header
+  and `%%EOF` trailer — not the status code. And the CDX index's `length` column is the compressed
+  WARC record, ~5.8 MB, not the artefact size; reading it as the file size would have masked this.
+- **A search result offering `ipmi_specification_v2.0.pdf` on a `wsimg.com` host is a 229 KB
+  abridgement and was rejected.** The owner artefact is 12 MB. This is §22.10's summarising-layer
+  trap arriving as a plausible filename.
+- **The IPMI PDF ships with a damaged cross-reference table** which `pdftotext` reconstructs, and
+  **its tables interleave in the text layer** — §23.11 recorded this and §28.12 is what happens when
+  it is not merely inconvenient. Both `-layout` and plain extractions were taken and compared, and
+  the four load-bearing Table G-1 rows were re-read on a **single-page extraction** where the
+  columns render cleanly.
+- **`support.hpe.com` is not blocked; it needed a browser.** #90 recorded five failures across three
+  HPE hosts and correctly logged them as a **retrieval failure rather than a negative finding** —
+  and that discipline is now vindicated, because the answer was there. A browser session against
+  `support.hpe.com/hpesc/public/docDisplay?docId=<id>&page=<GUID>.html&docLocale=en_US` returns
+  clean article text first try with no login. **Dropping `&page=` returns the front matter**, which
+  is where the part number, edition and revision history live — that is how every HPE document in
+  §28.1 is dated. Topic GUIDs are often stable across iLO versions, which makes diffing versions
+  cheap: `GUID-7F973A6B…` is the IPMI/DCMI guidelines topic under both the iLO 5 and iLO 6 docIds.
+- **`dell.com/support/manuals` is not blocked either; its rendered page carries the PDF href.**
+  §23.11's 551-byte response to non-browser clients is real and reproduced. The route through it is
+  to render the page, read the `dl.dell.com` link off it, and `curl` **that** — the PDF host serves
+  non-browser clients fine. **Do not guess the URL:** `dl.dell.com/content/manual<NNNNNNNN>-<slug>.pdf`
+  carries an opaque numeric id, and the `topicspdf` pattern uses a doctype token that is not the
+  document's name — the iDRAC9 *Security Configuration Guide* lives under `…_administrator-guide_…`.
+  Four guesses at `security-configuration-guide` returned 527-byte bodies.
+- **A quiet trap on Dell's HTML manuals.** A bare section slug without the `?guid=…` query renders
+  the **overview** page instead of erroring, so a reader gets plausible-looking content for the wrong
+  section. Verify the returned heading matches the section requested. The PDF was used instead.
+- **`hpe.com/psnow` remains blocked** three ways — connection reset to `curl`, timeout to the fetch
+  tool, and out of the browser's permitted domains. The one document behind it was obtained
+  first-party elsewhere (§28.9), so it is recorded as a bounded failure rather than a gap.
+- **NEC's advisories are Japanese-only.** `nec.com/en/global/security-info/secinfo/nv21-002.html`
+  returns **HTTP 404**; the document lives at `jpn.nec.com/security-info/secinfo/nv21-002.html` and
+  that host serves `curl` with a browser user-agent. **`pdftotext` emits
+  `Unknown character collection 'Adobe-Japan1'` on NEC's PDFs** — English extracts correctly but
+  Japanese glyphs may be lost, so Japanese was read from HTML rather than from PDF.
+- **`dmtf.org` still 403s the fetch tool and yields to `curl` with a browser user-agent**, exactly as
+  §23.11 recorded. Both DMTF indexes were read for **class enumeration** rather than for a quote.
+- **The trap this section had to refuse by name.** The available shortcut was *the specification
+  transacts session setup in the clear, therefore the row is Class A* — which is the ticket's own
+  premise and is false. Reading a **handshake** as an **operation** would have moved a row on the
+  strength of a sentence #90 had already read and declined to move on, which is precisely what #37
+  forbids. §28.4 exists to make the dispatch, rather than the narration, the thing that answers.
+
+---
+
 ## 29. The hot set enumerated from its own source — the containment arithmetic survives, and the mechanism above it does not
 
 Research ticket [#97](https://github.com/winniel123/verge-asm/issues/97).
@@ -11650,7 +12380,18 @@ Retrieved for §23 ([#90](https://github.com/winniel123/verge-asm/issues/90)) �
 - [Supermicro, *Server Management: IPMI Firmware Security*](https://www.supermicro.com/white_paper/IPMI_white_paper.pdf) (August 2014) — *"While the IPMI standard protocol defines UDP port 623 for RMCP communications…"* and *"it is still recommended that administrators block UDP port 623 on unsecured networks"*. Corroborating under §2.3, never sole grounds
 - [Lenovo XClarity Controller 2, *Service Enablement and Port Assignment*](https://pubs.lenovo.com/xcc2/NN1ia_c_configuringportassignments) — *"The port number is 623. This field is not user-configurable."*
 - Intel, *Server Boards and Server Platforms Server Management Guide*, part number **G37830-002, October 2012**, Revision 3.1 ([cdrdv2-public.intel.com/840557](https://cdrdv2-public.intel.com/840557/g37830002_servermanagementguide_r3_1.pdf)) — citable for a **negative**: the string `623` occurs four times and every one is **TCP telnet to `dpcproxy`**; `RMCP` occurs zero times (§23.8)
-- **Not retrieved, recorded as failures rather than as negatives** (§23.11): HPE iLO documentation — five attempts across `support.hpe.com`, `cdn.support.hpe.com` and `www.hpe.com/psnow`, all defeated by a client-side-rendered portal behind a session check; Dell's iDRAC9 *Security Configuration Guide* port table — `dell.com/support/manuals` serves 551 bytes to a non-browser client; NEC — no first-party BMC port document located
+- **Not retrieved, recorded as failures rather than as negatives** (§23.11): HPE iLO documentation — five attempts across `support.hpe.com`, `cdn.support.hpe.com` and `www.hpe.com/psnow`, all defeated by a client-side-rendered portal behind a session check; Dell's iDRAC9 *Security Configuration Guide* port table — `dell.com/support/manuals` serves 551 bytes to a non-browser client; NEC — no first-party BMC port document located. **All three retrieved by §28 ([#96](https://github.com/winniel123/verge-asm/issues/96)) — see below. The discipline of logging them as retrieval failures rather than as negative findings is vindicated: the answer was there.**
+
+Retrieved for §28 ([#96](https://github.com/winniel123/verge-asm/issues/96)) — the three vendor classes §23.4 recorded as blocked, plus the specification's own pre-session dispatch. Every negative below was read on **2026-08-14** and names the release it was taken at, per §26.6
+- **IPMI Specification v2.0, Document Revision 1.1, 1 October 2013** — re-read as bytes for the **dispatch** rather than the prose: **Table G-1** (Appendix G, p.586-587) and its key *"p = works at any privilege level, can be sent prior to a session being established"*, marking exactly four App commands — Get System GUID `37h`, Get Channel Authentication Capabilities `38h`, Get Session Challenge `39h`, Activate Session `3Ah`; **§6.12.7** p.57, *"A session must be activated before general IPMI messaging can occur"*; §13.27.1 p.156; §13.6 footnote 8 p.133; §22.13 Table 22-15 pp.282-283 (the unauthenticated capability response, including *Anonymous Login status*); §22.14 pp.284-285, *"The Get System GUID will always be accepted outside of an active session"*; **§13.28.2 p.158** and Table 22-19 p.292 and Table 13-17 p.157 (Cipher Suite 0 / RAKP-none, mandatory **support**, *"provides a way to enable access to the BMC without requiring a username and password"*); **§13.31 p.163** (RAKP Message 2's `HMAC_K[UID]`); **§22.22 p.300**, *"The choice of factory default setting for the non-volatile parameters is left to the implementer or system integrator"*. **`intel.com` now 403s every non-browser client**; the bytes were recovered from two independent Wayback `id_` snapshots of Intel's own copy, **byte-identical at 12,037,554** (§28.13)
+- [DMTF DSP0136](https://www.dmtf.org/sites/default/files/standards/documents/DSP0136.pdf) §3.2.4.3, page 36 — the **Presence Pong** field table, an unauthenticated discovery response carrying an IANA/OEM number, an *"IPMI is supported"* bit and an ASF version, and nothing else
+- **HPE iLO 7 *Security Technology Brief*, PN 30-869C87FF-011, Edition 1, July 2026** — *"**Do not connect iLO directly to the Internet.** The iLO processor is a management and administration tool, not an Internet gateway"*; and *Access settings options*, *"IPMI/DCMI over LAN … **This setting is disabled by default**"*, *"The default value is UDP 623"*. Read as browser-rendered HTML at `support.hpe.com/hpesc/public/docDisplay?docId=sd00005845en_us`
+- **HPE iLO 6 *Security Technology Brief*, PN 30-3CC3279C-024, Edition 1, July 2026** (docId `sd00002198en_us`; byte-identical text in the **iLO 5** brief, docId `a00026171en_us`) — *"**Do not allow IPMI/DCMI traffic from outside the network.**"*, *"The IPMI/DCMI port is set to 623 by default"*, and the owner's own characterisation of the RAKP disclosure: *"The IPMI specification requires support for RAKP authentication, which allows remote attackers to obtain password hashes and conduct offline password guessing attacks"*
+- **HPE *Compute Security Reference Guide*, PN 30-2905B658-019, Edition 19, July 2026** (docId `a00018320en_us`) — *"**The Dedicated management network is the preferred iLO network configuration**"*; and **HPE *iLO 7 IPMI User Guide*, PN 30-62D2E6BA-007, June 2026** (docId `sd00005336en_us`), cited for the negative that HPE has **not** removed IPMI-over-LAN
+- **Dell *iDRAC10 Security Configuration Guide*, 1.10.xx Series, Rev. A00, December 2024** — 909,763 bytes from `dl.dell.com`, `pdftotext` locally. Ch. 26 *Best Practices*: *"The iDRAC is intended to be on a separate management network. The iDRAC is not designed nor intended to be placed on, nor connected directly to the Internet."* *IPMI Security Best Practices*: *"**Do not allow IPMI traffic from outside the network**"* and *"Disable Cipher 0"*. *Default Configuration Values*: `iDRAC.IPMILan.Enable — 0 - Disabled`. Port table: `623` / UDP / `RMCP/RMCP+`, **not configurable**. Same bullets in **Dell *iDRAC9 Security Configuration Guide* v4.x, Rev. A01, April 2021**, 1,681,018 bytes
+- **NEC advisory NV21-002**, JVN#38752718, **2021-01-07**, Japanese only, at `jpn.nec.com/security-info/secinfo/nv21-002.html` — the vendor advisory for CVE-2020-5633, titled 「IPMI over LAN を使用した RMCP 接続における認証不備の脆弱性」, whose workaround ends 「**BMCをインターネットに接続しない**」 — *"do not connect the BMC to the Internet"*. The English mirror path returns **HTTP 404**. Supporting and weaker: NEC *Express5800 System Configuration Guide — Server Management* (28 September 2018) and the *EXPRESSSCOPE Engine 3 User's Guide* (`ee3_08`), the latter citable for a **negative** — its TCP/IP ports table does not list `623` at all
+- **Intel *Integrated BMC Web Console User Guide*, M70KLP family, Rev. 1.0, June 2021** (10,784,959 bytes) and **Intel *Server Management Guide* G37830-002 rev 3.1, October 2012** re-fetched at 4,187,453 bytes and **confirmed as Intel's current revision** — both citable for a **negative**: neither takes a network-placement position on IPMI. Their *"remote KVM access and control through LAN or Internet"* is a **capability** sentence about the web console on **TCP/443** and is refused as a refutation in §28.9
+- **DMTF class enumeration**, read 2026-08-14: [`dmtf.org/standards/asf`](https://www.dmtf.org/standards/asf) (87,523 bytes) lists the specification and the 2010 *Overview*; the published-documents index (529,506 bytes) carries a **second ASF specification, DSP0114 v1.3.0**. **No deployment or operational class exists for ASF and no RMCP-titled DMTF publication exists** — the class list §23.4 records is unchanged
 
 Upstream projects
 - [Redis security](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)
