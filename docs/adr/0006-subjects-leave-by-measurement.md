@@ -92,6 +92,25 @@ The `Service` leg was always there and always necessary; it went unnoticed becau
 closes when either its `Name` or its `Service` withdraws**, and a nameless one simply has one
 leg. Reason `cascaded` is unchanged, so the endpoints return coherently if the port comes back.
 
+## Amendment — [#63](https://github.com/winniel123/verge-asm/issues/63): the appearance family
+fires on two subject kinds, not four
+
+*Appearance splits in two* below rules `returned` alertable and `withdrawn` not, and leaves
+`appeared` unstated. [ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md)
+settles `appeared` and adds a restriction the split needs and never had: **a membership message
+fires only on a `Name` or an `Address`, and never on a `Service` or an `Endpoint`.**
+
+Those two have keys the model composes from what it already holds — a `Service` from an `Address`
+in the estate and `verge-core`, which is ours; an `Endpoint` from two subjects already in the
+estate — so their membership is another subject's membership restated, and a message for one is
+a second representation of one fact.
+
+The restriction governs the **whole** family and not only `appeared`, which is where it earns its
+place: without it an `Address` returning fires one alertable `Service` `returned` per
+`(port, transport)` in `verge-core`, a burst on the one member of the family this ADR made
+alertable. The cascade rule below already writes those spans with reason `cascaded`; they are now
+also silent.
+
 ## Consequences
 
 - **`Seed` gains exclusions** — exact names and subtrees, not patterns. Excluding a

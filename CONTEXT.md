@@ -223,7 +223,11 @@ estate exactly while a current resolution cites it or a `Seed` covers it.
 _Avoid_: IP, host, node
 
 **Service**:
-An `(Address, port, transport)` triple — the subject reachability is measured against.
+An `(Address, port, transport)` triple — the subject reachability is measured against. It exists
+for every `(port, transport)` in the recorded scope, **open or closed**, which is what gives
+`unreachable` a subject to be a verdict about; so its membership is its `Address`'s membership
+restated, and a port opening is a `Reach` move and **never** a membership event. See
+[ADR-0031](./docs/adr/0031-membership-alerts-at-the-root-of-the-entering-subtree.md).
 _Avoid_: port, open port, socket
 
 **Endpoint**:
@@ -405,8 +409,12 @@ leaf, so a rule may read one leg and compose that leaf alone. It is also the obj
 reads: the internet leg going `not-reached` → `reached` is the product's flagship message, fired
 whether or not the other leg exists, while the internal leg is recorded and **never** alerted in
 either direction — an internal port opening or closing is the commonest intentional change on that
-leg, which is the ground on which a withdrawal is not alerted either. See
-[ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md).
+leg, which is the ground on which a withdrawal is not alerted either. A leg that **opens** at
+`reached` — a `Service` that was internet-reachable the first time we ever looked at it — emits
+no `Transition`, so the flagship predicate does not match it; that news is carried by the census
+on the entering subject's membership message and by nothing else. See
+[ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md) and
+[ADR-0031](./docs/adr/0031-membership-alerts-at-the-root-of-the-entering-subtree.md).
 _Avoid_: reachable, probe result, port state, not-checked
 
 **Exposure**:
@@ -523,8 +531,16 @@ looking, which is per-timeline. An opening caused by neither is recorded, unname
 unalerted — a `certificate` timeline opens days after its `Service` did because TLS sits on
 the weekly tier, and nothing about the world or our aperture moved. A `Gap` closing is none of
 these: it is an ordinary adjacency, and always an observer event, since a `Gap` exists only
-where we could not say. See
-[ADR-0014](./docs/adr/0014-only-revealed-generalises.md).
+where we could not say. A membership transition is a **message** on a `Name` or an `Address`
+alone — `Service` and `Endpoint` have keys the model composes from what it already holds, so
+their membership is another subject's membership restated and is recorded and never notified,
+in either direction — and it fires **once, at the root of the entering sub-tree**: the entering
+subject whose own `Citation` points at something already in the estate, a `Seed` or a `Batch`.
+The message carries the **census** of what entered beneath it, which is the only carrier a new
+subject has, since every timeline beneath it opens and no predicate in the product is
+opening-shaped. See
+[ADR-0014](./docs/adr/0014-only-revealed-generalises.md) and
+[ADR-0031](./docs/adr/0031-membership-alerts-at-the-root-of-the-entering-subtree.md).
 _Avoid_: change, event, diff, delta
 
 **Break**:
