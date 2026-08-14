@@ -32,12 +32,12 @@ Three constraints from decisions already made shape the answer before any eviden
 
 | Decision | Answer |
 |---|---|
-| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed** |
+| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy** |
 | Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
-| High ports that are conventionally anything | **Excluded by the determinacy gate**, which is a gate on the *port*, not on the service — §4.3 |
+| High ports that are conventionally anything | **Excluded by the determinacy gate**, which is a gate on the *port*, not on the service — §4.3. **Amended by §14 — a squat is contested where the other convention is *live*, which is why 9200 is listed and 9100, 7000 and 7001 are not ([ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md))** |
 | Does the list have a middle | **No middle, one signal, binary** — and not because the middle is empty, but because it is not a property of the port — §5 |
 | Hot-set containment | **Independent lists, one-directional build-time invariant `sensitive ⊆ hot`** — §6 |
 | Closest call | **6443 kube-apiserver, excluded** — §4.4 |
@@ -310,6 +310,18 @@ written to survive this. `sensitive-port-exposed` claims *a port associated with
 is reachable from an internet vantage* — it does not claim the service is running. Squatting means
 registration cannot be the determinacy test; uncontested convention has to be, and the note records
 which rows rest on convention rather than registration (§3, "reg." column).
+
+> **Amended by §14** ([#75](https://github.com/winniel123/verge-asm/issues/75)). *"Uncontested
+> convention"* is the right test and this section never said what makes a convention **contested**,
+> which left `9200`'s squat (listed) and `9100`'s squat (excluded) separated by nothing written down.
+> **A squat is contested where the other convention is *live*** — where the competing service's own
+> owner currently documents that service on that number — and it is uncontested where the competing
+> registration has no deployed population. Liveness is read off the competing owner's documentation
+> and **never** off a frequency source, which is what keeps §1's exclusion of frequency intact. See
+> [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md). §14 applies it
+> to refuse `7000/tcp` and `7001/tcp`; **no existing row moves**, and the rule is a statement of what
+> §4.3 and §4.6 have been doing since §21. This section still carries **no stated evidence standard**
+> for determinacy the way §2.2 carries one for attestation — §8 question 10.
 
 ### 2.5 What was excluded from evidence entirely
 
@@ -763,6 +775,15 @@ The residual case — an operator who has genuinely put an authenticating gatewa
 port — is an `Annotation`, not a list change. That mechanism already exists and is the right place
 for operator opinion about a specific subject.
 
+> **Amended by §14** ([#75](https://github.com/winniel123/verge-asm/issues/75)). This section is
+> **unchanged** and gains a third instance of the pattern §9.2 and §11.5 record, which is the one
+> that limits it. A split pair only exists to be judged where the owner keeps the split: Apache
+> Cassandra **collapsed** `7000`/`7001` at 4.0 — *"a single port can be used for either/both secure
+> and insecure connections"*, in the shipped `conf/cassandra.yaml` — so `7001` is a **withdrawn
+> sibling** rather than an encrypted successor, and §4.2 is not reached for that pair at all. Stated
+> because the ticket asked for the answer rather than the assumption; had it been reached, the answer
+> would be the one above. §14.5.
+
 **An objection worth surfacing, because it comes from the body that assigns the numbers.** Claim 2
 depends on the split-port pattern — plaintext on one number, TLS on another — and RFC 6335, the
 document governing the registry itself, says that pattern should not exist:
@@ -803,6 +824,15 @@ Two of these deserve their reasoning on the record because a strong upstream quo
 
 The ticket's own example holds: **8443 is rare and perfectly fine**, and its rarity is exactly why a
 frequency instrument would have got it wrong in both directions.
+
+> **Amended by §14** ([#75](https://github.com/winniel123/verge-asm/issues/75)). **Also excluded:
+> `7000/tcp` and `7001/tcp`**, and they are not on the enumerated generic list above — they are the
+> `9100` case rather than the `8080` case. `7000` squats on `afs3-fileserver` while Apple documents
+> `AirPlay · 7000 · TCP`; `7001` squats on `afs3-callback`, carries Oracle's WebLogic AdminServer as
+> a documented HTTP admin console, and its Cassandra usage is **version-dependent** — deprecated at
+> 4.0 with `legacy_ssl_storage_port_enabled: false` shipped — which is §2.4's Hadoop limb. The rule
+> separating this paragraph's `9100` from §3.3's `9200` is now written down as
+> [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md). §14.3, §14.4.
 
 ### 4.4 The closest call: 6443, kube-apiserver — excluded
 
@@ -889,6 +919,16 @@ it refuses.
 | **1099/tcp Java RMI registry** | Contrary to reputation, modern JDK defaults are secure — `jmxremote.ssl` and `jmxremote.authenticate` both default to `true` |
 | **Hadoop NameNode / YARN UIs** | Hadoop's default `simple` authentication would qualify under Claim 1, but the web UI port moved from 50070 to 9870 between major versions, so port-to-service inference is version-dependent. Fails determinacy |
 | **110/tcp POP3, 143/tcp IMAP, 25/tcp SMTP** | Mail protocols whose intended audience genuinely is the internet. Cleartext variants are deprecated, but a server on 143 offering STARTTLS is correct, so the *port* is not the discriminator |
+
+> **Amended by §14** ([#75](https://github.com/winniel123/verge-asm/issues/75)). **Two rows are added
+> to this table and it is now eighteen: `7000/tcp` and `7001/tcp`, Cassandra's internode storage port
+> and its deprecated TLS twin.** They are unlike every other entry above, and the difference is the
+> point: for `7000` the **claim and the attestation both pass** — Claim 1 on both of §10.1's steps,
+> Claim 3 with §10.3's boundary limb named by the owner, and a first-party prohibition naming the
+> port by number in operative shipped bytes at three release tags. The refusal is **determinacy
+> alone**. Every other exclusion here fails a claim, fails to find an owner, or finds an owner
+> pointing the other way; these two are the first to fail only §2.4. Grounds and the criteria that
+> would change either verdict are in §14.8.
 
 **The WinRM case deserves its own paragraph, because the tempting argument is factually false.**
 5985 is the WinRM *HTTP* listener, and the natural inference — HTTP transport, therefore cleartext
@@ -1126,11 +1166,25 @@ be wrong within a year.
    prober and the `listener-negotiation` facet were ruled out of v1 in
    [#41](https://github.com/winniel123/verge-asm/issues/41), which priced this boundary at six ports
    and zero net new firings across all 38 rows.
-9. **Is `161/udp`'s Claim 3 boundary attested by an owner?** Opened by §10.6. The row's boundary limb
-   — *SNMPv1/v2c assumes a management network* — is carried in this note by CISA TA17-156A, a
-   corroborator. RFC 3410 §8.2 attests the *insecurity* and not the *boundary*. Routed to
-   [#66](https://github.com/winniel123/verge-asm/issues/66), because it is a retrieval question and a
-   row may not move on a re-reading.
+9. ~~**Is `161/udp`'s Claim 3 boundary attested by an owner?**~~ **Closed by §11**
+   ([#66](https://github.com/winniel123/verge-asm/issues/66)). The retrieval was performed over ten
+   RFCs and five net-snmp artefacts, **no first-party placement sentence exists**, and the row was
+   **removed**. The list is 37 pairs. (Opened by §10.6 on the ground that the boundary limb was
+   carried by CISA TA17-156A, a corroborator, while RFC 3410 §8.2 attests the *insecurity* and not
+   the *boundary*.)
+10. **What evidence establishes that a convention is contested?** Opened by §14.6. §2.2 has three
+    attestation forms and an owner definition (§10.5); §2.1 has a claim set closed by construction
+    (§10.2). **§2.4 has *"uncontested convention"* and no account of what establishes it** — and §14
+    is the first ruling to rest entirely on that gate, weighing a vendor's product-port table, a
+    vendor's container-image README and an IANA annotation against each other with nothing in the
+    standard to rank them. [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md)
+    settles the *liveness* half and does not supply an evidence standard for the rest. The live
+    hazard is symmetrical to §2.3's: a determinacy gate with no source rule can be cleared by
+    whichever authoritative-looking document is nearest, or blocked by one. **No row moves on the
+    answer** — §14's sources are first-party about their own products, which is the strongest class
+    on any plausible standard — so it does not block
+    [#12](https://github.com/winniel123/verge-asm/issues/12). Routed to
+    [#82](https://github.com/winniel123/verge-asm/issues/82).
 
 ---
 
@@ -2981,6 +3035,16 @@ strongest sentence in the corpus does not clear a gate it does not speak to. Rou
 [#12](https://github.com/winniel123/verge-asm/issues/12)**, because unlike #70 it is a candidate row
 rather than a footing.
 
+> **Discharged by §14** ([#75](https://github.com/winniel123/verge-asm/issues/75)). **Neither port is
+> admitted, and this paragraph's guess about which gate would decide it was right.** Determinacy sank
+> both: `7000/tcp` because Apple documents `AirPlay · 7000 · TCP` as a live competing service beside
+> the `afs3-fileserver` squat, and `7001/tcp` on that limb **and** on version-dependence — Cassandra
+> deprecated `ssl_storage_port` at 4.0 and ships `legacy_ssl_storage_port_enabled: false`. **The list
+> stays at 37 pairs**, no rule version bumps and `verge-core` does not move, so the addition pricing
+> this paragraph reserved was never spent. `7000`'s claim and attestation both **passed**, which
+> makes it the note's first row refused on determinacy alone (§14.2). The sentence quoted above is
+> the one the ruling turned on.
+
 **The instrument is the finding.** #69 opened the right file, at the right tag, and read the two lines
 it had gone looking for. It recorded the sentence as appearing twice; it appears four times, and the
 two it did not record are the interesting ones. A retrieval scoped to the rows a table already holds
@@ -3119,6 +3183,375 @@ client (§11.9); no distributor packaging was needed, because every project in t
   It is stated as 19 covered and 18 uncovered, summing to 37, with the eighteen enumerated by name so
   the arithmetic is checkable rather than assertable.
 
+## 14. `7000/tcp` and `7001/tcp` are refused — the first rows where every gate but determinacy passes
+
+Wayfinder ticket [#75](https://github.com/winniel123/verge-asm/issues/75), on the two candidate rows
+§13.5 found and routed. This section **amends §1, §2.4, §4.2, §4.3, §4.6, §8 and §13.5 by
+reference**; earlier text stands and is marked, per the name-and-withdraw convention, and where §14
+and an earlier section disagree, **§14 governs**.
+
+**Headline result, stated first.**
+
+> **Neither `7000/tcp` nor `7001/tcp` is admitted. The list stays at 37 `(port, transport)` pairs,
+> the class totals stay 12 / 7 / 18, and the weak tier stays at two rows.** Both fail §2.4's
+> **determinacy** gate, on different limbs of it, and nothing else about either row is wrong.
+>
+> **`7000/tcp` passes every other gate on this list, and that is the finding.** Claim 1 passes both
+> of §10.1's steps and Claim 3 passes with its §10.3 boundary limb **named by the owner**; §2.2's
+> attestation is an explicit first-party prohibition naming the port by number in operative shipped
+> bytes, confirmed at three release tags, with a restricting shipped default active beside it. It is
+> better attested than `5432/tcp`, better attested than `9042/tcp` was before §12.7, and it is
+> refused anyway. **This is the first row in the note refused with its claim and its attestation both
+> established** — the cleanest available demonstration that §2.4 is an independent gate rather than a
+> tiebreaker, which is what §13.5 predicted when it wrote that *"the strongest sentence in the corpus
+> does not clear a gate it does not speak to."*
+>
+> **The rule that decides `7000` is new and is written down**, because the note has carried an
+> unexplained tension since §21: `9200/tcp` squats on `wap-wsp` and is **on** the list, while
+> `9100/tcp` squats on `hp-pdl-datastr` and is **off** it, and no section says what separates them.
+> **A squat is contested where the other convention is live** —
+> [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md).
+>
+> **It costs nothing.** No pair moves, so `sensitive-port-reached-from-internet`'s content is
+> byte-identical, no rule version bumps under
+> [ADR-0008](../adr/0008-derivation-versions-move-on-content.md), no evaluation is made
+> non-comparable, and [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union is untouched. Free in
+> the strong sense §12.7 and §13.8 used, not the vacuous-before-v1 sense §11.6 relied on. **The pair
+> count [#12](https://github.com/winniel123/verge-asm/issues/12) assembles is 37 and is now
+> definite.**
+
+### 14.1 What was retrieved
+
+Every artefact was fetched as bytes at a named tag or release, with paths resolved from the
+repository tree rather than guessed, per §12.9, §13.10 and
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md). Each
+configuration file was read end to end, per that ADR's limb 1.
+
+| Retrieved | What it is | What it settled |
+|---|---|---|
+| `conf/cassandra.yaml` — `apache/cassandra` `cassandra-5.0.2`, `cassandra-5.0.6`, `cassandra-5.0.9` | the operative shipped default (§12.2) | The prohibition, §10.3's boundary limb, `listen_address`, and `ssl_storage_port`'s **deprecation** |
+| `conf/cassandra_latest.yaml` — `cassandra-5.0.9` | the **second** operative default the file's own header announces | Agrees line for line — §13.10's Elastic hazard tested and not met (§14.6) |
+| `src/java/org/apache/cassandra/config/Config.java`, `config/DatabaseDescriptor.java`, `auth/AuthConfig.java` — `cassandra-5.0.9` | the compiled defaults | `storage_port = 7000`, `ssl_storage_port = 7001`, and the internode authenticator fallback |
+| `cassandra.apache.org` security page and 5.0 FAQ | the owner's prose | Claim 1's authority limb, and *"7000 for cluster communication (7001 if SSL is enabled)"* |
+| IANA registry CSV, retrieved 2026-08-14, registry last updated 2026-08-11 | the registration | `afs3-fileserver` / `afs3-callback`, and a `Known Unauthorized Use` annotation on 7001 |
+| `support.apple.com/en-us/103229`, *TCP and UDP ports used by Apple software products* | the competing vendor, about its own product | **`AirPlay · 7000 · TCP`** — the fact that decides `7000` |
+| `oracle/docker-images` `OracleWebLogic/dockerfiles/14.1.2.0/README.md`; Oracle WLS administration guide | the competing vendor, about its own product | **`ADMIN_LISTEN_PORT` (default: `7001`)**; *"one port for HTTP communication (7001 by default)"* |
+| [`safe-active-probing.md`](./safe-active-probing.md) §2.3 | **this project's own** frequency half | `7001` is already in it, classified as an **HTTP-ish alternate** (§14.4) |
+| `nmap-services`, `nmap/nmap` `master` | rank only, per §2.5 and §6.1's existing limit | `7000/tcp` ranks **146th**, `7001/tcp` **232nd** — neither is in the top-100 |
+
+### 14.2 The claim, and it is not the problem — `7000/tcp` passes on both Claim 1 and Claim 3
+
+Recorded at length precisely because the row is refused. A reader who sees only the verdict will
+assume the evidence was thin. It is not, and the note is worth more if the refusal is visible as a
+gate rather than as a shortage.
+
+**§2.2's attestation — the prose limb, §12(b).** **[measured]** `conf/cassandra.yaml` carries the
+prohibition immediately above `storage_port: 7000`, identically at all three tags (lines 933-934 at
+`cassandra-5.0.2`, 959-960 at `cassandra-5.0.6` and `cassandra-5.0.9`):
+
+```
+# TCP port, for commands and data
+# For security reasons, you should not expose this port to the internet.  Firewall it if needed.
+storage_port: 7000
+```
+
+That is a **position**, not a label and not a directive — the same sentence, in the same file, that
+§12.7 used to move `9042/tcp` into the prohibition tier. Under §12(b) it attests exactly as a manual
+page would.
+
+**§2.2's attestation — the third form, §12(a).** `listen_address: localhost` is **active** in the
+same file, in an artefact §12.2 already classified as **operative**. It is a *restricting* default,
+so §10.4 admits it. The owner labels it in terms that name the audience: *"Address or interface to
+bind to and tell other Cassandra nodes to connect to. You \_must\_ change this if you want multiple
+nodes to be able to communicate!"* and, four lines down, *"Setting listen_address to 0.0.0.0 is
+always wrong."*
+
+**Claim 3, including §10.3's boundary limb — the limb that removed `161/udp`.** §11.6 removed SNMP
+because no owner sentence placed it inside a boundary. Cassandra's owner places `7000` inside one
+three times over: the yaml comment above, the FAQ's *"By default, Cassandra uses 7000 for cluster
+communication (7001 if SSL is enabled), 9042 for native protocol clients, and 7199 for JMX"*, and the
+security page's *"Cassandra is configured to easily find and be found by other members of a
+cluster."* The named boundary is **the cluster**, which is §10.3's *"the same cluster"* verbatim.
+There is no counterweight: **[measured]** neither `cassandra.yaml` nor `cassandra_latest.yaml`
+contains the strings `internet` (outside the four prohibition sentences), `public`, or `untrusted`,
+so §10.3's failure condition — the owner naming the public internet as a supported environment — is
+not met, consistent with §13.3's finding across fourteen artefacts.
+
+**Claim 1, checked as the ticket asked, and it also passes.** §10.1 Step 1 (publication): answering
+strangers is not the purpose — the directive's own label is *"TCP port, for commands and data"*.
+Step 2 (authority): the owner enumerates what an anonymous caller on this port gets, and every item
+is on §10.1's list:
+
+> "Enabling authentication for clients using the binary protocol is not sufficient to protect a
+> cluster. Malicious users able to access internode communication and JMX ports can still: Craft
+> internode messages to insert users into authentication schema · Craft internode messages to
+> truncate or drop schema · Use tools such as sstableloader to overwrite system_auth tables · Attach
+> to the cluster directly to capture write traffic"
+> — [cassandra.apache.org security](https://cassandra.apache.org/doc/latest/cassandra/managing/operating/security.html)
+
+That the caller is anonymous is measured from bytes three ways rather than assumed. The shipped yaml
+leaves the directive commented, naming the class it would otherwise set:
+
+```
+# Internode authentication backend, implementing IInternodeAuthenticator;
+# used to allow/disallow connections from peer nodes.
+#internode_authenticator:
+#  class_name: org.apache.cassandra.auth.AllowAllInternodeAuthenticator
+```
+
+`server_encryption_options.internode_encryption: none` is **active** beside it. And the compiled
+fallback agrees: `AuthConfig.java` reads
+`authInstantiate(conf.internode_authenticator, IInternodeAuthenticator.class, AllowAllInternodeAuthenticator.class)`,
+with `DatabaseDescriptor.java` initialising the field to `new AllowAllInternodeAuthenticator()`.
+
+**So the row is over-determined on claim and on attestation, and it is refused anyway.** Note what
+that costs the note in a good way: it removes the last reading under which §2.2's attestation tiers
+could be mistaken for a ranking of *how likely a row is to survive*. A prohibition-tier attestation
+is not a pass.
+
+### 14.3 `7000/tcp` fails determinacy — the competing convention is live, and its own vendor documents it
+
+§2.4's gate is on the **port**, not the service (§4.3), and the note has already ruled that
+registration cannot be the test, because *"many of the best-known sensitive ports are squatted, not
+registered"* and *"uncontested convention has to be"* the test instead. So `afs3-fileserver` alone
+does not sink `7000` — `9200`, `9300`, `2181`, `9042`, `10250`, `10255` and `623/udp` are all on the
+list over a squat.
+
+**What sinks it is a second live service, documented by the vendor that ships it.** **[measured]**
+Apple's *TCP and UDP ports used by Apple software products* tabulates:
+
+> `AirPlay · 7000 · TCP`
+> — [support.apple.com/en-us/103229](https://support.apple.com/en-us/103229)
+
+That is the strongest class of determinacy evidence available: not a third party's guess about what
+runs on a port, but **the owner of the competing service saying where its service listens**. And it
+is not a legacy registration — AirPlay ships on every current Mac, Apple TV and HomePod.
+
+**The controlling precedent is `9100/tcp`, and it is exact.** §4.6 excludes `9100` in one line:
+*"node_exporter squats on a registration belonging to `hp-pdl-datastr`, 'PDL Data Streaming Port' —
+i.e. JetDirect printers. One port, two completely different services, opposite populations.
+Excluded."* Substitute the names and it is this row: Cassandra squats on a registration belonging to
+`afs3-fileserver`, and Apple ships AirPlay on the same number. One port, two live services, opposite
+populations — and the populations are opposite in the way that matters most to this product, because
+Cassandra internode is an enterprise deployment and AirPlay is a consumer one.
+
+**Why `9200` is not the precedent, which is the question a reader will raise.** `9200` squats on
+`wap-wsp`, *"WAP connectionless session service"* — a registration for a protocol that has no
+deployed population at all in 2026. Nothing else answers on 9200, so Elasticsearch's convention there
+is uncontested in fact even though it is unregistered. That distinction has been doing silent work in
+this note since §21 and is now written down as
+[ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md): **a squat is
+contested where the other convention is live**, and liveness is read off the competing owner's own
+current documentation, never off a frequency source.
+
+**The argument for admitting it anyway, stated and refused.** It is a good one: a 7000/tcp listener
+*reachable from an internet vantage* is far more likely to be Cassandra than AirPlay, because AirPlay
+receivers sit behind NAT. **That is a frequency argument, and this note rules frequency out at the
+top of §1**; §11.5 refused a deployment-share argument by name, and §12.3 ground 1 refused another.
+Determinacy asks whether the **pair determines a service**, not whether one of two services is more
+often exposed. It also is not safely true: `Exposure` fires on `edge-only` as well as `exposed`
+(§4.1), IPv6 estates give every device a globally routable address, and UPnP forwards ports without
+being asked. A signal firing *"Cassandra internode transport exposed"* on somebody's Mac is §4.3's
+Cockpit-on-9090 failure and §4.4's *"the list's entire value is that a firing is never arguable"*,
+arriving on a different number.
+
+**A weaker reading of the signal does not rescue it either.** §2.4 concedes that
+`sensitive-port-exposed` *"claims a port associated with a sensitive service is reachable from an
+internet vantage — it does not claim the service is running"*. `9090` has a genuine Claim 3
+attestation from Prometheus and is excluded under that same framing, because *"a signal firing
+'Prometheus exposed' on a Cockpit host is worse than no signal."* The weak framing was already priced
+as insufficient and it is not re-priced here.
+
+### 14.4 `7001/tcp` fails determinacy twice over, and either limb alone suffices
+
+**Limb one — version-dependence, the §2.4 failure mode Hadoop failed, on the owner's own bytes.**
+**[measured]** The comment block above the directive is not the same as `7000`'s. It carries three
+extra lines, identically at all three tags:
+
+```
+# SSL port, for legacy encrypted communication. This property is unused unless enabled in
+# server_encryption_options (see below). As of cassandra 4.0, this property is deprecated
+# as a single port can be used for either/both secure and insecure connections.
+# For security reasons, you should not expose this port to the internet. Firewall it if needed.
+ssl_storage_port: 7001
+```
+
+And the switch that would bind it ships **off**, with the owner saying when to use it:
+
+```
+  # If enabled, will open up an encrypted listening socket on ssl_storage_port. Should only be used
+  # during upgrade to 4.0; otherwise, set to false.
+  legacy_ssl_storage_port_enabled: false
+```
+
+§2.4's second named failure mode is *"Version-dependent ports. Hadoop's NameNode web UI moved from
+50070 to 9870 between major versions, so the inference from port to service depends on which version
+is running. Excluded."* **Cassandra's encrypted internode transport moved from 7001 to 7000 at 4.0**,
+by the owner's own sentence — *"a single port can be used for either/both secure and insecure
+connections"* — so the inference from `7001` to *Cassandra encrypted internode* depends on which
+major version is running, and on no supported release is it the default. This is the Hadoop case with
+better evidence than Hadoop's, because it is stated in the shipped configuration rather than inferred
+from two documentation sets.
+
+**Limb two — the convention is contested, and one of the contestants is this product's own reference
+data.** Three facts, in increasing order of force.
+
+1. **IANA registers `afs3-callback,7001,tcp` and annotates it `Known Unauthorized Use on port
+   7001`.** §2.4 is right that this field is a registry-hygiene matter and not a security judgement,
+   and §9.3.4 already fixed the one use it is competent for: *"evidence about what else listens on
+   the port — determinacy — which is the one thing it is actually competent to say."* Used here on
+   exactly those terms and no others. Note that `7000`'s row carries **no** such annotation, so the
+   two rows are not refused on the same evidence.
+2. **Oracle documents WebLogic Server's AdminServer on 7001.** **[measured]** Oracle's own current
+   container image README ships `ADMIN_LISTEN_PORT` `(default: 7001)` and its worked commands are
+   `docker run -d -p 7001:7001 …`
+   ([`oracle/docker-images`, `OracleWebLogic/dockerfiles/14.1.2.0/README.md`](https://github.com/oracle/docker-images/blob/main/OracleWebLogic/dockerfiles/14.1.2.0/README.md));
+   the WebLogic administration guide states it in prose — *"It provides a single Listen Address, one
+   port for HTTP communication (7001 by default), and one port for HTTPS communication (7002 by
+   default)"*. That is the competing vendor about its own product, as Apple is for `7000`. It is also
+   the worse shape: WebLogic's 7001 is an **HTTP admin console**, so `7001` is conventionally an HTTP
+   alternate — the §4.3 category, in the same class as `8080` and `8443`.
+3. **verge-asm's own frequency half already calls `7001` an HTTP alternate.** **[measured]**
+   [`safe-active-probing.md`](./safe-active-probing.md) §2.3's modern-services supplement lists
+   `7001` under **"HTTP-ish alternates: 3001, 4000, 5601, 7001, 8006, 8069, 8086, 8090, 8161, 8500,
+   8834, 9000, 9090, 9200, 9300, 9443, 10000"**. So `7001` is *already* in `verge-core`, entered on
+   the frequency half's own terms, labelled as the thing §4.3 excludes. Admitting the row would ship
+   a product whose two port lists disagree about what `7001` is, and whose signal names Cassandra on
+   a port its own probe schedule selected as a generic web port.
+
+**Fact 3 corroborates and does not carry.** §6 forbids deriving the sensitive list from the hot set,
+because that would make frequency a precondition of normativity; letting #4's service *labels* decide
+a §2.4 question would be the same laundering arriving through the determinacy gate instead of through
+membership. The ground for limb two is IANA plus Oracle. #4's label is recorded because a
+**product-coherence** defect is worth seeing, and because it is the sharpest available illustration
+that the convention is contested — not because #4 is entitled to attest anything.
+
+### 14.5 §4.2 answered for this pair rather than assumed — and §4.2 is not even reached
+
+The ticket asked whether TLS changes the verdict for `7001`, noting that §4.2 answers *no* in general
+but that the pair deserves the answer rather than the assumption. **It is not reached, and saying why
+is worth more than the answer.**
+
+§4.2's rule governs a **Claim 2** pair: a plaintext port is wrong *because* a standardised encrypted
+successor sits on a different port, which is why 23 is listed and 22 is not. `7000`/`7001` is not that
+shape in either direction. `7000` is not a Claim 2 row — it is Claim 1 and Claim 3 — and `7001` is
+not its successor but its **withdrawn** sibling: the owner collapsed the split, and the encrypted form
+now lives on `7000` itself.
+
+**So this pair is the §9.2 and §11.5 shape, and it is the third instance.** StartTLS hardens 389 on
+389; SNMPv3 hardens 161 on 161; and **Cassandra hardens 7000 on 7000**, in the owner's own words —
+*"a single port can be used for either/both secure and insecure connections"*, and, in
+`server_encryption_options`, *"When set to true, encrypted and unencrypted connections are allowed on
+the storage_port."* §9.2 recorded that RFC 6335 §9 steers implementers away from split ports and that
+Class B's replacement is structurally invisible to a `(port, transport)`-keyed list; this is a project
+executing that migration inside a single major version, with the before and after both in the file.
+
+**And had §4.2 been reached, its answer would be unchanged.** TLS bears on Claim 2 and on nothing
+else, so it could not have moved a row resting on Claim 3. `2375`/`2376` remains the demonstration.
+
+### 14.6 Hazards met, recorded per §9.5, §11.9, §12.9 and §13.10
+
+- **`cassandra.yaml`'s own header announces a second operative default, and §13.10's Elastic hazard
+  was tested rather than assumed away.** The file opens by saying it *"is provided in two versions"*,
+  `cassandra.yaml` and `cassandra_latest.yaml`, the second *"for new users of Cassandra who want to
+  get the most out of their cluster"*. Both were retrieved at `cassandra-5.0.9`. **[measured]** They
+  agree on every line this section relies on — the same prohibition above `storage_port: 7000`, the
+  same deprecation block above `ssl_storage_port: 7001`, `listen_address: localhost`,
+  `internode_encryption: none`, `legacy_ssl_storage_port_enabled: false` and a commented
+  `#internode_authenticator:`. Elastic ships `localhost` in one operative default and `0.0.0.0` in
+  another; Cassandra does not, and it took opening the second file to know that. A session that reads
+  §12.2's *"Cassandra `conf/cassandra.yaml` … Operative"* as naming the only operative file has
+  under-read the artefact by one.
+- **`docs.oracle.com` serves a JavaScript shell to a plain client on its current documentation
+  pages**, in the shape §9.5 recorded for `learn.microsoft.com` — the Fusion Middleware port-numbers
+  appendix retrieves as 24 KB of loader script with no port table in it. The WebLogic default was
+  taken instead from Oracle's own bytes on GitHub (`oracle/docker-images`) and cross-checked against
+  an older Oracle documentation page that does serve text. Bytes over renderings, per §12.9.
+- **`nmap-services` is used for rank and for its name column only, on §2.5's and §6.1's existing
+  terms.** `7000/tcp` ranks 146th and `7001/tcp` 232nd of 8,387 TCP rows, against a top-100 boundary
+  at open-frequency `0.003149` — used in §14.7 to state where the ports sit relative to the frequency
+  half, and nowhere as grounds for a verdict, exactly as §4.3 uses it to note that 9090 is still
+  `zeus-admin`.
+- **The determinacy gate has no stated evidence standard, and this ticket is the first to lean its
+  whole ruling on it.** §2.2 has three attestation forms and an owner definition (§10.5); §2.1 has a
+  closed claim set (§10.2); §2.4 has *"uncontested convention"* and no account of what establishes
+  it. This section had to weigh a vendor's product-port table, a vendor's container image README, an
+  IANA annotation and a rendered manual against each other with nothing in the standard to rank them.
+  The ruling does not turn on the gap — every source used is first-party about its own product, which
+  is the strongest class on any plausible standard — but the gap is real and is opened as §8
+  question 10, routed to [#82](https://github.com/winniel123/verge-asm/issues/82).
+
+### 14.7 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged** — and now definite for [#12](https://github.com/winniel123/verge-asm/issues/12) |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged.** No row enters, so no class total moves |
+| §2.2 footing table | prohibition 9 · scoping 5 · weak 2, placing 19 of 37 pairs | **unchanged in every cell.** The two refused ports are not rows, so they take no cell, and the denominator [#76](https://github.com/winniel123/verge-asm/issues/76) works against stays **37** |
+| §2.6's boast | true of all 37 | **unchanged** |
+| §4.5 *the list's weakest row* | 5432/tcp | **unchanged** |
+| §4.6 exclusions | 16 named | **18 named** — `7000/tcp` and `7001/tcp` join the negative space (§14.8) |
+| §6.1 containment arithmetic | 28 in the hot set + 4 missing TCP + 5 UDP = 37 | **unchanged**, and checked for both ports rather than assumed: neither becomes a row, so neither enters the sensitive half and neither can create a containment gap |
+| `verge-core` membership, for the record | — | **`7001/tcp` is already in the frequency half** ([`safe-active-probing.md`](./safe-active-probing.md) §2.3's supplement), so it is probed daily and fires no sensitive-port signal, which is what this refusal means. **`7000/tcp` is in neither half** — 146th by open-frequency, outside the top-100, and absent from the supplement — so it is reached only by the opt-in cold full-range sweep. Both are correct outcomes of decisions already made and neither is a defect (§14.9) |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves. The ADR needs no amendment |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical. No `Break`, no version bump, no aperture change, no comparability cycle |
+| §13.5's routing | *"Routed to #75, which blocks #12"* | **discharged.** #75 is answered; #12's blocker clears with the count it was waiting on |
+| §12.8's version flag | *"Cassandra's prohibition is measured on 5.0.2 alone"* — discharged by §13 at three tags | **unchanged, and extended**: the same three tags plus `cassandra_latest.yaml` at `cassandra-5.0.9` |
+| §8 | 9 questions, all closed or routed | **10** — question 10 opened (§14.6) |
+
+**Outside this note.** [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md)
+is added and is a rule about the determinacy gate rather than a table edit. ADR-0008, ADR-0009,
+ADR-0032, ADR-0036 and ADR-0037 are untouched. **ADR-0037's limb 2 is confirmed by outcome rather
+than by argument** — it predicted that a subject found beside a listed one supplies the attestation
+limb only and that *"§2.4's determinacy gate is live and may sink the row despite the strongest kind
+of sentence the corpus has."* It did, on both ports.
+
+### 14.8 The two rows added to §4.6's negative space
+
+Per §4.6's own principle that *"the exclusions are as much of the deliverable as the list, because a
+curated list is judged on what it refuses"*.
+
+| Excluded | Why |
+|---|---|
+| **7000/tcp Cassandra internode storage/gossip** | Claim 1, Claim 3 and §2.2's attestation all pass — an owner prohibition naming the port by number in operative shipped bytes at three tags, with `listen_address: localhost` beside it. **Fails determinacy**: it squats on `afs3-fileserver`, and Apple documents `AirPlay · 7000 · TCP` as a live competing service. The `9100` rule, now [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md) — §14.2, §14.3 |
+| **7001/tcp Cassandra `ssl_storage_port`** | Same prohibition, and it still fails determinacy on **two** independent limbs. Version-dependence: the owner deprecated it at 4.0 and moved encrypted internode onto `7000`, shipping `legacy_ssl_storage_port_enabled: false`. Contested convention: IANA `afs3-callback` with a `Known Unauthorized Use` annotation, Oracle's WebLogic AdminServer, and this project's own frequency half already classing `7001` as an HTTP-ish alternate — §14.4 |
+
+**The criterion that would change either verdict.** For `7000`: Apple retiring AirPlay from 7000, or
+some other event that leaves Cassandra's convention uncontested — at which point the row is a clean
+admission on evidence that already exists, priced as an addition. For `7001`: nothing reachable. The
+owner has withdrawn the port, so the direction of travel is away from admissibility, and re-admitting
+it would require Cassandra to un-deprecate `ssl_storage_port` **and** Oracle to move WebLogic.
+
+### 14.9 Thin ground, flagged per the standing rule
+
+**The `7000` refusal is the thinnest single judgement in this section**, and it is thin in a stated
+way. It turns on AirPlay being a *live* competing convention, and liveness is a property of the world
+rather than of a document — the very kind of judgement §10.1 deleted when it removed *"would
+otherwise require authority"* for asking a reviewer to imagine a counterfactual. ADR-0042 answers
+that by keying liveness to **the competing owner's own current documentation** rather than to
+deployment share, which is the tightest available footing and is not a proof. A reader who says that
+Apple's ports table is a specification of *Apple's* products and cannot bear on what `7000` means
+generally has a real argument; the reply is that the same reader must then explain `9100`, which is
+excluded on nothing stronger.
+
+**The claim that no other live service occupies `7000` or `7001` is not made.** What is established
+is that at least one does, on each, from that service's own vendor. That is sufficient to fail a gate
+that requires convention to be **un**contested, and it is not a survey.
+
+**`7001`'s version-dependence limb rests on a comment, not on a code path.** The deprecation sentence
+and `legacy_ssl_storage_port_enabled: false` were read from the shipped configuration and from the
+`Config.java` field; the listener-binding code that consumes the flag was not read. The comment is the
+owner's own prose under §12(b) and the flag is an active directive under §12(a), so the finding stands
+on the standard's own terms — but a session that needs the binding behaviour itself has not got it
+here.
+
+**Neither port's absence from `verge-core`'s frequency half is treated as a defect, and that is a
+ruling rather than an omission.** #4's supplement admits a port because it *"maps to a named v1 risk
+signal"*. `7000` maps to none once this section refuses it, so its absence is the frequency half
+working correctly rather than a gap; and `7001`'s presence is #4's own HTTP-alternate judgement, which
+this note has no standing to revise. **The criterion that would reopen it:** a v1 signal other than
+`sensitive-port-reached-from-internet` that `7000` maps to.
+
 ---
 
 ## Sources
@@ -3205,6 +3638,17 @@ Shipped configuration bytes (§13) — the footing-table re-derivation; every pa
 - CouchDB [`rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.5.0/rel/overlay/etc/default.ini) at `3.5.0` — `bind_address = 127.0.0.1` **active** under `[chttpd]`, `[httpd]` and `[prometheus]`
 - ZooKeeper [`conf/zoo_sample.cfg`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.5/conf/zoo_sample.cfg) at `release-3.9.5` · RabbitMQ [`rabbitmq.conf.example`](https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/v4.3.4/deps/rabbit/docs/rabbitmq.conf.example) at `v4.3.4` — both confirm §12's readings at a later release
 - etcd [`etcd.conf.yml.sample`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/etcd.conf.yml.sample) (*"This is the configuration file for the etcd server."* — the tenth artefact and the first that does not declare itself, §13.6) and [`contrib/systemd/etcd.service`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/contrib/systemd/etcd.service) (runs `/usr/bin/etcd` with no `--config-file`)
+
+Shipped configuration and compiled bytes (§14) — the `7000`/`7001` ruling; every path resolved from the repository tree, every configuration file read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+- Apache Cassandra `conf/cassandra.yaml` at [`cassandra-5.0.2`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.2/conf/cassandra.yaml), [`cassandra-5.0.6`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.6/conf/cassandra.yaml), [`cassandra-5.0.9`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/conf/cassandra.yaml) — the prohibition above `storage_port: 7000` and above `ssl_storage_port: 7001`; `listen_address: localhost` **active** under *"You \_must\_ change this if you want multiple nodes to be able to communicate!"* and *"Setting listen_address to 0.0.0.0 is always wrong"*; `#internode_authenticator:` / `# class_name: org.apache.cassandra.auth.AllowAllInternodeAuthenticator` **commented**; `internode_encryption: none` and `legacy_ssl_storage_port_enabled: false` **active**. **The `7001` deprecation is the decisive line:** *"As of cassandra 4.0, this property is deprecated as a single port can be used for either/both secure and insecure connections."*
+- Apache Cassandra [`conf/cassandra_latest.yaml`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/conf/cassandra_latest.yaml) at `cassandra-5.0.9` — **the second operative default the file's own header announces**, retrieved because §13.10 measured that an owner can ship two that contradict each other. It agrees on every line §14 relies on (§14.6)
+- Apache Cassandra compiled defaults at `cassandra-5.0.9`: [`config/Config.java`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/src/java/org/apache/cassandra/config/Config.java) (`public int storage_port = 7000;`, `public int ssl_storage_port = 7001;`) · [`auth/AuthConfig.java`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/src/java/org/apache/cassandra/auth/AuthConfig.java) (`authInstantiate(conf.internode_authenticator, IInternodeAuthenticator.class, AllowAllInternodeAuthenticator.class)`) · [`config/DatabaseDescriptor.java`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/src/java/org/apache/cassandra/config/DatabaseDescriptor.java) (`internodeAuthenticator = new AllowAllInternodeAuthenticator()`)
+- [Cassandra security](https://cassandra.apache.org/doc/latest/cassandra/managing/operating/security.html) — *"Malicious users able to access internode communication and JMX ports can still: Craft internode messages to insert users into authentication schema · Craft internode messages to truncate or drop schema · Use tools such as sstableloader to overwrite system_auth tables · Attach to the cluster directly to capture write traffic"* — Claim 1's §10.1 Step 2 limb · [Cassandra 5.0 FAQ](https://cassandra.apache.org/doc/5.0/cassandra/overview/faq/index.html) — *"By default, Cassandra uses 7000 for cluster communication (7001 if SSL is enabled), 9042 for native protocol clients, and 7199 for JMX."*
+- **[Apple, *TCP and UDP ports used by Apple software products*](https://support.apple.com/en-us/103229)** — tabulates `AirPlay · 7000 · TCP`. **The fact that refuses `7000/tcp`**: the competing service's own vendor, documenting its own product on the number
+- **Oracle WebLogic Server on `7001`** — [`oracle/docker-images`, `OracleWebLogic/dockerfiles/14.1.2.0/README.md`](https://github.com/oracle/docker-images/blob/main/OracleWebLogic/dockerfiles/14.1.2.0/README.md), Oracle's own bytes: `ADMIN_LISTEN_PORT` *(default: `7001`)* and `docker run -d -p 7001:7001 …`. Cross-checked against [Oracle's WebLogic administration guide](https://docs.oracle.com/cd/E13222_01/wls/docs81/adminguide/network.html) — *"one port for HTTP communication (7001 by default), and one port for HTTPS communication (7002 by default)"*. **Retrieval hazard (§14.6):** `docs.oracle.com`'s current Fusion Middleware port-numbers appendix serves a JavaScript shell to a plain client, in the `learn.microsoft.com` shape §9.5 recorded
+- IANA registry CSV, retrieved 2026-08-14 — `afs3-fileserver,7000,tcp,file server itself` with an **empty** Unauthorized Use field, and `afs3-callback,7001,tcp,callbacks to cache managers,…,Known Unauthorized Use on port 7001`. The annotation is used only as evidence about **what else listens on the port**, per §9.3.4
+- `nmap-services` at `nmap/nmap` `master` — **rank and name column only**, on §2.5's and §6.1's existing terms: `afs3-fileserver 7000/tcp 0.001995` (**146th** of 8,387 TCP rows) and `afs3-callback 7001/tcp 0.000891` (**232nd**), against a top-100 boundary at `0.003149`. Neither is in the top-100, so neither entered `verge-core`'s frequency half that way
+- [`safe-active-probing.md`](./safe-active-probing.md) §2.3 — **this project's own** modern-services supplement, which lists `7001` under *"HTTP-ish alternates"*. Recorded in §14.4 as corroboration and as a product-coherence defect, **never as grounds**, because §6 forbids the frequency half deciding a normative question
 
 No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
 - **1433/tcp** Microsoft SQL Server and **445/tcp** SMB with **139/tcp**, **137**, **138/udp** — configured through setup and the registry rather than through a file Microsoft ships
