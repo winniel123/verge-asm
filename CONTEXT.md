@@ -65,7 +65,11 @@ timelines opened, never one message per address. A
 boundary can be drawn inwards too: a seed carries **exclusions** — exact names, subtrees, or
 address scopes the operator declares are not theirs. Excluding a name that still resolves is legal —
 *not mine* is a different claim from *not there* — and an excluded name is no longer
-queried. Registry lookups **propose** seeds and never author them: a `Proposal` the operator
+queried. A name scope and its name exclusions are held in the same form their names are, and
+**subtree containment is label-wise suffix comparison** over the key: the candidate's labels end
+with the scope's labels, compared label by label. That is the name-side twin of the address rule
+above, and it is what stops `evilexample.com` reading as inside `example.com`, which a suffix test
+over text would admit and the probing gate would then open on. Registry lookups **propose** seeds and never author them: a `Proposal` the operator
 has not confirmed is not a `Seed`, asserts nothing, and is read by nothing, which is what
 keeps a third party's file out of the probing gate. Declining one is an exclusion of this kind
 rather than a suppression, since it is a claim about where the estate ends. A name scope may
@@ -84,7 +88,9 @@ once on a scope the operator already authors — one act, never a queue of disco
 approve. It is what makes the model describe a **cloud-resident estate**, where the operator holds
 no registry resources and every address they use is titled to somebody else. Transitivity stops
 where the resolution chain **leaves the declared zone**: a direct A record extends, a CNAME to a
-foreign name does not, and that boundary is measured rather than read off a list of providers. Its
+foreign name does not, and that boundary is measured rather than read off a list of providers. That
+test is the same label-wise suffix comparison a `Seed`'s subtrees run, over the `Name` key and never
+over a spelling — so this gate, like the address one, cannot turn on a rendering. Its
 extension is recomputed rather than typed, which is a safety property and not a convenience — a
 literal address scope over a released elastic address holds the gate open on whoever holds it
 next, while an extension simply stops covering it. What it cannot see is an `ALIAS` flattened into
@@ -275,7 +281,27 @@ which is what makes a first run one coverage-class message with no special case.
 _Avoid_: asset, entity, target
 
 **Name**:
-A fully-qualified domain name. Has DNS records; has no ports. The only subject whose
+A fully-qualified domain name. Has DNS records; has no ports. Its key is the **label sequence**,
+never a spelling of it: the ordered labels, each an octet string, terminated by the root label, so
+the key is absolute by construction and *fully-qualified* is a statement about it rather than about a
+convention. A name on the wire is octets and not text — a sequence of length-prefixed labels the
+protocol never reads as characters — so the case, the separating dots and any Unicode form are added
+by whatever printed it, exactly as an address's spelling is. What folds is what the protocol itself
+folds and nothing else: **ASCII case**, the 26 letters and no other octet, because DNS defines that
+equivalence and preserves case on the wire while four ordinary things move it. The **trailing dot** is
+neither stored nor stripped — it is the presentation format's marker for *absolute*, consumed by the
+parse, and the root label it marks is in the key; inside a master file it is **load-bearing**, since a
+relative owner name is completed by that file's own origin and `www.example.com` without the dot is a
+different name from `www.example.com.`. An **A-label** is a label like any other and is never decoded:
+`xn--` is what every measured path carries, while a **U-label** presented as text has two denotations
+— a raw-octet label and an A-label — and separating them needs Unicode tables a key may not consult,
+so it is **refused rather than interpreted**. A name that cannot be keyed is not a subject: it is
+absent from the `Batch`'s recorded scope and writes no value and no `Gap`. It is **rendered** one way
+only — labels joined by dots, no trailing dot, computed on read, the same string SNI carries — and v1
+renders no U-label at all. Comparison is label-wise octet equality, and containment is label-wise
+**suffix** equality, so no test in the model ever compares a name as a string. See
+[ADR-0055](./docs/adr/0055-a-names-key-is-the-label-sequence-and-we-fold-only-what-the-protocol-folds.md).
+The only subject whose
 departure needed deciding: it leaves when our own resolver measures a Name Error from
 every available vantage, never because time passed. Under a `Shadowed` answer it cannot
 leave at all, and stays visibly unconfirmed until the operator supplies coverage or
@@ -331,7 +357,12 @@ serve different content and, under SNI, different certificates. Keyed on `Servic
 probed last, manufacturing drift on every virtual host every run. The `Name`
 may be **absent**, meaning *the default response to a client that names nothing*: a real,
 distinguishable measurement mode rather than a null in a key, and the only one available on an
-address-scope `Seed` where no name is known yet. It closes when **either** leg withdraws — its
+address-scope `Seed` where no name is known yet. Absence is a **distinguished variant** of the key
+and never an empty name — an empty text is refused and so is the root alone, and neither may collide
+with the nameless endpoint. Both legs are **subjects** and never renderings of them, so this key
+inherits the `Name` and `Address` forms rather than restating them; the SNI the `certificate`
+handshake sends is a rendering of the `Name` key, computed on read like every other. It closes when
+**either** leg withdraws — its
 `Name` or its `Service` — so a nameless endpoint simply has one leg. See
 [ADR-0011](./docs/adr/0011-a-facet-is-six-parts.md).
 _Avoid_: URL, site, web asset, vhost
