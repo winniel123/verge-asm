@@ -294,6 +294,35 @@ kube-proxy is **refused** — §24. The list is **39** pairs.
 - **The *"Correcting a mis-aimed port"* worked example is unaffected**: it turns on a transport
   mismatch and neither new pair has a UDP sibling in either half.
 
+### Amendment — [#95](https://github.com/winniel123/verge-asm/issues/95): the sensitive half gains `10249/tcp` and `10248/tcp`, so the union widens a second time
+
+> **`verge-core = frequency-set ∪ sensitive-list` is unchanged. The sensitive half gains two more TCP
+> pairs — `10249/tcp` kube-proxy metrics (Class A) and `10248/tcp` kubelet healthz (Class C) — and
+> `10258/tcp` cloud-controller-manager is refused and adds nothing.** The list is **41 pairs**, class
+> totals `12 / 7 / 22`. [`sensitive-ports.md`](../research/sensitive-ports.md) §27.
+
+- **The definition does not move and neither does the arithmetic's shape.** This is the second
+  widening in two sections, and it is the same act: the sensitive half is edited, the union follows
+  by construction, and nothing has to be remembered.
+- **§6's one-directional invariant forces two more hot-set additions**, taking the missing-TCP group
+  from six to eight and §6.1's containment arithmetic to `28 + 8 + 5 = 41`. The UDP half is untouched
+  at five, both new pairs being TCP.
+- **§24's flagged membership check is discharged rather than passed on again.** The amendment above
+  left *"the addition must be checked against [#4](https://github.com/winniel123/verge-asm/issues/4)
+  §2.3's modern-services supplement at merge"*. **[measured]**
+  [`safe-active-probing.md`](../research/safe-active-probing.md) §2.3's supplement reads, for this
+  family, *"Orchestration/control planes: 2375, 2376, 2379, 2380, 6443, 10250, 10255"*, and none of
+  `10248`, `10249`, `10257`, `10258` or `10259` appears in it or in nmap's top-100. §24's *four → six*
+  is confirmed and this pass's own additions take it to eight.
+- **The price is spent a second time**, and knowingly: `sensitive-port-reached-from-internet`'s
+  content moves, its rule version bumps under
+  [ADR-0008](./0008-derivation-versions-move-on-content.md), every evaluation `Break`s and the
+  aperture widens. Still pre-install, so still vacuous and still not waived.
+- **Four pairs in two sections, all Kubernetes component ports, all found by reading one file whole.**
+  Recorded here as well as at §27.13 because the union is where a curator would notice a single
+  owner's artefact being mined harder than any other's, and the concentration is real even though the
+  four rows carry four different footings.
+
 ## Alternatives rejected
 
 **Keep the lists independent with a build-time test** — [#21](https://github.com/winniel123/verge-asm/issues/21)
