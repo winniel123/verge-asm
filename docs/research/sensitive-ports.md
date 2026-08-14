@@ -8459,8 +8459,19 @@ limb 2 obliged §19.8 to ticket rather than admit.
 [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s price.** Every pass since §11 has
 reported *free in the strong sense*. This one is not free: two pairs enter, so
 `sensitive-port-reached-from-internet`'s content moves, its rule version bumps, every evaluation
-`Break`s, [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union widens, and §6's one-directional
-invariant forces two hot-set additions. That was the ticket's stated price and it is paid knowingly.
+`Break`s, [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union widens, and ~~§6's one-directional
+invariant forces two hot-set additions~~. That was the ticket's stated price and it is paid knowingly.
+
+> **The invariant clause is WITHDRAWN by [#102](https://github.com/winniel123/verge-asm/issues/102),
+> on exactly the ground §29 withdrew it at §6 and the merge reconciliation withdrew it at §27.**
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md) dissolved the mechanism: containment is
+> **analytic**, nothing fires and nothing is forced, and `10259/tcp` and `10257/tcp` were inside
+> `verge-core` from the instant this section admitted them.
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) is why
+> the withdrawal is written **here** rather than only at §29. **The price this paragraph states is
+> otherwise unchanged** — the two pairs really do enter, the content really does move, the rule
+> version really does bump and every evaluation really does `Break`. What is withdrawn is the
+> mechanism, never the arithmetic.
 
 ### 24.1 What was retrieved
 
@@ -8983,9 +8994,18 @@ fails.
 
 **Two figures in this section are asserted from the map rather than measured.** That none of the three
 is in the hot set today is #91's statement and §6.1's enumeration is consistent with it, but §6.1
-enumerates the sensitive list's members rather than the hot set's, so **the hot-set addition count is
+enumerates the sensitive list's members rather than the hot set's, so ~~**the hot-set addition count is
 checked against [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3's supplement by whoever
-merges this**, not here.
+merges this**, not here~~.
+
+> **The deferred check is SPENT, and is withdrawn here by
+> [#102](https://github.com/winniel123/verge-asm/issues/102) per
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
+> **[measured]** by §29.2: the frequency half is **123, all TCP**, its orchestration limb runs
+> `2375, 2376, 2379, 2380, 6443, 10250, 10255` and stops at the kubelet, and neither `10259/tcp` nor
+> `10257/tcp` is in the top-100 either. **#91's statement is confirmed and is now measured.** A later
+> session owes nobody this retrieval. The withdrawal is written here rather than only at §29 because
+> a session reading this paragraph alone would perform a check that has already been performed.
 
 ### 24.11 By-catch, recorded and routed rather than admitted
 
@@ -9057,7 +9077,7 @@ Walked against §22.7's composed state, which is the note as it stands before §
 | §2.4's squat table | lists `10250`, `10255` as inside explicit *Unassigned* ranges | **three numbers added** — `10256`, `10257`, `10259`, all inside `10254-10259 Unassigned` (§24.4) |
 | §4.5 *the list's weakest row* | `5432/tcp` | **unchanged**, and §24.6 leans on it as the standard the new rows exceed |
 | §4.6 exclusions | 18 named | **19.** `10256/tcp` enters, on a claim-gate failure rather than on determinacy |
-| §6.1 containment arithmetic | 28 + 4 + 5 = 37 | **28 + 6 + 5 = 39.** Both new rows are TCP and neither is in the hot set, so the *missing TCP* group goes 4 → 6. **The hot-set membership check is asserted from #91 and must be verified against [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 at merge** (§24.10) |
+| §6.1 containment arithmetic | 28 + 4 + 5 = 37 | **28 + 6 + 5 = 39.** Both new rows are TCP and neither is in the hot set, so the *missing TCP* group goes 4 → 6. ~~**The hot-set membership check is asserted from #91 and must be verified against [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 at merge** (§24.10)~~ — **spent; withdrawn by [#102](https://github.com/winniel123/verge-asm/issues/102) / [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). §29.2 measured it: neither pair is in the frequency half, and *asserted* became *measured*** |
 | §10.1's Class A walk | eleven rows | **eleven, unchanged.** Neither new row is Class A, so neither enters the walk |
 | §16.9's reopening criterion for `10250` | discharged for `10250` by §18 | **reopened, on two different rows.** §24.10 restates it for `10259` and `10257` |
 | §19.8's three ticketed candidates | ticketed, never admitted | **disposed** — two admitted, one refused. ADR-0037 limb 2's first completed cycle |
@@ -9065,7 +9085,7 @@ Walked against §22.7's composed state, which is the note as it stands before §
 | §19.12's *"two ports could not be tested against §2.4"* | true when written | **discharged.** All three are tested at §24.4 |
 | §22.7's *residue zero* and §17.8's fixed point | zero residue | **unchanged.** This section opens no §2.4 residue: determinacy passes for all three, and the `10256` refusal is a claim-gate refusal, which is §2.2's backlog and not §2.4's |
 | §8 | 12 questions, all closed | **12, unchanged.** §24.11's by-catch is a **row** question and is routed rather than parked, per §18.5's `623` precedent |
-| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **widened by two TCP pairs.** The definition is unchanged; the sensitive half gains `10259/tcp` and `10257/tcp`, and §6's one-directional invariant forces both into the hot set. The UDP arithmetic — *five* from the sensitive half — is **untouched** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **widened by two TCP pairs.** The definition is unchanged; the sensitive half gains `10259/tcp` and `10257/tcp`, and ~~§6's one-directional invariant forces both into the hot set~~ — **withdrawn by [#102](https://github.com/winniel123/verge-asm/issues/102) / [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md); the union carries them by construction and there is no addition to perform.** The UDP arithmetic — *five* from the sensitive half — is **untouched** |
 | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **triggered.** `sensitive-port-reached-from-internet`'s reference data gains two members, so its content moves, the rule version bumps and every evaluation `Break`s. **This is the first section since §11 to spend it** |
 | [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984` | **unchanged.** The weak tier does not move; §24.10's flags are thin-ground disclosures, not weak-tier memberships |
 | [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) | limb 2's second payout outstanding | **discharged**, and three new candidates recorded under limb 1's rationale (§24.11) |

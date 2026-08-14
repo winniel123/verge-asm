@@ -1272,6 +1272,28 @@ easier corpora in the system to build.
 
 ### 9.1 Never per protocol
 
+> **The principle *as stated in this heading* is WITHDRAWN — it is over-wide, and
+> [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) says so in terms: *"The doubt is
+> correct and **the principle as stated is wrong**."*** Written here by
+> [#102](https://github.com/winniel123/verge-asm/issues/102) under
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md),
+> because ADR-0015 recorded the correction in its own body and **this note contains no reference to
+> ADR-0015 anywhere** — there is not even a pointer to fail.
+>
+> **What survives, unchanged, is the harm named below:** *growth coupled to a corpus*. ADR-0015:
+> *"That harm is not caused by covering one protocol. It is caused by the signal being **named for**
+> the protocol, so that admitting one commits us to admitting the next."*
+>
+> **The corrected test, which governs:**
+> > **A signal is named for the fact it reads, and its scope is however many protocols happen to
+> > express that fact.** One is fine when the fact is genuinely single-protocol. Three protocols
+> > expressing one fact must be one signal, never three.
+>
+> So `smtp-starttls-absent` / `imap-starttls-absent` / `pop3-stls-absent` stay forbidden — one fact
+> wearing three names — while **a single-member rule is not forbidden**. §12 q2 asked exactly this
+> and ADR-0015 answered it; the question is closed. **§9.2's SMB exclusion rests on the withdrawn
+> reading and is not re-decided here** — see the box at §9.2.
+
 The tempting shape is `smtp-starttls-absent`, `mysql-tls-not-offered`, `amqp-anonymous-permitted`.
 It is wrong for a reason that goes beyond taste: **a signal set that grows with the dispatch table is
 a name per product, which is the signature database's silhouette even when every individual rule is
@@ -1306,10 +1328,24 @@ SMB-signing-not-required. It is refused:
   to the first signal already. Nothing is lost.
 - **SMB signing is the closest call in the note.** `SMB2_NEGOTIATE_SIGNING_REQUIRED` is a real,
   spec-defined, credential-free bit, and its absence is a genuine and well-known weakness. But it is
-  integrity rather than confidentiality, so it fits neither rule, and a rule built for it would cover
-  exactly one protocol — which is §9.1's per-protocol signal wearing a general-sounding name.
+  integrity rather than confidentiality, so it fits neither rule, and ~~a rule built for it would cover
+  exactly one protocol — which is §9.1's per-protocol signal wearing a general-sounding name~~.
   **Excluded from v1**, with the underlying question recorded in §12 rather than argued away: a
   single-protocol rule may be legitimate, and this note has not established that it is not.
+
+  > **The struck half of this exclusion's ground is gone.**
+  > [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) corrected §9.1's principle — a
+  > single-protocol rule **is** legitimate where the fact is genuinely single-protocol — and this
+  > sentence's *"which is §9.1's per-protocol signal wearing a general-sounding name"* is the
+  > withdrawn reading. Recorded here by [#102](https://github.com/winniel123/verge-asm/issues/102)
+  > under [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+  >
+  > **The verdict is NOT reversed here, and must not be read as reversed.** The *other* half of the
+  > ground — *"it is integrity rather than confidentiality, so it fits neither rule"* — is untouched
+  > and may carry the exclusion on its own; deciding that is a v1 signal-set question, which is a row
+  > change and not a document repair. It is **ticketed**, and the note's own §12 q2 is the question
+  > being answered. Until that ticket lands, `smb-signing-not-required` stays **excluded from v1**,
+  > now on one ground rather than two.
 
 ### 9.3 Both read `Exposure`, and that is the difference from `tls-1.0-negotiated`
 
@@ -1452,10 +1488,17 @@ rather than dropping them.
    argues yes and this note cannot settle it, because the answer depends on whether v1's signal set
    is closed. It is the cheapest signal in the whole survey and it covers #21's largest exclusion
    category.
-2. **Is a single-protocol signal ever legitimate?** §9.2 excluded SMB signing on the grounds that a
+2. ~~**Is a single-protocol signal ever legitimate?**~~ §9.2 excluded SMB signing on the grounds that a
    rule covering one protocol is a per-protocol signal by another name. That reasoning would also
    exclude any future rule for a protocol-specific weakness, which may be too strong. The question is
    general and the answer belongs somewhere other than an SMB row.
+   > **ANSWERED — yes, and this question is closed.**
+   > [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md): *"One is fine when the fact is
+   > genuinely single-protocol."* The answer did indeed land somewhere other than an SMB row, exactly
+   > as this question asked — and nothing carried it back here, which is why
+   > [#102](https://github.com/winniel123/verge-asm/issues/102) writes it in under
+   > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+   > See §9.1's box for the corrected test and §9.2's for what it does and does not move.
 3. **Does the `revealed` treatment of a widened dispatch table actually hold in the presence of a
    `Gap`?** §7.3 leans on ADR-0008. But a `Service` already carrying `not-evaluable` under route 5
    has a timeline; widening the aperture over it looks like a value appearing where a `Gap` was, not
