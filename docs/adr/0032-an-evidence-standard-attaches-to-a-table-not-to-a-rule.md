@@ -363,8 +363,24 @@ is the quiet removal of an admission route.
 > **5432/tcp, 5984/tcp and 9042/tcp** — which are exactly the three rows #21 disclosed as its weak
 > tier.
 
-So **the weak tier is the curator's watch list**, and the disclosure #21 made for honesty acquires an
-operational job it was not written for. That is the disclosure's consumer, and it is the second and
+So ~~**the weak tier is the curator's watch list**~~, and the disclosure #21 made for honesty acquires an
+operational job it was not written for.
+
+> **That equation is WITHDRAWN — the watch list is defined by *shape*, not by the weak tier**, per
+> [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md)
+> ([#71](https://github.com/winniel123/verge-asm/issues/71)), and written here by
+> [#102](https://github.com/winniel123/verge-asm/issues/102) under
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) because
+> ADR-0038 recorded the redefinition only in its own Consequences and this ADR never cited it.
+> ADR-0038's words: *"§8's watch list is **redefined by shape**, gaining `verge-core`'s frequency half
+> and the weak-key table without gaining a pile."*
+>
+> **No enumerated row moves on this.** ADR-0038 says its *"three shipped-default rows — now two after
+> [#69](https://github.com/winniel123/verge-asm/issues/69) — are unaffected"*, and the row
+> enumeration below is governed by the #76 / #88 / #95 amendments, not by this box. What is withdrawn
+> is the **identity** *watch list = weak tier*: a session reading this sentence alone builds a watch
+> scoped to one disclosure, when the exposure is *any row whose grounds can move with no document
+> changing anywhere* — which is the sentence in the box above and is wider than the tier. That is the disclosure's consumer, and it is the second and
 independent reason §7 keeps it in the document rather than on a screen. It also gives the map's
 curation patch a concrete first task instead of a posture.
 

@@ -760,6 +760,20 @@ predictable from the ticket and it is the reason this note reports the routes in
 Per ADR-0032 the disclosure binds every instrument's own document, in its stronger form: a disclosed
 weakness names the retrieval that would resolve it.
 
+> **WITHDRAWN as a statement of the current tiering, by
+> [#102](https://github.com/winniel123/verge-asm/issues/102) per
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
+> §9.2 named a retrieval; **§13 ([#73](https://github.com/winniel123/verge-asm/issues/73)) ran it and
+> it came back positive.** §13.5 supersedes the table below and says so — *"§9 stands unrewritten;
+> this is what it should read"* — but that is a pointer at the **superseding** site, and it reaches
+> only a reader who already suspects the table is stale. The withdrawal is owed **here**.
+>
+> **What no longer holds:** the weak tier is **not** three rows. RSA `nlen` < 2048 is **out of the
+> weak tier** on four unscoped IETF statements; ECDSA `len(n)` < 224 is out of the *scope*-weak tier
+> and into SHA-1's; the weak tier is **one limb of one row** — DSA's `N ≥ 224`. **Read §13.5 for the
+> table that is current.** The table below is left standing per the name-and-withdraw convention,
+> because §9.1's scope argument is the evidence for why §13's corpus had to be widened.
+
 | Row | Footing | Tier |
 |---|---|---|
 | **MD5 signature** | RFC 8446 §4.4.2.4 `MUST abort`; RFC 6151 §2 *"must not be used for digital signatures"* | Strongest in the table. Two owners, unconditional, unscoped |
@@ -792,6 +806,17 @@ a table that condemns SHA-1 and says nothing about a 512-bit RSA key, which no r
 
 **Named, and it is a retrieval rather than a re-reading**, per #37's precedent that a row moves on
 retrieval and never on re-reading text already held.
+
+> **THE RETRIEVAL HAS BEEN PERFORMED AND IT CAME BACK POSITIVE — §13
+> ([#73](https://github.com/winniel123/verge-asm/issues/73)). Limb 1 below is WITHDRAWN as an
+> outstanding obligation** by [#102](https://github.com/winniel123/verge-asm/issues/102) per
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> Nobody owes this search. §13.1 enumerates the corpus it is now established over, and §13.2–§13.5
+> record what was found: the IETF states an unscoped floor in **three document classes**, one of them
+> in an appendix of a document limb 1 cites as setting none. **The criterion below has been met**, for
+> two of the three rows, and they have moved — so a session reading this subsection alone would both
+> re-run a finished retrieval and ship a weak tier three times too wide. Limb 2 (SP 800-131A Rev. 3)
+> **stands**: it is a future publication and §13 did not resolve it.
 
 1. **An IETF or other unscoped statement of a certificate key-size floor.** This note searched for
    one and found none: RFC 5280 §11 declines to set a floor by design (§2.3.1), RFC 8446 and RFC 5246

@@ -69,6 +69,18 @@ may be *read*, grep the glossary for the clauses it invalidates**: #27 changed t
 probing gate, and `Vantage class` went on saying it re-verified against registry ranges because
 nobody searched for the other place that sentence lived.
 
+> **The second rider is the glossary-shaped case of a general rule, and the general rule is now
+> written down.** [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+> — *a superseded mechanism is withdrawn at the site that **specifies** it, not only at the site that
+> **supersedes** it* — reaches every document, not only `CONTEXT.md`, and its two load-bearing
+> instances run **note-to-ADR** rather than ADR-to-glossary. Its test: *if the superseded sentence,
+> read alone and in the present tense, would cause a competent session to build the thing, it is not
+> withdrawn.* The `Vantage class` case above is
+> [#102](https://github.com/winniel123/verge-asm/issues/102)'s instance 6 and it is the **earliest**
+> one measured — it cost a whole ticket, [#39](https://github.com/winniel123/verge-asm/issues/39)
+> having been filed and worked against a premise ADR-0002 had already withdrawn. Grep the glossary,
+> and then grep everything else the decision names.
+
 ## Flag ADR conflicts
 
 If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
