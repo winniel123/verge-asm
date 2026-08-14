@@ -267,6 +267,24 @@ exists to remove, not a cheaper version of the fix.
   withdrawn ADR-0014 reading implied, because the handshake rides the daily tier for any
   `verge-core` port. #60's amendment to ADR-0004 left this hanging and pointed here; it is answered
   in the narrowing direction, and no new machinery is needed.
+
+  *Amended by [#77](https://github.com/winniel123/verge-asm/issues/77) /
+  [ADR-0043](./0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md),
+  2026-08-14.* The clause *"the guard is structural and already present"* is **withdrawn as a
+  sufficient guard** and survives as a necessary one. It bounds the window in **our** units — how
+  often we looked — where the hazard is measured in the subject's: the guard is safe only while
+  `k × cadence` is small against the observed certificate's own validity period, a comparison this
+  ADR made once, silently, against 90 days. **Inside** the bound the observation is current and the
+  rules fire on it, so the failure is not late silence but a false assertion —
+  `certificate-expired` firing true about an endpoint serving a valid certificate. The clock class
+  now carries a second, per-rule gate: an observation feeds it only while its age is within the
+  certificate's own horizon, `N = ⅓ × (not_after − not_before)` and `½ ×` below a 10-day validity,
+  so the effective bound is `min(k × cadence, N)`. `k` does not move and no `Gap` opens on the new
+  gate. **The sentence's second half is untouched** — on the hot tier the horizon binds only below a
+  four-day validity period and none exists, so *two days on the modal estate* is exactly as true as
+  when it was written. What moves this is the **six-day GA fact retrieved the next day** by
+  [#67](https://github.com/winniel123/verge-asm/issues/67), not a re-reading of this ADR: against
+  the lifetimes it was priced against, it was correct.
 - **The opt-in full-range tier carries a stated cost, and it is the clock class that pays it.** A
   `Service` only that tier reaches holds a `certificate` value current for two months and
   `not-evaluable` the rest of the time — so on that population the three clock rules are silent far
@@ -274,6 +292,23 @@ exists to remove, not a cheaper version of the fix.
   served. That is honest rather than fixable: you cannot handshake a port you do not yet know is
   open, and narrowing the window would mean probing the full range more often, which is the cost
   #4 declined. It is a coverage rendering question, not a schedule one.
+
+  *Amended by [#77](https://github.com/winniel123/verge-asm/issues/77) /
+  [ADR-0043](./0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md),
+  2026-08-14.* The **silence** half stands and is strengthened: the clock rules are silent on that
+  population more often still, and silence is honest. The **speaking** half is **withdrawn**, and
+  the wrong word is *fixable*. It rested on there being exactly one lever — the probe schedule — and
+  that reasoning about the schedule remains correct and is not reopened. There was a second lever
+  this ADR could not see, because the fraction expressing it was retrieved the following day: **stop
+  reading the value earlier, in the certificate's units rather than ours**, which costs no probes at
+  all. *Honest* does not survive the arithmetic either — a 60-day-old observation of a 160-hour
+  certificate is nine generations stale, so the value is not possibly superseded but **certainly**
+  superseded, and a rule asserting from certainly-superseded evidence is wrong rather than
+  honest-but-stale. Two further figures in this bullet have moved underneath it:
+  [#78](https://github.com/winniel123/verge-asm/issues/78) **retired the weekly top-1000 tier** on
+  2026-08-14, leaving two tiers rather than three, and the CA/Browser Forum ceiling reaches **100
+  days on 2027-03-15**, from which date every publicly-trusted certificate is inside the new gate on
+  this tier.
 - **The `certificate` handshake's candidate set is one declared set across all three reachability
   `Scan`s.** [#62](https://github.com/winniel123/verge-asm/issues/62) decides its content; this ADR
   decides only that there is exactly one of it and that it is not the library's default, which
