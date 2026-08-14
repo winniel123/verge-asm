@@ -148,7 +148,16 @@ parameter is one of the three things that may move a version. A dial on it is th
 field that `Break`s a rule — uniformly, since ADR-0008 refused predicate-scoped breaks — clamping
 every `certificate-expiring` timeline in the estate, rendering its durations as labelled floors for
 a full window, and firing a re-baseline message. `N` is now **fixed at the release**, project-authored
-like every other declared parameter, and shipped at **30 days**.
+like every other declared parameter, and ~~shipped at **30 days**~~ **shipped as one third of the
+certificate's own validity period** — one half where that period is 10 days or less.
+
+> **SUPERSEDED** by the [#67](https://github.com/winniel123/verge-asm/issues/67) amendment below,
+> which names this very phrase. `N` is no longer a number of days at all. That amendment says the
+> phrase *"stands unrewritten per this repo's name-and-withdraw convention"* — but the convention is
+> *left standing **and marked***, never *left standing unmarked*, so it is marked here per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+> by [#106](https://github.com/winniel123/verge-asm/issues/106). Everything else in this paragraph —
+> that a dial would `Break` uniformly and clamp every timeline — stands.
 
 Three things kill the dial, and the first two were already on `main`.
 
@@ -204,9 +213,16 @@ Consequences claim below that `sensitive-port-exposed` is the only one. `N` pass
 trivially — one integer is as closed and enumerable as reference data gets — and it is fixed by
 fiat on the same footing as `k` and the availability window, revisable at release cadence for one
 `Break` on one rule for one cadence. Unlike `k`, it makes a claim about the **world** rather than
-about our own measurement, so the reason is stated rather than buried: 30 days is where the ACME
+about our own measurement, so the reason is stated rather than buried: ~~30 days is where the ACME
 clients in the modal estate already trigger renewal, so it is the last point at which the operator
-still has the action the signal is telling them to take.
+still has the action the signal is telling them to take.~~
+
+> **WITHDRAWN IN BOTH HALVES** by the [#67](https://github.com/winniel123/verge-asm/issues/67)
+> amendment below. The first half is a **frequency** claim, excluded from evidence by
+> [#21](https://github.com/winniel123/verge-asm/issues/21) §2.5 and **false as of retrieval** —
+> Certbot removed its fixed 30-day threshold in 4.0.0 and lego in v5. The second half does not follow
+> from the first and follows against it. `N` is **one third of the certificate's validity period**,
+> one half where that period is 10 days or less.
 
 **The operator gets no dial, and none is minted elsewhere.** #16's real complaint — an ACME estate
 renewing at 30 days makes the rule fire and clear every cycle — is a **flap**, and ADR-0007 put all

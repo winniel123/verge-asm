@@ -315,10 +315,17 @@ exists to remove, not a cheaper version of the fix.
   2026-08-14, leaving two tiers rather than three, and the CA/Browser Forum ceiling reaches **100
   days on 2027-03-15**, from which date every publicly-trusted certificate is inside the new gate on
   this tier.
-- **The `certificate` handshake's candidate set is one declared set across all three reachability
-  `Scan`s.** [#62](https://github.com/winniel123/verge-asm/issues/62) decides its content; this ADR
-  decides only that there is exactly one of it and that it is not the library's default, which
+- **The `certificate` handshake's candidate set is one declared set across all ~~three~~ **two**
+  reachability `Scan`s.** [#62](https://github.com/winniel123/verge-asm/issues/62) decides its content;
+  this ADR decides only that there is exactly one of it and that it is not the library's default, which
   ADR-0025 already settled.
+  > **Two, not three**, since [#78](https://github.com/winniel123/verge-asm/issues/78) retired the
+  > weekly top-1000 tier — recorded in the bullet above and, cross-document, in
+  > [ADR-0005](./0005-scan-execution-model.md)'s #80 amendment, which names *this* sentence as
+  > *"stranded the same way"* and yet was written only there. Marked at the sentence per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+  > by [#106](https://github.com/winniel123/verge-asm/issues/106). **One set** is what the ruling is;
+  > the count is incidental to it.
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in four places.** `Transition`'s worked example moves
   to `tls-acceptance`; `tls-acceptance` loses *the weekly tier*; `certificate` gains the clause
   saying its handshake rides the reachability exchange; and `Scan` records that not every `Scan` is

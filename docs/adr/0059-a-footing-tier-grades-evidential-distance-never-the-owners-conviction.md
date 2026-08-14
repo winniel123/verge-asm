@@ -49,10 +49,18 @@ Three limbs.
 
 1. **The unit is a reader-supplied premise, and the tier is the count.** The row asserts *this
    `(port, transport)` pair being reachable from an internet vantage is never correct*. A footing sits
-   in the strongest tier where the owner's sentence entails that with **no** premise supplied by the
+   in the strongest tier where the owner's ~~sentence~~ **statement of the port's permitted network**
+   entails that with **no** premise supplied by the
    reader; in the next tier where it entails it through **one** — characteristically *the internet lies
    outside the boundary the owner named*; and in the weakest tier where the owner has published no
-   sentence at all and the footing is a restricting default.
+   ~~sentence~~ **statement** at all and the footing is a restricting default.
+   > **The unit is WIDENED from *sentence* to *the owner's statement of the port's permitted network*
+   > by the [#101](https://github.com/winniel123/verge-asm/issues/101) amendment below.** The narrower
+   > word was written because every footing this ADR walked was prose; a boundary named in a
+   > ports-table cell or an issued document is the same statement in another form. Marked at the
+   > sentence per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+   > as widened by [#106](https://github.com/winniel123/verge-asm/issues/106) — this ADR marked limb 3
+   > and the *"does not reach"* paragraph in place and left limb 1's own unit standing.
 2. **Mood, force, hedging and priority label are inadmissible, in both directions.** Whether the
    sentence is an imperative or an advisory, whether it is hedged, and what severity the owner attaches
    to it are not read. A hedged sentence naming the row's own network outranks an unhedged imperative
