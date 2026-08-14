@@ -365,10 +365,10 @@ const SOURCES = [
     note:"Fetched only when you use it, never at first run. Carries no entry for RIPE-delegated organisations." },
   { name:"RIPE Database", role:"propose", scope:"estate", completeness:"enumerable", consent:"operator-accepted",
     on:false, kind:"invite", act:"Review terms and enable", region:true,
-    note:"Asked 2026-06-02. Nobody replied. You can accept RIPE's terms yourself.", terms:"https://www.ripe.net/manage-ips-and-asns/db/support/documentation/terms" },
+    note:"No reply has ever come, and no record of an approach exists. You can accept RIPE's terms yourself.", terms:"https://www.ripe.net/manage-ips-and-asns/db/support/documentation/terms" },
   { name:"RIPEstat", role:"propose", scope:"estate", completeness:"corroborative", consent:"operator-accepted",
     on:false, kind:"invite", act:"Review terms and enable",
-    note:"Asked 2026-06-02. Nobody replied.", terms:"https://www.ripe.net/about-us/legal/ripestat-service-terms-and-conditions" },
+    note:"No reply has ever come, and no record of an approach exists.", terms:"https://www.ripe.net/about-us/legal/ripestat-service-terms-and-conditions" },
 ];
 
 /* Trajectory: the last 14 cadences, as a record of what completed.
@@ -912,20 +912,33 @@ const srcTag = (s) =>
   s.on               ? `<span class="tag on">on</span>` :
                        `<span class="tag invite">off</span>`;
 
-/* States what was asked and what came back, and nothing else. It makes no claim
-   about depth, degradation, or what the operator is missing — the figure that
-   would have carried such a claim was removed on purpose. The first-run wording
-   for a cloud-resident estate is a different surface and is #40's to settle. */
+/* States what came back and what the project can evidence, and nothing else. It
+   makes no claim about depth, degradation, or what the operator is missing — the
+   figure that would have carried such a claim was removed on purpose. The
+   first-run wording for a cloud-resident estate is a different surface and is
+   #40's to settle.
+
+   This block used to read "RIPE NCC was asked on 2026-06-02. Nobody replied."
+   #57 found there is no send to evidence — no confirmation, no recipient for
+   three of the four asks, no date, no artefact — and that 2026-06-02 was
+   fabricated rather than stale: it precedes this repository's first commit by
+   two months. A surface needed a precise fact, nothing existed to supply one,
+   and the prose invented it.
+
+   The replacement asserts only the two things the project holds: no reply has
+   ever arrived, and no record of an approach exists. "We did not ask" was
+   refused as the same defect with the sign flipped — absent evidence yields
+   not-evaluable, never "did not fire". */
 const REGION_NOTE = `
   <div class="note invite">
     <span class="ml">why two of these are off</span>
-    Your resources are delegated by RIPE. RIPE NCC was asked on
-    <span class="mono">2026-06-02</span> whether verge-asm may query the RIPE Database and RIPEstat
-    on your behalf by default. Nobody replied, so they ship off — not pending, and not because
-    anyone said no.
+    Your resources are delegated by RIPE. No reply from RIPE NCC has ever come, and the project
+    holds no record of having written to them — so it cannot say whether a reply is outstanding
+    or was never invited. The RIPE Database and RIPEstat ship off either way — not pending, and
+    not because anyone said no.
     <div style="margin-top:var(--space-2)" class="muted">
-      You can read RIPE's terms and decide for yourself. Enabling either records your account,
-      the time, and the terms you accepted.
+      You can read RIPE's terms and decide for yourself. Enabling either stores the terms as
+      they were retrieved at that moment, or the failure to retrieve them.
     </div>
   </div>`;
 
