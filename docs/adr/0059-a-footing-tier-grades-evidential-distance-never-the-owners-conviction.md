@@ -71,6 +71,10 @@ Three limbs.
    `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ — carry owner sentences that name the Internet and are
    **not** promoted by this ADR; the note has never stated the sufficient condition and this ADR does
    not invent one.
+   > **Second sentence WITHDRAWN by the #101 amendment below.** The lexical test **is** sufficient in
+   > conjunction with the three conditions this limb itself names, the list is **closed**, and
+   > `2181/tcp` and `25672/tcp` are **promoted**. The first sentence — *a footing whose sentence fails
+   > the lexical test cannot be in the prohibition tier* — stands unchanged.
 
 ## Rationale
 
@@ -137,6 +141,11 @@ footing carrying `5432` and `5984`"*). That placement stands and this ADR neithe
 disturbs it; the scoping tier now holds two populations sorted on two different dimensions, and that is
 disclosed rather than smoothed.
 
+> **This paragraph is WITHDRAWN by the #101 amendment below.** Limb 1's unit is the owner's
+> **statement of the port's permitted network**, not a sentence, so limb 1 **does** reach the non-prose
+> footings; §24's placement is **confirmed** rather than left unreached; and the scoping tier holds
+> **one** population, not two. `sensitive-ports.md` §32.7.
+
 ## Consequences
 
 - **`873/tcp` rsync moves from the explicit prohibition tier to the explicit trusted-network scoping
@@ -169,6 +178,56 @@ disclosed rather than smoothed.
   tier and gains none.
 - **The sufficient condition for the prohibition tier is still unstated**, and two scoping-tier rows
   now visibly bear on it. Routed, not answered.
+  > **Answered by the #101 amendment below.** The condition is the conjunction limb 3 already
+  > enumerated, the list is closed, and both rows are promoted.
+
+### Amendment — [#101](https://github.com/winniel123/verge-asm/issues/101): limb 3 is closed, and limb 1's unit is a statement rather than a sentence
+
+> **Limb 3's second half is withdrawn. The lexical test is necessary *and*, in conjunction with the
+> three conditions limb 3 itself names, sufficient.** A footing is in the top tier **if and only if**
+> the owner has published a statement that is (1) the **owner's for this port** (§10.5, §16.6), (2)
+> about **this `(port, transport)` pair** (§2.3, [ADR-0050](./0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)),
+> (3) naming **the public internet** (§20.8), and (4) taking a **position** rather than recording an
+> aspiration (§26.4) or a label (§27.6). **Such a statement leaves the reader nothing to supply, and
+> zero supplied premises is the top tier by limb 1.**
+>
+> **Limb 1's unit is *the owner's statement of the port's permitted network*, not a *sentence*.** The
+> narrower word was written because every footing this ADR walked was prose. Prose is one form of the
+> statement; a boundary the owner names in a ports-table cell or an issued document is another; a
+> restricting default that names no network is not one at all. **The *"What this ADR does not reach"*
+> paragraph is withdrawn** — limb 1 reaches the non-prose footings, and §24's placement of `10259/tcp`
+> and `10257/tcp` is **confirmed** on the principal rather than left unreached.
+>
+> **Limb 1's premise-count mechanism and limb 2 are untouched.** Mood, force, hedging and priority
+> label remain inadmissible in both directions. [#101](https://github.com/winniel123/verge-asm/issues/101)
+> fenced both and the amending section reopened neither.
+
+**Why the withdrawal happens here and not only in the note.**
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s test is
+whether the superseded sentence, *read alone and in the present tense*, would cause a competent session
+to act on it. *"The lexical test is necessary and not sufficient"* read alone would cause the next
+session to refuse a promotion `sensitive-ports.md` §32 licenses, and *"it governs the **prose**
+footings only"* read alone would cause it to treat the scoping tier as holding two populations that no
+rule sorts. Both are load-bearing sentences of this ADR's own Decision, so both are withdrawn at the
+site that specifies them. **This is also why no second ADR was minted:** ADR-0062 was reserved and is
+**left unused**, as `0039`, `0041`, `0052`, `0053` and `0057` are.
+
+**What forced it, and it is a measurement rather than a tidying.** **[measured]** this ADR recorded
+`2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ as *"carry[ing] owner sentences that name the Internet and
+are **not** promoted by this ADR"*. §32 re-retrieved both sentences in their own context and both
+satisfy all four conditions; the conjunction promotes exactly those two and, run across the whole
+scoping tier, promotes **nothing else** — `4369/tcp` epmd is refused on condition 1, RabbitMQ being a
+non-owner for that port, and `2049/tcp` NFS on condition 4, RFC 7530 §1.2's Internet sentence being a
+goal RFC 8881 records as unmet. Run in the demoting direction the conjunction refuses **none** of the
+fourteen sitting members. **The tiers read prohibition 16 · scoping 11 · weak 3 · outside-subject 11,
+coverage 30 of 41 — two cells, no rows, and ADR-0008 is not triggered.**
+
+**What this amendment does not reach, stated so its extent is in the artefact.** The closure claim is a
+**ruling**: it holds that the row's proposition has four terms and that a reader-supplied premise can
+only be needed for a term. It is modelled on `sensitive-ports.md` §10.2's closure of the claim set by
+construction, and it is falsified by exhibiting a **fifth kind** of gap rather than a new instance of
+one of the four. §32.12 names the standing candidate — **direction**, inbound versus outbound — and
+records that no member of either tier turns on it today.
 
 ## Confirmed by use — [#100](https://github.com/winniel123/verge-asm/issues/100), 2026-08-14
 
