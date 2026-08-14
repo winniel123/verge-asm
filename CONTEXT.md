@@ -525,7 +525,13 @@ never-evaluable population is invisible by construction and the census is the cl
 health this term exists to refuse. That census is current state and never a comparison, so it
 may not be rendered as a delta, a trend or a series — subtracting two of them conflates a moved
 domain with a moved predicate, which is the comparison the drift model already makes correctly
-one level down. Where the predicate reads a **declared parameter**, the census states that
+one level down. Each member's count **is** the length of its own list, so every member is
+enumerable in full and none is ever sampled, ranked, grouped or truncated: a member that cannot
+be opened is a count whose basis cannot be shown, and a member is in any case the only cut of the
+population the rule itself versions. What differs between those rows belongs to the row and what
+is the same on every one of them belongs above them, so a member that is most of the estate takes
+no treatment of its own — its length was never what would have made it a findings list.
+Where the predicate reads a **declared parameter**, the census states that
 parameter **as the rule expresses it** — the fraction, never its product on any one subject and
 never the spread of thresholds the estate happens to produce, since a declared parameter is ours
 and constant in every install while a statistic over the estate is neither, and is not a member of
