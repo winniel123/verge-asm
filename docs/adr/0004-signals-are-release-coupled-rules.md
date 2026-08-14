@@ -240,6 +240,57 @@ attestation per row, its own closed claim set derived from what its rule reads, 
 argument where its key is a surrogate — is ADR-0032's, and it is the **table's** accounting rather
 than a fifth part of a rule.
 
+### Amendment — [#67](https://github.com/winniel123/verge-asm/issues/67): `N` is a fraction of the certificate's own lifetime, and the #60 rationale above is withdrawn
+
+The #60 amendment's ruling on `N`'s **status** is untouched and is confirmed: `N` is a declared
+parameter, project-authored, fixed at the release, and never operator-configurable. What moves is
+its **value**, and what is withdrawn is the sentence that justified the value.
+
+**`N` is no longer a number of days.** It is **one third of the certificate's validity period
+(`not_after − not_before`), and one half of it where that period is 10 days or less.** *"shipped at
+**30 days**"* above stands unrewritten per this repo's name-and-withdraw convention and is
+superseded. [ADR-0034](./0034-derive-the-claim-before-looking-for-the-owner.md) holds the reasoning;
+[`docs/research/acme-renewal-timing.md`](../research/acme-renewal-timing.md) holds the retrieval.
+
+**The rationale sentence above is withdrawn in both halves.** It reads: *"30 days is where the ACME
+clients in the modal estate already trigger renewal, so it is the last point at which the operator
+still has the action the signal is telling them to take."*
+
+- The first half is a **frequency** claim, which
+  [#21](https://github.com/winniel123/verge-asm/issues/21) §2.5 excludes from evidence — and it is
+  **false as of retrieval**. Certbot removed its fixed 30-day threshold in 4.0.0 (*"Prior to Certbot
+  4.0.0 the threshold was a fixed 30 days"*), lego removed the same default in v5, and cert-manager
+  never had one. Only `acme.sh` still ships a flat 30.
+- The second half **does not follow from the first, and follows against it.** If the modal client
+  renews at 30 days, a certificate at 30 days remaining is one whose automation is firing on
+  schedule — which is the moment the operator has *no* action, not their last chance to take one.
+
+**Its replacement is attested by two owners.** The **IETF** attests the *form*: RFC 9773 §1 names a
+fixed lead time as creating *"significant barriers against the issuing Certification Authority (CA)
+changing certificate lifetimes"*, and pointedly does not so name a percentage of validity. The
+**issuing CA** attests the *value*: Let's Encrypt's Integration Guide recommends renewing *"when
+they have a third of their total lifetime left"*, halving *"for certificates with a validity period
+under 10 days"*, and `boulder` implements exactly that.
+
+**What forces the change rather than merely recommending it.** Certificate lifetimes are now plural
+and shrinking — Let's Encrypt's default is 90 days, its `tlsserver` profile 45, its short-lived
+profile 160 hours and generally available since 2026-01-15, with the CA/Browser Forum's ceiling
+stepping to 100 days in 2027 and 47 in 2029. Under a fixed `N = 30`, `certificate-expiring` is
+**true for the entire life of every six-day certificate**, so the predicate stops partitioning and
+[#53](https://github.com/winniel123/verge-asm/issues/53)'s census carries no information over that
+population. No fixed day count survives the spread.
+
+**Three things this does not do.** It mints **no dial** — #60's three grounds all concern
+*per-install* variation and a per-certificate fraction is identical in every install, so ADR-0021's
+gate still gates exactly the function every install runs. It changes **no measurement** —
+`not_before` is already read by `certificate-not-yet-valid`. And it does not disturb the ACME **flap**
+routing: the rule still fires and clears every cycle on a healthy ACME estate, and
+[ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s notification-layer damping is still the remedy.
+
+**One obligation widens.** The #60 amendment requires a corpus row for a clock-reading rule to carry
+its **evaluation instant** as part of its input. It now carries **`not_before`** as well, or the
+row's expected output is underdetermined.
+
 ## Consequences
 
 - **The v1 set is:** certificate expired / not-yet-valid / expiring within N days (one rule,

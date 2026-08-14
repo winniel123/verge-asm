@@ -52,6 +52,53 @@ nine signals?* — has a false presupposition in it, and finding that is most of
 | An attestation moving under a shipped rule | **Already fully specified**, and needs nothing new: it is an output-affecting change at release cadence. What is new is the failure *shape* — §10.4's one-way rule makes de-attestation **silent** |
 | Where this lives | **A new ADR.** ADR-0004 governs *may this ship as a rule*; this governs *what licenses the content of a table*, whose population includes tables no rule reads |
 
+## Amendment — [#67](https://github.com/winniel123/verge-asm/issues/67): `N` is attested, and the claim recorded against it was never derived
+
+Three rows above say `certificate-expiring`'s `N` is **inside gate 2 and currently unattested** —
+the Decision table, §5's gate-2 table, and the v1 walk. They stand unrewritten per the
+name-and-withdraw convention. **`N` is attested**, and the route to the attestation is a defect in
+this ADR rather than a discovery about the world.
+
+**§3 obliged a second table to derive its own closed claim set from what its rule reads, and this
+ADR did not perform that derivation for `N`.** It filled the slot with #60's prose gloss — *"the
+world — this is the last point the operator can still act"* — and §5's table records that as the
+claim. That sentence is about the **operator's remediation capacity**, which is not an artefact
+anyone designs and which `certificate-expiring` reads nothing about, so no owner for it could exist
+at any depth of search.
+
+Performed, the derivation closes at one member: the rule reads `not_before`, `not_after` and the
+clock, a horizon is a **cut in an interval**, and a cut in an interval can assert only a **position
+within it**. The claim is *the certificate is inside the portion of its own validity period in which
+its issuer says replacement is due* — and its owner is the **issuing CA**, the party that fixed the
+interval. §10.5 keys on the artefact, and the interval is the artefact.
+
+`N` therefore **moves**, from 30 days to **one third of the certificate's validity period, and one
+half of it below a 10-day validity**, attested by the IETF on form (RFC 9773 §1) and by the issuer
+on value. [ADR-0034](./0034-derive-the-claim-before-looking-for-the-owner.md) holds the ruling;
+[`docs/research/acme-renewal-timing.md`](../research/acme-renewal-timing.md) holds the retrieval.
+
+**Two things above are amended as rules rather than as rows.**
+
+**The disclosure obligation gains a second limb.** *A disclosed weakness names the retrieval or
+measurement that would resolve it* has nothing to say once that retrieval has been run, and #67 is
+the first time one has been. Where the named retrieval has been **performed**, the disclosure names
+what the retrieval established, what remains unestablished, and the condition that would move the
+row. **A performed retrieval may not leave a row pointing at itself.**
+
+**§8's two piles are not exhaustive.** A weak row was either **watched** (a footing a release can
+silently remove) or **chased** (a footing a retrieval could establish). `N` was filed as chased and
+is now neither: a row that reads the moving quantity from the subject at evaluation time has nothing
+to watch and nothing to chase. That third state is the one to aim for, and ADR-0034 §4 gives the
+rule that reaches it — **where a constant is the product of a fraction and a moving world quantity,
+ship the fraction.**
+
+**[#68](https://github.com/winniel123/verge-asm/issues/68) inherits the order of operations and is
+still not pre-empted.** This ADR's Consequences flag *who owns a claim about the WebPKI's key and
+algorithm floor* as live for #68. That stands. What #67 adds is that #68 must **derive
+`certificate-weak-key-or-signature`'s claim set from what the rule reads before hunting for the
+owner** — because an underived claim and a genuine absence are indistinguishable from inside a
+retrieval, and this ADR has now produced one of each.
+
 ## Rationale
 
 ### 1. The unit is the table, and the ticket's question presupposes otherwise
