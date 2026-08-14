@@ -33,7 +33,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §18 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -194,6 +194,21 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > about **distributed nodes** that does not name epmd or the port; RabbitMQ's sentence, which §3.4
 > cites for it, is a **non-owner's** under §10.5 and corroborates only (§16.6). Read §16.9 before
 > quoting either cell.
+
+> **Amended by §18** ([#86](https://github.com/winniel123/verge-asm/issues/86)). **The second form
+> reads a document the owner has *issued*, not one it has *drafted*.** *"The project's or vendor's own
+> documentation"* means a document carried by a release artefact the owner publishes, **or** served on
+> the owner's own published documentation site — the prose analogue of §12's *takes effect without the
+> operator acting* being **reaches a reader without the reader acting on the owner's behalf**. A
+> document in a development or release branch is a draft until it is issued, whatever it contains and
+> whoever committed it; it attests **nothing in either direction** and it is **not** a corroborator
+> under §2.3, because that tier is for the wrong *party* speaking correctly and this is the right party
+> at the wrong *time*. Issuance is **per version**, so a negative names the release and the date and
+> never says *never issued*; and issuance is **not rendering** — a document in a release artefact but
+> not on the website is issued, and so is one on the website but not in the artefact.
+> [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md). **No footing moves and no
+> `(port, transport)` pair moves; the list stays at 37.** Read §18 before applying this section to a
+> document found in a repository.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -1057,6 +1072,18 @@ it refuses.
 > pointing the other way; these two are the first to fail only §2.4. Grounds and the criteria that
 > would change either verdict are in §14.8.
 
+> **Amended by §18** ([#86](https://github.com/winniel123/verge-asm/issues/86)). **`9092/tcp` Kafka's
+> cell is narrowed for the second time and the row does not move.** *"Upstream declines to take any
+> network posture"* was withdrawn by §17.5 — upstream has taken one, in its repository. §18 states the
+> surviving ground as a rule rather than an observation: **the document taking it is not *issued*, so
+> it is not the owner's documentation under §2.2's second form.** **[measured]**
+> `docs/security/security-model.md` is absent from the released documentation artefact
+> `kafka_2.13-4.3.1-site-docs.tgz` (SHA-512 verified against the published sum), absent from every
+> release tag and from branches `4.3`, `4.2` and `4.1`, and 404 on the published site — while present
+> on `trunk` and on the **`4.4` release branch**, for which no tag yet exists. The exclusion count
+> stays at **eighteen** and the list at **37**. §18.4 carries the reopening criterion and two
+> claim-gate findings that are recorded and **not** relied on.
+
 **The WinRM case deserves its own paragraph, because the tempting argument is factually false.**
 5985 is the WinRM *HTTP* listener, and the natural inference — HTTP transport, therefore cleartext
 credentials, therefore Claim 2 — is contradicted by Microsoft directly:
@@ -1337,7 +1364,19 @@ be wrong within a year.
     so it does not block [#12](https://github.com/winniel123/verge-asm/issues/12). Routed to
     [#87](https://github.com/winniel123/verge-asm/issues/87), after
     [#82](https://github.com/winniel123/verge-asm/issues/82).
-12. **Is an owner's unreleased document the owner's documentation?** Opened by §17.5. §2.2's second
+12. ~~**Is an owner's unreleased document the owner's documentation?**~~ **Closed by §18**
+    ([#86](https://github.com/winniel123/verge-asm/issues/86)). **No — the second form reads a document
+    the owner has *issued***: carried by a release artefact it publishes, or served on its own published
+    documentation site. A branch is a working record, not documentation; an unissued document attests
+    **nothing in either direction** and is not a corroborator under §2.3.
+    [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md). **`9092/tcp` stays
+    excluded and the list stays at 37 pairs** — **[measured]** the document is absent from
+    `kafka_2.13-4.3.1-site-docs.tgz`, from every release tag and from branches `4.3`/`4.2`/`4.1`, and
+    404s on the published site, while sitting on `trunk` and on the **`4.4` release branch** for which
+    no tag exists. No footing moves and no prose footing on the list rests on an unissued document
+    (§18.5). The original text follows.
+
+    **Is an owner's unreleased document the owner's documentation?** Opened by §17.5. §2.2's second
     form reads *"the project's or vendor's own documentation"* and does not say whether that means
     what the project **publishes** or what sits in its **tree**; §12 answered the equivalent question
     for **configuration** and nothing answers it for **prose**. The first case to turn on it is
@@ -4723,6 +4762,19 @@ doubt. Here the artefact fails §2.2 before any gate is reached, so the count is
 standard as written. If the standard changes, the row is a **new admission** under ADR-0009, priced
 then.
 
+> **Discharged by §18** ([#86](https://github.com/winniel123/verge-asm/issues/86)). The standards
+> question is answered and **the standard did not change in the direction that would admit the row**:
+> the second form reads a document the owner has **issued**, so this one attests nothing
+> ([ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)). Two things above are
+> superseded. The absence is now measured against **the ASF's own released documentation artefact** —
+> `kafka_2.13-4.3.1-site-docs.tgz`, SHA-512 verified, seven security files and no `security-model.md` —
+> rather than against a raw path and a URL alone. And **the reopening criterion is one release away
+> rather than hypothetical**: **[measured]** the file is on the `4.4` release branch, byte-identical to
+> `trunk` at 15,499 bytes, and no `4.4.x` tag exists. §18.4 also records two **claim-gate** findings
+> from reading the document end to end — it names no port at all, and its own *Known Non-Findings*
+> section calls an open `PLAINTEXT` listener *"a deployment choice, not a defect"* — both routed and
+> neither relied on, per ADR-0037 limb 2.
+
 ### 17.6 The weak tier, all three rows, and one class list that was already exhausted
 
 **[#76](https://github.com/winniel123/verge-asm/issues/76)'s §16.5 made the weak tier three rows —
@@ -4955,6 +5007,354 @@ every subject in this table's domain that it names, per ADR-0037 limb 1.
   during a denial-of-service flood, one is an ITU-T bibliography entry (*Recommendation M.3010*), and two
   are VPN forwarding used as a MIB-design example. A count alone would have read as five near-misses.
 
+> **Amended by §18** ([#86](https://github.com/winniel123/verge-asm/issues/86)). The *not exhausted*
+> bullet above is **superseded for the released corpus**. **[measured]** `docs/security/` at release tag
+> `4.3.1` holds **seven** files, not ten — the three `security-model*` documents exist only on `trunk`
+> and on branch `4.4` — and **all seven were retrieved and searched**. The string `internet` occurs
+> **zero** times across all seven. The judgement-from-titles the bullet flags is therefore discharged for
+> the class that matters to §2.2, and survives only for `trunk`'s three extra files and for
+> `docs/operations/`'s thirteen, neither of which can carry a row until §18 limb 1 is satisfied.
+
+---
+
+## 18. An owner's documentation is what it has issued — and `9092/tcp` stays out
+
+Wayfinder ticket [#86](https://github.com/winniel123/verge-asm/issues/86), on the gap §17.5 recorded
+rather than closed. This section **amends §2.2 and §4.6 by reference**: earlier text is left standing
+and marked, per the name-and-withdraw convention, and where §18 and an earlier section disagree, **§18
+governs**. The rule that travels is
+[ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md).
+
+**Headline result, stated first.**
+
+> **§2.2's second form reads a document the owner has *issued*, not one it has *drafted*.** A document
+> reaches the second form where it is carried by a release artefact the owner publishes, **or** served
+> on the owner's own published documentation site. The prose analogue of §12's *takes effect without the
+> operator acting* is **reaches a reader without the reader acting on the owner's behalf**. A file in a
+> development or release branch is a draft until it is issued, whatever it contains and whoever
+> committed it.
+>
+> **An unissued document is silent in both directions and is not corroboration under §2.3.** The
+> corroborator tier is for the wrong **party** speaking correctly; this is the right party at the wrong
+> **time**. It is recorded as a named reopening criterion carrying its measurement, which is
+> [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s bounded residue.
+>
+> **`9092/tcp` does not become a row, and the list stays at 37 `(port, transport)` pairs.** §1's count,
+> §3's class totals, §6.1's containment arithmetic, §2.2's footing table and its three tiers, and
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union are all untouched, and each was checked
+> rather than assumed (§18.6). **No footing moves.** What moves is §4.6's stated reason, for the second
+> time, and §17.10's corpus disclosure.
+
+### 18.1 The rule
+
+> **§18 — the second form reads an issued document.**
+>
+> **(a) Issued means the owner has put it in front of readers.** A document reaches §2.2's second form
+> where it is carried by a release artefact the owner publishes — a source or binary distribution, or a
+> documentation artefact released alongside one — **or** where it is served on the owner's own published
+> documentation site. The test is *reaches a reader without the reader acting on the owner's behalf*: a
+> reader following the owner's own documentation route, at a version the owner has released, arrives at
+> the sentence.
+>
+> **(b) A branch is a working record, not documentation.** A document in a development or release
+> branch is a draft until it is issued — whatever it contains, whoever committed it, and however settled
+> it looks. Merge is not publication.
+>
+> **(c) Issuance is per version, and a negative states its version.** A finding under (a) records the
+> release and the retrieval date and claims nothing beyond them — *not issued at `X`, not served on
+> `<site>` on `<date>`* — never *never issued*.
+> [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3,
+> applied to an absence.
+>
+> **(d) Silent in both directions, and not a corroborator.** An unissued document cannot admit a row and
+> cannot exclude one, and it is not admissible under §2.3. It is disclosed as a **named reopening
+> criterion** with its measurement.
+>
+> **(e) Issuance is not rendering, and publication is not weakened by also being committed.** Either
+> route in (a) suffices and neither requires that any reader use it. A document in a release artefact
+> and absent from the owner's website is issued; a document served on the website and absent from the
+> artefact is issued. The ordinary case is **both**, and that case was never in doubt — so (a) reaches
+> only the small class of documents that exist on exactly one side of the line.
+
+**Why §12's own instrument decides this.** §12.1's argument for refusing an example config is that
+§10.4's cost is *"friction at first run"*, and *"a file nobody's daemon reads produces no first run, so
+it costs its author nothing and it is cheap talk"*. Transpose it with one word changed: **a document
+nobody's reader reaches produces no reader.** What a published position costs its author is precise —
+it is what users cite back, what downstream distributors are held to, and what maintainers must defend
+when somebody deploys against it. An unissued file can be softened, rescoped or reverted before any of
+that is owed. **[measured]** the commit that created the document at issue is titled *"MINOR: A starting
+point for a formal security model"* (`a5c31c4ac6fa`, 2026-06-12): the project's own word for it is *a
+starting point*, and its own severity for it is `MINOR`.
+
+### 18.2 What was retrieved
+
+Every absence below was taken against retrieved bytes, per [#46](https://github.com/winniel123/verge-asm/issues/46),
+and every HTTP status is reported with its body size so that a JavaScript shell cannot masquerade as a
+page (§17.10). Retrieved 2026-08-14.
+
+| Artefact | Result |
+|---|---|
+| `kafka_2.13-4.3.1-site-docs.tgz`, `archive.apache.org/dist/kafka/4.3.1/` | **The ASF's own released documentation artefact.** 3,743,173 bytes, **SHA-512 verified against the published `.sha512`**, extracted locally. 208 entries. `site-docs/security/` holds **seven** files and **`security-model.md` is not among them** |
+| `docs/security/` at tag `4.3.1` | **Seven** files. All seven retrieved as raw bytes and searched: **[measured]** `internet` occurs **zero** times in all seven |
+| `docs/security/` at `trunk` | **Ten** files. The three extra are `security-model.md` (15,499 bytes), `security-model-connect.md`, `security-model-streams.md` |
+| `docs/security/security-model.md` at branch **`4.4`** | **Present, 15,499 bytes, byte-identical to `trunk`** (`diff` over the retrieved files) |
+| Same path at branches `4.3`, `4.2`, `4.1` | **HTTP 404** at each |
+| Kafka release tags | Latest is **`4.3.1`**. **No `4.4.x` tag exists** |
+| `kafka.apache.org/documentation/security/security-model/` | **HTTP 404**, 196 bytes |
+| `kafka.apache.org/43/security/security-model/` | **HTTP 404**, 196 bytes |
+| `kafka.apache.org/44/security/security-model/` | **HTTP 404**, 196 bytes |
+| `kafka.apache.org/43/security/security-overview/` | **HTTP 200, 59,446 bytes** — real prose, and it still carries the neutral sentence §4.6 quotes |
+| `kafka.apache.org/documentation/` | **HTTP 200, 19,879 bytes** — the JavaScript shell, reproducing §17.10's figure exactly |
+| Commit history of `docs/security/security-model.md` | Two commits: `a5c31c4ac6fa` (2026-06-12) *"MINOR: A starting point for a formal security model"*, and `23927a2037f2` (2026-07-16) *"MINOR: Fix broken relative links in docs/"* |
+
+**The three lines that matter, together.** The rendered site returns 200 with 59,446 bytes for the
+sibling page and 404 with 196 for this one, so the absence is real and not §17.10's shell failure. The
+released documentation artefact is signed and its checksum verifies, so the absence is not a mirror
+artefact. And the file is on the **`4.4` release branch** with no `4.4.x` tag, so it is not abandoned
+either — §17.5's reopening criterion is **one release away**, which is a materially different disclosure
+from the hypothetical §17.5 was able to write.
+
+### 18.3 The options that lost, stated at length because one of them is a good argument
+
+**Reading 2 — the committed reading: a file in the owner's repository is the owner's documentation.**
+It has a real argument and it is not §12's argument in disguise. An example config is *unambiguously
+not* the thing it resembles; a merged commit in `apache/kafka` is *unambiguously the owner speaking* —
+authored by a committer, reviewed, merged under the project's own governance. §10.5 keys on the
+**artefact** rather than the party, and this artefact is the owner's. And the second form, unlike the
+third, carries **no qualifier**: it says *"the project's or vendor's own documentation"* and not *as
+published by the project*, so a publication limb looks like something a reader adds.
+
+**It loses on three independent grounds, and two of them are §12's own.**
+
+1. **The costly-act test refuses it**, as above. §12 did not refuse examples because they are
+   unofficial; it refused them because they cost their author nothing. An unissued document is in
+   exactly that position, and the *"starting point"* commit message is the author saying so.
+2. **It is not stable, and the instability is worse here than in §12.3.** §12.3's ground 2 refused the
+   distributor reading because it was *"not stable under repackaging"* — one Debian archive, two
+   opposite postures. Here the instability is **inside one project**: **[measured]** the file is present
+   at `trunk` and at `4.4` and absent at `4.3`, `4.2` and `4.1` — five refs, two answers, on one day. A
+   rule whose verdict depends on which of one project's branches a reader opened is not a rule, which is
+   §12.3's sentence unchanged.
+3. **It has no stopping point above an open pull request.** Any principled version of the committed
+   reading keys on *the owner authored it*, and an owner's committer authors a PR branch too, and a
+   commit that is reverted next month was merged this month. §12.3's ground 3 called the distributor
+   reading *"the door §2.3 exists to hold shut, arriving through a `.deb` instead of a government PDF"*.
+   This is the same door one level further down, and issuance is the only line on the way that the
+   **project itself** draws — with a vote, a tag and a signature.
+
+**What reading 2 is right about, and what §18 keeps.** §10.5's *artefact, not party* is untouched, and
+limb (e) is written to protect it: nothing here demotes a published document because it is also in a
+repository, and nothing requires that a quotation be taken from a rendering. §16.10's method — quoting a
+published page **from its source file at the matching release branch** — is the right method and is
+explicitly preserved, because it reads the shipped byte of a page the owner *does* serve.
+
+**Reading 3 — the corroboration tier, and it is the option that came closest.** Give an unissued owner
+document the status §12 limb (c) gives a distributor's packaging: corroborates under §2.3, never sole
+grounds. It refuses to throw away real evidence of an owner's direction of travel, and it uses a tier
+the note already has.
+
+**It loses twice.**
+
+- **It is inert wherever it would matter.** Corroboration cannot carry a row, and every row this could
+  touch is a row with **no other owner statement** — which is exactly why the question arose. Its output
+  is therefore identical to limb (d)'s on every case in this corpus, while costing a tier that every
+  later session must reason about. `9092/tcp` is the demonstration: as a corroborator the sentence
+  changes nothing about the row.
+- **It mislabels the object.** §2.3's tier exists for a party **without ownership** speaking correctly —
+  CISA, AWS, Google. Filing an unissued owner document there says the defect is *who spoke*. The defect
+  is that **nobody has been spoken to**. The honest home is a reopening criterion, which ADR-0040
+  already specifies and §17.5 already wrote.
+
+**Reading 4 — decide it per document, on how settled the draft looks.** Refused without much argument,
+because the note has refused this shape twice: it is *does anybody run this?* in prose — a judgement
+about a document's maturity with no owner, which is what §10.1 deleted and what §12.4 refused a second
+time as a coherence gate. Issuance is read off the artefact: a tag, a distribution, an HTTP status.
+
+### 18.4 `9092/tcp` — the verdict, and two findings recorded rather than relied on
+
+> **Ruling: `9092/tcp` remains excluded, and the list remains definitively 37.** The artefact fails
+> §18 limb (a): **[measured]** it is absent from the released documentation artefact
+> `kafka_2.13-4.3.1-site-docs.tgz` (checksum verified), absent from every release tag, absent from
+> branches `4.3`, `4.2` and `4.1`, and 404 at every published path tried while its sibling page returns
+> 59,446 bytes of prose. Under limb (d) it attests nothing, so no gate below §2.2 is reached.
+>
+> **§4.6's stated reason, narrowed for the second time.** It was *"upstream declines to take any network
+> posture"*; §17.5 narrowed it to *upstream has taken one, in its repository, and the document taking it
+> is in no release and on no published page*; §18 states the ground as a rule rather than as an
+> observation — **the document is not issued, so it is not the owner's documentation under §2.2's second
+> form.** The row's negative remains **sole-ground** and therefore remains exposed to ADR-0040's class
+> sweep, exactly as §17.1 classified it.
+>
+> **The criterion that would change the verdict, restated with its measurement:** the file appearing in
+> a Kafka release tag, in a released `site-docs` artefact, or on `kafka.apache.org`. **[measured] it is
+> on the `4.4` release branch today and no `4.4.x` tag exists**, so this is one release away rather than
+> hypothetical. At that point the row is a candidate whose **claim** and **determinacy** gates are
+> untested, and a **new admission** under ADR-0009 priced then — never a reversal of this.
+
+**Two findings about the same document, recorded and deliberately not relied on.** ADR-0037 limb 2
+requires that a retrieval scoped to one gate not sweep the others in, and `7000/tcp` is the measured
+precedent for what happens when a session does. Both of these bear on the **claim** gate.
+
+- **[measured] The document names no port number at all.** `9092` occurs **zero** times in it; so do
+  `port` and `internet`. Its sentence is about *"every listener"* and *"any untrusted network"*. So an
+  issued version of it would meet [#88](https://github.com/winniel123/verge-asm/issues/88)'s question —
+  *does an owner's category statement reach a port the owner has not numbered?* — **before** it reached
+  a row. That question is #88's, it is running now, and it is **not decided here**.
+- **[measured] Read end to end per ADR-0037 limb 1, the document is a vulnerability-triage scope
+  document, and it says so.** It carries *Classifying Reports* and *Known Non-Findings* sections, the
+  second of which states: *"**Unauthenticated or unencrypted access to a default cluster.** Security is
+  off by default; an open `PLAINTEXT` listener with no authorizer is a deployment choice, not a
+  defect."* And the headline sentence's remedy is **on the port** — configure authentication,
+  authorization and encryption — not *move it off the internet*, which is the structure §11.5 refused
+  for RFC 6353's 10161 and §4.6 refused for `389/tcp` and the mail ports. Whether that leaves Claim 1 or
+  Claim 3 available is a **claim** question on an unissued document, so it is recorded and not ruled.
+
+**Why recording the second is a retrieval and not a re-reading.** #37's precedent binds — *a row moves
+on retrieval, never on a re-reading of text already held* — and ADR-0040 §4 tells the two apart by
+asking whether the new claim is about a document's **content** or its **import**. §17.5 quoted one bullet
+of a 15,499-byte file; the claim here is that the file also contains a *Known Non-Findings* section
+saying something else, which is content. It is also the direction that keeps a row **out**, and §12.8's
+rule that the admission routes are admission-only means a finding in that direction cannot be the thing
+that moves a row anyway.
+
+### 18.5 The walk — does any footing on the list rest on an unissued document?
+
+The rule can only ever **remove**, so the whole check is every row footed on §2.2's **second** form: the
+prohibition tier (13 pairs) and the scoping tier (10 pairs) of the footing table as §16.7 restated it.
+
+**The check is already done, and §13 and §16 did it without knowing they were doing it.** §13.10 records
+that *"every artefact quoted in §13 was read as shipped bytes, never as a rendered page, **at a named tag
+or release**"*, and §16.10 that *"every artefact was read as shipped bytes at a named tag or release
+branch"*, with rendered pages quoted **from their source at a release branch** — the shipped byte of a
+page the owner serves. A named release tag satisfies limb (a)'s artefact route by construction; a page
+the owner serves satisfies its site route. **No prose footing on the list rests on an unissued
+document, and none moves.**
+
+**One artefact in this note's retrieval record was read at a non-release ref, and it carries no row.**
+**[measured]** §12.9 lists `net-snmp/net-snmp` **`master`** among its fetch refs. Every other entry in
+that list is a release tag or branch. The row it bore on is `161/udp`, which §11.6 **removed** — and
+§12.6 records that the row does not re-open on any reading of the configuration question. So the single
+instance of the defect this section names has already been vacated by an unrelated ruling, which is luck
+rather than method, and is why the rule is worth writing down.
+
+**The negative space does not re-open either.** A rule that *admitted* unissued documents could only
+**add**, so the check on the other side is §4.6's eighteen exclusions. `9092/tcp` is the only one whose
+ground turns on an unissued document at all — it is the case the ticket was built on — and §17.1 already
+enumerated the other seventeen's grounds. **Nothing re-opens, and §4.6 stays at eighteen.**
+
+### 18.6 Every dependent figure, checked rather than asserted
+
+| Figure | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged** |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged** — no row enters or leaves a class |
+| §6.1 containment arithmetic | 28 in the hot set + 4 + 5 = 37 | **unchanged** |
+| §2.2 footing table, as restated by §16.7 | 13 prohibition + 10 scoping + 3 weak + 11 outside = 37 | **unchanged in every tier.** No cell is edited by this section |
+| The weak tier / ADR-0032 §8 watch list | `5432/tcp`, `5984/tcp`, `10255/tcp` | **unchanged, and not re-decided here.** `10255` was placed by [#76](https://github.com/winniel123/verge-asm/issues/76) and is [#83](https://github.com/winniel123/verge-asm/issues/83)'s subject; §18 states no view on it |
+| §4.6 exclusion count | eighteen (§14) | **eighteen, unchanged.** `9092/tcp`'s **reason** narrows; the row does not move |
+| §17.1's population of load-bearing negatives | fourteen, of which `9092/tcp` is sole-ground | **unchanged.** The row's ground is restated, not removed, so it stays sole-ground and stays swept |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** No `(port, transport)` pair moves, so `sensitive-port-reached-from-internet` is byte-identical. Free in the strong sense, as §12 was |
+| §17.10's Kafka corpus disclosure | *"ten files … four were read"* | **moves.** `docs/security/` at the released tag holds **seven**, all seven were retrieved and searched, and `internet` occurs **zero** times across them |
+
+### 18.7 Where the answer travels
+
+ADR-0032 makes §2.2's attestation gate the one instrument that generalises to other curated tables, and
+ADR-0036 travelled on exactly that basis. §18 is the same kind of refinement of the **second** form, so
+it travels identically: **any curated table admitting an owner's documentation inherits all five limbs.**
+
+- **[`weak-key-and-signature.md`](./weak-key-and-signature.md)** — the live instance, and it is already
+  on the record. **[measured]** ADR-0040 §2 records #73's corpus as including *"17 active drafts"*, and
+  an **Internet-Draft is the IETF's unissued document class**. **No row there rests on one** — the three
+  resolving statements are RFC 9325 §4.5, RFC 9846 §C.2 and RFC 8550/8551 §6, all published RFCs — so
+  nothing moves; but that table had no rule saying a draft cannot carry, and now it does.
+- **[#83](https://github.com/winniel123/verge-asm/issues/83)** — *reached, and half-answered on its
+  face.* Limb (e) settles that a page **served on kubernetes.io is issued**, so *generated* is not a §18
+  objection to it, and Kubernetes' shipped `types.go` is carried in release tags, so it is issued too.
+  What §18 does **not** touch is #83's actual axis — whether a **generated reference page** is the
+  owner's *documentation* or a *rendering of code* — which is a question about authorship and genre, not
+  about issuance. **Flagged, not re-decided**, on §16's precedent for a row placed by a concurrent pass.
+- **[#87](https://github.com/winniel123/verge-asm/issues/87)** — *reached, on the other party.*
+  [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md) keys *live* to the
+  **competing owner's current documentation**, and §18 says which of that owner's documents count as
+  documentation at all. For a squat whose competing owner may be defunct, the difference between *no
+  issued document* and *no document* is the finding #87 is hunting. **Named, not run** — running §2.4's
+  test here on a row whose §2.2 gate has just failed is the sequencing mistake ADR-0037 limb 2 forbids
+  and §17.9 refused for the same reason.
+- **[#88](https://github.com/winniel123/verge-asm/issues/88)** — *reached hardest, and handed a second
+  instance.* §18 sits **upstream** of it: §18 asks whether the document counts, #88 asks whether a
+  category sentence reaches an unnumbered port, and **both must pass**. Kafka's `security-model.md` names
+  no port at all, so if it is ever issued it lands squarely in #88's question. **Not decided here.**
+- **[#84](https://github.com/winniel123/verge-asm/issues/84)** — *barely reached.* Erlang/OTP's
+  documentation is served on `erlang.org` and shipped in OTP releases, so issuance is not in doubt for
+  that row. What §18 supplies is the check to run **before** quoting an `erlang/otp` `master` page rather
+  than a released one — the trap this section exists because Kafka fell into.
+
+### 18.8 Thin ground, flagged per the standing rule
+
+**The ruling is chosen, not derived, and the ticket exists because §2.2 underdetermines it.** The second
+form's text carries no publication limb, and limb (a) is an argument from §12's instruments and from the
+noun *documentation* rather than a reading of words already present. §12's own headline had the better
+of this — it could point at *"as documented by the project"* and say the limb was already there. **This
+section cannot, and says so.** What it has instead is that every instrument §12 used to decide the
+configuration case points the same way here, and that the alternative has no stopping point above a pull
+request.
+
+**Reading 2 is the strongest losing argument in this note since §12.3, and for a better reason than
+§12.3's.** An example config genuinely is not what it resembles; a merged commit genuinely is the owner
+speaking. The refusal is not *this is not the owner* — it is *the owner has not finished*, and that is a
+softer claim resting on a cost argument rather than on an identity one. A reader who holds that
+authorship is what §2.2 asks about, and publication merely a distribution detail, has a real position.
+
+**The `4.4` finding cuts both ways and is reported rather than smoothed.** That the document sits on a
+release branch is evidence the project intends to issue it, which makes the *"starting point"* framing
+weaker than it looks and makes limb (b)'s *merge is not publication* do more work than a stable-draft
+case would. The rule holds anyway — a release branch is still a branch, and Kafka has cut release
+branches that were re-cut — but a reader should know that the verdict here has a short shelf life.
+
+**Every absence is dated, and none is a claim about the future.** Per limb (c): *not in
+`kafka_2.13-4.3.1-site-docs.tgz`; not at tags `4.3.1`, `4.3.0`, `4.2.x`, `4.1.x`; not at branches `4.3`,
+`4.2`, `4.1`; 404 at three `kafka.apache.org` paths on 2026-08-14.* Intermediate release candidates were
+not enumerated. The claim is **not issued as of these versions**, never *never issued*.
+
+**One by-catch, flagged and not ticketed because it belongs to a ticket already open.** ADR-0037 limb 1
+requires an artefact be read end to end *"for every subject in the table's domain that it names"*. **An
+artefact that names no subject passes limb 1 vacuously** — this 15,499-byte document is entirely about
+this table's subject matter and yields limb 1 nothing, because it numbers no port. That is the same seam
+[#88](https://github.com/winniel123/verge-asm/issues/88) is opened on, viewed from the retrieval side
+rather than the attestation side, and it is left there rather than made a ticket of its own.
+
+### 18.9 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6 and §17.10
+
+**Every artefact and every absence was taken as bytes over `https` with a plain client, and every HTTP
+status is recorded with its body size.** No rendering, no summarising layer, no search engine.
+
+- **A released documentation artefact exists for this project and it is the right instrument.** The ASF
+  publishes `kafka_2.13-<version>-site-docs.tgz` beside the source and binary tarballs. It was
+  downloaded from `archive.apache.org`, its **SHA-512 verified against the published `.sha512`**, and
+  listed locally — which is §12.9's Cassandra method applied to documentation instead of configuration.
+  A session that checked only the website and the git tags would have reached the same verdict on weaker
+  evidence; a session that checked only the website would have been relying on a rendering.
+- **A 404 is only evidence when a sibling 200 is measured beside it.** §17.10 recorded that
+  `kafka.apache.org` serves a **19,879-byte JavaScript shell** to a plain client, which is a 200 that
+  means nothing. The check that makes the 404 load-bearing is the sibling: `/43/security/security-model/`
+  returns 404 in 196 bytes while `/43/security/security-overview/` returns **200 in 59,446 bytes of real
+  prose**. Both numbers are recorded so a later session can re-run the comparison rather than the query.
+- **`tar` on this platform resolves a `C:` path prefix as a remote host.** The tarball was listed from
+  its own directory rather than by absolute path. Recorded because the failure mode is a *"Cannot connect
+  to C: resolve failed"* error that reads like a network problem and is a path problem — and the
+  recovery a hurried session reaches for is to trust the website instead.
+- **Branch existence was checked positively, in both directions.** `4.4` returning 200 is as
+  load-bearing as `4.3` returning 404, and the two files were `diff`ed rather than compared by size —
+  they are byte-identical at 15,499 bytes.
+- **Reading a published page's source at a release branch is sound; reading it at `main` is not.**
+  §16.10's method is preserved by limb (e), with the rider that the branch must correspond to a version
+  the owner serves. `kubernetes/website` `release-1.34` does; `main` would not.
+- **The whole released security class was searched rather than sampled.** All seven files of
+  `docs/security/` at `4.3.1` were retrieved and searched for `internet` — **zero** hits — which
+  discharges §17.10's *not exhausted* disclosure for the class that bears on §2.2, and leaves it standing
+  only for `trunk`'s three additional files and `docs/operations/`'s thirteen.
+
 ---
 
 ## Sources
@@ -5078,6 +5478,11 @@ The class audit (§17) — the document classes nobody had opened, retrieved as 
 - **[CouchDB documentation, *Security*](https://docs.couchdb.org/en/stable/intro/security.html)** §1.5.1.2 — the class never opened for `5984/tcp`, and the corpus's nearest miss: *"Will your CouchDB instance communicate over a public network? Even a LAN shared with other collocation customers is public."* The second sentence defines what the first means by *public*, and it is not the internet (§17.6)
 - **Kubernetes' security documentation**, the class §16.5 did not open for `10255/tcp`: [`kubernetes/website`, `content/en/docs/concepts/security/security-checklist.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/security-checklist.md) at `release-1.34` — *"The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"*, and *"The kubelet API access should be restricted and not exposed publicly"*. **The owner naming a boundary about its own component, and naming it by category rather than by port** (§17.6) · [`controlling-access.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/controlling-access.md) at the same tag — read end to end, and it contains no port and no placement statement
 - **Named as the boundary and not searched, because the row's other gate is untested**: Elastic's deployment guidance for Kibana and HashiCorp's for Consul. §17.8 and §8 question 11 — routed to [#87](https://github.com/winniel123/verge-asm/issues/87)
+
+The issuance question (§18) — the released artefact, and the absences that decide `9092/tcp`
+- **[`kafka_2.13-4.3.1-site-docs.tgz`](https://archive.apache.org/dist/kafka/4.3.1/kafka_2.13-4.3.1-site-docs.tgz)** — the ASF's own **released documentation artefact** for Kafka 4.3.1, 3,743,173 B, **SHA-512 verified against [the published sum](https://archive.apache.org/dist/kafka/4.3.1/kafka_2.13-4.3.1-site-docs.tgz.sha512)** and listed locally. 208 entries; `site-docs/security/` holds **seven** files and **`security-model.md` is not among them**. This is the instrument §18 limb (a) reads, and it is §12.9's Cassandra method applied to documentation rather than configuration
+- **`apache/kafka` `docs/security/` enumerated at both refs** — **ten** files at `trunk`, **seven** at release tag `4.3.1`; the three `security-model*` documents exist only on `trunk` and on branch **`4.4`**. **[measured]** all seven released files were retrieved as raw bytes and searched: `internet` occurs **zero** times. `docs/security/security-model.md` is **present at branch `4.4`, byte-identical to `trunk` at 15,499 B**, and **HTTP 404 at branches `4.3`, `4.2` and `4.1`**; the latest tag is `4.3.1` and **no `4.4.x` tag exists**. Its history is two commits — `a5c31c4ac6fa` (2026-06-12) *"MINOR: A starting point for a formal security model"* and `23927a2037f2` (2026-07-16)
+- **The published site, with body sizes so a shell cannot pass for a page** — `kafka.apache.org/documentation/security/security-model/`, `/43/security/security-model/` and `/44/security/security-model/` each **HTTP 404 in 196 B**, against `/43/security/security-overview/` at **HTTP 200 in 59,446 B** of real prose and `/documentation/` at **HTTP 200 in 19,879 B** of JavaScript shell (§17.10's figure, reproduced). Retrieved 2026-08-14
 
 No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
 - **1433/tcp** Microsoft SQL Server and **445/tcp** SMB with **139/tcp**, **137**, **138/udp** — configured through setup and the registry rather than through a file Microsoft ships
