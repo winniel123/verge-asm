@@ -195,6 +195,22 @@ scoped. **The strength computation is universal; the number 112 is federal.**
 > party has already spoken. It resolves only if a **second** owner speaks unscoped — so its retrieval
 > is a search of a corpus rather than a request to a party.
 
+> **Amended by [#73](https://github.com/winniel123/verge-asm/issues/73) — the corpus search was run
+> and came back positive.** The prediction above held on its first test and the paragraph stands; two
+> things are added. **The second owner was the IETF**, already carrying two rows of this table, and its
+> unscoped statements were in **document classes §1 never asked** — RFC 9325 §4.5 (BCP 195, `MUST`,
+> a 2048-bit RSA modulus for a server certificate) and RFC 9846 §C.2 (`SHOULD`, *"certification paths
+> containing keys or signatures weaker than 2048-bit RSA or 224-bit ECDSA are not appropriate for
+> secure applications"*). §1's reading of RFC 5280's silence as *by design* is correct and its
+> inference that the number therefore lives outside the IETF is not: **a specification's silence is not
+> the owner's silence.** The weak tier goes from three rows to **DSA's `N ≥ 224` limb alone**; no row,
+> floor or predicate moves. **§6's requirement that the key be `(algorithm, parameter)` and never a
+> bare bit count paid out unexpectedly** — the security-strength level 112 has the thinnest IETF
+> pedigree of any number in this area, and no row keys on it.
+> See [ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.md) and
+> [`weak-key-and-signature.md`](../research/weak-key-and-signature.md) §13. **One citation above is
+> wrong**: RFC 5280's Security Considerations is **§8**, not §11.
+
 ## Consequences
 
 - **[`sensitive-ports.md`](../research/sensitive-ports.md) §10.5 gains one clause**, the text quoted

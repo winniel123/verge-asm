@@ -915,7 +915,383 @@ on measurement, one document plus two partial restatements of it.
 
 ---
 
+## 13. Amendment — [#73](https://github.com/winniel123/verge-asm/issues/73): the corpus search was run, and it came back positive
+
+**Nothing above is rewritten.** §9.2 named a retrieval and this section is that retrieval performed,
+recorded per the name-and-withdraw convention. Where a statement above is now stale it is named here
+and left standing where it is.
+
+> **The headline.** §9.2 asked whether any **unscoped** statement of a certificate key-size floor
+> exists, and answered *not in the four documents we read*. It exists. The IETF states one in **three
+> different document classes**, and one of the three is in **an appendix of a document §2.3.1 and §9.2
+> both cite as setting no floor**. The number 112 is not permanently NIST's; more precisely, **the
+> numbers 2048 and 224 are not NIST's alone**, and the reason §9.2 could not see them is that it
+> searched a document *set* where it should have searched a document *class*.
+
+### 13.1 What was retrieved, enumerated
+
+The negative in §9.2 was established over four documents. This is the corpus it is now established
+over — enumerated, because a negative is only ever as wide as its corpus and the whole lesson of this
+amendment is that §9.2's was too narrow.
+
+| Corpus | Enumerated as | Result |
+|---|---|---|
+| **The IETF's TLS deployment BCP** | RFC 9325 (BCP 195, November 2022), obsoleting RFC 7525; checked for errata (**none**) and for updates (**RFC 10015** and **RFC 9852**, neither touching §4.5) | **Positive — a MUST-level RSA floor** |
+| **The TLS specification, current** | **RFC 9846** (July 2026, Standards Track), which **obsoletes RFC 8446, RFC 5246, RFC 8422, RFC 5077, RFC 6961 and RFC 7627**; no errata | **Positive — RSA and ECDSA floors, at SHOULD** |
+| **The TLS specifications, superseded** | RFC 8446 (2018), RFC 5246 (2008) | **Positive, and missed by §9.2** — see 13.3 |
+| **LAMPS, published** | **63 RFCs**, enumerated from the Datatracker group API and cross-checked against the working group's document page, all bodies retrieved and grepped | **Positive on RSA and DSA, S/MIME-scoped** — RFC 8550, RFC 8551, RFC 9481 |
+| **LAMPS, in flight** | **17 active Internet-Drafts**, including `draft-ietf-lamps-rfc8550bis-00` and `draft-ietf-lamps-rfc8551bis-00` | Floors preserved verbatim; **no new floor** |
+| **An RFC 5280 revision** | **Does not exist.** `draft-ietf-lamps-rfc5280bis` returns 404; no `5280bis` appears in the 702-document LAMPS corpus; the charter has no such milestone. RFC 5280 is amended piecemeal (RFC 8399, 9549, 9598, 9608, 9618, 10007), and **none of those touches key size** | **Negative, and structurally so** |
+| **Every IETF BCP** | **247 RFCs carrying an *Also BCP* designation**, enumerated from `rfc-index.txt`; full text retrieved for every security, crypto, key, certificate, algorithm and privacy candidate — BCP 61, 72, 86, 106, 107, 132, 173, 174, 179, 182, 188, **195**, 200, 201, 227, 228, 232, 237, 240, 243, 247 and twelve others | **Exactly one positive: BCP 195.** Every other either sets no floor or delegates to BCP 86 |
+| **IAB statements** | **~180**, enumerated from the Datatracker `iab` statement stream (`iab.org/documents/correspondence-reports-documents/` now 301s to it); text retrieved for every crypto- or security-relevant one | **Negative, and one of them is a negative on purpose** — see 13.4 |
+| **The IETF's other algorithm-requirements documents** | RFC 8247 (IKEv2), RFC 5480 (ECC in PKIX), RFC 8422 (obsoleted by RFC 9846), RFC 8017 (PKCS #1), RFC 7935 (RPKI) | RFC 8247 positive at SHOULD NOT for a different artefact; RFC 7935 positive but an **exact size**, RPKI-scoped; **RFC 5480, RFC 8422 and RFC 8017 negative and instructive** — see 13.4 |
+
+**What the enumeration cost, and why it is written down.** §9.2's negative was over four documents. This
+one is over roughly **three hundred and forty** — 63 LAMPS RFCs, 17 LAMPS drafts, ~180 IAB statements,
+247 BCP-designated RFCs filtered to the security area, and the TLS and PKIX line individually. **The
+positive was in the third one anybody would have guessed**, which is the whole of 13.6's first
+statement: the corpus was never large, it was the wrong shape.
+
+### 13.2 The finding — three unscoped statements, in three document classes
+
+Each is quoted from retrieved bytes with enough context that its antecedent is visible.
+
+#### RFC 9325 §4.5 — a MUST, and the strongest of the three
+
+> "When using RSA, servers MUST authenticate using certificates with at least a 2048-bit modulus for
+> the public key. In addition, the use of the SHA-256 hash algorithm is RECOMMENDED and SHA-1 or MD5
+> MUST NOT be used [RFC9155]…"
+> — [RFC 9325](https://www.rfc-editor.org/rfc/rfc9325.txt), BCP 195, §4.5 *Public Key Length*
+
+Three things make this the load-bearing sentence and all three are checkable:
+
+1. **It is unscoped.** RFC 9325 carries no jurisdictional addressee anywhere — a case-insensitive
+   search for `federal`, `government`, `jurisdiction` and `United States` matches once, inside the
+   title of a cited paper. Its normative verbs are BCP 14's, whose definitions restrict audience not
+   at all. This is the exact contrast with SP 800-131A §1.2.2's *"a requirement for Federal Government
+   use"*.
+2. **It is deliberate.** RFC 7525 §4.3 (2015) read *"servers **SHOULD** authenticate using
+   certificates with at least a 2048-bit modulus"*, and RFC 9325's Appendix A lists the change in its
+   own words: *"MUST-level requirement for server-side RSA certificates to have a 2048-bit modulus at
+   a minimum, replacing a 'SHOULD'."* The IETF raised this verb on purpose, seven years apart.
+3. **The document calls itself a floor.** §1: *"this document provides a floor, not a ceiling"*, and
+   *"These are minimum recommendations for the use of TLS in the vast majority of implementation and
+   deployment scenarios."*
+
+**Two conditionals quoted rather than dropped, per #46.** §4.5 opens *"When using the cipher suites
+recommended in this document…"*, and the RSA sentence carries its own *"When using RSA"*. A cautious
+reader can ask whether a deployment negotiating something outside §4.2's recommended list escapes the
+floor. Three things answer it and the third is decisive: §1 states the recommendations as minima for
+*"the vast majority of implementation and deployment scenarios"*; the opening clause introduces the
+paragraph that **counts** the public keys in a handshake, not the paragraph that constrains them; and
+**RFC 9846 §C.2 carries the same floor with no cipher-suite antecedent at all**, so the conditional is
+not load-bearing for the row either way.
+
+**The scope that is real, and it points the right way.** RFC 9325 is scoped *technically* — to TLS and
+DTLS server authentication — even though it is unscoped *jurisdictionally*. That is a genuine limit and
+it is not a limit here: [ADR-0024](../adr/0024-a-rules-domain-is-the-extension-of-its-name.md) fixes
+this rule's domain at a `Presented` certificate, and §4.1 fixes its population at the chain a TLS
+server sent. **RFC 9325's technical scope and this row's population are the same set.** The sentence
+must not be carried anywhere wider — it says nothing about an S/MIME key, a code-signing key or a
+certificate nobody presented over TLS — and this table never asks it to.
+
+#### RFC 9846 Appendix C.2 — both numbers, and the word *insecure* in everything but name
+
+> "Applications SHOULD also enforce minimum and maximum key sizes. For example, certification paths
+> containing keys or signatures weaker than 2048-bit RSA or 224-bit ECDSA are **not appropriate for
+> secure applications**."
+> — [RFC 9846](https://www.rfc-editor.org/rfc/rfc9846.txt) §C.2 *Certificates and Authentication*
+
+This sentence does four things no NIST sentence in §3.3 does. It is **unscoped**. It names **both**
+of the two live floors and **exactly this table's two numbers**. It ranges over **certification
+paths** — which is this table's population as §4.1 defines it, the chain rather than the leaf. And
+its predicate is **fitness**, not approval: *not appropriate for secure applications* is a statement
+about what the key is good for, where *Disallowed* is a statement about what an agency may buy. §9.2
+asked for exactly this discrimination — *insecure as opposed to unapproved* — and this is the side of
+it §9.2 said did not exist.
+
+**Its softness is named rather than smoothed.** The verb is `SHOULD`, the numbers arrive in a *"For
+example"* clause, and Appendix C is *Implementation Notes*, introduced as *"several recommendations
+to assist implementors"*. It is weaker than a body MUST. It is not weaker in **scope**, which is the
+axis §9 is about.
+
+#### RFC 8550 §6 and RFC 8551 §6 — the word itself, on a document about certificates
+
+> "RSA keys of less than 2048 bits are now considered by many experts to be **cryptographically
+> insecure** (due to advances in computing power) and SHOULD no longer be used to sign certificates
+> or CRLs."
+> — [RFC 8550](https://www.rfc-editor.org/rfc/rfc8550.txt) §6, *S/MIME 4.0 Certificate Handling*
+
+> "**RSA and DSA keys of less than 2048 bits** are now considered by many experts to be
+> **cryptographically insecure** (due to advances in computing power) and should no longer be used to
+> protect messages."
+> — [RFC 8551](https://www.rfc-editor.org/rfc/rfc8551.txt) §6, *S/MIME 4.0 Message Specification*
+
+And the hard verb, in the same family:
+
+> "An S/MIME user agent MUST NOT generate asymmetric keys less than 2048 bits for use with an RSA
+> signature algorithm."
+> — [RFC 8551](https://www.rfc-editor.org/rfc/rfc8551.txt) §4.1 *Key Pair Generation*
+
+**Quoted with the hedge, per §12's standing rule and #46's.** *"Considered by many experts to be"* is
+a real hedge and it is not removed here; the sentence is cited for the word **insecure** and for the
+fact that its grammatical subject is **the key**, not a use. **Both bis drafts preserve it verbatim**,
+so it is the working group's current position and not a 2019 residue.
+
+**The artefact caveat, stated rather than elided.** RFC 8550 and RFC 8551 are S/MIME documents, and
+under §2.3.2's artefact test an S/MIME document's *support matrix* — RFC 8550 §4.3's `key size <=
+2047 : SHOULD NOT` table, addressed to *"S/MIME receiving agents"* — is a **relying-party acceptance
+rule** and is in the distributor position exactly as the CA/B BR is. §6's sentence is different in
+kind: its subject is *RSA keys of less than 2048 bits*, unqualified by S/MIME, and its predicate is a
+property of the key. **It corroborates and it is not sole grounds**, and the RSA row does not need it
+to be.
+
+### 13.3 The correction §9.2 owes — the sentence was in two documents #68 held
+
+§2.3.1 and §9.2 both state that RFC 8446 and RFC 5246 set no floor, and §1's summary repeats it as
+*"TLS constrains signature algorithms, never modulus size."* **That is wrong, and it was wrong when it
+was written.** RFC 8446 Appendix C.2 carries the *2048-bit RSA or 224-bit ECDSA* sentence
+byte-for-byte as RFC 9846 §C.2 does, and RFC 5246 §D.3 carries its ancestor:
+
+> "TLS supports a range of key sizes and security levels, including some that provide no or minimal
+> security. … Applications should also enforce minimum and maximum key sizes. For example, certificate
+> chains containing **512-bit RSA keys** or signatures are not appropriate for **high-security**
+> applications."
+> — [RFC 5246](https://www.rfc-editor.org/rfc/rfc5246.txt) §D.3
+
+The trajectory is the interesting part and it is three documents long: **512 bits and *high-security
+applications* (2008) → 2048-bit RSA and 224-bit ECDSA and *secure applications* (2018) → unchanged
+(2026)**. The IETF raised the number by two orders of magnitude and **widened the addressee** from a
+security-conscious subset to secure applications generally. That is the opposite motion from a scope
+qualifier being added.
+
+**How the row moves without breaking #37's precedent.** #37 binds: *a row moves on retrieval, never on
+a re-reading of text already held.* Read strictly, RFC 8446 and RFC 5246 were held, and finding C.2 in
+them is a re-reading. **The rows below move on RFC 9846** — a July 2026 Standards Track publication
+that obsoletes both, which #68 could not have held and which this ticket retrieved — and on **RFC
+9325**, which #68 never read at all. RFC 8446 §C.2 and RFC 5246 §D.3 are recorded here as **a
+correction of what those documents say**, which is a different act from re-interpreting them: #37
+repaired defects of exactly this kind, and leaving a false sentence standing because the precedent
+protecting against motivated re-reading also happens to cover it would be the precedent doing damage.
+
+### 13.4 What did **not** move, and the two traps that made it look as though it had
+
+**DSA's `N` limb has nothing unscoped.** RFC 8550 §6 and RFC 8551 §6 both say *RSA and DSA keys of
+less than 2048 bits*, which reaches the `L` limb of `(L, N)` and says nothing about `N ≥ 224`. RFC
+9846 goes further in a direction that does not help: *"MD5 [SLOTH], SHA-224, and DSA MUST NOT be
+used"* is a **prohibition of the algorithm in TLS**, which is §2.2's already-refused *withdrawal of
+approval* arriving from a second body. It is not a work-factor statement and no claim in the closed
+set fits it. **The DSA row's `N` limb is the whole of what remains in the weak tier.**
+
+**Trap one — the number that matches is in the wrong sentence.** RFC 9325 §4.5 contains the string
+*"Curves of less than 224 bits MUST NOT be used"*, which is this table's ECDSA number **exactly**, in
+a MUST, in an unscoped BCP. It is the wrong sentence. Its antecedent is two sentences earlier — *"With
+regard to **ECDH** keys, implementers are referred to the IANA 'TLS Supported Groups' registry"* — its
+justification is *"in line with the latest revision of [NIST.SP.800-56A]"*, which is a **key
+agreement** standard rather than a signature one, and RFC 9325's own Appendix A files the change under
+*Differences specific to TLS 1.2* as *"ECDH minimal curve size is 224 (vs. 192 previously)."* It is
+about the ephemeral key-agreement group, not about the certificate's ECDSA key. **A grep for `224`
+finds this sentence before it finds RFC 9846 §C.2, and the two are one word apart in plausibility and
+a whole artefact apart in fact.** This is #46's truncated conditional inverted: there, a quote lost its
+condition; here, a quote arrives with a number that matches and a subject that does not.
+
+**Trap two — the IETF's ECC-in-PKIX document sets no floor and reads as though it might.** RFC 5480
+§4 asks *"What is the public key size?"*, gives a table of *"comparable minimum bits of security
+[SP800-57] for the ECDSA key sizes"*, and then does the opposite of setting a floor: *"To promote
+interoperability, the following choices are RECOMMENDED"* — whose **bottom row is 80 bits of security
+at `secp192r1`**. The IETF's own ECC certificate-format document had the opportunity and declined it,
+and it is a strength **mapping** in RFC 3766's shape rather than a floor. Recorded because a session
+that finds RFC 5480 §4 and stops reading has found evidence pointing the other way from the direction
+it appears to point.
+
+**RFC 9481 §7 is the same shape and is recorded as corroboration only.** LAMPS's CMP algorithms
+document publishes an unscoped bits-of-security table anchoring **112 bits to RSA-2048 and
+`secp224r1`**, with *"the implementer MUST choose one offering more bits of security"* — but the
+obligation is **relative to the key being managed**, not absolute. It corroborates that the IETF
+reckons in the same units and lands on the same two numbers. It is not a floor.
+
+**Trap three — RFC 8422 removes the small curves and does not say they are weak.** §5.1.1 deprecates
+`NamedCurve` identifiers 1–22, leaving only P-256 and above, and states its reason: *"RFC 4492 defined
+25 different curves in the NamedCurve registry … **Only three have seen much use.** This specification
+is deprecating the rest."* The ground is **deployment share**, which is §6.1's *frequency is not a
+position* refused in the source's own words rather than in ours. The **effect** is a 256-bit floor and
+the **claim** is that nobody used them. A row founded on it would be a row founded on a popularity
+measurement. (RFC 8422 is in any case obsoleted by RFC 9846.)
+
+**Trap four — the number 112 has an IETF pedigree and it is not the one it looks like.** RFC 9325 §4.2
+is unscoped and normative — *"Implementations MUST NOT negotiate cipher suites offering less than 112
+bits of security"* — but its **rationale** reads *"Based on [RFC3766], at least 112 bits of security is
+needed"*, and RFC 3766 §4 disclaims exactly that:
+
+> "…we will implicitly assume that the system security requirement is 112 bits; **this doesn't mean
+> that 112 bits is recommended. In fact, 112 bits is arguably too strong for any practical purpose.**
+> It is used for illustration simply because that is the upper bound on the strength of TripleDES."
+> — [RFC 3766 / BCP 86](https://www.rfc-editor.org/rfc/rfc3766.txt) §4
+
+So the answer to *is 112 permanently NIST's* is **narrower than a yes**, and the narrowing is worth
+having. **The IETF states the number 112 unscoped and normatively**, so it is not NIST's alone. But it
+states it about **negotiated cipher suites**, its stated authority for it is a document that declines
+to recommend it, and the two numbers this table actually uses — **2048 and 224** — are the ones that
+carry unscoped IETF footing in their own right. **The rows rest on 2048 and 224, not on 112**, and that
+is why the finding survives this trap: the security-strength level is the thing with the thin pedigree,
+and no row keys on it. §2.4's *the table's key must be `(algorithm, parameter)` and never a bare bit
+count* turns out to have protected against this too, which nobody anticipated.
+
+**The IAB's negative is deliberate and is the cleanest non-statement in the corpus.** RFC 1984
+(BCP 200, IAB and IESG) has a section headed **`KEY SIZE`**, and it sets none — it argues against the
+idea:
+
+> "It is not acceptable to restrict the use or export of cryptosystems based on their key size. Systems
+> that are breakable by one country will be breakable by others, possibly unfriendly ones. … as
+> computers increase in speed, key sizes that were once out of reach of cryptanalysis will become
+> insecure."
+> — [RFC 1984 / BCP 200](https://www.rfc-editor.org/rfc/rfc1984.txt), *Technical Analysis — Key Size*
+
+**The string `2048` does not occur in RFC 1984, and neither does any other key size.** This is §2.7's
+citable non-statement in its strongest form yet: the body one would ask for an internet-wide key-size
+position has a section of that exact name whose content is *do not legislate key sizes*. It reads as a
+floor to a search engine and is the opposite of one, and it is recorded so that no later session
+retrieves the heading and stops.
+
+**Two more negatives, both confirmations.** RFC 8017 (PKCS #1 v2.2) sets **no modulus floor** — §9.2's
+claim is confirmed against the retrieved bytes; its only size constraints are structural (*"If k <
+2hLen + 2, output 'decryption error'"*, *"RSA modulus too short"*), which ask whether the modulus can
+hold a padded message and not whether it is strong enough. And **RFC 7935 §3** (RPKI) is the near-miss
+worth naming: *"The RSA key pairs used to compute the signatures MUST have a 2048-bit modulus and a
+public exponent (e) of 65,537."* That is an **exact size rather than a floor** — a 4096-bit modulus is
+non-conformant to it — it is RPKI-scoped, and it reaches this table's population not at all.
+
+### 13.5 The weak tier, restated — one row, on one limb
+
+**Supersedes §9's tier table.** §9 stands unrewritten; this is what it should read.
+
+| Row | Footing after this retrieval | Tier |
+|---|---|---|
+| **MD5 signature** | RFC 9846 §4.5.1.3 *"MUST abort the handshake"*; RFC 6151 §2 | Unchanged — strongest in the table |
+| **SHA-1 signature** | RFC 9846 §4.3.3 and §4.5.1.3; SP 800-131A Table 8; RFC 9155 §2 with RFC 5246 §7.4.2 | Unchanged — strong, with the `RECOMMENDED` softness §9 already named |
+| **RSA `nlen` < 2048** | **RFC 9325 §4.5 (MUST, unscoped, BCP 195)**; RFC 9846 §C.2; RFC 8550 §6 and RFC 8551 §6 (*"cryptographically insecure"*); RFC 8551 §4.1 (MUST NOT generate); FIPS 186-5 §5.1 | **Out of the weak tier.** Four unscoped statements from a second owner, one of them a MUST over exactly this artefact |
+| **ECDSA `len(n)` < 224** | **RFC 9846 §C.2**, unscoped, naming the number and the population; RFC 9481 §7 corroborating the unit | **Out of the *scope*-weak tier, into SHA-1's tier** — strong with a named softness, and the softness is **modality** (a `SHOULD` in an appendix, the number in an illustrative clause), not scope |
+| **DSA below (2048, 224)** | `L ≥ 2048`: RFC 8550 §6 and RFC 8551 §6, unscoped. **`N ≥ 224`: SP 800-131A Table 2 only** | **The weak tier, and it is now one limb of one row** |
+
+**The judgement, flagged as this amendment's thin ground.** Moving the ECDSA row is a call, not a
+reading. Against it: RFC 9846 §C.2's number sits in a *"For example"*, and a reader may hold that the
+normative content is *enforce some minimum* rather than *enforce 224*. For it: the sentence is
+unscoped, from an owner, over this table's exact population, carrying a fitness predicate rather than
+an approval one, and carried deliberately through three successive specifications with the number
+raised; and this table already ships the SHA-1 row outside the weak tier on a `RECOMMENDED`, so
+holding ECDSA in on a `SHOULD` would apply two standards to one document. **Ruled: it moves, and the
+softness is disclosed as modality.** A session that disagrees is disagreeing about a tier label and
+not about a row — no row's membership, floor or predicate changes here.
+
+**Nothing else moves.** The table is still five rows, every floor is the same integer, and the
+predicate in §4 is untouched. **What moved is footing, exactly as #69 moved a footing rather than a
+row** — and in the same direction, a weak tier shrinking on retrieval.
+
+### 13.6 What a scope weakness is allowed to be — the general statement
+
+§9.3 and [ADR-0035](../adr/0035-a-cryptographic-primitives-owner-is-its-specifier.md) §7 called this
+a **third kind** of weak row and predicted its resolution route: *it resolves only if a second owner
+speaks unscoped, so its retrieval is a search of a corpus rather than a request to a party.* **The
+prediction held and the search succeeded on its first run**, which changes what the disclosure is
+allowed to say. [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) holds
+the ruling; the two general statements are these.
+
+> **A specification's silence is not the owner's silence.** A standards body speaks in more than one
+> document class, and the classes disagree by design: its **specification** defines the artefact and
+> characteristically declines to fix numbers that cryptanalysis will move; its **deployment
+> recommendation** fixes them; its **implementation guidance** illustrates them. A negative
+> established over specifications is a negative about **that class**, and must be recorded as one.
+> Before a table records that an owner sets no number, it enumerates the owner's document classes,
+> not its documents.
+
+> **A scope weakness is disclosed as a searched corpus, never as a caveat and never as a promise.**
+> Before its search has run it names the corpus it will search. Once run, the disclosure carries
+> **(i)** the corpus actually searched, enumerated; **(ii)** what was found and which rows it reached;
+> and **(iii)** the smallest extension of the corpus that could still change the answer. A weakness
+> that survives that is not *permanent* — it is **bounded**, and bounded is falsifiable by anyone who
+> can name a document outside the boundary, which is the property a permanent caveat lacks and the
+> reason [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) forbids
+> one.
+
+**Applied to the row that survives.** DSA's `N ≥ 224` limb rests on SP 800-131A Table 2 alone. Its
+corpus boundary, per (iii): the smallest extension that could still change it is a body that
+**specifies DSA domain parameters** speaking unscoped about `N` — and the enumerable candidates are
+ANSI X9.30/X9.62's successors and the national schemes (BSI TR-02102, SOG-IS). **Each of those
+reproduces NIST's shape in a different flag**: a recommendation addressed by a body to its own
+constituency. That is why the weakness is structural rather than accidental — **a key-size floor is
+the kind of statement bodies make to constituencies, and the IETF is unusual in having one that is
+"the internet"** — and it is also why the extension is named without being recommended. **The
+honest disclosure for the DSA row is that its corpus is bounded, the boundary is named, and the row
+ships**, exactly as `5432/tcp` does.
+
+### 13.7 Citation corrections forced by this retrieval
+
+Recorded here rather than edited into §3.3 and the Sources, per the name-and-withdraw convention.
+**No row's grounds change; three citations are stale and one is wrong.**
+
+| Where | Reads | Should read |
+|---|---|---|
+| §2.3.1, §9.2, ADR-0035 §1, and this note's Sources | **RFC 5280 §11** Security Considerations | **RFC 5280 §8.** §11 is *References*. Verified against retrieved bytes: `8.  Security Considerations` at the document's own section 8, `11.  References` at 11. The quoted text is correct; the section number never was |
+| §3.1, §3.3, §9, Sources | **RFC 8446** §4.2.3, §4.4.2.4 | **RFC 9846** (July 2026) §4.3.3 and §4.5.1.3, which obsoletes RFC 8446. Both sentences survive verbatim — *"MUST abort the handshake with a 'bad_certificate' alert"*, and the self-signed reason §4.1 relies on. RFC 8446 remains citable as the text in force 2018–2026 |
+| §3.3, §9, Sources | **RFC 5246** §7.4.2, for the TLS 1.2 SHA-1 chain | **Obsoleted by RFC 9846**, along with RFC 8422. The §3.3 chain still holds for TLS 1.2 as historically specified; a reader must not be left thinking RFC 5246 is current |
+| §2.6, §9.2 | RFC 8446 and RFC 5246 *"set none"* | **False** — see 13.3. Both set one, in an implementation-notes appendix |
+
+**§11's third open question is answered in passing.** *Who watches these five rows* now has a second
+answer: the watch is not only *re-read SP 800-131A when a revision goes final*. **RFC 9846 landed in
+July 2026 and obsoleted the document two of the five rows are footed on, four weeks before this was
+written.** The IETF half of this table moves on a cadence nobody had priced. §7.1's *one edit per row
+per decade* is unaffected — no row's content moved — but the **citation** surface moves faster than
+the **content** surface, and only the second was measured.
+
+### 13.8 Retrieval hazards met, recorded per `sensitive-ports.md` §9.5
+
+- **The floor is stated as an example, so normative-language search does not find it.** RFC 9846 §C.2
+  and RFC 5246 §D.3 both put the number after *"For example"*. A search for `MUST`, `at least` or
+  `minimum … bits` near a key algorithm misses both. **This is the mechanism by which #68's negative
+  was wrong**, and it is worth more than the finding: a floor can be stated in an illustrative clause
+  and still be the only place its author states it.
+- **The right number in the wrong sentence.** RFC 9325's *"Curves of less than 224 bits MUST NOT be
+  used"* matches this table's ECDSA floor to the digit and is about ECDH key agreement — 13.4, trap
+  one.
+- **An appendix is easy to treat as non-normative and this one is not marked so.** RFC 9846's
+  Appendix C is part of a Standards Track document and uses BCP 14 keywords. It is weaker than the
+  body by convention, not by declaration, and the note says so rather than picking a side.
+- **The current TLS RFC is not the one everyone cites.** RFC 8446 is obsoleted by RFC 9846 as of July
+  2026. Every secondary source and most tooling still says 8446. The section numbers **moved** —
+  §4.4.2.4 → §4.5.1.3, §4.2.3 → §4.3.3 — so a citation copied forward without re-reading points at
+  the wrong section of the right document.
+- **A working group's negative needs the charter, not just the document list.** The LAMPS result — no
+  RFC 5280 revision exists — is established by a 404 on `draft-ietf-lamps-rfc5280bis`, its absence
+  from the 702-document group corpus, **and** the charter's milestones, which name no such work. Any
+  two of the three would have left *not yet posted* open.
+- **`rfc-editor.org/errata/rfcNNNN` redirects to a search form that renders "No matching errata
+  found" identically to a failed query.** Both RFC 9325 and RFC 9846 were confirmed errata-free by
+  reading that string out of the retrieved HTML; a session that greps for an errata table and finds
+  none cannot distinguish *no errata* from *page did not load*.
+- **`Updated by` is not `Obsoleted by` and both matter.** RFC 9325 is updated by RFC 10015 and RFC
+  9852; RFC 10015 §6 tabulates its changes and **all of them are in §4.1**, so §4.5's RSA sentence
+  stands. Checking only for obsolescence would have missed the question; checking only the count
+  would have answered it wrongly.
+
+---
+
 ## Sources
+
+Retrieved by [#73](https://github.com/winniel123/verge-asm/issues/73) — the unscoped-floor corpus
+- [RFC 9325 / BCP 195, Recommendations for Secure Use of TLS and DTLS](https://www.rfc-editor.org/rfc/rfc9325.txt) (November 2022) — §1, §4.2, §4.5, §5, Appendix A. Obsoletes RFC 7525. **The MUST-level RSA floor**
+- [RFC 7525 / BCP 195, Recommendations for Secure Use of TLS and DTLS](https://www.rfc-editor.org/rfc/rfc7525.txt) (May 2015) — §4.3, the `SHOULD` that RFC 9325 raised
+- [RFC 9846, The Transport Layer Security (TLS) Protocol Version 1.3](https://www.rfc-editor.org/rfc/rfc9846.txt) (July 2026) — §4.3.3, §4.5.1.3, Appendix C.2. **Obsoletes RFC 8446, RFC 5246, RFC 8422, RFC 5077, RFC 6961, RFC 7627**
+- [RFC 10015, Deprecating Obsolete Key Exchange Methods in TLS 1.2 and DTLS 1.2](https://www.rfc-editor.org/rfc/rfc10015.txt) — §6, which updates RFC 9325 §4.1 only
+- [RFC 8550, S/MIME 4.0 Certificate Handling](https://www.rfc-editor.org/rfc/rfc8550.txt) (April 2019) — §4.3, §6. LAMPS
+- [RFC 8551, S/MIME 4.0 Message Specification](https://www.rfc-editor.org/rfc/rfc8551.txt) (April 2019) — §4.1, §6. LAMPS
+- [RFC 9481, Certificate Management Protocol (CMP) Algorithms](https://www.rfc-editor.org/rfc/rfc9481.txt) — §7, the bits-of-security table. LAMPS, corroboration only
+- [RFC 5480, Elliptic Curve Cryptography Subject Public Key Information](https://www.rfc-editor.org/rfc/rfc5480.txt) (March 2009) — §4, a strength mapping and **not** a floor
+- [RFC 8247, Algorithm Implementation Requirements and Usage Guidance for IKEv2](https://www.rfc-editor.org/rfc/rfc8247.txt) — §3.1.1, `SHOULD NOT` below 2048 for a different artefact
+- [RFC 1984 / BCP 200, IAB and IESG Statement on Cryptographic Technology and the Internet](https://www.rfc-editor.org/rfc/rfc1984.txt) (August 1996) — *Technical Analysis — Key Size*, a section of that name setting no size
+- [RFC 3766 / BCP 86, Determining Strengths For Public Keys](https://www.rfc-editor.org/rfc/rfc3766.txt) (April 2004) — §4, which disclaims recommending 112 bits
+- [RFC 7696 / BCP 201, Guidelines for Cryptographic Algorithm Agility](https://www.rfc-editor.org/rfc/rfc7696.txt) — §2.2.2, which requires a size be *specified* and names no value
+- [RFC 7935, The Profile for Algorithms and Key Sizes for Use in the RPKI](https://www.rfc-editor.org/rfc/rfc7935.txt) — §3, an exact size rather than a floor
+- [RFC 8422, ECC Cipher Suites for TLS 1.2 and Earlier](https://www.rfc-editor.org/rfc/rfc8422.txt) — §5.1.1, curve deprecation on **usage** grounds. Obsoleted by RFC 9846
 
 Specifications — the IETF, as owner of PKIX and TLS
 - [RFC 5280, Internet X.509 Public Key Infrastructure Certificate and CRL Profile](https://www.rfc-editor.org/rfc/rfc5280.txt) (May 2008) — §11 Security Considerations, the no-floor position
