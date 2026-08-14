@@ -274,3 +274,70 @@ was searched — not an unopened class.
 | **Treat #67's one-issuer corpus as a class weakness and open a retrieval on other CAs** | It is a breadth weakness. The class — issuer documentation — was searched, and searching it again at a second issuer tests **generality**, not **completeness**. Folding the two together would give ADR-0040's corpus no boundary, since there is always another party. §14's disclosure already states it correctly and needs no change |
 | **Fold this into ADR-0040 as an amendment** | ADR-0040's subject is *where to look before recording that an owner is silent*. This ADR's is *which negatives that obligation applies to, and how the resulting backlog terminates*. The second is a rule about the **scheduling** of the first and reaches the map's curation patch, which ADR-0040 explicitly left carrying an open cadence question |
 | **Re-admit `161/udp` on RFC 3871's `NOT RECOMMENDED` boilerplate** | It is a statement about the **version**, not the **placement**, and its remedy — SNMPv3 — is reached on `161/udp` itself. §11.5 already refused this exact structure for RFC 6353's 10161, and RFC 3410 §8.2's *"framework of choice"* is the same sentence from the same body nine years earlier, which #66 held and correctly declined. Admitting it now would be re-reading held text with a new document stapled to it |
+
+## Amendment — [#93](https://github.com/winniel123/verge-asm/issues/93), 2026-08-14
+
+Limb 2 reads *"the list is short, it is **fixed before the search starts**, and an owner cannot invent
+a fourth class to defeat a sweep."* [#84](https://github.com/winniel123/verge-asm/issues/84) supplies
+the case that sentence does not name, and it is a measurement rather than an argument: **[measured]**
+Erlang/OTP's `system/doc/design_principles/secure_coding.md` — the document that re-founded `4369/tcp`'s
+footing from a class [#76](https://github.com/winniel123/verge-asm/issues/76)'s corpus did not contain —
+is **absent at `OTP-28.4` and earlier and present at the tag `OTP-28.5`**, released **2026-04-23**, four
+months before it was read. Before that release the owner's *Deployment / security guidance* class had
+**no member**, and the sweep that found nothing there was correct.
+
+> **Limb 2 closes the *taxonomy*, not the *membership*.** There are four kinds of document —
+> specification, deployment or operational recommendation, implementation guidance, shipped default —
+> and Ericsson invented no fifth; it published a **member** into a class that existed and was **empty**.
+> A taxonomy is a property of the owner's *shape* and does not move. A class's **membership** is a
+> property of the owner's *release*, and moves whenever the owner ships.
+>
+> **So an owner's class list is fixed at the time of the sweep, not for all time**, and a class sweep's
+> output is a **dated** negative. The disclosure form a sweep owes is not *the class is empty* but **the
+> class had no member at release R, dated D**.
+
+This adds no machinery. [ADR-0045](./0045-an-owners-documentation-is-what-it-has-issued.md) already
+rules that an owner's documentation is what it has **issued** and that **issuance is per version**, so
+a negative *"names the release and the date and never says never issued"*. A class sweep is a search
+over issued documents and inherits that rule unamended; what this amendment does is say so, because
+limb 2's *fixed before the search starts* could be read as making a finished sweep finished for all
+time — a claim `sensitive-ports.md` §17.8 never made.
+
+**What discharges the recurrence is [ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.md)'s
+falsification clause, not a watch, and this is the load-bearing half of the amendment.** A dated class
+list is *"falsifiable by naming one document outside the boundary"*, and §20.4 records the clause firing
+for the first time: §16.9 stated its corpus, #84 named a document outside it, the residue was withdrawn.
+The clause costs nothing until somebody actually holds a document, which is the only moment at which
+anything can move.
+
+**A ninth curation-watch trigger was argued and lost, on cost rather than on coverage.** The map's
+curation patch carries *a drafted owner document becoming issued* ([#86](https://github.com/winniel123/verge-asm/issues/86))
+as *"the cheapest, because it is **announced, by a release**"* — and that pricing holds only because the
+**draft is already known**: Kafka's `security-model.md` sits on a branch with no tag, so the watch is
+*check whether that one file's branch gets tagged*. **Nothing announced `secure_coding.md`.** It was
+authored and released in a single motion, into a class that had never had a member, in a repository
+nobody was watching. The corresponding watch is *read every release of every owner in the table, forever,
+for a document that did not previously exist*, which is the *"somebody may have said this somewhere"*
+standing obligation the Rationale above exists to deny. **A watch that cannot be run is worse than a
+bounded disclosure, because it converts an unbounded obligation into a checked box.** The existing
+trigger keeps its cheapness by keeping its scope, and *a row's footing was never checked against the
+standard it is now held to* stays **a backlog with an end** — the end being §17.8's fixed point, which
+this amendment does not touch.
+
+**Thin ground.** The taxonomy/membership distinction is doing all the work and nobody had to draw it
+before #84. A reader who holds that a class with no member is no class concludes the opposite — that
+limb 2 **was** falsified and the taxonomy is open. That reading is refused because it makes the class
+count depend on the subject's publication history rather than on the owner's shape, which is what the
+table of owner shapes in §2 asserts. It is a ruling, not a measurement.
+
+**A second, independent instance was measured while this was being decided**, and it makes the same
+point without Erlang. `sensitive-ports.md` §26.4 enumerates NFS's two owners: **[measured]** the IETF's
+**operational class is empty for NFS** — not one RFC in the family carries status `BEST CURRENT
+PRACTICE` — and nfs-utils publishes **no deployment or security document at all**. Both classes exist in
+the taxonomy above and neither has a member. **A class list is a set of slots, and slots can be empty at
+a release and filled at the next one.**
+
+**No `(port, transport)` pair moves, no row moves and no figure in either curated table changes**
+(`sensitive-ports.md` §26.7). This amendment mints no ADR of its own, on the test §20.9 and §16.6 both
+applied: the general rules it composes — limb 2 here, ADR-0045's per-version issuance, ADR-0040's
+falsification clause — were all already available.
