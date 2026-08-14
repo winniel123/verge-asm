@@ -1,0 +1,683 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #74: "Is every census member drillable, and what
+  does drilling into a member that is most of the estate render?"
+
+  THREE THINGS ON `main` DO NOT COMPOSE, and this file is built to make the
+  non-composition visible rather than to argue about it:
+
+    #44 decision 1  — `not-evaluable` is "a census member, listed rather than
+                      summarised away", and #44's prototype lists it INLINE on
+                      the rule card.
+    #72             — added `fired` and `did not fire` lists to the same card,
+                      the second as "a sample of 403".
+    ADR-0015        — carries a standing obligation not to render a broad
+                      signal's census AS A FINDINGS LIST. `plaintext-http-no-https`
+                      lost its 80/tcp literal in #53 and now "fires on more
+                      subjects than it did".
+
+  Switch ?place=inline with ?rule=plaintext to see all three collide: one of
+  sixteen rule cards, on the index screen, with 2,9xx rows under it.
+
+  ── AXES ───────────────────────────────────────────────────────────────────
+
+  ?place=inline|view          WHERE a member's rows live
+    inline   the card carries the rows — main's composed state today
+    view     the card carries NO rows; each member is a link to its own
+             surface, reached by clicking it                        ← SHIPS
+
+  ?broad=full|sample|rollup   WHAT a member that is most of the estate renders
+    full     the complete list, ordered by subject                  ← SHIPS
+    sample   N rows and "…and 2,893 more" — #72's device and #44's `bulkRows`
+    rollup   grouped by a key, with counts
+
+  ?rule=expiring|plaintext|outage   WHICH census
+    expiring   #72's estate — fired 9 · did not fire 403 · not-evaluable 0
+    plaintext  post-#53 — fired 2,9xx of 3,204. The broad member.
+    outage     #44's outage fill — not-evaluable 214 of 214, one cause
+
+  Inside ?place=view, clicking a census member navigates to it (&member=…).
+
+  ── THE PROPERTY THIS FILE EMBODIES ────────────────────────────────────────
+
+  Every census scalar on screen is `list.length`. Nothing is authored as a
+  number. That is #28's rule ("a census is derived from its own partition")
+  implemented rather than described — and it is also this ticket's central
+  argument, which is that a member you cannot open is a count whose basis
+  cannot be shown.
+
+  Not production code. Vocabulary is CONTEXT.md; visual language is the real
+  design system (../../design-system). No severity, no ranking, no per-row
+  control, no delta, no filter — ADR-0004, ADR-0024, ADR-0032 §7, #51, #53 §1.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — census member drill-down prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 108px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5);
+         max-width: 88ch; line-height: var(--leading-body); }
+
+  /* ── THE RULE CARD ────────────────────────────────────────────────────
+     Carried over from prototypes/signal-evaluability (#44) and
+     prototypes/certificate-expiring-census (#72) unchanged, so that what
+     this ticket moves is visible as a move rather than as a redraw. */
+  .rule { background: var(--surface); border: var(--rule); margin-bottom: var(--space-4); }
+  .rule-h { display: flex; align-items: baseline; gap: var(--space-4);
+            padding: var(--space-3) var(--space-4); }
+  .rule-h .nm { font: var(--weight-semibold) var(--text-base)/1.3 var(--font-mono); color: var(--ink); }
+  .rule-h .ver { font: var(--weight-medium) var(--text-2xs)/1 var(--font-mono); color: var(--text-faint);
+                 letter-spacing: var(--tracking-label); }
+  .rule-h .sp { margin-left: auto; }
+
+  /* #72's predicate gloss — a property of the census, not of the rule. */
+  .pred { padding: var(--space-2) var(--space-4) var(--space-3);
+          border-top: var(--rule-soft); border-left: 3px solid var(--ink);
+          font-size: var(--text-base); line-height: var(--leading-body); color: var(--text); }
+  .pred .ml { display: block; margin-bottom: var(--space-1); }
+  .pred b { font-family: var(--font-mono); font-weight: var(--weight-semibold); }
+
+  .cens { display: flex; align-items: stretch; border-top: var(--rule-soft); }
+  .cens .m { flex: 1; padding: var(--space-3) var(--space-4); border-left: var(--rule-soft);
+             display: block; text-decoration: none; color: inherit; }
+  .cens .m:first-child { border-left: none; }
+  .cens .m .v { font: var(--weight-semibold) var(--text-xl)/1 var(--font-mono); color: var(--ink);
+                margin-top: var(--space-2); display: block; }
+  .cens .m.ne .v { color: var(--text-muted); }
+  .cens .m.pop { background: var(--surface-sunken); flex: 0 0 auto; min-width: 190px; }
+  .cens .m .d { font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono);
+                margin-top: var(--space-1); color: var(--text-muted); }
+  /* A member is a link only in ?place=view. The affordance IS the ruling. */
+  a.m { cursor: pointer; }
+  a.m:hover { background: var(--surface-sunken); }
+  a.m:hover .v { color: var(--accent); }
+  .m .open { display: block; margin-top: var(--space-2);
+             font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+             letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--accent); }
+  a.m.dead { cursor: default; }
+  a.m.dead:hover { background: none; }
+  a.m.dead:hover .v { color: var(--ink); }
+
+  .recon { padding: var(--space-2) var(--space-4); border-top: var(--rule-soft);
+           background: var(--surface-sunken);
+           font: var(--weight-medium) var(--text-xs)/1.5 var(--font-mono); color: var(--text-muted); }
+  .recon b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .recon .asof { float: right; color: var(--text-faint); }
+
+  /* ── MEMBER LIST ──────────────────────────────────────────────────────
+     Ordered by subject, never by anything else: ordered by what needs
+     attention is a queue, ordered by the subject is a census (#51 §4).
+     No control in any row, no badge, no colour ramp, no filter. */
+  .dd { border-top: var(--rule); }
+  .dd-h { display: flex; align-items: baseline; gap: var(--space-3);
+          padding: var(--space-3) var(--space-4); background: var(--surface-sunken);
+          border-bottom: var(--rule-soft); }
+  .dd-h .ml { color: var(--ink); }
+  .dd-h .note { font-size: var(--text-xs); color: var(--text-muted); margin-left: auto; }
+
+  table.rows { width: 100%; border-collapse: collapse; }
+  table.rows td { padding: var(--table-row-pad-y) var(--table-cell-pad-x);
+                  border-bottom: var(--rule-soft); vertical-align: baseline; }
+  table.rows tr:last-child td { border-bottom: none; }
+  td.subj { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); width: 38%; }
+  td.subj a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--border); }
+  td.subj a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  td.left { font-family: var(--font-mono); font-size: var(--text-md); color: var(--ink);
+            font-weight: var(--weight-semibold); white-space: nowrap; width: 20%; }
+  td.hor  { font-size: var(--text-base); color: var(--text-muted); line-height: var(--leading-snug); }
+  td.hor b { font-family: var(--font-mono); font-weight: var(--weight-semibold); color: var(--text); }
+  td.hor .why { color: var(--text-faint); }
+  td.asof { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-faint);
+            white-space: nowrap; text-align: right; }
+
+  /* ── THE MEMBER VIEW (?place=view&member=…) ───────────────────────────
+     Its own surface. Same object at 9 rows and at 2,911 — nothing about it
+     changes as it grows, which is the whole of this ticket's answer to
+     "what does a member that is most of the estate render instead". */
+  .crumb { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-3);
+           font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); color: var(--text-muted); }
+  .crumb a { color: var(--accent); text-decoration: none; }
+  .crumb a:hover { text-decoration: underline; }
+
+  .mv { background: var(--surface); border: var(--rule); }
+  .mv-h { padding: var(--space-4); border-bottom: var(--rule); }
+  .mv-h .ml { display: block; margin-bottom: var(--space-2); }
+  .mv-h .big { font: var(--weight-semibold) var(--text-2xl)/1 var(--font-mono); color: var(--ink); }
+  .mv-h .of { font-size: var(--text-base); color: var(--text-muted); margin-left: var(--space-2); }
+  /* CONSTANT EVIDENCE, hoisted out of the rows. What is the same on every
+     row belongs to the member's header; what differs belongs to the row. */
+  .mv-const { padding: var(--space-3) var(--space-4); border-top: var(--rule-soft);
+              border-left: 3px solid var(--ink); background: var(--surface);
+              font-size: var(--text-base); line-height: var(--leading-body); }
+  .mv-const .ml { display: block; margin-bottom: var(--space-1); }
+  .mv-const code { font-family: var(--font-mono); font-size: var(--text-sm);
+                   background: var(--surface-sunken); padding: 0 3px; }
+  .mv-basis { padding: var(--space-2) var(--space-4); background: var(--surface-sunken);
+              border-top: var(--rule-soft);
+              font: var(--weight-medium) var(--text-xs)/1.5 var(--font-mono); color: var(--text-muted); }
+  .mv-basis b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .mv-basis .asof { float: right; color: var(--text-faint); }
+
+  /* ── ANNOTATION APPARATUS (prototype chrome, not product) ─────────────── */
+  .verdict { border: var(--rule-ink); background: var(--surface); margin-bottom: var(--space-4); }
+  .verdict .hd { display: flex; gap: var(--space-3); align-items: baseline;
+                 padding: var(--space-2) var(--space-4); border-bottom: var(--rule);
+                 background: var(--surface-sunken); }
+  .verdict .hd .tag { font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                      text-transform: uppercase; letter-spacing: var(--tracking-label);
+                      padding: 2px 6px; background: var(--ink); color: var(--text-on-ink); }
+  .verdict .hd .tag.lose { background: var(--surface); color: var(--text-muted); border: var(--rule); }
+  .verdict .bd { padding: var(--space-3) var(--space-4); font-size: var(--text-base);
+                 line-height: var(--leading-body); max-width: 100ch; }
+  .verdict .bd b { color: var(--ink); }
+  .verdict .bd code { font-family: var(--font-mono); font-size: var(--text-sm);
+                      background: var(--surface-sunken); padding: 0 3px; }
+  .verdict .bd p { margin: 0 0 var(--space-2); }
+  .verdict .bd p:last-child { margin-bottom: 0; }
+
+  /* the losing rollup variant, drawn properly so it can be seen to fail */
+  table.roll { width: 100%; border-collapse: collapse; }
+  table.roll td { padding: var(--table-row-pad-y) var(--table-cell-pad-x);
+                  border-bottom: var(--rule-soft); }
+  table.roll td.k { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); width: 40%; }
+  table.roll td.n { font-family: var(--font-mono); font-size: var(--text-md);
+                    font-weight: var(--weight-semibold); color: var(--ink); width: 14%; }
+
+  .foot { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface-ink);
+          color: var(--text-on-ink); border-top: var(--rule-ink); z-index: 20; }
+  .foot-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-2) var(--page-pad);
+             display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; }
+  .foot .grp { display: flex; align-items: center; gap: var(--space-2); }
+  .foot .grp > .ml { color: var(--text-faint); }
+  .foot a { color: var(--text-on-ink); opacity: .55; text-decoration: none;
+            font: var(--weight-medium) var(--text-xs)/1 var(--font-mono);
+            padding: 5px 8px; border: 1px solid transparent; }
+  .foot a:hover { opacity: 1; }
+  .foot a.on { opacity: 1; border-color: var(--text-on-ink); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-in">
+    <span class="wordmark"><b>Verge</b><span class="chip">ASM</span></span>
+    <nav class="items">
+      <a href="#">Exposure</a><a href="#">Subjects</a><a href="#" class="on">Signals</a>
+      <a href="#">Seeds</a><a href="#">Coverage</a><a href="#">Settings</a>
+    </nav>
+    <span class="nav-right mono faint">example.com</span>
+  </div>
+</header>
+
+<div class="shell" id="shell"></div>
+<div class="foot"><div class="foot-in" id="foot"></div></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   PARAMS
+   ═══════════════════════════════════════════════════════════════════════ */
+const P      = new URLSearchParams(location.search);
+const PLACE  = P.get("place")  || "view";
+const BROAD  = P.get("broad")  || "full";
+const RULEID = P.get("rule")   || "plaintext";
+const MEMBER = P.get("member") || "";
+
+const AS_OF = "evaluated 2026-08-14 04:07 UTC";
+
+/* deterministic PRNG so every figure is stable across reloads */
+function rng(seed) { return function () {
+  seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+  let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+const num  = (n) => n.toLocaleString("en-GB");
+const days = (n) => n + (n === 1 ? " day" : " days");
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ESTATE 1 — certificate-expiring, #72's shape.
+   ADR-0034's predicate implemented: N = ⅓ of validity, ½ below ten days.
+   Lifetimes are the ones ADR-0034 measured.
+   ═══════════════════════════════════════════════════════════════════════ */
+const NOW = Date.UTC(2026, 7, 14, 4, 7), DAY = 86400000;
+const LIFETIMES = [6, 6, 45, 90, 90, 90, 200, 365, 398];
+const WORDS = ["api","cdn-origin","dev","id","mail","metrics","shop","staging","vpn","edge",
+  "grafana","legacy","www","auth","billing","cache","docs","events","files","gateway","health",
+  "images","jobs","kibana","ldap","media","node","ops","portal","queue","reports","search",
+  "status","tickets","upload","vault","webhooks","assets","admin","internal"];
+
+function expiringEstate() {
+  const r = rng(74001), out = [];
+  for (let i = 0; i < 412; i++) {
+    const validity = LIFETIMES[Math.floor(r() * LIFETIMES.length)];
+    const port  = [443, 443, 443, 8443, 9443, 3443][Math.floor(r() * 6)];
+    const host  = `${WORDS[i % WORDS.length]}${i < WORDS.length ? "" : "-" + Math.floor(i / WORDS.length)}.example.com`;
+    const limb    = validity <= 10 ? "half" : "third";
+    const horizon = Math.round(validity / (limb === "half" ? 2 : 3));
+    /* An estate with automated renewal holds few certificates inside their own
+       horizon at any instant — renewal fires there. So most rows sit above the
+       horizon and a small tail sits below it, which is why `fired` is narrow
+       and `did not fire` is broad on the same rule. */
+    const inside = r() < 0.022;
+    const remaining = inside ? Math.round(r() * horizon)
+                             : horizon + 1 + Math.round(r() * (validity - horizon - 1));
+    out.push({ subj: `${host}:${port}`, validity, limb, horizon, remaining,
+               fired: remaining <= horizon,
+               na: new Date(NOW + remaining * DAY).toISOString().slice(0, 10) });
+  }
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ESTATE 2 — plaintext-http-no-https, AFTER #53 withdrew the 80/tcp literal.
+   Domain: Endpoints whose http-identity is Responded.  Predicate: certificate
+   is NoTLS.  ADR-0015 already settled that this being true of most of the
+   estate is not a defect. This is the member that forced the ticket.
+   ═══════════════════════════════════════════════════════════════════════ */
+function plaintextEstate() {
+  const r = rng(74002), out = [];
+  for (let i = 0; i < 3204; i++) {
+    const host = `${WORDS[i % WORDS.length]}-${String(Math.floor(i / WORDS.length)).padStart(2, "0")}.example.com`;
+    const port = [80, 80, 80, 80, 8080, 8080, 8000, 3000, 5000, 9000][Math.floor(r() * 10)];
+    /* an endpoint that answered HTTP either presented a chain or did not */
+    const tls = r() < 0.0915;
+    out.push({ subj: `${host}:${port}`, fired: !tls, port });
+  }
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ESTATE 3 — #44's `outage` fill. internet-01 has failed every attempt for
+   three days, so Availability is `unavailable`, the internet `Reach` holds a
+   `Gap`, and every evaluation of sensitive-port-reached-from-internet is
+   not-evaluable on ONE cause.
+   ═══════════════════════════════════════════════════════════════════════ */
+const SENS = ["6379/tcp","9200/tcp","5432/tcp","3306/tcp","2375/tcp","27017/tcp","11211/tcp",
+              "9042/tcp","5984/tcp","2379/tcp","10250/tcp","1433/tcp","5601/tcp","8086/tcp"];
+function outageEstate() {
+  const r = rng(74003), out = [];
+  for (let i = 0; i < 214; i++) {
+    const a = `198.51.100.${(i % 200) + 1}`;
+    const pair = SENS[Math.floor(r() * SENS.length)];
+    out.push({ subj: `${a}:${pair}`, fired: false, ne: true,
+               cause: "stopped",
+               last: r() < 0.11 ? "reached from internet" : "not-reached from internet",
+               asof: "as measured 2026-08-10 04:07" });
+  }
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE RULES.  Note what is NOT here: no member count is authored anywhere.
+   Every scalar below is `list.length`.
+   ═══════════════════════════════════════════════════════════════════════ */
+const RULES = {
+  expiring: {
+    name: "certificate-expiring", ver: "certificate/4 · renewal-fraction/1",
+    domain: "Endpoints presenting a certificate",
+    gloss: `Fires where less than <b>a third</b> of the certificate's own validity period
+            remains — <b>half</b>, below a ten-day validity.`,
+    rows: expiringEstate(),
+    /* what is CONSTANT across a member, hoisted into the member header */
+    constant: {
+      fired:    `Every endpoint here has less of its certificate's validity left than its own
+                 horizon. The horizon differs per row because the validity does; the fact does not.`,
+      notfired: `Every endpoint here was evaluated against its own certificate and has more of
+                 its validity left than its horizon. Nothing here is a clean bill of health for
+                 an endpoint we could not read — that population is <code>not-evaluable</code>,
+                 beside this one.`,
+    },
+    /* what VARIES, and therefore belongs in the row */
+    varies: "days remaining · the row's own horizon · the validity that produced it (#72 §2)",
+  },
+  plaintext: {
+    name: "plaintext-http-no-https", ver: "http-identity/5 · certificate/4",
+    domain: "Endpoints whose http-identity is Responded",
+    gloss: `Fires where the endpoint answered HTTP and presented <b>no TLS</b> on the same
+            <code>Service</code>. <b>#53 withdrew the <code>80/tcp</code> literal</b>: a plaintext
+            application on 8080 is exactly the fact this rule is named for.`,
+    rows: plaintextEstate(),
+    constant: {
+      fired:    `Every endpoint here holds <code>http-identity: Responded</code> and
+                 <code>certificate: NoTLS</code>. That is the whole of the evidence, it is the
+                 same on every row, and there is nothing else this rule read.`,
+      notfired: `Every endpoint here answered HTTP and presented a certificate chain.`,
+    },
+    varies: "nothing — the evidence is two closed-union values and both are constant across the member",
+  },
+  outage: {
+    name: "sensitive-port-reached-from-internet", ver: "reach/4 · sensitive-list/11",
+    domain: "Services on a sensitive-list (port, transport) pair",
+    gloss: `Fires where the internet <code>Reach</code> leg of a sensitive-list
+            <code>Service</code> is <code>reached</code>.`,
+    rows: outageEstate(),
+    constant: {
+      ne: `<b>One cause, and it is ours.</b> <code>internet-01</code> has failed every attempt
+           for three days, so <code>Availability</code> is <code>unavailable</code> and the
+           internet <code>Reach</code> holds a <code>Gap</code> on every row below. This is not a
+           clear: each row's last measured value stands beside it and is <b>not current</b>.`,
+    },
+    varies: "the last measured value, and when it was measured (#44 decision 5)",
+  },
+};
+
+const MEMBERS = [
+  { key: "fired",    label: "fired",         desc: "subjects the rule is true of",
+    pick: (rs) => rs.filter(r => r.fired && !r.ne) },
+  { key: "notfired", label: "did not fire",  desc: "evaluated, and false",
+    pick: (rs) => rs.filter(r => !r.fired && !r.ne) },
+  { key: "ne",       label: "not-evaluable", desc: "evidence absent",
+    pick: (rs) => rs.filter(r => r.ne) },
+];
+
+const R  = RULES[RULEID];
+const bySubj = (a, b) => a.subj.localeCompare(b.subj);
+const memberRows = (k) => MEMBERS.find(m => m.key === k).pick(R.rows).sort(bySubj);
+const POP = R.rows.length;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ROWS.  The rule: a row carries what DIFFERS between rows. What is the same
+   on every row is not row content — it belongs to the member's header. This
+   generalises #72's predicate gloss, which hoisted the rule's own declared
+   parameter into the census header for exactly this reason.
+   ═══════════════════════════════════════════════════════════════════════ */
+function rowCells(r) {
+  if (RULEID === "expiring") {
+    return `<td class="left">${days(r.remaining)} left</td>
+            <td class="hor">horizon <b>${days(r.horizon)}</b>
+              <span class="why">— ${r.limb === "half" ? "half" : "a third"} of its
+              ${days(r.validity)} validity</span></td>`;
+  }
+  if (RULEID === "outage") {
+    return `<td class="left">${r.last}</td>
+            <td class="hor"><span class="why">last measured value — not current</span></td>
+            <td class="asof">${r.asof}</td>`;
+  }
+  /* plaintext: nothing varies, so the row is the subject and nothing else */
+  return `<td class="hor" colspan="2"></td>`;
+}
+
+/* A subject is a link. A link is navigation; a control is an act. #51 refused
+   per-row CONTROLS on this screen because ADR-0002 refused an approval queue —
+   and a link that goes to the subject carries no state and approves nothing. */
+const subjCell = (r) => `<td class="subj"><a href="#">${r.subj}</a></td>`;
+
+function rowsTable(rows) {
+  return `<table class="rows">${rows.map(r =>
+    `<tr>${subjCell(r)}${rowCells(r)}</tr>`).join("")}</table>`;
+}
+
+/* ── the two losing treatments for a broad member ───────────────────────── */
+function sampleTable(rows) {
+  const n = 4, shown = rows.slice(0, n);
+  return `${rowsTable(shown)}
+    <div class="dd-h" style="border-top:var(--rule-soft);border-bottom:none">
+      <span class="faint mono">…and ${num(rows.length - n)} more</span></div>`;
+}
+function rollupTable(rows) {
+  const key = RULEID === "plaintext" ? (r => r.port + "/tcp")
+            : RULEID === "outage"    ? (r => r.subj.split(":")[1])
+            : (r => days(r.validity) + " validity");
+  const g = {};
+  rows.forEach(r => { const k = key(r); g[k] = (g[k] || 0) + 1; });
+  const ks = Object.keys(g).sort((a, b) => g[b] - g[a]);
+  return `<table class="roll">${ks.map(k =>
+    `<tr><td class="k">${k}</td><td class="n">${num(g[k])}</td>
+       <td class="hor faint">${(100 * g[k] / rows.length).toFixed(1)}% of this member</td></tr>`).join("")}</table>`;
+}
+
+function memberBody(rows) {
+  if (!rows.length) return `<div class="mv-basis">This member is empty.</div>`;
+  if (BROAD === "sample") return sampleTable(rows);
+  if (BROAD === "rollup") return rollupTable(rows);
+  return rowsTable(rows);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CENSUS
+   ═══════════════════════════════════════════════════════════════════════ */
+const url = (o) => "?" + new URLSearchParams(Object.assign(
+  { place: PLACE, broad: BROAD, rule: RULEID, member: MEMBER }, o)).toString();
+
+function censusRow() {
+  const cells = MEMBERS.map(m => {
+    const n = m.pick(R.rows).length;
+    const linked = PLACE === "view" && n > 0;
+    const tag = linked ? "a" : "span";
+    const href = linked ? ` href="${url({ member: m.key })}"` : "";
+    return `<${tag} class="m ${m.key === "ne" ? "ne" : ""}"${href}>
+      <span class="ml">${m.label}</span><span class="v">${num(n)}</span>
+      <span class="d">${m.desc}</span>
+      ${PLACE === "view" ? (n > 0
+        ? `<span class="open">open ${num(n)} →</span>`
+        : `<span class="open faint" style="color:var(--text-faint)">nothing to open</span>`) : ``}
+    </${tag}>`;
+  }).join("");
+  const parts = MEMBERS.map(m => `<b>${num(m.pick(R.rows).length)}</b> ${m.label}`).join(" + ");
+  return `
+  <div class="cens">${cells}
+    <div class="m pop"><span class="ml">population</span><span class="v">${num(POP)}</span>
+      <span class="d">${R.domain.toLowerCase()}</span></div>
+  </div>
+  <div class="recon"><span class="asof">${AS_OF}</span>
+    ${parts} = <b>${num(POP)}</b> in population</div>`;
+}
+
+function ruleCard(inner) {
+  return `<div class="rule">
+    <div class="rule-h">
+      <span class="nm">${R.name}</span>
+      <span class="ver">${R.ver}</span>
+      <span class="sp"></span>
+      <span class="mono muted">${R.domain}</span>
+    </div>
+    <div class="pred"><span class="ml">what this rule counts</span>${R.gloss}</div>
+    ${censusRow()}
+    ${inner}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE TWO PLACEMENTS
+   ═══════════════════════════════════════════════════════════════════════ */
+function inlineScreen() {
+  const lists = MEMBERS.map(m => {
+    const rows = memberRows(m.key);
+    if (!rows.length) return "";
+    return `<div class="dd">
+      <div class="dd-h"><span class="ml">${m.label}</span>
+        <span class="mono muted">${num(rows.length)} · ordered by subject</span>
+        <span class="note">${BROAD === "full" ? "complete" : BROAD === "sample" ? "sampled" : "rolled up"}</span>
+      </div>${memberBody(rows)}</div>`;
+  }).join("");
+  return ruleCard(lists);
+}
+
+function indexScreen() {
+  return ruleCard("");
+}
+
+function memberView() {
+  const m    = MEMBERS.find(x => x.key === MEMBER);
+  const rows = memberRows(MEMBER);
+  const konst = (R.constant || {})[MEMBER];
+  return `
+  <div class="crumb"><a href="${url({ member: "" })}">Signals</a> <span class="faint">/</span>
+    <a href="${url({ member: "" })}">${R.name}</a> <span class="faint">/</span>
+    <span>${m.label}</span></div>
+  <div class="mv">
+    <div class="mv-h">
+      <span class="ml">${R.name} · ${m.label}</span>
+      <span class="big">${num(rows.length)}</span>
+      <span class="of">of ${num(POP)} ${R.domain.toLowerCase()}</span>
+    </div>
+    ${konst ? `<div class="mv-const"><span class="ml">true of every row below</span>${konst}</div>` : ``}
+    <div class="mv-basis"><span class="asof">${AS_OF}</span>
+      This list <b>is</b> the basis of that count — <b>${num(rows.length)}</b> rows,
+      ordered by subject. It carries the evaluation instant of the census it came from,
+      not one of its own.</div>
+    ${memberBody(rows)}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VERDICTS — prototype chrome
+   ═══════════════════════════════════════════════════════════════════════ */
+function V(kind, label, html) {
+  return `<div class="verdict"><div class="hd">
+      <span class="tag ${kind === "lose" ? "lose" : ""}">${kind === "lose" ? "loses" : kind === "win" ? "ships" : kind}</span>
+      <span class="ml">${label}</span></div><div class="bd">${html}</div></div>`;
+}
+
+function placeVerdict() {
+  const fired = memberRows("fired").length, ne = memberRows("ne").length;
+  const biggest = Math.max(...MEMBERS.map(m => m.pick(R.rows).length));
+  if (PLACE === "inline") {
+    return V("lose", "placement · ?place=inline — main's composed state today", `
+      <p><b>This is what #44 and #72 compose to, and nobody has drawn it before.</b> #44's
+      prototype lists <code>not-evaluable</code> inline on the rule card; #72 added
+      <code>fired</code> and <code>did not fire</code> to the same card. Neither ticket had the
+      other's rule in front of it. Composed, one card of sixteen carries
+      <b>${num(biggest)}</b> rows on the index screen.</p>
+      <p><b>ADR-0015's obligation is breached here and only here.</b> The census stops being a
+      set of scalars the operator reads and becomes a header on a list — which is the census
+      rendered <i>as</i> a list, in the same grammatical shape as ADR-0024's <i>never as a
+      delta</i>. Note what is <b>not</b> wrong with it: the rows are ordered by subject, carry no
+      control, no badge, no severity and no comparison. The defect is not in the rows. It is that
+      the rows are on the census.</p>
+      <p>Switch <code>?rule=</code> and watch the <i>index screen</i> change shape as the estate
+      changes size. That is the tell: a screen whose structure is a function of how big the
+      operator's estate is.</p>`);
+  }
+  if (!MEMBER) {
+    return V("win", "placement · ?place=view — the census carries no rows", `
+      <p><b>The census is the rendering; a member's list is a surface reached from it.</b> Every
+      member is a link, including <code>not-evaluable</code> — so #44 decision 1's <i>listed
+      rather than summarised away</i> survives, one navigation further out.</p>
+      <p>Switch <code>?rule=</code> now. <b>This screen does not change shape</b>, at
+      ${num(POP)} subjects or at 3,204, because there are no rows on it. That is what makes the
+      answer independent of size and is why no threshold is needed: ADR-0024 refused a screen-side
+      domain because it is unversioned, and a row limit is the same object with a number in it.</p>
+      <p>${fired === 0 && ne === 0 ? `` : `Open a member to see what a drill-down renders.`}</p>`);
+  }
+  const rows = memberRows(MEMBER);
+  const broadHere = rows.length > POP / 2;
+  return V(BROAD === "full" ? "win" : "lose", `broad member · ?broad=${BROAD}`,
+    BROAD === "full" ? `
+      <p><b>The same object at every size.</b> ${num(rows.length)} rows${broadHere
+        ? ` — most of this rule's whole population — ` : `, `}ordered by subject, no control, no
+      badge, no severity, no comparison, no filter. Nothing about this view is a function of how
+      many rows it holds.</p>
+      <p><b>Why this is not the object ADR-0015 refused.</b> <code>CONTEXT.md</code> rejects
+      <code>Finding</code> for two properties: it <i>accumulates state</i> and it <i>gets
+      diffed</i>. A list with no per-row control has the first and a census that may never be
+      rendered as a delta (ADR-0024) has the second. Both are already forbidden, at every length,
+      by rules that predate this ticket. <b>Length was never the defect.</b></p>
+      ${RULEID === "plaintext" ? `<p><b>And here is what breadth actually costs, drawn.</b> Every
+      row is a bare subject, because <code>plaintext-http-no-https</code>'s evidence is two
+      closed-union values that are identical on all ${num(rows.length)} of them. The rule that
+      keeps this honest is the one #72 discovered without generalising: <b>a row carries what
+      differs between rows, and what is the same on every row belongs to the header.</b> Compare
+      <code>?rule=expiring</code>, where the horizon and the validity genuinely differ per row and
+      earn their columns.</p>` : ``}
+      ${RULEID === "expiring" && MEMBER === "notfired" ? `<p><b>[measured] This is the case that
+      kills "a broad member should not be listed".</b> <code>did not fire</code> is
+      <b>${num(rows.length)}</b> of ${num(POP)} — 98% of the population, broader than anything
+      <code>plaintext-http-no-https</code> produces — and it is the <b>most useful list in this
+      prototype</b>, because every row carries a number the census cannot. Breadth is not the
+      discriminator. <b>Whether the evidence varies per row is.</b> A rule barred from listing its
+      broad member would have barred this.</p>` : ``}` : BROAD === "sample" ? `
+      <p><b>A selection nothing versions.</b> #72 drew "a sample of 403" and #44's
+      <code>bulkRows</code> drew three of 214; both were prototype devices and neither ticket
+      ruled on them. Drawn as product, the defect is plain: <b>${num(rows.length)}</b> is stated
+      above <b>4</b> rows, which is #28's two-numbers-over-one-population hazard in its purest
+      form. If the four are arbitrary the operator cannot tell whether they are representative;
+      if they are chosen, the choosing is ranking, and ranking is the severity ADR-0004
+      refused.</p>
+      <p><b>And the argument for it dissolves.</b> #72 sampled <code>did not fire</code> so the
+      two members could be read against each other. Once every member is drillable they can be —
+      by opening the other member. A sample answers a question that full drillability has already
+      answered.</p>
+      ${RULEID === "outage" ? `<p><b>[measured] The sample does not merely fail to be
+      representative — it systematically hides the rows the member exists to surface.</b> Of these
+      <b>214</b> not-evaluable services, <b>20</b> last read <code>reached from internet</code>: a
+      sensitive port that was internet-reachable when we could still see it, and that we have
+      stopped measuring. That is the most alarming row this member can hold. <b>The four rows above
+      contain none of them</b>, and could not, because the order is by subject — which #51 §4
+      makes mandatory — and subject order is uncorrelated with which rows matter. The only sample
+      that would show them is one ordered by what needs attention, which is the queue #51 §4
+      refused. <b>The sample is unfixable in the direction that would fix it.</b></p>` : ``}` : `
+      <p><b>A second partition of one population, authored on the screen.</b> ADR-0024 refused a
+      screen-side domain because it is unversioned by construction; a screen-side grouping is the
+      same object one level in — the denominator of each group moves with nothing recorded.</p>
+      ${RULEID === "plaintext" ? `<p><b>On this rule it is worse than generic.</b> The obvious
+      grouping key is the port, and <b>#53 has just withdrawn <code>plaintext-http-no-https</code>'s
+      <code>80/tcp</code> literal</b> on the ground that a plaintext app on 8080 is exactly the
+      fact the rule is named for. Rolling the member up by port puts that discrimination back on
+      the screen one release after ADR-0024 took it out of the rule — ADR-0011's deleted
+      implicit-TLS port list, rebuilt a third time and in a third place.</p>` : ``}
+      <p>It also carries percentages of the operator's estate, which #44 decision 7 restricted:
+      a rule's own surface counts our rules and lists, never a figure derived over the estate.</p>
+      <p><b>And it never renders the member at all.</b> The subjects are gone. A roll-up replaces
+      the basis of the count with a summary of it, so the thing a drill-down exists to show — the
+      rows the scalar was summed from — is still not shown. It fails at the job before it fails
+      on a rule.</p>`);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════════════════════════════ */
+function render() {
+  const body = PLACE === "inline" ? inlineScreen()
+             : MEMBER ? memberView() : indexScreen();
+
+  document.getElementById("shell").innerHTML = `
+    <h1 class="page">Signals</h1>
+    <p class="sub">A signal is a named fact with evidence and no severity. Each rule renders a
+    census of three members over one population — and never as a delta, a trend or a series
+    (ADR-0024). This prototype shows <b>one</b> of the sixteen rule cards, so that what an index
+    screen of sixteen would do is inferable from it.</p>
+    ${placeVerdict()}
+    ${body}`;
+
+  const link = (k, v) => `<a href="${url({ [k]: v, member: k === "rule" ? "" : MEMBER })}"
+    class="${(k === "place" ? PLACE : k === "broad" ? BROAD : RULEID) === v ? "on" : ""}">${v}</a>`;
+  document.getElementById("foot").innerHTML = `
+    <span class="grp"><span class="ml">place</span>${["inline","view"].map(v => link("place", v)).join("")}</span>
+    <span class="grp"><span class="ml">broad</span>${["full","sample","rollup"].map(v => link("broad", v)).join("")}</span>
+    <span class="grp"><span class="ml">rule</span>${["expiring","plaintext","outage"].map(v => link("rule", v)).join("")}</span>
+    ${MEMBER ? `<span class="grp"><span class="ml">member</span><a class="on" href="#">${MEMBER}</a>
+      <a href="${url({ member: "" })}">← census</a></span>` : ``}
+    <span class="grp" style="margin-left:auto"><span class="ml">issue #74 · prototype</span></span>`;
+}
+render();
+</script>
+</body>
+</html>
