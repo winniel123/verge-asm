@@ -266,6 +266,33 @@ unpriced — a PTR on an entering address is a **measurement** rather than a lis
 [#31](https://github.com/winniel123/verge-asm/issues/31)'s line, but it is a new measurement
 carrying [ADR-0011](./0011-a-facet-is-six-parts.md)'s six obligations and is a scope decision.
 
+## Amendment — [#81](https://github.com/winniel123/verge-asm/issues/81): §4's argument presupposed enumeration, and the range cap does not reach the extension
+
+[ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md) rules that an address-scope `Seed`
+**enumerates** — every address inside a declared CIDR is a subject from the declaration, walked
+every cadence. Three things in this ADR are affected, and none of them is weakened.
+
+**§4 is sound only under that reading, and is now stated as such.** *"A stale literal declaration
+holds the gate open on a stranger's machine — and nothing notices … the only overreach in the model
+that grows silently over time."* If an address-scope `Seed` merely bounded, a released elastic
+address that nothing of the operator's resolves to would never be a subject and would never be
+touched, and §4 would be describing a hazard that cannot occur. It can occur precisely because the
+`/32` is walked. The self-correction argument for the `custody extension` therefore stands on firmer
+ground than it was written on, not weaker.
+
+**The range size cap does not apply to a `custody extension`.** The cap is a check on a **Declared**
+act, and an extension's extent is *recomputed rather than typed* (§3, §4). Capping a measured set
+would silently drop addresses the operator's own names resolve to — the fails-*silently* failure
+§7 refused — and there is no typo to protect against, because nobody typed anything. An extension
+covering 5,000 addresses is 5,000 addresses in custody and 5,000 addresses probed.
+
+**This is the instrument split the two `Seed` kinds were for, now legible.** An operator whose
+holding exceeds the cap declares a **name** scope with an extension: the gate opens over exactly the
+addresses their names resolve to, measured and self-correcting, which is what this ADR's rejected
+`/32`-typing row already preferred. They declare address scopes only for ranges they want swept
+blind. §6's deliberate two-sets divergence is untouched — `Vantage class` still reads literal
+address scopes alone.
+
 ## Consequences
 
 - **The modal install can evaluate the flagship signal.** A cloud-resident operator types the

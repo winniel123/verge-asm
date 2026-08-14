@@ -87,6 +87,22 @@ whose owner we have not identified, which is the case where scanning is least de
 >   operator to confirm each discovered address"* stays rejected, and ADR-0013 rejects it again
 >   in its own terms.
 
+> **Amended 2026-08-14 by [#81](https://github.com/winniel123/verge-asm/issues/81) — see
+> [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md).** This ADR's whole vocabulary is
+> gate-shaped — *classify*, *opens on*, *permitted* — and it never said whether the `operator` side
+> of the table has an **extension** the prober walks. It does, for one of the two `Seed` kinds:
+>
+> - **An address-scope `Seed` enumerates.** Every address inside a declared CIDR is a subject from
+>   the declaration and is probed under the tiers this table permits, whether or not any resolution
+>   ever cited it. A name-scope `Seed` does not enumerate; its addresses arrive by measured
+>   resolution, and only under a `custody extension`.
+> - **The `/22` range size cap is checked at declaration**, per scope, and is operator-configurable.
+>   It is **not** the size cap the #27 amendment above rejected, and the difference is structural:
+>   #27's cap sat *inside the derivation*, deciding on a third party's file whose addresses are
+>   `operator`. This one sits in front of a **Declared act**, adjudicates cost rather than truth,
+>   and cannot fail silently — its only failure mode is a declaration that does not take. `Custody`
+>   itself remains the total lookup ADR-0013 §2 made it, uncapped and unchanged.
+
 ## Consequences
 
 - **Exposure attribution splits by ownership.** For an `owned` address, exposure belongs
