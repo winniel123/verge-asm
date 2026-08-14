@@ -96,6 +96,23 @@ escalation is the block on one side of it**, not a cell.
   still renders, per [ADR-0008](./0008-derivation-versions-move-on-content.md). Vantage class
   therefore joins the enumerated aperture inputs, which ADR-0014 licensed as *recognised rather
   than argued*.
+
+  **Amended by [#58](https://github.com/winniel123/verge-asm/issues/58)
+  ([ADR-0029](./0029-an-alert-fires-on-a-leg.md)): the `Break` half of this consequence is
+  withdrawn.** This ADR's own Decision 1 says `Exposure` exists only where both legs hold a value,
+  so on an install that has never run a vantage of the arriving class there are **no `Exposure`
+  timelines to break** — the first vantage of a class **opens** them. A `Break` is an edge between
+  two spans, so on an opening it is vacuous, which is
+  [ADR-0014](./0014-only-revealed-generalises.md)'s rule and the same reasoning this ADR applied to
+  its own value-space narrowing two consequences below. The case does not arise on a returning
+  vantage either: a vantage of a class that already exists is no aperture change at all, and its
+  `Exposure` timelines hold a `Gap` that closes by the ordinary mechanism. What survives unchanged
+  is the part that carries the protection — **`Vantage class` remains an enumerated aperture
+  input**, so the widening is detected, yields `revealed` on the `Reach` and `Exposure` timelines it
+  opens, and fires one coverage-class message under *we changed how we look*. The estate still does
+  not appear to escalate overnight, and it never did so because of the `Break`: the third
+  consequence above already states the real mechanism — with no one-legged names there is no cell
+  for an opening to move into.
 - **A precondition panel and a board may co-exist.** #28's third density is *"the `precond`
   treatment. No board at all"*, which is right where the precondition removes every value and
   wrong where it removes only the composition. Rendering the ink panel alone would empty the board
