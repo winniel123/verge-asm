@@ -84,7 +84,17 @@ instance of the identical shape — same six days, same conclusion.*
 The line that holds instead: **membership is a property of a subject, aperture is a property of
 looking, and looking is per-timeline.** So `appeared` and `returned` stay where ADR-0006 put them,
 `revealed` generalises to any timeline, and an opening caused by neither is recorded, unnamed and
-unalerted — the subject's own membership transition already carried that news, at the cause.
+unalerted — ~~the subject's own membership transition already carried that news, at the cause~~.
+
+> **QUALIFIED TWICE by the [#63](https://github.com/winniel123/verge-asm/issues/63) amendment
+> below**, which says this clause *"was doing more work than had been checked"*. The membership
+> transition carries the news **only where the root of the entering sub-tree was a `Name` or an
+> `Address`** — a `Service` or an `Endpoint` entering is never a message — and what carries it is the
+> **census** on that message, never the bare fact that something appeared. Read alone, the clause
+> licenses relying on a message that, for a `Service` or `Endpoint` root, does not exist. Marked at
+> the sentence per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+> by [#106](https://github.com/winniel123/verge-asm/issues/106).
 
 This is a correction to ADR-0007 rather than an extension of it. The ticket's instinct that *the
 family is about subjects* was two-thirds right, and the third that is not is precisely the member
