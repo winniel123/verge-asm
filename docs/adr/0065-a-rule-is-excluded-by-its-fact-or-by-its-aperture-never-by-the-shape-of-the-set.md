@@ -89,10 +89,12 @@ surface, and the day the surface widens the exclusion is discharged by construct
 notice that the reasoning went stale, because the reasoning never was about the candidate.
 
 A principled exclusion is **load-bearing prose**, and prose rots. §9.2 is the measurement: its
-principle was withdrawn by ADR-0015 and the note carrying it cited ADR-0015 **zero times**
-(#102, measured), so the row read as settled for eleven tickets on a ground that had been dead the
-whole time. ADR-0058 exists because a superseded mechanism read forward; this is the same failure with
-a *reason* rather than a mechanism in the load-bearing position.
+principle was withdrawn by ADR-0015 at [#41](https://github.com/winniel123/verge-asm/issues/41), the
+note carrying it cites ADR-0015 **zero times** (#102, measured), and the row went on reading as
+settled all the way to #104 on a ground that had been dead since the day it was written down.
+ADR-0058 exists because a superseded **mechanism** read forward; this is the same failure with a
+*reason* in the load-bearing position, and it is worse in one respect — a mechanism's absence is
+eventually noticed when someone looks for it, while a reason's absence is never looked for at all.
 
 The asymmetry is the argument: an exclusion that could have been recorded on either ground should be
 recorded on the aperture one, because that is the ground that cannot go stale unnoticed.
@@ -113,8 +115,8 @@ tidy — applied to the rule namespace instead of to the rows.
 The bar is unchanged and it is ADR-0004's, plus the naming discipline
 `CONTEXT.md` already carries. A candidate still has to read a fact rather than a conclusion, be named
 for the fact rather than for a protocol or a table's contents, and have reference data that changes at
-release cadence. What this ADR removes is a **fourth** bar nobody adopted, which two sessions
-nonetheless applied and one of which (#35) was already corrected for it.
+release cadence. What this ADR removes is a bar **nobody ever adopted** — and which #8, #17 and §9.2
+nonetheless applied, the first two having already been corrected for it by #35.
 
 ### Applied to `smb-signing-not-required`
 
