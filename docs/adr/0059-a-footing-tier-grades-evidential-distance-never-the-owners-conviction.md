@@ -142,11 +142,17 @@ disclosed rather than smoothed.
 - **`873/tcp` rsync moves from the explicit prohibition tier to the explicit trusted-network scoping
   tier.** §2.2's tiers read **prohibition 14 · scoping 12 · weak 2**, coverage **28 of 39** unchanged,
   and 14 + 12 + 2 + 11 = 39. `sensitive-ports.md` §30.
+  > **Composed with [#95](https://github.com/winniel123/verge-asm/issues/95), merged alongside this
+  > one: prohibition 14 · scoping 13 · weak 3 · outside-subject 11, coverage 30 of 41, and 14 + 13 + 3 +
+  > 11 = 41.** `10249/tcp` took a scoping cell and `10248/tcp` a weak one. **The move this ADR licenses
+  > is the same move on either baseline** — which is why §30.8 stated it parametrically.
 - **No `(port, transport)` pair moves and no row moves.** The list stays at **39 pairs**, class totals
   `11 / 7 / 21`, §6.1's `28 + 6 + 5 = 39` and §4.6's 19 exclusions are untouched.
   [ADR-0009](./0009-verge-core-is-a-union.md)'s union is unchanged and
   [ADR-0008](./0008-derivation-versions-move-on-content.md) is **not** triggered — the rule's reference
   data is byte-identical. A tier records how strong a footing is, never whether a row qualifies.
+  > **Composed: 41 pairs, `12 / 7 / 22`, §6.1's `28 + 8 + 5 = 41`, §4.6's 20 exclusions** — all of it
+  > #95's, none of it this ADR's. *No pair moves and no row moves* remains true of #98's own act.
 - **§20.8's universal becomes true.** *"Every prohibition-tier sentence names the public internet"* is
   now a correct statement of a **fourteen**-member tier, made true by moving the counterexample rather
   than by widening the sentence. §20.8's `4369` ruling is **unchanged and re-founded**: `DEP-001` is one
@@ -155,7 +161,9 @@ disclosed rather than smoothed.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) is not touched.** The spec carries the
   list, the claims and the containment arithmetic; none of them reads a tier.
 - **The weak tier, and therefore [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
-  §8's watch list, is unchanged at `5432/tcp` and `5984/tcp`.**
+  §8's watch list, is unchanged at `5432/tcp` and `5984/tcp`.** **Unchanged by this ADR; composed it is
+  three rows** — `10248/tcp` joined the weak tier at #95 in the same merge, and ADR-0032 §8 carries the
+  amendment.
 - **It does not generalise beyond a graded footing column**, and that is ADR-0032's ruling rather than a
   choice made here. [`weak-key-and-signature.md`](../research/weak-key-and-signature.md) has no footing
   tier and gains none.

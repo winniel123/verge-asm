@@ -68,13 +68,23 @@ without reopening this ADR:
 container in the compose file the operator already runs is not a provisioning step — it
 is one container and one volume.
 
-The arithmetic decides it. A small org with ~500 live assets against the ~140-port hot
-set from [#4](https://github.com/winniel123/verge-asm/issues/4) produces ~70k reachability
-observations per day — ~25M rows/year — before certificates, DNS records and HTTP
-identity. Per #14 exposure is *derived*, so the read pattern is temporal window queries
+The arithmetic decides it. A small org with ~500 live assets against the ~~~140-port~~ **131-port**
+hot set from [#4](https://github.com/winniel123/verge-asm/issues/4) produces ~~~70k~~ **~66k**
+reachability observations per day — ~~~25M~~ **~24M** rows/year — before certificates, DNS records and
+HTTP identity. Per #14 exposure is *derived*, so the read pattern is temporal window queries
 over the largest table in the system, running concurrently with a worker streaming NDJSON
 inserts. SQLite offers exactly one writer, and the drift queries want `DISTINCT ON`,
 partial indexes and native interval arithmetic.
+
+> **`~140` was never `verge-core`'s size.** **[measured]** by
+> [#97](https://github.com/winniel123/verge-asm/issues/97): the frequency half is **123, all TCP**, the
+> union is **136 pairs**, and **131** are probed on default settings with UDP off
+> ([`sensitive-ports.md`](../research/sensitive-ports.md) §29, composed with
+> [#95](https://github.com/winniel123/verge-asm/issues/95)'s two admissions). **The original figures are
+> left standing and the decision does not move** — this ADR turns on the order of magnitude and on the
+> concurrent-writer pattern, not on the port count, and it is
+> [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md) that supersedes the estate sizing anyway:
+> a single declared `/22` is 1,024 addresses, twice this whole estate.
 
 "SQLite now, Postgres later" was rejected explicitly: it taxes every query in the drift
 engine to the intersection of both dialects, for the lifetime of v1 — and the drift engine

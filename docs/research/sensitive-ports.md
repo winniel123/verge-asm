@@ -8,7 +8,8 @@ convenience?
 
 **Framing.** This is a **normative** question, and it is not the question
 [#4](https://github.com/winniel123/verge-asm/issues/4) answered. That ticket asked *how likely is
-this port to be found open* and built the ~140-port `verge-core` hot set from it. This one asks
+this port to be found open* and built the ~~~140-port~~ `verge-core` hot set from it — **[measured]**
+at **123 TCP ports** for the frequency half and **136 pairs** for the union, §29. This one asks
 *given the port is open to the internet, is that ever correct?* A port can be common and always
 wrong (3306), or rare and perfectly fine (8443). Frequency data cannot answer it, and the standing
 temptation throughout this note is to let a frequency source stand in for a position. §2 exists to
@@ -33,14 +34,48 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are 14 / 12 / 2** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
 | High ports that are conventionally anything | **Excluded by the determinacy gate**, which is a gate on the *port*, not on the service — §4.3. **Amended by §14 — a squat is contested where the other convention is *live*, which is why 9200 is listed and 9100, 7000 and 7001 are not ([ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md))** |
 | Does the list have a middle | **No middle, one signal, binary** — and not because the middle is empty, but because it is not a property of the port — §5 |
-| Hot-set containment | **Independent lists, one-directional build-time invariant `sensitive ⊆ hot`** — §6. **Superseded by [ADR-0009](../adr/0009-verge-core-is-a-union.md) and never amended here until §29 ([#97](https://github.com/winniel123/verge-asm/issues/97)): `verge-core` is the *union* `frequency-set ∪ sensitive-list`, so containment is **analytic** and **nothing enforces it anywhere** — no build-time test, no config-load check, no runtime check. The lists stay independent and the coupling direction is unchanged; what is withdrawn is the mechanism.** **[measured]** §6.1's arithmetic `28 + 6 + 5 = 39` is re-derived against the 123-member frequency half and **every cell is confirmed** — §29 |
+| Hot-set containment | **Independent lists, one-directional build-time invariant `sensitive ⊆ hot`** — §6. **Superseded by [ADR-0009](../adr/0009-verge-core-is-a-union.md) and never amended here until §29 ([#97](https://github.com/winniel123/verge-asm/issues/97)): `verge-core` is the *union* `frequency-set ∪ sensitive-list`, so containment is **analytic** and **nothing enforces it anywhere** — no build-time test, no config-load check, no runtime check. The lists stay independent and the coupling direction is unchanged; what is withdrawn is the mechanism.** **[measured]** §6.1's arithmetic ~~`28 + 6 + 5 = 39`~~ — composed **`28 + 8 + 5 = 41`** after §27 — is re-derived against the 123-member frequency half and **every cell is confirmed** — §29 |
 | Closest call | **6443 kube-apiserver, excluded** — §4.4 |
+
+> ### Merge reconciliation — the composed state after §27, §28, §29 and §30
+>
+> **[#95](https://github.com/winniel123/verge-asm/issues/95), [#96](https://github.com/winniel123/verge-asm/issues/96),
+> [#97](https://github.com/winniel123/verge-asm/issues/97) and [#98](https://github.com/winniel123/verge-asm/issues/98)
+> were resolved concurrently and merged together.** Each of §27–§30 walked its own figures from the same
+> pre-merge baseline — *39 pairs · classes `11 / 7 / 21` · coverage 28 of 39 · tiers 15 / 11 / 2 / 11 ·
+> §6.1 `28 + 6 + 5 = 39` · §4.6 exclusions 19* — so **each section's absolutes are correct as of its own
+> pass and are read as deltas rather than as totals.** Four of them moved overlapping counts. This table
+> is the composed result, and **§1 carries the current absolutes**.
+>
+> | Figure | Composed | How it composes |
+> |---|---|---|
+> | §1 pair count | **41** | 39 `+ 10249/tcp + 10248/tcp` — §27 |
+> | §3 class totals | **`12 / 7 / 22`** | §27; `10249` Class A, `10248` Class C |
+> | §2.2 **prohibition** tier | **14** | 15 `− 873/tcp` — §30 |
+> | §2.2 **scoping** tier | **13** | 11 `+ 10249` (§27) `+ 873` (§30) |
+> | §2.2 **weak** tier | **3** — `5432`, `5984`, `10248` | 2 `+ 10248` — §27 |
+> | §2.2 *outside this table's subject* | **11**, unchanged | `14 + 13 + 3 + 11 = 41` |
+> | §2.2 footing coverage | **30 of 41** | `14 + 13 + 3 = 30` |
+> | §6.1 containment arithmetic | **`28 + 8 + 5 = 41`** | §27; both new rows are TCP and neither is in `F` |
+> | §4.6 exclusions | **20** | 19 `+ 10258/tcp`, refused — §27 |
+> | §10.1's Class A walk | **twelve rows** | §27 |
+> | §17.1's population of negatives | **fifteen** | §27; `10258`'s §4.6 entry, bounded on arrival |
+> | [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | **three rows** — `5432`, `5984`, `10248` | the weak tier is the watch list |
+> | The frequency half `F` | **123, all TCP** | §29, and **unmoved by §27** — neither new row is in `F` |
+> | `verge-core` | **136 pairs — 131 TCP, 5 UDP** | `\|F\| + \|S \ F\|` = `123 + (8 + 5)`. §29 wrote `123 + 11 = 134` against the pre-§27 list |
+> | [`safe-active-probing.md`](./safe-active-probing.md) §2.4's aperture line | **`0 of 41 sensitive pairs unread`** | the denominator is `\|S\|`; the numerator is `0` for every `\|S\|`, and `0 of 16 rules unevaluable` is unchanged |
+>
+> **Nothing is re-decided in composing these.** No verdict, no class, no row and no footing moves; each
+> section keeps its own reasoning and its own `FIGURE DELTA`. Where a section states an absolute a
+> sibling has since moved, it is marked in place and points here — per
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), a figure
+> that would mislead a reader who meets it alone is not withdrawn by being corrected somewhere else.
 
 The headline result is the one that would not have come out of a frequency instrument:
 
@@ -279,6 +314,13 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > or `10258`, so §18's category statement reaches none of them — the third instance of ADR-0050
 > limb 2 failing, after `4369` (§18.5) and §24.5. Read §27.5, §27.6 and §27.13 before quoting either
 > new cell.
+>
+> **Merge reconciliation — this block's tier line is as of §27's own pass, and one cell has moved since.**
+> §30 ([#98](https://github.com/winniel123/verge-asm/issues/98)) ran concurrently with §27 and moved
+> `873/tcp` from the prohibition tier to the scoping tier. Composed, the tiers are **prohibition 14 ·
+> scoping 13 · weak 3 · outside-subject 11**, and coverage is **30 of 41** — `14 + 13 + 3 + 11 = 41`.
+> §27's own act is unchanged: it added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier,
+> and both are in the composed figures above. §1's merge-reconciliation table carries the derivation.
 
 > **Amended by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)). **One cell moves
 > between two rows of this table, and it is the first time this section has said what the rows are
@@ -314,6 +356,14 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > on a footing that is **not a sentence**, so ten of its twelve members are graded by premise count and
 > two by §24's relative-strength reasoning. Read §30.7 and §30.9 before quoting this table's scoping row
 > as homogeneous.
+>
+> **Merge reconciliation — this block's tier line is as of §30's own pass, and two rows have entered the
+> table since.** §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) ran concurrently with §30
+> and admitted `10249/tcp` to the **scoping** tier and `10248/tcp` to the **weak** tier. Composed, the
+> tiers are **prohibition 14 · scoping 13 · weak 3 · outside-subject 11**, coverage is **30 of 41**, and
+> `14 + 13 + 3 + 11 = 41`. §30's own act — `873/tcp` leaving the prohibition tier for the scoping tier —
+> is unchanged, and §30.8 states it parametrically for exactly this reason. §1's merge-reconciliation
+> table carries the derivation.
 
 > **Amended by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)). **Every tier, count
 > and coverage figure is unchanged — prohibition 15 · scoping 11 · weak 2 · outside 11 · coverage 28 of
@@ -340,6 +390,19 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > cell does not move. **No `(port, transport)` pair moves, no tier moves, no `Break`.** §28.9 records
 > that **no co-owner names internet-facing IPMI as supported**, discharging §23.10's reopening
 > criterion.
+>
+> **Merge reconciliation — this block's *"unchanged"* is true of §28's own act and its numerals are as
+> of §28's own pass.** Two siblings moved the table underneath it: §27
+> ([#95](https://github.com/winniel123/verge-asm/issues/95)) admitted `10249/tcp` to the scoping tier and
+> `10248/tcp` to the weak tier, and §30 ([#98](https://github.com/winniel123/verge-asm/issues/98)) moved
+> `873/tcp` from the prohibition tier to the scoping tier. Composed, the tiers are **prohibition 14 ·
+> scoping 13 · weak 3 · outside-subject 11** and coverage is **30 of 41**. **`623/udp` itself does not
+> move in any of it** — it stays on the list, stays Class C, and stays in the prohibition tier where §28
+> re-founded it. §1's merge-reconciliation table carries the derivation.
+>
+> **Three amendment blocks in this section now state a tier line from three different baselines** — this
+> one, §27's and §30's. They are not in disagreement and are deliberately not patched into agreement:
+> each records what its own pass did, and each carries the composed line beside it.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -1671,6 +1734,27 @@ off by default on signal-to-cost grounds, and the hot set is TCP-only.
 > `S_udp ∩ F = ∅` by construction for every possible `S`. A TCP row added outside `F` lands in cell 2
 > alone; a class change moves neither. The per-row membership table and the derived-set arithmetic
 > (`|verge-core| = 123 + 11 = 134` pairs) are at §29.2 and §29.3.
+
+> **Merge reconciliation — §29 checked this arithmetic against the list as it stood before §27 landed,
+> and §27 landed in the same merge.** §29's own result is unchanged: every cell was re-derived against
+> the 123-member frequency half `F`, and `F` does **not** move, neither `10249/tcp` nor `10248/tcp` being
+> in it. What moves is `|S|`. Composed:
+>
+> - **`28 + 8 + 5 = 41`** — cell 1 unchanged at 28, cell 2 **8**, cell 3 unchanged at 5. §29's *"`28 + 6
+>   + 5 = 39` is confirmed"* is confirmed **as of 39 pairs**, and §29.3's identity is what carries it
+>   forward: a TCP row admitted outside `F` lands in cell 2 alone, which is what both new rows did.
+> - **§29.2's membership test ran over 39 rows.** The two §27 admits are measured at §27.12 and in
+>   ADR-0009's #95 amendment against the same supplement list, with the same answer — **neither is in
+>   `F`** — so the composed table is 41 rows, 28 in, 8 TCP out, 5 UDP out.
+> - **`|verge-core| = |F| + |S \ F| = 123 + (8 + 5) = 136` pairs — 131 TCP, 5 UDP.** §29.3's `123 + 11 =
+>   134` is its figure against the pre-§27 list.
+>
+> **And the *"forced additions"* clause in §27's block above is withdrawn on the same ground §29 withdrew
+> §24's**, per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> §27 was written concurrently with §29 and inherited §6's dissolved mechanism from §24. Nothing fires
+> and nothing is forced: `10249/tcp` and `10248/tcp` were inside `verge-core` from the instant §27
+> admitted them, because the union is a definition. **The arithmetic §27 states is right; the mechanism
+> it names does not exist.** §1 carries the current absolutes.
 
 **These must be `not-evaluable`, not clean.** An operator on default settings has six UDP rows on
 the sensitive list that are never measured. Reporting those as not-firing would be exactly the
@@ -5949,6 +6033,27 @@ That flag is discharged.
 > > [#95](https://github.com/winniel123/verge-asm/issues/95) and
 > > [#96](https://github.com/winniel123/verge-asm/issues/96) do to the population.
 >
+> > **Merge reconciliation — §27's two rows take their cells here, and the parametric statement above is
+> > discharged.** §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) landed in the same merge
+> > as §30 and amended §2.2 without restating this table; #96 removed no row. **Composed, the tiers read
+> > prohibition 14 · scoping 13 · weak 3 · outside-subject 11, coverage 30 of 41, and 14 + 13 + 3 + 11 =
+> > 41.** The composed membership, which is this table's job to carry:
+> >
+> > - **Explicit prohibition — 14 pairs:** unchanged from §30's list above. Neither new row is
+> >   prohibition-tier: **[measured]** `security-checklist.md` at `release-1.34` names neither number
+> >   (§27.5), so ADR-0050 limb 2 fails for both
+> > - **Explicit trusted-network scoping — 13 pairs:** §30's twelve · **`10249`**, on a restricting
+> >   `metricsBindAddress: 127.0.0.1:10249` default *plus* an owner document placing the caller at
+> >   `localhost` on the node — §27
+> > - **Shipped default only — 3 rows:** `5432` · `5984` · **`10248`**, on a restricting
+> >   `healthzBindAddress: "127.0.0.1"` and nothing else — §27. **The weak tier is three rows for the
+> >   first time**, and [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
+> >   §8's watch list grows with it
+> > - *Outside this table's subject — 11 pairs* — **unchanged**
+> >
+> > **No verdict is made here.** Every cell above is §27's or §30's own; this note composes them and
+> > moves nothing.
+>
 > **Both kubelet cells are conditional on [#83](https://github.com/winniel123/verge-asm/issues/83)**,
 > which is deciding whether either row survives Class A on the finding that the shipped source
 > contradicts the generated reference page. A footing is evidence for a claim and not a claim
@@ -9965,7 +10070,7 @@ measurement, and it is the thinnest thing in this section.
 | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
 | §17.1's population of negatives | fourteen | **unchanged.** This section sweeps **positives**; nothing here creates or retires a sole-ground negative |
 | §17.8's *fixed point* | finished as of a table state | **not re-armed.** No row's footing changes **tier**; two change **warrant within** a tier, which §20.9 already ruled is not a re-arming event |
-| §20.8's tier criterion | *"Every prohibition-tier sentence names the public internet"* | **refuted as a universal** (§26.3). 13 clean · 1 marginal (`3306`) · 1 failing (`873`). **Reported, not applied** — applying it moves tier counts. **Superseded by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)): **applied**, `873/tcp` demotes, the tiers read **14 / 12 / 2**, and the walk resolves to **14 clean · 1 failing** once §30.3 disposes of `3306` |
+| §20.8's tier criterion | *"Every prohibition-tier sentence names the public internet"* | **refuted as a universal** (§26.3). 13 clean · 1 marginal (`3306`) · 1 failing (`873`). **Reported, not applied** — applying it moves tier counts. **Superseded by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)): **applied**, `873/tcp` demotes, the tiers read **14 / 12 / 2** — **14 / 13 / 3 as composed with §27** — and the walk resolves to **14 clean · 1 failing** once §30.3 disposes of `3306` |
 | §3.4's MySQL quotation | begins *"MySQL uses port 3306 by default"* | **the preceding sentence of the same passage is restored** (§26.5 amendment to §3.4). No footing and no tier moves |
 | §16.7 / §18.6's *"two cells are thin"* successor note | one cell — `10250` | **unchanged.** Nothing here is added to or removed from that flag |
 
@@ -10062,11 +10167,28 @@ attestation one — which is why §27.9 decides limb 1's trigger rather than def
 > 39 · §6.1 `28 + 6 + 5` · exclusions 19.** §26, §25 and this section were resolved concurrently
 > with three other passes moving figures in this file.
 
+> **Merge reconciliation.** This section's `FIGURE DELTA` is a delta and its absolutes are as of its own
+> pass. Composed with the four siblings merged alongside it, the note stands at **41 pairs · classes
+> `12 / 7 / 22` · §2.2 tiers prohibition 14 · scoping 13 · weak 3 · outside-subject 11 · coverage 30 of
+> 41 · §6.1 containment `28 + 8 + 5 = 41` · §4.6 exclusions 20**, and `verge-core` is **136 pairs**.
+> **Two of this section's own figures are superseded by §30** ([#98](https://github.com/winniel123/verge-asm/issues/98)),
+> which moved `873/tcp` between tiers in a concurrent pass: *prohibition 15 → 15* reads **14**, and
+> *scoping 11 → 12* reads **13**. Every other figure in the delta above composes unchanged. **And this
+> section's *"§6's one-directional invariant forces two more hot-set additions"* is withdrawn as a
+> mechanism** by §29 ([#97](https://github.com/winniel123/verge-asm/issues/97)) and
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) — the
+> union is a definition, so nothing fires and nothing is forced; the two pairs were inside `verge-core`
+> from the instant this section admitted them. What this section decided is unchanged by any of it; what
+> it totals is not. §1 carries the current absolutes.
+
 **This is the second section of this note to spend
 [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s price, and §24 was the first.** Two
 pairs enter, so `sensitive-port-reached-from-internet`'s content moves again, its rule version bumps,
 every evaluation `Break`s, [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union widens a second
-time, and §6's one-directional invariant forces two more hot-set additions. That was the ticket's
+time, and ~~§6's one-directional invariant forces two more hot-set additions~~ — **withdrawn as a
+mechanism by §29 and [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md):
+the union is a definition, so nothing fires and nothing is forced, and both pairs were inside
+`verge-core` from the instant this section admitted them.** That was the ticket's
 stated price and it is paid knowingly.
 
 ### 27.1 What was retrieved
@@ -10703,10 +10825,10 @@ Walked against the composed post-§24 state, with §25's and §26's no-move resu
 | §3.2 Class B | 7 | **7, unchanged.** Untouched by this section |
 | §3.3 Class C | 21 | **22.** `10248/tcp` joins on Claim 3. 12 + 7 + 22 = 41 |
 | §2.2 footing table — coverage | 28 of 39 | **30 of 41.** Both new rows take a footing cell |
-| §2.2 footing table — prohibition tier | 15 pairs | **15, unchanged.** No prohibition sentence names either number, and §18's category statement reaches neither (§27.5) |
-| §2.2 footing table — **scoping tier** | 11 pairs | **12 pairs.** `+10249` — a restricting default *plus* an owner document placing the caller at `localhost` on the node is *more than a default*, which is §24.12's own criterion for this tier |
+| §2.2 footing table — prohibition tier | 15 pairs | **15, unchanged** by this section. No prohibition sentence names either number, and §18's category statement reaches neither (§27.5). **Composed: 14** — §30 moved `873/tcp` out concurrently |
+| §2.2 footing table — **scoping tier** | 11 pairs | **12 pairs.** `+10249` — a restricting default *plus* an owner document placing the caller at `localhost` on the node is *more than a default*, which is §24.12's own criterion for this tier. **Composed: 13** — §30 moved `873/tcp` in concurrently |
 | §2.2 footing table — **weak tier** | 2 rows (`5432`, `5984`) | **3 rows.** `+10248`, on a restricting shipped default and nothing else |
-| §2.2 footing table — *outside this table's subject* | 11 pairs | **11, unchanged.** 15 + 12 + 3 + 11 = 41 |
+| §2.2 footing table — *outside this table's subject* | 11 pairs | **11, unchanged.** 15 + 12 + 3 + 11 = 41, and **composed 14 + 13 + 3 + 11 = 41** |
 | §2.4's squat table | lists `10250`, `10255`, `10256`, `10257`, `10259` inside explicit *Unassigned* ranges | **three numbers added** — `10248` and `10249` inside `10202-10251 Unassigned`, `10258` inside `10254-10259 Unassigned` (§27.8) |
 | §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** `10248` matches its footing form but §4.5's row is named for PostgreSQL's documented *absence of any position*, which is a stronger disclosure than a missing sentence |
 | §4.6 exclusions | 19 named | **20.** `10258/tcp` enters, on a claim-gate failure with a shipped-listener failure beneath it |
@@ -10722,7 +10844,7 @@ Walked against the composed post-§24 state, with §25's and §26's no-move resu
 | §17.1's population of negatives | fourteen | **fifteen**, `10258`'s entering §4.6. It is **overdetermined** under ADR-0046 limb 1 and therefore bounded on arrival and **not** exposed; it is swept for the record at §27.7 over Kubernetes' three document classes |
 | §17.8's and §22.8's *residue zero* | zero | **unchanged.** This section opens no §2.4 residue: determinacy passes for both admitted numbers, and `10258`'s refusal is a claim-gate refusal |
 | §8 | 12 questions, all closed | **12, unchanged.** §27.14's items are routed, not parked |
-| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | widened by two TCP pairs at §24 | **widened by two more.** The definition is unchanged; the sensitive half gains `10249/tcp` and `10248/tcp`, and §6's one-directional invariant forces both into the hot set. The UDP arithmetic — *five* from the sensitive half — is **untouched** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | widened by two TCP pairs at §24 | **widened by two more.** The definition is unchanged; the sensitive half gains `10249/tcp` and `10248/tcp`, and ~~§6's one-directional invariant forces both into the hot set~~ — **withdrawn by §29 / [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md); the union carries them by construction and there is no addition to perform.** The UDP arithmetic — *five* from the sensitive half — is **untouched**. **Composed `verge-core` is 136 pairs, 131 TCP** |
 | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | spent once, at §24 | **spent a second time.** Two more members, content moves, version bumps, every evaluation `Break`s |
 | [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984` | **`5432`, `5984`, `10248`.** The weak tier grew, so the watch list grew with it |
 | [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) | configuration artefacts | **extended to an executable** by [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md), which cites it. ADR-0036 itself is **not** amended |
@@ -10880,6 +11002,17 @@ each left. Two questions, one corpus, one retrieval.
 > **Two figures inside §26 do move**, and only those: §26.5's filter arithmetic goes from
 > `13 + 0 + 8 + 1 + 2` to **`12 + 0 + 8 + 1 + 3`** — `623/udp` leaves Filter A for the retrieved
 > column — and §26.2's class cell for the row is re-assigned. §26.5's rider is discharged.
+
+> **Merge reconciliation.** *"No row, no class, no tier, no coverage figure moves"* is true of **this
+> section's own act** and stays on the record; the absolutes it quotes are as of its own pass, and three
+> siblings moved them in the same merge. Composed, the note stands at **41 pairs · classes `12 / 7 / 22`
+> · §2.2 tiers prohibition 14 · scoping 13 · weak 3 · outside-subject 11 · coverage 30 of 41 · §6.1
+> containment `28 + 8 + 5 = 41` · §4.6 exclusions 20**. §27
+> ([#95](https://github.com/winniel123/verge-asm/issues/95)) admitted `10249/tcp` and `10248/tcp`; §30
+> ([#98](https://github.com/winniel123/verge-asm/issues/98)) moved `873/tcp` from the prohibition tier to
+> the scoping tier. **`623/udp` is untouched by both** — it stays on the list, stays Class C, and stays in
+> the prohibition tier. §26.5's `12 + 0 + 8 + 1 + 3 = 24` is internal to §26 and composes unchanged. §1
+> carries the current absolutes.
 
 **Both questions come back the way the row was already standing, and the second comes back much
 better than that.** The Class A argument #90 recorded is refused at §10.1 **Step 2**, measured off
@@ -11136,8 +11269,9 @@ gave rather than by accident.
 > the next session does not re-run them: Cipher Suite 0 (§28.5 A) and the RAKP hash disclosure
 > (§28.5 B).
 >
-> **4. §10.1's Class A walk is untouched** — it walks Class A's eleven rows and can only remove; a
-> candidate for **addition** is a different act and is performed here rather than there.
+> **4. §10.1's Class A walk is untouched** — it walks Class A's eleven rows (**twelve as composed**,
+> §27 having admitted `10249/tcp` concurrently) and can only remove; a candidate for **addition** is a
+> different act and is performed here rather than there.
 
 **The `why` cell §23.7 restated stands, and gains its owner citations.** No edit is made to §3.3;
 per §10.7's and §20.5's convention the current text is recorded here:
@@ -11337,6 +11471,14 @@ count**, and it is recorded so that pass does not have to re-check this row.
 
 Walked against the composed post-merge state — 39 pairs, `11 / 7 / 21`, coverage 28 of 39,
 containment `28 + 6 + 5 = 39`, exclusions 19.
+
+> **The baseline above is the state as of this pass, and §27 and §30 moved it in the same merge.** Every
+> *"unchanged"* below is unchanged **by this section**, which is what the column claims and what stays
+> true. The composed figures are **41 pairs · `12 / 7 / 22` · coverage 30 of 41 · tiers 14 · 13 · 3 · 11
+> · containment `28 + 8 + 5 = 41` · exclusions 20**; §10.1's Class A walk is **twelve rows**, §17.1's
+> population of negatives is **fifteen**, and ADR-0032 §8's watch list is **three rows** — `5432`,
+> `5984`, `10248`. §26.3's *13 clean · 1 marginal · 1 failing* is superseded by §30.3 to **14 clean · 1
+> failing**. None of it reaches `623/udp`.
 
 | Where | Was | Is |
 |---|---|---|
@@ -11597,6 +11739,14 @@ stops at the kubelet and reaches no other control-plane component.
 
 **28 in · 6 TCP out · 5 UDP out.** `28 + 6 + 5 = 39`.
 
+> **Composed: 28 in · 8 TCP out · 5 UDP out — `28 + 8 + 5 = 41`.** §27
+> ([#95](https://github.com/winniel123/verge-asm/issues/95)) admitted `10249/tcp` and `10248/tcp` in a
+> pass concurrent with this one. **Neither is in `F`** — §2.3's orchestration limb is the same seven
+> ports this table reads it as, and §27.12 measures both against it — so each lands in cell 2 and in
+> `|S \ F|`, exactly as §29.3 predicts. **Cells 1 and 3 do not move, and `F` does not move.** The two
+> rows are appended to this table's *out* column rather than re-typed into it, so the measurement above
+> stays the measurement this section made.
+
 **§6.1's enumeration of the 28 is exact.** Its list — `21, 23, 139, 445, 513, 514, 873, 2049, 2181,
 2375, 2376, 2379, 2380, 3306, 5432, 1433, 5900, 5984, 6000, 6379, 9042, 9200, 9300, 10250, 10255,
 11211/tcp, 27017, 27018` — is set-identical to the *in* column above, in both directions. It was
@@ -11626,7 +11776,18 @@ and 2 and simply **count** cell 3.
 
 ```
 |verge-core| = |F| + |S \ F| = 123 + (6 + 5) = 134 pairs — 129 TCP, 5 UDP
+
+composed, after §27 admitted 10249/tcp and 10248/tcp — neither in F:
+|verge-core| = |F| + |S \ F| = 123 + (8 + 5) = 136 pairs — 131 TCP, 5 UDP
 ```
+
+> **`136` is the figure to quote, and `134` is this section's own against the pre-§27 list.** It is the
+> identity above that survives, not the numeral — which is why §29.3 was written this way and why the
+> composed value falls out of it without a re-measurement. **This is the pass's main cross-file
+> casualty**: `134` and `129` were carried into
+> [`safe-active-probing.md`](./safe-active-probing.md) §2.3 and into
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s #97 amendment, and both read **136** and **131**
+> composed.
 
 **What the three concurrent passes do to these figures.** Stated so the parent re-derives rather than
 hand-patches. A row added to the sensitive list on a **TCP** port outside `F` lands in **cell 2** and
@@ -11641,6 +11802,12 @@ C → Class A leaves `28 + 6 + 5` untouched. A **footing tier** move touches §2
 > pairs the frequency half carries, and their memberships are not the same set — §2.2's 28 excludes
 > Class B's seven and `69/udp` as out of subject, all seven of Class B's TCP rows bar `512/tcp` being
 > inside §6.1's 28. A pass moving one and propagating to the other would corrupt both.
+>
+> **Composed, the coincidence has dissolved and the warning is stronger for it.** §27 admitted two rows
+> that each take a footing cell and neither of which is in `F`, so §2.2's coverage reads **30 of 41**
+> while §6.1's first cell stays at **28**. The two numbers now differ, which is what they always were —
+> a pass that had propagated one to the other would have written `30` into a cell measured against the
+> frequency half.
 
 ### 29.4 The two ports the ticket asked about
 
@@ -11718,6 +11885,14 @@ per day"*. That was an estimate. Measured against
 | One pass, host **dropping** — the 20-concurrent × 3 s **concurrency** cap binds at 6.67/s | 19.0 s | **19.3 s** |
 | Same, with §6.3's 2 retries | 57.1 s | **58.1 s** |
 
+> **Composed, after §27's two.** The *After §24* column is this section's own measurement and stands.
+> §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) admitted two more TCP pairs outside `F`
+> in a concurrent pass, so composed the figures are **136 `verge-core` pairs · 131 TCP probed on default
+> settings · 2.62 s answering · 19.6 s dropping · 58.9 s with 2 retries** — **+3.1 %** of the daily
+> tier's per-host budget against the pre-§24 127. **Every structural conclusion below is unchanged**: the
+> caps that bind, the concurrency bound, the 200 pkt/s ceiling and the `suspect-firewall` threshold are
+> all indifferent to the difference between 129 and 131.
+
 **+1.6 % of the daily tier's per-host probe budget**, and the widening changes nothing structural:
 
 - **The technique is untouched.** §3's TCP connect, non-root, `cap_drop: [ALL]` posture is a property
@@ -11757,9 +11932,10 @@ from few. It is the shape ADR-0009's coupling direction commits to, priced rathe
    [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
    records the rule. **What #12 must carry is the union definition and the decomposition, never a
    test.**
-5. **`~140` is not the frequency half's size and has never been.** It is **123**, and 134 for the
-   union. Corrected at [`safe-active-probing.md`](./safe-active-probing.md) §2.3 and routed onward —
-   §29.9.
+5. **`~140` is not the frequency half's size and has never been.** It is **123**, and ~~134~~ **136 as
+   composed** for the union — §27 admitted two more TCP pairs outside `F` in a concurrent pass, and
+   `123` itself does not move. Corrected at
+   [`safe-active-probing.md`](./safe-active-probing.md) §2.3 and routed onward — §29.9.
 
 ### 29.8 Every dependent figure, walked rather than asserted
 
@@ -11775,6 +11951,15 @@ from few. It is the shape ADR-0009's coupling direction commits to, priced rathe
 > **Checked and left alone:**
 > - §1 pair count **39** · §3 class totals **11 / 7 / 21** · §2.2 footing coverage **28 of 39** and tiers **15 / 11 / 2 / 11** · §4.6 exclusions **19** · §6.1 arithmetic **28 + 6 + 5 = 39** · §2.2 weak tier **`5432`, `5984`** · ADR-0032 §8 watch list · §17.8's fixed point · §8's twelve questions · ADR-0008's rule version and `Break`
 
+> **Merge reconciliation.** *"Checked and left alone"* is true of **this section's own act** — it moves
+> no row and no cell, and that stands. The values it quotes are as of its own pass, and two siblings moved
+> them in the same merge. Composed, the note stands at **41 pairs · classes `12 / 7 / 22` · §2.2 coverage
+> 30 of 41 at tiers 14 · 13 · 3 · 11 · §4.6 exclusions 20 · §6.1 arithmetic `28 + 8 + 5 = 41` · weak tier
+> `5432`, `5984`, `10248` · ADR-0032 §8's watch list three rows**, and **`verge-core` is 136 pairs, 131
+> TCP.** §29's measured objects — `F` at **123, all TCP**, and the containment identity at §29.3 — do
+> **not** move: neither `10249/tcp` nor `10248/tcp` is in `F`, so both land in cell 2 and nothing else
+> shifts. The aperture line reads **`0 of 41 sensitive pairs unread`**. §1 carries the current absolutes.
+
 | Where | Was | Is |
 |---|---|---|
 | §1 pair count | 39 | **39, unchanged.** This section admits and refuses nothing |
@@ -11787,12 +11972,12 @@ from few. It is the shape ADR-0009's coupling direction commits to, priced rathe
 | §7.1 route 3 — *"§6's invariant targets the hot set specifically"* | a live invariant | **restated.** The tier-cadence route to `not-evaluable` is unaffected and its reason is now the union rather than a test — the hot tier is still the only tier with a guaranteed cadence |
 | §6.3 *"the invariant is mechanical, so it wants a test, not a person"* | true | **withdrawn.** It wants neither; it is a definition. The **governance** half of §6.3 — who revises either input list — is untouched and stays fog |
 | §6.2's `161/tcp` / `623/tcp` defect | a live defect in the shipped hot set | **discharged, and now visible in the count.** ADR-0009 removed both; `F` is 123 rather than 125 because of it, and §2.3's prose had never been told |
-| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | widened by two TCP pairs, membership **asserted** | **unchanged as a definition; the membership claim is measured.** `verge-core` is **134 pairs** — 123 frequency + 11 sensitive-only. Gains a #97 amendment |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | widened by two TCP pairs, membership **asserted** | **unchanged as a definition; the membership claim is measured.** `verge-core` is **134 pairs** — 123 frequency + 11 sensitive-only; **composed, 136 pairs — 123 + 13**, §27 having added two TCP pairs outside `F`. Gains a #97 amendment |
 | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | spent by §24 | **not re-spent.** `sensitive-port-reached-from-internet`'s reference data is byte-identical to §24's; this section moves no row |
 | [`safe-active-probing.md`](./safe-active-probing.md) §2.3 | *"Roughly 140 TCP ports"*, Management/OOB limb listing `161 (TCP), 623` | **123, and the limb annotated** — ADR-0009 removed both and §2.3 had never been amended. Edited in place |
-| [`safe-active-probing.md`](./safe-active-probing.md) §2.4 | `0 of 37 sensitive pairs unread` | **`0 of 39`.** The **numerator** is `0` for every `N` by the union and is not a measurement of anything that can move; the denominator is `|S|` |
+| [`safe-active-probing.md`](./safe-active-probing.md) §2.4 | `0 of 37 sensitive pairs unread` | **`0 of 39`**, and **`0 of 41` as composed** — §27 moved `|S|` again in the same merge. The **numerator** is `0` for every `N` by the union and is not a measurement of anything that can move; the denominator is `|S|` |
 | [`nmap-services-licence.md`](./nmap-services-licence.md) §6.2 | 81 / +44 / 125 / 123 | **confirmed by independent re-derivation.** Its parenthetical parking `~140` as out of scope is now discharged, elsewhere |
-| [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md), [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) | quote `0 of 37 sensitive pairs unread` | **stale denominators, deliberately not edited here** — §29.9 |
+| [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md), [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) | quote `0 of 37 sensitive pairs unread` | **stale denominators, deliberately not edited here** — §29.9. **Repaired in the merge-reconciliation pass**: both read `0 of 41`, and the `~140` sizings in ADR-0047 §345 and ADR-0049 §89 are marked at **136 pairs / 131 probed** |
 | §8 | 12 questions, all closed | **12, unchanged** |
 
 **Routed to [#12](https://github.com/winniel123/verge-asm/issues/12), and it is a subtraction rather
@@ -11821,7 +12006,22 @@ is the conservative direction and moves no ruling. They are **not edited here**:
 moving `|S|` concurrently, so a hand-patched denominator would be stale before it merged, and the
 right repair is one edit after all five land. Ticketed rather than smoothed — §29.10.
 
-**`0 of 39 sensitive pairs unread` is a numerator this section did not re-measure.** It is `0` because
+> **That edit is made, and the composed figure is 136 rather than 134** — `123 + (8 + 5)`, §27 having
+> admitted two TCP pairs outside `F` in the same merge; **131** are probed on default settings.
+> [ADR-0001](../adr/0001-stack-and-runtime.md), [ADR-0005](../adr/0005-scan-execution-model.md),
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s opening,
+> [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md),
+> [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) §345,
+> [ADR-0049](../adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md) §89,
+> [`insecure-listener-rules.md`](./insecure-listener-rules.md),
+> [`nmap-services-licence.md`](./nmap-services-licence.md) and
+> [`project-authored-constants.md`](./project-authored-constants.md) each carry `~140` and are marked in
+> place rather than rewritten: **every one of them overstates**, which is the conservative direction, and
+> **no ruling in any of them turns on the figure** — the durations derived from it are annotated with
+> their corrected values beside them rather than recomputed into the passes' own tables.
+
+**`0 of 39 sensitive pairs unread` — `0 of 41` as composed — is a numerator this section did not
+re-measure.** It is `0` because
 ADR-0009's union puts every sensitive pair inside `verge-core`, and the five UDP pairs are excluded
 from the count on [#44](https://github.com/winniel123/verge-asm/issues/44)'s ground that they hold no
 subject at all rather than on any ground this section establishes. The **denominator** is corrected
@@ -11855,7 +12055,9 @@ and the one #4 §6.3 originally got wrong. No packet has been sent.
   **second time in the same pass**, on a different document, and it is why ADR-0058 is minted rather
   than left as an observation about §6.
 - **Both `28`s were tested against each other before either was quoted.** §2.2's footing coverage and
-  §6.1's first cell are both `28 of 39` and are different sets. They were enumerated separately and
+  §6.1's first cell are both `28 of 39` and are different sets — **and composed they are no longer even
+  equal: 30 of 41 against 28**, §27's two rows taking a footing cell each while neither enters `F`.
+  They were enumerated separately and
   the memberships compared; the coincidence is real and the sets differ. §13.10 recorded a hand count
   as *"the kind of thing that goes wrong"*, and two equal counts over one denominator in one file is
   the version of that hazard that survives a careful reader.
@@ -11950,6 +12152,15 @@ count**, and it is the right proxy for *this* table because the public internet 
 weak 2**, coverage **28 of 39** (§18.6 as amended by §24), not the `15 / 9` the ticket's parent figures
 were drafted against.
 
+> **That baseline is the state §30 walked, and §27 ([#95](https://github.com/winniel123/verge-asm/issues/95))
+> moved it in the same merge**, admitting `10249/tcp` to the scoping tier and `10248/tcp` to the weak
+> tier. **The walk below is unaffected in every cell** — neither new pair is in the prohibition tier, and
+> §27's own footing verdicts are its own. Composed, the tier this section reads is **prohibition 15
+> before the move and 14 after**, the scoping tier is **12 before and 13 after**, the weak tier is **3**,
+> and coverage is **30 of 41**. Two rows are therefore absent from the two tables below and are not added
+> to them: `10249/tcp` in the scoping tier, on §27's footing, and `10248/tcp` in the weak tier, which
+> this section's subject excludes.
+
 **The prohibition tier, all fifteen.** The test is limb 3's: does the owner's own sentence, at the
 version the note cites, name the public internet?
 
@@ -11975,7 +12186,9 @@ version the note cites, name the public internet?
 > §30.3's disposal of `3306`, not contradicted: the marginal cell resolves clean, so `873/tcp` is the
 > **sole** counterexample.
 
-**The scoping tier, all eleven — checked for the opposite failure.** A criterion applied in one direction
+**The scoping tier, all eleven as this section found it — twelve on the composed baseline, `10249/tcp`
+having entered it concurrently at §27, and thirteen after `873/tcp` joins below. Checked for the
+opposite failure.** A criterion applied in one direction
 that quietly promotes rows in the other is not an application, it is a rewrite. Limb 3 forecloses it —
 the lexical test is **necessary and not sufficient** — but the check is run rather than asserted.
 
@@ -12057,7 +12270,10 @@ ground rather than on a weakened one — §30.5.
 > - **§20.8's criterion is *applied*, not restated in its extension.** **`873/tcp` rsync moves from the
 >   explicit prohibition tier to the explicit trusted-network scoping tier.**
 > - **§2.2's footing tiers read prohibition 14 · scoping 12 · weak 2**, coverage **28 of 39**
->   unchanged; 14 + 12 + 2 + 11 = **39**.
+>   unchanged; 14 + 12 + 2 + 11 = **39**. **Composed with §27, which admitted two rows in the same
+>   merge: prohibition 14 · scoping 13 · weak 3, coverage 30 of 41, and 14 + 13 + 3 + 11 = 41.** This
+>   section's own move — `873/tcp` out of the prohibition tier and into the scoping tier — is the same
+>   move on either baseline, which is what §30.8 states parametrically.
 > - **§20.8's sentence is now true.** All fourteen prohibition-tier pairs carry an owner sentence naming
 >   the public internet, measured row by row in §30.2.
 > - **§20.8's *ground* is restated in place, and its extension is not** — the criterion is recorded as a
@@ -12211,7 +12427,12 @@ reasoning **relatively** (*"strictly more than the shipped-default-only footing 
 `5984`"*) rather than lexically. ADR-0059 limb 1 counts premises between a **sentence** and a
 proposition and therefore does not reach them. That placement stands and is not disturbed here, but the
 scoping tier now holds **ten** prose footings sorted by premise count and **two** non-prose footings
-placed by relative strength. **Disclosed rather than smoothed**, and it is the same shape as §2.2's
+placed by relative strength. **Composed, the tier has thirteen members** — §27
+([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` in the same merge, on a
+restricting default plus an owner document placing the caller at `localhost`. **Which of this finding's
+two populations that cell belongs to is not decided here**, because deciding it is a footing ruling and
+this pass is arithmetic; it is the same open question, with one more instance. **Disclosed rather than
+smoothed**, and it is the same shape as §2.2's
 original disclosure that the second and third forms *"are not equally strong"* — a tier holding two kinds
 of evidence needs to say so. Routed to the same ticket as Finding 1.
 
@@ -12233,23 +12454,32 @@ cell the scoping tier is `13` rather than `12`, and if
 rather than `14` and the coverage denominator falls to `27 of 38`. **The membership verdict per row is
 in §30.2 so the totals can be re-derived rather than hand-patched.**
 
+> **Merge reconciliation — the parametric statement is discharged with the actual state of the world.**
+> [#95](https://github.com/winniel123/verge-asm/issues/95) did add a row taking a scoping cell
+> (`10249/tcp`) **and** a row taking a weak cell (`10248/tcp`);
+> #96 did **not** remove `623/udp`, so the prohibition tier is `14` and not `13`. Composed: **prohibition
+> 14 · scoping 13 · weak 3 · outside-subject 11 · coverage 30 of 41**, and `14 + 13 + 3 + 11 = 41`. Every
+> *"unchanged"* in the table below is unchanged **by this section**, which is what the column claims;
+> where a sibling moved the same figure the composed value is given. **This section moves exactly one
+> cell on every baseline.** §1 carries the current absolutes.
+
 | Where | Was | Is |
 |---|---|---|
-| §1 pair count | 39 | **39, unchanged.** No row is added or removed |
-| §3.1 / §3.2 / §3.3 class totals | 11 / 7 / 21 (§24) | **unchanged.** This section touches no claim and no class |
+| §1 pair count | 39 | **39, unchanged** by this section. No row is added or removed. **Composed: 41** — §27 |
+| §3.1 / §3.2 / §3.3 class totals | 11 / 7 / 21 (§24) | **unchanged.** This section touches no claim and no class. **Composed: `12 / 7 / 22`** — §27 |
 | **§2.2 footing table — prohibition tier** | **15 pairs** | **14 pairs.** `873/tcp` leaves. Membership: `6379` · `11211/tcp` · `11211/udp` · `3306` · `1433` · `9200` · `9300` · `445` · `623` · `9042` · `2379` · `2380` · `10250` · `10255` |
-| **§2.2 footing table — scoping tier** | **11 pairs** | **12 pairs.** `873/tcp` joins. Membership: `27017` · `27018` · `27019` · `2049` · `2181` · `25672` · `4369` · `2375` · `2376` · `10259` · `10257` · **`873`** |
-| §2.2 footing table — weak tier | 2 rows (`5432`, `5984`) | **2, unchanged.** Not in this section's subject |
-| §2.2 footing table — *outside this table's subject* | 11 pairs | **11, unchanged.** 14 + 12 + 2 + 11 = **39** |
-| §2.2 footing table — coverage | 28 of 39 | **28 of 39, unchanged.** No pair enters or leaves the table; one moves between two of its rows |
+| **§2.2 footing table — scoping tier** | **11 pairs** | **12 pairs.** `873/tcp` joins. Membership: `27017` · `27018` · `27019` · `2049` · `2181` · `25672` · `4369` · `2375` · `2376` · `10259` · `10257` · **`873`**. **Composed: 13**, `+10249` — §27 |
+| §2.2 footing table — weak tier | 2 rows (`5432`, `5984`) | **2, unchanged.** Not in this section's subject. **Composed: 3 rows**, `+10248` — §27 |
+| §2.2 footing table — *outside this table's subject* | 11 pairs | **11, unchanged.** 14 + 12 + 2 + 11 = **39**, and **composed 14 + 13 + 3 + 11 = 41** |
+| §2.2 footing table — coverage | 28 of 39 | **28 of 39, unchanged** by this section. No pair enters or leaves the table; one moves between two of its rows. **Composed: 30 of 41** — §27's two rows each take a footing cell |
 | §2.2's thin-cell note (composed §18.7 / §19.12) | `10255` and `10250`, both in the prohibition tier | **unchanged.** `873` is not thin on any reading and is not added; it is the scoping tier's **best**-founded prose member |
 | §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** `873` moves tier, not toward weakness as a **row**; its claim is untouched |
-| §6.1 containment arithmetic | 28 + 6 + 5 = 39 | **unchanged.** [#97](https://github.com/winniel123/verge-asm/issues/97) owns this figure and nothing here reaches it |
-| §4.6 exclusions | 19 | **unchanged** |
-| §10.1's Class A walk | eleven rows | **unchanged.** `873/tcp` is Class C; no claim cell is read here |
+| §6.1 containment arithmetic | 28 + 6 + 5 = 39 | **unchanged.** [#97](https://github.com/winniel123/verge-asm/issues/97) owns this figure and nothing here reaches it. **Composed: `28 + 8 + 5 = 41`** — §27 |
+| §4.6 exclusions | 19 | **unchanged.** **Composed: 20**, `10258/tcp` entering — §27 |
+| §10.1's Class A walk | eleven rows | **unchanged.** `873/tcp` is Class C; no claim cell is read here. **Composed: twelve rows** — §27 |
 | §13.2's rsync strengthening | `rsyncd.conf.5` puts the public listener on **874** with `873` on loopback | **unchanged and still refusing §10.3's failure condition** (§13.3). A tier move is not a claim move |
 | §17.8's *fixed point* | finished as of a table state | **re-armed for `873/tcp` and discharged in the same breath.** A footing move re-arms the sweep for the row that moved; §26.3 swept rsync's **complete** class list at `v3.5.0` days ago, so the re-armed sweep is already run and returns the same result |
-| §17.1's population of negatives | fourteen | **unchanged.** No sole-ground negative is created or retired; `873`'s footing is a **positive** in both tiers |
+| §17.1's population of negatives | fourteen | **unchanged.** No sole-ground negative is created or retired; `873`'s footing is a **positive** in both tiers. **Composed: fifteen** — §27's `10258` entry, bounded on arrival |
 | §20.8's tier criterion | *"Every prohibition-tier sentence names the public internet"* — **refuted as a universal** (§26.3) | **true**, over a fourteen-member tier. Applied rather than restated; its **ground** is restated (§30.6) and its extension is not |
 | §26.3's *"`873/tcp` stays where it is and this section moves nothing"* | reported to the curator | **superseded** — the report is acted on here. §26.3's measurement is unchanged and is what this section applies |
 | §26.7's row for §20.8's criterion | *13 clean · 1 marginal · 1 failing. Reported, not applied* | **superseded** — **14 clean · 1 failing**, and applied. The marginal cell resolves clean (§30.3) |
@@ -12257,7 +12487,7 @@ in §30.2 so the totals can be re-derived rather than hand-patched.**
 | §3.4's MySQL quotation | the restored three-sentence passage (§26) | **unchanged**, and confirmed at a **second issued version**, 9.7 (§30.3) |
 | [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves |
 | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s reference data is byte-identical; a footing tier is not reference data |
-| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984` | **unchanged.** The weak tier does not move |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984` | **unchanged.** The weak tier does not move **here**. **Composed: `5432`, `5984`, `10248`** — §27 grew the weak tier, and the watch list grows with it |
 | [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) | limb 2's routing | **used twice** — §30.7's two by-catch findings are reported and ticketed, never applied |
 | [`weak-key-and-signature.md`](./weak-key-and-signature.md) | — | **untouched.** It has no footing tier (ADR-0059's last consequence) |
 | [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted, and ADR-0048 set the precedent for staying out of that file while concurrent passes are running |
@@ -12276,7 +12506,8 @@ afterwards — §20.8 read the boundary off the thirteen existing members in ord
 section makes the reconstruction true; it does not make it complete.** §30.7's Finding 1 is that
 incompleteness with two names attached. **The criterion that would change this section's shape:** a
 ruling that the lexical test is sufficient as well as necessary, on which `2181` and `25672` promote and
-the tiers read `16 / 10 / 2`. That is a question about §2.2, not about rsync, and it is ticketed.
+the tiers read `16 / 10 / 2` — **`16 / 11 / 3` on the composed state**. That is a question about §2.2,
+not about rsync, and it is ticketed.
 
 **ADR-0059 limb 1's *premise count* is a ruling and not a measurement**, and its unit is soft at the
 edges. *The internet is an untrusted network* is one premise on any counting; whether Docker's *"an open

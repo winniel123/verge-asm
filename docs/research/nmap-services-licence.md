@@ -43,7 +43,7 @@ that retrieval.
 | Does the ticket's reported §3 quote survive contact with the bytes | **Both halves are verbatim-accurate — and the report drops the parenthetical that is the entire point of v0.95** — §3.2 |
 | Is `nmap-services` a "Covered Software data file" | **Yes.** §3's `such as` list names `nmap-os-db` and `nmap-service-probes` and not `nmap-services`, but the list is illustrative and the file's own header asserts the NPSL over itself — §4 |
 | Is there any carve-out for data files | **No — negative retrieval, extent stated in §5** |
-| **Limb 1 — the ~140-port hot set** | **Not a derivative work, on two independent grounds either of which suffices.** The licence does not reach it by its own terms (§6.1), and there is no protectable subject matter to reach (§8) — §6 |
+| **Limb 1 — the ~~~140-port~~ hot set** (**123 TCP** measured, §6 note) | **Not a derivative work, on two independent grounds either of which suffices.** The licence does not reach it by its own terms (§6.1), and there is no protectable subject matter to reach (§8) — §6 |
 | **Limb 2 — the weekly top-1000 tier** | **Depends on how it is built, and one of the three builds is squarely inside §3.** A build step that parses the file is the case §3's `Reads` bullet was written for. Shipping the 1,000 integers is not, but it is the one place we would reproduce **nmap's** selection rather than making our own — §7 |
 | Is the NPSL compatible with AGPL-3.0 | **No, and there is no upgrade path.** Nmap says so first-party; the FSF says so; and GPLv2 §6 — quoted from the NPSL's own Exhibit A — is the mechanism — §9 |
 | Is a list of port numbers copyrightable | **The integers are not, ever. A selection of them can be — and neither nmap's top-N nor ours is the kind that is** — §8 |
@@ -317,6 +317,17 @@ only on a mailing list would have been missed. That is the whole of the gap.
 ---
 
 ## 6. Limb 1 — the ~140-port hot set is not a derivative work
+
+> **`~140` is a legacy label for limb 1's object and is not its size.** **[measured]** by
+> [#97](https://github.com/winniel123/verge-asm/issues/97), independently reproducing **this note's own
+> §6.2 count**: `verge-core`'s frequency half — the thing limb 1 is about — is **123, all TCP**
+> (`81 + 44 = 125`, less ADR-0009's removal of `161/tcp` and `623/tcp`), and `verge-core` itself is
+> **136 pairs** under ADR-0009's union ([`sensitive-ports.md`](./sensitive-ports.md) §29, composed with
+> [#95](https://github.com/winniel123/verge-asm/issues/95)). §6.2 parked the reconciliation as out of
+> scope for a licence question and it is now discharged. **The name is left standing per the
+> name-and-withdraw convention — it appears in §1's summary table and in §12 ruling 2 as well — and no
+> part of the ruling turns on the count**: §6.1 and §8 both fail the trigger for reasons that hold at
+> any size.
 
 `safe-active-probing.md` §2.3 specifies `verge-core`'s frequency half as an **editable list file**
 of hand-selected integers. It is **not** `nmap-services` and **not** a copy of it. Nothing of
@@ -922,7 +933,8 @@ project's own cost model prices the alternative at exactly zero.
    itself, §3's `such as` list is illustrative and not exhaustive, and no carve-out exists (§4, §5).
    The ticket's reported §3 quotes are verbatim-accurate.
 
-2. **The ~140-port hot set is not a derivative work.** It fails §3's trigger on two independent
+2. **The ~~~140-port~~ hot set is not a derivative work** — *the set is 123 TCP ports, measured; see
+   §6's note.* It fails §3's trigger on two independent
    grounds: NPSL v0.95 §3 by its own terms does not reach software that requires none of the rights
    it grants, and nothing verge-asm ships or builds reads any nmap file (§6.1); and there is no
    protectable subject matter in a selection of port numbers to reach, least of all one that

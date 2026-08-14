@@ -25,8 +25,8 @@ What rescues the idea is a distinction that turns out to be this note's methodol
 it is stated once here because everything downstream leans on it:
 
 > **A table that decides where to look is aperture. A table that decides what an answer means is a
-> signature database.** #5 rejected the second. #4's ~140-port `verge-core` hot set is already
-> reference data of the first kind and nobody calls it fingerprinting. §2.1 shows the two kinds
+> signature database.** #5 rejected the second. #4's ~~~140-port~~ **136-pair** `verge-core` hot set is
+> already reference data of the first kind and nobody calls it fingerprinting. §2.1 shows the two kinds
 > measured side by side in the canonical corpus, where they differ by a factor of 65.
 
 Three decisions already made shape the answer before any evidence is gathered:
@@ -223,10 +223,19 @@ claims wearing one sentence:
    all.
 
 Claim (1) on its own fires on: every plaintext-by-design listener in the estate; every service whose
-TLS is terminated at an edge address; every port in the ~140-port hot set where something answers a
-connect and nothing answers a ClientHello. On a real estate that is most of what responds. **A
+TLS is terminated at an edge address; every port in the ~~~140-port~~ **131-port probed** hot set where
+something answers a connect and nothing answers a ClientHello. On a real estate that is most of what
+responds. **A
 signal that fires on most of what responds is not a signal**, and no amount of care in phrasing
 changes that.
+
+> **`~140` was never `verge-core`'s size.** **[measured]** by
+> [#97](https://github.com/winniel123/verge-asm/issues/97): the frequency half is **123, all TCP**, the
+> union is **136 pairs**, and **131** are probed on default settings
+> ([`sensitive-ports.md`](./sensitive-ports.md) §29, composed with
+> [#95](https://github.com/winniel123/verge-asm/issues/95)). **This note's ruling does not move** — it
+> turns on the signal firing on *most of what responds*, which is a proportion and not a count. Both
+> occurrences of the figure in this note are marked; neither is load-bearing.
 
 So: **a connect plus a handshake yields an input, not an insecure-listener signal.** That is the
 headline the ticket hoped for, and it does not survive.

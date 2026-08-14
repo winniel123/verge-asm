@@ -214,3 +214,10 @@ is a property of the protocol, not a fourth property of an internet vantage.
 **No `(port, transport)` pair moves, no row moves, no class total moves, no tier moves.** The list
 stays at **39 pairs**, classes **`11 / 7 / 21`**, coverage **28 of 39**. **No ADR is minted and 0057 is
 left unused**, on the precedent of #76, #84, #87, #90, #91 and #93.
+
+> **Merge reconciliation.** *"Nothing moves"* is true of **#96's own act** and stays on the record; the
+> absolutes are as of its own pass. [#95](https://github.com/winniel123/verge-asm/issues/95) admitted
+> `10249/tcp` and `10248/tcp` and [#98](https://github.com/winniel123/verge-asm/issues/98) moved
+> `873/tcp` between footing tiers in the same merge, so composed the list is **41 pairs**, classes
+> **`12 / 7 / 22`**, coverage **30 of 41** at tiers **14 · 13 · 3 · 11**. **`623/udp` is untouched by
+> both.** [`sensitive-ports.md`](../research/sensitive-ports.md) §1 carries the current absolutes.

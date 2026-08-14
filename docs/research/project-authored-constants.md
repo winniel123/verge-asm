@@ -103,9 +103,17 @@ example of all four limbs passing, and for one scope correction in §8.2.
 
 ## 3. Product, not curable — `verge-core`'s frequency half
 
-`C = ` the ~140-port continuous set. `f = ` *the top hundred by open-frequency, minus the ephemeral
-and obsolete tail, plus a modern-services supplement*. `Q = ` the distribution of open ports across
-the internet.
+`C = ` the ~~~140-port~~ **123-port** continuous set. `f = ` *the top hundred by open-frequency, minus
+the ephemeral and obsolete tail, plus a modern-services supplement*. `Q = ` the distribution of open
+ports across the internet.
+
+> **The size is corrected and the finding is unchanged.** **[measured]** by
+> [#97](https://github.com/winniel123/verge-asm/issues/97): the frequency half — which is what `C` is,
+> `f` being the frequency half's own selection rule — is **123, all TCP**, and *"~140"* was never
+> reproducible from [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3's two limbs
+> ([`sensitive-ports.md`](./sensitive-ports.md) §29). `verge-core` as a whole is **136 pairs** under
+> ADR-0009's union, but that is `C ∪ sensitive-list` and is not this section's constant. **§3.1's
+> staleness measurement and §3.2's limb-3 failure are untouched** — neither reads the count.
 
 ### 3.1 It passes limbs 1, 2 and 4, and it is already stale — measured
 

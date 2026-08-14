@@ -329,7 +329,8 @@ Three riders keep this from generalising into the thing that was refused.
   has no denominator, gets no number, and surfaces in #28's propose half as prose. Enabling nothing
   can raise the figure — which is #28's own test, passed.
 
-**[#80](https://github.com/winniel123/verge-asm/issues/80)'s `0 of 37 sensitive pairs unread`
+**[#80](https://github.com/winniel123/verge-asm/issues/80)'s ~~`0 of 37 sensitive pairs unread`~~
+`0 of 41 sensitive pairs unread`
 survives unchanged and is strengthened.** It is a count over *our* list, evaluated per `Service`, and
 [ADR-0009](./0009-verge-core-is-a-union.md) puts every sensitive pair inside the daily tier by
 construction. Enumeration multiplies the `Service`s the claim ranges over and changes nothing about
@@ -342,13 +343,25 @@ ADR-0044 stated every figure per address and gave the estate limb twice because 
 open. It can now be stated once. For an address-scope `Seed` the multiplier is the **declared size**,
 at most **1,024** at the shipped cap.
 
-Working from §6.3's shipped defaults against `verge-core` at ADR-0009's ~140 pairs, one `/22`, at the
+Working from §6.3's shipped defaults against `verge-core` at ADR-0009's ~~~140 pairs~~ **136 pairs, 131
+probed** (see the correction below), one `/22`, at the
 **200 pkt/s global ceiling** (the per-host caps do not bind across 1,024 hosts):
 
 | Tier | Attempts per pass | Answering | Dropping, 2 retries |
 | --- | --- | --- | --- |
 | **Hot (`verge-core`, daily)** | 143,360 | **11 min 57 s** | **35 min 50 s** |
 | **Cold (full range, monthly, opt-in)** | 67,108,864 | **3.9 days** | **11.6 days** |
+
+> **`~140` was never `verge-core`'s size, and the hot row therefore overstates.** **[measured]** by
+> [#97](https://github.com/winniel123/verge-asm/issues/97): the frequency half is **123, all TCP**, and
+> the union is **136 pairs — 131 probed on default settings**, UDP being off
+> ([`sensitive-ports.md`](../research/sensitive-ports.md) §29, composed with
+> [#95](https://github.com/winniel123/verge-asm/issues/95)'s two admissions). At 131 the hot row reads
+> **134,144 attempts · 11 min 11 s answering · 33 min 32 s dropping**. **The cold row does not move** —
+> it is the full range and reads no port list. **The original figures are left standing per the
+> name-and-withdraw convention and no ruling moves**: this ADR's conclusions turn on the **cold** tier's
+> 3.9-to-11.6-day pass against a monthly cadence, and the hot tier's overstatement is in the
+> conservative direction.
 
 Three things follow.
 
@@ -364,8 +377,10 @@ Nothing in ADR-0044 is amended; its conditional becomes a fact.
 
 **The estate sizing in [ADR-0001](./0001-stack-and-runtime.md) is a prior, not a bound, and one
 legal declaration doubles it.** ADR-0001 sizes *"~500 live assets against the ~140-port hot set …
-~70k reachability observations per day — ~25M rows/year."* A single `/22` is **1,024 addresses and
-143,360 reachability observations per day, ~52M rows/year** — 2× ADR-0001's whole sized estate, from
+~70k reachability observations per day — ~25M rows/year"* — **at the measured 131 probed ports, ~66k
+per day and ~24M rows/year; the ratio this paragraph turns on is unchanged.** A single `/22` is
+**1,024 addresses and 143,360 reachability observations per day, ~52M rows/year** (**134,144 and ~49M
+at 131**) — 2× ADR-0001's whole sized estate, from
 one line of typing, before any name scope. The retention question on the map is sized against
 resolved addresses and must be sized against **declared scope size**, which is the one input to it
 the operator sets directly. This is a real consequence and it is stated rather than absorbed.
@@ -418,7 +433,8 @@ is what keeps it to one message: a `Service` entering is never a message.
 - **[ADR-0044](./0044-a-one-off-measurement-has-no-currency.md) is confirmed, not amended.** Its
   per-address figures stand; its two estate limbs collapse to one; its unresolved-seam bullet is
   discharged by this ADR; and its rejection of the enabled cold `Scan` stops being conditional on
-  this ticket. Its `0 of 37 sensitive pairs unread` is untouched.
+  this ticket. Its ~~`0 of 37 sensitive pairs unread`~~ **`0 of 41`** is untouched by this ticket; the
+  denominator moved with the sensitive list, and the numerator is `0` for every value of it.
 - **[`safe-active-probing.md`](../research/safe-active-probing.md) §3.4 is confirmed and cited
   rather than corrected**, and §9's `Target range size cap` row gains *where* the cap is applied —
   at declaration, per scope, never to a sum.
