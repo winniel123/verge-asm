@@ -1275,7 +1275,172 @@ the **content** surface, and only the second was measured.
 
 ---
 
+## 14. Amendment — [#79](https://github.com/winniel123/verge-asm/issues/79): the class audit of §5's negatives
+
+[ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) was measured on this
+table's own failure — #68 read five documents, every one a specification or a method, and recorded
+that the IETF sets no certificate key-size floor. **§5's negative space was built by the same session,
+by the same method, and has never been re-checked against the rule that failure produced.** This
+section does that. It **amends §5 by reference**: earlier text is left standing and marked, and where
+§14 and §5 disagree, §14 governs. The general rule is
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md);
+the companion audit of the other curated table is
+[`sensitive-ports.md`](./sensitive-ports.md) §17.
+
+**Headline result.**
+
+> **No row enters the table and no row leaves. It is still five rows.** Two of §5's seven entries are
+> **attestation** negatives and are therefore exposed; the other five are refused on the **claim**, and
+> a claim failure has no class list. Both exposed negatives were swept and both survive. **The MD4 half
+> of §5's first entry was never measured at all** — #68 cited RFC 6149, which is about MD2 — and RFC
+> 6150 has now been retrieved and read end to end.
+
+### 14.1 The population, enumerated
+
+| # | §5 entry | What kind of refusal | Classes searched | Classes not searched | Exposed? |
+|---|---|---|---|---|---|
+| 1 | **MD2 and MD4 signatures** — *"No owner sentence prohibits MD2 in a certificate"* | **Attestation** — an owner silence | status-change document (RFC 6149, MD2) · specification (RFC 8446 §4.4.2.4) | **deployment** (RFC 9325 / BCP 195) · **implementation guidance** (RFC 9846 Appendix C) · **the MD4 status-change document (RFC 6150)** | **Yes** |
+| 2 | **RSA public exponent** — *"no owner calls a small exponent **weak**"* | **Attestation**, with a claim limb behind it | specification (RFC 8017, FIPS 186-5) · distributor (the CA/B BR, refused on §2.3's artefact test) | **deployment** (RFC 9325) | **Yes** |
+| 3 | **RSASSA-PSS parameter defects** | **Claim** — encoding conformance is neither work factor nor collision resistance | — | — | No |
+| 4 | **Known-compromised individual keys** | **Claim** — not a property of an `(algorithm, parameter)` pair, and §7.2 refuses it independently | — | — | No |
+| 5 | **Certificate lifetime, key reuse, missing CT** | **Claim** — different facts, two of them other rules | — | — | No |
+| 6 | **A "should be 3072 by 2031" second threshold** | **Constraint** — severity, refused by the ticket and by §7.3 | — | — | No |
+| 7 | **Trust-store membership** | **Scope** — ADR-0032 already ruled v1 ships no root bundle | — | — | No |
+
+Five of the seven are refused on the **claim**, and ADR-0046's exposure test says so directly: a claim
+failure is not a silence, so it has no document classes to enumerate. Retrieving every deployment BCP
+in the IETF would not make a Debian OpenSSL key a property of an `(algorithm, parameter)` pair.
+
+### 14.2 MD2 and MD4 — swept in three classes, and the MD4 half measured for the first time
+
+**Two of the three unsearched classes were already in this repo's hands, which is
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1
+paying out on a table rather than a file.** RFC 9325, RFC 9846 and RFC 8551 were all retrieved by
+[#73](https://github.com/winniel123/verge-asm/issues/73) and all read for **key sizes**. Limb 1 requires
+an artefact be read for *"every algorithm or key size"* in the table's domain, and MD2 and MD4 are in
+it. Read for those:
+
+> **[measured]** The strings `MD2` and `MD4` occur **zero times** in RFC 9325 (BCP 195), **zero times**
+> in RFC 9846, and **zero times** in RFC 8551. RFC 9325 §4.5's certificate paragraph names the digests
+> it means and they are the other two: *"the use of the SHA-256 hash algorithm is RECOMMENDED and SHA-1
+> or MD5 MUST NOT be used [RFC9155]"*.
+
+That is a negative established in the **deployment** class and in the **implementation-guidance** class
+— the two classes whose omission produced #68's failure — and it is the strongest form the negative can
+take, because RFC 9325 §4.5 is the exact sentence #73 found for the key rows. **The body that does state
+an unscoped certificate floor, in the document where it states it, declines to name MD2 or MD4.**
+
+**The MD4 half was never measured.** §5's entry names *"MD2 and MD4"* and cites **RFC 6149**, which is
+*MD2 to Historic Status*. **RFC 6150, `MD4 to Historic Status`, appears nowhere in this note and was
+retrieved for the first time by this ticket.** Read end to end, it does not carry a certificate
+prohibition, and the two sentences that come closest are instructive:
+
+> "The pre-image attacks on MD4 are practical. It cannot be used as a one-way function. For example, it
+> must not be used to hash a cryptographic key of 80 bits or longer."
+> — [RFC 6150](https://www.rfc-editor.org/rfc/rfc6150.txt), §6.2, *Pre-Image and Second Pre-Image Resistance*
+
+> "Despite MD4 seeing some deployment on the Internet, this specification obsoletes [MD4] because MD4 is
+> not a reasonable candidate for further standardization … MD4 is clearly showing signs of weakness, and
+> implementations **should strongly consider** removing support and migrating to another hash algorithm."
+> — [RFC 6150](https://www.rfc-editor.org/rfc/rfc6150.txt), §7, *Recommendation*
+
+The first is a `must not` at full strength on **the wrong artefact** — hashing a key, not signing a
+certificate — which is §2.3's artefact test and #73's *right number in the wrong sentence* trap arriving
+as *right modality in the wrong sentence*. A session grepping RFC 6150 for `must not` finds it first.
+The second is hedged in the way §5 already describes for MD2, and it opens with a **frequency clause**.
+§5's characterisation of the retiring documents as *"Informational and hedge their own results"* is
+therefore **confirmed for MD4 rather than merely extended to it**.
+
+> **Ruling: the MD2/MD4 exclusion stands, and its footing improves from an inference to a
+> measurement.** §5's *"we could not find anyone entitled to say it"* is now a **searched corpus**: the
+> status-change documents for both algorithms, the current TLS specification, its implementation-guidance
+> appendix, the deployment BCP that carries this table's own RSA floor, and the S/MIME message
+> specification. **The smallest extension that could still move it:** a LAMPS document profiling
+> certificate signature algorithms that names MD2 or MD4 with a prohibition — RFC 3279 and RFC 4055 are
+> the candidates, and both are **specifications**, the class ADR-0040 predicts will be silent.
+
+### 14.3 The RSA public exponent — swept in the deployment class, and it is silent
+
+§5's second entry rests on *"no owner calls a small exponent **weak**"* — RFC 8017 supports `e = 3`, and
+FIPS 186-5's range is an issuance requirement rather than a strength claim. Both are **specifications**.
+The unsearched class is the same one #68 missed.
+
+> **[measured]** `exponent` occurs in RFC 9325 only at §7.4 *Diffie-Hellman Exponent Reuse*, which is
+> about reusing DH and ECDH ephemeral exponents across connections. **RFC 9325 states no position on the
+> RSA public exponent at all**, and it is the document that does state this table's RSA modulus floor.
+
+The negative survives in the class most likely to have broken it, and the entry's second limb — *"No
+claim in §2.2 fits"* — is untouched and is independently sufficient. §5's entry needs no change.
+
+### 14.4 §9's weak tier, and the one distinction this audit adds
+
+§9's DSA `N ≥ 224` residue was already swept by #73 across roughly 340 documents and is already
+disclosed as **bounded** with its boundary named (§13.6, ADR-0040 §3). Nothing here touches it.
+
+What this audit adds is a distinction §13's disclosure did not need and the next one will:
+
+> **A weakness of *breadth* is not a weakness of *class*.** Enumerating an owner's document classes
+> cures a negative that asked the wrong **kind** of document. It cannot cure a negative that asked the
+> right kind and asked only one **party** — because the set of parties is open where the set of classes
+> is closed. [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s obligation
+> does not reach a breadth weakness, and treating it as though it did would make its corpus unbounded,
+> which is the property ADR-0040 exists to deny.
+
+The live instance is in a sibling note rather than this one:
+[`acme-renewal-timing.md`](./acme-renewal-timing.md) §14 discloses that *"No second CA was retrieved
+stating a different fraction, and none was retrieved stating the same one."* The class — **issuer
+documentation** — was searched. Searching it at a second issuer would test the ruling's **generality**,
+not its **completeness**, and §14's disclosure already states it correctly.
+
+### 14.5 What this changed
+
+**Nothing in the table.** Five rows; §1's summary, §3's tables and §4's chain are untouched. No `Break`
+([ADR-0008](../adr/0008-derivation-versions-move-on-content.md)), no version bump.
+
+**Two things about §5.** The MD2/MD4 entry's ground is **narrowed and strengthened**: it is no longer
+*we could not find anyone entitled to say it* but *the three classes that could say it were searched and
+two of them name the other digests instead*. And **RFC 6150 joins the corpus**, closing a gap in which
+half of a two-algorithm exclusion rested on a document about the other algorithm.
+
+**One thing about the method.** ADR-0037 limb 1's re-read of held artefacts produced a **confirmation**
+here rather than a discovery — three documents, three zero counts. Limb 1's value is usually argued from
+#69's near-miss, where the re-read found something; this is the other half of the case, where it found
+nothing and thereby converted an inference into a measurement at the cost of three `grep`s.
+
+### 14.6 Thin ground, flagged per the standing rule
+
+**Zero-count negatives over a document are only as good as the search terms.** `MD2` and `MD4` are exact
+strings and were searched case-sensitively over the retrieved bytes; a document that wrote *"the MD
+family"* or referred to the algorithms only by OID would not match. The OID forms
+(`1.2.840.113549.1.1.2`, `md2WithRSAEncryption`) were **not** searched, and that is a real gap in three
+documents whose subject is TLS and S/MIME rather than certificate profiling.
+
+**[measured] RFC 6150's own running header says `MD2 to Historic Status` on every page.** The title,
+abstract and body are all about MD4; the header is a publication defect in the RFC itself. Two
+consequences for anyone re-checking this: a case-insensitive search of RFC 6150 for `MD2` returns hits
+that are **all page headers and none content**, and a session searching a local RFC corpus for *"MD4 to
+Historic"* by header will not find the document that is exactly that. This is the `LDAPString` trap
+(§9.5 of `sensitive-ports.md`) arriving from the publisher rather than from the reader.
+
+**RFC 3279 and RFC 4055 were named as the boundary and not retrieved.** They are the PKIX algorithm
+profiles and they are the last place a certificate-scoped MD2 sentence could live. They are
+**specifications**, which is the class ADR-0040 gives the lowest prior, and no row moves on the answer
+in either direction — MD2 is not in the table and would enter only on a prohibition. Named so the gap is
+visible rather than assumed closed.
+
+**§14.1's *exposed?* column depends on §2.2's closed claim set** in the same way `sensitive-ports.md`
+§15.9 records. Five of seven entries are called un-exposed because a claim failure has no class list; if
+§2.2's two-claim derivation is wrong, some of those five become attestation questions and the sweep is
+larger than two.
+
+---
+
 ## Sources
+
+Retrieved by [#79](https://github.com/winniel123/verge-asm/issues/79) — §14's class audit
+- [RFC 6150, MD4 to Historic Status](https://www.rfc-editor.org/rfc/rfc6150.txt) (March 2011) — §6.2, §7. **The MD4 half of §5's first entry, retrieved for the first time**; carries no certificate prohibition, and its `must not` is about hashing a cryptographic key. Note that the RFC's own running header reads *"MD2 to Historic Status"*, a publication defect in the document itself
+- RFC 9325, RFC 9846 and RFC 8551 **re-read for the rest of this table's domain** per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1, over the same bytes #73 retrieved — `MD2` and `MD4` occur **zero times** in each, and `exponent` occurs in RFC 9325 only at §7.4, about Diffie-Hellman exponent **reuse**
+- Named as the boundary and **not retrieved** — recorded so the gap is visible: [RFC 3279](https://www.rfc-editor.org/rfc/rfc3279.txt) and [RFC 4055](https://www.rfc-editor.org/rfc/rfc4055.txt), the PKIX algorithm profiles, which are **specifications** and on which no row turns
 
 Retrieved by [#73](https://github.com/winniel123/verge-asm/issues/73) — the unscoped-floor corpus
 - [RFC 9325 / BCP 195, Recommendations for Secure Use of TLS and DTLS](https://www.rfc-editor.org/rfc/rfc9325.txt) (November 2022) — §1, §4.2, §4.5, §5, Appendix A. Obsoletes RFC 7525. **The MUST-level RSA floor**
