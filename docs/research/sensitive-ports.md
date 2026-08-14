@@ -204,6 +204,8 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > argued and **lost on vocabulary** — `DEP-001` names *untrusted networks*, where every prohibition-tier
 > sentence names *the public internet* — and §18.8 records the criterion that would move it.
 
+### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
+
 This is the load-bearing methodological finding, and it took the most work to establish.
 
 The instinct is to reach for CISA and the cloud providers first, because they are authoritative and
