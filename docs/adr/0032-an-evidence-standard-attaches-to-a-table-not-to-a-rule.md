@@ -122,6 +122,21 @@ retrieval, and this ADR has now produced one of each.
 > tier is disclosed in the instrument's own document. ADR-0035 adds one thing this ADR did not
 > anticipate: a **third kind of weak row** — a *scope* weakness, which is neither watched nor chased.
 
+> **Amendment — [#73](https://github.com/winniel123/verge-asm/issues/73): the disclosure obligation
+> gains a third limb.** §7 requires a disclosed weakness to **name the retrieval** that resolves it;
+> #67's amendment above added that where the retrieval has been **performed**, the disclosure says what
+> it established. #73 is the first retrieval to come back **partly empty** — positive for two rows,
+> empty for a third — and that case needs its own sentence. **Where a retrieval has run and a residue
+> survives, the disclosure carries the corpus actually searched, enumerated; what was found and which
+> rows it reached; and the smallest extension of the corpus that could still change the answer.** The
+> residue is then **bounded**, not permanent: *permanent* is unfalsifiable and is what §7 forbids,
+> while *bounded* is falsified by naming one document outside the boundary. The general finding behind
+> it — **a specification's silence is not the owner's silence**, so a negative must enumerate an
+> owner's **document classes** and not only its documents — is
+> [ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.md). No gate changes and no rule
+> version moves; the weak tier of `certificate-weak-key-or-signature`'s table goes from three rows to
+> one limb of one row.
+
 ## Rationale
 
 ### 1. The unit is the table, and the ticket's question presupposes otherwise
