@@ -33,7 +33,7 @@ it.
 |---|---|---|
 | Scan technique | **TCP connect (`connect()`)**, non-root, no added capabilities | §3 — SYN requires raw sockets *and* root; nmap gates on euid |
 | Host discovery | **Skipped** (`-Pn` equivalent) | §3.4 — targets are operator-seeded, not discovered by sweep |
-| Continuous port set | **`verge-core`: ~140 curated TCP ports** (nmap top-100 minus ephemeral noise, plus a modern-services supplement) | §2 |
+| Continuous port set | **`verge-core`: ~~~140~~ **123** curated TCP ports** (nmap top-100 minus ephemeral noise, plus a modern-services supplement). **[measured]** by [#97](https://github.com/winniel123/verge-asm/issues/97) — §2.3 | §2 |
 | Weekly port set | **Retired** — there is no warm tier | §2.4, and [`nmap-services-licence.md`](./nmap-services-licence.md) §12 ruling 3 |
 | Full-range 1–65535 | **Off by default**; opt-in **per `Seed` scope**, rate-capped, monthly at most. It ships as a configured-and-**disabled** `Scan` with an empty scope list, and it never runs unasked — including at onboarding | §2.4, and [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md) |
 | UDP | **Off by default** | §2.5 |
@@ -160,7 +160,7 @@ the estate being monitored.
 
 ### 2.3 Recommended continuous set — `verge-core`
 
-Roughly 140 TCP ports. **This is the project's own selection, informed by nmap's published ranking
+~~Roughly 140~~ **123** TCP ports (see the amendment below). **This is the project's own selection, informed by nmap's published ranking
 rather than derived from it** — the wording matters and is
 [`nmap-services-licence.md`](./nmap-services-licence.md) §12 ruling 8's correction to this section.
 Measured there (§6.2): the set retains **81** of nmap's top-100 after **19** project-chosen
@@ -178,8 +178,47 @@ are how that selection was made, not a transformation applied to somebody else's
   - Data stores: 1521, 5984, 6379, 9042, 11211, 27017, 27018
   - Messaging/coordination: 1883, 2181, 5672, 15672, 61616
   - Orchestration/control planes: 2375, 2376, 2379, 2380, 6443, 10250, 10255
-  - Management/OOB: 161 (TCP), 623, 5985, 5986, 9100
+  - Management/OOB: ~~161 (TCP)~~, ~~623~~, 5985, 5986, 9100
   - Remote access: 3389, 5900–5905, 5800
+
+> **Amended by [#97](https://github.com/winniel123/verge-asm/issues/97) — two members left this limb
+> and the section was never told, and *"roughly 140"* is not this set's size.**
+>
+> **`161/tcp` and `623/tcp` are struck.**
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s Decision table removed both: SNMP is **161/udp**,
+> IPMI/ASF-RMCP is **623/udp**, and **623/tcp** is `oob-ws-http`, a different DMTF protocol on the same
+> number — so as written this limb probed the TCP siblings of two UDP services and evaluated neither.
+> Neither was ever selected on the frequency half's own terms; both entered through this limb, whose
+> stated rule is that each member *maps to a named v1 risk signal*, and after the transport fix neither
+> does. **`623/tcp` is re-addable later on a fresh frequency or signal argument, and that would be a new
+> widening rather than a reversal.** The strike is recorded rather than deleted, per the
+> name-and-withdraw convention, because the limb's original wording is the evidence for
+> [`sensitive-ports.md`](./sensitive-ports.md) §6.2's defect.
+>
+> **The set is 123, not ~140.** **[measured]**, twice independently, and reproducing
+> [`nmap-services-licence.md`](./nmap-services-licence.md) §6.2 exactly:
+>
+> | Component | Count |
+> |---|---|
+> | nmap top-100 TCP, reproduced at §2.1 | 100 |
+> | The deletions named above | **−19** |
+> | Retained from nmap's ranking | **81** |
+> | The supplement above — 49 entries, of which 5 (`10000`, `9100`, `3389`, `5900`, `5800`) are already retained | **+44 net-new** |
+> | The set as this section originally specified it | **125** |
+> | ADR-0009's removal of `161/tcp` and `623/tcp` | **−2** |
+> | **The frequency half today** | **123, all TCP** |
+>
+> *"Roughly 140"* is not reproducible from either limb and never was — a session adding `81 + 49`
+> without removing the five duplicates gets 130, which is the nearest plausible route to it.
+> §6.2 parked the reconciliation as out of scope for a licence question; it is discharged here.
+> **`verge-core` itself is larger than this set and is not a list at all**: ADR-0009 makes it
+> `frequency-set ∪ sensitive-list`, which is **134 pairs** — these 123, plus the 11 the sensitive
+> half contributes alone (6 TCP, 5 UDP). 129 are probed on default settings, UDP being off (§2.5).
+>
+> **This limb reaches no kube control-plane component beyond the kubelet.** The orchestration limb is
+> `2375, 2376, 2379, 2380, 6443, 10250, 10255` and stops there, so `10259/tcp` kube-scheduler and
+> `10257/tcp` kube-controller-manager are **not** in the frequency half and enter `verge-core` through
+> the sensitive half alone — [`sensitive-ports.md`](./sensitive-ports.md) §29.
 
 Rationale: an ASM tool is not trying to characterise the internet, it is trying to notice
 *this estate's* drift. The correct prior is "what does a small org accidentally leave listening,"
@@ -242,7 +281,7 @@ baseline is full-range; if they did not, it is `verge-core`. Either way it is a 
 **So a default-settings install measures `verge-core` and nothing else, permanently** — including the
 ~900 tail ports the retired warm tier used to cover. That is the honest statement of v1's aperture,
 and it is stated on `Coverage` rather than left to be discovered: the port-tier line names the tier,
-its cadence and its off state, and carries `0 of 37 sensitive pairs unread` and `0 of 16 rules
+its cadence and its off state, and carries `0 of 39 sensitive pairs unread` and `0 of 16 rules
 unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
 puts every sensitive pair inside the hot set, and of the sixteen rules one names a port (fully
 covered), four read `Name`s, and eleven read a facet on a subject. **The tier bounds which subjects
@@ -250,6 +289,23 @@ exist, never which rules can speak**, so what the cold tier buys is drift breadt
 correctness. A count of unmeasured ports is deliberately absent: it is knowable, which is what makes
 it tempting, and it is [#28](https://github.com/winniel123/verge-asm/issues/28)'s refused
 estate-completeness score in port clothing.
+
+> **Denominator corrected by [#97](https://github.com/winniel123/verge-asm/issues/97): `0 of 37` reads
+> `0 of 39`.** [#80](https://github.com/winniel123/verge-asm/issues/80) measured it when the sensitive
+> list was 37 pairs; [#91](https://github.com/winniel123/verge-asm/issues/91) took it to 39.
+>
+> **Read the identity rather than the numeral, because the list is still moving.** The **numerator is
+> `0` for every possible `N`** — it is not a measurement that can come out otherwise, since ADR-0009's
+> union puts every sensitive pair inside `verge-core` by construction, and the five UDP pairs are
+> outside the count on [#44](https://github.com/winniel123/verge-asm/issues/44)'s ground that they
+> hold no subject at all rather than on any aperture ground. **The denominator is simply `|S|`**, the
+> sensitive list's own count. So a pass that adds or removes a sensitive row moves this figure's
+> denominator and nothing else, and never needs to re-measure the numerator.
+>
+> Two ADRs quote this line at the stale `0 of 37` — [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)
+> and [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) — and are deliberately left
+> for a single reconciliation pass rather than hand-patched while `|S|` is in motion
+> ([`sensitive-ports.md`](./sensitive-ports.md) §29.9).
 
 **No middle tier replaces the retired warm one**, and the refusal does not rest on
 [`nmap-services-licence.md`](./nmap-services-licence.md) §3. Under ADR-0009's union, any set authored
@@ -749,7 +805,7 @@ learns something real about their infrastructure.
 **Port-count sanity check.** Naabu ships `-port-threshold` for this reason. If a host reports an
 implausible number of open ports, a firewall is SYN/ACK-ing everything and every "finding" is
 fictional. Default: if > 100 ports respond open on `verge-core`, mark the whole host result
-`suspect-firewall` and suppress the individual findings rather than emitting 140 false positives
+`suspect-firewall` and suppress the individual findings rather than emitting ~~140~~ **129** false positives
 into the operator's inbox.
 
 ### 6.4 Scheduling
