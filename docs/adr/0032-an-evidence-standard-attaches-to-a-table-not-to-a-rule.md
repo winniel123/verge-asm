@@ -408,7 +408,7 @@ that check belongs to the curation patch, which is where the watch lives.
 > standing per the name-and-withdraw convention and is **superseded**. **[measured]**
 > [#79](https://github.com/winniel123/verge-asm/issues/79) §17.6 retrieved Kubernetes' security
 > checklist — *"The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"* — and
-> [ADR-0049](./0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+> [ADR-0050](./0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
 > rules that an owner's **category** statement reaches the members the owner's own artefacts place
 > inside it. `10255/tcp` therefore rests on an owner prohibition and not on `readOnlyPort` alone, and
 > it joins the **explicit prohibition** tier with `10250/tcp`

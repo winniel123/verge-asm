@@ -198,7 +198,7 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > **Amended by §18** ([#88](https://github.com/winniel123/verge-asm/issues/88)). **The table above is
 > superseded in three cells.** An owner's **category** statement reaches the members the owner's own
 > artefacts place inside it
-> ([ADR-0049](../adr/0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)),
+> ([ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)),
 > so `10250/tcp` and `10255/tcp` kubelet are carried by Kubernetes' own *"The Kubernetes API, kubelet
 > API and etcd are not exposed publicly on Internet"* and both join the **explicit prohibition**
 > tier. **The tiers are prohibition 15 pairs · scoping 9 pairs · weak 2 rows**, coverage unchanged at
@@ -337,7 +337,7 @@ be attested per §2.2, by a source that owns the protocol.
 > three limbs — standing under §10.5, **membership established by the owner's own artefact and never
 > by a corroborator's port number**, and **defeat per member** wherever the owner elsewhere names
 > that member's internet-facing deployment as supported
-> ([ADR-0049](../adr/0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md),
+> ([ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md),
 > §18.1). The category's unit is a **protocol or interface, never a vendor's product line**
 > ([ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)).
 >
@@ -5284,7 +5284,7 @@ every subject in this table's domain that it names, per ADR-0037 limb 1.
 ## 18. An owner's category statement reaches the members its own artefacts place inside it
 
 Wayfinder ticket [#88](https://github.com/winniel123/verge-asm/issues/88), applying
-[ADR-0049](../adr/0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md).
+[ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md).
 
 §17.6 retrieved the first **owner** category statement in the corpus and reported it rather than
 applying it, naming the question it turns on: **§2.3 refuses a source that attests a category rather
@@ -5550,7 +5550,7 @@ back badly, `1433` is the next cell to check.
 | §2.2 footing table — **weak tier** | 3 rows (`5432`, `5984`, `10255`) | **2 rows** (`5432`, `5984`). `−10255` |
 | §16.7's restated table | #76's tiers | **superseded by §18.6 in three cells**; every other cell and the coverage sentence stand |
 | §16.9's *`10250` is the thinnest placement in the table* | flagged | **discharged.** The table cell now carries membership, not position. §18.7 opens a new flag on `10255` |
-| §17.6's candidate footing for `10255` | reported, not applied | **applied.** §17.6's *"the criterion that would move the cell"* is met by ADR-0049 |
+| §17.6's candidate footing for `10255` | reported, not applied | **applied.** §17.6's *"the criterion that would move the cell"* is met by ADR-0050 |
 | §17.7's *§2.2 weak tier: three, unchanged* | 3 | **superseded — two.** §17.7 was correct on the day it was written |
 | §4.4's characterisation of the upstream quote | *a hardening preference* | **corrected** — an owner prohibition the row defeats on other grounds (§18.4). The exclusion is unchanged |
 | §4.5 *the list's weakest row* | `5432/tcp` | **unchanged**, and now the weak tier's senior member of two rather than three |
@@ -5573,7 +5573,7 @@ back badly, `1433` is the next cell to check.
 > weak 2 · coverage 26 of 37 · ADR-0032 §8's watch list `5432`, `5984`.**
 
 **Outside this note.**
-[ADR-0049](../adr/0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+[ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
 is added. **ADR-0032 §8's watch-list enumeration is amended for the third time** and reads `5432/tcp`
 and `5984/tcp`; the sequence is now 3 → 2 → 3 → 2 with the membership changing at every step, which
 is §8's own *compare members, not counts* lesson in a second instance. The map's *how the tiered port
