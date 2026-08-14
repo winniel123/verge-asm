@@ -15,7 +15,9 @@ repeating the qualifier. The two sentences have disagreed since #4 closed.
 It was harmless while a **warm tier** sat between the hot set and the full range.
 [#78](https://github.com/winniel123/verge-asm/issues/78) retired that tier on a licence ground,
 and the disagreement became the whole of the answer to *what does a default install look at?* —
-`verge-core`'s ~140 pairs plus the ~65,000-port tail **once**, or `verge-core` **forever**.
+`verge-core` plus the ~65,000-port tail **once**, or `verge-core` **forever**. (`verge-core` is a
+union and [ADR-0009](./0009-verge-core-is-a-union.md) owns its membership; it stands at roughly 140
+pairs today, and every ratio below is stated against that figure rather than depending on it.)
 
 [#44](https://github.com/winniel123/verge-asm/issues/44) put a standing **aperture statement** on
 `Coverage`, one line per aperture input, and port tiers are one of the five. A default install whose
@@ -137,11 +139,14 @@ inside its own cadence on an estate size the project explicitly allows is not a 
 **The cost nobody had priced is subjects, not packets.** `Service` *"exists for every
 `(port, transport)` in the recorded scope, **open or closed**"* — that is what gives `unreachable` a
 subject to be a verdict about. So a full-range batch creates **65,535 `Service` subjects per
-address** where the hot tier creates ~140, each carrying a two-legged `Reach` and an `Exposure`; and
-[ADR-0006](./0006-subjects-leave-by-measurement.md) means nothing leaves because time passed, so
-they persist. Against the estate [ADR-0001](./0001-stack-and-runtime.md) sized — ~70k reachability
-observations per hot run — a full-range pass is **468×**, about **32.8 million** subjects and
-observations, from one dispatch. The retention patch on the map is sized against the hot tier.
+address** where the hot tier creates one per `verge-core` pair, each carrying a two-legged `Reach`
+and an `Exposure`; and [ADR-0006](./0006-subjects-leave-by-measurement.md) means nothing leaves
+because time passed, so they persist. The multiplier is `65,535 ÷ |verge-core|` — a shade under
+**470×** at today's membership, and insensitive to the two rows
+[#75](https://github.com/winniel123/verge-asm/issues/75) may move. Against the estate
+[ADR-0001](./0001-stack-and-runtime.md) sized — ~70k reachability observations per hot run — that is
+about **33 million** subjects and observations from one dispatch. The retention patch on the map is
+sized against the hot tier.
 
 ### Narrow is not the failure; narrow and silent is
 
