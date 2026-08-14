@@ -134,3 +134,39 @@ falls under (1); the kubelet's `anonymous-auth: false` demands one, so `10250/tc
   answer is no for both limbs: nothing states limb 1, and limb 2's extension of §19.6 from row
   admission to Step 2 is a choice whose alternative empties seven of eleven rows out of Class A.
   §20.6's own rule is untouched and remains an ADR-less corollary.
+
+### Note — [#95](https://github.com/winniel123/verge-asm/issues/95): limb 1 cuts both ways, and its *thin ground* disclosure is discharged
+
+**A cell turns on limb 1 now.** [#95](https://github.com/winniel123/verge-asm/issues/95) admitted
+`10249/tcp` kube-proxy metrics to Class A, and its **Step 1** rests entirely on limb 1's admissible
+shape — Kubernetes' own metrics documentation stating that *"reading metrics requires authorization
+via a user, group or ServiceAccount with a ClusterRole that allows accessing `/metrics`"*, in a
+document that names kube-proxy in its own list of components exposing the endpoint. **[measured]**
+that sentence is conditioned on RBAC and RBAC is not in the request path for `10249`, whose metrics
+mux carries no authorization filter at all — which is limb 1's *"may be prescriptive and may describe
+a deployment the owner does not ship"* met exactly, and *"the gap between the two is the Claim 1 row"*
+paying out for the first time. The *Where it is thin* bullet above — *"no cell in #92 turns on it"* —
+is **discharged**.
+
+**And the limb runs in both directions, which #92 had no occasion to state.** The same owner ships a
+second sentence about `10249`: `source-ip.md` tells the reader to run
+`curl http://localhost:10249/proxyMode` *"in a shell on the node you want to query"*. Read as Step 1
+evidence that would **refuse** the step — the owner instructing an unauthenticated fetch. It may not
+be used that way. **It is a statement about where the caller stands, which is Claim 3's subject, and
+limb 1 bars a placement sentence from Step 1 without regard to which way it points.** A limb that
+excluded boundary evidence only when it helped the row would be a thumb on the scale rather than a
+rule; #95 used the sentence at its footing, where it belongs, and rested Step 1 on the authorization
+sentence alone. [`sensitive-ports.md`](../research/sensitive-ports.md) §27.3.
+
+**Limb 2's arithmetic moves and its point is unchanged.** *Seven of eleven* Class A rows whose shipped
+default withholds the port becomes **eight of twelve**: `metricsBindAddress` defaults to
+`127.0.0.1:10249`, and the discriminator resolves to case (1) because reaching the port remotely takes
+one config line and demands a credential of nobody.
+
+**One thing #95 had to keep apart, recorded because the confusion is easy.** The same loopback default
+is *silent for limb 2* — the network act the frame assumes — and *attesting under §10.4's one-way
+rule*, where it founds the row's footing. The two answer different questions: limb 2 asks **in which
+configuration reachability is read**, §10.4 asks **whether a default carries evidence**. A session
+that reads limb 2 as making a restricting default silent for all purposes would take `5432/tcp` off
+the list.
+

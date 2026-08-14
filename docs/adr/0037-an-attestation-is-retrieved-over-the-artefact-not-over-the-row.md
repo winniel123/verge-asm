@@ -131,6 +131,65 @@ criterion that would force the widening:** a second determinacy retrieval turnin
 table lacks. `10249` is the first, and it looks strong — **[measured]** kube-proxy's metrics server is
 also entirely unauthenticated and its only protection is a loopback default.
 
+### Amendment — [#95](https://github.com/winniel123/verge-asm/issues/95): limb 1's trigger is widened, and limb 2's second cycle is complete
+
+> **Limb 1 fires wherever an owner's artefact is opened *in the table's service*, whatever the
+> retrieval was for.** Read limb 1's *"where an owner's artefact is opened **to attest a row**"* as
+> **where an owner's artefact is opened for any purpose the table's gates require** — attestation,
+> determinacy, ownership, class-list construction or claim analysis. The narrow trigger is
+> **withdrawn**.
+
+**The forcing measurement is not the one the note above predicted, and it is stronger.** The criterion
+asked for *a second determinacy retrieval turning up a candidate*. What happened instead is that the
+**first one paid out**. [#95](https://github.com/winniel123/verge-asm/issues/95) disposed of all three
+of §24.11's candidates: **`10249/tcp` admitted to Class A on Claim 1, `10248/tcp` admitted to Class C
+on Claim 3, `10258/tcp` refused** ([`sensitive-ports.md`](../research/sensitive-ports.md) §27). §24's
+determinacy retrieval was decisive of nothing by its own account — *"determinacy is not what decides
+this ticket"* — and its by-catch produced **two pairs**, a second `Break` under
+[ADR-0008](./0008-derivation-versions-move-on-content.md), and a second widening of
+[ADR-0009](./0009-verge-core-is-a-union.md)'s union. **A trigger that would have permitted `ports.go`
+to be read row-scoped is a trigger that would have cost the list two rows and left a third
+unexamined.** The rationale was always purpose-blind; the letter's narrowness is now measured rather
+than argued.
+
+**#95 also found the same defect inside a file this note had already opened**, which is the second
+independent ground. `pkg/proxy/apis/config/v1alpha1/defaults.go`'s `getDefaultAddresses` returns the
+healthz and metrics addresses **in the same four lines**, and `sensitive-ports.md` §24.3 quoted it for
+`10256` — the wildcard half — while the loopback half that founds `10249`'s footing sat beside it.
+That is this ADR's own Cassandra case, in a Kubernetes file, met by a pass that was reading for
+determinacy.
+
+**Three riders keep the widening from being an expansion.**
+
+1. **It adds no retrieval.** The obligation is to read a file already fetched — this ADR's own *"it is
+   cheap where it matters"*. The rejected alternative *"require re-reading every artefact already
+   retrieved, now"* is **not** re-opened and stays refused on cost and ordering.
+2. **Limb 2 is unchanged and is what keeps it from being a licence.** #95 is the demonstration: two of
+   the three candidates needed a **claim** analysis the discovering pass was not scoped to run, and
+   the third needed a build-target check that produced
+   [ADR-0056](./0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md).
+3. **The domain clause is untouched.** Limb 1 reads *every subject in the table's domain that it
+   names*; a determinacy retrieval over an owner's artefact enumerates ports, not every identifier in
+   the file.
+
+**Limb 2 has now completed two full cycles, and both split the same way.** #83 → #91: three ticketed,
+two admitted, one refused. #91 → #95: three ticketed, two admitted, one refused. In both, determinacy
+passed for every admitted candidate and decided none of them, and the **claim** gate — the one the
+discovering retrieval was not scoped to answer — did the separating. That is limb 2's design working
+twice, and it is the argument for leaving limb 2 exactly as it is.
+
+**The option that lost: widen limb 2 instead of limb 1.** Its case is that limb 2 is already
+purpose-neutral in its own words and carried §24.11 without strain. **It loses because limb 2 is the
+*disposal* rule and limb 1 is the *reading* rule** — limb 2 tells a session what to do with a subject
+it found and cannot make it find one. The defect §24.11 exposed is that a session may legitimately
+stop reading, and only limb 1 addresses that.
+
+**Limb 3 gains an instance in the direction nobody reads it.** §24.11's by-catch table said `10249`
+serves pprof; **[measured]** at `v1.34.0` it does not, `enableProfiling` having no defaulting function
+and no documented default, and neither `flagz` nor `statusz` is installed either. A **by-catch record
+is a scoped retrieval too**, and *state your own extent* binds a positive finding as much as a
+negative one. `sensitive-ports.md` §27.2 carries the correction.
+
 ## Alternatives rejected
 
 **Leave it as a retrieval habit rather than a rule.** The objection is that *read the whole file* is
