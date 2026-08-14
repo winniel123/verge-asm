@@ -53,6 +53,17 @@ The headline result is the one that would not have come out of a frequency instr
 
 ## 2. The evidence standard
 
+> **Amendment — [#33](https://github.com/winniel123/verge-asm/issues/33).** This standard
+> attaches to **this table**, not to the rule that reads it. Per
+> [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md), only §2.2's
+> **attestation** gate (with §2.3's corroborator rule) travels to other curated tables; §2.1's
+> closed claim set is a *theorem*
+> about `sensitive-port-reached-from-internet` specifically — it enumerates the mismatches an
+> internet vantage can supply — and §2.4's **determinacy** gate applies only where a port stands
+> **surrogate** for a service, which is the one surrogate v1 has. Neither generalises, and
+> elsewhere they are *outside the domain* rather than passed. Do not cite §2.1 or §2.4 as a
+> general evidence bar.
+
 ### 2.1 The claim must be one of three
 
 A port earns a place only if a **specific, checkable claim** can be made about the service it

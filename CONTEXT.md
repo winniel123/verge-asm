@@ -544,12 +544,16 @@ leaving a `Predicate domain` is neither — it is not a `Transition` — but a r
 it where one exists, or **the facet `Transition` beneath it** where the subject entered the domain
 because a value the rule reads moved. Where there is neither — the timeline merely opened, on a
 slower `Scan` we authored — it reaches nobody, because a schedule arriving is not the world moving.
+Where a rule reads a **curated table asserting about the world**, that table — not the rule — is
+what an evidence standard governs, and the naming discipline above is usually why there is no such
+table to govern: a rule named for the fact it reads needs no list to say what the fact means.
 See
 [ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md),
 [ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md),
 [ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md) — whose v1 table
 enumerates **sixteen** rules, against the stale *ten* in three ADRs —
-[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md) and
+[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md),
+[ADR-0032](./docs/adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) and
 [ADR-0033](./docs/adr/0033-a-move-carries-the-rule-that-opens-at-fired.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
 
