@@ -245,6 +245,20 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > `(port, transport)` pair moves; the list stays at 37.** Read §21 before applying this section to a
 > document found in a repository.
 
+> **Amended by §23** ([#90](https://github.com/winniel123/verge-asm/issues/90)). **Every tier, count and
+> coverage figure is unchanged — prohibition 15 · scoping 9 · weak 2 · coverage 26 of 37 — and one cell
+> in the prohibition tier is re-founded where it sits.** §18 flagged `623 IPMI` as the tier's one cell
+> whose port number came from a corroborator; **[measured]** it does not. The **IPMI Specification v2.0,
+> Document Revision 1.1, 1 October 2013** (Intel, Hewlett-Packard, NEC, **Dell**) §13.1.2 and Table 13-1
+> put the *Primary RMCP Port* at **623 (26Fh)** under *"two well-known ports under **UDP**"*, and **DMTF
+> DSP0136 v2.0** §3.2.1 reserves it independently and owns the assignment. That is §2.2's **first** form
+> carrying the pair. The **position** is still Dell's, and Dell's statement in
+> [VU#843044](https://www.kb.cert.org/vuls/id/843044) is **longer than this note has ever quoted it** —
+> the unquoted half enumerates which IPMI version each DRAC firmware ships, which is the owner placing
+> the DRAC inside IPMI. **No `(port, transport)` pair moves, no tier moves, no `Break`.** §23.7 carries
+> the ruling and §23.10 the flags. Read §23 before treating a specification that numbers a port as one
+> that takes a position — it supplies **membership and determinacy, never a prohibition**.
+
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
 This is the load-bearing methodological finding, and it took the most work to establish.
@@ -348,6 +362,18 @@ be attested per §2.2, by a source that owns the protocol.
 > corpus and finds it would leave the list resting on which maintainers happened to type a number.
 > **The hardening-instruction objection of §9.1 and §4.4 is untouched against a non-owner and adds
 > nothing against an owner** that §10.3's failure condition does not already test (§18.3).
+
+> **Amended by §23** ([#90](https://github.com/winniel123/verge-asm/issues/90)). **This section is
+> narrowed once more, in the same direction, and one of its own examples is now known to be a
+> restatement rather than a source.** CISA TA13-207A's *"Traffic from IPMI (usually UDP port 623)
+> should be restricted to a **management VLAN** segment"* was the only place this note had a port number
+> for `623/udp`. **[measured]** the number is the **IPMI** and **ASF** specifications' (§23.2), and
+> *management VLAN* is the **IPMI specification's own vocabulary** (§13.7, §1.7 — examined and refused as
+> a placement statement in §23.5). So CISA restates two owner artefacts in the owner's own words. **It
+> still carries nothing**, and the reason is unchanged: a corroborator may not close a gap, and here
+> there was no gap to close. The general lesson is the one §18.2 measured — where a row looks like it
+> rests on a government source, **check whether the owner said it first**; twice now the answer has been
+> that nobody had opened the owner's artefact.
 
 ### 2.4 Determinacy: the port must imply the service
 
@@ -940,6 +966,36 @@ different protocols on the same number, and §6 shows this has already caused a 
 > the daemon. **CouchDB's sentence in this section is a second non-owner's** and, like RabbitMQ's,
 > corroborates only — see §20.7, which also records that CouchDB's **ports table** is the stronger of
 > its two statements about `4369`. No row moves and no tier moves.
+
+> **Amended by §23** ([#90](https://github.com/winniel123/verge-asm/issues/90)). **The `623/udp` block
+> above is incomplete in three ways and the row does not move.** Added rather than substituted, per the
+> name-and-withdraw convention.
+>
+> **The two owner artefacts that number the pair, which this section did not cite:**
+>
+> > "RMCP uses two well-known ports under **UDP**." … Table 13-1: **623 (26Fh)**, *Aux Bus Shunt
+> > (**Primary RMCP Port**)* — "This port and the required RMCP messages **must be provided to be
+> > conformant** with the RMCP specifications."
+> > — IPMI Specification, Second Generation, **v2.0, Document Revision 1.1, 1 October 2013**, §13.1.2,
+> > page 125 (Intel, Hewlett-Packard, NEC, Dell). §13.1: *"IPMI-over-LAN uses version 1 of the RMCP
+> > protocol and packet format."*
+>
+> > "There are two **UDP** ports reserved for RMCP. -- The port numbers are **026Fh (623 decimal)** and
+> > 0298h"
+> > — DMTF **DSP0136**, *Alert Standard Format (ASF) Specification* Version 2.0, 23 April 2003, §3.2.1,
+> > page 19 — **the document that assigns the port**; IPMI cites it normatively and inherits it
+>
+> **Dell's statement is longer than the quote above**, and the unquoted half is the half that places
+> the DRAC inside IPMI. The full statement is headed *"Dell Response to VU #843044 – Arbitrary Command
+> Injection for **IPMI 1.5** [05 December 2014]"*, enumerates which IPMI version each DRAC firmware
+> ships (*"iDRAC8 – N/A - IPMI 1.5 not present in iDRAC8 firmware"*), and puts the quoted sentence under
+> Dell's own heading **"Dell Best Practices"**, continuing: *"Along with locating DRACs on a separate
+> management subnet, users should isolate the management subnet/vLAN with technologies such as
+> firewalls, and limit access to the subnet/vLAN to authorized server administrators."* Byte-verified
+> through CERT/CC's JSON API; the rendered page is a JavaScript shell (§23.11).
+>
+> **The CISA quote is a restatement, not a source.** It is retained as corroboration and is no longer
+> the only place this note holds the number. §23.
 
 ---
 
@@ -7289,6 +7345,482 @@ yet defeated* rule and §14.9's, restated.
 
 ---
 
+## 23. `623/udp` IPMI — the specification numbers the port, and it was never CISA's to supply
+
+Wayfinder ticket [#90](https://github.com/winniel123/verge-asm/issues/90), the retrieval
+[#88](https://github.com/winniel123/verge-asm/issues/88) §18.5 called for and deliberately declined to
+perform.
+
+> **FIGURE DELTA: none — footing re-founded in place, no row move, no tier move, no `Break`.**
+> Pairs **37 → 37**; §3 class totals **11 / 7 / 19** unchanged; §2.2 footing coverage **26 of 37**
+> unchanged; prohibition tier **15 pairs** unchanged; §6.1 containment **28 + 4 + 5 = 37** unchanged;
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union unchanged; no rule version moves.
+
+§18.5 exposed `623/udp` on two grounds: the sentence that carries it names **DRACs**, a product line
+that [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)'s unit rule
+excludes, and *"the number that connects it to the row is **CISA's**"*, which
+[ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+limb 2 forbids. It called this §10.6's shape in a second instance — *a corroborator standing where an
+owner should* — and §10.6 is what took `161/udp` off the list.
+
+**The second ground is refuted and the first dissolves.** **[measured]** Two owner specifications
+number the pair in their own words, at named revisions, read as shipped bytes; and Dell's statement is
+**longer than this note has ever quoted it**, the unquoted half placing the DRAC inside IPMI in Dell's
+own words. Limb 2 is closed three hops deep with no reader inference at any hop.
+
+> **`623/udp` stays on the list, in the explicit prohibition tier, with its footing re-founded where
+> it sits.** The row is the concatenation of three owner statements — Dell places the DRAC inside
+> IPMI, the IPMI and ASF specifications place IPMI-over-LAN on `623/udp`, and Dell states the
+> position. **CISA carries nothing, and now it does not need to.**
+
+§18.7 armed a trigger on this outcome — *"If `623` (§18.5) comes back badly, `1433` is the next cell to
+check"*. **It does not fire.** `623` came back better than it went in.
+
+### 23.1 What was retrieved, at what revision, and as what
+
+ADR-0040's *read shipped bytes at a named version* rule and §13.10's govern this section, so each
+artefact is listed with what was actually opened.
+
+| Artefact | Class | Named version, read off the artefact | How it was read |
+|---|---|---|---|
+| **IPMI Specification, Second Generation, v2.0** — Intel, Hewlett-Packard, NEC, **Dell** | Specification | *"Document Revision 1.1, October 1, 2013"*, © 2013 Intel Corporation, Hewlett-Packard Company, NEC Corporation, Dell Inc. | PDF, 12,037,554 bytes from `intel.com`, `pdftotext` locally |
+| **DMTF Alert Standard Format Specification, DSP0136** | Specification | *"Version 2.0, 23 April 2003"*, **STATUS: Final** | PDF, 749,846 bytes from `dmtf.org`, `pdftotext` locally |
+| **DMTF *ASF Overview Document*** | Tutorial/overview — the DMTF's only other ASF document | 2010 | PDF, 125,532 bytes from `dmtf.org`, `pdftotext` locally |
+| **CERT/CC VU#843044**, carrying Dell's statement | Vendor statement | Note published 2014-12-18; Dell's statement headed *"[05 December 2014]"*, responded 2014-12-09, revision 3 | CERT/CC JSON API, byte-verified — the rendered page is a JavaScript shell (§23.11) |
+| **CISA TA13-207A** | Corroborator | Initial release 26 July 2013; **last revised 7 October 2016** | HTML bytes via `curl`, grepped |
+| **IANA registry** | Corroborator (catalogue) | CSV, retrieved 2026-08-14 | CSV, filtered on the port column |
+| **ipmitool** | Implementation | `configure.ac` — `AC_INIT([ipmitool], [1.8.19git_suffix])` | Source tarball, extracted and grepped |
+| **Supermicro, *Server Management: IPMI Firmware Security*** | Vendor implementer | White paper, no revision string printed; page footer *"August 2014"* | PDF, 261,369 bytes, `pdftotext` locally |
+| **Lenovo XClarity Controller 2** | Vendor implementer | *Service Enablement and Port Assignment*, `pubs.lenovo.com/xcc2` | Server-rendered HTML bytes |
+| **Intel, *Server Boards and Server Platforms Server Management Guide*** | Vendor implementer (co-author) | Part number **G37830-002, October 2012**, Revision 3.1 | PDF, 4,187,453 bytes, `pdftotext` locally |
+| **Dell iDRAC9 *Security Configuration Guide*** | Vendor implementer (co-author) | v5.x series | **Not byte-verified — `dell.com` serves 551 bytes to a non-browser client (§23.11)** |
+| **HPE iLO documentation** | Vendor implementer (co-author) | — | **Not retrieved.** Five attempts, all defeated (§23.11) |
+
+### 23.2 Limb 2 is closed, and the owner closes it twice
+
+**The IPMI specification names the pair, and names the transport.** §13.1 states the relationship
+first — *"IPMI-over-LAN uses version 1 of the RMCP protocol and packet format"* — and §13.1.2, *RMCP
+Port Numbers*, page 125, states the pair:
+
+> "RMCP uses two well-known ports under UDP. The following table describes these ports and summarizes
+> their use."
+>
+> | Port # | Name | Description |
+> |---|---|---|
+> | **623 (26Fh)** | Aux Bus Shunt (**Primary RMCP Port**) | "Hereon referred to as the Primary RMCP Port - This port and the required RMCP messages **must be provided to be conformant** with the RMCP specifications." |
+> | 664 (298h) | Secure Aux Bus (Secondary RMCP Port) | "…the secondary port is used to transfer encrypted transfers while the primary port continues to support unencrypted packets." |
+>
+> — IPMI v2.0, Document Revision 1.1, 1 October 2013, §13.1.2 and Table 13-1
+
+That is §2.2's **first** form, naming a `(port, transport)` pair in a `must`, in a document Dell
+co-authored. **[measured]** Table 13-8 (§13.6, page 132) confirms the pair did not move when the
+protocol did: the destination port for *RMCP / IPMI 2.0 "RMCP+"* is `26Fh`, the same as for IPMI 1.5.
+
+**The ASF specification names it independently, and it is the document that actually assigns it.**
+
+> "There are two UDP ports reserved for RMCP. -- The port numbers are 026Fh (623 decimal) and 0298h
+> (644 decimal)"
+> — DMTF **DSP0136**, *Alert Standard Format (ASF) Specification* Version 2.0, 23 April 2003, §3.2.1
+> *RMCP UDP Port Numbers*, page 19
+
+**The assignment is the DMTF's and IPMI inherits it**, which the IPMI specification says itself: it
+cites `[ASF 2.0]` normatively, records that the ASF group *"has moved into the DMTF as the Pre-OS
+Working Group"* (§13.1.1), and defines conformance against *"the RMCP specifications"* — plural, and
+external. IANA's service names agree, being ASF-branded rather than IPMI-branded. **This settles a
+question §2.4 left open by accident**: the reason *"the string 'IPMI' appears **nowhere** in the
+registry"* is not that IPMI squats, it is that the registration belongs to the protocol IPMI rides.
+§15.4's cell — *"`asf-rmcp` is the **transport IPMI rides**, not a rival service"* — is confirmed from
+the owner's own lineage rather than inferred.
+
+**So the number was never CISA's.** §18.5's *"the number that connects it to the row is CISA's"* is
+**withdrawn on retrieval**, per the name-and-withdraw convention. What CISA does is restate, eleven
+years later and with a hedge, a number two specifications had already fixed.
+
+### 23.3 Dell's statement is longer than this note has ever quoted, and the missing half is the one that matters
+
+§3.4 has cited VU#843044 for one sentence since [#21](https://github.com/winniel123/verge-asm/issues/21).
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)'s rule is
+that an attestation is retrieved **over the artefact**, not over the row, and nobody had read the
+artefact. **[measured]** Retrieved in full from CERT/CC's JSON API, Dell's vendor statement is
+1,700 characters and the quoted sentence is one of them. It opens:
+
+> "**Dell Response to VU #843044 – Arbitrary Command Injection for IPMI 1.5 [05 December 2014]**
+> Summary — Due to the vulnerabilities inherent in **IPMI 1.5**, Dell has removed IPMI 1.5 code
+> completely. Dell recommends upgrading to the following firmware release or greater to eliminate all
+> such vulnerabilities related to the IPMI 1.5 protocol: **iDRAC6 modular – version 3.65 · iDRAC6
+> monolithic - version 1.98 · iDRAC7 – version 1.57.57 · iDRAC8 – N/A - IPMI 1.5 not present in
+> iDRAC8 firmware**"
+
+and the sentence this note quotes sits under **Dell's own heading**:
+
+> "**Dell Best Practices** — Dell advises the following: DRAC's are intended to be on a separate
+> management network; they are not designed nor intended to be placed on or connected to the
+> internet. Doing so could expose the connected system to security and other risks for which Dell is
+> not responsible. Along with locating DRACs on a separate management subnet, users should isolate
+> the management subnet/vLAN with technologies such as firewalls, and limit access to the
+> subnet/vLAN to authorized server administrators."
+> — Dell Computer Corporation, Inc., in [CERT/CC VU#843044](https://www.kb.cert.org/vuls/id/843044),
+> statement dated 5 December 2014, responded 2014-12-09, revision 3
+
+**This is the artefact that closes limb 2's first hop, and it had been sitting in the citation all
+along.** Dell does not merely happen to be talking about IPMI; Dell enumerates **which IPMI protocol
+version each DRAC firmware ships**, which is Dell placing the DRAC inside IPMI in its own words. The
+note the statement appears in is titled *"Multiple Dell iDRAC **IPMI v1.5** implementations use
+insufficiently random session ID values"* and its overview reads *"The Intelligent Platform Management
+Interface (IPMI) v1.5 implementations in multiple Dell iDRAC releases…"* — byte-verified.
+
+**Two further things the fuller quote supplies, both of which strengthen the row.** The prohibition is
+not a passing remark but a section Dell titles *Dell Best Practices*; and Dell's own remedy vocabulary
+— *"separate management subnet"*, *"isolate the management subnet/vLAN"*, *"firewalls"* — is the same
+vocabulary CISA uses, which makes CISA's sentence a restatement of the owner rather than an
+independent source the row was leaning on.
+
+### 23.4 Neither specification takes a placement position — the negative, with its corpus
+
+The retrieval is not one-way, and the finding that cuts against the row is stated first.
+
+> **[measured] Neither the IPMI specification nor the ASF specification says anywhere that IPMI-over-LAN
+> belongs on a particular kind of network.** In the IPMI specification, `management network`, `private
+> network`, `separate network`, `isolated network`, `untrusted` and `public network` occur **zero**
+> times. `Internet` occurs **five** times as a word, and not one is about a network the BMC might be
+> on: two are RFC titles in the reference list (RFC 1332, RFC 2460), one is *"the target's Internet
+> address"* inside the description of ARP, one is a PPP protocol-field label, and one is the IANA URL.
+> `firewall` occurs **36** times and **every one of the 36 is a "Firmware Firewall" construction** —
+> the specification's name for a BMC capability that restricts which IPMI **commands** a channel may
+> carry, a command filter inside the controller with nothing to do with a network firewall. In DSP0136
+> the same six network terms return **zero**, and so does `firewall`.
+
+ADR-0040 and
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+bind a negative here, and the ticket named the owner shape: **a multi-vendor specification with vendor
+implementations.** The class list, enumerated before the negative is recorded:
+
+| Owner | Class | Document | Searched? | Places IPMI on a network? |
+|---|---|---|---|---|
+| DMTF (assigns the port) | specification | DSP0136 v2.0, 23 Apr 2003 | **Yes**, bytes | **No** |
+| DMTF | overview / tutorial | *ASF Overview Document*, 2010 | **Yes**, bytes | **No** — and it names no port at all |
+| DMTF | deployment / operational | **does not exist** — `dmtf.org/standards/asf` lists exactly two documents, the specification and the overview | n/a | n/a |
+| Intel · HP · NEC · Dell | specification | IPMI v2.0 rev 1.1, 1 Oct 2013 | **Yes**, bytes | **No** |
+| Intel · HP · NEC · Dell | deployment / operational | **does not exist** — the specification family is the specification plus its errata; no consortium deployment document was located | n/a | n/a |
+| Dell (co-author) | vendor statement | VU#843044, 2014-12-05 | **Yes**, bytes | **Yes** — §23.3 |
+| Dell (co-author) | vendor documentation | iDRAC9 *Security Configuration Guide* | **Attempted, blocked** (§23.11) | unresolved |
+| Intel (co-author) | vendor documentation | *Server Management Guide* G37830-002 | **Yes**, bytes | **No** — and see §23.8 |
+| HP/HPE (co-author) | vendor documentation | iLO documentation | **Attempted five times, blocked** (§23.11) | unresolved |
+| NEC (co-author) | vendor documentation | — | **Not located** | unresolved |
+| Supermicro (implementer) | vendor documentation | *IPMI Firmware Security*, Aug 2014 | **Yes**, bytes | **Yes**, in hardening modality |
+| Lenovo (implementer) | vendor documentation | XCC2 port assignments | **Yes**, bytes | **No** — numbers the port only |
+| ipmitool (implementation) | implementation | 1.8.19git | **Yes**, source | **No** — numbers the port only |
+
+**Under ADR-0046 limb 1 this negative is not exposed, because it is not a sole ground.** The
+specification's silence about network placement grounds nothing: the position is carried by Dell's
+statement and corroborated by Supermicro's. A specification that numbers a port and declines to say
+where the port belongs is doing exactly what §2.2's first form is for — and §17.3's `161/udp` sweep is
+the precedent for expecting nothing else from a standards body. **The negative is bounded on arrival**
+and is swept for the record rather than for the verdict.
+
+**ADR-0046 limb 2's *the corpus terminates* claim holds, and it terminates one class short of three.**
+The DMTF publishes two ASF documents and there is no third; the IPMI consortium publishes a
+specification and its errata and nothing else. ADR-0046's rule that *an owner cannot invent a fourth
+class to defeat a sweep* met a case here where the owner does not even have a second.
+
+### 23.5 The near-miss, examined and refused — §13.7's `management VLAN`
+
+The closest the specification comes to a placement statement, recorded rather than smoothed, in the
+manner §13.3 recorded its three near-misses.
+
+> "VLAN support is **optional, but recommended**, for BMC access via IPMI 1.5 packet and IPMI v2.0
+> packet formats."
+> — IPMI v2.0 rev 1.1, §13.7 *VLAN Support*
+
+> "This can be used to set up a `**management VLAN**' where only devices that are members of that VLAN
+> will receive packets related to management, and, conversely, will be isolated from the need to
+> process network traffic for other VLANs."
+> — the same document, §1.7 feature summary, *VLAN Support*
+
+It is tempting and it is **refused**, on three grounds and in increasing order of force. §13.7's
+*recommended* is addressed to the **BMC implementer** — its subject is whether a controller must
+implement 802.1q tagging, not where an operator attaches it. §1.7's sentence is a **capability
+description** in the feature-summary chapter, and *"can be used to"* is the weakest modality available;
+it is §12(b)'s *label* rather than *position*, the same line #69 drew and
+[#70](https://github.com/winniel123/verge-asm/issues/70) applied three times. And decisively, **neither
+sentence names the public internet, prohibits anything, or says a BMC outside a management VLAN is
+incorrect** — §20.8 refused `4369`'s promotion on a weaker version of exactly this gap, where
+`DEP-001` named *untrusted networks* rather than *the public internet*. This names no network at all.
+
+**One thing it does establish, and it is worth having.** *Management VLAN* is the **specification's own
+vocabulary**, not CISA's. CISA's *"restricted to a management VLAN segment"* is therefore a restatement
+in the owner's words, which is a small strengthening of a corroborator that carries nothing either way.
+
+### 23.6 The three objections, argued rather than dismissed
+
+**Objection 1 — the unit rule. *"DRACs" is a product line, and ADR-0048's unit rule excludes it, so
+Dell's sentence reaches nothing.*** This is §18.5's own words and it is the ticket's crux.
+
+**It fails because the rule it invokes is a rule about *reach*, and after this retrieval nothing has to
+reach.** ADR-0050 exists for the case where the owner has **not** numbered the port and a category
+sentence must be stretched to cover it; the unit rule is the fence that stops the stretch going too
+far. §18.5's own taxonomy has a separate bucket for rows where the stretch is unnecessary —
+*"**Numbered by the owner, so the rule is not needed**"* — holding `3306`, `2379`, `2380`, `9042`,
+`25672` and `10250`. **`623/udp` belongs in that bucket and §18.5 could not know it**, because §18
+performed no retrieval and said so. Every hop is now an owner artefact:
+
+| Hop | The claim | The owner artefact that makes it |
+|---|---|---|
+| 1 | A DRAC is an IPMI implementation | **Dell**, VU#843044 — the versions of IPMI each DRAC firmware ships, enumerated by Dell (§23.3) |
+| 2 | IPMI-over-LAN is `623/udp` | **IPMI v2.0** §13.1.2 / Table 13-1, and **DSP0136** §3.2.1 |
+| 3 | That deployment is prohibited | **Dell**, VU#843044 — *"not designed nor intended to be placed on or connected to the internet"* |
+
+The reader infers nothing at any hop, which is the whole content of limb 2 — *"the row is the
+concatenation of two owner statements"*; here it is three. **The unit rule is untouched and is not
+weakened**: a product-line category still may not be stretched to a member the owner has not placed.
+`4369` is still not rescued, for exactly the reason §18.5 gave.
+
+**Objection 2 — scope. *Dell's prohibition covers Dell's BMCs. The row is about IPMI, which Supermicro
+and HPE also implement. §11.8 refuses precisely this: a Cisco sentence attests about Cisco's agent, not
+about SNMP.*** This is the stronger objection and it deserves the better answer.
+
+**It fails on the distinction §11.8 itself draws.** §11.8's reason for setting Cisco aside is that
+*"under §10.5 that vendor would own **its** agent and not the protocol"*. **Dell owns the protocol** —
+§10.5's first clause is *the party that designed the protocol*, and Dell is a named author and
+copyright holder of the specification that defines IPMI, which Cisco is not of SNMP. The two cases are
+on opposite sides of §10.5's own line, and §10.5 has said so since #37: its worked examples read
+*"Microsoft owns SMB, **Dell owns the DRAC**"* — a sentence this section can now state more strongly,
+because Dell owns IPMI too.
+
+Three further supports, none of them load-bearing on its own. §10.3 asks that **the boundary be named
+by the owner** and does not ask for unanimity among co-owners; **[measured]** no co-author names an
+internet-facing IPMI deployment as supported anywhere retrieved, so §10.3's failure condition is unmet.
+**Supermicro, an implementer speaking about its own BMCs, takes the same position and names the pair
+while doing it** — *"Traffic on default ports for BMCs such as TCP/5900 and, UDP/623 should be
+restricted to secure and known networks"*, and *"it is still recommended that administrators block UDP
+port 623 on unsecured networks"* — which corroborates under §2.3 and shows Dell is not idiosyncratic.
+And **Lenovo** pins the port as *"not user-configurable"*, which is a determinacy support rather than a
+position.
+
+**Objection 3 — issuance. *Dell's statement is on `kb.cert.org`, not on `dell.com`.
+[ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) says an owner's documentation
+is what it has **issued** — carried by a release artefact the owner publishes, or served on the owner's
+own documentation site. This is neither.*** Nobody has raised this and it would have been raised
+eventually, so it is closed here.
+
+**It fails, and ADR-0045's own test is what closes it.** ADR-0045 was written about a document
+*"in a development or release branch"* — the right party at the wrong **time**, a draft nobody had
+decided to publish. Dell's statement is the opposite: Dell was notified on 2014-12-01, **composed a
+statement dated 5 December 2014, and supplied it on 2014-12-09 for publication**, through the channel
+that exists for exactly this purpose. ADR-0045's prose analogue of *takes effect* is *"reaches a reader
+without the reader acting on the owner's behalf"*, and a CERT/CC vendor statement reaches every reader
+of the note. **Issuance is not hosting.** ADR-0045 says so in terms — *"issuance is **not** rendering —
+a document in a release artefact but not on the website is issued, and so is one on the website but not
+in the artefact"* — and a vendor statement Dell wrote, dated, and handed to a publisher is issued on
+any reading of that sentence.
+
+### 23.7 The ruling
+
+> **1. Limb 2 holds.** The artefact that closes it is the **IPMI Specification v2.0, Document Revision
+> 1.1, 1 October 2013, §13.1.2 and Table 13-1**, with **DMTF DSP0136 v2.0 §3.2.1** closing it
+> independently and owning the assignment. §18.5's *"the number … is CISA's"* is **withdrawn**.
+>
+> **2. `623/udp` stays on the list.** No claim moves: the row remains Class C on Claim 3, whose
+> boundary limb is named by an owner — *"a separate management network"* — as §10.3 requires.
+>
+> **3. The cell stays in the explicit prohibition tier and is re-founded where it sits.** Dell's
+> sentence is an unqualified negative naming **the public internet**, which is the tier's own criterion
+> (§20.8). This is §20's shape, not §18's: **a footing re-founded in place, not moved between tiers.**
+>
+> **4. No ADR is minted.** Reserved number **0052 is left unused**, and gaps are fine — 0039, 0041 and
+> 0051 already are.
+>
+> **5. `623/tcp` is not swept in** (§23.8), and the by-catch the artefacts name is examined and
+> refused on the artefacts' own words.
+
+**Why no ADR, stated rather than assumed.** Three candidate rules were considered and each already
+follows from a rule this repo has:
+
+| Candidate | Why it is not an ADR |
+|---|---|
+| *Where the owner's own artefact numbers the port, ADR-0050 is not needed* | §18.5 already carries the bucket by name, and ADR-0050 is a rule about reach by construction |
+| *A vendor that co-authored the protocol's specification owns the protocol, not merely its product* | **§10.5 as written** — *"the party that **designed the protocol**"*. This is #76's and #84's precedent for declining: *no ADR; this states what §10.5 already required* |
+| *A row may concatenate a membership artefact and a position artefact from different documents* | **ADR-0050 limb 2 as written** — *"the row is the concatenation of two owner statements"* |
+
+**ADR-0050 is amended rather than superseded**, discharging the one item it left open. Its qualifier
+was exactly right and is the reason it ticketed rather than ruled: *"limb 2 unsatisfied **on the
+artefacts the note holds**"*. The artefacts it did not hold satisfy it.
+
+**The corrected `why` cell for §3.3's row**, per §10.7's and §20.5's convention of correcting here
+rather than in §3's tables. The current cell leads with CISA, which is the defect §10.7 named and
+corrected for `161/udp`:
+
+> | 623/udp | IPMI / ASF-RMCP (BMC) | The IPMI specification puts IPMI-over-LAN on the Primary RMCP Port and Dell, one of the specification's four authors, states that the DRACs implementing it "are intended to be on a separate management network; they are not designed nor intended to be placed on or connected to the internet". Session setup is transacted in the clear before authentication, so a caller that reaches the port learns the channel's authentication capabilities without holding a credential |
+
+The row's grounds are unchanged and the row does not move. The final clause is read off the
+specification's own dispatch rather than its prose, per [#84](https://github.com/winniel123/verge-asm/issues/84)'s
+§20.6 rule: **[measured]** IPMI v2.0 §13.x's session-startup sequence has the remote console issue an
+*RMCP Presence Ping*, then *Get Channel Authentication Capabilities* with *"Authentication Type = none
+('in clear')"*, then *Get Session Challenge*, *"also with Authentication Type = none"*, before any
+authenticated packet. **This is disclosure and not a claim move** — Claim 1 asks whether the protocol
+admits anonymous **commands**, and capability discovery is not a command; the row stays in Class C on
+Claim 3.
+
+### 23.8 `623/tcp` is not swept in, and the by-catch the artefacts name
+
+**Ticket item 4, discharged, and it comes back stronger than §6.2 put it.** Three independent artefacts
+now separate the TCP side from the UDP side:
+
+1. **Both specifications name the transport.** IPMI: *"RMCP uses two well-known ports under **UDP**"*.
+   DSP0136's section is titled *RMCP **UDP** Port Numbers*. Neither reaches TCP.
+2. **IANA gives the TCP side to a different protocol**, transcribed exactly:
+   `oob-ws-http,623,tcp,DMTF out-of-band web services management protocol,[Jim_Davis],[Jim_Davis],2007-06`
+   against `asf-rmcp,623,udp,ASF Remote Management and Control Protocol,[Carl_First],[Carl_First],,,,,,`.
+   The same split holds at 664 — `oob-ws-https` on TCP, `asf-secure-rmcp` on UDP.
+3. **[measured] A second occupant of the TCP side, and it is Intel's.** Intel's own *Server Management
+   Guide* (G37830-002, October 2012) names `623` four times and **every one is TCP telnet to
+   `dpcproxy`**, Intel's command-line proxy — *"The 623 represents the default Port address required for
+   Intel® Command Line Interface connections"*. **`RMCP` returns zero hits in the whole document.** So
+   one of IPMI's four authors reused the bare number 623 on TCP for something that is not IPMI.
+
+**§6.2's live defect is vindicated a third time**, and this is the first time the evidence for it comes
+from an owner rather than from IANA. Keying both lists on `(port, transport)` pairs is what makes the
+row safe; a containment check over bare integers would pass while probing Intel's telnet proxy.
+
+**The by-catch, per ADR-0037 limb 2 — a subject the artefact names and the table lacks.** The
+specification names **`664/udp`**, the *Secure Aux Bus (Secondary RMCP Port)*, and IANA registers it as
+`asf-secure-rmcp`. **It is not ticketed, and the artefact that names it is what refuses it:**
+
+> "Note that the common IPMI messaging protocols and authentication mechanisms in this specification do
+> not use encrypted packets at the RMCP level … therefore **IPMI messaging does not need to use the
+> secondary port**."
+> — IPMI v2.0 rev 1.1, §13.1.2, immediately beneath the row that names 664
+
+and the specification says elsewhere that *"Authenticated and Encrypted sessions can be established on
+any UDP port, including port 26Fh. (This is different from ASF 2.0 which requires using a different
+port for authenticated traffic…)"*. So the owner both names `664/udp` and states that its own protocol
+does not use it. ADR-0037 limb 2 requires a named subject the table lacks to be **ticketed rather than
+admitted**; it does not require ticketing a subject the same artefact removes. **The criterion that
+would open a ticket:** an owner artefact placing IPMI messaging, or a live implementation's default, on
+`664/udp` — at which point it is a new admission priced under ADR-0009, never a correction of this.
+
+### 23.9 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 37 | **37, unchanged.** No row is added or removed |
+| §3.1 / §3.2 / §3.3 class totals | 11 / 7 / 19 (§18.8 composed with §19) | **unchanged.** No row changes class; `623/udp` stays Class C on Claim 3 |
+| §2.2 footing table — coverage | 26 of 37 | **26 of 37, unchanged.** No pair enters or leaves the table's subject |
+| §2.2 footing table — **prohibition tier** | 15 pairs, including `623` | **15 pairs, unchanged.** `623` is re-founded **inside** the tier, not moved |
+| §2.2 footing table — scoping tier · weak tier | 9 pairs · 2 rows | **9 · 2, unchanged** |
+| §2.3 | *"Neither attests a port"*, narrowed by §18 | **narrowed once more, and in the same direction.** CISA's IPMI sentence is now known to restate the specification; it still carries nothing |
+| §2.4's `623/udp` row — *"the string 'IPMI' appears nowhere in the registry"* | disclosure | **stands, and now has its reason** — the registration belongs to ASF/RMCP, the transport IPMI rides, per the IPMI specification's own normative citation |
+| §15.4's `623/udp` determinacy cell | *"No contest"*, with the `reg.` inconsistency recorded not corrected | **confirmed on the owner's artefact.** The `reg.` cell is **still not edited** — §15.4's reason holds and §3's tables are in a sibling's lane this week |
+| §3.3's `623/udp` *why* cell | leads with CISA | **corrected in §23.7**, per §10.7 and §20.5. The row's grounds are unchanged |
+| §3.4's IPMI quote block | Dell's sentence + CISA + IANA | **amended by reference.** The two specification quotes are added; the Dell quote is **extended** to the text Dell actually issued (§23.3); CISA is re-labelled a restatement |
+| §4.6 exclusions | 18 named | **18 named.** None is added or removed |
+| §6.1 containment arithmetic | 28 + 4 + 5 = 37 | **unchanged.** `623/udp` is still one of the five UDP rows off by default |
+| §6.2's `623/tcp`-versus-`623/udp` defect | live | **live, and now footed on an owner artefact** (§23.8) — Intel's own guide puts a telnet proxy on TCP 623 |
+| §8 | 12 questions | **12.** None opens and none closes here |
+| §13.1's *"`1433`, `445` and `623` have no shipped configuration artefact"* | stands | **stands, and is now beside the point for `623`** — the row never needed one, because §2.2's **first** form carries the pair |
+| §17.1 row 13 (`1433`/`445`/`623`, *"not a class negative"*) | not exposed | **unchanged.** §23.4 adds a **new** negative — the specifications' silence on placement — which is **bounded on arrival**, not sole ground, so the exposed population does not grow |
+| §18.5's *"the number … is CISA's"* | the finding that opened #90 | **withdrawn on retrieval** |
+| §18.7's *"If `623` comes back badly, `1433` is the next cell to check"* | armed | **does not fire.** `623` came back well; `1433` is not opened by this section, and remains soft on its own terms |
+| §2.6 / §11.7's *"the hatch would have carried exactly the row that turned out not to belong"* | stated of `161/udp` | **strengthened.** The other row the hatch was drafted to carry is now founded on two specifications and an issued vendor statement |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | unchanged | **unchanged** — no member enters or leaves; the sensitive half still contributes five UDP pairs |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984` | **unchanged, two rows.** `623` is not a weak-tier row and does not join |
+| [#12](https://github.com/winniel123/verge-asm/issues/12) | blocked by #90 | **unblocked on this ticket's close.** The row removal it was priced against does not happen |
+
+**Outside this note.**
+[ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+is **amended**, discharging its *what the rule re-opens elsewhere* item; its Decision, its three limbs
+and its unit rule are all untouched. **No new ADR.** ADR-0037, ADR-0040, ADR-0042, ADR-0045, ADR-0046
+and ADR-0048 are untouched — each is **applied** here and none is changed by the application, which is
+recorded so the next session does not re-check.
+[`weak-key-and-signature.md`](./weak-key-and-signature.md) is untouched: nothing here is a rule that
+travels under ADR-0032, since this section applies existing rules rather than making one.
+`CONTEXT.md` needs no change; no domain term is added or amended.
+
+### 23.10 Thin ground, flagged per the standing rule
+
+**Two of the four specification co-authors produced no retrievable first-party document.** HPE's
+documentation portal defeated five attempts and NEC's could not be located (§23.11). This is a
+**breadth** weakness and not a **class** weakness, which ADR-0046 limb 3 distinguishes precisely, and
+it does not bite: the artefact the ruling rests on is the specification **all four of them authored**,
+and it was read as bytes. But it should not be smoothed. If HPE turns out to document internet-facing
+iLO IPMI as supported, that is §10.3's failure condition met by a co-owner and the row is back in play.
+**The criterion is stated so that it is falsifiable**, and reaching it needs a browser session rather
+than an argument.
+
+**Dell's iDRAC port table is unverified, and the ruling deliberately does not rest on it.** The
+retrieval could not get bytes out of `dell.com`. Everything the ruling uses from Dell comes from
+VU#843044, which **was** byte-verified through CERT/CC's API. Stated plainly because the tempting
+shortcut here was to accept a summarising layer's reconstruction of a Dell table and quote it as Dell's
+words — §22.10's ColdFusion trap in a second instance, and the reason §23.1 records how each artefact
+was read.
+
+**The port is a configurable parameter, and the specification says so.** LAN Configuration Parameter 8
+is *"Primary RMCP Port Number, LSByte first. **Default** = 26Fh"*. Under
+[ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md) and ADR-0048 this is
+**not** a *displaced* convention — the owner does not move the port and does not version-depend it, and
+Table 13-1 makes the primary port mandatory for conformance — but it is the honest root of CISA's
+*"usually"*, which this note should stop reading as vagueness. The vendors then split: Dell and Lenovo
+pin it, Supermicro calls it a default. Every port on this list is settable by its operator; `6379` is
+too.
+
+**One measured caution about owner artefacts in general.** **[measured]** DSP0136 v2.0 §3.2.1 renders
+`0298h` as *"644 decimal"*. `0x298` is **664**, and the IPMI specification, IANA and ipmitool all have
+it right. It is a typo in the owning standard, found by reading the bytes. It touches nothing here —
+`026Fh (623 decimal)` is correct — and it is recorded because this note's standing assumption is that
+the owner's artefact is the better source, and this is a measured instance of an owner artefact being
+wrong where its restatements are right.
+
+**What was not done.** No claim gate was re-run. The row's Claim 3 footing was accepted as §10.3 leaves
+it and the Class A argument implied by §23.7's in-the-clear session setup was **recorded and not
+pursued**, because this ticket's question is the attestation limb. A session that wants to move `623`
+from Class C to Class A has a live argument and should open a ticket rather than read it out of this
+section.
+
+### 23.11 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10 and §22.10
+
+- **PDFs were extracted locally rather than read through a rendering or summarising layer**, per
+  [#46](https://github.com/winniel123/verge-asm/issues/46) and §22.10. `pdftotext` over the retrieved
+  bytes for the IPMI specification (12,037,554 bytes), DSP0136 (749,846), the ASF Overview Document
+  (125,532), Intel's Server Management Guide (4,187,453) and Supermicro's white paper (261,369). The
+  IPMI specification's Table 13-1 is a multi-column layout whose cells the text layer interleaves; it
+  was reassembled by reading the surrounding pages in context rather than by grepping for `623`, which
+  is §22.10's lesson applied before the trap could spring.
+- **`kb.cert.org` serves a compressed JavaScript shell, and the vendor statement is not in it.** A
+  `curl` of the note returned 10,676 bytes of compressed SPA bundle with zero occurrences of `623` or
+  `DRAC`. The full statement was obtained from CERT/CC's own JSON API —
+  `kb.cert.org/vuls/api/843044/` and `/vendors/` — which returns the note's `name` and `overview` and
+  the vendor record with `statement`, `dateresponded` and `revision`. **This is the instrument that
+  made §23.3 possible, and nobody had opened it in twelve tickets of citing this note.** It is the
+  §22.10 finding in a second shape: the note had been cited by its *quote* for as long as it has been
+  cited at all, and the artefact is bigger than the quote.
+- **`dell.com/support/manuals` returns 551 bytes to a non-browser client**, whatever user-agent is
+  offered — the shape §9.5 recorded for `learn.microsoft.com` and §14.6 for `docs.oracle.com`, in its
+  most complete form. Two fetch-tool attempts returned the guide's table of contents and no section
+  body. **Dell's port table is therefore unverified and is not relied on** (§23.10).
+- **HPE's documentation portal defeated five distinct attempts** across `support.hpe.com`,
+  `cdn.support.hpe.com` and `www.hpe.com/psnow`: empty content, a 9,483-byte JavaScript shell with zero
+  occurrences of `623`, a connection reset, a 60-second timeout and an HTTP 403. The portal is a
+  client-side-rendered application behind a session check, so the document body never enters the HTTP
+  response. Recorded as a **retrieval failure and not as a negative finding** — §11.8's rule that a
+  negative states its own extent cuts both ways.
+- **`cisa.gov` returned HTTP 403 twice to the fetch tool** and was retrieved with `curl` and a browser
+  user-agent instead, 58,094 bytes, grepped in the markup. The sentence and both dates in §23.1 are
+  from those bytes.
+- **`dmtf.org/standards/asf` returned 403 to the fetch tool and 87,523 bytes to `curl`.** It was read to
+  **enumerate the class list**, not for a quote — the page lists exactly two ASF documents, and that
+  absence is what §23.4's *deployment class does not exist* row rests on. A class list read off a
+  vendor's own index is the cheapest form ADR-0040's enumeration can take, and it is recorded as the
+  method rather than the finding.
+- **The trap this section had to refuse by name.** The available shortcut was *the IPMI specification
+  numbers the port, therefore the specification founds the row* — which is false in the half that
+  matters. A specification that numbers a port and takes no position supplies **membership and
+  determinacy**, never a **prohibition**, and reading it as the latter would have re-founded the cell on
+  an artefact that says nothing about networks. §23.4 exists to keep that distinction visible, and the
+  string counts are there so a later reader can check it in one grep rather than trusting this sentence.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -7316,6 +7848,17 @@ Cloud providers
 - Google Cloud: [VPC firewall rules, including the default network's pre-populated rules](https://docs.cloud.google.com/firewall/docs/firewalls)
 - Microsoft (non-cloud): [Preventing SMB traffic from lateral connections](https://support.microsoft.com/en-us/topic/preventing-smb-traffic-from-lateral-connections-and-entering-or-leaving-the-network-c0541db7-2244-0dce-18fd-14a3ddeb282a) · [Secure SMB traffic in Windows Server](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic) · [SQL Server installation security considerations](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation) · [LDAP signing for Active Directory Domain Services](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/ldap-signing) — quoted from [its source Markdown](https://raw.githubusercontent.com/MicrosoftDocs/windowsserverdocs/main/WindowsServerDocs/identity/ad-ds/ldap-signing.md) because the rendered page is a JavaScript shell (§9.5)
 - Red Hat (§9.1) — **corroboration only; declined as sole grounds on §2.3 ownership**, and self-contradictory across products. Both pages refuse direct retrieval and were read via Internet Archive snapshots: [RHEL 7 Security Guide §4.3, Securing Services](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/security_guide/sec-securing_services) ("difficult to secure", "no built-in form of authentication") · [RHEL 6 Storage Administration Guide §9.7.3, Running NFS Behind a Firewall](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/6/html/storage_administration_guide/s2-nfs-nfs-firewall-config) ("Allow TCP and UDP port 111 (rpcbind/sunrpc).")
+
+Retrieved for §23 ([#90](https://github.com/winniel123/verge-asm/issues/90)) — the `623/udp` IPMI corpus, PDFs extracted locally with `pdftotext` per [#46](https://github.com/winniel123/verge-asm/issues/46)
+- [IPMI Specification, Second Generation, v2.0](https://www.intel.com/content/dam/www/public/us/en/documents/product-briefs/ipmi-second-gen-interface-spec-v2-rev1-1.pdf) — **Document Revision 1.1, 1 October 2013**, © Intel Corporation, Hewlett-Packard Company, NEC Corporation, Dell Inc. §13.1.2 and Table 13-1 put the *Primary RMCP Port* at **623 (26Fh)** under *"two well-known ports under UDP"*; Table 13-8 confirms RMCP+ stays on `26Fh`; §13.7 and §1.7 carry the *management VLAN* near-miss refused in §23.5; LAN Configuration Parameter 8 records *"Default = 26Fh"*
+- [DMTF DSP0136, *Alert Standard Format (ASF) Specification*](https://www.dmtf.org/sites/default/files/standards/documents/DSP0136.pdf) — **Version 2.0, 23 April 2003, STATUS: Final**. §3.2.1 *RMCP UDP Port Numbers*, page 19 — the document that **assigns** `623/udp`, which IPMI cites normatively and inherits. Carries a measured erratum: `0298h` rendered as *"644 decimal"* where it is 664 (§23.10)
+- [DMTF *ASF Overview Document*](https://www.dmtf.org/sites/default/files/ASF%20Overview%20Document_2010_0.pdf) (2010) and the [ASF standards index](https://www.dmtf.org/standards/asf) — retrieved to **enumerate the class list** rather than for a quote: the DMTF publishes exactly two ASF documents and no deployment or security guidance (§23.4). The Overview names no port and states no placement
+- [CERT/CC VU#843044](https://www.kb.cert.org/vuls/id/843044) — *"Multiple Dell iDRAC **IPMI v1.5** implementations use insufficiently random session ID values"*, published 2014-12-18. Dell's full vendor statement, dated 5 December 2014 and responded 2014-12-09 (revision 3), was read from CERT/CC's JSON API (`/vuls/api/843044/` and `/vendors/`) because the rendered page is a JavaScript shell — §23.3, §23.11
+- [ipmitool](https://github.com/ipmitool/ipmitool) `1.8.19git` — `src/plugins/lan/rmcp.h`: `#define RMCP_UDP_PORT 0x26f /* port 623 */`; `doc/ipmitool.1.in`: *"Remote server UDP port to connect to.  Default is 623."*
+- [Supermicro, *Server Management: IPMI Firmware Security*](https://www.supermicro.com/white_paper/IPMI_white_paper.pdf) (August 2014) — *"While the IPMI standard protocol defines UDP port 623 for RMCP communications…"* and *"it is still recommended that administrators block UDP port 623 on unsecured networks"*. Corroborating under §2.3, never sole grounds
+- [Lenovo XClarity Controller 2, *Service Enablement and Port Assignment*](https://pubs.lenovo.com/xcc2/NN1ia_c_configuringportassignments) — *"The port number is 623. This field is not user-configurable."*
+- Intel, *Server Boards and Server Platforms Server Management Guide*, part number **G37830-002, October 2012**, Revision 3.1 ([cdrdv2-public.intel.com/840557](https://cdrdv2-public.intel.com/840557/g37830002_servermanagementguide_r3_1.pdf)) — citable for a **negative**: the string `623` occurs four times and every one is **TCP telnet to `dpcproxy`**; `RMCP` occurs zero times (§23.8)
+- **Not retrieved, recorded as failures rather than as negatives** (§23.11): HPE iLO documentation — five attempts across `support.hpe.com`, `cdn.support.hpe.com` and `www.hpe.com/psnow`, all defeated by a client-side-rendered portal behind a session check; Dell's iDRAC9 *Security Configuration Guide* port table — `dell.com/support/manuals` serves 551 bytes to a non-browser client; NEC — no first-party BMC port document located
 
 Upstream projects
 - [Redis security](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)
