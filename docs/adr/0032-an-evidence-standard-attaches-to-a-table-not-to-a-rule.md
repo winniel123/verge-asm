@@ -403,6 +403,31 @@ that check belongs to the curation patch, which is where the watch lives.
 > **No gate changes and no rule version moves.** A footing is evidence for a claim and not a claim, so
 > `sensitive-port-reached-from-internet` is byte-identical and the list stays at **37 pairs**.
 
+> **Amendment — [#88](https://github.com/winniel123/verge-asm/issues/88): `10255/tcp` comes off the
+> watch list, and this is the enumeration's third correction in a week.** The line above is left
+> standing per the name-and-withdraw convention and is **superseded**. **[measured]**
+> [#79](https://github.com/winniel123/verge-asm/issues/79) §17.6 retrieved Kubernetes' security
+> checklist — *"The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"* — and
+> [ADR-0049](./0049-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+> rules that an owner's **category** statement reaches the members the owner's own artefacts place
+> inside it. `10255/tcp` therefore rests on an owner prohibition and not on `readOnlyPort` alone, and
+> it joins the **explicit prohibition** tier with `10250/tcp`
+> ([`sensitive-ports.md`](../research/sensitive-ports.md) §18.6).
+>
+> > **The rows exposed to silent de-attestation are `5432/tcp` and `5984/tcp`.**
+>
+> **Three riders.** The sequence is now **3 → 2 → 3 → 2** with the *membership* changing at every
+> step, so §8's own lesson — a reader comparing counts rather than members sees nothing move — has a
+> second and sharper instance: this correction and #76's are indistinguishable by count from the two
+> before them. **The exposure this section names is a flippable default, and both kubelet cells are
+> now exposed to its mirror** — a **checklist line in a documentation release branch**, which one
+> contributor can edit in one commit; that is the shape §8 still has no name for, flagged for
+> `2379`/`2380` by #76 and now carried by two more ports (`sensitive-ports.md` §18.7). And **both
+> cells are conditional on [#83](https://github.com/winniel123/verge-asm/issues/83)**, which may
+> remove either kubelet row; a footing cannot outlive its row.
+>
+> **No gate changes and no rule version moves.** The list stays at **37 pairs**.
+
 ## The v1 walk — all sixteen rules, walked rather than asserted
 
 The claim that thirteen rules carry no curated table is checkable, so it is checked.
