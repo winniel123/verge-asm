@@ -190,6 +190,18 @@ what a small org accidentally leaves listening.
 cleanly — `wrong version number` against `unexpected eof` — so the negative result is a real
 measurement and not an inference.
 
+*Amended by [#54](https://github.com/winniel123/verge-asm/issues/54) /
+[ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md) in two details.* The
+partition cited just above has **two** sides and this ADR gave `certificate` one value for both, so
+the facet becomes `Presented(chain) │ TLSRefused │ NoTLS` — a peer that spoke TLS and accepted no
+candidate we offered is not *not a TLS server*, and collapsing them files SSLv3-only, RC4-only and
+SNI-required listeners under the wrong name. And *"a library upgrade that widens the offer is
+estate-wide drift we can name"* describes a world where the library owns the offer: the candidate
+set is **declared by us and recorded as wire content**, so a library upgrade cannot widen it, and
+widening it ourselves costs a `Break` on this facet rather than a `revealed`. `http-identity`'s
+`NotHTTP` is renamed **`NoHTTPResponse`** by the same ADR, and the aperture-input count in the
+table above was already **six** at [ADR-0017](./0017-exposure-needs-both-legs.md).
+
 ### `http-identity` stops at named, spec-defined fields
 
 [#4](https://github.com/winniel123/verge-asm/issues/4) proposed status, title, `Server`, framework

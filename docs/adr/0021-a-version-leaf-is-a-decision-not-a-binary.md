@@ -270,6 +270,21 @@ one class with two triggers and warned that the payloads must not be levelled. T
 different objects and compose cleanly, exactly as
 [ADR-0009](./0009-verge-core-is-a-union.md) found for a sensitive-list revision.
 
+*Corrected by [#54](https://github.com/winniel123/verge-asm/issues/54) /
+[ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md), which is the ticket the
+consequence below opened.* The two prices do **not** land on different objects — both land on the
+`tls-acceptance` timeline of the same `Service` — so they would have doubled rather than composed,
+and ADR-0009's finding does not transfer. It is moot, because a Go upgrade **cannot widen the TLS
+offer**: the candidate set is declared by us and passed to the library explicitly, so the upgrade
+bumps `tls-handshake` and fires **one** message. The rule that makes it moot is that **a default is
+not a declaration** — a parameter whose value is *whatever the library defaults to* is ADR-0008's
+rejected hash-of-the-parameters, and an aperture dimension recorded as a library version cannot
+tell a widening from a narrowing. So every offer the binary makes — the ALPN list, the TLS
+candidate set, the EDNS options and buffer, the qtypes, the transport fallback — is enumerated in
+the job spec and passed down; the library parameter covers only what remains its to decide. The
+three offers named in the consequence below are all **parameters**: none carries a per-candidate
+negative in any value.
+
 ### The release where we cannot tell
 
 There remains a release where an author genuinely cannot say whether output moved, and no

@@ -289,6 +289,15 @@ record as `appeared`, or a TLS library upgrade that widens the client's offer re
 estate's worth of newly-accepted ciphers as change in the world. See
 [ADR-0011](./0011-a-facet-is-six-parts.md).
 
+*Corrected twice by [#54](https://github.com/winniel123/verge-asm/issues/54) /
+[ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md).* The count is **six**,
+`Vantage class` having joined at [ADR-0017](./0017-exposure-needs-both-legs.md). And *"both start
+timelines that did not exist"* is true of the qtype set — a discriminator in the key — and **false
+of the TLS candidate set**, which sits inside `tls-acceptance`'s value, so widening it moves a
+running timeline and costs a `Break` rather than a `revealed`. The general rule: an aperture
+widening **`Break`s the timelines it touches and `revealed`s the timelines it opens**, sorted by
+whether the dimension sits in the key or in the value.
+
 ## Amendment — [#42](https://github.com/winniel123/verge-asm/issues/42): only `revealed`
 generalises, and the gate does not open a `Gap` directly
 
