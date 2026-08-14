@@ -449,3 +449,64 @@ business, and the courtesy has no fallback — it is simply dropped with the que
 defect blocks anything: the second amendment's consent record already stores *the retrieval
 failure* in the same slot as the document, so a fix at either registry is upside rather than
 a dependency.
+
+## Fifth amendment — 2026-08-14
+
+[#78](https://github.com/winniel123/verge-asm/issues/78) widens the rule this ADR has been
+applying since [#27](https://github.com/winniel123/verge-asm/issues/27) killed bundling CAIDA. The
+rule was recorded as being about **data**: *redistribution is a separate permission from use, and
+the party who needs it is the project.* It is not about data. It is about **permissions**, and the
+data was incidental to the three cases that produced it.
+
+Nothing already decided moves. This states the general form so that the next case is recognised
+before it is built rather than after.
+
+### The rule, restated
+
+**A permission granted to the project does not travel to AGPL-3.0 recipients.**
+
+AGPL-3.0 requires that every recipient of verge-asm receives the rights the project holds and may
+convey them onward. A permission that attaches to *us* — by contract, by licence grant, by
+credential, or by an individually negotiated waiver — cannot satisfy that requirement, because the
+recipient never receives it. A tree resting on such a permission conveys rights it does not have.
+
+### It now has four applications, and the fourth is what forced the restatement
+
+| Case | Instrument | Why it fails |
+|---|---|---|
+| CAIDA ([#27](https://github.com/winniel123/verge-asm/issues/27)) | A bundled dataset under a **non-transferable** Public-AUA | The permission stops at the project; the file would ship past it |
+| Censys, Shodan, Rapid7 ([#71](https://github.com/winniel123/verge-asm/issues/71) §5.1) | A **live-readable** ranking under terms barring incorporation into distributed products | Same shape, reached at runtime rather than at build |
+| APNIC's bulk file ([#46](https://github.com/winniel123/verge-asm/issues/46)) | An **agreement the software cannot see** | Adjacent failure: not that the permission fails to travel, but that nothing enforces it — recorded here because the two are easily confused |
+| **Nmap's waiver ([#78](https://github.com/winniel123/verge-asm/issues/78) §10.3)** | An **individually granted permission**, offered in writing | **The new one.** No dataset, no file, no credential — just permission, and it still fails |
+
+The fourth is the one that shows the rule was mis-stated. Nmap's NPSL §0 offers it in the
+licensor's own words: *"Open source developers who wish to incorporate parts of Covered Software
+into free software with conflicting licenses may write Licensor to request a waiver of terms."*
+That is a real, available, free-of-charge route past an incompatibility this project actually has.
+It is refused, and it is refused on #27's rule — a waiver is granted **to the licensee who asked**,
+and every downstream recipient of verge-asm would need one of their own.
+
+**A licence incompatibility is not cured by permission. It is cured by not depending on the thing.**
+
+### What this does and does not license
+
+- It **does not** reopen any ship state in the second amendment's table. No source changes value.
+- It **does not** reach `operator-credentialed`. That value already turns on a grant running to
+  **the operator**, under their own terms, which is a different party from the project and is
+  [ADR-0023](./0023-consent-names-the-door.md)'s subject. An operator's own credential is not a
+  permission the project is conveying, and nothing here touches it.
+- It **does** mean a session offered a project-specific permission — a waiver, a courtesy grant, an
+  academic exception, a "just email us" — must treat it as **no permission at all** for anything
+  that ships. Record the offer, decline it, and remove the dependence.
+- The **fallback is always the third option**: relicensing is refused by the map, a waiver is
+  refused here, so what remains is not depending on the artefact. #78 §9.4 walks that fork to its
+  end and takes the third branch.
+
+### The bar this ADR sets is unaffected, and that is the point
+
+The two-limb modal-operator bar governs whether a source **may run**. This governs whether a
+permission **may be relied on**. They compose without interacting: a source can clear both limbs
+and still be unusable because the only route to it is a permission that stops at us. #78 is the
+first case where the second question was the whole question — the NPSL analysis turned out to
+require no permission at all (§6.1), so the waiver was never needed and the flag was **lowered
+rather than raised**.
