@@ -163,3 +163,75 @@ already in flight, so it costs nothing to attach it there and everything to atta
 site here is a **research note** (§6) and the superseding site is an ADR, and the second instance is
 note-to-ADR as well ([`safe-active-probing.md`](../research/safe-active-probing.md) §2.3 against
 ADR-0009). A rule that only reaches ADRs would have caught neither.
+
+## Annotation — [#102](https://github.com/winniel123/verge-asm/issues/102), 2026-08-14: the corpus was swept, and the shape has a population
+
+#97 flagged this ADR's own thinnest ground: it *"rests on one measured instance with two hops, not on
+a population"*. The bounded sweep #102 opened has been run, and **it has a population — six
+superseding decisions, not one.**
+
+**Corpus and extent, stated per
+[ADR-0046](./0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+as amended by [#93](https://github.com/winniel123/verge-asm/issues/93).** Swept at `main`
+`c0881ae`: 52 ADRs, 11 research notes, `CONTEXT.md`, `docs/spec/`, `docs/agents/` — 39,382 lines.
+**No ADR in this repository carries `Status: Superseded`**, so every supersession here is partial and
+inline, and the amendment surface is the whole corpus of superseding moves: **38** heading-level
+amendment/annotation sections plus **68** inline `> **Amended` blockquotes. **197 superseding moves
+were examined and 76 were in scope as mechanisms.** The map archives were excluded by construction —
+re-writing a snapshot is what an archive exists to prevent. This negative is **dated**, not permanent.
+
+**The rule generalises past its own founding pair, and the direction of the generalisation matters.**
+This ADR's Alternatives section rejected *restrict it to ADRs* because both founding instances ran
+note-to-ADR. The sweep found the shape running **every** way: ADR-to-ADR
+([ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md) against
+[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8 and
+[ADR-0034](./0034-derive-the-claim-before-looking-for-the-owner.md) §4, neither of which cited it),
+ADR-to-note ([ADR-0015](./0015-the-value-space-is-the-commitment.md) against
+[`insecure-listener-rules.md`](../research/insecure-listener-rules.md) §9.1, which contains no
+reference to ADR-0015 at all), note-to-note
+([`weak-key-and-signature.md`](../research/weak-key-and-signature.md) §13 against its own §9, where
+the superseding section says outright *"Nothing above is rewritten"*), and **ADR-to-glossary**, which
+is the earliest instance measured and predates this ADR by a day.
+
+**The earliest instance cost a whole ticket.** [#27](https://github.com/winniel123/verge-asm/issues/27)
+withdrew the registry half of `Ownership`'s derivation at
+[ADR-0002](./0002-ownership-gates-probing.md); `CONTEXT.md`'s `Vantage class` and `Ownership` entries
+went on specifying a registry read in the present tense, and
+[#39](https://github.com/winniel123/verge-asm/issues/39) *"was filed and worked against a premise
+ADR-0002 had already withdrawn"* — [`docs/agents/domain.md`](../agents/domain.md), which has carried a
+**narrower, glossary-only statement of this rule since 2026-08-13** and which nothing here cited.
+That rider is now cross-linked to this ADR in both directions.
+
+**Two of the instances reach code rather than only prose**, which is the hop this ADR exists to stop:
+
+- [`safe-active-probing.md`](../research/safe-active-probing.md) **§2.5** still specified the
+  hand-picked UDP opt-in list `53, 123, 161, 500, 623, 1900, 5353` that ADR-0009 superseded — a list
+  ADR-0009 measured as **missing four sensitive pairs**. §2.3 one section up was struck by #97; §2.5
+  was not. Withdrawn in place by #102.
+- [`insecure-listener-rules.md`](../research/insecure-listener-rules.md) **§9.2** excluded
+  `smb-signing-not-required` from v1 on §9.1's *never per protocol* principle, which ADR-0015 ruled
+  *"wrong as stated"*. The note's own §12 q2 asked the question; ADR-0015 answered it; nothing carried
+  the answer back. The principle is withdrawn in place and **the verdict is ticketed rather than
+  moved**, because a v1 signal is a row and not a document.
+
+**The classification does not change: this stays a *detectable* defect and does not become a curation
+trigger** — and the sweep strengthens rather than weakens that. The map's eight triggers are all
+watches on the **world** moving; this defect fires when **we** move, so the trigger list is the wrong
+list on shape before it is the wrong list on cost. The cost argument survives too: the watch a trigger
+implies is *re-read every superseded document forever*, and #102's own run — 197 moves over 39,382
+lines — is the price sample for one pass of it, against an expected yield that is zero except when a
+pass has just superseded something. What the sweep does change is the **recording**: this ADR claimed
+membership of the map's detectable-defects group and the map's curation patch still listed three
+without it. It is now named there as the **fourth**.
+
+**Thin ground, and it is a boundary this annotation draws rather than finds.** The sweep separated
+**cross-document** instances, where the specifying document is silent and often does not cite the
+superseding one at all, from **intra-document** ones, where a trailing amendment section amends the
+file but the Decision-table row it supersedes stands unmarked hundreds of lines above. This ADR's
+Decision says the withdrawal goes *"at the superseded **site**"* and its test is about a **sentence**
+read alone — on which reading the intra-document cases are instances too. They are reported rather
+than repaired, because calling them instances widens this rule from *amend the other document* to
+*mark the sentence*, which is a real extension and is not #102's to make silently. The clearest is
+[ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md), whose amendment **names the sentence**
+— *"the `32` … sits in the sentence a reader takes the enumeration rule from"* — and leaves it
+unmarked 420 lines above.

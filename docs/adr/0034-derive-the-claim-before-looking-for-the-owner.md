@@ -123,6 +123,15 @@ issuer-agnostically, because a client default is a corroborator (§5).
 > **Where a project-authored constant is the product of a fraction and a moving world quantity, ship
 > the fraction.**
 
+*(**§4's rule gains a reach limb**, per
+[ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md), written here by
+[#102](https://github.com/winniel123/verge-asm/issues/102) under
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). It applies
+**where the moving quantity is readable from the subject at evaluation time**, and is **inapplicable —
+not violated —** where it is not. Read without the limb, the sentence above licenses shipping the
+fraction over a quantity nothing can read, which ADR-0038 rules out of the rule's reach entirely. Its
+measured finding: **the rule's reach in this repository is one instance**.)*
+
 `30` is not a quantity anyone attested. It is `90 × ⅓`, evaluated once, at a certificate lifetime
 with a published expiry date. The owner's own words carry the arithmetic and its scope in one
 breath: *"we recommend renewing certificates automatically when they have a third of their total
@@ -228,9 +237,24 @@ remains unestablished is that **one CA's fraction governs every issuer's certifi
 condition that would move it is another CA publishing a different fraction for its own certificates.
 
 **And `N` leaves both of ADR-0032 §8's piles.** It was filed as **chased** — a footing a retrieval
-could establish. It is not now **watched** either, because a row that reads the moving quantity from
-the subject at evaluation time has nothing to watch. Two piles were thought exhaustive; a third
+could establish. It is not now **watched** either, because ~~a row that reads the moving quantity from
+the subject at evaluation time has nothing to watch~~. Two piles were thought exhaustive; a third
 state exists and it is the one to aim for.
+
+> **That clause is SCOPED, not true as written** — per
+> [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md)
+> ([#71](https://github.com/winniel123/verge-asm/issues/71)), written here by
+> [#102](https://github.com/winniel123/verge-asm/issues/102) under
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), because
+> ADR-0038 recorded the scoping only in its own Consequences and **this ADR never cited it**.
+>
+> ADR-0038's words: *"a fraction removes the **quantity** from the watch, **never the
+> attestation**."* `⅓`, `½` and the 10-day threshold remain the issuer's published values, the issuer
+> may revise any of them, and that is an ordinary §8 attestation move. **The hazard is live and
+> measured:** the CA/B Forum moved its short-lived definition from ≤10 days to **≤7 days on
+> 2026-03-15** while the issuer, `boulder`, Certbot and lego all still use **10 days**. Read alone,
+> the struck clause takes `N` off the watch entirely; what leaves the watch is the **number**, and
+> the **attestation stays on it**.
 
 ## Consequences
 
