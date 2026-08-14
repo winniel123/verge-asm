@@ -34,7 +34,24 @@ comparison path at all.
 
 **Seed**:
 An operator's assertion of where the estate ends — either a *name scope* (a registrable
-domain) or an *address scope* (a CIDR). It declares a boundary, not a starting point. A
+domain) or an *address scope* (a CIDR). It declares a boundary, not a starting point: no name is
+ever generated from a name scope, and no seed is a starting **gun**, since declaring one queues a
+scan rather than firing one. **An address scope is nevertheless its own complete extension, and it
+enumerates.** Every address inside it is a subject from the declaration — all 2^(32−n) of them,
+since exempting the network and broadcast addresses would infer a subnetting we never measure —
+walked every cadence whether or not anything has ever answered there. That is what gives *no ports
+responded* a subject to be a fact about, and what lets a listener appearing in declared space fire
+the flagship `Reach` move instead of arriving as a line in a membership census. A **name** scope
+enumerates nothing: its addresses are reached only by measured resolution, and only under a
+`custody extension`. So an address scope has a `Coverage` denominator and a name scope has none,
+which is the same fact twice. An address scope carries a **range size cap** — `/22` by default,
+operator-configurable, checked when the scope is declared and applied per scope rather than to a
+sum — because a boundary asserting a measurement the shipped configuration cannot complete inside
+its own cadence is not a boundary; custody at a larger scale belongs to a `custody extension`. The
+cap is a statement about what we can measure and never about whether the claim is true, so a false
+declaration is as unprevented as it ever was. Declaring or widening an address scope is an
+**aperture widening** — `revealed`, one coverage-class message at the scope carrying a count of
+timelines opened, never one message per address. A
 boundary can be drawn inwards too: a seed carries **exclusions** — exact names, subtrees, or
 address scopes the operator declares are not theirs. Excluding a name that still resolves is legal —
 *not mine* is a different claim from *not there* — and an excluded name is no longer
@@ -44,8 +61,9 @@ keeps a third party's file out of the probing gate. Declining one is an exclusio
 rather than a suppression, since it is a claim about where the estate ends. A name scope may
 additionally carry a **custody extension** — see below. See
 [ADR-0002](./docs/adr/0002-ownership-gates-probing.md),
-[ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md) and
-[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md).
+[ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md),
+[ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md) and
+[ADR-0047](./docs/adr/0047-an-address-scope-is-its-own-enumeration.md).
 _Avoid_: target, root domain, scope target
 
 **Custody extension**:
@@ -242,7 +260,14 @@ _Avoid_: domain, subdomain, hostname, host
 An IP address. Has ports; has no DNS records. Reached from a `Name` only through an
 observed resolution, never a fixed relationship. Alone among the subjects it has no
 lifecycle of its own — nothing ever observes an address's *existence* — so it is in the
-estate exactly while a current resolution cites it or a `Seed` covers it.
+estate exactly while a current resolution cites it or a `Seed` covers it. The two limbs are
+**disjunctive**, and the second is not redundant with the probing gate: an address inside a
+declared address scope is a subject **from the declaration**, before anything has been observed
+about it, with its `Citation` hopping straight to the `Seed`. Its `Service`s then hold `Reach` =
+`not-reached` — a **measured value**, not a `Gap` and not *nothing at all* — until something
+answers there. Leaving a declared scope, by exclusion or by a narrower declaration, withdraws it
+and takes its timelines with it, unless a current resolution still cites it. See
+[ADR-0047](./docs/adr/0047-an-address-scope-is-its-own-enumeration.md).
 _Avoid_: IP, host, node
 
 **Service**:
@@ -456,7 +481,11 @@ Derived values its inputs are **not** all Declared — a `custody extension` mak
 of measured resolutions, so it moves when the world moves and not only when the operator does.
 Its two causes part cleanly: the operator withdrawing an extension closes the gate beneath
 addresses that are still cited, while a resolution ceasing to cite an address withdraws the
-`Address` itself, which takes its timelines with it and leaves no `Gap` behind. Closing the
+`Address` itself, which takes its timelines with it and leaves no `Gap` behind. **Narrowing an
+address scope** — an exclusion, or a smaller CIDR — behaves like the second and not the first: the
+addresses leave with their timelines and open no `Gap`, since a `Seed` no longer covers them and
+there is no subject left to hold one, unless a current resolution still cites them
+([ADR-0047](./docs/adr/0047-an-address-scope-is-its-own-enumeration.md)). Closing the
 gate does **not** open a `Gap` directly — it stops feeding those timelines, and the last value
 ages out under the currency bound, so a toggle inside one cadence is a non-event rather than a
 `value → Gap → value` burst. The aged value is not a stale attribution, because this timeline
