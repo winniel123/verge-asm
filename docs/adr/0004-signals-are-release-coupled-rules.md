@@ -113,6 +113,27 @@ so there is no subject to hold the outcome. That is why the string appears nowhe
 prototype, and why [#21](https://github.com/winniel123/verge-asm/issues/21) §6.1's stated
 justification needed a screen rather than an inference.
 
+### Amendment — [#53](https://github.com/winniel123/verge-asm/issues/53): what a proposal owes is four parts, and the first of them is the domain
+
+The #35 amendment above calls its list *"the ordinary accounting any addition owes"* and leaves it
+informal. [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md) makes it structural,
+because #44's census gave the missing item a consumer: the **predicate domain** is the denominator
+the operator reads, and nothing said where it was written down.
+
+A rule is **four parts** — its `Predicate domain`, its predicate, its `not-evaluable` case, and its
+version vector — plus one **cost**, the new measurement it requires, which stays exactly what this
+ADR already made it: weighed, never a correctness objection. The parts are gated by the rule's
+golden corpus, whose row shape gains a fourth outcome, *outside the domain*.
+
+Two things this ADR says elsewhere are sharpened rather than changed. *Absent evidence yields
+`not-evaluable`* is now one of three registers and not two: a value about the **world** under which
+the rule's question does not arise puts the subject outside the domain, a value about **our own
+sight** yields `not-evaluable`, and no value at all is a `Gap`. That is why `Shadowed` keeps the
+`not-evaluable` this ADR gives it under both DNS rules while `NoTLS` does not get it under the
+certificate rules. And the v1 set's *plaintext HTTP with no HTTPS* loses the port literal it had
+been carrying: its domain is *`Endpoint`s that answered HTTP*, so it fires on plaintext HTTP wherever
+it listens rather than on 80/tcp alone.
+
 ## Consequences
 
 - **The v1 set is:** certificate expired / not-yet-valid / expiring within N days (one rule,

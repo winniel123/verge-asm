@@ -91,7 +91,10 @@ never refused a failing test.
 
 The corpus covers **every** named versioned derivation, not only the span-producing ones, and
 per rule, matching ADR-0004's per-rule versioning. For a signal a row is *these observations →
-fires / does not fire / `not-evaluable`*; for the sensitive-port list the output is which
+fires / does not fire / `not-evaluable` / outside the domain* — the fourth outcome added by
+[ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md), which put the rule's
+`Predicate domain` inside the rule's own leaf, so a domain edit moves a row and must move the
+leaf; for the sensitive-port list the output is which
 `(port, transport)` pairs the rule fires on, generable from
 [#21](https://github.com/winniel123/verge-asm/issues/21)'s cited table. Scoping the gate to
 spans alone would leave the churniest thing in the product ungated, which is precisely
