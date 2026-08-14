@@ -345,9 +345,18 @@ that has no guard. The handshake that feeds it is **a step in the exchange that 
 knowing the port was open, and the value space has no variant meaning *the port was shut*. So the
 facet **has no single cadence** — it rides whichever port tier ran the exchange, and its currency
 is the `Service`'s own, the tightest cadence covering that port. All tiers fold into one timeline
-and therefore declare **one** candidate set between them. See
-[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md) and
-[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md).
+and therefore declare **one** candidate set between them. Currency alone does not license the
+**clock class**, which is the one place a rule reads an always-current wall clock against a
+possibly stale observed value: those three rules read a value only while its **age is within the
+certificate's own horizon** — `⅓` of `not_after − not_before`, `½` below a ten-day validity, the
+same horizon `certificate-expiring` computes — so the bound is `min(k × cadence, N)` and no new
+number is declared. `k` is untouched and **failing that gate is not a `Gap`**: the value is present
+and current, and only those three rules decline to read it, `not-evaluable` on the cause *we
+measured; this rule cannot read the answer*. The other certificate rules are unaffected, comparing
+observed values that age together. See
+[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md),
+[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) and
+[ADR-0043](./docs/adr/0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md).
 _Avoid_: cert record, TLS config, negotiated version, cipher
 
 **tls-acceptance**:
@@ -515,7 +524,10 @@ subject's membership**, so a rule whose evidence is still current fires on a `Na
 withdrawn. Versions are
 per rule, never one set-wide version, so an edit to one rule leaves the rest comparable.
 A signal carries no severity: it is a named fact, and urgency belongs to the transition
-that surfaced it. Evaluated where its evidence is absent it returns `not-evaluable`,
+that surfaced it. Evaluated where its evidence is absent — **or held and unreadable by this
+rule**, as when a clock-reading rule's observation has aged past the subject's own horizon
+([ADR-0043](./docs/adr/0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md))
+— it returns `not-evaluable`,
 which is not the same as not firing — but that word needs a **subject**, and where the
 aperture never produced one there is no outcome to return and no row to render, so the
 honesty lands on the aperture statement rather than on the rule. Its census is therefore
