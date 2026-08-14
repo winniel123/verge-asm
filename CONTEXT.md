@@ -615,9 +615,14 @@ moved version is a `Break`, which makes a settings field the one actor that coul
 without a release and without a corpus row moving — and it would leave two installs on one release
 comparing as comparable while holding different content behind one leaf. An operator's dial may sit
 anywhere **outside** every derivation and nowhere inside one, which is where the coverage alert
-threshold, notification routing and all flap suppression already are. See
-[ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md) and
-[ADR-0021](./docs/adr/0021-a-version-leaf-is-a-decision-not-a-binary.md).
+threshold, notification routing and all flap suppression already are. A rule's declared parameters
+**express fractions of quantities the rule reads**, wherever the quantity is one the world moves —
+a parameter shipped as the *product* of a fraction and a moving quantity is a measurement of the
+world on the day it was written, and it goes stale with nothing in the repository changing and no
+document anywhere being retracted. See
+[ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md),
+[ADR-0021](./docs/adr/0021-a-version-leaf-is-a-decision-not-a-binary.md) and
+[ADR-0034](./docs/adr/0034-derive-the-claim-before-looking-for-the-owner.md).
 _Avoid_: rule version, schema version, algorithm
 
 **Span**:
