@@ -33,7 +33,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2 |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -131,6 +131,22 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > separate route [#30](https://github.com/winniel123/verge-asm/issues/30) actually found — a
 > **remedy** aimed at the exposure hazard that stops short of the port — is a different object and is
 > specified in §10.4.3. No row moved.
+
+> **Amended by §12** ([#69](https://github.com/winniel123/verge-asm/issues/69)). **The footing table
+> above is wrong in one cell and the paragraph beneath it in one clause.** `9042 Cassandra` is **not**
+> shipped-default-only: **[measured]** the shipped `conf/cassandra.yaml` carries *"For security
+> reasons, you should not expose this port to the internet. Firewall it if needed."* immediately above
+> both `native_transport_port: 9042` and `rpc_address: localhost`. The row moves to the **explicit
+> prohibition** tier and *"Cassandra's strongest upstream sentence is an attack-surface observation
+> rather than a prohibition"* is **withdrawn**. **The weak tier is two rows — 5432 PostgreSQL and 5984
+> CouchDB — not three.** No `(port, transport)` pair moves.
+>
+> §12 also states what the **third form** reads: the configuration that **takes effect** and that the
+> project **documents as its default**, both limbs. An **example** file — `EXAMPLE.conf`,
+> `*.conf.sample`, `*.conf.example` — satisfies neither and attests nothing in either direction; a
+> **distributor** that installs one gains operativeness and not ownership, so its packaging
+> corroborates under §2.3 and is **never sole grounds for a row**. Read §12 before applying this
+> section to a configuration file.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -1829,6 +1845,15 @@ This is why the weak tier holds. 5432 PostgreSQL, 5984 CouchDB and 9042 Cassandr
 `rpc_address: localhost` — so the tier rests on a costly signal rather than on an accident, and §2.2's
 disclosure of it is unchanged.
 
+> **Amended by §12** ([#69](https://github.com/winniel123/verge-asm/issues/69)). All three defaults
+> above are confirmed against the shipped bytes, so this paragraph's point stands — but **9042 no
+> longer rests on its default alone** and has left the weak tier (§12.7). §12 also settles what
+> *shipped default* means when the bytes have two owners: the third form reads the configuration that
+> **takes effect** and that the project **documents as its default**, so an **example** file is silent
+> in both directions, and installing one gives the installer **operativeness** rather than ownership.
+> §10.4's *costly act* is the test that decides it, and it decides it **against** the example: the cost
+> §10.4 prices is friction at first run, and a file no daemon reads produces no first run.
+
 #### 10.4.3 What #30 actually found, stated precisely — the remedy route
 
 The valuable half of #30's finding is not the bind address. It is that rpcbind's maintainers **took
@@ -1903,6 +1928,15 @@ the very first instance the standard met.
 distributor product); 873/tcp by upstream `rsyncd.conf(5)` cited to the Samba copy precisely to avoid
 a distribution rendering; 512/513/514 by OpenBSD's own deletions, which are OpenBSD speaking as the
 author of the code it removed.
+
+> **Amended by §12** ([#69](https://github.com/winniel123/verge-asm/issues/69)). *"On exactly the same
+> terms as any other shipped default"* is unchanged and had a **latent condition**, now stated: the
+> same terms include §10.3's requirement that the boundary be **named by the owner**, and a distributor
+> cannot meet it for a protocol it did not design — nor §10.1's, which answers Claim 1 from the
+> specification or the owner. **A distributor's shipped default is therefore never sole grounds for a
+> row on this table**; it corroborates under §2.3 and stops there. *Artefact, not party* is untouched
+> and is what keeps a distributor's packaging distinct from its security-guide prose. The distributor
+> owns the **choice to install**; the owner owns the **claim**.
 
 ### 10.6 A fifth defect, found by closing the set — `161/udp`'s boundary rests on a corroborator
 
@@ -2232,6 +2266,16 @@ like this one.**
 but it decides the next daemon whose upstream ships an `EXAMPLE.conf` a distribution installs. Opened
 as [#69](https://github.com/winniel123/verge-asm/issues/69).
 
+> **Closed by §12** ([#69](https://github.com/winniel123/verge-asm/issues/69)). **Reading 1 governs**,
+> so grounds 1 and 2 above are now applications of a rule rather than case reasoning: an example
+> attests nothing in either direction (§12(a), §12(b)), and installing one transfers **operativeness**
+> and not **ownership**, so a distributor's shipped default corroborates and never carries a row
+> (§12(c)). **Ground 3 is not promoted** — *the restriction describes nothing anybody runs* was
+> considered as a general gate and refused, because *does anybody run this?* is the ownerless
+> counterfactual §10.1 deleted (§12.4). It stays a sanity check on this row and nothing more. `161/udp`
+> does **not** re-open: §11.6 rests on §10.3's owner requirement and §10.2's closed claim set, neither
+> of which §12 touches.
+
 ### 11.5 Claim 2 tested against RFC 6353's 10161 — refused, and not on deployment share
 
 The ticket asked whether `snmptls`/`snmpdtls` on 10161 satisfies Claim 2's successor clause, which
@@ -2381,6 +2425,319 @@ ADR-0009's rule that a correction is a removal plus an addition, each priced sep
   search for `161` matches page numbers, RFC numbers and `10161`. The counts in §11.5 use a word
   boundary, which is why RFC 6353 reads zero rather than four.
 
+## 12. An example config attests nothing, and installing one transfers operativeness rather than ownership
+
+Wayfinder ticket [#69](https://github.com/winniel123/verge-asm/issues/69), on the defect §11.4
+recorded as general rather than fixed. This section **amends §1, §2.2, §10.4 and §10.5 by
+reference**: earlier text is left standing and marked, per the name-and-withdraw convention, and
+where §12 and an earlier section disagree, **§12 governs**.
+
+**Headline result, stated first.**
+
+> **Upstream's reading governs, and it governs because §2.2's third form already has two limbs.** It
+> reads *"the project's **shipped default**, as documented by the project"* — the configuration that
+> **takes effect without the operator acting**, and that the **project documents as its default**. An
+> example file satisfies neither: nothing starts from it, and where the project documents a default
+> at all it documents a different one. **An example config attests nothing, in either direction.**
+>
+> **Installing one transfers operativeness, never ownership.** A distributor that installs upstream's
+> example as its package's operative configuration has made that file a shipped default **of its own
+> package**, admissible under §10.5 on exactly the terms §10.5 states. But every one of §2.1's three
+> claims is answered from the specification or from the owner — §10.1 says so in terms, §10.3 says so
+> for the boundary limb, and Claim 2 is a fact about the wire and the registry — so **a distributor's
+> shipped default is never sole grounds for a row on this table**. It corroborates, on §2.3's terms,
+> and does nothing more.
+>
+> **No row is added and none is removed. The list stays at 37 `(port, transport)` pairs.** §1's count,
+> §3's tables and class totals, §6.1's containment arithmetic and
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union are all untouched, and each was checked
+> rather than assumed (§12.7). **One footing changes, and it changes because the shipped bytes were
+> read for the first time:** `9042/tcp` Cassandra carries an owner prohibition §2.2 says does not
+> exist, so it leaves the weak tier. **The weak tier is two rows, not three.**
+
+### 12.1 The rule
+
+> **§12 — an example is not a default, and installation is not ownership.**
+>
+> **(a) The third form reads what takes effect, in the hand of the party being quoted.** §2.2's
+> *shipped default* is the configuration a user gets **without acting**. A file the party in question
+> does not install — an `EXAMPLE.conf`, a `*.conf.sample`, a `*.conf.example`, a `*.default` its
+> packaging copies nowhere — is not that party's shipped default, whatever it contains and whoever
+> wrote it. Where the file's own text disclaims operativeness, that disclaimer is the author's own
+> statement and it settles the question against the file. **And where the party documents a default
+> elsewhere and the two disagree, the documented default governs**, because the third form asks for
+> the default *as documented by the project* and only one of the two is.
+>
+> **(b) A directive is not a position; prose in a config file may be.** §2.2's **second** form takes a
+> quotable position wherever the owner wrote it, and a comment in a shipped configuration file is the
+> owner's prose exactly as a manual page is. What the second form does **not** take is a **directive**
+> — an instruction to software attests only through the third form — nor a **label** describing what
+> the directive beneath it does. *"For security reasons, you should not expose this port to the
+> internet"* is a position. *"# Listen for connections from the local system only"* is a label. The
+> position-versus-preference discrimination is §2.3's and §4.4's, unchanged.
+>
+> **(c) Installation transfers operativeness, not ownership.** Where a distributor installs another
+> party's bytes as its package's operative configuration, the artefact is a shipped default **of that
+> package** and attests **about that package**. Every claim in §2.1 is a claim about the protocol, or
+> about the service as its owner ships it, and every one of them is answered from the specification or
+> the owner (§10.1's two steps, §10.3's boundary limb). **A distributor's shipped default is therefore
+> never sole grounds for a row on this table.** §10.5's *"on exactly the same terms as any other
+> shipped default"* is unchanged and had a latent condition, now stated: the same terms include
+> §10.3's requirement that the boundary be **named by the owner**, and a distributor cannot meet it
+> for a protocol it did not design. The distributor owns the **choice to install**; the owner owns the
+> **claim**.
+>
+> **(d) Silent in both directions.** §10.4 makes a permissive default silent. An example is weaker
+> than a default and is silent **whichever way it points** — it cannot admit a row and it cannot
+> exclude one. In particular it is **not** a §10.4.3 remedy: that route needs a restricting act the
+> owner **took**, and an act that takes effect nowhere was not taken.
+
+**Why §10.4's own test decides this, against the reading it appears to support.** The ticket's
+argument for admitting the example is that a maintainer who comments out one line and leaves the
+other active has made a choice and paid for it — §10.4's *costly act*. Applied rather than invoked,
+that test **refuses** the example. §10.4.2's cost is named exactly: a restriction *"buys friction at
+first run and the maintainer paid for it anyway"*. The friction is borne by **users at first run**,
+and the maintainer pays for it in support. A file nobody's daemon reads produces no first run, so it
+costs its author nothing and it is cheap talk, which is precisely the thing §10.4 distinguishes a
+default from. Where the friction **is** paid — because a distributor installed the file — the party
+who paid is the distributor, which is limb (c).
+
+### 12.2 The test is read off the file rather than judged — nine artefacts, nine self-declarations
+
+The objection that would sink limb (a) is that *"takes effect"* sounds like something a reviewer must
+adjudicate. It is not. **[measured]** Every configuration artefact retrieved for this ticket says what
+it is, in its own bytes, and the two categories never blur:
+
+| Artefact | What the file says about itself | Status |
+|---|---|---|
+| net-snmp `EXAMPLE.conf.def` | *"An example configuration file for configuring the Net-SNMP agent ('snmpd')"* · *"Some entries are deliberately commented out, and will need to be explicitly activated"* · *"See the 'snmpd.conf(5)' man page for details"* | **Example** |
+| RabbitMQ `rabbitmq.conf.example` | *"This file is AN EXAMPLE. It is NOT MEANT TO BE USED IN PRODUCTION."* — and every directive in it is commented, including both `listeners.tcp.default = 5672` and `listeners.tcp.local = 127.0.0.1:5672` | **Example** |
+| Debian `debian/rpcbind.default` | *"Uncomment the following line to restrict rpcbind to localhost only for UDP requests"* — and the line is commented | **Menu; the restriction was not taken** |
+| PostgreSQL `postgresql.conf.sample` | *"The commented-out settings shown in this file represent the default values."* | **Record of defaults** |
+| Kibana `config/kibana.yml` | *"The default is 'localhost', which usually means remote machines will not be able to connect."* | **Record of defaults** |
+| CouchDB `rel/overlay/etc/default.ini` | *"Upgrading CouchDB will overwrite this file."*, beside `local.ini`: *"Custom settings should be made in this file … unlike changes made to default.ini, this file won't be overwritten on server upgrade"* | **Operative** |
+| Redis `redis.conf` | *"So by default we uncomment the following bind directive"* · *"IF YOU ARE SURE YOU WANT YOUR INSTANCE TO LISTEN TO ALL THE INTERFACES COMMENT OUT THE FOLLOWING LINE."* | **Operative** |
+| Cassandra `conf/cassandra.yaml` | no template disclaimer anywhere; `listen_address: localhost` and `rpc_address: localhost` both active | **Operative** |
+| Debian `debian/memcached.conf` | *"memcached default config file … This configuration file is read by the start-memcached script provided as part of the Debian GNU/Linux distribution."*, `-l 127.0.0.1` active | **Operative (distributor's)** |
+
+**Nine for nine.** The distinction limb (a) turns on is not a judgement about deployment reality; it
+is a sentence in the artefact, retrievable by the same method §9.5 and §11.9 already require. That is
+what makes §12 a test read off the document rather than the counterfactual §10.1 deleted.
+
+**And the surface syntax is worthless as a signal, which is why the rule cannot key on it.** A
+commented-out `listen_addresses` line in PostgreSQL's sample **is** the default; a commented-out
+`agentAddress` line in net-snmp's example is the branch not taken; a commented-out `-h 127.0.0.1` in
+Debian's `rpcbind.default` is an offer to the operator. Same syntax, three meanings, and only the
+file's own prose separates them.
+
+### 12.3 The option that lost, stated at length because it is a good argument
+
+**Reading 2: the artefact governs, so the distributor's install decides.** §10.5 says in terms that
+the rule keys on the **artefact**, not the party. The artefact a Debian operator's daemon actually
+reads is `/etc/snmp/snmpd.conf`; what upstream calls those bytes is irrelevant to what runs. The list
+is about the world, and in the world the modal Debian SNMP agent binds loopback only. On that reading
+the file is a restricting shipped default, §10.4 admits restricting defaults, and the row is admitted.
+
+**It loses on three independent grounds.**
+
+1. **It answers a different question.** §2.2's three forms are routes to one of §2.1's **claims about
+   the protocol**, not to a description of the modal install. Deployment share is exactly what §2.3
+   refuses — a risk list is a fact about the world, a never-list is a claim about legitimacy — and
+   §11.5 refused a deployment-share argument by name on this very port. *Most installs bind loopback*
+   is a frequency statement, and §1's framing rules frequency out at the top of the note.
+2. **It is not stable under repackaging, and the proof is in one archive.** **[measured]** Debian
+   ships net-snmp bound to loopback and rpcbind bound to `0.0.0.0:111` — `debian/snmpd.conf` versus
+   `debian/rpcbind.socket`'s `ListenStream=0.0.0.0:111` — from the same archive under the same policy.
+   A rule whose verdict depends on which distributor a reader checks, and on which of that
+   distributor's files, is not a rule. §2.3 was built on exactly this failure: one organisation, two
+   documents, opposite instructions.
+3. **It re-opens the door §2.3 holds shut, one level down.** A packaging choice would carry a
+   normative row — §11.4's *"the door §2.3 exists to hold shut, arriving through a `.deb` instead of a
+   government PDF"*. §12 generalises that sentence into limb (c) rather than leaving it as an
+   observation about one file.
+
+**What reading 2 was right about, and what §12 keeps.** §10.5's *artefact, not party* is correct and
+untouched: a distributor's packaging is a different kind of object from a distributor's security-guide
+prose, and §12 does not collapse them. What §12 adds is that the artefact route terminates at §10.3's
+owner gate, so it reaches corroboration and stops there.
+
+### 12.4 The second option that lost — a coherence gate, refused
+
+§11.4's third ground was that a loopback-only SNMP agent *"can be polled by no management station at
+all"*, so the restriction describes nothing anybody runs, and it named the contrast with
+`listen_addresses = localhost`, which describes a real and common PostgreSQL deployment. It is
+tempting to promote that into a general gate: **a restricting default attests only where the
+restriction describes a deployment somebody actually runs.**
+
+**Refused, and refused on §10.1's own ground.** *Does anybody run this?* is a judgement about
+deployment reality with no owner, and it is the shape §10.1 deleted when it removed *"would otherwise
+require authority"* for asking a reviewer to imagine a counterfactual. It would also need frequency
+evidence, which §1 excludes as a matter of framing. §11.4's third ground stays where it is — a sanity
+check on one row, explicitly not load-bearing there either, since that row was decided by §10.3.
+
+**The criterion that would reopen it:** a candidate row that passes §12 on the **owner's own**
+operative default, where the same owner's documentation elsewhere describes that configuration as
+unusable. The incoherence would then be attested rather than reasoned, and it would be an owner
+statement like any other.
+
+### 12.5 The walk, direction one — refusing examples: does any listed row lose its footing?
+
+Only a row footed on a shipped default can be touched, and §2.2's own footing table names them: the
+two upper tiers are prose (an explicit prohibition, or explicit trusted-network scoping), and the
+bottom tier is the weak one. **Each was re-verified against shipped bytes rather than against the
+documentation page the note originally cited.**
+
+| Row | Footing, verified against shipped bytes | §12 verdict |
+|---|---|---|
+| **5432/tcp PostgreSQL** | `src/backend/utils/misc/postgresql.conf.sample` line 60 is `#listen_addresses = 'localhost'` — **commented** — and the file's header says *"The commented-out settings shown in this file represent the default values."* The binary agrees: `guc_tables.c` carries `{"listen_addresses", …}, &ListenAddresses, "localhost"`. The manual documents it independently | **Stands.** A record of a documented default, not an example; both limbs of (a) pass, three ways over |
+| **5984/tcp CouchDB** | `rel/overlay/etc/default.ini`, `[chttpd]` → `bind_address = 127.0.0.1`, **active and uncommented**, in the file CouchDB says it overwrites on upgrade, with `local.ini` as the place operators are told to edit | **Stands**, and it is the cleanest instance of §2.2's third form in the note: the project separates its default from its template and labels both |
+| **9042/tcp Cassandra** | `conf/cassandra.yaml`, `rpc_address: localhost`, **active** — in a file with no template disclaimer — and, immediately above it, a prohibition (§12.7) | **Stands, and its footing improves** |
+
+**Two more rows are named because a reader will otherwise wonder.**
+
+- **6000/tcp X11.** §3.4 already refused `-nolisten tcp`, on the ground that it is *"distribution and
+  build-time behaviour that X.Org does not document as a default"*. That refusal is limbs (a) and (c)
+  arrived at case by case, before either existed; §12 supplies the rule behind it. The row is
+  unaffected either way — it rests on `Xsecurity(7)`, which is prose from the party that wrote the
+  code.
+- **11211/tcp memcached.** **[measured]** Debian's `debian/memcached.conf` ships `-l 127.0.0.1` and
+  `-l ::1` **active**, under *"This parameter is one of the only security measures that memcached
+  has, so make sure it's listening on a firewalled interface."* This is limb (c) working in the benign
+  direction: a distributor's restricting default that agrees with the owner's prohibition, corroborates
+  it under §2.3, and carries nothing. The row never rested on it.
+- **2181/tcp ZooKeeper.** Upstream ships `conf/zoo_sample.cfg`, which is an example by name — and
+  **[measured]** it contains no address or bind directive of any kind, only `clientPort=2181`. There
+  is nothing in it to admit or refuse. The row rests on the Administrator's Guide prose.
+
+**No listed row moves.**
+
+### 12.6 The walk, direction two — admitting examples: does any §4.6 exclusion re-open?
+
+A rule admitting examples could only **add**, since §10.4 makes the third form an admission route
+only, so the whole check is §4.6's sixteen exclusions. Six could conceivably be touched by a
+configuration file; the other ten are excluded on express purpose, on determinacy, or on an owner
+sentence naming the internet as a supported environment, and no configuration file bears on any of
+those grounds.
+
+| Excluded | What a config file could have supplied | Why it does not re-open |
+|---|---|---|
+| **111/tcp rpcbind** | [#30](https://github.com/winniel123/verge-asm/issues/30)'s *"Debian's commented-out loopback line"* — the artefact this whole question was built on | **[measured]** In `rpcbind_1.2.7-1.debian.tar.xz`: `debian/rpcbind.default` carries `# OPTIONS="${OPTIONS} -h 127.0.0.1 -h ::1"` **commented**, under *"Uncomment the following line to restrict rpcbind to localhost only for UDP requests"*, while `debian/rpcbind.socket` ships `ListenStream=0.0.0.0:111` and `ListenDatagram=0.0.0.0:111` **active**. The restriction was **offered to the operator and not taken**, so there is no restricting default to admit under *either* reading — before reaching §10.1 Step 1 and §10.4.3, each of which excludes the row independently |
+| **5601/tcp Kibana** | its secure default, which §4.6 already counts | `#server.host: "localhost"` with *"The default is 'localhost'"* — a documented default, already weighed and already insufficient. The row is out because Elastic states no prohibition, internet fronting behind auth is supported, and 5601 squats on `esmagent` |
+| **9092/tcp Kafka** | `config/server.properties` | **[measured]** `#listeners=PLAINTEXT://:9092`, commented, and the effective default binds every interface — **permissive, therefore silent** under §10.4 in either reading |
+| **5672, 15672/tcp RabbitMQ** | `rabbitmq.conf.example` | **[measured]** the file declares itself *"AN EXAMPLE … NOT MEANT TO BE USED IN PRODUCTION"* and every directive in it is commented, `listeners.tcp.local = 127.0.0.1:5672` included. Under the admitting reading there is still nothing active to admit; under §12 the file attests nothing at all |
+| **8500/tcp Consul** | — | Consul ships no configuration file, so there is no artefact on either reading |
+| **1099/tcp Java RMI** | `management.properties` | The row is out because Claim 1's **fact** is absent, not because a default excluded it — §10.4 makes no default capable of excluding. Weakening the secure-default evidence supplies no evidence that the shipped configuration *admits anonymous commands*, so the row stays out whichever way §12 had gone |
+
+**Nothing re-opens.**
+
+**`161/udp` does not re-open, and the reason is independent of everything §12 decides.** Under §12:
+upstream's `EXAMPLE.conf.def` is an example and attests nothing (limbs (a) and (b) — its
+`# Listen for connections from the local system only` is a label, and its `agentAddress` line is a
+directive); net-snmp's actual documented default in `snmpd(8)` is all IPv4 interfaces, which is
+permissive and therefore silent under §10.4; and Debian's installed copy is a **distributor's**
+operative default, which attests about Debian's package (limb (c)). But **§11.6 did not rest on any of
+that.** It removed the row because §10.2 closed the claim set and §10.3's boundary limb had no owner
+attestation of any kind after retrieval — and **§10.3's owner requirement is untouched by §12**. Had
+§12 gone the other way and admitted the example outright, the row would still fail §10.3, exactly as
+§11.4 said. §12 replaces §11.4's grounds 1 and 2 with a rule and leaves its ground 3 as colour.
+
+### 12.7 The one thing that moves — Cassandra's footing, and every number checked
+
+**[measured]** Cassandra's shipped `conf/cassandra.yaml` — read from
+`apache-cassandra-5.0.2-bin.tar.gz`, extracted locally — carries this sentence **twice**, at line 996
+immediately above `native_transport_port: 9042` and again at line 1060 immediately above
+`rpc_address: localhost`:
+
+```
+# For security reasons, you should not expose this port to the internet.  Firewall it if needed.
+native_transport_port: 9042
+```
+
+```
+# For security reasons, you should not expose this port to the internet.  Firewall it if needed.
+rpc_address: localhost
+```
+
+— `conf/cassandra.yaml`, Apache Cassandra 5.0.2 (the `cassandra-5.0.2` tag agrees byte-for-byte on
+both lines)
+
+That is a **prohibition**, first-party, naming the listed port by number, in bytes the project ships.
+It is limb (b)'s prose limb, not limb (a)'s directive limb, and it is exactly the kind of sentence
+§2.2's footing table asserts does not exist for this row.
+
+**§2.2 is wrong in two places and both are withdrawn rather than rewritten:** its footing table puts
+`9042 Cassandra` in the *shipped default only — no prohibition exists upstream* row, and its prose
+says *"Cassandra's strongest upstream sentence is an attack-surface observation rather than a
+prohibition"*. Both were derived from the project's web documentation, which is where the note looked;
+neither survives the shipped bytes.
+
+| Where | Was | Is |
+|---|---|---|
+| §2.2 footing table, weak row | 5432 PostgreSQL, 5984 CouchDB, **9042 Cassandra** | **5432 PostgreSQL, 5984 CouchDB.** `9042` moves up to the **explicit prohibition** row |
+| §2.2 prose | *"Cassandra's strongest upstream sentence is an attack-surface observation rather than a prohibition"* | **Withdrawn** — measured false against `conf/cassandra.yaml` |
+| §10.4.2 | *"5432 PostgreSQL, 5984 CouchDB and 9042 Cassandra all rest on restricting defaults"* | **Stands as to the defaults** — all three verified active or documented — but 9042 no longer rests on its default **alone** |
+| §1 pair count | 37 | **37, unchanged** |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 18 = 37 | **unchanged.** 9042 stays Class A: a footing is evidence for a claim, not a claim, and the row's claim is unchanged |
+| §6.1 containment arithmetic | 28 in the hot set + 4 + 5 = 37 | **unchanged** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | `verge-core = frequency-set ∪ sensitive-list` | **unchanged** — no member enters or leaves. 9042/tcp was already in the union and still is |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** No `(port, transport)` pair moves, so `sensitive-port-reached-from-internet`'s content is byte-identical and no evaluation is made non-comparable. §12 is free in the strong sense, not merely the vacuous-before-v1 sense §11.6 relied on |
+| §4.5 *the list's weakest row* | 5432/tcp | **unchanged.** 5432's footing is untouched, and with 9042 promoted it is if anything more clearly the weakest |
+| §2.6 | boast restored to all 37 by §11.7 | **unchanged, and marginally stronger** — one more row now has an owner prohibition behind it rather than a default alone |
+
+**What this costs and what it buys.** It costs nothing — no row, no version, no aperture. It buys one
+thing worth having: §2.2's disclosure of its own weak tier is the note's most-quoted honesty
+mechanism, and it was overstating the weakness by a third.
+
+### 12.8 Thin ground, flagged per the standing rule
+
+**The ruling is chosen, not derived, and the ticket exists because the text underdetermines it.**
+§2.2's third form, §10.4's one-way rule and §10.5's distributor rule each speak to one hand and none
+says which reading governs. Limb (a) is the best-grounded — it is a reading of the words *as documented
+by the project* that were already there, and it decides the upstream half on the text. Limb (c) is
+composed from §10.1 and §10.3 rather than stated anywhere. **Limb (b)'s directive-versus-label line is
+the thinnest**: *"# Listen for connections from the local system only"* is clearly a label and
+*"you should not expose this port to the internet"* is clearly a position, but a comment that argues
+for its own directive sits between them, and §12 offers only §2.3's and §4.4's existing
+position-versus-preference discrimination to place it. A case in that gap should be ticketed, not
+decided by whoever meets it.
+
+**The nine-artefact corpus is small and chosen by us.** The self-declaration finding is 9 for 9 and
+that is what makes limb (a) mechanical, but a file that is neither installed nor self-disclaiming
+would fall through to limb (a)'s second sentence — does the project document a default elsewhere? — and
+if that is also silent the artefact is simply silent. That is the safe direction: the third form is an
+**admission route only**, so an unresolvable file admits nothing and no row can enter on one.
+
+**Cassandra's prohibition is measured on 5.0.2 alone.** The rows in this note are version-agnostic and
+this measurement is not. What is established is that the sentence is in the current shipped bytes,
+which is precisely what §2.2's footing table asserts the absence of.
+
+### 12.9 Retrieval method and hazards, recorded per §9.5
+
+**Every default quoted in §12 was read from shipped bytes, never from a rendered documentation page.**
+Debian packaging came from `deb.debian.org`'s pool as `rpcbind_1.2.7-1.debian.tar.xz` and
+`memcached_1.6.45-1.debian.tar.xz`, extracted locally, per §11.9 — `sources.debian.org` and
+`salsa.debian.org` were not used and still serve a proof-of-work JavaScript challenge to a plain
+client. Cassandra came from `apache-cassandra-5.0.2-bin.tar.gz` off `archive.apache.org`. The
+remaining upstream files were fetched as raw bytes at release tags: `postgres/postgres`
+`REL_17_STABLE`, `apache/couchdb` `3.4.2`, `apache/cassandra` `cassandra-5.0.2`, `redis/redis` `7.4`,
+`apache/zookeeper` `release-3.9.3`, `apache/kafka` `3.8.0`, `elastic/kibana` `v8.15.0`,
+`rabbitmq/rabbitmq-server` `v3.13.7`, `net-snmp/net-snmp` `master`.
+
+- **A 404 on a guessed path looks exactly like a project shipping no default.** CouchDB's configuration
+  lives at `rel/overlay/etc/default.ini`; the plausible guess `default.ini.tpl` (the name the file
+  carried in earlier releases) returns 404 at every tag. A session that read that 404 as absence would
+  have concluded CouchDB has no shipped default and moved the weakest row on the list. The path was
+  resolved from the repository tree listing rather than guessed a second time.
+- **The measurement that changed a cell was in a file no earlier pass had opened.** §2.2's footing
+  table was built from the projects' web documentation. Cassandra's prohibition is in the shipped
+  configuration file, and it took reading the bytes to find it. This is the general hazard rather than
+  a fact about Cassandra, and it is routed to [#70](https://github.com/winniel123/verge-asm/issues/70)
+  rather than fixed by inspection here: the footing table is a published claim about **nine other
+  rows** whose shipped configuration bytes have never been read.
+- **PostgreSQL was checked three ways because its footing is the note's weakest row** — the sample
+  file, the sample file's own statement about what a commented line means, and the compiled-in default
+  in `guc_tables.c`. All three agree on `localhost`.
+
 ---
 
 ## Sources
@@ -2442,6 +2799,17 @@ Upstream projects
 - [OpenBSD 3.2 changelog](https://www.openbsd.org/plus32.html) (removal of rlogin/rlogind/rexecd) · [OpenBSD 5.6 changelog](https://www.openbsd.org/plus56.html) (removal of rsh)
 - [Microsoft, Security considerations for PowerShell Remoting using WinRM](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/winrm-security) · [Azure network security best practices](https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices)
 - [HP Printing Security Best Practices](https://h10032.www1.hp.com/ctg/Manual/c05318850.pdf) — cited for the position that 9100 "should always be enabled"
+
+Shipped configuration bytes (§12) — read as bytes at a release, never as a rendered documentation page
+- Apache Cassandra `conf/cassandra.yaml`, from `apache-cassandra-5.0.2-bin.tar.gz` on [`archive.apache.org`](https://archive.apache.org/dist/cassandra/5.0.2/), extracted locally — *"For security reasons, you should not expose this port to the internet. Firewall it if needed."* above both `native_transport_port: 9042` and `rpc_address: localhost`. The [`cassandra-5.0.2`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.2/conf/cassandra.yaml) tag agrees byte-for-byte on both lines. **This is the measurement that moved 9042 out of §2.2's weak tier**
+- PostgreSQL [`src/backend/utils/misc/postgresql.conf.sample`](https://raw.githubusercontent.com/postgres/postgres/REL_17_STABLE/src/backend/utils/misc/postgresql.conf.sample) (*"The commented-out settings shown in this file represent the default values."*; `#listen_addresses = 'localhost'`) and [`guc_tables.c`](https://raw.githubusercontent.com/postgres/postgres/REL_17_STABLE/src/backend/utils/misc/guc_tables.c) (`&ListenAddresses, "localhost"`)
+- CouchDB [`rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.4.2/rel/overlay/etc/default.ini) (`[chttpd]` → `bind_address = 127.0.0.1`, active; *"Upgrading CouchDB will overwrite this file."*) and [`local.ini`](https://raw.githubusercontent.com/apache/couchdb/3.4.2/rel/overlay/etc/local.ini). **Path hazard (§12.9):** `default.ini.tpl`, the name used in earlier releases, 404s at every current tag
+- Redis [`redis.conf`](https://raw.githubusercontent.com/redis/redis/7.4/redis.conf) — `bind 127.0.0.1 -::1` active, *"So by default we uncomment the following bind directive"*, and a position: *"binding to all the interfaces is dangerous and will expose the instance to everybody on the internet"*
+- RabbitMQ [`rabbitmq.conf.example`](https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/v3.13.7/deps/rabbit/docs/rabbitmq.conf.example) — *"This file is AN EXAMPLE. It is NOT MEANT TO BE USED IN PRODUCTION."*, every directive commented
+- ZooKeeper [`conf/zoo_sample.cfg`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.3/conf/zoo_sample.cfg) — no address or bind directive of any kind
+- Kafka [`config/server.properties`](https://raw.githubusercontent.com/apache/kafka/3.8.0/config/server.properties) (`#listeners=PLAINTEXT://:9092`, commented) · Kibana [`config/kibana.yml`](https://raw.githubusercontent.com/elastic/kibana/v8.15.0/config/kibana.yml) (*"The default is 'localhost'"*)
+- net-snmp [`EXAMPLE.conf.def`](https://raw.githubusercontent.com/net-snmp/net-snmp/master/EXAMPLE.conf.def) — *"An example configuration file"*, *"Some entries are deliberately commented out, and will need to be explicitly activated"*
+- Debian packaging from [`deb.debian.org`](https://deb.debian.org/debian/pool/main/)'s pool as tarballs, extracted locally, because `sources.debian.org` and `salsa.debian.org` serve a proof-of-work challenge (§11.9): `rpcbind_1.2.7-1.debian.tar.xz` → `debian/rpcbind.default` (*"Uncomment the following line to restrict rpcbind to localhost only"*, **commented**) and `debian/rpcbind.socket` (`ListenStream=0.0.0.0:111`, **active**) · `memcached_1.6.45-1.debian.tar.xz` → `debian/memcached.conf` (`-l 127.0.0.1` and `-l ::1`, **active**)
 
 Checked and found to contain **no** position, which is itself the finding
 - `rpcbind(8)` — no security section, no exposure statement
