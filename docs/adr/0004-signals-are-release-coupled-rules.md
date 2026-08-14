@@ -229,6 +229,15 @@ have never been written down anywhere in this repo — it appears in the Consequ
 That is [#68](https://github.com/winniel123/verge-asm/issues/68), which **blocks**
 [#12](https://github.com/winniel123/verge-asm/issues/12).
 
+> **Closed by #68.** The table is now written —
+> [`docs/research/weak-key-and-signature.md`](../research/weak-key-and-signature.md), five rows, with
+> [ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md) recording the general parts.
+> **It passes this ADR's cadence test with three orders of magnitude of headroom** — roughly one edit
+> per row per decade, measured over twenty-two years — and #68 §7 names the two things that would have
+> failed it: a **key-compromise blocklist**, which grows continuously, and **encoding NIST's dated
+> transitions as date comparisons**, which would move the rule's output at midnight with no version
+> bump. The count of curated tables stays at three.
+
 **The cadence test is not an evidence standard, and this ADR should not be read as one.** The test
 here asks *may this ship as a rule* — a question about how often reference data may move.
 [#21](https://github.com/winniel123/verge-asm/issues/21)'s claim/attestation/determinacy standard
