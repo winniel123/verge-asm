@@ -48,13 +48,13 @@ is exactly the currency bound this ADR sets, three rules wide.
 
 | Concern | Decision |
 | --- | --- |
-| On which tier is the `certificate` handshake performed? | ***The* tier is the wrong question.** The handshake is a **step in the same exchange** that produces `reachability` for the `Service`, so it rides whichever of [#4](https://github.com/winniel123/verge-asm/issues/4)'s three `Scan`s ran it |
-| `certificate`'s currency bound | Whatever [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) already computes for the `Service` — *the tightest cadence where several apply*. **Daily** for a `verge-core` port, weekly for a top-1000-only port, monthly for a full-range-only one |
-| Do the three tiers produce three timelines? | **No.** One timeline — same subject, facet, discriminator, vantage and source — fed by all three |
-| The `certificate` handshake's declared candidate set | **One set, identical across all three reachability `Scan`s.** Its content is [#62](https://github.com/winniel123/verge-asm/issues/62)'s |
+| On which tier is the `certificate` handshake performed? | ***The* tier is the wrong question.** The handshake is a **step in the same exchange** that produces `reachability` for the `Service`, so it rides whichever of [#4](https://github.com/winniel123/verge-asm/issues/4)'s ~~three~~ **two** `Scan`s ran it — [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly top-1000 tier, per the Consequences below and [ADR-0005](./0005-scan-execution-model.md)'s #80 amendment |
+| `certificate`'s currency bound | Whatever [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) already computes for the `Service` — *the tightest cadence where several apply*. **Daily** for a `verge-core` port, ~~weekly for a top-1000-only port,~~ monthly for a full-range-only one. **The weekly top-1000 limb is WITHDRAWN** — [#78](https://github.com/winniel123/verge-asm/issues/78) retired that tier, so no port is covered by it and the bound has two limbs, not three |
+| Do the ~~three~~ **two** tiers produce ~~three~~ **two** timelines? | **No.** One timeline — same subject, facet, discriminator, vantage and source — fed by all of them |
+| The `certificate` handshake's declared candidate set | **One set, identical across all ~~three~~ two reachability `Scan`s.** Its content is [#62](https://github.com/winniel123/verge-asm/issues/62)'s |
 | Is `tls-acceptance` on the weekly **tier**? | **No.** #4's *"weekly not daily"* is a **cadence**, decided on N-handshakes-versus-one. The weekly `Scan`'s scope is a **port set**, which is a different thing |
-| Where `tls-acceptance` sits | A **fourth `Scan`** — weekly cadence, scope the open `Service` population plus the candidate set, **no port tier** |
-| [ADR-0005](./0005-scan-execution-model.md)'s *"Three `Scan`s"* | **Amended to four.** On ADR-0005's own rule, not against it |
+| Where `tls-acceptance` sits | A `Scan` **of its own** — ~~a **fourth `Scan`**~~, and **third** since [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly top-1000 tier — weekly cadence, scope the open `Service` population plus the candidate set, **no port tier**. The ordinal is not load-bearing; *a `Scan` of its own* is |
+| [ADR-0005](./0005-scan-execution-model.md)'s *"Three `Scan`s"* | **Amended to ~~four~~ three.** On ADR-0005's own rule, not against it — and ADR-0005's own #80 amendment restates the count as **three, not four** |
 | May `certificate` and `tls-acceptance` sit on different cadences? | **Yes, and they must.** They are different exchanges against different subjects |
 | ADR-0014's worked example | **The rule survives; the example moves to `tls-acceptance`** — same shape, same six days, and live under this ruling |
 | Which text is repaired | ADR-0014's example, [ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s restatement of it, and `CONTEXT.md`'s `Transition` and `tls-acceptance` entries |
@@ -248,9 +248,15 @@ exists to remove, not a cheaper version of the fix.
   answering this question since it was written. Only its restatement of ADR-0014's example is
   corrected.
 - **`certificate`'s currency is per-`Service` and there is no estate-wide number.** Modal `k`=2 on a
-  daily tier is two days; a top-1000-only port is two weeks; a full-range-only port is two months.
+  daily tier is two days; ~~a top-1000-only port is two weeks;~~ a full-range-only port is two months.
   The expiry and self-signed rules from [#16](https://github.com/winniel123/verge-asm/issues/16) go
   `not-evaluable` on that bound, per-subject.
+  > **The two-week limb is WITHDRAWN**: [#78](https://github.com/winniel123/verge-asm/issues/78)
+  > retired the weekly top-1000 tier, so there is no *top-1000-only port* to bound — see the bullet
+  > below recording that retirement, and [ADR-0005](./0005-scan-execution-model.md)'s #80 amendment.
+  > Marked at the sentence per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+  > by [#106](https://github.com/winniel123/verge-asm/issues/106).
 - **This bound is the only one in the model doing *safety* work rather than coverage work, and
   this ruling is what makes it narrow.**
   [#60](https://github.com/winniel123/verge-asm/issues/60) found that the clock class — three rules
