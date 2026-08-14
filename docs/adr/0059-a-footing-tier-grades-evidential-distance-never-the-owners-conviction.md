@@ -170,6 +170,40 @@ disclosed rather than smoothed.
 - **The sufficient condition for the prohibition tier is still unstated**, and two scoping-tier rows
   now visibly bear on it. Routed, not answered.
 
+## Confirmed by use — [#100](https://github.com/winniel123/verge-asm/issues/100), 2026-08-14
+
+**Limb 2 is read one column over, and it holds.** #100 asked whether the **artefact class** carrying a
+footing — a doc comment in a published config API, against prose on a documentation site — changes the
+tier as well as admissibility. **It does not, and limb 1 is why:** the tier counts premises the reader
+supplies between the owner's **sentence** and the row's proposition, and **the artefact carrying the
+sentence is not a premise**. A reader who has the sentence has it. *Where it was written* is the same kind
+of fact as *how firmly it was written* — a fact about the **utterance**, not about the gap between the
+utterance and the proposition — so limb 2's refusal reaches it without being widened.
+
+**[measured] a class discount applied honestly moves two cells nobody asked to move**: `9042/tcp`
+Cassandra's **prohibition**-tier footing is a comment in a YAML file inside a source tarball, and
+`5984/tcp` CouchDB's is a line in `rel/overlay/etc/default.ini` — the artefact
+[`sensitive-ports.md`](../research/sensitive-ports.md) §12.5 calls *"the cleanest instance of §2.2's
+third form in the note"*. That is the same shape as this ADR's own *a criterion that stretches to fit its
+one counterexample takes its neighbours with it*, met in the artefact dimension.
+
+**What artefact class does bear on is volatility, which is a different column** —
+[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list, where a
+default changeable in one commit with no release note is a different exposure from one on a released
+documentation page. #95's amendment to ADR-0032 §8 already said so for `10248/tcp`. That observation is
+correct where it sits and is not a reason to move a tier; it gives the map's open *should the watch list
+key on tier or on volatility* patch a third candidate axis and is reported rather than acted on
+(`sensitive-ports.md` §31.7, §31.12).
+
+**Limb 3's *necessary and not sufficient* structure is inherited by a second instrument.**
+[ADR-0061](./0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)'s survival
+test separates a **label** from a **candidate position** and expressly does not promote the survivor;
+§2.3's and §4.4's position-versus-preference discrimination runs second, exactly as this ADR's lexical
+test leaves the sufficient condition unstated. **[measured]** the kubelet's `readOnlyPort` comment
+survives its value and is still refused — the one instance on that side.
+
+**No cell moves, and this ADR's rule is unchanged.**
+
 ## Alternatives rejected
 
 **Restate the criterion to read on the imperative and its scope — *a prohibition-tier sentence forbids
