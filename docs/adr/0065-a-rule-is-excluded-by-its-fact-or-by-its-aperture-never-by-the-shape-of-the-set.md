@@ -120,11 +120,19 @@ nonetheless applied, the first two having already been corrected for it by #35.
 
 ### Applied to `smb-signing-not-required`
 
-The fact clears every admissibility test: `SMB2_NEGOTIATE_SIGNING_REQUIRED` is a mandatory field of a
-pre-authentication response, its reference data is two bits in a Microsoft specification, and the
-integrity fact it carries is genuinely single-protocol in v1's aperture — which ADR-0015 made
-legitimate. The name in the ticket is not the name it would ship under: *smb-* names a protocol, which
-ADR-0015 forbids, so the rule would be named for the integrity fact.
+The fact clears every admissibility test, and #104 measured rather than assumed it.
+`SMB2_NEGOTIATE_SIGNING_REQUIRED` sits in a **mandatory** fixed field of a **pre-authentication**
+response — MS-SMB2 §3.3.5.4 obliges every conformant server to populate it, and §2.2.1.2 requires
+`SessionId` to be `0` on both request and response, so the exchange carries no identity at all. Its
+reference data is one bit, which clears ADR-0004's cadence test with room. And it is **genuinely
+single-protocol**: across eight protocols read against their own specifications, SMB is the only one
+where the fact is simultaneously server-originated, pre-credential, listener-scoped and a
+*requirement* rather than a capability — LDAP and SNMPv3 do not express it pre-credential at all, NFS
+expresses it per-export or per-filehandle, and SSH's answer is a constant. That closes ADR-0015's
+generality test in the admitting direction.
+
+The name in the ticket is nonetheless not the name it would ship under: *smb-* names a **protocol**,
+which ADR-0015 forbids, so the rule would be named for the integrity fact.
 
 It is excluded on the **aperture** and on that alone. Reading the field needs an SMB2 `NEGOTIATE`
 exchange — application bytes v1 does not send, under an `Offer` v1 has not declared
