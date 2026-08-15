@@ -11,6 +11,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -43,6 +44,13 @@ func run(stdin io.Reader, stdout io.Writer) error {
 		// deciding the reachability facet for each Service in scope. It is paced by
 		// the §3.3 safety limiter, which never changes a verdict (ADR-0021).
 		return connectoutcome.Run(spec, stdout)
+	case tlsacceptance.Kind:
+		// The tls-acceptance leaf: the weekly tls-acceptance Scan's TLS ENUMERATION
+		// over the open Service population — version/cipher acceptance, its own
+		// exchange, distinct from the certificate handshake that rides reachability
+		// (ADR-0028). The candidate set travels in the job spec and is recorded on the
+		// Batch by content (ADR-0025).
+		return tlsacceptance.Run(spec, stdout)
 	default:
 		// The skeleton's job-spec-in / NDJSON-out proof for kinds whose leaf
 		// a later ticket adds (TCP/TLS/HTTP).

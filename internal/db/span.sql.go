@@ -246,6 +246,51 @@ func (q *Queries) ListReachabilitySpansForExposure(ctx context.Context) ([]ListR
 	return items, nil
 }
 
+const listReachedServices = `-- name: ListReachedServices :many
+SELECT sp.subject_key AS service_key, sp.vantage_id AS vantage_id
+FROM span sp
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.closed_at IS NULL
+  AND sp.is_gap = FALSE
+  AND (sp.value ->> 'outcome') = 'reached'
+ORDER BY sp.vantage_id, sp.subject_key
+`
+
+type ListReachedServicesRow struct {
+	ServiceKey string      `json:"service_key"`
+	VantageID  pgtype.Int8 `json:"vantage_id"`
+}
+
+// The open `Service` population the weekly `tls-acceptance` Scan enumerates over
+// (#199, ADR-0028): every Service whose CURRENT `reachability` span reads `reached`,
+// with the vantage it was reached from. This is an enumeration over open Services,
+// NOT a port list — the ports are whatever the Services are open on, inherited from
+// `reachability` — so the Scan consults no port tier at all. A closed or gap span is
+// excluded: `tls-acceptance` is attempted only against a Service known open, the same
+// way the `certificate` handshake rides a reached connect. vantage_id is part of the
+// key and may be NULL (the shipped position carries no vantage row), carried through
+// so the fan-out partitions per vantage exactly as reachability does.
+func (q *Queries) ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error) {
+	rows, err := q.db.Query(ctx, listReachedServices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReachedServicesRow{}
+	for rows.Next() {
+		var i ListReachedServicesRow
+		if err := rows.Scan(&i.ServiceKey, &i.VantageID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpansForSubject = `-- name: ListSpansForSubject :many
 SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
        value, is_gap, derivation, opened_at, closed_at, closure_reason

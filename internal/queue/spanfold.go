@@ -14,6 +14,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -133,6 +134,14 @@ func facetVector(facet string) drift.Vector {
 	case httpexchange.FacetHTTPIdentity:
 		return drift.NewVector(
 			drift.Component{Leaf: httpexchange.Kind, Version: httpexchange.Version},
+		)
+	case tlsacceptance.Facet:
+		// `tls-acceptance` is decided by the tls-acceptance leaf alone — its own
+		// enumeration exchange, distinct from the tls-handshake leaf that feeds
+		// `certificate` — so a tls-acceptance bump Breaks `tls-acceptance` timelines
+		// without touching `certificate` ones (ADR-0028, ADR-0086).
+		return drift.NewVector(
+			drift.Component{Leaf: tlsacceptance.Kind, Version: tlsacceptance.Version},
 		)
 	default:
 		return drift.NewVector(
