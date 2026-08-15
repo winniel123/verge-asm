@@ -233,7 +233,10 @@ session to refuse a promotion `sensitive-ports.md` §32 licenses, and *"it gover
 footings only"* read alone would cause it to treat the scoping tier as holding two populations that no
 rule sorts. Both are load-bearing sentences of this ADR's own Decision, so both are withdrawn at the
 site that specifies them. **This is also why no second ADR was minted:** ADR-0062 was reserved and is
-**left unused**, as `0039`, `0041`, `0052`, `0053` and `0057` are.
+**left unused**, ~~as `0039`, `0041`, `0052`, `0053` and `0057` are~~ — **the struck clause is a DATED
+record standing in the present tense and is STALE: [measured] all five numbers, and `0062` itself, now
+exist as files under `docs/adr/`. A reservation is a gap only until it is re-issued. The true gap pool
+as of 2026-08-15 is `0076` alone. [#154](https://github.com/winniel123/verge-asm/issues/154).**
 
 **What forced it, and it is a measurement rather than a tidying.** **[measured]** this ADR recorded
 `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ as *"carry[ing] owner sentences that name the Internet and
@@ -420,8 +423,11 @@ promotion `sensitive-ports.md` §36 refuses — and the #101 amendment's own ext
 reciting §32.12's *"no member of either tier turns on direction today"* after §33 had withdrawn it in
 the note, which is the intra-document defect #106 widened the rule to catch, on this file, one section
 after it was widened. Both are struck at their own clauses. **This is also why no second ADR was
-minted:** ADR-0068 was reserved and is **left unused**, as `0039`, `0041`, `0052`, `0053`, `0057`,
-`0062`, `0063` and `0064` are.
+minted:** ADR-0068 was reserved and is **left unused**, ~~as `0039`, `0041`, `0052`, `0053`, `0057`,
+`0062`, `0063` and `0064` are~~ — **the struck clause is a DATED record standing in the present tense
+and is STALE: [measured] all eight numbers, and `0068` itself, now exist as files under `docs/adr/`.
+A reservation is a gap only until it is re-issued. The true gap pool as of 2026-08-15 is `0076` alone.
+[#154](https://github.com/winniel123/verge-asm/issues/154).**
 
 **[measured] and nothing moves.** Direction and addressee were run as candidate conditions across all
 **26** members of both graded tiers. The owner supplies the direction in **24** of the 26 carrying
@@ -438,6 +444,86 @@ cleanly — MongoDB Atlas, an inbound internet-reachable listener on `27017` tha
 from its own trusted-networks guidance by page title — is **not** load-bearing, `27017` failing
 condition (3) a limb earlier. **No cell moves, no row moves, and the cost is nothing.**
 `sensitive-ports.md` §36.
+
+## Confirmed by use — [#154](https://github.com/winniel123/verge-asm/issues/154), 2026-08-15: the criterion's DOMAIN is the two graded tiers, and the weak tier is outside it
+
+**This ADR has twice stated what it does *not* reach and has never stated the population it *does*.**
+#154 states it. **No limb moves, no cell moves, no tier count moves, and nothing here is a new rule** —
+it is limb 1 read with the #101 amendment's conjunction and measured against `sensitive-ports.md`
+§32.7's per-cell walk.
+
+> **The domain of this ADR's criterion is the footing cells that carry an owner statement of the
+> port's permitted network — the prohibition tier and the scoping tier, *the two graded tiers*. The
+> weak tier is the criterion's COMPLEMENT rather than a verdict within its range. A weak cell is
+> outside the domain: it is not passed, not failed, and not unwalked — the question does not arise,
+> because the input the criterion reads does not exist.**
+>
+> **The count follows from the tiers and is never written into an instrument.** Today: prohibition
+> **13** + scoping **11** = **24**, against **27** footing cells in all. `sensitive-ports.md` §46.
+
+**Why limb 1's residue clause is not a third verdict.** Limb 1 names the weak tier in the same
+enumeration as the other two — *"in the weakest tier where the owner has published no statement at
+all and the footing is a restricting default"* — and a reader can take that as an output the criterion
+returns. **This ADR's own Rationale table is the check**: the premise column for `5432` and `5984`
+reads ***"n/a — no sentence to stand at a distance"***, which is the notation for an operation that
+does not apply and not for one returning a third value. **The clause defines the residue; it cannot be
+run.** **[measured]** no pass has ever run the criterion *over* a weak cell and returned *weak* as its
+output: `sensitive-ports.md` §32.7 walked all six non-prose footings and recorded `10248`, `5432` and
+`5984` as having **no** owner statement of a permitted network, with premises **n/a**; §36.6 walked
+*"all **26** members of both graded tiers"*; and §37.1 records the weak tier as *"outside §36.6's sweep
+**by construction**"* on exactly this ground.
+
+**What forced it, and it is a defect in a reader's path rather than in this ADR.** `sensitive-ports.md`
+§39.6's gate check **G2** — *every graded footing cell has been walked against the tier criterion as it
+currently stands* — has a population, and this ADR is what fixes it. §40's first whole gate run scored
+G2 **green over 24** and recorded as a disclosure that **no section stated the domain**, so a later
+reader walks **27**, finds three cells no walk covered, and scores G2 **red** on a table that has not
+moved. **A criterion whose domain is unstated makes every check that reads it unreproducible**, which
+is [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s founding proposition — *the
+domain is authored because it is not recoverable from the firing set* — met at spec time on an
+instrument rather than at run time on a rule.
+
+**The register is ADR-0024's first, and it is already this note's word.** *Outside the domain* = the
+question does not arise · `not-evaluable` = we cannot see the answer · `Gap` = we did not look.
+`sensitive-ports.md` §2's [#33](https://github.com/winniel123/verge-asm/issues/33) amendment uses it
+for this kind of object already — *"elsewhere they are **outside the domain** rather than passed"* —
+so ADR-0024 is **read** rather than widened, and
+[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) is what licenses the
+borrowing.
+
+**The weak tier is not thereby unwatched, and the point is worth making because the opposite is
+true.** Its three cells are inside **G11** (which ran over all 27 and marked `5984/tcp` stale-against-
+tag), inside **G7**, inside **G6** (`sensitive-ports.md` §37.1's correction turns on including them),
+and they are the **front of the queue** — §39.4 items 1, 6 and 7. A cell with no owner statement is a
+cell whose only support is a shipped default, which is what makes it weak, what puts it at the top of
+the reading order, and what leaves this criterion nothing to read. **The three facts are one fact.**
+
+**A weak cell can still enter the domain, and the act is a retrieval.** If an owner publishes a
+statement of the port's permitted network the cell acquires an input and this criterion applies to it
+for the first time. That is an addition to the **domain**, found by reading somebody else's corpus —
+the queue's business — and ruled on by a release under
+[ADR-0037](./0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2, on a
+retrieval scoped to the cell. **It is not something a gate may find**, which is why widening G2 to
+walk 27 was refused: confirming that an owner has published *nothing* is a universal negative over
+that owner's corpus, and `sensitive-ports.md` §39.6 defines a gate check as one that **terminates**.
+
+**No ADR is minted and ADR-0090 is left unused.** This ADR is **confirmed by use** in every limb.
+
+> **This section deliberately does NOT recite the customary list of unused numbers, and the reason is
+> a defect it found rather than a stylistic choice.** **[measured] every number this ADR's two earlier
+> recitals name as *left unused* — `0039`, `0041`, `0052`, `0053`, `0057` at the #101 amendment, and
+> those plus `0062`, `0063`, `0064`, `0068` at the #110 amendment — now exists as a file under
+> `docs/adr/`.** A reservation is a gap **only until it is re-issued**, so each recital is a dated
+> record standing in the present tense, and read alone it would cause a competent session to mint
+> `ADR-0039` for a new decision — [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
+> test failed on the nose. **[measured] the true gap pool as of 2026-08-15 is `0076` alone**, plus
+> `0090` from this ticket; `0001`–`0075` and `0077`–`0085` are all present. **The shape is not
+> confined to this ADR**: **[measured]** the string *left unused* occurs at **37** places under
+> `docs/` — 33 in `sensitive-ports.md`, two here, one each in ADR-0054 and ADR-0067 — and the live
+> ones (those naming `0076`) are typographically identical to the dead. **So the repair is a sweep
+> with a replacement, and a sweep is a ticket**, on `sensitive-ports.md` §39.7's own precedent. Both
+> recitals in this file are marked at their clauses; the rest is reported to the map and is #154's
+> largest by-catch. §46.9.
 
 ## Alternatives rejected
 
