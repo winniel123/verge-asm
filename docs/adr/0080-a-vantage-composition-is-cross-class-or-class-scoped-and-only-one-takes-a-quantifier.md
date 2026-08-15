@@ -225,6 +225,16 @@ enumeration gets repaired — *by writing down what a limb denotes, never by wid
   existential read fires, nothing in the message says which one saw it — #119's message carries
   counts, keys and one link and no rows. Latent while the modal install runs one prober per class,
   and the model caps neither.
+  **Ruled by [#170](https://github.com/winniel123/verge-asm/issues/170): worth carrying, and
+  carried at the drill-down beneath the composed value the message's link already points to —
+  never in the channel payload, which stays exactly as #119 fixed it.** The `Vantage` is already in
+  the timeline key ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)), so the object's own detail
+  rendering must enumerate the per-vantage values a class-scoped composition read, keyed by vantage
+  — the same treatment a cross-source conflict already gets under ADR-0007's *reported, never
+  resolved*. No new field, no new stored object, no version move: a rendering obligation on
+  whichever ticket specifies the object's detail page, not a new `Derivation` leaf. Not live in v1
+  either way — the modal install still runs one prober per class — but no longer unspecified for
+  the install that runs two.
 
 ## Alternatives rejected
 
