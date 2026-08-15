@@ -20,6 +20,15 @@ type Account struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type Exclusion struct {
+	ID          int64              `json:"id"`
+	Kind        string             `json:"kind"`
+	Name        pgtype.Text        `json:"name"`
+	AddressCidr *netip.Prefix      `json:"address_cidr"`
+	CreatedBy   int64              `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type Heartbeat struct {
 	ID        int64              `json:"id"`
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
