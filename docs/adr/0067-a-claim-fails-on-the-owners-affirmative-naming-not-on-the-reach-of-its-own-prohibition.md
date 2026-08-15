@@ -80,6 +80,37 @@ Three consequences, and the second is the operative one.
    demotion and a row removal are two rulings and each needs its own retrieval — which is exactly
    what ADR-0037 limb 2 and #37 already require, and this limb is why they are not a formality.
 
+> **Amended at this clause by [#112](https://github.com/winniel123/verge-asm/issues/112)**
+> (`sensitive-ports.md` §37), per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened by
+> [#106](https://github.com/winniel123/verge-asm/issues/106). **Limb 1 sorts `sensitive-ports.md`
+> §33.2's riders, and it turns out not all of them travel.**
+>
+> **A rider on §33.2's discriminator travels to the claim gate if and only if it bounds the
+> *affirmation*.**
+>
+> - A rider fixing **which listener the statement is about** — *the addressee is part of the class*
+>   (§33.2), *the direction is part of the class* (§36.8) — **travels**. §10.3's failure condition asks
+>   whether the owner names the internet as supported **for the pair**, and the pair is a listener on
+>   the addressed estate.
+> - A rider **bounding the affirmation** in the owner's own words — *"You **must** restrict the
+>   authorized public IP addresses to a single IP address or a small range"* — **travels**. An endpoint
+>   answering an enumerated source set is not reached from an **internet vantage**
+>   ([ADR-0010](./0010-exposure-composes-two-reaches.md),
+>   [ADR-0017](./0017-exposure-needs-both-legs.md)). It is a **scope** read off a string, so
+>   [ADR-0059](./0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) limb 2
+>   is untouched.
+> - A rider narrowing the **prohibition's own class** — *an "unprotected" node* — **does not travel**.
+>   Consequence 2 above makes carrying it across not merely wrong but **backwards**: narrowing the
+>   prohibition removes the tension and leaves the affirmative naming standing alone.
+>
+> **[measured]** §33.3 spared `9200`/`9300` on the rider that does not travel and `3306` on the rider
+> that does, and that single distinction is the whole of #112's result. **Consequence 3's converse is
+> instantiated for the first time**: `9200`/`9300`'s **footing survives** — §32.2 limb 4 is asked of the
+> carrying statement, whose class has no supported instance — while the **rows** meet §10.3's failure
+> condition and are **routed** under ADR-0037 limb 2. A footing surviving on a rider the claim gate does
+> not read.
+
 ### Limb 2 — an `applies to` banner scopes the artefact, not the pair
 
 **An owner's deployment-scoped document is the owner speaking about the pair wherever the sentence's
@@ -89,6 +120,34 @@ evidence of **whose deployment is described** and is never a boundary around the
 **Where the addressee is the owner's own managed service, §33.2's addressee rider governs instead**
 and the document corroborates without defeating — which is what keeps Azure Files from defeating
 `445/tcp`, and Azure SQL Database's public 1433 gateway from bearing on this ruling at all.
+
+> **Amended at this clause by [#112](https://github.com/winniel123/verge-asm/issues/112)**
+> (`sensitive-ports.md` §37.8), per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> **This limb and §33.2's addressee rider are TWO tests sharing one coordinate, not one instrument
+> stated twice, and they must not be folded into one clause.**
+>
+> They read one fact — *whose listener is this document about* — and partition its two values: **the
+> operator's**, where this limb admits the document, and **the owner's own**, where the rider governs.
+> The sentence above is the hand-off. **Neither subsumes the other:**
+>
+> - **§33.2's rider decides `445/tcp`**, where this limb's other three grounds are all satisfied — the
+>   Azure Files pages are Microsoft's, addressed to an operator, about SMB on TCP/445. Only *whose
+>   listener* disposes of them.
+> - **This limb decides `1433/tcp`** against an argument the rider is **silent** on: that an
+>   `applies to` banner makes the Azure VM pages a different **subject** (§10.5's distributor position).
+>   That is a question about standing and reach, and ground 1 — *the artefacts live in
+>   `MicrosoftDocs/sql-docs`* — is what answers it.
+>
+> **Folding them would convert the rider's silence about banners into a boundary**, which is
+> [ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode with the
+> subject changed — the sharpest risk this ADR's own thin-ground section names against limb 2.
+>
+> **[measured]** across #112's thirty-two members the addressee coordinate is load-bearing **twice** —
+> `445/tcp` at the attestation gate and **`27017`/`27018`/`27019` MongoDB at the claim gate**, where
+> §32.2's limb 3 does not exist and Atlas supplies the affirmation — and the banner half **once**
+> (`1433/tcp`, and it is what admits Elastic's ECE documents at §37.5). **No member is decided by
+> both.**
 
 The limb rests on four grounds, each about the artefact rather than the party, per §10.5's
 *artefact, not party*:
@@ -124,12 +183,23 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   [ADR-0014](./0014-only-revealed-generalises.md) does not bite and no timeline opens.
 - **ADR-0050, ADR-0054, ADR-0059 and ADR-0037 are all confirmed by use and none is amended.** Limb 1
   does not narrow ADR-0050 limb 3 or ADR-0059 limb 4; it says what they are **not** also deciding.
-- **Limb 2 reaches rows other than `1433/tcp` and the sweep has not been run.** Every
+- ~~**Limb 2 reaches rows other than `1433/tcp` and the sweep has not been run.**~~ Every
   prohibition-tier owner documents a managed offering on its own port — Elastic Cloud on `9200`,
   MongoDB Atlas on `27017`, Azure Files on `445`, Oracle on `3306`. §33.2's two riders dispose of each
   **as the note currently reads them**, and none was tested against a limb that did not exist.
   Ticketed under ADR-0037 limb 2 rather than swept, and it **blocks
   [#12](https://github.com/winniel123/verge-asm/issues/12)** because it can reach a row.
+  > **DISCHARGED by [#112](https://github.com/winniel123/verge-asm/issues/112)**
+  > (`sensitive-ports.md` §37). **The sweep is run, over all thirty-two members limb 2 can reach** —
+  > the two graded tiers for the attestation gate and **Class C** for the claim gate, a population the
+  > tiers do not describe and which contains **six rows outside them**. **Thirty hold.**
+  > **[measured] `9200/tcp` and `9300/tcp` Elasticsearch meet §10.3's failure condition** on Elastic
+  > Cloud Enterprise documentation addressed to the operator — *"By default, all your deployments are
+  > accessible over the public internet"* — and are **routed rather than removed**, this retrieval
+  > having been scoped to a tier. **`27017` is disposed of on addressee, `445` on addressee and
+  > direction, `3306` on a bounded affirmation, and `6379` on the pair.** The blocking relationship to
+  > #12 passes to the successor ticket; **the rider taxonomy that decided it all is at limb 1's clause
+  > above.**
 - **This is a *detectable* defect and not a curation trigger**, on the reasoning
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) uses for
   its own: both sides are written down — a row's claim, and the owner's affirmative sentences — and
@@ -147,7 +217,7 @@ reader who holds that the failure condition is defeated whenever the prohibition
 the opposite verdict on `1433/tcp`. That reader's argument is stated in full at
 `sensitive-ports.md` §35.4 rather than summarised, so it can be attacked.
 
-**Limb 2 is stated from one instance.** Its four grounds are strong and they are grounds about
+~~**Limb 2 is stated from one instance.**~~ Its four grounds are strong and they are grounds about
 **this** artefact set. A counter-instance would be an owner that disclaims a deployment **in its own
 words** — *this guidance does not apply to X* — and **[measured]** Microsoft's partition is not of
 that shape: the two document sets do not disclaim each other, they simply never mention each other.
@@ -155,6 +225,15 @@ that shape: the two document sets do not disclaim each other, they simply never 
 [ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode with the
 subject changed — which is limb 2's best argument and also the sharpest thing against it, because a
 corpus partitioned only by silence could be **drift** rather than doctrine.
+
+> **The struck sentence is WITHDRAWN by [#112](https://github.com/winniel123/verge-asm/issues/112)**
+> (`sensitive-ports.md` §37) **and the paragraph beneath it stands.** **[measured]** limb 2 now has a
+> **second** live instance, in a second owner's corpus and on a partition of exactly the shape this
+> paragraph describes: Elastic's prohibition sits on a page bannered `Elastic Stack` and its
+> public-internet statements on pages bannered `Elastic Cloud Enterprise` and `Elastic Cloud on
+> Kubernetes`, **and the two sets do not disclaim each other**. The counter-instance the paragraph
+> names — an owner disclaiming a deployment *in its own words* — is **still not met in either corpus**,
+> which is why the sentence about silence is left standing rather than struck with the count.
 
 **And the owner's freshest security document says nothing at all.** **[measured]** *SQL Server
 security best practices*, `ms.date` **2026-05-07** — the most recently authored SQL Server security

@@ -34,7 +34,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle. **Superseded again by §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)) — the list is 40 pairs, class totals `12 / 7 / 21`: `1433/tcp` Microsoft SQL Server is REMOVED**, Claim 3 failing on §10.3's own failure condition on a retrieval **scoped to the row**, and no other claim in the closed set fitting. The note's **second** row removal after `161/udp`, and the first to leave by losing a claim it held. The pair goes to **§4.6**, which becomes **21** entries; §6.1's arithmetic is ~~`28 + 8 + 5 = 41`~~ **`27 + 8 + 5 = 40`**; §2.2's uncovered-in-subject population returns to **0** and coverage reads ~~29 of 41~~ **29 of 40**; **`verge-core` is UNCHANGED at 136 pairs**, `1433/tcp` being in the frequency half. §35** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — **six** in the word, three in the verb's preposition, fifteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two owners write it in a table column headed `Direction`** — Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** (*"`IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against *"`Remote support port | 7906 | TCP | Outbound¹`"*). **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). **[measured]** the clean case of addressee coming apart from direction — MongoDB Atlas on `27017` — is **not** load-bearing, `27017` failing limb 3 first. §33.2's discriminator gains the rider **the direction is part of the class**; §28.9's instance is **re-founded on a current artefact**, HPE having retired *Insight Online direct connect*; and §33.11's *"the string `6379` occurs zero times"* is **corrected at its clause** to a **token** claim without moving the spare it carries. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — **six** in the word, three in the verb's preposition, fifteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two owners write it in a table column headed `Direction`** — Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** (*"`IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against *"`Remote support port | 7906 | TCP | Outbound¹`"*). **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). **[measured]** the clean case of addressee coming apart from direction — MongoDB Atlas on `27017` — is **not** load-bearing, `27017` failing limb 3 first. §33.2's discriminator gains the rider **the direction is part of the class**; §28.9's instance is **re-founded on a current artefact**, HPE having retired *Insight Online direct connect*; and §33.11's *"the string `6379` occurs zero times"* is **corrected at its clause** to a **token** claim without moving the spare it carries. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** **Amended by §37 ([#112](https://github.com/winniel123/verge-asm/issues/112)) — [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 2 is **swept over all thirty-two members it can reach**, and **§33.2's riders do not all travel to the claim gate**: a rider fixing **which listener** the statement is about (addressee, direction) travels, a rider **bounding the affirmation** travels, and a rider **narrowing the prohibition's own class** does **not** — ADR-0067 limb 1 makes carrying it across backwards, since narrowing the prohibition leaves the affirmative naming standing alone. **[measured]** §33 spared `9200`/`9300` on the rider that does not travel and `3306` on the rider that does. **The population is the union of the two graded tiers (26, for the footing gate) and Class C (21 rows, for the claim gate) = 32**, which contains **six rows the tiers do not** — `5432`, `5984`, `10248`, `139`, `137`, `138`. **[measured] `9200/tcp` and `9300/tcp` Elasticsearch MEET §10.3's failure condition** on Elastic Cloud Enterprise documentation addressed to the operator about the operator's own listener — *"**By default, all your deployments are accessible over the public internet**"*, with Elastic's own inbound table numbering `9200, 9243` and `9300, 9343` on the **Proxy** role under the heading **"Inbound traffic from any source"**, and ECK shipping a section headed *"**Allow public access**"* for the node's own `9200` with no warning attached. **The rows are ROUTED and NOT removed** — a row moves only on a retrieval **scoped to the row** ([#37](https://github.com/winniel123/verge-asm/issues/37), ADR-0037 limb 2) and this retrieval was scoped to a tier — and **their cells do not move**, §32.2 limb 4 being asked of the **carrying** statement, whose class (*an **unprotected** node*) has no supported instance. **This is the inverse of §33's shape: a footing surviving on a rider the claim gate does not read.** **§33.2's addressee rider and ADR-0067 limb 2 are TWO tests sharing one coordinate**, not one instrument stated twice — the rider decides `445/tcp` where limb 2's other three grounds are satisfied, limb 2 decides `1433/tcp` against a **banner** argument the rider is silent on, and folding them would convert the rider's silence about banners into a boundary ([ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode). **[measured] §36.5's falsifier is met one gate over** — addressee is load-bearing at `27017`/`27018`/`27019` at the **claim** gate with direction unavailable, because limb 3 does not exist there; §36.5 is **qualified at its clause** as a claim about the footing sweep and **§32.2's closure is untouched**. `3306/tcp` survives on the **bounded affirmation** (*"You must restrict the authorized public IP addresses to a single IP address or a small range"*), with the MySQL Manual's own §34.3 — *"You must enable ingress on the following ports: … **3306: MySQL**"*, imperative, unwarned — failing on the **network** limb alone and its reopening criterion written down. `6379/tcp` survives on the **pair**: **[measured]** Redis Software documents public-internet exposure as the unwarned **default**, and the endpoint is drawn from `10000-19999` with `6379` a token in none of the owner's port documentation. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0067 is amended in place and ADR-0069 is left unused** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -666,6 +666,44 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > `(port, transport)` pair moves, no row moves, no tier moves, no `Break`.** No ADR is minted;
 > **ADR-0036 is amended in place** and ADR-0063 is left unused. Read §34.11 before treating the ruling
 > as measured — the losing option moves no cell either, and the decision is taken on principle.
+
+> **Amended by §37** ([#112](https://github.com/winniel123/verge-asm/issues/112)). **Every tier, count
+> and coverage figure in this section is unchanged — prohibition 15 · scoping 11 · weak 3 ·
+> outside-subject 11 · uncovered-in-subject 0 · coverage 29 of 40 — and the riders this table's top row
+> is defended by are sorted by which **gate** they belong to.**
+> [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+> limb 2 is **swept over all thirty-two members it can reach**: the two graded tiers for the
+> attestation gate, and **Class C** for the claim gate, which is a population this table does not
+> describe and which contains **six rows outside it** — `5432`, `5984` and `10248` in the weak tier and
+> `139`/`137`/`138` inside `445`'s cell.
+>
+> > **§37 — a rider travels to the claim gate if and only if it bounds the *affirmation*.** A rider
+> > fixing **which listener** the statement is about — addressee (§33.2), direction (§36.8) — travels,
+> > because §10.3's failure condition is about the pair. A rider **bounding the affirmation** in the
+> > owner's own words travels, because an endpoint answering an enumerated source set is not reached
+> > from an internet vantage. **A rider narrowing the *prohibition's own class* does not travel**: under
+> > ADR-0067 limb 1 a reading that narrows the prohibition leaves the affirmative naming standing alone,
+> > so carrying it across is not merely wrong but backwards.
+>
+> **[measured] §33 spared `9200`/`9300` on the rider that does not travel and `3306` on the rider that
+> does**, and that one distinction is the whole of the sweep's result. **`9200/tcp` and `9300/tcp`
+> Elasticsearch meet §10.3's failure condition** on Elastic Cloud Enterprise documentation addressed to
+> the operator — *"**By default, all your deployments are accessible over the public internet**"*, with
+> the owner's own inbound table numbering `9200, 9243` and `9300, 9343` on the **Proxy** role under the
+> heading **"Inbound traffic from any source"**. **The rows are ROUTED and not removed**, a row moving
+> only on a retrieval **scoped to the row** ([#37](https://github.com/winniel123/verge-asm/issues/37),
+> ADR-0037 limb 2), and **their cells do not move**: §32.2 limb 4 is asked of the **carrying**
+> statement, and no architecture Elastic supports is an instance of *an **unprotected** node exposed to
+> the public internet*. **This is the inverse of §33's shape — a footing surviving on a rider the claim
+> gate does not read.**
+>
+> **§33.2's addressee rider and ADR-0067 limb 2 are two tests sharing one coordinate, not one
+> instrument stated twice** — the rider decides `445/tcp` where limb 2's other three grounds are all
+> satisfied, and limb 2 decides `1433/tcp` against a **banner** argument the rider is silent on. §37.8.
+> **No `(port, transport)` pair moves, no row moves, no cell moves, no tier moves, no `Break`**;
+> **ADR-0067 is amended in place** and **ADR-0069 is left unused**. Read §37.13 before quoting the
+> `9200` finding as settled — ECE is strong on the network limb and weak on modality, ECK the reverse,
+> and neither is strong on both.
 
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
@@ -10340,7 +10378,15 @@ current version specifications:
 >
 >        The protocol is designed to transit firewalls easily, perform well where latency is high and
 >        bandwidth is low, and scale to very large numbers of clients per server."
-> — [RFC 7530](https://www.rfc-editor.org/rfc/rfc7530.txt) §1.2, *NFS Version 4 Goals*; the same bullet is [RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt) §1.1
+> — [RFC 7530](https://www.rfc-editor.org/rfc/rfc7530.txt) §1.2, *NFS Version 4 Goals*; the same bullet is [RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt) ~~§1.1~~ **§1.5**
+
+> **The citation is corrected in place by §37** ([#112](https://github.com/winniel123/verge-asm/issues/112))
+> **and the finding is untouched.** **[measured]**, retrieved 2026-08-14 from the raw
+> `rfc8881.txt` (1,593,486 bytes, 31,832 lines): the *NFSv4 Goals* list is **§1.5**, and **Appendix C
+> is present at line 31,588** carrying the sentence below verbatim. Recorded because two mediated
+> fetchers **truncated the file before the appendices** and a third reported the sentence absent — it
+> is invisible to a naive search only because the RFC wraps it as `does not meet the goal of secure` /
+> `use on the Internet`. §37.11 item 4, §37.14.
 
 RFC 7530's Abstract adds *"attention has been applied to making NFS version 4 operate well in an Internet
 environment."* **This is §10.3's failure condition knocking**, and it is the strongest such candidate
@@ -14648,6 +14694,32 @@ defeated by the owner running *its own* hardened service on the same number (§3
 > before counted as one. Both riders are **coordinates of what limb 2's *"this pair"* denotes**, which
 > §32.2's limb 2 is restated to state. §36.5, §36.8.
 
+> **These riders are stated for the DEFEAT TEST, which is the attestation gate — and §37**
+> ([#112](https://github.com/winniel123/verge-asm/issues/112)) **rules that they do not all travel to
+> the claim gate.** [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+> limb 1 separated the gates and nobody asked which of these three survive the crossing.
+>
+> > **A rider travels to the claim gate if and only if it bounds the *affirmation*.**
+> > **(a)** A rider fixing **which listener the statement is about** — *the addressee is part of the
+> > class*, *the direction is part of the class* — **travels**, because §10.3's failure condition asks
+> > whether the owner names the internet as supported **for the pair**, and the pair is a listener on the
+> > addressed estate (§36.8).
+> > **(b)** A rider **bounding the affirmation** in the owner's own words — *"You **must** restrict the
+> > authorized public IP addresses to a single IP address or a small range"* — **travels**: an endpoint
+> > answering an enumerated source set is not reached from an **internet vantage** under
+> > [ADR-0010](../adr/0010-exposure-composes-two-reaches.md) and
+> > [ADR-0017](../adr/0017-exposure-needs-both-legs.md). It is a **scope** read off a string, so
+> > ADR-0059 limb 2's inadmissibility of mood and force is untouched.
+> > **(c)** The **conditioning** rider above — *Elastic forbids exposing an "unprotected" node* —
+> > narrows the **prohibition's own class** and **does NOT travel**. ADR-0067 limb 1 makes carrying it
+> > across not merely wrong but **backwards**: a reading that narrows the prohibition removes the tension
+> > and leaves the affirmative naming standing **alone**.
+>
+> **[measured] §33.3 spared `9200`/`9300` on (c) and `3306` on (b)**, and only the second survives the
+> move to the row. **The cells do not move** — limb 4 is asked of the **carrying** statement, and the
+> conditioning rider is intact for it — but **`9200/tcp` and `9300/tcp`'s rows meet §10.3's failure
+> condition** and are **routed** under ADR-0037 limb 2. §37.3, §37.5.
+
 **What this section does not do.** It does not reopen ADR-0059 limbs 1 or 2, nor §32.2's four limbs.
 #101 fenced them and this ticket **applies** the conjunction rather than restating it — the same
 relationship #101 had to #98. Mood, force, hedging and priority label remain inadmissible in both
@@ -16673,6 +16745,19 @@ narrower ground read off an owner artefact:
 > **What would defeat this subsection** is a member whose **verdict** turns on addressee with the
 > direction ground unavailable — MongoDB is that shape and is refused a limb earlier, so the
 > falsifier is named, retrieved, and still not met.
+>
+> > **QUALIFIED at this clause by §37** ([#112](https://github.com/winniel123/verge-asm/issues/112)),
+> > **and the subsection stands.** *Exactly once in twenty-six members* is a measurement over **this**
+> > sweep — the two graded tiers, asked the **footing** question — and it is true of it. **[measured] the
+> > falsifier is met one gate over.** §32.2's four-limb conjunction is a **footing** criterion and does
+> > **not** run at the claim gate, so `27017`'s limb-3 failure — the ground this paragraph refuses
+> > MongoDB on — is unavailable there: §10.3's failure condition requires the **affirmation** to name the
+> > public internet and requires nothing of the prohibition beyond naming the boundary. **Atlas supplies
+> > the affirmation** — *"**Public IP addresses for Internet connections**"*, on an inbound listener at
+> > `…mongodb.net:27017` — **so the addressee rider alone carries `27017`, `27018` and `27019` at the
+> > claim gate, with direction unavailable.** **This is not a fifth or sixth limb and §32.2's closure is
+> > untouched**, because the conjunction is not what is running. What moves is the **count**: addressee
+> > is load-bearing **once** in the footing sweep and **twice** across both gates. §37.8, §37.12.
 
 **What follows for the closure.** §32.2 does not acquire a second exception. It acquires **one**
 under-written limb, which is the shape the note has repaired four times before — §20.8's criterion
@@ -17184,6 +17269,768 @@ serial merge.
 
 ---
 
+## 37. ADR-0067 limb 2 swept across the list — §33.2's riders do not all travel to the claim gate, and `9200`/`9300` is the one pair the sweep can reach
+
+**Ticket [#112](https://github.com/winniel123/verge-asm/issues/112).**
+[ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+limb 2 rules that an owner's **deployment-scoped** document is the owner speaking about the pair
+wherever the sentence's subject is the protocol's clients and its addressee is **the operator**. §35
+applied it to exactly one row and removed it. **Every other member of the list was disposed of by §33
+under §33.2's riders, and not one of them was tested against a limb that did not yet exist.** §35.13
+item 5 ticketed the sweep against itself; this section runs it.
+
+**The answer, in one line: the limb reaches one pair, and this sweep may not move it.** `9200/tcp` and
+`9300/tcp` Elasticsearch meet §10.3's failure condition on Elastic's own operator-addressed **Elastic
+Cloud Enterprise** documentation, and **a row moves only on a retrieval scoped to the row**
+([#37](https://github.com/winniel123/verge-asm/issues/37),
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2). This
+retrieval was scoped to a **tier**. So the pair is **ticketed and not removed** — the relationship §33
+had to §35, one instrument later, and ADR-0037 limb 2's cycle turning for the fourth time after
+`2049/tcp` (§26.4), `9092/tcp` (§17.5) and `1433/tcp` (§33.9).
+
+**What the sweep also found is that the question is not the one the ticket asked.** §33.2 carries three
+riders and they were all written for the **attestation** gate. ADR-0067 limb 1 separates the gates and
+nobody asked which riders survive the crossing. **[measured] one of the three does not**, and it is the
+rider that spared `9200`.
+
+### 37.1 The population is not the one the ticket named, and the correction is limb 1's
+
+The ticket sets the sweep over **the prohibition tier and the scoping tier** — 26 members. That is the
+right population for the gate that grades a **footing** and the wrong one for the gate limb 2 actually
+decided `1433/tcp` at.
+
+**Limb 2 is admissible at both gates, and the gates have different populations.** Limb 2 rules on
+whether a deployment-scoped document is **the owner speaking about the pair**. At the attestation gate
+that answer feeds ADR-0050 limb 3 and §32.2 limb 4(c), which move a **cell**. At the claim gate it feeds
+§10.3's failure condition, which moves a **row**.
+
+| Gate | What limb 2 can move | Population, and why | Members |
+|---|---|---|---|
+| **Attestation** — ADR-0050 limb 3, §32.2 limb 4(c) | a **footing cell** | the two graded tiers; §32.2's conjunction is a footing criterion | **26** — prohibition 15 · scoping 11 |
+| **Claim** — §10.3's failure condition | a **row** | **Class C**, because §10.3 is Claim 3's own boundary limb and says nothing about Claims 1 or 2 | **21 rows** |
+
+**[measured]** the two overlap in **15** members and the union is **32**.
+
+- **Fifteen Class C rows sit in a graded tier** and can lose either: `10250` · `2376` · `3306` ·
+  `27017` · `27018` · `27019` · `9200` · `9300` · `25672` · `445` · `2049` · `873` · `623/udp` ·
+  `10259` · `10257`.
+- **Eleven graded-tier members are not Class C and can lose a cell but never a row**: `6379` ·
+  `11211/tcp` · `11211/udp` · `2379` · `2380` · `10255` · `2181` · `4369` · `9042` · `2375` · `10249`.
+  §10.3's failure condition is a limb of **Claim 3**, and these rows are Claim 1 rows. An owner
+  affirming internet exposure of a Class A port defeats its **footing** and leaves *the protocol as
+  shipped admits anonymous commands* untouched, which is §2.1's own separation working.
+- **Six Class C rows sit outside both graded tiers and were therefore outside the ticket's population
+  entirely**: `5432/tcp`, `5984/tcp` and `10248/tcp` in the weak tier, and `139/tcp`, `137/udp` and
+  `138/udp` inside `445`'s cell.
+
+> **The weak tier is outside §36.6's sweep by construction and inside this one, and the difference is
+> not an inconsistency.** §32.7 rules that its three rows carry **no owner statement of a permitted
+> network at all**, so a candidate qualifier *on a carrying statement* cannot bite there — that was
+> §36's question and its exclusion was correct. **§10.3's failure condition needs no carrying
+> statement.** It fires on a **second, independent utterance** (ADR-0067 limb 1, consequence 1), and an
+> owner that has never written a prohibition can still publish an affirmation. **So the weak tier is
+> swept here.** Six rows the ticket's population would have missed, and the reason the correction is
+> worth making rather than noting.
+
+### 37.2 The cheap half, taken first because it is measurement rather than argument
+
+The ticket is right that a managed offering on a **different port** is disposed of by measurement.
+**Per [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), every cell below is a *dated*
+finding rather than a permanent one** — an owner's class list is fixed at the time of the sweep, and a
+renumbering is a property of the owner's release. All retrieved **2026-08-14**.
+
+| Owner | Its own offering | The port the offering is actually on | Is the listed pair inside it? |
+|---|---|---|---|
+| **Redis Ltd.** | Redis Cloud (hosted) · **Redis Software** (operator-installed) | **`10000-10049, 10051-19999`** — *"TCP \| 10000-10049, 10051-19999 \| ✅ Yes \| Internal, External, Active-Active \| Database traffic"* | **No.** **[measured]** `6379` occurs **zero** times as a **token** in *Network port configurations*, *Enable private and public database endpoints*, *Configure database settings* and four Redis Cloud connectivity pages; the sole substring hit is `36379` on an internode row — §36.14's correction, re-confirmed on a wider corpus. §37.7 |
+| **Elastic** | Elastic Cloud Hosted | **`443` and `9243`** — *"Port 9243 – Secure HTTPS (recommended). Port 9200 – Plaintext HTTP (not recommended)"* | **No for the hosted service — and `9200` and `9300` are both in Elastic Cloud *Enterprise*, which the operator installs and runs.** §37.5 |
+| **Oracle** | HeatWave MySQL on OCI | **`3306`**, unrenumbered | Yes, the number — but **[measured]** *"**MySQL DB system endpoints are not public.**"* and *"**The DB system endpoints are not directly accessible from the internet.**"*, so the offering is not internet-reachable at all and is disposed of a step earlier than a renumbering would do it. §37.6 |
+| **MongoDB Inc.** | Atlas | **`27017`**, unrenumbered **and publicly reachable** — *"**Public IP addresses for Internet connections**"*, `mongodb://xyz456-shard-00-00.ab123.mongodb.net:27017` | Yes. **Disposed of on addressee, not on measurement**, and ADR-0067 limb 2's own second sentence routes it there. §37.8 |
+| **Docker Inc.** | Docker Build Cloud | **`443`** to named hostnames — `auth.docker.io`, `build-cloud.docker.com`, `hub.docker.com` | **No.** **[measured]** neither `2375` nor `2376` occurs anywhere in the Build Cloud documentation |
+| **The rsync project** | — (a documented public listener, not a service) | **`874`** with `873` behind it — *"The default port used for connecting is **874** (one higher than the normal 873)"*; *"If it is on the same host as the proxy, then configuring it to only listen on localhost is a good idea."* | **No.** §13's finding re-confirmed on `rsync 3.5.0` man pages dated **13 August 2026**, one day before this sweep |
+| **Microsoft** | SMB over QUIC | **`UDP/443`** — *"The server certificate creates a TLS 1.3-encrypted tunnel over the internet-friendly **UDP port 443** instead of the legacy TCP port 445"* | **No**, and the same page says *"**Do not allow TCP/445 inbound to the file server**"* (`ms.date` **2025-07-24**) |
+| **memcached · the ASF (Cassandra, ZooKeeper, CouchDB) · etcd-io · Erlang/OTP · the IETF · the PostgreSQL Global Development Group · the Kubernetes project** | **none** | — | **The owner operates no service, so there is no supported architecture for the defeat test to bite on.** §33.11's memcached disposal, generalised and re-measured per owner |
+
+> **Two owners resolved one tension in opposite directions, and recording it is what makes the cheap
+> half cheap.** **[measured]** Oracle kept the port number and **abolished public reachability** in its
+> managed product; Redis kept public reachability — selling it as the default — and **abolished the
+> port number**. Two owners moved the **transport and the number** rather than the posture: rsync's
+> `874`/TLS in front of a loopback-bound `873`, and Microsoft's `UDP/443` QUIC in place of `TCP/445`.
+> **Not one of the four leaves a supported internet-facing instance of the listed pair.** The one owner
+> that did none of these things is **Elastic**, and that is §37.5.
+
+### 37.3 The instrument — which of §33.2's riders travel to the claim gate
+
+**This is the sweep's own act and it is stated before it is applied**, per §33.10's and §36.13's
+precedent for a discriminator that would otherwise silently decide the ticket.
+
+§33.2's discriminator — *the architecture the owner supports must be an instance of the class the
+owner's own statement forbids* — carries three riders: **conditioning** (§33.2), **addressee** (§33.2)
+and **direction** (§36.8). **All three were written for the defeat test, which is the attestation
+gate.** ADR-0067 limb 1 then separated the gates and nobody asked which riders survive the crossing.
+
+> **§37 — a rider travels to the claim gate if and only if it bounds the *affirmation*; a rider that
+> narrows the *prohibition* stops at the attestation gate.**
+>
+> **(a) A rider that fixes *which listener the statement is about* travels.** Addressee and direction
+> are the two coordinates of what limb 2's *"this pair"* denotes (§36.8) — a listener, reached from
+> outside the addressed estate. §10.3's failure condition asks whether the owner names the internet as
+> a supported environment **for the pair**, so a naming about the **owner's own** listener, or about
+> the pair as the **reaching** end, is not a naming for the pair at **either** gate.
+>
+> **(b) A rider that bounds the *affirmation* travels.** Where the owner's own words attach a
+> condition to the exposure it affirms — *"You **must** restrict the authorized public IP addresses to
+> a single IP address or a small range of IP addresses"* — the owner has not affirmed reachability
+> from an **internet vantage** at all. Under [ADR-0010](../adr/0010-exposure-composes-two-reaches.md)
+> and [ADR-0017](../adr/0017-exposure-needs-both-legs.md) a vantage is verified **outside every scope
+> the operator holds**, and an endpoint answering only an enumerated source set is not reached from
+> one. **This is a *scope* read off a string, not mood or force**, so ADR-0059 limb 2 is untouched.
+>
+> **(c) A rider that narrows the *prohibition's own class* does NOT travel.** Conditioning of the
+> prohibition — *an **unprotected** node* — answers ADR-0050 limb 3's defeat test and nothing else.
+> **ADR-0067 limb 1 makes carrying it across not merely wrong but backwards**: a reading that narrows
+> the prohibition *removes the tension and leaves the affirmative naming standing alone*, which
+> **strengthens** the failure condition. A session that spares a row on conditioning at the claim gate
+> has argued for the row with the argument against it.
+
+**§33.2 did not distinguish (b) from (c) because it never had to.** It spared `9200`/`9300` on (c) —
+Elastic forbids exposing an *"unprotected"* node — and `3306` on (b) — Oracle requires the public path
+be restricted to *"a single IP address or a small range"*. Both were sound at the tier. **[measured]
+only one of the two survives the move to the row**, and that is the whole of why this sweep reaches
+`9200` and does not reach `3306`.
+
+**The falsifying case is named so the instrument stays falsifiable.** A rider that bounds the
+affirmation *and* is expressed only as a preference — *"we recommend you restrict the source range"* —
+is **not** (b): ADR-0059 limb 2 makes the mood inadmissible and the affirmation is then unbounded. The
+discriminator is whether the owner's sentence **states the bound**, which is read as a string.
+
+### 37.4 The walk — thirty-two members, limb 2's four grounds, verdict per row
+
+**[measured]** Against `main` at `d3e78de` — §2.2 tiers **prohibition 15 · scoping 11 · weak 3 ·
+outside-subject 11 · uncovered-in-subject 0**, coverage **29 of 40**, list **40 pairs**, classes
+`12 / 7 / 21`. Figures cited **as of that commit**; this section moves none of them. Every retrieval
+below was performed **2026-08-14**.
+
+**How the columns are read.** *Candidate* is the owner document that could meet §10.3's failure
+condition. *Grounds* records which of ADR-0067 limb 2's four the candidate fails — **① where the
+artefact lives · ② who is addressed · ③ what the sentence's subject is · ④ whether it is true of the
+pair** — or `—` where there is no candidate at all. *§10.3?* is the failure condition.
+
+| # | Pair · tier · class | Candidate — the owner's own deployment-scoped document | Which of limb 2's grounds it fails | §10.3? | Verdict |
+|---|---|---|---|---|---|
+| 1 | `6379/tcp` · P · A | **Redis Software** *Enable private and public database endpoints* — *"By default, Redis Software databases expose a single endpoint … **making it available to the public network (e.g. the internet)**"*, no warning attached | **④ the pair.** **[measured]** `6379` occurs zero times as a token; database endpoints are `10000-19999` | **Not met** | **Stays.** §37.7 |
+| 2 | `11211/tcp` · P · A | — **[measured]** the owner operates no service; *"you **must not** expose memcached directly to the internet"* (`ConfiguringServer`) | — | Not met | **Stays** |
+| 3 | `11211/udp` · P · A | — same page; `-U` *"defaulting to off since 1.5.6"* | — | Not met | **Stays** |
+| 4 | `3306/tcp` · P · C | **Oracle** *Network Load Balancer*, HeatWave Service Guide — *"enables you to connect to a DB system **over the internet**"*, listener and ingress fields carrying `3306` | **② addressee** (the DB system is Oracle's managed listener) **and the affirmation is bounded** — *"You must restrict the authorized public IP addresses to a single IP address or a small range"* — §37.3(b) | **Not met** | **Stays** — and it is the sweep's near-miss. §37.6 |
+| 5 | **`9200/tcp` · P · C** | **Elastic Cloud Enterprise** *Traffic Filtering* — *"**By default, all your deployments are accessible over the public internet**, assuming that your Elastic Cloud Enterprise proxies are accessible"*; ECE's own inbound table heads `9200, 9243 \| Proxy \| Elasticsearch REST API` under **"Inbound traffic from any source"** | **None.** ① Elastic's own ECE docs · ② the operator installs and runs ECE · ③ the sentence's subject is the deployment's clients · ④ the owner numbers the pair in the table | **MET** | **ROUTED — §37.5** |
+| 6 | **`9300/tcp` · P · C** | **Same table**, same heading — `9300, 9343 \| Proxy \| Elasticsearch transport client` | **None**, on the same four grounds | **MET** | **ROUTED — §37.5** |
+| 7 | `445/tcp` · P · C | **Microsoft** *Networking considerations for Azure Files* — *"an **internet exposed endpoint**"*, *"accessible from anywhere in the world"* | **② addressee and ③ subject** — Azure Files is **Microsoft's** listener. Both coordinates travel, §37.3(a). And **[measured]** Microsoft's current position on the operator's own listener is *"**Do not allow TCP/445 inbound to the file server**"* (`ms.date` 2025-07-24) | **Not met** | **Stays** — §33.5 and §36.5 confirmed at the claim gate |
+| 8 | `623/udp` · P · C | — **[measured]** Dell, *"The iDRAC is not designed nor intended to be placed on, nor connected directly to the Internet"* (*iDRAC9 Security Configuration Guide*, §Best Practices) | — | Not met | **Stays.** §36.7's six-document negative re-run |
+| 9 | `9042/tcp` · P · A | — **[measured]** dated negative over the Cassandra 5.0 *FAQ* and *Security* pages; the ASF operates no service and **Astra is DataStax's** | — | Not met | **Stays** — with a hazard, §37.14 |
+| 10 | `2379/tcp` · P · A | — *"It **must not** be exposed to untrusted networks or the public internet"*, `THREAT_MODEL.md`, `etcd-io/etcd` `main` at commit `6c5082e8` (2026-07-31) | — | Not met | **Stays** |
+| 11 | `2380/tcp` · P · A | — same file, same sentence, port named separately | — | Not met | **Stays** |
+| 12 | `10250/tcp` · P · C | — **[measured]** dated negative over `ports-and-protocols.md` and `kubelet-authn-authz`; *"The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"* | — | Not met | **Stays** |
+| 13 | `10255/tcp` · P · A | — same negative | — | Not met | **Stays** |
+| 14 | `2181/tcp` · P · A | — *"A ZooKeeper ensemble is expected to operate in a trusted computing environment"* under **`### Things to Avoid`**, `release-3.9.5`; the ASF hosts nothing | — | Not met | **Stays** — re-confirmed one tag on from §33.6's `release-3.9.4` |
+| 15 | `25672/tcp` · P · A | **Broadcom** *Tanzu RabbitMQ* — **[measured]** software the **customer's** operators run, not a Broadcom-hosted endpoint; CloudAMQP is a third party | **④** — and the *"can mean public networks"* sentence is on the **production checklist**, scoped to the **client** port category, never to `25672` | Not met | **Stays** |
+| 16-18 | `27017`/`27018`/`27019` · S · C | **MongoDB Atlas** — *"**Public IP addresses for Internet connections**"*, *"Use this string for applications connecting over the **Internet**"*, `…mongodb.net:27017` | **② addressee** — **MongoDB Inc. operates the listener**, and MongoDB draws the line itself in its page titles (*for Self-Managed Deployments*) | **Not met** | **Stays — and addressee is LOAD-BEARING here.** §37.8 |
+| 19 | `2049/tcp` · S · C | **The IETF** — *"Improved access and good performance on the Internet"*, RFC 8881 **§1.5** | **③ modality, not a limb** — the same document records the goal unmet | **Not met** | **Stays.** §26.4 verified today, §37.11 |
+| 20 | `4369/tcp` · S · A | — `DEP-001`, `OTP 29.0.5`; Ericsson hosts nothing | — | Not met | **Stays** |
+| 21 | `2375/tcp` · S · A | — **[measured]** `internet` occurs **zero** times in the `dockerd` reference, *Protect the Docker daemon socket* and *Configure remote access*; every remote-access example binds `tcp://127.0.0.1:2375` | — | Not met | **Stays** |
+| 22 | `2376/tcp` · S · C | — same negative; Docker Desktop's control reads *"Expose daemon on **tcp://localhost:2375** without TLS"*, default off | — | Not met | **Stays** |
+| 23 | `873/tcp` · S · C | — the documented public listener is **874** with `873` on loopback behind it, `rsync 3.5.0` man pages dated 2026-08-13 | **④ the pair** — a different port, Redis's shape | Not met | **Stays** |
+| 24 | `10259/tcp` · S · C | — Kubernetes dated negative | — | Not met | **Stays** |
+| 25 | `10257/tcp` · S · C | — same | — | Not met | **Stays** |
+| 26 | `10249/tcp` · S · A | — same | — | Not met | **Stays** |
+| 27 | `5432/tcp` · **weak** · C | — **[measured]** `internet` occurs **zero** times across five PostgreSQL 18.6 pages and the wiki's best-practices page; **the PGDG operates no hosted service**, and EDB, Crunchy, Supabase, Neon, RDS and Azure are third parties | — | Not met | **Stays** |
+| 28 | `5984/tcp` · **weak** · C | — **[measured]** CouchDB 3.5.2's only Internet-naming sentence is a **warning** about the **distribution** port — *"the only thing protecting you is the Erlang cookie"* — which §2.2 already records as covering `4369` and not `5984`. The ASF hosts nothing; **Cloudant is IBM's** | — | Not met | **Stays** |
+| 29 | `10248/tcp` · **weak** · C | — the owner's own field comment reads *"the port of the **localhost** healthz endpoint"*, and **[measured]** `10248` is absent from `ports-and-protocols.md` entirely | — | Not met | **Stays** |
+| 30 | `139/tcp` · outside · C | — the perimeter directive names it; **[measured]** *"Shares made with SMB2 or later don't use NetBIOS ports 137-139"* and Windows Server 2025 **removed** them from the built-in firewall rules | — | Not met | **Stays** |
+| 31 | `137/udp` · outside · C | — same | — | Not met | **Stays** |
+| 32 | `138/udp` · outside · C | — same | — | Not met | **Stays** |
+
+> **Thirty-two members walked · thirty hold · two meet §10.3's failure condition and are ROUTED ·
+> zero cells move · zero rows move.**
+>
+> **[measured] the failure condition was met twice, disposed of five times on a rider, and had no
+> candidate at all in twenty-five.** The five rider disposals are `6379` (the pair), `3306` (addressee
+> **and** the bounded affirmation), `445` (addressee and direction), `27017`/`27018`/`27019`
+> (addressee), `25672` (the pair) and `873` (the pair) — **and the count of *grounds* rather than
+> outcomes is the discipline §36.7 said #107's own count lacked.**
+
+### 37.5 `9200/tcp` and `9300/tcp` — the pair the sweep reaches, and why it is routed rather than ruled
+
+**Elastic is the only owner in the sweep that neither renumbered its offering, nor withheld public
+reachability, nor runs the listener itself.** Elastic Cloud Enterprise is Elastic's software that
+**the operator installs on the operator's own hardware**, and Elastic documents its public
+reachability as the **default state**.
+
+**[measured]**, retrieved 2026-08-14 from the owner's own current documentation:
+
+> "| Port(s) | Protocol | Role | Purpose |
+> | **9200, 9243** | TCP | **Proxy** | Elasticsearch REST API. 9200 is plain text and 9243 is with TLS, also required by load balancers |
+> | **9300, 9343** | TCP | **Proxy** | Elasticsearch transport client. 9300 is plain text and 9343 is with TLS, also required by load balancers |"
+> — Elastic, *Networking prerequisites*, Elastic Cloud Enterprise, under the table heading
+> **"Inbound traffic from any source"**. `Applies to: Elastic Cloud Enterprise: Generally available`;
+> the same table at *Elastic Cloud Enterprise Reference [3.8]*
+
+> "**By default, all your deployments are accessible over the public internet**, assuming that your
+> Elastic Cloud Enterprise proxies are accessible. Once you associate at least one traffic filter with
+> a deployment, traffic that does not match any rules (for this deployment) is denied."
+> — Elastic, *Traffic Filtering*, Elastic Cloud Enterprise Reference [3.8]
+
+> "all your deployments are accessible to external networks through the orchestrator's proxies without
+> any traffic restrictions" … "these proxies may also be accessible **over the public internet**" …
+> "Any IP filtering rule set assigned to a deployment overrides the default behavior of *allow all
+> access **over the public internet endpoint***."
+> — Elastic, *IP filtering rules in Elastic Cloud Enterprise*.
+> `Applies to: Elastic Cloud Enterprise: Generally available`
+
+**Limb 2's four grounds, run.**
+
+| Ground | What it reads for ECE |
+|---|---|
+| **① Where the artefact lives** | Elastic's own ECE documentation set, on elastic.co, `Applies to: Elastic Cloud Enterprise`. It is Elasticsearch documentation about Elasticsearch, not a platform's documentation that mentions it |
+| **② Who is addressed** | **The operator.** ECE is installed on the operator's hosts; the operator provisions the proxies, holds the credentials and — **[measured]** on Elastic's own words — supplies the load balancer: *"ECE does not include a built-in load balancer, so **you must provision and configure one** in front of the ECE proxies"* |
+| **③ What the sentence is about** | *"all your **deployments** are accessible over the public internet"* is a proposition about **who may be a client of the deployment**, which is what Claim 3 is |
+| **④ True of the pair** | **[measured]** the owner's own table numbers `9200` and `9300` under **"Inbound traffic from any source"**, and gives their purpose as *"Elasticsearch REST API"* and *"Elasticsearch transport client"* — the same services §3.3's rows name |
+
+**And the `applies to` banner is exactly what ADR-0067 limb 2 refuses to read as a boundary.** The
+prohibition sits on *Networking settings*, banner `Elastic Stack: Generally available`; the ECE
+statements sit on pages bannered `Elastic Cloud Enterprise: Generally available`. **[measured] the two
+sets do not disclaim each other**, which is the same partition-by-silence ADR-0067's own thin-ground
+section measured for Microsoft.
+
+**The disposal §33 used is a rider that does not travel.** §33.11 spared the cells because *"the
+supported endpoint is not the node"* — the sentence's subject is *an unprotected **node***, and ECE's
+9200 is a **Proxy**-role listener with the Elasticsearch instances on `18000-18999` / `19000-19999` /
+`20000-20999` / `23000-23999`. **That is a conditioning of the prohibition read through its subject
+term, and §37.3(c) is exactly the case it names**: it narrows what Elastic **forbids**, leaving what
+Elastic **affirms** standing alone. Under ADR-0067 limb 1 that strengthens the failure condition.
+
+**The second instance is cleaner still, and no prior section opened its artefact class.** In **Elastic
+Cloud on Kubernetes** there is **no proxy** — `9200` is the Elasticsearch node's own HTTP service:
+
+> "You can access Elastic resources by using native Kubernetes services that are **not reachable from
+> the public Internet by default**." … *(section heading, verbatim)* "**Allow public access**" … "you
+> can set the `type` field to `LoadBalancer` to provision a load balancer for the `Service`, and
+> populate the column `EXTERNAL-IP` after a short delay."
+> — Elastic, *Accessing services*, ECK. `Applies to: Elastic Cloud on Kubernetes: Generally
+> available`. **[measured]** `internet` ×1, `public` ×2, `9200` ×5, and **no warning admonition is
+> attached to the section**
+
+**The strongest argument the other way, put in full because a reviewer should attack it.** ECE's
+sentence describes a **default**, where `1433`'s was an **offering described in the imperative with the
+owner writing the firewall rule** (§33.10, §35.9) — and Elastic disclaims the component that actually
+supplies the reach: *"Provisioning and configuring the load balancer is the customer's responsibility
+and is **outside the scope of this documentation**."* On that reading Elastic has described a
+consequence of a component it declines to specify, not named a supported environment. **The counter is
+that §10.4's one-way rule, which is what would silence a permissive default, governs the attestation
+gate and not the claim gate** — §34.3 limb (c), ADR-0067 limb 1 — and that *"all your deployments are
+accessible over the public internet"* is a present-tense statement about the operator's estate, not a
+default value in a config file. **[measured]** ECK's *"Allow public access"* is not a default at all:
+it is a field in Elastic's own CRD, named by Elastic, with the mechanism supplied.
+
+> **The ground is genuinely underdetermined and it is flagged as thin rather than resolved here
+> (§37.13).** What is **not** underdetermined is the disposal: **a row moves on a retrieval scoped to
+> the row.** This retrieval was scoped to a tier, so §37 **routes** the pair — ADR-0037 limb 2, #37,
+> and §26.4's and §33.9's precedent. **Ticketed, and it blocks
+> [#12](https://github.com/winniel123/verge-asm/issues/12).**
+
+**The cells do NOT move, and this is the inverse of §33's shape.** §32.2 limb 4 is asked of **the
+carrying statement**, and `9200`/`9300`'s carrying statement is §16.4's *"Never expose an unprotected
+node to the public internet"* on *Networking settings*. Is there an architecture Elastic supports that
+is an instance of *an **unprotected** node exposed to the public internet*? **No** — ECE's proxy
+terminates TLS and applies traffic filters, and **[measured]** ECK's page states *"All Elastic Stack
+resources deployed by the ECK operator are secured by default"*. **Limb 4(c) is satisfied for the
+carrying statement and the cells stay in the prohibition tier.**
+
+> **§33 moved a cell and routed a row; §37 holds a cell and routes a row.** ADR-0067 limb 1's
+> consequence 3 predicted the asymmetry in one direction — *an affirmative naming that defeats a
+> footing does not by itself remove a row* — and this is its converse instantiated for the first
+> time: **a footing surviving on a rider the claim gate does not read.**
+
+**One artefact found here would re-found the cell and is reported rather than used.** **[measured]**
+Elastic publishes a **second and unconditioned** prohibition, on a page bannered for ECK and
+self-managed clusters:
+
+> "**Elasticsearch installations are not designed to be publicly accessible over the Internet. IP
+> filtering and the other capabilities of the Elasticsearch security features do not change this
+> condition.**"
+> — Elastic, *Manage IP filtering in ECK and self-managed clusters*.
+> `Applies to: Elastic Cloud on Kubernetes: Generally available / Self-managed Elastic deployments:
+> Generally available`
+
+**That sentence carries no *"unprotected"* qualifier and expressly refuses the protection carve-out**,
+so a footing re-founded on it would have limb 4(c) fail and the cells would leave the graded table on
+`1433`'s shape. **It numbers no port**, so reach would have to run through ADR-0050 — and choosing a
+different carrying statement in order to defeat the cell is running the argument rather than reading
+the artefact. **Recorded and routed, not applied** (§37.11 item 2).
+
+### 37.6 `3306/tcp` — the near-miss, and the sentence that would move it
+
+`3306` is the row where §33's disposal **does** travel, and it is worth stating why, because a reader
+who takes §37.3 loosely moves it.
+
+**The affirmation is bounded in the owner's own words, in the same paragraph that makes it.**
+**[measured]**, retrieved 2026-08-14:
+
+> "A network load balancer, which is present on a public subnet, **enables you to connect to a DB
+> system over the internet. However, it is a security risk to make the DB system accessible over the
+> internet. You must restrict the authorized public IP addresses to a single IP address or a small
+> range of IP addresses, and use in-transit encryption.**"
+> — Oracle, *Network Load Balancer*, MySQL HeatWave Service Guide
+
+*"It is a security risk"* and *"possible but **not recommended**"* are **mood and force and are
+inadmissible** under ADR-0059 limb 2, and they are quoted here only because a reader will reach for
+them. **The admissible half is the bound**: *"You **must** restrict the authorized public IP addresses
+to a single IP address or a small range"*, repeated as *"You should narrow down the range to more
+specific IP addresses"* on the source-CIDR field. An endpoint answering an enumerated source set is not
+reached from an internet vantage (§37.3(b)), so **Oracle has not named the public internet as a
+supported deployment environment for the pair.** §33.11's *"an allow-listed endpoint is outside the
+class"* is confirmed and is now stated as a claim-gate rule rather than as an observation.
+
+**Two further grounds, either sufficient alone.** The DB system is **Oracle's managed listener**, so
+§37.3(a)'s addressee coordinate disposes of it independently. And **[measured]** the offering has no
+public endpoint at all by default — *"**MySQL DB system endpoints are not public.**"*, *"**The DB system
+endpoints are not directly accessible from the internet.**"*
+
+**The near-miss, and it is close enough to name the criterion that would move the row.** **[measured]**
+the **MySQL Reference Manual itself** — not Oracle's cloud documentation — carries a deployment-scoped
+chapter addressed to an operator running MySQL on the operator's **own** compute instance:
+
+> "**Important**
+> **You must enable ingress on the following ports:**
+> * **22: SSH**
+> * **3306: MySQL**
+> * 33060: (optional) MySQL X Protocol. Used by MySQL Shell."
+> — Oracle, *MySQL 8.0 Reference Manual* §34.3, *Configuring Network Access*, in Chapter 34
+> *Deploying MySQL on Oracle Cloud Infrastructure*
+
+**Limb 2's grounds ①, ② and ③ are all satisfied** — it is the owner's own manual, in the same document
+as §8.1.1's prohibition; the addressee is the operator; the subject is the operator's own `3306`
+listener; and it is in the imperative with **no source restriction and no warning of any kind**.
+**It fails on §10.3's *network* limb alone: the page never names the public internet, and states no
+source CIDR at all**, so it neither affirms nor forbids `0.0.0.0/0`.
+
+> **The criterion that would move `3306/tcp`:** Oracle writing a source of `0.0.0.0/0`, or the words
+> *internet* or *public*, into §34.3 or its companion §34.2 — or withdrawing the *"single IP address
+> or a small range"* bound from the Network Load Balancer page. **[measured]** neither exists as of
+> 2026-08-14. Recorded per ADR-0037 limb 2 and §35.10's practice of writing the reopening criterion
+> down where the near-miss is found.
+
+### 37.7 `6379/tcp` — limb 2 satisfied on three grounds and refused on the fourth, which is the one that counts
+
+Redis is the sweep's clearest demonstration that limb 2 does not sweep a tier away, **because Redis
+supplies the 1433 shape on every ground but the pair.**
+
+**[measured]**, retrieved 2026-08-14 from the owner's own Redis Software documentation — operator-
+installed software, not a hosted service:
+
+> "Each node in Redis Software can be configured with private and external IP addresses. **By default,
+> Redis Software databases expose a single endpoint, e.g. cluster.com (FQDN), using the external IP
+> addresses, making it available to the public network (e.g. the internet).**" … "When you create a
+> cluster via the UI, you can configure it to expose private and public endpoints. **This is common for
+> environments such as cloud platforms and enterprises.**" … *(procedure)* "**Configure the machine's
+> public IP address for external traffic.**"
+> — Redis, *Enable private and public database endpoints*, Redis Software. **[measured]** the page
+> carries **no** security warning of any kind
+
+**① the artefact is Redis's own · ② the addressee is the operator · ③ the subject is the database's
+clients.** All three hold. **④ fails, and it fails on a measurement rather than on an argument:**
+
+> **[measured]** Redis Software's *Network port configurations* gives database traffic as
+> *"TCP \| **10000-10049, 10051-19999** \| ✅ Yes \| Internal, External, Active-Active \| Database
+> traffic"*, and **`6379` is listed as a port nowhere in it**. *Configure database settings* adds
+> *"You can define the port number that clients use to connect to the database. Otherwise, **a port is
+> randomly selected**"* — from that range. **`6379` occurs zero times as a token** across
+> *Network port configurations*, *Enable private and public database endpoints*, *Configure database
+> settings* and the four Redis Cloud connectivity pages; the sole substring occurrence is `36379` on an
+> internode row, which is §36.14's correction re-confirmed on a wider corpus.
+
+> **The class the defeat would need is empty.** That is a **limb 2 enumeration fact** and not an
+> addressee argument — §36.5's finding, and this sweep is where it stops being an aside and becomes the
+> reason a row survives an owner document that is otherwise the shape that removed `1433`. **Redis is
+> the sweep's best evidence that the instrument discriminates**: an owner who sells unwarned public
+> exposure by default keeps its row, because it does not sell it **on the pair**.
+
+### 37.8 §33.2's addressee rider and ADR-0067 limb 2 — two tests sharing one coordinate, and the ticket's second question
+
+> **They are not one instrument stated twice. They are two tests that read one fact and partition its
+> two values, and each decides a member the other cannot reach.**
+
+**The shared fact is *whose listener is this document about*.** ADR-0067 limb 2 takes the value
+**the operator's** — the document is owner speech about the pair and it defeats. §33.2's rider takes
+the value **the owner's own** — the document corroborates without defeating. ADR-0067 limb 2's own
+second sentence is the hand-off, and §36.8 already placed the fact where it belongs, as limb 2's second
+coordinate.
+
+**Neither subsumes the other, and the corpus has an instance of each.**
+
+- **§33.2's rider decides `445/tcp`, where limb 2's other three grounds are all satisfied.** The Azure
+  Files pages are Microsoft's, addressed to an operator, about SMB on TCP/445. Only *whose listener*
+  disposes of them. Limb 2's ①, ③ and ④ do no work there at all.
+- **Limb 2 decides `1433/tcp` against an argument the rider is silent on.** §35.5's Option B is that an
+  `applies to` banner makes the Azure VM pages a different **subject** — §10.5's distributor position.
+  That is a question about **standing and reach**, not about addressee, and §33.2's rider has nothing to
+  say about it. Limb 2's ground ① — *the artefacts live in `MicrosoftDocs/sql-docs`* — is what answers
+  it.
+
+**So folding them into one clause would be a defect rather than a tidy-up.** A single *addressee* test
+would leave the banner question unanswered, and a reader would then be free to read the rider's
+**silence** about banners as a boundary — which is
+[ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode with the
+subject changed, and the sharpest risk ADR-0067's own thin-ground section names against limb 2.
+
+**[measured] the counts, both of them, because the convenient one is not the whole answer.** Across the
+32 members the **addressee coordinate is load-bearing twice** and the **banner half once**, and **no
+member is decided by both**:
+
+| Instrument | Load-bearing at | Gate |
+|---|---|---|
+| §33.2's addressee rider | `445/tcp` (with direction, inseparably — §36.5) | attestation |
+| §33.2's addressee rider | **`27017`/`27018`/`27019` MongoDB** | **claim** |
+| ADR-0067 limb 2's banner half | `1433/tcp` (§35.5); and it is what admits the ECE documents at §37.5 | both |
+
+> **§36.5's *one exception, not a pattern* is TRUE of the footing sweep and its falsifier is MET one
+> gate over — stated against interest, because §36.5 named the falsifier and this section is where it
+> arrives.** §36.5 refused MongoDB as a second load-bearing instance on the ground that
+> `27017`/`27018`/`27019` *"fails **limb 3** and limb 4's defeat test never runs"*. **[measured] limb 3
+> does not exist at the claim gate.** §32.2's four-limb conjunction is a **footing** criterion; §10.3's
+> failure condition has no *names the public internet* requirement on the **prohibition** at all — it
+> requires it of the **affirmation**, and Atlas supplies it: *"**Public IP addresses for Internet
+> connections**"*, *"Use this string for applications connecting over the **Internet**"*, on an inbound
+> listener at `…mongodb.net:27017`. **The only thing standing between Atlas and §10.3's failure
+> condition for three listed rows is the addressee rider**, and direction is unavailable — Atlas is
+> inbound. **That is precisely the shape §36.5 said would defeat its subsection, and §36.13 predicted
+> it would arrive.**
+>
+> **What follows is *not* a sixth limb, and the closure is untouched.** §32.2's conjunction does not
+> run at the claim gate, so a second load-bearing instance of addressee **there** is not a second
+> exception **to it**. §36.5's sentence is qualified at its own clause per
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): it is a
+> claim about the **footing** sweep and is true of it. **[measured]** the addressee rider now carries
+> three listed rows on its own, which is a load a rider stated in one clause of one section should be
+> visible as carrying.
+
+### 37.9 The ruling
+
+> - **ADR-0067 limb 2 is swept over all thirty-two members it can reach — the two graded tiers for the
+>   footing gate and Class C for the claim gate. Thirty hold. Two meet §10.3's failure condition and
+>   are ROUTED rather than ruled.** §37.4.
+> - **`9200/tcp` and `9300/tcp` Elasticsearch meet §10.3's failure condition**, on Elastic Cloud
+>   Enterprise documentation addressed to the operator about the operator's own listener, with the pair
+>   numbered by the owner under a table heading reading **"Inbound traffic from any source"** and the
+>   public internet named in the owner's own sentence. **[measured]** *"By default, all your deployments
+>   are accessible over the public internet."* **The rows are NOT removed** — a row moves on a retrieval
+>   **scoped to the row** (#37, ADR-0037 limb 2) and this retrieval was scoped to a tier. **Ticketed,
+>   and it blocks [#12](https://github.com/winniel123/verge-asm/issues/12).** §37.5.
+> - **`9200`/`9300`'s footing cells do NOT move.** §32.2 limb 4 is asked of the **carrying** statement,
+>   and no architecture Elastic supports is an instance of *an **unprotected** node exposed to the public
+>   internet*. **This is the inverse of §33's shape** — a footing surviving on a rider the claim gate
+>   does not read — and it instantiates ADR-0067 limb 1's consequence 3 in the direction it did not name.
+> - **§33.2's three riders do not all travel to the claim gate.** A rider fixing **which listener** the
+>   statement is about (addressee, direction) travels; a rider **bounding the affirmation** travels; a
+>   rider **narrowing the prohibition's own class** stops at the attestation gate, because ADR-0067
+>   limb 1 makes carrying it across not merely wrong but backwards. **§33 spared `9200` on the rider
+>   that does not travel and `3306` on the rider that does**, and that single distinction is the whole
+>   of this sweep's result. §37.3.
+> - **§33.2's addressee rider and ADR-0067 limb 2 are TWO tests sharing one coordinate**, not one
+>   instrument stated twice. Each decides a member the other cannot: the rider decides `445/tcp` where
+>   limb 2's other three grounds are satisfied, and limb 2 decides `1433/tcp` against a **banner**
+>   argument the rider is silent on. **Folding them would convert the rider's silence about banners into
+>   a boundary**, which is ADR-0040's failure mode. §37.8.
+> - **[measured] §36.5's falsifier is met one gate over, and it is stated against interest.** Addressee
+>   is load-bearing at `27017`/`27018`/`27019` at the **claim** gate with direction unavailable — the
+>   shape §36.5 named as defeating its subsection and refused because `27017` fails limb 3. **Limb 3
+>   does not exist at the claim gate.** §36.5's *one exception* is qualified at its clause as a claim
+>   about the **footing** sweep; **§32.2's closure is untouched**, because the conjunction does not run
+>   at the claim gate. §37.8.
+> - **`3306/tcp` is the near-miss and it survives on the bounded affirmation** — *"You must restrict
+>   the authorized public IP addresses to a single IP address or a small range"*. **[measured]** the
+>   MySQL Reference Manual's own §34.3 satisfies limb 2's grounds ①, ② and ③ in the imperative with no
+>   warning, and fails on §10.3's **network** limb alone. The reopening criterion is written down.
+>   §37.6.
+> - **`6379/tcp` survives on the pair and on nothing else.** **[measured]** Redis Software documents
+>   public-internet exposure as the **default**, unwarned, addressed to the operator — and the endpoint
+>   is drawn from `10000-19999`, with `6379` a token in none of the owner's port documentation. §37.7.
+> - **Nothing moves — the empty delta.** No row, no cell, no tier, no class total, no coverage figure,
+>   no exclusion, no watch-list member. **[ADR-0008](../adr/0008-derivation-versions-move-on-content.md)
+>   is not triggered.** §37.12.
+> - **Cost: nothing.** A sweep that moves no cell and no row is free under the map's cost rule as
+>   §35.12 re-derived it.
+> - **No ADR is minted and ADR-0069 is left unused**, as `0039`, `0041`, `0052`, `0053`, `0057`,
+>   `0062`, `0063`, `0064` and `0068` are. **ADR-0067 is amended in place** at limb 1's and limb 2's own
+>   clauses, and **§33.2's discriminator gains its third statement** at its own clause. §37.10.
+
+### 37.10 The options that lost
+
+**Option 1 — remove `9200/tcp` and `9300/tcp` here.** The evidence is in hand, the instrument is
+stated, and leaving two rows standing whose claim is measurably defeated is the *leaving the question
+hanging* the map's standing instruction forbids. **It loses on #37, and #37 is not a formality.** §33
+was scoped to a tier and routed `1433`; §35 ran the row-scoped retrieval and found **three** artefacts
+§33 had not opened, one of which (`ms.date` 2026-03-18) is the one §33.10's reopening criterion turned
+on. **A row-scoped retrieval reads every artefact the owner has issued for that pair**, which for
+Elastic means the self-managed corpus, the ECK corpus, the ECE corpus and the shipped
+`elasticsearch.yml` — and **[measured]** this sweep opened the ECE and ECK sets for the first time in
+the note's history and did not open the rest. Removing two rows on a tier-scoped read would be the
+error §33 was careful not to make, committed by a section that quotes §33 for the discipline.
+
+**Option 2 — demote `9200`/`9300`'s cells, on §33's own precedent.** A tier-scoped sweep **may** move a
+cell, and §33 did exactly this to `1433`. **It loses because §32.2 limb 4 is asked of the carrying
+statement**, and the carrying statement's class — *an **unprotected** node* — has no supported instance:
+ECE's proxy terminates TLS and applies traffic filters, and ECK is *"secured by default"* in Elastic's
+own words. Demoting would require **re-founding** the cell on the unconditioned sentence at *Manage IP
+filtering in ECK and self-managed clusters*, which numbers no port — and choosing a different carrying
+statement in order to defeat a cell is running the argument rather than reading the artefact. **The
+re-founding is reported and routed instead** (§37.11 item 2).
+
+**Option 3 — sweep only the 26 members the ticket named.** Cheapest, and it is what the ticket asked
+for. **It loses on ADR-0067 limb 1.** Limb 2's row-moving power runs through §10.3, whose population is
+**Class C**, and **[measured]** six Class C rows sit outside both graded tiers. A sweep of a **footing**
+population run to answer a **claim** question is the category error §33 made in the other direction and
+§33.9 caught. Three of the six are the weak tier, whose exclusion from §36.6 was correct **for §36's
+question** and is not correct for this one.
+
+**Option 4 — rule that conditioning travels to the claim gate, sparing `9200` outright.** The tidiest
+outcome and the one that leaves the list alone. **It loses on ADR-0067 limb 1's own words.** A reading
+that narrows the prohibition *"removes the tension and leaves the affirmative naming standing alone,
+which strengthens the failure condition rather than weakening it"*. Sparing `9200` because Elastic
+forbids only **unprotected** nodes is that argument run backwards, and it is the identical error §35.9
+Option A refused for `1433`'s *"directly"*. **A rule adopted here would have to be adopted there**, and
+it would put `1433` back on the list.
+
+**Option 5 — mint ADR-0069.** Argued at §37.10 below and refused.
+
+> **The case for minting, put first.** §37.3 is a **general rule about which instruments cross a gate
+> boundary**, it bears on **row removals**, and §35 minted ADR-0067 for a separation of the same kind.
+> The map's rules list wants a citable line for anything that can take a row off the list, and *a rider
+> travels to the claim gate only if it bounds the affirmation* is exactly that shape.
+>
+> **It loses on three grounds and the third is decisive.**
+>
+> 1. **Nothing here is a new rule; it is an existing rule's consequence, run.** ADR-0067 limb 1 already
+>    says the gates read the same artefacts for different propositions. §37.3 says which of §33.2's
+>    riders are about which proposition — which is ADR-0067 limb 1 **applied**, on §32.10's own test
+>    that *"every rule this section applies was already available"*. §33's and §36's precedent for a
+>    pass of this shape is to amend in place.
+> 2. **§33.2's riders live in a *section*, not in an ADR.** §36.8 added the direction rider at §33.2's
+>    clause and left ADR-0068 unused for exactly this reason. An amendment to a rider goes where the
+>    rider is.
+> 3. **A second ADR would leave ADR-0067 asserting the unqualified limb in the present tense.** Under
+>    ADR-0058 as widened by [#106](https://github.com/winniel123/verge-asm/issues/106) the unit is the
+>    **sentence** and a document supersedes itself. ADR-0067 currently reads *"§33.2's two riders
+>    dispose of each **as the note currently reads them**"* and *"Limb 2 reaches rows other than
+>    `1433/tcp` and the sweep has not been run"* — both stale after this section. **Minting ADR-0069
+>    and leaving them standing is the failure ADR-0058 was minted to name.**
+>
+> **ADR-0067 is amended in place, at limb 1's clause and at limb 2's, and ADR-0069 is left unused.**
+
+### 37.11 By-catch and open items, routed rather than acted on
+
+**1. `9200/tcp` and `9300/tcp`'s rows — ticketed, and it blocks [#12](https://github.com/winniel123/verge-asm/issues/12).**
+§10.3's failure condition is met on this sweep's retrieval and the sweep may not answer it. The ticket
+must run a retrieval **scoped to the pair** across all four of Elastic's corpora — self-managed, ECK,
+ECE, and the shipped `elasticsearch.yml` at the current tag — and must test Claim 1 and Claim 2 rather
+than assume them, on §35.6's precedent. **[measured]** the strongest counter is already recorded at
+§37.5 and §37.13 and should be heard rather than reconstructed.
+
+**2. `9200`/`9300`'s cells could be re-founded on a stronger Elastic sentence, and re-founding them
+would demote them.** *"Elasticsearch installations are not designed to be publicly accessible over the
+Internet. IP filtering and the other capabilities of the Elasticsearch security features do not change
+this condition"* is **unconditioned** and expressly refuses the protection carve-out that §33.2's
+conditioning rider rests on. It numbers no port, so reach would run through ADR-0050. **Reported, not
+applied** — it is the same finding as item 1 read at the other gate, and it belongs in the same ticket.
+
+**3. ADR-0037 limb 1, discharged over every artefact opened, and it yields one candidate.** Every port
+named in every artefact read for this section, checked against the table's domain:
+
+| Port named | Where | Disposal |
+|---|---|---|
+| **`2377/tcp`** Docker Swarm manager | Docker's *Swarm tutorial* | **The one candidate.** **[measured]** the owner numbers it and takes a placement position in one sentence — *"This port should only be opened to a trusted network, and **never at a perimeter firewall**"*. It is on neither the list nor §4.6. **Routed, not admitted** — §2.4 determinacy and §10.1's steps are unread, and this section's retrieval was not scoped to it |
+| `7946/tcp+udp`, `4789/udp` Swarm | same | **Recorded.** The same sentence's neighbours; they inherit the candidacy and the same routing |
+| `33060/tcp` MySQL X Protocol | MySQL Manual §34.3, Oracle NLB pages | **Not a subject.** Oracle numbers it and takes **no** network position; §8.1.1's prohibition names `3306` alone |
+| `9243`, `9343`, `9400`, `9443`, `12400`, `12443`, `8070`, `8443`, `8001`, `9081`, `9082`, `10050`, `1968`, `3355`, `3357`, `14000`, `14043`, `2112` | Elastic ECE and Redis Software port tables | **Not subjects.** No owner takes a placement position on any of them; several are expressly internal, which is a boundary and not a prohibition |
+| `18000-18999`, `19000-19999`, `20000-20999`, `23000-23999`, `21000-21999`, `10000-19999`, `20000-29999`, `3333-3345`, `3350-3354`, `12898-12908`, `13898-13908`, `12191-12201`, `22191-22195`, `27015-27017` | ECE, Redis Software, Atlas | **Refused on their face without entering §4.6**, being **ranges** rather than pairs — §19.10's disposal, applied a third time after §35.13 |
+| `36379` | Redis Software internode row | **Not a subject**, and it is §36.14's substring artefact named as a port in its own right |
+| `874/tcp` rsync-ssl | `rsync-ssl(1)`, `rsyncd.conf(5)` at 3.5.0 | **Already held as the owner's supported public listener** (§13, §30). No change |
+| `443/udp` SMB over QUIC | *SMB over QUIC*, `ms.date` 2025-07-24 | **Already held** (§33.5). The owner's substitute for internet-facing 445, and it strengthens `445`'s row |
+
+**4. §26.4's RFC 8881 citation is wrong by four subsections and the finding is unaffected.**
+**[measured]**, retrieved 2026-08-14 from `https://www.rfc-editor.org/rfc/rfc8881.txt` (1,593,486
+bytes, 31,832 lines): the *NFSv4 Goals* bullet *"Improved access and good performance on the Internet"*
+is at **§1.5**, not §1.1. Appendix C is present at line 31,588 and carries §26.4's sentence verbatim —
+*"would be likely to conclude that NFSv4.1 does not meet the goal of secure use on the Internet"*.
+**Corrected in place at §26.4's clause; `2049/tcp`'s disposal is untouched.**
+
+**5. Kubernetes' `security-checklist.md` has not been modified since 2025-02-28**, while the pairs it
+carries under ADR-0050 have moved twice. **[measured]** the file was last modified **2025-02-28** at
+`kubernetes/website` `main`, against releases v1.36.3 (2026-07-23) and v1.37.0-rc.0 (2026-08-06).
+**Recorded rather than ticketed** — a document that has not changed is not thereby stale, and
+[ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s issuance test is met at
+every release. It is noted because a session finding it later and thinking it was missed would be right
+to distrust the rest.
+
+**6. `datastax.com` now redirects to `ibm.com`.** **[measured]** DataStax's domain 301-redirects to
+IBM, so Astra DB is IBM's rather than DataStax's. **Nothing moves** — the ASF is Cassandra's owner
+either way, and §33's disposal was never about which third party ran Astra. Recorded because the
+corpus names DataStax by name.
+
+### 37.12 Every dependent figure — the empty delta
+
+> `FIGURE DELTA §37: none. Every figure in the note checked and unchanged. No cell moves, no row moves. Two rows ROUTED. Basis: main at d3e78de.`
+
+**Stated parametrically, so it survives whatever a sibling does to the baseline:**
+
+> **every tier, count, denominator, coverage figure, class total and total := unchanged.**
+
+**This is §34's and §36's shape — a ruling whose delta is empty — and it is stated in the same form for
+the same reason.** A merger has nothing to re-derive from this section. **Where §37 and §1 disagree,
+§1 governs.**
+
+| Where — §37's walk | Was, at `main` `d3e78de` | Is, after §37 |
+|---|---|---|
+| §1 pair count | **40** | **unchanged.** Two rows are **routed**, and routing is not removing |
+| §3 class totals | `12 / 7 / 21` | **unchanged** |
+| §2.2 footing table — every tier | prohibition 15 · scoping 11 · weak 3 · outside-subject 11 · uncovered-in-subject 0 | **unchanged, all five.** §37.10 Option 2 states why `9200`/`9300` do not demote |
+| §2.2 footing coverage | 29 of 40 | **unchanged.** `15 + 11 + 3 + 11 = 40` |
+| §4.6 exclusions | 21 | **unchanged.** No exclusion is created or retired |
+| §6.1 containment arithmetic | `27 + 8 + 5 = 40` | **unchanged** |
+| `verge-core` · the frequency half `F` | 136 pairs — 131 TCP, 5 UDP · 123 | **unchanged.** Nothing is added to or removed from `S` |
+| [`safe-active-probing.md`](./safe-active-probing.md) §2.4's aperture line | `0 of 40 sensitive pairs unread` | **unchanged** |
+| §17.1's population of negatives | fifteen | **unchanged.** Every negative created here is **bounded on arrival** under ADR-0046 limb 1 — each names its owner, its pages and its date — and none is sole ground for anything |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984`, `10248` | **unchanged** — and **[measured]** all three are swept here for the first time, on §10.3 rather than on a footing, and all three are clean |
+| **§32.2's four limbs and its closure** | four, closed; limb 2 restated by §36.8 | **untouched and not reopened.** The conjunction is a **footing** criterion and does not run at the claim gate, which is why §37.8's second addressee instance is not a fifth or sixth limb |
+| **§33.2's discriminator** | two riders — *the addressee is part of the class* (§33.2), *the direction is part of the class* (§36.8) | **two riders, and a statement of which travel.** §37.3 is added at §33.2's own clause per ADR-0058 |
+| **§33.11's Elastic spare** — *"the supported endpoint is not the node"* | a disposal at the tier | **correct at the tier and NOT available at the claim gate.** §37.3(c), §37.5. The cell is unaffected |
+| **§33.11's MySQL spare** — *"the class is conditioned"* | a disposal at the tier | **correct at both gates**, and restated as §37.3(b)'s bounded affirmation rather than as an observation |
+| §33.11's Redis and memcached spares | disposals at the tier | **confirmed at the claim gate on wider corpora.** Redis's *"the class the defeat would need is empty"* now rests on seven pages rather than three |
+| **§36.5's *"addressee is load-bearing exactly once in twenty-six members"*** | a measurement over the footing sweep | **true of that sweep and QUALIFIED at its clause.** **[measured]** at the **claim** gate it is load-bearing at `27017`/`27018`/`27019`, with direction unavailable — the falsifier §36.5 named and §36.13 predicted. **§36.5's subsection stands; its scope is written down** |
+| §36.6's twenty-six-member table | direction named/preposition/entailed/absent per row | **unchanged and not re-run.** This sweep asks a different question of an overlapping population |
+| §26.4's `2049/tcp` disposal | *"an aspiration is not an affirmation"*, citing RFC 8881 §1.1 | **verdict unchanged; the citation corrected to §1.5** and Appendix C verified verbatim from the raw RFC. §37.11 item 4 |
+| §13's and §30's `873/tcp` finding | the public listener is 874 | **re-confirmed** on `rsync 3.5.0` man pages dated **2026-08-13**, one day before this sweep |
+| §33.6's `2181/tcp` retrieval | `release-3.9.4` | **re-confirmed at `release-3.9.5`**, sentence unchanged |
+| [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) | limbs 1-2; consequence *"the sweep has not been run"* | **AMENDED in place** at limb 1's and limb 2's clauses; the *"sweep has not been run"* consequence is **discharged** |
+| [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md) · [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) · [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) · [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) | — | **confirmed by use, none amended.** ADR-0059 limb 2's inadmissibility of mood and force is what refuses Oracle's *"security risk"* and *"not recommended"* |
+| [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md) as amended by #93 | a class list is fixed at the time of the sweep | **used throughout.** Every *different port* finding in §37.2 is dated 2026-08-14 and names its pages |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) · [ADR-0009](../adr/0009-verge-core-is-a-union.md) | — | **not triggered · unchanged.** Reference data is byte-identical |
+| [ADR-0069](https://github.com/winniel123/verge-asm/issues/112) | reserved for this ticket | **not minted; the number is left unused** |
+| [`weak-key-and-signature.md`](./weak-key-and-signature.md) | — | **untouched** |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted; `Reach`, `Exposure` and `Service` are **read** and the reading is recorded at §37.3(b). A sibling pass is running |
+
+### 37.13 Thin ground, flagged per the standing rule
+
+**`9200`/`9300` is the thinnest thing here and it is thin in the direction that would cost two rows.**
+The routing is safe — #37 forces it whatever the answer — but the **finding** that §10.3's failure
+condition is met is contested, and a reader who rejects it reaches *nothing moves and nothing is
+ticketed*. **The argument against, at its strongest:** ECE's sentence describes a **default state**,
+not an offering; the component that actually supplies the internet reach is a load balancer Elastic
+expressly puts *"outside the scope of this documentation"*; and §35's own discriminator for `1433` was
+that Microsoft **ships the provisioning option itself**, in the imperative, writing the firewall rule.
+Elastic does none of that for ECE. **The reply is that ECK does** — `http.service.spec.type:
+LoadBalancer` is Elastic's own field under Elastic's own heading *"Allow public access"* — **but ECK's
+page names the internet only in the sentence establishing the default**, so joining the two is one
+inference, and §35.9 refused a join of exactly that shape for `1433`'s *Use firewalls* bullets.
+**The honest statement is that ECE is strong on the network limb and weak on modality, ECK is strong on
+modality and weak on the network limb, and neither is strong on both** — which is why this is a ticket
+and not a ruling.
+
+**§37.3 is this section's own act and is not inherited.** *A rider travels to the claim gate if and
+only if it bounds the affirmation* reconstructs ADR-0067 limb 1 and reproduces every verdict §33 and
+§35 reached — but **no prior section states it**, and a reader who lets conditioning travel gets
+`9200` spared and, run consistently, gets `1433` back on the list. It is stated before it is applied
+and its falsifier is named (§37.3), on §33.10's and §36.13's precedent for a discriminator minted and
+spent in one pass.
+
+**The distinction between (b) and (c) is a distinction about what a condition attaches to, and one
+member sits close to the line.** Oracle's *"You must restrict the authorized public IP addresses"*
+attaches to the **exposure Oracle affirms**; Elastic's *"unprotected"* attaches to the **class Elastic
+forbids**. **[measured]** the two are in different sentences of different documents and the reading is
+not close for either — but a single sentence could carry both, and this section has no instance of one.
+**A reader who holds that Elastic's *"unprotected"* also bounds what Elastic affirms** — that ECE's
+public default is affirmed *only for protected deployments* — **reaches the opposite verdict on
+`9200`**. That reading has to explain why Elastic's own unconditioned sentence says security features
+*"do not change this condition"*, and it is the argument the ticket at §37.11 item 1 must answer.
+
+**§37.8's second addressee instance is measured and its consequence is a ruling.** That limb 3 does not
+exist at the claim gate is read off §10.3's text — the failure condition requires the **affirmation** to
+name the public internet and requires nothing of the prohibition beyond naming the boundary. A reader
+who holds that §32.2's conjunction constrains the claim gate too reaches *`27017` fails limb 3, the
+defeat test never runs, and addressee is not load-bearing after all* — which is §36.5's own reading,
+correct for §36.5's own question. **The count is given both ways at §37.8 so the choice is visible**,
+which is §36.13's discipline applied to §36.13's own claim.
+
+**Twenty-five of the thirty-two verdicts are dated negatives, and a dated negative is the weakest
+evidence this note admits.** Each names its owner, its pages, its version and 2026-08-14, per ADR-0046
+limb 2 as amended by #93 and ADR-0045's per-version issuance rule — so each is falsifiable by naming
+one document outside its boundary, and none says *never issued*. **[measured]** two of the negatives
+were **wrong on first retrieval** and were caught (§37.14), which is the reason this paragraph is not
+a formality.
+
+**Two sibling passes are editing this repository concurrently.** This section states an **empty**
+delta, so there is nothing for a merger to re-derive; the only figures it cites are cited **as of
+`d3e78de`** and are named as such at §37.4 and §37.12.
+
+### 37.14 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11 and §36.14
+
+- **The sweep is a retrieval for every one of the thirty-two members and a re-reading for none.** Every
+  owner corpus in §37.4 was opened on 2026-08-14. Where a carrying statement is quoted from the note it
+  is marked as such, and **[measured]** the artefacts newly opened for this section are **Elastic Cloud
+  Enterprise's networking, load-balancer, traffic-filtering and IP-filtering pages; Elastic Cloud on
+  Kubernetes' *Accessing services* and network-policy pages; Redis Software's *Enable private and
+  public database endpoints* and *Configure database settings*; the MySQL Reference Manual's Chapter
+  34; Oracle's HeatWave networking, connection and network-load-balancer pages; MongoDB's Enterprise
+  Kubernetes Operator external-access tutorial; Docker's Build Cloud, contexts, Desktop-settings and
+  Swarm pages; PostgreSQL's SSL and SSH-tunnel chapters and the PGDG wiki; and CouchDB's reverse-proxy
+  and Unix-installation pages.** Not one of the fourteen had been opened by any prior section of this
+  note.
+- **A summarising layer fabricated a quotation and it was caught by a direct fetch.** A search snippet
+  returned *"**When exposing MongoDB to the public internet**, Make sure that your mongod and mongos
+  instances are only accessible on trusted networks"*. **[measured]** the leading clause **does not
+  exist** on MongoDB's *IP Binding in Self-Managed Deployments* page at Manual 8.3; the genuine sentence
+  begins at *"Make sure"*. **This is a new shape of §12.9's substitution hazard** — not a wrong
+  document (§30.10) and not a false negative from a summariser (§33.11), but a **summariser welding a
+  clause onto a genuine sentence**, and the welded clause is precisely the one that would have met
+  §10.3's failure condition for three rows. **It was refused, and a session that had quoted the snippet
+  would have removed three rows on a sentence no owner wrote.**
+- **A negative was produced by line wrapping and would have collapsed `2049/tcp`'s spare.** A mediated
+  retrieval reported that RFC 8881 contains **no** record of the Internet goal being unmet, which would
+  have made §26.4's ruling rest on a quotation the document does not carry. **[measured]** it does: the
+  sentence is at line 31,601 of `rfc8881.txt`, and it is invisible to a naive search because the RFC
+  wraps it as `does not meet the goal of secure` / `use on the Internet`. **Two mediated fetchers also
+  truncated the file before the appendices entirely.** The verification was done on the **raw bytes** —
+  1,593,486 of them, fetched and grepped locally — which is §33.11's *cite the bytes the repository
+  returns* meeting a third substitution: **a line break inside the string being searched for.**
+- **Two owners' pages carry no date at all and it is recorded rather than papered over.** **[measured]**
+  MongoDB's manual pages carry only the version selector (**8.3, Current**) — §36.14's finding,
+  unchanged — and **Docker's documentation carries no version marker of any kind**, so only a retrieval
+  date can be recorded for `2375` and `2376`. That is a **second vendor with §36.14's defect** and a
+  **third** with no version marker at all, after Dell's iDRAC guides (§33.9 item 4).
+- **A widely repeated Cassandra sentence does not exist and the row does not depend on it.**
+  **[measured]** neither the Cassandra 5.0 *FAQ* nor its *Security* page contains *"do not expose port
+  9042 to the internet"*; the FAQ names the port neutrally. **`9042`'s footing is the shipped
+  `cassandra.yaml` comment** (§12.7, §33.7) and is unaffected — but a session re-founding the cell on a
+  documentation page would find nothing, and this is recorded so that it does not conclude the footing
+  is gone.
+- **The RabbitMQ *"public networks"* sentence was checked against the page it is on, not against the
+  page it is remembered on.** **[measured]** it is in the **production checklist**, scoped to the
+  **client** port category, and is **not** on the *Networking* page that carries `25672`'s bullet. §17.4
+  used it for `5672`/`15672` and §3.4 for those rows only; the attribution is correct throughout the
+  note and is confirmed here because a loose reading would defeat `25672`.
+- **Every string count in this section is a *token* count and says so**, per §36.14's correction.
+  `6379`'s zero across seven Redis pages is a token claim; the substring `36379` is present and is
+  named.
+- **The neighbour test was run in the direction that would have been expensive to skip.** For each of
+  the thirty-two the question *does this owner publish a deployment-scoped document naming the public
+  internet for this pair, addressed to the operator* was **asked**, not inferred from the fact that §33
+  or §36 had already walked the member. **[measured]** it is met twice, disposed of on a rider six
+  times, and has no candidate in twenty-four.
+- **Nothing beneath a footing was re-litigated and no cell was reopened.** §32.2's four limbs, §10.2's
+  closed claim set, ADR-0059 limbs 1 and 2 and ADR-0067 **limb 1's separation** were all fenced by the
+  ticket and none was touched. No class, determinacy verdict or exclusion was read.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -17460,3 +18307,14 @@ Retrieved for §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) 
 - **Redis — a sibling section's string count corrected without moving its verdict (§36.14).** [*Network port configurations*, Redis Software](https://redis.io/docs/latest/operate/rs/networking/port-configurations/) — *"TCP | **10000-10049, 10051-19999** | ✅ Yes | Internal, External, Active-Active | Database traffic"*, and **[measured]** `6379` occurs **once** on the page, as a substring of `36379` on an unrelated internode row. §33.11's *"zero times"* is a **substring** claim and is wrong; the **token** claim it rests on — `6379` is listed as a port nowhere in the owner's table — is right, and the spare stands · [*Connect to AWS PrivateLink*](https://redis.io/docs/latest/operate/rc/security/aws-privatelink/) — *"the database port range (port 10000-19999)"*, the same fact from the ingress side
 - **Docker — the control case, and it behaves like one.** [`dockerd` reference](https://docs.docker.com/reference/cli/dockerd/) — *"it's not advisable on an **open network**"*, *"By default, it listens on `unix:///var/run/docker.sock` to allow only local connections by the root user"* · [*Configure remote access for Docker daemon*](https://docs.docker.com/engine/daemon/remote-access/) — *"The default port is `2376` if you're using TLS encrypted transport, or `2375` otherwise."* **[measured]** across those and [*Docker Engine security*](https://docs.docker.com/engine/security/) and [*Protect the Docker daemon socket*](https://docs.docker.com/engine/security/protect-access/), **Docker documents no internet-reachable daemon socket as supported and operates no hosted listener**, so **neither** candidate produces a counter-example — which is what a control case looks like and is the reason it was retrieved
 - **Quoted from this note rather than re-fetched, and named as such** (§36.14) — `9200`'s neighbour spare is **§33.11's**; `623/udp`'s prose footing is **§28.10's**; every other carrying statement in §36.6's sweep is quoted as §3.4, §32 and §33 hold it. Where §36.6 says a carrying statement **entails** direction for a member it did not re-fetch, it means the sentence the note records entails it — §33.9's own qualifier, carried forward
+
+Retrieved for §37 ([#112](https://github.com/winniel123/verge-asm/issues/112)) — **ADR-0067 limb 2 run over all thirty-two members it can reach, across fourteen owner corpora, of which fourteen documents had never been opened by any prior section.** Every retrieval performed **2026-08-14**, and every negative is dated to it per [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md) as amended by [#93](https://github.com/winniel123/verge-asm/issues/93) and [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s per-version issuance rule
+
+- **Elastic — the corpus that carries the sweep's one row-reaching finding, and none of it had been opened before.** [*Networking prerequisites*, Elastic Cloud Enterprise](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/ece-networking-prereq), `Applies to: Elastic Cloud Enterprise: Generally available`, and the version-tagged [*Elastic Cloud Enterprise Reference [3.8]*](https://www.elastic.co/guide/en/cloud-enterprise/3.8/ece-networking-prereq.html) — the table headed **"Inbound traffic from any source"** carries `9200, 9243 | Proxy | "Elasticsearch REST API. 9200 is plain text and 9243 is with TLS, also required by load balancers"` and `9300, 9343 | Proxy | "Elasticsearch transport client"`, while the **"Inbound traffic from internal components of ECE"** table holds the Elasticsearch instances on `18000-18999`, `19000-19999`, `20000-20999` and `23000-23999`, Allocator role. **[measured]** on that page `9200` ×3, `9300` ×3, `18000` ×2, `19999` ×1, **`internet` ×0, `public` ×0** · [*Traffic Filtering* [3.8]](https://www.elastic.co/guide/en/cloud-enterprise/3.4/ece-traffic-filtering-deployment-configuration.html) — *"**By default, all your deployments are accessible over the public internet**, assuming that your Elastic Cloud Enterprise proxies are accessible."* · [*IP filtering rules in Elastic Cloud Enterprise*](https://www.elastic.co/docs/deploy-manage/security/ece-filter-rules) — *"these proxies may also be accessible **over the public internet**"*, *"the default behavior of **allow all access over the public internet endpoint**"* · [*Load balancers*, ECE](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/ece-load-balancers) — *"ECE does not include a built-in load balancer, so **you must provision and configure one** in front of the ECE proxies"* and *"Provisioning and configuring the load balancer is the customer's responsibility and is **outside the scope of this documentation**"*, which is the strongest sentence **against** the finding · [*Accessing services*, Elastic Cloud on Kubernetes](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/accessing-services), `Applies to: Elastic Cloud on Kubernetes: Generally available` — section heading **"Allow public access"**, *"native Kubernetes services that are **not reachable from the public Internet by default**"*, `type: LoadBalancer` populating `EXTERNAL-IP`, **[measured] with no warning admonition attached**; `internet` ×1, `public` ×2, `9200` ×5. **In ECK there is no proxy and `9200` is the node's own HTTP service** · [*Manage IP filtering in ECK and self-managed clusters*](https://www.elastic.co/docs/deploy-manage/security/ip-filtering-basic) — **the second, unconditioned prohibition**: *"**Elasticsearch installations are not designed to be publicly accessible over the Internet. IP filtering and the other capabilities of the Elasticsearch security features do not change this condition.**"* It numbers no port, so it does not carry the cell; it is routed at §37.11 item 2 · [*Networking settings*](https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/networking-settings) — §16.4's carrying page re-read, *"**Never expose an unprotected node to the public internet**"* unchanged; `unprotected` ×1, `9200` ×3, `9300` ×3 · [*Connect to Elasticsearch*, ECE](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/connect-elasticsearch) — *"Port 9243 – Secure HTTPS (**recommended**). Port 9200 – Plaintext HTTP (**not recommended**)"*, quoted for the port and not for the mood
+- **Redis — the shape that removed `1433` on three grounds out of four, refused on the pair.** [*Enable private and public database endpoints*, Redis Software](https://redis.io/docs/latest/operate/rs/networking/private-public-endpoints/) — *"**By default, Redis Software databases expose a single endpoint … making it available to the public network (e.g. the internet).**"*, *"This is common for environments such as cloud platforms and enterprises"*, *"**Configure the machine's public IP address for external traffic**"*, **[measured] with no security warning of any kind, and no port number anywhere on the page** · [*Network port configurations*](https://redis.io/docs/latest/operate/rs/networking/port-configurations/) — database traffic `10000-10049, 10051-19999`; **[measured]** `6379` is listed as a port nowhere, the sole substring hit being `36379` on an internode row (§36.14's correction, re-confirmed) · [*Configure database settings*](https://redis.io/docs/latest/operate/rs/databases/configure/) — *"You can define the port number … Otherwise, **a port is randomly selected**"*; `6379` ×0 · [*Configure CentOS/RHEL firewall*](https://redis.io/docs/latest/operate/rs/installing-upgrading/configuring/centos-rhel-firewall/) · [*Redis security*](https://redis.io/docs/latest/operate/oss_and_stack/management/security/) — the carrying page, *"usually it is not a good idea to expose the Redis instance directly to the internet"*, **[measured]** `6379` ×0 on it · [*Block public endpoints*](https://redis.io/docs/latest/operate/rc/security/database-security/block-public-endpoints/) and [*Network security*](https://redis.io/docs/latest/operate/rc/security/database-security/network-security/), Redis Cloud — *"**Public endpoints are accessible from the public internet**"*, on `10000-19999`
+- **Oracle / MySQL — the near-miss, and the bounded affirmation that disposes of it.** [*Network Load Balancer*, MySQL HeatWave Service Guide](https://docs.oracle.com/en-us/iaas/mysql-database/doc/network-load-balancer.html) — *"enables you to connect to a DB system **over the internet**. However, it is a security risk … **You must restrict the authorized public IP addresses to a single IP address or a small range of IP addresses**, and use in-transit encryption"*, with `3306` in the listener, health-check and ingress fields · [*Networking*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/networking.html) — *"**MySQL DB system endpoints are not public.**"* · [*Overview of Connecting to a DB System*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/overview-connecting-db-system.html) — *"**The DB system endpoints are not directly accessible from the internet.**"* · [*Adding Ingress Rules for a Network Load Balancer*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/adding-ingress-rules-network-load-balancer.html) — the step-by-step page, which carries **no** warning of its own, the warning living one page up · **[MySQL 8.0 Reference Manual §34.3, *Configuring Network Access*](https://dev.mysql.com/doc/refman/8.0/en/mysql-oci-marketplace-network-configuration.html)** — **the near-miss**, in the owner's own manual: *"**Important** — You must enable ingress on the following ports: 22: SSH; **3306: MySQL**; 33060: (optional) MySQL X Protocol"*, imperative, no source CIDR, no warning, **and no occurrence of *internet* or *public*** · [§34.2, *Deploying MySQL EE on OCI*](https://dev.mysql.com/doc/refman/8.0/en/mysql-oci-marketplace-deploy.html) · [§8.1.1 *Security Guidelines*, **8.4 LTS**](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html) and [**9.7**](https://dev.mysql.com/doc/refman/9.7/en/security-guidelines.html) — **[measured]** the carrying passage is **verbatim identical** across both series: *"MySQL uses port 3306 by default. **This port should not be accessible from untrusted hosts.**"*, in a bullet that also reads *"Try to scan your ports **from the Internet**"*; `3306` ×3, `Internet` ×3
+- **MongoDB — addressee load-bearing at the claim gate, and a fabricated quotation refused.** [*Security Checklist for Self-Managed Deployments*](https://www.mongodb.com/docs/manual/administration/security-checklist/), [*Network and Configuration Hardening*](https://www.mongodb.com/docs/manual/core/security-hardening/), [*IP Binding in Self-Managed Deployments*](https://www.mongodb.com/docs/manual/core/security-mongodb-configuration/) and [*Configuration File Options*](https://www.mongodb.com/docs/manual/reference/configuration-options/), Database Manual **8.3 (Current)** — **[measured]** `public internet` ×0 and `Internet` ×0 across all four; the strongest outward sentence is the conditional *"**Before** you bind your instance to a publicly-accessible IP address, you must secure your cluster from unauthorized access"* · [*Deploy a Self-Managed Replica Set*](https://www.mongodb.com/docs/manual/tutorial/deploy-replica-set/) — *"permitted only on the default MongoDB port and only from within your deployment"* · [*Connect to a MongoDB Database Resource from Outside Kubernetes*](https://www.mongodb.com/docs/kubernetes-operator/current/tutorial/connect-from-outside-k8s/), Enterprise Kubernetes Operator — the nearest miss, `externalAccess` → LoadBalancer at `port: 27017`; **[measured]** `internet`, `public` and `secure` all ×0, TLS mandated, and *"This procedure explains the **simplest** way to enable external connectivity"* · [*Connection Changes FAQ*](https://www.mongodb.com/docs/atlas/reference/faq/connection-changes/) and [*Set Up Cluster Security*](https://www.mongodb.com/docs/atlas/setup-cluster-security/), Atlas — *"**Public IP addresses for Internet connections**"*, `mongodb://xyz456-shard-00-00.ab123.mongodb.net:27017`. **[measured] a search summariser returned *"When exposing MongoDB to the public internet, Make sure that your mongod and mongos instances are only accessible on trusted networks"* — and the leading clause does not exist on the page.** A direct fetch refused it. **The welded clause is precisely the one that would have met §10.3's failure condition for three rows** (§37.14)
+- **Docker — the control case, run wider than §36's and behaving the same.** [`dockerd` reference](https://docs.docker.com/reference/cli/dockerd/), [*Protect the Docker daemon socket*](https://docs.docker.com/engine/security/protect-access/), [*Configure remote access for the Docker daemon*](https://docs.docker.com/engine/daemon/remote-access/) — **[measured]** `internet` ×0 and `public` ×0 on all three, and **every remote-access example binds `tcp://127.0.0.1:2375`**; *"If you are binding to a TCP port, anyone with access to that port has full Docker access; so it's not advisable on an **open network**"* · [*Docker contexts*](https://docs.docker.com/engine/manage-resources/contexts/), [*Docker Desktop settings*](https://docs.docker.com/desktop/settings-and-maintenance/settings/) — *"Expose daemon on **tcp://localhost:2375** without TLS"*, default off · [*Docker Build Cloud setup*](https://docs.docker.com/build-cloud/setup/) — **[measured]** neither `2375` nor `2376` occurs; the service is HTTPS/443 to named Docker hostnames · [*Swarm tutorial*](https://docs.docker.com/engine/swarm/swarm-tutorial/) — the **by-catch**: *"This port should only be opened to a trusted network, and **never at a perimeter firewall**"* over `2377/tcp`, `7946/tcp+udp` and `4789/udp` (§37.11 item 3)
+- **PostgreSQL and CouchDB — the weak tier, swept for the first time, on §10.3 rather than on a footing.** [§20.3 *Connections and Authentication*](https://www.postgresql.org/docs/current/runtime-config-connection.html), [Ch. 20 *Client Authentication*](https://www.postgresql.org/docs/current/client-authentication.html), [§18.9 *Secure TCP/IP Connections with SSL*](https://www.postgresql.org/docs/current/ssl-tcp.html) and [§18.11 *… with SSH Tunnels*](https://www.postgresql.org/docs/current/ssh-tunnels.html), **PostgreSQL 18.6**, plus the [wiki's *Installation and Administration Best practices*](https://wiki.postgresql.org/wiki/Installation_and_Administration_Best_practices) (last edited **18 May 2020**) — **[measured]** `internet` occurs **zero** times in all five; `wiki.postgresql.org/wiki/Security` returns **HTTP 404**; and **[measured]** [postgresql.org/about](https://www.postgresql.org/about/) describes no PGDG-operated service, EDB, Crunchy, Supabase, Neon, RDS and Azure all being third parties · [§3.8 *CouchDB HTTP Server*](https://docs.couchdb.org/en/stable/config/http.html), [*Security*](https://docs.couchdb.org/en/stable/intro/security.html), [*Cluster Setup*](https://docs.couchdb.org/en/stable/setup/cluster.html), [*Reverse Proxies*](https://docs.couchdb.org/en/stable/best-practices/reverse-proxies.html) and [*Installation on Unix-like systems*](https://docs.couchdb.org/en/stable/install/unix.html), **Apache CouchDB 3.5.2** — **[measured]** the docs' only Internet-naming sentence is a **warning about the distribution port**, *"If you expose the distribution port to the Internet or any other untrusted network, then the only thing protecting you is the Erlang cookie"*, which §2.2 already records as covering `4369` and not `5984`; the security chapter sets the bar below the internet — *"**Even a LAN shared with other collocation customers is public**"*; and `internet`, `firewall`, `public`, `0.0.0.0` and `expose` occur **zero** times on the installation page
+- **The remaining owners — dated negatives, each naming its own scope.** memcached, [`ConfiguringServer`](https://github.com/memcached/memcached/wiki/ConfiguringServer) — *"you **must not** expose memcached directly to the internet"*, `-U` *"defaulting to off since 1.5.6"*; the project operates no service · Apache Cassandra, the **5.0** [*FAQ*](https://cassandra.apache.org/doc/latest/cassandra/overview/faq/index.html) and [*Security*](https://cassandra.apache.org/doc/latest/cassandra/managing/operating/security.html) — **[measured] neither contains the widely-repeated *"do not expose port 9042 to the internet"***; the FAQ names the port neutrally and **`9042`'s footing is the shipped `cassandra.yaml` comment**, unaffected (§37.14). **[measured]** `datastax.com` now **301-redirects to `ibm.com`**, so Astra is IBM's · etcd, [`THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/main/THREAT_MODEL.md) at `main`, file commit `6c5082e8` (**2026-07-31**), latest release **v3.7.1** (2026-07-23) — *"It **must not** be exposed to untrusted networks or the public internet"*, unchanged · ZooKeeper, `zookeeperAdmin.md` at **`release-3.9.5`** — *"### Things to Avoid … *Publicly accessible deployment*"*, re-confirmed one tag on from §33.6's `release-3.9.4` · RabbitMQ, [*Networking*](https://www.rabbitmq.com/docs/networking) — the `25672` bullet, *"these ports should not be publicly exposed"*; **[measured] the *"can mean public networks"* sentence is on the [production checklist](https://www.rabbitmq.com/docs/production-checklist) and is scoped to the *client* port category**, never to `25672`, confirming §17.4's and §3.4's attribution. **Tanzu RabbitMQ is software the customer's operators run**, not a Broadcom-hosted endpoint · Erlang/OTP, [`DEP-001`](https://www.erlang.org/doc/system/secure_coding.html) at **OTP 29.0.5** · rsync **3.5.0** man pages dated **13 August 2026** — *"The default port used for connecting is **874** (one higher than the normal 873)"*, *"configuring it to only listen on localhost is a good idea"* · Kubernetes, [`security-checklist.md`](https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/security/security-checklist.md) at `kubernetes/website` `main` (**[measured]** file last modified **2025-02-28**, against releases v1.36.3 and v1.37.0-rc.0), [`ports-and-protocols.md`](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/networking/ports-and-protocols.md) and [*Kubelet authentication/authorization*](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/), plus [`KubeletConfiguration` v1beta1 `types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/master/staging/src/k8s.io/kubelet/config/v1beta1/types.go) — *"the port of the **localhost** healthz endpoint"*; **[measured]** `10248` is absent from `ports-and-protocols.md` entirely · Dell, [*iDRAC9 Security Configuration Guide*, §Best Practices](https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v5.x-series/idrac9_security_configuration_guide/best-practices) — *"The iDRAC is not designed nor intended to be placed on, nor connected directly to the Internet"* · Microsoft, [*SMB over QUIC*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-over-quic) (`ms.date` **2025-07-24**) and [*Secure SMB Traffic in Windows Server*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic) (`ms.date` **2024-10-25**) — *"**Do not allow TCP/445 inbound to the file server**"*, and **[measured]** *"Beginning with Windows 11, version 24H2 and Windows Server 2025, the built-in firewall rules doesn't contain the SMB NetBIOS ports anymore"*, which points `139`/`137`/`138` further **away** from the internet
+- **[RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt), fetched as raw bytes and grepped locally** — 1,593,486 bytes, 31,832 lines, retrieved 2026-08-14. **[measured]** the *NFSv4 Goals* list is **§1.5** (§26.4 cites §1.1 — corrected in place), and **Appendix C, *Security Issues That Need to Be Addressed*, is at line 31,588** carrying *"would be likely to conclude that NFSv4.1 **does not meet the goal of secure use on the Internet**"* verbatim. **Two mediated fetchers truncated the file before the appendices and a third reported the sentence absent** — it wraps as `does not meet the goal of secure` / `use on the Internet`, so a naive search misses it. **§26.4's disposal of `2049/tcp` stands** (§37.14)
