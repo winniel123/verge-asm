@@ -1,2 +1,8 @@
 # Agent worktrees — scratch clones, never committed
 .claude/worktrees/
+
+# Go build output
+/bin/
+
+# Local compose secrets
+.env

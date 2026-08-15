@@ -1,0 +1,61 @@
+x-security: &security
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  web:
+    build:
+      context: .
+      target: web
+    <<: *security
+    user: "65532:65532"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-verge}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-verge}?sslmode=disable
+      VERGE_LISTEN_ADDR: ":8080"
+    ports:
+      - "8080:8080"
+    volumes:
+      - web-state:/app/state
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      target: worker
+    <<: *security
+    user: "65532:65532"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-verge}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-verge}?sslmode=disable
+      VERGE_PROBER_PATH: "/app/prober"
+    volumes:
+      - worker-state:/app/state
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-bookworm
+    <<: *security
+    user: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-verge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:-verge}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-verge} -d ${POSTGRES_DB:-verge}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  web-state:
+  worker-state:

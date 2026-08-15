@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go vet ./...
+      - run: go test ./...
+
+  # An architecture is in this matrix exactly where the golden corpus (a
+  # later ticket) runs on it in CI (ADR-0001, packaging-and-configuration.md
+  # §1.2) — amd64 and arm64 only.
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goarch: [amd64, arm64]
+    env:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: ${{ matrix.goarch }}
+      GOAMD64: v1
+      GOARM64: v8.0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go build -o /dev/null ./cmd/web
+      - run: go build -o /dev/null ./cmd/worker
+      - run: go build -o /dev/null ./cmd/prober
+
+  sqlc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: "1.31.1"
+      - run: sqlc generate
+      - run: git diff --exit-code -- internal/db
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+      - name: docker compose up
+        run: docker compose up -d
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+      - name: wait for a healthy stack
+        run: |
+          for i in $(seq 1 30); do
+            bad=$(docker compose ps --all --format json | jq -r \
+              'select(.State != "running" or (.Health != "" and .Health != "healthy")) | .Name')
+            count=$(docker compose ps --all --format json | jq -rs 'length')
+            if [ "$count" = "3" ] && [ -z "$bad" ]; then
+              echo "all services healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "services never became healthy:"
+          docker compose ps --all
+          docker compose logs
+          exit 1
+      - if: always()
+        run: docker compose down -v
+        env:
+          POSTGRES_PASSWORD: ci-only-password
