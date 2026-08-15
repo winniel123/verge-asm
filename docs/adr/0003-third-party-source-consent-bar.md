@@ -320,8 +320,11 @@ into a `Seed`, which is where ADR-0012 put it and where
 The rule the withdrawn sentence generalised from is **unchanged**: enabling a genuine
 `Source` widens the aperture, and a subject first observed under a widened aperture is not
 *appeared*. It simply does not reach these five. The claim returns the moment any of these
-paths feeds an observation rather than a proposal — RIPEstat's BGP leg is the live
-candidate.
+paths feeds an observation rather than a proposal — ~~RIPEstat's BGP leg is the live
+candidate~~ **and there is no longer a candidate: the BGP leg is out of scope for v1 on
+[ADR-0063](./0063-a-routing-announcement-names-the-path-not-the-estate.md), struck here at the site
+that specifies it per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+The conditional stands and is now unwitnessed; see the sixth amendment.**
 
 ## Fourth amendment — 2026-08-13
 
@@ -517,3 +520,49 @@ and still be unusable because the only route to it is a permission that stops at
 first case where the second question was the whole question — the NPSL analysis turned out to
 require no permission at all (§6.1), so the waiver was never needed and the flag was **lowered
 rather than raised**.
+
+## Sixth amendment — 2026-08-15
+
+[#126](https://github.com/winniel123/verge-asm/issues/126) rules the **BGP leg** out of v1 —
+[ADR-0063](./0063-a-routing-announcement-names-the-path-not-the-estate.md), *a routing announcement
+names the path, not the estate*. **Nothing in the decision, the two limbs, either corollary or any
+ship state moves**, and that is the finding worth recording rather than an aside to it.
+
+### The bar cleared the source and the source is still not shipping
+
+RouteViews `api.routeviews.org/asn/<n>` clears **both limbs** with room. Limb 1: CC BY 4.0 permits
+automated querying, local storage and cross-run retention, and imposes no retrieval-system clause.
+Limb 2: its commercial condition triggers only *"when selling services, products, reports, or other
+derivative works based on RouteViews Data to third parties"*, which is the **reseller** shape this
+ADR's decision says does not fail. Its whole shipping obligation is attribution, and the fifth
+amendment does not reach it — CC BY 4.0 is a public licence, so the permission and the attribution
+duty both travel to AGPL-3.0 recipients intact.
+
+It is nonetheless out, on **value**. That separation is the amendment: **clearing this bar is not an
+argument for shipping.** The bar decides whether a source *may* run and is silent on whether it is
+*worth* running, and #126 is the first case in the corpus where a candidate cleared it cleanly and
+was refused anyway. A later session finding a source that clears both limbs has learned that no
+toggle, email or reading is owed — and nothing at all about whether the thing earns a place.
+
+### The third amendment's live candidate is withdrawn
+
+That amendment closes with *"The claim returns the moment any of these paths feeds an observation
+rather than a proposal — RIPEstat's BGP leg is the live candidate."* The **conditional stands** and is
+untouched: a proposer that began producing observations would widen an aperture, and a subject first
+observed under a widened aperture is still not *appeared*. What is withdrawn is the **witness**. The
+BGP leg was the only named candidate for that promotion, and after ADR-0063 there is none — a route
+collector proposes nothing here at any consent tier, so RIPEstat's toggle buys the org→prefix leg and
+exactly that, which is what [#47](https://github.com/winniel123/verge-asm/issues/47)'s prompt copy has
+said since it was drawn. Struck in place above, per
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) and
+[#106](https://github.com/winniel123/verge-asm/issues/106)'s rider that a document supersedes itself.
+
+### No table row moves, and the reason is worth stating once
+
+The second amendment's *what ships, in what state* table is a table of **org→prefix** paths. It has
+never carried a BGP row, because RIPEstat's `announced-prefixes` was never in the shipped set —
+[#19](https://github.com/winniel123/verge-asm/issues/19) shipped RIPEstat off before anything
+specified what its toggle covered. So [#20](https://github.com/winniel123/verge-asm/issues/20)'s
+*"RouteViews replaces RIPEstat's `announced-prefixes` outright"* — true as a statement about
+**capability** — has been read three times since as a statement about the **shipped set**, and the
+displacement question #126 inherited was malformed on that reading. There was nothing to displace.

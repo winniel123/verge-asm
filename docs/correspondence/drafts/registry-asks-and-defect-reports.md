@@ -55,6 +55,15 @@ this address is the one that can actually answer the half of the message that ma
 **Ticket:** [#19](https://github.com/winniel123/verge-asm/issues/19)
 **Subject:** Query permissions for an open-source, self-hosted attack-surface tool
 
+> **Stale as of 2026-08-15, in one respect, and it would be sent as a false statement about the
+> software.** [#126](https://github.com/winniel123/verge-asm/issues/126) /
+> [ADR-0063](../../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md) rules the BGP leg
+> out of v1, so `announced-prefixes` is a call verge-asm will not make and question 1 below asks
+> permission for a use that does not exist. Not rewritten — a draft is a record of what was drafted —
+> but if the dev ever reverses #59 for this message, **strike `announced-prefixes` from the calls list
+> and drop question 1's *"writing announced prefixes into an operator's own inventory database"*
+> clause first.** The RIPE Database half of the message (questions 3–5) is untouched.
+
 > Hello,
 >
 > I maintain verge-asm, an AGPL-3.0, self-hosted attack-surface monitoring tool. It is not a

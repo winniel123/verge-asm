@@ -84,9 +84,19 @@ carries the keyless default set and covers North America only."* On these measur
 set can carry **three** regions — North America, Africa and Asia-Pacific — with nobody's permission, once the
 CAIDA + delegated-stats path ships.
 
-**BGP reality** — space an organisation announces but has not tidily registered — is covered in all four
+~~**BGP reality** — space an organisation announces but has not tidily registered — is covered in all four
 regions by **RouteViews** under CC BY 4.0, `unencumbered`. But RouteViews is ASN-keyed, so it only helps once
-you already have the ASN, and the ASN comes from the same org-name lookup above.
+you already have the ASN, and the ASN comes from the same org-name lookup above.~~
+
+> **Withdrawn 2026-08-15 by [#126](https://github.com/winniel123/verge-asm/issues/126) /
+> [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md), at the site that
+> specifies it.** The consent verdict on RouteViews is untouched and correct — CC BY 4.0,
+> `unencumbered`. What is withdrawn is *"BGP reality … is covered"*, which reads the announced set as
+> a set of the operator's addresses. **A routing announcement names who carries packets toward a
+> prefix, never who controls what listens in it.** The BGP leg does not ship in v1; see §14. (The
+> second sentence is also incomplete on its own terms: [#27](https://github.com/winniel123/verge-asm/issues/27)
+> later found the ASN is recoverable from the delegated file's own opaque-id grouping, not only from
+> the org-name lookup. That correction is now moot here.)
 
 ---
 
@@ -438,8 +448,19 @@ cannot generate an error, only slow down. The documented behaviour matches
 Note that the key upgrade is gated on PeeringDB: *"The API key management is available to any verified user
 authenticated through PeeringDB."* Keyless guest access needs no account.
 
-This replaces RIPEstat's `announced-prefixes` call one for one, for all four regions, with no ToS asterisk
-(§8.6).
+~~This replaces RIPEstat's `announced-prefixes` call one for one, for all four regions, with no ToS asterisk
+(§8.6).~~
+
+> **Amended 2026-08-15 by [#126](https://github.com/winniel123/verge-asm/issues/126) /
+> [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md).** Every
+> measurement above stands and none is re-derived: the endpoint works, the licence is clean, the
+> redirect hazard is real and the pacer is the friendliest throttle in this corpus. What is withdrawn
+> is the **conclusion**, and precisely: *replaces* is true of the **capability** and was read three
+> times afterwards as a statement about the **shipped set**. RIPEstat's `announced-prefixes` was never
+> in the shipped set — [#19](https://github.com/winniel123/verge-asm/issues/19) shipped RIPEstat off
+> and [#47](https://github.com/winniel123/verge-asm/issues/47) scoped its toggle to org→prefix — so
+> there was nothing to replace, and after ADR-0063 there is nothing for RouteViews to be the
+> instrument of. **This section describes a source verge-asm does not query.**
 
 ### 6.2 RIPE RIS raw data and `riswhois` — works, but the terms bar us
 
@@ -882,10 +903,21 @@ prefixes fall outside every registered IPv4 CIDR**: `198.199.155.0/24` and `185.
 announced IPv4 prefixes are invisible to the registry path alone — space announced from a transit or customer
 relationship rather than held under the org handle.
 
-So the BGP leg is worth having and is not worth blocking on. **The registry leg carries most of the value**,
+~~So the BGP leg is worth having and is not worth blocking on. **The registry leg carries most of the value**,
 and for a small operator the BGP leg contributes a low-single-digit number of extra prefixes. Since RouteViews
 is `unencumbered` and cheap, ship it — but do not let its absence hold up the registry path, and do not
-present a registry-only result as incomplete.
+present a registry-only result as incomplete.~~
+
+> **Withdrawn 2026-08-15 by [#126](https://github.com/winniel123/verge-asm/issues/126) /
+> [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md), at the site that
+> specifies it — this is the sentence that would have caused a session to build it.** The two
+> measurements above are correct and are the whole ruling's evidence; what is withdrawn is *ship it*.
+> Read the 2-of-11 row again: Mythic Beasts is **a hosting company**, and this section's own gloss of
+> those two prefixes — *"space announced from a transit or customer relationship rather than held
+> under the org handle"* — names the instrument's characteristic **false positive**, not its yield. A
+> transit provider announces its customers' prefixes and controls nothing inside them, so those rows
+> are somebody else's estate. The full decomposition, and the one residue that could reopen this, is
+> at §14.
 
 ### 10.3 Who genuinely needs this path
 
@@ -962,10 +994,19 @@ two new emails come back.
    requests. It is the only source in this research or #3 whose rate limit a naive client cannot turn into an
    error. It does, however, **302-redirect to `/guest/asn/<n>`**, so a client that does not follow redirects
    gets HTML where it expected JSON. Attribution is the whole ToS obligation.
+   **Amended by [#126](https://github.com/winniel123/verge-asm/issues/126): every measurement and the
+   `unencumbered` verdict stand, and *replaces* is true of the capability — but RIPEstat's BGP capability was
+   never in the shipped set, so nothing was displaced, and after
+   [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md) verge-asm queries this
+   endpoint nowhere. §14.**
 
 10. **The BGP leg adds less than its reputation suggests.** Measured: **0 of 100** announced IPv4 prefixes
-    outside registered blocks for Safaricom; **2 of 11** for Mythic Beasts. Ship it because it is clean and
-    cheap, not because the registry path is incomplete without it.
+    outside registered blocks for Safaricom; **2 of 11** for Mythic Beasts. ~~Ship it because it is clean and
+    cheap, not because the registry path is incomplete without it.~~ **The measurements stand; the
+    recommendation is withdrawn by [#126](https://github.com/winniel123/verge-asm/issues/126) /
+    [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md) — *clean and cheap*
+    prices the request rather than the singular confirmations it queues, and the 2-of-11 residue is the
+    instrument's error mode rather than its yield. §14.**
 
 11. **Four candidates are ambiguous and stop here, and three of them fail on the *same clause pattern*.**
     APNIC and PeeringDB publish word-for-word identical AUPs barring data being *"stored in a retrieval
@@ -1068,9 +1109,15 @@ discovery reaches Europe and Latin America.
   uncompressed) rather than a live lookup? It caches perfectly, works offline, and removes a third-party
   dependency from the first-run path entirely — which is what #3's §10 already asked about RIPEstat. The cost
   is staleness between refreshes and shipping a dataset in the container image.
-- Given finding 8, is an **ASN-less organisation** the common case for the modal operator? If so the whole
+- ~~Given finding 8, is an **ASN-less organisation** the common case for the modal operator? If so the whole
   ASN-keyed leg is worth less than it looks and the registry paths in §2–§4 — the encumbered ones — carry
-  nearly all the value, which raises the stakes on §12's emails.
+  nearly all the value, which raises the stakes on §12's emails.~~
+  **Answered, twice, and the second answer went further than this question asked.**
+  [#26](https://github.com/winniel123/verge-asm/issues/26): yes — **43.0%** of the registered population holds
+  no ASN, and the registered population is itself under 1% of the persona, so the operator is not merely
+  ASN-less but **registry-less**. [#126](https://github.com/winniel123/verge-asm/issues/126) then found the
+  ASN-keyed leg is worth less than it looks for a reason that is not about the axis at all
+  ([ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md)); §14.
 - Does first-run's "registry-dependent depth" message need to name the *reason* per region — "we cannot query
   the RIPE Database until RIPE NCC answers" reads very differently from "RIPE has no keyless path", and only
   one of them is true.
@@ -1078,3 +1125,118 @@ discovery reaches Europe and Latin America.
   intended … as an authoritative statement of the location in which any specific resource may currently be in
   use"*? `inferred`, on the reading in §8.5 — but that needs to be settled in `CONTEXT.md` rather than assumed
   by whoever writes the loader.
+
+---
+
+## 14. The BGP leg does not ship — [#126](https://github.com/winniel123/verge-asm/issues/126)
+
+Added 2026-08-15. Sections 1, 6.1, 10.2, 11 (findings 9 and 10) and 13 are amended in place above; this
+section carries the reasoning so that none of it is re-derived. **No measurement in this note is
+re-taken, contradicted or re-interpreted.** Every figure §6.1 and §10.2 record is correct, and two of
+them are what decide the question against the recommendation the same sections made.
+
+The ruling is [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md): **a
+routing announcement names who carries packets toward a prefix, never who controls what listens in it.**
+
+### 14.1 The difference set decomposes exhaustively, and none of it is undiscovered estate
+
+Difference an AS's announced set against the registered rows the holder's opaque-id groups. The residue
+is three things and no fourth:
+
+| Limb | The rows | Already reached by | Measured here |
+|---|---|---|---|
+| **1** | More-specifics of registered space | The registry leg. And once a proposal is confirmed, an address scope **enumerates** ([ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md)) — every address in the more-specific is a subject already. Decomposition, never territory | **100 of 100** Safaricom prefixes (§10.2) |
+| **2** | Space registered to **somebody else** that this AS carries — customer or transit | Nothing, and correctly so. `Custody` is control of what listens ([ADR-0013](../adr/0013-custody-is-control-and-extends-by-declaration.md)); the carrying AS controls nothing inside a customer's prefix | The **2 of 11** Mythic Beasts residue, on this note's own description of it (§10.2) |
+| **3** | Space registered to the operator under a **different handle** — a subsidiary | The org-name box, structurally: a subsidiary holds a different opaque-id, which is exactly the gap [#43](https://github.com/winniel123/verge-asm/issues/43) shipped the CAIDA join to close | §10.3's two-handle Safaricom and eight-entity Cloudflare cases |
+
+The leg's only **unique** limb is 2, and limb 2 is not the operator's estate.
+
+### 14.2 The one non-zero yield is the error mode wearing the finding's clothes
+
+§10.2's *"roughly 18% of announced IPv4 prefixes are invisible to the registry path alone"* is the whole
+positive case ever made for this leg, and it is measured on **a hosting company**. The section's own
+gloss of the two prefixes names the mechanism: *"space announced from a transit or customer relationship
+rather than held under the org handle."* That is limb 2, described accurately and then counted as yield.
+
+**A yield figure measured on the population where the instrument's error mode lives is not a yield
+figure.** This note refused the same shape once already, at §7, without naming it: PeeringDB's `netixlan`
+records were declined because *"treating [them] as owned `Address` subjects would put third-party IXP
+infrastructure inside an operator's estate."* IXP peering-LAN addresses and carried customer prefixes
+fail identically — both are routing facts about the path, offered as facts about the holder.
+
+### 14.3 The price is confirmations, not requests
+
+*"Clean and cheap"* (§10.2, finding 10) prices the HTTP request. The request is not the cost.
+[ADR-0022](../adr/0022-confirmation-is-singular.md) makes confirmation **singular** by design, so a
+proposer's real price is the length of the queue it puts in front of the operator at the one act where
+the probing gate opens. From this note's own numbers:
+
+| Organisation | Registry leg proposes | BGP leg adds | New territory |
+|---|---|---|---|
+| Safaricom, AS33771 | 10 IPv4 blocks (§5) | **100** announced prefixes, each a subset of those 10 | **0** |
+| Cloudflare, AS13335 | — | **5,336** announced prefixes (§6.1) | not measured |
+| Mythic Beasts, 4 ASNs | 19 network objects | 17 announced prefixes | 2, of limb-2 shape |
+
+An order-of-magnitude multiplication of a singular-confirmation queue for zero territory is the most
+expensive thing a proposer can do, because what it spends is the operator's attention.
+
+### 14.4 An announcement is a configuration the operator authored
+
+Every argument this note makes for a proposer is §10.3's: the estate exceeds memory, *"nobody types that
+list from memory correctly."* Registry rows earn that — they are paperwork filed by people who have left.
+**A BGP announcement is not paperwork.** It is a live router configuration somebody in the operator's own
+organisation maintains this week. Reconstructing it from a third party's route collector — with limb 2
+mixed inseparably in — is a guess-based technique standing in for a declaration the operator's own
+organisation holds, which is the inversion the map's spine principle refuses.
+
+### 14.5 The consent verdict is untouched, and it is not an argument
+
+§8.6's `unencumbered` verdict on RouteViews stands in full and is re-confirmed against
+[ADR-0003](../adr/0003-third-party-source-consent-bar.md) at that ADR's sixth amendment: limb 1 clears
+(CC BY 4.0 permits automated querying, storage and retention, with no retrieval-system clause), limb 2
+clears (the commercial condition triggers only on **selling derivative works to third parties**, the
+reseller shape ADR-0003 says does not fail), and the fifth amendment does not reach it because a public
+licence travels to AGPL-3.0 recipients intact. **The bar decides whether a source may run and is silent
+on whether it is worth running**; this is the corpus's first candidate to clear it cleanly and be refused
+anyway.
+
+Nor was there anything to displace. RIPEstat's `announced-prefixes` was never in the shipped set —
+[#19](https://github.com/winniel123/verge-asm/issues/19) shipped RIPEstat off and
+[#47](https://github.com/winniel123/verge-asm/issues/47) scoped its toggle to org→prefix — so §6.1's
+*replaces* was true of the **capability** and has been read since as a statement about the **shipped
+set**.
+
+### 14.6 Where this is thin, and what reopens it — a rerun, not an argument
+
+One shape the decomposition does not obviously exhaust: **a provider-aggregatable assignment announced by
+the organisation that uses it and registered under its upstream LIR's handle.** It is the operator's
+custody, it sits outside every row their own opaque-id groups, and outside ARIN — where
+[#39](https://github.com/winniel123/verge-asm/issues/39)'s SWIP `C…` customer objects reach it down to a
+/29 — no shipped path may reach it.
+
+**Nobody has measured how often that happens.** Both comparisons in §10.2 are holders with their own PI
+space; neither is that case, and n=2 with a 0 and an 18% is not a rate. Two things bound it: reaching it
+requires the operator to hold **their own ASN**, which [#26](https://github.com/winniel123/verge-asm/issues/26)
+prices at ≤57% of a population under 1% of the persona; and an organisation running its own AS over
+borrowed address space is the operator most certain to know which prefixes it originates.
+
+**Reopening condition, stated as a measurement so it can be run rather than argued:** for a sample of
+small, single-ASN, **non-transit** organisations, count announced IPv4 prefixes that fall outside every
+delegated row sharing the holder's opaque-id **and** are not registered to any third party. If that count
+is materially non-zero, limb 2 is not exhaustive of the residue and ADR-0063's application to this leg —
+though not its rule — is reopened. The measurement is the whole ruling on this point, so it is a **rerun**
+and not a new argument.
+
+### 14.7 By-catch, not decided here
+
+- **A `Proposal` larger than the range cap has no stated route to becoming a `Seed`.** ADR-0047 caps an
+  address scope at **1,024 addresses**, checked at declaration; the registry leg routinely proposes far
+  larger blocks — Safaricom's 10 AFRINIC IPv4 blocks among them. Whether such a proposal is refused,
+  offered for narrowing, or routes the operator to a `custody extension` is unspecified. It was raised in
+  #126 as a possible rescue for the BGP leg (announced `/24`s fit where a registered `/16` does not) and
+  refused: a routing decomposition is the network engineer's and not the estate's, and a hole in the
+  `Proposal`-to-`Seed` path is not an argument for a source.
+- **Overlapping address scopes.** Confirming a proposal and a more-specific of it yields two `Seed`s
+  covering the same addresses. `Custody` is unaffected — *covered by a `Seed`?* is total — but ADR-0047
+  gives an address scope a `Coverage` denominator, and what two overlapping denominators do is not
+  written down.

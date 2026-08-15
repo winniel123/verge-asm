@@ -666,7 +666,13 @@ _Avoid_: provenance chain, lineage, discovery path
 Whether an `Address` is under the `operator`'s control or is `third-party`, computed against
 `Seed`s **alone**. It means **control of what listens**, never registry title: the party who
 can consent to a scan is whoever controls the listener, and a cloud provider holds title to
-every address it rents while being unable to say whether a tenant's port should be open. Named
+every address it rents while being unable to say whether a tenant's port should be open. **Nor
+routing reachability, which is the same failure with a second party in it**: the AS announcing a
+route toward a prefix carries packets toward it and controls nothing inside it, so a transit
+provider's announced set holds its customers' networks alongside its own, and a route collector is
+evidence about the **path** rather than about the estate. That is why no BGP leg proposes here and
+none ships in v1
+([ADR-0063](./docs/adr/0063-a-routing-announcement-names-the-path-not-the-estate.md)). Named
 `Ownership` until [ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md),
 which renamed it because the old word reads as title and had already produced a ticket arguing
 the model could not describe its own modal operator. Registry data proposes seeds to the
