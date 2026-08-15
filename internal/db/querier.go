@@ -12,6 +12,10 @@ import (
 )
 
 type Querier interface {
+	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending deliveries whose
+	// run_after has passed, oldest first, marking the winner 'sending' in one
+	// statement so two workers never claim the same delivery.
+	ClaimDelivery(ctx context.Context) (ClaimDeliveryRow, error)
 	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
 	// run_after has passed, oldest first, marking the winner running in one
 	// statement so two workers never claim the same job.
@@ -136,12 +140,21 @@ type Querier interface {
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
+	// Reads the target URL and the signing secret. This is the ONE read path that
+	// selects the secret: it is write-only at the interface (no render query returns
+	// it), but the worker-side signer must read it to compute the HMAC. It is never
+	// rendered and never leaves this instance except as a signature.
+	GetChannelForDelivery(ctx context.Context, id int64) (GetChannelForDeliveryRow, error)
 	// Resolve an Endpoint key to at most one subject (#198). An Endpoint drill-down
 	// reaches a subject by its own key — including one whose Service has left the
 	// estate, which is a population of no current member rather than a false "no
 	// record" (ADR-0072). The caller reads the latest http-identity value to render
 	// the current HTTP identity and split the key into its Name and Service legs.
 	GetEndpointSubject(ctx context.Context, subjectKey string) (GetEndpointSubjectRow, error)
+	// The frozen Message the body is built from — read verbatim, never recomputed.
+	// The body carries exactly these fields (the headline byte-identical, the census
+	// as a count) and reaches no other table: no row behind a census count.
+	GetMessageForDelivery(ctx context.Context, id int64) (GetMessageForDeliveryRow, error)
 	// The Citation chain's load-bearing hop: the observation that introduced a Name
 	// — its earliest resolution observation — plus the Batch and Scan it rode in on
 	// (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
@@ -182,6 +195,16 @@ type Querier interface {
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
+	// Reads and writes behind Channel delivery (#207). A Delivery is the Operational
+	// record of one outbound POST of one Message to one Channel: it never becomes a
+	// Message and never touches the comparison path. Routing is by class alone — the
+	// only predicate over which channels receive a firing is the class subset each
+	// channel carries (ADR-0091); there is no per-rule or per-subject query here.
+	// Enqueue one pending Delivery for (message, channel). The caller has already
+	// decided membership by class alone (delivery.Routes); this only persists the
+	// routed pair. Idempotent: re-enqueuing the same pair is a no-op, so the message
+	// identifier the receiver de-duplicates on is stable across retries.
+	InsertDelivery(ctx context.Context, arg InsertDeliveryParams) error
 	// Reads and writes behind the global message panel (#205). A Message is one
 	// firing of one cause, written once at the cause and never recomputed
 	// (CONTEXT.md `Message`, ADR-0064). The store is unconditional — there is no
@@ -253,6 +276,10 @@ type Querier interface {
 	// Address de-cited) is reached only by its own key; the value shown is the latest
 	// reachability verdict, reached or not-reached, both measured values.
 	ListCurrentServiceSubjects(ctx context.Context, search string) ([]ListCurrentServiceSubjectsRow, error)
+	// The delivery outcomes a Message renders in the store (notification-channels.md
+	// §8): to which channels it went and whether any is dead-lettered. Reads from the
+	// delivery table by join — the Message row carries no delivery state of its own.
+	ListDeliveriesForMessage(ctx context.Context, messageID int64) ([]ListDeliveriesForMessageRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	// The registrable domains of custody-extended name-scope Seeds, for the hot
@@ -357,6 +384,11 @@ type Querier interface {
 	ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error)
 	// Mark every unread message read — the panel's "mark all read" affordance.
 	MarkAllMessagesRead(ctx context.Context, readAt pgtype.Timestamptz) error
+	// A 2xx: the delivery is complete. Clears the last error and stamps the instant.
+	MarkDeliveryDelivered(ctx context.Context, arg MarkDeliveryDeliveredParams) error
+	// The attempt budget is spent: dead-letter. The row is marked 'undelivered' — the
+	// undelivered mark — and the Message it points at is deliberately left untouched.
+	MarkDeliveryUndelivered(ctx context.Context, arg MarkDeliveryUndeliveredParams) error
 	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error
 	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error
 	MarkJobRetried(ctx context.Context, id int64) error
@@ -408,6 +440,10 @@ type Querier interface {
 	// Endpoints sitting on them (their keys carry the address as a prefix).
 	PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExclusionWithdrawalParams) (PreviewExclusionWithdrawalRow, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
+	// A transient failure with attempts left: advance the attempt, push run_after out
+	// by the shared backoff, and record the error. The row returns to 'pending' and
+	// the claim index picks it up again once run_after passes.
+	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error
 	// Set, replace or clear the secret. A NULL clears it; the value is written and
 	// never read back.
 	SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error

@@ -60,6 +60,20 @@ type ColdScanScope struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type Delivery struct {
+	ID          int64              `json:"id"`
+	MessageID   int64              `json:"message_id"`
+	ChannelID   int64              `json:"channel_id"`
+	State       string             `json:"state"`
+	Attempt     int32              `json:"attempt"`
+	MaxAttempts int32              `json:"max_attempts"`
+	LastError   pgtype.Text        `json:"last_error"`
+	RunAfter    pgtype.Timestamptz `json:"run_after"`
+	DeliveredAt pgtype.Timestamptz `json:"delivered_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Dispatch struct {
 	ID            int64              `json:"id"`
 	ScanID        int64              `json:"scan_id"`
