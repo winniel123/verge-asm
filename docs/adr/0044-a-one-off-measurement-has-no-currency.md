@@ -161,15 +161,30 @@ as the embarrassing answer, and #44 already ruled how the embarrassment is disch
 **No rule loses anything.** [ADR-0009](./0009-verge-core-is-a-union.md) makes `verge-core` the union
 `frequency-set ∪ sensitive-list`, so every pair `sensitive-port-reached-from-internet` reads is
 inside the daily tier **by construction**. Walking [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s
-domain table: one of the sixteen rules names a port and its domain is fully covered; four read
-`Name`s and are untouched by any port tier; the remaining eleven read a facet on a `Service` or an
+domain table: one of the ~~sixteen~~ **seventeen** rules names a port and its domain is fully covered; four read
+`Name`s and are untouched by any port tier; the remaining ~~eleven~~ **twelve** read a facet on a `Service` or an
 `Endpoint`, so the tier bounds **which subjects exist** and never **which rules can speak**. There is
 no `not-evaluable` hiding here and no unearned clean bill of health — ADR-0004's rule has nothing to
 catch, because the population is honestly reported over every subject that exists.
 
+> **DENOMINATOR struck at the clause by [#133](https://github.com/winniel123/verge-asm/issues/133)'s
+> gate run (G4).** The v1 set is **seventeen** since
+> [#128](https://github.com/winniel123/verge-asm/issues/128)
+> ([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)), whose
+> `non-globally-reachable-address-resolved-from-internet` reads `resolution` — a facet on a subject —
+> and names no port, so it joins the **third** bucket and the split is `1 / 4 / 12`. **The conclusion
+> is untouched**: the tier still bounds which subjects exist and never which rules can speak, and the
+> new rule is bounded by it no more than the other eleven were.
+>
+> **This is the site that *specifies* the split**, and
+> [`safe-active-probing.md`](../research/safe-active-probing.md) §"cold tier" is the site that
+> *restates* it. The 2026-08-15 reconciliation corrected the restating site and did not reach this
+> one — [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
+> defect in its purest form, found by the gate's first full run.
+
 **What the tier buys is drift breadth, not signal correctness.** A listener on 31337 is real value
 and it is exactly the Destination's *unexpected open port* — but it arrives as a `Service` census
-entry and a `Reach` timeline, not as one of the sixteen. That is a coverage question, and #44
+entry and a `Reach` timeline, not as one of the ~~sixteen~~ **seventeen**. That is a coverage question, and #44
 decision 7 already settled how a coverage question is stated: **counts of our own rules and lists,
 never a count or proportion of the operator's estate.** *How many listeners are out there* has no
 denominator, and inventing one is [#28](https://github.com/winniel123/verge-asm/issues/28)'s refused

@@ -272,7 +272,7 @@ measurement, so the reason is stated rather than buried."*
 
 | Table | About | Gate 2 |
 | --- | --- | --- |
-| The 38 sensitive `(port, transport)` pairs | The world — *this exposure is never correct* | **Applies.** Attested for 37 rows; `161/udp` disclosed, [#66](https://github.com/winniel123/verge-asm/issues/66) |
+| The 38 sensitive `(port, transport)` pairs | The world — *this exposure is never correct* | **Applies.** ~~Attested for 37 rows; `161/udp` disclosed, [#66](https://github.com/winniel123/verge-asm/issues/66)~~ — **struck at the clause by [#133](https://github.com/winniel123/verge-asm/issues/133)'s gate run (G4). Attested for all 38.** #66 **removed** `161/udp` from the list at [`sensitive-ports.md`](../research/sensitive-ports.md) §11.6, and §35 returned the uncovered-in-subject population to **0**. The count `38` is right again **by coincidence** — it was 38 with `161` in it and is 38 with `161` out — which is what made this cell survive eleven passes |
 | `certificate-expiring`'s `N = 30 days` | The world — *this is the last point the operator can still act* | ~~**Applies. Currently unattested**~~ — **ATTESTED**, and this claim gloss was **never derived**, per the [#67](https://github.com/winniel123/verge-asm/issues/67) amendment above |
 | `certificate-weak-key-or-signature`'s thresholds | The world — *this key or algorithm is weak* | **Applies. Never written**, [#68](https://github.com/winniel123/verge-asm/issues/68) |
 | `k` cadences; the availability window; the coverage threshold | Our own measurement | Inapplicable. ADR-0008 governs alone |
@@ -640,9 +640,16 @@ written for.
   from what the rule reads**, an **owner attestation per row**, and a **determinacy argument where
   its key is a surrogate**. This is not a fifth part of a rule; it is the table's own accounting.
 - **Gate 2 is not a shipping gate.** A table with an unattested row **ships, disclosed**, exactly as
-  `161/udp` and `5432/tcp` do. #37's precedent binds: a row may not move on a re-reading of text
+  ~~`161/udp` and~~ `5432/tcp` ~~do~~ **does**. #37's precedent binds: a row may not move on a re-reading of text
   already held, only on a **retrieval**. So #67 and #68 are retrievals, not blockers on the number
   they concern.
+  > **`161/udp` struck at the clause by [#133](https://github.com/winniel123/verge-asm/issues/133)'s
+  > gate run (G4).** It does not ship disclosed; it does not ship. [#66](https://github.com/winniel123/verge-asm/issues/66)
+  > **removed the row** ([`sensitive-ports.md`](../research/sensitive-ports.md) §11.6) and ADR-0009's
+  > union lost it on both legs. **The rule is untouched and its surviving example is `5432/tcp`**,
+  > which still ships in the weak footing tier. The same clause stands at two more sites — this ADR's
+  > *Alternatives rejected* and [ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md)'s —
+  > and all three are struck by the same run.
 - ~~**[#68](https://github.com/winniel123/verge-asm/issues/68) blocks
   [#12](https://github.com/winniel123/verge-asm/issues/12).**~~ A v1 rule with no predicate content
   cannot be assembled into a spec, and #12 must carry sixteen rules per
@@ -692,5 +699,5 @@ written for.
 | **Partition the instruments by rule rather than by artefact** | Falsified by two rules: `sensitive-port-reached-from-internet` composes tables under #21 **and** #31, and `tls-1.0-accepted` carries nothing under #21 while carrying an offer under ADR-0030. A rule is not the unit |
 | **Render the weak tier on `Signals`** | Severity by another name, on a product that refused severity; a constant rendered in a per-subject column; and an invitation to disagree with a row through a door ADR-0009 and #51 both locked |
 | **Extend #21's three claims to cover a second table** | The three are derived from what an **internet vantage** supplies, and only one v1 rule reads `Exposure`. Stretching them is exactly the open-set failure #37 closed — the next odd-shaped case renegotiates the admission rules |
-| **Hold `N = 30` or the weak-key table out of the release until attested** | Gate 2 has never been a shipping gate — `161/udp` and `5432/tcp` ship disclosed. Making it one now would retroactively delete rows on grounds #37 refused, and would move a row on a re-reading rather than on a retrieval |
+| **Hold `N = 30` or the weak-key table out of the release until attested** | Gate 2 has never been a shipping gate — ~~`161/udp` and~~ `5432/tcp` ~~ship~~ **ships** disclosed *(`161/udp` struck at the clause by [#133](https://github.com/winniel123/verge-asm/issues/133)'s gate run, G4 — [#66](https://github.com/winniel123/verge-asm/issues/66) removed the row, so it does not ship at all; the alternative still loses on the surviving example)*. Making it one now would retroactively delete rows on grounds #37 refused, and would move a row on a re-reading rather than on a retrieval |
 | **Build a watch mechanism for moving attestations here** | ADR-0008 already specifies what a revision costs and ADR-0004's cadence test already licenses the staleness. What is missing is a **human watch**, which is the map's curation patch and is not an object this ADR can mint |
