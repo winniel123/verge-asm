@@ -13,9 +13,16 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-verge}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-verge}?sslmode=disable
       VERGE_LISTEN_ADDR: ":8080"
+      # First-boot bootstrap: with no accounts, web logs a single-use setup
+      # token. Set VERGE_SETUP_TOKEN to pin it instead of reading the logs.
+      VERGE_SETUP_TOKEN: ${VERGE_SETUP_TOKEN:-}
+      # Set to true when a TLS-terminating proxy fronts web, so the session
+      # cookie is marked Secure even though web itself sees plain HTTP.
+      VERGE_SECURE_COOKIES: ${VERGE_SECURE_COOKIES:-}
     ports:
       - "8080:8080"
     volumes:
+      # The session signing key lives here and never in Postgres (§4.3).
       - web-state:/app/state
     depends_on:
       postgres:
