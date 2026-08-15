@@ -6,14 +6,21 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
+	// run_after has passed, oldest first, marking the winner running in one
+	// statement so two workers never claim the same job.
+	ClaimJob(ctx context.Context) (ClaimJobRow, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
 	CountAccounts(ctx context.Context) (int64, error)
 	// Guards the last-admin invariant: a role change that would drop this to zero is
 	// refused so an operator cannot lock every admin out.
 	CountAdmins(ctx context.Context) (int64, error)
+	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
@@ -22,16 +29,29 @@ type Querier interface {
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
+	// Provisioning a prober creates a Vantage with connection detail. Its
+	// measurement identity is still mandatory: the caller derives `name` from the
+	// endpoint (username@host:port) so it is unique per provisioned endpoint, class
+	// defaults to 'unverified' until a prober re-verifies it, and resolver ships
+	// blank ('') for the operator to set. availability starts 'pending' — no host
+	// key has been pinned yet. The explicit casts keep the params plain scalars even
+	// though the prober columns are nullable on the table.
+	CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error)
 	DeleteChannel(ctx context.Context, id int64) error
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
+	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
+	GetScanByKind(ctx context.Context, kind string) (Scan, error)
+	GetVantage(ctx context.Context, id int64) (Vantage, error)
+	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
+	InsertObservation(ctx context.Context, arg InsertObservationParams) error
 	// The accounts management list on the Settings screen. It omits password_hash
 	// and totp_secret: managing accounts never needs either, so they stay out of the
 	// render path.
@@ -39,18 +59,63 @@ type Querier interface {
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
+	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
+	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
+	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
+	// The operator's overrides of the authored ship defaults. The handler merges
+	// these onto the in-binary catalogue: a source's effective state is its override
+	// where one exists and its shipped default otherwise.
+	ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error)
+	// The web prober list: only provisioned vantages (those carrying a prober
+	// endpoint). The resolver-only `local` vantage has no prober and is excluded.
+	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
+	// The dns Scan dispatches over every configured Vantage, reading only its
+	// measurement identity (name, class, resolver). Distinct from the web prober
+	// list (vantages.sql `ListVantages`), which is scoped to provisioned probers.
+	ListVantagesForDispatch(ctx context.Context) ([]ListVantagesForDispatchRow, error)
+	// Rows the worker still has to generate a keypair for: a provisioned prober
+	// (host set) whose public half has not been published, so no key material has
+	// ever left the worker volume for them.
+	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
+	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error
+	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error
+	MarkJobRetried(ctx context.Context, id int64) error
+	// A pinned host key later mismatched, or the position went unreachable: the
+	// vantage is marked unavailable rather than silently re-trusting a new key.
+	MarkVantageUnavailable(ctx context.Context, id int64) error
+	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
+	// the vantage available. The host_key IS NULL guard makes this a no-op once a
+	// key is pinned, so a first-connect race can never overwrite an existing pin.
+	PinVantageHostKey(ctx context.Context, arg PinVantageHostKeyParams) error
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	// Set, replace or clear the secret. A NULL clears it; the value is written and
 	// never read back.
 	SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error
+	// Declare (true) or withdraw (false) the custody extension on a name-scope Seed.
+	// The kind guard makes the act a no-op on an address scope rather than an error,
+	// matching the CHECK the migration installs — an address scope can never carry a
+	// custody extension. The flag has no timeline, so a withdrawal is the same UPDATE
+	// with false rather than a dated state change.
+	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
+	// The worker publishes only the public half of the pair it generated on its own
+	// volume; the private half never reaches Postgres.
+	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
+	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
+	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
+	// records as a skip rather than a second fan-out.
+	TryFanOut(ctx context.Context, arg TryFanOutParams) (int64, error)
 	UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error
 	// Updates everything but the secret; the secret has its own write path so an
 	// edit that leaves it blank keeps the existing one untouched.
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
+	// Record the operator's on/off choice for one source. A toggle is a Declared act
+	// with no timeline, so re-toggling overwrites the single current value rather
+	// than appending, and toggled_at re-stamps to when the current state was set.
+	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
 }
 
 var _ Querier = (*Queries)(nil)

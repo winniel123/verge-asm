@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -46,8 +47,13 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail(err.Error())
 		return
 	}
+	// A provisioned Vantage still needs a mandatory measurement identity. Derive
+	// its name from the endpoint (username@host:port) so it is unique per
+	// provisioned endpoint — matching the (host, port, username) endpoint index —
+	// while resolver ships blank (set in SQL) for the operator to fill in.
 	if _, err := s.store.CreateVantage(r.Context(), db.CreateVantageParams{
-		Host: ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID,
+		Name:     fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port),
+		Host:     ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID,
 	}); err != nil {
 		if isUniqueViolation(err) {
 			fail("That prober endpoint is already provisioned.")
@@ -63,9 +69,9 @@ func toProberViews(rows []db.ListVantagesRow) []proberView {
 	out := make([]proberView, 0, len(rows))
 	for _, row := range rows {
 		v := proberView{
-			Endpoint:     endpointString(row.Host, row.Port),
-			Username:     row.Username,
-			Availability: row.Availability,
+			Endpoint:     endpointString(row.Host.String, row.Port.Int32),
+			Username:     row.Username.String,
+			Availability: row.Availability.String,
 			KeySet:       row.PublicKey.Valid && row.PublicKey.String != "",
 			PublicKey:    row.PublicKey.String,
 			By:           row.CreatedByUsername,

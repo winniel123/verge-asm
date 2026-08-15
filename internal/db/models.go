@@ -20,6 +20,18 @@ type Account struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type Batch struct {
+	ID            int64              `json:"id"`
+	ScanID        int64              `json:"scan_id"`
+	DispatchID    pgtype.Int8        `json:"dispatch_id"`
+	VantageID     pgtype.Int8        `json:"vantage_id"`
+	Kind          string             `json:"kind"`
+	Outcome       string             `json:"outcome"`
+	Offers        []byte             `json:"offers"`
+	RecordedScope []byte             `json:"recorded_scope"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type Channel struct {
 	ID            int64              `json:"id"`
 	Url           string             `json:"url"`
@@ -31,6 +43,14 @@ type Channel struct {
 	CreatedBy     int64              `json:"created_by"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Dispatch struct {
+	ID            int64              `json:"id"`
+	ScanID        int64              `json:"scan_id"`
+	ScheduledTime pgtype.Timestamptz `json:"scheduled_time"`
+	Status        string             `json:"status"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
 type Exclusion struct {
@@ -47,12 +67,51 @@ type Heartbeat struct {
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
 }
 
+type Observation struct {
+	ID            int64              `json:"id"`
+	BatchID       int64              `json:"batch_id"`
+	Facet         string             `json:"facet"`
+	SubjectKind   string             `json:"subject_kind"`
+	SubjectKey    string             `json:"subject_key"`
+	Discriminator string             `json:"discriminator"`
+	VantageID     pgtype.Int8        `json:"vantage_id"`
+	Source        string             `json:"source"`
+	Value         []byte             `json:"value"`
+	ObservedAt    pgtype.Timestamptz `json:"observed_at"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+type QueueJob struct {
+	ID             int64              `json:"id"`
+	ScanID         int64              `json:"scan_id"`
+	VantageID      pgtype.Int8        `json:"vantage_id"`
+	DispatchID     pgtype.Int8        `json:"dispatch_id"`
+	Kind           string             `json:"kind"`
+	Spec           []byte             `json:"spec"`
+	AttemptedScope []byte             `json:"attempted_scope"`
+	Offers         []byte             `json:"offers"`
+	State          string             `json:"state"`
+	Attempt        int32              `json:"attempt"`
+	MaxAttempts    int32              `json:"max_attempts"`
+	BatchID        pgtype.Int8        `json:"batch_id"`
+	RunAfter       pgtype.Timestamptz `json:"run_after"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
 type RetentionSetting struct {
 	ID                      bool               `json:"id"`
 	ObservationCurrencyDays int64              `json:"observation_currency_days"`
 	DispatchCadenceMultiple int64              `json:"dispatch_cadence_multiple"`
 	UpdatedBy               pgtype.Int8        `json:"updated_by"`
 	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Scan struct {
+	ID             int64              `json:"id"`
+	Kind           string             `json:"kind"`
+	Enabled        bool               `json:"enabled"`
+	CadenceSeconds int64              `json:"cadence_seconds"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type Seed struct {
@@ -74,12 +133,15 @@ type SourceState struct {
 
 type Vantage struct {
 	ID           int64              `json:"id"`
-	Host         string             `json:"host"`
-	Port         int32              `json:"port"`
-	Username     string             `json:"username"`
-	Availability string             `json:"availability"`
+	Name         string             `json:"name"`
+	Class        string             `json:"class"`
+	Resolver     string             `json:"resolver"`
+	Host         pgtype.Text        `json:"host"`
+	Port         pgtype.Int4        `json:"port"`
+	Username     pgtype.Text        `json:"username"`
+	Availability pgtype.Text        `json:"availability"`
 	PublicKey    pgtype.Text        `json:"public_key"`
 	HostKey      pgtype.Text        `json:"host_key"`
-	CreatedBy    int64              `json:"created_by"`
+	CreatedBy    pgtype.Int8        `json:"created_by"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
