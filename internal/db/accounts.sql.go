@@ -31,6 +31,19 @@ func (q *Queries) CountAccounts(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countAdmins = `-- name: CountAdmins :one
+SELECT count(*) FROM account WHERE role = 'admin'
+`
+
+// Guards the last-admin invariant: a role change that would drop this to zero is
+// refused so an operator cannot lock every admin out.
+func (q *Queries) CountAdmins(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAdmins)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO account (username, role, password_hash)
 VALUES ($1, $2, $3)
@@ -100,6 +113,49 @@ func (q *Queries) GetAccountByUsername(ctx context.Context, username string) (Ac
 	return i, err
 }
 
+const listAccounts = `-- name: ListAccounts :many
+SELECT id, username, role, totp_enabled, created_at
+FROM account
+ORDER BY created_at ASC, id ASC
+`
+
+type ListAccountsRow struct {
+	ID          int64              `json:"id"`
+	Username    string             `json:"username"`
+	Role        string             `json:"role"`
+	TotpEnabled bool               `json:"totp_enabled"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+// The accounts management list on the Settings screen. It omits password_hash
+// and totp_secret: managing accounts never needs either, so they stay out of the
+// render path.
+func (q *Queries) ListAccounts(ctx context.Context) ([]ListAccountsRow, error) {
+	rows, err := q.db.Query(ctx, listAccounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAccountsRow{}
+	for rows.Next() {
+		var i ListAccountsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Role,
+			&i.TotpEnabled,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setTOTPSecret = `-- name: SetTOTPSecret :exec
 UPDATE account SET totp_secret = $2, totp_enabled = false WHERE id = $1
 `
@@ -111,5 +167,19 @@ type SetTOTPSecretParams struct {
 
 func (q *Queries) SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error {
 	_, err := q.db.Exec(ctx, setTOTPSecret, arg.ID, arg.TotpSecret)
+	return err
+}
+
+const updateAccountRole = `-- name: UpdateAccountRole :exec
+UPDATE account SET role = $2 WHERE id = $1
+`
+
+type UpdateAccountRoleParams struct {
+	ID   int64  `json:"id"`
+	Role string `json:"role"`
+}
+
+func (q *Queries) UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error {
+	_, err := q.db.Exec(ctx, updateAccountRole, arg.ID, arg.Role)
 	return err
 }

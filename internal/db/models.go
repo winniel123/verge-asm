@@ -20,6 +20,19 @@ type Account struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type Channel struct {
+	ID            int64              `json:"id"`
+	Url           string             `json:"url"`
+	Secret        pgtype.Text        `json:"secret"`
+	RouteDrift    bool               `json:"route_drift"`
+	RouteCoverage bool               `json:"route_coverage"`
+	RouteClock    bool               `json:"route_clock"`
+	Enabled       bool               `json:"enabled"`
+	CreatedBy     int64              `json:"created_by"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Exclusion struct {
 	ID          int64              `json:"id"`
 	Kind        string             `json:"kind"`
@@ -32,6 +45,14 @@ type Exclusion struct {
 type Heartbeat struct {
 	ID        int64              `json:"id"`
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
+}
+
+type RetentionSetting struct {
+	ID                      bool               `json:"id"`
+	ObservationCurrencyDays int64              `json:"observation_currency_days"`
+	DispatchCadenceMultiple int64              `json:"dispatch_cadence_multiple"`
+	UpdatedBy               pgtype.Int8        `json:"updated_by"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Seed struct {
