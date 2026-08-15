@@ -369,16 +369,38 @@ of the move above it. It **may not partition a census**: `fired` is not cut into
 outstanding, or the rule acquires a second population it does not version. It carries **no timeline,
 no status and no expiry** — editing one is a **new** `Annotation`, as with `Proposal`, and an expiry
 would be a state moving because time passed. It is keyed on the **exact subject and never travels**,
-the stated cost being that a redeploy onto a new address lapses the acceptance rather than silencing
-a subject nobody chose. And it **states its reason** and does **not** appear on `Coverage`: a `Seed`
+the stated cost being that a redeploy onto a new address ~~lapses the acceptance~~ **leaves the
+acceptance matching nothing** rather than silencing a subject nobody chose. *(**Superseded here, at
+the site that specifies it**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) —
+[#163](https://github.com/winniel123/verge-asm/issues/163) ·
+[ADR-0092](./docs/adr/0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md).
+**An `Annotation` never lapses.** Read alone, *lapses* builds an event on the record or a `lapsed`
+state on the row — the status field the rider above refuses. Nothing happens to the record: it is
+the **`Service` it names that withdraws**, so the mover is the estate and the estate's own messages
+already fire. Because a key is the thing denoted
+([ADR-0051](./docs/adr/0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md)),
+a **returning** subject is the same pair and the mute takes effect again with no operator act. The
+cost is unchanged and narrower than it reads — it is a name-scope-plus-`custody extension` case, an
+address scope's `Service`s existing open or closed from the declaration.)* **Neither declaring nor
+withdrawing one is a message**, and neither mints a cause, a class or a member: a `Message` is one
+firing of one cause, and an operator dial's movement is none of the four — the test that already
+gives `Delivery` *no cause and no fifth one*. Withdrawal's carrier is **the message it releases**,
+the pair's own next firing; declaration's is the annotation list, complete by construction because
+withdrawal removes the row. A row whose key is in **no current population** is **marked** as naming a
+withdrawn subject — derived on read, stored nowhere, with no status, no age, no count and no sort —
+since a withdrawn subject is reached **only by its own key**, which is what an annotation row holds
+([ADR-0092](./docs/adr/0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md)).
+And it **states its reason** and does **not** appear on `Coverage`: a `Seed`
 exclusion is there because it shrinks the estate, and this shrinks nothing. Its home is `Signals`.
 It carries the **instant it was declared and no author** — the one Declared term holding operator
 prose is still an operator dial, and every dial in the model is unattributed, so
 [#127](https://github.com/winniel123/verge-asm/issues/127)'s ruling that no operator act is written
 down with an actor on it holds here without exception. A date names nobody; an undated standing mute
 on an object with no expiry cannot be reviewed at all.
-See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md) and
-[ADR-0073](./docs/adr/0073-an-operator-dial-carries-no-author-however-specific-its-target.md).
+See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md),
+[ADR-0073](./docs/adr/0073-an-operator-dial-carries-no-author-however-specific-its-target.md) and
+[ADR-0092](./docs/adr/0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md).
 _Avoid_: status, triage state, finding state, suppression, exception, risk acceptance workflow,
 author, declared by
 
