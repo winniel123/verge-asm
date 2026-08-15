@@ -356,6 +356,21 @@ is that the mechanism is sound and its frequency is a guess.
   retained window makes `returned` detection unrecoverable. Prober leaves move on a **dependency**
   cadence rather than on our own decisions, which is faster than any canonicaliser, so whoever
   sizes retention is sizing against `go.mod` and not against the project's roadmap.
+
+  > **Discharged by [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+  > [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md), and the
+  > answer is that **nobody** sizes retention against the break cadence.** Two things close it.
+  > `Span`s are never compacted, so the corpus the sizing was for has no window to size; and
+  > **retention may never be the tighter clamp** — where a retention rule would truncate earlier
+  > than the `Break` clamp already does, it does not truncate at all, because the break clamp is
+  > visible and names the leaf while a retention horizon is invisible. What survives is this
+  > paragraph's real finding, promoted from a sizing input to a **release obligation**: the leaf on
+  > the dependency cadence that reaches membership is `resolution-walk`, so **its golden corpus is
+  > what keeps `returned` alive**. ADR-0008's gate bumps a leaf only where a corpus row's output
+  > moved, so a DNS-library upgrade that cannot change `Resolved` / `NoData` / `NameError` / `Lame` /
+  > `Shadowed` must **provably** not bump it — which needs corpus rows pinning those outcomes
+  > specifically. An under-covering corpus no longer costs a spurious `Break`; it costs estate-wide
+  > loss of the one transition that tells a returning host from a new one.
 - **The corpus is a build-time artefact per leaf**, like every other named derivation's, and it
   runs with no network and no containers — which is a hard requirement rather than a preference,
   and the one place this ADR constrains CI.

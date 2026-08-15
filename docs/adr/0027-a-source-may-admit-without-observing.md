@@ -235,6 +235,11 @@ install either.
   it.** [#36](https://github.com/winniel123/verge-asm/issues/36) recorded *most `certificate`
   timelines hold `NoTLS` forever*, counted per `Service`; the count multiplies again by names per
   service, and the nameless `Endpoint` is the floor rather than the whole.
+  *(Priced by [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+  [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md): the
+  multiplier lands on **timelines**, and a `NoTLS`-forever timeline is one flat span, so it moves
+  the corpus that is never compacted and never the corpus that grows. It is the observation behind
+  each of them that costs, and those age out at the currency bound.)*
 - **`crt.sh` is the first `Source` in the model with no facet**, so any surface enumerating what a
   source contributes must not assume a timeline. It contributes `Name`s and a `Batch`, which is
   exactly what [#28](https://github.com/winniel123/verge-asm/issues/28)'s coverage **fill** half
