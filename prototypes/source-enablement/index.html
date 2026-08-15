@@ -113,14 +113,10 @@
   .note.invite { border-left-color: var(--accent); }
   .note .ml { display: block; margin-bottom: var(--space-1); }
   .note.invite .ml { color: var(--accent); }
-  /* ADR-0075's withdrawal mark. Reviewer commentary, not part of the design — the same
-     dashed box prototypes/seeds/ ships. */
-  .anno { border: 1px dashed var(--danger); background: var(--danger-soft);
-          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4);
-          font-size: var(--text-sm); line-height: var(--leading-body); }
-  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--danger); }
-  .anno p { margin: 0 0 var(--space-2); }
-  .anno p:last-child { margin-bottom: 0; }
+  /* ADR-0075's marks and #144's dateline share one .anno block, declared once below with the
+     rest of the canonical form. This file previously redeclared .anno here in danger colours,
+     which would have painted #144's dateline as a condemnation; the danger form is the .anno.no
+     modifier and the withdrawal mark below now uses it. */
 
   .stack > * + * { margin-top: var(--space-4); }
   .stack-2 > * + * { margin-top: var(--space-2); }
@@ -805,7 +801,7 @@ function acceptScreen(srcKey, stage) {
         </div>
       </div>
 
-      <div class="anno">
+      <div class="anno no">
         <span class="ml">withdrawn — two cells, two rulings</span>
         <p><b><span class="mono">accepted by</span> is refused outright.</b>
           <a href="https://github.com/winniel123/verge-asm/issues/127">#127</a> ruled operator
