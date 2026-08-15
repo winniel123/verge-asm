@@ -426,6 +426,13 @@ every timeline beneath it *opens* and no alerting predicate in the product is op
 A subject first observed under a widened aperture is not `appeared` at all — it is `revealed`,
 which is what makes a first run one coverage-class message with no special case. See
 [ADR-0031](./docs/adr/0031-membership-alerts-at-the-root-of-the-entering-subtree.md).
+Those same two are therefore the only ones a **listing** can be over, the other two being reached
+through a root rather than standing beside one. A **withdrawn** subject is a member of no current
+population at all: its timelines are closed, so it is absent from every current-state listing by
+construction and is reached only by its own key. That is why absence is a property of a **cell** and
+not of a row — a `Gap` sits on one timeline of a subject that is otherwise entirely alive, and only
+withdrawal changes whether the subject is there to have timelines. See
+[ADR-0072](./docs/adr/0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md).
 _Avoid_: asset, entity, target
 
 **Name**:
