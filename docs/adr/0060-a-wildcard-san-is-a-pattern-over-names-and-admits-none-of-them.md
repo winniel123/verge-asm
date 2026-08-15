@@ -363,12 +363,18 @@ asterisk label, and ADR-0055's parse already honours it.
   a query the model never makes.
 - **ADR-0051's corpus gains seven rows and a third input shape** — a `dNSName` value — under the same
   artefact and the same inverted gate. There is no new build failure and no new artefact.
-- **The `Seeds` screen owes refusal copy for a typed `*.example.com`**, naming the **subtree
+- ~~**The `Seeds` screen owes refusal copy for a typed `*.example.com`**, naming the **subtree
   exclusion** as the route, in the shape ADR-0055 established for a U-label and
-  [#85](https://github.com/winniel123/verge-asm/issues/85) for an over-cap declaration. The two are
-  not the same object and must not be silently translated: a subtree exclusion runs on label-wise
-  suffix equality over the key and therefore **includes** `example.com`, while `*.example.com`
-  expressly excludes it (RFC 6125 §6.4.3 rule 2).
+  [#85](https://github.com/winniel123/verge-asm/issues/85) for an over-cap declaration.~~
+  **Discharged by [ADR-0052](./0052-a-declaration-refusal-names-a-route-and-never-takes-it.md) and
+  [#123](https://github.com/winniel123/verge-asm/issues/123).** The substance stands and is now the
+  refusal's own words: the two are not the same object and must not be silently translated — a
+  subtree exclusion runs on label-wise suffix equality over the key and therefore **includes**
+  `example.com`, while `*.example.com` expressly excludes it (RFC 6125 §6.4.3 rule 2). Drawing it
+  surfaced one thing this ADR could not see: *everything beneath a name but not the name* is a set
+  **v1 has no object for at all**, since exclusions are exact names, subtrees or address scopes and a
+  subtree takes the apex with it. The refusal says so rather than routing the operator to an object
+  that would over-claim.
 - **`Coverage` gains a sentence in #28's fill half and no figure anywhere.** No denominator, no
   proportion, no count of hidden names. The count that may back it is of `dNSName` values we declined,
   which is ours and not the estate's.

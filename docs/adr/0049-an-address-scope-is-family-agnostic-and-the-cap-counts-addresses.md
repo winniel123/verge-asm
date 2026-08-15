@@ -55,7 +55,7 @@ spelling.**
 | The IPv6 estate's route | A **name scope with a `custody extension`**, which is family-agnostic by construction and already works. Plus `/128` address scopes for the individual addresses the operator wants covered literally |
 | `Vantage class`'s containment test | Over **every address the `Vantage` holds**, of either family. One uncovered address and it verifies `internet` — the closed direction, matching `Custody`'s *everything not covered is `third-party`* |
 | A v6-only internal prober | Declares its own address as a `/128` address scope. One address, admissible under the cap, and §6's test then passes. **The residue closes itself, and only because the cap is family-agnostic** |
-| The refusal surface | A refused **IPv6** declaration must name the `custody extension` as the route. Naming the knob is correct for IPv4 and a trap for IPv6 |
+| The refusal surface | A refused **IPv6** declaration must name the `custody extension` as the route. Naming the knob is correct for IPv4 and a trap for IPv6. **Discharged by [ADR-0052](./0052-a-declaration-refusal-names-a-route-and-never-takes-it.md)**, which generalises it: a refusal names a route and never takes it, because the IPv6 route reaches a *different set* while raising the cap reaches the *same* one. The knob is **named in order to shut it** rather than omitted — silence does not remove a setting that Settings and the IPv4 refusal both point at |
 
 ## Rationale
 
@@ -241,9 +241,12 @@ untouched — the extension still may not decide a vantage's class, in either fa
   its cadence; an IPv6 `/64` is the same shape, unimaginably further along it, and ADR-0005's overlap
   rule turns it into a permanent skip with `Coverage` pinned near zero forever. **No ceiling is
   invented** — that would be #27's threshold arriving in the one place this model has kept clear —
-  so the whole weight falls on the refusal copy naming the extension rather than the knob. That is a
+  so the whole weight falls on the refusal copy naming the extension rather than the knob. ~~That is a
   surface obligation carried by an unfinished screen, which is a real dependency and is stated as
-  one.
+  one.~~ **The screen is drawn and the obligation is discharged** —
+  [ADR-0052](./0052-a-declaration-refusal-names-a-route-and-never-takes-it.md) and
+  [#123](https://github.com/winniel123/verge-asm/issues/123),
+  [`prototypes/seeds/`](../../prototypes/seeds/index.html).
 
 ## Consequences
 
