@@ -297,12 +297,63 @@ alerting at the cause rather than per affected subject, so the operator never se
   no longer exists is correct — a `Message` is Operational, *"written once and never recomputed"*,
   so a dangling key is a dated fact rather than a broken join.
 - **One neighbour is named and not ruled.** Disabling a `Source` is also an aperture narrowing, and
-  a subject that source alone admitted (ADR-0027) loses its `Citation` and leaves — the same carrier
-  failure. v1 routes source enablement to `Coverage` as a standing state and no message, which is
+  ~~a subject that source alone admitted (ADR-0027) loses its `Citation` and leaves — the same carrier
+  failure~~ **(narrowed below — that premise does not hold for the population v1 ships)**. v1 routes
+  source enablement to `Coverage` as a standing state and no message, which is
   [#47](https://github.com/winniel123/verge-asm/issues/47)'s and
   [#15](https://github.com/winniel123/verge-asm/issues/15)'s territory rather than this ticket's. The
   rule stated here reaches it; whether it fires there is a successor, and it is the only place this
   ADR is knowingly incomplete.
+
+  > **Rider, settled 2026-08-15 by [#166](https://github.com/winniel123/verge-asm/issues/166): the
+  > rule does not fire, because its trigger never occurs.** This ADR fires only *"where the act takes
+  > the carrier with it"* — the subject departs, leaving nothing to hold a `Gap`. Disabling a `Source`
+  > never does that, for every admitting source v1 ships. [ADR-0027](./0027-a-source-may-admit-without-observing.md)
+  > put an admitting-without-observing source's `Citation` hop on its `Batch`, not an observation, and
+  > [ADR-0096](./0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md)
+  > — settled the same day, independently of this question — supplies the mechanics that decide it: a
+  > `Batch`-hop `Citation` **never ages**, and only a later `Batch` from an **`enumerable`** source,
+  > over a recorded scope covering the subject, that omits it, can *contradict* one. A **`corroborative`**
+  > source's silence *"cannot be retired … not slowly, not on a cadence, not at all,"* and ADR-0096
+  > states outright that **v1 holds no `enumerable` source that admits without observing** — the
+  > population is `crt.sh` / certificate transparency alone, which is `corroborative`. Disabling a
+  > source stops it producing any further `Batch`, which **forecloses** the one route to contradiction
+  > rather than creating one. So the premise struck above is false of every `Source` v1 ships: nothing
+  > departs, there is no carrier failure, and this ADR's rule has no subject matter to apply to here.
+  >
+  > **Not even a `Gap` carries it, and that is a stronger silence than [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md)'s
+  > neighbouring case, not a weaker one.** ADR-0044's cold-port-tier narrowing is carried by a `Gap`
+  > once currency lapses on the `Reach` timelines it fed. An admitting-without-observing source holds
+  > no timeline at all (ADR-0027, confirmed by ADR-0096: *"No `Gap`. Not opened, not reachable"*), so
+  > there is nothing to lapse and nothing to carry. The two cases resolve to the same **no-message**
+  > answer by different routes: ADR-0044's is *carried elsewhere*; this one is *there is nothing to
+  > carry, because nothing happened to any subject*. v1's silence — `Coverage` as a standing state,
+  > no message on disable — is **confirmed correct**, not merely incomplete.
+  >
+  > **Where a `Source` admits *by* observing, disabling it is not a new case at all.** The operator's
+  > zone file is `enumerable` and admits `Name`s, but its hop is an **observation** (`dns-record`), so
+  > its citations age under the ordinary currency mechanism (ADR-0096 §3) — the ground this ADR's own
+  > Decision table already covers under `Address`'s Gap-vs-departure split. Disabling that source is
+  > an instance of the existing member-ten trigger where a citation was the sole one, or of *nothing
+  > new fires* where it was not; it is not a second successor question.
+  >
+  > **What does not move.** Coverage stays at **ten** — no member is minted, because no trigger fired,
+  > which is the honest resolution of the brief's *"a second instance would not necessarily mint an
+  > eleventh"*: there is no instance at all. [#47](https://github.com/winniel123/verge-asm/issues/47)'s
+  > and [#15](https://github.com/winniel123/verge-asm/issues/15)'s enablement-prompt territory is
+  > untouched — this rules the disable side, a different act from the one they own. `CONTEXT.md` is
+  > **not amended**: ADR-0027's and ADR-0096's entries already state the mechanics this rider applies;
+  > no term's definition moves. And this ADR is **knowingly complete** from here — the one neighbour it
+  > named now has a ruling, arrived at on the mechanics rather than on parity with the `Seed` case, per
+  > this ADR's own refusal of symmetry reasoning (ADR-0014).
+  >
+  > **The losing option, named:** fire the message anyway, by parity with the `Seed` narrowing this ADR
+  > rules on, since both are aperture narrowings and ADR-0074's own Consequences call them the same
+  > carrier failure. It fails at the premise: parity was asserted before the citation mechanics were
+  > settled (ADR-0096 postdates this ADR), and under those mechanics no subject the source admitted
+  > ever loses its citation on disable. Minting a message for a departure that does not happen would be
+  > firing a coverage-class message with no fact behind it — the false-reassurance failure run in
+  > reverse, manufacturing drift where none occurred.
 - **[#140](https://github.com/winniel123/verge-asm/issues/140) · ADR-0082 is upstream and
   strengthens this rather than conditioning it.** The dependency was written to survive either
   ruling — the trigger is inhabitance of the withdrawn set, and the payload counts **subjects
