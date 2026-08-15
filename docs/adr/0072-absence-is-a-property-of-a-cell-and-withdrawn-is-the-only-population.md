@@ -99,10 +99,22 @@ chains leave the zone — rows this screen does not have at all.
   **unconditionally** — the store is not a `Channel`, has no configuration, cannot be disabled and
   cannot fail. Ordered by time, which is correct for a log and wrong for an inventory. The board's
   `withdrawn` column carries the comparison window; the subject's own page still renders its closed
-  timelines. **Three carriers, and this ADR leans on the first**: if the message store ever acquires
+  timelines. ~~**Three carriers, and this ADR leans on the first**: if the message store ever acquires
   a retention horizon, the durable record goes with it and decision 3 needs re-pricing.
   [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) ships both
-  retirable corpora unbounded in v1, so the debt is named and not due.
+  retirable corpora unbounded in v1, so the debt is named and not due.~~
+  > **The debt is DISCHARGED, and it is struck here at the site that names it**
+  > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by
+  > [#140](https://github.com/winniel123/verge-asm/issues/140) ·
+  > [ADR-0082](./0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)
+  > and [#147](https://github.com/winniel123/verge-asm/issues/147) ·
+  > [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md). Read
+  > alone and in the present tense it prices decision 3 against a risk that no longer exists. **The
+  > model's durable record of a departure is the closure**, which carries the fact and — since
+  > ADR-0087 — the **ground** it rests on, on the one corpus ADR-0041 rules **never compacted at
+  > all**. A `Message` may be retired; the closure may not. The message store is the operator's
+  > convenient carrier and no longer the only one, so decision 3 leans on a corpus with no horizon
+  > and needs no re-pricing.
 - **`Shadowed` is not read off a `Gap`, and the fog patch's wording is corrected here.** It is a
   **value** the model holds on `resolution`; what is absent is a rule's ability to apply a predicate
   to it — #44's fourth cause, *we measured; this rule cannot read the answer*, which is a `Gap` on

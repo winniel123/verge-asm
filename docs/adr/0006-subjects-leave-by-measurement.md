@@ -90,7 +90,11 @@ whole rule, it would keep a live endpoint under a dead port forever.
 The `Service` leg was always there and always necessary; it went unnoticed because a withdrawing
 `Service` normally arrives alongside a withdrawing `Name`. Stated explicitly: **an `Endpoint`
 closes when either its `Name` or its `Service` withdraws**, and a nameless one simply has one
-leg. Reason `cascaded` is unchanged, so the endpoints return coherently if the port comes back.
+leg. The reason is unchanged — ~~`cascaded`~~ **`uncited`** since
+[#147](https://github.com/winniel123/verge-asm/issues/147) ·
+[ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) merged the
+cascade with de-citation and closed the vocabulary at three — so the endpoints return coherently if
+the port comes back.
 
 ## Amendment — [#63](https://github.com/winniel123/verge-asm/issues/63): the appearance family
 fires on two subject kinds, not four
@@ -108,8 +112,14 @@ a second representation of one fact.
 The restriction governs the **whole** family and not only `appeared`, which is where it earns its
 place: without it an `Address` returning fires one alertable `Service` `returned` per
 `(port, transport)` in `verge-core`, a burst on the one member of the family this ADR made
-alertable. The cascade rule below already writes those spans with reason `cascaded`; they are now
-also silent.
+alertable. The cascade rule below already writes those spans with a reason — ~~`cascaded`~~
+**`uncited`** since
+[ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md); they are
+now also silent. That reason is the field this silence keys on, which is why ADR-0087 rules it
+**necessary** rather than merely warranted: with the three grounds on one row, a departure nobody
+measured is indistinguishable from one we did, and this ADR's own founding sentence — *subjects
+leave by measurement* — is defeated by a missing field rather than by an argument. Exactly one of
+the three, **`measured-absent`**, is a measurement of the subject that left.
 
 ## Consequences
 

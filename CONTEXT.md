@@ -567,7 +567,11 @@ declared address scope is a subject **from the declaration**, before anything ha
 about it, with its `Citation` hopping straight to the `Seed`. Its `Service`s then hold `Reach` =
 `not-reached` — a **measured value**, not a `Gap` and not *nothing at all* — until something
 answers there. Leaving a declared scope, by exclusion or by a narrower declaration, withdraws it
-and takes its timelines with it, unless a current resolution still cites it. See
+and takes its timelines with it, unless a current resolution still cites it — and those closures
+carry the **`descoped`** reason, our aperture having stopped covering it rather than the world
+having moved, which is what stops a later re-citation reading as `returned`
+([ADR-0087](./docs/adr/0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md)).
+See
 [ADR-0047](./docs/adr/0047-an-address-scope-is-its-own-enumeration.md).
 _Avoid_: IP, host, node
 
@@ -883,7 +887,14 @@ The single-hop link from a subject to the observation that introduced it. Follow
 citations backwards always terminates at a `Seed` or a `declared` source, which is what
 makes "why is this here?" answerable for everything in the estate. It is load-bearing in
 both directions: a subject whose last citation goes stale has no chain back to a `Seed`,
-which withdraws it *and* closes the probing gate on it. Where a source **admits without
+which withdraws it *and* closes the probing gate on it. That sentence is the **`uncited`**
+`Closure` reason, and it covers two routes in the same words — a `Service` or `Endpoint` beneath a
+withdrawn root, and a cited `Address` whose last citing resolution moves — which is why they are one
+reason and not two: at both the closure is not independent evidence, and at both the subject returns
+when its ground returns. The reason names the class and this link names the thing, so the closure
+stores no pointer of its own
+([ADR-0087](./docs/adr/0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md)).
+Where a source **admits without
 observing** there is no observation to point at, and the hop is that source's `Batch` —
 which already records the source, the vantage, the time and the scope, so the chain still
 terminates at the `Seed` that scope was drawn from and a bad source is still identified by
@@ -1238,9 +1249,13 @@ about the subject and a span is keyed per `(vantage, source)`; and ADR-0007 alre
 cascaded subject's spans, *or a dead one keeps an open span and every current-state query returns it
 as live*. The withdrawn period is therefore **on no timeline at all** — not a value and not a `Gap` —
 which is what leaves the span before it and the span after a return **adjacent**, and is why
-`returned` is derivable by ordinary machinery wherever no `Break` sits between them. Carries the
+`returned` is derivable by ordinary machinery wherever no `Break` sits between them. A withdrawal's
+closure therefore carries a **reason** — see `Closure` — and an ordinary one does not. Carries the
 versions it was derived under, which is what makes
-comparison legal. See [ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
+comparison legal, and it carries **one** vector rather than two: a version change closes every open
+span of that derivation, so a span is wholly inside one vector by construction and there is no
+second vector *at its closure* for anything to record. See
+[ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
 **This corpus is never compacted**, and the two reasons are independent. Deleting the span before an
 open one converts `returned` into `appeared`, which is a clock moving a value about the world —
 [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md)'s refusal read at the storage layer. And
@@ -1258,6 +1273,40 @@ the tighter clamp**: the `Break` clamp is visible and names the leaf that moved,
 horizon biting before it is a second horizon nobody can see. See
 [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
 _Avoid_: interval, state, record, period, snapshot
+
+**Closure**:
+The closing side of a `Span` — **not an object**: no row of its own, no table, nothing that
+accumulates, or the seam rule is broken to record a boundary the span already has. What makes it
+worth a term is that a **withdrawal's** closure is the whole record of a departure, the withdrawn
+period being on no timeline at all, so it is the only place the *ground* of that departure can be
+written down. It records exactly one thing that is not already held elsewhere: its **reason**, a
+closed union of three, sorted on what the closure rests on —
+**`measured-absent`** (an observation about **this** subject: a `Name` our resolver measures a Name
+Error for, and the only closure in the model that is independent evidence),
+**`uncited`** (an observation about **another** subject: a `Service` or `Endpoint` beneath a
+withdrawn root, or a cited `Address` whose last citing resolution moves — one reason, because the
+closure is not independent evidence at either site and the subject returns when its ground returns
+at either, while the `Citation` already names *which* ground was lost), and
+**`descoped`** (**our own aperture** stopped covering it: an exclusion, a narrower `Seed`, or a
+release narrowing a composed population). Those three exhaust the grounds a fact can come from in a
+model whose Declared layer does not drift, which is why the union is closed. Only a **withdrawal's**
+closure carries a reason: an ordinary value move closes one span and opens the next in a single
+fold step, so the adjacency is the fact, and a version change's `Break` is derived on read from the
+two vectors, so a stored reason at either site is a second representation. It records **no vector** —
+a version change closes every open span of that derivation, so a `Span` is wholly inside one vector
+by construction and its vector *is* the vector in force at its closure — **no actor**, which would
+be the operator-act record the model refuses arriving through the corpus that is never compacted,
+**no pointer** to the subject it went with, which the `Citation` holds, and **not the observation**,
+which is retained in its own corpus while the closure is the boundary that measurement drew. Writing
+one reason onto every timeline a departing subject held is not the *one fact in n representations*
+defect that refuses a `withdrawn` **value**: a closure is a boundary rather than a value, so *this
+timeline stopped, on this ground* is true at every key it sits on — and the model already writes one
+cause onto n objects wherever a `Vantage` going `unavailable` opens a `Gap` on every timeline it fed.
+The `Gap` recording its cause is this term's precedent and predates it. See
+[ADR-0087](./docs/adr/0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md),
+and [ADR-0082](./docs/adr/0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)
+for why the closure is the whole record.
+_Avoid_: deletion, removal, tombstone, soft delete, end date
 
 **Transition**:
 The adjacency between two consecutive `Span`s on one timeline. Derived on read, never stored
@@ -1303,6 +1352,13 @@ puts on a **dependency** cadence, while a `Seed`-covered `Address` composes **no
 `Seed` is Declared and carries no vector — so that one population's membership timeline cannot break.
 See
 [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
+An absent `Break` is **not sufficient** for `returned`, though, and the second input is the closing
+`Closure`'s reason. `appeared` and `returned` are membership while a scope act is aperture yielding
+`revealed`, so a **`descoped`** closure does not license `returned` across it — and the case is
+ordinary rather than exotic, an `Address`'s two membership limbs being disjunctive, so one that left
+because the operator narrowed a scope and returns because some resolution cites it would otherwise
+read as a decommission undone that never happened. See
+[ADR-0087](./docs/adr/0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md).
 _Avoid_: change, event, diff, delta
 
 **Break**:
