@@ -224,14 +224,26 @@ completes is a schedule arriving, dressed as a message.
 - **The ACME flap has no remedy in v1 and that is now explicit.** ADR-0004 routed it to a
   suppression that did not exist. Its actual v1 treatment is class routing, and whether that
   reaches it **depends on an unsettled class assignment** — see the next consequence.
+  > **RESOLVED by [#120](https://github.com/winniel123/verge-asm/issues/120) ·
+  > [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md): class
+  > routing does reach it.** Every firing of the flap has an unchanged `certificate` span, so every
+  > firing is clock class; the clearing edge is already silent under §5 of ADR-0026; and an operator
+  > who routes the clock class off a channel silences the whole flap while a certificate arriving
+  > *already* inside its horizon still reaches the drift channel. *No remedy in v1* is therefore
+  > withdrawn — the remedy is the routing this ADR already ships, and it needed a class assignment
+  > rather than a mechanism.
 - **A class-assignment conflict is surfaced rather than papered over.** ADR-0026 §5 puts
   `not-fired` → `fired` in the **drift** class *"for all sixteen"* rules;
   [#60](https://github.com/winniel123/verge-asm/issues/60) and ADR-0004 put the three
   certificate-lifetime rules in the **clock** class, because they become true with no new
   observation. Both cannot be right, and routing is by class, so an operator routing the clock
-  class away either does or does not escape the ACME flap depending on the answer. Flagged, not
+  class away either does or does not escape the ACME flap depending on the answer. ~~Flagged, not
   ruled: it is a question about causes, and causes are
-  [#120](https://github.com/winniel123/verge-asm/issues/120)'s.
+  [#120](https://github.com/winniel123/verge-asm/issues/120)'s.~~
+  > **RULED by #120 · ADR-0064: both are right, about different firings.** The classes partition
+  > **messages**, so a class is read **per firing** from the fold — drift where the `certificate`
+  > span moved in the same fold, clock where it did not, and drift where both are true. Both prior
+  > sentences are narrowed at their own sites (ADR-0026 §5, ADR-0004) rather than only here.
 - **One fog patch is discharged rather than passed on.** ADR-0031 and ADR-0033 both recorded
   *incrementally per `Batch`, or wait for a defined set of tiers?* as the notification patch's and
   refused to guess it. §7 answers it with neither, and the answer is the existing law rather than a
