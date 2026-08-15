@@ -237,6 +237,48 @@ address scope — a CIDR block of up to {{.AddressCap}} addresses.</p>
 <p>Nothing is declared yet. Declare a domain or a CIDR block to set where your estate begins.</p>
 {{end}}
 </div>
+
+<div class="microlabel">Declared · exclusions</div>
+<p>An exclusion draws the boundary inwards: an exact name, a name subtree, or an address scope
+you declare is <em>not yours</em>. Excluding a name that still resolves is legal — <em>not
+mine</em> is a different claim from <em>not there</em> — and an excluded name is no longer queried.</p>
+
+{{if .IsAdmin}}
+<div class="section">
+<h2>Declare an exclusion</h2>
+{{if .ExclError}}<div class="error">{{.ExclError}}</div>{{end}}
+<form method="post" action="/exclusions" class="seedform">
+<label><span>Exclusion type</span><select name="kind">
+<option value="name"{{if eq .ExclKind "name"}} selected{{end}}>name</option>
+<option value="subtree"{{if eq .ExclKind "subtree"}} selected{{end}}>subtree</option>
+<option value="address"{{if eq .ExclKind "address"}} selected{{end}}>address</option>
+</select></label>
+<label class="scope"><span>Value</span><input class="scope" name="value" value="{{.ExclValue}}" placeholder="api.example.com or 203.0.113.5" autocomplete="off" required></label>
+<button type="submit">Exclude</button>
+</form>
+</div>
+{{end}}
+
+<div class="section">
+<h2>Declared exclusions</h2>
+{{if .Exclusions}}
+<table>
+<thead><tr><th>Type</th><th>Value</th><th>Declared by</th><th>Declared</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+<tbody>
+{{range .Exclusions}}<tr>
+<td><span class="badge">{{.Kind}}</span></td>
+<td class="mono">{{.Value}}</td>
+<td class="mono">{{.By}}</td>
+<td class="mono">{{.At}}</td>
+{{if $.IsAdmin}}<td><form method="post" action="/exclusions/delete"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Un-exclude</button></form></td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="microlabel">No exclusions declared</div>
+<p>Nothing is excluded. Everything inside your declared scopes is yours.</p>
+{{end}}
+</div>
 </main>
 {{template "foot" .}}{{end}}
 `))

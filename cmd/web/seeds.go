@@ -21,8 +21,16 @@ type seedView struct {
 	At        string
 }
 
+// seedsForms carries the echo state of the two forms the Seeds screen hosts —
+// the scope declaration and the exclusion — so a rejected submission on one
+// leaves its own error and typed value in place without disturbing the other.
+type seedsForms struct {
+	seedError, seedKind, seedScope string
+	exclError, exclKind, exclValue string
+}
+
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSeeds(w, r, acct, "", "", "")
+	s.renderSeeds(w, r, acct, seedsForms{})
 }
 
 // declareSeed handles a scope declaration. It is reached only through
@@ -30,59 +38,69 @@ func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	kind := r.FormValue("kind")
 	value := strings.TrimSpace(r.FormValue("scope"))
+	fail := func(msg string) {
+		s.renderSeeds(w, r, acct, seedsForms{seedError: msg, seedKind: kind, seedScope: value})
+	}
 
 	switch kind {
 	case "name":
 		domain, err := seed.NormalizeDomain(value)
 		if err != nil {
-			s.renderSeeds(w, r, acct, err.Error(), kind, value)
+			fail(err.Error())
 			return
 		}
 		if _, err := s.store.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
 			NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: acct.ID,
 		}); err != nil {
-			s.renderSeeds(w, r, acct, seedCreateError(err, "domain"), kind, value)
+			fail(seedCreateError(err, "domain"))
 			return
 		}
 	case "address":
 		p, err := seed.ParseCIDR(value)
 		if err != nil {
-			s.renderSeeds(w, r, acct, err.Error(), kind, value)
+			fail(err.Error())
 			return
 		}
 		if !seed.WithinCap(p, s.seedAddressCap) {
-			s.renderSeeds(w, r, acct, fmt.Sprintf(
+			fail(fmt.Sprintf(
 				"%s covers %s addresses, over the cap of %d — declare a smaller block.",
-				p, seed.AddressCount(p), s.seedAddressCap), kind, value)
+				p, seed.AddressCount(p), s.seedAddressCap))
 			return
 		}
 		if _, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 			AddressCidr: &p, CreatedBy: acct.ID,
 		}); err != nil {
-			s.renderSeeds(w, r, acct, seedCreateError(err, "block"), kind, value)
+			fail(seedCreateError(err, "block"))
 			return
 		}
 	default:
-		s.renderSeeds(w, r, acct, "Choose a scope type.", kind, value)
+		fail("Choose a scope type.")
 		return
 	}
 	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
 }
 
-func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Account, formError, formKind, formScope string) {
+func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Account, f seedsForms) {
 	rows, err := s.store.ListSeeds(r.Context())
 	if err != nil {
 		s.serverError(w, "list seeds", err)
 		return
 	}
+	excl, err := s.store.ListExclusions(r.Context())
+	if err != nil {
+		s.serverError(w, "list exclusions", err)
+		return
+	}
 	status := http.StatusOK
-	if formError != "" {
+	if f.seedError != "" || f.exclError != "" {
 		status = http.StatusBadRequest
 	}
 	s.renderStatus(w, status, "seeds", map[string]any{
 		"Title": "Seeds", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Seeds": toSeedViews(rows), "FormError": formError, "FormKind": formKind,
-		"FormScope": formScope, "AddressCap": s.seedAddressCap,
+		"Seeds": toSeedViews(rows), "AddressCap": s.seedAddressCap,
+		"FormError": f.seedError, "FormKind": f.seedKind, "FormScope": f.seedScope,
+		"Exclusions": toExclusionViews(excl),
+		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
 	})
 }
 
