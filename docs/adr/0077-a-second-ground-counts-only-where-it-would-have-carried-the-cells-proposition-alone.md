@@ -149,6 +149,14 @@ through the front.
   non-port cells. The one item added is `10250/tcp`'s **claim** cell at `ports-and-protocols.md`'s
   `Used By: Self, Control plane`, rung 2. `sensitive-ports.md` §41.4 states it with its ground; §39.4 is
   marked at its clause.
+  > **SUPERSEDED as a statement of the queue's membership by [#134](https://github.com/winniel123/verge-asm/issues/134)**,
+  > marked here per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+  > This ADR's **ruling** is untouched and is confirmed by use — the filter's bar and its per-cell unit
+  > are what #134 ran. What is superseded is the **figure**, which stated the queue as of the cells then
+  > measured. **The live register is [`sensitive-ports.md`](../research/sensitive-ports.md) §43.3, stated
+  > over MEMBERS**, and the replacement is deliberately a pointer to a set rather than a larger number:
+  > §39.2 bars the count. `10250/tcp`'s claim cell stands on the register with its ground and its rung
+  > unchanged.
 - **Nothing leaves the queue.** The bar narrows what counts as a second ground and can only add. All
   eight of §39.4's items stand with their grounds unchanged.
 - **`10250/tcp`'s and `10255/tcp`'s footing cells stay off**, now for a stated reason rather than a
