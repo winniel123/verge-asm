@@ -274,8 +274,13 @@ and therefore what makes `Exposure` a conclusion across two classes rather than 
 one prober. It is **not `Reach`'s alone**: a `Signal` whose fact is scoped to a vantage restricts its
 `Predicate domain` to that class and carries the class in its name, which is what admits
 `non-globally-reachable-address-resolved-from-internet` on `resolution` and refuses its internal twin
-([ADR-0071](./docs/adr/0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)). It is also an **aperture input**: the first vantage of a class widens what the
-composition covers, and because `Exposure` needs both legs there is nothing there to break — it
+([ADR-0071](./docs/adr/0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)).
+It is also the axis every `Vantage composition` is cut on, and the **only** one: a reader of a
+per-vantage facet either requires every class to agree or names one class and quantifies inside it,
+and there is no third shape
+([ADR-0080](./docs/adr/0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)).
+It is also an **aperture input**: the first vantage of a class widens what
+`Exposure`'s composition covers, and because `Exposure` needs both legs there is nothing there to break — it
 **opens** the `Reach` and `Exposure` timelines, yielding `revealed` and one coverage-class message
 ([ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md)). The cost is stated rather than hidden: a vantage inside operator address space the
 operator never declared verifies as `internet`, which over-reports `exposed`. That is the loud
@@ -348,8 +353,15 @@ would be a state moving because time passed. It is keyed on the **exact subject 
 the stated cost being that a redeploy onto a new address lapses the acceptance rather than silencing
 a subject nobody chose. And it **states its reason** and does **not** appear on `Coverage`: a `Seed`
 exclusion is there because it shrinks the estate, and this shrinks nothing. Its home is `Signals`.
-See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md).
-_Avoid_: status, triage state, finding state, suppression, exception, risk acceptance workflow
+It carries the **instant it was declared and no author** — the one Declared term holding operator
+prose is still an operator dial, and every dial in the model is unattributed, so
+[#127](https://github.com/winniel123/verge-asm/issues/127)'s ruling that no operator act is written
+down with an actor on it holds here without exception. A date names nobody; an undated standing mute
+on an object with no expiry cannot be reviewed at all.
+See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md) and
+[ADR-0073](./docs/adr/0073-an-operator-dial-carries-no-author-however-specific-its-target.md).
+_Avoid_: status, triage state, finding state, suppression, exception, risk acceptance workflow,
+author, declared by
 
 **Channel**:
 The operator's declaration of where `Message`s go — an absolute `https` URL, an optional
@@ -437,8 +449,16 @@ to one client and a label to the next, so **no certificate identity containing a
 label admits a `Name`**. See
 [ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md).
 The only subject whose
-departure needed deciding: it leaves when our own resolver measures a Name Error from
-every available vantage, never because time passed. Under a `Shadowed` answer it cannot
+departure needed deciding: it leaves when our own resolver measures a Name Error ~~from
+every available vantage~~ **on a cross-class `Vantage composition`** — every `Vantage class` holding
+a current value and agreeing — never because time passed. The struck phrase is **superseded here, at
+the site that specifies it**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+read alone it excludes an unavailable vantage and concludes from the survivor, which is the opposite
+of what ADR-0006 says one sentence later, and over an empty set it is vacuously **true** and
+withdraws the whole estate
+([ADR-0080](./docs/adr/0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)).
+Under a `Shadowed` answer it cannot
 leave at all, and stays visibly unconfirmed until the operator supplies coverage or
 excludes it — as it cannot beneath a `Lame` delegation, where there is nobody left to
 return a Name Error and the names beneath hold a `Gap` rather than a value. See
@@ -840,9 +860,50 @@ the class that still answers. Derived, though the `Vantage` it belongs to is Dec
 never measured the vantage, we inferred it from what failed.
 _Avoid_: health, status, up, reachable
 
+**Vantage composition**:
+How a reader of a **per-vantage** facet turns the set of per-vantage values into the one value it
+reads. Every Derived value over such a facet performs one, and there are exactly **two kinds**.
+**Cross-class**: every `Vantage class` the install runs must hold a current value and they must
+**agree** — disagreement is **incommensurability rather than evidence**, since the classes are
+looking at different worlds, which is what split horizon *is*, so the composed value is
+`not-evaluable`, as it is where a class has no available vantage. **No quantifier is expressible on
+this kind**: agreement is the whole of it. **Class-scoped**: one named `Vantage class`, read over the
+available vantages of that class alone, with a **quantifier** the reader states from a closed union
+of two — `existential` or `unanimous`. Disagreement here is **variance rather than
+incommensurability** — geo-DNS, per-query rotation, anycast — and the quantifier is what says which
+way variance falls. **Across classes a difference is a fact about our aperture; within a class it is
+a fact about the authority**, and that asymmetry is the whole of the cut. A reader takes the
+class-scoped kind exactly where the fact it is **named for** is scoped to a vantage
+([ADR-0071](./docs/adr/0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md))
+and the cross-class kind everywhere else; and within the class-scoped kind a **presence** claim
+composes `existential` while an **absence** claim composes `unanimous`, because one vantage receiving
+an answer establishes that the answer was served, while no number of vantages failing to receive one
+establishes that none exists — a vantage that did not ask is not a vantage that got nothing. **An
+empty in-scope set is `not-evaluable` under both kinds and never vacuous**: `unanimous` over an empty
+set is vacuously *true*, and read that way *"every available vantage agrees on `NameError`"* withdraws
+every `Name` in the estate the night every vantage goes unavailable. It is **not** a `Derivation` leaf
+and never becomes one — it has no subject, no value space, no `Span` and no place in a version
+vector, and sits inside its reader's own leaf, so changing one moves that reader and nothing else.
+`Reach` is the one composition that *is* a leaf, and it can be because `reachability` has a single
+consumer shape; `resolution` has two, so one stored composed value would be wrong for one consumer on
+every `Name`. `Exposure` is **not** one of these — it composes two already-composed `Reach` legs and
+is a projection rather than a quantified read. See
+[ADR-0080](./docs/adr/0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md),
+[ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md) and
+[ADR-0020](./docs/adr/0020-a-conflict-needs-two-enumerable-sources.md).
+_Avoid_: aggregation, consensus, quorum, merge, the composition (unqualified)
+
 **Reach**:
 What vantages of one `Vantage class` found for one `Service` — `reached` or `not-reached`,
-and nothing else. There is no value for *we did not look*: a `Batch` whose recorded scope
+and nothing else. It is a **class-scoped `Vantage composition`** and its quantifier is
+**`existential`**: one vantage of the class reaching the `Service` is `reached`, since that is a
+**presence** claim and a service reachable from one internet position and geo-blocked at another is
+reachable from the internet. Unanimity would under-report in the closed direction, against
+`Vantage class`'s own stated failure direction. The quantifier had **never been written down** — this
+term named its class and stopped — and is filled by
+[ADR-0080](./docs/adr/0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)
+with no version moving, nothing having been specified for a corpus row to move against.
+There is no value for *we did not look*: a `Batch` whose recorded scope
 excludes the port never feeds the timeline, so the absence is a `Gap` where the timeline was
 already running and **nothing at all** where it never began — a `Gap` is a span, and an
 absent timeline has none, per
@@ -1044,7 +1105,18 @@ which carries the qtype, or a batch covering MX and not TXT would assert an empt
 never measured. One timeline per source, so two sources that disagree hold two true facts rather
 than forcing an arbitration. It opens, it is current, it closes; the open span is the current
 state — so a **withdrawn** subject's timelines close rather than holding an open span, there being no
-current state for one to hold. Carries the versions it was derived under, which is what makes
+current state for one to hold. That clause was **tested on its own and confirmed**
+([#140](https://github.com/winniel123/verge-asm/issues/140) ·
+[ADR-0082](./docs/adr/0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)),
+on grounds independent of this wording: a closed span is free to keep while an **open span must be
+fed**, so holding one open means either rotting to a `Gap` within `k` cadences or querying every
+withdrawn subject forever; withdrawal needs **every available vantage** to agree, so it is a fact
+about the subject and a span is keyed per `(vantage, source)`; and ADR-0007 already closes a
+cascaded subject's spans, *or a dead one keeps an open span and every current-state query returns it
+as live*. The withdrawn period is therefore **on no timeline at all** — not a value and not a `Gap` —
+which is what leaves the span before it and the span after a return **adjacent**, and is why
+`returned` is derivable by ordinary machinery wherever no `Break` sits between them. Carries the
+versions it was derived under, which is what makes
 comparison legal. See [ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
 **This corpus is never compacted**, and the two reasons are independent. Deleting the span before an
 open one converts `returned` into `appeared`, which is a clock moving a value about the world —
