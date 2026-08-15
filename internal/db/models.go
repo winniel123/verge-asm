@@ -42,3 +42,10 @@ type Seed struct {
 	CreatedBy   int64              `json:"created_by"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
+
+type SourceState struct {
+	Slug      string             `json:"slug"`
+	Enabled   bool               `json:"enabled"`
+	ToggledBy int64              `json:"toggled_by"`
+	ToggledAt pgtype.Timestamptz `json:"toggled_at"`
+}

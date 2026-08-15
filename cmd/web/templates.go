@@ -142,7 +142,7 @@ Two-factor is not active until you confirm.</p>
 
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
-<nav class="nav"><a href="/">Home</a><a href="/seeds">Seeds</a></nav>
+<nav class="nav"><a href="/">Home</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a></nav>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
 </div>{{end}}
