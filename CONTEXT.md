@@ -894,7 +894,10 @@ subject's membership**, so a rule whose evidence is still current fires on a `Na
 withdrawn. Versions are
 per rule, never one set-wide version, so an edit to one rule leaves the rest comparable.
 A signal carries no severity: it is a named fact, and urgency belongs to the transition
-that surfaced it. Evaluated where its evidence is absent — **or held and unreadable by this
+that surfaced it — **in the sense that the transition is what makes the fact worth saying, and in
+no sense that grades it**, since a `Message` carries no severity either
+([ADR-0064](./docs/adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md);
+read alone the older clause hands the grade to the message). Evaluated where its evidence is absent — **or held and unreadable by this
 rule**, as when a clock-reading rule's observation has aged past the subject's own horizon
 ([ADR-0043](./docs/adr/0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md))
 — it returns `not-evaluable`,
@@ -1179,6 +1182,16 @@ still a true record of what we said — which is what stops a stored message bei
 representation of one fact, and what keeps `Finding` from returning as a diffed message log.
 The comparison path may never read one, nothing is ever concluded by comparing two, and
 alerting fires **at the cause**, so the unit is the message and never the affected subject.
+**It names what moved, and what moved is read from the fold rather than from the rule** — one
+grammar over all four causes, whose subject is the estate's object, or us, or the operator's own
+declared input, or nothing at all where only a threshold was crossed, in which case the message
+says that no measurement moved. That reading decides the **class** too, so a class is a property
+of the **firing**: the three clock-reading rules fire clock class where the span they read was
+unchanged and drift class where it moved, and drift where both are true. The vocabulary carries
+**no valence word and no severity** — nothing is *resolved*, *fixed*, *improved*, *critical* or
+*OK* — because a clear is not always good news and a widening is neither, and a count is stated
+with the **factors** that produced it rather than as a bare product. See
+[ADR-0064](./docs/adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md).
 Every message is written and rendered **unconditionally**: the store is not a `Channel`, has no
 configuration, cannot be disabled and cannot fail. Which transitions are messages is settled
 elsewhere and not by this entry — see

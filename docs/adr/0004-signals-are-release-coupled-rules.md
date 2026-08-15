@@ -208,6 +208,21 @@ clock-crossing signal — a certificate expiring"* — understates it. All three
 rules become true or false with no new observation, and they are the only rules in the v1 set of
 which that is true.
 
+> **QUALIFIED IN ITS REACH — not in its count — by
+> [#120](https://github.com/winniel123/verge-asm/issues/120) ·
+> [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md).** Three is
+> right and stays. What these three rules have is **eligibility** for the clock class, and
+> eligibility is not assignment: the classes partition **messages**, so a class is read **per
+> firing** from the fold. A firing where the `certificate` span was unchanged and only the clock
+> moved is clock class; a firing where a deploy installed a certificate that is already expired or
+> already inside its horizon is **drift**, because the world moved. Where both are true in one fold
+> the world moved wins. Read alone and in the present tense, *the clock class has three members*
+> would assign a class from a rule's name — which is the conflict with
+> [ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md) §5 that
+> [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
+> flagged and refused to rule. Marked at the sentence per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+
 Two obligations follow for the corpus and for what may be said about `N`.
 
 **A corpus row for a clock-reading rule carries its evaluation instant as part of its input.**

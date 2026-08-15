@@ -273,6 +273,17 @@ certificate — and keeps firing for the remaining eight days.** It does not go 
 thing the operator reads, in the class [#60](https://github.com/winniel123/verge-asm/issues/60) ruled
 is `certificate-expiring`'s only carrier.
 
+> **NARROWED by [#120](https://github.com/winniel123/verge-asm/issues/120) ·
+> [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md).** *Only
+> carrier* is a claim about **carriers** and stands: there is no second surface for
+> `certificate-expiring`, and the clock class may not be folded into the drift class. It is **not** a
+> per-rule class assignment, which is what it says read alone: a message's class is read **per
+> firing** from the fold, so a `certificate-expiring` firing on a certificate that *arrived* already
+> inside its horizon is **drift** — the world moved — while the ordinary horizon crossing on an
+> unchanged span is clock. The case in this section, an aged observation firing loudly wrong, has an
+> unchanged span and is clock class, so nothing in the argument above moves. Marked at the sentence
+> per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+
 **And it is not an instance of this ADR's rule.** Neither `k` nor any cadence is a product of a
 world quantity. What was computed against a world quantity is the **safety argument** that
 `k × cadence` is short enough.
