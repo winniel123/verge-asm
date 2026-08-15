@@ -429,7 +429,10 @@ left standing and marked.
   [#48](https://github.com/winniel123/verge-asm/issues/48) and
   [ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md):
   **`zone-declared-name-returns-name-error`** (the operator's zone file holds a record for a
-  `Name` whose `resolution` composes to `NameError` across every available vantage) and
+  `Name` whose `resolution` composes to `NameError` across ~~every available vantage~~ **a
+  cross-class `Vantage composition`** — [#138](https://github.com/winniel123/verge-asm/issues/138) ·
+  [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md),
+  the struck phrase being the one ADR-0006 repairs at its own bullet) and
   **`resolved-name-absent-from-zone`** (a `Name` whose `resolution` composes to `Resolved`, inside
   a zone the operator supplied, that the file does not contain). Zero rows of reference data, no
   new measurement, and **no new field on any facet** — so neither carried an

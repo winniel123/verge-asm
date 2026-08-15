@@ -547,8 +547,13 @@ that check belongs to the curation patch, which is where the watch lives.
 > `623/udp`'s direction disposal had to be re-founded, **HPE having retired the artefact carrying it**.
 > `623/udp` is in the **top** footing tier and was never on this list.
 >
-> **The queue as of evidence already held is eight items over ten `(port, transport)` pairs and two
-> non-port cells**, and it is a **superset** of the weak tier — all three rows above stay on it, so this
+> **The queue as of evidence already held is ~~eight items over ten `(port, transport)` pairs~~ nine
+> items over eleven pairs and two non-port cells** — moved by
+> [#135](https://github.com/winniel123/verge-asm/issues/135) /
+> [ADR-0077](./0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md),
+> which fixed the filter's bar (*carries the same cell* = **would have yielded the cell's proposition
+> standing alone**) and applied it **per cell rather than per row**, adding `10250/tcp`'s claim cell —
+> and it is a **superset** of the weak tier — all three rows above stay on it, so this
 > supersession takes nothing off anybody's attention. `certificate-weak-key-or-signature`'s table
 > contributes **zero** items, its residue being a **scope** weakness that de-attestation cannot reach;
 > `certificate-expiring`'s horizon contributes **one**, ADR-0038 having removed the **quantity** from

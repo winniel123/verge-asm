@@ -106,8 +106,24 @@ new `Service` key, so the acceptance lapses and is re-declared. That is the loud
 intended one — a lapsed mute pages somebody, a travelling mute silences a subject nobody chose.
 
 **6. It states its reason, and it is not on `Coverage`.** An annotation carries the operator's
-rationale in their own words beside the key, the author and the time; a mute with no stated reason
-is one nobody can review later. It does **not** appear on `Coverage`, and the contrast with `Seed`
+rationale in their own words beside the key, ~~the author and~~ the time; a mute with no stated reason
+is one nobody can review later.
+
+> **`the author` is WITHDRAWN here, at the site that specifies it** —
+> [#129](https://github.com/winniel123/verge-asm/issues/129),
+> [ADR-0073](./0073-an-operator-dial-carries-no-author-however-specific-its-target.md), 2026-08-15,
+> per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> [#127](https://github.com/winniel123/verge-asm/issues/127) ruled operator attribution out of v1 on
+> the same day this ADR was written, and neither knew about the other. **An `Annotation` carries no
+> author** — not stored, not rendered. The author is the single edit that turns a dial into a record,
+> and its reader is a second mutating account, which #11 does not ship. Read alone and in the present
+> tense the struck clause would cause a competent session to build the field, so it is struck rather
+> than left to the newer document. **The time survives** and the asymmetry is argued in ADR-0073 §2:
+> a date names nobody, and an undated standing mute on an object with no expiry cannot be reviewed at
+> all, which is this rider's own reasoning. Ruling and reopening condition are #127's — **the spec
+> admitting a second party who can mutate** — and not a second trigger.
+
+It does **not** appear on `Coverage`, and the contrast with `Seed`
 exclusions is the whole point: #17 put exclusions there because they are *"the one route by which an
 operator can quietly shrink the estate until the board looks clean"*, and an annotation shrinks
 nothing. Its home is `Signals`. **No seventh destination**, and no new notification class — the
@@ -129,8 +145,18 @@ And ADR-0007 chose that placement deliberately, in the sentence that refused hys
 ADR-0029 repeats it for the flagship alert. So a per-pair mute is **the same kind of object as flap
 suppression**, differing only in being keyed on a subject rather than on a channel — and being keyed
 on a subject is precisely what makes it need a name. Routing and flap suppression are global dials
-and need none; this one has a target, an author, a time and a reason, and an operator who cannot
+and need none; this one has a target, ~~an author,~~ a time and a reason, and an operator who cannot
 enumerate what they have muted has not accepted a risk, they have lost one.
+
+> **Second withdrawal of the same clause**, and this one is the load-bearing site —
+> [#129](https://github.com/winniel123/verge-asm/issues/129),
+> [ADR-0073](./0073-an-operator-dial-carries-no-author-however-specific-its-target.md). The paragraph
+> above is this ADR's own legality argument: an annotation is **the same kind of object as flap
+> suppression**, an operator dial sitting outside every derivation. Every other dial in the model —
+> routing, the coverage alert threshold, flap suppression, a `Channel`, a `Scan`'s cadence — carries
+> no actor, and the specificity of this one's target is what tempts the field rather than a reason
+> for it. **A dial pointed at one pair is still a dial.** The sentence as written argued *for* the
+> author out of the very analogy that refuses it.
 
 ### Deleting the term does not remove the pressure, it routes it to the destructive instrument
 
