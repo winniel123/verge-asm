@@ -22168,6 +22168,161 @@ defect was visible.
   `## Sources`, which is textual adjacency rather than disagreement, and the four marked clauses at
   §46.7 — none of which is a figure. **Where §46 and §1 disagree, §1 governs.**
 
+## 47. The gate's twelfth check — a tier demotion on an untagged artefact is caught by no existing instrument, and a targeted re-fetch closes it
+
+**Ticket [#149](https://github.com/winniel123/verge-asm/issues/149).** [ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)
+ruled a tier demotion is **not** a de-attestation and routed the hazard to the gate, then recorded rather
+than repaired the gate's own shortfall: *"a tier demotion on an artefact with no retrievable tag is
+caught by neither G2 nor G11."* §41.7 named the criterion that would settle it — *"a twelfth gate check,
+or a demonstration that some existing check reaches an untagged artefact"* — and left it ticketed. This
+section runs that criterion. **Nothing here is a retrieval and no row, class, tier or coverage figure
+moves.** The reasoning is filed at [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)'s
+gate-checks table, not a new ADR — ADR-0090 is left unused.
+
+### 47.1 The ruling in one line each
+
+| Question | Answer |
+| --- | --- |
+| **Does the gate reach a tier demotion on an untagged artefact?** | **No, confirmed.** G2 walks a graded footing cell against **our** tier criterion as it currently stands, never against the artefact's current bytes. G11 diffs a tag against a tag; an untagged artefact (rung 1 or rung 2 — "no version pin", ADR-0057's rung table) has no tag to supply either side of that diff, so G11 is vacuous on it, not merely weak |
+| **Does any of the other nine checks reach it instead?** | **No — walked systematically.** G1 (tier/class coupling), G3 (hard-failure enforcement), G4 (supersession marks), G5 (exclusion grounds), G9 (derived constants) test unrelated properties. G6 only greps an owner affirmation in bytes **already held** — it does not re-fetch a live page. G7 and G8 both compare **artefacts we hold against each other or against a tag named**; neither re-verifies a quoted sentence against the artefact's **current, live** bytes for a carrier with no tag to name. G10 re-tests a boolean (issued / not issued) over a named list, a different test from a content diff |
+| **Is this the same gap G8's population fix ([#154]) or G2's domain fix ([#154]) already closed?** | **No.** Those were **population** corrections — who an existing test applies to. This gap has no existing test that fits even a corrected population; G11's test is structurally a tag-diff and there is no tag |
+| **Is the fix a wider population on an existing check, or a new check?** | **A new check.** Argued at length in 47.3 |
+| **Does this put the demotion back on the queue?** | **No — that option lost in ADR-0077 and is not reopened here.** A footing tier is our disclosure of evidential distance (ADR-0059); an owner's act cannot falsify it, so the failure is over-statement, and over-statement of our own distance is gate business |
+
+### 47.2 Why the gate does not reach it — walked rather than asserted
+
+**G2.** §46's own ruling fixes G2's test: *"walked against the tier criterion **as it currently
+stands**"* (ADR-0057's G2 row). The criterion is a rule **we** apply to a **recorded** proposition; G2
+asks *does our rule, applied today, agree with what the cell already says* — never *does the artefact
+still say it*. A demotion is silent precisely because the recorded proposition goes stale without our
+rule changing at all, so G2 scores the recorded state and never notices the record itself has rotted.
+
+**G11.** ADR-0057's G11 row: *"the owner's **current release tag** against the tag the cell was read
+at."* Both operands are tags. Rung 1 (*"a source comment, an unversioned page … nothing rendered
+changes"*) and rung 2 (*"a continuously-published documentation page with no version pin … no release
+note; the page simply reads differently tomorrow"*) are ADR-0057's own definitions of **an artefact with
+no tag**. G11 is not weak here; it has no inputs. §41.3's two measured demotion cases — `10250/tcp`'s
+and `10255/tcp`'s footing cells, both carried by `security-checklist.md` — sit exactly in this shape.
+
+**The other nine, checked in turn against ADR-0057's own table:**
+
+| Check | What it tests | Why it does not reach a silent demotion |
+| --- | --- | --- |
+| G1 | Footing tier agrees with class where coupled | Tests two things **we** assign against each other, not either against the artefact |
+| G3 | No row rests on a documented hard failure the shipped bytes do not enforce | Tests enforcement, not disclosure currency |
+| G4 | No superseded sentence stands unmarked | Tests internal consistency of this corpus |
+| G5 | No exclusion's stated ground was withdrawn | Tests a different population (exclusions, not footings) |
+| G6 | An owner affirmation **already held** defeats a held row | Explicitly not a re-fetch — "grepping one we already downloaded is not" a finding (ADR-0057 G6 row). A demotion that has not yet been downloaded is invisible to it |
+| G7 | A raw-source quotation is present in the **rendered** artefact | Compares two things retrieved **together**; says nothing about tomorrow's bytes |
+| G8 | A citation resolves and its quote is still a token **at the tag named** | Presupposes a tag, same structural gap as G11 |
+| G9 | No shipped constant is a fraction of a moving world quantity | Unrelated population (derived constants) |
+| G10 | A document refused as unissued is re-tested for issuance | A **targeted re-fetch**, but the test is a boolean (issued / not issued), not a content diff against a recorded sentence |
+
+**No check reaches it.** §41.7's disjunction resolves to its first arm.
+
+### 47.3 Why the fix is a new check and not a wider population
+
+Two precedents in this corpus repaired a gate gap by **naming a population**, not by adding a check:
+G2's domain (§46, [#154]) and G8's population (§21). Both worked because the **test** already existed
+and only its **scope** was unstated. That precedent does not transfer here.
+
+**G11's test is a tag-diff.** Widening its population to include untagged artefacts does not give it
+more to compare — it gives it nothing on one side of the same operation. A test whose inputs do not
+exist for a population is not reached by widening that population to include it; it needs a **different
+test** run over that population. The same is true of G8 (`at the tag named`) — its comparison is
+structurally tag-shaped, not content-shaped, and cannot be re-pointed at bytes with no tag without
+becoming a different check wearing G8's number.
+
+**G10 is the closest shape and is still not a match.** It already does what this fix needs
+mechanically — *"a targeted re-fetch over a named finite list"* — which is exactly how the new check
+stays closed by construction (ADR-0057's own bar: *decidable over bytes already held, or a finite named
+set of targeted re-fetches*). What differs is the **question asked of the re-fetch**: G10 asks a
+boolean the owner's own act answers directly (has this been issued). The new check asks whether a
+**specific recorded sentence** still appears, which is a diff, not a boolean, and folding a diff into
+G10's row would make G10 report two unrelated verdicts under one name — the identical failure ADR-0057
+itself diagnosed in the pre-gate five-axis mess (*"nobody had said what evidence age would even be
+measured on"*).
+
+**The new check, stated so it can be run:**
+
+| Population | Test | Verdict |
+| --- | --- | --- |
+| Every cell in **G2's domain** (§46: the two graded footing tiers, not the weak tier) whose carrying artefact is **rung 1 or rung 2** | Re-fetch the artefact's current bytes; diff the quoted sentence the cell rests on against the sentence on record | A sentence removed or materially weakened, such that G2's criterion **as it currently stands** would place the cell at a lower tier, marks it **demoted-untagged** |
+
+**Currently named population: two cells**, both measured already — `10250/tcp`'s footing (falls back to
+the scoping tier) and `10255/tcp`'s footing (falls back to the weak tier), both carried by
+`security-checklist.md` at rung 1 or 2, per §18.7 and §41.3. Neither has actually demoted; the check
+watches for the day the checklist line moves. #134's per-cell walk may name more.
+
+**This is filed at [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md), not a
+new ADR.** ADR-0057 is the gate's living table — #154 amended G2's row in place — and this check extends
+the same table rather than re-deriving the gate elsewhere. **ADR-0090 is left unused.**
+
+### 47.4 Not the same check as #152's, and why
+
+[#152](https://github.com/winniel123/verge-asm/issues/152) asks whether G11 reaches a **stated
+horizon** — a self-declared future removal target on an artefact that **does** carry a tag (Docker at
+`v29.7.2`, past its own deprecation page's `v28.0` target). That check's population is tagged artefacts;
+its test compares two facts **already on record** (the current tag G11 already tracks, and the horizon
+the artefact already stated when read) and needs **no retrieval at all** — it is closer in shape to G1
+(comparing two things we hold) than to G10.
+
+This section's check exists only because **no tag is available to compare in the first place** — its
+population is untagged artefacts, and its test requires a **fresh re-fetch** because there is nothing
+else that could reveal a change. The two checks share a symptom (G11 does not fully close the gate's
+reach) and nothing else: different population, different test, different termination shape (retrieval
+vs. no retrieval). **They should not be merged into one check.** The merge session assigns G12 and G13
+across the two in whichever order it prefers; nothing here depends on the order.
+
+### 47.5 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+| --- | --- | --- |
+| ADR-0057 gate-checks table | eleven checks, G1–G11 | **Eleven checks still run; a twelfth is specified and appended, number pending merge.** Marked at ADR-0057's own table |
+| ADR-0077 Consequences — *"a gate shortfall is opened rather than closed"* | open | **Discharged, not superseded** — the statement was true at ADR-0077's date and stays true as history; the gap it named now has a specified instrument. Marked at ADR-0077's own clause |
+| §41.7's *"ticketed rather than decided here"* | open | **Closed by this section** |
+| §41.6's *"The gate — eleven checks G1–G11 … one shortfall is recorded rather than repaired"* | recorded | **Unchanged as a historical statement of §41's date.** This section does not edit §41; it is superseded in effect, not in text, per ADR-0058's own practice of a replacement rather than a strike-through at a site this session may not touch |
+| §1 pair count, class totals, footing tiers, coverage | 38 · 12/7/19 · 13/11/3 · 27 of 38 | **Unchanged.** A gate check moves no row |
+| `verge-core` | 136 pairs | **Unchanged** |
+| The de-attestation queue | 9 items over 11 pairs and 2 non-port cells | **Unchanged.** This section is gate work, not queue work — ADR-0077's own boundary |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) | — | **Not triggered.** A governance instrument is not reference data |
+| `CONTEXT.md` | — | **Not amended.** The curator is not a subject in the model (ADR-0057's last Decision row) |
+
+**Outside this note.** [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)'s
+gate-checks table gains a new row, marked pending a merge-time number. [ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s
+gate-shortfall Consequence is marked discharged at its own clause, per
+[ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s practice
+of a replacement rather than a strike-through. **No new ADR is minted; ADR-0090 stays a gap.**
+
+### 47.6 Thin ground, flagged per the standing rule
+
+- **The population is stated as *currently two cells* on the strength of §41.3's measurement, not a
+  fresh walk of the full 24-cell domain.** If some other rung-1/rung-2 carrier exists among the graded
+  tiers that neither §18 nor §41 measured, this section's population understates it. #134's per-cell
+  walk is the section positioned to find one, and this check's population is written to absorb what it
+  finds rather than to pre-empt it.
+- **"Materially weakened" in the verdict column is a judgement, not a byte comparison**, and is inherited
+  unchanged from §18.7's own criterion for the same two cells (*"removal or material weakening of the
+  Network security checklist item"*). This section does not sharpen it; sharpening it is a re-grading of
+  the tier criterion itself and is out of scope for a ticket about the gate's **reach**.
+- **Whether this check is decidable purely from bytes already held for its *current* population, or
+  requires an actual re-fetch every run, is answered by ADR-0057's own bar** — it is a targeted re-fetch
+  by construction, same as G10, so it terminates. No claim is made that it is cheap; only that it is
+  finite and named.
+
+### 47.7 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10, §40.10 and §46.11
+
+- **This section performed no retrieval.** #149 is a question about the gate's **reach**, decided by
+  reading ADR-0057's own check definitions and rung table against the demotion cases §18.7 and §41.3
+  already measured. A section that retrieved would be running the new check rather than specifying it.
+- **Every quoted string here is quoted from this repository or from ADR-0057**, so G7 is vacuous and G8
+  reduces to an internal cross-reference check; both were run by hand over this section's citations.
+- **Sibling passes are editing this note and ADR-0057 concurrently.** This section's delta is stated as a
+  delta: **ADR-0057 gains one specified, unnumbered row; ADR-0077 gains one discharge mark; nothing in
+  `sensitive-ports.md` before §47 is edited.** Its basis is `main` at `bd07f77`. [#152](https://github.com/winniel123/verge-asm/issues/152)
+  is a sibling ticket in the same region (a second, differently-shaped gate gap) and is addressed at
+  §47.4 rather than left for a reader to reconcile. **Where §47 and §1 disagree, §1 governs.**
+
 ---
 
 ## Sources
