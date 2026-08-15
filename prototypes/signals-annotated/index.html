@@ -38,12 +38,22 @@
                    default: the barred renderings are most of the decision and
                    a screen that merely omits them teaches nobody why.
 
-  FIGURES. #131 is deciding what a session owes a stale prototype figure, so
-  nothing here was copied from an existing prototype. Against the map's current
-  composed state, 2026-08-15: the v1 rule set is SEVENTEEN; five of the
-  seventeen are rendered and the screen says so rather than implying the set.
-  The estate counts are invented and are labelled as invented. No figure here
-  is a record of anything.
+  FIGURES AND STATES — #131, ADR-0075. A prototype is a dated record of a
+  READING, never of a RULE. This file carries its dateline in what the browser
+  DRAWS rather than here, because every recorded instance of a prototype being
+  wrongly believed happened in a browser where this comment is invisible.
+
+    readings  every count on the page. Invented for the drawing, copied from
+              no other prototype, correct against nothing. A later ruling that
+              moves one owes this file nothing.
+    states    the author cell (?author=on), variant A's nesting and variant
+              C's ledger. All three are surfaces the product would now refuse
+              — ADR-0073 §1, §6, §7 — and all three are LEFT STANDING with a
+              red .anno mark on them. The wrong screen is the evidence.
+
+  Against the map's composed state as drawn, 2026-08-15: the v1 rule set is
+  SEVENTEEN, five of which are rendered, and the screen says five-of-seventeen
+  rather than letting a reader infer the set.
 
   Not production code. Vocabulary is CONTEXT.md — the kit's `Findings` section,
   its severity badge and its fingerprinting claim are all absent by rule. The
@@ -136,44 +146,59 @@
      Every value on this row is either the key, the operator's own prose, a
      recorded measurement, or the declaration instant. Nothing is derived and
      nothing is aggregated. */
-  .anno { display: flex; gap: var(--space-4); align-items: flex-start;
+  .arow { display: flex; gap: var(--space-4); align-items: flex-start;
           padding: var(--space-3) var(--space-4); border-top: var(--rule-soft);
           background: var(--surface-sunken); }
-  .anno:first-child { border-top: none; }
-  .anno .key { flex: 0 0 300px; min-width: 0; }
-  .anno .key .subj { display: block; font-family: var(--font-mono); font-size: var(--text-sm);
+  .arow:first-child { border-top: none; }
+  .arow .key { flex: 0 0 300px; min-width: 0; }
+  .arow .key .subj { display: block; font-family: var(--font-mono); font-size: var(--text-sm);
                      color: var(--ink); word-break: break-all; }
-  .anno .key .sig { display: block; margin-top: 3px;
+  .arow .key .sig { display: block; margin-top: 3px;
                     font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
                     text-transform: uppercase; letter-spacing: var(--tracking-label);
                     color: var(--text-faint); word-break: break-all; }
-  .anno .body { flex: 1; min-width: 0; }
-  .anno .body .why { font-size: var(--text-base); line-height: var(--leading-snug); color: var(--text); }
-  .anno .body .meta { display: block; margin-top: var(--space-2);
+  .arow .body { flex: 1; min-width: 0; }
+  .arow .body .why { font-size: var(--text-base); line-height: var(--leading-snug); color: var(--text); }
+  .arow .body .meta { display: block; margin-top: var(--space-2);
                       font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono); color: var(--text-faint); }
-  .anno .body .meta b { color: var(--text-muted); font-weight: var(--weight-semibold); }
-  .anno .act { flex: 0 0 130px; text-align: right; }
+  .arow .body .meta b { color: var(--text-muted); font-weight: var(--weight-semibold); }
+  .arow .act { flex: 0 0 130px; text-align: right; }
 
-  /* the author cell. Drawn only under ?author=on. Deliberately given the
-     same weight as everything else on the row — the argument this prototype
-     is testing is not that a name would be ugly. */
-  .anno .who { flex: 0 0 150px; min-width: 0; }
-  .anno .who .n { display: block; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); }
-  .anno .who .r { display: block; margin-top: 3px;
+  /* the author cell. Drawn only under ?author=on, and ADR-0073 has since
+     ruled it out — see the marks on that fill. Deliberately given the same
+     weight as everything else on the row: the argument was never that a name
+     would be ugly. */
+  .arow .who { flex: 0 0 150px; min-width: 0; }
+  .arow .who .n { display: block; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); }
+  .arow .who .r { display: block; margin-top: 3px;
                   font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
                   text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-faint); }
 
   /* the recorded edge — a measurement, so it may be shown. ONE instant, and
      never a count of firings the mute swallowed. */
-  .anno .edge { flex: 0 0 210px; text-align: right;
+  .arow .edge { flex: 0 0 210px; text-align: right;
                 font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
-  .anno .edge .lbl { display: block; font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+  .arow .edge .lbl { display: block; font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
                      text-transform: uppercase; letter-spacing: var(--tracking-label);
                      color: var(--text-faint); margin-bottom: 2px; }
 
-  .anno-empty { padding: var(--space-4); font-size: var(--text-base); color: var(--text-muted);
+  .arow-empty { padding: var(--space-4); font-size: var(--text-base); color: var(--text-muted);
                 line-height: var(--leading-body); background: var(--surface); }
-  .anno-empty b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .arow-empty b { color: var(--ink); font-weight: var(--weight-semibold); }
+
+  /* ── PROTOTYPE-ONLY ANNOTATION ────────────────────────────────────────
+     ADR-0075 (#131). Verbatim from prototypes/seeds/ — no new token, nothing
+     added to the design system. Dashed accent, so it reads as not part of the
+     design; `.no` for a surface the product would now refuse. */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
 
   .card { background: var(--surface); border: var(--rule); }
   .card-h { display: flex; align-items: baseline; gap: var(--space-3);
@@ -404,13 +429,34 @@ function muteMark(n){
   return n ? `<span class="mutemark"><span class="g">◍</span>annotated</span>` : "";
 }
 
+function anno(label, html, bad){
+  return `<div class="anno${bad ? " no" : ""}"><span class="ml">${label}</span>${html}</div>`;
+}
+
+/* ── THE DATELINE ─────────────────────────────────────────────────────────
+   ADR-0075 (#131): the provenance line must be in what the browser DRAWS.
+   Every recorded instance of a prototype being wrongly believed happened in
+   a browser, where an HTML comment is invisible. */
+function dateline(){
+  return anno("prototype · not part of the design", `
+    <p><b>Issue #129 · drawn 2026-08-15 · branch <code>ticket/129-annotation-surface</code>.</b>
+       Throwaway. Nothing here is a specification and nothing here is a current value.</p>
+    <p>Every quantity on this page is a <b>dated reading</b>, invented for the drawing and correct
+       against nothing. <b>The only live absolutes are on the map</b> — issue #1, the
+       <code>THE CURRENT COMPOSED STATE</code> line in its Notes. Read a figure there, never here.
+       As drawn, the v1 rule set stood at <b>seventeen</b> and five are rendered.</p>
+    <p>What is <i>not</i> a reading is the <b>state</b> this screen draws — the acts it offers and
+       the cells it fills. Where a later ruling has made one of those unreachable it is marked
+       below in red and <b>left standing</b>: the wrong screen is the evidence.</p>`);
+}
+
 function annoRow(a, author, fill, opts){
   opts = opts || {};
   const who = author === "on"
     ? `<div class="who"><span class="n">${a.by[fill]}</span><span class="r">declared by</span></div>`
     : "";
   return `
-  <div class="anno">
+  <div class="arow">
     <div class="key">
       <span class="subj">${a.subj}</span>
       ${opts.hideSig ? "" : `<span class="sig">${a.sig}</span>`}
@@ -450,6 +496,16 @@ function variantA(author, fill){
   }).join("");
 
   return `
+  ${anno("drawn state · the product would refuse this", `
+     <p><b>This layout is barred.</b> ADR-0073 §6 (#129, 2026-08-15) rules that the annotation
+        enumeration is <b>its own block</b> beneath the rule list and may not be nested inside a rule
+        block — <b>spatial containment is a claim</b>, and annotations rendered as children of a
+        rule's census read as a subdivision of <code>fired</code> whatever the arithmetic says. That
+        is ADR-0016 rider 3's barred partition arriving through layout.</p>
+     <p><b>Left standing on purpose</b>, because this variant is the evidence: it is the most natural
+        reading of rider 3's <i>"rendered on the row"</i>, and it took a drawing to see that
+        <i>the row</i> means the <b>subject's</b> row and not the <b>rule's</b> census. What ships is
+        <b>variant B</b>.</p>`, true)}
   ${head(`Seventeen rules evaluate on their own cadence; five are shown. A rule's census is the whole population it versions. <b>An annotated pair is counted here exactly as any other</b> — the acceptance is on the message and never on the measurement.`)}
   <div>${rules}</div>
   <div class="note" style="margin-top:var(--space-4)">
@@ -483,11 +539,15 @@ function variantB(author, fill){
 
   const list = ANNOTATIONS.length
     ? ANNOTATIONS.map(a=>annoRow(a, author, fill)).join("")
-    : `<div class="anno-empty"><b>No annotations.</b> Every firing reaches your channels.
+    : `<div class="arow-empty"><b>No annotations.</b> Every firing reaches your channels.
        An annotation accepts a risk on a pair you are still measuring; you declare one from the
        pair's own row on Subjects.</div>`;
 
   return `
+  ${anno("drawn state · this is the variant that ships", `
+     <p>ADR-0073 §6 (#129, 2026-08-15): a non-numeric marker on the rule row, the enumeration as its
+        own block beneath the rule list. Every act offered here is one the product offers — declaring
+        an acceptance, and withdrawing one in a click (ADR-0016 rider 4).</p>`)}
   ${head(`Seventeen rules evaluate on their own cadence; five are shown. A rule's census is the whole population it versions, and <b>an annotated pair is counted in it exactly as any other</b>.`)}
   <div>${rules}</div>
 
@@ -545,6 +605,14 @@ function variantC(author, fill){
     </div>`).join("");
 
   return `
+  ${anno("drawn state · the product would refuse this as the primary surface", `
+     <p><b>This screen is barred as drawn.</b> ADR-0073 §7 (#129, 2026-08-15): the ledger goes
+        <b>empty on a quiet estate</b> while acceptances stand, so the operator cannot enumerate what
+        they have muted — which is ADR-0016 rider 6's whole reason for the object existing. It also
+        invites a <b>count of firings a mute has swallowed</b>, barred by ADR-0073 §5 as severity on
+        the screen ADR-0004 kept severity off.</p>
+     <p><b>Left standing on purpose.</b> The framing is honest and may earn a secondary view; what it
+        may not be is the only place annotations are enumerated. What ships is <b>variant B</b>.</p>`, true)}
   ${head(`Seventeen rules evaluate on their own cadence; five are shown. A rule's census is the whole population it versions, and <b>an annotated pair is counted in it exactly as any other</b>.`)}
   <div>${rules}</div>
 
@@ -637,29 +705,40 @@ function authorNote(author, fill){
   const acc = ACCOUNTS[fill];
   if (author === "off"){
     return `<div class="note" style="margin-top:var(--space-4)">
-      <span class="ml">author · withheld</span>
-      No row above says who declared it. ${acc.line} What each row does carry is the
+      <span class="ml">author · withheld · this is the ruling</span>
+      No row above says who declared it, and that is what ships — <b>an <code>Annotation</code>
+      carries no author</b> (#129, ADR-0073). ${acc.line} What each row does carry is the
       <b>reason, in the operator's own words, and the instant it was declared</b> — which is what a
       reviewer six months from now actually needs, and which names no account.
       The reason is the reviewable artefact; the name is not.
     </div>`;
   }
   const same = fill === "single";
-  return `<div class="note" style="margin-top:var(--space-4)">
-    <span class="ml">author · rendered</span>
-    ${acc.line}
-    ${ same
-      ? `Every row reads <code>admin</code>, because there is only one account that could have
-         written any of them. The column is <b>a constant in a per-row cell</b> — #28's two-numbers
-         hazard with the second number carrying no information at all, which is the same objection
-         ADR-0032 §7 used to keep the evidence tier off this screen.`
-      : `Three names appear, and the column finally discriminates. This is the only shape in which
-         it does — and it is <b>#127's own reopening condition</b>, written before this screen
-         existed. The field is not wrong here; it is simply not v1.` }
-    Note also what the column does <b>not</b> survive: an annotation is withdrawn in one click and
-    leaves nothing behind, so this is a record of who muted what <i>and still has it muted</i>,
-    never of who muted what.
-  </div>`;
+  return anno("drawn state · the product will not draw this", `
+    <p><b>The author cell is ruled out of v1.</b> ADR-0073 §1 (#129, 2026-08-15): an
+       <code>Annotation</code> carries <b>no author</b> — not stored and not rendered. It is
+       <a href="https://github.com/winniel123/verge-asm/issues/127">#127</a>'s ruling reaching its
+       last site: no operator act is written down anywhere with an actor on it, because named
+       accounts create identity and never a log.</p>
+    <p><b>Why it lost, given that #127's own arguments do not reach this object.</b> An annotation
+       cannot be edited, so the field would never go stale; and nothing derived reads one, so
+       identity is not joinable to the probing gate. It loses on what the field <i>makes</i> the
+       object: an annotation is an <b>operator dial</b> keyed on a subject, every other dial in the
+       model is unattributed, and the author is the single edit that turns a dial into a record.
+       A dial pointed at one pair is still a dial.</p>
+    <p><b>What this fill shows.</b> ${acc.line}
+       ${ same
+         ? `Every row reads <code>admin</code>, because only one account could have written any of
+            them — <b>a constant in a per-row cell</b>, which is #28's two-numbers hazard with the
+            second number carrying no information, and the same objection ADR-0032 §7 used to keep
+            the evidence tier off this screen.`
+         : `Three names appear and the column finally discriminates. This is the <b>only</b> shape in
+            which it does, and it is <b>#127's own reopening condition</b> — written before this
+            screen existed. The field is not wrong here; it is simply not v1.` }</p>
+    <p><b>Left standing on purpose</b>, because the two fills side by side are the argument: the same
+       markup, a dead column and a live one. Note also what the column would never have survived —
+       an annotation is withdrawn in one click and leaves nothing behind, so it is a record of who
+       muted what <i>and still has it muted</i>, never of who muted what.</p>`, true);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -675,6 +754,7 @@ function render(){
   document.getElementById("app").innerHTML =
     chrome(fill) +
     `<div class="shell">
+       ${dateline()}
        ${body}
        ${authorNote(author, fill)}
        ${refusals==="show" ? refusalsPanel() : ""}
