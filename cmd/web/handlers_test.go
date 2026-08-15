@@ -28,10 +28,13 @@ type fakeStore struct {
 
 	seeds      []db.Seed
 	seedNextID int64
+
+	exclusions []db.Exclusion
+	exclNextID int64
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1, seedNextID: 1}
+	return &fakeStore{accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1, seedNextID: 1, exclNextID: 1}
 }
 
 func (f *fakeStore) RecordHeartbeat(context.Context) (db.Heartbeat, error) {
@@ -135,6 +138,60 @@ func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 		})
 	}
 	return rows, nil
+}
+
+func (f *fakeStore) CreateNameExclusion(_ context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error) {
+	for _, e := range f.exclusions {
+		if e.Kind == arg.Kind && e.Name.String == arg.Name.String {
+			return db.Exclusion{}, &pgconn.PgError{Code: "23505", Message: "duplicate exclusion"}
+		}
+	}
+	ex := db.Exclusion{
+		ID: f.exclNextID, Kind: arg.Kind, Name: arg.Name, CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.exclusions = append(f.exclusions, ex)
+	f.exclNextID++
+	return ex, nil
+}
+
+func (f *fakeStore) CreateAddressExclusion(_ context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error) {
+	for _, e := range f.exclusions {
+		if e.Kind == "address" && e.AddressCidr != nil && arg.AddressCidr != nil && e.AddressCidr.String() == arg.AddressCidr.String() {
+			return db.Exclusion{}, &pgconn.PgError{Code: "23505", Message: "duplicate exclusion"}
+		}
+	}
+	ex := db.Exclusion{
+		ID: f.exclNextID, Kind: "address", AddressCidr: arg.AddressCidr, CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.exclusions = append(f.exclusions, ex)
+	f.exclNextID++
+	return ex, nil
+}
+
+func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, error) {
+	rows := make([]db.ListExclusionsRow, 0, len(f.exclusions))
+	// Newest first, mirroring the SQL ORDER BY created_at DESC, id DESC.
+	for i := len(f.exclusions) - 1; i >= 0; i-- {
+		e := f.exclusions[i]
+		rows = append(rows, db.ListExclusionsRow{
+			ID: e.ID, Kind: e.Kind, Name: e.Name, AddressCidr: e.AddressCidr,
+			CreatedBy: e.CreatedBy, CreatedAt: e.CreatedAt,
+			CreatedByUsername: f.accounts[e.CreatedBy].Username,
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
+	for i, e := range f.exclusions {
+		if e.ID == id {
+			f.exclusions = append(f.exclusions[:i], f.exclusions[i+1:]...)
+			return nil
+		}
+	}
+	return nil // idempotent: a missing row is not an error
 }
 
 // testKey is a fixed 32-byte session signing key for tests.

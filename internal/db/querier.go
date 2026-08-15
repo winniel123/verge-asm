@@ -12,10 +12,17 @@ type Querier interface {
 	ConfirmTOTP(ctx context.Context, id int64) error
 	CountAccounts(ctx context.Context) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
+	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
+	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
+	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
+	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
+	// so withdrawing it is a delete rather than a state change.
+	DeleteExclusion(ctx context.Context, id int64) error
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
+	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
