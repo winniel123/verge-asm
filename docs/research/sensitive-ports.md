@@ -20516,7 +20516,7 @@ that names its class is the disclosure that would have caught that.
 | **A release that read nothing** | Writes the same entry, empty head, whole register as its residue, saying why — [#47](https://github.com/winniel123/verge-asm/issues/47)'s render-when-empty rule |
 | **The count** | **Barred everywhere in the entry** — not the register's, not the head's, not the residue's; no fraction, no target, no quantum (§39.2, ADR-0057) |
 | **Who signs it** | **The release.** A machine may prepare it from G11's marks; a machine may raise and only a release may rule |
-| **The register itself** | Stays at **§39.4** and is **cited, not copied**. It is provisional by §39.9, and the first live register is #134's per-cell walk, which transcribes into the watch document then |
+| **The register itself** | ~~Stays at §39.4 and is cited, not copied. It is provisional by §39.9, and the first live register is #134's per-cell walk, which transcribes into the watch document then~~ **SUPERSEDED by [#155](https://github.com/winniel123/verge-asm/issues/155), marked here per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).** The *then* has arrived: #134 ran, its live register is §43.3, and #155 transcribed it into [`curated-table-watch.md`](../spec/curated-table-watch.md) §1.1 as the `(cell, artefact, revision act)` triples, rung-ordered. §39.4/§41.4/§43.3 remain the register's reasoning and its items' grounds; §1.1 is now its copy of record |
 | **ADR-0032 §7** | **Unchanged and unreopened** on the screen question; **distinguished** on siting, and marked at its own site |
 
 ### 42.7 The options that lost
