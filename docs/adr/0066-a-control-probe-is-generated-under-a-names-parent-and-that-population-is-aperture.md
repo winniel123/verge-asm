@@ -26,8 +26,10 @@ never mentions the control probe.
 [ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md) makes EDNS options a
 declared parameter of this leaf and is silent on its population. The only statement anywhere is
 §3.2's prose — *query 3–5 long random labels under the apex*, then *"repeat one level down for each
-discovered sub-zone"* — which is a procedure in a research note rather than a scope any `Batch` can
-record, and which is under-inclusive by its own admission, RFC 4592 §2.1.1 putting a wildcard owner
+discovered sub-zone"* *(quoted as it stood; the **labels** half is since superseded by
+[ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md) —
+five random plus one structured, each exactly one label)* — which is a procedure in a research note
+rather than a scope any `Batch` can record, and which is under-inclusive by its own admission, RFC 4592 §2.1.1 putting a wildcard owner
 name at any depth in a zone while §3.2 probes at two.
 
 ## Decision
@@ -44,7 +46,7 @@ name at any depth in a zone while §3.2 probes at two.
 | Which qtypes the control probe runs | **The batch's declared qtype set**, all seven, and no second list. `Shadowed` is already committed on `dns-record` *for any qtype* |
 | Is a sixth `Offer` minted? | **No.** The population is not an offer — nothing about it is a candidate on the wire — and `measurement-offers.md` stays at five |
 | What a name holds where the control probe under its parent **did not complete** | A **`Gap`**, stating its cause. **An undiscriminated answer is never a value** |
-| What it holds where the probe **completed and found no wildcard** | An ordinary value. The modal case is unaffected |
+| What it holds where the probe **completed and found no wildcard** | An ordinary value. The modal case is unaffected. **QUALIFIED by [#113](https://github.com/winniel123/verge-asm/issues/113) / [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md): *found no wildcard* means no control label _of any shape_ carried an RR at any qtype.** Read alone and in the present tense, the unqualified sentence licenses a fictional inventory under an authority that **parses** the query name — **[measured]** `nip.io` answers NODATA to a random label and `203.0.113.7` to `203-0-113-7`, so a random-only set completes, finds nothing, and licenses everything beneath. Amended here rather than pointed at, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) |
 | What an aperture widening costs here | A **`Break`** on the timelines beneath the newly-probed parent — and it is **structurally vacuous** in the ordinary case, by the rule's own shape |
 | `Shadowed`'s decision site | **Untouched.** Both measurements still happen inside one batch and the leaf still decides ([ADR-0011](./0011-a-facet-is-six-parts.md)) |
 | `wildcard-discrimination` | **Still one leaf**, still five leaves total, and its declared parameters are **unchanged** |
@@ -161,6 +163,13 @@ with §3.2's 3–5 labels and the seven-qtype offer: 21–35 queries per site.
 | Apex alone | 1 | 21–35 | ~0.2 s |
 | Parent set | 6 | 126–210 | ~1 s |
 | Every `Name` | 25 | 525–875 | ~4 s |
+
+> **The per-site figure is now fixed at 42, not 21–35**
+> ([ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)):
+> **6** control labels — five random and one structured — over the seven qtypes. The three rows
+> read **42**, **252** and **1,050** queries, and none of them changes this section's conclusion —
+> the closed direction still loses on buying nothing rather than on cost, and every figure is still
+> orders below the ceiling. Restated here because the arithmetic above reads as current.
 
 None of that threatens the ceiling, and pretending otherwise would be the kind of safety argument
 [#21](https://github.com/winniel123/verge-asm/issues/21) refuses. These are queries to the
@@ -423,8 +432,13 @@ gate.**
   — this ADR's own rule, restated below — has a residue it did not know about: **[measured]**
   `nip.io` and `sslip.io` answer **NODATA** to random control labels while `10.0.0.1.nip.io`
   answers `10.0.0.1`, so a completed probe can license a fictional inventory where the synthesis is
-  a function of the **label's construction**. That is `wildcard-discrimination`'s *other* declared
-  parameter and is ticketed rather than folded. The **match
+  a function of the **label's construction**. ~~That is `wildcard-discrimination`'s *other* declared
+  parameter and is ticketed rather than folded.~~ ***Resolved —*
+  [#113](https://github.com/winniel123/verge-asm/issues/113) /
+  [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)**,
+  which sends a **structured** label alongside the random ones and qualifies this ADR's licence
+  clause at the Decision row above: *found no wildcard* now requires that no control label **of any
+  shape** carried an RR. The **match
   predicate** is unspecified and measurably harder than set equality: **[measured]** `herokuapp.com`
   returned three distinct address sets across five control labels and `vercel.com` returned five,
   seconds apart, from one vantage, while `github.io` and `localtest.me` were stable. A predicate
