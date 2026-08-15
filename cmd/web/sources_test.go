@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
 // --- fakeStore source-state methods ----------------------------------------
@@ -177,7 +178,7 @@ func TestViewerCannotToggleButCanView(t *testing.T) {
 	}
 }
 
-// The Coverage stub is the modal's entry point and links to it.
+// Coverage is the source-enablement modal's entry point and links to it.
 func TestCoverageStubLinksToModal(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -194,6 +195,145 @@ func TestCoverageStubLinksToModal(t *testing.T) {
 	}
 	if !strings.Contains(got, `href="/sources"`) {
 		t.Errorf("Coverage stub does not link to the source modal; body: %s", got)
+	}
+}
+
+func coverageBody(t *testing.T, c *http.Client, base string) string {
+	t.Helper()
+	resp, err := c.Get(base + "/coverage")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /coverage status = %d, want 200", resp.StatusCode)
+	}
+	return body(t, resp)
+}
+
+// The aperture statement renders one line per aperture input (§3.2, §6.3): the
+// seven inputs, the qtype set spelled out, and the dns cadence.
+func TestCoverageRendersApertureStatement(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+
+	for _, input := range []string{
+		"Enabled sources", "Port sets", "Vantages", "TLS candidate set",
+		"Qtype set", "Control-probe population", "Queried address scope",
+	} {
+		if !strings.Contains(page, input) {
+			t.Errorf("aperture input %q missing from the statement", input)
+		}
+	}
+	// The qtype set is spelled out, not summarised, and the dns cadence is stated.
+	for _, q := range dnsQtypeSet {
+		if !strings.Contains(page, q) {
+			t.Errorf("qtype %q missing from the aperture statement", q)
+		}
+	}
+	if !strings.Contains(page, "daily") {
+		t.Errorf("dns cadence (daily) not stated; body: %s", page)
+	}
+}
+
+// §6.3, and this ticket's own AC: no proportion-of-estate figure appears on the
+// Coverage screen. ADR-0095 — the statement counts what the instrument looks at,
+// never how much of the estate it covers.
+func TestCoverageHasNoProportionOfEstate(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+
+	// Scope the check to the rendered body — the shared stylesheet legitimately
+	// carries "100%" in its layout rules, which is not a coverage figure.
+	main := page
+	if i := strings.Index(page, "<main>"); i >= 0 {
+		main = page[i:]
+	}
+	// No percentage figure, and no estate-completeness score phrasing, in the body.
+	for _, banned := range []string{"%", "estate completeness", "% covered", "% of your estate"} {
+		if strings.Contains(main, banned) {
+			t.Errorf("a proportion-of-estate figure appeared (%q); body: %s", banned, main)
+		}
+	}
+}
+
+// The zero-coverage state renders the four-step day-one checklist. Each of the
+// first three steps links to the surface that performs it (Seeds); running the
+// first batch has no surface yet, so it names the capability without a link.
+func TestCoverageZeroCoverageChecklist(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+
+	for _, step := range []string{
+		"Declare your domain", "Upload a zone file", "Add an internet vantage", "Run the first batch",
+	} {
+		if !strings.Contains(page, step) {
+			t.Errorf("checklist step %q missing in the zero-coverage state", step)
+		}
+	}
+	if !strings.Contains(page, `href="/seeds"`) {
+		t.Errorf("a checklist step does not link to the Seeds surface; body: %s", page)
+	}
+	// Running the first batch is the worker's job at cadence, not a button.
+	if !strings.Contains(page, "Runs automatically at cadence") {
+		t.Errorf("run-the-first-batch step should name the capability without a link; body: %s", page)
+	}
+}
+
+// Once a scope is declared the estate is no longer at zero coverage: the
+// checklist retires and the queried-scope line states the declared counts.
+func TestCoverageChecklistRetiresWhenScopeDeclared(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declare(t, ac, base, "name", "example.com").Body.Close()
+
+	page := coverageBody(t, ac, base)
+	if strings.Contains(page, "Declare your domain") {
+		t.Errorf("the day-one checklist should retire once a scope is declared; body: %s", page)
+	}
+	if !strings.Contains(page, "1 name") {
+		t.Errorf("queried-scope line should state the declared scope count; body: %s", page)
+	}
+}
+
+// The retention section exists as a stub (real dials are #26/#28/#29).
+func TestCoverageRetentionStub(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+	if !strings.Contains(page, "Retention") {
+		t.Errorf("retention stub section missing; body: %s", page)
+	}
+}
+
+// The web layer's mirror of the qtype set never drifts from the leaf's authored
+// set (resolutionwalk.DefaultOffers). If the leaf's set moves, this fails.
+func TestDNSQtypeSetMatchesLeaf(t *testing.T) {
+	want := resolutionwalk.DefaultOffers().Qtypes
+	if len(want) != len(dnsQtypeSet) {
+		t.Fatalf("qtype set length: web mirror has %d, leaf has %d", len(dnsQtypeSet), len(want))
+	}
+	for i, q := range want {
+		if string(q) != dnsQtypeSet[i] {
+			t.Errorf("qtype[%d]: web mirror %q, leaf %q", i, dnsQtypeSet[i], string(q))
+		}
 	}
 }
 

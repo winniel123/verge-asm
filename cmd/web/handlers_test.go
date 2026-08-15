@@ -41,6 +41,10 @@ type fakeStore struct {
 	channels   []fakeChannel
 	chanNextID int64
 	retention  db.GetRetentionSettingsRow
+
+	// scans mirrors the scan table. newFakeStore seeds the dns Scan the migration
+	// ships (enabled, daily) so the aperture statement has a cadence to read.
+	scans map[string]db.Scan
 }
 
 // fakeChannel mirrors a channel row, secret included, so tests can assert the
@@ -60,7 +64,18 @@ func newFakeStore() *fakeStore {
 		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
 		seedNextID: 1, exclNextID: 1, vantageNextID: 1, chanNextID: 1,
 		sourceStates: map[string]db.SourceState{},
+		scans: map[string]db.Scan{
+			"dns": {ID: 1, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
+		},
 	}
+}
+
+func (f *fakeStore) GetScanByKind(_ context.Context, kind string) (db.Scan, error) {
+	sc, ok := f.scans[kind]
+	if !ok {
+		return db.Scan{}, pgx.ErrNoRows
+	}
+	return sc, nil
 }
 
 func (f *fakeStore) RecordHeartbeat(context.Context) (db.Heartbeat, error) {
