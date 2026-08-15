@@ -34,7 +34,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — five in the word (three of them in a table column headed `Direction`), three in the verb's preposition, sixteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). §33.2's discriminator gains the rider **the direction is part of the class**. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -530,6 +530,15 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > > **[measured] `445/tcp` turns on direction today** — its defeat test is met on its face by
 > > Microsoft's own Azure Files documentation and is disposed of **only** by direction and addressee.
 > > The cell does not move. §33.5.
+> > > **RULED by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)). **Direction is
+> > > *not* a fifth limb — it is what limb 2's *"this `(port, transport)` pair"* denotes**, the endpoint
+> > > being reached, and **limb 2 is restated** to say so; **addressee is the same limb's second
+> > > coordinate** and not a sixth candidate. The conjunction stays at **four**. **[measured]** the
+> > > owner supplies the direction in **24 of the 26** carrying statements across both graded tiers, so
+> > > the reader supplies no directional premise anywhere and the column's zero-premise arithmetic
+> > > holds. **[measured]** the withdrawn clause was **false when written**, not only after §33 —
+> > > §28.9 had already spared `623/udp` from a candidate defeater on direction. **Nothing moves.**
+> > > §36.4, §36.6, §36.7, §36.8.
 
 > **Amended by §33** ([#107](https://github.com/winniel123/verge-asm/issues/107)). **One cell leaves
 > this table altogether, and it is the first time the top row's membership test has been run as a
@@ -1235,6 +1244,19 @@ an on-premises client reaching Azure Files. This signal is about an **inbound li
 from an internet vantage, which is the case Microsoft's "unlikely … legitimate" sentence covers
 without qualification. Worth recording because the distinction between the two directions is exactly
 the kind of thing a hasty reading collapses.
+
+> **This paragraph is correct, was INCOMPLETE TWICE, and is completed.** **§33**
+> ([#107](https://github.com/winniel123/verge-asm/issues/107)) recorded that the disposal reaches the
+> carve-out **inside this document** and not Microsoft's two Azure Files pages, which are about
+> Microsoft's own endpoint accepting inbound SMB from the internet; §33.5 completed that half. **§36**
+> ([#110](https://github.com/winniel123/verge-asm/issues/110)) completes the other: **[measured]** the
+> *Secure SMB traffic* page that carries this row's imperative has a section headed **`## Block
+> outbound SMB access`** — *"Block TCP port 445 outbound to the internet at your corporate firewall"*
+> (`ms.date` 2024-10-25) — and the *Preventing SMB traffic* directive quoted above is itself
+> **bidirectional**: *"unsolicited communication (from the internet) **and outgoing traffic (to the
+> internet)**"*. **Microsoft holds two positions on TCP/445 and only the inbound one is this row's.**
+> The row is unaffected; what changes is that the distinction this paragraph drew by hand is now a
+> stated part of **limb 2** rather than a reader's care. §36.2, §36.8.
 
 > "Block TCP port 445 inbound from the internet at your corporate hardware firewalls."
 > — [Microsoft, Secure SMB traffic in Windows Server](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic)
@@ -12919,8 +12941,13 @@ of evidence needs to say so. Routed to the same ticket as Finding 1.
 >
 > **§30.9's *"read §30.7 before quoting this table's scoping row as homogeneous"* is superseded.** It is
 > homogeneous. What should be read before quoting the **prohibition** row as complete is §32.12 — the
-> conjunction's closure is a ruling and **direction**, inbound versus outbound, is the named candidate
-> for a fifth limb.
+> conjunction's closure is a ruling and ~~**direction**, inbound versus outbound, is the named candidate
+> for a fifth limb~~.
+>
+> > **The struck clause is RESOLVED by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)).
+> > **Direction is not a candidate fifth limb; it is what limb 2's *"this pair"* denotes**, and limb 2
+> > is restated at its own clause. The closure stands at **four limbs** and **no cell moves**. What
+> > should now be read before quoting the prohibition row as complete is **§36.8's restated limb 2**.
 
 ### 30.8 Every dependent figure, walked rather than asserted
 
@@ -13715,6 +13742,15 @@ existed; the closure claim did not.** #101 is the closure claim.
 >    never per sentence (§16.6).
 > 2. **Reach.** The statement is about **this `(port, transport)` pair** — either the owner numbers the
 >    pair, or ADR-0050's three limbs carry it there on the owner's own artefacts.
+>    > **RESTATED by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)), at this clause
+>    > per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+>    > as widened by [#106](https://github.com/winniel123/verge-asm/issues/106): the statement is about
+>    > **this `(port, transport)` pair *as the endpoint being reached, on the estate the statement
+>    > addresses*** — a **listener**, reached from outside that estate. Reach is established exactly as
+>    > above. A statement about traffic **leaving** that estate on the same number, or about a listener
+>    > the **owner itself** runs and the addressed party does not, is about a different endpoint and
+>    > satisfies this limb no more than a statement about a different port would. **This says what
+>    > *"this pair"* has always denoted; it is not a fifth limb and not a widening.** §36.8.
 > 3. **Network.** The statement names **the public internet**. §20.8's lexical test, unchanged and not
 >    widened by a syllable.
 > 4. **Modality.** The statement takes a **position** rather than recording an aspiration (§26.4), a
@@ -13741,6 +13777,16 @@ terms, a reader-supplied premise can only be needed for a term, and the note has
 four.** A fifth limb requires a fifth term, which is what §32.12 says a challenger should go looking
 for. Note where §10.2 lives: it is a **section of this note**, not an ADR — which is the precedent
 §32.10 follows on the artefact question as well as on the reasoning.
+
+> **CONFIRMED, with one qualification, by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)).
+> The closure over **kinds** of gap holds at four and *"a fifth limb requires a fifth term"* is the
+> sentence §36 rules on. **[measured]** the candidate §32.12 named — direction — introduces **no term
+> the proposition lacks**: *reachable from* is a directed relation with two argument places, limb 2
+> names the endpoint reached and limb 3 the vantage reached from, and direction is the **assignment of
+> those two named objects to those two places**. **What was incomplete was not the enumeration but
+> limb 2's denotation**, which is restated above. A candidate introducing an object no limb reaches —
+> *"do not expose this port to the internet **before version 4.0**"* — would still falsify this
+> paragraph, and that is the test §36.4 states so the closure stays falsifiable.
 
 **The conjunction stays a retrieval, which is the property §30.5 spent three paragraphs protecting.**
 Each limb is answered by opening a document: *is this party the owner of this port*, *does the owner's
@@ -14266,6 +14312,22 @@ section does not price that case.
 > reached the *carve-out* in the carrying document and not these pages, so it was incomplete. **The
 > cell does not move and the clause does**, and the fifth-limb question is **ticketed** rather than
 > ruled. §33.5, §33.9.
+>
+> > **The ticketed question is ANSWERED by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)),
+> > and this paragraph's flag is **partly discharged and partly upheld**. **Upheld:** the hypothetical
+> > it states — *"an owner sentence forbidding **outbound** traffic to the internet would satisfy all
+> > four limbs as written while entailing nothing about the row"* — is **not hypothetical**.
+> > **[measured]** it is a heading in the document carrying `445`'s footing: *"## Block outbound SMB
+> > access — Block TCP port 445 outbound to the internet at your corporate firewall"*, *Secure SMB
+> > Traffic in Windows Server*, `ms.date` 2024-10-25. **The conjunction as written was defective.**
+> > **Discharged:** the defect is **not** a fifth kind of gap. Direction introduces no term the
+> > proposition lacks; it fixes which of limbs 2 and 3's named objects fills which place of a directed
+> > relation, and it is repaired **inside limb 2** rather than beside it. **Addressee is the same
+> > limb's second coordinate** — load-bearing once in twenty-six members, and at that member
+> > inseparable from direction. **[measured]** the sweep across both graded tiers: direction supplied
+> > by the owner in **24 of 26** carrying statements, **two** verdicts turning on direction and **one**
+> > on addressee. **[measured]** the struck clause was **false when written** — §28.9 had spared
+> > `623/udp` on direction four sections earlier. **Nothing moves and the cost is nothing.** §36.
 
 **Limb 4 is the softest of the four, and it is soft in a different way from limb 1's premise count.**
 *Position versus aspiration* has one measured instance (§26.4's RFC 8881 Appendix C recording RFC
@@ -14462,6 +14524,15 @@ node, so a protected managed endpoint is outside the class (§33.5, row 6). And 
 part of the class** — a statement telling an operator not to expose *its own* listener is not
 defeated by the owner running *its own* hardened service on the same number (§33.5, row 8).
 
+> **A third rider is added by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)), and
+> it is the sibling of the second. **The direction is part of the class.** A supported architecture in
+> which the pair appears as the **reaching** end rather than the **reached** end is not an instance of
+> a class defined over the pair as a **listener**, and does not defeat reach under ADR-0050 limb 3.
+> **[measured]** it has two instances in the corpus, both of them refusals: `445/tcp`'s Azure Files
+> pages (§33.5) and `623/udp`'s *iLO Direct Connect* (§28.9), the latter predating §32 and never
+> before counted as one. Both riders are **coordinates of what limb 2's *"this pair"* denotes**, which
+> §32.2's limb 2 is restated to state. §36.5, §36.8.
+
 **What this section does not do.** It does not reopen ADR-0059 limbs 1 or 2, nor §32.2's four limbs.
 #101 fenced them and this ticket **applies** the conjunction rather than restating it — the same
 relationship #101 had to #98. Mood, force, hedging and priority label remain inadmissible in both
@@ -14639,11 +14710,23 @@ completed here.
    on-premises client making an **outbound** connection to a named endpoint, which is the distinction
    §3.4 drew and §32.12 named as the candidate fifth limb.
 
-> **`445/tcp` stays in the prohibition tier.** But **[measured] it is the first member of either tier
-> whose verdict turns on direction**, and §32.12's *"no member of either tier turns on it today"* is
-> **withdrawn**. The four limbs decided this row only because two of them were read with an
-> unstated directional qualifier already inside them. **That is a finding about the criterion rather
-> than about the row, so it is routed and not ruled** — ADR-0037 limb 2, and §33.9.
+> **`445/tcp` stays in the prohibition tier.** But **[measured] it is the ~~first~~ second member of
+> either tier whose verdict turns on direction**, and §32.12's *"no member of either tier turns on it
+> today"* is **withdrawn**. The four limbs decided this row only because ~~two of them were~~ **one of
+> them — limb 2 — was** read with an unstated directional qualifier already inside ~~them~~ **it**.
+> **That is a finding about the criterion rather than about the row, so it is routed and not ruled** —
+> ADR-0037 limb 2, and §33.9.
+>
+> > **Both struck clauses are CORRECTED by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)),
+> > and neither correction moves this cell. **[measured] `445/tcp` is the *second* member whose verdict
+> > turns on direction, not the first:** §28.9 disposed of HPE's *iLO Direct Connect* as **outbound**
+> > and thereby spared `623/udp`'s footing, four sections before §32 wrote that no member turned on it.
+> > **The clause was false when written.** And the qualifier is **one** limb's, not two: direction and
+> > addressee are the two coordinates of what limb 2's *"this pair"* denotes — here they are the same
+> > disposal read from the two ends of one TCP connection, the operator's traffic being outbound
+> > *because* the listener is Microsoft's. **Limb 2 is restated at §32.2's own clause**, and
+> > §33.2's discriminator gains the matching rider — **the direction is part of the class** — beside
+> > the addressee rider it already carried. §36.5, §36.7, §36.8.
 
 ### 33.6 `2181/tcp` — limb 4 stops being a consistency argument and becomes a retrieval
 
@@ -14777,6 +14860,15 @@ said no member turned on it. `445/tcp` does. This does not falsify §32.2's clos
 arguably a qualifier **inside** limb 2 rather than a fifth term — but that is the question, and it is
 the one §32.12 said a challenger should go looking for. **Ticketed.** It does not block #12: no
 candidate answer moves a row, and both live answers leave `445` where it is.
+
+> **CLOSED by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)), and this item's own
+> guess was right. **Direction is a qualifier inside limb 2, not a fifth term**, and limb 2 is restated
+> at §32.2's clause to say so; **addressee is that limb's second coordinate**, not a sixth candidate.
+> **[measured]** the pricing here was also right — nothing moved, nothing was routed to #12, and the
+> cost is nothing. Two things this item did not know: `445/tcp` was the **second** live instance rather
+> than the first (§28.9's `623/udp`, §36.7), and the conjunction as written was **measurably**
+> defective — Microsoft's *"Block TCP port 445 outbound to the internet"* satisfies all four limbs and
+> entails nothing about the row (§36.2). §36.
 
 **3. A second Microsoft document corroborates the SMB row, found by reading the whole artefact.**
 ADR-0037 limb 1 requires an artefact opened for one row to be read for every subject in the table's
@@ -15393,6 +15485,712 @@ commit `9a8f1df`. Four siblings were resolving concurrently, so the safe stateme
   not performed.
 ---
 
+## 36. Direction is what limb 2's *"this pair"* denotes — no fifth limb, addressee is the same limb's second coordinate, and the closure survives only by being written down
+
+Wayfinder ticket [#110](https://github.com/winniel123/verge-asm/issues/110), on the candidate §32.12
+named against its own closure and §33.5 measured live: *"direction is arguably a qualifier **inside**
+limb 2 rather than a fifth term — but that is the question."* This section **amends §2.2, §3.4, §30.7,
+§32.2, §32.12, §33.5, §33.9 and ADR-0059**; earlier text stands and is marked, per the
+name-and-withdraw convention, and where §36 and an earlier section disagree, **§36 governs**. **No
+cell moves and no row moves** — this section rules on the **criterion**, which is the one thing #107
+routed here rather than deciding.
+
+**Headline result, stated first.**
+
+> **Direction is not a fifth limb. It is what limb 2's *"this `(port, transport)` pair"* denotes, and
+> limb 2 is restated to say so.** The row's subject is a **listener** — the endpoint an internet-class
+> vantage reaches — and a sentence about traffic leaving an estate on the same number is about a
+> different endpoint, not about a fifth term of the same proposition. §36.4, §36.8.
+>
+> **Addressee is not a sixth candidate. It is the same limb's second coordinate**, and at `445/tcp` it
+> is the **same disposal as direction read from the other end of one TCP connection**: the operator's
+> traffic to Azure Files is outbound *because* the listener is Microsoft's. Two coordinates of one
+> term — *which* endpoint — not two kinds of gap. §36.5.
+>
+> **[measured] The conjunction as written is defective, and the defect is a retrieval rather than an
+> argument.** §32.12 wrote that *"an owner sentence forbidding **outbound** traffic to the internet
+> would satisfy all four limbs as written while entailing nothing about the row"*, as a hypothetical.
+> **It is not hypothetical.** The document carrying `445/tcp`'s footing has a section headed
+> **`## Block outbound SMB access`** whose first sentence is *"Block TCP port 445 outbound to the
+> internet at your corporate firewall."* — Microsoft's, about TCP/445, naming the internet, taking a
+> position. **All four limbs as written; nothing entailed about the row.** §36.2.
+>
+> **[measured] Direction and addressee run as candidate limbs across all 26 members of both graded
+> tiers.** Direction is **written as a word by the owner for five** (`445`, `25672`, `10250`, `10259`,
+> `10257` — three of them in a table column literally headed `Direction`), carried by the carrying
+> verb's own preposition for **three**, entailed by an exposure or placement verb whose object is a
+> listener for **sixteen**, and **absent from two** — `2049/tcp` and `4369/tcp`, both of which already
+> fail limb 3 and are therefore not at risk on either candidate. **A verdict turns on direction for
+> two** — `445/tcp` and `623/udp` — and **on addressee for one**, `445/tcp`. §36.6.
+>
+> **[measured] §32.12's *"no member of either tier turns on direction today"* was false when it was
+> written, not merely after §33.** `623/udp`'s footing survived a candidate defeater — HPE's *iLO
+> Direct Connect* — that §28.9 disposed of **on direction**, in a section that predates §32 by four
+> sections and one ticket. §33 withdrew the clause on `445`; the clause had already been false on
+> `623`. §36.7.
+>
+> **§32.2's closure is *not* restated as *closed over the terms the note has rules for*.** That
+> restatement is the option the ticket names and it **loses**: it is a tautology that would license
+> the next session to declare any inconvenient candidate outside the enumeration. The closure stays a
+> closure over the row's terms; what changes is **limb 2's text**, so that the qualifier which decided
+> `445` and `623` is stated rather than supplied. §36.10, Option 3.
+>
+> **Nothing moves, and the cost is nothing.** `445/tcp` stays in the prohibition tier — #107's ruling
+> on it is untouched and was not reopened. `623/udp` stays. No `(port, transport)` pair moves, no
+> class total moves, no coverage figure moves, and [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)
+> is not triggered. **This is the empty delta**, and under the map's cost rule a footing-tier criterion
+> change that moves no cell costs nothing. §36.12.
+>
+> **No ADR is minted and ADR-0068 is left unused**, as `0039`, `0041`, `0052`, `0053`, `0057`, `0062`,
+> `0063`, `0064` and `0066`/`0067` are as their tickets rule. **ADR-0059 is amended in place** and the
+> restatement is written **at limb 2's own clause**, not only in an appended block —
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as
+> widened by [#106](https://github.com/winniel123/verge-asm/issues/106), whose unit is the **sentence**
+> and under which a document supersedes itself. §36.11.
+
+### 36.1 What #107 left, and why *"it changes no cell"* is not an answer
+
+§33.9 item 2 routed this question in one paragraph and priced it at nothing: *"It does not block #12:
+no candidate answer moves a row, and both live answers leave `445` where it is."* That pricing is
+correct and it is **not** a reason to leave the question open, for the reason §32.10 gave when it
+declined to mint an ADR: **the cells are cheap; the reason they move is the deliverable.** Read the
+other way round, the reason they *stay* is the deliverable too.
+
+§32.2's closure is the load-bearing claim of the whole footing column. It says a footing satisfying
+four limbs sits at **zero** reader-supplied premises, and zero premises **is** the top tier by
+ADR-0059 limb 1. If a fifth premise is in fact required and unstated, then every prohibition-tier
+member sits at one premise the note does not disclose, and §2.2's founding paragraph — *"the two forms
+are not equally strong, and the list must not hide the difference"* — is being violated fifteen times
+over rather than not at all. **The stake is not a cell; it is whether the column's own arithmetic is
+true.**
+
+And §32.12 set the falsification condition itself: *"What would falsify §32.2 is a fifth kind, not a
+new instance of one of the four."* #107 met that condition on the first walk that tested it. A closure
+whose named counterexample arrives on the first attempt is either wrong or under-written, and the
+ticket that priced it could not say which. This one can.
+
+### 36.2 The measurement that decides it — the owner's own outbound position, in the document that carries the footing
+
+§32.12's hypothetical, in its own words:
+
+> "The row is about an **inbound** listener, and an owner sentence forbidding **outbound** traffic to
+> the internet would satisfy all four limbs as written while entailing nothing about the row."
+
+**[measured]**, retrieved 2026-08-14 from the owner's own issued documentation — the page §3.4 already
+quotes for `445/tcp`'s imperative, read **whole** rather than for the one sentence the note holds, per
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1:
+
+> "## Block inbound SMB access
+>
+> Block TCP port 445 **inbound** from the internet at your corporate hardware firewalls. Blocking
+> inbound SMB traffic protects devices inside your network by preventing access from the internet."
+>
+> "## Block outbound SMB access
+>
+> **Block TCP port 445 outbound to the internet at your corporate firewall.** Blocking outbound SMB
+> traffic prevents devices inside your network from sending data using SMB to the internet."
+>
+> "It is unlikely you need to allow any outbound SMB using TCP port 445 to the internet unless you
+> require it as part of a public cloud offering. The primary scenarios include Azure Files and Office
+> 365."
+> — Microsoft Learn, *Secure SMB Traffic in Windows Server*, `ms.date` **2024-10-25**, `updated_at`
+> **2025-04-28T22:34Z**, git commit
+> [`00769866`](https://github.com/MicrosoftDocs/windowsserverdocs-pr/blob/00769866e7fbcab34905970bd165f4f12c5e9626/WindowsServerDocs/storage/file-server/smb-secure-traffic.md),
+> `word_count` 1602. Retrieved 2026-08-14
+
+**The hypothetical is a heading.** *"Block TCP port 445 outbound to the internet at your corporate
+firewall"* is (1) Microsoft's, for a port Microsoft owns and numbers; (2) about TCP/445 by the number,
+so limb 2's **enumeration** branch is satisfied without ADR-0050 being needed at all; (3) naming *the
+internet*; (4) an unhedged imperative in a document the same owner files its inbound prohibition in,
+so limb 4 is satisfied on any reading the note has ever applied. **Four limbs, as written, satisfied.**
+
+And it entails **nothing** about the row. The row asserts *this `(port, transport)` pair being
+reachable from an internet vantage is never correct*. A rule blocking egress on TCP/445 says nothing
+about whether anyone can reach a listener on TCP/445; a network can satisfy it perfectly while running
+an internet-facing SMB server. The two sentences are Microsoft's two positions and only one of them is
+the row's.
+
+**Three things follow, and the third is the one that matters.**
+
+1. **§32.12's candidate is real and is not a thought experiment.** It has been sitting one heading
+   below the sentence the note has quoted since §3.4 was written.
+2. **The four limbs, read literally, are not sufficient.** A criterion that admits a sentence entailing
+   nothing about the row is not a membership test for the row's tier. Something in §32.2 must change;
+   that much is now measured rather than argued.
+3. **But the failure is *lexical*, not structural.** Both Microsoft sentences name the same two
+   objects — TCP/445 and the internet — and differ only in **which object is being reached**. Nothing
+   new enters the proposition. That is the whole of §36.4.
+
+**One more retrieval, because the carrying document's own directive is bidirectional and the note has
+only ever quoted half of it.** **[measured]**:
+
+> "It is unlikely that any SMB communication originating from the internet **or destined for the
+> internet** is legitimate."
+>
+> "Perimeter hardware and appliance firewalls that are positioned at the edge of the network should
+> block **unsolicited communication (from the internet) and outgoing traffic (to the internet)** to
+> the following ports."
+>
+> | Application Protocol | Protocol | Port |
+> |---|---|---|
+> | SMB | TCP | 445 |
+> | NetBIOS Name Resolution | UDP | 137 |
+> | NetBIOS Datagram Service | UDP | 138 |
+> | NetBIOS Session Service | TCP | 139 |
+> — Microsoft, *Preventing SMB traffic from lateral connections and entering or leaving the network*,
+> `updated_at` **2026-07-13**. Retrieved 2026-08-14
+
+**Microsoft's strongest sentence in the corpus is explicitly two-directional, and only one of its two
+halves is the row's.** §3.4 calls it *"the strongest single sentence in the entire corpus"* and quotes
+it in full, including *"or destined for the internet"*, without ever noting that half of it is about
+egress. **The note has held the falsifying shape in its own body since §3 and read past it eight
+times.** That is recorded because it is the honest account of how this candidate survived to §36 and
+not a criticism of any pass: nobody was looking for it, because until §32 made the criterion
+**sufficient** there was nothing for it to falsify.
+
+### 36.3 The case for a fifth limb, put at its strongest
+
+It is a real case and it very nearly wins.
+
+**1. §32.2's own closure argument is about *terms of the proposition*, and *reachable from* is a
+directed relation.** The closure runs: *"the row's proposition has four terms, a reader-supplied
+premise can only be needed for a term, and the note has a rule for each of the four."* Read that
+strictly. The proposition is *this pair being **reachable from** an internet vantage is never correct*.
+Reachability is not symmetric. A reader handed *TCP/445* and *the internet* still cannot evaluate the
+proposition until told which is reaching which — so **direction is something the reader must have**,
+and the note has no rule that supplies it. On §32.2's own test that is a fifth term, and a fifth term
+is a fifth limb.
+
+**2. Limb 2 as written does not say it, and §32 forbade widening a limb by a syllable.** Limb 2 reads
+*"The statement is about **this `(port, transport)` pair** — either the owner numbers the pair, or
+ADR-0050's three limbs carry it there on the owner's own artefacts."* Microsoft's outbound sentence
+**numbers the pair**. It satisfies limb 2's enumeration branch on its face, and no amount of good faith
+gets *inbound* out of the text as it stands. §32.2 said of limb 3 that it is *"unchanged and not
+widened by a syllable"*; reading an unstated qualifier into limb 2 is exactly the widening that
+discipline refuses.
+
+**3. #107 needed *two* grounds for `445`, and neither is in any limb.** §33.5's own words: the defeat
+test *"is disposed of **only** by direction and addressee"*, and §33.5 says outright that *"the four
+limbs decided this row only because two of them were read with an unstated directional qualifier
+already inside them."* A conjunction whose application requires two unstated qualifiers is
+under-specified by two, not by zero.
+
+**4. And the absorbing move is dangerous.** If any candidate fifth limb can be dissolved by declaring
+it *"already inside"* one of the four, the closure claim is unfalsifiable and therefore says nothing.
+§32.12 named the falsification condition precisely to avoid that, and a session that meets the
+condition and then rules the counterexample was inside a limb all along has met the condition in form
+and evaded it in substance. **This is the strongest objection in the ticket and it is not answered by
+being noticed.** §36.4 answers it with a test that would have gone the other way on a different
+candidate.
+
+### 36.4 The case for limb 2, and why it wins
+
+**The test, stated before it is applied, so it can be attacked rather than fitted.**
+
+> **A candidate is a fifth *kind* of gap where it introduces an object into the proposition that no
+> limb names. It is a qualifier *inside* an existing limb where it fixes which object already named
+> fills which place in the proposition.**
+
+That test is not invented here: it is §32.2's own *"a reader-supplied premise can only be needed for a
+**term**"*, taken literally. A **term** is a thing the proposition is about. An **argument place** is
+where a term sits in the relation. The closure is a claim about terms, and it survives a candidate
+that turns out to be about places.
+
+**Applied to direction, the answer is that direction introduces nothing.** The proposition has a
+directed relation, *reachable from*, with exactly two argument places: the endpoint **reached** and the
+vantage the reaching comes **from**. Limb 2 names the first (*this `(port, transport)` pair*). Limb 3
+names the second (*the public internet*). **Direction is not a third object; it is the assignment of
+the two named objects to the two places.** Microsoft's outbound sentence names the same two objects and
+puts them in the opposite places — the internet is what is reached, and a host on TCP/445 is where the
+reaching starts. Nothing has entered the proposition. What has happened is that **limb 2 has been
+satisfied by an occurrence of the pair that is not the pair the proposition is about**, which is a
+limb-2 failure by any reading of what limb 2 is *for*.
+
+**Contrast a candidate that would be a genuine fifth limb, so the test is shown discriminating rather
+than accommodating.** Suppose an owner wrote *"do not expose this port to the internet **before
+version 4.0**"*. Time is not an argument place of *reachable from*; it is a new object the proposition
+does not contain, and no limb reaches it. That candidate the four limbs cannot absorb, and §32.2 would
+be falsified by it. **The test refuses direction and would admit that one**, which is what makes it a
+test rather than a rescue.
+
+**The glossary settles the reading, and it settles it in the words the product already uses.**
+[`CONTEXT.md`](../../CONTEXT.md) defines **`Reach`** as *"What vantages of one `Vantage class` found
+for one `Service`"* and **`Vantage class`** as *"which side of the operator's boundary a `Vantage` sits
+on"*, noting that *"a target's family moves nothing — the class says where the prober sits, not what it
+is looking at."* The rule this table feeds, `sensitive-port-reached-from-internet`, reads the internet
+leg of `Reach` for a `Service`. **A `Service` is a listener.** An outbound client socket on TCP/445 is
+not a `Service`, opens no `Reach` timeline, and is invisible to every one of the sixteen rules. So
+*"this `(port, transport)` pair"* in limb 2, read as the model reads it, **already denotes the pair as
+a listener** — the endpoint the prober reaches. Microsoft's outbound sentence is not about a
+`Service` at all.
+
+**The strongest objection — that absorption makes the closure unfalsifiable — is answered by what the
+absorption costs.** It costs limb 2's text. §36.8 restates limb 2, and the restatement is written **at
+limb 2's clause** in ADR-0059 and in §32.2 rather than only in an appended amendment, per ADR-0058 as
+widened by #106. **A closure that survives a live candidate by amending the limb the candidate hit is
+not a closure that survived untouched, and this section does not claim it was.** The claim is narrower
+and it is the one the evidence supports: **the enumeration of *kinds* of gap holds at four; the
+enumeration of what one of those kinds *denotes* was incomplete, and is now written down.** That is
+§26.6's distinction — *ADR-0046 limb 2 closes the **taxonomy**, not the **membership*** — arriving one
+level down, and §32.12 cited it in advance as the governing analogy.
+
+### 36.5 Addressee — the sharp part, and it is one limb with two coordinates
+
+The ticket puts this correctly: *"If addressee is independent, §32.2's closure has two exceptions
+rather than one and the *no fifth limb* ruling is in real trouble."* It is worth the subsection.
+
+**First, the honest half: direction and addressee are not the same qualifier, and each has a case the
+other does not reach.**
+
+- A sentence forbidding purely **outbound** SMB, addressed to the operator, about the operator's own
+  devices, turns on **direction alone** — addressee is satisfied and the sentence still says nothing
+  about the row. That is §36.2's retrieved instance.
+- Microsoft's Azure Files endpoint is an **inbound** TCP/445 listener reachable from the internet.
+  Direction, read only at that listener, does **not** dispose of it. Only *whose listener it is*
+  does.
+
+So they are two distinct qualifiers. **They are not two distinct kinds of gap**, and the reason is a
+fact about the object rather than a preference about bookkeeping.
+
+**At `445/tcp` they are one disposal read from the two ends of one TCP connection.** §33.5's ground 2
+says Microsoft's supported case is *"an on-premises client making an **outbound** connection to a named
+endpoint"*. Ground 1 says the listener at the far end is *"**Microsoft's** listener, not the
+operator's"*. **These are the same connection.** The operator's traffic is outbound *because* the
+listener belongs to someone else; the listener belongs to someone else *because* the traffic left the
+operator's estate. Neither fact is available without the other, and §33.5 states both because it was
+describing one connection carefully, not because it had found two independent defects.
+
+**And both answer the same question: *which listener is the statement about?*** Direction answers it by
+fixing the pair as the endpoint **reached** rather than the endpoint **reaching**. Addressee answers it
+by fixing **whose** endpoint. Both are coordinates of the subject limb 2 already names. Neither
+introduces an object the proposition lacks — a listener has an orientation and it has an owner, and
+both are properties of the listener, not further terms alongside it.
+
+**The measured check, and it is the one that would have falsified this.** If addressee were an
+independent kind of gap, it should be load-bearing somewhere other than `445`. **[measured] it is
+available twice more in the sweep and needed neither time**, because in both cases the note found a
+narrower ground read off an owner artefact:
+
+- **`6379/tcp` Redis.** Redis Cloud is Redis's **own** hosted listener, so addressee would spare the
+  cell. §33.11 did not use it: *"the supported endpoint is not on the port"* — **[measured]** the
+  owner's port table gives database endpoints as `10000-10049, 10051-19999` and `6379` occurs **zero**
+  times across the Redis Software port-configurations page, the Redis Cloud connect page and the Cloud
+  TLS page. The class the defeat would need is **empty**, which is a limb-2 enumeration fact and not an
+  addressee argument.
+- **`9200/tcp` Elasticsearch.** §33.11: *"the supported endpoint is not the node"* — **[measured]**
+  Elastic Cloud Enterprise's own inbound-port table puts `9200`/`9243` on the **Proxy** role and the
+  Elasticsearch nodes on `18000-18999`. That is a **component**-identity ground, not a party one, and
+  in ECE the proxy is run by the operator rather than by Elastic, so addressee would not have worked
+  even if it had been reached for.
+
+> **Addressee is load-bearing exactly once in twenty-six members, and at that one member it is
+> inseparable from direction.** *One exception, not a pattern* — and the pattern claim is falsifiable
+> rather than asserted: a second member disposed of on addressee **alone**, with the direction ground
+> unavailable, defeats this subsection without touching §36.4.
+
+**What follows for the closure.** §32.2 does not acquire a second exception. It acquires **one**
+under-written limb, which is the shape the note has repaired four times before — §20.8's criterion
+true-but-incomplete (§30), then necessary-but-not-sufficient (§32), then asserted-rather-than-walked
+(§33). This is the fourth turn of the same handle and the first one that costs no cell at all.
+
+### 36.6 The sweep — direction and addressee run as candidate limbs over all 26 graded-tier members
+
+**[measured]** Against `main` at `94ff868` — §2.2 tiers **prohibition 15 · scoping 11 · weak 3 ·
+outside-subject 11 · uncovered-in-subject 1**, coverage 29 of 41. Figures cited **as of that commit**
+and not restated as current, because a sibling pass may move a member; **this section moves none of
+them and the sweep's verdicts are membership-independent.**
+
+The weak tier is outside the sweep **by construction, not by omission**: §32.7 rules that its three
+rows carry **no owner statement of a permitted network at all**, and a candidate qualifier on a
+statement cannot bite where there is no statement. `5432/tcp`, `5984/tcp` and `10248/tcp` are
+therefore untouched on either candidate, and that is a fact about the tier rather than a gap in the
+walk.
+
+**How the columns are read.** *Direction, in the statement* asks how the row's carrying statement fixes
+the pair as the endpoint **reached** — `named` where the owner writes the word or heads a column with
+it, `preposition` where the carrying verb governs it (*accessible **from***, *reachable only **from***),
+`entailed` where the verb takes a listener as its object (*expose*, *exposed*, *publicly accessible*,
+*placed on*, *connected to*), and `absent` where neither. *Turns on it?* asks whether a verdict actually
+depended on the candidate.
+
+| # | Pair, tier | Direction, in the carrying statement | Verdict turns on **direction**? | Verdict turns on **addressee**? |
+|---|---|---|---|---|
+| 1 | `6379/tcp` Redis · P | **entailed** — *"expose the Redis instance directly to the internet"*; *"where untrusted clients can directly **access** the Redis TCP port"* | No | **No — and it was available.** Spared on the **port**, not the party (§33.11, §36.5) |
+| 2 | `11211/tcp` memcached · P | **entailed** — *"you must not **expose** memcached directly to the internet"* | No | No — the owner operates no service |
+| 3 | `11211/udp` memcached · P | **entailed** — same sentence | No | No |
+| 4 | `3306/tcp` MySQL · P | **preposition** — *"This port should not be **accessible from** untrusted hosts"*; *"scan your ports **from the Internet**"* | No | No — the defeat is refused on **conditioning** (*"untrusted hosts"*) |
+| 5 | `9200/tcp` Elasticsearch · P | **entailed** — *"Never **expose** an unprotected node to the public internet"* | No | **No — and it was available.** Spared on **component identity**, and the ECE proxy is the operator's (§36.5) |
+| 6 | `9300/tcp` Elasticsearch · P | **entailed** — same sentence | No | No |
+| 7 | **`445/tcp` SMB · P** | **named** — *"Block TCP port 445 **inbound** from the internet **at your corporate hardware firewalls**"*; and the carrying directive is bidirectional — *"unsolicited communication (from the internet) **and outgoing traffic (to the internet)**"* | **YES** — §33.5 | **YES** — §33.5, and it is the same disposal (§36.5) |
+| 8 | **`623/udp` IPMI · P** | **entailed** — Dell, *"not designed nor intended to be **placed on or connected to** the internet"*; HPE, *"Do not **connect** iLO directly to the Internet"* | **YES** — §28.9's *iLO Direct Connect* near-miss, disposed of as **outbound**. §36.7 | No |
+| 9 | `9042/tcp` Cassandra · P | **entailed** — *"you should not **expose** this port to the internet"* | No | No |
+| 10 | `2379/tcp` etcd · P | **entailed** — *"must not be **exposed** to untrusted networks or the public internet"* | No | No |
+| 11 | `2380/tcp` etcd · P | **entailed** — same sentence | No | No |
+| 12 | `10250/tcp` kubelet · P | **named** — the footing **is** the owner's table row, in a column headed **`Direction`**: `\| TCP \| Inbound \| 10250 \| Kubelet API \| Self, Control plane \|` | No | No |
+| 13 | `10255/tcp` kubelet · P | **entailed** — *"not **exposed publicly** on Internet"* | No | No |
+| 14 | `2181/tcp` ZooKeeper · P | **entailed** — *"not **exposed** directly to the Internet"*; the Admin Guide bullet is titled ***Publicly accessible deployment*** | No | No |
+| 15 | `25672/tcp` RabbitMQ · P | **named** — the antecedent §32.6 made load-bearing: *"RabbitMQ nodes will listen for **inbound** connections from peers and CLI tools"* | No | No — the split is between **port classes** of one owner, not between parties |
+| 16-18 | `27017`/`27018`/`27019` MongoDB · S | **entailed** — *"only **accessible on** trusted networks"* | No | No — see §36.6's Atlas note below |
+| 19 | `2049/tcp` NFS · S | **ABSENT** — *"on a trusted physical network between trusted hosts, it is entirely adequate"* is a deployment condition and names no direction | No — fails limb 3 already | No |
+| 20 | `4369/tcp` epmd · S | **ABSENT** — *"should only be **used in** a trusted network"* names no direction | No — fails limbs 1 and 3 already | No |
+| 21 | `2375/tcp` Docker · S | **preposition** — *"**reachable only from** a trusted network or VPN"* | No | No |
+| 22 | `2376/tcp` Docker · S | **preposition** — same | No | No |
+| 23 | `873/tcp` rsync · S | **entailed** — *"Do not **expose** a cleartext daemon to an untrusted network"*. Worth noting: the **second** rsync imperative is transit-shaped — *"do not **send** sensitive data **across** an untrusted network"* — and is the corpus's one other non-listener sentence | No — fails limb 3 already | No |
+| 24 | `10259/tcp` kube-scheduler · S | **named** — `\| TCP \| Inbound \| 10259 \| kube-scheduler \| Self \|` | No | No |
+| 25 | `10257/tcp` kube-controller-manager · S | **named** — `\| TCP \| Inbound \| 10257 \| kube-controller-manager \| Self \|` | No | No |
+| 26 | `10249/tcp` kube-proxy · S | **entailed** — `source-ip.md`, *"on the node where kube-proxy is running"*, *"Run this in a shell on the node you want to query"*: the owner placing the **caller** relative to the listener | No | No |
+
+> **Twenty-six members walked · direction named by the owner in five · carried by the verb's
+> preposition in three · entailed in sixteen · absent in two · two verdicts turn on direction · one on
+> addressee · zero cells move.**
+
+**[measured]** the Kubernetes table's `Direction` column, retrieved 2026-08-14 from
+[`kubernetes/website` `main`, `content/en/docs/reference/networking/ports-and-protocols.md`](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/networking/ports-and-protocols.md):
+both the control-plane and worker-node tables carry columns `Protocol · Direction · Port Range ·
+Purpose · Used By`, and **every** `Direction` value in both tables reads `Inbound` — for `6443`,
+`2379-2380`, `10250`, `10259` and `10257`. `10249` is in neither table, which is why §27.5 had to
+place it on `source-ip.md` instead.
+
+**The headline number, and it is the one that answers the ticket's *"one exception or a pattern"*
+question.** **Direction is supplied by the owner in twenty-four of twenty-six carrying statements —
+five in the word, three in the preposition, sixteen in the verb — and it is absent from the two that
+were already refused on other limbs.** So the reader supplies no directional premise anywhere in either
+graded tier. **That is why the column's arithmetic is safe and why nothing moves**: a term that the
+owners themselves fix in every live member costs zero premises, which is ADR-0059 limb 1's own
+definition of the top tier.
+
+**Where the candidates bite is not the carrying statement but the *defeat* test**, and both instances
+are there: `445`'s Azure Files pages and `623`'s *iLO Direct Connect*. That is §33.2's discriminator —
+*the architecture the owner supports must be an instance of the class the owner's own statement
+forbids* — and §33.2 already wrote **one** of the two candidates into it as a rider: *"the addressee is
+part of the class"*. **Direction is the same rider's sibling and §33.2 did not write it**; §36.8 does.
+
+**A note on MongoDB Atlas, because it is the obvious place to look for a second addressee instance and
+it is not one.** MongoDB Atlas is MongoDB's own hosted service and its clusters are reachable from the
+internet, which is the `445` shape exactly. It does not become an addressee instance here for a reason
+that arrives one limb earlier: `27017`/`27018`/`27019` sit in the **scoping** tier because *"only
+accessible on trusted networks"* fails limb 3, and limb 4's defeat test does not run on a footing that
+has already failed a limb. **Recorded because a later pass promoting MongoDB on a new sentence would
+inherit this question**, and at that point the addressee ground would be live and the *one exception*
+claim would need re-running.
+
+### 36.7 §32.12's withdrawn clause was false when it was written — `623/udp` is the second instance and it predates §32
+
+§33 withdrew *"no member of either tier turns on direction today"* on `445/tcp` and dated the
+falsification to §33.5. **[measured] the clause was already false four sections earlier.**
+
+§28.9 ([#96](https://github.com/winniel123/verge-asm/issues/96)) swept `623/udp`'s owner classes for
+§10.3's failure condition and disposed of two near-misses by name. The first:
+
+> "**HPE *iLO Direct Connect* is outbound, not inbound.** HPE material on iLO Direct Connect reads like
+> HPE endorsing an internet-reachable iLO. It is the opposite direction: per HPE advisory
+> `a00050194en_us`, Document Version 4, last updated 2019-10-15, *"ensure the firewall or proxy rules
+> will permit communication **from the device to** `https://api.support.hpe.com` over port 443"*. That
+> is iLO making an **outbound** client connection through the customer's firewall to HPE's Remote
+> Support data centres."
+
+**That is `623/udp`'s footing surviving a candidate defeater on direction, in a section that predates
+§32 and was written by an earlier ticket.** §32.12 then wrote *"no member of either tier turns on
+direction today — every sentence in §32.3 and §32.4 is about a listener being reached"*, and the
+sentence is true of the **carrying statements** it names and false of the **defeat tests** it does not.
+The clause was scoped to the wrong half of the conjunction.
+
+**Two things follow and both are worth having.**
+
+1. **The candidate is a pattern of two, not an exception of one, and #107's own count is where the
+   second instance was hiding.** §33.11 records the defeat test as *"met once (`1433`),
+   met-and-disposed-of once (`445`), and refused fourteen times"* — a count of **outcomes** that does
+   not distinguish **grounds**. `623` is one of the fourteen refusals, and the ground §28.9 refused it
+   on is direction. A count that recorded grounds would have shown two.
+2. **It strengthens rather than weakens §36.4's ruling, which is why it is stated against interest.**
+   Two instances is a worse case for *leave the qualifier unstated* than one, and it is the reason this
+   section restates limb 2 rather than merely recording that the closure held. A qualifier that has
+   silently decided two members over four sections is a mechanism specified nowhere, which is exactly
+   what ADR-0058 exists to catch.
+
+**And it does not move `623/udp`.** §28.9's disposal is correct on its own terms and is reached by the
+restated limb 2 unchanged: iLO's outbound HTTPS session to `api.support.hpe.com` is not a listener on
+`623/udp` at all, so it is not an instance of the class HPE's *"Do not connect iLO directly to the
+Internet"* forbids. **The cell stands, on a ground the note now names.**
+
+### 36.8 Limb 2, restated
+
+> **Limb 2 — Reach, restated.** The statement is about **this `(port, transport)` pair as the endpoint
+> being reached, on the estate the statement addresses**. Reach is established as before — either the
+> owner numbers the pair, or [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)'s
+> three limbs carry it there on the owner's own artefacts — and the pair so reached must be the row's
+> subject: **a listener, reached from outside the addressed estate.**
+>
+> Two consequences, both of which the note has been applying unstated:
+>
+> - **A statement about traffic *leaving* that estate on the same number is about the other end of the
+>   connection**, and satisfies this limb no more than a statement about a different port would.
+> - **A listener the *owner itself* runs, which the addressed party does not**, is a different endpoint
+>   from the row's subject; a statement about it neither carries this limb nor defeats it.
+>
+> **This is a restatement of what *"this pair"* denotes, not a new limb and not a widening.** The
+> conjunction stays at **four**: owner's · reaches the pair · names the public internet · takes a
+> position. §32.2's closure over the **kinds** of gap is unchanged; what is written down is what one
+> kind picks out.
+
+**The same two consequences travel into limb 4's third branch, where both live instances actually
+arose.** §33.2's discriminator — *the architecture the owner supports must be an instance of the class
+the owner's own statement forbids* — already carries the addressee rider in terms (*"the addressee is
+part of the class"*). **Direction is its sibling and is now written beside it:**
+
+> **The direction is part of the class.** A supported architecture in which the pair appears as the
+> **reaching** end rather than the **reached** end is not an instance of a class defined over the pair
+> as a listener, and does not defeat reach under ADR-0050 limb 3.
+
+**Neither addition is a new rule and both are stated so they can be attacked**, per §33.10's precedent
+for the discriminator itself. A reader who thinks *"the direction is part of the class"* draws the line
+in the wrong place gets `445` and `623` differently — and would have to say what the class of *"Block
+TCP port 445 inbound from the internet"* contains such that an on-premises client's outbound session is
+in it.
+
+### 36.9 The ruling
+
+> - **Direction is not a fifth limb of the prohibition-tier conjunction.** It is what limb 2's *"this
+>   `(port, transport)` pair"* denotes — the endpoint being reached — and limb 2 is **restated at its
+>   own clause** to say so. The conjunction stays at **four limbs**. §36.4, §36.8.
+> - **Addressee is not a sixth candidate.** It is limb 2's second coordinate, it is load-bearing
+>   exactly once in twenty-six members, and at that member it is the same disposal as direction read
+>   from the other end of one TCP connection. §36.5.
+> - **§32.2's closure over the *kinds* of gap stands at four and is *not* restated as *closed over the
+>   terms the note has rules for*.** That formulation loses at §36.10 for being a tautology that
+>   licenses future evasion. What was incomplete was limb 2's **denotation**, and that is repaired
+>   where it is specified rather than hedged where it is summarised.
+> - **[measured] The conjunction as written was defective and the defect is retrieved:** Microsoft's
+>   *"Block TCP port 445 outbound to the internet at your corporate firewall"* (`ms.date` 2024-10-25)
+>   satisfies all four limbs as written and entails nothing about the row. §32.12's hypothetical is a
+>   heading in the document that carries the footing. §36.2.
+> - **[measured] The sweep across both graded tiers: direction is supplied by the owner in 24 of 26
+>   carrying statements** — five in the word, three in the preposition, sixteen in the verb — **and is
+>   absent from the two members that already fail another limb.** **Two verdicts turn on direction**
+>   (`445/tcp`, `623/udp`); **one turns on addressee** (`445/tcp`). §36.6.
+> - **[measured] §32.12's *"no member of either tier turns on direction today"* was false when
+>   written**, not only after §33: §28.9 had already spared `623/udp` from a candidate defeater on
+>   direction. The clause was scoped to the carrying statements and the candidate bites on the defeat
+>   test. §36.7.
+> - **§33.2's discriminator gains a second rider — *the direction is part of the class*** — beside the
+>   addressee rider it already carried. Both are stated so they can be attacked. §36.8.
+> - **Nothing moves.** `445/tcp` stays in the explicit prohibition tier and **#107's ruling on it is
+>   not reopened**; `623/udp` stays; every other member's verdict is untouched. **No cell, no `(port,
+>   transport)` pair, no row, no class total, no coverage figure, no exclusion, no watch-list member.**
+>   [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered and nothing is
+>   routed to [#12](https://github.com/winniel123/verge-asm/issues/12). §36.12.
+> - **Cost: nothing.** A footing-tier criterion change that moves no cell is free under the map's cost
+>   rule, and this one moves none.
+> - **No ADR is minted and ADR-0068 is left unused.** **ADR-0059 is amended in place**, at limb 2's own
+>   clause and not only in an appended block. §36.11.
+
+### 36.10 The options that lost
+
+**Option 1 — rule direction a fifth limb, and make the conjunction five.** The honest reading of
+§32.12's own falsification condition, and the ticket's own framing puts it first. Its case is §36.3 in
+full, and its best moment is the fourth argument: absorbing a candidate into an existing limb is
+exactly how an unfalsifiable closure defends itself. **It loses on §36.4's test.** A fifth limb
+requires a fifth **term**, and direction introduces no object the proposition lacks — it assigns the
+two objects limbs 2 and 3 already name to the two places of a directed relation. Adopting it would
+also make the conjunction assert something false about the corpus: a five-limb conjunction says the
+reader supplies a directional premise, and **[measured]** the reader supplies one in **zero** of the
+twenty-six graded members, because the owners write it. **A limb that is satisfied by the owner's own
+words in every live instance is not a gap the reader bridges; it is a description of the subject.** It
+loses a second time on **extension**: read as a fifth limb it would have to be run over the whole tier
+as a membership test, and §36.6 is that run — it refuses nobody, which is a limb doing no work rather
+than a limb the corpus needed.
+
+**Option 2 — rule addressee a sixth limb alongside it.** Nobody proposes it directly, but it is what
+follows if §36.5's argument fails, and the ticket says so in terms. **It loses on the measurement.**
+Addressee is load-bearing once in twenty-six, it is inseparable from direction at that one member, and
+it was **available and not used** at `6379` and `9200` because narrower artefact-read grounds disposed
+of both. A limb with one instance that is not independent of another limb's instance is
+§32.12's *"a line drawn through two points"* with one of the points removed. **It survives as a live
+possibility only through MongoDB Atlas**, which §36.6 records and which cannot arise while `27017`
+fails limb 3.
+
+**Option 3 — restate §32.2's closure as *closed over the terms the note has rules for*.** The ticket's
+fourth question and the tempting middle path: it concedes exactly what §32.12 already conceded, costs
+nothing, and cannot be wrong. **It loses because it cannot be wrong.** *Closed over the terms we have
+rules for* is true of any enumeration whatever, including a one-limb one, so it withdraws the closure's
+content while keeping its word — and §32.2's content is what the footing column's arithmetic rests on.
+Worse, it hands the next session a licence: any candidate that is inconvenient is *outside the terms
+the note has rules for*, and the closure that was meant to be falsifiable by a fifth kind becomes
+unfalsifiable by construction. **That is the failure mode ADR-0042 refused by name** — *"leave it
+unwritten and decide case by case"* — arriving as a form of words rather than as a silence. The honest
+repair costs more and is available: **say what limb 2 denotes.**
+
+**Option 4 — record the finding and rule nothing, on the ground that no cell moves.** The cheapest, and
+it has #107's own pricing behind it. **It loses on §36.7.** A qualifier that has silently decided two
+members across four sections, in a criterion the note calls a **membership test**, is a mechanism
+specified nowhere — and ADR-0058, one week old and amended by #106 six sections ago, exists to refuse
+exactly that. It loses a second time on the measurement §36.2 produced: the conjunction as written
+admits a sentence entailing nothing about the row, so *rule nothing* leaves the note's own stated
+criterion **false**, which is the §2 defect #93, #98, #101 and #107 have each removed a piece of.
+
+**Option 5 — mint ADR-0068.** Argued at §36.11, and it is weaker here than it was at #101 or #107.
+
+### 36.11 ADR-0059 amended in place, and ADR-0068 is left unused
+
+**The case for minting is put first and it is thinner than its predecessors'.** A closure claim about a
+criterion is a general statement about a disclosure column, and §30.5's Option C minted ADR-0059 for
+less. #110's own ticket calls the value *"to the criterion, not to a cell"*, which is the shape that
+usually earns an ADR.
+
+**It loses on three grounds and the third is decisive.**
+
+1. **Nothing here is a new rule.** Limb 2 is ADR-0050's and §2.3's; the restatement says what *"this
+   pair"* has denoted since §3.4 drew the distinction by hand for `445`. §32.10's own test — *"every
+   rule this section applies was already available"* — is met, and §24.9's words fit unchanged: *"This
+   states what §10.3 already required. No ADR is added."*
+2. **The closure it is about is a *section*, not an ADR.** §32.2 lives at §-level on §10.2's precedent,
+   and §32.10 chose that placement deliberately. An amendment to a closure goes where the closure is.
+3. **A second ADR would leave ADR-0059 asserting the defective limb in the present tense**, and
+   ADR-0059 currently carries **two** stale sentences on this exact subject: the #101 amendment's limb
+   (2), *"about **this `(port, transport)` pair**"*, and its *"What this amendment does not reach"*
+   paragraph, which still says §32.12 *"records that no member of either tier turns on it today"* — a
+   clause §33 withdrew in the note and **left standing in the ADR**. Under ADR-0058 as widened by
+   #106 the unit is the **sentence** and a document supersedes itself, so both are struck at their own
+   clauses here. **Minting ADR-0068 and leaving them standing is the failure ADR-0058 was minted to
+   name**, in the same file it was already found in once.
+
+> **ADR-0059 gains an amendment**, and the amendment is written **at limb 2's clause** as well as in an
+> appended block. **ADR-0068 is not minted and the number is left unused**, as `0039`, `0041`, `0052`,
+> `0053`, `0057`, `0062`, `0063` and `0064` are.
+
+**The stale-clause sweep this section owes, run rather than asserted.** **[measured]** the sites
+reciting §32.12's withdrawn direction clause or §32.2's unqualified closure, at `94ff868`, and every
+one is struck at its clause: `sensitive-ports.md` §2.2's amendment block, §3.4's `445` carve-out
+paragraph, §30.7's *"read §32.12 before quoting the prohibition row as complete"*, §32.2's limb 2 and
+its *"there is no fifth limb"* paragraph, §32.12's own direction paragraph, §33.5's *"unstated
+directional qualifier"* sentence and §33.9's item 2; and in
+[ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md), the
+#101 amendment's limb (2) and its *"What this amendment does not reach"* paragraph. **Nine sites, one
+decision, all in two files.** [`CONTEXT.md`](../../CONTEXT.md) is **not edited** — no term is minted,
+the glossary's `Reach` and `Service` are read rather than changed, and ADR-0048's precedent for staying
+out of that file while concurrent passes run applies again.
+
+### 36.12 Every dependent figure — the empty delta
+
+> `FIGURE DELTA §36: none. Every figure in the note checked and unchanged. No cell moves, no row moves. Basis: main at 94ff868.`
+
+**Stated parametrically, so it survives whatever a sibling does to the baseline:**
+
+> **every tier, count, denominator, coverage figure and total := unchanged.**
+
+**This is §34's shape — a ruling whose delta is empty — and it is stated in the same form for the same
+reason.** A merger has nothing to re-derive from this section, and if a sibling moves a member, this
+section's verdicts are unaffected because none of them is a membership claim.
+
+| Where — §36's walk | Was, at `main` `94ff868` | Is, after §36 |
+|---|---|---|
+| §2.2 footing table — every tier | prohibition 15 · scoping 11 · weak 3 · outside-subject 11 · uncovered-in-subject 1 | **unchanged, all five.** This section moves no cell |
+| §2.2 footing coverage | 29 of 41 | **unchanged** |
+| §1 pair count · §3 class totals · §6.1 · §4.6 | — | **unchanged.** No claim, class, determinacy verdict or exclusion is read |
+| **§32.2's four limbs** | four, closed; limb 2 reads *"about this `(port, transport)` pair"* | **still four, still closed** — and limb 2 **restated**: the pair **as the endpoint being reached, on the estate the statement addresses**. §36.8 |
+| **§32.2's *"there is no fifth limb"*** | a ruling flagged at §32.12 | **confirmed, and the flag partly discharged.** The closure over **kinds** of gap holds; the closure was **not** what was incomplete — limb 2's denotation was |
+| **§32.12's direction paragraph** | the standing candidate, with its falsification condition | **answered.** Direction is inside limb 2; the hypothetical outbound sentence is **retrieved** (§36.2); the clause *"no member turns on direction today"*, already withdrawn by §33, is further **measured false as of §28.9** (§36.7) |
+| §33.2's discriminator | one rider — *the addressee is part of the class* | **two riders** — *the direction is part of the class* joins it. §36.8 |
+| §33.5's *"unstated directional qualifier"* | recorded, routed | **discharged.** It was **one** limb read with an unstated denotation, not two limbs; the denotation is now stated |
+| §33.9 item 2 (*direction, ticketed*) | ticketed | **closed by this section.** It did not block #12 and does not |
+| §33.4's `1433/tcp` demotion | one cell out of the graded table | **untouched and not reopened**, per #110's own constraint. §36.13 records the one place it brushes against #109 |
+| §28.9's `623/udp` near-miss disposal | *"HPE iLO Direct Connect is outbound, not inbound"* | **unchanged and re-founded** on the restated limb 2, and identified as the candidate's **first** live instance (§36.7) |
+| §3.4's `445` carve-out paragraph | *"about **outbound** access to named IP ranges"* | **correct, incomplete twice, and now complete.** §33.5 added the two Azure Files pages; §36.2 adds the owner's own **`Block outbound SMB access`** section, in the carrying document |
+| §2.2's thin-cell note · §4.5's weakest row · §17.1's negatives | — | **unchanged.** Nothing here creates or retires a negative |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984`, `10248` | **unchanged.** The weak tier is outside this sweep by construction (§36.6) |
+| [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md) | limbs 1-3 | **unamended, and limb 3's class test gains a stated rider** at §33.2 rather than in the ADR — the rider is §33's act and §36 extends §33's own sentence |
+| [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) | limb 1's unit widened, limb 3 closed (#101); confirmed by use (#100, #107) | **amended.** Limb 2 of the #101 conjunction restated at its clause; the stale *"no member turns on direction today"* recital struck. **Limb 1's premise count and limb 2 of the ADR's own three — mood, force, hedging — untouched** |
+| [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) | unit is the sentence (#106) | **used, unamended.** Nine sites struck in two files (§36.11) |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) · [ADR-0009](../adr/0009-verge-core-is-a-union.md) | — | **not triggered · unchanged.** Reference data is byte-identical |
+| [ADR-0068](https://github.com/winniel123/verge-asm/issues/110) | reserved for this ticket | **not minted; the number is left unused** |
+| [`weak-key-and-signature.md`](./weak-key-and-signature.md) | — | **untouched.** It has no footing tier |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted; `Reach` and `Service` are **read** and the reading is recorded here (§36.4) |
+
+### 36.13 Thin ground, flagged per the standing rule
+
+**The closure survived by being amended, and this section does not pretend otherwise.** §32.2's
+enumeration of **kinds** of gap is unchanged at four; limb 2's **text** is not. A reader who holds that
+a limb whose denotation had to be written down after a live counterexample is a limb that failed has a
+position, and the difference between that reading and this section's is a judgement about what the
+closure claimed. **This section's ground is §32.2's own words** — *"a reader-supplied premise can only
+be needed for a **term**"* — and a reader who reads *term* loosely enough to include an argument place
+gets a five-limb conjunction. **That is the thinnest joint here and it is a joint about a word.**
+
+**§36.4's test is this section's act and is not inherited.** *A candidate is a fifth kind where it
+introduces an object the proposition lacks, and a qualifier inside a limb where it fixes which named
+object fills which place* reconstructs §32.2's closure argument and reproduces both live verdicts — but
+no prior section states it, and a reader who draws that line elsewhere gets a different conjunction.
+It is stated so it can be attacked rather than left as the thing that silently decided the ticket, in
+§33.10's own words about its own discriminator. **The falsifying case is named:** a candidate that
+introduces an object no limb reaches — §36.4's *before version 4.0* — which this test admits as a fifth
+limb and which the absorbing move could not.
+
+**The *one exception, not a pattern* claim on addressee rests on twenty-six members, which is the
+whole population and is still small.** It is falsifiable in one move — a member disposed of on
+addressee with the direction ground unavailable — and §36.6 names where that will first arise
+(MongoDB Atlas, if `27017` is ever promoted on a sentence that names the internet). **It has not
+arisen and the claim is made about today's table, dated to `94ff868`.**
+
+**Direction being *entailed* by a verb is the softest column in §36.6's sweep.** Sixteen of the
+twenty-six rest on the reading that *expose*, *exposed publicly*, *placed on* and *connected to* take a
+listener as their object. That is a claim about English rather than a retrieval, and it is the only
+part of the sweep that is not a string in an owner artefact. **It is load-bearing for the *nothing
+moves* conclusion and not for the ruling**: even if every entailed cell were reclassified as `absent`,
+the two members whose verdicts turn on the candidates are unchanged, and the members with `absent`
+statements already fail limb 3. Stated because a reader should be able to see which half of the sweep
+is measured and which is read.
+
+**This section brushes [#109](https://github.com/winniel123/verge-asm/issues/109) and stops.**
+`1433/tcp`'s demotion turned on limb 4(c) with **no** directional or addressee qualifier available —
+Microsoft's Public connectivity option is an **inbound** listener on **the operator's own** SQL Server,
+which is why both candidates are silent there and why §33.4 needed neither. **That is the strongest
+single piece of evidence that the candidates are doing real discriminating work rather than being
+available on demand**, and it is also the closest this section comes to #109's question. **It goes no
+further:** #110's constraints forbid reopening #107's `1433` ruling and #109 owns the row.
+
+**Two sibling passes are editing this file concurrently.** This section states an **empty** delta, so
+there is nothing for a merger to re-derive; the only figures it cites are cited **as of `94ff868`** and
+are named as such at §36.6 and §36.12 so that a superseded numeral cannot be left standing by the
+serial merge.
+
+### 36.14 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13 and §33.11
+
+- **The decisive retrieval was a re-read of a document the note has quoted since §3, not a new
+  source.** *Secure SMB Traffic in Windows Server* has carried `445`'s imperative in this note from the
+  beginning; nobody had read past the sentence. ADR-0037 limb 1 requires an artefact opened for one row
+  to be read for every subject in the table's domain that it names — **§36.2 is that rule applied to a
+  second heading in the same document rather than to a second port**, which is a shape ADR-0037 does
+  not name and this section reports.
+- **Every quotation in §36.2 carries the page's own `ms.date`, `updated_at`, `word_count` and git
+  commit**, per ADR-0037 limb 3 and §33.11's practice, and each is a verdict about that page at that
+  commit on 2026-08-14.
+- **The `Direction` column was read from the repository's raw markdown, not from the rendered
+  page.** §33.11's rider — *cite the bytes the repository returns, because a renderer and a summariser
+  are two different substitutions* — is followed: `ports-and-protocols.md` was fetched from
+  `raw.githubusercontent.com` at `kubernetes/website` `main`, and the column header is in the source
+  table.
+- **`623/udp`'s instance is quoted from §28.9 rather than re-fetched, and named as such.** HPE advisory
+  `a00050194en_us` Document Version 4 (2019-10-15) was retrieved by #96 and is not re-retrieved here;
+  §36.7 relies on **what the note records §28.9 measured**, which is §18.7's own qualifier. A
+  re-retrieval would strengthen §36.7 and cannot change §36.4, because §36.7 bears on how *many*
+  instances exist and not on where the qualifier lives.
+- **The sweep is a re-reading for twenty-four members and a retrieval for two.** `445/tcp`'s carrying
+  document and the Kubernetes ports table were re-fetched; the other carrying statements are quoted
+  from the note as §3.4, §32 and §33 hold them, all of which were retrievals when they were run.
+  **Where §36.6 says the carrying statement entails direction for a member it did not re-fetch, it
+  means the sentence the note records entails it** — the same qualifier §33.9 attached to its own
+  walk.
+- **The neighbour test was run in the direction that would have been expensive to skip.** For each of
+  the twenty-six the question *does this member's verdict depend on direction or on addressee* was
+  asked rather than assumed from the fact that §33 had already walked it. **[measured]** it depends on
+  direction twice and on addressee once, and the second direction instance (`623/udp`) was **not**
+  known to any prior section as a direction instance.
+- **Nothing beneath a footing was re-litigated, and no cell was reopened.** #110 forbade reopening
+  #107's `1433` ruling and ADR-0059 limbs 1 and 2; neither was touched. No claim, class, determinacy
+  verdict, exclusion or weak-tier member was read.
+
+---
+
 ## Sources
 
 Government and standards bodies
@@ -15647,3 +16445,9 @@ Retrieved for §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) 
 - **[`postgres/postgres` `REL_18_0`, `src/backend/utils/misc/guc_tables.c`](https://raw.githubusercontent.com/postgres/postgres/REL_18_0/src/backend/utils/misc/guc_tables.c)** — opened to answer *does a provenance rule move `5432/tcp`?*, the reading §32.7 names as the signal a footing rule is wrong. **[measured]** it does not: the `listen_addresses` entry carries `"localhost"` as `ListenAddresses`'s boot value, written by the owner
 - **[`apache/couchdb` `3.5.0`, `rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.5.0/rel/overlay/etc/default.ini)** — the same question for `5984/tcp`. **[measured]** `[chttpd] bind_address = 127.0.0.1` is an active written line, as are the `[httpd]` and `[prometheus]` ones beside it. Both of these are **negative** results for §34's extension argument and are reported as such at §34.11
 - **`623/udp`'s footing quoted from §28.10 rather than re-fetched, and named as such** — Dell's `iDRAC.IPMILan.Enable — 0 - Disabled` and HPE's *"This setting is disabled by default"*. It carries §34.7's extension argument and no cell; a correction there would weaken an argument rather than move a figure (§34.11)
+
+Retrieved for §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **two artefacts, both re-reads of documents the note already held, and the decisive one is a second heading in a page quoted since §3.4.** Every retrieval performed **2026-08-14**
+
+- **Microsoft SMB — the measurement that shows the conjunction as written was defective.** [*Secure SMB Traffic in Windows Server*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic), `ms.date` **2024-10-25**, `updated_at` **2025-04-28T22:34Z**, git commit [`00769866`](https://github.com/MicrosoftDocs/windowsserverdocs-pr/blob/00769866e7fbcab34905970bd165f4f12c5e9626/WindowsServerDocs/storage/file-server/smb-secure-traffic.md), `word_count` **1602** — read **whole** rather than for the one sentence §3.4 carries, per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1. It has **two** sections: `## Block inbound SMB access` (*"Block TCP port 445 **inbound** from the internet at your corporate hardware firewalls"* — the row's) and **`## Block outbound SMB access`** (*"Block TCP port 445 **outbound** to the internet at your corporate firewall"* — **not** the row's, and §32.12's hypothetical fifth-limb sentence made actual). Also carries *"Shares made with SMB2 or later don't use NetBIOS ports 137-139"*, confirming §33.3's re-founding unchanged · [*Preventing SMB traffic from lateral connections and entering or leaving the network*](https://support.microsoft.com/en-us/topic/preventing-smb-traffic-from-lateral-connections-and-entering-or-leaving-the-network-c0541db7-2244-0dce-18fd-14a3ddeb282a), `updated_at` **2026-07-13**, re-read for the **direction** of its own directive: *"unsolicited communication (from the internet) **and outgoing traffic (to the internet)**"*, and *"originating from the internet **or destined for the internet**"* — **[measured]** the corpus's strongest sentence is **bidirectional**, and the note has quoted it in full since §3.4 without recording that half of it is about egress (§36.2) · [*SMB over QUIC*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-over-quic), `ms.date` **2025-07-24**, `updated_at` **2025-09-15T17:34Z**, git commit [`825a9b7a`](https://github.com/MicrosoftDocs/windowsserverdocs-pr/blob/825a9b7a89b5e872e1542287bec3a6904fb08c83/WindowsServerDocs/storage/file-server/smb-over-quic.md) — *"By default SMB over QUIC uses UDP/443 inbound. **Do not allow TCP/445 inbound to the file server.**"* re-confirmed at the tag §33.5 cites, the owner's substitute for internet-facing TCP/445 and the reason the prohibition is **strengthened** rather than defeated
+- **Kubernetes — the owner writing the direction in a column header.** [`content/en/docs/reference/networking/ports-and-protocols.md` at `kubernetes/website` `main`](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/networking/ports-and-protocols.md), fetched as **raw repository bytes** rather than as the rendered page, per §33.11's rider. **[measured]** both the control-plane and worker-node tables carry the columns `Protocol · **Direction** · Port Range · Purpose · Used By`, and **every** `Direction` value in both reads **`Inbound`** — for `6443`, `2379-2380`, `10250`, `10259` and `10257`. `10249` appears in **neither** table, which is why §27.5 placed it on `source-ip.md` instead. This is the artefact behind three of §36.6's five *direction named by the owner* cells
+- **Quoted from this note rather than re-fetched, and named as such** (§36.14) — `623/udp`'s *iLO Direct Connect* disposal is **§28.9's**, on HPE advisory `a00050194en_us` Document Version 4, last updated **2019-10-15** (*"communication **from the device to** `https://api.support.hpe.com` over port 443"*), run for [#96](https://github.com/winniel123/verge-asm/issues/96) and not re-run; `6379`'s and `9200`'s neighbour spares are **§33.11's**; every other carrying statement in §36.6's sweep is quoted as §3.4, §32 and §33 hold it. Where §36.6 says a carrying statement **entails** direction for a member it did not re-fetch, it means the sentence the note records entails it — §33.9's own qualifier, carried forward
