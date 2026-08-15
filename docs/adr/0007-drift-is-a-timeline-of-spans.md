@@ -46,7 +46,7 @@ Six prior decisions arrive with obligations attached:
 | Two values, no legal comparison | A **`Break`** |
 | No value at all, for a period | A **`Gap`** |
 | Materialised history | **Never re-derived** |
-| Hysteresis / flap suppression | **Not in the model** — notification only |
+| Hysteresis / flap suppression | **Not in the model** — notification only, and **notification builds none in v1** ([#119](https://github.com/winniel123/verge-asm/issues/119) / [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)). This row grants a **licence** and has been read three times as a statement that the mechanism exists |
 | Currency of an observation | Within **`k` cadences** of the covering Declared `Scan` |
 | `k` | **Fixed and release-coupled**, starting at 2 |
 | Source conflict | **Reported, never resolved** |

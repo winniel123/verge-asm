@@ -306,6 +306,22 @@ exclusion is there because it shrinks the estate, and this shrinks nothing. Its 
 See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md).
 _Avoid_: status, triage state, finding state, suppression, exception, risk acceptance workflow
 
+**Channel**:
+The operator's declaration of where `Message`s go — an absolute `https` URL, an optional
+secret, and the subset of the three classes it receives. Declared on `Proposal`'s own layer
+test: it is input, it does not drift, and nothing in the comparison path reads it. **Zero or
+more, and none ships configured**; creating one is an admin act and its secret is write-only,
+never rendered back. A channel is **one-way** — it carries a message out and grants no read of
+anything, so it opens no second authenticated surface and leaves
+[#6](https://github.com/winniel123/verge-asm/issues/6)'s bearer-token bypass shut; a **pull**
+feed is the shape that would re-open it, and there is none. It carries the **message and never
+the estate**: the body holds the message's own content and no rows, so what accumulates
+wherever it lands is a list of what happened rather than a reconstructable copy of what the
+operator has. Routing is by **class** and nothing finer, a per-rule or per-subject filter being
+an operator-authored predicate over a versioned rule set. See
+[ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
+_Avoid_: webhook, integration, endpoint (reserved), destination, sink, subscriber
+
 ### Observed
 
 **Subject**:
@@ -926,7 +942,12 @@ moved version is a `Break`, which makes a settings field the one actor that coul
 without a release and without a corpus row moving — and it would leave two installs on one release
 comparing as comparable while holding different content behind one leaf. An operator's dial may sit
 anywhere **outside** every derivation and nowhere inside one, which is where the coverage alert
-threshold, notification routing and all flap suppression already are. A rule's declared parameters
+threshold, notification routing and any flap suppression may legally sit. *(~~all flap suppression
+already are~~ — **withdrawn** by [#119](https://github.com/winniel123/verge-asm/issues/119) /
+[ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md):
+the sentence asserted a mechanism that has never existed. The licence is unchanged and v1
+exercises none of it — v1 ships routing by class and #22's coverage threshold, and no suppression,
+no coalescing and no digest window.)* A rule's declared parameters
 **express fractions of quantities the rule reads**, wherever the quantity is one the world moves —
 a parameter shipped as the *product* of a fraction and a moving quantity is a measurement of the
 world on the day it was written, and it goes stale with nothing in the repository changing and no
@@ -1066,6 +1087,41 @@ believed-in measurement never happened, which is a forensic loss and the operato
 ships it unbounded**, one row per firing being nothing to retire. See
 [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
 _Avoid_: scan run, run, execution, job group
+
+**Message**:
+One firing of one cause, computed **once at the cause** and never recomputed — recomputing one
+would reach back across a `Break`. It carries its class, the key of the subject or scope it
+fired at, the instant of the cause, and its census where it has one; it holds read-state and
+its delivery outcomes and no other operator state. Operational, and the layer is the point: a
+message records that the operator was **told**, never what is true of the estate. The fact
+itself is in the timelines, so if the two ever disagree the timeline wins and the message is
+still a true record of what we said — which is what stops a stored message being a second
+representation of one fact, and what keeps `Finding` from returning as a diffed message log.
+The comparison path may never read one, nothing is ever concluded by comparing two, and
+alerting fires **at the cause**, so the unit is the message and never the affected subject.
+Every message is written and rendered **unconditionally**: the store is not a `Channel`, has no
+configuration, cannot be disabled and cannot fail. Which transitions are messages is settled
+elsewhere and not by this entry — see
+[ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md),
+[ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md) and
+[ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
+_Avoid_: alert, notification, event, finding, incident, ticket
+
+**Delivery**:
+One `Channel`'s attempt to carry one `Message`, holding the attempt count and the outcome.
+Operational, on `Dispatch`'s terms. Retries on a bounded, project-authored budget and is then
+**dead-lettered** — on the queue's existing machinery rather than a second one beside it — and
+a dead-lettered delivery loses the **escalation** and never the message, which is still in the
+store, unread and marked undelivered. At-least-once at the receiver, unordered, and never
+back-pressuring measurement: no exactly-once claim is made because no exactly-once mechanism
+exists. **A dead-lettered `Delivery` licenses no silence**, as a dead-lettered `Batch` licenses
+no absence. It is **never itself a `Message`** — a delivery failure is not the world moving,
+our looking changing, or a clock crossing, so it has no cause and gets no fifth one — and it
+never touches `Coverage`, which answers *is what I am looking at complete?* rather than *were
+you told?*. It is rendered on the message it failed to carry and on the channel it belongs to,
+and nowhere else. See
+[ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
+_Avoid_: send, push, notification attempt, dispatch (reserved), retry
 
 ## Terms deliberately not used
 
