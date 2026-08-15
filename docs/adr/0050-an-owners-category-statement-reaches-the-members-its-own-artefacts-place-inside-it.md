@@ -79,7 +79,7 @@ the port number is small:
 |---|---|
 | Redis — *"expose the Redis instance directly to the internet … the Redis TCP port"* | **No** — a definite description. `redis.conf` ships `port 6379` |
 | memcached — *"you must not expose memcached directly to the internet"* | **No.** The software, not the port |
-| Microsoft SQL Server — *"don't connect your SQL Server instances directly to the Internet"* | **No.** Instances, not ports |
+| Microsoft SQL Server — *"don't connect your SQL Server instances directly to the Internet"* | **No.** Instances, not ports. **[#107](https://github.com/winniel123/verge-asm/issues/107): reach runs through this rule and then **fails at limb 3** — Microsoft names internet-facing TCP/1433 as supported** |
 | Elasticsearch — *"Never expose an unprotected node to the public internet"* | **No** — and §16.4 ruled it reaches `9300` anyway |
 | rsync — *"Do not expose a cleartext daemon to an untrusted network"* | **No.** The daemon |
 | SMB — *"unlikely that any SMB communication … is legitimate"* | **No** in the sentence; the same document tabulates 445/139/137/138 |
@@ -99,8 +99,19 @@ credibility."* The grammatical reading manufactures that asymmetry at scale.
 It is also not a live option in the way the ticket framed it, and that is worth stating plainly:
 **adopting it would overturn a ruling already made.** §16.4 admitted `9300` on a sentence about
 *nodes*, wrote out the owner's own definition of a node, and called the result *"an inference of one
-step"* — which is limb 2, unnamed. Refusing reach would remove `9300` from the prohibition tier, put
-`139`/`137`/`138` outside the SMB cell that carries them, and leave `623` with no footing at all.
+step"* — which is limb 2, unnamed. Refusing reach would remove `9300` from the prohibition tier, ~~put
+`139`/`137`/`138` outside the SMB cell that carries them~~, and leave `623` with no footing at all.
+
+> **The struck clause is CORRECTED by [#107](https://github.com/winniel123/verge-asm/issues/107).**
+> **[measured]** the carrying document's own table gives the `Application protocol` of `137`/`138`/`139`
+> as **NetBIOS Name Resolution**, **NetBIOS Datagram Service** and **NetBIOS Session Service** — only
+> `445` reads `SMB` — and the same document adds that *"the use of NetBIOS for SMB transport ended in
+> Windows Vista, Windows Server 2008, and in all later Microsoft operating systems"*. **So the three
+> NetBIOS pairs were never riding this rule at all**: the owner's own artefact places them *outside*
+> the category, and reading them in would be the reader's inference, which limb 2 forbids. They are
+> carried instead by **enumeration** — the same document's perimeter directive governs a table that
+> numbers all four pairs. The grammatical reading would therefore not unseat them, and the three cells
+> stand on a stronger warrant than this ADR gave them. `sensitive-ports.md` §33.3.
 
 ### 3. The hardening-instruction objection is real, and it fails on its own consistency
 
@@ -276,6 +287,33 @@ which IPMI cites normatively and inherits. [`sensitive-ports.md`](../research/se
   vendor that co-authored the protocol's specification owns the protocol, not merely its product* — is
   [`sensitive-ports.md`](../research/sensitive-ports.md) §10.5 as already written, *"the party that
   **designed the protocol**"*, and it is what separates this case from §11.8's Cisco-and-SNMP fence.
+
+## Confirmed by use — [#107](https://github.com/winniel123/verge-asm/issues/107), 2026-08-14
+
+**Limb 3 has demoted a prohibition-tier cell for the first time, and the rule is unchanged.** #107
+walked the footing tier's membership test per row and found `1433/tcp` MS SQL failing reach: the
+carrying page numbers no port — **[measured]** the string `1433` occurs **zero** times on it — so
+limb 2 must carry the pair through this rule, and **[measured]** Microsoft's own current documentation
+names internet-facing **TCP/1433 SQL Server** a supported, portal-provisioned option (*"| **Public** |
+Connect to SQL Server over the internet. |"*; *"Any client with internet access can connect to the SQL
+Server instance"*). That is limb 3's defeat condition met by the owner, for the member, in the present
+tense. [`sensitive-ports.md`](../research/sensitive-ports.md) §33.4.
+
+**It is a stronger instance than the one this ADR was argued from.** Rationale §4 turns on Kubernetes
+**conceding** that *"many managed Kubernetes distributions are publicly exposing the API server by
+default"* — the owner reporting what third parties do. Here the owner **ships the provisioning option
+itself** and configures the operator's firewall and network security group to permit it. **The
+addressee is identical in both documents** — the operator running its own SQL Server — which is what
+separates this from a vendor operating its own hardened managed service on the same number, and that
+distinction is what spares `445/tcp` on the same test (§33.5).
+
+**Limb 3's *per member* discipline is what keeps the result narrow.** Run across all sixteen
+prohibition-tier members the defeat test is met **once**, disposed-of-on-direction once, and refused
+fourteen times — Redis, Elastic, memcached and Oracle each spared on a retrieved artefact rather than
+on judgement. **A defeat test that fired on every owner with a cloud product would be the wide
+aperture this ADR's second rejected alternative names; it does not fire that way.**
+
+**No limb is amended and no other cell moves.**
 
 ## Alternatives rejected
 
