@@ -296,8 +296,12 @@ one release would compare as comparable and would not be.
 
 What an operator may still have is unchanged and worth stating, because the refusal reads broader
 than it is. Everything outside every derivation stays theirs — #22's alert threshold, notification
-routing and all flap suppression ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md) put damping
-there on purpose), the frequency half of `verge-core`
+routing and ~~all flap suppression~~ **any flap suppression that is ever built**
+([ADR-0007](./0007-drift-is-a-timeline-of-spans.md) put damping
+there on purpose, and [#119](https://github.com/winniel123/verge-asm/issues/119) /
+[ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
+records that v1 builds none — routing by class and #22's threshold are the whole of it), the
+frequency half of `verge-core`
 ([ADR-0009](./0009-verge-core-is-a-union.md)), `Seed`s and exclusions, source enablement, and the
 `custody extension`. The dial is refused in exactly one place, and it is the place where turning it
 is indistinguishable from shipping a release.
