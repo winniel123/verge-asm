@@ -47,7 +47,8 @@ the other.
 | The number of dials | **Two, unchanged.** Seven corpus rows, two dials |
 | The projection on an install with no address scope | **Renders, and states that it has no declared denominator.** It may show what we hold, never a forecast of what the operator has |
 | The discarded group | **Renders in every state, including the one where it is always empty in v1**, and says why |
-| Which facets the observation dial reaches | **A rendered enumeration**, because two facets currently have no covering `Scan` and therefore no floor — [#142](https://github.com/winniel123/verge-asm/issues/142) |
+| Which facets the observation dial reaches | **A rendered enumeration.** Two facets had no covering `Scan` and therefore no floor; [#142](https://github.com/winniel123/verge-asm/issues/142) · ADR-0084 closed that with the `dns` `Scan`, and the enumeration absorbed it by moving two rows and nothing else. It **stays** a list, and now renders empty and says why |
+| The two floors' inputs | **Different sets, never one number.** `Dispatch` reads every **enabled** `Scan`; observations read only those that **cover a facet and have something in scope**. They separate on the custody-of-nothing install |
 
 ## Rationale
 
@@ -172,15 +173,25 @@ carry a per-timeline bound, so its floor must be the **longest** bound in force,
 something still live.
 
 Rendering that forced the enumeration, and the enumeration found the hole
-[#142](https://github.com/winniel123/verge-asm/issues/142) is open on. Four facets have a covering
-`Scan`. **`resolution` and `dns-record` do not** — except on the timelines a supplied zone file
-sources, which the `zone` `Scan` covers. An observation with no covering `Scan` has no currency bound,
-so it never becomes evidential, so **this dial never reaches it and it is never discarded.**
+[#142](https://github.com/winniel123/verge-asm/issues/142) was open on. ~~Four facets have a covering
+`Scan`; `resolution` and `dns-record` do not.~~ **Superseded here, at the site that specifies it**
+(ADR-0058), by #142 · ADR-0084, which landed while this was being drawn: the `dns` `Scan` scopes the
+name scopes **unconditionally** and ships at daily, so `resolution` and `dns-record` now have a
+currency bound of `k` × the `dns` cadence. **All six facets are covered, and the observation floor is
+now total over the corpus rather than a maximum taken over two-thirds of it** — it had been silently
+under-retaining the two facets every membership decision reads. The floor's *number* does not move,
+`dns` at daily not being the slowest enabled `Scan`; its *domain* does.
 
-That is drawn as a named exclusion beneath the dial rather than left implicit, on the same ground as
-#47's empty group: a dial whose reach is silent is a dial the operator believes covers everything. And
-it is why the dial's reach is a **rendered list**: #142 moves rows between the two halves of that list
-and moves nothing else on the screen.
+The rule that survives is the one this ADR is for: **an observation with no covering `Scan` has no
+currency bound, so it never becomes evidential, so this dial never reaches it and it is never
+discarded** — and that is drawn as a named exclusion beneath the dial rather than left implicit, on
+the same ground as #47's empty group. A dial whose reach is silent is a dial the operator believes
+covers everything, and the reach was silent right up until somebody drew it.
+
+**The enumeration is what made that repair cost nothing**, which is the general point. #142 moved two
+rows from one half of a rendered list to the other and moved nothing else on the screen — no layout,
+no copy, no figure. The exclusion group now renders **empty and says why**, which is #47's rule
+earning its keep a second time on the same panel.
 
 ### Two floors that compute to one number today, and are not one rule
 
@@ -192,8 +203,16 @@ number.
 
 That coincidence is the reason each dial renders **its own derivation** rather than the two sharing
 one floor line. A shared number invites the next session to implement one floor and use it twice, and
-the two come apart the moment a `Scan` is enabled that covers nothing — which `zone` on an install
-with no name scope holding a zone file is already close to.
+the two come apart the moment a `Scan` is enabled that covers nothing.
+
+**That case is not hypothetical and #142 delivered it in v1.** On the
+[ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md) custody-of-nothing install, `dns` is
+the only `Scan` with anything in its scope list — the port tiers and `tls-acceptance` sit enabled with
+empty scopes, which `CONTEXT.md` calls a legible state. So the `Dispatch` floor is `k` × weekly, since
+those `Scan`s still fire and `Coverage` still owes an answer about whether they ran, while the
+observation floor is `k` × daily, since an enabled `Scan` observing nothing bounds the currency of
+nothing. **One number would have been wrong for one of the two dials on that install**, and the
+install is the one the product's most honest onboarding state produces.
 
 ### One dated figure this drawing found, and the rule that makes it not matter
 
@@ -201,14 +220,17 @@ ADR-0041 states the multiple rule — *"stated as a multiple and never as a day 
 a quantity the operator moves"* — and then, two sentences later, states a day count: *"today that is a
 fortnight with `tls-acceptance` slowest, two months with the cold tier enabled."*
 
-`zone` is the fourth `Scan` and ships at **monthly**
-([#124](https://github.com/winniel123/verge-asm/issues/124)), so on any install that supplies a zone
-file the slowest enabled `Scan` is `zone` and the floor is **two months, not a fortnight** — with no
-cold tier anywhere near it. The figure is a dated record and this ADR does not repair it; the
-structural repair is that the screen **computes** the floor from the enabled `Scan` set and renders
-the multiple, so the interface cannot carry a stale fortnight in the first place. Same shape as
-ADR-0004's *existing suppression* contradiction that #119 found: a document stating a rule and then
-violating it in its own next paragraph.
+`zone` ships at **monthly** ([#124](https://github.com/winniel123/verge-asm/issues/124), in the same
+batch), so on any install that supplies a zone file the slowest enabled `Scan` is `zone` and the floor
+is **two months, not a fortnight** — with no cold tier anywhere near it. #142's `dns` ships at daily
+and does not move it.
+
+**The clause is repaired at its own site in ADR-0041**, per ADR-0058 and with a replacement per
+ADR-0057 — and the replacement is **not a corrected number**, because the paragraph two sentences
+above it already forbids one. The structural repair is that the screen **computes** the floor from the
+enabled `Scan` set and renders the multiple with the `Scan` named, so the interface cannot carry a
+stale fortnight in the first place. Same shape as ADR-0004's *existing suppression* contradiction that
+#119 found: a document stating a rule and then violating it in its own next paragraph.
 
 ## Consequences
 

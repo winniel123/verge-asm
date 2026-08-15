@@ -125,9 +125,22 @@ rather than as a day count, per [ADR-0038](./0038-a-constant-is-a-product-only-w
 the cadence is a quantity the operator moves, so shipping the product of a multiple and a cadence
 would go stale with nothing in the repository changing. Below that floor `Coverage` cannot answer its
 own question — *did the slowest scan run, and when did it last complete* — which is the one question
-that destination exists for ([#22](https://github.com/winniel123/verge-asm/issues/22)). At today's
-shipped `Scan`s the floor is two weeks with `tls-acceptance` the slowest enabled one, and two months
-if an operator enables the cold tier.
+that destination exists for ([#22](https://github.com/winniel123/verge-asm/issues/22)).
+~~At today's shipped `Scan`s the floor is two weeks with `tls-acceptance` the slowest enabled one, and
+two months if an operator enables the cold tier.~~ **Superseded at the site that specifies it**
+([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) by
+[#139](https://github.com/winniel123/verge-asm/issues/139) ·
+[ADR-0081](./0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md). It was **already
+false when it was written**: [#124](https://github.com/winniel123/verge-asm/issues/124) minted the
+`zone` `Scan` at **monthly** in the same batch and never discharged this clause, so on any install
+supplying a zone file `zone` — not `tls-acceptance` — is the slowest enabled `Scan` and the floor is
+**two months**, with the cold tier nowhere near it. The fortnight holds only where no zone file is
+supplied and the cold tier is off.
+[#142](https://github.com/winniel123/verge-asm/issues/142)'s `dns` `Scan` ships at **daily** and does
+not move it. The replacement is not a corrected number, because the paragraph two sentences above
+already forbids one: **the floor is `k` × the cadence of the named slowest enabled `Scan`, computed
+against the enabled set at read time, and it is never written down as a day count anywhere — this ADR
+included.** That is what this clause violated, and stating the multiple is the whole of the remedy.
 
 The cost the fog patch named is real and is accepted: *an aged-out `Dispatch` may be the only
 evidence a believed-in measurement never happened.* That is a forensic loss, not a modelling one, and
