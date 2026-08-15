@@ -247,6 +247,23 @@ read by the worker, so that timeline has one vantage and no disagreement is poss
 > than fixed: making the rule class-scoped to `internet` would make it `not-evaluable` there and leave
 > the zone file's `completeness` with no consumer on the only install that has one, which is the
 > argument this ADR shipped the rule on.
+>
+> **RULED by [#169](https://github.com/winniel123/verge-asm/issues/169): the noise floor is accepted,
+> and the rule does not change.** Class-scoping to `internet` was the only fix on offer and it was
+> re-priced, not re-argued: it does not lower the false-positive rate on the modal install, it removes
+> the rule from it, which converts *fires too often on the install that matters most* into *is silent
+> on the install that matters most* — a worse failure against #48's own reason for shipping. Two
+> things this section under-stated are worth naming precisely. First, a single-class disagreement is
+> not a new failure mode; it is the **same** disagreement ADR-0007 already licensed this rule to
+> report without arbitration, now with a second contributing cause — split horizon joins staleness
+> under one honest signal, rather than a corruption of it. Second, `Vantage class` is a fact about
+> **our deployment**, not about the estate, so the fix for an under-vantaged install is an install
+> decision — [#14](https://github.com/winniel123/verge-asm/issues/14)'s own open question about a
+> second prober — and not a per-rule patch on `resolved-name-absent-from-zone`. A Declared "no split
+> horizon here" flag to license firing on one class was considered and rejected on the same ground
+> this ADR already used to reject the opposite flag (*"this scope uses split DNS"*, above): a new
+> Declared field bought to move one rule's needle is the ADR-0009 pattern this project keeps
+> refusing. No model change follows from this ruling.
 
 ### Two rules, and not a `source-disagreement`
 
