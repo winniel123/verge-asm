@@ -1,14 +1,17 @@
 # The golden corpus: the membership pin block, and the CI matrix that runs it
 
 - **Status:** Accepted — spec content for [#12](https://github.com/winniel123/verge-asm/issues/12)
-- **Ticket:** [#143 `resolution-walk`'s golden corpus owes rows pinning the membership-deciding outcomes](https://github.com/winniel123/verge-asm/issues/143); §8 by [#146 Is `wildcard-discrimination` in the membership vector?](https://github.com/winniel123/verge-asm/issues/146)
-- **Rulings:** [ADR-0085](../adr/0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md) (this file's rules), [ADR-0086](../adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) (the membership vector, and §8), [ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md) (the corpus and the gate), [ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (the obligation), [`packaging-and-configuration.md`](./packaging-and-configuration.md) §1 (the architecture rule)
+- **Ticket:** [#143 `resolution-walk`'s golden corpus owes rows pinning the membership-deciding outcomes](https://github.com/winniel123/verge-asm/issues/143); §8 by [#146 Is `wildcard-discrimination` in the membership vector?](https://github.com/winniel123/verge-asm/issues/146); §9 by [#177 Specify ADR-0021's uncovered move — form, home, and what counts as one](https://github.com/winniel123/verge-asm/issues/177)
+- **Rulings:** [ADR-0085](../adr/0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md) (this file's rules), [ADR-0086](../adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) (the membership vector, and §8), [ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md) (the corpus, the gate, and — by its [#177 annotation](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md#annotation--177-2026-08-15-the-uncovered-move-is-given-form) — §9's register), [ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (the obligation), [`packaging-and-configuration.md`](./packaging-and-configuration.md) §1 (the architecture rule)
 
 This is a separate file from the ADR that rules it, on
 [`measurement-offers.md`](./measurement-offers.md)'s and
 [`packaging-and-configuration.md`](./packaging-and-configuration.md)'s precedent: **the tables below
 will be revised and an ADR is a decision that will not.** §2's and §8's enumerations in particular
-move whenever a leaf, a declared parameter or a boundary moves. ~~§7's escrow is written to be
+move whenever a leaf, a declared parameter or a boundary moves, and **§9's register grows by one row
+every time a leaf bumps on an uncovered move** ([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)'s
+[#177 annotation](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md#annotation--177-2026-08-15-the-uncovered-move-is-given-form)
+rules its form). ~~§7's escrow is written to be
 discarded or adopted whole~~ — **the escrow is spent**: [#146](https://github.com/winniel123/verge-asm/issues/146) ·
 [ADR-0086](../adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) **adopted it
 whole**, and §7 is now a pointer to §8 rather than a holding pen. Struck at the site that specifies
@@ -198,7 +201,7 @@ Three notes that will otherwise be re-derived:
 | A3 | **Cross-architecture identity** — legs 1 and 2 agree | Legs 1, 2 | A2 gives it by transitivity; it is asserted separately so the failure reads *architecture divergence* rather than *row 47 moved* |
 | A4 | **Contraction differential** — leg 3 equals leg 1 | Leg 3 | The only check in the repository that a declared parameter's fraction was actually evaluated in exact integer arithmetic. A difference names the fraction that escaped |
 | A5 | **Coverage** — every cell of §2 **and of §8** holds at least one row | Once | This is what gives the obligation an owner. A missing cell fails the build and the failure **names the cell** |
-| A6 | **Gate direction 2** — on `resolution-walk` **and on `wildcard-discrimination`**, a version bump with no moved pin row, no changed declared parameter and no recorded uncovered move fails | Once | ADR-0021's second direction, now with the evidence that lets it fire. This is the assertion that protects `returned` |
+| A6 | **Gate direction 2** — on `resolution-walk` **and on `wildcard-discrimination`**, a version bump with no moved pin row, no changed declared parameter and no recorded uncovered move fails | Once | ADR-0021's second direction, now with the evidence that lets it fire. This is the assertion that protects `returned`. *"Recorded uncovered move"* means a row in **§9** whose `Leaf` and `Bumped to` match the bump under test — form and validity rule at [ADR-0021's #177 annotation](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md#annotation--177-2026-08-15-the-uncovered-move-is-given-form) |
 
 **There is no per-architecture expected output, ever.** An `arm64` golden file is the divergence
 #124 exists to prevent, written down and blessed — and it is the first repair a session will reach
@@ -232,8 +235,8 @@ way to be sure it is covered.
 | Role | Party |
 | --- | --- |
 | **Owes** | **The release**, per [ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) §*What the release owes* — unchanged |
-| **Owns** | **§2's and §8's enumerations**, checked in as data. An obligation with no failing test has no owner |
-| **Enforces** | **A5** (a cell with no row fails, naming the cell) and **A6** (an unjustified bump on **either** membership leaf fails, tested against that leaf's own block) |
+| **Owns** | **§2's and §8's enumerations**, checked in as data. An obligation with no failing test has no owner. **§9's register** owns ADR-0021's uncovered-move escape hatch the same way |
+| **Enforces** | **A5** (a cell with no row fails, naming the cell) and **A6** (an unjustified bump on **either** membership leaf fails, tested against that leaf's own block, with §9 as A6's third limb) |
 | **Renders on failure** | The row's **claim**, the old output and the new one — ADR-0021's judgeability property, unchanged |
 | **Undischarged** | ~~The `Shadowed` outcome — **§7**, and it has no owner until the routing question is answered~~ — **nothing.** All five of ADR-0041's outcomes are discharged, across two blocks against two leaves ([ADR-0086](../adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)). Superseded here, at the site that specifies it |
 
@@ -275,7 +278,8 @@ first bullet here whole.
 - **Completeness of §2 is not checkable by anything.** A5 counts rows against the enumeration; it
   cannot tell anyone the enumeration named every ambiguous place on the wire. That residue is
   ADR-0021's **uncovered move**, and it is disposed of the same way — recorded as data, reviewable
-  and countable, and if it becomes the common case the corpus is failing and the count says so.
+  and countable, and if it becomes the common case the corpus is failing and the count says so. Its
+  form is **§9**.
 - **A4's yield is unmeasured.** No fraction in the declared-parameter set has been shown to diverge
   at `GOAMD64=v3`. If A4 never fires, that is indistinguishable from A4 being unnecessary, and the
   argument for keeping it is that the check is cheap and the failure it catches is silent.
@@ -462,3 +466,60 @@ never merged into one gate** — they are counted together and run apart.
   is kept because the ruling names the case; it is marked spec-verified because nothing has seen one.
 - **§8 inherits §6's first bullet whole.** No boundary in this block has been diffed across two DNS
   libraries either, and the same marker applies to every row in it.
+
+---
+
+## 9. The uncovered-move register
+
+- **Ruled by** [ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)'s
+  [#177 annotation](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md#annotation--177-2026-08-15-the-uncovered-move-is-given-form)
+
+ADR-0021 named the gate's third limb — *a version may move on a recorded uncovered move naming the
+input class the corpus cannot reach* — but never drew the object. This section is where it lives, on
+the same precedent as §2 and §8: **the table is revised here; the rule that governs it is the ADR's,
+and stays there.**
+
+A row is the checked-in entry itself: not a description of a gap, but the gap named precisely enough
+for CI to match it against a specific leaf's specific version bump.
+
+### 9.1 Fields
+
+| Field | Content |
+| --- | --- |
+| **Leaf** | One of ADR-0021's six named leaves, exact identifier: `connect-outcome` · `tls-handshake` · `http-exchange` · `resolution-walk` · `wildcard-discrimination` · `datagram-outcome` |
+| **Bumped to** | The exact post-bump version string on that leaf's `derivation` row ([ADR-0008](../adr/0008-derivation-versions-move-on-content.md)). Matched by string equality, not description |
+| **Input class** | One line of prose naming the class of input the corpus cannot reach, e.g. *"behaviour against servers that close on an unrecognised extension"* — a class, never a single instance |
+| **Ticket** | The issue (and PR, once merged) that shipped the bump |
+| **Date** | The date the row was checked in |
+
+### 9.2 Validity rule
+
+Full statement and rationale at ADR-0021's #177 annotation; restated here because this is the file a
+session edits when adding a row.
+
+- **One row per `(Leaf, Bumped to)` pair.** A row licenses exactly one version transition of exactly
+  one leaf. A later bump of the same leaf needs its own row.
+- **Present by the commit A6 evaluates**, in practice added by the same PR that ships the bump —
+  exactly as a moved pin row or a changed declared parameter already must be, per §3.3's *every pull
+  request*.
+- **Append-only.** A row, once merged, is never edited or removed. Recorded rather than resolved: a
+  later corpus row covering the same input class does not retire the entry, it only means the leaf's
+  *next* bump can be justified the ordinary way.
+- **No status field.** There is nothing to mark resolved — see the annotation for why a `resolved`
+  column was considered and refused.
+
+### 9.3 What consumes it, today
+
+Only [§3.2](#32-the-assertions-in-the-order-they-fail)'s **A6**, and only for `resolution-walk` and
+`wildcard-discrimination` — the two leaves whose corpus and CI matrix this file specifies. A row for
+one of the other four leaves is legal, checked-in data with no consumer yet, on the same ground ADR-0021
+already used for `datagram-outcome`: specified, and not yet load-bearing.
+
+### 9.4 The register
+
+No uncovered move has been recorded. The table is checked in empty and grows only by an appended row,
+never by an edit to one already here.
+
+| Leaf | Bumped to | Input class | Ticket | Date |
+| --- | --- | --- | --- | --- |
+| *(none recorded)* | — | — | — | — |
