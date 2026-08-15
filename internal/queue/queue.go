@@ -66,12 +66,16 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	}
 	for _, s := range scans {
 		switch s.Kind {
-		case scan.DNSKind, scan.ZoneKind, scan.HotKind:
+		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind:
 			// The dns Scan (worker-probed, per Vantage), the zone Scan
-			// (worker-read, no Vantage) and the hot Scan (Custody-gated, per
-			// Vantage) each fan out on their own cadence.
+			// (worker-read, no Vantage), the hot Scan (Custody-gated, per Vantage)
+			// and the cold Scan (Custody-gated, opt-in per Seed scope, full range)
+			// each fan out on their own cadence. The cold Scan reaches this switch
+			// only while at least one Seed scope has opted in — that is what flips
+			// it enabled and into ListEnabledScans (ADR-0044); shipped disabled, it
+			// is skipped here and never fires unasked.
 		default:
-			continue // cold and tls-acceptance land in later tickets
+			continue // tls-acceptance lands in a later ticket
 		}
 		tick := scheduledTick(d.now(), time.Duration(s.CadenceSeconds)*time.Second)
 		if _, err := d.fanOut(ctx, s, tick); err != nil {
@@ -83,10 +87,22 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 // Trigger fans a Scan out immediately, regardless of where the cadence window
 // sits, by keying the Dispatch on the current instant. It is the manual-run
 // entrypoint (v1 spec §3.4: a manual run dispatches an existing Scan).
+//
+// A DISABLED Scan is refused: a manual dispatch of a disabled Scan is exactly
+// the ad-hoc one-off ADR-0005/ADR-0044 forbid — a batch whose scope no enabled
+// configured object accounts for, and (for the cold tier) a full-range sweep
+// with no cadence and therefore no currency bound. The onboarding baseline
+// ("Run the first batch") dispatches only the Scans that exist AND are enabled,
+// so the shipped-disabled cold Scan never fires unasked. Once a Seed scope opts
+// in, the cold Scan is enabled and this manual path dispatches it as the ordinary
+// configured object it has become.
 func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, error) {
 	s, err := d.q.GetScanByKind(ctx, kind)
 	if err != nil {
 		return 0, fmt.Errorf("queue: get scan %q: %w", kind, err)
+	}
+	if !s.Enabled {
+		return 0, fmt.Errorf("queue: %s Scan is disabled — a manual run dispatches an enabled Scan, never a one-off (ADR-0044)", kind)
 	}
 	return d.fanOut(ctx, s, d.now().UTC().Truncate(time.Second))
 }
@@ -126,6 +142,8 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 		enqueued, err = d.fanOutZone(ctx, qtx, s.ID, dispatchID)
 	case scan.HotKind:
 		enqueued, err = d.fanOutHot(ctx, qtx, s.ID, dispatchID)
+	case scan.ColdKind:
+		enqueued, err = d.fanOutCold(ctx, qtx, s.ID, dispatchID)
 	default:
 		enqueued, err = d.fanOutDNS(ctx, qtx, s.ID, dispatchID)
 	}

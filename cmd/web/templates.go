@@ -394,6 +394,45 @@ it to your real export cadence rather than a hope.</p>
 </div>
 {{end}}
 
+<div class="microlabel">Configured · full-range scan (cold tier)</div>
+<p>The cold scan connects to every TCP port, 1–65535, monthly. It ships <strong>disabled</strong>
+with no scopes: a full-range sweep runs only where you ask for it, per scope — never at onboarding,
+never on save. Opting a scope in enables the tier for that scope and it begins on its own monthly
+cadence; opting the last scope out returns it to off. Only Custody-admitted addresses are ever
+probed, so opting in widens what is measured, never who.</p>
+
+{{if .ColdEnabled}}<span class="badge">tier on</span>{{else}}<span class="badge off">tier off — no scope opted in</span>{{end}}
+
+{{if .ColdError}}<div class="error">{{.ColdError}}</div>{{end}}
+{{if .ColdScopes}}
+<div class="section">
+<h2>Full-range opt-in</h2>
+<table>
+<thead><tr><th>Scope</th><th>Kind</th><th>Full range</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+<tbody>
+{{range .ColdScopes}}<tr>
+<td class="mono">{{.Scope}}</td>
+<td>{{if .IsAddress}}address{{else}}name{{end}}</td>
+<td>{{if .OptedIn}}<span class="badge">opted in</span>{{else}}<span class="badge off">off</span>{{end}}</td>
+{{if $.IsAdmin}}<td>
+<form method="post" action="/seeds/cold">
+<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="opt_in" value="{{if .OptedIn}}false{{else}}true{{end}}">
+<button class="secondary" type="submit">{{if .OptedIn}}Opt out{{else}}Opt in{{end}}</button>
+</form>
+</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<div class="section">
+<div class="microlabel">No scopes</div>
+<p>The full-range tier opts in a declared scope. Declare a name or address scope above, then opt it
+into the cold scan here.</p>
+</div>
+{{end}}
+
 <div class="microlabel">Declared · exclusions</div>
 <p>An exclusion draws the boundary inwards: an exact name, a name subtree, or an address scope
 you declare is <em>not yours</em>. Excluding a name that still resolves is legal — <em>not

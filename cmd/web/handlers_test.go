@@ -67,6 +67,10 @@ type fakeStore struct {
 	// freqEdits mirrors the verge_core_frequency_edit table, keyed by port so an
 	// upsert replaces the row exactly as the unique index enforces.
 	freqEdits map[int32]fakeFreqEdit
+
+	// coldScopes mirrors the cold_scan_scope table: the set of Seed ids opted into
+	// the full-range tier, keyed by seed id so an opt-in is idempotent.
+	coldScopes map[int64]bool
 }
 
 // fakeFreqEdit mirrors a verge-core frequency edit row.
@@ -96,10 +100,46 @@ func newFakeStore() *fakeStore {
 		scans: []db.Scan{
 			{ID: 1, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
 			{ID: 2, Kind: "hot", Enabled: true, CadenceSeconds: 86400},
+			// The cold Scan ships disabled with an empty scope list (ADR-0044).
+			{ID: 3, Kind: "cold", Enabled: false, CadenceSeconds: 2592000},
 		},
 		obsNextID: 1, batchNextID: 1, scanNextID: 1,
-		freqEdits: map[int32]fakeFreqEdit{},
+		freqEdits:  map[int32]fakeFreqEdit{},
+		coldScopes: map[int64]bool{},
 	}
+}
+
+func (f *fakeStore) ListColdScopeSeedIds(context.Context) ([]int64, error) {
+	ids := make([]int64, 0, len(f.coldScopes))
+	for id, in := range f.coldScopes {
+		if in {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids, nil
+}
+
+func (f *fakeStore) OptInColdScope(_ context.Context, arg db.OptInColdScopeParams) error {
+	f.coldScopes[arg.SeedID] = true
+	return nil
+}
+
+func (f *fakeStore) OptOutColdScope(_ context.Context, seedID int64) error {
+	delete(f.coldScopes, seedID)
+	return nil
+}
+
+// SyncColdScanEnabled mirrors the SQL: the cold Scan is enabled exactly while at
+// least one Seed scope is opted in.
+func (f *fakeStore) SyncColdScanEnabled(context.Context) error {
+	enabled := len(f.coldScopes) > 0
+	for i := range f.scans {
+		if f.scans[i].Kind == "cold" {
+			f.scans[i].Enabled = enabled
+		}
+	}
+	return nil
 }
 
 func (f *fakeStore) ListVergeCoreFrequencyEditsWithAuthor(context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error) {

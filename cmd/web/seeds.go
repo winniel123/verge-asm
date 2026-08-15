@@ -37,6 +37,7 @@ type seedsForms struct {
 	custodyError                                    string
 	proberError, proberHost, proberPort, proberUser string
 	zoneError, zoneIntervalError                    string
+	coldError                                       string
 	// zoneIntervalDays echoes a rejected interval so the admin need not retype
 	// it; empty means render the stored dial.
 	zoneIntervalDays string
@@ -140,9 +141,14 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list proposals", err)
 		return
 	}
+	coldOptedIn, err := s.store.ListColdScopeSeedIds(r.Context())
+	if err != nil {
+		s.serverError(w, "list cold scan scope", err)
+		return
+	}
 	status := http.StatusOK
 	if f.seedError != "" || f.exclError != "" || f.custodyError != "" || f.proberError != "" ||
-		f.zoneError != "" || f.zoneIntervalError != "" || f.proposalError != "" {
+		f.zoneError != "" || f.zoneIntervalError != "" || f.proposalError != "" || f.coldError != "" {
 		status = http.StatusBadRequest
 	}
 	seeds := toSeedViews(rows)
@@ -169,6 +175,10 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus), "NameScopes": nameSeeds,
 		"ZoneError": f.zoneError, "ZoneIntervalError": f.zoneIntervalError,
 		"ZoneIntervalDays": intervalDays,
+		// The cold Scan opt-in (#200): every declared scope with its full-range
+		// opt-in state. The tier ships disabled with an empty scope list.
+		"ColdScopes": toColdScopeViews(seeds, coldOptedIn), "ColdError": f.coldError,
+		"ColdEnabled": len(coldOptedIn) > 0,
 		// Pending Proposals and the org-name lookup echo (#210).
 		"ProposalLookups": lookups,
 		"ProposalError":   f.proposalError, "ProposalNotice": f.proposalNotice,
