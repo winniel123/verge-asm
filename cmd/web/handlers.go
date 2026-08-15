@@ -62,6 +62,9 @@ type store interface {
 	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
 	ConfirmProposal(ctx context.Context, arg db.ConfirmProposalParams) (int64, error)
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
+	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error)
+	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error
+	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -144,6 +147,13 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /proposals/decline", s.requireAdmin(s.declineLookup))
 
 	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))
+
+	// verge-core: a viewer reads the composed set; editing the frequency half is
+	// an admin act (v1 spec §3.5, §4.3). The sensitive half is authored by the
+	// release and has no mutating endpoint at all.
+	mux.HandleFunc("GET /verge-core", s.requireLogin(s.vergeCorePage))
+	mux.HandleFunc("POST /verge-core/frequency", s.requireAdmin(s.editVergeCoreFrequency))
+
 	mux.HandleFunc("GET /sources", s.requireLogin(s.sourcesModal))
 	mux.HandleFunc("POST /sources/toggle", s.requireAdmin(s.toggleSource))
 

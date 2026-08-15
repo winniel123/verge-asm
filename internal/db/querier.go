@@ -6,6 +6,7 @@ package db
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -69,6 +70,9 @@ type Querier interface {
 	// on any timeline. The FK change in migration 20900 lets the delete null the
 	// operational back-references rather than cascade into measured data.
 	DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error)
+	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
+	// port with no edit is already at its default.
+	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
 	// The Seed a Name's Citation chain terminates at: the name scope whose query set
 	// the dns Scan was drawn from (CONTEXT.md `Citation` — every chain bottoms out at
@@ -123,6 +127,9 @@ type Querier interface {
 	// and totp_secret: managing accounts never needs either, so they stay out of the
 	// render path.
 	ListAccounts(ctx context.Context) ([]ListAccountsRow, error)
+	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
+	// address inside one derives operator directly (ADR-0013).
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
@@ -143,6 +150,10 @@ type Querier interface {
 	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
+	// The registrable domains of custody-extended name-scope Seeds, for the hot
+	// Scan's Custody derivation: an address a name in one of these zones resolves to
+	// derives operator by extension (ADR-0013 §3).
+	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	// Every open timeline a subject currently holds — what a withdrawal closes, all
 	// at once, with the ground it rests on.
@@ -173,6 +184,12 @@ type Querier interface {
 	// (host set) whose public half has not been published, so no key material has
 	// ever left the worker volume for them.
 	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
+	// The operator's edits to verge-core's frequency half (v1 spec §3.5). Only the
+	// frequency half is operator-editable; these deltas are applied over the shipped
+	// default at hot fan-out.
+	ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error)
+	// The current frequency edits, with who made each, for the management UI.
+	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error)
 	// The Seeds-screen view: the latest supplied file per name-scope Seed, without
 	// the content, so the operator sees which scopes hold a zone file, when it was
 	// supplied and by whom.
@@ -240,6 +257,14 @@ type Querier interface {
 	// with no timeline, so re-toggling overwrites the single current value rather
 	// than appending, and toggled_at re-stamps to when the current state was set.
 	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
+	// verge-core frequency-half editing (v1 spec §3.5). Only the frequency half is
+	// operator-editable; these queries manage the delta rows the hot fan-out applies
+	// over the shipped default. The sensitive half has no table and no query — it is
+	// authored by the release and is unreachable from here by construction.
+	// Record an operator edit to a frequency port. One row per port: a later edit
+	// replaces the earlier one, so toggling add→remove on a port is an update, not a
+	// second row.
+	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error
 }
 
 var _ Querier = (*Queries)(nil)
