@@ -11,6 +11,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -41,12 +42,13 @@ func foldObservationsIntoSpans(ctx context.Context, qtx *db.Queries, vantageID p
 }
 
 func foldOne(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation) error {
+	source := sourceFor(o.Facet)
 	key := drift.TimelineKey{
 		SubjectKind:   subjectKindFor(o.Facet),
 		SubjectKey:    o.Subject,
 		Facet:         o.Facet,
 		Discriminator: o.Discriminator,
-		Source:        "resolver",
+		Source:        source,
 	}
 	value := canonicalJSON(o.Data)
 	reading := drift.Reading{
@@ -61,7 +63,7 @@ func foldOne(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observ
 		Facet:         o.Facet,
 		Discriminator: o.Discriminator,
 		VantageID:     vantageID,
-		Source:        "resolver",
+		Source:        source,
 	})
 	var open *drift.Span
 	var openID int64
@@ -96,7 +98,7 @@ func foldOne(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observ
 		Facet:         key.Facet,
 		Discriminator: key.Discriminator,
 		VantageID:     vantageID,
-		Source:        "resolver",
+		Source:        source,
 		Value:         value,
 		IsGap:         opened.IsGap,
 		Derivation:    mustVectorJSON(opened.Vector),
@@ -105,16 +107,25 @@ func foldOne(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observ
 	return err
 }
 
-// facetVector is the Derivation vector for a facet's Span. Both `resolution` and
-// `dns-record` are decided jointly by `resolution-walk` and
-// `wildcard-discrimination`, so a reader of either value composes the union of
-// the two leaves (ADR-0086); a bump of either leaf moves the value and Breaks the
-// timeline.
+// facetVector is the Derivation vector for a facet's Span — the leaves that
+// decide the value, composed as their union (ADR-0086), so a bump of any one
+// moves the value and Breaks the timeline. `resolution` and `dns-record` are
+// decided jointly by `resolution-walk` and `wildcard-discrimination`;
+// `reachability` is decided by the `connect-outcome` leaf alone. The vector is
+// keyed on the facet rather than hardcoded so a wave-4 facet adds its leaves here
+// without forking the fold.
 func facetVector(facet string) drift.Vector {
-	return drift.NewVector(
-		drift.Component{Leaf: "resolution-walk", Version: resolutionwalk.Version},
-		drift.Component{Leaf: "wildcard-discrimination", Version: wildcarddiscrim.Version},
-	)
+	switch facet {
+	case connectoutcome.FacetReachability:
+		return drift.NewVector(
+			drift.Component{Leaf: connectoutcome.Kind, Version: connectoutcome.Version},
+		)
+	default:
+		return drift.NewVector(
+			drift.Component{Leaf: "resolution-walk", Version: resolutionwalk.Version},
+			drift.Component{Leaf: "wildcard-discrimination", Version: wildcarddiscrim.Version},
+		)
+	}
 }
 
 // isGapValue reports whether a resolution observation records a Gap — a period

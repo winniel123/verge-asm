@@ -7,9 +7,44 @@ package db
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const findCoveringAddressSeed = `-- name: FindCoveringAddressSeed :one
+SELECT s.id, s.address_cidr, s.created_at, a.username AS created_by_username
+FROM seed s
+JOIN account a ON a.id = s.created_by
+WHERE s.kind = 'address' AND s.address_cidr IS NOT NULL
+  AND s.address_cidr >>= $1::inet
+ORDER BY masklen(s.address_cidr) DESC
+LIMIT 1
+`
+
+type FindCoveringAddressSeedRow struct {
+	ID                int64              `json:"id"`
+	AddressCidr       *netip.Prefix      `json:"address_cidr"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	CreatedByUsername string             `json:"created_by_username"`
+}
+
+// The address-scope Seed a Service's Address falls inside (#195) — the other
+// limb of Address membership, and where the Citation chain terminates when no
+// resolution cites the Address. Native CIDR containment (`>>=`) is a test over
+// the address and never its spelling, so the gate cannot turn on a rendering
+// (CONTEXT.md `Seed`). The most specific covering scope wins where scopes nest.
+func (q *Queries) FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (FindCoveringAddressSeedRow, error) {
+	row := q.db.QueryRow(ctx, findCoveringAddressSeed, address)
+	var i FindCoveringAddressSeedRow
+	err := row.Scan(
+		&i.ID,
+		&i.AddressCidr,
+		&i.CreatedAt,
+		&i.CreatedByUsername,
+	)
+	return i, err
+}
 
 const findCoveringNameSeed = `-- name: FindCoveringNameSeed :one
 SELECT s.id, s.name_domain, s.created_at, a.username AS created_by_username
@@ -42,6 +77,43 @@ func (q *Queries) FindCoveringNameSeed(ctx context.Context, name string) (FindCo
 		&i.CreatedAt,
 		&i.CreatedByUsername,
 	)
+	return i, err
+}
+
+const findNameCitingAddress = `-- name: FindNameCitingAddress :one
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key, o.vantage_id)
+        o.subject_key AS subject_key,
+        o.value->>'outcome' AS outcome,
+        o.value       AS value,
+        o.observed_at AS observed_at
+    FROM observation o
+    WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
+    ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC
+)
+SELECT subject_key, observed_at
+FROM latest
+WHERE outcome = 'Resolved'
+  AND value->'addresses' ? $1::text
+ORDER BY observed_at ASC, subject_key ASC
+LIMIT 1
+`
+
+type FindNameCitingAddressRow struct {
+	SubjectKey string             `json:"subject_key"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
+}
+
+// A Name whose current resolution cites the given Address (#195) — the Citation
+// hop that answers why a Service's Address is in the estate. An Address has no
+// lifecycle of its own, so its membership is grounded in evidence about ANOTHER
+// subject: the Name whose Resolved answer names it. Where a resolution stops
+// citing the Address this returns no row, which is exactly the `uncited` ground a
+// departure records. Best-effort: the longest-lived citing Name, one hop.
+func (q *Queries) FindNameCitingAddress(ctx context.Context, address string) (FindNameCitingAddressRow, error) {
+	row := q.db.QueryRow(ctx, findNameCitingAddress, address)
+	var i FindNameCitingAddressRow
+	err := row.Scan(&i.SubjectKey, &i.ObservedAt)
 	return i, err
 }
 
@@ -118,6 +190,38 @@ func (q *Queries) GetNameSubject(ctx context.Context, subjectKey string) (GetNam
 	return i, err
 }
 
+const getServiceSubject = `-- name: GetServiceSubject :one
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value,
+        o.observed_at AS observed_at
+    FROM observation o
+    WHERE o.subject_kind = 'service' AND o.facet = 'reachability' AND o.subject_key = $1
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value, observed_at
+FROM latest
+`
+
+type GetServiceSubjectRow struct {
+	SubjectKey string             `json:"subject_key"`
+	Value      []byte             `json:"value"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
+}
+
+// Resolve a Service key to at most one subject (#195). A Service drill-down
+// reaches a subject by its own key — including one whose Address has left the
+// estate, which is not a false "no record" but a population of no current member
+// (ADR-0072). The caller reads the latest reachability value to render the
+// current verdict and the Address the triple sits on.
+func (q *Queries) GetServiceSubject(ctx context.Context, subjectKey string) (GetServiceSubjectRow, error) {
+	row := q.db.QueryRow(ctx, getServiceSubject, subjectKey)
+	var i GetServiceSubjectRow
+	err := row.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt)
+	return i, err
+}
+
 const listCurrentNameSubjects = `-- name: ListCurrentNameSubjects :many
 
 WITH latest AS (
@@ -165,6 +269,56 @@ func (q *Queries) ListCurrentNameSubjects(ctx context.Context, search string) ([
 	items := []ListCurrentNameSubjectsRow{}
 	for rows.Next() {
 		var i ListCurrentNameSubjectsRow
+		if err := rows.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCurrentServiceSubjects = `-- name: ListCurrentServiceSubjects :many
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value,
+        o.observed_at AS observed_at
+    FROM observation o
+    WHERE o.subject_kind = 'service' AND o.facet = 'reachability'
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value, observed_at
+FROM latest
+WHERE ($1::text = '' OR subject_key ILIKE '%' || $1::text || '%')
+ORDER BY subject_key
+`
+
+type ListCurrentServiceSubjectsRow struct {
+	SubjectKey string             `json:"subject_key"`
+	Value      []byte             `json:"value"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
+}
+
+// Every Service currently in the estate, with optional search (#195). A Service
+// is an (Address, port, transport) triple whose membership is its Address's
+// membership restated — an Address is in the estate exactly while a current
+// resolution cites it or a Seed covers it — so this is the thin "current
+// Services" read the drill-down lists. Like the Name listing it carries no
+// denominator (ADR-0072). A Service that has fallen out of the estate (its
+// Address de-cited) is reached only by its own key; the value shown is the latest
+// reachability verdict, reached or not-reached, both measured values.
+func (q *Queries) ListCurrentServiceSubjects(ctx context.Context, search string) ([]ListCurrentServiceSubjectsRow, error) {
+	rows, err := q.db.Query(ctx, listCurrentServiceSubjects, search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCurrentServiceSubjectsRow{}
+	for rows.Next() {
+		var i ListCurrentServiceSubjectsRow
 		if err := rows.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt); err != nil {
 			return nil, err
 		}

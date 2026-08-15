@@ -49,7 +49,7 @@ func TestMembershipShadowedNamePresentButUncited(t *testing.T) {
 	est := Membership([]Observation{
 		{Name: "ghost.example.com", Vantage: "v1", Resolution: shadowed},
 		{Name: "real.example.com", Vantage: "v1", Resolution: resolved},
-	}, nil)
+	}, nil, nil)
 
 	if !contains(est.Names, "ghost.example.com") {
 		t.Error("a Shadowed Name must stay present (it does not withdraw)")
@@ -67,7 +67,7 @@ func TestMembershipNameErrorEverywhereWithdraws(t *testing.T) {
 	est := Membership([]Observation{
 		{Name: "dead.example.com", Vantage: "v1", Resolution: ne},
 		{Name: "dead.example.com", Vantage: "v2", Resolution: ne},
-	}, nil)
+	}, nil, nil)
 	if contains(est.Names, "dead.example.com") {
 		t.Error("a Name reading NameError from every vantage withdraws")
 	}
@@ -79,7 +79,7 @@ func TestMembershipPresenceIsExistentialAcrossVantages(t *testing.T) {
 	est := Membership([]Observation{
 		{Name: "split.example.com", Vantage: "v1", Resolution: ne},
 		{Name: "split.example.com", Vantage: "v2", Resolution: ok},
-	}, nil)
+	}, nil, nil)
 	if !contains(est.Names, "split.example.com") {
 		t.Error("a Name resolving at some vantage is present (existential within witnesses)")
 	}
@@ -92,7 +92,7 @@ func TestMembershipSeedCoveredNameAlwaysPresent(t *testing.T) {
 	ne := Compose(OutcomeNameError, nil, wd.VerdictNotShadowed)
 	est := Membership([]Observation{
 		{Name: "iana.org", Vantage: "v1", Resolution: ne},
-	}, []string{"iana.org"})
+	}, []string{"iana.org"}, nil)
 	if !contains(est.Names, "iana.org") {
 		t.Error("a Seed-covered Name is Declared and stays present")
 	}

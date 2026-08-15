@@ -679,13 +679,14 @@ would move a version without a golden-corpus row moving.</p>
 <main>
 <div class="microlabel">Observed · subjects</div>
 <h1>Subjects</h1>
-<p>Every Name currently in your estate. Only names exist here yet — addresses,
-services and endpoints arrive with later measurement. There is no total: how many
-names your estate ought to hold is its completeness, which only you know, so this
-screen states none.</p>
+<p>Every Name and Service currently in your estate. A Service is a port on an
+address the hot Scan reached for — it is in the estate exactly while its address
+is, which holds while a current resolution cites the address or a Seed covers it.
+There is no total: how many subjects your estate ought to hold is its
+completeness, which only you know, so this screen states none.</p>
 
 <form method="get" action="/subjects" class="searchbar">
-<label class="grow"><span>Search names</span><input name="q" value="{{.Search}}" placeholder="example.com" autocomplete="off"></label>
+<label class="grow"><span>Search subjects</span><input name="q" value="{{.Search}}" placeholder="example.com or 198.51.100.1:443" autocomplete="off"></label>
 <button type="submit">Search</button>
 {{if .Search}}<a class="btn secondary" href="/subjects" style="text-decoration:none">Clear</a>{{end}}
 </form>
@@ -705,6 +706,24 @@ screen states none.</p>
 {{else}}
 <div class="microlabel">{{if .Search}}No name matches{{else}}No names yet{{end}}</div>
 <p>{{if .Search}}No current name matches that search. A withdrawn name is reached by its exact key, never by browsing — search the full name.{{else}}No name has been measured into the estate yet. Declare a name scope on Seeds, then let the dns Scan resolve it.{{end}}</p>
+{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Service subjects</div>
+{{if .Services}}
+<table>
+<thead><tr><th>Service</th><th>Reachability</th></tr></thead>
+<tbody>
+{{range .Services}}<tr>
+<td><a class="mono" href="/subjects/service?key={{.Key}}">{{.Key}}</a></td>
+<td>{{if .Reach}}<span class="badge">{{.Reach}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="microlabel">{{if .Search}}No service matches{{else}}No services yet{{end}}</div>
+<p>{{if .Search}}No current service matches that search. A service whose address left the estate is reached by its exact key, never by browsing.{{else}}No service has been measured yet. The hot Scan reaches for the verge-core ports on every address your names resolve to; run it once a resolution has cited an address.{{end}}</p>
 {{end}}
 </div>
 </main>
@@ -776,6 +795,85 @@ screen states none.</p>
 {{end}}
 {{else}}
 <p class="muted">No timeline has been folded yet. A Span opens when the dns Scan first measures a value for this name; re-running it with a changed answer closes the open span and opens the next.</p>
+{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Rules</div>
+<h2>Rules over this subject</h2>
+<p class="muted">Every rule whose predicate domain includes this subject renders here, each carrying its own versioned verdict. Wired up by ticket 22.</p>
+</div>
+{{end}}
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "service"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+{{with .Service}}
+<div class="microlabel">Observed · Service</div>
+<h1 class="mono">{{.Key}}</h1>
+{{if .Withdrawn}}
+<div class="notice">This service's address has left the estate — no current resolution cites it and no Seed covers it. It names a population of no current member; its timelines are closed and it is reached by its own key.</div>
+{{end}}
+
+<div class="section">
+<div class="microlabel">Why is this here</div>
+<h2>Citation chain</h2>
+<p>A Service is an (address, port, transport) triple. Its membership is its address's membership restated — an address is in the estate exactly while a current resolution cites it or a Seed covers it — so the chain runs from the Service down through its address to the Seed you declared.</p>
+<ol class="chain">
+{{range .Citation}}<li>
+<div class="microlabel">{{.Label}}</div>
+<div class="mono chainval">{{.Value}}</div>
+{{if .Detail}}<div class="muted">{{.Detail}}</div>{{end}}
+</li>{{end}}
+</ol>
+{{if not .CitationTerminated}}<p class="muted">The chain does not reach a declared Seed. For a service whose address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</p>{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Current · reachability</div>
+<h2>Reachability</h2>
+<div class="kv"><div class="k">Address</div><div class="mono">{{.Address}}</div></div>
+<div class="kv"><div class="k">Port</div><div class="mono">{{.Port}}/{{.Transport}}</div></div>
+{{if .Reach}}
+<div class="kv"><div class="k">Verdict</div><div><span class="badge">{{.Reach}}</span></div></div>
+{{else}}<p class="muted">No reachability value recorded.</p>{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Timelines</div>
+<h2>Current and closed timelines</h2>
+{{if .Timelines}}
+<p class="muted">Each timeline is one period a value was held. A Break marks two spans the drift engine may not compare, naming the leaf that moved; it is derived on read and never stored.</p>
+{{range .Timelines}}
+<div class="timeline">
+<div class="microlabel">{{.Label}}</div>
+{{if .Current}}
+<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
+{{else}}
+<div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
+{{end}}
+{{if .Breaks}}{{range .Breaks}}
+<div class="notice">Break at {{.At}} — not comparable across it. Leaf that moved: <span class="mono">{{.MovedLeaves}}</span></div>
+{{end}}{{end}}
+{{if .Closed}}
+<table class="closedspans">
+<thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
+<tbody>
+{{range .Closed}}<tr>
+<td>{{if .IsGap}}<span class="muted">Gap</span>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
+<td class="mono">{{.OpenedAt}}</td>
+<td class="mono">{{.ClosedAt}}</td>
+<td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
+</div>
+{{end}}
+{{else}}
+<p class="muted">No timeline has been folded yet. A Span opens when the hot Scan first reaches for this port; re-running it with the port opening or closing closes the open span and opens the next.</p>
 {{end}}
 </div>
 
