@@ -412,3 +412,39 @@ is that the mechanism is sound and its frequency is a guess.
 | Adaptive back-off inside `connect-outcome` | It halves the rate, never the deadline — and had it moved the deadline, a value would depend on how busy the run was |
 | A one-directional gate, as ADR-0008 wrote it | Catches the unbumped move and never the gratuitous bump, which is the ticket's *first* worry |
 | Recording the leaf vector only on the `Span` | A leaf's content is fixed when the measurement runs; the `Batch` is already the record of one execution from one vantage |
+
+## Annotation — [#141](https://github.com/winniel123/verge-asm/issues/141), 2026-08-15: a sixth leaf is specified and **not** shipped, and the count stays five
+
+Nothing in this ADR is superseded, which is why this is an annotation and not a strike. **The leaves
+are five, `connect-outcome` decides `connected │ refused │ no-response`, and both statements are
+current.** A session must not move either figure on the strength of what follows.
+
+[#141](https://github.com/winniel123/verge-asm/issues/141) /
+[ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md) asked whether
+`connect-outcome` could produce an honest UDP value and ruled that it **cannot, and that a widened
+`connect-outcome` could not either** — on this ADR's own rule. A connectionless measurement's stimulus
+is a datagram we compose and an ICMP message or datagram we receive, against the *"socket event and a
+clock"* this ADR records for `connect-outcome`; different stimulus, different declared parameters,
+different corpus medium. Widening the leaf would put two decisions under one version, so a **UDP
+payload edit would `Break` every TCP `reachability` timeline in the estate** — spending this ADR's
+*no leaf is composed by every timeline* property, the one that makes the unsurvivable fallback
+structurally unreachable, to save a name.
+
+So the honest UDP decision is a **sixth leaf, `datagram-outcome`**, deciding
+`answered │ refused │ unanswered`, feeding `reachability` → `Reach` → `Exposure` for UDP `Service`s
+only. **It is specified and ships nowhere**, because UDP does not turn on and turning it on is an
+aperture change.
+
+Two riders this ADR's own text makes load-bearing:
+
+- **Its declared parameters are not `connect-outcome`'s.** Per-host rate and retry count join the
+  timeout, and they are *value-moving* rather than merely cost-moving, because hosts rate-limit ICMP
+  error emission — so the same closed port reads `refused` or `unanswered` depending on how fast we
+  probed. This ADR's alternatives table already refuses that shape by name: *"had it moved the
+  deadline, a value would depend on how busy the run was."* **Adaptive back-off may not compose
+  `datagram-outcome`**, and `safe-active-probing.md` §9's back-off knob would fail gate 1 for that leg
+  the day it ships. It is safe today precisely because the only leaf it touches is one it cannot move.
+- **The corpus medium is a fourth kind.** This ADR's *"the input medium is not one medium"* list has
+  `connect-outcome` taking no bytes at all; `datagram-outcome` takes **bytes we authored** and one of
+  three replies — a datagram, an ICMP error, or silence — so its rows carry a payload and are
+  authorable in the same sense the DNS rows are.

@@ -944,7 +944,13 @@ There is no value for *we did not look*: a `Batch` whose recorded scope
 excludes the port never feeds the timeline, so the absence is a `Gap` where the timeline was
 already running and **nothing at all** where it never began — a `Gap` is a span, and an
 absent timeline has none, per
-[ADR-0014](./docs/adr/0014-only-revealed-generalises.md). A named `Derivation`
+[ADR-0014](./docs/adr/0014-only-revealed-generalises.md). The two values are **total over a
+connection-oriented exchange and not over every exchange**: a connectionless one that goes
+unanswered decided nothing, so its `reachability` value projects onto **neither** value rather than
+onto `not-reached`, and where no vantage of the class decided at all the leg holds none — which is
+why v1's transports are TCP alone, and why a UDP leg would open a third route to a `Gap`, *we looked
+and the exchange did not decide*
+([ADR-0083](./docs/adr/0083-silence-decides-only-on-a-connection-oriented-transport.md)). A named `Derivation`
 leaf, so a rule may read one leg and compose that leaf alone. It is also the object **alerting**
 reads: the internet leg going `not-reached` → `reached` is the product's flagship message, fired
 whether or not the other leg exists — and it **carries the census** of what opened beneath the

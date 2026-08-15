@@ -417,6 +417,17 @@ it a default for a tool that runs unattended. ~~Offer it as an opt-in for a hand
 > enumerating the UDP opt-in from this paragraph alone builds a seven-member hand list missing four
 > sensitive pairs — and §1's summary row routes it straight here.
 
+> **The cost argument above is no longer the whole reason, 2026-08-15 by
+> [#141](https://github.com/winniel123/verge-asm/issues/141) /
+> [ADR-0083](../adr/0083-silence-decides-only-on-a-connection-oriented-transport.md).** *Off by
+> default* stands and is still not revisited. What is added is that a session reading this section
+> alone would price UDP as a **signal-to-cost** decision it could reverse with a bigger budget, and it
+> is not one: `connect-outcome` cannot produce an honest UDP value, the honest union is
+> `answered │ refused │ unanswered` on a **sixth leaf**, and its one deciding positive — `answered` —
+> is unreachable without a **per-pair elicitation payload**, which is the wire prober
+> [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) deferred out of this map. **§13** holds
+> the walk. The 39 %/49 % figures above are the same mechanism seen from nmap's end.
+
 ---
 
 ## 3. Scan technique, and what it costs the compose file
@@ -1215,7 +1226,7 @@ operator.
 | **Concurrency (per host / global)** | 20 / 200 | Bounded by the scanner's own link, the target's connection-tracking table, and any shared-tenancy limits. Naabu itself says to tune when not on a VPS ([README](https://github.com/projectdiscovery/naabu/blob/main/README.md)). |
 | **Port set (per tier)** | `verge-core` / full range | Estates differ wildly; the shipped list is a prior, not a truth. Must be an editable file, and per-target-group (DMZ web hosts and a management VLAN want different sets). **The top-1000 tier is retired** ([#78](https://github.com/winniel123/verge-asm/issues/78)), and only the **frequency half** of `verge-core` is editable ([ADR-0009](../adr/0009-verge-core-is-a-union.md)). |
 | **Full-range sweep** | off | Genuinely risky against stateful middleboxes; genuinely necessary for some estates. Explicit opt-in **per `Seed` scope**, with a rate cap that cannot be disabled, and it never runs unasked — including at onboarding ([ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)). |
-| **UDP scanning** — **AMENDED: it is not a shipped knob in v1** | off | Low yield (49 % even at top-1000, [performance-port-selection](https://nmap.org/book/performance-port-selection.html)), high cost, but essential for operators exposing DNS/SNMP/IPMI. **§2.5's *off by default* stands and the UDP leg is `verge-core`'s UDP pairs (ADR-0009). What [#124](https://github.com/winniel123/verge-asm/issues/124) found is that nobody has asked what the shipped instrument would *return*: `connect-outcome`'s union is `connected │ refused │ no-response`, and a connected UDP socket puts no packet on the wire, so `connected` would be a fact about our own kernel rather than about the world. Until that is answered the knob has nothing honest to turn on. Two consequences that do not wait: the five UDP pairs are **outside v1's aperture**, so the aperture statement reads `5 of 38 sensitive pairs unread` rather than `0` (ADR-0044, corrected there), and **membership of `verge-core` is not measurement**.** |
+| **UDP scanning** — **AMENDED: it is not a shipped knob in v1** | off | Low yield (49 % even at top-1000, [performance-port-selection](https://nmap.org/book/performance-port-selection.html)), high cost, but essential for operators exposing DNS/SNMP/IPMI. **§2.5's *off by default* stands and the UDP leg is `verge-core`'s UDP pairs (ADR-0009). What [#124](https://github.com/winniel123/verge-asm/issues/124) found is that nobody has asked what the shipped instrument would *return*: `connect-outcome`'s union is `connected │ refused │ no-response`, and a connected UDP socket puts no packet on the wire, so `connected` would be a fact about our own kernel rather than about the world. ~~Until that is answered the knob has nothing honest to turn on.~~ **ANSWERED by [#141](https://github.com/winniel123/verge-asm/issues/141) / [ADR-0083](../adr/0083-silence-decides-only-on-a-connection-oriented-transport.md), and struck here per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): an honest instrument IS constructible — `answered │ refused │ unanswered` on a sixth leaf `datagram-outcome`, specified and not shipped. The row still does not ship, and the reason is now a different and better one. `unanswered` projects onto no `Reach`, so it returns `not-evaluable`; a payload-free datagram elicits nothing from almost anything; and therefore opening the knob payload-free moves the five pairs from `not-evaluable` because they are outside the recorded scope to `not-evaluable` because the exchange did not decide, buying zero net new firings. What would make the knob worth opening is a per-pair payload table, which is the wire prober [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) already deferred. See §13.** Two consequences that do not wait: the five UDP pairs are **outside v1's aperture**, so the aperture statement reads `5 of 38 sensitive pairs unread` rather than `0` (ADR-0044, corrected there), and **membership of `verge-core` is not measurement**.** |
 | **Scan cadence per tier** | daily / monthly | Compliance regimes and change-velocity vary. Must allow *slower*, not just faster. (The weekly tier is retired — [#78](https://github.com/winniel123/verge-asm/issues/78).) |
 | **Quiet hours / maintenance windows** | none set | Scanning during a deploy produces pure-noise drift findings. Must be per-target. |
 | ~~**Follow redirects**~~ **STRUCK — gate 1** | **not followed, and not a knob** | ~~Some estates redirect everything at the edge; without following, every finding is "301". Sub-knob: same-host-only (default on when following is enabled).~~ **`http-exchange` decides `Responded(status, Location, WWW-Authenticate, Server, title)`; following a redirect moves the `status` and the `title`, so this is a declared parameter of that leaf and none is ever operator-configurable ([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md), [#124](https://github.com/winniel123/verge-asm/issues/124)). It arrives valued at §4.3's own recommendation — *do not follow* — and §4.3's *"when the operator enables following"* paragraph is struck with it. The `Location` is recorded, which is the half §4.3 correctly called the finding.** |
@@ -1277,6 +1288,171 @@ operator.
 
 ---
 
+## 13. What a UDP leg would return — the honest union, and why an honest instrument is still not worth turning on
+
+[#141](https://github.com/winniel123/verge-asm/issues/141) /
+[ADR-0083](../adr/0083-silence-decides-only-on-a-connection-oriented-transport.md). §2.5 and §9's UDP
+row are amended by this section; §2.4's aperture statement is **not** — nothing here moves a figure.
+
+### 13.1 The question, and the two things it is not
+
+[#124](https://github.com/winniel123/verge-asm/issues/124) found that four amendment passes had
+priced UDP without anyone asking what the instrument would **return**. `connect-outcome` decides
+`connected │ refused │ no-response`; `connect(2)` on a datagram socket puts no packet on the wire, it
+only fixes the peer address in our own kernel, so `connected` would be a statement about us.
+
+It is not a question about whether UDP ships — §2.5's *off by default* stands, ADR-0009 says so in
+terms, and turning it on is an aperture change. It is not a question about `verge-core`'s membership
+either: the five UDP pairs (`69`, `137`, `138`, `623`, `11211`) are in the union and stay there, and
+**membership of `verge-core` is not measurement**. The question is whether the instrument could ever
+report honestly, because until it is answered ADR-0009's UDP leg has nothing to turn on.
+
+### 13.2 Walk all three members — the set does not fail the way the ticket's sentence implies
+
+| Member | Honest for a connectionless exchange? | Why |
+| --- | --- | --- |
+| `connected` | **No** | There is no handshake to complete. The value would be a fact about our own kernel |
+| `refused` | **Yes — reused unchanged** | An ICMP Destination Unreachable / Port Unreachable is the same fact in kind as an RST: the host is up, the datagram arrived, nothing is bound. The middlebox objection is symmetric with TCP and ADR-0011 accepted it there |
+| `no-response` | **No — and not for `connected`'s reason** | It is honest about *what we measured* and dishonest about *what it projects* |
+
+The third row is the finding. `no-response` projects to `not-reached`, which for TCP is sound — we
+reached no listener that would answer. For a connectionless exchange the identical projection says a
+live, internet-reachable, unauthenticated listener that ignores our datagram is **not reached**, and
+`sensitive-port-reached-from-internet` then reports a clean bill of health on precisely the pairs the
+sensitive list exists for. That is ADR-0010's founding defect — *it simply never fires on the more
+alarming case* — reproduced by a projection rather than by a stale list, and it is #124's aperture
+defect one layer down: a `0` standing where `5 unread` was true, this time inside a `Signal` instead
+of inside a coverage line.
+
+**The honest union is `answered │ refused │ unanswered`.** `answered` reads that a datagram came back
+from that `(address, port)` and never which bytes, so it stays clear of
+[#5](https://github.com/winniel123/verge-asm/issues/5)'s fingerprinting line. `unanswered` is a
+**value** — recording nothing would make it indistinguishable from *we did not look*, which ADR-0011
+refuses — and it is not a `Gap`, because we looked. It projects onto **neither** `Reach` value, and
+ADR-0010 refuses a third by name while [#40](https://github.com/winniel123/verge-asm/issues/40)
+deleted `unknown` outright, so the leg simply holds no value and the rule returns `not-evaluable`
+through the mechanism that already exists.
+
+### 13.3 It is a sixth leaf, not a widened one
+
+`connect-outcome`'s stimulus is *"a socket event and a clock"*
+([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)); a UDP measurement's is a
+datagram we compose and an ICMP message or datagram we receive. Widening the existing leaf would put
+both decisions under one version, so **a UDP payload edit would `Break` every TCP `reachability`
+timeline in the estate** — spending ADR-0021's *no leaf is composed by every timeline* property to
+save a name. The honest UDP decision is `datagram-outcome`, a sixth leaf, **specified and not
+shipped**. v1's leaf count stays five and `reachability`'s union stays three members: the UDP variants
+are **strictly additive** by ADR-0011's CI-checkable test — every row whose output would move is a UDP
+row and no UDP row has ever produced an observation — so there is no deadline and no reason to spend
+them early.
+
+### 13.4 Why it is still not worth turning on, which is a different reason from §2.5's
+
+A datagram carrying no protocol-specific payload elicits nothing from almost anything. That is why
+nmap ships a payload file at all, and it is the mechanism behind the coverage figures §2.5 already
+quotes — **39 % at top-100 UDP and 49 % at top-1000**
+([performance-port-selection](https://nmap.org/book/performance-port-selection.html)): the misses are
+not ports nmap failed to try, they are ports that returned nothing to try against.
+
+So a payload-free `datagram-outcome` returns `unanswered` on the five sensitive UDP pairs essentially
+always, and `unanswered` returns `not-evaluable` — which is **what those five report today**, ADR-0009
+recording them as *not-evaluable on default settings, by design and visibly*.
+
+> **Opening the knob payload-free moves the five pairs from `not-evaluable` because they are outside
+> the recorded scope to `not-evaluable` because the exchange did not decide, and changes nothing the
+> operator sees.** It costs probe traffic, a sixth leaf, a golden corpus of a fourth medium and an
+> eighth aperture input, and it buys **zero** net new firings — which is
+> [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md)'s wire-prober refusal in a second
+> costume.
+
+**The elicitation payload is therefore the whole of the knob's value, and it is the instrument this
+map already deferred.** A per-pair payload table with a per-protocol encoder is
+`listener-negotiation`'s dispatch table under another name. Its first obligation is the one ADR-0015
+named and nobody has closed — *§7.2 argues a wrong dispatch guess fails safe for the data, and never
+asks whether it is safe for the listener* — now aimed at production over a transport with no handshake
+to fail on. Classification, so the successor need not re-derive it: under
+[#31](https://github.com/winniel123/verge-asm/issues/31) / ADR-0008 a table deciding *where to look*
+is aperture and one deciding *what an answer means* is a signature database; a payload table decides
+which pairs can produce a positive at all, so it is **aperture**, and an **eighth aperture input** the
+day UDP ships.
+
+### 13.5 The hazard nobody had named: ICMP rate limiting puts our own probe rate inside the value
+
+Hosts rate-limit the emission of ICMP error messages. Probing many closed UDP pairs on one address
+therefore yields `refused` for some and `unanswered` for others **in the same world**, split by **how
+fast we probed**. ADR-0021's alternatives table refuses exactly this shape one layer up — *"had it
+moved the deadline, a value would depend on how busy the run was"* — and for `connect-outcome` the
+refusal holds, which is why §9's *adaptive back-off aggressiveness* knob clears gate 1 today.
+
+It would not hold for `datagram-outcome`. Two consequences, both the successor's:
+
+1. **Per-host rate and retry count are declared parameters of the UDP leaf, and adaptive back-off may
+   not compose it** — or the leaf is non-deterministic and fails the golden-corpus gate, which is
+   [`project-authored-constants.md`](./project-authored-constants.md) §6.1's existing argument arriving
+   on a second leaf. §9's back-off row would fail gate 1 for that leg the day UDP ships.
+2. **It is a second and worse unbounded `Span` generator.** The map already asks how many `Span`s an
+   unstable network writes on `reachability`, noting `refused` ↔ `no-response` is the corpus's only
+   unbounded generator and is silent by design. `refused` ↔ `unanswered` flaps on **our own rate**
+   rather than on the network — unbounded for a reason the operator cannot fix and we can.
+
+### 13.6 The elicitation walk — all five are answerable in principle, and two carry caveats that move the price
+
+Read against each protocol's own specification. **Spec-verified, not measured** — no probe was run,
+and the claims inherit ADR-0021's rider that *a corpus row inherits the evidential status of the claim
+it encodes*. A retrieval against **implementations** is owed before any payload ships.
+
+| Pair | Elicits a reply? | The message, and its footing |
+| --- | --- | --- |
+| `69/udp` TFTP | **Yes**, with a caveat that reaches the value space | An RRQ for a nonexistent file returns **ERROR opcode 5, code 1 *File not found*** — RFC 1350 §2, §4, §5 and the Error Codes appendix. **But §4 fixes the reply's source port as a fresh server-chosen TID, not 69**, and §2 records the ERROR packet is neither acknowledged nor retransmitted |
+| `137/udp` NetBIOS-NS | **Yes** | NAME QUERY REQUEST → POSITIVE/NEGATIVE NAME QUERY RESPONSE, NODE STATUS REQUEST → NODE STATUS RESPONSE — RFC 1002 §4.2.12–14, §4.2.17–18. **§5.1: *a RESPONSE packet is always sent to the source UDP port and source IP address of the request packet.*** The wildcard `*` NBSTAT query is what makes it unconditional |
+| `138/udp` NetBIOS-DGM | **Yes — and this one inverts the expectation** | A DIRECT_UNIQUE datagram naming a destination the target does not own returns **DATAGRAM ERROR (§4.4.3), code 82h *DESTINATION NAME NOT PRESENT*, to the source IP and source UDP port** — RFC 1002 §5.3.3's own pseudocode, message types at §4.4.1. Correctly-addressed traffic is one-way and DATAGRAM QUERY REQUEST is NBDD-only (§5.3.4), which is what makes the service *look* unanswerable |
+| `623/udp` IPMI / ASF-RMCP | **Yes, unauthenticated** | **Presence Ping (80h) → Presence Pong (40h)** — DMTF DSP0136 (ASF 2.0) §3.2.4.8 and §3.2.4.3, with §3.2.1's rule that our source port becomes the reply's destination port. §3.2.3 places discovery **before** session creation, so no credential is involved. §3.2.2 permits a device to answer only unique Message Tags, so vary the tag across retries |
+| `11211/udp` memcached | **Yes by protocol, no by shipped default** | `doc/protocol.txt`'s UDP section defines the 8-byte frame header and states *the server's response will contain the same ID as the incoming request*. **But `doc/memcached.1` says `-U` defaults to port 0, *which is off*, and the 1.5.6 release notes say the release *primarily disables the UDP protocol by default***. A live `11211/udp` today means a pre-2018 build, a distro that re-enables it, or a deliberate `-U 11211` |
+
+Three consequences, and the first two reach the ruling above.
+
+**`answered` reads *a datagram came back to the socket we sent from*, not *from the port we
+probed*.** TFTP forces it: bind the predicate to the target port and TFTP is silently unreadable.
+Nmap's own Table 5.3 binds it — *any UDP response from target port* — and collides with RFC 1350 §4
+exactly there. The **implementation consequence is sharp and ironic**: the leaf must use an
+**unconnected** socket, because a connected datagram socket filters on peer address *and port* and
+would drop TFTP's reply. The ticket opened on *a connected UDP socket puts no packet on the wire*; the
+instrument turns out to need an unconnected one for a second and independent reason.
+
+**Nmap cannot supply the table, and for two separate reasons.** Mechanically, it has **no payload for
+`138/udp`** — the one pair whose reply the walk above found least expected — so `nmap -sU -p138` sends
+a zero-length datagram, which matches none of RFC 1002 §5.3.3's cases and can only ever report
+`open|filtered`. And legally, the standalone `nmap-payloads` file is gone from nmap `master`; payloads
+are now built from **`nmap-service-probes`**, which is NPSL data.
+[#78](https://github.com/winniel123/verge-asm/issues/78) cleared *deriving* `verge-core` from
+`nmap-services` and clears nothing about selecting rows out of a second nmap data file, and
+[#128](https://github.com/winniel123/verge-asm/issues/128)'s rule cuts against us here, since
+*selecting from* a table **is** authoring. **The table must be authored against the protocols' own
+specifications** — which the walk shows is possible for all five and unavoidable for one.
+
+**The 39 %/49 % figures are the same mechanism, quantified from nmap's end.** Nmap's own words:
+*"for most ports, this packet will be empty… open ports rarely respond to empty probes"*, and *"UDP
+services generally define their own packet structure rather than adhering to some common general
+format."* And its rate-limiting note is the §13.5 hazard confirmed at the source: *"many hosts rate
+limit ICMP port unreachable messages by default. Linux and Solaris are particularly strict about
+this"* — a one-per-second limit taking a full-range UDP scan past 18 hours.
+
+### 13.7 Where this is thin
+
+**Implementations were not read, only specifications.** RFC 1002 §5.3.3's DATAGRAM ERROR is the
+weakest of the five: whether Samba's `nmbd` and the Windows datagram service actually emit it was not
+verified and no owner documentation for it was found. It is also the row that would have to be
+authored from scratch, so it is simultaneously the least-evidenced and the most expensive. And the
+IPMI 2.0 specification itself could not be retrieved — Intel returns 403 — so `623/udp` rests on
+DSP0136, which is the normative source IPMI references and is sufficient, but the corroborating read
+was not made.
+
+**`unanswered` would be v1's first facet value with no Derived projection.** ADR-0010's clean identity
+— *absence of a `Reach` value means the pair was outside the recorded scope* — would stop holding, and
+`Coverage`'s reading of a `Gap` changes with it. Nobody has drawn what that renders.
+
+---
+
 ## Sources
 
 Nmap
@@ -1290,6 +1466,8 @@ Nmap
 - [Host Discovery](https://nmap.org/book/man-host-discovery.html)
 - [Miscellaneous Options (--privileged / --unprivileged)](https://nmap.org/book/man-misc-options.html)
 - [Legal Issues (crash risk)](https://nmap.org/book/legal-issues.html)
+- [UDP Scan (`-sU`), Table 5.3, and Speeding Up UDP Scans](https://nmap.org/book/scan-methods-udp-scan.html) — §13
+- [nmap-payloads](https://nmap.org/book/nmap-payloads.html) · [nmap-service-probes (raw)](https://raw.githubusercontent.com/nmap/nmap/master/nmap-service-probes) — §13.6; the standalone payload file is gone from `master` and payloads are built from the probe file, which is NPSL data
 
 ProjectDiscovery
 - [naabu README](https://github.com/projectdiscovery/naabu/blob/main/README.md) · [naabu usage](https://docs.projectdiscovery.io/tools/naabu/usage) · [pkg/runner/default.go](https://github.com/projectdiscovery/naabu/blob/main/pkg/runner/default.go) · [pkg/runner/validate.go](https://github.com/projectdiscovery/naabu/blob/main/pkg/runner/validate.go)
@@ -1308,6 +1486,10 @@ Containers / kernel
 - [Linux ip-sysctl (`ping_group_range`)](https://docs.kernel.org/networking/ip-sysctl.html)
 
 RFCs and standards
+- [RFC 1350 — The TFTP Protocol (Revision 2)](https://www.rfc-editor.org/rfc/rfc1350.html) — §13.6, the ERROR packet and the server-chosen reply TID
+- [RFC 1002 — NetBIOS over TCP/UDP: Detailed Specifications](https://www.rfc-editor.org/rfc/rfc1002.html) — §13.6, name-service responses (§4.2, §5.1) and the datagram service's DATAGRAM ERROR (§4.4, §5.3.3)
+- [DMTF DSP0136 — Alert Standard Format (ASF) 2.0](https://www.dmtf.org/sites/default/files/standards/documents/DSP0136.pdf) — §13.6, Presence Ping / Presence Pong and the RMCP port rules
+- [memcached: protocol.txt (UDP protocol)](https://github.com/memcached/memcached/blob/master/doc/protocol.txt) · [memcached.1 (`-U` defaults to off)](https://github.com/memcached/memcached/blob/master/doc/memcached.1) · [UDP DDoS advisory](https://docs.memcached.org/advisories/ddos/) — §13.6
 - [RFC 1918 — Address Allocation for Private Internets](https://www.rfc-editor.org/rfc/rfc1918.html)
 - [RFC 2308 — Negative Caching of DNS Queries (NXDOMAIN vs NODATA)](https://www.rfc-editor.org/rfc/rfc2308.html)
 - [RFC 4787 — NAT Behavioral Requirements for UDP (REQ-9 hairpinning)](https://www.rfc-editor.org/rfc/rfc4787.html)
