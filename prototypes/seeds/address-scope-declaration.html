@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Address-scope declaration — verge-asm prototype (#168)</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<!--
+  PROTOTYPE — throwaway, dated 2026-08-15. Issue #168, "What does an address-scope declaration
+  say, now that it carries a realm claim?" A dated record of a reading (ADR-0075), not a rule.
+
+  SEPARATE FILE, DELIBERATELY. #167 (also filed against prototypes/seeds/) is very likely to touch
+  index.html at the same time this ticket does. Rather than add a section there and risk a
+  collision, this question gets its own sibling file. It is not a replacement for
+  prototypes/seeds/index.html's ?screen=declare — it is that screen's accepted state, with the
+  copy ADR-0079 now owes it, drawn on its own so two branches editing the Seeds prototype
+  concurrently do not touch the same lines. A future merge session may fold this back into
+  index.html's declare screen once #167 has landed; left as its own file until then.
+
+  URL: ?realm=private|public   (which typed CIDR the box shows; private is where the question is
+                                 live and is the default)
+
+  What forced this: ADR-0079 rules that a non-globally-reachable Address is one subject per
+  network, so it is probed only where a declared address scope covers it and only from a Vantage
+  that is not internet-class. A declared address scope was already a boundary claim (which
+  addresses are in scope) under ADR-0002/ADR-0047. It is now also a realm claim (which network the
+  operator is on) under ADR-0079, and the declaration surface said nothing about the second half.
+  This prototype is that copy.
+
+  Not re-derived here, per the ticket: ADR-0079's decision (IA only); #51's precedent for
+  what a declaration's words carry; ADR-0022's unit-is-the-scope rule; #123's refusal-names-a-
+  route rule for the box's other paths (untouched — this file only draws the accepted case).
+
+  No new ADR. Reserved number 0106 is unused and stays that way: nothing here is a new spec
+  decision, it is IA the way #51 and #123 were IA, per #10 and #28's precedent that placement and
+  copy decisions live in the ticket rather than in a numbered record.
+
+  Glossary is binding (CONTEXT.md). No "asset", "host", "finding" or "scan run" as modelled
+  things. Annotations in a dashed box marked PROTOTYPE NOTE are commentary for the reviewer and
+  are not part of the design.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 88px; }
+  .shell { flex: 1; width: 100%; max-width: 900px; margin: 0 auto; padding: var(--page-pad); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-4); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  .crumb { font: var(--weight-medium) var(--text-sm)/1 var(--font-mono); color: var(--text-muted); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { margin: 0 0 var(--space-6); font-size: var(--text-base); color: var(--text-muted);
+         line-height: var(--leading-body); max-width: 78ch; }
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  .box { max-width: 760px; margin-bottom: var(--space-6); }
+  .box label { display: block; margin-bottom: var(--space-2); }
+  .box input { width: 100%; height: var(--control-h-lg); padding: 0 var(--control-pad-x);
+               border: 1px solid var(--border-ink); background: var(--surface);
+               font: var(--weight-regular) var(--text-md)/1 var(--font-mono); color: var(--text); border-radius: var(--radius); }
+  .box .live { margin-top: var(--space-2); font: var(--weight-medium) var(--text-sm)/1.5 var(--font-mono);
+               color: var(--text-muted); }
+  .box .live b { color: var(--text); }
+
+  .note { display: block; border: var(--rule); border-left: 3px solid var(--border-ink);
+          background: var(--surface); padding: var(--space-4); margin-bottom: var(--space-4);
+          font-size: var(--text-base); line-height: var(--leading-body); color: var(--text); max-width: 88ch; }
+  .note h3 { margin: 0 0 var(--space-2); font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .note p { margin: 0 0 var(--space-3); }
+  .note p:last-child { margin-bottom: 0; }
+  .note.realm { border-left-color: var(--accent); }
+  .note.residue { border-left-color: var(--warn); background: var(--warn-soft); }
+  .note.moot { border-left-color: var(--border); color: var(--text-muted); }
+
+  .card { background: var(--surface); border: var(--rule); margin-bottom: var(--space-5); }
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-sm); line-height: var(--leading-snug); vertical-align: top; }
+  tbody tr:first-child td { border-top: none; }
+
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno.rule { border-color: var(--border-ink); background: var(--surface-sunken); }
+  .anno.rule .ml { color: var(--ink); }
+
+  #switch { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+            background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+            box-shadow: var(--shadow-hard); padding: 8px 10px; display: flex; gap: var(--space-4);
+            align-items: center; z-index: 50; max-width: calc(100vw - 32px); flex-wrap: wrap; }
+  #switch .grp { display: flex; align-items: center; gap: 5px; }
+  #switch .grp > span { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); color: #9a9a90; }
+  #switch button { border: 1px solid #3a3a30; background: transparent; color: var(--text-on-ink);
+                   font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); padding: 5px 7px;
+                   cursor: pointer; border-radius: var(--radius); }
+  #switch button.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <span class="crumb">Seeds &rsaquo; Declare a scope &rsaquo; address scope</span>
+  </div>
+</header>
+
+<div class="shell" id="app"></div>
+<div id="switch"></div>
+
+<script>
+/* ------------------------------------------------------------------ examples */
+// A real declaration classifies by the special-purpose-address-registry reading rule ADR-0079
+// fixes: most specific registered block, Globally Reachable = False. This prototype stands that
+// rule in for a plain prefix test over the two examples it draws — it is not a general classifier
+// and does not need to be one to answer what the copy says for the two cases that differ.
+const EXAMPLES = {
+  private: { cidr: "10.0.0.0/24", addrs: 256, reachable: false,
+    reason: "most specific block 10.0.0.0/8 — Globally Reachable: False" },
+  public:  { cidr: "198.51.100.0/24", addrs: 256, reachable: true,
+    reason: "held by no reserved block — Globally Reachable: True",
+    caveat: "198.51.100.0/24 is in fact IANA's own documentation range and reads False in the " +
+      "real registry; treated here as True to stand in for an ordinary publicly-routed block the " +
+      "operator holds, the way example.com stands in for a real domain elsewhere in this prototype." },
+};
+
+function g(name, list, dflt) {
+  const v = new URLSearchParams(location.search).get(name);
+  return list.includes(v) ? v : dflt;
+}
+const realm = g("realm", ["private", "public"], "private");
+const ex = EXAMPLES[realm];
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+function n(x){ return x.toLocaleString("en-US"); }
+
+/* ------------------------------------------------------------------ render */
+function render() {
+  const cap = 1024;
+  const live = `address scope &middot; ${n(ex.addrs)} addresses &middot; within the cap of ` +
+    `${n(cap)} addresses per scope &middot; <b>${ex.reachable ? "globally reachable" : "not globally reachable — the realm claim applies"}</b>`;
+
+  document.getElementById("app").innerHTML = `
+  <h1 class="page">Declare a scope</h1>
+  <p class="sub">A registrable domain, or a range of addresses. This is the address-range half,
+  accepted — the same box <a href="index.html?screen=declare">index.html's declare screen</a>
+  renders, with the copy ADR-0079 now owes it. The four refusal cases are untouched and live only
+  in that file.</p>
+
+  ${anno("what changed and why this is its own file", `
+    <p>An address-scope <code class="mono">Seed</code> was already a <b>boundary claim</b> —
+    which addresses are in scope, walked every cadence
+    (<a href="../../docs/adr/0047-an-address-scope-is-its-own-enumeration.md">ADR-0047</a>). It is
+    now also a <b>realm claim</b> — which network the operator is on
+    (<a href="../../docs/adr/0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md">ADR-0079</a>),
+    and only where the typed range is not globally reachable. The box below renders both, and
+    renders only the boundary claim where the second does not apply — cycle <code class="mono">realm</code>
+    in the bar below to see the difference the same typed input produces.</p>`)}
+
+  <div class="box">
+    <label><span class="ml">Domain or address range</span></label>
+    <input value="${esc(ex.cidr)}" readonly>
+    <div class="live">${live}</div>
+  </div>
+
+  <div class="note">
+    <h3>What you're asserting</h3>
+    <p>Every address in <span class="mono">${esc(ex.cidr)}</span> is a subject from this
+    declaration, walked every cadence whether or not anything has ever answered there. That is
+    what gives <i>no ports responded</i> something to be a fact about, and it is why this scope
+    has a coverage denominator and a domain does not
+    (<a href="../../docs/adr/0047-an-address-scope-is-its-own-enumeration.md">ADR-0047</a>).</p>
+    <p>The cap is checked here rather than at scan time, so there is no half-declared scope: every
+    address a seed covers is measured, or the seed was never accepted.</p>
+  </div>
+
+  ${ex.reachable ? `
+  <div class="note moot">
+    <h3>This is not also a realm claim</h3>
+    <p><span class="mono">${esc(ex.cidr)}</span> denotes one machine wherever it is asked from —
+    a globally-reachable address is not relative to which network the question comes from. Nothing
+    about declaring it is a claim about which network you are on. Both legs measure normally, and
+    <code class="mono">Exposure</code> composes for this scope's <code class="mono">Service</code>s
+    exactly as it does for any other.</p>
+    <p style="margin-top:var(--space-2);font-size:var(--text-xs)">${ex.caveat || ""}</p>
+  </div>` : `
+  <div class="note realm">
+    <h3>This is also a realm claim</h3>
+    <p><span class="mono">${esc(ex.cidr)}</span> denotes a different machine on every network it is
+    used on. Typing it here is only meaningful as a claim about the network <b>this install
+    itself</b> sits on — nobody types a private range to describe somebody else's network
+    (<a href="../../docs/adr/0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md">ADR-0079</a>).</p>
+    <p>That claim is what opens the gate here, and it opens it on one condition: this scope is
+    connected to only from a vantage that is not <code class="mono">internet</code>-class. An
+    <code class="mono">internet</code>-class vantage sits, by its own definition, outside every
+    network you declared — there is no route by which one is ever asked about this scope.</p>
+    <p><b>So this scope's <code class="mono">Service</code>s hold one leg.</b> The internal leg
+    measures as usual. The internet leg never begins — not a <code class="mono">Gap</code>, not
+    <code class="mono">not-reached</code> — because there is no path from outside to an address
+    whose target machine depends on which network is asking.
+    <code class="mono">Exposure</code> needs both legs to compose a verdict
+    (<a href="../../docs/adr/0017-exposure-needs-both-legs.md">ADR-0017</a>); here it composes
+    nothing, ever, for anything this scope covers. What this scope gives you is
+    <code class="mono">Reach</code>, not exposure.</p>
+  </div>
+  <div class="note residue">
+    <h3>The part nothing here checks</h3>
+    <p>Nothing on this screen, or anywhere else, confirms that this install is actually running
+    inside <span class="mono">${esc(ex.cidr)}</span>. Declare this range and run the instance
+    somewhere that is not on it — a colocated box, a VPS — and the machine answering here is a
+    stranger's, reached from your side because you claimed a network you were not on.</p>
+    <p>Two declared facts, both false, and this project does not catch either: that
+    <span class="mono">${esc(ex.cidr)}</span> is your network, and that this install is on it. It
+    is the same class of unprevented false declaration as typing a range you do not hold — the
+    model has never been able to stop that either — and it costs no more to state than to leave
+    implicit.</p>
+  </div>`}
+
+  ${anno("two things read alike and are not the same claim — argued and ruled", `
+    <p><b>Should the realm-claim panel render for every address scope, or only where the typed
+    range is not globally reachable?</b> The case for always: one panel, no branch, and an
+    operator learns the model's whole realm rule from a single read regardless of what they
+    type.</p>
+    <p><b>Ruled: only where it is not globally reachable</b> — rendering it unconditionally would
+    put a false sentence in front of an operator declaring a public block. A globally-reachable
+    address does not denote &ldquo;one machine per network&rdquo;; it denotes one machine, full
+    stop, so there is no realm ambiguity for the declaration to resolve and no one-leg
+    consequence to warn about. ADR-0079's own decision table draws exactly this line — the
+    precondition's population is the registry's <code class="mono">Globally Reachable = False</code>
+    rows and nothing else. A surface that told every operator their scope is realm-relative would
+    be teaching a rule wider than the one the model implements.</p>
+    <p><b>Should the &ldquo;nothing checks this&rdquo; residue render on ink, with no disclosure,
+    the way #51 set the custody extension's apex hazard?</b> That precedent is the closest thing
+    this model has to a template for a load-bearing safety paragraph, and the two hazards rhyme:
+    both are the one thing a declaration cannot verify.</p>
+    <p><b>Ruled: no</b> — the two hazards are not the same shape underneath. #51's apex hazard is
+    <i>continuous</i>: a <code class="mono">custody extension</code> is recomputed every cadence,
+    so a DNS change on a Tuesday silently moves what Wednesday's cadence probes, and nothing the
+    operator did that day caused it. ADR-0079's residue is a single typed fact, wrong or right at
+    the moment it is typed and never again — &ldquo;the same class ADR-0013's Consequences say the
+    model has never tried to prevent, because it cannot prevent a false name-scope seed either&rdquo;
+    (ADR-0079, its own words). A point-in-time falsity that the operator authored gets the
+    standard note treatment every other declaration cost gets; the ink-block register is reserved
+    for the hazard that changes under them without a further act of theirs. Using it here would
+    overstate this residue relative to every ordinary false declaration the model already accepts
+    without ceremony.</p>`, true)}
+
+  ${anno("what this file deliberately leaves alone", `
+    <p>The four refusal cases (<code class="mono">?screen=declare&amp;refusal=cap4|cap6|ulabel|wildcard</code>
+    in <a href="index.html">index.html</a>) are untouched — none of them reaches acceptance, so
+    none of them has a realm to claim, and #123's refusal-names-a-route rule already covers their
+    copy. The unit stays the scope throughout: nothing here proposes a per-address control, per
+    ADR-0022, and nothing pre-fills, converts or corrects the typed CIDR, per #123.</p>`)}
+  `;
+
+  document.getElementById("switch").innerHTML = switchBar();
+}
+
+function anno(label, body, rule) {
+  return `<div class="anno${rule ? " rule" : ""}"><span class="ml">${esc(label)}</span>${body}</div>`;
+}
+
+function switchBar() {
+  const mk = (val, cur, label) =>
+    `<button class="${val === cur ? "on" : ""}" onclick="setParam('realm','${val}')">${label}</button>`;
+  return `
+    <div class="grp"><span>realm</span>
+      ${mk("private", realm, "private — the claim applies")}
+      ${mk("public", realm, "public — moot")}
+    </div>`;
+}
+
+function setParam(k, v) {
+  const u = new URL(location.href);
+  u.searchParams.set(k, v);
+  location.href = u.toString();
+}
+
+render();
+</script>
+</body>
+</html>
