@@ -232,6 +232,28 @@ Three variants were drawn — `prototypes/signals-annotated/`, `?variant=A|B|C`.
 - **Six refused renderings, not three.** ADR-0016's three are joined by the per-rule count, the
   rendered age, and the suppressed-firings count. All six are drawn, struck and labelled in the
   prototype's refusals panel, so the next session finds the refusals rather than re-deriving them.
+
+  > **A SEVENTH rendering, and it is the first that is REQUIRED** —
+  > [#163](https://github.com/winniel123/verge-asm/issues/163) ·
+  > [ADR-0092](./0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md),
+  > 2026-08-15. A row whose `(subject, signal-name)` key names a subject in **no current population**
+  > is **marked** as such. It is added here because six refusals read alone specify that nothing
+  > further may be rendered on this block, and because the defect it repairs is this ADR's own §6
+  > justification failing in the reassuring direction: the list exists so the operator can enumerate
+  > what they have muted, and an unmarked dead row asserts an acceptance that accepts nothing. Four
+  > properties keep it inside every rule this ADR set. It is **derived on read** from the current
+  > subject population and stored nowhere, so rider 4's *no status field* is untouched. It is caused
+  > by a **measurement** — the subject withdrew ([ADR-0006](./0006-subjects-leave-by-measurement.md))
+  > — and never by time, which is §4's whole distinction. It carries **no valence, no quantity, no
+  > colour scale and no sort**, per §3 and
+  > [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md) §3. And it
+  > **reverses without an act**: a returning key is the same pair, so the mark goes and the mute is
+  > live again. **It is not drawn**, and this ADR's own history — three of its six findings came only
+  > from the layout — is the reason that is flagged rather than assumed away.
+- **§1's dial argument reaches a second question it was not written for** — #163 · ADR-0092. *A dial
+  pointed at one pair is still a dial* refused the author field here; it also decides that the dial's
+  **movement** fires no message, since no other dial in the model emits one and the specificity of
+  this one's target is again the temptation rather than the reason. Confirmed, not amended.
 - **A stated, unfixed cost.** v1 cannot answer *who accepted this risk* on a multi-admin install, and
   an operator who wants the answer will type a name into the reason box, where the product asserts
   nothing about it. That is the honest state and it is not repaired.
