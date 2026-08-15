@@ -396,10 +396,28 @@ and #80 permits a pointer where an action exists — it names the transport and 
 config. What it must **not** do is round it to zero, which is the unearned clean bill of health #80
 went out of its way to say this figure was not.
 
-The `0 of 16 rules unevaluable` half is **untouched**: `sensitive-port-reached-from-internet` reads a
+The ~~`0 of 16 rules unevaluable`~~ half is **untouched**: `sensitive-port-reached-from-internet` reads a
 leg on a `Service`, and its domain is populated by the 131 TCP pairs, so the rule speaks. What the
 five UDP pairs cost is **subjects**, not evaluability — there is no `Service` for a pair outside the
 recorded scope.
+
+> **The denominator is superseded here, at the site that states it — the rule set is seventeen.**
+> [#128](https://github.com/winniel123/verge-asm/issues/128) ·
+> [ADR-0071](../adr/0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) moved
+> it from sixteen and discharged its other consequences by name — ADR-0024's table, ADR-0004, the v1
+> walk's row, *thirteen of sixteen* → *thirteen of seventeen* — but **not this figure**, which was
+> #124's and sat in a different document.
+> **The numerator is deliberately not re-filled**, because it is not obviously still `0`: the
+> seventeenth rule reads `resolution` rather than a port, so the *aperture* argument above does not
+> reach it, but [#137](https://github.com/winniel123/verge-asm/issues/137) ·
+> [ADR-0079](../adr/0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md)
+> and [#138](https://github.com/winniel123/verge-asm/issues/138) ·
+> [ADR-0080](../adr/0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)
+> together establish that it is **permanently `not-evaluable` on an install with no internet-class
+> vantage** — which is a second, install-shaped route to unevaluability this figure has never had to
+> count. Writing `0 of 17` would assert an answer nobody has walked.
+> Found by [#141](https://github.com/winniel123/verge-asm/issues/141) and recorded by the merging
+> session; the walk is ticketed.
 
 ~~**Whether v1's instrument could measure a UDP `Service` honestly at all is not settled here.**~~
 **SETTLED by [#141](https://github.com/winniel123/verge-asm/issues/141) /

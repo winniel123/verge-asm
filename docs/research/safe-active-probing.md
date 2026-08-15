@@ -333,10 +333,20 @@ estate-completeness score in port clothing.
 > not read.
 >
 > **Membership of `verge-core` is not measurement.** The aperture is `verge-core` ∩ the transports the
-> shipped configuration probes, and the count is over the intersection. **`0 of 16 rules unevaluable`
-> is untouched**: `sensitive-port-reached-from-internet` reads a leg on a `Service` and its domain is
+> shipped configuration probes, and the count is over the intersection. ~~**`0 of 16 rules unevaluable`
+> is untouched**~~: `sensitive-port-reached-from-internet` reads a leg on a `Service` and its domain is
 > populated by the 131 TCP pairs, so the rule speaks — what the five cost is **subjects**, not
 > evaluability, there being no `Service` for a pair outside the recorded scope.
+>
+> **The denominator is superseded here, at the site that states it — the rule set is seventeen**
+> ([#128](https://github.com/winniel123/verge-asm/issues/128) · ADR-0071, which discharged its other
+> consequences by name and not this one, the figure being #124's and in another document). **The
+> numerator is not re-filled**: the seventeenth rule reads `resolution` rather than a port, so the
+> aperture argument above does not reach it, but #137 · ADR-0079 and #138 · ADR-0080 together make it
+> **permanently `not-evaluable` on an install with no internet-class vantage** — a second,
+> install-shaped route to unevaluability this figure has never counted. `0 of 17` would assert a walk
+> nobody has run. Found by [#141](https://github.com/winniel123/verge-asm/issues/141), recorded by the
+> merging session, and ticketed.
 >
 > The line names the transport and, on [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)'s
 > own allowance, may point at the tier config, because here an action genuinely exists. It must **not**
