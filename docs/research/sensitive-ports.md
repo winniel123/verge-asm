@@ -19995,6 +19995,11 @@ with the criterion that decides it named: **whether *independent* in §39.3 mean
 artefact or a second falsifying act.** The parallel to §41.3 is close and worth stating — #135 found
 the note leaning on one **cell** twice; this is the note holding two **artefacts** that one act moves.
 
+> **RULED by [#151](https://github.com/winniel123/verge-asm/issues/151): the act.** Step 2 is corrected
+> to require a **different revision act**, not merely a second artefact — [ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s
+> Amendment. `5432/tcp`'s footing does not move: it was already an item under the removal bar, and the
+> act reading confirms it independently. The full register update is §48.
+
 ### 40.8 Every dependent figure, walked rather than asserted
 
 | Where | Was | Is |
@@ -20743,6 +20748,9 @@ release line.**
 | **NEW** `623/udp`'s **claim** cell @ the same convergent owner corpus | `623/udp` | §28.6's Class C ruling rests on the same three owner prohibitions; Shape 2 |
 | **§39.4** etcd's **prohibition (footing) cell** @ `THREAT_MODEL.md` | `2379/tcp`, `2380/tcp` | §16.3, §15.9; §39.4 item 5. §13.6 leaves `etcd.conf.yml.sample`'s status **undetermined**, so it is not a ground — §41.6 |
 | **§41.4** `10250/tcp`'s **claim** cell @ `ports-and-protocols.md`'s `Used By: Self, Control plane` | `10250/tcp` | **[measured]** §19.12, *"Claim 3 has no second support on this row"*; §41.4 item 9 |
+| **NEW — RULED §151** `10250/tcp`'s **footing** cell @ `security-checklist.md` | `10250/tcp` | §48.3 — `security-checklist.md` and `ports-and-protocols.md` are both `kubernetes/website` at `release-1.34`; one documentation-branch act reaches both, so `ports-and-protocols.md`'s `Used By` cell is not an independent ground for the **footing** proposition either. Sole-ground |
+| **NEW — RULED §151** `2375/tcp`'s and `2376/tcp`'s **footing** cell @ docs.docker.com *Docker Engine security* | `2375/tcp`, `2376/tcp` | §48.3 — *Docker Engine security*, *Protect the Docker daemon socket* and the `dockerd` reference are three pages of **one** continuously-published documentation set; one act reaches all three |
+| **NEW — RULED §151** `2376/tcp`'s **claim** cell @ the same page | `2376/tcp` | §48.3 — same act as the footing cell above; the two further Docker pages are not an independent ground |
 | **NEW** the **memcached footing cell** @ the project wiki's `ConfiguringServer` | `11211/tcp`, `11211/udp` | **[measured]** §13.2 — upstream ships **no** `memcached.conf`; `memcached.sysconfig` carries `OPTIONS=""` and no `-l`, so it is permissive and **silent** under §10.4. Strike the wiki and nothing remains |
 | **NEW** the **memcached claim cell** @ the wiki sentence + `memcached/memcached` `1.6.45` dispatch | `11211/tcp`, `11211/udp` | Conjunctive: §10.1 Step 1 is the wiki's *"you must not expose memcached … to any untrusted users"*, §25.2 Step 2 is `settings_init()` and `try_read_udp()`. ADR-0076 — enters at the wiki's rung |
 | **NEW** `25672/tcp`'s **footing** @ `rabbitmq.com/docs/networking` | `25672/tcp` | §32.6 — **[measured]** the second owner sentence is on the **same page**; Shape 3. `rabbitmq.conf.example` self-declares as an example and attests nothing (§13.2) |
@@ -20760,8 +20768,10 @@ release line.**
 
 | Item — `(cell, artefact, revision act)` | Pairs | Ground |
 |---|---|---|
-| **§39.4** `5432/tcp`'s **footing** @ `postgresql.conf.sample` | `5432/tcp` | §4.5 — *"the one service surveyed whose upstream documentation states no position at all"*; §39.4 item 6. See §43.5 |
+| **§39.4** `5432/tcp`'s **footing** @ `postgresql.conf.sample` | `5432/tcp` | §4.5 — *"the one service surveyed whose upstream documentation states no position at all"*; §39.4 item 6. **RULED §151 — unmoved**: already an item under ADR-0077's removal bar, and the act reading confirms it independently (§48.3) |
 | **§39.4** `5984/tcp`'s **footing** @ CouchDB's `default.ini` | `5984/tcp` | §13.2 — `bind_address = 127.0.0.1` **active**, and no prose position anywhere in the file; §39.4 item 7. The three occurrences under `[chttpd]`, `[httpd]` and `[prometheus]` are one artefact — Shape 3 |
+| **NEW — RULED §151** `5432/tcp`'s **claim** cell @ `postgresql.conf.sample` | `5432/tcp` | §48.3 — PostgreSQL's manual is built from `doc/src/sgml` **in the same tree** as `postgresql.conf.sample`, at the same release; one act moves both, so the manual's `runtime-config-connection` sentence is not an independent ground |
+| **NEW — RULED §151** `5984/tcp`'s **claim** cell @ `default.ini` | `5984/tcp` | §48.3 — CouchDB's documentation ships **in the project's own tree**; one release moves `default.ini` and `config/http` together |
 | **NEW** `9042/tcp`'s **footing** @ shipped `conf/cassandra.yaml` | `9042/tcp` | **[measured]** §12.7, §13.2 — the owner sentence **is** the configuration artefact, both in the same file. §39.4's *"an owner sentence **and** a configuration artefact"* row does not reach it, and cassandra.apache.org's *security* page yields Claim 1's ground rather than a **boundary** (§2.2's original *"an attack-surface observation rather than a prohibition"*, withdrawn as a tier claim by §12 and still true of the sentence's **content**) |
 | **NEW** `2181/tcp`'s **claim** cell @ the Administrator's Guide + `apache/zookeeper` `release-3.9.5` dispatch | `2181/tcp` | Conjunctive: §10.1 Step 1, §25.2 Step 2 (`OPEN_ACL_UNSAFE` on the root znode). ADR-0076 — the shipped bytes are the weakest link |
 | **NEW** `4369/tcp`'s **claim** cell @ Erlang/OTP's epmd documentation + shipped `epmd_srv.c` | `4369/tcp` | Conjunctive, and both cells were **corrected** at §20.6: Claim 1 survives on the **read** limb, `EPMD_ALIVE2_REQ` being gated on `s->local_peer`. ADR-0076 |
@@ -20775,6 +20785,9 @@ release line.**
 | **NEW** `2049/tcp`'s **footing** @ `nfs(5)` (`utils/mount/nfs.man`, `nfs-utils-2.9.2`) | `2049/tcp` | **[measured]** §13.2 — `nfs.conf` ships every setting commented, `# host=` included, therefore permissive and silent. The DESCRIPTION sentence §13.2 added (*"a local area network"*) is in the **same** man page — Shape 3 |
 | **NEW** `2049/tcp`'s **claim** cell @ the same man page's SECURITY CONSIDERATIONS | `2049/tcp` | §3.3, §26.2 row 19; Shape 2 |
 | **NEW** `4369/tcp`'s **footing** @ Erlang/OTP `secure_coding.md` rule `DEP-001` | `4369/tcp` | **[measured]** §20.7 — RabbitMQ's and CouchDB's sentences are a **non-owner's** for this port and corroborate only; §16.6 and §18.5 measure Erlang/OTP's `distributed.md` sentence as **not reaching** epmd (*"limb 2 fails"*). Sole-ground on `DEP-001` |
+| **NEW — RULED §151** `873/tcp`'s **footing** cell @ `rsyncd.conf.5.md` | `873/tcp` | §48.3 — `rsyncd.conf.5.md`'s `## SECURITY` imperative and `rsync.1.md`'s sibling imperative are shipped man pages of **`RsyncProject/rsync` at `v3.5.0`**; one rsync release moves both |
+| **NEW — RULED §151** `873/tcp`'s **claim** cell @ the same man page | `873/tcp` | §48.3 — same act as the footing cell above |
+| **NEW — RULED §151** `2181/tcp`'s **footing** cell @ the Administrator's Guide | `2181/tcp` | §48.3 — **undetermined, step 4.** The Administrator's Guide is version-pinned at `/doc/r3.9.3/`; `zookeeper.apache.org/security.html` is an unpinned site page. Whether one act reaches both is not decidable from bytes this note holds, so the second sentence is not yet a ground and the cell is an item on the undetermined step, per ADR-0077's existing rule |
 
 **Rung 5 — a specification: a new document with a new number, announced and never silently.**
 
@@ -20845,6 +20858,10 @@ disposition the other reading would move. **Nothing below is pre-empted or decid
 > one that moves **off** under the artefact reading is `5432/tcp`'s footing — *the list's weakest row*
 > (§4.5) — which is the strongest possible argument that the question is worth a ticket and the weakest
 > possible argument for deciding it inside a walk.
+
+> **RULED by [#151](https://github.com/winniel123/verge-asm/issues/151): the act, not the artefact.**
+> Every row of this table is **DISCHARGED** — see §48 for the ruling, ADR-0077's Amendment for the
+> corrected test, and §48.3 for the register entries this table's *acts* column licenses.
 
 **One live dependency reaches this walk and does not touch a cell of it.**
 [#153](https://github.com/winniel123/verge-asm/issues/153) reports that §17.2's arithmetic — *14
@@ -22322,6 +22339,151 @@ of a replacement rather than a strike-through. **No new ADR is minted; ADR-0090 
   `sensitive-ports.md` before §47 is edited.** Its basis is `main` at `bd07f77`. [#152](https://github.com/winniel123/verge-asm/issues/152)
   is a sibling ticket in the same region (a second, differently-shaped gate gap) and is addressed at
   §47.4 rather than left for a reader to reconcile. **Where §47 and §1 disagree, §1 governs.**
+
+## 48. Step 2 counts falsifying acts, not adequate artefacts — #151's ruling and the register it moves
+
+**Ticket [#151](https://github.com/winniel123/verge-asm/issues/151).** §40.7 raised the question and
+ruled nothing: *"whether independent in §39.3 means a second adequate artefact or a second falsifying
+act."* §43.5 then ran the whole 38-pair walk on the **artefact** reading exactly as ADR-0077's four-step
+test is written, and named every cell the **act** reading would move, without pre-empting which reading
+governs. This section rules the question §40.7 opened and discharges §43.5's table.
+[ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)
+carries the Amendment; this section carries the register update it licenses. §41.2's four-step test is
+**not reopened** — its steps 1, 3 and 4 are unchanged, and only step 2's own stated warrant is made to
+match its own stated check.
+
+### 48.1 The ruling in one line
+
+**Step 2 counts falsifying acts.** A second artefact is a ground only if a **different** revision act
+from the one that would falsify the first artefact would be needed to falsify the second. Two artefacts
+moved by one release, one commit, or one documentation-branch update supply **one** ground between them,
+not two — because the queue keys on the act ([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)),
+never on the artefact, and that ruling is not reopened here. Where the note's held bytes do not show
+whether two artefacts share an act, the question is **undetermined** and ADR-0077's existing step 4
+applies — no new judgement is invented for it.
+
+### 48.2 Both readings, argued in full
+
+**For the artefact reading (the option that lost).** ADR-0077's Decision table operationalizes step 2
+purely on the artefact — *"standing alone… have carried the cell's proposition"* — and its four stated
+steps never mention an act. Determining whether two artefacts share a revision act asks a fact the note
+does not always hold cheaply, especially for rung-1/rung-2 artefacts with no visible commit boundary — a
+wiki page or a CMS-served site has no diff a reader can point to. Keeping the check at the artefact level
+also avoids re-litigating *"is this really one act"* on every multi-artefact row, which is the kind of
+extra axis ADR-0057 and ADR-0077 have repeatedly refused elsewhere (the sixth axis, evidence age as a
+key, strength-ranking a ground).
+
+**For the act reading (the ruling).** ADR-0057's own Decision table is not reopened and it says *"what
+the queue keys on: the revision act."* A filter that removes a cell from an act-keyed queue on the
+strength of a second **artefact**, without asking whether it is a second **act**, tests an object one
+level short of the one the queue is defined over — the same error ADR-0077 itself corrected in the
+other direction when it moved the filter's unit from the row to the cell. §40.7's measurement is not a
+close call: step 2's own worked language already concludes *"two acts are needed to falsify C"* from a
+check that only establishes a second **artefact**, and `5432/tcp` is the cell where the two come apart —
+`postgresql.conf.sample` and `pg_hba.conf.sample` are two files in one PostgreSQL source tree, moved by
+one major release. The "extra fact needed" objection is answered by the test's own existing step 4:
+where act-sharing cannot be read off held bytes, the cell is undetermined and stays **on** — precisely
+ADR-0077's stated *"direction of failure: toward more watching."* And the "keeps the filter simple"
+objection proves too much: ADR-0057's rung table already keys a **single** artefact's volatility on
+*"one contributor, one commit"* — asking whether a **second** artefact shares that same commit is not a
+new kind of fact, only the same fact asked of a second object already on the table.
+
+**The ruling.** The act reading wins. It is compelled by ADR-0057's own key, it repairs a stated
+warrant that the artefact reading never actually established, and its cost — a small number of
+additional readings — is the cheap side of the asymmetry ADR-0077 itself already ruled on: *"the cost of
+a wrongly-included item is one reading; the cost of a wrongly-excluded one is a silent de-attestation"*
+— a failure this corpus has already paid once, on `623/udp` (§36.7).
+
+### 48.3 The register — items moved, named per cell
+
+**Nothing leaves the register — ADR-0077's removal bar is untouched.** Every cell below moves from *not
+an item* to **item**, or is confirmed unmoved. Grounds are cited to the section that measured the
+act-sharing; rungs are the moving artefact's own, already established in §43.3.
+
+| Cell | Rung | Artefact | Why one act reaches both |
+| --- | --- | --- | --- |
+| `873/tcp` **footing** and **claim** | 4 | `rsyncd.conf.5.md` | Both owner imperatives are shipped man pages of `RsyncProject/rsync` at `v3.5.0` — one rsync release moves both (§43.5) |
+| `10250/tcp` **footing** | 2 | `security-checklist.md` | `security-checklist.md` and `ports-and-protocols.md` are both `kubernetes/website` at `release-1.34` — one documentation-branch act reaches both (§43.5) |
+| `2375/tcp` and `2376/tcp` **footing** | 2 | docs.docker.com *Docker Engine security* | Three pages of one continuously-published documentation set (§43.5) |
+| `2376/tcp` **claim** | 2 | the same page | Same act as the footing cell above |
+| `5432/tcp` **claim** | 3 | `postgresql.conf.sample` | PostgreSQL's manual is built from `doc/src/sgml` in the same tree as `postgresql.conf.sample`, at the same release (§43.5) |
+| `5984/tcp` **claim** | 3 | `default.ini` | CouchDB's documentation ships in the project's own tree; one release moves `default.ini` and `config/http` together (§43.5) |
+| `2181/tcp` **footing** | 4 | the Administrator's Guide | **Undetermined, step 4.** The Guide is version-pinned at `/doc/r3.9.3/`; `security.html` is an unpinned site page, and whether one act reaches both is not decidable from held bytes (§43.5) |
+
+**Confirmed unmoved.**
+
+| Cell | Disposition | Why |
+| --- | --- | --- |
+| `5432/tcp` **footing** | **Item, unmoved.** | Already an item under ADR-0077's removal bar (§39.4 item 6); the act reading confirms it independently — one PostgreSQL release moves both `postgresql.conf.sample` and `pg_hba.conf.sample` |
+| `10255/tcp` (both cells) | **Unaffected**, as the ticket named going in. | Its second ground is a shipped default in Kubernetes' **source** repository; its first ground is a documentation-branch page in **kubernetes/website**. A docs branch and a shipped default are two acts |
+| `6379/tcp`, `27017`/`27018`/`27019`, `10249/tcp`, `10259`/`10257`, `69/udp` | **Unaffected.** | §43.4's own grounds already state or measure separate repositories or separate owners' acts for each (redis.io vs. `redis/redis`; MongoDB Inc's *"two corpora, two owners' acts"*; `source-ip.md` *"a different repository from the default"*; kubeadm *"the owner's own installer… a different repository"*; RFC 1350 and RFC 3617 are two specifications, each inherently a separate act) |
+
+**These seven cells are named exhaustively, not sampled.** §43.5 ran ADR-0077's four-step test on the
+artefact reading over every row of §43.4 — the complete *not an item* population of the 38-pair walk —
+and recorded, per row, whether the act reading would move it. This section rules the reading and applies
+it to exactly the rows §43.5 flagged; no further walk is owed.
+
+### 48.4 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+| --- | --- | --- |
+| §1 pair count | 38 | **unchanged.** No row is added or removed |
+| §3 class totals | `12 / 7 / 19` | **unchanged.** No row changes class |
+| §2.2 footing tiers | `13 / 11 / 3` | **unchanged.** A register item observes exposure; it is never a verdict on a tier |
+| §2.2 footing coverage | 27 of 38 | **unchanged** |
+| §4.6 exclusions | 24 | **unchanged.** Nothing is excluded or admitted here |
+| The register (§43.3) | §43.3's and §43.4's membership, `5432/tcp`'s disposition open at §40.7 and §43.5 | **Grown by seven cells**, named at §48.3. **No length is quoted** — §39.2, §42.6 |
+| §40.7's open question | raised, unruled | **DISCHARGED** by this section |
+| §43.5's table | run and named, not decided | **DISCHARGED** by this section |
+| [ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s step 2 | tested the artefact, concluded the act | **Amended** to test the act; steps 1, 3 and 4 unchanged |
+| §41.2's four-step test | — | **not reopened.** Its stated steps are unchanged; only ADR-0077's step 2 gloss is corrected, at the ADR |
+| ADR-0057, ADR-0059, ADR-0076 | — | **confirmed by use.** None is amended |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version | — | **not triggered.** `sensitive-port-reached-from-internet` is byte-identical; a filter correction is not reference data |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not amended**, on ADR-0057's own last Decision row: the curator is not a subject in the model |
+| [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) | cites §43.3 as the live register, over members, no count | **unaffected.** This section adds members to the register it already cites; the document quotes no count to go stale |
+
+**Outside this note.** **ADR-0098 is left unused** — this is a correction
+to ADR-0077's own stated test, sited where the test is stated, per
+[ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). ADR-0077's
+Consequences and Alternatives-rejected tables are unmarked by this section — they describe the ADR's own
+ruling on the cell unit and the tier, which stand — and the correction is carried entirely in ADR-0077's
+own Amendment.
+
+### 48.5 Thin ground, flagged per the standing rule
+
+**The rung assignments in §48.3 are read off the moving artefact's own already-established rung, not
+re-measured.** `873/tcp`'s man pages are placed at rung 4 (issued prose, shipped and versioned with a
+software release) rather than rung 3, on the same distinction ADR-0057 draws between a **default value**
+(rung 3) and **prose about a default** (rung 4); `postgresql.conf.sample` itself is the rung-3 artefact
+because it *carries* a default, where `rsyncd.conf.5.md` only *describes* one. A reader who reads
+`rsyncd.conf.5.md` as rung 3 instead would not move any cell's presence on the register, only its tie-break
+position within rung 4 — G11's stale-against-tag mark, not membership.
+
+**`2181/tcp`'s footing is the one cell this section could not settle**, and it is named rather than
+guessed at, per ADR-0077's own step 4. The criterion that would reopen it: a retrieval establishing
+whether ZooKeeper's Administrator's Guide and `security.html` are built and published by the same act —
+which is a retrieval, not a re-reading of bytes this note already holds, so it is routed rather than
+performed here.
+
+### 48.6 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10, §41.8, §42.10 and §43.9
+
+- **This section performed no retrieval.** Every artefact-sharing fact it cites was already measured by
+  §43.4's or §43.5's pass, over bytes this note already holds; ruling which reading of step 2 governs is
+  not itself a retrieval. G7 and G8 are vacuous here.
+- **The population was fixed by §43.5, not re-derived.** §43.5 ran the complete 38-pair *not an item* row
+  and named every cell the act reading would move; this section's population is exactly that named set,
+  checked against §43.4's grounds for completeness rather than re-walked.
+- **The hazard this section was most exposed to** is ruling a methodological question and then quietly
+  widening it past what the corpus already measured — deciding, for cells §43.5 did not flag, that "this
+  one is probably one act too." **That was not done.** Every cell in §48.3 is a cell §43.5 already named;
+  no cell outside that set is moved, and `2181/tcp`'s footing is left undetermined rather than resolved
+  by inference.
+- **Sibling passes are appending to this note concurrently**, per §43.9's and §46.11's own note of the
+  batch. This section appends **above** the `---` separator preceding `## Sources`, after §46's own
+  append, leaving the separator and the heading untouched, so the anchor composes by construction.
+  §48 touches §40.7 and §43.5 only by appending a `RULED` blockquote after each — no existing prose in
+  either is deleted or rewritten — and adds rows to §43.3's rung 2, rung 3 and rung 4 tables without
+  touching any other row. **No summary or index row outside this section is rewritten.**
 
 ---
 
