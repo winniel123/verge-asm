@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subject — verge-asm prototype (#161)</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<!--
+  PROTOTYPE — throwaway. Issue #161, "Draw a subject's own page — the only surface carrying both
+  a subject's rules and its closed timelines." Not production code and not a component library.
+
+  URL: ?key=<one of the seven below>          (also settable from the floating switcher / ←→)
+
+    api.example.com          a live Name, baseline — two in-domain rules, an undatable DNS pair
+    ci.example.com           a live Name whose own resolution fires a rule
+    old.example.com          a live Name with a Gap cell that CITES the rule already reporting it
+    legacy.example.com       a WITHDRAWN Name — closed timelines, and a rule frozen at its last
+                              instant rather than silently going not-evaluable
+    198.51.100.201           an Address, third-party, gate closed inside the retention window —
+                              and an EMPTY rules section, argued rather than assumed
+    198.51.100.201:22/tcp    the Service beneath it — HELD: still fires, beside the marker
+    198.51.100.202:22/tcp    the same Service shape, gate closed past the window — AGED to a Gap
+
+  THE QUESTION (#161): what does a single subject's page render? Named in #10's brief, cited by
+  #74 decision 7 as where a row's key link lands, never drawn.
+
+  CARRIED, not re-derived:
+    - it is the only surface holding both a subject's RULES and its CLOSED timelines (ADR-0072)
+    - a withdrawn subject still has one, reached by key, and nothing on it is current state (ADR-0082)
+    - "why is this here" is answerable for every subject by walking Citation back to a Seed or a
+      declared source (#10)
+    - a Gap cell shows its cause with the prior reading demoted beneath it; a census row shows the
+      last known outcome with an as-of — #118 read these as two objects, and this page is the first
+      one, not the second (old.example.com is the worked example)
+    - no per-row control anywhere; the floor and undatable-pair obligations both bind (ADR-0075's
+      dateline binds too)
+
+  FIXTURE WARNING. The estate is invented and every figure is a dated reading (ADR-0075). Four of
+  the seven keys share names with prototypes/subjects/index.html's #122 fixture on purpose — this
+  file is the page those rows' keys would land on — but nothing here is re-filled from that file and
+  nothing there is edited by this ticket.
+
+  Annotations in a dashed box are commentary for the reviewer and are not part of the design.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 104px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); }
+
+  .crumb { font-size: var(--text-sm); margin-bottom: var(--space-4); }
+  .crumb a { color: var(--text-muted); text-decoration: none; }
+  .crumb a:hover { color: var(--accent); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-3) var(--page-pad);
+           display: flex; gap: var(--space-5); font: var(--weight-regular) var(--text-xs)/1.4 var(--font-mono);
+           color: var(--text-faint); }
+
+  /* --- subject header --------------------------------------------------------------------- */
+  .subhead { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5);
+             padding-bottom: var(--space-4); margin-bottom: var(--space-5); border-bottom: var(--rule-ink-heavy);
+             flex-wrap: wrap; }
+  .subhead .k { font-family: var(--font-mono); font-size: var(--text-2xl); font-weight: var(--weight-semibold);
+                line-height: 1.2; word-break: break-all; }
+  .subhead .kindrow { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+  .subhead .asof { text-align: right; }
+  .subhead .asof .v { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .subhead .asof .ml { display: block; margin-top: 3px; }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted);
+         white-space: nowrap; }
+  .tag.blue { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .tag.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .tag.bad { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+  .tag.ok { border-color: var(--ok); color: var(--ok); }
+  .tag.gone { border-style: dashed; color: var(--text-faint); }
+
+  .banner { border: var(--rule-ink); border-left: 3px solid var(--text-faint); background: var(--surface-sunken);
+            padding: var(--space-4); margin-bottom: var(--space-5); }
+  .banner p { margin: 0 0 var(--space-2); font-size: var(--text-base); line-height: var(--leading-body); max-width: 90ch; }
+  .banner p:last-child { margin-bottom: 0; }
+  .banner .ml { display: block; margin-bottom: var(--space-2); color: var(--text-muted); }
+
+  .card { background: var(--surface); border: var(--rule); margin-bottom: var(--space-5); }
+  .card-h { display: flex; align-items: baseline; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .hint { font-size: var(--text-sm); color: var(--text-muted); }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); background: var(--surface-sunken);
+            font-size: var(--text-sm); color: var(--text-muted); line-height: var(--leading-body); }
+  .pad { padding: var(--space-4); }
+
+  /* --- citation chain ---------------------------------------------------------------------- */
+  .chain { padding: var(--space-4); }
+  .hop { border: var(--rule); background: var(--surface); padding: var(--space-3) var(--space-4);
+         display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+  .hop .hopwho { font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+                 text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted);
+                 min-width: 108px; }
+  .hop .hoplabel { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+  .hop .hopdetail { font-size: var(--text-sm); color: var(--text-muted); }
+  .hop.terminal { border-color: var(--border-ink); background: var(--surface-ink); }
+  .hop.terminal .hopwho { color: #9a9a90; }
+  .hop.terminal .hoplabel, .hop.terminal .hopdetail { color: var(--text-on-ink); }
+  .hoparrow { text-align: center; color: var(--text-faint); font-family: var(--font-mono); padding: 2px 0; }
+  .chain.historical .hop { opacity: .6; }
+
+  /* --- timelines ---------------------------------------------------------------------------- */
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: top; }
+  tbody tr:first-child td { border-top: none; }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num, th.num { text-align: right; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .rowsub { display: block; margin-top: 3px; font-size: var(--text-sm); color: var(--text-muted); line-height: var(--leading-snug); }
+
+  td.gapcell { background: var(--surface-sunken); border-left: 1px dashed var(--border-ink); }
+  td.gapcell .cause { display: block; font: var(--weight-semibold) var(--text-2xs)/1.3 var(--font-mono);
+                      text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  td.gapcell .prior { display: block; margin-top: 3px; font-family: var(--font-mono);
+                      font-size: var(--text-xs); color: var(--text-faint); }
+  td.gapcell.fault { border-left-color: var(--danger); }
+
+  td.closedcell { background: var(--surface-sunken); border-left: 1px dashed var(--text-faint); opacity: .82; }
+  td.closedcell .cause { display: block; font: var(--weight-semibold) var(--text-2xs)/1.3 var(--font-mono);
+                         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-faint); }
+  td.closedcell .last { display: block; margin-top: 3px; font-family: var(--font-mono);
+                        font-size: var(--text-xs); color: var(--text-faint); }
+
+  td.undatecell .move { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.undatecell .undate { display: block; margin-top: 3px; font: var(--weight-semibold) var(--text-2xs)/1.3 var(--font-mono);
+                          text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--warn); }
+
+  /* --- rules -------------------------------------------------------------------------------- */
+  .rulename { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+
+  .inkp { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+          padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body);
+          margin-bottom: var(--space-5); }
+  .inkp .ml { color: #9a9a90; display: block; margin-bottom: var(--space-2); }
+  .inkp code, .inkp .mono { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-on-ink); }
+  .inkp strong, .inkp b { color: var(--text-on-ink); }
+  .inkp h3 { margin: 0 0 var(--space-2); font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--text-on-ink); }
+  .inkp p { margin: 0 0 var(--space-3); max-width: 88ch; }
+  .inkp p:last-child { margin-bottom: 0; }
+
+  .note { display: block; border: var(--rule); border-left: 3px solid var(--border-ink);
+          background: var(--surface); padding: var(--space-3) var(--space-4);
+          font-size: var(--text-sm); line-height: var(--leading-body); color: var(--text);
+          max-width: 96ch; margin-bottom: var(--space-4); }
+  .note b { font-weight: var(--weight-semibold); }
+  .note p { margin: 0 0 var(--space-2); }
+  .note p:last-child { margin-bottom: 0; }
+
+  .empty { border: 1px dashed var(--border); background: var(--surface);
+           padding: var(--space-5) var(--space-4); }
+  .empty .ml { display: block; margin-bottom: var(--space-2); }
+  .empty p { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted);
+             line-height: var(--leading-body); max-width: 88ch; }
+  .empty p:last-child { margin-bottom: 0; }
+  .empty a { color: var(--accent); text-decoration: none; }
+
+  a.jump { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-semibold);
+           color: var(--ink); text-decoration: none; box-shadow: inset 0 -1px 0 var(--border); }
+  a.jump:hover { box-shadow: inset 0 -1px 0 var(--accent); color: var(--accent); }
+
+  /* prototype-only annotation */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 96ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+  #switch { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+            background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+            box-shadow: var(--shadow-hard); padding: 8px 10px; display: flex; gap: var(--space-2);
+            align-items: center; z-index: 50; max-width: calc(100vw - 32px); flex-wrap: wrap; }
+  #switch > span { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); color: #9a9a90; margin-right: 2px; }
+  #switch button { border: 1px solid #3a3a30; background: transparent; color: var(--text-on-ink);
+                   font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); padding: 5px 7px;
+                   cursor: pointer; border-radius: var(--radius); }
+  #switch button.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="switch"></div>
+
+<script>
+/* ------------------------------------------------------------------ routing */
+const KEYS = ["api.example.com", "ci.example.com", "old.example.com", "legacy.example.com",
+              "198.51.100.201", "198.51.100.201:22/tcp", "198.51.100.202:22/tcp"];
+
+function params() {
+  const p = new URLSearchParams(location.search);
+  const k = p.get("key");
+  return { key: KEYS.includes(k) ? k : KEYS[0] };
+}
+function go(next) {
+  const s = { ...params(), ...next };
+  history.replaceState(null, "", "?" + new URLSearchParams(s).toString());
+  render();
+}
+
+/* ------------------------------------------------------------------ helpers */
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+function anno(label, html, bad) {
+  return `<div class="anno${bad ? " no" : ""}"><span class="ml">${label}</span>${html}</div>`;
+}
+function tagFor(member) {
+  if (member === "fired")        return `<span class="tag bad">fired</span>`;
+  if (member === "did-not-fire") return `<span class="tag">did not fire</span>`;
+  if (member === "not-evaluable") return `<span class="tag warn">not-evaluable</span>`;
+  return `<span class="tag gone">${esc(member)}</span>`;
+}
+
+/* ==================================================================== FIXTURE
+   An invented estate, dated 2026-08-15. Every figure here is a reading (ADR-0075). Four keys
+   share subjects with prototypes/subjects/index.html on purpose, so this file reads as the page
+   those rows' key links would land on — nothing there is edited and nothing here restates a
+   figure from it as authoritative.
+------------------------------------------------------------------------------- */
+const TODAY = "2026-08-15";
+
+const SUBJECTS = {
+
+  /* --- live Name, baseline ------------------------------------------------------------------ */
+  "api.example.com": {
+    kind: "Name", status: "live", instant: "2026-08-15 04:07",
+    memberSince: "2026-06-02", memberFloor: true,
+    citation: [
+      { who: "resolution-walk", label: "under example.com", detail: "batch 2026-08-15 04:07 · internet vantage" },
+      { who: "Seed", label: "example.com", detail: "name scope · declared 2026-06-02", terminal: true },
+    ],
+    timelines: [
+      { facet: "resolution", state: "value", value: "Resolved · 3 addresses",
+        note: "203.0.113.41 · 203.0.113.42 · 2001:db8:4::11", since: "2026-06-02", floor: true },
+      { facet: "dns-record (A/AAAA)", state: "value", value: "3 records · TTL 300",
+        since: "2026-06-02", floor: true },
+      { facet: "dns-record (MX)", state: "undatable",
+        before: "10 mail.example.com", after: "10 mail2.example.com",
+        note: "the internet-class vantage that reads MX was unavailable between the two batches that saw these values — a Gap sits between them" },
+    ],
+    rules: [
+      { name: "lame-delegation", member: "did-not-fire",
+        note: "every authority for api.example.com was reached and serves the zone" },
+      { name: "non-globally-reachable-address-resolved-from-internet", member: "did-not-fire",
+        note: "all three resolved addresses are globally reachable" },
+    ],
+    rulesTotal: 17,
+  },
+
+  /* --- live Name, a rule fires on this subject's own resolution ----------------------------- */
+  "ci.example.com": {
+    kind: "Name", status: "live", instant: "2026-08-15 04:07",
+    memberSince: "2026-06-04", memberFloor: true,
+    citation: [
+      { who: "declared", label: "zone file example.com.zone", detail: "supplied 2026-06-04 · monthly re-supply" },
+      { who: "Seed", label: "example.com", detail: "name scope · declared 2026-06-02", terminal: true },
+    ],
+    timelines: [
+      { facet: "resolution", state: "value", value: "Resolved · 1 address",
+        note: "10.4.3.9", since: "2026-06-04", floor: true },
+      { facet: "dns-record (A)", state: "value", value: "1 record · TTL 300", since: "2026-06-04", floor: true },
+    ],
+    rules: [
+      { name: "non-globally-reachable-address-resolved-from-internet", member: "fired",
+        note: "10.4.3.9's most specific IANA special-purpose allocation reads Globally Reachable = False" },
+      { name: "lame-delegation", member: "did-not-fire" },
+    ],
+    rulesTotal: 17,
+  },
+
+  /* --- live Name, Gap cell CITING the rule already reporting it ----------------------------- */
+  "old.example.com": {
+    kind: "Name", status: "live", instant: "2026-08-15 04:07",
+    memberSince: "2026-06-04", memberFloor: true,
+    citation: [
+      { who: "declared", label: "zone file example.com.zone", detail: "supplied 2026-06-04 · monthly re-supply" },
+      { who: "Seed", label: "example.com", detail: "name scope · declared 2026-06-02", terminal: true },
+    ],
+    timelines: [
+      { facet: "resolution", state: "gap", cause: "you stopped answering",
+        prior: "last read Resolved · 1 address · 2026-08-02 04:07",
+        cites: "lame-delegation is firing on this name below — no second fault is raised here" },
+    ],
+    rules: [
+      { name: "lame-delegation", member: "fired",
+        note: "every authority for old.example.com was reached and none serves the zone" },
+    ],
+    rulesTotal: 17,
+    calloutGap: true,
+  },
+
+  /* --- WITHDRAWN Name --------------------------------------------------------------------- */
+  "legacy.example.com": {
+    kind: "Name", status: "withdrawn",
+    left: "2026-07-02", leftFloor: false,
+    how: "our own resolver measured a Name Error from every available vantage",
+    closureReason: "measured-absent",
+    citation: [
+      { who: "was: declared", label: "zone file example.com.zone", detail: "supplied 2026-06-04 · monthly re-supply" },
+      { who: "Seed", label: "example.com", detail: "name scope · declared 2026-06-02", terminal: true },
+    ],
+    timelines: [
+      { facet: "resolution", state: "closed", reason: "measured-absent",
+        last: "last value: NameError · every available vantage · 2026-07-02 03:58" },
+      { facet: "dns-record (A)", state: "closed", reason: "measured-absent",
+        last: "last value: Resolved · 1 address · 198.51.100.61 · 2026-06-30 04:07" },
+    ],
+    rules: [
+      { name: "zone-declared-name-returns-name-error", member: "fired", frozen: true,
+        note: "the zone still declares legacy.example.com; the resolver returned a Name Error — the same measurement that fired this rule is the measurement that withdrew the subject" },
+    ],
+    rulesTotal: 17,
+    calloutWithdrawn: true,
+  },
+
+  /* --- Address, third-party, gate closed INSIDE the retention window ------------------------ */
+  "198.51.100.201": {
+    kind: "Address", status: "live", instant: "2026-08-15 04:07",
+    custody: "third-party", custodySince: "2026-08-13",
+    citation: [
+      { who: "resolution-walk", label: "cited by shop.example.com", detail: "the chain leaves the zone — via d1x2y3.cloudfront.net, not covered by any declared address scope" },
+      { who: "resolution-walk", label: "shop.example.com", detail: "under example.com · admits the name" },
+      { who: "Seed", label: "example.com", detail: "name scope · declared 2026-06-02", terminal: true },
+    ],
+    timelines: [
+      { facet: "reachability", state: "info",
+        note: "an Address has no reachability of its own — every (port, transport) pair it holds is a Service, reached through it" },
+    ],
+    rules: [],
+    rulesTotal: 17,
+    calloutNoRules: true,
+    childService: "198.51.100.201:22/tcp",
+  },
+
+  /* --- Service beneath it — HELD: still fires beside the marker ----------------------------- */
+  "198.51.100.201:22/tcp": {
+    kind: "Service", status: "live", instant: "2026-08-15 04:07",
+    parentAddress: "198.51.100.201",
+    custody: "third-party (inherited)",
+    citation: [
+      { who: "restated", label: "198.51.100.201's own citation (ADR-0031)", detail: "a Service's membership is its Address's membership restated — this is not a new membership event" },
+    ],
+    citationHistorical: true,
+    timelines: [
+      { facet: "reachability (internet leg)", state: "value", value: "reached",
+        note: "current — the custody gate closed 2026-08-13. A closed gate does not open a Gap; it stops feeding the timeline, and this reading is held for 2 cadences (2 days on the daily Scan) while it ages out",
+        since: "2026-08-13" },
+    ],
+    rules: [
+      { name: "sensitive-port-reached-from-internet", member: "fired",
+        note: "the internet leg is reached — keeps firing beside the third-party marker. The port did not close when custody was withdrawn; only the licence to keep looking did" },
+    ],
+    rulesTotal: 17,
+    calloutHeld: true,
+  },
+
+  /* --- Same shape, past the retention window — AGED to a Gap -------------------------------- */
+  "198.51.100.202:22/tcp": {
+    kind: "Service", status: "live", instant: "2026-08-15 04:07",
+    parentAddress: "198.51.100.202",
+    custody: "third-party (inherited)",
+    citation: [
+      { who: "restated", label: "198.51.100.202's own citation (ADR-0031)", detail: "a Service's membership is its Address's membership restated — this is not a new membership event" },
+    ],
+    citationHistorical: true,
+    timelines: [
+      { facet: "reachability (internet leg)", state: "gap", cause: "a closed custody gate",
+        prior: "last read reached · 2026-06-20 04:07",
+        cites: "sensitive-port-reached-from-internet already reports this address below — no second fault is raised here" },
+    ],
+    rules: [
+      { name: "sensitive-port-reached-from-internet", member: "not-evaluable",
+        note: "fired until 2026-06-22, then the evidence aged past currency as the gate stayed shut — the coverage-class move is fired → not-evaluable, fired at the cause" },
+    ],
+    rulesTotal: 17,
+    calloutAged: true,
+  },
+};
+
+/* ------------------------------------------------------------------ chrome */
+
+/* ADR-0075: a prototype is a dated record of a READING, never of a RULE. */
+function dateline() {
+  return anno("prototype · not part of the design", `
+    <p><b>Issue #161 — a subject's own page. Drawn 2026-08-15.</b> Throwaway: something to decide
+    against, not production UI and not a component library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a current value</b> — the corpus
+    as it stood on that date, and nothing here has been re-filled since. The only live absolutes
+    are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>): read a
+    figure there before believing one here. What is <i>not</i> a dated reading is the state these
+    screens draw — the acts they offer, the populations they show as non-empty and the sentences
+    they put in the product's mouth. A later ruling that makes one of those unreachable is marked
+    here in place and never redrawn.</p>`);
+}
+
+function chrome(body) {
+  return `
+  <header class="nav"><div class="nav-in">
+    <span class="wordmark"><b>Verge</b><span class="chip">ASM</span></span>
+    <nav class="items">
+      <a href="#">Exposure</a><a href="#" class="on">Subjects</a><a href="#">Signals</a>
+      <a href="#">Seeds</a><a href="#">Coverage</a><a href="#">Settings</a>
+    </nav>
+    <span class="nav-right"><span class="status"><span class="dot live"></span>batch 04:07</span></span>
+  </div></header>
+  <div class="shell">${dateline()}
+    <div class="crumb"><a href="index.html">Subjects</a><span class="muted"> / a row's key link lands here</span></div>
+    ${body}
+  </div>
+  <footer class="ft"><div class="ft-in">
+    <span>PROTOTYPE — issue #161</span><span>invented estate, every count computed</span>
+    <span>design system: visual layer canonical, vocabulary is CONTEXT.md's</span>
+  </div></footer>`;
+}
+
+/* ------------------------------------------------------------------ page pieces */
+
+function chain(hops, historical) {
+  const html = hops.map((h, i) => `
+    <div class="hop${h.terminal ? " terminal" : ""}">
+      <span class="hopwho">${esc(h.who)}</span>
+      <span class="hoplabel">${esc(h.label)}</span>
+      <span class="hopdetail">${esc(h.detail)}</span>
+    </div>${i < hops.length - 1 ? `<div class="hoparrow">↓</div>` : ""}`).join("");
+  return `<div class="chain${historical ? " historical" : ""}">${html}</div>`;
+}
+
+function timelineTable(rows) {
+  const trs = rows.map(r => {
+    let cell;
+    if (r.state === "value") {
+      cell = `<td class="m">${esc(r.value)}${r.note ? `<span class="rowsub">${esc(r.note)}</span>` : ""}</td>`;
+    } else if (r.state === "gap") {
+      cell = `<td class="gapcell"><span class="cause">${esc(r.cause)}</span>
+                <span class="prior">${esc(r.prior)}</span>
+                ${r.cites ? `<span class="prior">${esc(r.cites)}</span>` : ""}</td>`;
+    } else if (r.state === "closed") {
+      cell = `<td class="closedcell"><span class="cause">closed · ${esc(r.reason)}</span>
+                <span class="last">${esc(r.last)}</span></td>`;
+    } else if (r.state === "undatable") {
+      cell = `<td class="undatecell"><span class="move">${esc(r.before)} → ${esc(r.after)}</span>
+                <span class="undate">undatable — a Gap sits between them</span>
+                <span class="rowsub">${esc(r.note)}</span></td>`;
+    } else {
+      cell = `<td class="muted">${esc(r.note || "")}</td>`;
+    }
+    const since = r.since ? (r.floor ? `≥ ${esc(r.since)} <span class="faint">(floor)</span>` : esc(r.since)) : `<span class="faint">—</span>`;
+    return `<tr><td class="mono">${esc(r.facet)}</td>${cell}<td class="num muted">${since}</td></tr>`;
+  }).join("");
+  return `<table><thead><tr><th>Facet</th><th>Reading</th><th class="num">Since</th></tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+function rulesTable(subj) {
+  if (!subj.rules.length) {
+    return `<div class="pad"><div class="empty">
+      <span class="ml">No rule reads this subject directly</span>
+      <p>No v1 signal is named for a fact about a bare <code>Address</code> — every rule below a TCP
+      connect is scoped to a <code>Service</code>, and the DNS rules are scoped to a <code>Name</code>.
+      This is not an omission: an <code>Address</code>'s own <code>Predicate domain</code> is empty by
+      construction, and an empty domain renders as a no-population panel rather than as a row for every
+      rule that does not apply.</p>
+      ${subj.childService ? `<p>The rule that reads this address's exposed port lives on
+        <a href="?key=${encodeURIComponent(subj.childService)}">${esc(subj.childService)}</a> —
+        its own subject, one hop down.</p>` : ""}
+    </div></div>`;
+  }
+  const trs = subj.rules.map(r => `
+    <tr><td class="rulename">${esc(r.name)}</td>
+        <td>${tagFor(r.member)}${r.frozen ? ` <span class="tag gone">frozen</span>` : ""}</td>
+        <td class="muted">${esc(r.note || "")}</td></tr>`).join("");
+  return `<table><thead><tr><th>Rule</th><th>Member</th><th>Evidence</th></tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+/* ------------------------------------------------------------------ page */
+
+function page(key) {
+  const s = SUBJECTS[key];
+  const withdrawn = s.status === "withdrawn";
+
+  let out = `
+    <div class="subhead">
+      <div>
+        <span class="k">${esc(key)}</span>
+        <div class="kindrow">
+          <span class="tag blue">${esc(s.kind)}</span>
+          ${withdrawn ? `<span class="tag gone">withdrawn</span>` : `<span class="tag ok">live</span>`}
+          ${s.custody ? `<span class="tag${s.custody.startsWith("third-party") ? "" : " blue"}">${esc(s.custody)}</span>` : ""}
+        </div>
+      </div>
+      <div class="asof">
+        ${withdrawn
+          ? `<span class="v">left ${esc(s.left)}${s.leftFloor ? " (floor)" : ""}</span><span class="ml">no open span</span>`
+          : `<span class="v">as of ${esc(s.instant)}</span><span class="ml">the open span · not a comparison</span>`}
+      </div>
+    </div>`;
+
+  if (withdrawn) {
+    out += `<div class="banner"><span class="ml">withdrawn</span>
+      <p><b>This subject withdrew on ${esc(s.left)}.</b> ${esc(s.how)}. Its timelines are closed —
+      not held open and aged, closed — and the period since carries no value and no Gap; it is on no
+      timeline at all (ADR-0082). Nothing below is current state. It is reachable only because you
+      have its key.</p></div>`;
+  }
+
+  out += `<div class="card"><div class="card-h"><h2>Why is this here</h2>
+    <span class="hint">walking Citation back to a Seed or a declared source (#10)</span></div>
+    ${chain(s.citation, s.citationHistorical || withdrawn)}
+    ${s.citationHistorical ? `<div class="card-f">This chain restates another subject's own citation
+      rather than adding a new hop, per ADR-0031: a <code>Service</code>'s membership is its
+      <code>Address</code>'s restated, so it has no root of its own.</div>` : ""}
+    ${withdrawn ? `<div class="card-f">Shown for provenance. It no longer admits anything — the
+      subject it named is gone, and this is a record of why it was once here, not a claim that it
+      still is.</div>` : ""}
+  </div>`;
+
+  out += `<div class="card"><div class="card-h"><h2>${withdrawn ? "Closed timelines" : "Timelines"}</h2>
+    <span class="hint">${withdrawn ? "every timeline this subject held, closed at every key" : "one row per facet this subject holds"}</span></div>
+    ${timelineTable(s.timelines)}
+    <div class="card-f"><b>Since</b> declares itself a floor wherever the membership timeline
+    composes a <code>Derivation</code> vector a release could <code>Break</code>. A
+    <code>Seed</code>-covered <code>Address</code> composes nothing at all, so its date would be
+    exact on this same column.</div>
+  </div>`;
+
+  out += `<div class="card"><div class="card-h"><h2>Rules</h2>
+    <span class="hint">${s.rules.length} of ${s.rulesTotal} v1 rules read this subject${withdrawn ? " · frozen at the last instant that touched it" : ""}</span></div>
+    ${rulesTable(s)}
+    ${withdrawn && s.rules.length ? `<div class="card-f"><b>Frozen, not recomputed.</b> A
+      <code>Signal</code>'s lifecycle is its evidence's, never its subject's membership — so a rule
+      whose evidence was current when this subject last held a span keeps its verdict here. Nothing
+      will ever evaluate this subject again, so this page renders it as of that last instant rather
+      than pretending to read it live.</div>` : ""}
+  </div>`;
+
+  /* --- per-key annotations, argued and ruled ------------------------------------------------ */
+  if (s.calloutGap) out += anno("the Gap cell and the census row are two objects, not one (#118)", `
+    <p><code>old.example.com</code>'s <code>resolution</code> cell above states its cause and demotes
+    the prior reading beneath it — the <b>cell</b> treatment. The census row for
+    <code>lame-delegation</code> on <code>Signals</code> would instead show the last known outcome
+    with an as-of. Both are true at once and neither substitutes for the other: the cell is <i>what
+    happened to this subject's resolution</i>, the census row is <i>what this rule concludes about
+    the estate right now</i>. This page renders the first. It never re-derives the second, and the
+    <code>cites the rule already reporting it</code> line under the cell is the seam between them —
+    it names <code>lame-delegation</code> rather than raising a second fault, and the Rules section
+    below is where that naming resolves.</p>`);
+
+  if (s.calloutWithdrawn) out += anno("argued: recompute live, hide, or freeze — this rules FREEZE", `
+    <p><b>Recompute against today's currency bound.</b> Rejected. The evidence is six weeks stale by
+    today, so a live recompute would silently read <code>not-evaluable</code> and erase the fact that
+    a real rule fired on real evidence before this subject left — which is exactly the information
+    <code>ADR-0072</code> says this page exists to carry, since the board's <code>withdrawn</code>
+    column carries only the comparison window and not the story.</p>
+    <p><b>Hide the Rules section entirely once withdrawn.</b> Rejected on the same ground as an empty
+    <code>Predicate domain</code> rendering as a no-population panel rather than nothing: a withdrawn
+    subject is not an <i>outside-the-domain</i> subject, and hiding a section that has content is a
+    stronger claim than not drawing an empty one.</p>
+    <p><b>Freeze at the last instant that touched it — the ruling.</b> Precedent already exists one
+    level up: #74 decision 5 renders a census member view "at the evaluation instant of the census it
+    came from, never one of its own." The same discipline applied to a single subject is to state the
+    instant and stop, which is what the <code>frozen</code> tag and the card footer above do.</p>`);
+
+  if (s.calloutNoRules) out += anno("argued: roll up the descendant Services' rules onto the Address, or leave it empty — this rules EMPTY", `
+    <p><b>Roll up every <code>Service</code> beneath this address into a summary here</b> — "1 of 1
+    exposed ports fires <code>sensitive-port-reached-from-internet</code>." Rejected on #74's own
+    finding against roll-ups: composed drawn, a roll-up "does not render the member at all" — the
+    subjects are gone and the count's basis is not shown — and it manufactures a second, unversioned
+    population the same way a screen-side filter would (ADR-0024). It would also duplicate content
+    that already has an honest home: the <code>Service</code>'s own page, one hop down.</p>
+    <p><b>Leave it empty and point down — the ruling.</b> An <code>Address</code>'s
+    <code>Predicate domain</code> is empty for every v1 rule, structurally, so the empty state is not
+    a gap in this page — it is the correct answer, rendered the same way an empty domain renders
+    everywhere else in the product: a stated reason, never a bare blank.</p>`);
+
+  if (s.calloutHeld) out += anno("held: the port did not close, only the licence to look did (#118)", `
+    <p>The custody extension over <code>198.51.100.201</code> was withdrawn 2026-08-13, two days
+    before this reading. The reachability timeline is still current — the gate stopped feeding it,
+    it did not blank it — so <code>sensitive-port-reached-from-internet</code> keeps firing beside
+    the <code>third-party</code> marker for exactly as long as the value is held: 2 cadences, 2 days
+    on the daily <code>Scan</code>. Compare <code>198.51.100.202:22/tcp</code>, the same shape one
+    step further on.</p>`);
+
+  if (s.calloutAged) out += anno("aged: the same Service, past the retention window", `
+    <p>Same shape as <code>198.51.100.201:22/tcp</code>, gate closed 2026-06-20 instead of
+    2026-08-13 — well past the 2-day hold. The reachability cell has aged to a <code>Gap</code>
+    naming <code>a closed custody gate</code>, never a fault band and never a countdown: nothing
+    failed, and a deadline would imply an act available before it that the operator does not have
+    (#118 §4, rejected treatment R1). The Rules row moved with it: <code>fired</code> →
+    <code>not-evaluable</code>, a coverage-class move fired at the cause rather than a silent
+    disappearance.</p>`);
+
+  return out;
+}
+
+/* ------------------------------------------------------------------ render */
+function render() {
+  const p = params();
+  document.getElementById("app").innerHTML = chrome(page(p.key));
+
+  const sw = document.getElementById("switch");
+  sw.innerHTML = `<span>key</span>` + KEYS.map(k =>
+    `<button data-k="${esc(k)}" class="${k === p.key ? "on" : ""}">${esc(k)}</button>`).join("");
+  sw.querySelectorAll("button").forEach(b => b.onclick = () => go({ key: b.dataset.k }));
+}
+
+document.addEventListener("click", e => {
+  const a = e.target.closest("a[href^='?key=']");
+  if (!a) return;
+  e.preventDefault();
+  go({ key: new URLSearchParams(a.getAttribute("href").slice(1)).get("key") });
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const p = params();
+  const i = KEYS.indexOf(p.key);
+  const j = (i + (e.key === "ArrowRight" ? 1 : KEYS.length - 1)) % KEYS.length;
+  go({ key: KEYS[j] });
+});
+
+render();
+</script>
+</body>
+</html>
