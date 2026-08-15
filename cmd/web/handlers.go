@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/proposer"
 	"github.com/winniel123/verge-asm/internal/seed"
@@ -103,6 +105,20 @@ type store interface {
 	CreateAnnotation(ctx context.Context, arg db.CreateAnnotationParams) (db.Annotation, error)
 	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
 	DeleteAnnotation(ctx context.Context, id int64) error
+	// The global message panel (#205): the Message store is unconditional — every
+	// message is written and rendered, and the nav element carries the unread
+	// count on every screen. There is no delete and no content update; a message
+	// is computed once at the cause and read back verbatim.
+	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
+	ListMessages(ctx context.Context) ([]db.Message, error)
+	CountUnreadMessages(ctx context.Context) (int64, error)
+	MarkMessageRead(ctx context.Context, arg db.MarkMessageReadParams) error
+	MarkAllMessagesRead(ctx context.Context, readAt pgtype.Timestamptz) error
+	// PreviewExclusionWithdrawal counts the subjects a candidate exclusion would
+	// withdraw and the timelines they hold — the honestly-computable narrowing
+	// receipt (#205 AC8, ADR-0074). It reads only ground nothing else cites, so a
+	// subject a current resolution still holds is not counted (its Gap carries it).
+	PreviewExclusionWithdrawal(ctx context.Context, arg db.PreviewExclusionWithdrawalParams) (db.PreviewExclusionWithdrawalRow, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -171,6 +187,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /seeds/zone/interval", s.requireAdmin(s.setZoneInterval))
 	mux.HandleFunc("POST /seeds/cold", s.requireAdmin(s.setColdScope))
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
+	mux.HandleFunc("POST /exclusions/preview", s.requireAdmin(s.previewExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
 
@@ -200,6 +217,14 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /proposals/decline", s.requireAdmin(s.declineLookup))
 
 	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))
+
+	// The global message panel (#205, v1 spec §6.7): a viewer reads the unbounded
+	// list and its unread count on every screen; marking read is a per-account
+	// read-state change, so a viewer may do it. The store is unconditional and has
+	// no admin surface — there is nothing here to gate behind requireAdmin.
+	mux.HandleFunc("GET /messages", s.requireLogin(s.messagesPage))
+	mux.HandleFunc("POST /messages/read", s.requireLogin(s.markMessageRead))
+	mux.HandleFunc("POST /messages/read-all", s.requireLogin(s.markAllMessagesRead))
 
 	// verge-core: a viewer reads the composed set; editing the frequency half is
 	// an admin act (v1 spec §3.5, §4.3). The sensitive half is authored by the
