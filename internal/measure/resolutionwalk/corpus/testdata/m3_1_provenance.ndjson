@@ -1,0 +1,8 @@
+{"batch":"b1","kind":"resolution-walk","facet":"resolution","subject":"example.com","vantage":"v1","data":{"outcome":"Resolved","addresses":["203.0.113.5"]}}
+{"batch":"b1","kind":"resolution-walk","facet":"dns-record","subject":"example.com","discriminator":"A","vantage":"v1","data":{"rrs":[{"name":"example.com","type":"A","data":"203.0.113.5"}]}}
+{"batch":"b1","kind":"resolution-walk","facet":"dns-record","subject":"example.com","discriminator":"AAAA","vantage":"v1","data":{"rrs":null}}
+{"batch":"b1","kind":"resolution-walk","facet":"dns-record","subject":"example.com","discriminator":"CNAME","vantage":"v1","data":{"rrs":null}}
+{"batch":"b1","kind":"resolution-walk","facet":"dns-record","subject":"example.com","discriminator":"NS","vantage":"v1","data":{"rrs":null,"delegation":{"lame":true,"gap":false,"nameservers":[{"server":"ns1.example.net","serves":false}]}}}
+{"batch":"b1","kind":"resolution-walk","facet":"dns-record","subject":"example.com","discriminator":"SOA","vantage":"v1","data":{"rrs":null}}
+{"batch":"b1","kind":"resolution-walk","facet":"dns-record","subject":"example.com","discriminator":"MX","vantage":"v1","data":{"rrs":null}}
+{"batch":"b1","kind":"resolution-walk","facet":"dns-record","subject":"example.com","discriminator":"TXT","vantage":"v1","data":{"rrs":null}}

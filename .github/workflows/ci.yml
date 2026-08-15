@@ -52,6 +52,68 @@ jobs:
       - run: sqlc generate
       - run: git diff --exit-code -- internal/db
 
+  # The golden corpus (golden-corpus.md §3): the resolution-walk leaf's pinning
+  # rows, run hermetically (no network, no containers) against every matrix
+  # architecture. Legs 1 and 2 are the architectures; leg 3 (GOAMD64=v3) is the
+  # contraction differential and ships no artefact. A2 (expectation) and the
+  # lock gate run inside `go test`; A5 (coverage) names any unpinned cell.
+  golden-corpus:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            goamd64: v1
+          - runner: ubuntu-24.04-arm
+            goarm64: v8.0
+          - runner: ubuntu-24.04
+            goamd64: v3
+    runs-on: ${{ matrix.runner }}
+    env:
+      CGO_ENABLED: "0"
+      GOAMD64: ${{ matrix.goamd64 }}
+      GOARM64: ${{ matrix.goarm64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go test ./internal/measure/...
+
+  # A6, gate direction 2 (golden-corpus.md §3.2): a leaf version bump with no
+  # moved corpus digest, no changed declared-parameter digest and no new
+  # uncovered-move row fails. Evaluated against the PR base, since "the version
+  # moved and nothing else did" is only visible across commits.
+  corpus-version-gate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: refuse an unjustified leaf-version bump
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          lock=internal/measure/resolutionwalk/corpus/corpus.lock.json
+          base=$(git show "$BASE_SHA:$lock" 2>/dev/null || echo '{}')
+          head=$(cat "$lock")
+          field() { echo "$1" | jq -r "$2"; }
+          bv=$(field "$base" '.leaf_version // ""')
+          hv=$(field "$head" '.leaf_version // ""')
+          bc=$(field "$base" '.corpus_digest // ""')
+          hc=$(field "$head" '.corpus_digest // ""')
+          bp=$(field "$base" '.params_digest // ""')
+          hp=$(field "$head" '.params_digest // ""')
+          bm=$(field "$base" '(.uncovered_moves // []) | length')
+          hm=$(field "$head" '(.uncovered_moves // []) | length')
+          if [ "$hv" != "$bv" ] && [ "$hc" = "$bc" ] && [ "$hp" = "$bp" ] && [ "$hm" = "$bm" ]; then
+            echo "leaf version moved $bv -> $hv with no moved corpus row, no changed"
+            echo "declared parameter and no new uncovered-move row. Refused (ADR-0021)."
+            exit 1
+          fi
+          echo "version gate ok"
+
   compose:
     runs-on: ubuntu-latest
     steps:

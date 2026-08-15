@@ -6,11 +6,18 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
+	// run_after has passed, oldest first, marking the winner running in one
+	// statement so two workers never claim the same job.
+	ClaimJob(ctx context.Context) (ClaimJobRow, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
 	CountAccounts(ctx context.Context) (int64, error)
+	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
@@ -20,12 +27,27 @@ type Querier interface {
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
+	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
+	GetScanByKind(ctx context.Context, kind string) (Scan, error)
+	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
+	InsertObservation(ctx context.Context, arg InsertObservationParams) error
+	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
+	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
+	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
+	ListVantages(ctx context.Context) ([]Vantage, error)
+	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error
+	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error
+	MarkJobRetried(ctx context.Context, id int64) error
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
+	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
+	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
+	// records as a skip rather than a second fan-out.
+	TryFanOut(ctx context.Context, arg TryFanOutParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)
