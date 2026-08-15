@@ -562,7 +562,11 @@ budget is wall-clock hours, and we have plenty."*
 **No change.** The map's retention entry correctly notes these figures compose (*"an endpoint costs
 a chain handshake plus an HTTP handshake plus the `tls-acceptance` enumeration, all sharing #4 §6's
 5 handshakes/s per host"*) — that is a **throughput** question for the retention and packaging
-patches, not a staleness one.
+patches, not a staleness one. *(The retention half closed as
+[#121](https://github.com/winniel123/verge-asm/issues/121) ·
+[ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md), and it
+does not read these figures: retention is set by what may still read a corpus rather than by what
+generates it, so throughput remains packaging's question alone.)*
 
 ### 6.7 The EDNS UDP payload size, **1232** — the sweep's near-miss, and the reason limb 2 exists
 

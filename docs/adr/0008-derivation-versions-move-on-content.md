@@ -316,6 +316,21 @@ is indistinguishable from shipping a release.
   different vector and carries no licence anyway, so the floor holds *within one derivation* —
   and a break inside the retained window makes `returned` detection unrecoverable rather than
   merely shallow.
+
+  > **Amended by [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+  > [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md), in both
+  > halves.** ADR-0007's floor is withdrawn **at its own site** as a live compaction rule — the
+  > `Span` corpus is never compacted at all, on arithmetic rather than on principle — and survives
+  > as the precondition on any compaction a later version ships. The per-derivation reading above is
+  > **confirmed and is the load-bearing half**, and *unrecoverable rather than merely shallow* now
+  > has its mechanism written down: a withdrawn subject's timelines **close**, so a `Break` between
+  > the withdrawal and the return leaves the reopening with nothing legally before it, no
+  > `Transition` is derived, and the membership message fires reading **`appeared`**. The leaf that
+  > does it is `resolution-walk`, which [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)
+  > put on a **dependency** cadence and which every `Name`'s and every cited `Address`'s membership
+  > composes. So this is a **release** obligation and not a retention setting: the release states the
+  > loss, `resolution-walk`'s golden corpus must pin the membership-deciding outcomes so a no-op
+  > upgrade provably does not bump the leaf, and the membership vector may not be widened.
 - **The coverage class gains a member whose cause is us.** A `Vantage` going `unavailable` and
   coverage crossing a threshold are the world or our own infrastructure failing; a re-baseline
   is our release. After ADR-0006's `resolving → shadowed` and ADR-0007's `revealed` and `owned`

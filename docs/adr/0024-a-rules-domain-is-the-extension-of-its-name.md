@@ -26,8 +26,10 @@ the rule's versioned reference data with nothing versioning it. And `certificate
 denominator of a rule nobody thinks of as reading the world twice moves when the world moves.
 
 The volume makes it decisive rather than academic. ADR-0011 attempts TLS on **every open
-`Service`**, so — as the map's retention patch already records — most `certificate` timelines in
-any estate hold `NoTLS` forever. Whether those endpoints are counted in *did not fire* or are
+`Service`**, so — as the map's retention patch already records (graduated to
+[#121](https://github.com/winniel123/verge-asm/issues/121), closed as
+[ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)) — most
+`certificate` timelines in any estate hold `NoTLS` forever. Whether those endpoints are counted in *did not fire* or are
 outside the domain is the difference between a census over a handful of endpoints and a census
 whose *did not fire* column is the whole estate.
 
