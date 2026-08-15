@@ -343,7 +343,9 @@ const FILLS = {
     label: "modal install — no address scope",
     enabled: ["reachability-hot", "tls-acceptance"],
     declaredAddrs: 0, vantages: 1,
-    measuredServices: 1290,
+    measuredServices: 1417,   /* an arbitrary install fixture, deliberately NOT
+                                 prototypes/coverage/'s 1,290 — a fixture copied
+                                 between prototypes is the shape #131 measured */
     obsDial: null, dispatchDial: null,
     reaching: null,
     firstBatch: "2026-05-19",
@@ -842,8 +844,10 @@ const DATELINE = `
       <span class="mono">${MODEL.probedPairs.v}</span> pairs probed (${MODEL.probedPairs.src}) and
       <span class="mono">${MODEL.rangeCap.v}</span> addresses per scope (${MODEL.rangeCap.src}). The
       <span class="mono">Span</span> row count is <b>quoted</b> from ADR-0041, not recomputed, and is
-      marked as quoted where it renders. <b>No figure on this screen was copied from
-      <span class="mono">prototypes/coverage/</span>.</b></p>
+      marked as quoted where it renders. <b>No quantity on this screen was copied from
+      <span class="mono">prototypes/coverage/</span></b> — the header chrome is reused on purpose, the
+      install fixtures are arbitrary and deliberately differ from it, and its
+      <span class="mono">254</span> denominator was measured stale by #131.</p>
   </div>`;
 
 function shell(body, f) {
