@@ -273,6 +273,10 @@ only thing the control probe reads from here, and it is unchanged.
 
 **Correction to the map.** The **Not yet specified** retention patch reads *"`dns-record` multiplies
 by six qtypes"*. Six is uncited — no document in this repo names it — and the answer is **seven**.
+*(The patch graduated to [#121](https://github.com/winniel123/verge-asm/issues/121) and closed as
+[ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md), carrying
+**seven**. The multiplier lands on the observation corpus, which ages out at the currency bound, and
+on `dns-record` timelines, which are one span each while an RRset is stable.)*
 
 ---
 

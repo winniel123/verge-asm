@@ -127,6 +127,17 @@ plain — this is `ScanRun` with a haircut, and one `WHERE dispatch_id = previou
 in a drift query undoes the rejection — which is why the prohibition is written into the
 glossary entry rather than left to discipline.
 
+> **That fence turns out to have a second job —
+> [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+> [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).** `Dispatch`
+> is the **only corpus in the product a wall clock may retire**, because no derived value can move
+> when one is deleted — and that is this paragraph's prohibition read from the other side, rather
+> than a new argument. So its retention window is an **operator dial**, floored at `k` cadences of
+> the slowest **enabled** `Scan` (below which `Coverage` cannot say whether that scan ran) and shipped
+> **unbounded** in v1. `Batch` is on the **other** side of the fence and does not follow it: the
+> comparison path reads a batch, so a batch is retained with its observations. Two records, and this
+> ADR is where the line between them was drawn.
+
 It carries a **snapshot of the `Scan` config** taken at tick time. Correctness survives
 either way, since every batch records the scope it actually covered, but legibility does
 not: [#15](https://github.com/winniel123/verge-asm/issues/15) established that widening the

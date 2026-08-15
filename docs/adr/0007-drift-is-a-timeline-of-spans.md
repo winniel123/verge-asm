@@ -381,8 +381,19 @@ exactly one pair qualifies, which is what discharges the last consequence below.
 - **Per-facet canonical form graduates to its own ticket.** `resolution` is the hard one, carrying
   ADR-0006's four non-interchangeable outcomes, where three of the possible collapses are
   estate-scale.
-- **Retention gains a hard floor.** The open span and the one preceding it can never be
-  compacted: current state depends on the first and `returned` detection on the second.
+- **Retention gains a hard floor.** ~~The open span and the one preceding it can never be
+  compacted: current state depends on the first and `returned` detection on the second.~~
+  **Superseded here, at the site that specifies it**
+  ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) by
+  [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+  [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md): read alone
+  and in the present tense this sentence says the rest of a timeline **may** be compacted, and none
+  of it may. **The `Span` corpus is never compacted at all** — because a span is written when a value
+  *moves*, so the corpus is proportional to drift rather than to time and is ~672,000 flat rows at
+  the shipped ceiling against ~98M observation rows a year. The floor survives as the **precondition
+  on any compaction a later version ships**, and it gains a third limb: a truncated timeline renders
+  as a **labelled floor**, never as an opening. The reasoning here — *current state depends on the
+  first and `returned` detection on the second* — is untouched and is why the floor is right.
 - **A third precedent for drift that notifies as coverage.** After ADR-0006's `resolving →
   shadowed` come `revealed` and `owned` → `third-party`. At three instances the three
   notification classes are confirmed as a partition of **messages**, not of events.

@@ -414,7 +414,16 @@ _Avoid_: URL, site, web asset, vhost
 **Observation**:
 A single measured fact: at a time, from a vantage, in a batch, a source reported that a
 subject had a given value for a given facet. One concept across every facet, so that
-change detection is written once rather than per facet.
+change detection is written once rather than per facet. It is held in **two tiers**, and the
+boundary is what may still read it rather than how old it is. **Live** — within `k` cadences of
+the tightest `Scan` covering it — is what every derivation reads, and it may never be discarded.
+Past that it is **evidential**: a derivation may not read a stale observation and may never
+re-derive history from one, so discarding it moves no value on any timeline and it is read only by
+a person asking *what did we actually measure*. That is why the raw corpus is the one that grows
+without bound — linear in time — while the corpus that may never be compacted is the small flat
+one. Widening `k` changes what **future** folds read and never what past folds did, so an
+observation discarded under the old bound was never going to be read again. See
+[ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
 _Avoid_: result, record, datapoint, scan result
 
 **Facet**:
@@ -645,6 +654,13 @@ measurement happens and not when the fold reads it. Among its recorded dimension
 the **parents** of the names in its resolution scope — because a name whose parent was not probed
 can never be `Shadowed`, which is a silence rather than a value
 ([ADR-0066](./docs/adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)).
+It is **read by the comparison path**, which is what separates it from `Dispatch` and puts it in the
+observation corpus rather than the operational record however much *what we ran* it looks like: it is
+**retained while any observation it produced is retained, or while it is the current `Citation` of a
+subject in the estate** — the hop a source that admits without observing leaves behind. Deleting one
+on the operational record's schedule strands an observation's scope and, where it is a `Citation`,
+withdraws a subject. See
+[ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
 _Avoid_: run, scan run, execution, sweep
 
 **Citation**:
@@ -890,8 +906,25 @@ vantage, source)` — the discriminator being facet-defined and empty for all bu
 which carries the qtype, or a batch covering MX and not TXT would assert an empty TXT RRset it
 never measured. One timeline per source, so two sources that disagree hold two true facts rather
 than forcing an arbitration. It opens, it is current, it closes; the open span is the current
-state. Carries the versions it was derived under, which is what makes comparison legal. See
-[ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
+state — so a **withdrawn** subject's timelines close rather than holding an open span, there being no
+current state for one to hold. Carries the versions it was derived under, which is what makes
+comparison legal. See [ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
+**This corpus is never compacted**, and the two reasons are independent. Deleting the span before an
+open one converts `returned` into `appeared`, which is a clock moving a value about the world —
+[ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md)'s refusal read at the storage layer. And
+one is written when a value **moves**, so the corpus is proportional to **drift** rather than to time:
+at the shipped ceiling of one declared `/22` it is ~672,000 rows and **flat**, against ~98M
+observation rows a **year**, so the corpus that may never be deleted is the small one and the corpus
+that grows without bound is the one nothing may read. ~~The open span and the one preceding it can
+never be compacted~~ is **superseded here, at the site that specifies it**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+read alone it says the rest may be, and none of it may. That floor survives as the **precondition on
+any compaction a later version ships**, read *within one derivation*, and it gains a third limb it
+never had — a truncated timeline renders as a **labelled floor** and never as an opening, since a
+truncation that reads as an opening is `appeared` manufactured by storage. **Retention may never be
+the tighter clamp**: the `Break` clamp is visible and names the leaf that moved, and a retention
+horizon biting before it is a second horizon nobody can see. See
+[ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
 _Avoid_: interval, state, record, period, snapshot
 
 **Transition**:
@@ -925,6 +958,19 @@ direction it under-enumerated, and
 which named `certificate` until
 [ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) found that
 facet's handshake rides the `reachability` exchange and opens with its `Service`.
+**`returned` is the one member a `Break` destroys rather than clamps**, and the cause is a release
+rather than an operator setting. A withdrawn subject's timeline is closed, so a `Break` between the
+withdrawal and the return leaves the reopening with nothing legally before it: no `Transition` is
+derived, the subject re-enters the estate, and the membership message fires reading **`appeared`** —
+the carrier correct and the word a lie. It cannot be repaired afterwards, since history is never
+re-derived, so the release **states** the loss on the re-baseline message that already names the leaf
+that moved. Membership therefore composes the **narrowest** vector that decides presence and a
+release may not widen it: a `Name`'s and a cited `Address`'s membership both compose
+`resolution-walk`, which [ADR-0021](./docs/adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)
+puts on a **dependency** cadence, while a `Seed`-covered `Address` composes **nothing at all** — a
+`Seed` is Declared and carries no vector — so that one population's membership timeline cannot break.
+See
+[ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
 _Avoid_: change, event, diff, delta
 
 **Break**:
@@ -973,6 +1019,16 @@ its progress, and the `Scan` config it was fired under. It exists for display an
 operational visibility; it carries no observations, and **the comparison path must never
 read it**. Batches anchor scope, timelines anchor comparison, a dispatch anchors neither.
 See [ADR-0005](./docs/adr/0005-scan-execution-model.md).
+It is **the whole of the operational record and the only corpus a wall clock may retire** — and the
+fence above is the reason rather than a coincidence, since the property that makes a record safe to
+delete on a schedule is the property that makes it safe to keep out of the comparison path. Its
+retention window is an **operator dial**, the strongest instance of *outside every derivation* in the
+model, floored at `k` cadences of the slowest **enabled** `Scan` — stated as a multiple and never as a
+day count, the cadence being a quantity the operator moves — below which `Coverage` cannot answer
+whether the slowest scan ran. The cost is stated: an aged-out dispatch may be the only evidence a
+believed-in measurement never happened, which is a forensic loss and the operator's to price. **v1
+ships it unbounded**, one row per firing being nothing to retire. See
+[ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
 _Avoid_: scan run, run, execution, job group
 
 ## Terms deliberately not used

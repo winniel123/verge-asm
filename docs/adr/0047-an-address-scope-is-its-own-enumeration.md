@@ -387,6 +387,17 @@ one line of typing, before any name scope. The retention question on the map is 
 resolved addresses and must be sized against **declared scope size**, which is the one input to it
 the operator sets directly. This is a real consequence and it is stated rather than absorbed.
 
+> **Discharged by [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+> [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).** It is
+> sized against declared scope size, and this paragraph's denominator does the sizing: at the cap the
+> **observation** corpus is ~98M rows a year across two vantage classes, ≈13 GB, while the **`Span`**
+> corpus is ~672,000 rows and **flat**. So the instruction is satisfied and the answer inverts the
+> premise — the corpus the arithmetic feared is the one that ages out at the currency bound, and the
+> corpus that may never be compacted is the small one. The exactness this ADR establishes for the
+> address axis is reused directly: the retention dial renders `1,024 addresses declared →
+> 134,144 Service subjects → ~134k observation rows per day per vantage`, computed from Declared
+> input alone.
+
 ### The `Gap` interaction, in #42 and #48's own vocabulary
 
 The ticket was right that an address that enumerates but never answers is a different object from an
@@ -456,6 +467,8 @@ is what keeps it to one message: a `Service` entering is never a message.
   already contradict — surfaced here as by-catch, not fixed here.
 - **[ADR-0001](./0001-stack-and-runtime.md)'s ~500-address sizing is a prior a single legal
   declaration doubles.** The retention patch on the map must be sized against declared scope size.
+  *(Done — [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+  [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).)*
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) can state what the estate *is*:** the
   addresses a resolution currently cites, plus every address inside a declared address scope, and
   nothing else. Both limbs are now decidable without measurement.
