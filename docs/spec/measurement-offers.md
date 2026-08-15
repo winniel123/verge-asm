@@ -250,6 +250,16 @@ every name beneath it would be suppressed. The qtype set is still one offer and 
 move; the widening simply pays twice. The **match predicate** that reads them is a declared
 parameter of the leaf, not an offer, and has no row here.
 
+**And the control labels themselves are not an offer either.**
+[ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)
+values the leaf's last unvalued parameter — **5 random labels + 1 structured label**, each
+**exactly one label**, the structured one being `<a>-<b>-<c>-<d>` over a random RFC 5737
+documentation address, and **every one of the six runs the seven qtypes above**, since a component
+is defined over *all n* labels and a label covering fewer leaves that definition ill-formed. Nothing
+about a control label is a candidate on the wire — it is a label sequence we construct, admitting
+and citing nothing — so this document stays at **five offers**. The qtype count in this table is the
+only thing the control probe reads from here, and it is unchanged.
+
 **Not queried in v1:**
 
 | qtype | Why not |

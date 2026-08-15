@@ -11,7 +11,9 @@
 The measurement already happens, every batch, on every wildcarded zone.
 [`passive-discovery-sources.md`](../research/passive-discovery-sources.md) §3.2 calls it *mandatory,
 not optional*: query 3–5 long random labels under a domain, and if they answer, **record the wildcard
-answer set as a poison signature**. `wildcard-discrimination` is one of
+answer set as a poison signature**. *(Both halves of that sentence have since been superseded and
+are quoted here as they stood: the **signature** by [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md) — there is no*
+the *answer set, only a per-component union of three — and the **labels** by [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md) — five random plus one structured, each exactly one label.)* `wildcard-discrimination` is one of
 [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s five named prober leaves, and
 [ADR-0011](./0011-a-facet-is-six-parts.md) rules that deciding `Shadowed` takes **two measurements
 inside one batch** — the name's own answer, and that signature.

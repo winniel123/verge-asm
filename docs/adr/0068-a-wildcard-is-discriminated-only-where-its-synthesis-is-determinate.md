@@ -133,6 +133,15 @@ at all and every name beneath it is suppressed. Under seven it discriminates.
 | Of those 4: **still carry a determinate component** at another qtype or RR type | 3 — `s3` (CNAME/TXT/NS/SOA), `appspot` (MX), `vercel` (a determinate NODATA at six qtypes) |
 | **No determinate component anywhere** | **1 of 14 — `herokuapp.com`** |
 
+> **One row of this table does not reproduce, measured by
+> [#113](https://github.com/winniel123/verge-asm/issues/113) on 2026-08-15.** `surge.sh` is filed
+> here under *determinate at A across five labels*; a fresh five-label run returned **two** distinct
+> answers and a ten-label run minutes later returned **one**. So *10 of 14* has at least one member
+> that is a coin-flip rather than a fact. This **strengthens** the ruling rather than weakening it —
+> it is one more zone needing the gate — and it is why #113 declined to raise the control-label
+> count on it: more labels saw *less* variation, so the count buys nothing statable against a
+> process nobody has identified.
+
 So set equality is not wrong. It is **unscoped**, and it is right for ten of fourteen outright. The
 ticket's *two of four* sampled four zones of which two were the pathological ones. Total suppression
 — the expensive limb of this ruling — reaches **one measured parent in fourteen**, not half of them.
@@ -204,6 +213,14 @@ residue looks like when it survives.
 
 ### Where this is thin, stated rather than smoothed
 
+> **The first two bullets below are DISCHARGED by
+> [#113](https://github.com/winniel123/verge-asm/issues/113) /
+> [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md).**
+> Neither needed an amendment to *this* ruling — §3.2 step 1 now sends a **structured** label
+> alongside the random ones, and the `Indeterminate` limb below reaches both cases unchanged.
+> `traefik.me`'s A component stops being determinate; `nip.io`'s licence is withheld at ADR-0066's
+> qualified clause. They are kept as the measurement that forced ADR-0069.
+
 - **Determinacy is evidence, not proof, and it is falsifiable — I falsified it.** **[measured]**
   `traefik.me` answers `127.0.0.1` for three random control labels and is determinate by this
   ruling's own test, while `10.0.0.1.traefik.me` → `10.0.0.1`, `192.168.5.5.traefik.me` →
@@ -260,7 +277,11 @@ residue looks like when it survives.
   measured load-bearing for this ruling, and its converse residue is narrowed.
 - **Two new tickets, neither folded in.** The **DNSSEC wildcard proof** as a second discriminator,
   and the **structured control label** — see the rejected table for why each is a ticket rather than
-  a clause here.
+  a clause here. ***Both now closed.*** The DNSSEC proof was **ruled out of scope** on availability
+  (1 of 15 zones carries a DS, and that one online-signs its synthesised answers). The structured
+  control label is **[#113](https://github.com/winniel123/verge-asm/issues/113) /
+  [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)**,
+  which discharged it **without amending this ruling** — vindicating the decision not to fold it in.
 - **Cost: zero.** Nothing has shipped, no control probe has run, no `resolution` timeline exists.
 
 ## Alternatives rejected

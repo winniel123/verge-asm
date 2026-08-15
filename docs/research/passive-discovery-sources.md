@@ -274,8 +274,29 @@ cheap and must run before any name-based expansion:
 > the `Batch` by content, and never a declared parameter of `wildcard-discrimination`.
 
 1. ~~Query 3–5 long random labels under the apex (e.g. `<random32>.example.com`) for A, AAAA, and CNAME.~~
-   Query 3–5 long random labels under **each name in the control-probe population** (e.g.
-   `<random32>.dev.example.com`) for the declared qtype set.
+   ~~Query 3–5 long random labels under **each name in the control-probe population** (e.g.
+   `<random32>.dev.example.com`) for the declared qtype set.~~
+   **AMENDED by [#113](https://github.com/winniel123/verge-asm/issues/113) /
+   [ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md):
+   a random label alone cannot falsify label-independence, and `3–5` is a range where a declared
+   parameter needs a value.** Query **six** control labels under **each name in the control-probe
+   population**, each **exactly one label** and each run over the declared qtype set:
+
+   - **5 long random labels** (e.g. `<random32>.dev.example.com`) — the count is now **5**, a value
+     rather than a range;
+   - **1 structured label** of the form `<a>-<b>-<c>-<d>`, the four octets of an address drawn at
+     random from **RFC 5737** documentation space (`192.0.2.0/24`, `198.51.100.0/24`,
+     `203.0.113.0/24`) — e.g. `203-0-113-7.dev.example.com`. Its job is to be **decodable**, so an
+     authority that computes its answer from the query name answers it differently from a random
+     label and is caught by step 2's `Indeterminate`.
+
+   **Exactly one label is load-bearing and is not a style choice.** ADR-0066 admits the control
+   probe because a label constructed under P falls off the tree at the same closest encloser the
+   names under P do, and every candidate is one label under its parent. A multi-label control label
+   (a *dotted* quad, `10.0.0.1.example.com`) has ancestors between it and P, and where one exists it
+   falls off at a **deeper** encloser — measuring somebody else's wildcard and filing it as P's.
+   **[measured]** 2026-08-15 that manufactures a wildcard on **3 of 5** un-wildcarded zones. See
+   §12.
 2. ~~If they answer, record the wildcard answer set as a **poison signature**.~~
    **WITHDRAWN by [#111](https://github.com/winniel123/verge-asm/issues/111) /
    [ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md):
@@ -309,10 +330,19 @@ cheap and must run before any name-based expansion:
    ones that coincide with the signature. `Shadowed` is all-or-nothing across a name's qtypes.
 6. Where the control probe under a name's parent **did not complete**, that name records a **`Gap`**
    and never a value — *an undiscriminated answer is never a value* (ADR-0066). A probe that
-   completed and found no wildcard licenses everything beneath it — **with one measured residue,
+   completed and found no wildcard licenses everything beneath it — ~~**with one measured residue,
    which is the control label's construction rather than this rule: [measured]** `nip.io` and
    `sslip.io` answer **NODATA** to a random label while `10.0.0.1.nip.io` answers `10.0.0.1`. See
-   §11.7.
+   §11.7.~~ **and *found no wildcard* is QUALIFIED by
+   [#113](https://github.com/winniel123/verge-asm/issues/113) /
+   [ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md):
+   the licence is issued only where **no control label of any shape carried an RR at any qtype**.
+   Under step 1's heterogeneous set that is a strictly stronger test than it was, and it is the
+   whole fix for the residue this bullet used to carry — **[measured]** `nip.io`'s and `sslip.io`'s
+   random labels answer NODATA while `203-0-113-7.nip.io` answers `203.0.113.7`, so one label
+   carries an RR, the set disagrees, the component is `Indeterminate` and **the licence is
+   withheld**. Read alone and in the present tense the unqualified sentence still licenses a
+   fictional inventory there, which is why it is amended here rather than pointed at from §12.
 
 **[measured]** 2026-08-14, against live authorities over Google Public DNS, and it is what decides
 the population. `render.com`'s apex control label is **NXDOMAIN** while `*.staging.render.com`
@@ -897,6 +927,13 @@ that zone has no positive determinate component at all.
 Set equality is not wrong; it is **unscoped**, and right for ten of fourteen outright. Total
 suppression reaches **one measured parent in fourteen**.
 
+> **Two rows of this table are corrected by §12, measured 2026-08-15.** `traefik.me` is filed under
+> *determinate at A*; it is an **address-parsing authority** and reads `Indeterminate` once a
+> structured label is in the set (§12.4). And `surge.sh` **does not reproduce** — a fresh five-label
+> run returned two distinct answers, a ten-label run minutes later returned one (§12.6). So *10 of
+> 14* is really **8 of 14** on today's evidence, with one member unstable. Both corrections point
+> the same way: they are more zones needing §11.1's gate, which is the rule §11 already states.
+
 ### 11.5 Why intersection-with-the-union lost
 
 Signature = the first five labels of the thirty-label runs; test = the next twenty-five.
@@ -931,17 +968,29 @@ it is indistinguishable from a true one.
 
 ### 11.7 Residue — two holes this ruling does not close
 
-- **A synthesis that is a function of the label looks determinate to random labels.**
+> **BOTH DISCHARGED by [#113](https://github.com/winniel123/verge-asm/issues/113) /
+> [ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md),
+> which rules the control label's construction.** Neither needed an amendment to this section's
+> ruling: §3.2 step 1 now sends a **structured** label alongside the random ones, both authorities
+> below answer it differently from a random label, and §11.1's existing `Indeterminate` limb does
+> the rest. `traefik.me`'s A component is no longer determinate, and `nip.io`'s licence is
+> withheld. The two bullets are kept as the measurement that forced the ruling. See §12.
+
+- ~~**A synthesis that is a function of the label looks determinate to random labels.**~~
   **[measured]** `traefik.me` answers `127.0.0.1` for every random control label — determinate by
   this section's own test — while `10.0.0.1.traefik.me` → `10.0.0.1`, `192.168.5.5.traefik.me` →
   `192.168.5.5`, `8.8.4.4.traefik.me` → `8.8.4.4`. Set equality then reports a fictional RFC 1918
   address as `Resolved`. *n* random labels **evidence** a constant synthesiser and cannot prove one.
-- **And a third door neither §3.2 nor this section closes.** **[measured]** `nip.io` and `sslip.io`
-  return **NODATA** for random control labels while `10.0.0.1.nip.io` → `10.0.0.1`. §3.2 step 1
-  reports *no wildcard at all*, the probe completes, and ADR-0066's *a probe that completed and
-  found no wildcard licenses everything beneath it* then licenses a fictional inventory. The defect
-  is in the **control label's construction** — `wildcard-discrimination`'s *other* declared
-  parameter — and is ticketed rather than ruled here.
+  **Closed at the measurement**: `203-0-113-7.traefik.me` → `203.0.113.7`, so the A component reads
+  `Indeterminate` and every name beneath is `Shadowed`.
+- ~~**And a third door neither §3.2 nor this section closes.**~~ **[measured]** `nip.io` and
+  `sslip.io` return **NODATA** for random control labels while `10.0.0.1.nip.io` → `10.0.0.1`. §3.2
+  step 1 reports *no wildcard at all*, the probe completes, and ADR-0066's *a probe that completed
+  and found no wildcard licenses everything beneath it* then licenses a fictional inventory. ~~The
+  defect is in the **control label's construction** — `wildcard-discrimination`'s *other* declared
+  parameter — and is ticketed rather than ruled here.~~ **Closed at step 6**: the licence now
+  requires that no control label **of any shape** carried an RR at any qtype, and the structured
+  label carries one.
 
 ### 11.8 The DNSSEC discriminator, and why it is not the answer
 
@@ -971,3 +1020,171 @@ change the leaf's query mode (DO bit, RRSIG parsing, NSEC3 handling). Ticketed, 
   *10 of 14 determinate* is an **upper bound**, and the direction of the error is safe.
 - **No control probe has ever run inside a batch.** What is measured is DNS behaviour against live
   authorities over a resolver we do not control, plus four direct-to-authority runs.
+
+---
+
+## 12. The control label's construction — one label, and a set that can be falsified
+
+Ruled by [#113](https://github.com/winniel123/verge-asm/issues/113) /
+[ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md).
+This closes `wildcard-discrimination`'s **last** declared parameter without a value, and it
+discharges **both** residues §11.7 recorded. §3.2 step 1 and step 6 are amended in place.
+
+### 12.1 The rule
+
+**A control label is exactly one label, and a control-label set that cannot falsify
+label-independence is not a measurement of it.** The set is **5 random labels + 1 structured
+label**, six per site, every one of them run over the declared qtype set.
+
+The structured label is `<a>-<b>-<c>-<d>` — the four octets of an address drawn at random from
+**RFC 5737** documentation space (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`). It is
+randomised for the same reason *long random* is: to make accidental existence negligible.
+
+**Nothing reads the result that did not already exist.** §11.1's three-member union closes over
+these cases unchanged — labels that disagree at a component make it `Indeterminate`, whether they
+disagree in an RRset's contents or in whether an RRset was carried at all.
+
+### 12.2 Why RFC 4592 makes this necessary rather than prudent
+
+§3.2's whole architecture rests on RFC 4592's guarantee that synthesis is a function of the
+**wildcard RRset** and not of the query name — which is what lets one label speak for every label.
+An authority that **parses** the query name is not an RFC 4592 wildcard, the guarantee is absent,
+and a random label carries nothing for it to parse. So the failure is invisible by construction, not
+by bad luck.
+
+### 12.3 One label — measured, and it is ADR-0066's own warrant
+
+ADR-0066 admits the probe on an equivalence: a label constructed under P falls off the tree at the
+encloser the names under P fall off at. Every candidate is **one** label under its parent. A dotted
+quad is four, and the equivalence does not survive it.
+
+**[measured]** 2026-08-15, Google Public DNS DoH JSON, one vantage:
+
+| Zone | `<random32>` | `10-0-0-1` (one label) | `10.0.0.1` (four labels) |
+| --- | --- | --- | --- |
+| `pages.dev` | NXDOMAIN | NXDOMAIN | **`172.66.44.200`, `172.66.47.56`** |
+| `workers.dev` | NXDOMAIN | NXDOMAIN | **`104.21.31.174`, `172.67.178.236`** |
+| `fly.dev` | NXDOMAIN | NXDOMAIN | **NODATA** |
+| `azurewebsites.net` | NXDOMAIN | NXDOMAIN | NXDOMAIN |
+| `repl.co` | NXDOMAIN | NXDOMAIN | NXDOMAIN |
+
+**3 of 5** un-wildcarded zones are made to look wildcarded. The mechanism was retrieved rather than
+inferred:
+
+| Probe | Answer |
+| --- | --- |
+| `1.pages.dev` | `172.66.44.200`, `172.66.47.56` |
+| `zz9q7x.1.pages.dev` | `172.66.44.200`, `172.66.47.56` |
+| `1.workers.dev` | NODATA |
+| `zz9q7x.0.1.workers.dev` | `104.21.31.174`, `172.67.178.236` |
+
+`1.pages.dev` is a **third party's** Cloudflare Pages project carrying a wildcard beneath it, so
+`10.0.0.1.pages.dev` is synthesised by `*.1.pages.dev` — two labels below the probe site, by a party
+with no relation to the operator. The probe would file that stranger's wildcard as `pages.dev`'s,
+and under §11.1 the disagreement with the random labels reads `Indeterminate`, shadowing **every**
+name the operator holds under `pages.dev`.
+
+The dotted form is also **strictly dominated**: all three parsing authorities decode the hyphenated
+form too, so it detects nothing extra for its three false wildcards.
+
+### 12.4 The structured label separates a parser from a wildcard
+
+| Zone | `<random32>` ×2 | `10-0-0-1` | `192-168-5-5` | `203-0-113-7` | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| `nip.io` | NODATA | `10.0.0.1` | `192.168.5.5` | `203.0.113.7` | **parser** |
+| `sslip.io` | NODATA | `10.0.0.1` | `192.168.5.5` | `203.0.113.7` | **parser** |
+| `traefik.me` | `127.0.0.1` | `10.0.0.1` | `192.168.5.5` | `203.0.113.7` | **parser** |
+| `localtest.me` | `127.0.0.1` | `127.0.0.1` | `127.0.0.1` | `127.0.0.1` | constant |
+| `github.io` | the four `185.199.10x.153` | identical | identical | identical | constant |
+
+RFC 5737 space is decoded exactly as RFC 1918 space is, on all three — so the structured label keeps
+*long random*'s defence against accidental existence instead of trading it for detection.
+
+It also reaches the awkward case, which was checked rather than assumed: a quad-shaped candidate has
+a quad-shaped **parent**, and the probe still fires there.
+
+| Probe | Answer |
+| --- | --- |
+| `<random32>.0.0.1.nip.io` | NODATA |
+| `10-0-0-1.0.0.1.nip.io` | **`10.0.0.1`** |
+
+### 12.5 Affordability — 0 false `Indeterminate` in 22 zones
+
+The strict direction is affordable only if a structured label does not turn honest `Determinate`
+verdicts into `Indeterminate` ones. **[measured]** across 22 zones it turns over none:
+
+| Class | Zones | Verdict change |
+| --- | --- | --- |
+| Address-parsing authorities | `nip.io`, `sslip.io`, `traefik.me` | **3 changed, all correctly** |
+| Constant wildcards | `github.io`, `netlify.com`, `railway.app`, `onrender.com`, `glitch.me`, `staging.render.com`, `localtest.me`, `vcap.me`, `lvh.me`, `local.gd`, `localho.st`, `fbi.com` | 0 — byte-identical RRsets across every shape |
+| Un-wildcarded | `pages.dev`, `workers.dev`, `azurewebsites.net`, `fly.dev`, `repl.co` | 0 — NXDOMAIN on every single-label shape |
+| No synthesis at A | `1u.ms` | 0 |
+| Already unstable | `surge.sh` | 0 — it moves under random labels alone |
+
+**Cost:** 6 labels × 7 qtypes per parent against 5 × 7 — **+20%**. On the `%.iana.org` estate §7
+sampled, 6 parents: **252 resolver queries per batch against 210**. These go to a resolver, not to
+the operator's hosts, so §6.3's per-target ceilings in
+[`safe-active-probing.md`](./safe-active-probing.md) do not bind them — and no document prices
+resolver load, which is stated rather than assumed away.
+
+### 12.6 The count becomes `5`, and is refused a larger value on the measurement
+
+It has to become a **value** whatever else happens: ADR-0021's gate is bidirectional on a changed
+declared parameter, and `3–5` cannot be diffed. It goes to the top of the range because §11 gave it
+a second job — sampling a varying answer — and nothing argues for fewer.
+
+Raising it further was the live question. **[measured]** `surge.sh`, 2026-08-15:
+
+| Run | Labels | Distinct A answers |
+| --- | --- | --- |
+| Five distinct random labels | 5 | **2** — `159.203.50.177`, `159.203.159.100`, alternating |
+| Ten distinct random labels, minutes later | 10 | **1** — `159.203.50.177` |
+| One label, six repeats | 1 | 1 |
+
+The larger run saw **less** variation than the smaller one, so more labels is not monotonically more
+sensitive here, and the mechanism — per-label sharding, per-query rotation, a time window, or
+resolver caching in front of any of them — **was not isolated**. A count bought against an
+unidentified process is a purchase whose value cannot be stated in band, which is §11.5's own
+objection to intersection-with-the-union. The number stays at **5** and the question is ticketed.
+
+Two riders. §11.4's base-rate table files `surge.sh` under *determinate at A across five labels*;
+**today that does not reproduce**, so *10 of 14* has at least one member that is a coin-flip rather
+than a fact — which does not weaken §11's ruling, it is one more zone needing the gate §11 ruled.
+And the structured label is a **sixth draw**, so the set's power against a varying answer rises even
+though the random count does not.
+
+### 12.7 Residue — the searched corpus of encodings
+
+Four encodings were probed and **one ships**. This is a bounded residue disclosed as a searched
+corpus, not a caveat.
+
+| Encoding | Example | `nip.io` | `sslip.io` | `traefik.me` | Disposition |
+| --- | --- | --- | --- | --- | --- |
+| Dotted decimal | `10.0.0.1` | decodes | decodes | decodes | **Refused** — four labels, §12.3 |
+| Hyphenated decimal | `10-0-0-1` | decodes | decodes | decodes | **Ships** |
+| Hex | `cb007107` | decodes | decodes | **no** — returns its constant | Refused, redundant |
+| Hyphenated IPv6 | `2001-db8--1` | decodes | decodes | decodes | Refused, redundant |
+
+Hyphenated decimal is decoded by **3 of 3** parsers, and **0 of 3** decode any other family without
+also decoding it — so it is the base form and the rest are optional extras that reach no finding and
+prevent no measured falsity ([ADR-0030](../adr/0030-an-offer-is-admitted-on-a-finding-or-on-a-falsity-it-prevents.md)'s
+bar), at a 7-query multiplier each.
+
+**What stays invisible:** an authority whose *only* decodable form is one we do not send. The
+boundary is **falsifiable by naming one such authority**, which is what makes it bounded rather than
+permanent.
+
+### 12.8 Where this is thin
+
+- **The corpus is three parsers, all public developer conveniences.** ADR-0066 intersects the
+  population with the operator's `Seed`, so the modal operator never probes `nip.io`. Whether a
+  small org runs an address-parsing authority inside its own zone is **unmeasured** — the same hole
+  §11.9 and ADR-0066 each flagged one question over.
+- **A structured label that happens to exist produces a false `Indeterminate`.** The reserved-range
+  space is 3 × 254 forms, far smaller than a 32-character random label's. The consequence is
+  **total suppression of that parent** — the safe direction, and §11.6's own posture — never a
+  fabricated address.
+- **One vantage, one day, over a resolver we do not control.** `surge.sh`'s two answers were not
+  separated from cache behaviour, which is exactly why the count was not moved on them.
+- **No control probe has ever run inside a batch.** What is measured is DNS behaviour against live
+  authorities.

@@ -467,11 +467,15 @@ cite no `Address` and open no `Endpoint`. **A name is discriminated at its paren
 population of a `Batch` is the set of **immediate parents of the `Name`s in that batch's resolution
 scope**, deduplicated, intersected with the `Seed` name scopes they sit inside, and recorded on the
 `Batch` **by content** as the **seventh aperture input** — never a declared parameter of
-`wildcard-discrimination`, whose control-label count and match predicate stay where they are. That
+`wildcard-discrimination`, whose control-label count and match predicate ~~stay where they are~~
+**have since both been valued — the match predicate by ADR-0068, and the count and construction by
+ADR-0069: five random labels plus one structured label, each exactly one label.** That
 needs no depth rule, because a control label constructed under a parent falls off the tree at the
 same closest encloser its children do, whatever depth the wildcard sits at and **whether or not the
 parent exists or is a `Name` we hold** — a probe site is a label sequence we construct rather than a
-subject we cite, so nothing is admitted. The probe runs the batch's **declared qtype set**, all
+subject we cite, so nothing is admitted. **That equivalence is exactly why a control label is
+*one* label**: a multi-label label has ancestors between it and the parent, and where one exists it
+falls off at a deeper encloser and measures a different wildcard. The probe runs the batch's **declared qtype set**, all
 seven, since this value is committed on `dns-record` for *any* qtype. A wildcard at or above the
 operator's own apex is out of reach, the probing gate stopping the population at the `Seed`. Where
 the probe under a name's parent **did not complete**, that name records a **`Gap`** and never a
