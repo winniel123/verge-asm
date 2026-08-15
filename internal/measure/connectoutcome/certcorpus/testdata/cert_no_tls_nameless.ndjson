@@ -1,0 +1,2 @@
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.12:8080/tcp","vantage":"v1","address":"198.51.100.12","data":{"outcome":"reached","result":"open"}}
+{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"@198.51.100.12:8080/tcp","vantage":"v1","address":"198.51.100.12","data":{"outcome":"no-tls"}}
