@@ -227,6 +227,29 @@ the express purpose the protocol was designed to serve.
 > the words "same system" (§10.3); and the set of three is **closed by construction** rather than by
 > enumeration (§10.2). No row moved. Read §10.1-§10.3 before applying this section.
 
+> **Amended at the clause above by §45** ([#153](https://github.com/winniel123/verge-asm/issues/153)),
+> per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as
+> widened by [#106](https://github.com/winniel123/verge-asm/issues/106) — a document supersedes itself,
+> so a clause withdrawn as a ground at §4.6 must be marked **here**, at the site that specifies it.
+> **The clause *"remote administration over an untrusted network is the express purpose the protocol
+> was designed to serve"* is this note's own reasoning about why Claim 3 excludes those seven names. It
+> is not an attestation about any of them, and it may not be cited as a cell's ground.** §4.6's
+> `22/tcp` cell was carrying it as one — the third instance of §17.4's shape, raised by §40.3's G5 walk
+> and ruled at §45.
+>
+> **The distinction, and it is [ADR-0089](../adr/0089-an-instrument-supplies-the-test-never-the-premise.md):**
+> the **instrument** — Claim 3's wording and §10.2's closure — is ours and needs no owner, exactly as
+> §22.5 says. The **premise** the instrument is applied to — *what this protocol's intended clients
+> are* — is a fact about the world and takes an owner under §2.2's first sentence. §22.5's *"which is
+> this note's own instrument and needs no owner"* is **narrowed** to the first of those and is marked
+> in place.
+>
+> **For SSH the premise is now attested in the owner's voice** — RFC 4251 §1 — and §4.6's cell is
+> re-founded on it. **For `3389/tcp` RDP and `5985`/`5986/tcp` WinRM it is still unattested**, and both
+> are recorded and routed at §45.7 rather than repaired here: a cell moves only on a retrieval scoped
+> to that cell ([ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+> limb 2). **No row moves in either direction.**
+
 ### 2.2 The claim must be attested by the source that owns it
 
 The claim may not be asserted by us. It must be quotable, verbatim, from:
@@ -1933,7 +1956,7 @@ it refuses.
 
 | Excluded | Why |
 |---|---|
-| **22/tcp SSH** | Remote administration over an untrusted network is the protocol's express purpose. GCP ships it open to `0.0.0.0/0` by default |
+| **22/tcp SSH** | ~~Remote administration over an untrusted network is the protocol's express purpose.~~ — **the struck clause is WITHDRAWN at this cell by §45** ([#153](https://github.com/winniel123/verge-asm/issues/153)), gate check **G5**, raised uncited by §40.3: it was **an assertion of ours**, which §2.2's first sentence bars. **Replaced by the owner's own sentence**, retrieved from §2.2's *first* form — the protocol's specification: *"Secure Shell (SSH) is a protocol for secure remote login and other secure network services **over an insecure network**"* ([RFC 4251](https://www.rfc-editor.org/rfc/rfc4251.txt) §1, Standards Track, January 2006). Claim 3 requires the protocol's intended clients to be **inside a boundary the operator controls** (§10.3); SSH's specifier states the protocol is *for* the case where they are not, so Claim 3 fails on the owner's words rather than on ours, and §10.2's set admits no fourth claim. **The exclusion does not move; its ground does.** GCP's *"`default-allow-ssh` … Source ranges: `0.0.0.0/0` … Protocols and ports: `tcp:22`"* is now **cited** ([GCP VPC firewall rules](https://docs.cloud.google.com/firewall/docs/firewalls)) and is a **§2.3 corroborator, never a ground** — §45 |
 | **3389/tcp RDP** | Same category. Microsoft's position is **Azure-scoped** ("Disable direct RDP and SSH access to your Azure virtual machines from the internet") and no first-party non-Azure prohibition was found; CISA calls it "high-risk". Both are risk positions, not legitimacy positions. GCP ships it open by default |
 | **5985, 5986/tcp WinRM** | See below — the obvious argument for listing 5985 is factually wrong |
 | **9100/tcp** | Squats on `hp-pdl-datastr`, and HP's own best-practices document says the opposite of what one would assume: "9100 Printing should always be enabled. It is the standard printing protocol used by MFP print drivers." The print path HP tells you to disable is IPP, not 9100 |
@@ -3321,7 +3344,7 @@ one of the sixteen was excluded because "same system" was too narrow:
 
 | Excluded | The ground, unchanged by the wider wording |
 |---|---|
-| 22/tcp SSH | Remote administration over an untrusted network is the express purpose; GCP ships it open to `0.0.0.0/0` |
+| 22/tcp SSH | ~~Remote administration over an untrusted network is the express purpose; GCP ships it open to `0.0.0.0/0`~~ — **WITHDRAWN as a ground at this row by §45** ([#153](https://github.com/winniel123/verge-asm/issues/153)), G4. The first clause was an assertion of ours; the ground is now RFC 4251 §1 in the owner's words, and the GCP default is a cited §2.3 corroborator. **This row's verdict — unchanged by the wider wording — is unaffected** |
 | 3389/tcp RDP | Risk position only; GCP ships it open |
 | 5985/5986 WinRM | No first-party prohibition, and the Claim 2 argument is factually false (§4.6) |
 | 9100/tcp | HP says printing on 9100 *"should always be enabled"* |
@@ -8586,8 +8609,21 @@ and this section is what converts the second half from asserted to established.
 routinely and legitimately fronted on the internet behind auth"* has no owner behind it, is not a §2.2
 attestation, and is precisely the assertion §2.2's first sentence bars — *"The claim may not be asserted
 by us."* It is withdrawn as a **ground**. Nothing rests on it: the surviving grounds are §2.1's Claim 3
-failure, which is this note's own instrument and needs no owner, and the determinacy refusal now footed
-in §22.2. **Also withdrawn as a transposition risk**, restating what §4.6 already flagged: Elastic's
+failure, ~~which is this note's own instrument and needs no owner~~, and the determinacy refusal now footed
+in §22.2.
+
+> **The struck clause is NARROWED at this sentence by §45** ([#153](https://github.com/winniel123/verge-asm/issues/153)),
+> [ADR-0089](../adr/0089-an-instrument-supplies-the-test-never-the-premise.md). **An instrument supplies
+> the *test* and never the *premise*.** Claim 3's wording and §10.2's closure are ours and need no owner
+> — that half is right and is why this section's reasoning holds. But the premise the instrument turns
+> on — *a human or a remote client is this protocol's intended audience* — is a fact about the world,
+> and §2.2's first sentence reaches it. **`5601` is unharmed**: §22.2's determinacy refusal is an owner
+> artefact and §38's Elastic corpus attests the premise independently, so the row is overdetermined,
+> which is exactly what this section established. **What the wide reading cost is `22/tcp`** — §4.6's
+> cell rested on §2.1's premise alone, uncited, and stood for three sections until §40.3's G5 walk
+> raised it. Repaired by retrieval at §45.
+
+ **Also withdrawn as a transposition risk**, restating what §4.6 already flagged: Elastic's
 *"Never expose an unprotected node to the public internet"* is about **Elasticsearch** and carries
 `9200`; it may not be read onto `5601`, which is the error §2.2 records for CouchDB's Erlang port.
 
@@ -19771,6 +19807,18 @@ says a withdrawal needs. It was then written at some sites and not others.
 > be reading the cell. It is not struck here, because the ground is **available** — RFC 4251 §1 says it
 > in the owner's words — and supplying it is a retrieval scoped to the cell, which this section may not
 > perform. **A gate raises; only a release rules** (§39.6).
+>
+> > **RULED, and this raise is DISCHARGED — §45** ([#153](https://github.com/winniel123/verge-asm/issues/153)),
+> > the release act this section correctly declined to perform. The retrieval was made: **RFC 4251 §1**
+> > supplies the ground in the owner's words, §4.6's cell is struck and re-founded there, and the
+> > clause is marked at the site that **specifies** it — §2.1 — as well as at the two sites that
+> > restate it (§10.3's walk table, §22.5). **No row, class, tier, coverage or §4.6 count moves.**
+> > **G5 is now GREEN over all three cells §40.3 named**, and the check's population was exactly three.
+> > Two findings this raise did not predict: the clause also carries **`3389/tcp` RDP** and
+> > **`5985`/`5986/tcp` WinRM** — instances four and five, routed at §45.7 — and the reason `22/tcp`
+> > could not take `5601`'s repair route is that §2.1's naming of SSH rests on the withdrawn clause
+> > *itself*, so re-founding on §2.1 would relocate the assertion rather than retire it
+> > ([ADR-0089](../adr/0089-an-instrument-supplies-the-test-never-the-premise.md), §45.5).
 
 ### 40.4 G11 — the tag comparison, run over all twenty-seven footing cells
 
@@ -20548,6 +20596,321 @@ the pressure should be refused at §42.6's row rather than argued afresh.
 - **The one thing this section reserves rather than specifies is the gate's own record.** §3 of the
   watch document holds a place for it and says nothing about its shape, because that is #133's to
   establish on the gate's first whole run.
+
+## 45. `22/tcp`'s exclusion ground, retrieved — the third instance of §17.4's shape, and an instrument supplies the test but never the premise
+
+### 45.1 What was raised, and why this is a release act rather than a re-run of the gate
+
+[#133](https://github.com/winniel123/verge-asm/issues/133)'s G5 walk found three of §4.6's twenty-four
+cells resting on a ground that had been withdrawn or had never been the owner's. Two it struck inline —
+`9092/tcp` and `5601/tcp` — because the withdrawal already existed elsewhere in the note and the strike
+was bookkeeping. **The third it could only raise**, and it said exactly why:
+
+> *"It is not struck here, because the ground is **available** — RFC 4251 §1 says it in the owner's
+> words — and supplying it is a retrieval scoped to the cell, which this section may not perform. **A
+> gate raises; only a release rules**."* — §40.3
+
+That is [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) working, and it is
+the reason this section exists rather than a second gate run. Two rules put the act here and not there.
+**§39.6:** *"A machine may raise; only a release may rule. Every check above is mechanical enough to
+automate and none of them may act: moving a row authors a claim, and §2.2's first sentence bars us from
+asserting one."* And
+**[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2:** a
+cell moves only on a retrieval **scoped to that cell**. Nothing here re-runs G1–G11; §45.8 records what
+the edit does to the §40.6 baseline and that is the whole of this section's relationship to the gate.
+
+**The defect, stated precisely.** §4.6's `22/tcp` cell read *"Remote administration over an untrusted
+network is the protocol's express purpose. GCP ships it open to `0.0.0.0/0` by default."* The first
+sentence is **uncited and ours**, which §2.2's opening sentence bars — *"The claim may not be asserted
+by us."* The second is a **cloud provider**, which §2.3 bars from carrying a port alone. So the cell
+had **no admissible ground at all**, and that is a stronger statement than the raise made.
+
+### 45.2 The retrieval — RFC 4251 §1, in the owner's words
+
+The owner of the SSH protocol is the **IETF**: RFC 4251 is a **Standards Track** document of the IETF's
+Secure Shell Working Group, which is §2.2's **first** form — *"the protocol's specification (an RFC or
+equivalent)"* — and ADR-0040 §1's **defining specification** class. The unit is the **protocol, not the
+vendor** ([ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md),
+[ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)),
+so OpenSSH's, Microsoft's and Dropbear's documentation are implementations of this specifier's protocol
+and none of them is needed here.
+
+> "Secure Shell (SSH) is a protocol for secure remote login and other secure network services over an
+> insecure network. It consists of three major components:
+>
+> o  The Transport Layer Protocol [SSH-TRANS] provides server authentication, confidentiality, and
+> integrity. It may optionally also provide compression. The transport layer will typically be run
+> over a TCP/IP connection, but might also be used on top of any other reliable data stream.
+>
+> o  The User Authentication Protocol [SSH-USERAUTH] authenticates the client-side user to the server.
+> It runs over the transport layer protocol.
+>
+> o  The Connection Protocol [SSH-CONNECT] multiplexes the encrypted tunnel into several logical
+> channels. It runs over the user authentication protocol. […]
+>
+> The connection protocol provides channels that can be used for a wide range of purposes. Standard
+> methods are provided for setting up secure interactive shell sessions and for forwarding
+> ("tunneling") arbitrary TCP/IP ports and X11 connections."
+> — [RFC 4251](https://www.rfc-editor.org/rfc/rfc4251.txt), *The Secure Shell (SSH) Protocol
+> Architecture*, Ylonen & Lonvick (Ed.), January 2006, Standards Track, §1 *Introduction*
+
+**What it establishes, limb by limb against Claim 3 as §10.3 words it.** Claim 3 requires that *"the
+protocol's intended clients are inside a boundary the operator controls — the same system, the same
+cluster, or a management network the owner names."*
+
+| Claim 3's element | RFC 4251 §1 | Verdict |
+|---|---|---|
+| The protocol **assumes** a boundary | *"over an insecure network"* — the specifier states the network the protocol is designed to traverse is **not** trusted, and the transport layer exists to supply *"server authentication, confidentiality, and integrity"* precisely because nothing else does | **Refuted in the owner's voice** |
+| The intended clients are **components**, not a human | *"secure remote login"*, and *"setting up secure interactive shell sessions"* | **Refuted — the intended client is a remote human** |
+| Exposure *"enables no intended use whatsoever"* | Remote login **is** the use | **Refuted** |
+
+**So Claim 3 fails on the owner's sentence rather than on ours, and §10.2's set is closed** — no fourth
+claim is available to catch the row. Claims 1 and 2 are unavailable on their face and neither needs a
+retrieval: Claim 1 requires a protocol that *"admits anonymous commands"*, and RFC 4251 §1 names the
+User Authentication Protocol as one of three mandatory components; Claim 2 requires *"a standardised
+encrypted successor reachable on a different port"*, and SSH **is** the encrypted successor — the same
+paragraph the specification uses to place it against *"older solutions (e.g., telnet [RFC0854] and
+rlogin [RFC1282])"* (§4.1).
+
+**This is §17.4's move performed a third time and it lands the same way.** There, `5672`/`15672`'s
+*"AMQP brokers are sometimes legitimately public"* — *"an assertion of ours and the weakest clause in
+that table"* — was replaced by RabbitMQ's own sentence. Here the replacement is stronger in one respect
+and weaker in another, and both are worth stating. **Stronger:** it comes from §2.2's *first* form, a
+Standards Track specification, where RabbitMQ's came from the second. **Weaker:** it is a statement
+about the **protocol's design**, not about a **deployment**, which is the objection §45.5 takes
+seriously and rules on.
+
+### 45.3 ADR-0037 limb 1, run over the whole artefact — and limb 3's extent, stated
+
+Limb 1 binds: an owner artefact opened **in the table's service** is read end to end for **every** port
+it names. RFC 4251 was retrieved whole (71,750 bytes, `rfc-editor.org`) and searched.
+
+| Limb 1 sweep | Result |
+|---|---|
+| Ports named in the artefact | **[measured] none.** The strings `port 22`, `port number` and any numeric port assignment do not occur. `port` occurs twice, both in §9.5.2 *Proxy Forwarding* about **forwarded** ports (*"any terminal sessions, port forwarding"*; *"and ports can be targeted in port-forwarding operations"*) — neither is a placement of a listener |
+| Candidates for the table | **Zero.** Limb 2 has nothing to route, which is the first clean-zero limb-1 sweep this note has recorded |
+| `22` as an assignment | **Absent.** The number `22` is assigned to SSH by **IANA**, not by RFC 4251 — the specification never names it |
+
+**That last row is a real finding and it is disclosed rather than smoothed over.** The artefact that
+supplies the ground does not name the pair the ground is about. It does not matter here, and the reason
+is [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md): `22/tcp` is
+**not a determinacy question this cell has to answer**, because the cell **excludes** the row. A
+determinacy failure and a claim failure both end at the same place, and §24's `10256` established that
+the claim gate disposes independently of §2.4. Were `22/tcp` ever proposed for **admission**, the pair
+would need §2.4 run on it and this artefact would not supply it.
+
+**Limb 3 — the negative's extent, stated so a later session may rely on it only inside it.** What was
+read: RFC 4251 in full, at `https://www.rfc-editor.org/rfc/rfc4251.txt`, 2026-08-15. What was **not**
+read: RFC 4252, 4253, 4254 (the three component protocols §1 names), RFC 4250, and every implementation
+corpus. **No negative is asserted about any of them**, and in particular this section does **not** claim
+that no SSH document anywhere states a placement position — only that the ground the cell now carries
+is in the artefact named.
+
+### 45.4 One same-artefact sentence found under limb 1, and it is not a second ground
+
+Reading the artefact whole turned up a sentence that meets §10.3's failure condition more squarely than
+§1 does, and it is **recorded and not relied on**:
+
+> "The primary goal of the SSH protocol is to improve security on the Internet."
+> — [RFC 4251](https://www.rfc-editor.org/rfc/rfc4251.txt) §4.4, *Security Properties*
+
+That is the owner naming **the Internet** as the environment the protocol serves, which is §10.3's
+*"where the owner names the public internet as a supported deployment environment, Claim 3 fails
+however strongly a third party disapproves"* met head-on. **It does not make the cell overdetermined,
+and [ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)
+is why.** §1 and §4.4 are two sentences in **one artefact**, moved by **one revision act** — a new RFC
+— so the second would not survive the first's falsification. This is §40.7's shape exactly, and §40.7
+raised it as an open question: *whether **independent** in §39.3 means a second adequate artefact or a
+second falsifying act*. Here the two readings do **not** come apart, because it is one artefact under
+either. **The cell is sole-ground, and §45.8 states what that does and does not move.**
+
+### 45.5 The option that lost — re-founding on §2.1, and why the `5601` route was unavailable
+
+**The losing option was to take §22's route and not retrieve anything at all.** It is a serious option
+and it nearly carries. §2.1's own body names SSH:
+
+> *"Applied honestly it removes SSH, RDP, WinRM, Kibana, Grafana, Jenkins and the Kubernetes API
+> server from consideration in a single stroke."* — §2.1
+
+§22.5 used exactly that sentence to re-found `5601` without a retrieval, and said so in terms: the
+surviving ground is *"§2.1's Claim 3 failure, which is this note's own instrument and needs no owner."*
+§17.2 lists the **closed claim set (§10.2)** as one of three un-exposing gates, and §17.1 rows 9 and 10
+score WinRM and RDP on it. If the instrument needs no owner, then §2.1 names SSH, the cell is re-founded
+for free, and #133's raise was over-cautious.
+
+**It loses on two grounds, and the second is the one that decides it.**
+
+1. **The §17.1 route does not reach this cell.** §22 moved `5601`'s **§17.1 scoring** — whether a
+   *negative* is exposed to a class sweep — and separately restated §4.6's **cell**. `22/tcp` has no
+   §17.1 row at all: it is not a negative. Its exclusion is an **affirmative proposition about what SSH
+   is for**, not a silence. So the gate §22 reached for answers a question this cell does not ask.
+2. **Re-founding on §2.1 would relocate the assertion rather than retire it, and that is the precise
+   failure [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+   as widened by [#106](https://github.com/winniel123/verge-asm/issues/106) names.** §2.1's reason for
+   naming Kibana is *"a human … is the intended audience"* — a **different** proposition from the
+   clause §22 withdrew (*"routinely and legitimately fronted on the internet behind auth"*), which is
+   why the move was legitimate there. §2.1's reason for naming **SSH** is *"remote administration over
+   an untrusted network is the express purpose the protocol was designed to serve"* — **the withdrawn
+   clause, verbatim**. Citing §2.1 as the surviving ground would move the same uncited sentence one
+   level up the document and call it discharged. A document supersedes itself; this is what that means
+   in practice.
+
+**What the loss taught, promoted to a rule.** §22.5's *"needs no owner"* is right about half of what it
+covers and too wide for the other half, so it is **narrowed in place** rather than left to be re-read:
+
+> **An instrument supplies the *test*, never the *premise*.** A curated table's own claim set is ours
+> and needs no attestation — its wording, its closure, and the verdict *this row fails Claim 3* are all
+> the instrument speaking. But the **premise the instrument turns on** — *what this protocol's intended
+> clients are* — is a fact about the world, and §2.2's first sentence reaches it whether the cell is an
+> admission or an exclusion. A cell citing the instrument's *justification* is citing **us**.
+> — [ADR-0089](../adr/0089-an-instrument-supplies-the-test-never-the-premise.md)
+
+**`5601` is unharmed by the narrowing and this was checked rather than assumed.** §22.2's determinacy
+refusal rests on Broadcom's current CCS documentation — an owner artefact — and §38 measured Elastic's
+own corpus on the audience question, so the row is overdetermined twice. **The cell the wide reading
+actually cost is this one**: `22/tcp` sat on §2.1's premise, uncited, through §10, §12 and §22, and no
+ticket reading the cell caught it. **A gate did**, which is §40's own claim about what a gate is for.
+
+**Thin ground, and it is named at §45.9**: the narrowing rests on one measured instance, and one
+instance is not a measurement.
+
+### 45.6 The ruling
+
+> **`22/tcp` remains excluded and no `(port, transport)` pair moves.** §4.6's stated ground is
+> **replaced**: it is no longer *"remote administration over an untrusted network is the protocol's
+> express purpose"* — an assertion of ours barred by §2.2's first sentence — but **RFC 4251 §1**, the
+> protocol's own Standards Track specification, stating that SSH is *"a protocol for secure remote
+> login and other secure network services **over an insecure network**"*. Claim 3 requires intended
+> clients **inside a boundary the operator controls**; the specifier states the protocol exists for the
+> case where they are not. **Claim 3 fails on the owner's words, §10.2 admits no fourth claim, and
+> Claims 1 and 2 are unavailable on the same paragraph.** GCP's `default-allow-ssh` is **cited** and is
+> a §2.3 **corroborator, never a ground**.
+>
+> **The criterion that would change the verdict:** an IETF successor to RFC 4251 that removes the
+> *"over an insecure network"* framing, or a first-party SSH placement prohibition. Neither is
+> foreseeable, and this is the least reopenable cell in §4.6 — which is worth saying plainly, because
+> the cell's *previous* ground was the weakest in the table.
+
+### 45.7 The residue — two more cells of the same shape, recorded and routed rather than swept
+
+ADR-0037 limb 2 governs the disposal: *"The finding is recorded with its measurement and routed, never
+swept into the same ruling."* **[measured]** The string `express purpose` occurs at **nine** sites in
+this note, and they account exactly: **three** are this section's own repairs (§2.1 line 223, §4.6's
+cell, §10.3's walk row); **two** are §22.5, both marked by its narrowing above; **one** is §40.3's
+raise, discharged in place; **one** is §12.6's summary sentence, which counts grounds by category rather
+than stating one and is unaffected in either direction; and **two** carry it as a **live ground for a
+cell other than `22/tcp`** — §17.1 rows 9 and 10. **A third cell inherits the clause without containing
+the string**, so a grep alone would have missed it:
+
+| Site | Cell | Instance | Disposal |
+|---|---|---|---|
+| §4.6 | **`3389/tcp` RDP** — *"Same category"*, i.e. `22/tcp`'s | **4th** | **Routed.** Its cell inherits the withdrawn clause **by reference**, so it is the same defect at one remove. Microsoft's on-premises hardening guidance is the unopened class (§17.1 row 10). Needs a retrieval scoped to that cell |
+| §17.1 row 10 | **`3389/tcp`** — *"**No** — express purpose; GCP ships it open"* | **4th, second site** | **Routed with it.** The *Sole ground?* scoring is on the §10.2 gate, which §22.5 blessed and §45.5 narrows — see the warning below |
+| §17.1 row 9 | **`5985`/`5986/tcp` WinRM** — *"**No** — remote administration is the express purpose"* | **5th** | **Routed.** Its second limb — *"Microsoft's own sentence refutes the Claim 2 argument"* — **is** an owner sentence, so this cell is the least exposed of the three. The DMTF WS-Management specification is the unopened class |
+
+> **The warning, and it is the reason this is routed rather than repaired.** §17.1 rows 9 and 10 are
+> scored **un-exposed** on the §10.2 closed-claim-set gate, and §17.2's arithmetic — *14 negatives · 8
+> un-exposed · 5 searched · 1 exhausted · **0 residue*** — depends on that scoring. Under
+> [ADR-0089](../adr/0089-an-instrument-supplies-the-test-never-the-premise.md) the **gate** still
+> un-exposes; what is unattested is the **premise** each row's application of it turns on. **Whether an
+> unattested premise leaves the §10.2 gate available is the question that decides whether §17.2's
+> residue is still zero, and this section does not answer it.** Answering it would move a figure on a
+> retrieval scoped to a different cell, which is the *machine rules* failure §39.6 bars and §40.7
+> declined for the same reason. **§17.2's arithmetic is therefore untouched here and is flagged as
+> resting on a question now open.**
+
+**Neither routed cell is on the queue and neither is put on it.** The queue's population is the
+composed table's cells (§39.4); a §4.6 exclusion is not a row and takes no footing cell. The routing is
+a **ticket**, which is what §39.6 says the answer to a raise always is.
+
+### 45.8 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 38 | **38, unchanged.** No row is admitted or removed; `22/tcp` was excluded before and is excluded after |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 19 | **unchanged.** No row enters or leaves a class |
+| §2.2 footing tiers | 13 / 11 / 3 | **unchanged.** `22/tcp` is not a listed row and takes no footing cell. **This section touches no tier** |
+| Coverage | 27 of 38 | **unchanged**, and for the same reason — the denominator is listed rows |
+| §4.6 entry count | 24 | **24, unchanged.** No entry is added or removed; **one has its stated ground replaced** |
+| `verge-core` | 136 (131 TCP, 5 UDP) | **unchanged.** `22/tcp` reaches `verge-core` through the **frequency** half and never through the sensitive list, so an exclusion-ground repair cannot touch the union ([ADR-0009](../adr/0009-verge-core-is-a-union.md)) |
+| v1 rule set · curated tables | 17 · 4 | **unchanged.** No rule is added and no table is created |
+| §17.1's fourteen negatives | 14 | **14, unchanged.** `22/tcp` is **not** among them and does not join: its exclusion is an affirmative proposition, not a silence, so there is no class list to enumerate — §39.5's `10258`/`9443` shape |
+| §17.2's arithmetic | 14 · 8 un-exposed · 5 searched · 1 exhausted · **0 residue** | **unchanged here, and flagged.** Rows 9 and 10's scoring rests on a premise §45.7 has now put in question. **Not moved by this section** — moving it needs a retrieval scoped to those cells |
+| §39.4's queue | 9 items over 11 pairs and 2 non-port cells | **unchanged.** No cell is added or removed; a §4.6 exclusion is outside the queue's population |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet`'s content is byte-identical — no version bump, no aperture change, no comparability cycle |
+| §40.6's gate baseline | G5 **RED** at 2 of §4.6's 24 cells | **G5 GREEN.** §40.3's population was three cells; two were struck there and the third is struck here. **G4 stays GREEN** — this section's own supersession is marked at all four sites its terms occur, §2.1 included. **G11 stays RED**, inherited and untouched. **G8's external half stays UNRUN.** Every other check is unmoved: this edit adds no footing cell (G1, G2, G11), no shipped-bytes claim (G3), no unissued document (G10), no constant (G9) |
+| §8's questions | 12, all closed | **12, unchanged.** §45.7's routed question is a **new** one and is a ticket, not a reopening |
+
+**Outside this note.** [ADR-0089](../adr/0089-an-instrument-supplies-the-test-never-the-premise.md) is
+**added**. ADR-0037, ADR-0040, ADR-0046, ADR-0048, ADR-0057, ADR-0058 and ADR-0077 are **applied and
+untouched** — every one of them supplied a rule that already existed.
+[ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)'s partition is
+**confirmed rather than moved**: ADR-0089 rides on §2.2's attestation gate, which is the half ADR-0032
+says **does** travel to other curated tables, while §2.1's claim set stays a theorem about this table
+alone. [`CONTEXT.md`](../../CONTEXT.md) is **not** edited — no term is minted, and §22.7's precedent for
+staying out of that file while concurrent passes run applies with more force in a fifteen-writer wave.
+
+### 45.9 Thin ground, flagged per the standing rule
+
+- **ADR-0089 rests on one measured instance.** `22/tcp` is the only cell where the instrument's premise
+  and a withdrawn ground are demonstrably the **same sentence**. §22.5's wide reading has one
+  counter-instance and a rule minted on one instance is a rule that has been right once. **What would
+  falsify it:** a cell whose §2.1 naming rests on a premise the owner has never stated and where
+  requiring an owner would leave the note unable to exclude something it plainly should exclude. §45.7
+  routes two candidates and deliberately does not pre-judge them.
+- **The strongest objection to the retrieval is that RFC 4251 §1 is a *design* statement, not a
+  *placement* statement**, and this note has refused that move before — §17.3 ruled RFC 3871's
+  SNMP paragraph *"is not a placement sentence"*. The distinction relied on: §17.3 asked whether an
+  owner **places** a service inside a boundary, which is a deployment fact. Claim 3 asks what the
+  protocol's **intended clients** are, which is a design fact and is what a specification is *for*.
+  **The two questions genuinely differ and the ruling turns on it** — a reader who rejects the
+  distinction should read §45.4's §4.4 sentence, which names the Internet outright, and reach the same
+  verdict by a shorter route. That the fallback exists is why this ground is flagged as thin rather
+  than as contested.
+- **The cell is sole-ground and this section leaves it so** (§45.4). One artefact, one revision act.
+  That is not a defect — §2.2's first form is the strongest footing available and a 20-year-old
+  Standards Track RFC is about as unlikely to move as an artefact in this corpus gets — but it is a
+  fact about the cell that a later pass should not have to re-derive.
+- **§17.2's residue may not still be zero** (§45.7). Recorded as an open question rather than resolved,
+  and the reason is a rule this note wrote for itself.
+
+### 45.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10 and §42.10
+
+- **Two artefacts were retrieved**, both as bytes rather than through a summarising reader: RFC 4251
+  (71,750 bytes, `rfc-editor.org`) and Google Cloud's VPC firewall-rules documentation. **G7 is
+  satisfied by construction for the RFC** — the `.txt` at `rfc-editor.org` *is* the rendered artefact
+  and there is no unrendered-source route into it.
+- **A measured hazard, and it is the reason the RFC was pulled as raw bytes.** The first pass at §1 was
+  taken through a summarising fetch, which reported that **§1 contains the word *"Internet"* in its
+  opening sentence**. **It does not** — the opening sentence says *"over an insecure network"*, and the
+  only Internet sentence in the artefact is §4.4's, three pages later. Had that summary been trusted,
+  this section would have quoted a sentence the owner did not write, at the exact clause the ruling
+  turns on, in a repair whose entire subject is uncited assertions. **A summarising reader is not a
+  retrieval**, and G7's rider — *a retrieval that reads raw source must state whether the string it
+  quotes is present in the owner's artefact* — should be read as reaching **any** intermediary, not
+  only raw-versus-rendered. Recorded as a method note; whether it earns a gate check of its own is left
+  open.
+- **The GCP citation resolves through a host redirect** — `cloud.google.com/firewall/docs/firewalls`
+  `301`s to `docs.cloud.google.com/…`. The canonical URL is recorded. **Nothing turns on it**: §2.3
+  makes the sentence a corroborator whatever its URL, and §39.5 item 2 established that a corroborator
+  can neither carry a cell nor remove it from the queue. It is cited because leaving an uncited
+  assertion in a cell during a repair whose subject is uncited assertions would be this note's own
+  shape, not because the cell needs it.
+- **This section's two new citations are not added to `## Sources`.** Four passes in this wave append
+  immediately above that heading and the orchestrator resolves the adjacency; editing the heading's own
+  list from inside one of them would manufacture the one conflict the arrangement exists to avoid.
+  **Both citations are complete and dated in place at §45.2 and §45.6**, and the `## Sources` entries
+  are owed — handed to the merging session rather than left implicit.
+- **Sibling passes are editing this note concurrently.** [#134](https://github.com/winniel123/verge-asm/issues/134),
+  [#150](https://github.com/winniel123/verge-asm/issues/150) and
+  [#154](https://github.com/winniel123/verge-asm/issues/154) each append a section at the same anchor.
+  **This section's delta to every shared figure is empty** (§45.8), so it composes with all three by
+  construction. **Two seams are declared rather than crossed.** #134 walks the queue's sole-ground
+  filter per cell: `22/tcp`'s cell was **off** the queue before this section and is **off** it after —
+  a §4.6 exclusion is not a row and takes no cell in the queue's population — and it is **sole-ground**
+  after the repair, on one artefact under either reading of *independent* (§45.4). #154 holds the
+  **weak tier**; this section touches no tier and adds no footing cell, so it does not reach that
+  territory in either direction.
 
 ---
 
