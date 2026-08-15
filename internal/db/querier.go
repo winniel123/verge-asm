@@ -9,7 +9,13 @@ import (
 )
 
 type Querier interface {
+	ConfirmTOTP(ctx context.Context, id int64) error
+	CountAccounts(ctx context.Context) (int64, error)
+	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
+	GetAccountByID(ctx context.Context, id int64) (Account, error)
+	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
+	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
 }
 
 var _ Querier = (*Queries)(nil)
