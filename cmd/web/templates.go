@@ -71,6 +71,20 @@ td { padding: var(--space-3) var(--space-4) var(--space-3) 0; border-bottom: 1px
 .seedform { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
 .seedform label { margin-bottom: 0; }
 .seedform .scope { min-width: 280px; }
+input[type=checkbox] { width: auto; }
+label.check { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 0; }
+label.check span { display: inline; margin-bottom: 0; }
+.classes { display: flex; gap: var(--space-4); margin-bottom: var(--space-4); }
+.inlineform { display: flex; gap: var(--space-3); align-items: center; }
+.inlineform select, .inlineform input { width: auto; }
+.muted { color: var(--muted); }
+details.edit { margin-top: var(--space-3); }
+details.edit summary { cursor: pointer; font-family: var(--mono); font-size: 11px;
+  color: var(--accent); }
+details.edit .section { margin-top: var(--space-3); margin-bottom: 0; }
+.dial { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
+.dial label { margin-bottom: 0; min-width: 220px; }
+.dial .unit { color: var(--muted); font-family: var(--mono); font-size: 11px; }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -142,7 +156,7 @@ Two-factor is not active until you confirm.</p>
 
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
-<nav class="nav"><a href="/">Home</a><a href="/seeds">Seeds</a></nav>
+<nav class="nav"><a href="/">Home</a><a href="/seeds">Seeds</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
 </div>{{end}}
@@ -278,6 +292,131 @@ mine</em> is a different claim from <em>not there</em> — and an excluded name 
 <div class="microlabel">No exclusions declared</div>
 <p>Nothing is excluded. Everything inside your declared scopes is yours.</p>
 {{end}}
+</div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "settings"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="microlabel">Operator · settings</div>
+<h1>Settings</h1>
+<p>Your dials: the accounts that may sign in, the channels a message is carried out
+over, and how long each corpus stays readable. Every change here is an admin act.</p>
+
+<div class="microlabel">Accounts</div>
+<div class="section">
+<h2>Accounts</h2>
+{{if .RoleError}}<div class="error">{{.RoleError}}</div>{{end}}
+<table>
+<thead><tr><th>Username</th><th>Role</th><th>Two-factor</th><th>Created</th><th>Role</th></tr></thead>
+<tbody>
+{{range .Accounts}}<tr>
+<td class="mono">{{.Username}}{{if .IsSelf}} <span class="muted">(you)</span>{{end}}</td>
+<td><span class="badge">{{.Role}}</span></td>
+<td>{{if .TotpEnabled}}<span class="badge">on</span>{{else}}<span class="muted">off</span>{{if .IsSelf}}
+<form method="post" action="/account/totp/enable" style="display:inline"><button class="secondary" type="submit">Enable</button></form>{{end}}{{end}}</td>
+<td class="mono">{{.At}}</td>
+<td>
+<form method="post" action="/settings/accounts/role" class="inlineform">
+<input type="hidden" name="id" value="{{.ID}}">
+<select name="role"><option value="admin"{{if eq .Role "admin"}} selected{{end}}>admin</option><option value="viewer"{{if eq .Role "viewer"}} selected{{end}}>viewer</option></select>
+<button class="secondary" type="submit">Save</button>
+</form>
+</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<div class="section">
+<h2>Invite an account</h2>
+{{if .AcctError}}<div class="error">{{.AcctError}}</div>{{end}}
+<form method="post" action="/settings/accounts">
+<label><span>Username</span><input name="username" value="{{.AcctUsername}}" autocomplete="off" required></label>
+<label><span>Password</span><input name="password" type="password" autocomplete="new-password" required></label>
+<label><span>Role</span><select name="role"><option value="admin"{{if eq .AcctRole "admin"}} selected{{end}}>admin</option><option value="viewer"{{if eq .AcctRole "viewer"}} selected{{end}}>viewer</option></select></label>
+<button type="submit">Create account</button>
+</form>
+</div>
+
+<div class="microlabel">Channels</div>
+<div class="section">
+<h2>Channels</h2>
+<p>A channel is where messages go: an absolute <code>https</code> URL, an optional
+signing secret, and the subset of classes it carries. None ships configured, and a
+channel is one-way — it grants no read of anything. Delivery itself lands later; this
+persists the declaration.</p>
+{{if .ChanError}}<div class="error">{{.ChanError}}</div>{{end}}
+{{if .Channels}}
+<table>
+<thead><tr><th>URL</th><th>Classes</th><th>Secret</th><th>State</th><th>Declared by</th><th></th></tr></thead>
+<tbody>
+{{range .Channels}}<tr>
+<td class="mono">{{.URL}}</td>
+<td>{{if .Drift}}<span class="badge">drift</span> {{end}}{{if .Coverage}}<span class="badge">coverage</span> {{end}}{{if .Clock}}<span class="badge">clock</span>{{end}}</td>
+<td>{{if .HasSecret}}<span class="badge">set</span>{{else}}<span class="muted">not set</span>{{end}}</td>
+<td>{{if .Enabled}}<span class="badge">enabled</span>{{else}}<span class="muted">disabled</span>{{end}}</td>
+<td class="mono">{{.By}}<br><span class="muted">{{.At}}</span></td>
+<td>
+<details class="edit">
+<summary>Edit</summary>
+<div class="section">
+<form method="post" action="/settings/channels/update">
+<input type="hidden" name="id" value="{{.ID}}">
+<label><span>URL</span><input name="url" value="{{.URL}}" autocomplete="off" required></label>
+<div class="classes">
+<label class="check"><input type="checkbox" name="drift"{{if .Drift}} checked{{end}}><span>drift</span></label>
+<label class="check"><input type="checkbox" name="coverage"{{if .Coverage}} checked{{end}}><span>coverage</span></label>
+<label class="check"><input type="checkbox" name="clock"{{if .Clock}} checked{{end}}><span>clock</span></label>
+</div>
+<label class="check"><input type="checkbox" name="enabled"{{if .Enabled}} checked{{end}}><span>enabled</span></label>
+<label><span>Replace secret</span><input name="secret" type="password" autocomplete="off" placeholder="{{if .HasSecret}}set — leave blank to keep{{else}}not set — leave blank for none{{end}}"></label>
+{{if .HasSecret}}<label class="check"><input type="checkbox" name="clear_secret"><span>clear the secret</span></label>{{end}}
+<div class="row" style="margin-top:12px"><button type="submit">Save channel</button></div>
+</form>
+<form method="post" action="/settings/channels/delete" style="margin-top:12px"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Delete channel</button></form>
+</div>
+</details>
+</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="microlabel">No channels declared</div>
+<p>Nothing is configured, so every message is written and rendered in the store and
+carried nowhere else. Declare a channel to have messages POSTed out.</p>
+{{end}}
+</div>
+
+<div class="section">
+<h2>Declare a channel</h2>
+<form method="post" action="/settings/channels">
+<label><span>URL</span><input name="url" value="{{.ChanURL}}" placeholder="https://hooks.example.com/verge" autocomplete="off" required></label>
+<div class="classes">
+<label class="check"><input type="checkbox" name="drift"{{if .ChanDrift}} checked{{end}}><span>drift</span></label>
+<label class="check"><input type="checkbox" name="coverage"{{if .ChanCoverage}} checked{{end}}><span>coverage</span></label>
+<label class="check"><input type="checkbox" name="clock"{{if .ChanClock}} checked{{end}}><span>clock</span></label>
+</div>
+<label><span>Secret (optional)</span><input name="secret" type="password" autocomplete="off" placeholder="signs the body — never shown again"></label>
+<button type="submit">Declare channel</button>
+</form>
+</div>
+
+<div class="microlabel">Retention</div>
+<div class="section">
+<h2>Retention dials</h2>
+<p>Retention is what may still be read, never age. The floors that bound these dials
+land with later work; for now each floors at zero, where zero means no operator floor.</p>
+{{if .RetError}}<div class="error">{{.RetError}}</div>{{end}}
+<form method="post" action="/settings/retention">
+<div class="dial">
+<label><span>Observation-currency floor</span><input name="observation_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetObs}}{{else}}{{.Retention.ObservationCurrencyDays}}{{end}}" required><span class="unit">days</span></label>
+<label><span>Dispatch floor</span><input name="dispatch_cadence_multiple" inputmode="numeric" value="{{if .RetError}}{{.RetDispatch}}{{else}}{{.Retention.DispatchCadenceMultiple}}{{end}}" required><span class="unit">× cadence</span></label>
+<button type="submit">Save dials</button>
+</div>
+</form>
+{{if .Retention.UpdatedAt}}<p class="muted" style="margin-top:12px">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span class="mono">{{.Retention.UpdatedBy}}</span>{{end}}.</p>{{end}}
 </div>
 </main>
 {{template "foot" .}}{{end}}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"testing"
 	"time"
 
@@ -31,10 +32,29 @@ type fakeStore struct {
 
 	exclusions []db.Exclusion
 	exclNextID int64
+
+	channels   []fakeChannel
+	chanNextID int64
+	retention  db.GetRetentionSettingsRow
+}
+
+// fakeChannel mirrors a channel row, secret included, so tests can assert the
+// secret is stored but never surfaced through the render path.
+type fakeChannel struct {
+	id                     int64
+	url                    string
+	secret                 pgtype.Text
+	drift, coverage, clock bool
+	enabled                bool
+	createdBy              int64
+	createdAt, updatedAt   time.Time
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1, seedNextID: 1, exclNextID: 1}
+	return &fakeStore{
+		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
+		seedNextID: 1, exclNextID: 1, chanNextID: 1,
+	}
 }
 
 func (f *fakeStore) RecordHeartbeat(context.Context) (db.Heartbeat, error) {
@@ -192,6 +212,121 @@ func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
 		}
 	}
 	return nil // idempotent: a missing row is not an error
+}
+
+func (f *fakeStore) ListAccounts(context.Context) ([]db.ListAccountsRow, error) {
+	// Insertion order (created_at ASC, id ASC) mirrors the SQL.
+	ids := make([]int64, 0, len(f.accounts))
+	for id := range f.accounts {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	rows := make([]db.ListAccountsRow, 0, len(ids))
+	for _, id := range ids {
+		a := f.accounts[id]
+		rows = append(rows, db.ListAccountsRow{
+			ID: a.ID, Username: a.Username, Role: a.Role,
+			TotpEnabled: a.TotpEnabled, CreatedAt: a.CreatedAt,
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) CountAdmins(context.Context) (int64, error) {
+	var n int64
+	for _, a := range f.accounts {
+		if a.Role == roleAdmin {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeStore) UpdateAccountRole(_ context.Context, arg db.UpdateAccountRoleParams) error {
+	a, ok := f.accounts[arg.ID]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	a.Role = arg.Role
+	f.accounts[arg.ID] = a
+	return nil
+}
+
+func (f *fakeStore) CreateChannel(_ context.Context, arg db.CreateChannelParams) (int64, error) {
+	c := fakeChannel{
+		id: f.chanNextID, url: arg.Url, secret: arg.Secret,
+		drift: arg.RouteDrift, coverage: arg.RouteCoverage, clock: arg.RouteClock,
+		enabled: arg.Enabled, createdBy: arg.CreatedBy,
+		createdAt: time.Now(), updatedAt: time.Now(),
+	}
+	f.channels = append(f.channels, c)
+	f.chanNextID++
+	return c.id, nil
+}
+
+func (f *fakeStore) ListChannels(context.Context) ([]db.ListChannelsRow, error) {
+	rows := make([]db.ListChannelsRow, 0, len(f.channels))
+	// Newest first, mirroring ORDER BY created_at DESC, id DESC.
+	for i := len(f.channels) - 1; i >= 0; i-- {
+		c := f.channels[i]
+		rows = append(rows, db.ListChannelsRow{
+			ID: c.id, Url: c.url, RouteDrift: c.drift, RouteCoverage: c.coverage,
+			RouteClock: c.clock, Enabled: c.enabled, HasSecret: c.secret.Valid,
+			CreatedBy:         c.createdBy,
+			CreatedAt:         pgtype.Timestamptz{Time: c.createdAt, Valid: true},
+			UpdatedAt:         pgtype.Timestamptz{Time: c.updatedAt, Valid: true},
+			CreatedByUsername: f.accounts[c.createdBy].Username,
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) UpdateChannel(_ context.Context, arg db.UpdateChannelParams) error {
+	for i := range f.channels {
+		if f.channels[i].id == arg.ID {
+			f.channels[i].url = arg.Url
+			f.channels[i].drift = arg.RouteDrift
+			f.channels[i].coverage = arg.RouteCoverage
+			f.channels[i].clock = arg.RouteClock
+			f.channels[i].enabled = arg.Enabled
+			f.channels[i].updatedAt = time.Now()
+			return nil
+		}
+	}
+	return pgx.ErrNoRows
+}
+
+func (f *fakeStore) SetChannelSecret(_ context.Context, arg db.SetChannelSecretParams) error {
+	for i := range f.channels {
+		if f.channels[i].id == arg.ID {
+			f.channels[i].secret = arg.Secret
+			f.channels[i].updatedAt = time.Now()
+			return nil
+		}
+	}
+	return pgx.ErrNoRows
+}
+
+func (f *fakeStore) DeleteChannel(_ context.Context, id int64) error {
+	for i, c := range f.channels {
+		if c.id == id {
+			f.channels = append(f.channels[:i], f.channels[i+1:]...)
+			return nil
+		}
+	}
+	return nil // idempotent
+}
+
+func (f *fakeStore) GetRetentionSettings(context.Context) (db.GetRetentionSettingsRow, error) {
+	return f.retention, nil
+}
+
+func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
+	f.retention.ObservationCurrencyDays = arg.ObservationCurrencyDays
+	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
+	f.retention.UpdatedBy = arg.UpdatedBy
+	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
 }
 
 // testKey is a fixed 32-byte session signing key for tests.

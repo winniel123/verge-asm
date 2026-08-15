@@ -30,6 +30,16 @@ type store interface {
 	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
 	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
 	DeleteExclusion(ctx context.Context, id int64) error
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	CountAdmins(ctx context.Context) (int64, error)
+	UpdateAccountRole(ctx context.Context, arg db.UpdateAccountRoleParams) error
+	CreateChannel(ctx context.Context, arg db.CreateChannelParams) (int64, error)
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	UpdateChannel(ctx context.Context, arg db.UpdateChannelParams) error
+	SetChannelSecret(ctx context.Context, arg db.SetChannelSecretParams) error
+	DeleteChannel(ctx context.Context, id int64) error
+	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
+	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -93,6 +103,17 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
 	mux.HandleFunc("POST /account/totp/enable", s.requireLogin(s.totpEnable))
 	mux.HandleFunc("POST /account/totp/confirm", s.requireLogin(s.totpConfirm))
+
+	// The Settings destination and every mutation it hosts are admin acts
+	// (v1 spec §4.3, §6.1): viewing the operator's dials and moving them are
+	// both gated behind requireAdmin.
+	mux.HandleFunc("GET /settings", s.requireAdmin(s.settingsPage))
+	mux.HandleFunc("POST /settings/accounts", s.requireAdmin(s.inviteAccount))
+	mux.HandleFunc("POST /settings/accounts/role", s.requireAdmin(s.setAccountRole))
+	mux.HandleFunc("POST /settings/channels", s.requireAdmin(s.createChannel))
+	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
+	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
+	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
 	return mux
 }
 
