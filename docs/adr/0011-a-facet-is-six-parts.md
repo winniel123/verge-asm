@@ -311,7 +311,12 @@ apart. And **"one re-baseline message" names the message *class*, not ADR-0008's
 re-baseline fires when a `Derivation` vector moves, and an additive widening moves no vector. One
 class, two triggers, and the payloads differ: a vector move carries a difference set computed
 across a `Break`, an additive widening carries a count of timelines opened and no comparison at
-all.
+all. *(A **third** element joins the vector-move payload by
+[#121](https://github.com/winniel123/verge-asm/issues/121) /
+[ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md): where the
+moved vector includes a leaf the **membership** timeline composes, the message states that a return
+will read `appeared` until the subject has withdrawn and returned again under the new vector. See
+[ADR-0014](./0014-only-revealed-generalises.md)'s "One message class, two triggers".)*
 
 ### What takes two measurements is decided by the prober
 
@@ -388,6 +393,11 @@ seventh facet, writes a canonicaliser, and silently skips the batch-scope obliga
   so the hard half is entirely the prober's.
 - **Every open `Service` now carries at least one `certificate` timeline**, most holding `NoTLS`
   forever. Storage, not correctness, and it lands on the retention patch rather than here.
+  *(The patch graduated to [#121](https://github.com/winniel123/verge-asm/issues/121) and closed as
+  [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md): a
+  `NoTLS`-forever timeline is **one span, flat** — the span corpus is proportional to drift rather
+  than to time, so this count is the cheap half and never compacted, while the observations behind
+  it age out at the currency bound.)*
   *Corrected by [ADR-0027](./0027-a-source-may-admit-without-observing.md): this originally read
   "a `certificate` timeline now exists for every open `Service`", which read as a keying claim and
   contradicted this ADR's own rationale.* The facet keys on **`Endpoint`**; what is true per

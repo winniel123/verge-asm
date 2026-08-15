@@ -146,7 +146,12 @@ because time passed, so they persist. The multiplier is `65,535 ÷ |verge-core|`
 [#75](https://github.com/winniel123/verge-asm/issues/75) may move. Against the estate
 [ADR-0001](./0001-stack-and-runtime.md) sized — ~70k reachability observations per hot run — that is
 about **33 million** subjects and observations from one dispatch. The retention patch on the map is
-sized against the hot tier.
+sized against the hot tier. *(Closed by [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+[ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md), which is also
+sized against the hot tier and says why that is the right sizing: `Service` subjects and `Reach`
+timelines are **spans**, one each and flat, so the cold tier's 470× multiplier lands on the corpus
+that is never compacted; the observations it generates monthly age out at the currency bound like
+any other.)*
 
 ### Narrow is not the failure; narrow and silent is
 

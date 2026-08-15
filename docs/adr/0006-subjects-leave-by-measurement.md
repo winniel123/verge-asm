@@ -157,6 +157,19 @@ also silent.
   > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
   > by [#106](https://github.com/winniel123/verge-asm/issues/106) — the amendment sits **above** this
   > sentence, which an order-based reading of the rule would miss.
+  >
+  > **QUALIFIED a second time by [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+  > [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md): the split
+  > is destroyed by a `Break` between the withdrawal and the return.** A withdrawn subject's
+  > timelines **close**, so a return after a leaf bump reopens with nothing legally before it, no
+  > `Transition` is derived, and the message fires reading **`appeared`** — the pair collapsing into
+  > its uninteresting member exactly when a decommissioned host comes back. Retention cannot fix it
+  > and history is never re-derived, so **the release owes the statement**: the re-baseline message
+  > names the loss ([ADR-0014](./0014-only-revealed-generalises.md)), `resolution-walk`'s golden
+  > corpus must pin the membership-deciding outcomes so a dependency upgrade provably does not bump
+  > the leaf, and the membership vector may not be widened. Retention's own floor — never deleting
+  > the span before an open one — is the storage-layer twin of *nothing leaves because time passed*,
+  > and it is discharged by never compacting the `Span` corpus at all.
 
   The split is also where
   [ADR-0003](./0003-third-party-source-consent-bar.md)'s aperture rule can finally sit: *first

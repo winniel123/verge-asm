@@ -231,6 +231,19 @@ count of timelines opened and **no comparison at all**, because per the additive
 nothing to compare. Writing that down stops the safer payload inheriting the riskier one's
 apparatus for no reason.
 
+> **A third element on the vector-move payload —
+> [#121](https://github.com/winniel123/verge-asm/issues/121) ·
+> [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).** Where the
+> vector that moved includes a leaf the **membership** timeline composes — `resolution-walk`, which
+> every `Name`'s and every cited `Address`'s membership reads — the payload must also **state the
+> loss**: until a subject has withdrawn and returned again under the new vector, a return reads
+> `appeared`. A withdrawn subject's timelines are closed, so the reopening sits across the `Break`
+> with nothing legally before it, no `Transition` is derived, and
+> [ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md)'s membership message
+> fires with the wrong word. It cannot be corrected afterwards — history is never re-derived — so
+> naming it is the whole of the remedy. This is a **third element on an existing payload**, not a
+> fourth trigger and not a new class.
+
 ## Amendment — [#63](https://github.com/winniel123/verge-asm/issues/63): what the membership
 transition actually carried
 
