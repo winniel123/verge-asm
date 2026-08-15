@@ -195,3 +195,82 @@ through the front.
 | **Put tier demotions on the queue as a second kind of item** | It builds the fourth pile ADR-0038 refused and ADR-0057 declined to reopen, and it restores meaning to the queue's **length** — the failure being repaired. The demotion hazard is real and is recorded as a **gate** shortfall with its own ticket |
 | **Treat an undetermined second ground as absent, and leave the cell off pending a retrieval** | Backwards on cost. A wrongly-included item costs one reading; a wrongly-excluded one costs a silent de-attestation, which has already happened once (`623/udp`, §36.7) on a row that was never watched |
 | **Rule out of scope — the filter is #134's to settle while it walks** | Refused: #134 is **blocked** on this precisely because the answer changes what it counts, and a walk that decides its own criterion mid-pass produces a result nobody can re-derive. The criterion is ruled first and the walk is executed against it |
+
+---
+
+## Amendment — [#151](https://github.com/winniel123/verge-asm/issues/151): step 2 tests the act, not merely the artefact
+
+**Status: this ADR is confirmed, not corrected, on the cell unit, on tier-versus-proposition, and on
+the direction of failure. One clause is corrected**: step 2 of *"The test, stated so it can be run"* is
+amended to test what its own stated warrant already named.
+
+**The defect.** Step 2 reads: *"If some remaining artefact B, alone, still yields C's proposition — at
+any tier — then B is a second ground and C is not a queue item. Two acts are needed to falsify C."* The
+**check** performed is on the **artefact** — does B, standing alone, yield the proposition. The
+**conclusion** asserted is about the **act** — *"two acts are needed."* Nothing in step 2 verifies that
+A's falsifying act and B's falsifying act are different acts.
+[`sensitive-ports.md`](../research/sensitive-ports.md) §40.7 found the cell where this comes apart:
+`5432/tcp`'s footing survives step 2 on `pg_hba.conf.sample` as a second artefact, but
+`postgresql.conf.sample` and `pg_hba.conf.sample` are *"two files in one source tree that move on one
+PostgreSQL major release, at one rung."* One act, not two. §48.3's walk of §43.4's *not an item* row
+found six further cells with the same shape.
+
+**The ruling.** Step 2 is corrected to read:
+
+> 2. If some remaining artefact **B**, alone, still yields C's proposition — at any tier — **and a
+>    different revision act from the one that would falsify A would be needed to falsify B** — then B is
+>    a second ground and **C is not a queue item**. Where the note's held bytes do not show whether A and
+>    B share a revision act, the question is undetermined and step 4 applies.
+
+Steps 1, 3 and 4 are unchanged. Step 4's existing rule — an undetermined step counts the cell **on** —
+is what absorbs the act-independence question where the note's held bytes do not answer it. **No new
+judgement is invented**; the existing fallback is reused for a second question, the same way it already
+covers propositional uncertainty.
+
+**Why this is compelled by ADR-0057 and is not a new axis.** ADR-0057's own Decision table: *"What the
+queue keys on: the revision act."* That ruling is not reopened. ADR-0057's own rung table already keys a
+**single** artefact's volatility on *"one contributor, one commit"* (rungs 1 and 2) against a version and
+a changelog (rung 3), and so on — the act granularity is already load-bearing for one artefact on the
+register. Asking whether a **second** artefact shares that same commit or release boundary is the
+identical question asked of a second object, not a new kind of fact the instrument has never required.
+
+**Why the artefact-only reading is not the safer default it looks like.** Its worked conclusion — *"two
+acts are needed"* — is not entailed by its own check — a second artefact exists and yields the
+proposition. The cell #151 names shows the gap is not hypothetical: two shipped config-sample files in
+one PostgreSQL release tree is exactly [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
+§8's shape — a silent, single-act de-attestation — that ADR-0057 built this queue to catch.
+Under-testing here does not simplify the instrument; it reopens the hole the instrument exists to close,
+on the cell most obviously shaped like it — a repeat of the `623/udp` failure already measured once
+([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) §8, re-founded at
+`sensitive-ports.md` §36.7).
+
+### Consequences
+
+- Register cells move from *not an item* to **item** at seven cells, named with their grounds at
+  [`sensitive-ports.md`](../research/sensitive-ports.md) §48.3: `873/tcp`'s **footing** and **claim**
+  cells, `10250/tcp`'s **footing** cell, `2375/tcp`'s and `2376/tcp`'s **footing** cell, `2376/tcp`'s
+  **claim** cell, `5432/tcp`'s **claim** cell, `5984/tcp`'s **claim** cell. `2181/tcp`'s **footing** cell
+  is **undetermined** under step 4 and stays on the register for that reason, not as a measured act.
+- **Nothing leaves the register.** ADR-0077's own Decision row — *"does anything come off the queue?
+  No"* — is unchanged and untouched by this amendment; the correction can only narrow what counts as a
+  second ground, so it can only add.
+- `5432/tcp`'s **footing** cell — the cell #151's brief names — does not move. It was already an item
+  under this ADR's removal bar, and the act reading independently confirms it: one PostgreSQL release
+  moves both `postgresql.conf.sample` and `pg_hba.conf.sample`.
+- `10255/tcp` is unaffected, exactly as the ticket named going in: its second ground
+  (`readOnlyPort`'s doc comment) is a shipped default in Kubernetes' **source** repository, while its
+  first ground is a documentation-branch page in the **kubernetes/website** repository — a docs branch
+  and a shipped default are two acts, not one.
+- No footing tier, class or coverage figure moves. A register item observes exposure and is never a
+  verdict, unchanged from ADR-0057 and this ADR.
+- **No new ADR is minted.** This is a correction to this ADR's own stated test, sited where the test is
+  stated, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
+  rule that a superseded clause is marked at the site that specifies it.
+
+### Alternatives rejected
+
+| Option | Why it lost |
+| --- | --- |
+| **Leave step 2 on artefacts, as literally stated** | The incumbent, and the option that lost. Its own worked language — *"two acts are needed"* — already asserts a conclusion the artefact-only check does not establish; `sensitive-ports.md` §40.7 and §48.3 measured the gap on seven cells, one of them the ticket's own worked example |
+| **Require the second ground to name its act explicitly, even where a single artefact already settles it** | Redundant on the cells the corpus has already resolved (Shape 3, `sensitive-ports.md` §43.2) — two sentences in **one** artefact are one act on any reading, and re-deriving that for every sole-artefact cell taxes the majority of the table for a distinction that only bites where a row names two artefacts |
+| **Treat "shared repository" as dispositive of "one act," with no step-4 fallback for the undetermined case** | Would force a guess on rung-1/2 artefacts with no visible commit boundary (`2181/tcp`'s footing, e.g.). This ADR already has a rule for exactly this shape of not-yet-answerable question, and there is no reason to build a second one |
