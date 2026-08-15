@@ -1,0 +1,4 @@
+{"batch":"b1","kind":"tls-acceptance","facet":"tls-acceptance","subject":"198.51.100.20:443/tcp","vantage":"v1","address":"198.51.100.20","data":{"outcome":"enumerated","versions":[{"version":"1.2","ciphers":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256","TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"]},{"version":"1.3"}]}}
+{"batch":"b1","kind":"tls-acceptance","facet":"tls-acceptance","subject":"198.51.100.21:443/tcp","vantage":"v1","address":"198.51.100.21","data":{"outcome":"enumerated","versions":[{"version":"1.0","ciphers":["TLS_RSA_WITH_AES_128_CBC_SHA"]},{"version":"1.2","ciphers":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"]}]}}
+{"batch":"b1","kind":"tls-acceptance","facet":"tls-acceptance","subject":"198.51.100.22:443/tcp","vantage":"v1","address":"198.51.100.22","data":{"outcome":"tls-refused"}}
+{"batch":"b1","kind":"tls-acceptance","facet":"tls-acceptance","subject":"198.51.100.23:8080/tcp","vantage":"v1","address":"198.51.100.23","data":{"outcome":"no-tls"}}

@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"tls-acceptance","facet":"tls-acceptance","subject":"198.51.100.13:80/tcp","vantage":"v1","address":"198.51.100.13","data":{"outcome":"no-tls"}}

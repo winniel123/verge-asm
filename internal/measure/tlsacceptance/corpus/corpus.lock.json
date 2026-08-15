@@ -1,0 +1,6 @@
+{
+  "leaf_version": "tls-acceptance/v1",
+  "corpus_digest": "sha256:4691f4eb0cb7787ea3f390295e48854d7a03daa356151e99baeecc7de21475e4",
+  "params_digest": "sha256:4076978a80a6a0b76e315810e00aef966a5b6c0d98383cff60037d5f5c12d232",
+  "uncovered_moves": null
+}

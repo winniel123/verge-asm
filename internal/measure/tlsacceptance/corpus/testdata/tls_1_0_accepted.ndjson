@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"tls-acceptance","facet":"tls-acceptance","subject":"198.51.100.11:443/tcp","vantage":"v1","address":"198.51.100.11","data":{"outcome":"enumerated","versions":[{"version":"1.0","ciphers":["TLS_RSA_WITH_AES_128_CBC_SHA"]},{"version":"1.2","ciphers":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"]}]}}

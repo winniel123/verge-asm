@@ -66,16 +66,17 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	}
 	for _, s := range scans {
 		switch s.Kind {
-		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind:
+		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind, scan.TLSAcceptanceKind:
 			// The dns Scan (worker-probed, per Vantage), the zone Scan
-			// (worker-read, no Vantage), the hot Scan (Custody-gated, per Vantage)
-			// and the cold Scan (Custody-gated, opt-in per Seed scope, full range)
-			// each fan out on their own cadence. The cold Scan reaches this switch
-			// only while at least one Seed scope has opted in — that is what flips
-			// it enabled and into ListEnabledScans (ADR-0044); shipped disabled, it
-			// is skipped here and never fires unasked.
+			// (worker-read, no Vantage), the hot Scan (Custody-gated, per Vantage),
+			// the cold Scan (Custody-gated, opt-in per Seed scope, full range) and
+			// the tls-acceptance Scan (weekly enumeration over the open Service
+			// population, no port list — ADR-0028) each fan out on their own cadence.
+			// The cold Scan reaches this switch only while at least one Seed scope has
+			// opted in — that is what flips it enabled and into ListEnabledScans
+			// (ADR-0044); shipped disabled, it is skipped here and never fires unasked.
 		default:
-			continue // tls-acceptance lands in a later ticket
+			continue
 		}
 		tick := scheduledTick(d.now(), time.Duration(s.CadenceSeconds)*time.Second)
 		if _, err := d.fanOut(ctx, s, tick); err != nil {
@@ -144,6 +145,8 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 		enqueued, err = d.fanOutHot(ctx, qtx, s.ID, dispatchID)
 	case scan.ColdKind:
 		enqueued, err = d.fanOutCold(ctx, qtx, s.ID, dispatchID)
+	case scan.TLSAcceptanceKind:
+		enqueued, err = d.fanOutTLSAcceptance(ctx, qtx, s.ID, dispatchID)
 	default:
 		enqueued, err = d.fanOutDNS(ctx, qtx, s.ID, dispatchID)
 	}
