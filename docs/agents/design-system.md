@@ -32,6 +32,35 @@ The system was authored from a product brief that predates this repo's domain mo
 
 When a visual convention and a domain term collide, the domain term wins and the visual convention gets re-skinned around it.
 
+## A prototype is a dated record of a reading, never of a rule
+
+[ADR-0075](../adr/0075-a-prototype-is-a-dated-record-of-a-reading-never-of-a-rule.md), from
+[#131](https://github.com/winniel123/verge-asm/issues/131).
+
+**Writing one.** Carry a **dateline on the rendered surface** — ticket, date, and one clause pointing
+at the map's `THE CURRENT COMPOSED STATE` line as the only live absolutes. The `PROTOTYPE — throwaway`
+provenance in the HTML comment is not enough: nobody reads a prototype in its source, and every
+recorded instance of a prototype being believed happened in a browser.
+
+**Meeting one whose figure a later ruling invalidated.** Two questions, in order:
+
+1. **Did the ruling move a quantity?** Then it is a **figure**, it is dated, and **nothing is owed** —
+   no rewrite, no mark, no ticket.
+2. **Did the ruling make the drawn state unreachable** — an act the product now refuses, a population
+   that must now be hollow, a sentence the product no longer says? Then it is a **rule drawn after its
+   withdrawal**, and it is owed the mark.
+
+**The mark**: leave the drawing standing, and add a dashed annotation box (`.anno`, as
+`prototypes/seeds/` uses) on the **condemned variant or fill only** — never the whole file — naming
+the ruling and **stating what the surface would draw now**. A strike with no successor is re-derived
+by the next session that needs one ([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) §5).
+**Never redraw**: the wrong screen is the evidence.
+
+**Who owes it**: the pass that supersedes, **and only where it already holds the prototype** — opened
+it, cited it, or its ticket names it. Nobody ever owes a search for prototypes. This is
+[#106](https://github.com/winniel123/verge-asm/issues/106)'s *grep the document you are writing in* at
+one more hop: **mark the artefact you already opened.**
+
 ## Flag conflicts, don't silently resolve them
 
 If a design need genuinely cannot be met inside the system — a component that does not exist, a colour role with no token — say so explicitly rather than inventing a one-off:
