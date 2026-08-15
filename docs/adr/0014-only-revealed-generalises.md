@@ -132,7 +132,10 @@ refuse storing `Transition`s beside spans.
 
 The failure mode the fourth member was meant to prevent — *a value with no account of why it
 appeared* — is answered by the `Gap` sitting immediately before it, which **records its cause**.
-That follows ADR-0007's cascaded-closure `reason` and
+That follows ADR-0007's closure `reason` — ~~a one-member vocabulary, `cascaded`~~ **closed at three
+by [#147](https://github.com/winniel123/verge-asm/issues/147) ·
+[ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md):
+`measured-absent` · `uncited` · `descoped`** — and
 [#22](https://github.com/winniel123/verge-asm/issues/22)'s *one treatment, stated reasons*.
 
 The whole `Gap` → value case therefore costs the model **nothing new**, which is the right price

@@ -51,7 +51,7 @@ Six prior decisions arrive with obligations attached:
 | `k` | **Fixed and release-coupled**, starting at 2 |
 | Source conflict | **Reported, never resolved** |
 | Aperture widening | A `Break`, plus a third appearance kind — **`revealed`** |
-| Cascade closure | Writes a span, reason `cascaded` |
+| Cascade closure | Closes the span, recording a reason — ~~`cascaded`~~ **`uncited`**, see the [#147](https://github.com/winniel123/verge-asm/issues/147) note below |
 | Alerting | **On the cause, never per consequence** |
 
 ## Rationale
@@ -259,8 +259,23 @@ because a registry record changed.
 The same shape appears twice more. ADR-0006's cascade rule takes every `Endpoint` beneath a
 withdrawn `Name`; those spans must close, or a dead endpoint keeps an open span and every
 current-state query returns it as live — but the closure is not independent evidence, so it
-records reason `cascaded`, which is what lets the endpoints return coherently if the name does.
+records ~~reason `cascaded`~~ **reason `uncited`**, which is what lets the endpoints return
+coherently if the name does.
 And a gate *opening* reveals a burst of services at once.
+
+> **The reason's *name* is superseded here, at the site that specifies it**
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by
+> [#147](https://github.com/winniel123/verge-asm/issues/147) ·
+> [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md).
+> **Every word of the rule above survives verbatim** — the closure is not independent evidence, and
+> that is what lets the subtree return coherently. What moved is that the same rule was found to
+> govern a **second** route the word `cascaded` is false of: a cited `Address` whose last citing
+> resolution moves. Nothing cascades there, so the member is **`uncited`**, which is `Citation`'s own
+> word and true at both sites. Read alone and in the present tense, the struck name would have a
+> session build a one-member vocabulary that has since been closed at **three** —
+> **`measured-absent` · `uncited` · `descoped`**, sorted on the ground the closure rests on. This
+> ADR's own test for splitting a vocabulary is what ADR-0087 ran to merge the two routes and to keep
+> the third apart.
 
 In all three cases one operator action or one registry change produces a burst of consequences,
 so the rule is stated once rather than rediscovered three times: **alerting fires at the cause,
@@ -336,8 +351,12 @@ was ever missed. The attribution cost of the aged value is carried by the `Custo
 is current from the instant of the toggle.
 
 ADR-0014 also settles what this ADR left implicit: **`Gap` → value is an ordinary adjacency**, not
-a fourth member of the opening family, and the `Gap` records its cause the way a cascaded closure
-records `cascaded`.
+a fourth member of the opening family, and the `Gap` records its cause the way a closure records its
+reason — ~~`cascaded`~~ **`uncited`**, one of the three
+[ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) closes
+that vocabulary at. The analogy is untouched and ADR-0087 promotes it: **the `Gap`'s
+cause-recording is the precedent** for a closure recording its reason on every timeline a departure
+closes.
 
 ## Amendment — [#48](https://github.com/winniel123/verge-asm/issues/48): the conflict lands on
 `dns-record`, and only two enumerable sources can have one

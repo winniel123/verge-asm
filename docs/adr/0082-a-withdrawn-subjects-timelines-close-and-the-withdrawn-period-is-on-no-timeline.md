@@ -48,7 +48,7 @@ glossary's wording, and never only did.
 | A withdrawn subject's timelines | **Close.** Every timeline the subject held, at every `(facet, discriminator, vantage, source)` key |
 | An open `withdrawn` span | **Refused.** There is no such value, on any facet or any Derived timeline |
 | The withdrawn period | **On no timeline.** Not a value, not a `Gap`, and no object holds it |
-| What records the departure | The **closure**, carrying its reason — ADR-0007's `cascaded` is the one member the model has already named |
+| What records the departure | The **closure**, carrying its reason — ~~ADR-0007's `cascaded` is the one member the model has already named~~ **a closed union of three: `measured-absent` · `uncited` · `descoped`** ([#147](https://github.com/winniel123/verge-asm/issues/147) · [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md)) |
 | Why the closure is enough | A closed span is **free to keep**; an open span must be **fed**, and nothing measures a subject that is not in the estate |
 | Why `returned` is derivable at all | With no `Gap` between them, the closed span and the reopening are **consecutive spans on one timeline**, which is a `Transition` by ADR-0007's own definition |
 | Why a `Break` destroys it | The two spans sit under different vectors, and nothing is compared across a break — the adjacency survives and the **licence** does not |
@@ -57,6 +57,16 @@ glossary's wording, and never only did.
 | Is anything cheaper | **No.** The cost is stated rather than reduced |
 
 ## Rationale
+
+> **The reason `cascaded` is quoted several times below, from ADR-0007 and about it, and the name is
+> superseded.** [#147](https://github.com/winniel123/verge-asm/issues/147) ·
+> [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) closed
+> the vocabulary at three — **`measured-absent` · `uncited` · `descoped`** — and the cascade's member
+> is now **`uncited`**, widened to cover de-citation because the rule ADR-0007 states holds verbatim
+> at both sites and the word does not. Marked once here rather than at each quotation, per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), because
+> every instance below is a **quotation of ADR-0007 in support of a different point** and each is
+> struck at ADR-0007's own sites; the arguments they carry are untouched.
 
 ### The flag's premise was wrong: ADR-0007 had already ruled this, for most of the estate
 
@@ -243,11 +253,24 @@ The remedy is the three obligations ADR-0041 already wrote, and they now rest on
   re-baseline payload keeps its third element; `resolution-walk`'s golden corpus keeps the
   membership-deciding rows ([#143](https://github.com/winniel123/verge-asm/issues/143) owns them);
   and the membership vector may not be widened.
-- **The closure is now the sole record of a departure, and only one closure reason has ever been
+- ~~**The closure is now the sole record of a departure, and only one closure reason has ever been
   named.** ADR-0007 gives `cascaded` for the cascade route. The model has at least three more —
   measured absence at the root, an `Address` losing its last citation, and an `Address` leaving a
   declared scope — and none of them has a reason. This ADR does not mint the vocabulary; it records
-  that the closure is now carrying weight that only one of its routes was built for.
+  that the closure is now carrying weight that only one of its routes was built for.~~
+  **DISCHARGED at the clause that defers it**
+  ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by
+  [#147](https://github.com/winniel123/verge-asm/issues/147) ·
+  [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) — read
+  alone and in the present tense it sends a session to mint a vocabulary that has been minted. **The
+  closure is the sole record of a departure and its reason is a closed union of three**, sorted on
+  the ground the closure rests on: **`measured-absent`** (an observation about this subject),
+  **`uncited`** (an observation about another subject — the cascade and de-citation are **one**
+  reason, since ADR-0007's own splitting test finds the name carries its rule at both sites and the
+  `Citation` already names *which* thing was lost), and **`descoped`** (our aperture stopped
+  covering it — a route ADR-0047 had already cut off from the measured ones and ADR-0074 had already
+  given its own message class). The four routes named above are therefore **three reasons**. Nothing
+  else is added to the closure: no vector, no actor, no pointer, no marker.
 - **An open item is raised against obligation 3, and it is not settled here.** ADR-0041 states that
   membership composes `resolution-walk` and nothing else. But a `Name` under a `Shadowed` answer
   *cannot leave at all*, and `Shadowed` is `wildcard-discrimination`'s output rather than
@@ -273,11 +296,22 @@ The remedy is the three obligations ADR-0041 already wrote, and they now rest on
 
 ## Where this is thin, stated rather than smoothed
 
-- **The closure's reason vocabulary is one member long and is now load-bearing.** With the
+- ~~**The closure's reason vocabulary is one member long and is now load-bearing.** With the
   withdrawn period on no timeline, the closure is the whole record of the departure, and only
   `cascaded` has ever been named. Nothing in this ADR turns on the missing members, but the next
   session that needs to tell *measured absence* from *de-citation* on the `Span` corpus will find
-  they are the same row.
+  they are the same row.~~
+  **NO LONGER THIN — struck at the site that states the thinness**
+  ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by
+  [#147](https://github.com/winniel123/verge-asm/issues/147) ·
+  [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md). The
+  vocabulary is **closed at three** and the worked example above is settled — *measured absence* and
+  *de-citation* are **not** the same row, `measured-absent` being the one closure in the model that
+  is independent evidence. What the note did not anticipate is that the field turns out to be
+  **necessary rather than tidy**: an `Address`'s two membership limbs are disjunctive, so a subject
+  that leaves `descoped` and returns by an ordinary measured resolution reads **`returned`** on the
+  spans alone — a decommission undone that never happened, which is ADR-0014's membership/aperture
+  distinction collapsing at the storage layer.
 - **`returned`'s own predicate has never been written down.** A subject holds many timelines, at
   many `(vantage, source)` keys, whose last spans may have closed under different vectors. Which
   closed span the return is compared against — and what the answer is when they disagree — is

@@ -219,8 +219,12 @@ question answered that the model left open.
 
 **A withdrawn subject's timelines close; they do not hold an open `withdrawn` span.** `Span`'s own
 entry says *"it opens, it is current, it closes; the open span is the current state"*, and a subject
-that is not in the estate has no current state to hold. ADR-0006's cascade *"writes a span, reason
-`cascaded`"* — that is a closure, not a new open span. ~~This is ruled here because the rest of the
+that is not in the estate has no current state to hold. ADR-0006's cascade *"writes a span,
+recording a reason"* — that is a closure, not a new open span. *(The reason was named `cascaded`
+when this was written; [#147](https://github.com/winniel123/verge-asm/issues/147) ·
+[ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) closed
+the vocabulary at three — `measured-absent` · `uncited` · `descoped` — and the cascade's member is
+now `uncited`. The point made here is unaffected.)* ~~This is ruled here because the rest of the
 paragraph is unstatable without it, and it is the thinnest load-bearing sentence in this ADR; it is
 flagged as such below.~~ **The flag is DISCHARGED at this clause** by
 [#140](https://github.com/winniel123/verge-asm/issues/140) ·
