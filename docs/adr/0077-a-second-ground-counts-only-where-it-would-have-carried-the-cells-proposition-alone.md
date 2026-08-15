@@ -179,6 +179,13 @@ through the front.
 - **A gate shortfall is opened rather than closed**: a tier demotion on an artefact with no retrievable
   tag is caught by neither G2 nor G11. Ticketed; not repaired here, because repairing it in the queue is
   the option this ADR refuses.
+  > **DISCHARGED, not superseded — [#149](https://github.com/winniel123/verge-asm/issues/149).** The
+  > statement above stays true as a description of the gate at this ADR's date. [#149] confirms no
+  > existing check reaches the hazard and specifies the check that does — a targeted re-fetch over the
+  > two graded tiers' rung-1/rung-2 carriers, diffed against the sentence on record — added to
+  > [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)'s gate-checks table as a
+  > twelfth check, numbered at merge time. The demotion is still not a queue item; the gate now has an
+  > instrument that can actually reach it.
 - **`CONTEXT.md` is not amended**, on ADR-0057's own last Decision row: the curator is not a subject in
   the model and the product holds nothing about it.
 - **ADR-0046, ADR-0059 and §2.3 are confirmed by use and none is amended.** §2.3's corroborator bar is

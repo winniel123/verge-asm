@@ -125,6 +125,33 @@ subject's own units and is mechanically checkable. *This footing is fourteen mon
 about **us** and says nothing — a specification thirty years old is fresher than a documentation-branch
 line from last month, and every rung above says why.
 
+### A twelfth check, ruled but not yet numbered — [#149](https://github.com/winniel123/verge-asm/issues/149)
+
+[ADR-0077](./0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)
+ruled that a tier demotion is not a de-attestation and routed the hazard to **the gate**, then recorded
+the gate's own shortfall rather than repairing it: *"a tier demotion on an artefact with no retrievable
+tag is caught by neither G2 nor G11."* [#149] confirms the shortfall is real (walked systematically
+against every one of the eleven checks above — none reaches it; G8's *"still a token … at the tag
+named"* and G11's tag-diff both presuppose a tag, G6 only greps bytes already held, G10's re-fetch tests
+a different boolean) and rules that **no existing check's population can be widened to close it** —
+unlike G2's domain (#154) or G8's population (§21 of `sensitive-ports.md`), this needs a new **test**,
+not a wider population of an old one. **The population is finite and named, so the check terminates**:
+
+| Check | Population | Test | Verdict |
+| --- | --- | --- | --- |
+| **(new — number pending merge with [#152](https://github.com/winniel123/verge-asm/issues/152))** | Every cell in **G2's domain** (the two graded footing tiers) whose carrying artefact sits at **rung 1 or rung 2** — no retrievable tag. Currently: `10250/tcp`'s and `10255/tcp`'s footing cells, both carried by `security-checklist.md` (`sensitive-ports.md` §41.3) | **Targeted re-fetch**, over the named population only: pull the artefact's current bytes and diff the quoted sentence the cell rests on against the sentence on record | A sentence removed or materially weakened, such that the cell would fall to a lower tier under the criterion **as it currently stands** (G2's own test), marks the cell **demoted-untagged** |
+
+**This is a different check from #152's**, not the same one under a different name. #152's gap is a
+comparison of two facts **already on record** — the owner's current tag/date (which G11 already tracks)
+against a horizon the artefact **itself states** — and needs no retrieval at all. This check's gap is
+that **no tag exists to compare**, so the only instrument that can reach it is one that re-reads the
+artefact's current bytes. Different inputs, different termination shape, both real. The merge session
+assigns G12/G13 across the two.
+
+**The gate's membership is unchanged today.** This ADR still describes eleven checks that run; the
+twelfth is ruled and specified, not yet merged into the table above as a numbered row — that is the
+orchestrating session's act, per this batch's numbering note.
+
 ## Rationale
 
 ### 1. The queue exists because the reading budget is finite, and that is why the axis question was unanswerable
