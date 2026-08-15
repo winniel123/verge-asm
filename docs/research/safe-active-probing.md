@@ -302,7 +302,8 @@ permanently** — including the
 and it is stated on `Coverage` rather than left to be discovered: the port-tier line names the tier,
 its cadence and its off state, and carries ~~`0 of 39 sensitive pairs unread`~~ ~~`0 of 41 sensitive
 pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ ~~`0 of 38 sensitive pairs unread`~~
-**`5 of 38 sensitive pairs unread`** and `0 of` ~~`16`~~ **`17`** `rules unevaluable`. ~~Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
+**`5 of 38 sensitive pairs unread`**, **`0 of 38 sensitive pairs the instrument cannot report as
+`reached``** and `0 of` ~~`16`~~ **`17`** `rules unevaluable`. ~~Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
 puts every sensitive pair inside the hot set, and~~ **The second is true by construction and the
 first was not**, and of the ~~sixteen~~ **seventeen** rules one names a port (fully
 covered), four read `Name`s, and ~~eleven~~ **twelve** read a facet on a subject.
@@ -342,6 +343,29 @@ estate-completeness score in port clothing.
 > ([#128](https://github.com/winniel123/verge-asm/issues/128) · ADR-0071, which discharged its other
 > consequences by name and not this one, the figure being #124's and in another document). **The
 > numerator is not re-filled**: the seventeenth rule reads `resolution` rather than a port, so the
+> **A SECOND FIGURE joins this line, 2026-08-15 by
+> [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+> [ADR-0095](../adr/0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)**,
+> and **its value is `0` on every shipped configuration**, so nothing above moves.
+> This section **restates** the specification; [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)
+> is the site that **states** it, and both carry the figure now.
+>
+> `unread` counts pairs **outside the recorded scope**, which was the only way the instrument could
+> fail to report a pair until [ADR-0083](../adr/0083-silence-decides-only-on-a-connection-oriented-transport.md).
+> `unanswered` projects onto no `Reach`, so a **UDP** pair inside the scope is probed at cadence,
+> writes an observation every run, and can still hold no `Reach` at all. **Open a UDP tier and this
+> numerator reads `0 of 38 sensitive pairs unread` while five pairs return `not-evaluable` forever**
+> — #124's defect on its third outing, arriving this time because *measured* was read as *a value
+> produced*. So the line carries two figures and they never fuse: `unread` is an **invitation** the
+> operator can act on, and `the instrument cannot report as reached` is a statement that no
+> available action changes. Today `5` and `0`; on a payload-free UDP tier, `0` and `5`. Both are set
+> arithmetic over our own list and our own tier config — a **per-cycle** count was refused on #44
+> decision 10's constancy premise and #44 decision 7's estate-count refusal.
+>
+> **`0 of 17 rules unevaluable` is untouched and cannot detect this**, the rule's domain being
+> populated by the 131 TCP pairs. The rules figure is over our rules; the pairs figure is over our
+> list.
+>
 > aperture argument above does not reach it, but #137 · ADR-0079 and #138 · ADR-0080 together make it
 > **permanently `not-evaluable` on an install with no internet-class vantage** — a second,
 > install-shaped route to unevaluability this figure has never counted. `0 of 17` would assert a walk
@@ -1459,7 +1483,20 @@ was not made.
 
 **`unanswered` would be v1's first facet value with no Derived projection.** ADR-0010's clean identity
 — *absence of a `Reach` value means the pair was outside the recorded scope* — would stop holding, and
-`Coverage`'s reading of a `Gap` changes with it. Nobody has drawn what that renders.
+`Coverage`'s reading of a `Gap` changes with it. ~~Nobody has drawn what that renders.~~
+
+> **ANSWERED 2026-08-15 by [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+> [ADR-0095](../adr/0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md),
+> and struck here per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
+> `Coverage` renders it on the **aperture statement's port-tier line**, as a **second figure** beside
+> `unread` — *`M of 38 sensitive pairs the instrument cannot report as reached`* — valued `0`
+> today and `5` on a payload-free UDP tier. ADR-0010 takes a conditional at three sentences and a
+> strike at none: its identity holds while every probed transport's outcome union projects totally
+> onto `Reach`, which TCP's does. **The route splits by history** — a `Gap` where the leg had already
+> opened, and *nothing at all* where it never did — and the second is why the aperture statement had
+> to carry it, having no span and therefore no recorded cause. **Still undrawn is the surface**: no
+> prototype contains an aperture statement at all, `prototypes/coverage/` predating #44. That is a
+> successor ticket, not a defect in this section.
 
 ---
 

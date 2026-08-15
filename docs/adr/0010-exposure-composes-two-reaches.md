@@ -49,6 +49,20 @@ re-invent `Gap` — the move [ADR-0006](./0006-subjects-leave-by-measurement.md)
 where a thing that already has a representation is given a second one and a transition
 between them has to be invented too.
 
+> **CONDITIONAL, added 2026-08-15 by [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+> [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md).
+> Nothing here is struck — every sentence above is true of v1 — but read alone in the present tense
+> this paragraph specifies that an absent `Reach` is always explained by the recorded scope, and a
+> competent session would build that identity into `Coverage`.** It holds **while every probed
+> transport's outcome union projects totally onto `Reach`**. TCP's does:
+> `connected │ refused │ no-response` all project.
+> [ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md)'s connectionless
+> union does not — `unanswered` projects onto **neither** value — so a **UDP** pair *inside* the
+> recorded scope, probed at cadence and writing an observation every run, can hold no `Reach` value
+> at all. **v1 probes TCP alone, so the identity holds today and would stop holding the day a UDP
+> tier opened.** Two values only, and no third: that half is unaffected and ADR-0083 refuses a third
+> value again on its own account.
+
 **2. The five states are a projection, not the thing.** `Exposure` remains the operator-facing
 enumeration and the board's axis; it is *derived from* the two legs rather than being what the
 model stores as primary:
@@ -69,10 +83,31 @@ fire where it is `not-reached`, and is `not-evaluable` where it is a `Gap`. No s
 appears in the rule. The name encodes the predicate, because a rule whose name does not say
 what it reads is how `state == exposed` became plausible in the first place.
 
+> **Read *`not-evaluable` where the leg holds no value*, of which *`Gap`* is one case —
+> [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+> [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md).**
+> A `Gap` is a **span**, so a leg that never opened has none, and §4 read literally would leave the
+> rule with no answer to return there. It returns `not-evaluable` in both cases and the warrant is
+> the same one #44 gave: `not-evaluable` **needs a subject**, and a `Service` exists for every pair
+> in the recorded scope, open or closed. What #44 refuses is a `not-evaluable` with no subject —
+> the aperture half — and that case is untouched.
+
 **5. `Exposure` exists where at least one leg holds a value, and the two ways a leg can be
 absent are different.** Where no internet-class vantage was ever in play, the internet `Reach`
 has no timeline and `internal-only` is an honest value — *we never looked*. Where the timeline
 existed and went silent, `Exposure` opens a `Gap` — *we stopped looking*.
+
+> **A THIRD way, conditional on transport — [#173](https://github.com/winniel123/verge-asm/issues/173)
+> · [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md),
+> on [ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md).** *"The two ways"*
+> is a closed enumeration read alone, and on a connectionless exchange there are three: **we looked
+> and the exchange did not decide.** It is not *we never looked* — the pair is in the recorded scope
+> and an observation is written every cadence — and it is not *we stopped looking*. It splits by
+> history: where the leg had **already opened** it is a `Gap`, and where it never opened it is
+> **nothing at all**, per `CONTEXT.md`'s `Reach` entry. The second is the dangerous half, having no
+> span, no recorded cause, no closing edge and no message; ADR-0095 routes it to the aperture
+> statement because nothing else can carry it. **`internal-only` is separately withdrawn** by
+> [ADR-0017](./0017-exposure-needs-both-legs.md) and this note revives nothing.
 
 ## Consequences
 
@@ -111,6 +146,17 @@ existed and went silent, `Exposure` opens a `Gap` — *we stopped looking*.
   notification classes partition **messages** rather than events. The way back out — a value
   appearing where a `Gap` was — is [#42](https://github.com/winniel123/verge-asm/issues/42)
   and is deliberately not answered here.
+
+  > **The edge and the class are unchanged — coverage class, member 5
+  > ([ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md)) — and only the WORDING takes a
+  > conditional**, [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+  > [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md).
+  > On a **UDP** leg *we stopped looking* is **false**: we looked, at cadence, and the exchange
+  > decided nothing. **No member is minted and the coverage class stands at ten.** *"Never as a
+  > clear"* is untouched and binds harder here than anywhere, the whole hazard being a clean bill on
+  > the pairs the sensitive list exists for. The copy belongs to
+  > [#120](https://github.com/winniel123/verge-asm/issues/120) / ADR-0064's grammar and is not
+  > written here; v1 probes TCP alone, so this wording is correct on every shipped configuration.
 - **[#28](https://github.com/winniel123/verge-asm/issues/28)'s rider is narrowed.** Its "a
   subject whose vantage is unavailable holds no `Exposure` at all and cannot be given a
   column" is true of the *went-silent* case and false of the *never-configured* one, where

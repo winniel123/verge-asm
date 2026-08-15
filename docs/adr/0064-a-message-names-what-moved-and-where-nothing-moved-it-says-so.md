@@ -137,7 +137,28 @@ stopped answering* · #48's *you stopped telling us*, the fourth added by
 Four registers, one cause, and nothing ever said why four. **This is why**: the cause is the same in
 all four and the **mover** is not — twice us, once the estate's authority, once the operator's own
 declaration. A vocabulary keyed on the cause would have to level them; one keyed on what moved
-produces exactly these four and no fifth.
+produces exactly these four and ~~no fifth~~ **no fifth in v1**.
+
+> **CONDITIONAL on the count, and a VINDICATION of the axis — 2026-08-15 by
+> [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+> [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md).**
+> *No fifth* is **enumerative**: it is a walk over the absence causes the corpus held when this was
+> written, and the corpus then had no **connectionless** leg. Read alone in the present tense it bars
+> a register the axis above **produces**, which is
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s test met
+> by an enumeration rather than by a mechanism.
+>
+> [ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md) supplies a **fifth
+> mover**. Where a UDP pair inside the aperture is probed at cadence and the exchange decides
+> nothing, the `Reach` leg holds no value and **nothing moved**: not our aperture, not a failure of
+> ours, not the estate's authority, not the operator's declaration — **our own instrument, working
+> exactly as specified**. Run down this section's own axis that is a fifth place, and the register is
+> ***we asked and heard nothing***.
+>
+> **The reasoning here is untouched and is what identified it.** Four registers, one cause, keyed on
+> what moved — a vocabulary keyed on the *cause* still could not tell these five apart. **The count
+> is `4` on every shipped configuration**, v1 probing TCP alone, and nothing in this ADR's Decision
+> moves: no new message cause, no fourth class, no severity, and the grammar is unchanged.
 [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s fifth register —
 *we measured; this rule cannot read the answer* — falls out of the same test, and
 [ADR-0043](./0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md)'s rider on
