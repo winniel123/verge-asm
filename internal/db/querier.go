@@ -281,6 +281,14 @@ type Querier interface {
 	// delivery table by join — the Message row carries no delivery state of its own.
 	ListDeliveriesForMessage(ctx context.Context, messageID int64) ([]ListDeliveriesForMessageRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
+	// The latest `certificate` observation per Endpoint (#203) — the value the six
+	// certificate rules and `plaintext-http-no-https` read. The value is the closed
+	// union `presented(chain) | tls-refused | no-tls`; the engine reads the outcome
+	// tag. The parsed leaf attributes the five certificate-detail rules need are not
+	// stored (only the fingerprint chain is), so those rules render a presented chain
+	// `not-evaluable` until a certificate-parsing leaf lands. DISTINCT ON keeps the
+	// most recent value per Endpoint.
+	ListEndpointCertificates(ctx context.Context) ([]ListEndpointCertificatesRow, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	// The registrable domains of custody-extended name-scope Seeds, for the hot
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
@@ -347,6 +355,12 @@ type Querier interface {
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
+	// The latest `reachability` observation per (Service, Vantage class) (#203). The
+	// engine reads the internet-class leg for `sensitive-port-reached-from-internet`
+	// (ADR-0071: a class-scoped internet, existential composition — the internal twin
+	// is a different, refused rule). DISTINCT ON keeps the most recent value per
+	// (service, class), mirroring the Name resolution read one facet over.
+	ListServiceReachabilityByClass(ctx context.Context) ([]ListServiceReachabilityByClassRow, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.

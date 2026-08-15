@@ -1,0 +1,395 @@
+package signal
+
+import (
+	"net/url"
+	"strings"
+
+	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	hx "github.com/winniel123/verge-asm/internal/measure/httpexchange"
+)
+
+// This file holds the ten `Signal` rules whose subject is an `Endpoint` — the
+// `(Name, Service)` pair, keyed `name@address:port/transport` (v1 spec §5.2,
+// ADR-0024). Six read the `certificate` facet, four read `http-identity`, and
+// `plaintext-http-no-https` reads both — its domain is one facet and its predicate
+// the other, the case ADR-0024 used to show a domain is a property of the RULE,
+// not of a facet. All ride `EndpointFacts`.
+
+// Certificate outcome constants — the closed union the `certificate` facet holds
+// (CONTEXT.md `Certificate`), mirroring internal/measure/connectoutcome. Only a
+// presentation carries a chain; the two negatives are values in their own right.
+const (
+	CertPresented  = "presented"
+	CertTLSRefused = "tls-refused"
+	CertNoTLS      = "no-tls"
+)
+
+// CertDetails is the parsed attributes of a presented certificate chain that the
+// five certificate predicates and the hostname-SAN rule read. It is a POINTER on
+// EndpointFacts: nil means the chain was presented but its attributes could not be
+// read (the fingerprint chain is stored, the parsed leaf is not), so a certificate
+// rule renders the subject `not-evaluable` rather than manufacturing a verdict
+// from evidence it does not have. TDD supplies a non-nil value to exercise each
+// predicate; the web layer leaves it nil until a certificate-parsing leaf lands.
+type CertDetails struct {
+	Expired            bool
+	NotYetValid        bool
+	Expiring           bool
+	SelfSigned         bool
+	WeakKeyOrSignature bool
+	// SANMatchesName reports whether the presented chain's SANs cover the
+	// Endpoint's Name — its negation is `certificate-hostname-san-mismatch`'s
+	// predicate.
+	SANMatchesName bool
+}
+
+// EndpointFacts is the current Derived state about one `Endpoint` the ten
+// Endpoint rules read — the evidence they declare across the `certificate` and
+// `http-identity` facets (ADR-0024). Every field is a value about *now*.
+type EndpointFacts struct {
+	// Subject is the Endpoint key — `name@address:port/transport`, or
+	// `@address:port/transport` for the nameless endpoint. HasName is false for the
+	// nameless endpoint, which puts it outside `certificate-hostname-san-mismatch`'s
+	// domain (a nameless endpoint has no hostname to mismatch — ADR-0011/ADR-0024).
+	Subject string
+	HasName bool
+
+	// The `certificate` facet. CertMeasured is false where no certificate value
+	// exists (the Service was never reached, or never handshaked); CertOutcome is
+	// the closed union `presented | tls-refused | no-tls`. The five certificate
+	// rules' domain is `certificate` is `presented`; `no-tls` and `tls-refused` are
+	// outside. CertDetails carries the parsed leaf attributes (nil = unreadable).
+	CertMeasured bool
+	CertOutcome  string
+	CertDetails  *CertDetails
+
+	// The `http-identity` facet. HTTPResponded is the four HTTP rules' base domain
+	// — `http-identity` is `Responded` (an Endpoint exists for a pair only where
+	// its HTTP exchange completed, CONTEXT.md `Endpoint`); false is `NoHTTPResponse`,
+	// outside every HTTP rule's domain. HTTPStatus is the single `GET /`'s status;
+	// RedirectLocation is the `Location` of a 3xx, recorded and never followed.
+	HTTPResponded    bool
+	HTTPStatus       int
+	RedirectLocation string
+
+	// RedirectHostInEstate reports whether the host the 3xx `Location` names is a
+	// subject in the estate — the pre-folded evidence `redirect-to-host-outside-estate`
+	// reads (the estate membership is a Derived value the web layer folds, like
+	// InDeclaredZone on NameFacts). It is meaningful only where the Endpoint is in
+	// that rule's domain (a 3xx with a Location).
+	RedirectHostInEstate bool
+}
+
+// EndpointRule is one `Signal` whose subject is an `Endpoint`.
+type EndpointRule interface {
+	Name() string
+	Version() Version
+	Eval(f EndpointFacts) Outcome
+}
+
+// AllEndpointRules returns the shipped Endpoint rules in a stable order — the
+// ADR-0024 table order (the five certificate rules, the hostname-SAN rule, then
+// the four http-identity rules), the order they render and the gate walks them.
+func AllEndpointRules() []EndpointRule {
+	return []EndpointRule{
+		certificateExpired{},
+		certificateNotYetValid{},
+		certificateExpiring{},
+		certificateSelfSigned{},
+		certificateWeakKeyOrSignature{},
+		certificateHostnameSANMismatch{},
+		plaintextHTTPNoHTTPS{},
+		redirectDoesNotUpgradeToTLS{},
+		redirectToHostOutsideEstate{},
+		unauthenticatedRequestAnswered{},
+	}
+}
+
+// EvaluateEndpoint runs one Endpoint rule over the current Endpoint snapshot,
+// bucketing each subject and dropping the ones outside the domain. Members are
+// ordered by subject (ADR-0102).
+func EvaluateEndpoint(r EndpointRule, endpoints []EndpointFacts) Census {
+	c := Census{Rule: r.Name(), Version: r.Version()}
+	for _, f := range endpoints {
+		switch r.Eval(f) {
+		case Fired:
+			c.Fired = append(c.Fired, Member{Subject: f.Subject})
+		case NotFired:
+			c.NotFired = append(c.NotFired, Member{Subject: f.Subject})
+		case NotEvaluable:
+			c.NotEvaluable = append(c.NotEvaluable, Member{Subject: f.Subject})
+		}
+	}
+	sortMembers(c.Fired)
+	sortMembers(c.NotFired)
+	sortMembers(c.NotEvaluable)
+	return c
+}
+
+// certVersion is the version vector every certificate-reading rule composes: the
+// `tls-handshake` leaf that decides the `certificate` facet. A bump of that leaf
+// moves every rule that reads the value it decides.
+func certVersion() Version { return Version{Rule: "v1", Composes: []string{co.CertVersion}} }
+
+// presentedCert reports whether a certificate rule's domain is satisfied: a
+// certificate was measured and it is `presented`. `no-tls` / `tls-refused` /
+// unmeasured are all outside the certificate rules' domain (ADR-0024: NoTLS
+// outside).
+func presentedCert(f EndpointFacts) bool {
+	return f.CertMeasured && f.CertOutcome == CertPresented
+}
+
+// --- certificate-expired --------------------------------------------------
+//
+// Domain: `certificate` is `Presented`. Predicate: the presented leaf's validity
+// window has ended. `not-evaluable`: the chain is presented but its parsed
+// attributes are unreadable (CertDetails nil).
+
+type certificateExpired struct{}
+
+func (certificateExpired) Name() string     { return "certificate-expired" }
+func (certificateExpired) Version() Version { return certVersion() }
+func (certificateExpired) Eval(f EndpointFacts) Outcome {
+	if !presentedCert(f) {
+		return OutsideDomain
+	}
+	if f.CertDetails == nil {
+		return NotEvaluable
+	}
+	if f.CertDetails.Expired {
+		return Fired
+	}
+	return NotFired
+}
+
+// --- certificate-not-yet-valid --------------------------------------------
+
+type certificateNotYetValid struct{}
+
+func (certificateNotYetValid) Name() string     { return "certificate-not-yet-valid" }
+func (certificateNotYetValid) Version() Version { return certVersion() }
+func (certificateNotYetValid) Eval(f EndpointFacts) Outcome {
+	if !presentedCert(f) {
+		return OutsideDomain
+	}
+	if f.CertDetails == nil {
+		return NotEvaluable
+	}
+	if f.CertDetails.NotYetValid {
+		return Fired
+	}
+	return NotFired
+}
+
+// --- certificate-expiring -------------------------------------------------
+
+type certificateExpiring struct{}
+
+func (certificateExpiring) Name() string     { return "certificate-expiring" }
+func (certificateExpiring) Version() Version { return certVersion() }
+func (certificateExpiring) Eval(f EndpointFacts) Outcome {
+	if !presentedCert(f) {
+		return OutsideDomain
+	}
+	if f.CertDetails == nil {
+		return NotEvaluable
+	}
+	if f.CertDetails.Expiring {
+		return Fired
+	}
+	return NotFired
+}
+
+// --- certificate-self-signed ----------------------------------------------
+
+type certificateSelfSigned struct{}
+
+func (certificateSelfSigned) Name() string     { return "certificate-self-signed" }
+func (certificateSelfSigned) Version() Version { return certVersion() }
+func (certificateSelfSigned) Eval(f EndpointFacts) Outcome {
+	if !presentedCert(f) {
+		return OutsideDomain
+	}
+	if f.CertDetails == nil {
+		return NotEvaluable
+	}
+	if f.CertDetails.SelfSigned {
+		return Fired
+	}
+	return NotFired
+}
+
+// --- certificate-weak-key-or-signature ------------------------------------
+
+type certificateWeakKeyOrSignature struct{}
+
+func (certificateWeakKeyOrSignature) Name() string     { return "certificate-weak-key-or-signature" }
+func (certificateWeakKeyOrSignature) Version() Version { return certVersion() }
+func (certificateWeakKeyOrSignature) Eval(f EndpointFacts) Outcome {
+	if !presentedCert(f) {
+		return OutsideDomain
+	}
+	if f.CertDetails == nil {
+		return NotEvaluable
+	}
+	if f.CertDetails.WeakKeyOrSignature {
+		return Fired
+	}
+	return NotFired
+}
+
+// --- certificate-hostname-san-mismatch ------------------------------------
+//
+// Domain: `certificate` is `Presented` AND the `Endpoint` has a `Name` (ADR-0024)
+// — a nameless endpoint has no hostname to mismatch (ADR-0011). Predicate: the
+// presented chain's SANs do not cover the Endpoint's Name. `not-evaluable`: the
+// chain is presented but its SANs are unreadable.
+
+type certificateHostnameSANMismatch struct{}
+
+func (certificateHostnameSANMismatch) Name() string     { return "certificate-hostname-san-mismatch" }
+func (certificateHostnameSANMismatch) Version() Version { return certVersion() }
+func (certificateHostnameSANMismatch) Eval(f EndpointFacts) Outcome {
+	if !presentedCert(f) || !f.HasName {
+		return OutsideDomain
+	}
+	if f.CertDetails == nil {
+		return NotEvaluable
+	}
+	if !f.CertDetails.SANMatchesName {
+		return Fired
+	}
+	return NotFired
+}
+
+// --- plaintext-http-no-https ----------------------------------------------
+//
+// Domain: `http-identity` is `Responded` (ADR-0024 — NOT a port: the `80/tcp`
+// literal was withdrawn, an HTTP app on 8080 with no TLS is exactly what the rule
+// is named for). Predicate: the same Endpoint's `certificate` is `NoTLS`. This is
+// the rule ADR-0024 used to show a domain is a property of the RULE not the facet:
+// its domain reads one facet and its predicate another. `not-evaluable`: HTTP
+// responded but the certificate facet holds no value, so whether TLS is present
+// cannot be read.
+
+type plaintextHTTPNoHTTPS struct{}
+
+func (plaintextHTTPNoHTTPS) Name() string { return "plaintext-http-no-https" }
+func (plaintextHTTPNoHTTPS) Version() Version {
+	return Version{Rule: "v1", Composes: sortedStrings(hx.Version, co.CertVersion)}
+}
+func (plaintextHTTPNoHTTPS) Eval(f EndpointFacts) Outcome {
+	if !f.HTTPResponded {
+		return OutsideDomain
+	}
+	if !f.CertMeasured {
+		return NotEvaluable
+	}
+	if f.CertOutcome == CertNoTLS {
+		return Fired
+	}
+	return NotFired
+}
+
+// is3xxWithLocation reports whether an http-identity is a 3xx carrying a
+// `Location` — the shared domain of the two redirect rules (ADR-0024).
+func is3xxWithLocation(f EndpointFacts) bool {
+	return f.HTTPResponded && f.HTTPStatus >= 300 && f.HTTPStatus <= 399 && f.RedirectLocation != ""
+}
+
+// RedirectTarget parses a 3xx `Location` into its scheme and host, lowercased.
+// The scheme decides whether a redirect upgrades to TLS; the host is what the
+// estate-membership test reads. A relative Location (no host) yields an empty
+// host — a redirect that stays on the same origin, which never leaves the estate.
+// Exported so the web layer folds RedirectHostInEstate against the SAME parse the
+// engine's redirect rules use, keeping one truth for the target.
+func RedirectTarget(location string) (scheme, host string) {
+	u, err := url.Parse(strings.TrimSpace(location))
+	if err != nil {
+		return "", ""
+	}
+	return strings.ToLower(u.Scheme), strings.ToLower(u.Hostname())
+}
+
+// --- redirect-does-not-upgrade-to-tls -------------------------------------
+//
+// Domain: `http-identity` is `Responded` with a 3xx and a `Location` (ADR-0024).
+// Predicate: the redirect does not upgrade to TLS — its `Location` scheme is not
+// `https`. A relative Location keeps the current scheme, so a plaintext response
+// redirecting to a relative path does not upgrade and fires.
+
+type redirectDoesNotUpgradeToTLS struct{}
+
+func (redirectDoesNotUpgradeToTLS) Name() string { return "redirect-does-not-upgrade-to-tls" }
+func (redirectDoesNotUpgradeToTLS) Version() Version {
+	return Version{Rule: "v1", Composes: []string{hx.Version}}
+}
+func (redirectDoesNotUpgradeToTLS) Eval(f EndpointFacts) Outcome {
+	if !is3xxWithLocation(f) {
+		return OutsideDomain
+	}
+	scheme, _ := RedirectTarget(f.RedirectLocation)
+	if scheme != "https" {
+		return Fired
+	}
+	return NotFired
+}
+
+// --- redirect-to-host-outside-estate --------------------------------------
+//
+// Domain: `http-identity` is `Responded` with a 3xx and a `Location` (ADR-0024).
+// Predicate: the host the `Location` names is not a subject in the estate. A
+// relative Location names no host — it stays on the same origin, which is in the
+// estate — so it does not fire. The estate membership is Derived from the
+// resolution leaves, so the vector composes http-exchange AND resolution.
+
+type redirectToHostOutsideEstate struct{}
+
+func (redirectToHostOutsideEstate) Name() string { return "redirect-to-host-outside-estate" }
+func (redirectToHostOutsideEstate) Version() Version {
+	return Version{Rule: "v1", Composes: sortedStrings(append([]string{hx.Version}, leafVersions...)...)}
+}
+func (redirectToHostOutsideEstate) Eval(f EndpointFacts) Outcome {
+	if !is3xxWithLocation(f) {
+		return OutsideDomain
+	}
+	_, host := RedirectTarget(f.RedirectLocation)
+	if host == "" {
+		// A relative redirect stays on this origin — in the estate by construction.
+		return NotFired
+	}
+	if f.RedirectHostInEstate {
+		return NotFired
+	}
+	return Fired
+}
+
+// --- unauthenticated-request-answered -------------------------------------
+//
+// Domain: `http-identity` is `Responded` with a 2xx OR a 401/403 (ADR-0024) — a
+// 3xx is outside (it is the redirect rules'), and every other status is outside.
+// Predicate: the request was answered rather than challenged — the status is 2xx.
+// A 401/403 is the not-fired case (the endpoint challenged the unauthenticated
+// request, which is the healthy answer). There is no `not-evaluable` case: the
+// status is a determinate value, never a fact about our own sight.
+
+type unauthenticatedRequestAnswered struct{}
+
+func (unauthenticatedRequestAnswered) Name() string { return "unauthenticated-request-answered" }
+func (unauthenticatedRequestAnswered) Version() Version {
+	return Version{Rule: "v1", Composes: []string{hx.Version}}
+}
+func (unauthenticatedRequestAnswered) Eval(f EndpointFacts) Outcome {
+	if !f.HTTPResponded {
+		return OutsideDomain
+	}
+	answered := f.HTTPStatus >= 200 && f.HTTPStatus <= 299
+	challenged := f.HTTPStatus == 401 || f.HTTPStatus == 403
+	if !answered && !challenged {
+		return OutsideDomain
+	}
+	if answered {
+		return Fired
+	}
+	return NotFired
+}
