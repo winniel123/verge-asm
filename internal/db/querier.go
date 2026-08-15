@@ -29,6 +29,12 @@ type Querier interface {
 	// where one exists and its shipped default otherwise.
 	ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
+	// Declare (true) or withdraw (false) the custody extension on a name-scope Seed.
+	// The kind guard makes the act a no-op on an address scope rather than an error,
+	// matching the CHECK the migration installs — an address scope can never carry a
+	// custody extension. The flag has no timeline, so a withdrawal is the same UPDATE
+	// with false rather than a dated state change.
+	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
 	// Record the operator's on/off choice for one source. A toggle is a Declared act
 	// with no timeline, so re-toggling overwrites the single current value rather

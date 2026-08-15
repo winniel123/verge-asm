@@ -35,12 +35,13 @@ type Heartbeat struct {
 }
 
 type Seed struct {
-	ID          int64              `json:"id"`
-	Kind        string             `json:"kind"`
-	NameDomain  pgtype.Text        `json:"name_domain"`
-	AddressCidr *netip.Prefix      `json:"address_cidr"`
-	CreatedBy   int64              `json:"created_by"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ID               int64              `json:"id"`
+	Kind             string             `json:"kind"`
+	NameDomain       pgtype.Text        `json:"name_domain"`
+	AddressCidr      *netip.Prefix      `json:"address_cidr"`
+	CreatedBy        int64              `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	CustodyExtension bool               `json:"custody_extension"`
 }
 
 type SourceState struct {

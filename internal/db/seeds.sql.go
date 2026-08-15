@@ -15,7 +15,7 @@ import (
 const createAddressSeed = `-- name: CreateAddressSeed :one
 INSERT INTO seed (kind, address_cidr, created_by)
 VALUES ('address', $1, $2)
-RETURNING id, kind, name_domain, address_cidr, created_by, created_at
+RETURNING id, kind, name_domain, address_cidr, created_by, created_at, custody_extension
 `
 
 type CreateAddressSeedParams struct {
@@ -33,6 +33,7 @@ func (q *Queries) CreateAddressSeed(ctx context.Context, arg CreateAddressSeedPa
 		&i.AddressCidr,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.CustodyExtension,
 	)
 	return i, err
 }
@@ -40,7 +41,7 @@ func (q *Queries) CreateAddressSeed(ctx context.Context, arg CreateAddressSeedPa
 const createNameSeed = `-- name: CreateNameSeed :one
 INSERT INTO seed (kind, name_domain, created_by)
 VALUES ('name', $1, $2)
-RETURNING id, kind, name_domain, address_cidr, created_by, created_at
+RETURNING id, kind, name_domain, address_cidr, created_by, created_at, custody_extension
 `
 
 type CreateNameSeedParams struct {
@@ -58,13 +59,14 @@ func (q *Queries) CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) 
 		&i.AddressCidr,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.CustodyExtension,
 	)
 	return i, err
 }
 
 const listSeeds = `-- name: ListSeeds :many
-SELECT s.id, s.kind, s.name_domain, s.address_cidr, s.created_by, s.created_at,
-       a.username AS created_by_username
+SELECT s.id, s.kind, s.name_domain, s.address_cidr, s.custody_extension,
+       s.created_by, s.created_at, a.username AS created_by_username
 FROM seed s
 JOIN account a ON a.id = s.created_by
 ORDER BY s.created_at DESC, s.id DESC
@@ -75,6 +77,7 @@ type ListSeedsRow struct {
 	Kind              string             `json:"kind"`
 	NameDomain        pgtype.Text        `json:"name_domain"`
 	AddressCidr       *netip.Prefix      `json:"address_cidr"`
+	CustodyExtension  bool               `json:"custody_extension"`
 	CreatedBy         int64              `json:"created_by"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	CreatedByUsername string             `json:"created_by_username"`
@@ -94,6 +97,7 @@ func (q *Queries) ListSeeds(ctx context.Context) ([]ListSeedsRow, error) {
 			&i.Kind,
 			&i.NameDomain,
 			&i.AddressCidr,
+			&i.CustodyExtension,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.CreatedByUsername,

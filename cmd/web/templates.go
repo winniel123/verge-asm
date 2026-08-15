@@ -71,6 +71,14 @@ td { padding: var(--space-3) var(--space-4) var(--space-3) 0; border-bottom: 1px
 .seedform { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
 .seedform label { margin-bottom: 0; }
 .seedform .scope { min-width: 280px; }
+.custody-head { display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--space-4); flex-wrap: wrap; }
+.custody-head .scopename { font-size: 14px; }
+.custody-head form { margin: 0; }
+.badge.off { color: var(--muted); border-color: var(--hairline); }
+.census { border: 1px solid var(--hairline); background: var(--paper);
+  padding: var(--space-4); margin-top: var(--space-4); }
+.census p { margin: var(--space-3) 0; }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -237,6 +245,52 @@ address scope — a CIDR block of up to {{.AddressCap}} addresses.</p>
 <p>Nothing is declared yet. Declare a domain or a CIDR block to set where your estate begins.</p>
 {{end}}
 </div>
+
+<div class="microlabel">Declared · custody extension</div>
+<p>A custody extension declares that the addresses your name scopes resolve to are yours, and so
+under your control. It is off by default and declared once per name scope — one act, never a queue
+of addresses to approve. Its coverage is recomputed from measured resolution, stopping where the
+chain leaves the declared zone, so there is no list to maintain.</p>
+
+{{if .CustodyError}}<div class="error">{{.CustodyError}}</div>{{end}}
+{{if .CustodyScopes}}
+{{range .CustodyScopes}}
+<div class="section">
+<div class="custody-head">
+<div>
+<div class="microlabel">Name scope</div>
+<div class="mono scopename">{{.Scope}}</div>
+</div>
+<div class="row">
+{{if .CustodyExtension}}<span class="badge">extension on</span>{{else}}<span class="badge off">off</span>{{end}}
+{{if $.IsAdmin}}
+<form method="post" action="/seeds/custody">
+<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="extend" value="{{if .CustodyExtension}}false{{else}}true{{end}}">
+<button class="secondary" type="submit">{{if .CustodyExtension}}Withdraw{{else}}Declare extension{{end}}</button>
+</form>
+{{end}}
+</div>
+</div>
+{{if .CustodyExtension}}
+<div class="census">
+<div class="microlabel">Covered addresses · census</div>
+<p>Display only. Once resolution measurement runs, this lists the addresses your names currently
+resolve into. There is no total to reach — how many addresses it ought to cover is completeness of
+your estate, which only you know — and nothing here to approve: the extension covers what it
+computes.</p>
+<div class="microlabel">No addresses measured yet</div>
+</div>
+{{end}}
+</div>
+{{end}}
+{{else}}
+<div class="section">
+<div class="microlabel">No name scopes</div>
+<p>A custody extension is a property of a name scope. Declare a name scope above, then extend
+custody to the addresses it resolves into.</p>
+</div>
+{{end}}
 
 <div class="microlabel">Declared · exclusions</div>
 <p>An exclusion draws the boundary inwards: an exact name, a name subtree, or an address scope
