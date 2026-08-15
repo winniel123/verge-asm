@@ -293,11 +293,26 @@ and moving it moves no version and `Break`s nothing — and it is flagged rather
   [#139](https://github.com/winniel123/verge-asm/issues/139) is drawing `Coverage` against ADR-0041:
   the floor is the currency bound, so before this ruling it was a maximum taken over four of the six
   facets, silently under-retaining the two every membership decision reads. The floor's **number** does
-  not move — it is set by the slowest enabled `Scan`, and `dns` at daily is not it — but its **domain**
-  does.
-- **ADR-0041's worked floor figure is stale, and not by this ruling.** It reads *"two weeks with
+  not move — it is set by the ~~slowest enabled~~ **slowest covering** `Scan`, and `dns` at daily is not
+  it — but its **domain** does.
+
+  > **Corrected at this site**
+  > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) —
+  > [#171](https://github.com/winniel123/verge-asm/issues/171) ·
+  > [ADR-0094](./0094-a-retention-control-collapses-and-a-retention-query-never-does.md). *Slowest
+  > **enabled*** is the **`Dispatch`** floor's rule; the observation floor is *slowest **covering***
+  > (ADR-0081). The two differ by 4× today on any install with no zone file, where `zone` is enabled
+  > and covers nothing. **And the sentence is now doubly superseded**: ADR-0094 withdraws the collapse
+  > itself — the dial's floor is the **tightest** bound in force and the retirement query applies each
+  > timeline's own bound beneath it. What this ruling moved is exactly the **domain**, as stated.
+- ~~**ADR-0041's worked floor figure is stale, and not by this ruling.** It reads *"two weeks with
   `tls-acceptance` the slowest enabled one"*, which #124 falsified when it added `zone` at **monthly**
-  and did not discharge. Reported to the map rather than repaired here, since #139 owns that surface.
+  and did not discharge. Reported to the map rather than repaired here, since #139 owns that surface.~~
+  **REPAIRED, and struck at this site** (ADR-0058) — ADR-0041 no longer states the figure. It was
+  withdrawn at ADR-0041's own site by the session that merged the fifteen-agent batch, with a note
+  that `dns` at daily does not move the floor. Read alone and in the present tense this bullet sends a
+  session to repair something already repaired. Walked against the corpus and confirmed by #171 ·
+  ADR-0094.
 - **`Coverage` gains a fifth `Scan` row**, and on the ADR-0019 install it is the only one with
   anything in its scope.
 - **No aperture input, no declared parameter, no new number.** Seven inputs, `k` = 2, and the

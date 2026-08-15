@@ -602,6 +602,26 @@ without bound — linear in time — while the corpus that may never be compacte
 one. Widening `k` changes what **future** folds read and never what past folds did, so an
 observation discarded under the old bound was never going to be read again. See
 [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
+That bound is **keyed on the timeline it bounds** — `(subject, facet, discriminator, vantage,
+source)`, the `Span` key — and on no other tuple. `source` is what decides it rather than a detail:
+`dns-record` holds one timeline per source, and v1's one pair, the operator's zone file against our
+own resolver, is covered by **two different `Scan`s** — `zone` at the re-supply interval and `dns` at
+daily — so a bound resolved without the source ages a live zone-sourced observation out at the
+resolver's cadence. The retirement query therefore reads **each row's own bound** and never a
+collapsed one: a row is retained while its age is inside **either** that bound **or** the operator's
+dial, whichever is longer. ~~One dial cannot carry a per-timeline bound, so its floor is the longest
+bound in force~~ is **superseded here, at the site that specifies it**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+**the control collapses and the query does not.** The dial's floor is the **tightest** bound in
+force, because below that the control changes no row at all — which is what puts the ground outside
+the operator's territory, and it is derived rather than asserted. Two populations sit outside the
+ordinary rule and fall opposite ways. Where a subject is **in the estate** and no `Scan` covers its
+timeline the bound is **undefined rather than loose**, so the row is **never retired** — undefined is
+not expired, and in v1 that population is reachable only where an operator disables a `Scan`. Where
+the subject is **withdrawn** its timelines are closed and no derivation may read the row at all, so
+it carries **no floor** and the dial alone governs it. A `Batch` is unaffected and is not retired per
+row: it travels with **any** observation it produced. See
+[ADR-0094](./docs/adr/0094-a-retention-control-collapses-and-a-retention-query-never-does.md).
 _Avoid_: result, record, datapoint, scan result
 
 **Facet**:
