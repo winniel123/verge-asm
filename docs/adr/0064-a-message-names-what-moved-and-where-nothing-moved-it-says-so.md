@@ -357,6 +357,10 @@ than a strike alone ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsif
   rather than swept because this ADR **restates neither figure** — §4 makes the product read its
   factors live — so propagating the error was the only risk this ruling carried, and that risk is
   closed.
+  **Since repaired**: the merging session verified the arithmetic and struck both products at their
+  own sites — ADR-0044's `65,404` and ADR-0047's `≈268,000`, with ADR-0047's ceiling clause and
+  ADR-0049's maximum clause corrected alongside. Nothing above is withdrawn; this bullet is the
+  record of the finding, and the repair is at the four sites it names.
 - **Decided on thin ground in one place, and it is not dressed as a derivation.** §3's refusal of
   severity is an argument about what trains an operator to stop reading, and this project has never
   had an operator. The four reasons are structural and they converge, but none is a measurement, and
