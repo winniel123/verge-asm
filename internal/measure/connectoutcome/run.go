@@ -22,7 +22,13 @@ type Scope struct {
 	Addresses    []string      `json:"addresses"`
 	TCPPorts     []uint16      `json:"tcp_ports"`
 	UDPPorts     []uint16      `json:"udp_ports,omitempty"`
-	Profile      SafetyProfile `json:"profile"`
+	// Names are the server names the certificate handshake offers as SNI, one
+	// Endpoint per name, for each Service the connect reaches. Empty is the
+	// nameless endpoint — the only mode available on an address-scope Seed where
+	// no name is known yet (CONTEXT.md `Endpoint`). It never affects the connect
+	// targets, only the handshake step composed onto a reached Service.
+	Names   []string      `json:"names,omitempty"`
+	Profile SafetyProfile `json:"profile"`
 }
 
 // DecodeScope reads a Scope from a JobSpec's opaque Scope payload.
@@ -70,7 +76,8 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	}
 	base := NetConnector{Timeout: time.Duration(scope.Profile.ConnectTimeoutMillis) * time.Millisecond}
 	paced := &pacedConnector{inner: base, pacer: NewPacer(scope.Profile), now: time.Now, sleep: time.Sleep}
-	return RunWithConnector(context.Background(), paced, spec.Batch, scope, w)
+	hs := NetHandshaker{Timeout: time.Duration(scope.Profile.ConnectTimeoutMillis) * time.Millisecond}
+	return RunExchange(context.Background(), paced, hs, spec.Batch, scope, w)
 }
 
 // RunWithConnector executes the leaf against an arbitrary Connector. Separating

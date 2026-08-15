@@ -1,0 +1,2 @@
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.10:443/tcp","vantage":"v1","address":"198.51.100.10","data":{"outcome":"reached","result":"open"}}
+{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"api.example.com@198.51.100.10:443/tcp","vantage":"v1","address":"198.51.100.10","data":{"outcome":"presented","chain":["sha256:leaf01","sha256:intermediate01","sha256:root01"]}}

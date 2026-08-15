@@ -78,6 +78,10 @@ func subjectKindFor(facet string) string {
 	switch facet {
 	case connectoutcome.FacetReachability:
 		return "service"
+	case connectoutcome.FacetCertificate:
+		// The presented chain is single-valued only under an `(Name, Service)`
+		// pair (CONTEXT.md `Endpoint`).
+		return "endpoint"
 	case resolutionwalk.FacetResolution, resolutionwalk.FacetDNSRecord:
 		return "name"
 	default:
@@ -90,10 +94,14 @@ func subjectKindFor(facet string) string {
 // timeline source, so a reachability bound never ages against the resolver's
 // cadence (CONTEXT.md `Observation`).
 func sourceFor(facet string) string {
-	if facet == connectoutcome.FacetReachability {
+	switch facet {
+	case connectoutcome.FacetReachability, connectoutcome.FacetCertificate:
+		// Both ride our own prober's exchange — a distinct timeline source from
+		// the resolver, so a bound never ages against the resolver's cadence.
 		return "prober"
+	default:
+		return "resolver"
 	}
-	return "resolver"
 }
 
 func pgInt8(v int64) pgtype.Int8 { return pgtype.Int8{Int64: v, Valid: true} }

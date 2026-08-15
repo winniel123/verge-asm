@@ -1,0 +1,2 @@
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.11:443/tcp","vantage":"v1","address":"198.51.100.11","data":{"outcome":"reached","result":"open"}}
+{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"api.example.com@198.51.100.11:443/tcp","vantage":"v1","address":"198.51.100.11","data":{"outcome":"tls-refused"}}
