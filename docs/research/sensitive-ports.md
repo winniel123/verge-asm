@@ -1152,9 +1152,9 @@ qualification: convention, not registration, is the determinacy test.
 |---|---|---|---|
 | 23/tcp | Telnet | yes | Username, password and the entire session travel unprotected; SSH on 22 is the standardised replacement |
 | 21/tcp | FTP control | yes | `PASS` sends the password in clear text; SFTP and FTPS are the standardised replacements |
-| 512/tcp | rexec | yes | IANA's own registry describes it as "remote process execution; authentication performed using passwords and UNIX login names" |
-| 513/tcp | rlogin | yes | Authentication is delegated to host-based trust, which a compromised DNS or network can forge; superseded by SSH |
-| 514/tcp | rsh | yes | Same trust model as 513, applied to arbitrary command execution; superseded by SSH |
+| 512/tcp | rexec | yes | ~~IANA's own registry describes it as "remote process execution; authentication performed using passwords and UNIX login names"~~ **RE-FOUNDED by §43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178)). NetBSD's own `rexecd(8)`: "the passwords exchanged by the client and rexecd are not encrypted, it is strongly recommended that this service is not enabled"; FreeBSD's own `rexec(3)` independently: "the underlying service is considered a big security hole and therefore not enabled on many sites" |
+| 513/tcp | rlogin | yes | Authentication is delegated to host-based trust, which a compromised DNS or network can forge; superseded by SSH. **Carried by RFC 1282's own Security Considerations, never by the registry alone — §43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178)) |
+| 514/tcp | rsh | yes | ~~Same trust model as 513, applied to arbitrary command execution; superseded by SSH~~ **RE-FOUNDED by §43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178)). FreeBSD's own `rshd(8)`, on its own artefact rather than by analogy to 513: "the authentication procedure used here assumes the integrity of each client machine and the connecting medium. This is insecure, but is useful in an 'open' environment"; superseded by SSH |
 | 5900/tcp | VNC / RFB | yes | The RFB specification states its authentication is cryptographically weak and not intended for untrusted networks |
 | 6000/tcp | X11 display :0 | -- | The magic-cookie authenticator is transmitted without encryption, so observing it is sufficient to seize the display |
 
@@ -1376,6 +1376,53 @@ vendor position is OpenBSD's, expressed by deletion rather than prose — `rlogi
 and `rexecd(8)` were removed in [OpenBSD 3.2](https://www.openbsd.org/plus32.html) and `rsh(1)` in
 [OpenBSD 5.6](https://www.openbsd.org/plus56.html) ("Removed rsh(1)"), and all three man pages
 return 404 on man.openbsd.org today.
+
+> **Amended by §43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178)). ~~For 512, 513
+> and 514 the attestation is IANA's own registry descriptions, which self-document the trust
+> model~~ — **the registry alone does not clear §2.2's attestation gate for any of the three, and was
+> never load-bearing for 513 in the first place.** 512 and 514 are re-founded on artefacts that were
+> not previously in this note's corpus, retrieved for [#178](https://github.com/winniel123/verge-asm/issues/178):
+>
+> 512/tcp `rexec` — NetBSD's own `rexecd(8)`, live and currently served:
+>
+> > "As the passwords exchanged by the client and rexecd are not encrypted, it is strongly
+> > recommended that this service is not enabled."
+> > — [NetBSD `rexecd(8)`](https://man.netbsd.org/rexecd.8)
+>
+> corroborated independently by FreeBSD's own `rexec(3)`, on the client side of the same wire
+> protocol:
+>
+> > "The rexec() function sends the unencrypted password across the network." … "The underlying
+> > service is considered a big security hole and therefore not enabled on many sites."
+> > — [FreeBSD `rexec(3)`](https://man.freebsd.org/cgi/man.cgi?query=rexec&sektion=3)
+>
+> 514/tcp `rsh` — FreeBSD's own `rshd(8)`, naming the same host-based trust model directly rather
+> than by resemblance to 513:
+>
+> > "The authentication procedure used here assumes the integrity of each client machine and the
+> > connecting medium. This is insecure, but is useful in an 'open' environment."
+> > — [FreeBSD `rshd(8)`](https://man.freebsd.org/cgi/man.cgi?query=rshd&sektion=8)
+>
+> **513/tcp `rlogin` was already carried by a real specification and never by the registry alone**:
+> RFC 1282's Security Considerations, quoted above, is the protocol's own specification (§2.2's
+> **first** form) and states the exact claim the row makes. §43.3's register nonetheless filed all
+> three cells together as resting "on the registry's own service descriptions," which over-stated
+> 513's exposure — the specification was sitting in this same section the whole time.
+>
+> **[measured] RFC 1282's scope is rlogin only.** Retrieved and searched directly: it names neither
+> `rsh`, `rshd` nor `rcmd()` anywhere, and its own title, status section and every technical section
+> address rlogin exclusively. It therefore does **not** carry 514's cell by family resemblance,
+> however naturally the two protocols are discussed together — the temptation to let one
+> protocol's specification stand in for a related one's is exactly the laundering §2.2's "attested
+> by the source that owns it" refuses elsewhere (§10.5). 514 is re-founded on its own artefact
+> rather than on 513's. §44.5's G8-entry table filed RFC 1282 against both `513` and `514`; that
+> filing is corrected below.
+>
+> OpenBSD's position — `rlogin(1)`, `rlogind(8)` and `rexecd(8)` removed in OpenBSD 3.2, `rsh(1)` in
+> OpenBSD 5.6, all three man pages 404 today — stays in the record as a fourth owner's act, but a
+> removal with no surviving prose is an act rather than a quotable claim (§2.2's opening sentence:
+> *"the claim must be… quotable, verbatim"*) and was never any of these three rows' ground. See
+> **§43.10** for the ruling in full.
 
 > "The RFB protocol as defined here provides no security beyond the optional and cryptographically
 > weak password check described in Section 7.2.2. In particular, it provides no protection against
@@ -20723,7 +20770,7 @@ are marked **§39.4** / **§41.4** and their grounds are unchanged.
 | **§39.4** `10248/tcp`'s **footing** @ the config-API doc comment `healthzBindAddress: "127.0.0.1"` | `10248/tcp` | §27.5, §27.12; §39.4 item 1 |
 | **NEW** `10248/tcp`'s **claim** cell @ the same doc comment | `10248/tcp` | §27.6 — Claim 3 is carried by the restricting default and nothing else; **[measured]** §31.6 rules *"the port of the **localhost** healthz endpoint"* a **label**, so the comment's prose adds no second ground. Shape 2 |
 | **NEW** `10255/tcp`'s **claim** cell @ `readOnlyPort`'s *"no authentication/authorization"* doc comment, `staging/src/k8s.io/kubelet/config/v1beta1/types.go` | `10255/tcp` | §41.7's flagged first cell. **Sole-ground, and undetermined at Step 1** — §43.5 |
-| **NEW** the **rexec / rlogin / rsh claim cell** @ the IANA Service Name and Transport Protocol Port Number Registry's own service descriptions | `512/tcp`, `513/tcp`, `514/tcp` | §3.2: *"the attestation is IANA's own registry descriptions, which self-document the trust model"*. §43.6 routes the attestation question and does not decide it |
+| ~~**NEW** the **rexec / rlogin / rsh claim cell** @ the IANA Service Name and Transport Protocol Port Number Registry's own service descriptions~~ | ~~`512/tcp`, `513/tcp`, `514/tcp`~~ | **DISCHARGED by §43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178)). The registry never clears §2.2's attestation gate on its own word; **not an item**, on three separate grounds rather than one. `513/tcp` was already carried by RFC 1282 (rung 5, a specification). `512/tcp` and `514/tcp` are re-founded on NetBSD's `rexecd(8)` and FreeBSD's `rshd(8)` respectively (rung 4, issued vendor documentation) — see §3.4's amendment. None of the three is sole-ground on a rung-1 artefact any longer |
 
 > **§41.7's flag is DISCHARGED and it resolves the way §41.7 expected.** `10255/tcp`'s claim cell is
 > **sole-ground**, and `10255` returns to the register on a **cell** rather than on a tier — which is
@@ -20916,6 +20963,15 @@ record rather than assumed.
    claim at all is a §2.2 attestation question this section may not decide** — ADR-0048's *a convention
    is evidenced by placement, never by catalogue* is about **determinacy** and does not reach the
    attestation gate. Ticketed.
+
+   > **RULED by [#178](https://github.com/winniel123/verge-asm/issues/178): a bare registry
+   > description does not clear the gate, and none of the three cells needs it to.** The registry is
+   > neither a specification nor an owner's documentation nor a shipped default — it is a catalogue
+   > of registrants' own placement declarations, and §10.5's owner test (already applied to it once,
+   > for the sibling determinacy gate, by ADR-0048's rider) refuses it the same way here: IANA neither
+   > designed rexec/rlogin/rsh nor authors a reference implementation of any of them. All three cells
+   > are re-founded on artefacts that clear the gate on their own terms — see §43.10. **ADR-0098 is
+   > minted.**
 4. **`10255/tcp`'s Step 1 cell has no admissible carrier** — §43.5. A row question, priced as a removal,
    and ADR-0037 limb 2 requires a retrieval **scoped to the row**. Ticketed, and it is the second time
    this note has found a §10.1 cell resting on something that cannot answer its step, after §20.6.
@@ -21058,6 +21114,238 @@ the head — is the one to watch for.**
   reports a gate shortfall to them rather than repairing it. This section's delta is stated as a delta —
   **the register gains the cells named at §43.3 and loses none** — and **where §43 and §1 disagree, §1
   governs.**
+
+> **Amended by §43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178)). *"The register
+> gains the cells named at §43.3 and loses none"* is a statement about the **filter-tightening**
+> passes (#135, #151) this section itself ran, and is unchanged as a statement about those. It is
+> **not** a standing bar on a cell ever leaving the register by any route: §43.10 discharges one
+> triple by **retrieval**, not by loosening the sole-ground test, which is a different act with a
+> different direction. See §43.10.
+
+### 43.10 Ruled by #178 — a registry entry attests through its registrant, never on its own word; three cells re-founded
+
+**Ticket [#178](https://github.com/winniel123/verge-asm/issues/178).** §43.6 item 3 named the
+question and declined to decide it: does a bare IANA registry description clear §2.2's attestation
+gate on its own, for `512/tcp`, `513/tcp` and `514/tcp`'s Class B claim cells? ADR-0048 was checked
+and does not settle it — its rider on registrations reaches only §2.4's determinacy gate, and its own
+Context table names the gap this ticket closes: §2.2 already has a source rule and §2.4 didn't until
+ADR-0048 wrote one. This is a fresh application to a gate ADR-0048 explicitly declined to reach, not
+an extension of it by citation.
+
+**Ruling, stated first: no. A bare registry description does not, standing alone, clear §2.2 for any
+row, and it never needed to for these three — each is re-founded on an artefact that does.**
+
+#### 43.10.1 Why the registry fails the gate on its own terms
+
+§2.2 names exactly three admissible forms: the protocol's specification (an RFC or equivalent), the
+project's or vendor's own documentation, and the project's shipped default as documented. A registry
+entry is none of the three, on two independent grounds that both point the same way.
+
+1. **Genre.** A specification defines protocol behaviour; IANA's registry records an assignment,
+   usually a terse description supplied by the registrant at filing time and never revisited for
+   currency or accuracy — the doc's own preserved typo at 513's entry (*"priviledged"*) is what a
+   thirty-year-old, unedited filing looks like. RFC 6335, the IANA's own registry-procedures document
+   (already in this note's Sources list), is explicit that the registry is a record of assignments and
+   not a specification of what is assigned. A registry row is not "an RFC or equivalent" merely for
+   sharing a page with one.
+2. **Ownership.** §10.5's *owner* is "the party that designed the protocol, or that authors the
+   reference implementation, speaking about the thing it designed or wrote." IANA did neither for
+   rexec, rlogin or rsh — those trace to the Berkeley r-commands lineage, long defunct as an
+   institution, and live on today only through independent OS implementations. IANA is a registrar: it
+   transcribes a registrant's own placement declaration and disclaims any further authority over it,
+   in capitals, on the registry's own page. That is the identical defect ADR-0048's rider already
+   found for the sibling gate — *"a registration reaches the limbs only through its registrant… not an
+   independent authority"* — reasoned afresh here because §2.2 asks a differently-shaped question than
+   §2.4 does (ADR-0048's own Rationale 1: determinacy is a conclusion **at** the wire; attestation, like
+   the claim gate beside it, is a normative statement **after** the wire, over who may make it), so the
+   conclusion generalises without the authority doing so automatically.
+
+Both grounds independently exclude the registry; neither depends on the other, and neither depends on
+volatility. **Rung is a symptom of the defect, not the reason for it.** §43.6 item 3's flag that "IANA's
+registry is a continuously-updated dataset whose service descriptions change with no notice we read"
+(rung 1) is true and stays true — it is why the register carried these cells at the head of the queue
+— but it does not do the disqualifying work by itself: a rung-1 artefact that were genuinely a
+registrant's own specification (an RFC filed at registration and never amended) would still attest.
+The registry fails because of **what kind of document it is**, not merely because of how fast it can
+move.
+
+#### 43.10.2 Options considered and rejected
+
+- **Read "the protocol's specification (an RFC or equivalent)" to include the registry itself.**
+  Rejected on 43.10.1's genre ground: the parenthetical's own examples are documents that specify
+  behaviour, and the registry's own procedures document (RFC 6335) says what it is not. Reading a
+  catalogue in under "or equivalent" would also silently repeal ADR-0048's rider for §2.4, which
+  refused exactly this move for the sibling gate ("Rank sources by authority — IANA above vendors
+  above catalogues," rejected there because it "resurrects *registration is the test* through the back
+  door").
+- **Treat the registry as a corroborator under §2.3, never sole grounds.** This is §21.3's "reading 3"
+  recycled, and it loses for §21.3's own two reasons, transposed: it is **inert wherever it would
+  matter** — a corroborator cannot carry a cell that has nothing else, and every cell this touches is
+  a cell with nothing else, which is exactly why the ticket exists — and it **mislabels the object**.
+  §2.3's tier is for the wrong *party* speaking correctly; here nobody entitled has spoken at all. The
+  honest disposal is a rescue check, not a demotion to corroboration — and §43.10.3 runs one.
+- **Treat ADR-0048 as already dispositive and rule by reference, minting nothing.** Rejected because
+  ADR-0048 says so itself, and because the two gates ask different-shaped questions (43.10.1). Landing
+  in the same place does not mean arriving by the same argument, and a future session reading §2.2 in
+  isolation would find no rule there without one being written.
+
+#### 43.10.3 The rescue check — what is actually available for three very old protocols
+
+The ticket asked whether anything rescues the three cells if the registry alone does not carry them,
+and warned against assuming a rescue exists for protocols this deprecated. **[measured], retrieved
+2026-08-15.** All three are rescued, on three different artefacts, none of them the registry.
+
+- **512/tcp `rexec` — rescued.** NetBSD's own `rexecd(8)`, live and currently served at
+  `man.netbsd.org`: *"the passwords exchanged by the client and rexecd are not encrypted, it is
+  strongly recommended that this service is not enabled."* NetBSD authors its own `rexecd`
+  implementation — the §10.5 owner test OpenBSD's `fingerd(8)` already satisfies elsewhere in this note
+  ("OpenBSD owns `fingerd(8)` because OpenBSD writes it") applies identically. Corroborated
+  independently by FreeBSD's own `rexec(3)` client library page: *"The rexec() function sends the
+  unencrypted password across the network"* … *"the underlying service is considered a big security
+  hole and therefore not enabled on many sites."* Two independent owners, neither the registrant.
+- **513/tcp `rlogin` — rescued, and was never actually exposed.** RFC 1282 is the protocol's own
+  specification (§2.2's first form, rung 5) and its Security Considerations already carries the row's
+  claim, quoted in this section since before this ticket existed. §43.3's register filing lumped 513
+  in with 512 and 514 as resting "on the registry alone"; that filing over-stated the cell's exposure.
+- **514/tcp `rsh` — rescued, and not by RFC 1282.** **[measured]** RFC 1282 was retrieved and searched
+  directly for this ticket: it names neither `rsh`, `rshd` nor `rcmd()` anywhere, and states its own
+  scope as rlogin only, in its title, its status section and every technical section. It therefore
+  cannot carry 514 by family resemblance, however naturally rlogin and rsh get discussed together —
+  letting one protocol's specification stand in for a related, unspecified one is the same laundering
+  §10.5 refuses when a distributor's prose is asked to speak for a protocol it did not design. 514 is
+  instead carried by FreeBSD's own `rshd(8)`: *"The authentication procedure used here assumes the
+  integrity of each client machine and the connecting medium. This is insecure, but is useful in an
+  'open' environment."*
+
+**What did not rescue anything, checked and refused.** OpenBSD's removal of `rlogin(1)`, `rlogind(8)`
+and `rexecd(8)` (3.2) and `rsh(1)` (5.6), already in this note's record, was considered as a fourth
+grounding route and refused: a deletion with no surviving prose is an act, not a quotable claim, and
+§2.2's opening sentence requires the claim be "quotable, verbatim." It remains useful colour — a fourth
+owner no longer shipping the code at all — but it was never any of these three rows' ground and still
+is not. FreeBSD's own `rexecd(8)` was checked and does not exist (`man.freebsd.org` returns no data for
+it), which is why NetBSD carries 512 and FreeBSD corroborates from the client side rather than the
+reverse.
+
+#### 43.10.4 What moves
+
+**No `(port, transport)` pair moves, no class changes, and no footing tier moves.** All three rows stay
+in Class B (§3.2), unchanged in membership. Class B carries no footing cell for any row — §43.4 already
+found this ("`512`/`513`/`514` footing — No footing cell exists") — and that stays true regardless of
+which specific artefact backs each claim, since the footing table (§2.2/§16.7) only ever catalogued
+rows attested via the network-*position* wording Class A and Class C need; Class B's claim (cleartext
+credentials, or host-based trust, with a standardised encrypted successor) is answered directly in the
+claim cell and was never a candidate for that table. §16.7's and §2.2's amendment boxes still describe
+the eleven out-of-subject pairs as resting on "a specification, IANA's registry, or OpenBSD's
+deletions" — that sentence is a summary gloss over the whole class and was already heterogeneous before
+this ticket (23/tcp and 21/tcp never rested on the registry either); it is not walked clause by clause
+here, consistent with this note's own practice of marking the live site of a finding rather than
+sweeping every echo (§16.8's own example of the cost of *not* doing that notwithstanding — the live
+site is §43.6 item 3, marked above, and this section).
+
+**The register (§43.3) loses this triple.** It was carried at rung 1, sole-ground, at the head of the
+queue. It is now grounded on rung 4 (512, 514 — issued vendor documentation) and rung 5 (513 — a
+specification), and none of the three cells is sole-ground any longer: 512 has two independent
+owners (NetBSD, FreeBSD), and 513 and 514 each have one that was not previously counted. This is a
+genuine loss from the register, not a re-tiering and not the filter-tightening §43.9's closing line
+described — that line ("the register gains the cells named at §43.3 and loses none") is a true
+statement about #135's and #151's one-directional tightening and is marked, not repealed, at §43.9's
+own clause above. A cell leaves the register the ordinary way ADR-0057 always allowed: a retrieval
+that grounds it in a real artefact discharges it, exactly as §21 discharged `9092/tcp`'s open question
+and §35/§38 discharged rows on newly-retrieved owner text. Nothing here loosens what counts as a ground;
+it supplies grounds that were simply never looked for.
+
+**`docs/spec/curated-table-watch.md` §1.1's matching row is updated in the same commit**, per
+[ADR-0100](../adr/0100-a-copy-of-a-monotonic-source-is-kept-honest-by-the-act-that-grows-it.md): this
+ruling changes the cell's disposition (sole-ground → discharged), so the Ground column is edited in
+place rather than left to go stale.
+
+**§44.5's G8-entry table is corrected.** It filed *"RFC 1282 (`513`, `514`)"* under the immutable-RFC
+class. **[measured]** RFC 1282 never carried `514` — the corpus's own filing anticipated a coverage
+this section's direct retrieval refutes. Corrected to `513` alone; `514`'s new carrier (FreeBSD
+`rshd(8)`) is a continuously-rendered, unpinned man page and belongs in §44.4's G8-**recurring** table
+instead, alongside `512`'s new carriers (NetBSD `rexecd(8)`, FreeBSD `rexec(3)`) — three new members,
+raising §44.4's "thirty-six members over thirty owners" to **thirty-nine members over thirty-two
+owners**. New rows:
+
+| # | Owner and target | Live cells it carries | Why it moves |
+| --- | --- | --- | --- |
+| 37 | NetBSD — `man.netbsd.org/rexecd.8` | `512/tcp` Claim 2 (§43.10) | An unpinned rendered man page, no release tag recorded |
+| 38 | FreeBSD — `man.freebsd.org` `rexec(3)` | `512/tcp` Claim 2, corroborating (§43.10) | Rendered per current release (*"FreeBSD 15.1-RELEASE"* at retrieval); the site's own URL structure does not pin a version |
+| 39 | FreeBSD — `man.freebsd.org` `rshd(8)` | `514/tcp` Claim 2 (§43.10) | Same defect as #38, same owner, a different page |
+
+**The new Sources entries.** NetBSD's `rexecd(8)` and FreeBSD's `rexec(3)`/`rshd(8)` are added to the
+implementation-documents group in `## Sources`, beside the OpenBSD deletion changelogs.
+
+#### 43.10.5 Every dependent figure, checked rather than asserted
+
+| Where | Was | Is |
+| --- | --- | --- |
+| §1 pair count | 38 | **38, unchanged.** No row is added or removed |
+| §3.2 Class B table, `reg.` column | `yes` on all three | **unchanged.** Registration and attestation are different questions; IANA still registers all three numbers |
+| §3 class totals | `12 / 7 / 19` | **unchanged** |
+| §2.2 footing tiers and coverage | 13 / 11 / 3, 27 of 38 | **unchanged.** Class B carries no footing cell for any row, on or off this triple — §43.10.4 |
+| §6.1 containment arithmetic | `25 + 8 + 5 = 38` | **unchanged** |
+| §4.6 exclusions | 24 | **unchanged.** Nothing is excluded or admitted |
+| §43.3's register | nine items over eleven pairs and two non-port cells, per its own bar on quoting a count — stated over members | **loses one triple** (`512/tcp`, `513/tcp`, `514/tcp`'s claim cells), stated as a delta over members, per the same bar |
+| `docs/spec/curated-table-watch.md` §1.1 | carries the triple at rung 1, Ground citing the registry alone | **Ground column updated in place**, per ADR-0100, marking the discharge and pointing here |
+| §44.5's G8-entry table | RFC 1282 filed against `513`, `514` | **corrected to `513` alone** |
+| §44.4's G8-recurring table | thirty-six members, thirty owners | **thirty-nine members, thirty-two owners** — three rows added |
+| §43.9's *"the register gains… and loses none"* | a closing statement about #135/#151's tightening | **marked at its own clause** (above), not repealed — this section's loss is a different act |
+| `verge-core` | 136 pairs, 131 TCP, 5 UDP | **unchanged.** Neither list is edited |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet` is byte-identical — no row, claim or class changes, only a citation |
+| The gate — thirteen checks G1–G13 | thirteen | **unchanged in membership.** G8's population grows by three named members (§44.4); no new check is required |
+
+#### 43.10.6 Thin ground, flagged per the standing rule
+
+**FreeBSD's `rexecd(8)` does not exist**, and this section leans on that absence without a positive
+statement from FreeBSD about why. It is recorded as a retrieval result (§43.10.3) and not read as a
+position — an absent man page says nothing about FreeBSD's view of the protocol, only that NetBSD (not
+FreeBSD) is where `rexecd`'s own documentation currently lives. **Neither FreeBSD's `rexec(3)`/`rshd(8)`
+nor NetBSD's `rexecd(8)` carries a version tag this note can pin** — both are rendered per the owner's
+current release with no retrievable prior version in the way `postgresql.conf.sample`'s release tag is
+retrievable — which is why both enter §44.4's G8-**recurring** roster rather than §44.5's pinned one,
+and it is the same defect §41.7 and §43.6 item 5 already named for this register's whole rung-1/rung-2
+head: G11 is vacuous for them, having no tag to diff against.
+
+**The criterion that would reopen this ruling:** any of the three new carrying artefacts being
+retired, rescoped, or losing the quoted sentence on a later reading — the ordinary G8/G12 shape this
+note already runs for every unpinned carrier, not a defect specific to this ticket.
+
+#### 43.10.7 Retrieval method and hazards, recorded per §9.5 and its successors
+
+- **Every quotation above was retrieved directly from the owner's rendered page**, not through a
+  summarising layer, and each is reproduced with its full sentence rather than a fragment, per this
+  note's standing practice (§9.5).
+- **The hazard this section was most exposed to is assuming a family resemblance carries evidence.**
+  RFC 1282 discusses rlogin's host-based trust model at length, and the temptation to let "same trust
+  model as 513" stand in as *"therefore RFC 1282 carries 514 too"* is exactly what §43.10.3 checked
+  and refused, by reading the RFC directly rather than reasoning from its title. This is the same
+  hazard ADR-0037 limb 1 names for a different shape (a retrieval read end to end rather than
+  skimmed for the wanted sentence) and it fired here in the negative direction: the wanted sentence
+  was not present, and only reading the whole document confirmed it.
+- **No corpus already held was re-read or re-decided.** This section adds three new artefacts and
+  corrects one mis-filed citation (§44.5); it does not reopen any cell this note has already ruled on
+  other grounds.
+
+#### 43.10.8 ADR minted
+
+[ADR-0098](../adr/0098-a-claim-is-attested-by-the-registrant-never-by-the-registry.md) — the rule
+generalises past these three rows: any future claim cell that reaches for a bare catalogue entry
+(IANA's registry or one of a similar shape) in place of a specification, an owner's documentation, or
+a shipped default fails §2.2 the same way, and must be traced to a registrant, designer or implementer
+speaking in their own voice before it can carry.
+
+#### 43.10.9 Fog, named and not chased
+
+- **Whether Class B's structural "no footing cell" treatment should itself be documented as a rule**
+  rather than an inference re-derived each time a session checks it (§43.4, and now here) is adjacent
+  to this ticket and not decided by it — nothing forces the question today, but a third session
+  re-deriving *why* Class B has no footing cells would be the same regenerating-clause failure
+  ADR-0057 §5 already named once.
+- **The older summary sentences at §2.2's amendment boxes and §16.7** ("a specification, IANA's
+  registry, or OpenBSD's deletions") are historical snapshots, left standing per this note's own
+  convention rather than walked clause by clause; a future session auditing every echo of "IANA's
+  registry" against this ruling would find them imprecise but not load-bearing.
 
 ---
 
@@ -21253,9 +21541,10 @@ whole of *which citations are internal-only*, and it is the cheap half by an ord
 
 ### 44.4 G8-recurring — the finite named set, member by member
 
-**Thirty-six members over thirty owners.** Every member is a **moving** target carrying at least one
-**live** cell of the composed table. Cited to the section that placed the cell; nothing here is
-retrieved.
+~~**Thirty-six members over thirty owners.**~~ **Thirty-nine members over thirty-two owners, since
+§43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178); table D below). Every member is
+a **moving** target carrying at least one **live** cell of the composed table. Cited to the section
+that placed the cell; nothing here is retrieved.
 
 **A. The 38-row table's own cells — claim, class and footing**
 
@@ -21308,7 +21597,15 @@ retrieved.
 | 35 | `nmap-services` | `verge-core`'s frequency half | Rung 1 — a dataset with no successor and no announcement |
 | 36 | The issuer's published certificate-lifetime schedule | `certificate-expiring`'s fraction, **value** half (the **form** half is RFC 9773 §1 and is pinned) | Published and revised without a version |
 
-> **Thirty-six members over thirty owner fetches.** For comparison, G11 ran to completion at **27
+**D. Added by §43.10 ([#178](https://github.com/winniel123/verge-asm/issues/178)) — the rexec/rsh re-founding**
+
+| # | Owner and target | Live cell it carries | Why it moves |
+| --- | --- | --- | --- |
+| 37 | NetBSD — `man.netbsd.org/rexecd.8` | `512/tcp` Claim 2 (§43.10) | An unpinned rendered man page, no release tag recorded |
+| 38 | FreeBSD — `man.freebsd.org` `rexec(3)` | `512/tcp` Claim 2, corroborating (§43.10) | Rendered per current release; the site's own URL structure does not pin a version |
+| 39 | FreeBSD — `man.freebsd.org` `rshd(8)` | `514/tcp` Claim 2 (§43.10) | Same defect as #38, same owner, a different page |
+
+> **Thirty-nine members over thirty-two owner fetches, since §43.10.** For comparison, G11 ran to completion at **27
 > cells over sixteen owners** (§40.4), and §40.9 records that as *"the check whose completion cost the
 > most"*. G8-recurring is of that order and roughly twice it — **payable, and now bounded**. The note
 > carries **394** unique external URLs; the roster is under a tenth of them. That is deliberately
@@ -21323,7 +21620,7 @@ members, because the class is what a later edit is tested against:
 
 | Class | Members |
 | --- | --- |
-| **An RFC number** — immutable by publication | RFC 1350 and RFC 3617 (`69/udp`) · RFC 4248 (`23`) · RFC 2577 (`21`) · RFC 1282 (`513`, `514`) · RFC 6143 (`5900`) · RFC 3410 (§3.4's SNMP counterweight) · RFC 4513 (`389` exclusion) · RFC 1288 (`79` exclusion) · RFC 9773 §1 (`certificate-expiring`'s form half) — **10** |
+| **An RFC number** — immutable by publication | RFC 1350 and RFC 3617 (`69/udp`) · RFC 4248 (`23`) · RFC 2577 (`21`) · ~~RFC 1282 (`513`, `514`)~~ **RFC 1282 (`513` only — corrected by §43.10, [#178](https://github.com/winniel123/verge-asm/issues/178): it names neither `rsh` nor `rshd` and does not carry `514`)** · RFC 6143 (`5900`) · RFC 3410 (§3.4's SNMP counterweight) · RFC 4513 (`389` exclusion) · RFC 1288 (`79` exclusion) · RFC 9773 §1 (`certificate-expiring`'s form half) — **10** |
 | **A git blob at a tag or commit** | `etcd-io/etcd` `THREAT_MODEL.md` @ `v3.7.1` (`2379`, `2380`) · `kubernetes/kubernetes` `types.go` @ `v1.34.1` and `v1.36.3` (`10255`, `10248`) · `security-checklist.md` @ its pinned commit (`10250`, `10255` footings) · `elastic/elasticsearch` `networking-settings.md`, `elasticsearch.yml` and `remote-clusters.md` @ `v9.5.1` (`9200`, `9300`, `9443` exclusions) · `cmd/cloud-controller-manager/main.go` and `hack/lib/golang.sh` @ `v1.34.0` (`10258` exclusion) · `moby/moby` `daemon/command/daemon.go` @ `docker-v29.7.2` (§25's annotation) · `conf/cassandra.yaml` at its release tags (`9042` footing) · Cassandra's `7000`/`7001` bytes at three release tags · `postgresql.conf.sample` and `pg_hba.conf.sample` at their release (`5432` footing) · CouchDB `default.ini` at its release (`5984` footing) — **~13** |
 | **A vendor document named by part or revision number** | HPE iLO 7 *Security Technology Brief* PN 30-869C87FF-011 Ed. 1 · HPE iLO 6 *User Guide* `sd00002007en_us` PN 30-7A345B12-032 · Dell iDRAC9 Security Configuration Guide Rev. A01 · Dell iDRAC10 Rev. A00 — **4** |
 | **A frozen per-release page** | OpenBSD `plus32.html` and `plus56.html` (`512`, `513`, `514`) — **2** |
@@ -22679,6 +22976,7 @@ Upstream projects
 - OpenLDAP (§9.2): [Administrator's Guide §14, Security Considerations](https://www.openldap.org/doc/admin26/security.html) · [§16, Using TLS](https://www.openldap.org/doc/admin26/tls.html) · [`slapd(8)`](https://www.openldap.org/software/man.cgi?query=slapd&sektion=8) (default `-h` is `ldap:///`, i.e. `INADDR_ANY:389`)
 - Finger implementations (§9.3.5), all checked and none carrying a SECURITY section or exposure statement: [OpenBSD `fingerd(8)`](https://man.openbsd.org/fingerd.8) — notably **not** removed, unlike `rlogind(8)`/`rexecd(8)`/`rsh(1)` · [FreeBSD `fingerd(8)`](https://man.freebsd.org/cgi/man.cgi?query=fingerd&sektion=8) · [GNU inetutils manual](https://www.gnu.org/software/inetutils/manual/inetutils.html), which ships no finger daemon at all · [Fedora `finger.spec`](https://src.fedoraproject.org/rpms/finger/raw/rawhide/f/finger.spec) (optional `finger-server` subpackage) · [Debian source search for `fingerd`](https://sources.debian.org/api/search/fingerd/) (no reference implementation packaged)
 - [OpenBSD 3.2 changelog](https://www.openbsd.org/plus32.html) (removal of rlogin/rlogind/rexecd) · [OpenBSD 5.6 changelog](https://www.openbsd.org/plus56.html) (removal of rsh)
+- Retrieved for [#178](https://github.com/winniel123/verge-asm/issues/178), §43.10 — 512/tcp and 514/tcp's re-founding: [NetBSD `rexecd(8)`](https://man.netbsd.org/rexecd.8) (*"it is strongly recommended that this service is not enabled"*) · [FreeBSD `rexec(3)`](https://man.freebsd.org/cgi/man.cgi?query=rexec&sektion=3) (*"considered a big security hole"*) · [FreeBSD `rshd(8)`](https://man.freebsd.org/cgi/man.cgi?query=rshd&sektion=8) (*"This is insecure, but is useful in an 'open' environment"*). FreeBSD's own `rexecd(8)` was checked and does not exist (`man.freebsd.org` returns no data for it)
 - [Microsoft, Security considerations for PowerShell Remoting using WinRM](https://learn.microsoft.com/en-us/powershell/scripting/security/remoting/winrm-security) · [Azure network security best practices](https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices)
 - [HP Printing Security Best Practices](https://h10032.www1.hp.com/ctg/Manual/c05318850.pdf) — cited for the position that 9100 "should always be enabled"
 

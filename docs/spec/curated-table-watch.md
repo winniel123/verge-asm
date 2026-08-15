@@ -129,7 +129,7 @@ anywhere below** — not of a rung, not of the whole register — per §39.2 and
 | `10248/tcp`'s **footing** @ the config-API doc comment `healthzBindAddress: "127.0.0.1"` | `10248/tcp` | §27.5, §27.12; §39.4 item 1 |
 | `10248/tcp`'s **claim** cell @ the same doc comment | `10248/tcp` | §27.6, §31.6 — the port is a label; the comment's prose adds no second ground (Shape 2, §43.2) |
 | `10255/tcp`'s **claim** cell @ `readOnlyPort`'s *"no authentication/authorization"* doc comment, `staging/src/k8s.io/kubelet/config/v1beta1/types.go` | `10255/tcp` | §41.7's flagged first cell; discharged sole-ground, and **undetermined at Step 1** — §43.3, §43.5 |
-| The **rexec / rlogin / rsh claim cell** @ the IANA Service Name and Transport Protocol Port Number Registry's own service descriptions | `512/tcp`, `513/tcp`, `514/tcp` | §3.2; the attestation question over a registry description is routed, not decided — §43.6 |
+| ~~The **rexec / rlogin / rsh claim cell** @ the IANA Service Name and Transport Protocol Port Number Registry's own service descriptions~~ | ~~`512/tcp`, `513/tcp`, `514/tcp`~~ | **DISCHARGED — [#178](https://github.com/winniel123/verge-asm/issues/178), `sensitive-ports.md` §43.10.** The registry never clears §2.2's attestation gate alone; **not a register item.** `513/tcp` was already carried by RFC 1282 (rung 5). `512/tcp` and `514/tcp` are re-founded on NetBSD's `rexecd(8)` and FreeBSD's `rshd(8)` respectively (rung 4). ADR-0098 minted |
 
 **Rung 2 — a continuously-published page with no version pin, or a documentation branch tracking a
 release line.**
