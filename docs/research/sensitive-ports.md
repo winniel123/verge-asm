@@ -1777,6 +1777,18 @@ The residual case — an operator who has genuinely put an authenticating gatewa
 port — is an `Annotation`, not a list change. That mechanism already exists and is the right place
 for operator opinion about a specific subject.
 
+> **Precision, not a correction** — [#117](https://github.com/winniel123/verge-asm/issues/117),
+> [ADR-0016](../adr/0016-an-annotation-moves-a-message-never-a-number.md), 2026-08-15. The sentence
+> above stands, and it was the only thing keeping this population from having to reach for a `Seed`
+> narrowing instead. What *"already exists"* now amounts to is stated exactly: an `Annotation` mutes
+> the pair's own `not-fired` → `fired` message and **nothing else**. **The row stays on the list, the
+> signal still fires, the census still counts it, and no evidence is re-weighed.** The operator has
+> not disagreed with the row — they have said it is right and they have handled it, which is why this
+> is not the *sanctioned way to disagree with a row* that
+> [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §7's weak-tier
+> conditional waits on. Read the sentence above as *the operator gets quiet*, never as *the operator
+> gets the row off*.
+
 > **Amended by §14** ([#75](https://github.com/winniel123/verge-asm/issues/75)). This section is
 > **unchanged** and gains a third instance of the pattern §9.2 and §11.5 record, which is the one
 > that limits it. A split pair only exists to be judged where the owner keeps the split: Apache
