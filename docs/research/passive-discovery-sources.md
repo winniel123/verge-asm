@@ -43,8 +43,28 @@ reproducible with `curl`. Measurements are labelled **[measured]**.
 |---|---|
 | Certificate Transparency **logs read directly** (RFC 6962 `get-entries` + static-ct-api tiles) | Chrome's CT log policy forbids operators from imposing conditions on retrieving log data. Zero ToS risk. See §2.1 for why this is a *targeted*, not full-firehose, capability in v1. |
 | **crt.sh** | The only keyless way to get "all certs for `%.example.com`" in one request. Ships as default with hard 5 req/min throttle, aggressive caching, and graceful degradation — it *will* return 503. |
-| RIPEstat Data API (`network-info`, `announced-prefixes`, `searchcomplete`) | Keyless, no registration under 1000 req/day, fast, fills ARIN's gaps (RIPE/APNIC/LACNIC/AFRINIC + BGP reality). **Caveat in §4.5 — non-commercial only.** |
+| ~~RIPEstat Data API (`network-info`, `announced-prefixes`, `searchcomplete`)~~ | ~~Keyless, no registration under 1000 req/day, fast, fills ARIN's gaps (RIPE/APNIC/LACNIC/AFRINIC + BGP reality). **Caveat in §4.5 — non-commercial only.**~~ **Withdrawn in two halves — see below the table.** |
 | Common Crawl index (CDX) | Keyless, generous, open data licence. Weak signal but free. |
+
+> **The RIPEstat row is withdrawn here, at the site that specifies it
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), and
+> the two halves fell to different decisions.**
+>
+> - ***On by default* fell to [#15](https://github.com/winniel123/verge-asm/issues/15) /
+>   [ADR-0003](../adr/0003-third-party-source-consent-bar.md)** on 2026-08-13: RIPEstat ships **off**
+>   under `operator-accepted`, and [#19](https://github.com/winniel123/verge-asm/issues/19) made that
+>   indefinite. Nothing in this note was marked at the time.
+> - **`announced-prefixes` and *BGP reality* fell to
+>   [#126](https://github.com/winniel123/verge-asm/issues/126) /
+>   [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md)** on 2026-08-15:
+>   **a routing announcement names who carries packets toward a prefix, never who controls what listens
+>   in it.** The BGP leg ships nowhere in v1, under RIPEstat or any other instrument, so
+>   [#47](https://github.com/winniel123/verge-asm/issues/47)'s scoping of RIPEstat's toggle to the
+>   org→prefix leg is now the whole of it. See
+>   [`non-arin-prefix-coverage.md`](./non-arin-prefix-coverage.md) §14.
+>
+> What survives of the row is `searchcomplete` and `network-info` as **org→prefix** and IP→ASN calls,
+> behind an `operator-accepted` toggle. §4.5's measurements are all correct and none is re-taken.
 
 **Tier 2 — shipped but off by default, operator opts in:**
 
@@ -612,10 +632,22 @@ answers IP→ASN over plain HTTPS with no such warning, **Team Cymru is a Tier-2
 | `https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS13335` | 1.93 s, **5,310 prefixes**, with the note *"Results exclude routes with very low visibility (less than 10 RIS full-feed peers seeing)"* |
 | `https://stat.ripe.net/data/searchcomplete/data.json?resource=cloudflare` | org name → `AS13335 "CLOUDFLARENET - Cloudflare, Inc."`, AS14789, AS132892, … |
 
-That chain — **org name → ASNs → announced prefixes → per-IP reverse lookup** — is the complete
+~~That chain — **org name → ASNs → announced prefixes → per-IP reverse lookup** — is the complete
 "from a company name to the IP ranges it actually announces" path, keyless, in three requests. It covers all
 five RIRs and, crucially, reflects **BGP reality** rather than registry paperwork, so it catches space the
-org announces but has not tidily registered.
+org announces but has not tidily registered.~~
+
+> **Withdrawn 2026-08-15 by [#126](https://github.com/winniel123/verge-asm/issues/126) /
+> [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md), at the site that
+> specifies it.** This is the sentence the BGP leg has been carried on since 2026-07-30, restated twice
+> since, and it contains the defect: *"the IP ranges it **actually announces**"* is offered as a better
+> answer to *which addresses are the operator's*, and it is an answer to a different question. **A routing
+> announcement names who carries packets toward a prefix, never who controls what listens in it** — so
+> *space the org announces but has not tidily registered* is, measured, either a more-specific of space
+> already proposed, or a subsidiary's registration the org-name box reaches, or **a customer's network the
+> org merely carries**. The full decomposition and the two measurements are at
+> [`non-arin-prefix-coverage.md`](./non-arin-prefix-coverage.md) §14 (**[measured] 0 of 100** and **2 of
+> 11**, the second on a hosting company). The `announced-prefixes` call is in no shipped path.
 
 **Limits.** The docs state no request cap but *"the system limits the usage to 8 concurrent requests coming
 from one IP address"*, and ask that you *"please register if you plan to regularly do more than 1000
@@ -632,12 +664,25 @@ permission, and reserve the right to *"restrict any use of the RIPEstat Service"
 
 **Assessment:** "network analysis, network monitoring" is exactly what a self-hosted ASM tool does for its
 own operator, and each verge-asm install queries RIPEstat directly rather than verge-asm redistributing
-RIPEstat data — so the re-packaging clause is not triggered by the software itself. **Default-on is
+RIPEstat data — so the re-packaging clause is not triggered by the software itself. ~~**Default-on is
 defensible for the self-hosted, non-commercial case**, with a low concurrency cap (≤8, per the docs), a
-per-run request budget aimed at staying under 1000/day, and an identifying User-Agent. **But:** anyone
+per-run request budget aimed at staying under 1000/day, and an identifying User-Agent.~~ **But:** anyone
 operating verge-asm as a paid service needs RIPE NCC's written permission, and the README must say so.
-This is the one Tier-1 default with a genuine ToS asterisk — if the project wants zero contractual
-ambiguity in defaults, demote RIPEstat to Tier 2 and accept weaker RIR coverage out of the box.
+~~This is the one Tier-1 default with a genuine ToS asterisk — if the project wants zero contractual
+ambiguity in defaults, demote RIPEstat to Tier 2 and accept weaker RIR coverage out of the box.~~
+
+> **Both struck sentences are withdrawn at the site that specifies them
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by two
+> different decisions.** *Default-on is defensible* and the Tier-2 fork were settled by
+> [#15](https://github.com/winniel123/verge-asm/issues/15) /
+> [ADR-0003](../adr/0003-third-party-source-consent-bar.md) and
+> [#19](https://github.com/winniel123/verge-asm/issues/19) — RIPEstat ships **off**, indefinitely, under
+> `operator-accepted`, and the reading is the operator's rather than the project's. The
+> `announced-prefixes` call inside the same section is separately out under
+> [#126](https://github.com/winniel123/verge-asm/issues/126) /
+> [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md). The **measurements**
+> and the **verbatim terms quotes** in this section stand untouched and are still the record for
+> RIPEstat's clauses.
 
 ### 4.6 bgp.tools — **not usable as a default**
 
@@ -877,8 +922,17 @@ disappeared" alerts.
 
 - Is a CT *tail* (poll `get-sth` / `checkpoint`, read only the delta) worth the two-client implementation
   cost in v1, or is polling crt.sh per known apex domain sufficient for drift detection?
-- Should verge-asm ship a bundled, periodically-refreshed IP→ASN table (from RIPE RIS / RouteViews open
-  data) to remove the RIPEstat dependency from the default path entirely?
+- ~~Should verge-asm ship a bundled, periodically-refreshed IP→ASN table (from RIPE RIS / RouteViews open
+  data) to remove the RIPEstat dependency from the default path entirely?~~
+  **Its premise is gone and the door it opens is now closed.** RIPEstat is not on the default path
+  ([#15](https://github.com/winniel123/verge-asm/issues/15),
+  [#19](https://github.com/winniel123/verge-asm/issues/19)); `Custody` reads `Seed`s alone and no ASN
+  enters the model at all ([#27](https://github.com/winniel123/verge-asm/issues/27),
+  [ADR-0012](../adr/0012-a-proposer-is-not-a-source.md)); and sibling expansion is keyed on the
+  delegated files' opaque-id rather than on an ASN. A session reviving this must read
+  [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md) first: a table built
+  from route collectors may label **which AS announces an address** and may never be read as saying
+  **whose address it is**, which is the only job the question was reaching for.
 - What is the correct default posture for NSEC3 zones — attempt a small dictionary, or skip silently?
 - Does the "free-fall risk" feature need registrar-expiry monitoring for domains outside the operator's
   supplied list, and if so how are those domains discovered without CZDS or reverse-WHOIS?
