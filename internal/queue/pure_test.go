@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -32,6 +33,26 @@ func TestBackoffGrowsAndCaps(t *testing.T) {
 	}
 	if backoff(20) != 16*time.Minute {
 		t.Errorf("backoff should cap at 16m, got %s", backoff(20))
+	}
+}
+
+// AC #195: a reachability observation folds onto a `service` subject's timeline,
+// sourced by the prober (never the resolver), under the connect-outcome vector —
+// so the span fold is facet-generic, not a resolution hardcode.
+func TestReachabilityFoldsToServiceProberTimeline(t *testing.T) {
+	if got := subjectKindFor(connectoutcome.FacetReachability); got != "service" {
+		t.Errorf("reachability subject kind = %q, want service", got)
+	}
+	if got := sourceFor(connectoutcome.FacetReachability); got != "prober" {
+		t.Errorf("reachability source = %q, want prober", got)
+	}
+	v := facetVector(connectoutcome.FacetReachability)
+	if len(v) != 1 || v[0].Leaf != connectoutcome.Kind || v[0].Version != connectoutcome.Version {
+		t.Errorf("reachability vector = %+v, want the single connect-outcome leaf", v)
+	}
+	// The resolution vector is unchanged — two leaves, not the reachability one.
+	if r := facetVector(resolutionwalk.FacetResolution); len(r) != 2 {
+		t.Errorf("resolution vector = %+v, want two leaves", r)
 	}
 }
 

@@ -78,14 +78,21 @@ type Estate struct {
 }
 
 // Membership computes the estate from the latest composed resolution per (Name,
-// Vantage) and the Seed-covered Names (Declared, carrying no vector, so always
-// present). A presence read is existential within the witnesses (ADR-0080): a
-// Name is present where **some** vantage's current resolution does not withdraw
-// it, and it withdraws only where **every** available vantage reads `NameError`.
-// A `Shadowed` answer never withdraws a Name and never cites an Address, which is
-// how a repointed wildcard's fictional names stay out of the estate while the
-// real one beneath it holds by its Citation.
-func Membership(latest []Observation, seedCovered []string) Estate {
+// Vantage), the Seed-covered Names, and the Seed-covered Addresses (all Declared,
+// carrying no vector, so always present). A presence read is existential within
+// the witnesses (ADR-0080): a Name is present where **some** vantage's current
+// resolution does not withdraw it, and it withdraws only where **every** available
+// vantage reads `NameError`. A `Shadowed` answer never withdraws a Name and never
+// cites an Address, which is how a repointed wildcard's fictional names stay out
+// of the estate while the real one beneath it holds by its Citation.
+//
+// Address membership is the disjunction of its two limbs (AddressPresent): an
+// Address is in the estate exactly while a current resolution cites it OR a Seed's
+// address scope covers it. seedCoveredAddresses carries the second limb — the
+// addresses an address-scope Seed enumerates — so a Seed-covered address is
+// present before anything resolves to it, and one held only by a superseded
+// `Resolved` leaves unless a Seed still covers it.
+func Membership(latest []Observation, seedCoveredNames, seedCoveredAddresses []string) Estate {
 	// Per Name, gather the composed outcome at each available (class, vantage) and
 	// the Addresses a current Resolved cites. Withdrawal is decided by the one
 	// cross-class composition (WithdrawnCrossClass), so a Name is present unless
@@ -115,8 +122,15 @@ func Membership(latest []Observation, seedCovered []string) Estate {
 		}
 	}
 	// A Seed-covered Name is Declared and in the estate regardless of resolution.
-	for _, name := range seedCovered {
+	for _, name := range seedCoveredNames {
 		present[name] = struct{}{}
+	}
+
+	// The Address estate is the disjunction of the two limbs: the addresses a
+	// current resolution cites, unioned with the addresses a Seed's address scope
+	// covers. A Seed-covered address is present even where no resolution cites it.
+	for _, a := range seedCoveredAddresses {
+		citedAddrs[a] = struct{}{}
 	}
 
 	return Estate{Names: sortedKeys(present), Addresses: sortedSet(citedAddrs)}
