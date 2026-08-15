@@ -100,7 +100,10 @@ The 3 are **not** alerted individually. They are openings.
 
 **4. A first run is not `appeared`. It is `revealed`, coverage class, one message.** Declaring
 the first `Seed` moves the **custody gate**, and enabling the discovery sources moves the
-**enabled source set** — two of the six enumerated aperture inputs — so the whole of a first run
+**enabled source set** — two of the ~~six~~ **seven** enumerated aperture inputs (*the count is
+corrected, not the argument: [#108](https://github.com/winniel123/verge-asm/issues/108) /
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+added the control-probe population, and this file was outside ADR-0066's stated sweep*) — so the whole of a first run
 is a zero-to-declared aperture widening, and
 [ADR-0003](./0003-third-party-source-consent-bar.md)'s rule already governs it: *a subject first
 observed under a widened aperture is not "appeared"*. It fires one coverage-class message under
