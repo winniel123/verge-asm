@@ -114,18 +114,38 @@ its sentence and only the denominators move** — the membership of the four bel
 clearing edge being an ordinary silent one
 ([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)).
 
-- **`not-fired` → `fired` is a message, drift class, for all ~~sixteen~~ seventeen.** On a subject already in the
+- **`not-fired` → `fired` is a message, ~~drift class,~~ for all ~~sixteen~~ seventeen.** On a subject already in the
   estate this edge is by construction *something got worse*, so it needs no base rate to place it
   on [#17](https://github.com/winniel123/verge-asm/issues/17)'s alerting side.
+  > **NARROWED at *drift class* by [#120](https://github.com/winniel123/verge-asm/issues/120) ·
+  > [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md).** It is a
+  > **message** for all seventeen and that is untouched. It is **drift class** for the fourteen rules
+  > that read no clock, unconditionally; for the three certificate-lifetime rules — which
+  > [ADR-0004](./0004-signals-are-release-coupled-rules.md) and
+  > [#60](https://github.com/winniel123/verge-asm/issues/60) put in the **clock** class — the class
+  > is read **per firing** from the fold: drift where the `certificate` span moved in the same fold,
+  > clock where it did not, and drift where both are true. Read alone and in the present tense the
+  > struck words assign a class from a rule's name, which is the conflict ADR-0039 flagged and
+  > refused to rule. Marked at the sentence per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
 - **`fired` → `not-fired` is silent, except where a third party could have caused the clearing.**
   Exactly four of ~~sixteen~~ seventeen qualify, and they are exactly the four rules whose clearing condition is a
   name somebody else can claim: `lame-delegation`, `cname-target-name-error`,
   `zone-declared-name-returns-name-error` and `resolved-name-absent-from-zone`. Those four carry
-  [#35](https://github.com/winniel123/verge-asm/issues/35)'s *this improved and you should still
+  [#35](https://github.com/winniel123/verge-asm/issues/35)'s ~~*this improved and*~~ *you should still
   look* register and [#48](https://github.com/winniel123/verge-asm/issues/48)'s attribution
   obligation — the message names which timeline gave way. This makes #35's *a clear is not always
   good news* structural: it was always a claim that clears are **sometimes** good news, which is a
   per-rule claim, and this is the rule that recovers it.
+  > **REPLACED in its first half by [#120](https://github.com/winniel123/verge-asm/issues/120) ·
+  > [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md).** The
+  > register is *you should still look* and **not** *this improved*: the vocabulary carries **no
+  > valence word at all**, which is ADR-0004's own specifying wording — *reported as **this
+  > changed** and never as **resolved***, and *`fired` → `not-evaluable` must never be worded as a
+  > clear either* — made total rather than per-rule. The obligation is unchanged: the message states
+  > the edge, states that the clearing condition is a name a third party can claim, and names which
+  > timeline gave way. Read alone, *this improved* is precisely the word these four rules exist to
+  > withhold.
 - **`fired` → `not-evaluable` is coverage class**, member 5, unchanged
   ([ADR-0010](./0010-exposure-composes-two-reaches.md), [#32](https://github.com/winniel123/verge-asm/issues/32)).
 - **`not-evaluable` → any value is coverage class**, member 7 — `not-evaluable` is a `Gap` on the
