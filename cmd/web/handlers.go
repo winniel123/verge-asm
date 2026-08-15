@@ -47,6 +47,10 @@ type store interface {
 	DeleteChannel(ctx context.Context, id int64) error
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
+	// TightestEnabledScanCadenceSeconds is the tightest bound in force, which the
+	// observation dial floors at (#208, ADR-0094) — symmetric to the Dispatch
+	// floor's SlowestEnabledScanCadenceSeconds.
+	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	ListCurrentNameSubjects(ctx context.Context, search string) ([]db.ListCurrentNameSubjectsRow, error)
 	GetNameSubject(ctx context.Context, subjectKey string) (db.GetNameSubjectRow, error)
 	GetNameCitation(ctx context.Context, subjectKey string) (db.GetNameCitationRow, error)
