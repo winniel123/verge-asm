@@ -42,7 +42,7 @@ baseline is an act the operator performs rather than a default that runs.**
 | A one-off measurement with a port set and no cadence | **Not expressible.** No cadence, no currency bound; no `Scan`, no configured object |
 | Opting in — per-`Seed` or per-estate | **Per `Seed` scope.** The cold `Scan` ships configured and **disabled**, with an empty scope list |
 | The cold `Scan`'s existence | It exists disabled, so *"the operator has not enabled the full-range tier"* is a legible state rather than an absence |
-| The aperture statement's port-tier line | States the tier, its cadence and its **off** state; counts **our** lists and rules; carries **no** count of what is unmeasured |
+| The aperture statement's port-tier line | States the tier, its cadence and its **off** state; counts **our** lists and rules; carries **no** count of what is unmeasured. *(A **second figure** joins it by [#173](https://github.com/winniel123/verge-asm/issues/173) · [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md), valued **`0`** on every shipped configuration: **`M of 38 sensitive pairs the instrument cannot report as reached`**. This row is **confirmed rather than amended** — the new figure is set arithmetic over our own list and our own tier config, and carries no count of the estate. It exists because `unread` goes to `0` the day a UDP tier opens while five pairs go on returning `not-evaluable` forever.)* |
 | A middle tier to cover the gap | **Refused**, and not on [#78](https://github.com/winniel123/verge-asm/issues/78)'s licence ground — see below |
 | §6.3's *"~22 minutes"* | **Superseded.** It is the best case; the measured range is 22 min – 8 h per host |
 | Enabling the tier later | An ordinary aperture widening — `revealed`, no `Break`, one coverage-class message ([ADR-0014](./0014-only-revealed-generalises.md)) |
@@ -191,13 +191,57 @@ denominator, and inventing one is [#28](https://github.com/winniel123/verge-asm/
 estate-completeness score arriving through the port axis.
 
 So the aperture statement's port-tier line states the tier, its cadence and its off state; it carries
-~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ ~~`0 of 38 sensitive pairs unread`~~ **`5 of 38 sensitive pairs unread`** (#109 removed `1433/tcp`; [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp`; **the numerator is corrected from `0` by [#124](https://github.com/winniel123/verge-asm/issues/124) — five sensitive pairs are UDP and UDP is off on default settings, so ADR-0009's union puts them in `verge-core` without any of them being read. See the correction under the Consequences below**) and `0 of 16 rules
-unevaluable`, ~~both of which are ours, closed and
-true~~ **both of which are ours and closed, the second of which is true and the first of which is
+~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ ~~`0 of 38 sensitive pairs unread`~~ **`5 of 38 sensitive pairs unread`** (#109 removed `1433/tcp`; [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp`; **the numerator is corrected from `0` by [#124](https://github.com/winniel123/verge-asm/issues/124) — five sensitive pairs are UDP and UDP is off on default settings, so ADR-0009's union puts them in `verge-core` without any of them being read. See the correction under the Consequences below**) and `0 of` ~~`16`~~ **`17`** `rules
+unevaluable` **(denominator struck in place by [#173](https://github.com/winniel123/verge-asm/issues/173); the rule set is seventeen since [#128](https://github.com/winniel123/verge-asm/issues/128) · ADR-0071 and the numerator is unchanged — struck HERE and not only below, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s intra-document unit)** and, since #173, **`0 of 38 sensitive pairs the instrument cannot report as reached`**, ~~both of which are ours, closed and
+true~~ **~~both~~ ALL THREE of which are ours and closed** (#173 made it three), **the second of
+which is true and the first of which is
 now stated over the intersection of `verge-core` with the transports we probe**; and it says in prose that ports outside `verge-core` produce no `Service`, so nothing on them
 is measured, evaluated **or counted**. Unlike #44's custody row it may carry a pointer to the `Scan`
 configuration, because here an action genuinely exists and recommending it tells the operator nothing
 false about themselves.
+
+> **This clause is the site that SPECIFIES the line's figures, and it gains a SECOND one —
+> 2026-08-15 by [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+> [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md).**
+> Nothing above is struck; **every figure on this line is unchanged on every shipped configuration**,
+> and the second figure's value today is **`0`**.
+>
+> `N of 38 sensitive pairs unread` counts pairs **outside the recorded scope**. That is one of two
+> ways the shipped instrument can fail to report a pair, and until
+> [ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md) it was the only one —
+> which is why the numerator has always been readable as *everything we do not cover*. It is not.
+> `unanswered` projects onto no `Reach`, so a **UDP** pair inside the recorded scope is probed at
+> cadence, writes an observation every run, and can still hold no `Reach` value at all. Open a UDP
+> tier and this numerator goes to **`0 of 38 sensitive pairs unread`** while five sensitive pairs
+> return `not-evaluable` forever — a clean bill of health printed by the line that exists to prevent
+> one, and [#124](https://github.com/winniel123/verge-asm/issues/124)'s defect on its third outing.
+>
+> So the line carries **two figures and they never fuse**:
+> **`N of 38 sensitive pairs unread`** — outside the recorded scope, an invitation the operator can
+> act on — and **`M of 38 sensitive pairs the instrument cannot report as reached`** — inside the
+> recorded scope, probed, and structurally incapable of producing the positive value. Today
+> **`N = 5`, `M = 0`**. On a payload-free UDP tier, `N = 0` and `M = 5`.
+>
+> Both are **constants**: set arithmetic over our own list, our own tier config and our own leaves,
+> with no observation in either. A **per-cycle** count of undecided pairs was refused, on this ADR's
+> own two grounds — #44 decision 10's constancy premise, which this ADR used to kill the one-off
+> sweep four screens above, and #44 decision 7's estate-count refusal.
+>
+> **`0 of` ~~`16`~~ `17` `rules unevaluable` is untouched and cannot detect this.** The rule
+> speaks; its domain is populated by the 131 TCP pairs. The rules figure is over our **rules** and
+> the pairs figure is over our **list**, and a pass that checks only the first will find `0` and
+> report that nothing moved.
+>
+> **DENOMINATOR struck in passing, at the site that specifies it.** The v1 rule set is **seventeen**
+> since [#128](https://github.com/winniel123/verge-asm/issues/128) · ADR-0071, and the numerator is
+> unchanged at `0`. [`safe-active-probing.md`](../research/safe-active-probing.md) §2.4 — the site
+> that **restates** this line — was corrected and **this site was not**, which is
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s defect in
+> the same inversion #133's G4 found here once already. **Two restating sites are still stale and are
+> reported rather than edited**, this pass holding neither file:
+> [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md) and
+> [ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+> both read `0 of 16`.
 
 > **Denominator corrected in the five-pass merge reconciliation.** #80 measured this at 37 pairs; the
 > sensitive list is **41**. **The numerator is `0` for every `|S|`** — ADR-0009's union puts every

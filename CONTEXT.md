@@ -975,7 +975,11 @@ hold a value, and its four values — `exposed` (both `reached`), `edge-only`, `
 and never a value. A **one-legged reading is not an `Exposure` and gets no name**: where a
 vantage class was never configured the surviving leg's `Reach` is rendered on its own under
 *we never looked*, and where a configured leg went silent the `Exposure` timeline holds a
-`Gap` under *we stopped looking*. `internal-only` was a fifth value until
+`Gap` under *we stopped looking* — **wording that is true of every v1 configuration and false on
+a connectionless leg, where we looked at cadence and the exchange decided nothing; the edge and
+its class are unchanged and the copy is
+[ADR-0095](./docs/adr/0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)'s
+conditional**. `internal-only` was a fifth value until
 [ADR-0017](./docs/adr/0017-exposure-needs-both-legs.md) and is withdrawn — it named a
 one-legged reading, which is a fact about which vantages the operator runs rather than about
 the `Service`. The internet leg going `not-reached` → `reached` is the move the product exists
@@ -1258,7 +1262,17 @@ never withdraws a subject: ceasing to measure is not measuring absence. It **rec
 cause**, which is what makes a fourth opening kind unnecessary: a value arriving after a gap
 is accounted for by the gap sitting before it. Distinct from a timeline that never existed —
 a batch whose recorded scope excludes a thing does not touch its timeline at all, so there is
-no span to hold. Nothing is compared across a gap and no `Transition` crosses one, but the
+no span to hold. **On a connectionless exchange there is a further route, and v1 cannot reach it:
+where we looked and the exchange did not decide, the `reachability` value projects onto neither
+`Reach` value, so the leg holds none — a gap where the timeline had already opened and *nothing at
+all* where it never did. The first renders its cause as ***we asked and heard nothing***, a fifth
+register beside *we never looked*, *we stopped looking*, *you stopped answering* and *you stopped
+telling us* — the mover being our own instrument working as specified. The second has no span and
+therefore no recorded cause, which is why `Coverage`'s aperture statement carries it instead
+([ADR-0083](./docs/adr/0083-silence-decides-only-on-a-connection-oriented-transport.md),
+[ADR-0095](./docs/adr/0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)).
+v1 probes TCP alone, whose outcomes all project, so every gap in v1 is one of the five above.**
+Nothing is compared across a gap and no `Transition` crosses one, but the
 values on either side **may be shown together, labelled as undatable**: unlike a `Break`, both
 are the same kind of thing under one derivation, and what is missing is *when* it moved, not
 the licence to compare. See
