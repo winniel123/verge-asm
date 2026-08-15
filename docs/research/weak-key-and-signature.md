@@ -849,6 +849,17 @@ cannot be chased by finding the right party, because the right party has already
 only if a **second** owner speaks unscoped, which is why §9.2's retrieval is a search of a corpus
 rather than a request to a party.
 
+> **Read by [#125](https://github.com/winniel123/verge-asm/issues/125), and the consequence for this
+> table is a zero.** ADR-0032 §8's watch is no longer a list of weak rows; it is a **gate** over what
+> is closed plus a **queue** keyed on the **revision act**
+> ([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)). **This table
+> contributes no queue items**, and this section is why: *"no shipped default is involved, so silent
+> de-attestation cannot reach them."* Its one queue-shaped item is a **cure-availability** one —
+> SP 800-131A Rev. 3 going final (§9.2) — and it sits at **rung 5**, a specification changing only by
+> a new document with a new number, which is the bottom of the queue because it is announced. The
+> three-pile taxonomy above is untouched: #125 keys on the **act**, not on the **cause**, so *watched*,
+> *chased* and *scope* remain the causes this section calls them.
+
 ---
 
 ## 10. Corroboration — the WebPKI bodies, recorded and not relied on

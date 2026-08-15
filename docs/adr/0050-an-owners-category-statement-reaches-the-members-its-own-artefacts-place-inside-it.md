@@ -221,7 +221,15 @@ which is a different axis. The check is recorded so the next session does not re
   pairs · scoping 9 pairs · weak 2 rows**, coverage unchanged at **26 of 37**. If #83 removes either
   kubelet row, its cell leaves with the row and the tier counts fall accordingly — the cell is
   evidence for a claim, so it cannot survive the claim.
-- **The curator's watch list returns to `5432/tcp` and `5984/tcp`.** ADR-0032 §8's enumeration is
+- ~~**The curator's watch list returns to `5432/tcp` and `5984/tcp`.**~~ **The *weak tier* returns to
+  `5432/tcp` and `5984/tcp`; the identity with the watch list is SUPERSEDED by
+  [#125](https://github.com/winniel123/verge-asm/issues/125)** — the watch keys on the **revision act**
+  ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md),
+  [`sensitive-ports.md`](../research/sensitive-ports.md) §39). This bullet's own next sentence is why:
+  it records the third correction in a week and the *compare members, not counts* lesson, and #125
+  takes that to its conclusion — the unit is a `(cell, artefact, revision act)` triple and the count is
+  barred as an indicator. **`10255/tcp` does leave the queue** on this ADR's evidence, but on **support
+  count** — it acquires a second independent ground — and not because its tier moved. ADR-0032 §8's enumeration is
   amended for the **third** time in a week, and the sequence is now 3 → 2 → 3 → 2 with the
   membership changing every time. §8's own lesson — *a reader comparing counts rather than members
   sees nothing move* — has a second instance, and it is this one.

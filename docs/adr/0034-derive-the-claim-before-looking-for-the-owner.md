@@ -304,9 +304,18 @@ state exists and it is the one to aim for.
   ADR-0032 both set the precedent. The edit this ADR would make is one clause on `Signal`: *a rule's
   declared parameters express fractions of quantities the rule reads, wherever the quantity is one
   the world moves.*
-- **The port-curation patch's third input is discharged and does not join the watch list.** The patch
-  named `certificate-expiring`'s horizon as a curated input with the same open governance question as
-  the other two. It no longer has one: nobody revises a fraction when a lifetime changes.
+- **The port-curation patch's third input is discharged and ~~does not join the watch list~~ joins it
+  on one cell.** The patch named `certificate-expiring`'s horizon as a curated input with the same open
+  governance question as the other two. It no longer has one: nobody revises a fraction when a lifetime
+  changes.
+  > **Scoped by [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md) and
+  > then measured by [#125](https://github.com/winniel123/verge-asm/issues/125).** ADR-0038 already
+  > qualified this bullet's *"nothing to watch"* — **a fraction removes the quantity from the watch,
+  > never the attestation** — and #125's queue counts the attestation: the horizon is **one item**, at
+  > **rung 5**, on RFC 9773 §1 for the form and the issuer's published lifetime schedule for the value.
+  > *Nobody revises a fraction when a lifetime changes* stands; what is superseded is *does not join*.
+  > [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md),
+  > [`sensitive-ports.md`](../research/sensitive-ports.md) §39.4.
 
 ## Alternatives rejected
 
