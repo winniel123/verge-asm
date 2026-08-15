@@ -34,6 +34,9 @@ type seedsForms struct {
 	exclError, exclKind, exclValue                  string
 	custodyError                                    string
 	proberError, proberHost, proberPort, proberUser string
+	// The org-name lookup echo: an error keeps the search box populated on a
+	// rejected submit, a notice reports a lookup that returned no candidates.
+	proposalError, proposalNotice, proposalQuery string
 }
 
 // nameScopes returns the name-scope subset of a seed listing, in the same order.
@@ -116,8 +119,13 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list vantages", err)
 		return
 	}
+	lookups, err := s.proposalLookups(r.Context())
+	if err != nil {
+		s.serverError(w, "list proposals", err)
+		return
+	}
 	status := http.StatusOK
-	if f.seedError != "" || f.exclError != "" || f.custodyError != "" || f.proberError != "" {
+	if f.seedError != "" || f.exclError != "" || f.custodyError != "" || f.proberError != "" || f.proposalError != "" {
 		status = http.StatusBadRequest
 	}
 	seeds := toSeedViews(rows)
@@ -133,6 +141,10 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"Probers":     toProberViews(probers),
 		"ProberError": f.proberError, "ProberHost": f.proberHost,
 		"ProberPort": f.proberPort, "ProberUser": f.proberUser,
+		// Pending Proposals and the org-name lookup echo (#210).
+		"ProposalLookups": lookups,
+		"ProposalError":   f.proposalError, "ProposalNotice": f.proposalNotice,
+		"ProposalQuery": f.proposalQuery,
 	})
 }
 

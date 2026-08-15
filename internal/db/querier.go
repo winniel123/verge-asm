@@ -15,6 +15,10 @@ type Querier interface {
 	// run_after has passed, oldest first, marking the winner running in one
 	// statement so two workers never claim the same job.
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
+	// Marks a single Proposal confirmed and retains the Seed it became as provenance.
+	// Guarded on status = 'pending' so a concurrent or repeated confirm is a no-op
+	// rather than a second Seed: confirmation is singular (ADR-0022).
+	ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
 	CountAccounts(ctx context.Context) (int64, error)
 	// Guards the last-admin invariant: a role change that would drop this to zero is
@@ -29,6 +33,12 @@ type Querier interface {
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
+	// Files one candidate scope a proposer offered. It enters as 'pending' and is
+	// read by nothing until it is confirmed into a Seed.
+	CreateProposal(ctx context.Context, arg CreateProposalParams) (Proposal, error)
+	// Records one operator act — an org-name search — under which a batch of
+	// candidate scopes is filed. It is the unit a bulk decline operates over.
+	CreateProposerLookup(ctx context.Context, arg CreateProposerLookupParams) (ProposerLookup, error)
 	// Provisioning a prober creates a Vantage with connection detail. Its
 	// measurement identity is still mandatory: the caller derives `name` from the
 	// endpoint (username@host:port) so it is unique per provisioned endpoint, class
@@ -37,6 +47,11 @@ type Querier interface {
 	// key has been pinned yet. The explicit casts keep the params plain scalars even
 	// though the prober columns are nullable on the table.
 	CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error)
+	// Declines every still-pending Proposal under one lookup in a single act
+	// (ADR-0022: declining may be bulk over a whole lookup). Declining is safe to
+	// batch because a pending Proposal is read by nothing, so 'declined' and 'never
+	// answered' have the same effect on the gate.
+	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
 	DeleteChannel(ctx context.Context, id int64) error
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
@@ -46,6 +61,10 @@ type Querier interface {
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
+	// One pending Proposal, read at the moment of confirmation so the confirm act
+	// can copy its scope into a Seed. A Proposal already confirmed or declined does
+	// not come back, so a double submit cannot open the gate twice.
+	GetPendingProposal(ctx context.Context, id int64) (Proposal, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
@@ -62,6 +81,10 @@ type Querier interface {
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
+	// The pending Proposals the Seeds screen renders, grouped for the caller by
+	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
+	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
+	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The operator's overrides of the authored ship defaults. The handler merges

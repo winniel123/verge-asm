@@ -81,6 +81,25 @@ type Observation struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type Proposal struct {
+	ID              int64              `json:"id"`
+	LookupID        int64              `json:"lookup_id"`
+	SourceSlug      string             `json:"source_slug"`
+	RecordKind      string             `json:"record_kind"`
+	AddressCidr     netip.Prefix       `json:"address_cidr"`
+	OrgName         string             `json:"org_name"`
+	Status          string             `json:"status"`
+	ConfirmedSeedID pgtype.Int8        `json:"confirmed_seed_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type ProposerLookup struct {
+	ID        int64              `json:"id"`
+	Query     string             `json:"query"`
+	CreatedBy int64              `json:"created_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type QueueJob struct {
 	ID             int64              `json:"id"`
 	ScanID         int64              `json:"scan_id"`
