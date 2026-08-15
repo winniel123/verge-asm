@@ -46,6 +46,10 @@ type store interface {
 	DeleteChannel(ctx context.Context, id int64) error
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
+	ListCurrentNameSubjects(ctx context.Context, search string) ([]db.ListCurrentNameSubjectsRow, error)
+	GetNameSubject(ctx context.Context, subjectKey string) (db.GetNameSubjectRow, error)
+	GetNameCitation(ctx context.Context, subjectKey string) (db.GetNameCitationRow, error)
+	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -107,6 +111,9 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
+
+	mux.HandleFunc("GET /subjects", s.requireLogin(s.subjectsPage))
+	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
 
 	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))
 	mux.HandleFunc("GET /sources", s.requireLogin(s.sourcesModal))
