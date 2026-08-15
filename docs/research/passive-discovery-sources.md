@@ -279,11 +279,19 @@ cheap and must run before any name-based expansion:
    **AMENDED by [#113](https://github.com/winniel123/verge-asm/issues/113) /
    [ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md):
    a random label alone cannot falsify label-independence, and `3–5` is a range where a declared
-   parameter needs a value.** Query **six** control labels under **each name in the control-probe
+   parameter needs a value.** ~~Query **six** control labels~~ **RAISED to **ten** by
+   [#115](https://github.com/winniel123/verge-asm/issues/115) — see the bullet below.** Query
+   **ten** control labels under **each name in the control-probe
    population**, each **exactly one label** and each run over the declared qtype set:
 
-   - **5 long random labels** (e.g. `<random32>.dev.example.com`) — the count is now **5**, a value
-     rather than a range;
+   - ~~**5 long random labels** (e.g. `<random32>.dev.example.com`) — the count is now **5**, a value
+     rather than a range;~~
+     **RAISED by [#115](https://github.com/winniel123/verge-asm/issues/115) / §13: **9 long random
+     labels**.** The count is still a **value** and not a range; the value is now **9**. Read alone
+     and in the present tense, *the count is now 5* builds a set **[measured]** to misread a
+     two-member per-label pool **2 times in 30** — `surge.sh` splits its labels `188/172` over a
+     near-fair binary hash, and six draws miss the second member 3.2% of the time against 0.21% at
+     ten. The mechanism the raise is bought against is **per-label sharding**, isolated in §13;
    - **1 structured label** of the form `<a>-<b>-<c>-<d>`, the four octets of an address drawn at
      random from **RFC 5737** documentation space (`192.0.2.0/24`, `198.51.100.0/24`,
      `203.0.113.0/24`) — e.g. `203-0-113-7.dev.example.com`. Its job is to be **decodable**, so an
@@ -899,13 +907,23 @@ different one.
 | --- | --- | --- |
 | `github.io` | A (four `185.199.10x.153`), AAAA; NODATA at the other five | — |
 | `localtest.me` | A (`127.0.0.1`), AAAA (`::1`); NODATA at the other five | — |
-| `s3.amazonaws.com` | **CNAME (`s3-1-w.amazonaws.com.`)**, TXT, NS, SOA | A — eight fresh addresses every label |
+| `s3.amazonaws.com` | **CNAME (`s3-1-w.amazonaws.com.`)**, TXT, NS, SOA | A — ~~eight fresh addresses every label~~ **eight fresh addresses per *lookup*, and they are not this authority's** — see below |
 | `appspot.com` | **MX** (the five `gmr-smtp-in.l.google.com.` hosts, identical every label) | A, AAAA |
 | `vercel.com` | NODATA at six qtypes | A |
 | `herokuapp.com` | **none, at any qtype** | CNAME, at all seven — target rotates over eight nodes |
 
 `s3.amazonaws.com` is why the unit is the component and not the qtype: the rotating and the stable
 parts sit inside **one qtype's answer chain**.
+
+> **The attribution in that row is corrected by
+> [#115](https://github.com/winniel123/verge-asm/issues/115) / §13.5, and the ruling is untouched.**
+> **[measured]** direct to `ns-63.awsdns-07.com`, `s3.amazonaws.com` returns `CNAME
+> s3-1-w.amazonaws.com.` and **no A record at all** — identical across 8 repeats, 8 distinct labels
+> and all four authorities. `s3-1-w.amazonaws.com` is a **separate delegation** that this authority
+> answers **REFUSED** for, and the eight rotating addresses are *its* zone's, spliced into our
+> answer by the recursive resolver following the chain. The component is still `Indeterminate` from
+> where the probe stands and it is still never consulted — but *this* authority does not rotate, and
+> a session reading the row as *S3 rotates* would be wrong about which operator to ask.
 
 **ADR-0066's seven-qtype widening pays a second time here.** **[measured]** `appspot.com`'s only
 determinate *positive* component in the seven is **MX**; under §3.2's withdrawn A/AAAA/CNAME clause
@@ -919,13 +937,13 @@ that zone has no positive determinate component at all.
 | --- | --- |
 | Wildcarded (a random label answered) | **14** |
 | Not wildcarded — NXDOMAIN: `pages.dev`, `workers.dev`, `azurewebsites.net`, `fly.dev`, `repl.co` | 5 |
-| **Determinate at A** across five labels | **10 of 14** — `github.io`, `localtest.me`, `traefik.me`, `vcap.me`, `netlify.com`, `staging.render.com`, `railway.app`, `onrender.com`, `surge.sh`, `glitch.me` |
+| **Determinate at A** across five labels | ~~**10 of 14**~~ **8 of 14** — `github.io`, `localtest.me`, ~~`traefik.me`~~, `vcap.me`, `netlify.com`, `staging.render.com`, `railway.app`, `onrender.com`, ~~`surge.sh`~~, `glitch.me` (the two struck members are corrected below) |
 | Indeterminate at A | 4 — `herokuapp.com`, `vercel.com`, `appspot.com`, `s3.amazonaws.com` |
 | …of those, still carrying a determinate component elsewhere | 3 — `s3` (CNAME/TXT/NS/SOA), `appspot` (MX), `vercel` (determinate NODATA at six qtypes) |
 | **No determinate component anywhere** | **1 of 14 — `herokuapp.com`** |
 
-Set equality is not wrong; it is **unscoped**, and right for ten of fourteen outright. Total
-suppression reaches **one measured parent in fourteen**.
+Set equality is not wrong; it is **unscoped**, and right for ~~ten~~ **eight** of fourteen outright.
+Total suppression reaches **one measured parent in fourteen**.
 
 > **Two rows of this table are corrected by §12, measured 2026-08-15.** `traefik.me` is filed under
 > *determinate at A*; it is an **address-parsing authority** and reads `Indeterminate` once a
@@ -933,6 +951,12 @@ suppression reaches **one measured parent in fourteen**.
 > run returned two distinct answers, a ten-label run minutes later returned one (§12.6). So *10 of
 > 14* is really **8 of 14** on today's evidence, with one member unstable. Both corrections point
 > the same way: they are more zones needing §11.1's gate, which is the rule §11 already states.
+>
+> **§13 closes the *unstable* member.** `surge.sh` is not unstable — it is a **two-member hash of
+> the query label**, `188/172` over 360 labels, identical on all four of its authorities and
+> unchanged over 35 minutes. At five random labels it therefore reads `Determinate` **[measured]**
+> 3 times in 30 and `Indeterminate` the other 27, which is a **sampling rate** rather than a
+> coin-flip authority; at the raised count (§13.8) it reads `Indeterminate` 30 times in 30.
 
 ### 11.5 Why intersection-with-the-union lost
 
@@ -1017,7 +1041,8 @@ change the leaf's query mode (DO bit, RRSIG parsing, NSEC3 handling). Ticketed, 
   **provider** zones.
 - **One vantage, one day.** `herokuapp.com`'s `ie0x` and `va0x` nodes are Ireland and Virginia, so
   part of the rotation is geographic. A multi-vantage run would see **more** rotation, never less:
-  *10 of 14 determinate* is an **upper bound**, and the direction of the error is safe.
+  ~~*10 of 14 determinate*~~ ***8 of 14 determinate*** (corrected at §11.4's table) is an **upper
+  bound**, and the direction of the error is safe.
 - **No control probe has ever run inside a batch.** What is measured is DNS behaviour against live
   authorities over a resolver we do not control, plus four direct-to-authority runs.
 
@@ -1033,8 +1058,10 @@ discharges **both** residues §11.7 recorded. §3.2 step 1 and step 6 are amende
 ### 12.1 The rule
 
 **A control label is exactly one label, and a control-label set that cannot falsify
-label-independence is not a measurement of it.** The set is **5 random labels + 1 structured
-label**, six per site, every one of them run over the declared qtype set.
+label-independence is not a measurement of it.** The set is ~~**5 random labels + 1 structured
+label**, six per site~~ **9 random labels + 1 structured label, ten per site
+([#115](https://github.com/winniel123/verge-asm/issues/115) / §13 — the construction below is
+untouched and only the count moves)**, every one of them run over the declared qtype set.
 
 The structured label is `<a>-<b>-<c>-<d>` — the four octets of an address drawn at random from
 **RFC 5737** documentation space (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`). It is
@@ -1121,13 +1148,30 @@ verdicts into `Indeterminate` ones. **[measured]** across 22 zones it turns over
 | No synthesis at A | `1u.ms` | 0 |
 | Already unstable | `surge.sh` | 0 — it moves under random labels alone |
 
-**Cost:** 6 labels × 7 qtypes per parent against 5 × 7 — **+20%**. On the `%.iana.org` estate §7
-sampled, 6 parents: **252 resolver queries per batch against 210**. These go to a resolver, not to
+**Cost:** ~~6 labels × 7 qtypes per parent against 5 × 7 — **+20%**. On the `%.iana.org` estate §7
+sampled, 6 parents: **252 resolver queries per batch against 210**.~~ **SUPERSEDED by
+[#115](https://github.com/winniel123/verge-asm/issues/115) / §13.8, which raises the count: it is
+**10 labels × 7 qtypes per parent**, and on the same estate **420 resolver queries per batch**. The
++20% this line prices was the structured label's; the current figure includes the raised count.**
+These go to a resolver, not to
 the operator's hosts, so §6.3's per-target ceilings in
 [`safe-active-probing.md`](./safe-active-probing.md) do not bind them — and no document prices
 resolver load, which is stated rather than assumed away.
 
-### 12.6 The count becomes `5`, and is refused a larger value on the measurement
+### 12.6 ~~The count becomes `5`, and is refused a larger value on the measurement~~ — the refusal is REVERSED by §13
+
+> **This subsection's ruling is WITHDRAWN by [#115](https://github.com/winniel123/verge-asm/issues/115)
+> / §13, at the site that states it
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> Read alone and in the present tense, *the number stays at 5* and *more labels is not monotonically
+> more sensitive here* would build the set this section refused to improve. **[measured]** in 30
+> independent trials the false-`Determinate` rate on `surge.sh` **is** monotone in the count —
+> 13.3% at 4 draws, 6.7% at 6, 0% at 8 and above — and the mechanism this subsection could not name
+> is **per-label sharding over a near-fair binary hash**, isolated in §13.3. The single ten-label
+> run below is a draw from a 0.2% tail that **30 fresh trials did not reproduce**. The random count
+> is now **9**. What survives verbatim is the *reason* stated here — a count bought against an
+> unidentified process cannot be priced in band — which is why §13 identified the process before
+> moving the number.
 
 It has to become a **value** whatever else happens: ADR-0021's gate is bidirectional on a changed
 declared parameter, and `3–5` cannot be diffed. It goes to the top of the range because §11 gave it
@@ -1141,17 +1185,23 @@ Raising it further was the live question. **[measured]** `surge.sh`, 2026-08-15:
 | Ten distinct random labels, minutes later | 10 | **1** — `159.203.50.177` |
 | One label, six repeats | 1 | 1 |
 
-The larger run saw **less** variation than the smaller one, so more labels is not monotonically more
-sensitive here, and the mechanism — per-label sharding, per-query rotation, a time window, or
-resolver caching in front of any of them — **was not isolated**. A count bought against an
+~~The larger run saw **less** variation than the smaller one, so more labels is not monotonically more
+sensitive here~~, and the mechanism — per-label sharding, per-query rotation, a time window, or
+resolver caching in front of any of them — ~~**was not isolated**~~ **is per-label sharding, and it
+IS isolated — §13.3**. A count bought against an
 unidentified process is a purchase whose value cannot be stated in band, which is §11.5's own
-objection to intersection-with-the-union. The number stays at **5** and the question is ticketed.
+objection to intersection-with-the-union. ~~The number stays at **5** and the question is ticketed.~~
+**The question was ticketed as [#115](https://github.com/winniel123/verge-asm/issues/115) and is now
+answered: the random count is **9**, bought against a measured process at a stated price.**
 
 Two riders. §11.4's base-rate table files `surge.sh` under *determinate at A across five labels*;
 **today that does not reproduce**, so *10 of 14* has at least one member that is a coin-flip rather
 than a fact — which does not weaken §11's ruling, it is one more zone needing the gate §11 ruled.
-And the structured label is a **sixth draw**, so the set's power against a varying answer rises even
-though the random count does not.
+**§13.3 supplies the missing half: it is not a coin-flip, it is a two-member hash *of the label*,
+and each of five labels lands in one of the two shards independently.**
+And the structured label is a **sixth draw** ~~, so the set's power against a varying answer rises even
+though the random count does not~~ **— it is now the **tenth**, and §13.8 counts it as a draw for
+exactly the reason this sentence gives.**
 
 ### 12.7 Residue — the searched corpus of encodings
 
@@ -1184,7 +1234,337 @@ permanent.
   space is 3 × 254 forms, far smaller than a 32-character random label's. The consequence is
   **total suppression of that parent** — the safe direction, and §11.6's own posture — never a
   fabricated address.
-- **One vantage, one day, over a resolver we do not control.** `surge.sh`'s two answers were not
-  separated from cache behaviour, which is exactly why the count was not moved on them.
+- **One vantage, one day, over a resolver we do not control.** ~~`surge.sh`'s two answers were not
+  separated from cache behaviour, which is exactly why the count was not moved on them.~~
+  **They are now separated ([#115](https://github.com/winniel123/verge-asm/issues/115) / §13.6):
+  direct to `ns1.surge.world`, one label repeated eight times returns one answer and eight distinct
+  labels return two, so the process is per-label and the cache is not in it. The count moved.**
 - **No control probe has ever run inside a batch.** What is measured is DNS behaviour against live
   authorities.
+
+---
+
+## 13. The instability's mechanism, and what the control-label count buys against it
+
+Ruled by [#115](https://github.com/winniel123/verge-asm/issues/115), which **amends
+[ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)
+in place** rather than minting a rule beside it. §3.2 settles **where** the control probe runs, §11
+**how its answers are read**, §12 **what a control label is**; this settles **how many**, by
+identifying the process the count is bought against — which is the thing §12.6 refused to guess at.
+
+### 13.1 The rule
+
+> **A wildcard authority's answer instability is per-query at one authority and per-label at
+> another; it is not per-time at any authority measured; and the only lever that survives the
+> vantage the probe actually stands at is the count of *distinct* labels. The random count moves
+> from `5` to `9`, so the set is 9 random + 1 structured — ten labels per site, each exactly one
+> label, each run over the declared qtype set.**
+
+Two riders that are the rest of the ticket's question.
+
+- **`Determinate` acquires no shelf life, because it already has one.** ADR-0011 decides the value
+  inside the batch that measured it and never assembles it across batches; that confinement is what
+  prices per-query rotation, and it turns out to be load-bearing rather than housekeeping.
+- **Nothing else moves.** ADR-0068's per-component gate, its three-member union and its
+  `Indeterminate` limb are untouched, and ADR-0069's construction — one label, hyphenated quad, RFC
+  5737 space — is untouched. A **number** moves, which is the only thing §12.6 left open.
+
+### 13.2 The design, stated before the numbers
+
+The four mechanisms are indistinguishable from a single vantage over a caching resolver, so every
+run below goes **direct to the delegated authority**, which is the move that made ADR-0068's four
+confirming runs sound. Each run holds one thing still.
+
+| Run | Probe | What it isolates |
+| --- | --- | --- |
+| **A** | one label, **8 back-to-back repeats**, one authority | **per-query** — the label is held still, so any variation is the query's |
+| **B** | **8 distinct labels**, back-to-back, same authority, same window as A | **per-label** — more distinct answers than A means the label is an input |
+| **C** | **B's own labels re-probed** at +5, +10, +20 and +35 min | **per-time** — a moved label→answer map under an unchanged label set is per-time and nothing else |
+| **E** | one label, one instant, **every authority** of the zone | **per-authority** — a shard of the server rather than of the name |
+| **D** | one label ×8 at the authority **against** one label ×8 over Google DoH | **resolver caching** in front of any of the above |
+| **J** | **30 trials × 12 distinct labels**, the verdict read at every draw count | whether *n* draws are **independent samples**, which is the assumption the count rests on |
+
+A control on the instrument comes first, because the design collapses without it: a *constant*
+result has to be the authority's and not the box's. **[measured]** 2026-08-15,
+`Resolve-DnsName -Server <auth-ip>` leaves **0** entries in the Windows DNS client cache for the
+name it probed and hits none — so the constant rows below are constants at the authority.
+
+The population is §12.6's: ADR-0068's four indeterminate zones plus `surge.sh`, the five zones on
+which the question exists at all.
+
+### 13.3 It varies by authority, and that is the finding
+
+**[measured]** 2026-08-15, direct to a delegated authority of each zone, one vantage.
+
+| Zone | **A** — 1 label ×8 | **B** — 8 labels | **E** — across authorities | Mechanism |
+| --- | --- | --- | --- | --- |
+| `herokuapp.com` | **4 distinct** | 5 distinct | **3 distinct** of 4 servers | **per-query**, and per-authority besides |
+| `vercel.com` | **6 distinct** | 7 distinct | **2 distinct** of 2 servers | **per-query**, and per-authority besides |
+| `appspot.com` | **1** | **7 distinct** | 1 — all four agree | **per-label** |
+| `surge.sh` | **1** | **2 distinct** | 1 — all four agree | **per-label** |
+| `s3.amazonaws.com` | 1 | 1 | 1 — all four agree | **none of the four** — see §13.5 |
+
+Run A is what separates the two live mechanisms and it separates them cleanly. `herokuapp.com` and
+`vercel.com` vary while the label is held **fixed**, so the label is not an input and distinctness
+is irrelevant to them; `appspot.com` and `surge.sh` do not vary at all under repetition and vary
+freely across labels, so on those the answer is a **function of the query name**.
+
+The per-label function is deterministic, not merely repeatable within a burst: **[measured]** every
+one of run C's five passes reproduced run B's label→answer map on `appspot.com` and `surge.sh`
+**byte for byte**, eight labels each, out to **+35 minutes** — §13.4.
+
+Two per-label pools, sized:
+
+| Zone | Distinct answers over 40 labels | Shape |
+| --- | --- | --- |
+| `appspot.com` | **11** | a wide, weighted spread of Google front-end `…153` addresses |
+| `surge.sh` | **2** | `159.203.50.177` / `159.203.159.100`, **188 / 172 over 360 labels** — a near-fair binary hash |
+
+`surge.sh` is the whole count question in one row — a **two-member** pool is the smallest that can
+produce a false `Determinate`, and it is the only one in the corpus. §13.7 and §13.8 are about it.
+
+### 13.4 No authority measured is per-time, and that is what decides the lever
+
+Run C re-probed run B's **own eight labels** at each site at +5, +10, +20 and +35 minutes, at the
+same authority.
+
+**[measured]** 2026-08-15, 02:37–03:13 UTC, five passes per zone. The unit is the **whole
+label→answer map** — all eight labels as one string — so *1 of 5* means the authority answered every
+one of the eight identically at every pass.
+
+| Zone | Mechanism | Distinct **maps** over the five passes | The one fixed label, ×4 per pass |
+| --- | --- | --- | --- |
+| `appspot.com` | per-label | **1 of 5** — byte-identical at +0, +5, +10, +20, +35 | 1 distinct every pass, and the **same** address `64.233.176.153` at all five |
+| `surge.sh` | per-label | **1 of 5** — byte-identical | 1 distinct every pass, the same `159.203.50.177` at all five |
+| `s3.amazonaws.com` | — (§13.5) | **1 of 5** | 1 distinct, the same CNAME |
+| `vercel.com` | per-query | **5 of 5** — a fresh map every pass | **3–4 distinct in four repeats**, every pass |
+| `herokuapp.com` | per-query | **5 of 5** | **3–4 distinct in four repeats**, every pass |
+
+The two columns say the same thing twice. Where the answer is a function of the label it is the
+**same** function 36 minutes later; where it is not, it was already redrawing between two
+back-to-back queries and spacing adds nothing to that.
+
+That is the negative result the ruling turns on. On the two per-label zones the map does not move
+inside a window many times a batch's length, so **spacing buys nothing there**. On the two
+per-query zones every pass is a fresh draw whether it is spaced or not, so **spacing buys nothing
+there either** — it buys exactly what one more back-to-back query buys, at minutes of wall clock
+instead of milliseconds.
+
+*Per-time* is not disproved as a thing that can happen — a deploy or a health check plainly can
+move an answer, and §13.10 says so. What is measured is that **it is not the mechanism on any zone
+where the instability actually exists**, and a parameter is bought against measured processes.
+
+### 13.5 `s3.amazonaws.com` is not unstable, and ADR-0068 attributes it to the wrong zone
+
+ADR-0068 files `s3.amazonaws.com` as *rotating eight A addresses on every label*. **[measured]** the
+authority does no such thing: over 8 repeats, 8 distinct labels and all four `awsdns` servers it
+returns exactly `CNAME s3-1-w.amazonaws.com.` and **no A record at all**, at a CNAME TTL of
+**42 821 s**.
+
+The rotation is real and it belongs to a **different zone**. `s3-1-w.amazonaws.com` is a separate
+delegation — the `s3.amazonaws.com` authority answers **REFUSED** for it — and **[measured]** over
+a recursive resolver it serves eight fresh addresses per lookup, which the resolver then splices
+into the answer chain the probe reads.
+
+So the `Indeterminate` verdict at that component is correct **about what the instrument sees** and
+wrong about the authority it names. Nothing normative moves: the probe reads what its vantage
+returns, the CNAME component is determinate, and names beneath are discriminable there. The
+attribution is corrected at §11.3 and at ADR-0068's own row, because a claim about which authority
+rotates is a claim a later session will act on.
+
+This is the ticket's fourth mechanism arriving in an unexpected shape. It is not caching — it is
+the vantage **following a chain across a zone cut** and returning another operator's instability
+inside our answer.
+
+### 13.6 Caching is why *repeats* lose and *distinct labels* win
+
+The instrument does not stand at the authority. ADR-0069 prices the control probe in **resolver
+queries** — §12.5's cost line, now 420 per batch on §7's estate — so the mechanism that matters is
+the one that survives a recursive resolver in front of it.
+
+**[measured]** one label, eight repeats, at the authority and over Google DoH, with the authority's
+own TTL:
+
+| Zone | TTL of the synthesised answer | Distinct at the **authority** | Distinct over the **resolver** |
+| --- | --- | --- | --- |
+| `vercel.com` | **A 1800** | **6** | **1** |
+| `herokuapp.com` | CNAME 300, A 60 | **7** | 2 |
+| `appspot.com` | A 300 | 1 | 1 |
+| `surge.sh` | A 301 | 1 | 1 |
+| `s3.amazonaws.com` | CNAME 42 821 | 1 | 2 — the §13.5 chain |
+
+`vercel.com` is the decisive row and it decides against the ticket's third lever. The authority is
+the most unstable thing in the sample, and behind a resolver with a **30-minute** TTL a repeat of
+one label sees **one** answer for the whole batch and every batch that follows within the half
+hour. **Repeating one label is annihilated by the cache the probe sits behind.**
+
+Distinct labels are not, and the reason is structural rather than lucky: *n* distinct labels are *n*
+distinct cache entries, so each one is a fresh miss and a fresh draw at the authority. That gives
+distinct labels the property repeats do not have:
+
+| Mechanism | More **distinct labels** | More **repeats of one label** | More **spacing** |
+| --- | --- | --- | --- |
+| per-label (`appspot`, `surge`) | **the only lever that works** | nothing — the answer is a function of the label | nothing measured (§13.4) |
+| per-query (`herokuapp`, `vercel`) | **one fresh draw each** | one fresh draw each **at the authority**, and **zero** through a cache | same as a repeat, minutes later |
+| per-authority | one draw each, resolver's choice | same | same |
+| per-time | nothing | nothing | the lever — and no zone needs it |
+
+Distinct labels **weakly dominate** the other two levers at every measured mechanism and strictly
+dominate them at three. That is why the count is the parameter that moves and the other two are
+refused.
+
+### 13.7 The draws are independent, so the count buys what §12.6 doubted — measured
+
+This is the assumption the whole instrument rests on and it had never been tested. **[measured]**
+30 independent trials of 12 distinct labels under `surge.sh`, direct to `ns1.surge.world`, the
+verdict read from the first *n* of each trial:
+
+| Draws in the set | False `Determinate` at A | Rate | Balanced-pool model `k^(1-n)` |
+| --- | --- | --- | --- |
+| 4 | 4 / 30 | 13.3 % | 12.5 % |
+| 5 | 3 / 30 | 10.0 % | 6.3 % |
+| **6 — the set today** | **2 / 30** | **6.7 %** | **3.1 %** |
+| 7 | 1 / 30 | 3.3 % | 1.6 % |
+| 8 | 0 / 30 | 0 % | 0.8 % |
+| 9 | 0 / 30 | 0 % | 0.4 % |
+| **10 — the set ruled** | **0 / 30** | **0 %** | **0.2 %** |
+| 11 · 12 | 0 / 30 | 0 % | 0.1 % · 0.05 % |
+
+The rate is **monotone decreasing** and tracks the independent-sampling model. A second confirming
+run: **[measured]** 20 trials of 10 labels each gave **2/20** false `Determinate` at 5 draws and
+**0/20** at 10, on `surge.sh`, and **0/20 at both** on `appspot.com`, `herokuapp.com` and
+`vercel.com` — the three zones whose pools are too wide or too fast to be missed at any count.
+
+**So §12.6's observation was a sample, not a law.** Ten labels seeing *one* answer where five saw
+*two* is a draw from a distribution whose ten-label tail is **0.2 %**, and 30 fresh trials did not
+reproduce it once. §12.6 read a single pair of runs as evidence that *more labels is not
+monotonically more sensitive*; it is, and the count buys exactly the sensitivity `k^(1-n)` says it
+buys, on the one zone in the corpus where the purchase matters.
+
+### 13.8 Why `9 + 1`, and not `7 + 1` or `19 + 1`
+
+The count is bought against the **measured** failure and nothing else: a two-member per-label pool,
+which is the smallest pool that can produce a false `Determinate` and is the shape of the one zone
+that produces one. `surge.sh`'s split is **188 / 172 over 360 labels** — p̂ = 0.522, a 95 % interval
+of roughly [0.47, 0.57].
+
+**What a false `Determinate` costs is why the bar is where it is**, and it is the expensive
+direction rather than the safe one. If all ten labels land in one shard, §11.1 records
+`Determinate(159.203.50.177)` — and then every fictional candidate beneath that parent that hashes
+to the *other* shard **differs at a determinate component**, so it is discriminated, recorded
+`Resolved`, and cites a fabricated `Address`. On this zone that is roughly **half** the fictional
+names beneath the parent. §11.6's asymmetry applies at full strength: a false `Shadowed` withholds
+one value, a false `Resolved` opens `Service`s and `Endpoint`s.
+
+The bar is **a false `Determinate` below 1 % on that pool across the whole interval**, and the value
+is the smallest count that clears it:
+
+| Draws | Miss at p̂ = 0.52 | Miss at the interval's worst end, p = 0.57 |
+| --- | --- | --- |
+| 6 — today | 3.2 % | 4.0 % |
+| 8 | 0.8 % | 1.2 % — **fails the bar** |
+| 9 | 0.4 % | 0.7 % |
+| **10 — ruled** | **0.21 %** | **0.39 %** |
+
+Ten draws, and the set already carries one structured label which is a draw like any other against a
+label hash — §12.6 said so of the sixth and it is equally true of the tenth. So **the random count
+becomes 9** and the construction is untouched, which is what ADR-0069 requires of a larger count:
+*a larger count adds random labels; it does not revisit the construction*.
+
+**`9` is still authored data**, which is the bar ADR-0066 set when it pushed the population out of
+the parameter table and which §11.5 used again to kill a convergence stopping rule. The number is
+written down once, from a published measurement, and every batch runs the same ten labels; it is
+**not** a function of what this batch found, so no eighth aperture input and no second `Batch` scope
+dimension is needed. A count that grew until the observed pool stopped growing would be the barred
+shape, and it stays barred.
+
+**Why not more.** The purchase has sharply diminishing returns against a linear query cost — 11
+draws buys 0.1 %, 12 buys 0.05 % — and, more decisively, the residual it would be chasing is a shape
+the count **cannot** reach. A second answer served to a fraction *f* of labels is missed with
+probability `(1-f)^n`; at ten draws a 50 % member is missed 0.1 % of the time, a 20 % member **11 %**
+of the time and a 5 % member **60 %** of the time. Buying past the balanced-pool bar buys against
+rare members, and no affordable *n* reaches those. The honest boundary is stated at §13.10 rather
+than papered over with a bigger number.
+
+**Cost, and the affordability check the raise is owed.** Query cost per site goes from **42** to
+**70** — 10 labels × 7 qtypes against 6 × 7, **+67 %** — and on the `%.iana.org` estate §7 sampled,
+6 parents, from **252** resolver queries per batch to **420**. These go to a resolver rather than to
+the operator's hosts, so §6.3's per-target ceilings in
+[`safe-active-probing.md`](./safe-active-probing.md) do not bind them, and ADR-0066's §6.3 arithmetic
+against the 200 pkt/s global ceiling is untroubled at ~2 s of wall clock.
+
+The raise is affordable in the other direction too — it must not turn honest `Determinate` verdicts
+into `Indeterminate` ones. **[measured]** 2026-08-15, 10 random labels + 1 structured, **direct to
+each zone's own authority**, across the classes §12.5 used:
+
+| Class | Zones | Verdict change at 10 draws |
+| --- | --- | --- |
+| Constant wildcards | `github.io`, `netlify.com`, `railway.app`, `onrender.com`, `glitch.me`, `localtest.me`, `vcap.me`, `staging.render.com`, `lvh.me`, `local.gd`, `localho.st` | **0 of 11** — one answer at 10 labels, unchanged by the structured one |
+| No synthesis at A | `1u.ms` | 0 |
+| Un-wildcarded | `pages.dev`, `workers.dev`, `azurewebsites.net`, `fly.dev`, `repl.co` | **0 of 5** — NXDOMAIN on every label |
+
+**0 of 17.** Doubling the count costs nothing in false `Indeterminate`, which is the same result
+§12.5 got for the structured label and for the same reason: more labels can only find variation that
+is there.
+
+### 13.9 `Determinate` is a claim about a vantage at a moment — and it already expires
+
+The ticket asks whether a determinate verdict has a shelf life. It does, the shelf is **the batch**,
+and the model already builds it — so the answer is that nothing is added and one thing is stated.
+
+**[measured]** the verdict is a claim about the **vantage**, not about the authority, three times
+over in this section alone. `vercel.com`'s authority rotates six answers in eight repeats and reads
+**`Determinate` for thirty minutes** behind a resolver honouring its 1800 s TTL. `herokuapp.com`
+answers a different ingress node on **3 of 4** of its own servers at one instant. `s3.amazonaws.com`
+reads `Indeterminate` at A only because the vantage crossed a zone cut (§13.5).
+
+ADR-0011 already forbids assembling this value across observations, and ADR-0068 already files the
+determinacy verdict as *a measured in-batch fact* rather than a parameter or an aperture input.
+Together those two make the verdict expire at the batch boundary by construction: the control
+probe's answers and the candidate's answer are drawn in one batch, compared in one batch, and the
+verdict is never carried into the next. **What this ticket adds is that the confinement is
+load-bearing** — it is what makes a per-query authority safe to reason about at all — and a session
+tempted to cache a determinacy verdict between batches to save 420 queries would be reintroducing
+exactly the cross-observation currency problem ADR-0011 refused, on a value measured here to move
+within **eight consecutive queries**.
+
+No new member, no new tier, no expiry field. `wildcard-synthesis`'s three-member per-component union
+is untouched, `resolution` does not move, and nothing `Break`s in the model's shape.
+
+### 13.10 Where this is thin
+
+- **The count cannot reach a rare second answer, and that is a permanent boundary rather than a
+  gap.** `(1-f)^n` at ten draws misses a 20 %-share member **11 %** of the time and a 5 %-share
+  member **60 %** of the time. The count buys against balanced pools, which is what was measured;
+  an authority that serves a second answer to one label in twenty is invisible to any affordable
+  *n*, and the safe reading of a determinate verdict remains ADR-0068's — evidence, never proof.
+- **Per-time is unfalsified rather than disproved.** The window measured is **35 minutes on one
+  day**, and a deploy, a certificate rotation or a health-check flap plainly can move an answer over
+  hours. What is ruled is that spacing is not worth a parameter *for the mechanisms that exist in
+  the sample*, not that answers never move with time. Naming one zone whose label→answer map moves
+  inside a batch's span falsifies this, which is what makes it bounded.
+- **`surge.sh`'s binary hash carries the whole count argument.** It is **1 of 14** wildcarded zones
+  and the only measured instance of the shape the raise is bought against; `appspot.com`'s pool is
+  wide enough that no count is needed and the per-query zones are caught at any count. So the ruling
+  moves a parameter for the estate on the strength of **one** zone's shape, argued from a model the
+  other four are consistent with rather than from four confirmations.
+- **§12.6's un-reproduced run.** Ten labels seeing one answer is a 0.2 % event under the measured
+  hash and **30 fresh trials did not reproduce it**. It is filed as a sample from the tail, but a
+  cause that was not ruled out is that #113's ten labels were not independent of one another — the
+  generator was not recorded. That is a defect in the earlier evidence rather than in this one, and
+  it is why this section measured trials rather than runs.
+- **One vantage, one day, and no control probe has ever run inside a batch** — verbatim from
+  ADR-0066, ADR-0068 and ADR-0069. What is measured is DNS behaviour against live authorities, now
+  mostly direct rather than through a resolver, which is a different exposure and not a smaller one:
+  the shipped probe stands where §13.6's resolver column stands, and every mechanism verdict here is
+  read from the authority column.
+- **The probe's vantage is a parameter nobody has declared, and this section is the first evidence
+  that it matters.** §13.5 and §13.6 both turn a determinacy verdict on whether a recursive resolver
+  is in the path: `s3.amazonaws.com` reads `Determinate` at the authority and `Indeterminate`
+  through a resolver, and `vercel.com`'s `Determinate` is a 30-minute cache artefact over an
+  authority that redraws every query. Whether `wildcard-discrimination` should query
+  **direct-to-authority** is a **query-mode** change — the class ADR-0068 refused the DNSSEC
+  discriminator on — and it is not a number. **Not ruled here, and not folded in.**
+- **Every zone in the population is a third-party hosting provider's**, so *per-query at two of
+  five* is a rate over **provider** zones and not over the operator estates ADR-0066's population
+  actually intersects. Unchanged and unfixable from public data, and flagged for the fourth time.
