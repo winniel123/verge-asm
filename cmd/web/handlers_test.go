@@ -76,6 +76,13 @@ type fakeStore struct {
 	// coldScopes mirrors the cold_scan_scope table: the set of Seed ids opted into
 	// the full-range tier, keyed by seed id so an opt-in is idempotent.
 	coldScopes map[int64]bool
+
+	// messages mirrors the message table (#205): written once, never updated in
+	// content, read back newest-first. previewResult is the fixed narrowing-receipt
+	// count a test wants PreviewExclusionWithdrawal to return.
+	messages      []db.Message
+	msgNextID     int64
+	previewResult db.PreviewExclusionWithdrawalRow
 }
 
 // fakeFreqEdit mirrors a verge-core frequency edit row.
@@ -445,6 +452,61 @@ func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) error {
 		}
 	}
 	return nil // idempotent: a missing row is not an error
+}
+
+func (f *fakeStore) InsertMessage(_ context.Context, arg db.InsertMessageParams) (db.Message, error) {
+	if f.msgNextID == 0 {
+		f.msgNextID = 1
+	}
+	m := db.Message{
+		ID: f.msgNextID, Cause: arg.Cause, Class: arg.Class,
+		SubjectKind: arg.SubjectKind, FiredAt: arg.FiredAt, Instant: arg.Instant,
+		Census: arg.Census, Headline: arg.Headline,
+	}
+	f.msgNextID++
+	f.messages = append(f.messages, m)
+	return m, nil
+}
+
+func (f *fakeStore) ListMessages(context.Context) ([]db.Message, error) {
+	out := make([]db.Message, len(f.messages))
+	// Newest-first, mirroring ORDER BY id DESC.
+	for i, m := range f.messages {
+		out[len(f.messages)-1-i] = m
+	}
+	return out, nil
+}
+
+func (f *fakeStore) CountUnreadMessages(context.Context) (int64, error) {
+	var n int64
+	for _, m := range f.messages {
+		if !m.ReadAt.Valid {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeStore) MarkMessageRead(_ context.Context, arg db.MarkMessageReadParams) error {
+	for i := range f.messages {
+		if f.messages[i].ID == arg.ID && !f.messages[i].ReadAt.Valid {
+			f.messages[i].ReadAt = arg.ReadAt
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) MarkAllMessagesRead(_ context.Context, readAt pgtype.Timestamptz) error {
+	for i := range f.messages {
+		if !f.messages[i].ReadAt.Valid {
+			f.messages[i].ReadAt = readAt
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) PreviewExclusionWithdrawal(_ context.Context, _ db.PreviewExclusionWithdrawalParams) (db.PreviewExclusionWithdrawalRow, error) {
+	return f.previewResult, nil
 }
 
 func (f *fakeStore) ListAccounts(context.Context) ([]db.ListAccountsRow, error) {
