@@ -40,6 +40,9 @@ type seedsForms struct {
 	// zoneIntervalDays echoes a rejected interval so the admin need not retype
 	// it; empty means render the stored dial.
 	zoneIntervalDays string
+	// The org-name lookup echo: an error keeps the search box populated on a
+	// rejected submit, a notice reports a lookup that returned no candidates.
+	proposalError, proposalNotice, proposalQuery string
 }
 
 // nameScopes returns the name-scope subset of a seed listing, in the same order.
@@ -132,9 +135,14 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "get zone cadence", err)
 		return
 	}
+	lookups, err := s.proposalLookups(r.Context())
+	if err != nil {
+		s.serverError(w, "list proposals", err)
+		return
+	}
 	status := http.StatusOK
 	if f.seedError != "" || f.exclError != "" || f.custodyError != "" || f.proberError != "" ||
-		f.zoneError != "" || f.zoneIntervalError != "" {
+		f.zoneError != "" || f.zoneIntervalError != "" || f.proposalError != "" {
 		status = http.StatusBadRequest
 	}
 	seeds := toSeedViews(rows)
@@ -161,6 +169,10 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus), "NameScopes": nameSeeds,
 		"ZoneError": f.zoneError, "ZoneIntervalError": f.zoneIntervalError,
 		"ZoneIntervalDays": intervalDays,
+		// Pending Proposals and the org-name lookup echo (#210).
+		"ProposalLookups": lookups,
+		"ProposalError":   f.proposalError, "ProposalNotice": f.proposalNotice,
+		"ProposalQuery": f.proposalQuery,
 	})
 }
 

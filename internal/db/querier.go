@@ -15,6 +15,10 @@ type Querier interface {
 	// run_after has passed, oldest first, marking the winner running in one
 	// statement so two workers never claim the same job.
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
+	// Marks a single Proposal confirmed and retains the Seed it became as provenance.
+	// Guarded on status = 'pending' so a concurrent or repeated confirm is a no-op
+	// rather than a second Seed: confirmation is singular (ADR-0022).
+	ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
 	CountAccounts(ctx context.Context) (int64, error)
 	// Guards the last-admin invariant: a role change that would drop this to zero is
@@ -29,6 +33,12 @@ type Querier interface {
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
+	// Files one candidate scope a proposer offered. It enters as 'pending' and is
+	// read by nothing until it is confirmed into a Seed.
+	CreateProposal(ctx context.Context, arg CreateProposalParams) (Proposal, error)
+	// Records one operator act — an org-name search — under which a batch of
+	// candidate scopes is filed. It is the unit a bulk decline operates over.
+	CreateProposerLookup(ctx context.Context, arg CreateProposerLookupParams) (ProposerLookup, error)
 	// Provisioning a prober creates a Vantage with connection detail. Its
 	// measurement identity is still mandatory: the caller derives `name` from the
 	// endpoint (username@host:port) so it is unique per provisioned endpoint, class
@@ -37,48 +47,30 @@ type Querier interface {
 	// key has been pinned yet. The explicit casts keep the params plain scalars even
 	// though the prober columns are nullable on the table.
 	CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error)
-	// Records one supply act: a name-scope Seed's zone file at the operator's supply
-	// instant. Append-only — a re-export is a new row, never an update.
-	CreateZoneFile(ctx context.Context, arg CreateZoneFileParams) (CreateZoneFileRow, error)
+	// Declines every still-pending Proposal under one lookup in a single act
+	// (ADR-0022: declining may be bulk over a whole lookup). Declining is safe to
+	// batch because a pending Proposal is read by nothing, so 'declined' and 'never
+	// answered' have the same effect on the gate.
+	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
 	DeleteChannel(ctx context.Context, id int64) error
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
-	// The Seed a Name's Citation chain terminates at: the name scope whose query set
-	// the dns Scan was drawn from (CONTEXT.md `Citation` — every chain bottoms out at
-	// a Seed or a declared source). Wave-0 measures the seed domains themselves; the
-	// label-wise suffix match also carries a later enumerated subdomain to its scope,
-	// and the longest matching domain wins when scopes nest.
-	FindCoveringNameSeed(ctx context.Context, name string) (FindCoveringNameSeedRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
-	// The Citation chain's load-bearing hop: the observation that introduced a Name
-	// — its earliest resolution observation — plus the Batch and Scan it rode in on
-	// (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
-	// measurement that first admitted the subject; the chain terminates one hop
-	// further at the covering Seed (FindCoveringNameSeed).
-	GetNameCitation(ctx context.Context, subjectKey string) (GetNameCitationRow, error)
-	// Resolve a Name key to at most one subject, withdrawn or not. Search is a
-	// lookup and not a listing (ADR-0072 decision 3): the drill-down reaches a
-	// measured-gone Name by its own key rather than manufacturing a false "no
-	// record" at the URL. The caller reads the latest resolution value to decide
-	// whether the subject names a population of no current member.
-	GetNameSubject(ctx context.Context, subjectKey string) (GetNameSubjectRow, error)
+	// One pending Proposal, read at the moment of confirmation so the confirm act
+	// can copy its scope into a Seed. A Proposal already confirmed or declined does
+	// not come back, so a double submit cannot open the gate twice.
+	GetPendingProposal(ctx context.Context, id int64) (Proposal, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
-	// The operator's declared re-supply interval, held as the zone Scan's cadence.
-	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
 	InsertObservation(ctx context.Context, arg InsertObservationParams) error
-	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
-	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
-	// the most recent supply per Seed.
-	LatestZoneFilesForDispatch(ctx context.Context) ([]LatestZoneFilesForDispatchRow, error)
 	// The accounts management list on the Settings screen. It omits password_hash
 	// and totp_secret: managing accounts never needs either, so they stay out of the
 	// render path.
@@ -86,24 +78,13 @@ type Querier interface {
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
-	// Reads behind the Subjects screen (#189). All four are additive read queries
-	// over the wave-0 measurement corpus (observation / batch / scan) and the seed
-	// table — no new schema. `ListCurrentNameSubjects` is the thin "current Names"
-	// membership read the seam note (#189 → #192) asks for: it is the one place a
-	// caller decides which Names are in the estate, so a later refinement of
-	// membership (Shadowed suppression, #192; the cross-class withdrawal quorum,
-	// ADR-0006/ADR-0080) narrows this predicate here rather than growing a second
-	// computation elsewhere.
-	// Every Name currently in the estate, with optional search. A Name is a member
-	// while its latest resolution observation is not a measured Name Error — the
-	// only route a Name leaves is our resolver measuring NameError (ADR-0006). No
-	// count is selected: the estate can carry no honest denominator (ADR-0072), so
-	// there is nothing here to total. A withdrawn Name (latest resolution =
-	// NameError) is filtered out and reached only by key (GetNameSubject).
-	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
+	// The pending Proposals the Seeds screen renders, grouped for the caller by
+	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
+	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
+	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
@@ -121,29 +102,12 @@ type Querier interface {
 	// (host set) whose public half has not been published, so no key material has
 	// ever left the worker volume for them.
 	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
-	// The Seeds-screen view: the latest supplied file per name-scope Seed, without
-	// the content, so the operator sees which scopes hold a zone file, when it was
-	// supplied and by whom.
-	ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error)
 	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error
 	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error
 	MarkJobRetried(ctx context.Context, id int64) error
 	// A pinned host key later mismatched, or the position went unreachable: the
 	// vantage is marked unavailable rather than silently re-trusting a new key.
 	MarkVantageUnavailable(ctx context.Context, id int64) error
-	// The Addresses a current resolution cites, per Name — an `Address` is in the
-	// estate exactly while a current resolution cites it. Only a `Resolved` value
-	// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
-	// so every `Address` held only by a superseded `Resolved` leaves the estate.
-	NameCitedAddresses(ctx context.Context) ([]NameCitedAddressesRow, error)
-	// Membership reads the `resolution` facet, which `resolution-walk` and
-	// `wildcard-discrimination` decide jointly (ADR-0086): the recorded value is one
-	// or the other, so this reads BOTH leaves' outputs off one timeline. A Name is
-	// withdrawn only where every available vantage's latest resolution is NameError;
-	// a `Shadowed` answer never withdraws a Name and cites no `Address`. This extends
-	// #188's observation corpus additively so #189's Subjects listing can suppress a
-	// Shadowed Name's addresses without forking a second membership path.
-	NameMembership(ctx context.Context) ([]NameMembershipRow, error)
 	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
 	// the vantage available. The host_key IS NULL guard makes this a no-op once a
 	// key is pinned, so a first-connect race can never overwrite an existing pin.
@@ -162,9 +126,6 @@ type Querier interface {
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
-	// Moves the re-supply interval dial. cadence_seconds > 0 is enforced by the
-	// table's CHECK, so a non-positive interval is rejected by the database.
-	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.
