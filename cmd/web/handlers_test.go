@@ -951,6 +951,88 @@ func (f *fakeStore) GetEndpointSubject(_ context.Context, key string) (db.GetEnd
 	return db.GetEndpointSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
 }
 
+// addClassReachability records a reachability observation for a Service at a
+// Vantage of the given class — the sensitive-port rule reads the internet-class
+// leg, so its census needs the class join the plain Service read does not (#203).
+func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string, at time.Time, value string) {
+	t.Helper()
+	vid := f.vantageForClass(class)
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: 1, Facet: "reachability", SubjectKind: "service",
+		SubjectKey: serviceKey, VantageID: pgtype.Int8{Int64: vid, Valid: true},
+		Source: "prober", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+func (f *fakeStore) ListServiceReachabilityByClass(context.Context) ([]db.ListServiceReachabilityByClassRow, error) {
+	classOf := map[int64]string{}
+	for _, v := range f.vantages {
+		classOf[v.ID] = v.Class
+	}
+	type key struct{ svc, class string }
+	latest := map[key]db.Observation{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
+			continue
+		}
+		class, ok := classOf[o.VantageID.Int64]
+		if !ok {
+			continue
+		}
+		k := key{o.SubjectKey, class}
+		cur, ok := latest[k]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[k] = o
+		}
+	}
+	rows := []db.ListServiceReachabilityByClassRow{}
+	for k, o := range latest {
+		rows = append(rows, db.ListServiceReachabilityByClassRow{SubjectKey: k.svc, Class: k.class, Value: o.Value})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SubjectKey != rows[j].SubjectKey {
+			return rows[i].SubjectKey < rows[j].SubjectKey
+		}
+		return rows[i].Class < rows[j].Class
+	})
+	return rows, nil
+}
+
+// addCertificate records a certificate observation for an Endpoint — the
+// tls-handshake step's output (#197), the value the certificate rules read (#203).
+func (f *fakeStore) addCertificate(t *testing.T, endpointKey string, at time.Time, value string) {
+	t.Helper()
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: 1, Facet: "certificate", SubjectKind: "endpoint",
+		SubjectKey: endpointKey, Source: "prober", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+func (f *fakeStore) ListEndpointCertificates(context.Context) ([]db.ListEndpointCertificatesRow, error) {
+	latest := map[string]db.Observation{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "endpoint" || o.Facet != "certificate" {
+			continue
+		}
+		cur, ok := latest[o.SubjectKey]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[o.SubjectKey] = o
+		}
+	}
+	rows := []db.ListEndpointCertificatesRow{}
+	for k, o := range latest {
+		rows = append(rows, db.ListEndpointCertificatesRow{SubjectKey: k, Value: o.Value})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].SubjectKey < rows[j].SubjectKey })
+	return rows, nil
+}
+
 func (f *fakeStore) FindNameCitingAddress(_ context.Context, address string) (db.FindNameCitingAddressRow, error) {
 	// The earliest current resolution whose Resolved answer names the address.
 	var best *db.FindNameCitingAddressRow

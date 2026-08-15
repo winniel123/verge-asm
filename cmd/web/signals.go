@@ -3,12 +3,14 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strings"
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/signal"
+	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
 // The Signals screen (v1 spec §6.5, ADR-0024/ADR-0102). Every rule's census
@@ -107,9 +109,9 @@ func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 // single render path the GET handler and the declare handler's failure case both
 // use, so a rejected declaration re-renders the live page with its error.
 func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.Account, forms signalsForms) {
-	facts, err := s.buildNameFacts(r)
+	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
-		s.serverError(w, "build name facts", err)
+		s.serverError(w, "build signal corpus", err)
 		return
 	}
 	annos, err := s.store.ListAnnotations(r.Context())
@@ -134,7 +136,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 
 	population := map[string]map[string]bool{}
 	views := make([]signalCensusView, 0)
-	for _, c := range signal.EvaluateAll(facts) {
+	for _, c := range signal.EvaluateCorpus(corpus) {
 		pop := map[string]bool{}
 		for _, m := range c.Fired {
 			pop[m.Subject] = true
@@ -412,4 +414,197 @@ func sortedKeys(m map[string]struct{}) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// buildSignalCorpus assembles the full Derived snapshot the seventeen-rule set
+// reads: the per-Name facts (the five Name-only rules), the per-Service facts (the
+// two Service rules), and the per-Endpoint facts (the ten Endpoint rules). Each is
+// folded from the observation corpus generically — by facet name and value — so a
+// rule reading a facet whose producing data is not yet present (a certificate's
+// parsed leaf, or #199's tls-acceptance) renders `not-evaluable` or a no-population
+// panel rather than a compile-time dependency on a leaf that has not landed.
+func (s *server) buildSignalCorpus(r *http.Request) (signal.Corpus, error) {
+	names, err := s.buildNameFacts(r)
+	if err != nil {
+		return signal.Corpus{}, err
+	}
+	services, estateAddrs, err := s.buildServiceFacts(r)
+	if err != nil {
+		return signal.Corpus{}, err
+	}
+	endpoints, err := s.buildEndpointFacts(r, names, estateAddrs)
+	if err != nil {
+		return signal.Corpus{}, err
+	}
+	return signal.Corpus{Names: names, Services: services, Endpoints: endpoints}, nil
+}
+
+// buildServiceFacts folds the internet-class reachability corpus into the
+// per-Service snapshot the two Service rules read. It also returns the set of
+// estate addresses — the Address leg of every Service subject — which the Endpoint
+// redirect rule reads to decide whether a redirect target host is in the estate.
+// The `tls-acceptance` facet (tls-1.0-accepted's domain) is not read: its leaf
+// (#199) lands concurrently, so every Service is left outside that rule's domain
+// (a no-population panel) rather than importing a leaf that may not exist yet.
+func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[string]bool, error) {
+	rows, err := s.store.ListServiceReachabilityByClass(r.Context())
+	if err != nil {
+		return nil, nil, err
+	}
+	vc := vergecore.Default()
+
+	// subject -> class -> reachability outcome (reached | not-reached | "").
+	byClass := map[string]map[string]string{}
+	order := []string{}
+	for _, row := range rows {
+		m := byClass[row.SubjectKey]
+		if m == nil {
+			m = map[string]string{}
+			byClass[row.SubjectKey] = m
+			order = append(order, row.SubjectKey)
+		}
+		m[row.Class] = decodeReachability(row.Value).Outcome
+	}
+
+	estateAddrs := map[string]bool{}
+	facts := make([]signal.ServiceFacts, 0, len(order))
+	for _, sub := range order {
+		f := signal.ServiceFacts{Subject: sub}
+		if pair, addr, ok := parseServicePair(sub); ok {
+			// A Service exists only for a probed pair (TCP); the sensitive half is
+			// always in the probed union, so IsSensitive on the TCP pair is exactly
+			// "on the sensitive list AND probed" (the ticket's domain restriction).
+			f.OnSensitiveList = pair.Transport == vergecore.TCP && vc.IsSensitive(pair)
+			estateAddrs[addr] = true
+		}
+		if o, ok := byClass[sub]["internet"]; ok && o != "" {
+			f.HasInternetReach = true
+			f.InternetReach = o
+		}
+		facts = append(facts, f)
+	}
+	sort.Slice(facts, func(i, j int) bool { return facts[i].Subject < facts[j].Subject })
+	return facts, estateAddrs, nil
+}
+
+// buildEndpointFacts folds the per-Endpoint certificate and http-identity corpus
+// into the snapshot the ten Endpoint rules read. The estate membership a redirect
+// target is tested against is the union of the current Name subjects and the
+// Service addresses — both Derived, so the redirect-to-host rule's version
+// composes their leaves. The certificate value carries only its outcome tag and a
+// fingerprint chain, so the five certificate-detail rules leave CertDetails nil
+// (a presented chain renders `not-evaluable`).
+func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, estateAddrs map[string]bool) ([]signal.EndpointFacts, error) {
+	ctx := r.Context()
+	certRows, err := s.store.ListEndpointCertificates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	httpRows, err := s.store.ListCurrentEndpointSubjects(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+
+	certOutcome := map[string]string{}
+	for _, row := range certRows {
+		certOutcome[row.SubjectKey] = decodeCertificate(row.Value).Outcome
+	}
+	httpID := map[string]httpIdentityValue{}
+	for _, row := range httpRows {
+		httpID[row.SubjectKey] = decodeHTTPIdentity(row.Value)
+	}
+
+	// The estate name set the redirect rule reads: a redirect target host is in the
+	// estate where it names a current Name or a Service's Address.
+	nameSet := estateNameSet(names)
+	inEstate := func(host string) bool {
+		if host == "" {
+			return true // a relative redirect stays on this origin
+		}
+		return estateAddrs[host] || nameSet[host]
+	}
+
+	subjects := map[string]struct{}{}
+	for k := range certOutcome {
+		subjects[k] = struct{}{}
+	}
+	for k := range httpID {
+		subjects[k] = struct{}{}
+	}
+
+	facts := make([]signal.EndpointFacts, 0, len(subjects))
+	for sub := range subjects {
+		name, _ := splitEndpointName(sub)
+		f := signal.EndpointFacts{Subject: sub, HasName: name != ""}
+		if o, ok := certOutcome[sub]; ok {
+			f.CertMeasured = true
+			f.CertOutcome = o
+		}
+		if id, ok := httpID[sub]; ok {
+			f.HTTPResponded = true
+			f.HTTPStatus = id.Status
+			f.RedirectLocation = id.RedirectLocation
+			if f.HTTPStatus >= 300 && f.HTTPStatus <= 399 && id.RedirectLocation != "" {
+				_, host := signal.RedirectTarget(id.RedirectLocation)
+				f.RedirectHostInEstate = inEstate(host)
+			}
+		}
+		facts = append(facts, f)
+	}
+	sort.Slice(facts, func(i, j int) bool { return facts[i].Subject < facts[j].Subject })
+	return facts, nil
+}
+
+// certificateValue is the JSON payload of a certificate observation — the closed
+// union outcome tag and (only on a presentation) the fingerprint chain (#197).
+// The engine reads the outcome; the parsed leaf attributes the five detail rules
+// need are not stored, so a presented chain renders `not-evaluable`.
+type certificateValue struct {
+	Outcome string   `json:"outcome"`
+	Chain   []string `json:"chain"`
+}
+
+func decodeCertificate(raw []byte) certificateValue {
+	var v certificateValue
+	_ = json.Unmarshal(raw, &v)
+	return v
+}
+
+// parseServicePair splits a Service key `address:port/transport` into its
+// verge-core pair and its Address. A key that does not parse yields ok=false —
+// the Service is still a census subject, just never on the sensitive list.
+func parseServicePair(key string) (pair vergecore.Pair, addr string, ok bool) {
+	slash := strings.LastIndex(key, "/")
+	if slash < 0 {
+		return vergecore.Pair{}, "", false
+	}
+	hostPort, transport := key[:slash], key[slash+1:]
+	ap, err := netip.ParseAddrPort(hostPort)
+	if err != nil {
+		return vergecore.Pair{}, "", false
+	}
+	return vergecore.Pair{Port: ap.Port(), Transport: vergecore.Transport(transport)}, ap.Addr().String(), true
+}
+
+// splitEndpointName splits an Endpoint key `name@service` into its Name (empty for
+// the nameless endpoint) and Service legs at the first `@` — neither a DNS Name
+// nor a Service key contains one.
+func splitEndpointName(key string) (name, service string) {
+	if at := strings.Index(key, "@"); at >= 0 {
+		return key[:at], key[at+1:]
+	}
+	return "", key
+}
+
+// estateNameSet is the set of current Name subjects, keyed lowercased so a
+// redirect host (already lowercased by RedirectTarget) matches regardless of the
+// zone's spelling.
+func estateNameSet(names []signal.NameFacts) map[string]bool {
+	set := make(map[string]bool, len(names))
+	for _, n := range names {
+		if n.InEstate {
+			set[strings.ToLower(n.Name)] = true
+		}
+	}
+	return set
 }

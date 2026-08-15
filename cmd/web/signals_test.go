@@ -130,6 +130,77 @@ func TestSignalsRendersEveryRuleCensus(t *testing.T) {
 	}
 }
 
+func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	// A name in the estate, so the redirect-to-host rule has an estate to test against.
+	f.addClassResolution(t, "good.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+
+	// sensitive-port-reached-from-internet: a sensitive pair (3389/tcp) reached from
+	// the internet → FIRED. A non-sensitive pair (443/tcp) is outside the domain.
+	f.addClassReachability(t, "198.51.100.1:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.9:443/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+	// A sensitive pair seen only internally → no internet leg → NOT-EVALUABLE.
+	f.addClassReachability(t, "198.51.100.2:445/tcp", "internal", obsClock, `{"outcome":"reached"}`)
+
+	// A presented certificate → the five cert-detail rules render it NOT-EVALUABLE
+	// (the parsed leaf is not stored), and it is inside hostname-san-mismatch's domain.
+	f.addCertificate(t, "secure.example.com@198.51.100.1:443/tcp", obsClock, `{"outcome":"presented","chain":["sha256:abc"]}`)
+
+	// A plaintext endpoint: HTTP responded (200) and the certificate is no-tls →
+	// plaintext-http-no-https FIRED, and unauthenticated-request-answered FIRED.
+	f.addHTTPIdentity(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"status":200}`)
+	f.addCertificate(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"no-tls"}`)
+
+	// A redirect that does not upgrade and points outside the estate → both redirect
+	// rules FIRED.
+	f.addHTTPIdentity(t, "redir.example.com@198.51.100.6:80/tcp", obsClock, `{"status":301,"redirect_location":"http://outside.test/x"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/signals", http.StatusOK)
+
+	// All seventeen rules render.
+	for _, rule := range []string{
+		"lame-delegation", "cname-target-name-error", "zone-declared-name-returns-name-error",
+		"resolved-name-absent-from-zone", "non-globally-reachable-address-resolved-from-internet",
+		"certificate-expired", "certificate-not-yet-valid", "certificate-expiring",
+		"certificate-self-signed", "certificate-weak-key-or-signature", "certificate-hostname-san-mismatch",
+		"plaintext-http-no-https", "redirect-does-not-upgrade-to-tls", "redirect-to-host-outside-estate",
+		"unauthenticated-request-answered", "tls-1.0-accepted", "sensitive-port-reached-from-internet",
+	} {
+		if !strings.Contains(page, rule) {
+			t.Errorf("Signals page missing rule %q", rule)
+		}
+	}
+
+	// Fired Service and Endpoint members drill to their subjects.
+	for _, subject := range []string{
+		"198.51.100.1:3389/tcp",                   // sensitive-port fired
+		"plain.example.com@198.51.100.5:80/tcp",   // plaintext-http fired
+		"redir.example.com@198.51.100.6:80/tcp",   // redirect rules fired
+		"secure.example.com@198.51.100.1:443/tcp", // certificate not-evaluable member
+	} {
+		if !strings.Contains(page, `href="/subjects/`+subject+`"`) {
+			t.Errorf("census member %q not drillable to its subject", subject)
+		}
+	}
+
+	// The version vectors compose the leaves the rules read.
+	for _, ver := range []string{"tls-handshake/v1", "http-exchange/v1", "connect-outcome/v1", "tls-acceptance/v1"} {
+		if !strings.Contains(page, ver) {
+			t.Errorf("version vector not rendered composing %q", ver)
+		}
+	}
+
+	// tls-1.0-accepted reads a facet whose leaf (#199) has not landed → its domain
+	// is empty and it renders a no-population panel, not a compile dependency.
+	if !strings.Contains(page, "No population") {
+		t.Errorf("tls-1.0-accepted should render a no-population panel with no tls-acceptance data")
+	}
+}
+
 func TestSignalsEmptyEstateRendersNoPopulation(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

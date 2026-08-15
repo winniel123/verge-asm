@@ -34,17 +34,12 @@ func All() []Rule {
 	}
 }
 
-// RuleNames returns the names of the shipped rules in All's order — the set an
-// Annotation may name, so the Signals declare form offers exactly the rules that
-// exist and nothing an operator could accept a firing on that never fires.
-func RuleNames() []string {
-	rules := All()
-	out := make([]string, 0, len(rules))
-	for _, r := range rules {
-		out = append(out, r.Name())
-	}
-	return out
-}
+// RuleNames returns the names of every shipped rule across all three subject
+// kinds, in EvaluateCorpus order — the set an Annotation may name, so the Signals
+// declare form offers exactly the rules that exist and nothing an operator could
+// accept a firing on that never fires. It is AllRuleNames; the seventeen-rule set
+// is the one the form and the acceptance guard both read.
+func RuleNames() []string { return AllRuleNames() }
 
 // hasAnswer reports whether a composed resolution outcome carries an address set
 // the world affirmed — the two answer-bearing values. NameError / NoData / Lame

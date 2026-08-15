@@ -11,6 +11,52 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const listEndpointCertificates = `-- name: ListEndpointCertificates :many
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value
+    FROM observation o
+    WHERE o.subject_kind = 'endpoint' AND o.facet = 'certificate'
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value
+FROM latest
+ORDER BY subject_key
+`
+
+type ListEndpointCertificatesRow struct {
+	SubjectKey string `json:"subject_key"`
+	Value      []byte `json:"value"`
+}
+
+// The latest `certificate` observation per Endpoint (#203) — the value the six
+// certificate rules and `plaintext-http-no-https` read. The value is the closed
+// union `presented(chain) | tls-refused | no-tls`; the engine reads the outcome
+// tag. The parsed leaf attributes the five certificate-detail rules need are not
+// stored (only the fingerprint chain is), so those rules render a presented chain
+// `not-evaluable` until a certificate-parsing leaf lands. DISTINCT ON keeps the
+// most recent value per Endpoint.
+func (q *Queries) ListEndpointCertificates(ctx context.Context) ([]ListEndpointCertificatesRow, error) {
+	rows, err := q.db.Query(ctx, listEndpointCertificates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEndpointCertificatesRow{}
+	for rows.Next() {
+		var i ListEndpointCertificatesRow
+		if err := rows.Scan(&i.SubjectKey, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNameDNSRecords = `-- name: ListNameDNSRecords :many
 WITH latest AS (
     SELECT DISTINCT ON (o.subject_key, o.discriminator)
@@ -98,6 +144,53 @@ func (q *Queries) ListNameResolutionsByClass(ctx context.Context) ([]ListNameRes
 	items := []ListNameResolutionsByClassRow{}
 	for rows.Next() {
 		var i ListNameResolutionsByClassRow
+		if err := rows.Scan(&i.SubjectKey, &i.Class, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listServiceReachabilityByClass = `-- name: ListServiceReachabilityByClass :many
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key, v.class)
+        o.subject_key AS subject_key,
+        v.class       AS class,
+        o.value       AS value
+    FROM observation o
+    JOIN vantage v ON v.id = o.vantage_id
+    WHERE o.facet = 'reachability' AND o.subject_kind = 'service'
+    ORDER BY o.subject_key, v.class, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, class, value
+FROM latest
+ORDER BY subject_key, class
+`
+
+type ListServiceReachabilityByClassRow struct {
+	SubjectKey string `json:"subject_key"`
+	Class      string `json:"class"`
+	Value      []byte `json:"value"`
+}
+
+// The latest `reachability` observation per (Service, Vantage class) (#203). The
+// engine reads the internet-class leg for `sensitive-port-reached-from-internet`
+// (ADR-0071: a class-scoped internet, existential composition — the internal twin
+// is a different, refused rule). DISTINCT ON keeps the most recent value per
+// (service, class), mirroring the Name resolution read one facet over.
+func (q *Queries) ListServiceReachabilityByClass(ctx context.Context) ([]ListServiceReachabilityByClassRow, error) {
+	rows, err := q.db.Query(ctx, listServiceReachabilityByClass)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListServiceReachabilityByClassRow{}
+	for rows.Next() {
+		var i ListServiceReachabilityByClassRow
 		if err := rows.Scan(&i.SubjectKey, &i.Class, &i.Value); err != nil {
 			return nil, err
 		}

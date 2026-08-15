@@ -1118,7 +1118,8 @@ which only you know, so this screen states none.</p>
 Its census is three members over one population — fired, did not fire, and
 not-evaluable — current state only, never a trend and never a comparison. A
 signal is a named fact, not a ranked one: urgency belongs to the transition that
-surfaces it, never to the rule. Only Name rules render yet.</p>
+surfaces it, never to the rule. All seventeen v1 rules render — Name, Service and
+Endpoint — each over the population its own name could be true of.</p>
 
 {{range .Censuses}}
 <div class="section">
