@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/winniel123/verge-asm/internal/db"
 )
@@ -145,14 +147,228 @@ type sourceView struct {
 	Unresolvable []string
 }
 
-// coveragePage is the minimal Coverage stub (§6.3). The full aperture statement
-// — one line per aperture input, its cadence and on/off state — is ticket 11 and
-// is deliberately not built here. This page exists as the entry point to the
-// source-enablement modal (§6.3, §6.4).
+// dnsQtypeSet is the qtype set the dns Scan puts on the wire, one aperture input
+// of the seven (§3.2). It is declared release data — authored by the project and
+// shipped in the binary, the same for every install — so it is held here beside
+// the source catalogue rather than read from Postgres. The authority is
+// resolutionwalk.DefaultOffers().Qtypes; this mirror is asserted equal to it by
+// TestDNSQtypeSetMatchesLeaf so the two never drift.
+var dnsQtypeSet = []string{"A", "AAAA", "CNAME", "NS", "SOA", "MX", "TXT"}
+
+// apertureLine is one rendered row of the aperture statement (§3.2, §6.3): an
+// aperture input, what the tier is, its cadence, and its on/off state — never a
+// proportion of the operator's estate. That refused estate-completeness score is
+// #28's, and ADR-0095 is the rule this screen keeps: it states what the tier is
+// and, where relevant, what the instrument is structurally unable to report,
+// never how much of the estate is covered.
+type apertureLine struct {
+	Input   string // the aperture input's name (§3.2)
+	Tier    string // what the tier is — the qtype set, the source set, the scope kinds
+	Cadence string // how often the covering Scan asks, or "—" where none does yet
+	On      bool   // whether anything drives this input on a default install
+	State   string // the on/off rendering: a short honest phrase, never a proportion
+	Note    string // one honest clause; never a proportion of the estate
+}
+
+// checkStep is one step of the day-one checklist (§6.3). The zero-coverage state
+// renders these as a rendering, not a wizard: each names a capability and, where
+// an act genuinely exists, points at the surface that performs it — adding no
+// prompt of its own. Href is empty for a step whose surface does not exist yet
+// (running the first batch is the worker's job at cadence, not a button).
+type checkStep struct {
+	Title string
+	Body  string
+	Href  string
+	CTA   string
+}
+
+// coveragePage renders the aperture statement (§6.3): one line per aperture input
+// (§3.2) stating what the tier is, its cadence, and whether it is on — never a
+// proportion of the operator's estate. It carries a retention stub (the real
+// dials are #26/#28/#29), the day-one checklist in the zero-coverage state, and
+// the entry point to the source-enablement modal (§6.4). Scoped to what ships so
+// far: the dns Scan and source enablement.
 func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	ctx := r.Context()
+
+	// Enabled sources — the first aperture input, counted against the toggleable
+	// catalogue (a barred source has no instrument to enable, so it is not a
+	// denominator). This counts sources, never the estate.
+	views, err := s.sourceViews(r)
+	if err != nil {
+		s.serverError(w, "list source states", err)
+		return
+	}
+	var srcEnabled, srcToggleable int
+	for _, v := range views {
+		if !v.Toggleable {
+			continue
+		}
+		srcToggleable++
+		if v.Enabled {
+			srcEnabled++
+		}
+	}
+
+	// Queried address scope — from the operator's Seeds. A name scope enumerates
+	// nothing (its addresses arrive by resolution); an address scope enumerates.
+	seeds, err := s.store.ListSeeds(ctx)
+	if err != nil {
+		s.serverError(w, "list seeds", err)
+		return
+	}
+	var nameScopes, addrScopes int
+	for _, sd := range seeds {
+		if sd.Kind == "address" {
+			addrScopes++
+		} else {
+			nameScopes++
+		}
+	}
+
+	// Vantages — the provisioned probers, plus the shipped resolver-only `local`
+	// vantage the dns Scan always resolves through (migration 18800). An
+	// internet-class vantage is what opens the Reach and Exposure timelines; a
+	// prober is declared internet only once it re-verifies (§4.2), so a freshly
+	// provisioned one is still `unverified`.
+	vantages, err := s.store.ListVantages(ctx)
+	if err != nil {
+		s.serverError(w, "list vantages", err)
+		return
+	}
+	provisioned := len(vantages)
+	internetVantage := false
+	for _, v := range vantages {
+		if v.Class == "internet" {
+			internetVantage = true
+		}
+	}
+
+	// The dns Scan carries the cadence for every input it covers (§3.4, ADR-0084).
+	// A cadence is not itself an aperture input — a Batch records what it asked,
+	// never how often — but it is what the aperture statement states per line.
+	dns, err := s.store.GetScanByKind(ctx, "dns")
+	if err != nil {
+		s.serverError(w, "get dns scan", err)
+		return
+	}
+	dnsCadence := cadenceLabel(dns.CadenceSeconds)
+	dnsOn := dns.Enabled
+
+	scopeState := "no scope declared"
+	if nameScopes+addrScopes > 0 {
+		scopeState = fmt.Sprintf("%d name · %d address", nameScopes, addrScopes)
+	}
+
+	vantageState := "resolver only"
+	if provisioned > 0 {
+		vantageState = fmt.Sprintf("%d prober · resolver", provisioned)
+	}
+	vantageNote := "The shipped local resolver position, plus any provisioned probers. No internet-class vantage yet, so the Reach and Exposure timelines have not opened."
+	if internetVantage {
+		vantageNote = "An internet-class vantage is configured — the Reach and Exposure timelines are open."
+	}
+
+	lines := []apertureLine{
+		{
+			Input: "Enabled sources", Tier: fmt.Sprintf("%d of %d sources enabled", srcEnabled, srcToggleable),
+			Cadence: "—", On: srcEnabled > 0, State: fmt.Sprintf("%d on", srcEnabled),
+			Note: "Discovery sources that may run. Turning one on never adds to the estate on its own; a proposer only offers proposals you confirm into Seeds.",
+		},
+		{
+			Input: "Port sets", Tier: "hot / cold port tiers",
+			Cadence: "—", On: false, State: "off",
+			Note: "No port Scan ships yet — the dns Scan carries no port list. The hot and cold tiers, and the sensitive-pairs line, land in later tickets.",
+		},
+		{
+			Input: "Vantages", Tier: "network positions",
+			Cadence: dnsCadence, On: dnsOn, State: vantageState,
+			Note: vantageNote,
+		},
+		{
+			Input: "TLS candidate set", Tier: "versions & ciphers",
+			Cadence: "—", On: false, State: "off",
+			Note: "No TLS-acceptance Scan ships yet.",
+		},
+		{
+			Input: "Qtype set", Tier: strings.Join(dnsQtypeSet, " · "),
+			Cadence: dnsCadence, On: dnsOn, State: onOff(dnsOn),
+			Note: "The seven qtypes the dns Scan asks, explicitly and never as ANY.",
+		},
+		{
+			Input: "Control-probe population", Tier: "parents of resolved names",
+			Cadence: dnsCadence, On: dnsOn, State: onOff(dnsOn),
+			Note: "Generated under a resolved name's parent for wildcard discrimination. Empty until names resolve; it grows with the estate, never ahead of it.",
+		},
+		{
+			Input: "Queried address scope", Tier: "name & address Seeds",
+			Cadence: dnsCadence, On: nameScopes+addrScopes > 0, State: scopeState,
+			Note: "What the dns Scan queries. A name scope enumerates nothing — its addresses arrive by resolution — while an address scope walks every address it covers.",
+		},
+	}
+
+	// Zero coverage is the honest day-one shape: nothing declared to look at yet.
+	// The checklist is a rendering of the path out of it, not a wizard.
+	zeroCoverage := nameScopes+addrScopes == 0
+	steps := []checkStep{
+		{
+			Title: "Declare your domain",
+			Body:  "Name a registrable domain as a Seed. Its addresses arrive by measured resolution — a name scope enumerates nothing on its own.",
+			Href:  "/seeds", CTA: "Declare a scope →",
+		},
+		{
+			Title: "Upload a zone file",
+			Body:  "Supply your zone as a Source. It proposes the names the resolver walk then measures, re-read on its own cadence.",
+			Href:  "/seeds", CTA: "Manage Seeds →",
+		},
+		{
+			Title: "Add an internet vantage",
+			Body:  "Provision a prober. The act itself declares the vantage sits on the internet and opens the Reach and Exposure timelines.",
+			Href:  "/seeds", CTA: "Provision a prober →",
+		},
+		{
+			Title: "Run the first batch",
+			Body:  "The dns Scan fans out over every configured vantage at its cadence once a domain and a vantage exist. It runs on its own — there is no button to press.",
+			Href:  "", CTA: "",
+		},
+	}
+
 	s.render(w, "coverage", map[string]any{
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"Lines": lines, "ZeroCoverage": zeroCoverage, "Steps": steps,
+		"DNSCadence": dnsCadence, "DNSOn": dnsOn,
 	})
+}
+
+// cadenceLabel renders a Scan's cadence in seconds as the phrase the aperture
+// statement states. The common shipped cadences get a word; anything else is
+// stated in its plain unit rather than invented into a near-fit.
+func cadenceLabel(seconds int64) string {
+	switch {
+	case seconds <= 0:
+		return "—"
+	case seconds%86400 == 0:
+		if seconds == 86400 {
+			return "daily"
+		}
+		return fmt.Sprintf("every %d days", seconds/86400)
+	case seconds%3600 == 0:
+		if seconds == 3600 {
+			return "hourly"
+		}
+		return fmt.Sprintf("every %d hours", seconds/3600)
+	case seconds%60 == 0:
+		return fmt.Sprintf("every %d minutes", seconds/60)
+	default:
+		return fmt.Sprintf("every %d seconds", seconds)
+	}
+}
+
+func onOff(on bool) string {
+	if on {
+		return "on"
+	}
+	return "off"
 }
 
 // sourcesModal renders the source-enablement modal (§6.4): the catalogue split
@@ -245,15 +461,83 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 const sourceTemplates = `
 {{define "coverage"}}{{template "head" .}}
+<style>
+.aperture td { vertical-align: top; }
+.aperture .in { font-weight: 600; white-space: nowrap; }
+.aperture .tier { font-family: var(--mono); font-size: 12px; }
+.aperture .note { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.aperture .cad { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.checklist { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.checklist > li { border: 1px solid var(--hairline); padding: var(--space-4); margin-bottom: var(--space-4);
+  display: flex; gap: var(--space-4); align-items: flex-start; }
+.checklist .num { counter-increment: step; font-family: var(--mono); font-weight: 600; font-size: 12px;
+  border: 1px solid var(--ink); width: 22px; height: 22px; flex: none;
+  display: flex; align-items: center; justify-content: center; }
+.checklist .num::before { content: counter(step); }
+.checklist .step-body { flex: 1; }
+.checklist h3 { font-size: 13px; margin: 0 0 4px; }
+.checklist p { margin: 0 0 var(--space-3); font-size: 12px; color: var(--muted); }
+.checklist .no-surface { font-family: var(--mono); font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em; }
+</style>
 {{template "chrome" .}}
 <main>
 <div class="microlabel">Derived · coverage</div>
 <h1>Coverage</h1>
-<p>The aperture statement — what each tier is, its cadence, and whether it is on — is not built yet (ticket 11). This page stands in as the entry point to the controls that feed it.</p>
+<p>The aperture statement: one line per aperture input, what the tier is, its cadence, and whether
+it is on. It states what the instrument looks at — never a proportion of your estate. Scoped to
+what ships so far: the dns Scan and source enablement.</p>
+
+<div class="section">
+<div class="microlabel">Aperture statement</div>
+<h2>Seven aperture inputs</h2>
+<table class="aperture">
+<thead><tr><th>Input</th><th>Tier</th><th>Cadence</th><th>State</th></tr></thead>
+<tbody>
+{{range .Lines}}<tr>
+<td class="in">{{.Input}}</td>
+<td><div class="tier">{{.Tier}}</div><div class="note">{{.Note}}</div></td>
+<td class="cad">{{.Cadence}}</td>
+<td>{{if .On}}<span class="badge">{{.State}}</span>{{else}}<span class="badge off">{{.State}}</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+
+{{if .ZeroCoverage}}
+<div class="section">
+<div class="microlabel">Day one</div>
+<h2>Nothing is covered yet</h2>
+<p>Nothing is declared to look at, so the aperture reads empty above. Four steps set the estate;
+each names a capability and, where an act exists, points at the surface that performs it.</p>
+<ol class="checklist">
+{{range .Steps}}<li>
+<div class="num"></div>
+<div class="step-body">
+<h3>{{.Title}}</h3>
+<p>{{.Body}}</p>
+{{if .Href}}<a class="btn" href="{{.Href}}" style="text-decoration:none">{{.CTA}}</a>{{else}}<div class="no-surface">Runs automatically at cadence</div>{{end}}
+</div>
+</li>{{end}}
+</ol>
+</div>
+{{end}}
+
+<div class="section">
+<div class="microlabel">Retention · stub</div>
+<h2>Retention dials</h2>
+<p>Two dials govern how long the record is kept: the operational Dispatch floor and the
+observation-currency floor. The live controls land in later tickets — this section marks their
+place.</p>
+<div class="kv"><div class="k">Dispatch floor</div><div><span class="badge off">not configurable yet</span></div></div>
+<div class="kv"><div class="k">Currency floor</div><div><span class="badge off">not configurable yet</span></div></div>
+</div>
+
 <div class="section">
 <div class="microlabel">Sources</div>
 <h2>Source enablement</h2>
-<p>Which discovery sources may run, and — for the sources that ship off — what accepting their terms means. Turning a source off is always safe; turning one on never adds to the estate on its own.</p>
+<p>Which discovery sources may run, and — for the sources that ship off — what accepting their terms
+means. Turning a source off is always safe; turning one on never adds to the estate on its own.</p>
 <a class="btn" href="/sources" style="text-decoration:none">Manage source enablement →</a>
 </div>
 </main>
