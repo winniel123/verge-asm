@@ -133,6 +133,28 @@ table.annos td form { margin: 0; }
 .orphan { display: inline-block; margin-left: var(--space-3); font-family: var(--mono);
   font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--muted); border: 1px solid var(--hairline); padding: 1px 5px; }
+.avail { display: flex; gap: var(--space-5); flex-wrap: wrap; margin-bottom: var(--space-5); }
+.avail .k { color: var(--muted); margin-right: var(--space-3); }
+.board { display: grid; grid-template-columns: 150px 1fr 1fr; border: 2px solid var(--ink);
+  background: var(--surface); margin: var(--space-4) 0 var(--space-5); }
+.board > div { border-right: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+  padding: var(--space-4); }
+.board .corner, .board .colhead, .board .rowhead { background: var(--paper); }
+.board .corner { display: flex; flex-direction: column; justify-content: flex-end; }
+.board .colhead, .board .rowhead { display: flex; align-items: flex-end; }
+.board .cell .count { font-family: var(--mono); font-size: 22px; font-weight: 600;
+  margin: 2px 0 var(--space-3); }
+.board .cell.hot { box-shadow: inset 3px 0 0 var(--accent); }
+.board .cell ul, .movedlist { list-style: none; margin: 0; padding: 0; }
+.board .cell li { font-family: var(--mono); font-size: 11px; padding: 1px 0; }
+.board .cell li a { text-decoration: none; }
+.board .cell .none { color: var(--muted); }
+.precond { border: 1px solid var(--ink); background: var(--surface);
+  box-shadow: 6px 6px 0 rgba(22,22,15,.1); padding: var(--space-5); margin-bottom: var(--space-5); }
+.precond h2 { margin-top: 0; }
+.moved { border-left: 3px solid var(--accent); background: var(--paper);
+  padding: var(--space-4); margin-bottom: var(--space-5); }
+.movedlist li { font-family: var(--mono); font-size: 12px; padding: 2px 0; }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -204,7 +226,7 @@ Two-factor is not active until you confirm.</p>
 
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
-<nav class="nav"><a href="/">Home</a><a href="/subjects">Subjects</a><a href="/signals">Signals</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
+<nav class="nav"><a href="/">Home</a><a href="/exposure">Exposure</a><a href="/subjects">Subjects</a><a href="/signals">Signals</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
 </div>{{end}}
@@ -1025,6 +1047,129 @@ neither of them a message.</p>
 risk is declared here, keyed on its subject.</p>
 {{end}}
 </div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "exposure"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="microlabel">Derived · exposure</div>
+<h1>Exposure</h1>
+<p>The exposure board — the reachability of every service seen from both sides of your
+boundary at once, never the raw inventory. Each service is placed by two measurements:
+whether an internet vantage reached it, and whether an internal one did. The board is a
+census, not an alert — the one move worth waking for, a service becoming reachable from
+the internet, is called out under "what moved".</p>
+
+<div class="avail">
+<div><span class="k">Internet vantage</span>{{if .InternetPresent}}<span class="badge">present</span>{{else}}<span class="badge off">none</span>{{end}}</div>
+<div><span class="k">Internal vantage</span>{{if .InternalPresent}}<span class="badge">present</span>{{else}}<span class="badge off">none</span>{{end}}</div>
+</div>
+
+{{if .NoServices}}
+<div class="precond">
+<div class="microlabel">Precondition · nothing to place</div>
+<h2>No service in your estate yet</h2>
+<p>A service is a port on an address your estate reaches for. None has been measured yet,
+so there is nothing to place on the board. Declare a scope on Seeds and run the hot scan
+once a resolution has cited an address.</p>
+</div>
+{{else}}
+
+{{if not .Constructible}}
+<div class="precond">
+<div class="microlabel">Precondition · no exposure constructible</div>
+<h2>Exposure needs both sides, and only one is looking</h2>
+<p>Exposure is composed only from services measured by at least two vantage classes. Fewer
+than two hold a current value here, so no exposure verdict is constructed — you see each
+service's raw reach on the one side that looked, below, never a stand-in reading of the
+side that did not. {{if not .InternetPresent}}There is no internet vantage: provision a
+prober on Seeds to measure the side that matters most.{{else}}There is no internal vantage:
+the internet reach renders on its own until one is configured.{{end}}</p>
+</div>
+{{end}}
+
+{{if .WhatMoved}}
+<div class="moved">
+<div class="microlabel">What moved · flagship</div>
+<h2 style="margin:4px 0 8px;font-size:14px">A service became reachable from the internet</h2>
+<p class="muted" style="margin-bottom:8px">The internet reach of these services crossed not-reached to reached — the move the product
+exists to catch. It fires on this leg alone, whether or not the internal side exists.</p>
+<ul class="movedlist">
+{{range .WhatMoved}}<li><a href="/subjects/service?key={{.}}">{{.}}</a></li>{{end}}
+</ul>
+</div>
+{{end}}
+
+{{if .HasBoard}}
+<div class="microlabel">Populated board · {{.BoardTotal}} services measured from both sides</div>
+<div class="board">
+<div class="corner"><span class="microlabel">internet ↓</span><span class="microlabel">internal →</span></div>
+<div class="colhead"><span class="microlabel">internal reached</span></div>
+<div class="colhead"><span class="microlabel">internal not-reached</span></div>
+
+<div class="rowhead"><span class="microlabel">internet reached</span></div>
+<div class="cell hot">
+<div class="microlabel">exposed</div>
+<div class="count">{{len .Exposed}}</div>
+{{if .Exposed}}<ul>{{range .Exposed}}<li><a href="/subjects/service?key={{.}}">{{.}}</a></li>{{end}}</ul>{{else}}<div class="none">—</div>{{end}}
+</div>
+<div class="cell">
+<div class="microlabel">edge-only</div>
+<div class="count">{{len .EdgeOnly}}</div>
+{{if .EdgeOnly}}<ul>{{range .EdgeOnly}}<li><a href="/subjects/service?key={{.}}">{{.}}</a></li>{{end}}</ul>{{else}}<div class="none">—</div>{{end}}
+</div>
+
+<div class="rowhead"><span class="microlabel">internet not-reached</span></div>
+<div class="cell">
+<div class="microlabel">firewalled</div>
+<div class="count">{{len .Firewalled}}</div>
+{{if .Firewalled}}<ul>{{range .Firewalled}}<li><a href="/subjects/service?key={{.}}">{{.}}</a></li>{{end}}</ul>{{else}}<div class="none">—</div>{{end}}
+</div>
+<div class="cell">
+<div class="microlabel">unreachable</div>
+<div class="count">{{len .Unreachable}}</div>
+{{if .Unreachable}}<ul>{{range .Unreachable}}<li><a href="/subjects/service?key={{.}}">{{.}}</a></li>{{end}}</ul>{{else}}<div class="none">—</div>{{end}}
+</div>
+</div>
+{{end}}
+
+{{if .OneLegged}}
+<div class="section">
+<div class="microlabel">One-legged · the surviving side's raw reach</div>
+<h2>We only looked from one side</h2>
+<p>These services were measured from a single vantage class, so no exposure verdict exists
+for them — only the raw reach of the side that looked. This is never a fifth exposure value;
+it is one measurement, honestly labelled with the side we did not see.</p>
+<table>
+<thead><tr><th>Service</th><th>Side looked</th><th>Reach</th><th>The other side</th></tr></thead>
+<tbody>
+{{range .OneLegged}}<tr>
+<td><a class="mono" href="/subjects/service?key={{.Service}}">{{.Service}}</a></td>
+<td><span class="badge">{{.Class}}</span></td>
+<td class="mono">{{.Value}}</td>
+<td class="muted">{{.Statement}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{if .Broken}}
+<div class="precond">
+<div class="microlabel">Precondition · your rules changed</div>
+<h2>Nothing to compare yet for these services</h2>
+<p>The derivation that composes exposure moved for these services, so their two spans are
+not comparable and no verdict is drawn across the break. This is your rules changing, not
+your exposure — a new value ships as a break, never as rewritten history. The rest of the
+board is unaffected.</p>
+<ul class="movedlist">
+{{range .Broken}}<li><a href="/subjects/service?key={{.}}">{{.}}</a></li>{{end}}
+</ul>
+</div>
+{{end}}
+
+{{end}}
 </main>
 {{template "foot" .}}{{end}}
 
