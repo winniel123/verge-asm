@@ -42,6 +42,46 @@ SELECT subject_key, discriminator, value
 FROM latest
 ORDER BY subject_key, discriminator;
 
+-- name: ListServiceReachabilityByClass :many
+-- The latest `reachability` observation per (Service, Vantage class) (#203). The
+-- engine reads the internet-class leg for `sensitive-port-reached-from-internet`
+-- (ADR-0071: a class-scoped internet, existential composition — the internal twin
+-- is a different, refused rule). DISTINCT ON keeps the most recent value per
+-- (service, class), mirroring the Name resolution read one facet over.
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key, v.class)
+        o.subject_key AS subject_key,
+        v.class       AS class,
+        o.value       AS value
+    FROM observation o
+    JOIN vantage v ON v.id = o.vantage_id
+    WHERE o.facet = 'reachability' AND o.subject_kind = 'service'
+    ORDER BY o.subject_key, v.class, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, class, value
+FROM latest
+ORDER BY subject_key, class;
+
+-- name: ListEndpointCertificates :many
+-- The latest `certificate` observation per Endpoint (#203) — the value the six
+-- certificate rules and `plaintext-http-no-https` read. The value is the closed
+-- union `presented(chain) | tls-refused | no-tls`; the engine reads the outcome
+-- tag. The parsed leaf attributes the five certificate-detail rules need are not
+-- stored (only the fingerprint chain is), so those rules render a presented chain
+-- `not-evaluable` until a certificate-parsing leaf lands. DISTINCT ON keeps the
+-- most recent value per Endpoint.
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value
+    FROM observation o
+    WHERE o.subject_kind = 'endpoint' AND o.facet = 'certificate'
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value
+FROM latest
+ORDER BY subject_key;
+
 -- name: ListZoneDeclarations :many
 -- The latest supplied zone file per name-scope Seed, with its declared domain and
 -- content, so the web layer can extract the owner names the operator declares

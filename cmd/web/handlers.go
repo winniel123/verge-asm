@@ -99,6 +99,14 @@ type store interface {
 	ListNameResolutionsByClass(ctx context.Context) ([]db.ListNameResolutionsByClassRow, error)
 	ListNameDNSRecords(ctx context.Context) ([]db.ListNameDNSRecordsRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+	// The remaining twelve Signal rules (#203): the Service and Endpoint facets the
+	// Signal engine folds into its per-subject snapshots — the internet-class
+	// reachability leg (sensitive-port-reached-from-internet) and the per-Endpoint
+	// certificate value (the six certificate rules and plaintext-http-no-https).
+	// http-identity rides ListCurrentEndpointSubjects and the estate name set rides
+	// ListCurrentNameSubjects.
+	ListServiceReachabilityByClass(ctx context.Context) ([]db.ListServiceReachabilityByClassRow, error)
+	ListEndpointCertificates(ctx context.Context) ([]db.ListEndpointCertificatesRow, error)
 	// Annotation management (#204): an operator dial keyed on one
 	// (subject, signal-name) pair, carrying the reason and the declared instant —
 	// no status, no expiry, no author. Declaring and withdrawing mint no Message.
