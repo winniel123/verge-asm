@@ -33,12 +33,12 @@ Three constraints from decisions already made shape the answer before any eviden
 
 | Decision | Answer |
 |---|---|
-| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle. **Superseded again by §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)) — the list is 40 pairs, class totals `12 / 7 / 21`: `1433/tcp` Microsoft SQL Server is REMOVED**, Claim 3 failing on §10.3's own failure condition on a retrieval **scoped to the row**, and no other claim in the closed set fitting. The note's **second** row removal after `161/udp`, and the first to leave by losing a claim it held. The pair goes to **§4.6**, which becomes **21** entries; §6.1's arithmetic is ~~`28 + 8 + 5 = 41`~~ **`27 + 8 + 5 = 40`**; §2.2's uncovered-in-subject population returns to **0** and coverage reads ~~29 of 41~~ **29 of 40**; **`verge-core` is UNCHANGED at 136 pairs**, `1433/tcp` being in the frequency half. §35** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — **six** in the word, three in the verb's preposition, fifteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two owners write it in a table column headed `Direction`** — Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** (*"`IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against *"`Remote support port | 7906 | TCP | Outbound¹`"*). **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). **[measured]** the clean case of addressee coming apart from direction — MongoDB Atlas on `27017` — is **not** load-bearing, `27017` failing limb 3 first. §33.2's discriminator gains the rider **the direction is part of the class**; §28.9's instance is **re-founded on a current artefact**, HPE having retired *Insight Online direct connect*; and §33.11's *"the string `6379` occurs zero times"* is **corrected at its clause** to a **token** claim without moving the spare it carries. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** **Amended by §37 ([#112](https://github.com/winniel123/verge-asm/issues/112)) — [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 2 is **swept over all thirty-two members it can reach**, and **§33.2's riders do not all travel to the claim gate**: a rider fixing **which listener** the statement is about (addressee, direction) travels, a rider **bounding the affirmation** travels, and a rider **narrowing the prohibition's own class** does **not** — ADR-0067 limb 1 makes carrying it across backwards, since narrowing the prohibition leaves the affirmative naming standing alone. **[measured]** §33 spared `9200`/`9300` on the rider that does not travel and `3306` on the rider that does. **The population is the union of the two graded tiers (26, for the footing gate) and Class C (21 rows, for the claim gate) = 32**, which contains **six rows the tiers do not** — `5432`, `5984`, `10248`, `139`, `137`, `138`. **[measured] `9200/tcp` and `9300/tcp` Elasticsearch MEET §10.3's failure condition** on Elastic Cloud Enterprise documentation addressed to the operator about the operator's own listener — *"**By default, all your deployments are accessible over the public internet**"*, with Elastic's own inbound table numbering `9200, 9243` and `9300, 9343` on the **Proxy** role under the heading **"Inbound traffic from any source"**, and ECK shipping a section headed *"**Allow public access**"* for the node's own `9200` with no warning attached. **The rows are ROUTED and NOT removed** — a row moves only on a retrieval **scoped to the row** ([#37](https://github.com/winniel123/verge-asm/issues/37), ADR-0037 limb 2) and this retrieval was scoped to a tier — and **their cells do not move**, §32.2 limb 4 being asked of the **carrying** statement, whose class (*an **unprotected** node*) has no supported instance. **This is the inverse of §33's shape: a footing surviving on a rider the claim gate does not read.** **§33.2's addressee rider and ADR-0067 limb 2 are TWO tests sharing one coordinate**, not one instrument stated twice — the rider decides `445/tcp` where limb 2's other three grounds are satisfied, limb 2 decides `1433/tcp` against a **banner** argument the rider is silent on, and folding them would convert the rider's silence about banners into a boundary ([ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode). **[measured] §36.5's falsifier is met one gate over** — addressee is load-bearing at `27017`/`27018`/`27019` at the **claim** gate with direction unavailable, because limb 3 does not exist there; §36.5 is **qualified at its clause** as a claim about the footing sweep and **§32.2's closure is untouched**. `3306/tcp` survives on the **bounded affirmation** (*"You must restrict the authorized public IP addresses to a single IP address or a small range"*), with the MySQL Manual's own §34.3 — *"You must enable ingress on the following ports: … **3306: MySQL**"*, imperative, unwarned — failing on the **network** limb alone and its reopening criterion written down. `6379/tcp` survives on the **pair**: **[measured]** Redis Software documents public-internet exposure as the unwarned **default**, and the endpoint is drawn from `10000-19999` with `6379` a token in none of the owner's port documentation. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0067 is amended in place and ADR-0069 is left unused** |
+| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle. **Superseded again by §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)) — the list is 40 pairs, class totals `12 / 7 / 21`: `1433/tcp` Microsoft SQL Server is REMOVED**, Claim 3 failing on §10.3's own failure condition on a retrieval **scoped to the row**, and no other claim in the closed set fitting. The note's **second** row removal after `161/udp`, and the first to leave by losing a claim it held. The pair goes to **§4.6**, which becomes **21** entries; §6.1's arithmetic is ~~`28 + 8 + 5 = 41`~~ **`27 + 8 + 5 = 40`**; §2.2's uncovered-in-subject population returns to **0** and coverage reads ~~29 of 41~~ **29 of 40**; **`verge-core` is UNCHANGED at 136 pairs**, `1433/tcp` being in the frequency half. §35** **Superseded again by §38 ([#114](https://github.com/winniel123/verge-asm/issues/114)) — the list is 38 pairs, class totals `12 / 7 / 19`: `9200/tcp` and `9300/tcp` Elasticsearch are BOTH REMOVED**, Claim 3 failing on §10.3's own failure condition on a retrieval **scoped to the pair** across all four of Elastic's corpora, with Claim 1 and Claim 2 **measured at `v9.5.1`** and both unavailable. **The note's first two-row removal**, and its third and fourth row removals. **The two pairs are decided separately and do not fall on the same evidence**: `9200` falls on the **self-managed** corpus #112 never opened — *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"*, of the interface `http.port` binds with *"Defaults to `9200-9300`"* — with ECE a second and independent instance; `9300` falls on **ECE alone**, the same sentence's next bullet naming the transport layer's clients as **nodes and clusters**, and its removal runs through ADR-0050 limb 2 on three of Elastic's own artefacts. Both pairs go to **§4.6**, which becomes **23** entries; §2.2's prohibition tier is ~~15~~ **13** and coverage ~~29 of 40~~ **27 of 38** — *a cell cannot outlive its row*; §6.1's arithmetic is ~~`27 + 8 + 5 = 40`~~ **`25 + 8 + 5 = 38`**; **`verge-core` is UNCHANGED at 136 pairs**, both pairs being in the frequency half. **No ADR is minted; ADR-0067 is applied and ADR-0070 is left unused.** §38 |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — **six** in the word, three in the verb's preposition, fifteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two owners write it in a table column headed `Direction`** — Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** (*"`IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against *"`Remote support port | 7906 | TCP | Outbound¹`"*). **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). **[measured]** the clean case of addressee coming apart from direction — MongoDB Atlas on `27017` — is **not** load-bearing, `27017` failing limb 3 first. §33.2's discriminator gains the rider **the direction is part of the class**; §28.9's instance is **re-founded on a current artefact**, HPE having retired *Insight Online direct connect*; and §33.11's *"the string `6379` occurs zero times"* is **corrected at its clause** to a **token** claim without moving the spare it carries. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** **Amended by §37 ([#112](https://github.com/winniel123/verge-asm/issues/112)) — [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 2 is **swept over all thirty-two members it can reach**, and **§33.2's riders do not all travel to the claim gate**: a rider fixing **which listener** the statement is about (addressee, direction) travels, a rider **bounding the affirmation** travels, and a rider **narrowing the prohibition's own class** does **not** — ADR-0067 limb 1 makes carrying it across backwards, since narrowing the prohibition leaves the affirmative naming standing alone. **[measured]** §33 spared `9200`/`9300` on the rider that does not travel and `3306` on the rider that does. **The population is the union of the two graded tiers (26, for the footing gate) and Class C (21 rows, for the claim gate) = 32**, which contains **six rows the tiers do not** — `5432`, `5984`, `10248`, `139`, `137`, `138`. **[measured] `9200/tcp` and `9300/tcp` Elasticsearch MEET §10.3's failure condition** on Elastic Cloud Enterprise documentation addressed to the operator about the operator's own listener — *"**By default, all your deployments are accessible over the public internet**"*, with Elastic's own inbound table numbering `9200, 9243` and `9300, 9343` on the **Proxy** role under the heading **"Inbound traffic from any source"**, and ECK shipping a section headed *"**Allow public access**"* for the node's own `9200` with no warning attached. **The rows are ROUTED and NOT removed** — a row moves only on a retrieval **scoped to the row** ([#37](https://github.com/winniel123/verge-asm/issues/37), ADR-0037 limb 2) and this retrieval was scoped to a tier — and **their cells do not move**, §32.2 limb 4 being asked of the **carrying** statement, whose class (*an **unprotected** node*) has no supported instance. **This is the inverse of §33's shape: a footing surviving on a rider the claim gate does not read.** **§33.2's addressee rider and ADR-0067 limb 2 are TWO tests sharing one coordinate**, not one instrument stated twice — the rider decides `445/tcp` where limb 2's other three grounds are satisfied, limb 2 decides `1433/tcp` against a **banner** argument the rider is silent on, and folding them would convert the rider's silence about banners into a boundary ([ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode). **[measured] §36.5's falsifier is met one gate over** — addressee is load-bearing at `27017`/`27018`/`27019` at the **claim** gate with direction unavailable, because limb 3 does not exist there; §36.5 is **qualified at its clause** as a claim about the footing sweep and **§32.2's closure is untouched**. `3306/tcp` survives on the **bounded affirmation** (*"You must restrict the authorized public IP addresses to a single IP address or a small range"*), with the MySQL Manual's own §34.3 — *"You must enable ingress on the following ports: … **3306: MySQL**"*, imperative, unwarned — failing on the **network** limb alone and its reopening criterion written down. `6379/tcp` survives on the **pair**: **[measured]** Redis Software documents public-internet exposure as the unwarned **default**, and the endpoint is drawn from `10000-19999` with `6379` a token in none of the owner's port documentation. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0067 is amended in place and ADR-0069 is left unused** **Amended by §38 ([#114](https://github.com/winniel123/verge-asm/issues/114)) — ADR-0067 is **applied** rather than extended, over a retrieval **scoped to the pair** across all four of Elastic's corpora, and it removes **two rows**. **[measured]** the corpus that decides `9200/tcp` is **self-managed** and no prior section had opened it: *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"* is an **affirmation**, not a default, so §10.4's one-way rule is never reached for that pair — and the **very next bullet** draws the opposite boundary for the transport layer, which is why the two pairs are decided separately and `9300/tcp` falls on **ECE alone** through ADR-0050 limb 2. **Claim 1 and Claim 2 were measured off the shipped bytes at `v9.5.1` rather than assumed**: `xpack.security.enabled` defaults to `true`, anonymous access requires an operator act, `TransportTLSBootstrapCheck` makes a node **refuse to start** without transport TLS, and both encrypted successors are settings on the **same** ports — `9243`/`9343` being **ECE's proxy convention**, not standardised successors. **§37.3's rider taxonomy holds against a fourth candidate and is not extended**: a **disclaimer of the component that supplies the reach** — *"you must provision and configure [a load balancer]"*, *"outside the scope of this documentation"* — bounds nothing and does not travel, and the reading that would let it is **falsified by §17.4**, RabbitMQ having named public networks *"behind a load balancer"* it does not ship. **§10.3 is amended at its clause: the element is *naming*, not *supplying*.** **Two corrections to §37 are recorded**: its ECE quotation is the legacy *[3.8]* wording and occurs **zero** times in the current issued corpus, and its held footing cells leave the graded table with their rows. **The list is 38 pairs, `12 / 7 / 19`, tiers 13 / 11 / 3, coverage 27 of 38, §4.6 23; `verge-core` unchanged at 136; ADR-0008 TRIGGERED**; **no ADR is minted and ADR-0070 is left unused** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
-| High ports that are conventionally anything | **Excluded by the determinacy gate**, which is a gate on the *port*, not on the service — §4.3. **Amended by §14 — a squat is contested where the other convention is *live*, which is why 9200 is listed and 9100, 7000 and 7001 are not ([ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md))** |
+| High ports that are conventionally anything | **Excluded by the determinacy gate**, which is a gate on the *port*, not on the service — §4.3. **Amended by §14 — a squat is contested where the other convention is *live*, which is why ~~9200 is listed and~~ 9100, 7000 and 7001 are not ([ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md))** **Marked by §38 ([#114](https://github.com/winniel123/verge-asm/issues/114)): `9200/tcp` is **no longer listed** — it is in §4.6 on the **claim** gate. Its determinacy verdict is unchanged, unread and correct; determinacy is not what removed it, and ADR-0042's ruling stands exactly as written** |
 | Does the list have a middle | **No middle, one signal, binary** — and not because the middle is empty, but because it is not a property of the port — §5 |
 | Hot-set containment | **Independent lists, one-directional build-time invariant `sensitive ⊆ hot`** — §6. **Superseded by [ADR-0009](../adr/0009-verge-core-is-a-union.md) and never amended here until §29 ([#97](https://github.com/winniel123/verge-asm/issues/97)): `verge-core` is the *union* `frequency-set ∪ sensitive-list`, so containment is **analytic** and **nothing enforces it anywhere** — no build-time test, no config-load check, no runtime check. The lists stay independent and the coupling direction is unchanged; what is withdrawn is the mechanism.** **[measured]** §6.1's arithmetic ~~`28 + 6 + 5 = 39`~~ — composed **`28 + 8 + 5 = 41`** after §27 — is re-derived against the 123-member frequency half and **every cell is confirmed** — §29 |
 | Closest call | **6443 kube-apiserver, excluded** — §4.4 |
@@ -143,6 +143,39 @@ Three constraints from decisions already made shape the answer before any eviden
 > population loses it and empties; every tier, the union, the frequency half and the probed set are
 > unchanged.* **The delta is `−1` on `|S|` for any baseline.** §35.11 states the basis and §35.14 its
 > risk.
+>
+> ---
+>
+> #### §38's delta on top of everything above — [#114](https://github.com/winniel123/verge-asm/issues/114), and it is the note's first delta that removes two rows
+>
+> **`S := S − {9200/tcp, 9300/tcp}`, and every figure below is that one substitution propagated.**
+> Stated parametrically because a sibling may be resolving concurrently against `main` at `53b7ef4`.
+>
+> | Figure | Above | After §38 | How it composes |
+> |---|---|---|---|
+> | §1 pair count | 40 | **38** | 40 `− 9200/tcp − 9300/tcp` — §38 |
+> | §3 class totals | `12 / 7 / 21` | **`12 / 7 / 19`** | Class C loses two rows; A and B untouched |
+> | §4.6 exclusions | 21 | **23** | `+ 9200/tcp`, `+ 9300/tcp`, both removed — §38.11 |
+> | §2.2 **prohibition** tier | 15 | **13** | the cells leave the graded table **with their rows** — *a cell cannot outlive its row* (§18.6, §35.8) |
+> | §2.2 scoping · weak · outside-subject | 11 · 3 · 11 | **11 · 3 · 11, all unchanged** | no other cell moves |
+> | §2.2 *uncovered, inside the table's subject* | 0 | **0, unchanged** | these pairs leave the **subject**, they do not become uncovered |
+> | §2.2 footing coverage | 29 of 40 | **27 of 38** | `13 + 11 + 3 + 11 = 38` |
+> | §6.1 containment arithmetic | `27 + 8 + 5 = 40` | **`25 + 8 + 5 = 38`** | cell 1 alone — **[measured]** both pairs are **in** `F` (§29.2, *supplement — HTTP-ish alternates*) |
+> | §29.3's identity | cell 1 = 27 · `\|S_tcp\| = 35` · `\|S\| = 40` | **25 · 33 · 38** | the identity is untouched; three numerals move |
+> | `verge-core` | 136 pairs — 131 TCP, 5 UDP | **136 pairs — 131 TCP, 5 UDP, UNCHANGED** | `\|F\| + \|S \ F\|` = `123 + (8 + 5)`; neither pair was ever in `S \ F` |
+> | [`safe-active-probing.md`](./safe-active-probing.md) §2.4's aperture line | `0 of 40 sensitive pairs unread` | **`0 of 38 sensitive pairs unread`** | denominator only; the probed set does not move |
+> | The enumerated **aperture inputs** | seven | **seven, unchanged** | a denominator narrowing adds no input |
+> | §17.1's population of negatives | fifteen | **fifteen, unchanged** | both new exclusions' grounds are the owner's **affirmative** sentences, which are not negatives |
+> | [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | three rows | **three, unchanged** | no weak-tier member moves |
+> | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) | triggered by §35 | **TRIGGERED again** | content moves; vacuous pre-install and **not waived** |
+> | §16.4 | `9300` placed in `9200`'s cell | **WITHDRAWN at its own site** | ADR-0058; its two measurements are re-confirmed at `v9.5.1` and stand |
+> | Everything else in the tables above | — | **unchanged** | §38 touches no other row, class, tier, footing or exclusion |
+>
+> **In prose, and parametrically, so a merger re-derives rather than patches:** *the sensitive list
+> loses `{9200/tcp, 9300/tcp}`; §4.6 gains both; §2.2's prohibition tier loses both; §6.1's first cell
+> loses both; every other tier, the union, the frequency half and the probed set are unchanged.*
+> **The delta is `−2` on `|S|`, `−2` on the prohibition tier and `−2` on §6.1 cell 1 for any
+> baseline.** §38.12 states the basis and §38.15 its risk.
 
 The headline result is the one that would not have come out of a frequency instrument:
 
@@ -705,6 +738,38 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > `9200` finding as settled — ECE is strong on the network limb and weak on modality, ECK the reverse,
 > and neither is strong on both.
 
+> **Amended by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). **Two cells leave
+> this table with their rows, and this is the second time a cell has left the subject rather than
+> descended a tier.** **`9200/tcp` and `9300/tcp` Elasticsearch are removed from the list** on a
+> retrieval scoped to the pair, so their prohibition cells go with them — *a cell cannot outlive its
+> row* (§18.6, spent by §35.8 for `1433/tcp`).
+>
+> **The tiers are prohibition ~~15~~ 13 pairs · scoping 11 pairs · weak 3 rows · outside-subject 11 ·
+> uncovered-in-subject 0**, coverage ~~29 of 40~~ **27 of 38**, and `13 + 11 + 3 + 11` = **38**. **The
+> uncovered-in-subject population stays at 0** — these pairs leave the subject, they do not become
+> uncovered. **[ADR-0008](../adr/0008-derivation-versions-move-on-content.md) IS triggered**, by the
+> **rows** rather than by the cells. §38.12 states the delta parametrically — **the prohibition tier
+> loses `{9200/tcp, 9300/tcp}` and every other tier, denominator and total is unchanged** — so a merger
+> re-derives rather than patches.
+>
+> **The re-founding §37.11 item 2 routed is answered rather than passed on, and the answer is the same
+> in both branches.** **[measured]** Elastic publishes a **second and unconditioned** prohibition —
+> *"{{es}} installations are not designed to be publicly accessible over the Internet. **IP filtering
+> and the other capabilities of the {{es}} security features do not change this condition.**"*
+> (*Manage IP filtering in ECK and self-managed clusters*, `applies_to: deployment: self: · eck:`) —
+> whose §32.2 limb 4(c) **fails** on the ECE affirmation, because it expressly refuses the protection
+> carve-out §37.5's conditioning rider rests on. Its reach runs through ADR-0050 limb 2 on **this
+> page's own artefact**: it configures `xpack.security.transport.filter.*`, with
+> `xpack.security.http.filter.*` documented as defaulting to it, so both interfaces are inside
+> *"{{es}} installations"*. **So on the unconditioned statement the cells demote out of the graded
+> table on `1433`'s shape, on the conditioned one they stay — and the rows' removal takes them out
+> either way.** §38.8.
+>
+> **ADR-0067 limb 1 consequence 3's converse, which §37 recorded as a first — *a footing surviving on a
+> rider the claim gate does not read* — survived exactly one pass**, and its discharge is the reading
+> consequence 3 always had: a footing demotion and a row removal are two rulings, and here the row's
+> retrieval disposed of the footing without the footing's own question having to be answered.
+
 ### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
 
 This is the load-bearing methodological finding, and it took the most work to establish.
@@ -1083,8 +1148,8 @@ trade against the determinacy gate.
 | 27017/tcp | MongoDB | yes | Binds to localhost by default; upstream directs that instances be reachable only on trusted networks |
 | 27018/tcp | MongoDB shard member | yes | An intra-cluster port with no external client |
 | 27019/tcp | MongoDB config server | yes | Holds cluster metadata; intra-cluster only |
-| 9200/tcp | Elasticsearch HTTP API | sq. | Upstream's instruction is to never expose an unprotected node to the public internet |
-| 9300/tcp | Elasticsearch transport | sq. | Node-to-node binary protocol; a transport connection can reach system-internal APIs |
+| ~~9200/tcp~~ | ~~Elasticsearch HTTP API~~ | sq. | **ROW REMOVED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). ~~Upstream's instruction is to never expose an unprotected node to the public internet~~ — the prohibition is not withdrawn and it does not carry the row. **Claim 3 fails on §10.3's own failure condition**: Elastic names the internet as the HTTP interface's counterparty in its own **self-managed** security documentation — *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"* — and independently names *"the default behavior of **allow all access over the public internet endpoint**"* in ECE. Claim 1 is unavailable (`xpack.security.enabled` defaults to `true` at `v9.5.1`) and Claim 2 fails on its successor clause (TLS on the **same** port), so §10.2's closed set is exhausted. **The pair is now in §4.6** ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md), §38.4, §38.6, §38.11) |
+| ~~9300/tcp~~ | ~~Elasticsearch transport~~ | sq. | **ROW REMOVED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). ~~Node-to-node binary protocol; a transport connection can reach system-internal APIs~~ — true, and it is not what the row turned on. **Claim 3 fails on §10.3's own failure condition, met in Elastic Cloud Enterprise** and carried to the number by [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md) limb 2 on three of Elastic's own artefacts — *"9300, 9343 \| {{es}} transport client"* under **"Inbound traffic from any source"**, the supported load-balancer modes table, and *"For {{es}} transport traffic (**ports 9300/9343**), enable Proxy Protocol v2"* in the page managing the filter that overrides the public-internet default. Claim 1 is unavailable (**[measured]** the node **refuses to start** without transport TLS when security is enabled) and Claim 2 fails on its successor clause. **This is the thinner of the two removals and §38.15 names the reading that reverses it.** §38.5, §38.11 |
 | 5984/tcp | CouchDB HTTP API | yes | Ships bound to `127.0.0.1`; its clients are application tiers |
 | 25672/tcp | RabbitMQ inter-node (Erlang distribution) | -- | Upstream states these ports should not be publicly exposed |
 | 445/tcp | SMB | yes | Microsoft: it is unlikely that any internet-originated or internet-bound SMB traffic is legitimate |
@@ -1115,6 +1180,30 @@ trade against the determinacy gate.
 > is minted** — a claim fails on the owner's **affirmative naming**, never on the reach of the owner's
 > own prohibition, so §33.10's *"directly"* counter-argument cannot rescue the row however it is read.
 > The row goes to **§4.6**, which becomes **21** entries. §35.
+
+> **Amended by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). **`9200/tcp` and
+> `9300/tcp` Elasticsearch are REMOVED. Class C is 19 rows and the list is 38 pairs — class totals
+> ~~`12 / 7 / 21`~~ `12 / 7 / 19`.** It is the note's **first two-row removal**, and its third and
+> fourth row removals after `161/udp` (§11.6) and `1433/tcp` (§35.8). **[measured]**, retrieved
+> 2026-08-14 in a retrieval **scoped to the pair** across all four of Elastic's corpora —
+> self-managed, ECK, ECE and the shipped `elasticsearch.yml` at `v9.5.1` — per
+> [#37](https://github.com/winniel123/verge-asm/issues/37) and ADR-0037 limb 2.
+>
+> **The two pairs are decided separately and they do not fall on the same evidence.** `9200/tcp` falls
+> on the corpus #112 never opened: Elastic's own security documentation, bannered for **self-managed**
+> deployments, says *"**The HTTP layer**: Used for communication between your cluster or deployment
+> **and the internet**"*, of the interface `networking-settings.md` binds with *"`http.port` … Defaults
+> to `9200-9300`"*. `9300/tcp` falls on **ECE alone** — the same sentence's next bullet names the
+> transport layer's clients as **nodes and clusters**, which is Claim 3's boundary stated by the owner
+> — and its removal runs through ADR-0050 limb 2. **Claim 1 and Claim 2 were measured rather than
+> assumed** (§35.6's precedent): at `v9.5.1` `xpack.security.enabled` defaults to `true`, anonymous
+> access requires an operator act, `TransportTLSBootstrapCheck` makes a node refuse to start without
+> transport TLS, and Elasticsearch's encrypted successors are settings on the **same** ports.
+> **`9243`/`9343` are ECE's proxy convention, not standardised successors.**
+>
+> **The footing cells leave §2.2's graded table with their rows** — a cell cannot outlive its row
+> (§18.6, §35.8) — and the prohibition tier is ~~15~~ **13**. §4.6 becomes **23** entries.
+> **No ADR is minted; ADR-0067 is applied and `0070` is left unused.** §38.
 
 > **Added by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). **Class C is 22 rows
 > and the list is 41 pairs.** `10248/tcp`'s footing is the **weak tier** — a restricting shipped
@@ -1927,6 +2016,22 @@ it refuses.
 > it with the owner's sentence two years of note-time later. **The criterion that would change the
 > verdict** is at §35.10, and **[measured]** neither half of it exists as of 2026-08-14.
 
+> **Amended by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). **This table is 23
+> entries.** `9200/tcp` and `9300/tcp` Elasticsearch are **removed from the list** and are added here,
+> the note's **first two-row removal** and its **third and fourth** row removals. Both cells are worded
+> from Elastic's own sentences on arrival, per §35.10's discipline. **The full cells are at §38.11**
+> and are reproduced there rather than duplicated here so a later sweep has one site to correct; the
+> grounds in one line each:
+>
+> | Excluded | The ground |
+> |---|---|
+> | **`9200/tcp` Elasticsearch HTTP API** | **Claim 3 fails on §10.3's own failure condition, met twice independently, and no other claim in the closed set fits.** Elastic names the internet as the HTTP interface's counterparty in its own **self-managed** security documentation — *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"* — of the interface `networking-settings.md` binds with *"`http.port` … Defaults to `9200-9300`"*; and independently names *"the default behavior of ***allow all access over the public internet endpoint***"* in Elastic Cloud Enterprise. **Claim 1** is unavailable and **Claim 2** fails on its successor clause, both **[measured]** at `v9.5.1`. §38.11 |
+> | **`9300/tcp` Elasticsearch transport** | **Claim 3 fails on §10.3's own failure condition, met in Elastic Cloud Enterprise and carried to the number by ADR-0050 limb 2 on three of Elastic's own artefacts; no other claim in the closed set fits.** The self-managed corpus points the other way — *"**The transport layer**: Used mainly for inter-node communications"* — and is recorded. **The thinner of the two, and §38.15 names the reading that reverses it.** §38.11 |
+>
+> **Both are exclusions on the claim gate**, like `1433/tcp`, `10256/tcp` and `10258/tcp`; **[measured]**
+> both pairs pass §2.4 determinacy comfortably and ADR-0042's and ADR-0048's verdicts on `wap-wsp` and
+> `vrace` are unread and unmoved.
+
 **The WinRM case deserves its own paragraph, because the tempting argument is factually false.**
 5985 is the WinRM *HTTP* listener, and the natural inference — HTTP transport, therefore cleartext
 credentials, therefore Claim 2 — is contradicted by Microsoft directly:
@@ -2056,8 +2161,14 @@ Computing the current `verge-core` hot set from
 ephemeral/obsolete tail, plus the named modern-services supplement — against §3's list:
 
 **In the hot set already — 28 of 38:** 21, 23, 139, 445, 513, 514, 873, 2049, 2181, 2375, 2376,
-2379, 2380, 3306, 5432, ~~1433~~, 5900, 5984, 6000, 6379, 9042, 9200, 9300, 10250, 10255, 11211/tcp,
+2379, 2380, 3306, 5432, ~~1433~~, 5900, 5984, 6000, 6379, 9042, ~~9200~~, ~~9300~~, 10250, 10255, 11211/tcp,
 27017, 27018.
+
+> **`9200` and `9300` are struck and this cell is 25 — §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)).
+> Both pairs are **removed from the sensitive list**, so they leave this enumeration; neither leaves
+> the hot set, which is why `verge-core` is unchanged. The arithmetic is ~~`27 + 8 + 5 = 40`~~
+> **`25 + 8 + 5 = 38`** and **cell 1 is the only cell that moves** — what §29.3's identity predicts for
+> TCP pairs **inside** `F` leaving `S`, spent a second time and on two rows at once. §38.9, §38.12.
 
 > **`1433` is struck and this cell is 27 — §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)).
 > The pair is **removed from the sensitive list**, so it leaves this enumeration; it does **not** leave
@@ -3090,6 +3201,18 @@ network"* — is a locality claim that the words "other components of the same s
 > **The boundary must be named by the owner.** Where the owner names the public internet as a
 > supported deployment environment, Claim 3 fails however strongly a third party disapproves — which
 > is the sentence doing all the exclusion work, and it is unchanged.
+>
+> > **Amended at this clause by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)), per
+> > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as
+> > widened by [#106](https://github.com/winniel123/verge-asm/issues/106). **The element is *naming*,
+> > and it is not *supplying*.** The condition fires on the owner's affirmative sentence; whether the
+> > owner also **ships** the mechanism that supplies the reach is corroboration and never an element.
+> > §35's *"Microsoft ships the provisioning option"* was an additional strengthening ground, never a
+> > stated limb. **[measured] the reading that adds a supply element is falsified by §17.4**, where
+> > RabbitMQ's *"which in some cases can mean public networks, for example, **behind a load balancer**"*
+> > — a component RabbitMQ does not ship — was ruled to meet this condition; adding the element
+> > withdraws that finding and reopens two §4.6 cells. **Nothing else in this wording moves and §10.2's
+> > set stays closed.** §38.7.
 
 **This widens the words and not the list, and the check is a walk of every exclusion in §4.6.** Not
 one of the sixteen was excluded because "same system" was too narrow:
@@ -4671,8 +4794,15 @@ is not a pass.
 §2.4's gate is on the **port**, not the service (§4.3), and the note has already ruled that
 registration cannot be the test, because *"many of the best-known sensitive ports are squatted, not
 registered"* and *"uncontested convention has to be"* the test instead. So `afs3-fileserver` alone
-does not sink `7000` — `9200`, `9300`, `2181`, `9042`, `10250`, `10255` and `623/udp` are all on the
+does not sink `7000` — ~~`9200`, `9300`,~~ `2181`, `9042`, `10250`, `10255` and `623/udp` are all on the
 list over a squat.
+
+> **Marked by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)), per ADR-0058. **`9200`
+> and `9300` are no longer on the list**, and the premise above must not be read as saying they are.
+> **They did not leave on determinacy** — both pass §2.4 comfortably and ADR-0042's and ADR-0048's
+> verdicts on `wap-wsp` and `vrace` are unread and unmoved — they left on the **claim** gate, §10.3's
+> failure condition. **The argument above is unaffected**: it needs *some* listed row admitted over a
+> squat, and five remain. §38.11.
 
 **What sinks it is a second live service, documented by the vendor that ships it.** **[measured]**
 Apple's *TCP and UDP ports used by Apple software products* tabulates:
@@ -5020,6 +5150,13 @@ two port lists disagree about `7001` is worth seeing, and is not evidence.
 
 ### 15.3 `9200/tcp` re-founded — the phrase that would have let frequency back in
 
+> **Marked by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)), per ADR-0058. **This
+> subsection's determinacy finding is unchanged, unread and correct — and the row it re-founds is
+> REMOVED.** `9200/tcp` left the list on the **claim** gate (§10.3's failure condition), not on
+> determinacy, and it is in §4.6. Read alone, the subsection's *"`9200/tcp` would still be listed"*
+> would tell a session the pair is on the list; it is not. **Nothing in the determinacy reasoning
+> moves**, and ADR-0048's ruling stands exactly as written. §38.11.
+
 ADR-0042's reconstruction table explains the note's oldest determinacy asymmetry with the words
 **"No — WAP has no deployed population"**. That is a population sentence inside a rule that forbids
 population sentences, and left alone it is the crack the next session widens: if *no deployed
@@ -5062,8 +5199,8 @@ was looked for.**
 
 | Row | Registration | Competing placement statement found? | Verdict |
 |---|---|---|---|
-| `9200/tcp` Elasticsearch | `sq.` `wap-wsp` | **No.** WSP: no current statement, and the WAP bearer is UDP (§15.3). OpenSearch and Wazuh indexer: **same protocol**, limb 3 | **Listed, unchanged** |
-| `9300/tcp` Elasticsearch transport | `sq.` `vrace` | **No.** No current placement document for *Virtual Racing Service* found under that name or its registrant. OpenSearch's transport range is the same protocol | **Listed, unchanged** |
+| `9200/tcp` Elasticsearch | `sq.` `wap-wsp` | **No.** WSP: no current statement, and the WAP bearer is UDP (§15.3). OpenSearch and Wazuh indexer: **same protocol**, limb 3 | ~~**Listed, unchanged**~~ — **determinacy verdict unchanged; the row is REMOVED by §38** on the **claim** gate ([#114](https://github.com/winniel123/verge-asm/issues/114)). Determinacy is not what removed it |
+| `9300/tcp` Elasticsearch transport | `sq.` `vrace` | **No.** No current placement document for *Virtual Racing Service* found under that name or its registrant. OpenSearch's transport range is the same protocol | ~~**Listed, unchanged**~~ — **determinacy verdict unchanged; the row is REMOVED by §38** on the **claim** gate ([#114](https://github.com/winniel123/verge-asm/issues/114)) |
 | `2181/tcp` ZooKeeper | `sq.` `eforward` | **No.** Every current first-party document found on 2181 is ZooKeeper's own or a ZooKeeper **client's** connection string, which places nothing of its own | **Listed, unchanged** |
 | `9042/tcp` Cassandra | `--` unassigned | **No contest.** ScyllaDB's configuration reference defaults `native_transport_port` to `9042` — a different vendor and a different product, declaring **CQL**, so limb 3 makes it one convention | **Listed, unchanged** |
 | `10250/tcp` kubelet | `--` unassigned | **No.** Kubernetes' own ports-and-protocols reference is the only current placement statement found; an upstream proposal to reuse the number inside the same project places nothing | **Listed, unchanged** |
@@ -5346,6 +5483,21 @@ costs.
 > the placement made here; nothing moves.
 
 ### 16.4 `9300` Elasticsearch — the *node* sentence does reach the transport port, and the owner says so
+
+> **WITHDRAWN as a placement by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)),
+> at this site rather than only where it is superseded, per
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as
+> widened by [#106](https://github.com/winniel123/verge-asm/issues/106). **The cell this section
+> creates no longer exists**: `9200/tcp` and `9300/tcp` are **removed from the list** and their footing
+> cells left §2.2's graded table with their rows — *a cell cannot outlive its row* (§18.6). Read alone
+> and in the present tense, the paragraph below would cause a session to rebuild a prohibition cell for
+> a pair that has no row, which is exactly the test ADR-0058 states.
+>
+> **Both of this section's measurements are re-confirmed at the same tag and stand.** **[measured]** at
+> `v9.5.1`: `networking-settings.md` still contains `internet` ×1 and `public` ×1 in 60,429 bytes, and
+> the shipped `elasticsearch.yml` still contains **zero** occurrences of `9300`, its Network section
+> still being `network.host` and `http.port` only. **What is withdrawn is the placement, not the
+> reading.** §38.9, §38.12, §38.16.
 
 §13.7 framed this as the open question: `9200`'s *"Never expose an unprotected node to the public
 internet"* is about a **node**, so it may reach `9300` too. **[measured]** It does, and the link is
@@ -12345,8 +12497,8 @@ stops at the kubelet and reaches no other control-plane component.
 | `27017/tcp` | C | **yes** | supplement — data stores |
 | `27018/tcp` | C | **yes** | supplement — data stores |
 | `27019/tcp` | C | **no** | the supplement took `27017` and `27018` and stopped one short |
-| `9200/tcp` | C | **yes** | supplement — HTTP-ish alternates |
-| `9300/tcp` | C | **yes** | supplement — HTTP-ish alternates |
+| ~~`9200/tcp`~~ | C | **yes** | supplement — HTTP-ish alternates — **and the row is REMOVED from `S` by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). The scoring was right and stays; what ends is the **membership**. It leaves **cell 1** |
+| ~~`9300/tcp`~~ | C | **yes** | supplement — HTTP-ish alternates — **and the row is REMOVED from `S` by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). Same disposal; it leaves **cell 1** too, so `27 + 8 + 5 = 40` becomes **`25 + 8 + 5 = 38`** and `verge-core` does **not** move, both pairs having been in `F` all along |
 | `5984/tcp` | C | **yes** | supplement — data stores |
 | `25672/tcp` | C | **no** | the supplement took `5672` and `15672` — the two ports §4.6 *excludes* — and omitted the one the prohibition names |
 | `445/tcp` | C | **yes** | top-100, retained |
@@ -12421,6 +12573,21 @@ composed, after §27 admitted 10249/tcp and 10248/tcp — neither in F:
 > for an addition, and the first time it has been spent in the removing direction. It is also why
 > §35.12 rules that the removal's price is a rule-version bump and a denominator, and **not** the
 > aperture widening [#109](https://github.com/winniel123/verge-asm/issues/109) priced it as.
+
+> **Composed again after §38 ([#114](https://github.com/winniel123/verge-asm/issues/114)) removed
+> `9200/tcp` and `9300/tcp` — and the union does NOT move, a second time.**
+>
+> ```
+> cell 1 = 25   cell 2 = 8   cell 3 = 5      |S_tcp| = 33 ;  |S| = 38
+>
+> |verge-core| = |F| + |S \ F| = 123 + (8 + 5) = 136 pairs — 131 TCP, 5 UDP.  UNCHANGED.
+> ```
+>
+> **[measured]** both pairs are scored *supplement — HTTP-ish alternates* in the table above, so both
+> are in `F` and neither was ever in `S \ F`. **Two pairs leaving `S` move cell 1 by two and leave the
+> union, the frequency half and the probed set exactly where they were** — the same rule §35 spent on
+> one row, and the arithmetic is why §38.13 prices a **two-row** removal at the same rule-version bump
+> a one-row removal costs.
 
 > **`136` is the figure to quote, and `134` is this section's own against the pre-§27 list.** It is the
 > identity above that survives, not the numeral — which is why §29.3 was written this way and why the
@@ -14719,6 +14886,21 @@ defeated by the owner running *its own* hardened service on the same number (§3
 > move to the row. **The cells do not move** — limb 4 is asked of the **carrying** statement, and the
 > conditioning rider is intact for it — but **`9200/tcp` and `9300/tcp`'s rows meet §10.3's failure
 > condition** and are **routed** under ADR-0037 limb 2. §37.3, §37.5.
+>
+> > **A FOURTH candidate rider is recorded and REFUSED by §38**
+> > ([#114](https://github.com/winniel123/verge-asm/issues/114)), at this clause per ADR-0058. **A
+> > disclaimer of the component that supplies the reach does not travel, because it bounds nothing.**
+> > **[measured]** Elastic writes *"ECE does not include a built-in load balancer, so **you must
+> > provision and configure one**"* and *"Provisioning and configuring the load balancer is the
+> > customer's responsibility and is **outside the scope of this documentation**"*. That is not (b): (b)
+> > travels because an endpoint answering an **enumerated source set** is not reached from an internet
+> > vantage, and a disclaimer of responsibility enumerates no source set — it bounds **who writes the
+> > configuration**, which is not a scope. It is not (a) or (c) either. **§10.3's element is *naming*,
+> > not *supplying***, and reading a supply element into it is **falsified by §17.4**, where RabbitMQ's
+> > *"which in some cases can mean public networks, **for example, behind a load balancer**"* was ruled
+> > to meet §10.3's failure condition — and RabbitMQ ships no load balancer either. **The taxonomy above
+> > is unchanged and stays an *iff*; no fourth limb is created and §32.2's closure is untouched.**
+> > §38.7.
 
 **What this section does not do.** It does not reopen ADR-0059 limbs 1 or 2, nor §32.2's four limbs.
 #101 fenced them and this ticket **applies** the conjunction rather than restating it — the same
@@ -17404,6 +17586,16 @@ affirmation *and* is expressed only as a preference — *"we recommend you restr
 is **not** (b): ADR-0059 limb 2 makes the mood inadmissible and the affirmation is then unbounded. The
 discriminator is whether the owner's sentence **states the bound**, which is read as a string.
 
+> **A fourth candidate was tested against this instrument by §38**
+> ([#114](https://github.com/winniel123/verge-asm/issues/114)) **and it does not travel, which is this
+> taxonomy working rather than needing extension.** **[measured]** Elastic disclaims the ECE load
+> balancer — *"you must provision and configure one"*, *"outside the scope of this documentation"* —
+> and a session could read that as bounding the affirmation. It does not: (b)'s ground is that an
+> endpoint answering an **enumerated source set** is not reached from an internet vantage under
+> ADR-0010 and ADR-0017, and a disclaimer of responsibility enumerates nothing. **The rule above is an
+> *iff*, so a rider that bounds nothing is already outside it and no fourth clause is added.** §38.7
+> carries the argument and §17.4 the measurement that refuses it.
+
 ### 37.4 The walk — thirty-two members, limb 2's four grounds, verdict per row
 
 **[measured]** Against `main` at `d3e78de` — §2.2 tiers **prohibition 15 · scoping 11 · weak 3 ·
@@ -17536,6 +17728,22 @@ it is a field in Elastic's own CRD, named by Elastic, with the mechanism supplie
 > the row.** This retrieval was scoped to a tier, so §37 **routes** the pair — ADR-0037 limb 2, #37,
 > and §26.4's and §33.9's precedent. **Ticketed, and it blocks
 > [#12](https://github.com/winniel123/verge-asm/issues/12).**
+
+> **DISCHARGED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). **Both rows are
+> removed and both cells leave the graded table with them.** On a retrieval scoped to the **pair**
+> across all four corpora, `9200/tcp` falls on the one this section never opened — Elastic's
+> **self-managed** security documentation says *"**The HTTP layer**: Used for communication between
+> your cluster or deployment **and the internet**"*, which is an **affirmation** rather than a default
+> and needs neither ECE nor §10.4's one-way rule; `9300/tcp` falls on ECE alone, the same sentence's
+> next bullet naming the transport layer's clients as nodes and clusters. **Claim 1 and Claim 2 were
+> measured at `v9.5.1` and are both unavailable.** **Two corrections to this subsection are recorded
+> rather than smoothed:** **[measured]** the ECE sentence quoted above — *"assuming that your Elastic
+> Cloud Enterprise proxies are accessible"* — occurs **zero** times in `elastic/docs-content` at `main`
+> and is the legacy *ECE Reference [3.8]* wording, the current text being the weaker *"In some cases,
+> these proxies may also be accessible over the public internet"*; and the counter-argument this
+> subsection states at length — that Elastic disclaims the load balancer — is a **fourth candidate
+> rider** and is refused at §38.7, on §37.3's own **iff** and on §17.4's measurement. **The list is 38
+> pairs.** §38.3, §38.4, §38.5, §38.7, §38.15.
 
 **The cells do NOT move, and this is the inverse of §33's shape.** §32.2 limb 4 is asked of **the
 carrying statement**, and `9200`/`9300`'s carrying statement is §16.4's *"Never expose an unprotected
@@ -17835,12 +18043,27 @@ ECE, and the shipped `elasticsearch.yml` at the current tag — and must test Cl
 than assume them, on §35.6's precedent. **[measured]** the strongest counter is already recorded at
 §37.5 and §37.13 and should be heard rather than reconstructed.
 
+> **DISCHARGED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). The retrieval was
+> run across all four corpora and **both rows are removed**; the list is **38 pairs**, class totals
+> `12 / 7 / 19`. **[measured] the corpus that decided `9200` is self-managed, not ECE** — the one this
+> item named and this section had not opened. §38.
+
 **2. `9200`/`9300`'s cells could be re-founded on a stronger Elastic sentence, and re-founding them
 would demote them.** *"Elasticsearch installations are not designed to be publicly accessible over the
 Internet. IP filtering and the other capabilities of the Elasticsearch security features do not change
 this condition"* is **unconditioned** and expressly refuses the protection carve-out that §33.2's
 conditioning rider rests on. It numbers no port, so reach would run through ADR-0050. **Reported, not
 applied** — it is the same finding as item 1 read at the other gate, and it belongs in the same ticket.
+
+> **DISCHARGED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)) **and the answer
+> is the same in both branches, so the choice never had to be made.** **[measured]** the unconditioned
+> sentence's reach **does** run through ADR-0050 limb 2 on its own page's artefact — it configures
+> `xpack.security.transport.filter.*` and documents `xpack.security.http.filter.*` as defaulting to it,
+> so both interfaces are inside *"{{es}} installations"* — and on it §32.2 limb 4(c) **fails**, so the
+> cells would demote out of the graded table on `1433`'s shape. **The rows' removal takes the cells out
+> either way.** This item's ground — *choosing a different carrying statement in order to defeat a cell
+> is running the argument rather than reading the artefact* — is **respected rather than overridden**:
+> §38 does not need the choice and says so. §38.8.
 
 **3. ADR-0037 limb 1, discharged over every artefact opened, and it yields one candidate.** Every port
 named in every artefact read for this section, checked against the table's domain:
@@ -17879,6 +18102,14 @@ corpus names DataStax by name.
 ### 37.12 Every dependent figure — the empty delta
 
 > `FIGURE DELTA §37: none. Every figure in the note checked and unchanged. No cell moves, no row moves. Two rows ROUTED. Basis: main at d3e78de.`
+
+> **SUPERSEDED as a statement about the note's current figures by §38**
+> ([#114](https://github.com/winniel123/verge-asm/issues/114)), per ADR-0058, and **true of §37's own
+> act**, which is how this subsection asked to be read. The two routed rows are now **removed**:
+> `|S|` is **38**, classes `12 / 7 / 19`, tiers **13 / 11 / 3 / 11**, coverage **27 of 38**, §4.6 **23**,
+> §6.1 `25 + 8 + 5 = 38`, aperture denominator **38**, `verge-core` **unchanged at 136**, and
+> **ADR-0008 IS triggered**. Every row of the table below reading *unchanged* on a figure §38 moves is
+> withdrawn as a current absolute and stands as §37's own delta. §38.12.
 
 **Stated parametrically, so it survives whatever a sibling does to the baseline:**
 
@@ -17951,6 +18182,15 @@ not close for either — but a single sentence could carry both, and this sectio
 public default is affirmed *only for protected deployments* — **reaches the opposite verdict on
 `9200`**. That reading has to explain why Elastic's own unconditioned sentence says security features
 *"do not change this condition"*, and it is the argument the ticket at §37.11 item 1 must answer.
+
+> **ANSWERED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)), and the answer is
+> that the question was the wrong one for `9200`. **[measured]** Elastic's *"unprotected"* does not
+> have to bound the affirmation, because the affirmation that removes `9200/tcp` is **not** ECE's: it
+> is *"**The HTTP layer**: Used for communication between your cluster or deployment **and the
+> internet**"*, in Elastic's own **self-managed** security documentation, with no *"unprotected"*
+> anywhere near it. **For `9300/tcp` the question is live and ECE is the only corpus that removes it**,
+> which is why §38.15 records that ruling as the thinner of the two. **And the ECE quotation above is
+> not the current issued text** — §38.3.
 
 **§37.8's second addressee instance is measured and its consequence is a ruling.** That limb 3 does not
 exist at the claim gate is read off §10.3's text — the failure condition requires the **affirmation** to
@@ -18028,6 +18268,782 @@ delta, so there is nothing for a merger to re-derive; the only figures it cites 
 - **Nothing beneath a footing was re-litigated and no cell was reopened.** §32.2's four limbs, §10.2's
   closed claim set, ADR-0059 limbs 1 and 2 and ADR-0067 **limb 1's separation** were all fenced by the
   ticket and none was touched. No class, determinacy verdict or exclusion was read.
+
+---
+
+## 38. `9200/tcp` and `9300/tcp` do not survive — §10.3's failure condition is met on a retrieval scoped to the pair, and the corpus that decides `9200` is the one #112 never opened
+
+[#114](https://github.com/winniel123/verge-asm/issues/114), and it is the ticket §37.11 item 1 routed.
+§37 ([#112](https://github.com/winniel123/verge-asm/issues/112)) swept
+[ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+limb 2 across all thirty-two members it can reach, found §10.3's failure condition **met** for this
+pair on Elastic Cloud Enterprise documentation, **held** the footing cells, and routed the rows —
+because a row moves only on a retrieval scoped to the row
+([#37](https://github.com/winniel123/verge-asm/issues/37),
+[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2) and
+§37's retrieval was scoped to a **tier**. This one is scoped to the **pair**, across all four of
+Elastic's corpora. §37 opened two of them.
+
+> **`9200/tcp` and `9300/tcp` Elasticsearch leave the list.** Claim 3 fails on §10.3's own failure
+> condition; **Claim 1 is unavailable** and **Claim 2 is inapplicable**, both **measured** against the
+> shipped bytes at `v9.5.1` rather than assumed; §10.2 closed the set, so *no claim* is *no row*.
+> **This is the note's first two-row removal and its third and fourth row removals**, after `161/udp`
+> (§11.6) and `1433/tcp` (§35.8).
+>
+> **The two pairs are decided separately and they do not fall on the same evidence.** **[measured]**,
+> retrieved 2026-08-14 from raw bytes:
+>
+> - **`9200/tcp` falls on the corpus #112 never opened.** Elastic's own security documentation, on
+>   pages bannered for **self-managed** deployments, defines the HTTP interface's counterparty as the
+>   internet in one unhedged present-tense sentence: *"**The HTTP layer**: Used for communication
+>   between your cluster or deployment **and the internet**."* That is Claim 3's proposition denied by
+>   the owner, about the interface Elastic's own `networking-settings.md` puts on `http.port`, *"Defaults
+>   to `9200-9300`"*. **It needs no ECE, no ECK, no load balancer and no reading of a permissive
+>   default.** ECE's affirmation is a **second, independent** instance.
+> - **`9300/tcp` falls on ECE alone, and the same sentence's next bullet is the reason it is a closer
+>   call.** *"**The transport layer**: Used mainly for inter-node communications, and in certain cases
+>   for cluster to cluster communication"* is Claim 3's boundary **named by the owner** — so the
+>   transport row keeps its boundary in the self-managed corpus and loses it in ECE, where Elastic
+>   numbers `9300, 9343` under **"Inbound traffic from any source"**, documents the supported
+>   load-balancer modes for it, and says the IP filter that overrides *"the default behavior of **allow
+>   all access over the public internet endpoint**"* governs *"{{es}} transport traffic (**ports
+>   9300/9343**)"*. Reach runs through
+>   [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+>   limb 2 on three of the owner's own artefacts.
+>
+> **The list is 38 pairs, class totals `12 / 7 / 19`.** §6.1's containment arithmetic is
+> ~~`27 + 8 + 5 = 40`~~ **`25 + 8 + 5 = 38`**; §4.6 gains a **22nd** and **23rd** exclusion, both
+> worded from Elastic's own sentences on arrival per §35.10's discipline; §2.2's tiers are
+> **prohibition ~~15~~ 13 · scoping 11 · weak 3 · outside-subject 11** and coverage reads ~~29 of 40~~
+> **27 of 38**, with `13 + 11 + 3 + 11 = 38`.
+>
+> **`verge-core` does NOT lose a member.** **[measured]** both pairs are in the frequency half — §29.2
+> scores each *supplement — HTTP-ish alternates* — so `F ∪ S` is unchanged at **136 pairs, 131 TCP,
+> 5 UDP** and nothing changes about what is probed. This is
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s definition doing in the removing direction what
+> §35.12 measured for `1433/tcp`, and it is the **second** instance rather than the first.
+>
+> **The footing cells leave the graded table with their rows, and the re-founding is ruled on anyway
+> because the verdict is the same in both branches.** §38.8.
+>
+> **No ADR is minted and `0070` is left unused.** The instrument that removes these rows is
+> **ADR-0067**, minted for exactly this question and **applied** here; ADR-0067, ADR-0050, ADR-0054,
+> ADR-0059, ADR-0036 and ADR-0037 are **confirmed by use**, and ADR-0067 limb 1's clause and §33.2's
+> rider clause each gain one sentence. §38.7, §38.9.
+
+### 38.1 What was retrieved
+
+**Sixteen Elastic artefacts, all first-party, all current, all retrieved 2026-08-14 from raw bytes.**
+Four are the ones §37 read; **twelve are new to this note**, and the one that decides `9200/tcp` is in
+a corpus no prior section of this note has opened. Every negative below is dated to 2026-08-14 per
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), and every one is a count over
+the file retrieved rather than a claim about Elastic's corpus — ADR-0037 limb 3.
+
+| # | Artefact | Where | `applies to` | Why it was opened |
+|---|---|---|---|---|
+| 1 | **`_snippets/cluster-communication-network.md`** | `elastic/docs-content` `main` | *(via its includers)* | **New, and it is what decides `9200`.** Found by grepping the whole corpus for `internet` rather than by opening a page the ticket named |
+| 2 | `security.md` — includer of 1 | same | `deployment: all` · `serverless: ga` | Establishes 1's banner |
+| 3 | `security/secure-your-cluster-deployment.md` — includer of 1 | same | `self: ga` · `eck: all` · `ece: all` · `ess: all` | **The self-managed banner on 1** |
+| 4 | `configuration-reference/networking-settings.md` | `elastic/elasticsearch` **`v9.5.1`** | `stack: ga` | The **carrying** page — the rows' whole footing since §16.4 |
+| 5 | **`distribution/src/config/elasticsearch.yml`** | `elastic/elasticsearch` `v9.5.1` | — | **New to this question.** The shipped config, 2,702 bytes, read whole |
+| 6 | **`XPackSettings.java`** | `elastic/elasticsearch` `v9.5.1` | — | **New.** Claim 1's shipped default, read off the source |
+| 7 | **`AnonymousUser.java`** | `elastic/elasticsearch` `v9.5.1` | — | **New.** Claim 1's Step 2 |
+| 8 | **`TransportTLSBootstrapCheck.java`** | `elastic/elasticsearch` `v9.5.1` | — | **New.** `9300`'s Claim 1, and it is a refusal to start |
+| 9 | **`_snippets/auto-security-config.md`** + `security/self-auto-setup.md` | `elastic/docs-content` `main` | `self: ga` | **New.** ADR-0036 limb 1's *documented* half for 6-8 |
+| 10 | **`security/ece-filter-rules.md`** | same | `ece: ga` | **New.** ECE's affirmation, and it is **not** the sentence §37 quoted |
+| 11 | `cloud-enterprise/ece-networking-prereq.md` | same | `ece: all` | §37's port table, re-read whole |
+| 12 | `cloud-enterprise/ece-load-balancers.md` | same | `ece: all` | §37's disclaimer, re-read whole |
+| 13 | **`security/ip-filtering-ece.md`** | same | `ece: ga` | **New.** The `9300/9343` sentence — the direct join §38.5 turns on |
+| 14 | `cloud-on-k8s/accessing-services.md` | same | `eck: all` | §37's ECK page, re-read whole |
+| 15 | `security/ip-filtering-basic.md` | same | `self:` · `eck:` | The **unconditioned** prohibition — the footing question |
+| 16 | **`self-managed/_snippets/ports.md`**, **`cloud-enterprise/connect-elasticsearch.md`**, **`remote-clusters.md`**, **`remote-clusters/security-models.md`**, **`security/network-security.md`**, **`security/network-security-policies.md`**, **`security/ip-filtering.md`**, **`security/_snippets/eck-traffic-filtering.md`** | same | various | **All new.** The neighbour set — every page the four corpora reach that names a port or a network |
+
+**[measured]** The whole of `elastic/docs-content` at `main` was extracted locally and grepped —
+**2,950 markdown files** — rather than searched through a mediated layer, because three of this
+section's load-bearing facts are **zero counts** and §37.14 records a summariser **fabricating a
+clause** and a **line break** producing a false negative one pass ago. Every quotation below is from
+the bytes on disk.
+
+### 38.2 The question is not §37's, and the difference is one corpus wide
+
+§37 asked a **tier**-scoped question of ADR-0067 limb 2 and answered it on the two corpora a tier
+sweep naturally reaches: ECE and ECK. It said so, at §37.11 item 1, and named the two it had not
+opened — **self-managed** and the shipped `elasticsearch.yml` at the current tag.
+
+**[measured] the self-managed corpus is where the answer is**, and it is not where anybody expected it:
+
+> "* [Manage TLS certificates](…): TLS certificates apply security controls to network communications.
+> Elastic uses TLS certificates to secure communications in two places:
+>   * **The HTTP layer**: Used for communication between your cluster or deployment and the internet.
+>   * **The transport layer**: Used mainly for inter-node communications, and in certain cases for
+>     cluster to cluster communication."
+> — Elastic, `deploy-manage/security/_snippets/cluster-communication-network.md`, `elastic/docs-content`
+> `main`, included at `deploy-manage/security.md` (`applies_to: deployment: all`, `serverless: ga`) and
+> at `deploy-manage/security/secure-your-cluster-deployment.md`
+> (`applies_to: deployment: self: ga · eck: all · ece: all · ess: all`)
+
+**Four things about that sentence, each read off the artefact:**
+
+1. **It is an affirmation, not a default and not a prohibition.** It is present tense, unhedged, and
+   its verb is *is used for*. §10.4's one-way rule does not have to be reached at all, so the whole of
+   §37.13's *"ECE describes a default, not an offering"* counter-argument is **unavailable against
+   `9200`** — it was an argument about a different sentence in a different corpus.
+2. **Its subject is exactly Claim 3's.** §2.1 Claim 3 is *"the protocol's intended clients"*; this
+   sentence names the HTTP layer's counterparty. ADR-0054's step rule is satisfied on its face —
+   evidence about the claim, at the claim.
+3. **Its addressee is the operator and its listener is the operator's own.** It is on a page headed
+   *Secure your cluster, deployment, or project*, bannered `self: ga` first. §33.2's addressee rider,
+   which **does** travel (§37.3(a)), has nothing to bite on: this is not Elastic speaking about
+   Elastic's managed service.
+4. **Reach is one step and the owner takes it.** The *HTTP layer* is `http.port`, and **[measured]**
+   `networking-settings.md` at `v9.5.1` says *"`http.port` … The port to bind for HTTP client
+   communication. … Defaults to `9200-9300`"*. That is ADR-0050 limb 2 satisfied on the owner's own
+   artefact — the same route §16.4 used in the other direction on the same page.
+
+**And it discriminates the two pairs in the owner's own bytes, in the very next bullet.** The
+transport layer is *"used mainly for inter-node communications, and in certain cases for cluster to
+cluster communication"* — which is Claim 3's boundary **stated by the owner**, not denied. **The pair
+comes apart here and nowhere else**, which is why §38.4 and §38.5 are separate subsections and reach
+their verdicts by different routes.
+
+### 38.3 The retrieval, corpus by corpus — the failure condition asked four times
+
+| Corpus | Does the owner name the public internet for the pair? | Verdict |
+|---|---|---|
+| **Self-managed** (`elastic/elasticsearch` `v9.5.1` docs + `elastic/docs-content` `self` banners) | **YES for `9200`** — artefact 1, quoted above. **NO for `9300`** — the same sentence names the transport layer's clients as **nodes and clusters** | **Failure condition MET for `9200` only** |
+| **Shipped `elasticsearch.yml`** at `v9.5.1` | **NO.** **[measured]** 2,702 bytes; `internet` ×0, `public` ×0, `9300` ×0. Its Network section carries a **restricting** comment — *"By default Elasticsearch is only accessible on localhost"* — over a commented-out `#network.host` | **Not met.** §16.4's *"a session that had gone to the config file would have found nothing"* is **re-confirmed at the same tag** |
+| **ECK** | **NO.** **[measured]** `internet` ×1 across `accessing-services.md`, and it is the sentence **establishing the default** — *"native Kubernetes services that are **not reachable from the public Internet by default**"*. Across the whole `deploy-manage/deploy/cloud-on-k8s` tree `internet` occurs **4** times and the other three are about **air-gapped installs** | **Not met.** §38.10 Option B |
+| **ECE** | **YES for both.** Artefact 10, and reach to the numbers runs through artefacts 11, 12 and 13 | **Failure condition MET for `9200` and `9300`** |
+
+**The ECE sentences, quoted from the current issued page rather than from §37's rendering, because
+they are not the same words:**
+
+> "By default, in {{ece}}, all your deployments are accessible to external networks through the
+> orchestrator's proxies without any traffic restrictions. **In some cases, these proxies may also be
+> accessible over the public internet.**"
+> "- IP filtering rule sets, when associated with a deployment, will apply to **all deployment
+> endpoints**, such as {{es}}, {{kib}}, APM Server, and others."
+> "- Any IP filtering rule set assigned to a deployment **overrides the default behavior of *allow all
+> access over the public internet endpoint***."
+> — Elastic, *IP filtering rules in {{ece}}*, `deploy-manage/security/ece-filter-rules.md`,
+> `applies_to: deployment: ece: ga`
+
+> **A correction to §37.5, recorded rather than smoothed.** **[measured]** the sentence §37 quoted —
+> *"By default, all your deployments are accessible over the public internet, assuming that your
+> Elastic Cloud Enterprise proxies are accessible"* — **is not in the current issued corpus**. It is
+> the legacy *Elastic Cloud Enterprise Reference [3.8]* wording; the unified docs reword it to the
+> hedged *"In some cases, these proxies may also be accessible over the public internet"*. **This is a
+> weakening and it is flagged as one** — §38.15. What is **not** weakened is the second bullet, which
+> is unhedged and which names the internet endpoint as *the default behavior*. Both are issued
+> (ADR-0045), and this section relies on the **current** one.
+
+### 38.4 `9200/tcp` — the failure condition met twice, independently, and the second instance is the weaker one
+
+**Instance 1, self-managed, and it is decisive on its own.** Elastic says the HTTP layer is used for
+communication between the cluster and **the internet**; the HTTP layer is `9200` by the owner's own
+default. §10.3's failure condition — *"Where the owner names the public internet as a **supported
+deployment environment**, Claim 3 fails however strongly a third party disapproves"* — fires. **The
+reader supplies no premise**: the naming, the interface and the number are all in Elastic's own
+artefacts, and ADR-0059 limb 1's arithmetic reads zero.
+
+**Instance 2, ECE, and it needs ADR-0050.** The affirmation numbers no port; the numbers come from a
+page that names no network. **[measured]** `ece-networking-prereq.md` contains `internet` **×0** and
+`public` **×0** in 7,727 bytes. So the join is made by ADR-0050 limb 2 — the owner's own artefacts
+placing the pair inside the category the statement is about — and the owner makes it three times:
+
+> "**Inbound traffic from any source**"
+> "| 3 | Proxy | 9200, 9243 | {{es}} REST API. 9200 is plain text and 9243 is with TLS, also required
+> by load balancers |"
+> — *Networking prerequisites*, `applies_to: deployment: ece: all`
+
+> "| 9200/9243 | {{es}} HTTP | HTTP (L7) or TCP (L4) | `X-Forwarded-For` (L7) or Proxy Protocol v2 (L4) |"
+> — *Load balancers*, under *"The following table describes the **supported** load balancer modes for
+> each type of traffic and associated ports"*
+
+> "The ECE proxy must be able to determine the real client IP address for [IP filtering] … **If you use
+> TCP mode for ports 9200/9243, make sure one of these mechanisms is in place. Without real client IP
+> information, IP filtering cannot function correctly.**"
+> — same page
+
+**The third of those is the one that closes it**, because it makes the *filtered* endpoint and the
+*numbered* endpoint the same object in Elastic's own sentence: the thing IP filtering restricts —
+whose unrestricted state Elastic calls *"the default behavior of allow all access over the public
+internet endpoint"* — is the listener on `9200/9243`.
+
+**§37.5's *"the supported endpoint is not the node"* is not available here and §37.3(c) already said
+why.** That is a conditioning of the **prohibition's** class (*an **unprotected** node*), it answers
+ADR-0050 limb 3's defeat test at the attestation gate, and ADR-0067 limb 1 makes carrying it to the
+claim gate *backwards*. It is also **beside the point twice over now**: instance 1 is not about ECE
+at all, and **[measured]** in ECK — where Elastic states there is no proxy — `9200` **is** the node's
+own HTTP service, `hulk-es-http … 9200/TCP`.
+
+**The `applies to` banner argument is ADR-0067 limb 2's and it is answered by limb 2's four grounds
+run over these artefacts**: the pages live in Elastic's own documentation repositories; the addressee
+is the operator; the sentences' subject is the Elasticsearch cluster's own interfaces; and the list is
+keyed on the **pair**, which has no cell for *except on ECE*. **[measured]** the two document sets do
+not disclaim each other — the counter-instance ADR-0067's thin-ground paragraph names, an owner
+disclaiming a deployment *in its own words*, is **still** not met in this corpus, which is the finding
+#112 already recorded and this retrieval re-confirms across twelve more artefacts.
+
+### 38.5 `9300/tcp` — decided separately, and it falls on one corpus rather than two
+
+**The ticket required the pairs to be decided separately and the evidence obliges.** `9300` is the
+transport port, §16.4 carried it into `9200`'s **footing** cell on the *node* sentence, and a
+claim-gate ruling may separate them where the footing did not.
+
+**In the self-managed corpus `9300` keeps its boundary, and the owner states it.** Artefact 1's second
+bullet — *"**The transport layer**: Used mainly for inter-node communications, and in certain cases for
+cluster to cluster communication"* — is Claim 3's antecedent in the owner's own words. So is the
+self-managed ports table:
+
+> "The transport API must be accessible **between {{es}} nodes in the cluster**, and to any external
+> clients using the transport API."
+> "| 9300 and onwards | TCP | Transport API. Used for intra-cluster communications and client access
+> via the transport API (Java client). |"
+> — Elastic, `deploy-manage/deploy/self-managed/_snippets/ports.md`
+
+**[measured]** that page names no network at all — `internet` ×0. *"External clients"* and *"external
+users"* are **boundary** terms, and §32.2 limb 3's lexical test, unchanged and not widened by a
+syllable, is not satisfied by them. **So the self-managed corpus does not remove `9300`.**
+
+**ECE does, and it does it three times.** The affirmation is the same one, and the owner's own
+artefacts place `9300` inside it as squarely as `9200`:
+
+> "| 3 | Proxy | 9300, 9343 | {{es}} transport client. 9300 is plain text and 9343 is with TLS, also
+> required by load balancers |" — under **"Inbound traffic from any source"** (*Networking
+> prerequisites*)
+
+> "| 9300/9343 | Transport client | TCP (L4) | Proxy Protocol v2 | Enable proxy protocol on the LB |"
+> — *Load balancers*, in the **supported** modes table
+
+> "**For {{es}} transport traffic (ports 9300/9343), enable Proxy Protocol v2 regardless of the mode.**"
+> — Elastic, *Manage IP filters in ECE*, `deploy-manage/security/ip-filtering-ece.md`,
+> `applies_to: deployment: ece: ga`, under **Prerequisites**
+
+**The third is the join, and it is textual rather than inferential.** `ece-filter-rules.md` says an IP
+filtering rule set *"overrides the default behavior of allow all access over the public internet
+endpoint"* and that rule sets *"apply to **all deployment endpoints**"*; `ip-filtering-ece.md` says
+what the operator must do for that filter to work on **ports 9300/9343**. The endpoint whose
+unrestricted default Elastic names as public-internet is, in Elastic's own two sentences, the listener
+on `9300/9343`. **ADR-0050 limb 2 is satisfied and no reader-supplied premise is needed for it.**
+
+**§36.8's restated limb 2 is run on the pair rather than assumed.** The ECE `9300` listener is the pair
+**as the endpoint being reached, on the estate the statement addresses**: the estate is the operator's
+own ECE installation on the operator's own hardware; the traffic is **inbound** and Elastic's own table
+heading says *from any source*; and the service is *"{{es}} transport client"* in Elastic's own Purpose
+cell. Direction and addressee — the two riders that **do** travel (§37.3(a)) — are both satisfied for
+the row rather than against it.
+
+> **The `9300` verdict is the thinner of the two and it is labelled.** It rests on **one** corpus and
+> on ADR-0050 rather than on a sentence; the self-managed corpus points the other way; and the ECE
+> transport client Elastic numbers is the **Java transport client**, whose successor model
+> **[measured]** uses a *dedicated* port — *"cross-cluster operations use a dedicated server port …
+> The default port is `9443`"* — with TLS-certificate authentication over the transport interface
+> marked `stack: deprecated 9.0`. **A reader who requires the failure condition to be met in the
+> owner's *primary* corpus keeps `9300` and loses `9200`.** §38.15.
+
+### 38.6 Claim 1 and Claim 2, tested rather than assumed
+
+§10.2 closed the claim set, so *no claim* is *no row*, and §35.6's precedent makes this the whole of
+the remaining work. **The ticket flagged Claim 1 as non-obvious because `9200`'s neighbours in Class A
+are `2375`, `2379`, `2380`, `6379`, `11211` and `2181` — every one of them an unauthenticated-by-default
+service. It is non-obvious, and the measurement goes the other way.**
+
+**Claim 1 — unavailable, and it fails on §2.1's antecedent: *the configuration its maintainers ship*.**
+**[measured]** at `v9.5.1`, from the source rather than from a page about it:
+
+> `/** Setting for enabling or disabling security. Defaults to true. */`
+> `public static final Setting<Boolean> SECURITY_ENABLED = Setting.boolSetting("xpack.security.enabled", true, …`
+> — `x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/XPackSettings.java`
+
+> `public static boolean isAnonymousEnabled(Settings settings) {`
+> `    return ROLES_SETTING.exists(settings) && ROLES_SETTING.get(settings).isEmpty() == false;`
+> `}`
+> — `…/xpack/core/security/user/AnonymousUser.java`. **Anonymous access exists only where the operator
+> writes `xpack.security.authc.anonymous.roles`**; the shipped state is not merely *empty*, it is
+> *absent*, and the method reads `exists()` first.
+
+And ADR-0036 limb 1's *documented* half is satisfied by the owner in prose:
+
+> "When you start your first {{es}} node for the first time, it **automatically** performs the following
+> security setup: Generates TLS certificates for the transport and HTTP layers · Applies TLS
+> configuration settings to `elasticsearch.yml` · **Sets a password for the `elastic` superuser** ·
+> Creates an enrollment token…"
+> — Elastic, `deploy-manage/deploy/self-managed/_snippets/auto-security-config.md`, included at
+> *Automatic security setup*, `applies_to: deployment: self: ga`
+
+**So the shipped default authenticates.** This is `10250/tcp`'s disposal exactly (§19.5): a shipped
+`anonymous-auth: false` equivalent means Claim 1 is not the row's claim. §19.6's rule that *a default
+turning the port off does not defeat Claim 1* is not reached — the port is **on** and it is
+**authenticated**. And §28.5's *supports an unauthenticated mode* reading is refused by name for this
+shape: `xpack.security.enabled: false` is a configuration act, and collapsing *supports* into *ships*
+*"admits half the list"*.
+
+**Claim 1 for `9300` fails harder: the shipped software refuses to start.** **[measured]**:
+
+> `"Transport SSL must be enabled if security is enabled. Please set [xpack.security.transport.ssl.enabled]`
+> `to [true] or disable security by setting [xpack.security.enabled] to [false]"`
+> — `TransportTLSBootstrapCheck`, `x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/ssl/TransportTLSBootstrapCheck.java`,
+> `v9.5.1`; a **bootstrap check**, which `networking-settings.md` says is what binding to a non-local
+> address *"[converts] some warnings into fatal exceptions"* into
+
+That is `2375/tcp`'s own Class A cell read in the opposite direction — *"the daemon now refuses to
+start with TLS disabled on a TCP address"* — and it is a **restricting** shipped default under §10.4,
+admissible in the admitting direction and read here for what the software **does** under §34.3(c).
+
+**Claim 2 — inapplicable, and it fails on the successor clause specifically, for both pairs.** §2.1's
+Claim 2 needs *"a standardised encrypted successor reachable on a **different port**"*, and §2.1 states
+that *"the successor clause matters: it is what makes the plaintext port wrong rather than the protocol
+family wrong."* Elasticsearch's encrypted HTTP interface is `xpack.security.http.ssl.enabled` **on
+`9200`**, and its encrypted transport is `xpack.security.transport.ssl.enabled` **on `9300`** — a
+setting on the listener, not a second port, and **[measured]** the auto-configuration applies both to
+`elasticsearch.yml` on first run. **`9243` and `9343` are not a counter-example**: they are **ECE's
+proxy convention**, they exist only where the operator has installed ECE, and no specification or
+registry places an encrypted Elasticsearch successor on either. **There is no encrypted successor on
+another number, so there is no discriminator and no pair to key on** — §9.2's LDAP disposal and
+§35.6's TDS disposal, reached a third time, with §10.8 recording it as Class B's coverage boundary
+rather than as an accident.
+
+**So the closed set is exhausted for both pairs.** §11.6, §24.7 and §35.6 disposed of rows this way;
+these are the fourth and fifth, and the **second and third** to reach it by *losing* a claim they held
+rather than by never having one.
+
+### 38.7 The load-balancer disclaimer — a fourth candidate rider, argued and refused, and the measurement that refuses it is §17.4
+
+**This is the counter-argument §37.13 said was live, stated in full because a reviewer should attack
+it**, and it is the only genuinely new instrument question in this section.
+
+> "[{{ece}}] architecture is designed to be used in conjunction with at least one load balancer. **ECE
+> does not include a built-in load balancer, so you must provision and configure one in front of the
+> ECE proxies.**"
+> ":::{note} **Provisioning and configuring the load balancer is the customer's responsibility and is
+> outside the scope of this documentation.** …:::"
+> — Elastic, *Load balancers*, `ece-load-balancers.md`, `applies_to: deployment: ece: all`
+
+**The argument.** §35's discriminator for `1433` was that Microsoft **ships the provisioning option
+itself**, in the imperative, and **writes the firewall rule**. Elastic does none of that: the component
+that actually supplies the internet reach is a load balancer Elastic expressly declines to specify. On
+that reading Elastic has described a *consequence of a component it disclaims*, not named a supported
+environment — and the disclaimer is a **fourth candidate rider** on §33.2's discriminator, alongside
+conditioning, addressee and direction.
+
+**It is refused, on §37.3's own test and then on a measurement.**
+
+1. **It is not §37.3(b), and (b) is the only category it could be in.** (b) travels because *"an
+   endpoint answering only an **enumerated source set** is not reached from an internet vantage"* under
+   [ADR-0010](../adr/0010-exposure-composes-two-reaches.md) and
+   [ADR-0017](../adr/0017-exposure-needs-both-legs.md) — Oracle's *"You **must** restrict the authorized
+   public IP addresses to a single IP address or a small range"*. **A disclaimer of responsibility
+   enumerates no source set.** It bounds neither the vantage nor the reach; it bounds **who writes the
+   configuration**. §37.3(b)'s discriminator is *"whether the owner's sentence **states the bound**,
+   which is read as a string"*, and there is no bound in the string.
+2. **It is not (a) or (c).** The listener is the operator's, not Elastic's, so (a) is satisfied *for*
+   the row; and nothing here narrows a prohibition, so (c) is unreached.
+3. **§10.3's element is *naming*, and reading a *supply* element into it is refuted by the note's own
+   corpus.** §10.3 says *"where the owner **names** the public internet as a supported deployment
+   environment"*. Microsoft's provisioning option was an additional strengthening ground at §35, never
+   a stated element. **[measured] the reading that adds one is falsified by §17.4**: RabbitMQ's
+   *"[client ports] should be accessible to hosts that run applications, **which in some cases can mean
+   public networks, for example, behind a load balancer**"* was ruled *"§10.3's failure condition met
+   from the other side"* — and RabbitMQ ships **no** load balancer either. A supply element withdraws
+   §17.4's finding and reopens two §4.6 cells. **That is §10.4.1's shape of refusal: a rule is measured
+   by what it deletes, not by how it reads.**
+4. **The hedge is inadmissible, and this is not a new instrument either.**
+   [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)
+   limb 2 makes mood, force and hedging inadmissible **in both directions**; §33.2 records that this is
+   *"why a **descriptive** sentence (Redis, ZooKeeper) and a **hedged** one (Redis) are positions here"*.
+   *"In some cases … may also be"* is the same grammatical shape as RabbitMQ's *"in some cases can
+   mean"*, and it is disposed of the same way. The second ECE bullet is not hedged at all.
+
+> **Recorded at §33.2's rider clause and at ADR-0067 limb 1's clause, per
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as
+> widened by [#106](https://github.com/winniel123/verge-asm/issues/106).** §37.3 is stated as an
+> **iff** — *a rider travels if and only if it bounds the affirmation* — so a candidate that bounds
+> nothing simply does not travel, and **no fourth limb is created**. §32.2's closure over the **kinds**
+> of gap is untouched: the disclaimer introduces no object the four limbs do not reach, which is the
+> falsification test §36.4 states.
+
+### 38.8 The footing cell — the re-founding ruled on, and the cells leave with the rows
+
+The ticket put the footing cell in scope precisely because #112 held it and reported the artefact that
+would move it (§37.11 item 2). **It is decided in both branches, and the branches agree.**
+
+**Branch 1 — the disposal that actually operates. A cell cannot outlive its row.** §18.6 wrote the rule
+in terms — *"a cell cannot outlive its row"* — and §35.8 spent it: `1433/tcp`'s cell *"does not leave a
+hole, it leaves the subject"*. Both rows are removed, so **both cells leave §2.2's graded table
+entirely** and the **prohibition tier goes 15 → 13**. §2.2's *uncovered, inside the table's subject*
+population stays at **0**: these pairs leave the subject, they do not become uncovered.
+
+**Branch 2 — the re-founding, ruled on anyway, because a reader who rejects §38.4 needs it and because
+the finding is measured.** **[measured]**, retrieved from the artefact:
+
+> ":::{note}
+> {{es}} installations are not designed to be publicly accessible over the Internet. IP filtering and
+> the other capabilities of the {{es}} {{security-features}} do not change this condition.
+> :::"
+> — Elastic, *Manage IP filtering in ECK and self-managed clusters*,
+> `deploy-manage/security/ip-filtering-basic.md`, `applies_to: deployment: self: · eck:`
+
+Run against §32.2's four limbs:
+
+| Limb | Verdict |
+|---|---|
+| **1. Standing** | **Passes.** Elastic is `9200`/`9300`'s owner under §10.5 and this is Elastic's issued documentation |
+| **2. Reach** | **Passes, through ADR-0050 limb 2 and on this page's own artefacts.** The page configures `xpack.security.transport.filter.*`, and **[measured]** states *"`xpack.security.http.filter.*` and `xpack.security.remote_cluster.filter.*` settings default to the corresponding `xpack.security.transport.filter.*` setting's value"* — so the owner's own page places **both** interfaces inside *"{{es}} installations"*. It numbers no port, which §33.2 already refuses to treat as fatal |
+| **3. Network** | **Passes.** *"publicly accessible over the **Internet**"* — §20.8's lexical test |
+| **4. Modality** | **FAILS 4(c).** The sentence carries **no *"unprotected"* qualifier** and expressly refuses the protection carve-out: *"IP filtering and the other capabilities … **do not change this condition**"*. So ECE's proxy-terminated, traffic-filtered public endpoint **is** an instance of the class this sentence forbids, and 4(c)'s *"a preference against an architecture the owner elsewhere names as supported"* bites |
+
+**So on the unconditioned statement the cells leave the graded table on `1433`'s shape (§33.4), and on
+the conditioned statement they stay in the prohibition tier (§37.5). The rows' removal makes the
+choice moot, and that is the honest report: the cells leave either way.** #112's ground for not
+choosing — *"choosing a different carrying statement in order to defeat a cell is running the argument
+rather than reading the artefact"* — is respected rather than overridden, because **this section does
+not need the choice** and says so.
+
+> **ADR-0067 limb 1 consequence 3's converse, instantiated at §37.5, is now discharged.** §37 recorded
+> *"a footing surviving on a rider the claim gate does not read"* as a **first**. It survived exactly
+> one pass. The lesson is consequence 3 read literally: **a footing demotion and a row removal are two
+> rulings and each needs its own retrieval** — and here the row's retrieval disposed of the footing
+> without the footing's own question having to be answered.
+
+### 38.9 The ruling
+
+> - **`9200/tcp` Elasticsearch HTTP API leaves the list.** Claim 3 fails on §10.3's own failure
+>   condition, met **twice independently** — in Elastic's self-managed security corpus (*"**The HTTP
+>   layer**: Used for communication between your cluster or deployment **and the internet**"*) and in
+>   ECE. Claim 1 is unavailable (`xpack.security.enabled` defaults to `true`; anonymous access requires
+>   an operator act) and Claim 2 is inapplicable (TLS on the **same** port). §38.4, §38.6.
+> - **`9300/tcp` Elasticsearch transport leaves the list.** Claim 3 fails on §10.3's failure condition,
+>   met in **ECE only** and carried to the number by ADR-0050 limb 2 on three of Elastic's own
+>   artefacts. Claim 1 is unavailable (the node **refuses to start** without transport TLS when security
+>   is enabled) and Claim 2 is inapplicable. **The pair is decided separately from `9200` and on
+>   different evidence**, and the self-managed corpus points the other way for it. §38.5, §38.15.
+> - **The list is 38 pairs, class totals `12 / 7 / 19`.** Class C loses two rows; A and B are untouched.
+> - **§4.6 gains a 22nd and 23rd exclusion**, both worded from Elastic's own sentences on arrival so
+>   §17.4's mistake is not repeated. §38.11.
+> - **§2.2's tiers are prohibition ~~15~~ 13 · scoping 11 · weak 3 · outside-subject 11, coverage
+>   ~~29 of 40~~ 27 of 38**, and `13 + 11 + 3 + 11 = 38`. The **uncovered-in-subject population stays
+>   at 0** — the cells leave the subject with their rows. §38.8.
+> - **§6.1's containment arithmetic is `25 + 8 + 5 = 38`** — cell 1 alone loses both pairs, each
+>   scored *supplement — HTTP-ish alternates* at §29.2. §29.3's identity is untouched; three numerals
+>   move.
+> - **`verge-core` is unchanged at 136 pairs — 131 TCP, 5 UDP.** `|S \ F|` is unchanged at 13, both
+>   pairs having been in `F`. **Nothing changes about what is probed**, and this is the second
+>   instance of that rule after §35.12's first.
+> - **[ADR-0008](../adr/0008-derivation-versions-move-on-content.md) IS triggered** —
+>   `sensitive-port-reached-from-internet`'s content moves, its rule version bumps and every evaluation
+>   `Break`s. Vacuous pre-install and **not waived**. The aperture moves by a **narrowing** of the
+>   rule's denominator — `0 of 40 sensitive pairs unread` becomes `0 of 38` — and **not** by a widening.
+>   §38.13.
+> - **No ADR is minted and `0070` is left unused**, alongside `0039`, `0041`, `0052`, `0053`, `0057`,
+>   `0062`, `0063`, `0064` and `0069`. **ADR-0067 is what removes these rows and it is applied, not
+>   extended**; its limb 1 clause and §33.2's rider clause each gain one sentence recording the fourth
+>   candidate rider's refusal (§38.7). **ADR-0037 limb 2's cycle closes for the fourth time** — §37
+>   found and routed, this section ruled — and ADR-0036, ADR-0045, ADR-0046, ADR-0050, ADR-0054 and
+>   ADR-0059 are **confirmed by use**.
+> - **§16.4's `9300` placement is withdrawn at its own site**, per ADR-0058: the section rules a pair
+>   into a footing cell that no longer exists, and read alone in the present tense it would cause a
+>   session to rebuild it. The **measurement** in it — that `network.host` governs both interfaces and
+>   that the shipped `elasticsearch.yml` says nothing about `9300` — is **re-confirmed at `v9.5.1`** and
+>   stands.
+> - **No other row moves, no other class total moves, no other footing tier moves, and no exclusion
+>   other than the two new ones is created or retired.**
+> - **Cost: one rule-version bump on a pre-install spec, and one denominator.** It is the same price
+>   §35.12 derived, spent once rather than twice — **a two-row removal is not twice as expensive as a
+>   one-row removal**, which is the finding §38.13 records.
+
+### 38.10 The options that lost
+
+**Option A — the rows survive because ECE's sentence describes a *default*, not an offering (§37.13's
+counter-argument, heard on the pair).** **The best argument against this ruling as the ticket framed
+it, and the retrieval moved the ground out from under it.** It is an argument about **one sentence in
+one corpus**, and `9200` no longer depends on that sentence: artefact 1 is an **affirmation** in the
+present tense in the self-managed corpus, so §10.4's one-way rule — which is what would silence a
+permissive default, and which §34.3(c) and ADR-0067 limb 1 already confine to the attestation gate — is
+never reached for it. For `9300` the argument does still bear, and it is answered at §38.7 on §37.3's
+own iff and on §17.4's measurement. **Refused for `9200` on mootness and for `9300` on the instrument.**
+
+**Option B — the rows survive because ECK names the internet only in the sentence establishing the
+default, so joining *"Allow public access"* to it is one inference (§35.9's refusal of `1433`'s *Use
+firewalls* join).** **This option is CONCEDED and it changes nothing.** **[measured]** it is right:
+`accessing-services.md` contains `internet` **×1** and it is *"not reachable from the public Internet
+by default"*; the section heading *"Allow public access"* contains no network word; and the body under
+it names a Kubernetes `Service` type, not a network. **ECK is therefore corroboration under §2.3 and
+carries no row here.** Two things are recorded rather than used: **[measured]** the page's *"Outside the
+Kubernetes cluster"* block instructs the operator to retrieve the `LoadBalancer` ingress IP and run
+`curl --cacert tls.crt -u elastic:$PW https://$IP:9200/` — the mechanism supplied end to end, which is
+the *shape* §35 called *shipping the provisioning option*; and **[measured]** no warning admonition is
+attached to the section (the page's only admonitions are a `note` about copying a `Secret` and a `tip`
+about {{kib}}).
+
+**Option C — keep the rows and re-found them on another claim.** Unavailable rather than refused, and
+**measured rather than assumed**, which is what the ticket required. Claim 1 fails on §2.1's antecedent
+at `v9.5.1` for both pairs; Claim 2 fails on the successor clause for both. §38.6.
+
+**Option D — remove `9200` and keep `9300`.** **The closest call in this section, and it is a real
+option rather than a straw man.** It follows from taking the self-managed corpus as the only corpus
+whose banner speaks about the pair *as such*: there, Elastic names the internet for the HTTP layer and
+names **nodes and clusters** for the transport layer, in adjacent bullets of one sentence. **Refused
+because it makes ADR-0067 limb 2 do the opposite of what it says.** Limb 2 rules that *"an `applies to`
+banner scopes the **artefact**, not the **pair**"*, and that a deployment-scoped document is the owner
+speaking about the pair *wherever the sentence's subject is the protocol's clients and its addressee is
+the operator*. ECE's are. **Adopting Option D would restore the banner as a boundary around the owner's
+voice, which is the reading §35.5 refused for `1433` and ADR-0067 limb 2 exists to prevent.** It is
+recorded as this section's thinnest joint at §38.15, and a reader who rejects limb 2 reaches it.
+
+**Option E — keep the rows with a stated exception for ECE deployments.** Refused on §5, which declined
+to build a middle band and gave `6443/tcp` as the concrete case. A row whose exception is a **supported
+architecture** is the *rarely correct, worth mentioning* shape §5 exists to refuse, and a `Signal` is
+binary ([ADR-0004](../adr/0004-signals-are-release-coupled-rules.md)).
+
+**Option F — route again, on the ground that ECE's current wording is weaker than the one §37 quoted.**
+**The strongest procedural objection, and it is not the one #112 faced.** Refused. §37 routed because
+its **retrieval** was tier-scoped, which #37's rule makes dispositive; this retrieval is pair-scoped
+across all four corpora, so the condition that forced the routing is discharged. The wording change is
+**material and it is disclosed at §38.3 and §38.15** — but the ruling for `9200` does not rest on the
+sentence that changed, and routing a third time on a question retrieved three times would leave
+[#12](https://github.com/winniel123/verge-asm/issues/12) blocked and would be, in the map's own words,
+*leaving the question hanging*.
+
+**Option G — mint ADR-0070 for the fourth rider's refusal.** Refused on #101's, #105's and #106's
+precedent, which §35.9 records going the other way for a **new** instrument. This is not one: §37.3 is
+stated as an **iff**, so a rider that bounds nothing is already outside it, and what this section adds
+is an **instance** and its measurement. §35.9's ground for minting ADR-0067 was that *"limb 2 is a new
+instrument with no existing home"*; here the home exists and is cited. **`0070` is left unused and the
+close call is recorded.**
+
+### 38.11 §4.6's two cells, worded from Elastic's own sentences
+
+**§35.10's discipline, applied on arrival for the same reason.** §17.4 had to withdraw *"AMQP brokers
+are sometimes legitimately public"* — an assertion of ours, which §2.2's opening sentence bars — two
+years of note-time after it was written. These cells carry Elastic's sentences, their artefacts and
+their banners from the start, so there is nothing for a later sweep to withdraw.
+
+| Excluded | The ground |
+|---|---|
+| **`9200/tcp` Elasticsearch HTTP API** | **Claim 3 fails on §10.3's own failure condition, and no other claim in the closed set fits.** Elastic names the internet as the HTTP interface's counterparty in its own security documentation, on pages bannered for **self-managed** deployments: *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"* (`deploy-manage/security/_snippets/cluster-communication-network.md`, included at *Secure your cluster, deployment, or project*, `applies_to: deployment: self: ga · eck: all · ece: all · ess: all`), the interface Elastic's own `networking-settings.md` at `v9.5.1` binds with *"`http.port` … Defaults to `9200-9300`"*. **Independently**, in Elastic Cloud Enterprise — software the operator installs on the operator's own hardware — Elastic names *"the default behavior of ***allow all access over the public internet endpoint***"* and *"In some cases, these proxies may also be accessible over the public internet"* (*IP filtering rules in ECE*, `applies_to: ece: ga`), with its own tables numbering *"9200, 9243 \| {{es}} REST API"* under **"Inbound traffic from any source"** and listing `9200/9243` among the **supported** load-balancer modes. Elastic's *"Never expose an unprotected node to the public internet"* is **not withdrawn** and does not save the row — it is a statement about what the owner **forbids**, and §10.3's condition fires on what the owner **affirms** ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 1). **Claim 1** is unavailable — **[measured]** at `v9.5.1` `xpack.security.enabled` defaults to `true`, anonymous access exists only where the operator writes `xpack.security.authc.anonymous.roles`, and first start generates TLS and sets the `elastic` password. **Claim 2** fails on its successor clause — Elasticsearch's encrypted HTTP interface is `xpack.security.http.ssl.enabled` on the **same** port; `9243` is **ECE's proxy convention**, not a standardised successor. §38 |
+| **`9300/tcp` Elasticsearch transport** | **Claim 3 fails on §10.3's own failure condition, met in Elastic Cloud Enterprise and carried to the number by [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md) limb 2 on three of Elastic's own artefacts; no other claim in the closed set fits.** Elastic numbers *"9300, 9343 \| {{es}} transport client"* under **"Inbound traffic from any source"** (*Networking prerequisites*, `applies_to: ece: all`), lists *"9300/9343 \| Transport client \| TCP (L4) \| Proxy Protocol v2"* among the **supported** load-balancer modes, and states *"**For {{es}} transport traffic (ports 9300/9343), enable Proxy Protocol v2 regardless of the mode**"* in the page that manages the IP filter which *"overrides the default behavior of allow all access over the public internet endpoint"* and *"applies to **all deployment endpoints**"* (*Manage IP filters in ECE*, `applies_to: ece: ga`). **The self-managed corpus points the other way and is recorded**: *"**The transport layer**: Used mainly for inter-node communications, and in certain cases for cluster to cluster communication"*, and the ports table's *"The transport API must be accessible between {{es}} nodes in the cluster"* — which names **no network** and so cannot carry the row under §32.2 limb 3's lexical test in either direction. **Claim 1** is unavailable — **[measured]** at `v9.5.1` `TransportTLSBootstrapCheck` makes a node **refuse to start** with *"Transport SSL must be enabled if security is enabled"*. **Claim 2** fails on its successor clause — transport TLS is a setting on the **same** port; `9343` is ECE's. **This is the thinner of the two exclusions and §38.15 names the reading that reverses it.** §38 |
+
+**Both exclusions are on the claim gate**, like `1433/tcp` (§35.10), `10256/tcp` (§24.7) and
+`10258/tcp` (§27.7). **[measured]** both pairs pass §2.4 determinacy comfortably and nothing in this
+section touches it: ADR-0042's and ADR-0048's verdicts on `wap-wsp` and `vrace` are unread and
+unmoved, and §15.3's re-founding of `9200`'s determinacy stands. **A pair can be determinate and still
+have no claim**, which is the separation §24.7 established and this is its fourth instance.
+
+### 38.12 Every dependent figure, walked rather than asserted
+
+> `FIGURE DELTA §38: S := S − {9200/tcp, 9300/tcp}. |S| 40 → 38. Classes 12/7/21 → 12/7/19. Tiers 15/11/3/11 → 13/11/3/11. Coverage 29 of 40 → 27 of 38. §4.6 21 → 23. §6.1 27+8+5=40 → 25+8+5=38. Aperture denominator 40 → 38. verge-core UNCHANGED at 136 (both pairs in F). ADR-0008 TRIGGERED. Basis: main at 53b7ef4.`
+
+**Stated parametrically, so it survives whatever a sibling does to the baseline:** *the sensitive list
+loses `{9200/tcp, 9300/tcp}`; §4.6 gains both; §2.2's **prohibition** tier loses both and every other
+tier is unchanged; §6.1's **first** cell loses both; the union, the frequency half and the probed set
+are unchanged.* **The delta is `−2` on `|S|`, `−2` on the prohibition tier and `−2` on §6.1 cell 1 for
+any baseline.**
+
+| Where | Was, at `main` `53b7ef4` | Is, after §38 |
+|---|---|---|
+| §1 pair count | **40** | **38** |
+| §3 class totals | `12 / 7 / 21` | **`12 / 7 / 19`** — Class C loses two; A and B untouched |
+| §3.3's Class C table | 21 rows | **19 rows.** Both pairs struck in place per the name-and-withdraw convention |
+| §2.2 footing — **prohibition** | 15 | **13** |
+| §2.2 footing — scoping · weak · outside-subject | 11 · 3 · 11 | **11 · 3 · 11, all unchanged** |
+| §2.2 *uncovered, inside the table's subject* | 0 | **0, unchanged.** The cells leave the **subject** with their rows (§18.6, §35.8) |
+| §2.2 footing coverage | 29 of 40 | **27 of 38.** `13 + 11 + 3 + 11 = 38` |
+| §4.6 exclusions | 21 | **23** — §38.11 |
+| §6.1 containment arithmetic | `27 + 8 + 5 = 40` | **`25 + 8 + 5 = 38`.** Cell 1 alone; **[measured]** both pairs are in `F` (§29.2, *supplement — HTTP-ish alternates*) |
+| §29.3's identity | cell 1 = 27 · `\|S_tcp\| = 35` · `\|S\| = 40` | **25 · 33 · 38.** The identity is untouched; three numerals move |
+| `verge-core` · the frequency half `F` | 136 pairs — 131 TCP, 5 UDP · 123 | **UNCHANGED, both.** `\|F\| + \|S \ F\|` = `123 + (8 + 5)`; neither pair was ever in `S \ F` |
+| [`safe-active-probing.md`](./safe-active-probing.md) §2.4's aperture line | `0 of 40 sensitive pairs unread` | **`0 of 38 sensitive pairs unread`** — denominator only; the numerator is `0` for every `\|S\|` and `0 of 16 rules unevaluable` is unchanged |
+| The enumerated **aperture inputs** | seven | **seven, unchanged.** A denominator narrowing adds no input |
+| §10.1's Class A walk | twelve rows | **twelve, unchanged.** Both pairs are Class C |
+| §17.1's population of negatives | fifteen | **fifteen, unchanged.** The two new exclusions' grounds are the owner's **affirmative** sentences, which are not negatives — §35's own disposal |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984`, `10248` | **unchanged.** No weak-tier member moves |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) | not triggered by §37 | **TRIGGERED.** Content moves; vacuous pre-install and **not waived** |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md) | 136 pairs | **unchanged, and it is the rule's second removing-direction instance** |
+| [ADR-0014](../adr/0014-only-revealed-generalises.md) | — | **not triggered.** A narrowing is not a revealing; no timeline opens |
+| §16.4 | `9300` placed in `9200`'s prohibition cell | **WITHDRAWN at its own site** per ADR-0058. Its two measurements are **re-confirmed at `v9.5.1`** and stand |
+| §37.5 · §37.11 items 1 and 2 · §37.12 · §37.13 | two rows **ROUTED**; cells held; ticket open | **DISCHARGED at each clause.** The rows are removed, the cells leave with them, and §37.12's *"§1 pair count unchanged — routing is not removing"* is now spent |
+| [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) | limbs 1-2; #112's routing recorded in Consequences | **AMENDED in place** at limb 1's clause (the fourth candidate rider) and in Consequences (the routing discharged). **Both limbs confirmed by use; neither is narrowed** |
+| §33.2's rider clause | three riders, and a statement of which travel | **a fourth candidate recorded and refused**, per ADR-0058. The taxonomy is unchanged and stays an **iff** |
+| **§32.2's four limbs and its closure** | four, closed | **untouched and not reopened.** §38.7 introduces no fifth term |
+| §10.3 | the failure condition | **AMENDED at its clause** — the element is ***naming***, not *supplying*, and §17.4 is the measurement. §10.3's wording is otherwise unchanged and §10.2's set stays closed |
+| ADR-0042 · ADR-0048 · §15.3 | `9200`/`9300` determinacy verdicts, cells reading **Listed** | **verdicts unchanged and unread; the *"Listed"* cells marked** per ADR-0058. Determinacy is not what removed these rows |
+| [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md) · [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) · [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) · [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) · [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) · [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md) · ADR-0037 | — | **confirmed by use, none amended.** Their `9200`/`9300` example cells are marked where they would mislead |
+| [`weak-key-and-signature.md`](./weak-key-and-signature.md) · [`insecure-listener-rules.md`](./insecure-listener-rules.md) | — | **untouched.** `insecure-listener-rules.md` uses `9200` as an **illustration of a rule's reach**, not as a list membership claim |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted; `Reach`, `Exposure` and `Service` are **read** and the reading is recorded at §38.7 |
+
+**Where §38 and §1 disagree, §1 governs.** A sibling pass may be moving the baseline concurrently; the
+parametric statement above is what a merger should re-derive from.
+
+### 38.13 The price, re-derived — and a two-row removal costs what a one-row removal costs
+
+**§35.12 corrected #109's overstatement and this section spends the corrected rule.** The ticket priced
+this at §35.12 rather than at #109's, and that is right.
+
+1. **The version bump is real and is spent once.** `sensitive-port-reached-from-internet` reads the
+   sensitive list, so its content moves, its leaf bumps under ADR-0008 and every span of that derivation
+   `Break`s uniformly. **[measured]** the bump is a property of *the content moving*, not of *how many
+   rows moved* — so removing two rows costs exactly one bump. Pre-install this is **vacuous and not
+   waived**, the same sentence ADR-0009's #91 and #95 amendments wrote in the adding direction, and
+   §7.2 already ruled the cost symmetric between adding and removing.
+2. **The aperture *narrows* by two, and a narrowing is a denominator.** The aperture statement's line is
+   `0 of |S| sensitive pairs unread`, and `|S|` falls to 38. **The numerator is `0` for every `|S|`** —
+   nothing becomes unread — so [ADR-0014](../adr/0014-only-revealed-generalises.md) does not bite and no
+   timeline opens. `0 of 16 rules unevaluable` is unchanged.
+3. **`verge-core` costs nothing and neither does the probe budget.** **[measured]** both pairs are in the
+   frequency half, so `F ∪ S` is unchanged at **136 pairs, 131 TCP, 5 UDP**, #4 §6's rate limits are
+   untouched, and the operator keeps probing `9200` and `9300` every day. **What stops is the `Signal`,
+   not the measurement.** This is now true of **25 of the list's 38 pairs** and it has been spent twice.
+
+**So the honest price is: one rule-version bump, vacuous pre-install; one denominator, moved by two; no
+probing change; no union change.** It is the note's **largest** row movement and it is **not** its most
+expensive act — the two are different axes, and pricing them as one is the error §35.12 exists to
+prevent.
+
+### 38.14 By-catch and open items, routed rather than acted on
+
+**1. ADR-0037 limb 1, discharged over every artefact opened, for every port each names.** The ECE tables
+alone name nine numbers and six ranges, and §37.11 item 3 disposed of them at the **tier**; a
+pair-scoped read re-runs it.
+
+| Port named | Where | Disposal |
+|---|---|---|
+| **`9443/tcp`** Elasticsearch remote cluster server | `networking-settings.md` `v9.5.1` (*"`remote_cluster.port` … Defaults to `9443`"*), `security-models.md`, `remote-clusters.md`, ECE tables | **Not a candidate, and it could never become one.** It is Claim 3-shaped — *"a dedicated server port … for communication between clusters"* — but **[measured]** Elastic names the public internet as its **supported** connection path in the same corpus: *"\| {{ech}} deployment \| Self-managed cluster in your network \| **Outbound from Elastic over the public internet to your cluster's endpoint.** Allow the connection with IP-based rules on your side. \|"* (`remote-clusters.md`, `applies_to: ece/eck/ess/self: ga`), with the same page's note that *"remote clusters with API key–based authentication use port `9443` by default"*. **§10.3's failure condition is met on arrival.** It does not enter §4.6, on §37.11's disposal for a port no section proposed |
+| `9243`, `9343`, `9400`, `12300/12343`, `12400/12443`, `14000`, `14043`, `2112`, `2180`, `9000`, `9043`, `9244`, `8200` | ECE tables, ECK service output | **Not subjects.** **[measured]** no owner takes a placement position on any of them; several are expressly internal, which is a **boundary** and not a prohibition. §37.11 item 3 re-run at the pair and confirmed |
+| **`2375/tcp`** Docker daemon | `ece-networking-prereq.md` — *"Port 2375 will also be utilized on each host you install ECE on for **internal Docker communication**"*, and *"2375 \| Docker admin port \| All roles"* under **"Container communication on the same host"** | **Already held, Class A, and this is corroboration.** Elastic is a **non-owner** under §10.5, so it corroborates under §2.3 and could never carry or defeat. **[measured] it corroborates in the admitting direction** — a third party placing the port on-host — which is the first time an artefact outside Docker's corpus has been read for this row |
+| `22`, `80`, `443` | ECE tables | **Already disposed of.** `22/tcp` is in §4.6; `80` and `443` are not subjects and are **outbound** here |
+| `5601` Kibana | ECK service output, self-managed ports table | **Already in §4.6** and unchanged. Elastic states no prohibition |
+| `18000-18999`, `19000-19999`, `20000-20999`, `21000-21999`, `23000-23999`, `12898-12908`, `13898-13908`, `12191-12201`, `22191-22195`, `2191-2199`, `5000-5010`, `8080-8084`, `9200-9300`, `9300-9400`, `9500-9600`, `9700-9800` | ECE tables, `networking-settings.md`'s transport-profile example | **Refused on their face without entering §4.6**, being **ranges** rather than pairs — §19.10's disposal, applied a **fourth** time after §35.13 and §37.11 |
+| `31000`, `31320`, `31380` | ECK `kubectl get svc` output | **Not subjects.** Kubernetes NodePort allocations printed in example output; an allocation is not a convention (§2.4, ADR-0048) |
+
+**2. §37.5's ECE quotation does not exist in the current issued corpus and the finding survives on
+different words.** Recorded at §38.3 and flagged at §38.15. **[measured]** the current wording is
+weaker; the ruling for `9200` does not rest on it.
+
+**3. `9200`'s and `9300`'s footing cells could have been re-founded and the question is now moot.**
+§37.11 item 2's routing is **answered** at §38.8 rather than passed on: on the unconditioned statement
+the cells demote out of the graded table, on the conditioned one they stay, and the rows' removal takes
+them out either way. **Nothing is left open.**
+
+**4. `2375/tcp`'s Class A cell now has a third-party corroborator nobody had looked for.** Recorded at
+item 1. **Not acted on** — the row does not need it and §2.3 bars it from being sole grounds.
+
+**5. Elastic's ECH and Serverless corpus names the public internet unconditionally and it is disposed
+of on the rider that travels.** **[measured]**: *"By default, in {{ech}} and {{serverless-full}}, all
+your deployments or projects are **accessible over the public internet** without restrictions"*
+(`network-security-policies.md`). **[measured]** ECH and Serverless are **Elastic's own managed
+service**, so §33.2's **addressee** rider — which travels to the claim gate under §37.3(a) — disposes
+of it, exactly as Azure Files disposes for `445/tcp` and Atlas for `27017`. **It corroborates and does
+not carry**, and neither row depends on it. Recorded because a session finding it and thinking it was
+the ruling's basis would misread the ruling.
+
+**6. A commented-out sentence in Elastic's docs source says the opposite of the ECE finding for `9300`,
+and it is REFUSED.** **[measured]** `connect-elasticsearch.md` carries, as a `%` source comment
+invisible in the rendered page: `% TBD - not sure if this is totally accurate` / `% {{ece}} clusters
+running on ECE only support connections over HTTP/HTTPS through the RESTful API. Direct connections to
+the transport port are not supported.` **Refused on two independent grounds**: a comment in a docs
+source is **not issued** under [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md),
+and its own author marks it unverified. **This is recorded rather than buried because it is the single
+strongest thing in the corpus against §38.5**, and a session that quoted it would be resting a row on a
+sentence Elastic has not published. It is also the **inverse of §37.14's fabrication hazard**: a real
+sentence in the owner's own file that the owner has nonetheless not said.
+
+### 38.15 Thin ground, flagged per the standing rule
+
+**`9300/tcp` is the thinner of the two rulings and it is thin in the direction that costs a row.**
+`9200` falls on an unhedged affirmation in the owner's **primary** corpus and needs one step of reach
+the owner takes himself. `9300` falls on **one** corpus, needs ADR-0050 limb 2 across three artefacts,
+and the self-managed corpus's own sentence — *"the transport layer: used mainly for inter-node
+communications"* — is Claim 3's boundary stated by the owner. **A reader who holds that the failure
+condition must be met in the corpus that describes the pair *as such* keeps `9300` and the list is 39.**
+That reader has to explain why an `applies to` banner is a boundary around the owner's voice, which
+ADR-0067 limb 2 rules it is not — and Option D at §38.10 is where the argument is put at its strongest
+so it can be attacked.
+
+**§37's ECE quotation is not the current text, and this is the second retrieval hazard of the pass.**
+**[measured]** *"By default, all your deployments are accessible over the public internet, assuming
+that your Elastic Cloud Enterprise proxies are accessible"* is the legacy *ECE Reference [3.8]*
+wording; the current unified docs read *"In some cases, these proxies may also be accessible over the
+public internet."* Both are issued, both are Elastic's, and **the current one is weaker**. Two things
+follow and both are stated: the hedge is inadmissible under ADR-0059 limb 2 and §17.4 already ruled a
+sentence of exactly that shape met §10.3's failure condition; and **a reader who thinks a hedge should
+be admissible at the claim gate even where ADR-0059 bars it at the footing gate** reaches *ECE carries
+nothing*, which costs `9300` and leaves `9200` standing on the self-managed sentence alone.
+
+**The self-managed sentence is a fragment of a bulleted overview and that is the objection to it.**
+*"The HTTP layer: Used for communication between your cluster or deployment and the internet"* is one
+bullet in a list of security features, not a deployment-architecture statement, and its purpose on the
+page is to say **why TLS is there**. A reader could say Elastic is describing the layer's *general
+character* rather than **naming a supported environment for `9200/tcp`**. **The reply is three-fold and
+it is measured**: the sentence is in the present indicative with no hedge; its subject is exactly what
+Claim 3 is about; and **the very next bullet draws the opposite boundary for the transport layer**, so
+Elastic is discriminating rather than speaking loosely. **A sentence that distinguishes is not a
+sentence that generalises.** But this is the joint the whole `9200` ruling turns on and it is named
+here rather than buried.
+
+**A permissive default was read at the claim gate and the licence is cited rather than assumed.** ECE's
+*"the default behavior of allow all access over the public internet endpoint"* is a **permissive**
+default, which §10.4 silences as an attestation. §34.3 limb (c) and ADR-0067 limb 1 confine that
+silencing to the **attestation gate**, and this section relies on that confinement for `9300`. A reader
+who holds §10.4's one-way rule governs both gates reaches *ECE is silent*, keeps `9300`, and — run
+consistently — has to explain `1433/tcp`. **The licence is one pass old and it has now been spent
+twice**; that is worth a reader's suspicion and is recorded as such.
+
+**Twelve of this section's sixteen artefacts had never been opened by any prior section**, and four of
+its load-bearing facts are **zero counts** — `internet` ×0 in `ece-networking-prereq.md`, `internet` ×0
+in the shipped `elasticsearch.yml`, `internet` ×0 in the self-managed ports table, and `internet` ×1 in
+`accessing-services.md`. Each is a count over the file retrieved and not a claim about Elastic's corpus
+(ADR-0037 limb 3), each is dated 2026-08-14 (ADR-0046 as amended by #93), and each is falsifiable by
+naming one document outside its boundary.
+
+**A sibling pass may be editing this repository concurrently.** §38's delta is **not** empty, so §38.12
+states it parametrically and names its basis as `main` at `53b7ef4`. **Where §38 and §1 disagree, §1
+governs.**
+
+### 38.16 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14 and §37.14
+
+- **The whole owner corpus was extracted and grepped locally, and that is what found the ruling.**
+  **[measured]** `elastic/docs-content` at `main` was downloaded as a tarball, its **2,950** markdown
+  files extracted, and `internet` matched across all of them — **45 occurrences in 30 files** in
+  `deploy-manage` alone. The sentence that decides `9200/tcp` is in a **snippet file** with no title,
+  no port and no banner of its own, reachable only through its two includers. **No page-by-page
+  retrieval scoped to the ticket's four named corpora would have found it**, and #112's did not. This
+  is ADR-0037 limb 1 — *read the artefact, not the row* — extended one level: **read the corpus, not
+  the page list.**
+- **A `%` comment in the owner's docs source says the opposite of a finding and was refused.**
+  §38.14 item 6. It is a **new hazard shape**: not a fabrication (§37.14), not a wrong document
+  (§30.10), not a line break (§37.14), but **a genuine sentence in the owner's own file that the owner
+  has not issued** — and it is invisible in the rendered page, so only a raw-bytes retrieval meets it
+  at all. A session reading rendered HTML would never see it; a session reading raw bytes and not
+  checking the comment marker would quote it.
+- **§37's own quotation was checked against the page it is on rather than against the page it is
+  remembered on, and it failed.** §38.3, §38.15. **[measured]** the string *"assuming that your Elastic
+  Cloud Enterprise proxies are accessible"* occurs **zero** times in `elastic/docs-content` at `main`.
+  This is §37.14's *"checked against the page it is on"* discipline applied to **this note's own prior
+  section**, and it is the first time it has caught one.
+- **Claim 1 and Claim 2 were measured off the source and the shipped config, never off a page about
+  them.** `XPackSettings.java`, `AnonymousUser.java` and `TransportTLSBootstrapCheck.java` were fetched
+  at the tag and read; `distribution/src/config/elasticsearch.yml` was read whole at **2,702 bytes**.
+  ADR-0036 limb 1's *documented* half was then satisfied separately from the owner's prose, per
+  §31's rule that the config API answers *documented* and the defaulting code answers *takes effect*.
+- **§16.4's two measurements were re-run rather than quoted.** **[measured]** at `v9.5.1` the shipped
+  `elasticsearch.yml` still contains **zero** occurrences of `9300` and its Network section is still
+  `network.host` and `http.port` only; `networking-settings.md` still contains `internet` **×1** and
+  `public` **×1** in 60,429 bytes. The section's **findings** stand; only its **placement** is withdrawn.
+- **Every string count in this section is a *token* count and says so**, per §36.14's correction and
+  §37.14's restatement. **[measured]** one substring artefact was met and named: `9645` appears in
+  `networking-settings.md` and is **not a port** — it is `cpu=9645.94ms` inside a hot-threads stack
+  trace. That is §36.14's `36379` shape in a second corpus.
+- **The neighbour test was run in the direction that would have been expensive to skip.** For every
+  port named in every artefact, *does Elastic take a placement position on this number* was **asked**
+  rather than inferred from §37.11's tier-scoped answer. **[measured]** it is met for `9200`, `9300`
+  and `9443`, and has no candidate in the remaining thirteen numbers and sixteen ranges.
+- **Nothing beneath the claim gate was re-litigated.** §32.2's four limbs, §10.2's closed claim set,
+  §37.3's rider taxonomy, ADR-0059 limbs 1 and 2 and ADR-0067 limb 1's separation were all fenced by
+  the ticket and none was touched. **[measured]** no determinacy verdict, no class definition and no
+  existing exclusion was reopened; ADR-0042's and ADR-0048's `9200` and `9300` verdicts were read only
+  to confirm that they are not what removed these rows.
 
 ---
 

@@ -321,7 +321,7 @@ kube-proxy is **refused** — §24. The list is **39** pairs.
 > **`verge-core = frequency-set ∪ sensitive-list` is unchanged. The sensitive half gains two more TCP
 > pairs — `10249/tcp` kube-proxy metrics (Class A) and `10248/tcp` kubelet healthz (Class C) — and
 > `10258/tcp` cloud-controller-manager is refused and adds nothing.** The list is **41 pairs**, class
-> totals `12 / 7 / 22` — **40 pairs and `12 / 7 / 21` after the [#109](https://github.com/winniel123/verge-asm/issues/109) amendment below**. [`sensitive-ports.md`](../research/sensitive-ports.md) §27.
+> totals `12 / 7 / 22` — **40 pairs and `12 / 7 / 21` after the [#109](https://github.com/winniel123/verge-asm/issues/109) amendment below, and 38 pairs and `12 / 7 / 19` after the [#114](https://github.com/winniel123/verge-asm/issues/114) amendment**. [`sensitive-ports.md`](../research/sensitive-ports.md) §27, §35, §38.
 
 - **The definition does not move and neither does the arithmetic's shape.** This is the second
   widening in two sections, and it is the same act: the sensitive half is edited, the union follows
@@ -442,6 +442,37 @@ this ADR is the first place a reader would check it.
 - **The operator keeps probing 1433 every day.** What stops is the `Signal`, never the measurement —
   which is the property §6's coupling direction was chosen for, arriving from the direction nobody had
   needed yet.
+
+### Amendment — [#114](https://github.com/winniel123/verge-asm/issues/114): the sensitive half shrinks by **two**, and the union still does not move
+
+**The Decision is unchanged for the fifth time.** This is the first amendment in which **two** rows
+leave at once, and it is recorded because it is where a reader would check whether the rule scales.
+
+> **`verge-core = frequency-set ∪ sensitive-list` is unchanged. The sensitive half loses `9200/tcp`
+> and `9300/tcp` Elasticsearch (both Class C), and `verge-core` stays at 136 pairs — 131 TCP, 5 UDP.**
+> The list is **38 pairs**, class totals **`12 / 7 / 19`**.
+> [`sensitive-ports.md`](../research/sensitive-ports.md) §38;
+> [ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md),
+> applied rather than extended.
+
+- **The union does not move, for the same reason and now on two rows at once.** **[measured]** both
+  pairs are in the **frequency half** — `sensitive-ports.md` §29.2 scores each *supplement — HTTP-ish
+  alternates*, and §6.1's enumeration carries both. Neither was ever in `S \ F`, so
+  `|F| + |S \ F| = 123 + (8 + 5) = 136` is untouched. **A pair leaving the sensitive list costs the
+  union nothing wherever the frequency half already carries it**, now true of **25 of the list's 38
+  pairs**. The daily probe budget, #4 §6's rate limits and the 131-TCP figure are all unchanged.
+- **§6.1's containment arithmetic is ~~`27 + 8 + 5 = 40`~~ `25 + 8 + 5 = 38`**, cell 1 alone and by
+  two, exactly as §29.3's identity predicts. Cells 2 and 3 do not move and `F` does not move.
+- **The price does not scale with the row count, which is the finding.** `sensitive-port-reached-from-internet`'s
+  content moves, so [ADR-0008](./0008-derivation-versions-move-on-content.md) is triggered and every
+  evaluation `Break`s — **one** rule-version bump for **two** rows, because the bump is a property of
+  the content moving rather than of how much of it moved. Still pre-install, still vacuous, still
+  **not waived**. The aperture **narrows** again: `safe-active-probing.md` §2.4 reads
+  ~~`0 of 40 sensitive pairs unread`~~ **`0 of 38`**, a denominator whose numerator is `0` for every
+  `|S|`, so nothing becomes unread and [ADR-0014](./0014-only-revealed-generalises.md) does not bite.
+  `sensitive-ports.md` §38.13.
+- **The operator keeps probing 9200 and 9300 every day.** What stops is the `Signal`, never the
+  measurement — the same property, spent a second time and on the note's largest row movement.
 
 ## Alternatives rejected
 

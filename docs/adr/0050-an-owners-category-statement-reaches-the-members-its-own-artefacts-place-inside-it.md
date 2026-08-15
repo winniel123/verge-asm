@@ -80,7 +80,7 @@ the port number is small:
 | Redis — *"expose the Redis instance directly to the internet … the Redis TCP port"* | **No** — a definite description. `redis.conf` ships `port 6379` |
 | memcached — *"you must not expose memcached directly to the internet"* | **No.** The software, not the port |
 | Microsoft SQL Server — *"don't connect your SQL Server instances directly to the Internet"* | **No.** Instances, not ports. **[#107](https://github.com/winniel123/verge-asm/issues/107): reach runs through this rule and then **fails at limb 3** — Microsoft names internet-facing TCP/1433 as supported** |
-| Elasticsearch — *"Never expose an unprotected node to the public internet"* | **No** — and §16.4 ruled it reaches `9300` anyway |
+| Elasticsearch — *"Never expose an unprotected node to the public internet"* | **No** — and §16.4 ruled it reaches `9300` anyway. **[#114](https://github.com/winniel123/verge-asm/issues/114): both rows are now REMOVED and §16.4's placement is withdrawn at its own site**; this rule was **confirmed by use** in doing it, carrying Elastic's ECE affirmation to `9300/tcp` on three of the owner's own artefacts. `sensitive-ports.md` §38.5, §38.8 |
 | rsync — *"Do not expose a cleartext daemon to an untrusted network"* | **No.** The daemon |
 | SMB — *"unlikely that any SMB communication … is legitimate"* | **No** in the sentence; the same document tabulates 445/139/137/138 |
 | MongoDB — *"your `mongod` and `mongos` instances are only accessible on trusted networks"* | **No.** Binaries, not ports |
@@ -309,6 +309,15 @@ tense. [`sensitive-ports.md`](../research/sensitive-ports.md) §33.4.
 > limb 1. The consequence that matters for a reader of *this* ADR: **an argument that narrows the
 > owner's category statement rescues the footing and does not rescue the row.** `sensitive-ports.md`
 > §35.
+>
+> > **And two more rows have gone the same way — [#114](https://github.com/winniel123/verge-asm/issues/114),
+> > 2026-08-14, on a retrieval scoped to the pair.** `9200/tcp` and `9300/tcp` are **removed**; the
+> > list is **38 pairs** and both are in `sensitive-ports.md` §4.6. **This rule is what carried the
+> > affirmation to `9300/tcp`** — Elastic's ECE statement numbers no port, and limb 2 places the pair
+> > inside it on three of the owner's own artefacts — so the rule ran here **in the admitting
+> > direction at the claim gate**, which no prior section had done. **Limb 3 was never reached**: there
+> > is no defeat test at the claim gate (`sensitive-ports.md` §37.8). **The rule is confirmed by use
+> > and is not amended.** `sensitive-ports.md` §38.5.
 
 **It is a stronger instance than the one this ADR was argued from.** Rationale §4 turns on Kubernetes
 **conceding** that *"many managed Kubernetes distributions are publicly exposing the API server by
