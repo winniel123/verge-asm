@@ -68,6 +68,10 @@ th { text-align: left; font-family: var(--mono); font-size: 10px; font-weight: 6
   padding: var(--space-3) var(--space-4) var(--space-3) 0; border-bottom: 2px solid var(--ink); }
 td { padding: var(--space-3) var(--space-4) var(--space-3) 0; border-bottom: 1px solid var(--hairline);
   vertical-align: top; }
+.timeline { padding: var(--space-4) 0; border-top: 1px solid var(--hairline); }
+.timeline:first-of-type { border-top: 0; }
+.timeline .notice { margin-top: var(--space-3); }
+table.closedspans { margin-top: var(--space-3); }
 .seedform { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
 .seedform label { margin-bottom: 0; }
 .seedform .scope { min-width: 280px; }
@@ -658,7 +662,37 @@ screen states none.</p>
 <div class="section">
 <div class="microlabel">Timelines</div>
 <h2>Current and closed timelines</h2>
-<p class="muted">This subject's facet timelines — current values, any gaps with their stated cause, and (once withdrawn) its closed history — render here. Wired up by ticket 10.</p>
+{{if .Timelines}}
+<p class="muted">Each timeline is one period a value was held. A Break marks two spans the drift engine may not compare, naming the leaf that moved; it is derived on read and never stored.</p>
+{{range .Timelines}}
+<div class="timeline">
+<div class="microlabel">{{.Label}}</div>
+{{if .Current}}
+<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
+{{else}}
+<div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
+{{end}}
+{{if .Breaks}}{{range .Breaks}}
+<div class="notice">Break at {{.At}} — not comparable across it. Leaf that moved: <span class="mono">{{.MovedLeaves}}</span></div>
+{{end}}{{end}}
+{{if .Closed}}
+<table class="closedspans">
+<thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
+<tbody>
+{{range .Closed}}<tr>
+<td>{{if .IsGap}}<span class="muted">Gap</span>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
+<td class="mono">{{.OpenedAt}}</td>
+<td class="mono">{{.ClosedAt}}</td>
+<td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
+</div>
+{{end}}
+{{else}}
+<p class="muted">No timeline has been folded yet. A Span opens when the dns Scan first measures a value for this name; re-running it with a changed answer closes the open span and opens the next.</p>
+{{end}}
 </div>
 
 <div class="section">

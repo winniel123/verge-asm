@@ -6,10 +6,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/drift"
 )
 
 // The Subjects screen (v1 spec §6.6, ADR-0072). At wave-0 only `Name` subjects
@@ -67,6 +70,43 @@ type subjectPageData struct {
 	// should for a measured Name; a false here is an integrity gap worth showing
 	// rather than hiding.
 	CitationTerminated bool
+	// Timelines are the subject's Span timelines — current and closed — for the
+	// resolution and dns-record facets, each with its Breaks and closures derived
+	// on read (#190). Empty where no Span has been folded yet.
+	Timelines []timelineView
+}
+
+// timelineView is one (facet, discriminator, vantage, source) Span timeline
+// rendered for the drill-down: its current value if it holds one, its closed
+// history, and the Breaks between spans of differing Derivation vectors, all
+// derived on read (never stored). A timeline whose last span is closed with no
+// successor is a withdrawn/gapped timeline and carries no current span.
+type timelineView struct {
+	Facet         string
+	Discriminator string
+	Label         string
+	Current       *spanView
+	Closed        []spanView
+	Breaks        []breakView
+}
+
+// spanView is one Span rendered: its value (or a Gap marker), the period it
+// spanned, and — where it is a withdrawal's closing side — the ground the closure
+// rests on.
+type spanView struct {
+	Value    string
+	IsGap    bool
+	Open     bool
+	OpenedAt string
+	ClosedAt string
+	Reason   string
+}
+
+// breakView is one Break between two spans, naming the leaf that moved. Derived
+// on read from the two spans' vectors; never stored.
+type breakView struct {
+	MovedLeaves string
+	At          string
 }
 
 func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -116,6 +156,7 @@ func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		Addresses:  res.Addresses,
 	}
 	data.Citation, data.CitationTerminated = s.buildCitation(r, subject.SubjectKey)
+	data.Timelines = s.buildTimelines(r, subject.SubjectKey)
 
 	s.render(w, "subject", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -168,4 +209,131 @@ func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool
 	}
 
 	return hops, terminated
+}
+
+const spanTimeFmt = "2006-01-02 15:04 UTC"
+
+// buildTimelines reads the subject's Span corpus and assembles one view per
+// (facet, discriminator) timeline: its current span if it holds one, its closed
+// history, and the Breaks between spans of differing Derivation vectors — the
+// last two derived on read, never stored (ADR-0007, ADR-0008). A withdrawn Name's
+// timelines are all closed, and the closed corpus is never compacted, so they
+// render in full. A best-effort read: a failure degrades to no timelines rather
+// than a 500, since the drill-down is diagnostic.
+func (s *server) buildTimelines(r *http.Request, key string) []timelineView {
+	rows, err := s.store.ListSpansForSubject(r.Context(), db.ListSpansForSubjectParams{
+		SubjectKind: "name", SubjectKey: key,
+	})
+	if err != nil || len(rows) == 0 {
+		return nil
+	}
+
+	// Group spans into their timelines, preserving the query's (facet,
+	// discriminator, vantage, source, opened_at) order.
+	type tlkey struct {
+		facet, discriminator string
+		vantage              int64
+		source               string
+	}
+	order := []tlkey{}
+	byKey := map[tlkey][]db.ListSpansForSubjectRow{}
+	for _, row := range rows {
+		k := tlkey{facet: row.Facet, discriminator: row.Discriminator, vantage: row.VantageID.Int64, source: row.Source}
+		if _, seen := byKey[k]; !seen {
+			order = append(order, k)
+		}
+		byKey[k] = append(byKey[k], row)
+	}
+
+	views := make([]timelineView, 0, len(order))
+	for _, k := range order {
+		views = append(views, buildTimeline(k.facet, k.discriminator, byKey[k]))
+	}
+	return views
+}
+
+func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow) timelineView {
+	tv := timelineView{Facet: facet, Discriminator: discriminator, Label: timelineLabel(facet, discriminator)}
+
+	spans := make([]drift.Span, 0, len(rows))
+	for _, row := range rows {
+		spans = append(spans, drift.Span{
+			Value:    string(row.Value),
+			IsGap:    row.IsGap,
+			Vector:   decodeVector(row.Derivation),
+			OpenedAt: row.OpenedAt.Time,
+			ClosedAt: closedTime(row.ClosedAt),
+			Reason:   drift.ClosureReason(row.ClosureReason.String),
+		})
+		sv := spanView{
+			Value:    valueLabel(facet, row.Value, row.IsGap),
+			IsGap:    row.IsGap,
+			Open:     !row.ClosedAt.Valid,
+			OpenedAt: row.OpenedAt.Time.UTC().Format(spanTimeFmt),
+			Reason:   row.ClosureReason.String,
+		}
+		if row.ClosedAt.Valid {
+			sv.ClosedAt = row.ClosedAt.Time.UTC().Format(spanTimeFmt)
+			tv.Closed = append(tv.Closed, sv)
+		} else {
+			cur := sv
+			tv.Current = &cur
+		}
+	}
+
+	// Breaks are derived on read from the spans' vectors and name the moved leaf.
+	for _, b := range drift.Breaks(spans) {
+		tv.Breaks = append(tv.Breaks, breakView{
+			MovedLeaves: strings.Join(b.MovedLeaves, ", "),
+			At:          b.After.OpenedAt.UTC().Format(spanTimeFmt),
+		})
+	}
+	return tv
+}
+
+func timelineLabel(facet, discriminator string) string {
+	if discriminator != "" {
+		return facet + " · " + discriminator
+	}
+	return facet
+}
+
+// valueLabel renders a span's value for the drill-down. A resolution value shows
+// its outcome tag; a dns-record value shows its record count; a Gap shows a Gap
+// marker, since a gap holds no value.
+func valueLabel(facet string, raw []byte, isGap bool) string {
+	if isGap {
+		return "Gap"
+	}
+	switch facet {
+	case "resolution":
+		if o := decodeResolution(raw).Outcome; o != "" {
+			return o
+		}
+		return "—"
+	case "dns-record":
+		var v struct {
+			RRs []json.RawMessage `json:"rrs"`
+		}
+		_ = json.Unmarshal(raw, &v)
+		if len(v.RRs) == 1 {
+			return "1 record"
+		}
+		return strconv.Itoa(len(v.RRs)) + " records"
+	default:
+		return "—"
+	}
+}
+
+func decodeVector(raw []byte) drift.Vector {
+	var comps []drift.Component
+	_ = json.Unmarshal(raw, &comps)
+	return drift.NewVector(comps...)
+}
+
+func closedTime(t pgtype.Timestamptz) time.Time {
+	if t.Valid {
+		return t.Time
+	}
+	return time.Time{}
 }
