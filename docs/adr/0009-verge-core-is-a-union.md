@@ -516,3 +516,29 @@ rejected — it is a new lifecycle state for a condition that already has an obs
 (ADR-0006's habit: check whether the thing already has a value before inventing a state). The
 `Batch` scope record already says the pair was not measured, and ADR-0004 already names the
 outcome.
+
+## Annotation — [#141](https://github.com/winniel123/verge-asm/issues/141), 2026-08-15: the UDP leg acquires an instrument and still has nothing worth turning on
+
+**No figure in this ADR moves.** `verge-core` is still **136 pairs — 131 TCP, 5 UDP**, still
+`frequency-set ∪ sensitive-list`, still 131 probed on default settings with UDP off, and the aperture
+statement still reads **`5 of 38 sensitive pairs unread`**. This is an annotation because nothing here
+is superseded.
+
+What is added is the answer to a question this ADR's *"UDP is a transport capability, not a list"*
+section left open and #124 surfaced: **what would the shipped instrument return?**
+[ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md) rules that
+`connect-outcome` cannot return anything honest for UDP, that an honest instrument **is**
+constructible — `answered │ refused │ unanswered`, on a sixth leaf `datagram-outcome` — and that the
+one value which decides in the *positive* direction, `answered`, requires a **per-pair elicitation
+payload** the map has already deferred with the wire prober (ADR-0015).
+
+Two things bind back here:
+
+- **This ADR's own separation is what makes the answer expressible.** *Membership of `verge-core` is a
+  definition; whether a given `Batch` measures a pair is the prober's business.* ADR-0083 is entirely
+  about the prober's half and touches the definition nowhere.
+- **The five pairs' `not-evaluable` is over-determined, not fixed.** This ADR records them as
+  `not-evaluable` because they sit outside the recorded scope. Opening a payload-free UDP knob would
+  make them `not-evaluable` for a *second* reason — the exchange did not decide — and change nothing
+  the operator sees. So the knob's value is entirely in the payload table, and **the pricing of that
+  table is where a future UDP tier begins**, not here.
