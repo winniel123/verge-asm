@@ -19840,6 +19840,321 @@ cost is therefore **large and unquantified**, which is enough to refuse it and i
 - **A sibling pass may be editing this note concurrently.** This section's delta is stated as a delta —
   **the queue moves 8 → 9 items and 10 → 11 pairs, and nothing else moves** — against `main` at
   `4001e4c`. **Where §41 and §1 disagree, §1 governs.**
+## 42. Where the queue's bounded residue is disclosed — the act that leaves a residue is the act that discloses it, and a residue over our own list is named rather than described
+
+**Ticket [#136](https://github.com/winniel123/verge-asm/issues/136).** §39.6 closed with an obligation
+and no site: *"What a release owes the queue is a disclosure, never a quantum … what is owed is
+[ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s **bounded residue** —
+the queue's head, how far down it read, and what it did not read, falsifiable by naming one item."*
+This section sites it, fixes its form, and states what its bound is — the last of which decides
+whether it is a disclosure at all.
+
+**Nothing in this section is a retrieval**, and no row, class, tier or coverage figure moves. Every
+fact it uses is already in this note or in an ADR and is cited to the section that measured it. The
+reasoning is [ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md); the
+resulting document is [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md).
+
+**The screen question is not this question.**
+[ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §7 keeps the
+weak-tier disclosure off every v1 interface on four grounds — it is *severity arriving labelled as
+honesty*, it does not vary per subject, it names no act the operator can take, and its real consumer
+is the **curator** — and §39.8 confirmed §7 *"unchanged and unreopened"*. It stays that way here. What
+§7 additionally says about **siting** is distinguished at §42.3 rather than amended, and marked at
+§7's own site.
+
+### 42.1 What #125 left, and why *the disclosure is owed* is not a siting
+
+§39.6's sentence does three jobs badly by doing them in one clause. It says a disclosure is **owed**,
+which is a ruling. It gestures at **what** it contains — head, depth, remainder — which is a form. And
+it says nothing at all about **where** it is written, **when** it is written, or **who** writes it,
+which is the part a later session has to invent.
+
+**A session inventing it would reach for a standing section of this note.** The working is here, the
+queue is here at §39.4, and §7's *"it stays in the instrument's own document"* reads like an
+instruction to keep it here. That reading is the one this section refuses, and refusing it is most of
+the ticket.
+
+**Three candidate sites were named**, and they are not three answers to one question:
+
+| Candidate | The question it actually answers |
+| --- | --- |
+| A **standing section** of this note | **Tense** — is the disclosure written in the present or as a dated record? |
+| A **per-release statement** | **Cadence** — what act is it indexed to? |
+| Something the **gate** emits | **Authorship** — what kind of instrument may sign it? |
+
+Separating them makes the ruling decidable, because each has its own test and the three tests do not
+compete. Answered in order: **dated**, **per release**, and **not the gate**.
+
+### 42.2 Tense — a residue describes a spend, so a standing statement of one is false by the calendar
+
+The queue has two halves that move on different clocks, and §39.4 currently runs them together. Its
+**membership** is a live absolute: the map's Notes hold it among the composed-state figures,
+[#135](https://github.com/winniel123/verge-asm/issues/135) has **already** moved it by tightening the
+sole-ground filter, and [#134](https://github.com/winniel123/verge-asm/issues/134)'s per-cell walk
+will move it again. Its **spend** — *this release read these items this far* — is an act at a moment,
+and it is true forever about the release that made it.
+
+> **A standing residue statement is false one release later, and it becomes false by the calendar
+> rather than by anyone's inattention.** It asserts a boundary that has moved. Read alone and in the
+> present tense it would tell a competent session that the current release's reading is what the
+> sentence describes, which is [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
+> test failing on a sentence written to fail it.
+
+**This corpus is the worst possible place to design in that shape**, and it has the measurements to
+prove it: the watch count useless five times running with the membership changing every step (§39.2);
+the *watch list = weak tier* identity regenerating at **nineteen sites** after a withdrawal that named
+no successor (§39.7); and **two superseded sentences standing in the present tense inside the document
+that specifies the check that finds them** — ADR-0032 §8's open questions 3 and 6, which **G4** turned
+up on the way past (§39.8). A standing residue section would be a fourth instance and the only one
+whose staleness is guaranteed rather than risked.
+
+**The append-only alternative has the property the standing one lacks**, and it is the same property
+ADR-0057 used to refuse the standing curator. A duty *"whose discharge and whose absence look
+identical"* is unfalsifiable. A **tag-ordered, append-only** ledger makes a skipped release a
+**visible hole**; a rewritten section leaves the previous statement standing, reading true, with
+nothing to show that anything was skipped. **That test decides the form of the disclosure and not only
+the office of the curator**, which is the half #125 did not draw.
+
+### 42.3 Site — the queue is one order across four curated tables, and no table's document owns an order
+
+This is the measurement that settles it, and everything it uses is already in §39.4. **It is stated
+over members and carries no count**, for the reason §42.5 gives and because
+[#135](https://github.com/winniel123/verge-asm/issues/135) moved the register's membership while this
+ticket was open.
+
+| Register member | Whose cell | Rung |
+| --- | --- | --- |
+| **`verge-core`'s frequency half @ `nmap-services`** | **not this table, and not a port cell** | **1 — above every rung-2 and rung-3 port item on the register** |
+| `10248/tcp`'s footing @ the config-API doc comment | this table | 1 |
+| The SMB cell @ one Microsoft page | this table | 2 |
+| `623/udp`'s footing @ vendor default-value documentation | this table | 2 |
+| etcd's prohibition cell @ `THREAT_MODEL.md` | this table | 2 |
+| `5432`'s footing @ `postgresql.conf.sample` | this table | 3 |
+| `5984`'s footing @ CouchDB's `default.ini` | this table | 3 |
+| **`certificate-expiring`'s fraction** | **not this table, and not a port cell** | **5 — the tail** |
+
+**[measured]** the register carries cells that are not port cells, and they are **interleaved by
+rung** among the port cells rather than appended after them — one of them sorting **above** every
+rung-2 and rung-3 port item. A residue statement in this note would therefore have to either describe
+an order over cells this document does not own, or report a **sub-order** over its own — and a
+per-table sub-queue is exactly what ADR-0057 refused when it ruled that all three cause-piles land on
+**one** queue *because the revision act, not the cause, is what fixes priority*.
+
+> **This argument cannot be moved by the register growing, and that has now been tested.** #135
+> tightened the sole-ground filter — a second ground counts only where it would have carried **the
+> cell's proposition** standing alone, and the filter runs **per cell, never per row** — which added
+> cells to the register while #136 was open. **The tightening is one-way**: it narrows what counts as
+> a ground, so cells can only be **added**, never removed. #134's per-cell walk will add more. An
+> argument over *which* cells sit on the register survives all of it; an argument over *how many*
+> would already be stale. **So this section quotes no length of the register anywhere**, which is the
+> rule it is about to impose on the entry form, applied to itself first.
+
+**The mirror case is sharper still.**
+[`weak-key-and-signature.md`](./weak-key-and-signature.md) contributes **zero** items — **[measured]**
+its §9.3, *"no shipped default is involved, so silent de-attestation cannot reach them"*. Under a
+per-table rule it would carry a **standing statement of an empty contribution**, restated release
+after release, naming no act and resolving on nothing. That is a **permanent caveat**, which ADR-0032
+§7 forbids by name and for precisely that reason. Its zero is already correctly recorded **once**, as
+a dated finding, in the box #125 wrote there.
+
+> **§7 is distinguished rather than amended, and the distinction is on the disclosure's *subject*.**
+> The weak-tier disclosure's subject is a **row of a table**, so it belongs to that table's document.
+> The residue's subject is a **reading budget spent over one order spanning four tables**, which is
+> nobody's table. §7's *no screen* half binds this disclosure unchanged; its *instrument's own
+> document* half does not reach it. The box is written at §7's own site as well as here, because a
+> clause that names no successor is re-derived by the next session that needs one — §39.7's finding,
+> applied to §39.
+
+**And the tidiest-looking remaining site loses on §7's own fourth ground.** A per-release statement
+looks like a **changelog** entry, and a changelog's reader is the **operator**. §7's fourth ground is
+that this material *"has a real consumer, and that consumer is not the operator"*. Putting curator-facing
+severity on a different operator-facing surface defeats §7 rather than honouring it. **The ruling is
+about who reads it, not about whether it renders.**
+
+### 42.4 Authorship — the gate may supply the inputs and may never sign the statement
+
+The case for letting the gate emit it is strong and is recorded at its strongest. The gate is
+mechanical, runs per edit, has an artefact by construction, and **G11 already computes
+`stale-against-tag` over every footing cell** — most of the raw material an entry needs. Emitting from
+the gate would make the disclosure free and self-enforcing.
+
+It loses three times, and the third is fatal.
+
+| Failure | Why |
+| --- | --- |
+| **Wrong clock** | The gate fires on the **edit** (§39.6: *it blocks the edit, never the release*); the residue is owed by the **release**. A release that edits no curated table would owe nothing — and that is exactly the release whose residue is **most** informative, because the world moved and we touched nothing |
+| **Wrong faculty** | A machine attests what it **checked**, never what a person **read**. To emit *"we did not read these"* it would have to infer from a proxy — *no ticket cites these* — which asserts a claim we do not hold, and §2.2's first sentence bars asserting one |
+| **Wrong definition** | The gate **is** the instrument of what terminates — §39.6: *a release can check what terminates and can check nothing else*. The residue is the **name of the remainder**. Forcing the terminating instrument to certify a statement about non-termination collapses the cut the whole watch is built on |
+
+**The third failure has a tell, and the tell is the count.** A machine holding the register and the
+tickets can compute *which items have a ticket* and *how many do not* — and what it emits is a
+**length**, the one quantity §39.2 bars. **The count returns through whichever door is left
+machine-operable**, which is §7's severity-through-the-open-door in the governance register rather
+than the interface one.
+
+> **A terminating instrument may supply inputs to a disclosure about what does not terminate, and may
+> never sign it.** So G11's marks are **kept as an input** — every unread item cites the G11 mark that
+> would have promoted it — and the gate is **refused as the emitter**. That is ADR-0057's own pattern
+> with support count and evidence age, applied to itself.
+
+### 42.5 The bound — and this is where ADR-0040 needs a limb it never needed before
+
+**Every bounded residue in this corpus has been over somebody else's corpus.** ADR-0040's form —
+*the corpus actually searched, enumerated; what was found and which rows it reached; and the smallest
+extension that could still change the answer* — has fired at `weak-key-and-signature.md` §13 (~340
+documents), at ADR-0069's control-label corpus, at
+[`passive-discovery-sources.md`](./passive-discovery-sources.md) §11's four probed encodings, and at
+this note's §16.9. §20.4 is the one instance where the promise was **kept**: §16.9 named the two
+documents it read, [#84](https://github.com/winniel123/verge-asm/issues/84) named a third outside that
+boundary, and the residue was withdrawn. *"The falsification clause is the watch."*
+
+**The queue is not that shape.** It is our own list, of `(cell, artefact, revision act)` triples over
+cells we hold, and it is **finite and enumerable**. Applying ADR-0040's boundary form to it yields
+*"we read the head of the queue and stopped"* — a **length with the number filed off**, and one nobody
+can falsify without first guessing what we thought the queue contained.
+
+> **Where the population is the project's own and enumerable, a residue is *named* member by member,
+> never described by a boundary.** Naming is strictly the stronger disclosure and it is available
+> exactly when the population is ours, so the weaker form is never the honest one here. ADR-0040 is
+> **sharpened rather than contradicted**: its rule was written for the case where naming is
+> impossible, and it is silent about the case where it is not.
+
+**But the two forms compose, because there are two residues and only one of them is over our list.**
+
+| Residue | Population | Form | Falsified by |
+| --- | --- | --- | --- |
+| **Extensive** — which items were not read | **Ours.** The register | **Named**, item by item, by triple | Naming one register item that appears in neither the head nor the residue |
+| **Intensive** — how far each reading went | **Somebody else's.** The owner's corpus | **Described**, with a **class boundary** — ADR-0040's form unchanged | Naming one artefact **inside** a stated class that the reading did not open |
+
+**The intensive bound is not fastidiousness; it is the difference between a disclosure and an
+assertion.** *We read item 3* is unfalsifiable, because reading an owner's corpus does not terminate
+and nothing in the sentence says how far it went. *We opened this owner's issued documentation at tag
+`v1.37.0` and its release notes, and no other class* is falsifiable in one move. And **[measured]**,
+ADR-0040's founding failure was exactly a class boundary drawn too narrow —
+[#68](https://github.com/winniel123/verge-asm/issues/68) read the **specification** class, concluded
+the IETF sets no key-size floor, and missed the **deployment BCP** that sets one. An intensive bound
+that names its class is the disclosure that would have caught that.
+
+### 42.6 The ruling
+
+| Question | Answer |
+| --- | --- |
+| **Which document** | [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) — the release's account of its curated tables. Not this note, not an ADR, not an operator-facing release note |
+| **What form** | **One dated entry per release, appended and never rewritten**, tag-ordered so that a skipped release is a visible hole |
+| **Five parts** | the **order** read against, cited · the **head**, item by item with what each reading found · the **intensive bound** per item read · the **extensive residue**, every unread item **named** with its rung and its G11 mark · the **gate's record**, cited |
+| **How the bound is stated** | **Extensively by naming and intensively by class boundary** — the first because the register is ours and enumerable, the second because reading somebody else's corpus does not terminate |
+| **A release that read nothing** | Writes the same entry, empty head, whole register as its residue, saying why — [#47](https://github.com/winniel123/verge-asm/issues/47)'s render-when-empty rule |
+| **The count** | **Barred everywhere in the entry** — not the register's, not the head's, not the residue's; no fraction, no target, no quantum (§39.2, ADR-0057) |
+| **Who signs it** | **The release.** A machine may prepare it from G11's marks; a machine may raise and only a release may rule |
+| **The register itself** | Stays at **§39.4** and is **cited, not copied**. It is provisional by §39.9, and the first live register is #134's per-cell walk, which transcribes into the watch document then |
+| **ADR-0032 §7** | **Unchanged and unreopened** on the screen question; **distinguished** on siting, and marked at its own site |
+
+### 42.7 The options that lost
+
+| Option | Why it lost |
+| --- | --- |
+| **A standing section of this note, rewritten each release** | **The nearest miss and the option that lost.** It needs no new document and it is where the working already is. It fails on **tense** — a residue describes a spend, so it goes false by the calendar rather than by inattention; on **subject** — **[measured]** the register carries non-port cells interleaved by rung, one of them above every rung-2 and rung-3 port item, so this document cannot state the order the bound is over; and on **absence** — a rewritten section leaves the previous statement standing when a release skips its duty, which is the property ADR-0057 refused in the standing curator |
+| **Something the gate emits** | Wrong **clock**, wrong **faculty**, wrong **definition** — §42.4. The tell is that what a machine would emit is a **length**, which §39.2 bars |
+| **A twelfth gate check, G12: *the residue statement exists*** | Attractive, and wrong-clocked in the other direction: the gate blocks the **edit**, so G12 would demand a release-scoped artefact at edit time and sit un-green between releases. The enforcement is the ledger's **shape** instead — an omission in a tag-ordered append-only list is visible without an instrument having to look |
+| **One residue statement per curated table** | The first reading of §7 a session would reach for, and a mis-read of §7's **subject**. It re-creates the sub-queues ADR-0057 refused, and it makes `weak-key-and-signature.md` carry a standing statement of a **zero** contribution — a permanent caveat, forbidden by name |
+| **The product's release note / changelog** | Loses on §7's **fourth ground**: its reader is the operator and this disclosure's consumer is the curator |
+| **A new ADR per release** | An ADR records a decision; a residue records a spend. It would also turn the ADR sequence into a calendar, and ADR numbers are a scarce resource coordinated across concurrent sessions |
+| **Describe the extensive residue by a boundary, as ADR-0040 does** | The incumbent form, and available — which is why it is argued rather than assumed away. Over an **enumerable** population a described boundary is a count with the number filed off, unfalsifiable without first guessing what we thought the list held |
+| **Drop the intensive bound** | The cheapest entry, and not a disclosure: *we read item 3* is unfalsifiable. **[measured]** ADR-0040's founding failure was a class boundary drawn too narrow, which is the defect an intensive bound exposes |
+| **Set a quantum so the ledger cannot fill with empty heads** | ADR-0057 refused it and this section does not reopen it. The residue it leaves is stated at §42.9 rather than cured |
+
+### 42.8 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+| --- | --- | --- |
+| §1 pair count | 38 | **38, unchanged.** No row is added or removed, and §1 gains no row |
+| §3 class totals | `12 / 7 / 19` | **unchanged** |
+| §2.2 footing tiers | 13 / 11 / 3 | **unchanged.** No footing moves; a disclosure's siting is not a footing |
+| §2.2 footing coverage | 27 of 38 | **unchanged** |
+| §4.6 exclusions | 24 | **unchanged** |
+| §6.1 containment arithmetic | `25 + 8 + 5 = 38` | **unchanged** |
+| §39.4 the register | as [#135](https://github.com/winniel123/verge-asm/issues/135) left it | **unchanged by this section, and still provisional.** This section cites the register and copies nothing out of it; it quotes **no length** of it anywhere, so #135's movement and #134's coming one cost it nothing |
+| §39.6 the gate | eleven checks | **unchanged.** No check is added, removed or re-scoped; **G11 gains a stated consumer**, which is not a change to G11 |
+| §39.6's *what a release owes* | an obligation with no site | **sited** — [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md), per-release entry, two bounds |
+| ADR-0032 §7 — no screen | — | **unchanged and unreopened**, and restated at its own site |
+| ADR-0032 §7 — *the instrument's own document* | the weak tier's siting | **distinguished, not amended.** It sites a **row-subject** disclosure and does not reach an **order-subject** one |
+| ADR-0040 | corpus-shaped residues | **gains a limb**: where the population is ours and enumerable, the residue is **named**. Confirmed by use at the intensive bound |
+| ADR-0057 | the watch's two instruments | **confirmed, with a rider** recording that its *lives in each instrument's own document* clause sites the **watch**, not the **residue disclosure** |
+| `verge-core` | 136 pairs, 131 TCP, 5 UDP | **unchanged** |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** Every rule is byte-identical and a governance instrument is not reference data |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not amended, as a ruling** — ADR-0057's reason, and stronger here: the residue is a fact about a spec-time reading act on documents |
+
+**Outside this note.** [ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md) is
+added and [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) is created with both
+ledgers **empty and each saying why**. ADR-0057 gains the #136 rider at its own site; ADR-0032 §7
+gains the distinguishing box at its own site. `weak-key-and-signature.md` and
+`project-authored-constants.md` are **not edited**: their #125 boxes are dated findings about their
+own contributions and are undisturbed by a siting ruling.
+
+### 42.9 Thin ground, flagged per the standing rule
+
+**The reading budget still has no size, and this section deliberately does not give it one.** ADR-0057
+refused the quantum, so an entry with a one-item head is exactly as compliant as one with a seven-item
+head, and the form's only defence against a permanently empty head is that the empty head is
+**visible and dated** every time. **That is weaker than a quantum and stronger than the standing duty
+it replaces**, and it is stated rather than smoothed. The condition that would reopen it is measurable:
+three consecutive entries with empty heads and no stated reason beyond *no budget was spent*.
+
+**The class boundary in the intensive bound is a judgement, and it is the same judgement the rung
+ladder makes.** *Which artefacts count as one class of this owner's* has the same failure mode §39.9
+flagged for rungs 2 and 4 — a vendor that versions its documentation site and then edits a prior
+version in place sits in neither class cleanly. The ladder survives by being read off the artefact,
+and so does this: *is there a retrievable prior version of the thing I opened?* is a question with a
+byte answer. **The first ambiguous case should be ticketed rather than decided by whoever meets it.**
+
+**The form has never been executed, and that is the honest headline.** No release has happened, so no
+entry exists, so the falsification tests at §42.5 have never been run against a real entry. This is
+the same state §39.9 recorded for the gate — *"a gate whose first full run has not happened is a
+design"* — and the same sentence applies: **the entry form is priced at one release and has not been
+paid.** The first entry will be the measurement, and the most likely defect it finds is that the
+intensive bound is expensive enough per item to depress the head.
+
+**One dependency is real, and it has been tested rather than assumed away.** This section's site
+argument rests on **[measured]** §39.4's **membership** — specifically that `verge-core`'s frequency
+half and `certificate-expiring`'s fraction are on the register and are not port cells.
+[#135](https://github.com/winniel123/verge-asm/issues/135) ruled while #136 was open and **moved that
+membership**, tightening the sole-ground filter to require a second ground that would have carried
+**the cell's proposition** alone and fixing the filter as running **per cell, never per row**. The
+site argument did not move, and neither did a word of the entry form. **The reason it cannot move is
+structural**: #135's bar is one-way, so cells are only ever **added**, and #134's per-cell walk adds
+under the same bar. The argument would fail only if the register **lost** its non-port members
+entirely, which no instrument in the watch can do — a tightening filter removes nothing.
+
+**What #135's ruling does change is a cost, and it is worth stating.** A filter that runs per cell
+rather than per row splits rows whose claim and footing rest on different artefacts into separately
+testable cells, so the register grows faster than a row-shaped intuition expects. **The entry's
+extensive residue is named member by member**, so its length grows with the register while the head
+does not necessarily grow with it. That is the intended asymmetry — the residue is supposed to be
+uncomfortable to write — but it is the most likely source of pressure to re-introduce a count, and
+the pressure should be refused at §42.6's row rather than argued afresh.
+
+### 42.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16 and §39.10
+
+- **This section performed no retrieval**, for §39.10's reason: #136 is a governance question and every
+  fact it uses was measured by a prior pass and is cited to it. **G7 is vacuous here and G8 reduces to
+  an internal cross-reference check**, both run by hand over this section's own citations.
+- **This section quotes no length of the register, and that is a method rather than an omission.**
+  Every claim it makes about the queue is over **named members** at a cited section. §39.2 bars the
+  queue's count as an indicator; a section that designed a disclosure forbidding counts while resting
+  its own argument on one would be G4's shape at the sentence G4 was named to protect. It is also
+  simply what survived: #135 moved the membership mid-ticket and nothing here had to be rewritten.
+- **A sibling pass may be editing this repository concurrently, and two of them touch this note.**
+  [#135](https://github.com/winniel123/verge-asm/issues/135) has **ruled and merged** — it took §41,
+  tightened the sole-ground filter, and rewrote §1's *Evidence standard* row, §39.3, §39.4, §39.8 and
+  §39.9. [#133](https://github.com/winniel123/verge-asm/issues/133) is still running G1–G11 to
+  completion. **This section's delta is empty** — no row, class, tier, coverage or §4.6 figure moves,
+  and **no summary or index row in this note is rewritten by #136** — so it composes with both. Its
+  basis is `main` at `4001e4c`, which **predates #135's merge**; the only overlap is the append anchor
+  before `## Sources`, which is textual adjacency rather than disagreement.
+  **Where §42 and §1 disagree, §1 governs.**
+- **The one thing this section reserves rather than specifies is the gate's own record.** §3 of the
+  watch document holds a place for it and says nothing about its shape, because that is #133's to
+  establish on the gate's first whole run.
 
 ---
 
