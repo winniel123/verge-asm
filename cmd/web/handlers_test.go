@@ -16,6 +16,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 )
 
 // fakeStore is an in-memory store used across the web handler tests, standing
@@ -545,6 +548,70 @@ func (f *fakeStore) ListZoneFileStatus(context.Context) ([]db.ListZoneFileStatus
 			UploadedByUsername: f.accounts[z.uploadedBy].Username,
 			ContentBytes:       int64(len(z.content)),
 		})
+	}
+	return rows, nil
+}
+
+// ListSpansForSubject folds the fake's observations for one subject into Span
+// rows using the real drift.Fold, so the drill-down test exercises the same
+// open/close logic the worker's ingest does. The production store reads persisted
+// spans; the fake derives them so the web tests stay hermetic.
+func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error) {
+	// Both resolution and dns-record are decided by the two membership leaves
+	// jointly (ADR-0086), so every fold carries the same two-leaf vector.
+	vector := drift.NewVector(
+		drift.Component{Leaf: "resolution-walk", Version: resolutionwalk.Version},
+		drift.Component{Leaf: "wildcard-discrimination", Version: wildcarddiscrim.Version},
+	)
+	derivation, _ := json.Marshal(vector)
+
+	type tlkey struct{ facet, discriminator, source string }
+	order := []tlkey{}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "name" || o.SubjectKey != arg.SubjectKey {
+			continue
+		}
+		k := tlkey{facet: o.Facet, discriminator: o.Discriminator, source: o.Source}
+		if _, seen := byKey[k]; !seen {
+			order = append(order, k)
+		}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: vector, ObservedAt: o.ObservedAt.Time,
+		})
+	}
+
+	sort.Slice(order, func(i, j int) bool {
+		if order[i].facet != order[j].facet {
+			return order[i].facet < order[j].facet
+		}
+		return order[i].discriminator < order[j].discriminator
+	})
+
+	rows := []db.ListSpansForSubjectRow{}
+	var id int64
+	for _, k := range order {
+		key := drift.TimelineKey{
+			SubjectKind: "name", SubjectKey: arg.SubjectKey,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range drift.Fold(key, byKey[k]) {
+			id++
+			row := db.ListSpansForSubjectRow{
+				ID: id, SubjectKind: "name", SubjectKey: arg.SubjectKey,
+				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
+				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
+			}
+			if !s.Open() {
+				row.ClosedAt = pgtype.Timestamptz{Time: s.ClosedAt, Valid: true}
+			}
+			if s.Reason != "" {
+				row.ClosureReason = pgtype.Text{String: string(s.Reason), Valid: true}
+			}
+			rows = append(rows, row)
+		}
 	}
 	return rows, nil
 }
