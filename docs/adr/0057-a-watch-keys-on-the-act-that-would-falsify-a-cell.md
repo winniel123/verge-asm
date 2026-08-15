@@ -272,3 +272,50 @@ retrieval, and the retrieval is a ticket.
 | **A fourth pile beside *watched*, *chased* and *scope*** | ADR-0038 refused it and this ADR does not reopen it. The piles are causes; the queue keys on the act. Adding a pile builds the machinery the key removes |
 | **Let the automated sweep move rows** | It would author a claim, which §2.2 bars us from doing, and it would move a row on a retrieval not scoped to the row, which ADR-0037 limb 2 bars. A machine raises; a release rules |
 | **Put the watch on a screen** | ADR-0032 §7's four reasons stand unchanged, and the queue is *more* clearly the curator's than the weak tier was: it names artefacts and commits, which the operator can act on even less than a tier |
+
+---
+
+## Amendment — [#136](https://github.com/winniel123/verge-asm/issues/136): the residue disclosure is sited, and the *lives in each instrument's own document* clause does not site it
+
+**Status: this ADR is confirmed, not corrected.** Every ruling above stands. One clause is
+**distinguished**, and it is written here rather than only in the new ADR because this ADR's own §5
+measured what happens otherwise: *a sentence that names no successor is re-derived by the next session
+that needs one*, nineteen times over.
+
+**The clause.** The Decision's last row — *"Where this lives … It lives in this ADR and in each
+instrument's own document — ADR-0032 §7 unchanged"* — sites **the watch**. It does **not** site the
+**bounded-residue disclosure** that the *"What a release owes the queue"* row makes the release owe,
+and a session reading it alone would put a residue statement in each curated table's own note. That
+reading is refused.
+
+**[ADR-0078](./0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md)
+([#136](https://github.com/winniel123/verge-asm/issues/136), 2026-08-15) sites it**, and the reason it
+cannot sit in a table's document is this ADR's own ruling: **the three cause-piles land on one queue
+because the revision act, not the cause, fixes priority.** One queue is **one order across four
+curated tables**, and *how far down it read* is a fact about the **order**. **[measured]**
+[`sensitive-ports.md`](../research/sensitive-ports.md) §39.4 carries two cells that are not port cells
+— `verge-core`'s frequency half and `certificate-expiring`'s fraction — interleaved by **rung** among
+the port cells, the frequency half at **rung 1** sorting above every rung-2 and rung-3 port item; and
+`weak-key-and-signature.md` contributes **zero**, so a per-table statement there would be a standing
+statement of nothing, which ADR-0032 §7 forbids as a permanent caveat.
+
+| Concern | Where #136 lands |
+| --- | --- |
+| **Which document** | [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) — the release's account of its curated tables, holding the register's siting, the **residue ledger**, and a reserved place for the gate's record |
+| **What form** | **One dated entry per release, appended and never rewritten.** Not a standing section — a residue describes a **spend**, and restated in the present tense one release later it is false. Not gate-emitted — the gate fires on the **edit**, attests what it **checked** rather than what a person **read**, and *is* the instrument of what terminates |
+| **How it states its bound** | **Extensively and intensively.** The items **not read** are **named**, because the register is ours and enumerable and a described boundary over an enumerable set is a count with the number filed off. Per item **read**, the artefacts opened and the **class boundary** of that opening are stated, because reading somebody else's corpus does not terminate |
+| **What the gate contributes** | **G11's `stale-against-tag` marks**, cited per unread item as the reason it was passed over. *A terminating instrument may supply inputs to a disclosure about what does not terminate, and may never sign it* |
+| **The quantum** | **Still refused**, and #136 does not reopen it. An entry with an empty head is fully compliant and says why the head is empty |
+| **The count** | **Still barred.** No length is quoted in an entry — not the register's, not the head's, not the residue's |
+| **ADR-0032 §7** | **Unchanged and unreopened**, and marked at its own site with the same distinction. The watch document is a curator's document reaching no interface, and by §7's fourth ground it is **not** an operator-facing release note either |
+
+**Nothing in this ADR's queue, gate, rungs, filter or unit moves**, and no row, class, tier or coverage
+figure moves with it. #136's ruling is stated over *the register as of the release's tag*, whatever it
+contains — and that independence has now been **tested rather than asserted**:
+[#135](https://github.com/winniel123/verge-asm/issues/135) tightened the sole-ground filter and moved
+the register's membership while #136 was open, **without touching a word of the entry form**.
+[#134](https://github.com/winniel123/verge-asm/issues/134)'s per-cell walk will move it again. **The
+tightening is one-way** — the filter narrows what counts as a ground, so cells can only be added — so
+every argument #136 makes over the register's **members** survives its growth, and any argument made
+over its **length** would already have failed. **No figure for the register's size appears in ADR-0078
+or in the watch document**, by construction and for this reason.
