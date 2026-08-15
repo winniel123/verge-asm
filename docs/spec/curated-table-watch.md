@@ -86,6 +86,12 @@ in the owner's own release line.
 > > > goes stale until a later ticket re-transcribes it, exactly as a residue entry goes stale one release
 > > > later. **This document remains the CITED pointer's owner; §1.1 is a dated transcription of it, not a
 > > > second live register.**
+> > >
+> > > > **What keeps §1.1 from going stale as the register grows is ruled at [§5](#5-keeping-11-honest-as-the-register-grows)
+> > > > below** ([#179](https://github.com/winniel123/verge-asm/issues/179)). Written here per
+> > > > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s own
+> > > > lesson — *a clause that names no successor is re-derived by the next session that needs one* — so a
+> > > > future growth ticket landing on this box does not have to rediscover the obligation.
 
 **No figure for the register's size appears in this document, here or anywhere below.** #135 has
 already moved it once and #134 is expected to move it again — and **the movement is one-way**, #135's
@@ -288,3 +294,84 @@ forced is a **length**.
 - **It is not read by the product**, and the curator is not a subject in the model —
   [`CONTEXT.md`](../../CONTEXT.md) is not amended, per ADR-0057 and ADR-0078.
 - **It is not a screen, and it is not a changelog.** ADR-0032 §7, on both counts.
+
+---
+
+## 5. Keeping §1.1 honest as the register grows
+
+**[Ticket #179](https://github.com/winniel123/verge-asm/issues/179).** §1.1 is a transcription, not a
+live register, and its own history box says so twice — ending *"§1.1 is a dated transcription of it,
+not a second live register."* This section is not a re-litigation of whether that transcription was
+correct to make; [#155](https://github.com/winniel123/verge-asm/issues/155) already ruled that, and its
+two reasons for finally copying (the new cell kinds, and the G4 risk being answered by making the
+snapshot explicit) stand. What #155 left open is what keeps §1.1 honest **afterwards**, since
+[`sensitive-ports.md`](../research/sensitive-ports.md) §39.2 fixes the one property that decides how
+expensive that upkeep is: **the register only ever grows.** [#135](https://github.com/winniel123/verge-asm/issues/135)'s
+and [#134](https://github.com/winniel123/verge-asm/issues/134)'s filter tightenings are one-way — they
+narrow what counts as a ground, so cells are **added** and never removed or reordered out. A copy of a
+monotonic, append-only source has exactly one way to go stale: a growth lands in the source and nothing
+lands in the copy. Three instruments were on the table.
+
+**Option 1 — every register-growth ticket (in [#125](https://github.com/winniel123/verge-asm/issues/125)'s,
+[#135](https://github.com/winniel123/verge-asm/issues/135)'s, [#151](https://github.com/winniel123/verge-asm/issues/151)'s
+shape) carries an explicit re-sync step.** The ticket that adds a cell to
+`sensitive-ports.md`'s register has, by construction, already done the harder half of the work: it has
+read the new cell's ground, fixed its rung, and placed it in the tie-break order. Appending the same
+triple to §1.1's matching rung table is a few minutes of transcription by a session that is already
+holding both states — the register before the growth and the register after it. This is
+[ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s own
+argument, applied to a sibling failure shape: *"the pass that supersedes holds both states in hand … every
+later reader holds only one. Deferring the edit does not avoid it; it relocates it to a session that must
+first discover the discrepancy."* A growth ticket is exactly that pass, for the growth shape rather than
+the supersession shape ADR-0058 was written for.
+
+**Option 2 — a periodic or gated staleness check**, run on a cadence or as a standing item in the
+gate's own checklist. This is the instrument the map already has a name and a cost history for, and it
+loses on both. [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) and
+ADR-0058 both refuse a **standing watch** for a failure that fires when **we** move rather than when the
+world does — ADR-0058's own classification test, applied here: `sensitive-ports.md` growing is an edit
+this project makes, not an owner's artefact changing silently, so it is a **detectable defect**'s shape
+and not a **curation trigger**'s. A trigger implies a cadence with an expected yield of zero between
+growth tickets and a spike exactly when one lands — the same shape ADR-0058's Alternatives section
+priced and declined: *"the watch here would be re-read every superseded document forever … the
+discharge point is a change that is already in flight, so it costs nothing to attach it there and
+everything to attach it to a clock."* A gated check fares no better: none of the gate's thirteen checks
+(ADR-0057's own table) reaches this shape — G4 catches a superseded sentence standing unmarked, and
+§1.1's rows are never superseded by growth, only **incomplete** relative to it — so a gated instrument
+would mean widening ADR-0057's own gate table with a fourteenth check. That is a heavier intervention
+than the failure warrants, given that the register's one-way growth (§39.2) already makes the manual
+step in Option 1 as cheap as an automated one: there is never a removal or a reorder to reconcile, only
+an append.
+
+**Option 3 — revert [#155](https://github.com/winniel123/verge-asm/issues/155) and return §1.1 to a
+cite-only pointer.** The cleanest instrument in one sense: a pointer cannot go stale, because it asserts
+nothing about membership. It loses because the failure this ticket found is not the failure #155's
+transcription was weighed against. #155's G4 risk was about copying a **provisional** register that
+could fork on the very next walk ([#134](https://github.com/winniel123/verge-asm/issues/134)); that risk
+was real and #155 answered it by making the copy an explicit, attributed snapshot rather than a second
+live authority. The risk this ticket measures is different: not a fork on a still-moving filter, but an
+**omission** on a since-stabilized, monotonically-growing one — and reverting to a pointer would trade a
+copy that needs a cheap, bounded, append-only maintenance step for the exact cost #78 and
+[ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md) already measured for
+`sensitive-ports.md`'s own citation-only period: every reader who needs the register's cell kinds,
+rungs and tie-break order has to resolve the pointer themselves, at `sensitive-ports.md`'s much larger
+scale. Nothing about Option 3's failure mode is cheaper than Option 1's fix, so reverting a working
+instrument to avoid a maintenance step that costs less than the revert itself is not a trade worth
+making.
+
+**Ruling: Option 1.** Every ticket that adds a cell to the register — in
+[#125](https://github.com/winniel123/verge-asm/issues/125)'s, [#135](https://github.com/winniel123/verge-asm/issues/135)'s
+or [#151](https://github.com/winniel123/verge-asm/issues/151)'s shape — appends the new member(s) to
+§1.1's matching rung table, in the same commit, citing the ground exactly as it does in
+`sensitive-ports.md`, and touching no existing row. Where the growth ticket only re-founds or
+re-disposes a cell already in §1.1 (as [#151](https://github.com/winniel123/verge-asm/issues/151) did),
+the same commit updates that row's Ground column rather than appending a new one. **This is not a gate
+check and not a curation trigger** — no obligation is created to re-read §1.1 on any cadence, and its
+absence is discovered the ordinary way any other unmarked growth would be: by the next session that
+reads both documents together, per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
+own detectable-defect classification. **This does not amend [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)
+or [ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md)** — neither rules on a
+downstream copy's own upkeep, so nothing here reopens the queue's design or the residue's siting. See
+[ADR-0100](../adr/0100-a-copy-of-a-monotonic-source-is-kept-honest-by-the-act-that-grows-it.md) for the
+ruling stated as a standing rule, and this map's own Notes section for the standing-process consequence:
+**a register-growth ticket is not complete until §1.1 carries its cells.**
