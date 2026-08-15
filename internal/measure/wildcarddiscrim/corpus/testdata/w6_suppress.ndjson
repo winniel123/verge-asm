@@ -1,0 +1,8 @@
+{"batch":"b1","kind":"wildcard-discrimination","facet":"resolution","subject":"gone.example.com","vantage":"v1","data":{"outcome":"Shadowed"}}
+{"batch":"b1","kind":"wildcard-discrimination","facet":"dns-record","subject":"gone.example.com","discriminator":"A","vantage":"v1","data":{"outcome":"Shadowed"}}
+{"batch":"b1","kind":"wildcard-discrimination","facet":"dns-record","subject":"gone.example.com","discriminator":"AAAA","vantage":"v1","data":{"outcome":"Shadowed"}}
+{"batch":"b1","kind":"wildcard-discrimination","facet":"dns-record","subject":"gone.example.com","discriminator":"CNAME","vantage":"v1","data":{"outcome":"Shadowed"}}
+{"batch":"b1","kind":"wildcard-discrimination","facet":"dns-record","subject":"gone.example.com","discriminator":"NS","vantage":"v1","data":{"outcome":"Shadowed"}}
+{"batch":"b1","kind":"wildcard-discrimination","facet":"dns-record","subject":"gone.example.com","discriminator":"SOA","vantage":"v1","data":{"outcome":"Shadowed"}}
+{"batch":"b1","kind":"wildcard-discrimination","facet":"dns-record","subject":"gone.example.com","discriminator":"MX","vantage":"v1","data":{"outcome":"Shadowed"}}
+{"batch":"b1","kind":"wildcard-discrimination","facet":"dns-record","subject":"gone.example.com","discriminator":"TXT","vantage":"v1","data":{"outcome":"Shadowed"}}
