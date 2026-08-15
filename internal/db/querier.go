@@ -6,6 +6,7 @@ package db
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -15,6 +16,10 @@ type Querier interface {
 	// run_after has passed, oldest first, marking the winner running in one
 	// statement so two workers never claim the same job.
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
+	// Close an open span at closed_at, recording a closure reason only where the
+	// close is a withdrawal (reason is NULL for an ordinary value move or a version
+	// change). A span is closed once and never rewritten.
+	CloseSpan(ctx context.Context, arg CloseSpanParams) error
 	// Marks a single Proposal confirmed and retains the Seed it became as provenance.
 	// Guarded on status = 'pending' so a concurrent or repeated confirm is a no-op
 	// rather than a second Seed: confirmation is singular (ADR-0022).
@@ -65,6 +70,9 @@ type Querier interface {
 	// on any timeline. The FK change in migration 20900 lets the delete null the
 	// operational back-references rather than cascade into measured data.
 	DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error)
+	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
+	// port with no edit is already at its default.
+	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
 	// The Seed a Name's Citation chain terminates at: the name scope whose query set
 	// the dns Scan was drawn from (CONTEXT.md `Citation` — every chain bottoms out at
@@ -88,6 +96,17 @@ type Querier interface {
 	// record" at the URL. The caller reads the latest resolution value to decide
 	// whether the subject names a population of no current member.
 	GetNameSubject(ctx context.Context, subjectKey string) (GetNameSubjectRow, error)
+	// The drift engine's Span reads and writes (#190). The fold is incremental — one
+	// completed Batch at a time (ADR-0007): for each observation's timeline it reads
+	// the open span, and where the value or the Derivation vector moved it closes
+	// that span and opens a new one. There is deliberately NO delete or compaction
+	// query here — the Span corpus is never compacted (ADR-0041). A Transition and a
+	// Break are derived on read from ListSpansForSubject's rows; neither is stored.
+	// The one open span on a timeline, or no row where the timeline is new. vantage
+	// and source are part of the key and vantage may be NULL (the shipped resolver
+	// position carries no vantage row yet), so they are matched with IS NOT DISTINCT
+	// FROM rather than =.
+	GetOpenSpan(ctx context.Context, arg GetOpenSpanParams) (GetOpenSpanRow, error)
 	// One pending Proposal, read at the moment of confirmation so the confirm act
 	// can copy its scope into a Seed. A Proposal already confirmed or declined does
 	// not come back, so a double submit cannot open the gate twice.
@@ -108,6 +127,9 @@ type Querier interface {
 	// and totp_secret: managing accounts never needs either, so they stay out of the
 	// render path.
 	ListAccounts(ctx context.Context) ([]ListAccountsRow, error)
+	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
+	// address inside one derives operator directly (ADR-0013).
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
@@ -128,6 +150,10 @@ type Querier interface {
 	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
+	// The registrable domains of custody-extended name-scope Seeds, for the hot
+	// Scan's Custody derivation: an address a name in one of these zones resolves to
+	// derives operator by extension (ADR-0013 §3).
+	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
 	// The latest `dns-record` observation per (Name, qtype discriminator). The engine
 	// reads two of these: the CNAME discriminator carries the alias target (for
 	// cname-target-name-error) and the NS discriminator carries the delegation walk's
@@ -145,6 +171,9 @@ type Querier interface {
 	// DISTINCT ON keeps the most recent value per (name, class).
 	ListNameResolutionsByClass(ctx context.Context) ([]ListNameResolutionsByClassRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
+	// Every open timeline a subject currently holds — what a withdrawal closes, all
+	// at once, with the ground it rests on.
+	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
 	// The pending Proposals the Seeds screen renders, grouped for the caller by
 	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
 	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
@@ -155,6 +184,11 @@ type Querier interface {
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
 	ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error)
+	// A subject's full Span history — current and closed — for the Subjects
+	// drill-down. Ordered by timeline, oldest first, so the renderer walks each
+	// timeline and derives its Breaks and Transitions on read. The closed corpus is
+	// never compacted, so a withdrawn Name's closed timelines render in full.
+	ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error)
 	// The web prober list: only provisioned vantages (those carrying a prober
 	// endpoint). The resolver-only `local` vantage has no prober and is excluded.
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
@@ -166,6 +200,12 @@ type Querier interface {
 	// (host set) whose public half has not been published, so no key material has
 	// ever left the worker volume for them.
 	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
+	// The operator's edits to verge-core's frequency half (v1 spec §3.5). Only the
+	// frequency half is operator-editable; these deltas are applied over the shipped
+	// default at hot fan-out.
+	ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error)
+	// The current frequency edits, with who made each, for the management UI.
+	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error)
 	// The latest supplied zone file per name-scope Seed, with its declared domain and
 	// content, so the web layer can extract the owner names the operator declares
 	// (signal.DeclaredNames) — the domain of the two zone rules. One row per Seed;
@@ -194,6 +234,9 @@ type Querier interface {
 	// #188's observation corpus additively so #189's Subjects listing can suppress a
 	// Shadowed Name's addresses without forking a second membership path.
 	NameMembership(ctx context.Context) ([]NameMembershipRow, error)
+	// Open a new span for a timeline. The caller passes the canonical value, the
+	// gap flag, and the Derivation vector as a JSON array of {leaf,version}.
+	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
 	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
 	// the vantage available. The host_key IS NULL guard makes this a no-op once a
 	// key is pinned, so a first-connect race can never overwrite an existing pin.
@@ -235,6 +278,14 @@ type Querier interface {
 	// with no timeline, so re-toggling overwrites the single current value rather
 	// than appending, and toggled_at re-stamps to when the current state was set.
 	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
+	// verge-core frequency-half editing (v1 spec §3.5). Only the frequency half is
+	// operator-editable; these queries manage the delta rows the hot fan-out applies
+	// over the shipped default. The sensitive half has no table and no query — it is
+	// authored by the release and is unreachable from here by construction.
+	// Record an operator edit to a frequency port. One row per port: a later edit
+	// replaces the earlier one, so toggling add→remove on a port is an update, not a
+	// second row.
+	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error
 }
 
 var _ Querier = (*Queries)(nil)
