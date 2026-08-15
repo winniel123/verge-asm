@@ -31,10 +31,15 @@ type fakeStore struct {
 
 	exclusions []db.Exclusion
 	exclNextID int64
+
+	sourceStates map[string]db.SourceState
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1, seedNextID: 1, exclNextID: 1}
+	return &fakeStore{
+		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
+		seedNextID: 1, exclNextID: 1, sourceStates: map[string]db.SourceState{},
+	}
 }
 
 func (f *fakeStore) RecordHeartbeat(context.Context) (db.Heartbeat, error) {
