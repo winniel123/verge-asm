@@ -66,11 +66,12 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	}
 	for _, s := range scans {
 		switch s.Kind {
-		case scan.DNSKind, scan.ZoneKind:
-			// The dns Scan (worker-probed, per Vantage) and the zone Scan
-			// (worker-read, no Vantage) both fan out on their own cadence.
+		case scan.DNSKind, scan.ZoneKind, scan.HotKind:
+			// The dns Scan (worker-probed, per Vantage), the zone Scan
+			// (worker-read, no Vantage) and the hot Scan (Custody-gated, per
+			// Vantage) each fan out on their own cadence.
 		default:
-			continue // the port tiers and tls-acceptance land in later tickets
+			continue // cold and tls-acceptance land in later tickets
 		}
 		tick := scheduledTick(d.now(), time.Duration(s.CadenceSeconds)*time.Second)
 		if _, err := d.fanOut(ctx, s, tick); err != nil {
@@ -123,6 +124,8 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 	switch s.Kind {
 	case scan.ZoneKind:
 		enqueued, err = d.fanOutZone(ctx, qtx, s.ID, dispatchID)
+	case scan.HotKind:
+		enqueued, err = d.fanOutHot(ctx, qtx, s.ID, dispatchID)
 	default:
 		enqueued, err = d.fanOutDNS(ctx, qtx, s.ID, dispatchID)
 	}

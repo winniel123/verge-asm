@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.13:8080/tcp","vantage":"v1","address":"198.51.100.13","data":{"outcome":"reached","result":"open"}}

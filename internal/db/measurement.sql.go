@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -196,6 +197,35 @@ func (q *Queries) InsertObservation(ctx context.Context, arg InsertObservationPa
 	return err
 }
 
+const listAddressScopeCidrs = `-- name: ListAddressScopeCidrs :many
+SELECT address_cidr
+FROM seed
+WHERE kind = 'address' AND address_cidr IS NOT NULL
+ORDER BY id
+`
+
+// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
+// address inside one derives operator directly (ADR-0013).
+func (q *Queries) ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error) {
+	rows, err := q.db.Query(ctx, listAddressScopeCidrs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []*netip.Prefix{}
+	for rows.Next() {
+		var address_cidr *netip.Prefix
+		if err := rows.Scan(&address_cidr); err != nil {
+			return nil, err
+		}
+		items = append(items, address_cidr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEnabledScans = `-- name: ListEnabledScans :many
 SELECT id, kind, enabled, cadence_seconds, created_at
 FROM scan
@@ -222,6 +252,36 @@ func (q *Queries) ListEnabledScans(ctx context.Context) ([]Scan, error) {
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExtendedZoneDomains = `-- name: ListExtendedZoneDomains :many
+SELECT name_domain
+FROM seed
+WHERE kind = 'name' AND custody_extension = TRUE AND name_domain IS NOT NULL
+ORDER BY name_domain
+`
+
+// The registrable domains of custody-extended name-scope Seeds, for the hot
+// Scan's Custody derivation: an address a name in one of these zones resolves to
+// derives operator by extension (ADR-0013 §3).
+func (q *Queries) ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error) {
+	rows, err := q.db.Query(ctx, listExtendedZoneDomains)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.Text{}
+	for rows.Next() {
+		var name_domain pgtype.Text
+		if err := rows.Scan(&name_domain); err != nil {
+			return nil, err
+		}
+		items = append(items, name_domain)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -339,6 +399,40 @@ func (q *Queries) ListVantagesForDispatch(ctx context.Context) ([]ListVantagesFo
 			&i.Resolver,
 			&i.CreatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVergeCoreFrequencyEdits = `-- name: ListVergeCoreFrequencyEdits :many
+SELECT port, action
+FROM verge_core_frequency_edit
+ORDER BY id
+`
+
+type ListVergeCoreFrequencyEditsRow struct {
+	Port   int32  `json:"port"`
+	Action string `json:"action"`
+}
+
+// The operator's edits to verge-core's frequency half (v1 spec §3.5). Only the
+// frequency half is operator-editable; these deltas are applied over the shipped
+// default at hot fan-out.
+func (q *Queries) ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error) {
+	rows, err := q.db.Query(ctx, listVergeCoreFrequencyEdits)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVergeCoreFrequencyEditsRow{}
+	for rows.Next() {
+		var i ListVergeCoreFrequencyEditsRow
+		if err := rows.Scan(&i.Port, &i.Action); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

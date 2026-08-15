@@ -60,6 +60,16 @@ type fakeStore struct {
 	lookupNextID int64
 	proposals    []db.Proposal
 	proposalNext int64
+
+	// freqEdits mirrors the verge_core_frequency_edit table, keyed by port so an
+	// upsert replaces the row exactly as the unique index enforces.
+	freqEdits map[int32]fakeFreqEdit
+}
+
+// fakeFreqEdit mirrors a verge-core frequency edit row.
+type fakeFreqEdit struct {
+	action    string
+	createdBy int64
 }
 
 // fakeChannel mirrors a channel row, secret included, so tests can assert the
@@ -82,9 +92,37 @@ func newFakeStore() *fakeStore {
 		sourceStates: map[string]db.SourceState{},
 		scans: []db.Scan{
 			{ID: 1, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
+			{ID: 2, Kind: "hot", Enabled: true, CadenceSeconds: 86400},
 		},
 		obsNextID: 1, batchNextID: 1, scanNextID: 1,
+		freqEdits: map[int32]fakeFreqEdit{},
 	}
+}
+
+func (f *fakeStore) ListVergeCoreFrequencyEditsWithAuthor(context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error) {
+	ports := make([]int, 0, len(f.freqEdits))
+	for p := range f.freqEdits {
+		ports = append(ports, int(p))
+	}
+	sort.Ints(ports)
+	out := make([]db.ListVergeCoreFrequencyEditsWithAuthorRow, 0, len(ports))
+	for i, p := range ports {
+		e := f.freqEdits[int32(p)]
+		out = append(out, db.ListVergeCoreFrequencyEditsWithAuthorRow{
+			ID: int64(i + 1), Port: int32(p), Action: e.action, CreatedByUsername: "admin",
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) UpsertVergeCoreFrequencyEdit(_ context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error {
+	f.freqEdits[arg.Port] = fakeFreqEdit{action: arg.Action, createdBy: arg.CreatedBy}
+	return nil
+}
+
+func (f *fakeStore) DeleteVergeCoreFrequencyEdit(_ context.Context, port int32) error {
+	delete(f.freqEdits, port)
+	return nil
 }
 
 func (f *fakeStore) GetScanByKind(_ context.Context, kind string) (db.Scan, error) {

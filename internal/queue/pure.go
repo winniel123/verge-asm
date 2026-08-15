@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -62,7 +63,7 @@ func toObservationParams(batchID int64, vantageID pgtype.Int8, observedAt pgtype
 			SubjectKey:    o.Subject,
 			Discriminator: o.Discriminator,
 			VantageID:     vantageID,
-			Source:        "resolver",
+			Source:        sourceFor(o.Facet),
 			Value:         value,
 			ObservedAt:    observedAt,
 		})
@@ -70,15 +71,29 @@ func toObservationParams(batchID int64, vantageID pgtype.Int8, observedAt pgtype
 	return out
 }
 
-// subjectKindFor gives the subject kind for a facet. The two facets this Scan
-// covers — resolution and dns-record — are both about a Name.
+// subjectKindFor gives the subject kind for a facet. resolution and dns-record
+// are about a Name; reachability is about a Service (an (Address, port,
+// transport) triple), whose key the connect-outcome leaf renders on the subject.
 func subjectKindFor(facet string) string {
 	switch facet {
+	case connectoutcome.FacetReachability:
+		return "service"
 	case resolutionwalk.FacetResolution, resolutionwalk.FacetDNSRecord:
 		return "name"
 	default:
 		return "name"
 	}
+}
+
+// sourceFor gives the observation source for a facet. Our own resolver sources
+// resolution and dns-record; our own prober sources reachability — a distinct
+// timeline source, so a reachability bound never ages against the resolver's
+// cadence (CONTEXT.md `Observation`).
+func sourceFor(facet string) string {
+	if facet == connectoutcome.FacetReachability {
+		return "prober"
+	}
+	return "resolver"
 }
 
 func pgInt8(v int64) pgtype.Int8 { return pgtype.Int8{Int64: v, Valid: true} }
