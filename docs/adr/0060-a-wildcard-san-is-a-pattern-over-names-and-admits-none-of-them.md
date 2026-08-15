@@ -155,7 +155,8 @@ arriving through the admission step rather than through a key.
 is worse in a quieter way, because three things beneath it are then wrong at once.
 
 - The answer is the wildcard's own RRset, which is **by construction** the poison signature
-  `wildcard-discrimination` measures from random labels under ~~the apex~~ **the name's parent** —
+  `wildcard-discrimination` measures from ~~random labels~~ **its control labels — five random and
+  one structured, each exactly one label ([ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md))** — under ~~the apex~~ **the name's parent** —
   which for `*.example.com` is `example.com`, so the point below stands verbatim
   ([ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)).
   The match predicate would

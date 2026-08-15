@@ -600,7 +600,7 @@ Walked for completeness, since ADR-0021's parameter set is the authoritative pop
 | `resolution-walk` | query timeout, retries, TCP fallback policy | **No** | §6.1 |
 | `resolution-walk` | EDNS payload size | **No** | §6.7 |
 | `resolution-walk` | the qtype set (seven) | **No** | An enumeration chosen against what v1 rules read; ADR-0015 gives it no deadline |
-| `wildcard-discrimination` | control-label count and construction | **No** | A count of our own probes; no world quantity enters. RFC 4592 fixes the mechanism |
+| `wildcard-discrimination` | control-label count and construction | **No** | A count of our own probes; no world quantity enters. ~~RFC 4592 fixes the mechanism~~ — **that clause is withdrawn**: RFC 4592 fixes the mechanism only for authorities that *implement* it, and **[measured]** three do not (`nip.io`, `sslip.io`, `traefik.me` compute the answer from the query name). **Valued** by [#113](https://github.com/winniel123/verge-asm/issues/113) / [ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md): **5 random labels + 1 structured label**, each **exactly one label**, the structured one being `<a>-<b>-<c>-<d>` over a random RFC 5737 address. Still not a product — no world quantity enters — but the *count* had to stop being the range `3–5`, because [ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)'s bidirectional gate diffs parameter **values** |
 | `wildcard-discrimination` | the match predicate | ~~**Open — no value has been chosen**~~ **No — closed, and not a product** | ~~ADR-0021 names it; nothing anywhere gives it one.~~ **Valued** by [#111](https://github.com/winniel123/verge-asm/issues/111) / [ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md): **set equality on the RDATA set, per `(qtype, RR type)` component, at determinate components only**. No world quantity enters — it is a comparison rule over our own probe's answers, like the control-label count above. **[measured]** a synthesised answer set is not stable across control labels on two of four live wildcarded zones — **nor across repeated queries for one label at one authority**, which is why the value is a determinacy gate rather than a comparison |
 
 **One thing ADR-0021's table does not contain, and this section's *authoritative population* claim
@@ -610,11 +610,22 @@ function of the batch's own scope where a parameter is authored data —
 [ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).
 It is therefore correctly absent from this walk rather than missing from it.
 
-**The open-parameter count is back to two.** [#108](https://github.com/winniel123/verge-asm/issues/108)
+**The open-parameter count is back to two, and
+[#113](https://github.com/winniel123/verge-asm/issues/113) does not move it.**
+[#108](https://github.com/winniel123/verge-asm/issues/108)
 added the match-predicate row to this table without touching §9's and §10's *two declared parameters
 have no value yet (§6.4, §6.8)*, which was briefly three;
 [#111](https://github.com/winniel123/verge-asm/issues/111) closed the row, so both prose sites are
 correct again and the two are the **availability window** (§6.4) and the **capped body read** below.
+
+> **A caution for whoever next audits this table.** #113 gave *control-label count and construction*
+> its value, and that row was **never in the open count** — this table filed it **No** on the ground
+> *RFC 4592 fixes the mechanism*, which #113 **withdrew** (**[measured]** three authorities compute
+> the answer from the query name and implement no RFC 4592 wildcard at all). So a parameter carrying
+> a **range** rather than a value, and a construction nobody had specified, both sat inside a *No*
+> cell for two rulings. The *Product?* column answers *is a world quantity in here* — it is **not**
+> a has-a-value column, and reading it as one is what hid this. `wildcard-discrimination` now has no
+> parameter without a value; the two open ones are elsewhere and unchanged.
 
 **The capped body read is the one live item, and it is live because it has no value yet.**
 ADR-0021 names the parameter; no ADR fixes a number, and #4 §4's *"64 KB"* was never carried
