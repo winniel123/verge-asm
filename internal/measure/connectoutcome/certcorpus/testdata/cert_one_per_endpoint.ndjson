@@ -1,0 +1,3 @@
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"reached","result":"open"}}
+{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"a.example.com@198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"presented","chain":["sha256:leafA"]}}
+{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"b.example.com@198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"presented","chain":["sha256:leafB"]}}
