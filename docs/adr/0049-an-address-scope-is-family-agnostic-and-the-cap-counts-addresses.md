@@ -282,7 +282,8 @@ untouched — the extension still may not decide a vantage's class, in either fa
 - **[`safe-active-probing.md`](../research/safe-active-probing.md) §9's cap row gains its unit.** The
   value does not move.
 - **`1,024 addresses` is now the ceiling on what any single address-scope declaration can open, in
-  either family.** ADR-0047's ≈287,000 `Reach` timelines for a `/22` is therefore the **maximum** an
+  either family.** ADR-0047's ~~≈287,000~~ **≈268,000** `Reach` timelines for a `/22` (corrected at
+  ADR-0047's own site — the `~140` hot-set figure retired to `131` probed) is therefore the **maximum** an
   onboarding declaration can produce at the shipped default, rather than one point in an open range.
   The map's aperture-at-magnitude patch loses a route to a larger number rather than gaining one.
 - **v1's IPv6 story is statable in one sentence**, which it was not before: *IPv6 addresses enter the

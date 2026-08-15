@@ -431,10 +431,24 @@ and ADR-0013's once-per-scope extension message are the same shape and settle it
 inside a declared scope therefore never `appear`s at all — `appeared` on an `Address` stays the
 resolution route — which is a tidier partition than the model had before.
 
-The message is **large**: one `/22` opens 1,024 × 140 × 2 ≈ **287,000 `Reach` timelines** under a
+The message is **large**: one `/22` opens ~~1,024 × 140 × 2 ≈ **287,000 `Reach` timelines**~~
+**1,024 × 131 × 2 ≈ 268,000 `Reach` timelines** under a
 single count. That is the magnitude the map's open patch asks about, and it is within the shape
 ADR-0044 already accepted for the cold-tier enable (~1.3 million). [ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md)
 is what keeps it to one message: a `Service` entering is never a message.
+
+> **The multiplier is corrected here, at the site that computes it — `131`, not `~140`.**
+> `~140` was never `verge-core`'s size and is struck at ADR-0001, ADR-0005 and ADR-0009; the union is
+> **136 pairs, 131 of them TCP**, the five UDP pairs sitting outside v1's aperture
+> ([#141](https://github.com/winniel123/verge-asm/issues/141) ·
+> [ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md) confirms UDP does not
+> turn on). `1,024 × 131 × 2 = 268,288`.
+> **Nothing this ADR concludes moves**: the count is still six-figure, still one message, still
+> within ADR-0044's accepted shape, and still the ceiling ADR-0049 makes it. The retirement was
+> applied at every site that *defines* the hot set and at none that *multiplies* it, which is why the
+> product survived four amendment passes.
+> Found by [#120](https://github.com/winniel123/verge-asm/issues/120); verified and recorded by the
+> merging session.
 
 ## Consequences
 
@@ -499,7 +513,8 @@ ADR's own cap in the unit it always had. **Nothing here is amended in substance 
   ceiling, so **IPv6 space is not swept and no configuration makes it sweepable**. The IPv6 estate's
   route is a **name scope with a `custody extension`**, which is family-agnostic and already works,
   since AAAA is in the shipped resolution offer.
-- **This ADR's ≈287,000 `Reach` timelines for a `/22` is therefore a ceiling**, not a point in an
+- **This ADR's ~~≈287,000~~ ≈268,000 `Reach` timelines for a `/22` is therefore a ceiling** (corrected
+  with the multiplier above — `~140` retired to `131` probed), not a point in an
   open range: 1,024 addresses is the most any single address-scope declaration can open, in either
   family, at the shipped default.
 
