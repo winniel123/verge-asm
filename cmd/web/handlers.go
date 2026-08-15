@@ -66,6 +66,11 @@ type store interface {
 	FindNameCitingAddress(ctx context.Context, address string) (db.FindNameCitingAddressRow, error)
 	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
 	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
+	// Exposure landing view (#196): the two most recent reachability spans per
+	// (Service, vantage), joined to the prober endpoint. The class is re-verified
+	// per render from the presented address, so this read carries the host rather
+	// than the static vantage class.
+	ListReachabilitySpansForExposure(ctx context.Context) ([]db.ListReachabilitySpansForExposureRow, error)
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
@@ -168,6 +173,11 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
+
+	// The Exposure landing view (v1 spec §6.2): the exposure board, a read-only
+	// projection over the reachability corpus. A dedicated nav destination; the
+	// board itself is a census and never an alert source (ADR-0029).
+	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
 
 	mux.HandleFunc("GET /subjects", s.requireLogin(s.subjectsPage))
 	// The Service and Endpoint drill-downs read their key from a query parameter
