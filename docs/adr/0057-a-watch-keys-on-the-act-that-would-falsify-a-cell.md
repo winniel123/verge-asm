@@ -251,6 +251,19 @@ retrieval, and the retrieval is a ticket.
   is still **provisional**: the independence test has been run only over the cells the corpus has
   already measured, and the full pass over all 38 pairs plus the frequency half is
   [#134](https://github.com/winniel123/verge-asm/issues/134).
+  > **SUPERSEDED as a statement of the queue's membership by [#134](https://github.com/winniel123/verge-asm/issues/134)**,
+  > marked here per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+  > **The provisionality is discharged**: the per-cell test has now been run over every cell of all 38
+  > pairs and both non-port cells. **The live register is [`sensitive-ports.md`](../research/sensitive-ports.md)
+  > §43.3 and it is stated over MEMBERS.** The replacement supplied here is a **pointer to a set**, not a
+  > new number — §39.2 bars the queue's count as an indicator and
+  > [ADR-0078](./0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md) bars it from the residue
+  > entry, so a figure is the one thing this clause may not be replaced with. Every item enumerated above
+  > stands with its ground and its rung unchanged; the register **adds** cells and removes none, the bar
+  > being one-way. Where a cell's proposition is carried by a **set** of artefacts no one of which yields
+  > it alone, the item's artefact coordinate holds the set and the item enters at the most volatile
+  > carrier's rung —
+  > [ADR-0076](./0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md).
 - **The queue is a superset of the weak tier, so the ruling removes no row from anybody's attention.**
   All three weak-tier rows stay on it. That makes the change cheap in the only direction that could
   cost something.
