@@ -252,14 +252,14 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 
 // --- retention -------------------------------------------------------------
 
-// updateRetention persists the two dial values. The observation-currency floor
-// stays at zero for now — its real floor (the tightest observation bound in
-// force) is validated once ticket 28 defines it. The Dispatch dial is floored
-// here (#209, §4.6): it is a multiple of the slowest enabled Scan's cadence, and
-// the floor is k of that same cadence, so the floor is unit-free — 0 is the
-// unbounded v1 default and any positive value below k is rejected. Deletion of
-// expired Dispatch rows is a structurally separate path (internal/retention),
-// never reached from here.
+// updateRetention persists the two dial values. Both are floored, and both floors
+// are DERIVED not asserted (ADR-0094) — never presented as an operator choice. The
+// observation-currency dial (#208, §4.6) floors at the tightest observation bound
+// in force: k cadences of the tightest enabled Scan, below which the control
+// changes no row at all. The Dispatch dial (#209, §4.6) floors at k cadences of the
+// slowest enabled Scan. For both, 0 is the unbounded v1 default and always allowed,
+// and any positive value below the floor is rejected. Deletion of expired rows is a
+// structurally separate path (internal/retention), never reached from here.
 func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	obsRaw := strings.TrimSpace(r.FormValue("observation_currency_days"))
 	dispRaw := strings.TrimSpace(r.FormValue("dispatch_cadence_multiple"))
@@ -277,6 +277,19 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 	disp, err := strconv.ParseInt(dispRaw, 10, 64)
 	if err != nil || disp < 0 {
 		fail("Dispatch floor must be a whole number of cadences, zero or more.")
+		return
+	}
+	// The observation floor is the tightest bound in force — k cadences of the
+	// tightest enabled Scan. The query still reads each row's own bound; this only
+	// forbids the operator naming a dial the whole corpus already outlives.
+	tightest, err := s.store.TightestEnabledScanCadenceSeconds(r.Context())
+	if err != nil {
+		s.serverError(w, "tightest scan cadence", err)
+		return
+	}
+	if retention.BelowObservationFloor(obs, tightest) {
+		floorDays, _ := retention.ObservationFloorDays(tightest)
+		fail(fmt.Sprintf("Observation currency must be at least %d days — the tightest observation bound in force — or 0 to leave it unbounded.", floorDays))
 		return
 	}
 	if retention.BelowFloor(disp) {

@@ -271,6 +271,21 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Fatalf("rejected save mutated the dial: %+v", f.retention)
 	}
 
+	// An observation dial below the tightest bound in force is refused; the
+	// previous value stands. With the dns Scan (daily) enabled the tightest bound
+	// is k=2 daily cadences, so 1 day is below the floor. The floor is derived, not
+	// an operator choice (#208, ADR-0094).
+	resp = postForm(t, ac, base+"/settings/retention", url.Values{
+		"observation_currency_days": {"1"}, "dispatch_cadence_multiple": {"4"},
+	})
+	got = body(t, resp)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "at least 2 days") {
+		t.Fatalf("below-floor observation dial not refused: status=%d body=%s", resp.StatusCode, got)
+	}
+	if f.retention.ObservationCurrencyDays != 90 {
+		t.Fatalf("rejected save mutated the observation dial: %+v", f.retention)
+	}
+
 	// A Dispatch multiple below the k=2 floor is refused; the previous value
 	// stands. The dial is a multiple of the slowest enabled Scan's cadence, so
 	// one cadence is below the floor.
