@@ -198,8 +198,11 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   *no claim* is *no row*. **The list is 40 pairs, class totals `12 / 7 / 21`**, and the pair is in
   §4.6 as the table's **21st** entry.
   > **Superseded as an absolute by [#114](https://github.com/winniel123/verge-asm/issues/114)** —
-  > **the list is 38 pairs, class totals `12 / 7 / 19`, and §4.6 is 23 entries**, `9200/tcp` and
+  > **the list is 38 pairs, class totals `12 / 7 / 19`, and §4.6 is ~~23~~ 23 entries**, `9200/tcp` and
   > `9300/tcp` having been removed on this ADR's own limbs. The `1433/tcp` verdict is unchanged.
+  > **§4.6 is 24 entries since [#125](https://github.com/winniel123/verge-asm/issues/125)**, which
+  > added `9443/tcp` on this ADR's limb 1 without moving a pair — `sensitive-ports.md` §39.5. The list,
+  > the class totals and every `1433/tcp` and `9200`/`9300` verdict are unchanged.
 - **[ADR-0008](./0008-derivation-versions-move-on-content.md) is triggered.**
   `sensitive-port-reached-from-internet`'s content moves, its leaf bumps and every span of that
   derivation `Break`s. Pre-install this is vacuous and **not waived**, which is the same sentence
