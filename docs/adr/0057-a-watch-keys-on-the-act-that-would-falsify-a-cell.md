@@ -70,7 +70,7 @@ The full working is [`sensitive-ports.md`](../research/sensitive-ports.md) **§3
 | The six defects and the eight triggers are one instrument | **Yes, and the reason the two lists looked different is that nobody asked which of them terminates.** The gate is **eleven** checks; six come from the defect list and five from the trigger list |
 | **What the queue keys on** | **The revision act** — the smallest act by the owner that would falsify the cell, and whether that act publishes a notice we read. Read **off the artefact**, never judged. Five rungs, and they are a total order a curator reads rather than scores |
 | The tie-break inside a rung | **How far the owner has moved past the tag the cell was read at, measured in the owner's own release line.** This is what *evidence age* is measured on, and it is neither first-seen date nor our edit cadence — [ADR-0043](./0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md)'s shape: bound the evidence in the subject's own units, never the observer's |
-| **The queue's filter** | **Sole-ground only.** A cell is an item exactly where **one** artefact carries it and no second **independent** artefact carries the same cell — ADR-0046 limb 1's rule read on the positive side. A **corroborator is never a ground** (§2.3), so a corroborator can never remove an item |
+| **The queue's filter** | **Sole-ground only.** A cell is an item exactly where **one** artefact carries it and no second **independent** artefact carries the same cell — ADR-0046 limb 1's rule read on the positive side. A **corroborator is never a ground** (§2.3), so a corroborator can never remove an item. **What *carries the same cell* denotes is fixed by [ADR-0077](./0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)** ([#135](https://github.com/winniel123/verge-asm/issues/135)): the second artefact must, **standing alone**, have yielded **the cell's proposition** — what the cell asserts about the world, stripped of our grading of it — and **the test is run per cell, never per row**. *Exists* is not the bar; *at the same tier* is too high a bar, a tier being our own disclosure of evidential distance. An **undetermined** second ground counts as **absent** |
 | **The unit** | **A `(cell, artefact, revision act)` triple, never a row and never a count.** A row can be an item twice on two cells; four pairs can be **one** item on one sentence. The count is barred from being quoted as an indicator, and the queue is published as members with their acts |
 | Footing tier as the key | **Refused.** A footing tier grades **evidential distance** ([ADR-0059](./0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)) — the count of premises the reader supplies. Volatility is a property of the **artefact**, not of the distance. **[measured]** they disagree on at least four pairs |
 | Support count as the key | **Refused as a key, kept as the filter** — it removes items rather than ordering them |
@@ -175,6 +175,17 @@ mirror"* — is therefore **answered and refused**: exposure to a demotion is no
 de-attestation, and this queue is a de-attestation queue. Tier was taking the credit for work support
 count was doing.
 
+> **Confirmed and re-sited at the cell by
+> [ADR-0077](./0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)**
+> ([#135](https://github.com/winniel123/verge-asm/issues/135)). **The paragraph above is correct about
+> `10255`'s FOOTING cell and is not a disposal of the ROW**, this ADR's own unit being the cell.
+> §18.7 measures both fallbacks — `10250` to the scoping tier, `10255` to the weak tier — so in both
+> cases the second artefact yields the same **proposition** at a lower tier and the act demotes.
+> `sensitive-ports.md` §39.4 nonetheless recorded *both rows* as *not an item*, and that is superseded:
+> **[measured]** §19.12 records `10250`'s Claim 3 as having *"no second support on this row"*, so
+> `10250`'s **claim** cell is sole-ground and is a queue item. #88's rider stays refused for the two
+> footing cells and is **live** for `10255`'s claim cell, which no section has tested.
+
 ### 4. The unit is a triple, and that is the repair for five useless counts
 
 When `10255` left and `10248` joined, **two items changed and the count did not move.** A count over
@@ -230,10 +241,16 @@ retrieval, and the retrieval is a ticket.
 - **ADR-0032 §8's watch list is superseded as an instrument.** The three-row enumeration is a correct
   record of a *weak tier* and is no longer the watch. §8's `#95` amendment box is marked at the
   sentence; the fifteen sites in `sensitive-ports.md` are marked at their clauses (§39.7).
-- **The queue as of evidence already held is eight items over ten `(port, transport)` pairs and two
-  non-port cells**, against a three-row list — and **two of the pairs it adds are in the top footing
-  tier**. Enumerated with grounds at §39.4. It is **provisional**: the per-cell independence test has
-  been run only over the cells the corpus has already measured, and the full pass is a ticket.
+- **The queue as of evidence already held is ~~eight items over ten `(port, transport)` pairs~~ nine
+  items over eleven pairs and two non-port cells**, against a three-row list — and ~~two~~ **three of
+  the pairs it adds are in the top footing tier**. Enumerated with grounds at §39.4 and §41.4. **Moved
+  by [#135](https://github.com/winniel123/verge-asm/issues/135) /
+  [ADR-0077](./0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)**,
+  which added `10250/tcp`'s **claim** cell — sole-ground on `ports-and-protocols.md`'s
+  `Used By: Self, Control plane` (§19.12) — after fixing the filter's bar and applying it per cell. It
+  is still **provisional**: the independence test has been run only over the cells the corpus has
+  already measured, and the full pass over all 38 pairs plus the frequency half is
+  [#134](https://github.com/winniel123/verge-asm/issues/134).
 - **The queue is a superset of the weak tier, so the ruling removes no row from anybody's attention.**
   All three weak-tier rows stay on it. That makes the change cheap in the only direction that could
   cost something.
