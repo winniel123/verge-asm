@@ -405,7 +405,10 @@ already anticipated the distinction: the absence is *"a `Gap` where the timeline
 and **nothing at all** where it never began."*
 
 Two adjacencies fall out and neither needs new machinery. Declaring or widening an address scope
-moves the **custody gate**, one of the five aperture inputs, so it is `revealed` on every timeline it
+moves the **custody gate**, one of the ~~five~~ aperture inputs — *the count is withdrawn; it is
+**seven** since [ADR-0017](./0017-exposure-needs-both-legs.md) and
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
+and the gate's membership is untouched* — so it is `revealed` on every timeline it
 opens and **one** coverage-class message at the scope carrying *"a count of timelines opened and no
 comparison at all"* — #63's *"adding a `Seed` later behaves identically"*, applied. It is emphatically
 **not** 1,024 membership messages; ADR-0022's unit rule (*the unit is the scope, never the address*)

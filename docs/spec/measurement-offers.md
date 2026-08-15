@@ -231,6 +231,15 @@ subset of RRsets for `ANY`, so an `ANY` answer cannot license an absence `[spec]
 | **MX** | Acceptance is a finding | `[owner]` #3 §3.1: MX hosts are themselves exposed assets. ADR-0011's own worked hazard is *collapse NODATA into Name Error and every MX-only name in the estate retires*, which presupposes MX is queried |
 | **TXT** | Acceptance is a finding | `[owner]` **and this is the thinnest admitted row.** #3 §3.1 measures TXT as the richest single qtype — SPF `include:`/`ip4:` enumerate third parties and often owned space; DMARC yields posture. **No v1 signal reads it.** Admitted anyway under ADR-0015: the field is decided independently of whether a rule reads it |
 
+**The wildcard control probe runs this same set, and mints no sixth list.**
+[ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+rules that `wildcard-discrimination` generates its control labels under the **parents** of the
+`Name`s in the batch's resolution scope, over the seven qtypes above — because `Shadowed` is
+committed on `dns-record` for *any* qtype, so a three-qtype control probe would leave synthesised
+MX, TXT, NS and SOA answers recorded as the name's own records. The **population** of probe sites is
+not an offer and is not enumerated here: it is a function of the batch's scope, held on the `Batch`
+as the **seventh aperture input**. This document stays at **five offers**.
+
 **Not queried in v1:**
 
 | qtype | Why not |

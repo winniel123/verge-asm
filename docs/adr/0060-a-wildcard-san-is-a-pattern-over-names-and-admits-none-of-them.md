@@ -155,7 +155,10 @@ arriving through the admission step rather than through a key.
 is worse in a quieter way, because three things beneath it are then wrong at once.
 
 - The answer is the wildcard's own RRset, which is **by construction** the poison signature
-  `wildcard-discrimination` measures from random labels under the apex. The match predicate would
+  `wildcard-discrimination` measures from random labels under ~~the apex~~ **the name's parent** —
+  which for `*.example.com` is `example.com`, so the point below stands verbatim
+  ([ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)).
+  The match predicate would
   therefore record **`Shadowed`** on the one name in the zone that is not shadowed. Repairing that
   means teaching a **versioned leaf** to read the `*`; refusing the subject means the query is never
   made and there is nothing to repair. The ruling pays for itself here rather than costing.

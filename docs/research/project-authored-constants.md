@@ -601,6 +601,14 @@ Walked for completeness, since ADR-0021's parameter set is the authoritative pop
 | `resolution-walk` | EDNS payload size | **No** | §6.7 |
 | `resolution-walk` | the qtype set (seven) | **No** | An enumeration chosen against what v1 rules read; ADR-0015 gives it no deadline |
 | `wildcard-discrimination` | control-label count and construction | **No** | A count of our own probes; no world quantity enters. RFC 4592 fixes the mechanism |
+| `wildcard-discrimination` | the match predicate | **Open — no value has been chosen** | ADR-0021 names it; nothing anywhere gives it one. **[measured]** a synthesised answer set is not stable across control labels on two of four live wildcarded zones, so set equality is not it — [#111](https://github.com/winniel123/verge-asm/issues/111) |
+
+**One thing ADR-0021's table does not contain, and this section's *authoritative population* claim
+must not be read as covering it:** the **`Name`s the control labels are generated under**. That is
+an **aperture input** recorded on the `Batch`, not a declared parameter of any leaf, because it is a
+function of the batch's own scope where a parameter is authored data —
+[ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).
+It is therefore correctly absent from this walk rather than missing from it.
 
 **The capped body read is the one live item, and it is live because it has no value yet.**
 ADR-0021 names the parameter; no ADR fixes a number, and #4 §4's *"64 KB"* was never carried

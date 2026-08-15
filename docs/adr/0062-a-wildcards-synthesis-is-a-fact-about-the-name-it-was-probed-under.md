@@ -57,7 +57,7 @@ ship in v1.**
 | `Shadowed` | **Untouched and not reopened.** Names beneath a wildcard report nothing when it moves, before this ruling and after it |
 | ADR-0060 | **Untouched and not reopened.** `*.example.com` is a `Subject` from no source, and this ruling does not reach for it |
 | Does it ship in v1? | **No.** Out of scope, priced at [ADR-0015](./0015-the-value-space-is-the-commitment.md)'s `revealed` plus one message with **no `Break`**, so there is no deadline and nothing to buy now |
-| What blocks it, beyond price | **Its sixth part cannot be written.** ADR-0011 requires a **batch-scope obligation naming what its silence covers**, and **nothing in the repository declares which `Name`s are control-probed** |
+| What blocks it, beyond price | ~~**Its sixth part cannot be written.** ADR-0011 requires a **batch-scope obligation naming what its silence covers**, and **nothing in the repository declares which `Name`s are control-probed**~~ — **DISCHARGED** by [#108](https://github.com/winniel123/verge-asm/issues/108) / [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md): the population is *the parents of the `Name`s in the batch's resolution scope*, recorded on the `Batch` by content, so the sixth part **is writable**. One new open item takes its place — see the amendment below |
 | That gap in v1 | A **live defect independent of this facet**, since a wildcard nobody probed under makes every synthesised name beneath it read `Resolved` with a fictional address set. Ticketed as [#108](https://github.com/winniel123/verge-asm/issues/108), **blocking [#12](https://github.com/winniel123/verge-asm/issues/12)** |
 | The `Derivation` vector | **Gains nothing.** No leaf, no version, no `Break` cause. `wildcard-discrimination` stays as ADR-0021 drew it and the five leaves stay five |
 | Cost of the ruling | **Zero.** Nothing is held today, so nothing is withdrawn, no timeline closes and no re-baseline is owed |
@@ -87,9 +87,17 @@ level down for each discovered sub-zone — wildcards can exist at any label dep
 probed under** is a reading of what happened, and it stays correct whichever names
 [#108](https://github.com/winniel123/verge-asm/issues/108) decides to probe.
 
-X is also, by construction, a `Name` already in the estate. There is no admission step here and no
+~~X is also, by construction, a `Name` already in the estate. There is no admission step here and no
 subject invented: we do not probe under names we do not hold, so the carrier exists before the
-measurement is made. That is what separates this from ADR-0060's refused *fold it: strip the `*.` and
+measurement is made.~~ **WITHDRAWN by [#108](https://github.com/winniel123/verge-asm/issues/108) /
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
+and falsified by measurement.** A probe site is a `Name`'s **parent**, and a parent need not be held
+or even exist: **[measured]** `ns.iana.org` is NXDOMAIN and in no `Citation`, while `www.ns.iana.org`
+is a held `Name` whose closest encloser is `iana.org` — so probing under `ns.iana.org` is both
+correct and necessary. **The subject rule below is untouched** — the carrier is the name the control
+labels were generated under — but it is no longer true that the carrier always exists, which is this
+facet's one new open item. Nothing is admitted either way: a probe site is a label sequence we
+construct, not a subject we cite. That is what separates this from ADR-0060's refused *fold it: strip the `*.` and
 treat it as evidence about the parent* — that move **admitted** a subject from a pattern, and it lost
 because pruning proves control rather than existence. Nothing is admitted here. A subject that is
 already ours acquires a value.
@@ -193,7 +201,15 @@ its silence covers**. It named the failure mode in terms, and named it as recurr
 a seventh facet, writes a canonicaliser, and silently skips the batch-scope obligation — which is the
 `{161}` defect arriving through a facet instead of a port list, for the third time."*
 
-That obligation is unwritable today. **Nothing declares which `Name`s are control-probed.**
+> **This whole subsection's premise is DISCHARGED by
+> [#108](https://github.com/winniel123/verge-asm/issues/108) /
+> [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).**
+> The population is declared — *the immediate parents of the `Name`s in the batch's resolution
+> scope*, the **seventh aperture input**, recorded on the `Batch` by content — so the sixth part is
+> writable and *not in v1* now rests on price alone, which ADR-0015 makes free. The survey of what
+> was missing below is **dated, not permanent**, and reads as history.
+
+That obligation ~~is unwritable today~~ **was unwritable when this was written**. **Nothing declares which `Name`s are control-probed.**
 ADR-0021's parameter table — which
 [`project-authored-constants.md`](../research/project-authored-constants.md) calls *"the authoritative
 population"* — gives `wildcard-discrimination` exactly *control-label count and construction* and *the
@@ -282,6 +298,11 @@ than the facet was.
   [#108](https://github.com/winniel123/verge-asm/issues/108) fixes the control-probe population**,
   which is what makes its sixth part writable, and it costs `revealed` plus one message with no
   `Break` whenever it is taken up. Nothing is bought now and nothing needs rework later.
+  *(**The condition is met** —
+  [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).
+  The shelf entry stands, on price alone, and now carries two open items: a probe site with no
+  carrier, and the value space, which waits on
+  [#111](https://github.com/winniel123/verge-asm/issues/111). See the amendment below.)*
 - **The cost is zero and there is no re-baseline.** No signature has ever been held, so nothing is
   withdrawn, no timeline closes, no `Break` fires and no message is owed. This is ADR-0027's cheap
   direction for the second time: the ruling names something that could not yet have produced a value.
@@ -298,9 +319,38 @@ than the facet was.
 | **Hold it on the `*.example.com` `Name`** | Barred by the ticket and by [ADR-0060](./0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md): a wildcard denotes a set of names rather than a name, so it is a `Subject` from no source. Not reached for, and not reopened |
 | **Say *the zone apex* and be done** | [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md) already called *apex* *"a heuristic standing in for a rule"*, and here it would be one twice over: §3.2 itself probes below the apex for each discovered sub-zone, and RFC 4592 permits a wildcard at any depth. *The name the control labels were generated under* is a reading of what the measurement did, is recorded by the `Batch`, and survives whatever [#108](https://github.com/winniel123/verge-asm/issues/108) decides |
 | **Hold it on the `Batch` — it is measurement context, so record it as scope** | A `Batch` records **what its silence covers**, not what it measured, and it holds no timeline. Under that filing a repoint could never be a `Transition`, which is the entire fact this ticket is about. It also puts a measurement inside the scope record, which is the category error ADR-0005 and ADR-0009 keep the scope mechanism clean of |
-| **Ship the facet in v1** | Its **sixth part cannot be written**: ADR-0011 requires a batch-scope obligation naming what its silence covers, and nothing declares which `Name`s are control-probed. Shipping it anyway is ADR-0011's own named failure — *a session adds a facet, writes a canonicaliser, and silently skips the batch-scope obligation* — with an ADR behind it. ADR-0015 prices it at `revealed` plus one message with no `Break`, so waiting costs nothing and buys the missing part |
+| **Ship the facet in v1** | ~~Its **sixth part cannot be written**: ADR-0011 requires a batch-scope obligation naming what its silence covers, and nothing declares which `Name`s are control-probed.~~ **This ground is discharged by [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)** and the refusal now rests on price alone, plus the open carrier item in the amendment below. Shipping it anyway was ADR-0011's own named failure — *a session adds a facet, writes a canonicaliser, and silently skips the batch-scope obligation* — with an ADR behind it. ADR-0015 prices it at `revealed` plus one message with no `Break`, so waiting costs nothing and buys the missing part |
 | **Settle the value space now, so the expensive part is decided while the context is loaded** | Inverted: the value space is expensive **because** widening one later costs a `Break` on every timeline of the facet, and it cannot be drawn honestly before the population it summarises is known. Deciding the costly part first, on the incomplete half, is the trade in the wrong direction |
 | **Make the repoint a message on its own account** | [ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md): the facet layer is evidence and not a channel, and a `Transition` is a message only where it is the sole carrier of a fact the operator asked for. This one opens no `Endpoint` and admits nothing, so it inherits `dns-record`'s silence. A message here is a **`Signal`** under ADR-0004, on its own ticket — and a facet-level change channel was already refused for `dns-record` by [#64](https://github.com/winniel123/verge-asm/issues/64) |
 | **Let the stored signature decide `Shadowed`, now that there is somewhere to store it** | Undoes ADR-0011's rule that any value needing more than one measurement is decided by the **measurement binary inside one batch**, and reintroduces the cross-observation dependency with its own currency and staleness problem inside the comparison path. The facet is a record of what was measured, never an input to the decision that was made alongside it |
 | **Admit `Address` subjects from the synthesised RRset, since we measured those addresses** | They are the answer to a query for a name that does not exist. Admitting them is the fictional inventory §3.2 exists to prevent, arriving through a facet instead of through a resolution — and it is ADR-0060's *a construct denoting a set of names admits none of them* read from the DNS side |
-| **Fold the population question into this ticket rather than filing it** | It is a larger question with its own evidence — RFC 4592's depth rule against §3.2's two-level procedure — it bears on `Shadowed` in v1 whether or not this facet ever ships, and it is **blocking [#12](https://github.com/winniel123/verge-asm/issues/12)** where this ticket expressly is not. Folding a blocking question into a non-blocking one hides it |
+| **Fold the population question into this ticket rather than filing it** | It is a larger question with its own evidence — RFC 4592's depth rule against §3.2's two-level procedure — it bears on `Shadowed` in v1 whether or not this facet ever ships, and it is **blocking [#12](https://github.com/winniel123/verge-asm/issues/12)** where this ticket expressly is not. Folding a blocking question into a non-blocking one hides it. *(Confirmed by outcome: [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md) added an aperture input, rewrote §3.2's procedure, struck five stale counts and opened [#111](https://github.com/winniel123/verge-asm/issues/111) — none of which fits inside a facet-carrier ruling.)* |
+
+## Amendment — [#108](https://github.com/winniel123/verge-asm/issues/108): the blocker is discharged, and the carrier is not guaranteed to exist
+
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+declares the control-probe population, so this ADR's stated reopening condition is **met**: the
+`wildcard-synthesis` facet's **sixth part is writable**. It stays out of scope, now on price alone —
+`revealed` plus one message with no `Break`, and ADR-0015 gives that no deadline.
+
+**One open item arrives with the discharge, and it is new rather than inherited.** The population is
+*the parents of the `Name`s in scope*, and a parent need not be a `Name` we hold: **[measured]**
+`ns.iana.org` is NXDOMAIN and in no `Citation` while `www.ns.iana.org` is a held `Name` whose
+closest encloser is `iana.org`, so it is a probe site with **no carrier**. This ADR's subject rule —
+*the `Name` the control labels were generated under* — survives unchanged and is still the right
+rule; what it loses is the guarantee, asserted in the Rationale above and now withdrawn, that the
+subject always already exists. Inventing one is barred by ADR-0060 and ADR-0027 alike: nothing cites
+it, and the prober is not an admitting source. Whoever takes the facet up owns that question, and it
+is recorded here rather than ticketed because the facet has no deadline and buying the answer early
+buys nothing.
+
+**One thinness entry gains a measurement.** *"Whether the signature churns on its own is not
+measured"* is answered in the label-to-label direction and not the batch-to-batch one it named:
+**[measured]** 2026-08-14, five control labels per zone seconds apart from one vantage,
+`herokuapp.com` returned **three** distinct address sets and `vercel.com` **five**, while
+`github.io` and `localtest.me` held still. That is a defect in the **match predicate** rather than in
+this facet, and it is [#111](https://github.com/winniel123/verge-asm/issues/111), **blocking
+[#12](https://github.com/winniel123/verge-asm/issues/12)** — but it also means the value space this
+ADR left open (*a closed union of no-synthesis and synthesised RRset*) cannot be drawn until #111
+lands, because on the churning half *the* RRset is not a well-formed object. The deferral was right
+for a second reason it did not know about.
