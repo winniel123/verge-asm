@@ -195,6 +195,19 @@
   #switch .fills button { padding: 4px 8px; color: #9a9a90; font-size: var(--text-2xs);
                           text-transform: uppercase; letter-spacing: var(--tracking-label); }
   #switch .fills button.on { background: var(--paper); color: var(--ink); }
+
+  /* ── THE DATELINE — ADR-0075 (#131), applied by #144 ──────────────────
+     prototypes/seeds/'s dashed accent annotation box, already declared "not
+     part of the design". No new token. */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
 </style>
 </head>
 <body>
@@ -406,11 +419,33 @@ function chrome(body, vantageNote) {
       <button class="btn sm">Run scan</button>
     </div>
   </div></header>
-  <main class="shell">${body}</main>
+  <main class="shell">${dateline()}${body}</main>
   <footer class="ft"><div class="ft-in">
     <span>v0.9.2</span><span>AGPL-3.0</span><span>self-hosted</span>
     <span class="sp"></span><span>${vantageNote}</span>
   </div></footer>`;
+}
+
+/* ── THE DATELINE — ADR-0075 (#131), applied by #144 ────────────────────────
+   A prototype is a dated record of a READING, never of a RULE. The provenance
+   has to be in what the browser DRAWS: every recorded instance of a prototype
+   being wrongly believed happened in a browser, where an HTML comment is
+   invisible. Drawn on every variant and fill, because every one is a reading. */
+function dateline() {
+  return `
+  <div class="anno">
+    <span class="ml">prototype · not part of the design</span>
+    <p><b>Issue #45 — "Which of the four unnamed Exposure cells need names, and what does the board
+      render for the rest?". Drawn 2026-08-13.</b> Throwaway: something to decide against, not
+      production UI and not a component library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a current value</b> — the corpus
+      as it stood on that date, and nothing here has been re-filled since. The only live absolutes
+      are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>): read a
+      figure there before believing one here. What is <i>not</i> a dated reading is the state these
+      screens draw — the acts they offer, the populations they show as non-empty and the sentences
+      they put in the product's mouth. A later ruling that makes one of those unreachable is marked
+      here in place and never redrawn.</p>
+  </div>`;
 }
 
 /* the vantage panel — which classes this install actually runs */
