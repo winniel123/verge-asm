@@ -107,6 +107,20 @@ ol.chain li:last-child { padding-bottom: 0; border-left-color: transparent; }
 ol.chain li::before { content: ""; position: absolute; left: -6px; top: 3px;
   width: 8px; height: 8px; background: var(--ink); }
 ol.chain .chainval { margin: 2px 0; }
+.rulehead { display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
+.rulehead h2 { margin: 0; }
+.rulehead .ver { white-space: nowrap; }
+.members { display: flex; flex-direction: column; gap: var(--space-4); }
+.mgroup { border: 1px solid var(--hairline); }
+.mgroup-head { display: flex; align-items: baseline; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--hairline);
+  background: var(--paper); }
+.mgroup-head .count { font-family: var(--mono); font-size: 13px; font-weight: 600; margin-left: auto; }
+.mgroup-list { list-style: none; margin: 0; padding: 0; }
+.mgroup-list li { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--hairline); }
+.mgroup-list li:last-child { border-bottom: none; }
+.mgroup-empty { padding: var(--space-3) var(--space-4); color: var(--muted); }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -178,7 +192,7 @@ Two-factor is not active until you confirm.</p>
 
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
-<nav class="nav"><a href="/">Home</a><a href="/subjects">Subjects</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
+<nav class="nav"><a href="/">Home</a><a href="/subjects">Subjects</a><a href="/signals">Signals</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
 </div>{{end}}
@@ -769,6 +783,50 @@ screen states none.</p>
 <div class="microlabel">Rules</div>
 <h2>Rules over this subject</h2>
 <p class="muted">Every rule whose predicate domain includes this subject renders here, each carrying its own versioned verdict. Wired up by ticket 22.</p>
+</div>
+{{end}}
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "signals"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="microlabel">Derived · signals</div>
+<h1>Signals</h1>
+<p>Each rule is a named, versioned fact read over your estate as it stands now.
+Its census is three members over one population — fired, did not fire, and
+not-evaluable — current state only, never a trend and never a comparison. A
+signal is a named fact, not a ranked one: urgency belongs to the transition that
+surfaces it, never to the rule. Only Name rules render yet.</p>
+
+{{range .Censuses}}
+<div class="section">
+<div class="rulehead">
+<h2 class="mono">{{.Rule}}</h2>
+<span class="microlabel ver">version {{.Version}}</span>
+</div>
+{{if .Empty}}
+<div class="census">
+<div class="microlabel">No population</div>
+<p>No subject in your estate is one this rule's fact could be true of, so there
+is nothing to census. This is a legible state, not a clean bill of health.</p>
+</div>
+{{else}}
+<div class="members">
+{{range .Groups}}
+<div class="mgroup">
+<div class="mgroup-head"><span class="microlabel">{{.Label}}</span><span class="count">{{len .Members}}</span></div>
+{{if .Members}}
+<ul class="mgroup-list">
+{{range .Members}}<li><a class="mono" href="/subjects/{{.Subject}}">{{.Subject}}</a></li>{{end}}
+</ul>
+{{else}}
+<div class="mgroup-empty">None.</div>
+{{end}}
+</div>
+{{end}}
+</div>
+{{end}}
 </div>
 {{end}}
 </main>
