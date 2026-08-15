@@ -742,7 +742,18 @@ operator; it is never read by the derivation, so no third party's file can open 
 gate. Governs what may be probed, not merely how it is displayed — see
 [ADR-0002](./docs/adr/0002-ownership-gates-probing.md),
 [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md) and
-[ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md). There is **no
+[ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md). The gate it governs
+is **total over the `Address`**: a `third-party` address is connected to on **no port**, by no
+tier and at no rate, because the objection is **authority** and port count is a quantifier over
+one act — ADR-0002's ~~*"only the ports the `Name` implies (443, 80)"*~~ limb is **withdrawn at
+the site that specifies it**
+([ADR-0019](./docs/adr/0019-the-probing-gate-is-total-over-an-address.md)), leaving the opt-in
+limb, which is the `custody extension`. A public name resolving to an address is the *name
+holder's* invitation to their own service and never the *listener holder's* consent to be
+measured, which is the whole distinction the rename below draws. So an install holding custody of
+nothing measures `resolution` and `dns-record` at full aperture — **a query is not a connect** —
+and measures none of the four facets that ride a TCP connect; its `Service` population is empty,
+and every rule below that connect has an empty `Predicate domain`. There is **no
 third value**: *covered by a `Seed`?* is a total question with no lookup left to fail, so
 everything not covered is `third-party`, which is the closed direction. It is the one Derived
 value whose change carries a safety consequence, so it holds a `Span` timeline. Alone among
@@ -758,7 +769,12 @@ there is no subject left to hold one, unless a current resolution still cites th
 gate does **not** open a `Gap` directly — it stops feeding those timelines, and the last value
 ages out under the currency bound, so a toggle inside one cadence is a non-event rather than a
 `value → Gap → value` burst. The aged value is not a stale attribution, because this timeline
-is current from the instant of the toggle and reads `third-party` beside it. Opening the gate
+is current from the instant of the toggle and reads `third-party` beside it. **Rules keep reading
+that value while it is current**, so a withdrawal cannot silence a rule that was firing — a
+setting that switched off a measurement is refused here as it is on an `Offer` — and what follows
+the bound is a `Gap` **naming the operator's own act**, never a blank and never a clear. The
+population it leaves behind **can only shrink**: a shut gate observes no new `Service`, so no
+subject can join it. Opening the gate
 produces both a `revealed` opening on addresses never probed before and a closing `Gap` on
 addresses that were. See
 [ADR-0014](./docs/adr/0014-only-revealed-generalises.md).

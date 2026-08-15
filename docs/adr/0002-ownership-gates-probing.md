@@ -31,7 +31,7 @@ gates active probing.**
 | Ownership | Probing permitted |
 | --- | --- |
 | `owned` | The full tiered port sets from [#4](https://github.com/winniel123/verge-asm/issues/4) |
-| `third-party` | Only the ports the `Name` implies (443, 80), or nothing pending explicit operator opt-in |
+| `third-party` | ~~Only the ports the `Name` implies (443, 80), or~~ **nothing** pending explicit operator opt-in. **Limb 1 is WITHDRAWN** by [#118](https://github.com/winniel123/verge-asm/issues/118) / [ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md); the opt-in limb is the `custody extension`, and it is the whole row |
 | `unknown` | Treated as `third-party` |
 
 It is *derived*, not declared: computed from the operator's address-scope seeds plus RDAP
@@ -108,8 +108,16 @@ whose owner we have not identified, which is the case where scanning is least de
 - **Exposure attribution splits by ownership.** For an `owned` address, exposure belongs
   to the `Address`. For a `third-party` one, the operator's exposure belongs to the
   `Name` — *"this name is served from infrastructure you do not control"* — and the open
-  ports on that address are largely another tenant's story. This is a finding worth
-  surfacing in its own right, and it is available without scanning a stranger.
+  ports on that address are largely another tenant's story. ~~This is a finding worth
+  surfacing in its own right~~, and it is available without scanning a stranger.
+  **Qualified by [#118](https://github.com/winniel123/verge-asm/issues/118) /
+  [ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md): it is surfaced as a
+  **census** and never as a `Signal`.** A rule reading it would have a `Predicate domain` of
+  every `Name` in the estate, fire on ~100% of the modal install permanently, and read a
+  **Declared** act rather than an observation — so it could cite no evidence and produce no
+  transition anybody could act on. The fact is rendered where the estate is enumerated: an
+  `Address` carries its `Custody` and its `Citation`, and `Coverage` carries one standing
+  line.
 - **Ownership is load-bearing vocabulary**, not a display flag. It appears in
   [`CONTEXT.md`](../../CONTEXT.md) under Derived.
 - **Coverage is deliberately narrower** than a tool that scans everything it reaches. An

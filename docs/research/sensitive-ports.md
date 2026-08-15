@@ -2323,9 +2323,18 @@ ADR-0004 requires that absent evidence yield `not-evaluable` rather than "did no
 signal there are four distinct routes, and an implementation that collapses them will under-report:
 
 1. **Ownership.** On `third-party` or `unknown` addresses,
-   [ADR-0002](../adr/0002-ownership-gates-probing.md) limits probing to the ports the `Name` implies
-   (443, 80). No sensitive port is ever probed there, so **every** row is `not-evaluable` on those
-   addresses. For a SaaS-fronted estate that is most of the estate.
+   [ADR-0002](../adr/0002-ownership-gates-probing.md) ~~limits probing to the ports the `Name` implies
+   (443, 80)~~ **shuts the gate entirely** — the limb quoted here is **withdrawn** by
+   [#118](https://github.com/winniel123/verge-asm/issues/118) /
+   [ADR-0019](../adr/0019-the-probing-gate-is-total-over-an-address.md), the gate being total over
+   the address. No port is ever probed there, sensitive or otherwise. For a SaaS-fronted estate that
+   is most of the estate.
+   *(Two further corrections that do not move the route. `unknown` was deleted by
+   [#40](https://github.com/winniel123/verge-asm/issues/40). And **`not-evaluable` is the wrong
+   term** for this route — [#44](https://github.com/winniel123/verge-asm/issues/44) established that
+   no `Service` is ever observed on those addresses, so there is **no subject** to return an outcome
+   about; the rule's population is empty and the honest carrier is the aperture statement on
+   `Coverage`, not a row.)*
 2. **No internet vantage.** `Exposure` cannot be constructed at all without one — its definition
    contains that precondition — so the signal composes `Exposure`'s outcome and inherits it. A
    default deployment with no external prober can never evaluate this signal.
