@@ -33,15 +33,6 @@ type Querier interface {
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
-	// Reads and writes behind `Annotation` management on the Signals screen (#204).
-	// An Annotation is an operator dial keyed on one `(subject, signal-name)` pair,
-	// carrying the operator's reason and the instant declared — no status, no expiry
-	// and no author (CONTEXT.md `Annotation`, ADR-0073). Declaring and withdrawing
-	// are plain state changes: neither is a `Message`, and neither mints a cause.
-	// Declare an acceptance on one pair. The unique index on (subject_key,
-	// signal_name) rejects a re-declaration of the same pair — an Annotation cannot
-	// be edited, so changing the reason is a withdraw-then-declare, not an update.
-	CreateAnnotation(ctx context.Context, arg CreateAnnotationParams) (Annotation, error)
 	// Returns the id only: the secret is write-only and no query hands it back.
 	CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error)
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
@@ -69,11 +60,6 @@ type Querier interface {
 	// batch because a pending Proposal is read by nothing, so 'declined' and 'never
 	// answered' have the same effect on the gate.
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
-	// Withdraw an acceptance. Withdrawing is a plain state change that produces no
-	// `Message` — its carrier is the message it releases, the pair's own next firing.
-	// Deleting a row that is already gone is not an error: the operator's intent, that
-	// the acceptance no longer stand, is satisfied either way.
-	DeleteAnnotation(ctx context.Context, id int64) error
 	DeleteChannel(ctx context.Context, id int64) error
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
@@ -84,29 +70,38 @@ type Querier interface {
 	// on any timeline. The FK change in migration 20900 lets the delete null the
 	// operational back-references rather than cascade into measured data.
 	DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error)
+	// Retire the evidential observations the operator's dial no longer keeps (v1 spec
+	// §4.6, ADR-0041, ADR-0094). This is the ONLY path that deletes Observation rows,
+	// and it deletes Observation rows and NOTHING else: batch, scan and span are read
+	// to resolve each row's own bound and its subject's membership, never written — so
+	// a Batch travels with any observation it produced (it is not retired per row) and
+	// a Span is never compacted.
+	//
+	// The query evaluates EACH ROW'S OWN bound, never a collapsed one: `cover` groups
+	// observations by their full timeline key (subject, facet, discriminator, vantage,
+	// source) and takes the tightest ENABLED covering Scan's cadence, so a zone-sourced
+	// row ages on the zone cadence and a resolver-sourced row on the resolver's. A row
+	// survives while its age is inside EITHER k cadences of that bound OR the dial,
+	// whichever is longer — the control collapses to one number, the query never does.
+	// Two populations fall opposite ways: a timeline no enabled Scan covers has an
+	// undefined bound and is NEVER retired (the `cover` LEFT JOIN misses, so the guard
+	// excludes it); a withdrawn subject (every span closed) carries NO floor, so the
+	// dial alone governs it.
+	//
+	// @dial_seconds is the operator's observation dial in seconds (0 == unbounded, the
+	// v1 default — the caller does not run the sweep then); @floor_cadences is k; @as_of
+	// is the sweep instant, injected so a sweep is reproducible.
+	DeleteExpiredObservations(ctx context.Context, arg DeleteExpiredObservationsParams) (int64, error)
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
-	// The address-scope Seed a Service's Address falls inside (#195) — the other
-	// limb of Address membership, and where the Citation chain terminates when no
-	// resolution cites the Address. Native CIDR containment (`>>=`) is a test over
-	// the address and never its spelling, so the gate cannot turn on a rendering
-	// (CONTEXT.md `Seed`). The most specific covering scope wins where scopes nest.
-	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (FindCoveringAddressSeedRow, error)
 	// The Seed a Name's Citation chain terminates at: the name scope whose query set
 	// the dns Scan was drawn from (CONTEXT.md `Citation` — every chain bottoms out at
 	// a Seed or a declared source). Wave-0 measures the seed domains themselves; the
 	// label-wise suffix match also carries a later enumerated subdomain to its scope,
 	// and the longest matching domain wins when scopes nest.
 	FindCoveringNameSeed(ctx context.Context, name string) (FindCoveringNameSeedRow, error)
-	// A Name whose current resolution cites the given Address (#195) — the Citation
-	// hop that answers why a Service's Address is in the estate. An Address has no
-	// lifecycle of its own, so its membership is grounded in evidence about ANOTHER
-	// subject: the Name whose Resolved answer names it. Where a resolution stops
-	// citing the Address this returns no row, which is exactly the `uncited` ground a
-	// departure records. Best-effort: the longest-lived citing Name, one hop.
-	FindNameCitingAddress(ctx context.Context, address string) (FindNameCitingAddressRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
@@ -141,12 +136,6 @@ type Querier interface {
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
-	// Resolve a Service key to at most one subject (#195). A Service drill-down
-	// reaches a subject by its own key — including one whose Address has left the
-	// estate, which is not a false "no record" but a population of no current member
-	// (ADR-0072). The caller reads the latest reachability value to render the
-	// current verdict and the Address the triple sits on.
-	GetServiceSubject(ctx context.Context, subjectKey string) (GetServiceSubjectRow, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
@@ -163,22 +152,9 @@ type Querier interface {
 	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
 	// address inside one derives operator directly (ADR-0013).
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
-	// Every declared acceptance, ordered by signal then subject — a deterministic
-	// list with no sort by attention, age or count (an operator dial carries no such
-	// axis). The Signals layer folds these against the live census to decide the
-	// fully-annotated prose case and to mark a row whose key names no current member.
-	ListAnnotations(ctx context.Context) ([]Annotation, error)
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
-	// The opted-in `Seed` ids, for the Seeds screen to mark which scopes have opted
-	// into the cold tier.
-	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
-	// The cold Scan's opted-in scope, for dispatch: every `Seed` opted into the
-	// full-range tier, with its kind and scope so the dispatcher can bound the sweep
-	// to the addresses an address-scope enumerates or a name-scope's names resolve
-	// to. An empty result is the shipped disabled state — no jobs (ADR-0044).
-	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
 	// Reads behind the Subjects screen (#189). All four are additive read queries
 	// over the wave-0 measurement corpus (observation / batch / scan) and the seed
 	// table — no new schema. `ListCurrentNameSubjects` is the thin "current Names"
@@ -194,21 +170,24 @@ type Querier interface {
 	// there is nothing here to total. A withdrawn Name (latest resolution =
 	// NameError) is filtered out and reached only by key (GetNameSubject).
 	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
-	// Every Service currently in the estate, with optional search (#195). A Service
-	// is an (Address, port, transport) triple whose membership is its Address's
-	// membership restated — an Address is in the estate exactly while a current
-	// resolution cites it or a Seed covers it — so this is the thin "current
-	// Services" read the drill-down lists. Like the Name listing it carries no
-	// denominator (ADR-0072). A Service that has fallen out of the estate (its
-	// Address de-cited) is reached only by its own key; the value shown is the latest
-	// reachability verdict, reached or not-reached, both measured values.
-	ListCurrentServiceSubjects(ctx context.Context, search string) ([]ListCurrentServiceSubjectsRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	// The registrable domains of custody-extended name-scope Seeds, for the hot
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
 	// derives operator by extension (ADR-0013 §3).
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
+	// The gate every derivation reads observations through (v1 spec §4.6, ADR-0041):
+	// it returns ONLY live-tier rows — those within k cadences of the tightest ENABLED
+	// Scan covering their timeline — so an evidential row is structurally unreadable by
+	// any derivation reading through it, and no derivation can re-derive history from a
+	// stale observation. The bound is evaluated PER TIMELINE and never collapsed:
+	// `cover` groups by the full timeline key (subject, facet, discriminator, vantage,
+	// source) and takes the tightest covering cadence, so a zone-sourced row's live
+	// window is the zone cadence and a resolver-sourced row's is the resolver's. A
+	// timeline no enabled Scan covers has an undefined bound: the INNER JOIN drops it,
+	// so it yields no live row (it is retained as evidence, not read). @floor_cadences
+	// is k; @as_of is the read instant.
+	ListLiveObservationsForDerivation(ctx context.Context, arg ListLiveObservationsForDerivationParams) ([]ListLiveObservationsForDerivationRow, error)
 	// The latest `dns-record` observation per (Name, qtype discriminator). The engine
 	// reads two of these: the CNAME discriminator carries the alias target (for
 	// cname-target-name-error) and the NS discriminator carries the delegation walk's
@@ -292,11 +271,6 @@ type Querier interface {
 	// Open a new span for a timeline. The caller passes the canonical value, the
 	// gap flag, and the Derivation vector as a JSON array of {leaf,version}.
 	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
-	// Opts one `Seed` scope into the cold tier. Idempotent on seed_id: opting an
-	// already-opted-in scope in again is a no-op, never a duplicate.
-	OptInColdScope(ctx context.Context, arg OptInColdScopeParams) error
-	// Opts one `Seed` scope back out of the cold tier.
-	OptOutColdScope(ctx context.Context, seedID int64) error
 	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
 	// the vantage available. The host_key IS NULL guard makes this a no-op once a
 	// key is pinned, so a first-connect race can never overwrite an existing pin.
@@ -325,13 +299,15 @@ type Querier interface {
 	// nothing. It reads only the scan table and never the operational or measured
 	// corpora.
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
-	// Reconciles the cold Scan's enabled flag with its scope: enabled exactly while
-	// at least one `Seed` scope is opted in. This is the whole of "enabling it is
-	// per-Seed, not global" (ADR-0044) — the operator never toggles a global switch;
-	// opting the first scope in enables the tier, opting the last out disables it.
-	// Called after every opt-in and opt-out, never on a cadence tick, so the tier is
-	// never enabled as a side effect of a measurement.
-	SyncColdScanEnabled(ctx context.Context) error
+	// The tightest enabled Scan's cadence — the smallest cadence_seconds among enabled
+	// Scans — which is k cadences of the smallest per-timeline observation bound any
+	// in-force timeline can carry, and therefore the observation dial's floor (v1 spec
+	// §4.6, ADR-0094). Symmetric to the Dispatch floor's SlowestEnabledScanCadence
+	// (which takes MAX): Dispatch floors at the slowest Scan, observations at the
+	// tightest. COALESCE to 0 when no Scan is enabled: with no bound in force there is
+	// nothing to floor against and the dial is unconstrained. Reads only the scan
+	// table, never the measured corpora.
+	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.
