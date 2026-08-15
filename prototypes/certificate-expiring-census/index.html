@@ -184,6 +184,19 @@
             padding: 5px 8px; border: 1px solid transparent; }
   .foot a:hover { opacity: 1; }
   .foot a.on { opacity: 1; border-color: var(--text-on-ink); }
+
+  /* ── THE DATELINE — ADR-0075 (#131), applied by #144 ──────────────────
+     prototypes/seeds/'s dashed accent annotation box, already declared "not
+     part of the design". No new token. */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
 </style>
 </head>
 <body>
@@ -435,6 +448,29 @@ function noPopulation() {
       panel in the product that may hold none.</div></div>`;
 }
 
+/* ── THE DATELINE — ADR-0075 (#131), applied by #144 ────────────────────────
+   A prototype is a dated record of a READING, never of a RULE. The provenance
+   has to be in what the browser DRAWS: every recorded instance of a prototype
+   being wrongly believed happened in a browser, where an HTML comment is
+   invisible. Drawn on every header × row × fill combination, because every one
+   is a reading. */
+function dateline() {
+  return `
+  <div class="anno">
+    <span class="ml">prototype · not part of the design</span>
+    <p><b>Issue #72 — "What does certificate-expiring's census say when every endpoint carries its
+      own horizon?". Drawn 2026-08-14.</b> Throwaway: something to decide against, not production UI
+      and not a component library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a current value</b> — the corpus
+      as it stood on that date, and nothing here has been re-filled since. The only live absolutes
+      are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>): read a
+      figure there before believing one here. What is <i>not</i> a dated reading is the state these
+      screens draw — the acts they offer, the populations they show as non-empty and the sentences
+      they put in the product's mouth. A later ruling that makes one of those unreachable is marked
+      here in place and never redrawn.</p>
+  </div>`;
+}
+
 function render() {
   const F = FILLS[FILL];
   const body = FILL === "empty" ? noPopulation() : `
@@ -458,6 +494,7 @@ function render() {
     </div>`;
 
   document.getElementById("shell").innerHTML = `
+    ${dateline()}
     <h1 class="page">Signals</h1>
     <p class="sub">A signal is a named fact with evidence and no severity. Each rule renders a
     census of three members over one population — and never as a delta, a trend or a series
