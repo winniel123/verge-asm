@@ -61,7 +61,9 @@ func (s *server) requireLogin(h authedHandler) http.HandlerFunc {
 func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
 		if acct.Role != roleAdmin {
-			s.renderStatus(w, http.StatusForbidden, "home", homeData(acct, "You need an admin role to do that."))
+			s.renderStatus(w, http.StatusForbidden, "forbidden", map[string]any{
+				"Title": "Not permitted", "Message": "You need an admin role to do that.",
+			})
 			return
 		}
 		h(w, r, acct)
@@ -152,7 +154,9 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if acct.TotpEnabled {
-		s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, s.pendingTTL)
+		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, s.pendingTTL) {
+			return
+		}
 		s.render(w, "totp", map[string]any{"Title": "Two-factor"})
 		return
 	}
@@ -189,7 +193,9 @@ func (s *server) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64) {
-	s.setSignedCookie(w, r, sessionCookie, auth.KindSession, id, s.sessionTTL)
+	if !s.setSignedCookie(w, r, sessionCookie, auth.KindSession, id, s.sessionTTL) {
+		return
+	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -352,18 +358,21 @@ func (s *server) serverError(w http.ResponseWriter, what string, err error) {
 // setSignedCookie writes a signed cookie of the given kind for the account. It
 // is HttpOnly and SameSite=Lax (which blocks cross-site POSTs, the CSRF vector
 // for the mutating endpoints), and Secure when the request arrived over TLS.
-func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name string, kind auth.Kind, id int64, ttl time.Duration) {
+// It reports success: on a signing failure it has already written a 500, and
+// the caller must return rather than write a second response.
+func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name string, kind auth.Kind, id int64, ttl time.Duration) bool {
 	token, err := auth.SignSession(s.key, auth.Session{
 		AccountID: id, Kind: kind, ExpiresAt: s.now().Add(ttl),
 	})
 	if err != nil {
 		s.serverError(w, "sign session", err)
-		return
+		return false
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: name, Value: token, Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteLaxMode, Secure: s.secureCookies || r.TLS != nil, MaxAge: int(ttl.Seconds()),
 	})
+	return true
 }
 
 func (s *server) clearCookie(w http.ResponseWriter, name string) {
