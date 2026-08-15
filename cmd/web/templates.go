@@ -93,6 +93,16 @@ details.edit .section { margin-top: var(--space-3); margin-bottom: 0; }
 .dial { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
 .dial label { margin-bottom: 0; min-width: 220px; }
 .dial .unit { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.searchbar { display: flex; gap: var(--space-4); align-items: flex-end; margin-bottom: var(--space-5); }
+.searchbar label { margin-bottom: 0; }
+.searchbar .grow { flex: 1; }
+ol.chain { list-style: none; margin: var(--space-4) 0 0; padding: 0; }
+ol.chain li { position: relative; padding: 0 0 var(--space-4) var(--space-5);
+  border-left: 2px solid var(--ink); margin-left: 5px; }
+ol.chain li:last-child { padding-bottom: 0; border-left-color: transparent; }
+ol.chain li::before { content: ""; position: absolute; left: -6px; top: 3px;
+  width: 8px; height: 8px; background: var(--ink); }
+ol.chain .chainval { margin: 2px 0; }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -164,7 +174,7 @@ Two-factor is not active until you confirm.</p>
 
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
-<nav class="nav"><a href="/">Home</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
+<nav class="nav"><a href="/">Home</a><a href="/subjects">Subjects</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
 </div>{{end}}
@@ -511,6 +521,104 @@ land with later work; for now each floors at zero, where zero means no operator 
 </div>
 </form>
 {{if .Retention.UpdatedAt}}<p class="muted" style="margin-top:12px">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span class="mono">{{.Retention.UpdatedBy}}</span>{{end}}.</p>{{end}}
+</div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "subjects"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="microlabel">Observed · subjects</div>
+<h1>Subjects</h1>
+<p>Every Name currently in your estate. Only names exist here yet — addresses,
+services and endpoints arrive with later measurement. There is no total: how many
+names your estate ought to hold is its completeness, which only you know, so this
+screen states none.</p>
+
+<form method="get" action="/subjects" class="searchbar">
+<label class="grow"><span>Search names</span><input name="q" value="{{.Search}}" placeholder="example.com" autocomplete="off"></label>
+<button type="submit">Search</button>
+{{if .Search}}<a class="btn secondary" href="/subjects" style="text-decoration:none">Clear</a>{{end}}
+</form>
+
+<div class="section">
+<div class="microlabel">Name subjects</div>
+{{if .Subjects}}
+<table>
+<thead><tr><th>Name</th><th>Resolution</th></tr></thead>
+<tbody>
+{{range .Subjects}}<tr>
+<td><a class="mono" href="/subjects/{{.Name}}">{{.Name}}</a></td>
+<td>{{if .Resolution}}<span class="badge">{{.Resolution}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="microlabel">{{if .Search}}No name matches{{else}}No names yet{{end}}</div>
+<p>{{if .Search}}No current name matches that search. A withdrawn name is reached by its exact key, never by browsing — search the full name.{{else}}No name has been measured into the estate yet. Declare a name scope on Seeds, then let the dns Scan resolve it.{{end}}</p>
+{{end}}
+</div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "subject"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+{{with .Subject}}
+<div class="microlabel">Observed · Name</div>
+<h1 class="mono">{{.Name}}</h1>
+{{if .Withdrawn}}
+<div class="notice">This name is withdrawn — it names a population of no current member. Its timelines are closed. It is reached by its own key and never appears in the listing.</div>
+{{end}}
+
+<div class="section">
+<div class="microlabel">Why is this here</div>
+<h2>Citation chain</h2>
+<p>Following a subject's citations backwards always terminates at a Seed you declared — that is what makes "why is this here" answerable for everything in the estate.</p>
+<ol class="chain">
+{{range .Citation}}<li>
+<div class="microlabel">{{.Label}}</div>
+<div class="mono chainval">{{.Value}}</div>
+{{if .Detail}}<div class="muted">{{.Detail}}</div>{{end}}
+</li>{{end}}
+</ol>
+{{if not .CitationTerminated}}<p class="muted">The chain does not reach a declared Seed. That is an integrity gap, not a normal state — every subject in the estate should trace back to a scope you declared.</p>{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Current · resolution</div>
+<h2>Resolution</h2>
+{{if .Resolution}}
+<div class="kv"><div class="k">Outcome</div><div><span class="badge">{{.Resolution}}</span></div></div>
+{{if .Addresses}}<div class="kv"><div class="k">Addresses</div><div class="mono">{{range .Addresses}}{{.}}<br>{{end}}</div></div>{{end}}
+{{else}}<p class="muted">No resolution value recorded.</p>{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Timelines</div>
+<h2>Current and closed timelines</h2>
+<p class="muted">This subject's facet timelines — current values, any gaps with their stated cause, and (once withdrawn) its closed history — render here. Wired up by ticket 10.</p>
+</div>
+
+<div class="section">
+<div class="microlabel">Rules</div>
+<h2>Rules over this subject</h2>
+<p class="muted">Every rule whose predicate domain includes this subject renders here, each carrying its own versioned verdict. Wired up by ticket 22.</p>
+</div>
+{{end}}
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "subject-missing"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="microlabel">No such subject</div>
+<h1 class="mono">{{.Name}}</h1>
+<div class="section">
+<p>No subject is keyed under that name. Nothing has ever measured it into the
+estate — this is not a withdrawn subject, which would still be reachable here by
+its own key.</p>
+<p><a href="/subjects">Back to subjects</a></p>
 </div>
 </main>
 {{template "foot" .}}{{end}}

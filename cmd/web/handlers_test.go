@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,7 +45,13 @@ type fakeStore struct {
 
 	// scans mirrors the scan table. newFakeStore seeds the dns Scan the migration
 	// ships (enabled, daily) so the aperture statement has a cadence to read.
-	scans map[string]db.Scan
+	// The Subjects reads (#189) also join the observation/batch corpus.
+	observations []db.Observation
+	batches      []db.Batch
+	scans        []db.Scan
+	obsNextID    int64
+	batchNextID  int64
+	scanNextID   int64
 }
 
 // fakeChannel mirrors a channel row, secret included, so tests can assert the
@@ -64,18 +71,20 @@ func newFakeStore() *fakeStore {
 		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
 		seedNextID: 1, exclNextID: 1, vantageNextID: 1, chanNextID: 1,
 		sourceStates: map[string]db.SourceState{},
-		scans: map[string]db.Scan{
-			"dns": {ID: 1, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
+		scans: []db.Scan{
+			{ID: 1, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
 		},
+		obsNextID: 1, batchNextID: 1, scanNextID: 1,
 	}
 }
 
 func (f *fakeStore) GetScanByKind(_ context.Context, kind string) (db.Scan, error) {
-	sc, ok := f.scans[kind]
-	if !ok {
-		return db.Scan{}, pgx.ErrNoRows
+	for _, sc := range f.scans {
+		if sc.Kind == kind {
+			return sc, nil
+		}
 	}
-	return sc, nil
+	return db.Scan{}, pgx.ErrNoRows
 }
 
 func (f *fakeStore) RecordHeartbeat(context.Context) (db.Heartbeat, error) {
@@ -405,6 +414,150 @@ func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRete
 	f.retention.UpdatedBy = arg.UpdatedBy
 	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 	return nil
+}
+
+// --- Subjects reads --------------------------------------------------------
+
+// ensureScan returns the id of the scan of the given kind, creating it once.
+func (f *fakeStore) ensureScan(kind string) int64 {
+	for _, sc := range f.scans {
+		if sc.Kind == kind {
+			return sc.ID
+		}
+	}
+	sc := db.Scan{ID: f.scanNextID, Kind: kind, Enabled: true, CadenceSeconds: 86400}
+	f.scans = append(f.scans, sc)
+	f.scanNextID++
+	return sc.ID
+}
+
+// addResolution records a resolution observation for a Name in a fresh batch of
+// the given scan kind, mirroring what the measurement worker writes. It is the
+// only seam the Subjects tests need to populate the estate.
+func (f *fakeStore) addResolution(t *testing.T, createdBy int64, name, scanKind string, at time.Time, value string) {
+	t.Helper()
+	scanID := f.ensureScan(scanKind)
+	b := db.Batch{ID: f.batchNextID, ScanID: scanID, Kind: "resolution-walk", Outcome: "completed"}
+	f.batches = append(f.batches, b)
+	f.batchNextID++
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: b.ID, Facet: "resolution", SubjectKind: "name",
+		SubjectKey: name, Source: "resolver", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+// latestResolutionByName picks, per Name, its latest resolution observation —
+// max observed_at, then max id — mirroring the DISTINCT ON in the SQL.
+func (f *fakeStore) latestResolutionByName() map[string]db.Observation {
+	latest := map[string]db.Observation{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "name" || o.Facet != "resolution" {
+			continue
+		}
+		cur, ok := latest[o.SubjectKey]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[o.SubjectKey] = o
+		}
+	}
+	return latest
+}
+
+func fakeResolutionOutcome(value []byte) string {
+	var v struct {
+		Outcome string `json:"outcome"`
+	}
+	_ = json.Unmarshal(value, &v)
+	return v.Outcome
+}
+
+func (f *fakeStore) ListCurrentNameSubjects(_ context.Context, search string) ([]db.ListCurrentNameSubjectsRow, error) {
+	latest := f.latestResolutionByName()
+	keys := make([]string, 0, len(latest))
+	for k := range latest {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	rows := []db.ListCurrentNameSubjectsRow{}
+	for _, k := range keys {
+		o := latest[k]
+		if fakeResolutionOutcome(o.Value) == "NameError" {
+			continue
+		}
+		if search != "" && !strings.Contains(strings.ToLower(k), strings.ToLower(search)) {
+			continue
+		}
+		rows = append(rows, db.ListCurrentNameSubjectsRow{
+			SubjectKey: k, Value: o.Value, ObservedAt: o.ObservedAt,
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) GetNameSubject(_ context.Context, key string) (db.GetNameSubjectRow, error) {
+	o, ok := f.latestResolutionByName()[key]
+	if !ok {
+		return db.GetNameSubjectRow{}, pgx.ErrNoRows
+	}
+	return db.GetNameSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
+}
+
+func (f *fakeStore) GetNameCitation(_ context.Context, key string) (db.GetNameCitationRow, error) {
+	var best *db.Observation
+	for i := range f.observations {
+		o := &f.observations[i]
+		if o.SubjectKind != "name" || o.Facet != "resolution" || o.SubjectKey != key {
+			continue
+		}
+		if best == nil || o.ObservedAt.Time.Before(best.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(best.ObservedAt.Time) && o.ID < best.ID) {
+			best = o
+		}
+	}
+	if best == nil {
+		return db.GetNameCitationRow{}, pgx.ErrNoRows
+	}
+	var scanID int64
+	for _, b := range f.batches {
+		if b.ID == best.BatchID {
+			scanID = b.ScanID
+		}
+	}
+	var scanKind string
+	for _, sc := range f.scans {
+		if sc.ID == scanID {
+			scanKind = sc.Kind
+		}
+	}
+	return db.GetNameCitationRow{
+		ID: best.ID, ObservedAt: best.ObservedAt, Source: best.Source,
+		VantageID: best.VantageID, BatchID: best.BatchID, ScanID: scanID, ScanKind: scanKind,
+	}, nil
+}
+
+func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.FindCoveringNameSeedRow, error) {
+	var best *db.Seed
+	for i := range f.seeds {
+		s := &f.seeds[i]
+		if s.Kind != "name" || !s.NameDomain.Valid {
+			continue
+		}
+		d := s.NameDomain.String
+		if name == d || strings.HasSuffix(name, "."+d) {
+			if best == nil || len(d) > len(best.NameDomain.String) {
+				best = s
+			}
+		}
+	}
+	if best == nil {
+		return db.FindCoveringNameSeedRow{}, pgx.ErrNoRows
+	}
+	return db.FindCoveringNameSeedRow{
+		ID: best.ID, NameDomain: best.NameDomain, CreatedAt: best.CreatedAt,
+		CreatedByUsername: f.accounts[best.CreatedBy].Username,
+	}, nil
 }
 
 // testKey is a fixed 32-byte session signing key for tests.
