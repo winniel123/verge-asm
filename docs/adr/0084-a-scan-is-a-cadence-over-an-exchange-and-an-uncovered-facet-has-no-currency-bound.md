@@ -49,7 +49,7 @@ The upstream that decides the shape:
 | Aperture inputs | **Seven, unchanged.** A cadence is not a dimension of a recorded scope |
 | Declared parameters | **None added.** Every parameter of `resolution-walk` and `wildcard-discrimination` already has a value |
 | The zone source's `dns-record` timeline | **Already covered, by `zone`.** One timeline per source, and only *our resolver's* was uncovered |
-| The passive sources' admissions | **Not covered here.** Their hop is a `Citation` and not an observation; ticketed, not guessed at |
+| The passive sources' admissions | **Not covered here.** Their hop is a `Citation` and not an observation; ticketed, not guessed at. *(Answered by [#176](https://github.com/winniel123/verge-asm/issues/176) · [ADR-0096](./0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md): a `Citation` **never ages**, so no `Scan` is owed for a currency reason and the withdrawal route is refused on capability. The poll's **cadence** remains open and is re-ticketed.)* |
 
 ## Rationale
 
@@ -269,6 +269,21 @@ cadence would, on a bad day at the source, mass-withdraw an estate.
 That is worth its own interrogation and gets a successor ticket. Putting it on `dns` would also make
 the name a lie about the scope, which is §4 above.
 
+> **The successor ran: [#176](https://github.com/winniel123/verge-asm/issues/176) ·
+> [ADR-0096](./0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md).**
+> Marked here per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md),
+> because *"a `Citation` that goes stale"* read alone and in the present tense asserts a clock that
+> does not exist. **A `Citation` never ages.** What `completeness` decides is whether a later `Batch`
+> may **contradict** one, and only an `enumerable` source's silence can — as ADR-0006's measured
+> absence, not as expiry. CT is `corroborative`, so **no**: its silence may not retire a `Name`, and
+> the refusal is on **capability** rather than on the failure rate this paragraph cites. Certificate
+> transparency is append-only, so a citation clock's complete firing set is *the source errored*,
+> *the 999-row cap truncated under a 200*, and *the name was only ever in a wildcard SAN and was
+> never admitted* — every one a defect of our own instrument and none a fact about the estate.
+> **What remains open is the poll's cadence**, which carries no currency consequence and is
+> re-ticketed with its scope drawn: `passive-discovery-sources.md` §16.2's residue is one row short
+> (Common Crawl is mis-filed there), so the covered set is undecided.
+
 ### Where this was decided on thin ground
 
 **The daily default.** The *shape* — a `Scan`, one, over the exchange, with no port list — is derived
@@ -305,8 +320,13 @@ and moving it moves no version and `Break`s nothing — and it is flagged rather
 - **[#138](https://github.com/winniel123/verge-asm/issues/138) gets its precondition, not its
   answer.** One `Scan` over every vantage on one cadence is what makes a unanimity composition and an
   existential composition both expressible; which of them a leaf uses is #138's.
-- **The passive sources' `Citation` staleness is open and ticketed**, and the estate of a source that
-  errors is the hazard that ticket must price.
+- ~~**The passive sources' `Citation` staleness is open and ticketed**, and the estate of a source that
+  errors is the hazard that ticket must price.~~
+  **DISCHARGED** by [#176](https://github.com/winniel123/verge-asm/issues/176) ·
+  [ADR-0096](./0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md):
+  there is no such thing as `Citation` staleness on a `Batch` hop. The hazard priced out worse than
+  this bullet expected — the instrument has **no** evidential content in the withdrawal direction,
+  not merely poor content. **The poll's cadence is the residue** and is re-ticketed separately.
 
 ## Alternatives rejected
 
@@ -320,4 +340,4 @@ and moving it moves no version and `Break`s nothing — and it is flagged rather
 | **Give it a port list of 53** | The port of the transport to the authority is not a dimension of what we may find; no value carries a per-port negative over it, widening it discovers nothing, and it would put a hidden aperture input on a `Scan` that has none. `zone` already established that a `Scan` need not have one |
 | **Pin the cadence to the tightest enabled port tier rather than making it a dial** | A `Scan` with a computed cadence is the hidden field again, one layer up. And the failure it guards against is already handled: loosening `dns` withdraws `Address`es rather than probing stale ones |
 | **Hourly** | An underived number, multiplying ten control labels per parent per qtype by 24 against the operator's own authorities, to buy currency nothing reads at that resolution |
-| **Cover the passive sources' admissions on this `Scan` too** | Their hop is a `Citation`, not an observation; the consequence is subject withdrawal rather than a `Gap`; and it turns on whether a source the map measured returning spurious 404s may retire a `Name` by silence. A separate question, ticketed rather than guessed at — which is the move #124 made to produce this ADR |
+| **Cover the passive sources' admissions on this `Scan` too** | Their hop is a `Citation`, not an observation; the consequence is subject withdrawal rather than a `Gap`; and it turns on whether a source the map measured returning spurious 404s may retire a `Name` by silence. A separate question, ticketed rather than guessed at — which is the move #124 made to produce this ADR. *(Answered by [ADR-0096](./0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md): it may not, and a `Citation` does not age on any hop — so covering them **on any `Scan`** would have bought a currency bound with an empty domain)* |

@@ -97,6 +97,26 @@ goes stale is withdrawn, so a subject in the estate has a citation inside the bo
 The exemption that survives is the `Batch` one above, because a `Batch` cited by a source that admits
 without observing is not an observation and does not age the same way.
 
+> **CLOSED at this sentence** by [#176](https://github.com/winniel123/verge-asm/issues/176) ·
+> [ADR-0096](./0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md),
+> marked here per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md):
+> read alone and in the present tense, *"does not age the same way"* names a seam and sends the next
+> session to work out the rate. **It does not age at all.** There is no observation to carry a clock
+> and none is created; what `completeness` decides is whether a later `Batch` may **contradict** a
+> citation, and only an `enumerable` source's silence — within a recorded scope covering the subject —
+> can, as ADR-0006's measured absence rather than as expiry. Certificate transparency is
+> `corroborative`, so its citations never expire.
+>
+> **The retention consequence is that the second limb of the `Batch` rule above has no clock behind
+> it.** A `Batch` held as the current `Citation` is released only when a later `Batch` from the same
+> source re-admits the subject and takes the role over — the ordinary case on every poll of an
+> append-only source, with the residue being a subject dropped from a **truncated** answer, whose
+> citation stays pinned to an older `Batch` retained indefinitely. It is bounded by the instrument's
+> own cap and it is stated rather than modelled around.
+>
+> **The `already subsumed` sentence above survives untouched**, and this is why it needed checking:
+> it is true of observation-hop citations and it is what makes the `Batch` limb the only exemption.
+
 `k` deserves one sentence because it looks like a hazard and is not. It is a declared parameter
 inside the vector, so moving it `Break`s the estate; the fold restarts under the new vector, reading
 new batches. **Widening `k` changes what future folds read, never what past folds did**, so an

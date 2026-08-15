@@ -188,6 +188,15 @@ not be one the operator declared, and may be as small as a single subject: our o
 resolver is `enumerable` over one `Name`, because a Name Error is a complete answer to
 whether that name exists. What the rule requires is that the `Batch` record the scope,
 not that anyone else have drawn it.
+It governs the **`Citation` hop as well as the observation**, and that is the same rule and
+not a second one: retiring a citation because a source stopped naming the subject is
+concluding absence from silence. So only an **`enumerable`** source's silence — within a
+recorded scope covering the subject — may contradict a citation, and it does so as a
+**measured absence** under [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md)
+rather than by any clock. A `corroborative` source's silence may not, at any interval; no
+v1 source is both `enumerable` and admits without observing, so the first limb is written
+for the source that arrives later. See
+[ADR-0096](./docs/adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md).
 
 **Consent**:
 Whose permission a source runs on. `unencumbered` sources run by default. An
@@ -804,6 +813,12 @@ subject in the estate** — the hop a source that admits without observing leave
 on the operational record's schedule strands an observation's scope and, where it is a `Citation`,
 withdraws a subject. See
 [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
+The second limb has **no clock behind it**: a `Citation` never ages, so a `Batch` held in that role
+is released only when a later `Batch` from the same source re-admits the subject and takes the role
+over. For an append-only source that is the ordinary case on every poll; the residue is a subject
+dropped from a **truncated** answer, whose citation stays pinned to an older `Batch` retained
+indefinitely. See
+[ADR-0096](./docs/adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md).
 _Avoid_: run, scan run, execution, sweep
 
 **Citation**:
@@ -817,6 +832,24 @@ which already records the source, the vantage, the time and the scope, so the ch
 terminates at the `Seed` that scope was drawn from and a bad source is still identified by
 traversing everything it introduced. See
 [ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md).
+**A `Citation` itself never ages**, and the sentence above is qualified here at the site
+that states it
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+read alone and in the present tense, *goes stale* reads as a clock the model does not have.
+Where the hop is an **observation** the clock is the **observation's** — `k` cadences of its
+covering `Scan` — and the one live instance is `Address`, in the estate exactly while a
+*current* resolution cites it. Where the hop is a **`Batch`** there is no observation, so
+there is **no bound and none is created**: what `completeness` decides is not a rate but
+whether a later `Batch` may **contradict** a citation. An `enumerable` source's silence
+within a recorded scope covering the subject is a **measured absence** and withdraws it by
+[ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md)'s existing route; a
+`corroborative` source's silence does nothing at all, which is that value's definition, so
+certificate transparency's citations do not expire. And a citation is **necessary for
+membership, never sufficient** — it answers *why is this here*, so a `Name` withdrawn by a
+measured Name Error and a live CT citation coexist. The exception is `Address`, the one
+subject whose existence nothing observes, where the current citation carries the whole
+membership — and it is the hop that ages, because it is an observation. See
+[ADR-0096](./docs/adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md).
 _Avoid_: provenance chain, lineage, discovery path
 
 ### Derived
