@@ -185,8 +185,14 @@ Currency already covers it. An observation is current within `k` cadences of the
 non-event in the drift model, with no damping and no threshold — which matters, because damping is
 exactly what this project refuses in the comparison path and exactly what this case invites.
 
-The cost is real and is discharged elsewhere rather than accepted. On a weekly `Scan` with `k`=2,
-a disclaimed address keeps rendering its last measured `exposed` for up to a fortnight. That is
+The cost is real and is discharged elsewhere rather than accepted. ~~On a weekly `Scan` with `k`=2,
+a disclaimed address keeps rendering its last measured `exposed` for up to a fortnight.~~
+**Every sensitive-list pair sits in `verge-core`, so the covering cadence is `daily` and the window
+is `k`=2 cadences — TWO DAYS — since [#78](https://github.com/winniel123/verge-asm/issues/78)
+retired the weekly tier.** The Consequences section below stated this correction; it is repeated
+here because this is the site that *specifies* the window, and per
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) read alone
+and in the present tense the struck sentence would build a fortnight-wide window. That is
 not a stale attribution, because **`Custody`'s own timeline is current**: it reads `third-party`
 from the instant the operator toggled, so every surface says *this is not yours* beside the aged
 value. A fact we measured is being shown next to a custody value that is correct. Forcing currency

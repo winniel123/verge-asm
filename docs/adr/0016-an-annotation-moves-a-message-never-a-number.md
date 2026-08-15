@@ -211,7 +211,9 @@ repair is at `CONTEXT.md`, and it is a larger part of this ticket's value than t
   is withdrawn at the site that specifies it. The entry now names the one job, the six riders and
   the three barred routes with their decisions, so the next session that reaches for the term finds
   the refusals rather than re-deriving them.
-- **No number in the corpus moves.** The v1 rule set stays at **sixteen**, every census stays as
+- **No number in the corpus moves.** The v1 rule set stays at ~~**sixteen**~~ **seventeen since
+  [#128](https://github.com/winniel123/verge-asm/issues/128)** — *this ADR moved it neither way; the
+  figure is a dated record of that, correct when written* — every census stays as
   specified, `Coverage`'s numerator and denominator are untouched, and no `Derivation` leaf gains an
   input. This ADR is the rare one whose entire content is what may *not* be read.
 - **No new notification class and no new destination.** The three classes remain a partition of
