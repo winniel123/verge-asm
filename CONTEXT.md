@@ -469,7 +469,9 @@ scope**, deduplicated, intersected with the `Seed` name scopes they sit inside, 
 `Batch` **by content** as the **seventh aperture input** — never a declared parameter of
 `wildcard-discrimination`, whose control-label count and match predicate ~~stay where they are~~
 **have since both been valued — the match predicate by ADR-0068, and the count and construction by
-ADR-0069: five random labels plus one structured label, each exactly one label.** That
+ADR-0069: ~~five~~ nine random labels plus one structured label, each exactly one label — the count
+raised from five by [#115](https://github.com/winniel123/verge-asm/issues/115) on a measured
+mechanism, per-label sharding, with the construction untouched.** That
 needs no depth rule, because a control label constructed under a parent falls off the tree at the
 same closest encloser its children do, whatever depth the wildcard sits at and **whether or not the
 parent exists or is a `Name` we hold** — a probe site is a label sequence we construct rather than a
