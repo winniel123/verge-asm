@@ -690,7 +690,15 @@ value rather than discarded, because *we cannot see here* is a fact the operator
 the alternative manufactures drift: repoint one wildcard and every fictional name beneath
 it reports a resolution change the same night. Whether a name is admitted under a wildcard
 turns on its `Citation`, not on this answer — a certificate SAN survives, a guessed label
-does not. That rule governs names **beneath** a wildcard and is the whole of the question, because
+does not. **This value cites nothing, and that is why the leaf deciding it is in the membership
+vector.** An answer served for a name that does not exist may cite no `Address`, so where a
+synthesised answer would have carried addresses, `Shadowed` carries none and every `Address` held
+only by that citation **leaves the estate** — a cited `Address` being in the estate exactly while a
+current resolution cites it. `wildcard-discrimination` therefore decides a cited `Address`'s presence
+**affirmatively**, not merely by suppressing a `Name`'s departure, and membership composes it
+alongside `resolution-walk` ([#146](https://github.com/winniel123/verge-asm/issues/146) ·
+[ADR-0086](./docs/adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md); see
+`Transition`). That rule governs names **beneath** a wildcard and is the whole of the question, because
 the wildcard name itself is a subject nowhere: it denotes a set rather than a thing, so nothing is
 left for this value to be undecided about. It is also why no query is ever made for a name whose
 leftmost label is `*` — such a query is answered by exact match and would read as its own poison
@@ -1347,11 +1355,28 @@ the carrier correct and the word a lie. It cannot be repaired afterwards, since 
 re-derived, so the release **states** the loss on the re-baseline message that already names the leaf
 that moved. Membership therefore composes the **narrowest** vector that decides presence and a
 release may not widen it: a `Name`'s and a cited `Address`'s membership both compose
-`resolution-walk`, which [ADR-0021](./docs/adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)
+~~`resolution-walk`~~ **`resolution-walk` *and* `wildcard-discrimination`**, which
+[ADR-0021](./docs/adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)
 puts on a **dependency** cadence, while a `Seed`-covered `Address` composes **nothing at all** — a
 `Seed` is Declared and carries no vector — so that one population's membership timeline cannot break.
+The one-leaf reading is **superseded here, at the site that specifies it**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+read alone and in the present tense it records a vector short by one leaf, which is the record
+[#146](https://github.com/winniel123/verge-asm/issues/146) ·
+[ADR-0086](./docs/adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)
+corrects. **A derivation composes every leaf that decides the value it reads**, and membership reads
+`resolution`, which two leaves decide jointly: `resolution-walk` decides
+`NameError │ NoData │ Lame │ Resolved` and `wildcard-discrimination` decides `Shadowed`. The
+deciding ground is the citation rather than the suppression — **`Shadowed` cites no `Address`**, so
+the verdict decides whether an answer's address set enters the estate, which is a cited `Address`'s
+membership affirmatively. It is **still the narrowest** such vector: `connect-outcome`,
+`tls-handshake` and `http-exchange` decide values membership does not read and stay out. And it is
+**not a widening** — the vector is **discovered from what decides presence, never declared**, so a
+leaf omitted from this sentence was never thereby outside it; what a release may not do is **make** a
+leaf decide presence that did not.
 See
-[ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
+[ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) and
+[ADR-0086](./docs/adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md).
 An absent `Break` is **not sufficient** for `returned`, though, and the second input is the closing
 `Closure`'s reason. `appeared` and `returned` are membership while a scope act is aperture yielding
 `revealed`, so a **`descoped`** closure does not license `returned` across it — and the case is

@@ -123,7 +123,13 @@ chains leave the zone — rows this screen does not have at all.
   ruling total.
 - **The floor obligation lands in one column and is inconsistent across it, correctly.** *In the
   estate since* is a duration over a derivation wherever the membership timeline can `Break`. A
-  `Name`'s membership composes `resolution-walk`, so it clamps and reads `≥`. A `Seed`-covered
+  `Name`'s membership composes `resolution-walk` **and `wildcard-discrimination`**
+  ([#146](https://github.com/winniel123/verge-asm/issues/146) ·
+  [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) — the one-leaf
+  reading is corrected at this clause, per
+  [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), so it
+  clamps and reads `≥`. **The conclusion is unchanged and two leaves can now move it.** A
+  `Seed`-covered
   `Address`'s membership composes **nothing at all** — a `Seed` is Declared and carries no vector —
   so its date is exact. Two renderings in one column on one screen, and the difference is a property
   of the subject rather than of the display.
