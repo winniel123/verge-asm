@@ -276,20 +276,43 @@ cheap and must run before any name-based expansion:
 1. ~~Query 3–5 long random labels under the apex (e.g. `<random32>.example.com`) for A, AAAA, and CNAME.~~
    Query 3–5 long random labels under **each name in the control-probe population** (e.g.
    `<random32>.dev.example.com`) for the declared qtype set.
-2. If they answer, record the wildcard answer set as a **poison signature**.
+2. ~~If they answer, record the wildcard answer set as a **poison signature**.~~
+   **WITHDRAWN by [#111](https://github.com/winniel123/verge-asm/issues/111) /
+   [ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md):
+   there is no *the* answer set.** If they answer, record the signature **per component** — a
+   component being one `(qtype asked, RR type in the answer)` pair — as one of three:
+   **`NoSynthesis`** (no control label carried an RR of that type), **`Determinate(RRset)`** (all
+   *n* carried the identical RRset), **`Indeterminate`** (they disagreed). **Never a union of the
+   observed sets**, which is the object an intersection predicate needs and which is therefore
+   deliberately not recorded. See §11.
 3. ~~Repeat one level down for each discovered sub-zone — wildcards can exist at any label depth.~~
    No repetition and no depth walk: the parent population already covers every held name at every
    depth.
-4. Suppress (or flag as unverifiable) any candidate whose answer matches the poison signature.
-   **The match predicate is unspecified and is not set equality** — **[measured]** 2026-08-14,
-   `herokuapp.com` returned three distinct synthesised address sets across five control labels and
-   `vercel.com` returned five, seconds apart from one vantage, while `github.io` and `localtest.me`
-   held still. Open as [#111](https://github.com/winniel123/verge-asm/issues/111).
-5. Note the RFC 4592 escape hatch: a name that resolves to something *different* from the wildcard
-   signature is genuinely present even under a wildcard, because an exact match blocks synthesis.
+4. ~~Suppress (or flag as unverifiable) any candidate whose answer matches the poison signature.~~
+   ~~**The match predicate is unspecified and is not set equality**~~ — **RULED by
+   [#111](https://github.com/winniel123/verge-asm/issues/111) /
+   [ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md).**
+   The predicate is **set equality on the RDATA set, per component, at determinate components
+   only**. An `Indeterminate` component is **never consulted**: it can neither shadow a name nor
+   exempt one. **Suppression is the default** beneath a measured wildcard — a candidate is
+   `Shadowed` unless it **differs at some determinate component**, so the predicate looks for the
+   exemption and never for the match. See §11.
+5. ~~Note the RFC 4592 escape hatch: a name that resolves to something *different* from the wildcard
+   signature is genuinely present even under a wildcard, because an exact match blocks synthesis.~~
+   **WITHDRAWN AS WRITTEN by the same ruling.** The escape hatch is sound only at a **determinate**
+   component: where the synthesis varied, *different from the signature* is a second draw from the
+   same process rather than evidence of anything. It is unsound even at a determinate component
+   against a synthesis that is a **function of the label** — **[measured]** 2026-08-14,
+   `traefik.me` answers `127.0.0.1` for every random control label while `10.0.0.1.traefik.me`
+   answers `10.0.0.1`. What survives is the RFC 4592 §2.2.1 half: a candidate discriminated at
+   **any** component **exists**, and therefore **none** of its RRsets is synthesised — including
+   ones that coincide with the signature. `Shadowed` is all-or-nothing across a name's qtypes.
 6. Where the control probe under a name's parent **did not complete**, that name records a **`Gap`**
    and never a value — *an undiscriminated answer is never a value* (ADR-0066). A probe that
-   completed and found no wildcard licenses everything beneath it.
+   completed and found no wildcard licenses everything beneath it — **with one measured residue,
+   which is the control label's construction rather than this rule: [measured]** `nip.io` and
+   `sslip.io` answer **NODATA** to a random label while `10.0.0.1.nip.io` answers `10.0.0.1`. See
+   §11.7.
 
 **[measured]** 2026-08-14, against live authorities over Google Public DNS, and it is what decides
 the population. `render.com`'s apex control label is **NXDOMAIN** while `*.staging.render.com`
@@ -715,7 +738,7 @@ disappeared" alerts.
 | Source | Yields | Misses | Keyless? | Rate limit (source) | Reliability | ToS constraint | Default? |
 |---|---|---|---|---|---|---|---|
 | Own recursive resolver | A/AAAA/CNAME/MX/NS/TXT/SOA/CAA/PTR | Names you don't know yet | Yes | Operator's own | Excellent | None | **Tier 0** |
-| Wildcard detection (RFC 4592) | Poison signature for ~~a zone~~ **a name's child space** — the population is *the parents of the names in scope*, per §3.2 / [ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md) | — | Yes | n/a | Excellent | None | **Tier 0 (mandatory)** |
+| Wildcard detection (RFC 4592) | Poison signature for ~~a zone~~ **a name's child space** — the population is *the parents of the names in scope*, per §3.2 / [ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md); the signature is **per component and three-valued**, per §11 / [ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md) | — | Yes | n/a | ~~Excellent~~ **Excellent where the synthesis is determinate, absent where it is not** — **[measured]** §11 | None | **Tier 0 (mandatory)** |
 | Zone file / AXFR (RFC 5936) | Complete authoritative zone | Zones the operator doesn't control | Yes | n/a | Excellent | Must be operator-authorised | **Tier 0** |
 | NSEC walk (RFC 5155) | Full zone for NSEC-signed zones | NSEC3 zones, unsigned zones | Yes | n/a | Good | None (own zone) | **Tier 0 when applicable** |
 | IANA RDAP bootstrap | TLD/IP/ASN → RDAP base URL | — | Yes | None observed | Excellent | None | **Tier 0** |
@@ -787,3 +810,164 @@ disappeared" alerts.
 - What is the correct default posture for NSEC3 zones — attempt a small dictionary, or skip silently?
 - Does the "free-fall risk" feature need registrar-expiry monitoring for domains outside the operator's
   supplied list, and if so how are those domains discovered without CZDS or reverse-WHOIS?
+
+---
+
+## 11. The wildcard match predicate — determinacy, measured per component
+
+Settled by [#111](https://github.com/winniel123/verge-asm/issues/111) /
+[ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md). This
+section is the measured basis for §3.2 steps 2, 4 and 5 as they now read. §3.2 settles **where** the
+control probe runs ([ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md));
+this settles **how its answers are read**.
+
+### 11.1 The rule
+
+> **A wildcard is discriminated only at the components a control probe measured to be determinate.**
+> A **component** is one `(qtype asked, RR type in the answer)` pair. Per component the signature is
+> `NoSynthesis` │ `Determinate(RRset)` │ `Indeterminate`. A candidate is **discriminated** iff it
+> differs at some **determinate** component — a different RRset where the control had one, or an
+> RRset where the control determinately had none — and is **`Shadowed`** otherwise. An
+> `Indeterminate` component is never consulted. Where **no** component is determinate, every name
+> beneath that parent is `Shadowed`.
+
+Two riders, both RFC 4592 §2.2.1 rather than policy. Discrimination is a fact about **the name**:
+synthesis is blocked for *every* type once the name exists, so a candidate discriminated at any one
+component exists and **none** of its RRsets is synthesised — including ones that coincide with the
+signature. And `Shadowed` is therefore **all-or-nothing across a name's qtypes**: it holds on
+`resolution` and on every `dns-record` discriminator, or on none.
+
+### 11.2 *The* answer set is not an object
+
+**[measured]** 2026-08-14, Google Public DNS DoH JSON from one vantage, and where stated direct to a
+delegated authority via `nslookup`. Thirty long random labels per zone.
+
+| Zone | Distinct A answer sets across 30 control labels |
+| --- | --- |
+| `github.io` · `localtest.me` | **1** |
+| `vercel.com` | 2 addresses per label drawn from a closed pool of **8** |
+| `herokuapp.com` | **8**, one per `vaNN`/`ieNN` ingress node, **pairwise disjoint**, 30 addresses total |
+
+That is the ticket's finding. This is the one that decides the rule — the answer is not a function
+of the label at all:
+
+| Probe | Result |
+| --- | --- |
+| One label, six repeats, public resolver, `vercel.com` | **5** distinct address pairs |
+| One label, four repeats, **direct to `ns01.herokudns.net`** | **4** different ingress nodes — `ie01`, `va06`, `va02`, `va04` — four disjoint address sets |
+| One label, one moment, **four authorities of `herokuapp.com`** | four different answers |
+
+The rotation is the **authority's own**, not an anycast-resolver artefact. A recorded signature is
+one draw from a process; the next draw for the same label at the same authority seconds later is a
+different one.
+
+### 11.3 Components, because the stable and rotating parts share one answer
+
+**[measured]** five control labels per zone, all seven declared qtypes:
+
+| Zone | Determinate components | Indeterminate |
+| --- | --- | --- |
+| `github.io` | A (four `185.199.10x.153`), AAAA; NODATA at the other five | — |
+| `localtest.me` | A (`127.0.0.1`), AAAA (`::1`); NODATA at the other five | — |
+| `s3.amazonaws.com` | **CNAME (`s3-1-w.amazonaws.com.`)**, TXT, NS, SOA | A — eight fresh addresses every label |
+| `appspot.com` | **MX** (the five `gmr-smtp-in.l.google.com.` hosts, identical every label) | A, AAAA |
+| `vercel.com` | NODATA at six qtypes | A |
+| `herokuapp.com` | **none, at any qtype** | CNAME, at all seven — target rotates over eight nodes |
+
+`s3.amazonaws.com` is why the unit is the component and not the qtype: the rotating and the stable
+parts sit inside **one qtype's answer chain**.
+
+**ADR-0066's seven-qtype widening pays a second time here.** **[measured]** `appspot.com`'s only
+determinate *positive* component in the seven is **MX**; under §3.2's withdrawn A/AAAA/CNAME clause
+that zone has no positive determinate component at all.
+
+### 11.4 The base rate, which is what makes the strict rule affordable
+
+**[measured]** nineteen zones, five long random labels each, A qtype:
+
+| | Count |
+| --- | --- |
+| Wildcarded (a random label answered) | **14** |
+| Not wildcarded — NXDOMAIN: `pages.dev`, `workers.dev`, `azurewebsites.net`, `fly.dev`, `repl.co` | 5 |
+| **Determinate at A** across five labels | **10 of 14** — `github.io`, `localtest.me`, `traefik.me`, `vcap.me`, `netlify.com`, `staging.render.com`, `railway.app`, `onrender.com`, `surge.sh`, `glitch.me` |
+| Indeterminate at A | 4 — `herokuapp.com`, `vercel.com`, `appspot.com`, `s3.amazonaws.com` |
+| …of those, still carrying a determinate component elsewhere | 3 — `s3` (CNAME/TXT/NS/SOA), `appspot` (MX), `vercel` (determinate NODATA at six qtypes) |
+| **No determinate component anywhere** | **1 of 14 — `herokuapp.com`** |
+
+Set equality is not wrong; it is **unscoped**, and right for ten of fourteen outright. Total
+suppression reaches **one measured parent in fourteen**.
+
+### 11.5 Why intersection-with-the-union lost
+
+Signature = the first five labels of the thirty-label runs; test = the next twenty-five.
+
+| Zone | Set equality catches | Intersection with the 5-label union catches |
+| --- | --- | --- |
+| `herokuapp.com` | **7 of 25** | **7 of 25 — identical** |
+| `vercel.com` | 5 of 25 | **25 of 25** |
+
+`herokuapp.com`'s synthesised sets are **disjoint blocks**, so *intersects the union* and *equals a
+recorded set* are the **same predicate** there, and both leave **18 of 25 (72%)** fresh fictional
+labels recorded `Resolved` with a fictional address set. On `vercel.com` a five-label union covers
+seven of the pool's eight addresses and nothing can miss it. Intersection is a **total fix or
+literally no fix**, and which one depends on the provider's load-balancing shape — a fact the probe
+cannot observe and the `Batch` cannot record.
+
+### 11.6 The cost of erring toward `Shadowed`, measured
+
+**[measured]** five real GitHub Pages sites — `github.github.io`, `mozilla.github.io`,
+`twbs.github.io`, `git-lfs.github.io`, `d3.github.io` — return **exactly** the wildcard's four
+addresses, and `www.vercel.com` draws **both** its addresses from the wildcard's own pool. These are
+genuinely present names that **no** content predicate can distinguish from synthesis. `Shadowed` on
+them is the honest reading, not an avoidable error, and `CONTEXT.md` already accepted the collateral
+— the suppression *"working as intended on the fictional names and swallowing the real one alongside
+them."*
+
+The asymmetry that decides the direction: a false `Shadowed` withholds one `resolution` value, is
+confined to one facet, leaves the name in the estate (admission turns on its `Citation`) and is
+visibly unconfirmed until §3.3's zone upload fixes it. A false `Resolved` fabricates an address set
+that **cites `Address`es, opens `Service`s and `Endpoint`s, and feeds `Reach` and `Exposure`**, where
+it is indistinguishable from a true one.
+
+### 11.7 Residue — two holes this ruling does not close
+
+- **A synthesis that is a function of the label looks determinate to random labels.**
+  **[measured]** `traefik.me` answers `127.0.0.1` for every random control label — determinate by
+  this section's own test — while `10.0.0.1.traefik.me` → `10.0.0.1`, `192.168.5.5.traefik.me` →
+  `192.168.5.5`, `8.8.4.4.traefik.me` → `8.8.4.4`. Set equality then reports a fictional RFC 1918
+  address as `Resolved`. *n* random labels **evidence** a constant synthesiser and cannot prove one.
+- **And a third door neither §3.2 nor this section closes.** **[measured]** `nip.io` and `sslip.io`
+  return **NODATA** for random control labels while `10.0.0.1.nip.io` → `10.0.0.1`. §3.2 step 1
+  reports *no wildcard at all*, the probe completes, and ADR-0066's *a probe that completed and
+  found no wildcard licenses everything beneath it* then licenses a fictional inventory. The defect
+  is in the **control label's construction** — `wildcard-discrimination`'s *other* declared
+  parameter — and is ticketed rather than ruled here.
+
+### 11.8 The DNSSEC discriminator, and why it is not the answer
+
+RFC 4035 §3.1.3 gives the only **sound** test that exists: a wildcard-synthesised answer's RRSIG
+`Labels` field is shorter than the owner's label count, and the response carries NSEC/NSEC3 proving
+no closer match. It is measured unavailable.
+
+**[measured]** exactly **1 of 15** zones probed carries a DS — `herokuapp.com`, the one zone with no
+determinate component at all. And it **online-signs its synthesised answers**: with `do=1` a random
+label returns `RRSIG cname 13 3 300 …`, `Labels` = **3** against a 3-label owner, and no NSEC3. The
+proof that would discriminate is never served. For contrast, `<random>.iana.org` — signed and not
+wildcarded — returns three NSEC3 records and their RRSIGs, so the machinery exists and works where
+there is no wildcard in front of it.
+
+It is therefore missing exactly where content discrimination is also missing, and adopting it would
+change the leaf's query mode (DO bit, RRSIG parsing, NSEC3 handling). Ticketed, not folded.
+
+### 11.9 Where this is thin
+
+- **Every indeterminate zone measured is a third-party hosting provider's.** ADR-0066 intersects the
+  control-probe population with the operator's `Seed`, which excludes most of what is measured here.
+  Whether a small org's `*.dev.example.com` in front of an ingress load balancer rotates is
+  **unmeasured**, there being no public sample of private zones. Read *1 of 14* as a rate over
+  **provider** zones.
+- **One vantage, one day.** `herokuapp.com`'s `ie0x` and `va0x` nodes are Ireland and Virginia, so
+  part of the rotation is geographic. A multi-vantage run would see **more** rotation, never less:
+  *10 of 14 determinate* is an **upper bound**, and the direction of the error is safe.
+- **No control probe has ever run inside a batch.** What is measured is DNS behaviour against live
+  authorities over a resolver we do not control, plus four direct-to-authority runs.

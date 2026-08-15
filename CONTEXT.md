@@ -427,8 +427,21 @@ TXT change is recorded and reaches nobody until a rule reads it. See
 _Avoid_: attribute, field, property
 
 **Shadowed**:
-The value a `resolution` observation takes when the answer matches a wildcard's measured
-poison signature — neither the synthesised answer nor a failure. Recorded as a measured
+The value a `resolution` observation takes when the answer was **not discriminated from its
+parent's synthesis** — neither the synthesised answer nor a failure. ~~when the answer matches a
+wildcard's measured poison signature~~ is **superseded here, at the site that specifies it**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+*matches* named our instrument standing in for the fact, and the fact is epistemic, which the
+justification below always said. A wildcard is discriminated **only where its synthesis is
+determinate**, measured **per component** — one `(qtype asked, RR type in the answer)` pair — whose
+signature is `NoSynthesis` │ `Determinate(RRset)` │ `Indeterminate`. A name is `Shadowed` unless it
+**differs at some determinate component**; an `Indeterminate` component is never consulted, and
+where no component is determinate every name beneath that parent is `Shadowed`. It therefore errs
+**toward this value by construction**: an unmeasurable component is refused the power to exempt,
+because a false `Shadowed` withholds one value inside one facet while a false `Resolved` fabricates
+an address set that cites `Address`es, opens `Endpoint`s and feeds `Exposure`. See
+[ADR-0068](./docs/adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md).
+Recorded as a measured
 value rather than discarded, because *we cannot see here* is a fact the operator needs and
 the alternative manufactures drift: repoint one wildcard and every fictional name beneath
 it reports a resolution change the same night. Whether a name is admitted under a wildcard
@@ -441,7 +454,10 @@ signature, and the ruling that it is not a subject closes that by construction r
 carve-out in a leaf
 ([ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md)).
 It is a value on `dns-record` as well as `resolution`, since a wildcard synthesises
-answers for *any* qtype. Deciding it takes two measurements — the name's answer and the zone's
+answers for *any* qtype — and it is **all-or-nothing across a name's qtypes**, holding on
+`resolution` and on every `dns-record` discriminator or on none, because RFC 4592 blocks synthesis
+for every type once the name exists, so a name discriminated at **any** component has **no**
+synthesised RRset (ADR-0068). Deciding it takes two measurements — the name's answer and the zone's
 poison signature — so like `Lame`, `NoTLS` and `NoHTTPResponse` it is decided by the **measurement
 binary inside one batch**, never assembled afterwards from two observations. That signature is a fact
 about **the `Name` the control labels were generated under** — the name whose immediate child space
