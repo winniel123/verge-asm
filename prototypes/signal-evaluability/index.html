@@ -33,6 +33,12 @@
     modal     #26/#40's cloud-resident install with the custody extension
               OFF. The flagship rule has an EMPTY population. This is the
               case the product must not report as clean.
+              SUPERSEDED by ADR-0019 (#118) and marked on the rendered
+              surface under ADR-0075 (#131), by #132: the probing gate is
+              total over an `Address`, so `certificate-expiring` and
+              `plaintext-http-no-https` are hollow here too and the "80 and
+              443" copy is withdrawn. The drawing is left standing on
+              purpose — read the mark, not these two censuses.
     noprober  #14's internal-only install, no internet vantage ever
               configured — "we never looked", which is not the same absence
 
@@ -212,6 +218,19 @@
           padding: var(--space-3) var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
   .note .ml { display: block; margin-bottom: var(--space-1); }
   .note a { color: var(--accent); }
+
+  /* prototype-only annotation — the form prototypes/seeds/ already ships, taken
+     verbatim so the mark reads the same wherever it appears. Not part of the
+     design. Carries the ADR-0075 mark on a drawing a later ruling condemned. */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno a { color: var(--accent); }
 
   footer.ft { border-top: var(--rule); background: var(--surface); }
   .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
@@ -434,6 +453,69 @@ function chrome(active, body, F) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   THE ADR-0075 MARK — ?fill=modal only
+
+   ADR-0019 made the install this fill draws unreachable. The probing gate
+   is TOTAL over an `Address`, so on an estate whose every address is
+   `third-party` no port is connected to at all. Two of the five rules are
+   drawn here with populations the product can no longer produce, and the
+   copy beneath them is the clause ADR-0019 withdrew.
+
+   Per ADR-0075 the drawing is LEFT STANDING and marked — never redrawn.
+   The wrong screen is the evidence #118 argued from, and re-filling it
+   would make the record lie about when the ruling arrived. The mark is a
+   REPLACEMENT rather than a strike (ADR-0057 §5): it states what the
+   surface would draw now, because a withdrawal naming no successor is
+   re-derived by the next session that needs one.
+
+   Keyed on the FILL and never on the file. `mixed` and `outage` carry a
+   partial extension and `noprober` a full one, so 616 and 409 are
+   admissible on all three and those drawings are untouched. Both screens
+   of THIS fill draw the condemned install and each carries one half of
+   the defect — the populations on `Signals`, the withdrawn sentence on
+   `Coverage` and again inside the no-population panel — so the one block
+   renders on whichever of the two is open.
+
+   Every figure it quotes is read off the fixture it condemns, so the mark
+   cannot drift from the drawing.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function supersededMark(F) {
+  if (FILL !== "modal") return "";
+  return `
+  <div class="anno">
+    <span class="ml">fill=modal — a rule drawn after its withdrawal · ADR-0019</span>
+    <p>This fill draws the cloud-resident install with the <code>custody extension</code> off.
+    <a href="https://github.com/winniel123/verge-asm/issues/118">#118</a> / ADR-0019 has since made
+    the probing gate <b>total</b> over an <code>Address</code>: a <code>third-party</code> address is
+    not connected to on any port, by any tier, at any rate. All
+    <span class="mono">${num(F.aperture.custody.addresses)}</span> of this estate's addresses are
+    <code>third-party</code>, so nothing on them is probed.</p>
+    <p><b>What this fill would draw now.</b>
+    <span class="mono">certificate-expiring</span> (drawn on <span class="mono">Signals</span> at
+    <span class="mono">${num(population(F.rules.expiry))}</span>) and
+    <span class="mono">plaintext-http-no-https</span> (at
+    <span class="mono">${num(population(F.rules.plain))}</span>) both have an <b>empty
+    population</b> here, and render as a no-population panel — the treatment
+    <span class="mono">sensitive-port-reached-from-internet</span> already carries on this fill —
+    never as a census of zeroes. There is no smaller admissible number: ADR-0019 <i>hollows</i> the
+    two populations rather than shrinking them. <span class="mono">lame-delegation</span> and
+    <span class="mono">cname-target-name-error</span> are unaffected, because their evidence is a DNS
+    answer and a query is not a connect.</p>
+    <p><b>The copy is withdrawn.</b> <i>“Only the ports your names imply are probed there — 80 and
+    443”</i>, on <span class="mono">Coverage</span>'s custody-gate row and again inside the
+    no-population panel on <span class="mono">Signals</span>, is the exact clause ADR-0019 withdrew
+    at ADR-0002's <code>third-party</code> row. It names no object the model can produce. The row's
+    surviving limb is the whole row: nothing is probed pending an explicit
+    <code>custody extension</code>.</p>
+    <p>The drawing is left standing rather than re-filled, per ADR-0075 — a prototype is a dated
+    record of a reading and never of a rule, so a condemned drawing is marked at the drawing and the
+    wrong screen is kept as the evidence. <a href="https://github.com/winniel123/verge-asm/issues/44">#44</a>'s
+    resolution is unaffected; only this fill is.</p>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    SIGNALS — where a subject exists and its evidence does not
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -563,6 +645,8 @@ function signalsScreen(F) {
   it is <b>not-evaluable</b>, which is not the same as not firing — so each rule's census has three
   members over one population, and the third is listed rather than summarised away.</p>
 
+  ${supersededMark(F)}
+
   <div class="note" style="margin-bottom:var(--space-5)">
     <span class="ml">across all rules</span>
     <span class="mono"><b>${num(total)}</b></span> evaluations are not-evaluable this cadence, summed
@@ -663,6 +747,8 @@ function apertureScreen(F) {
   look at at all — and it carries no figure over your estate, because there is no honest denominator:
   widening the aperture cannot raise a coverage figure, it can only reveal the figure was of the wrong
   population.</p>
+
+  ${supersededMark(F)}
 
   <div class="card" style="margin-bottom:var(--space-5)">
     <div class="card-h"><h2>Measurement coverage</h2><span class="sp"></span>
