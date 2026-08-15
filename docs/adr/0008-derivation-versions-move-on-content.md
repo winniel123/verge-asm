@@ -329,12 +329,20 @@ is indistinguishable from shipping a release.
   > **confirmed and is the load-bearing half**, and *unrecoverable rather than merely shallow* now
   > has its mechanism written down: a withdrawn subject's timelines **close**, so a `Break` between
   > the withdrawal and the return leaves the reopening with nothing legally before it, no
-  > `Transition` is derived, and the membership message fires reading **`appeared`**. The leaf that
-  > does it is `resolution-walk`, which [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)
-  > put on a **dependency** cadence and which every `Name`'s and every cited `Address`'s membership
-  > composes. So this is a **release** obligation and not a retention setting: the release states the
-  > loss, `resolution-walk`'s golden corpus must pin the membership-deciding outcomes so a no-op
-  > upgrade provably does not bump the leaf, and the membership vector may not be widened.
+  > `Transition` is derived, and the membership message fires reading **`appeared`**. ~~The leaf that
+  > does it is `resolution-walk`~~ — **there are two**: `resolution-walk` **and**
+  > `wildcard-discrimination`, which [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)
+  > puts on a **dependency** cadence and which every `Name`'s and every cited `Address`'s membership
+  > composes, because membership reads `resolution` and those two leaves decide that value jointly
+  > ([#146](https://github.com/winniel123/verge-asm/issues/146) ·
+  > [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md); struck here
+  > at the site that states it, per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
+  > So this is a **release** obligation and not a retention setting: the release states the
+  > loss, **each membership leaf's** golden corpus must pin the membership-deciding outcomes so a
+  > no-op upgrade provably does not bump the leaf — two blocks against two gates,
+  > [`golden-corpus.md`](../spec/golden-corpus.md) §2 and §8 — and the membership vector may not be
+  > widened **by a release**.
 - **The coverage class gains a member whose cause is us.** A `Vantage` going `unavailable` and
   coverage crossing a threshold are the world or our own infrastructure failing; a re-baseline
   is our release. After ADR-0006's `resolving → shadowed` and ADR-0007's `revealed` and `owned`
