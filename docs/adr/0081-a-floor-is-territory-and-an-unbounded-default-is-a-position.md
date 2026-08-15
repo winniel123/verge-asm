@@ -307,10 +307,27 @@ violating it in its own next paragraph.
   on a measurement.** Nobody has put the three renderings in front of an operator. The claim is that
   a parked handle on a labelled stop, a price and a stated ground defeat *nobody decided*; it is
   argued from what the two rejected renderings obviously signal, which is weaker than testing it.
-- **The `Message` corpus's size is asserted rather than computed.** *Messages are a rounding error* is
+- ~~**The `Message` corpus's size is asserted rather than computed.** *Messages are a rounding error* is
   an inference from *alerting fires at the cause with a census*, and nobody has measured how many
   messages a year an unstable estate writes. If it is wrong, the structural argument still holds — the
-  store may not acquire a way to fail — but the second leg of the reasoning goes.
+  store may not acquire a way to fail — but the second leg of the reasoning goes.~~
+  **NO LONGER THIN — DISCHARGED**, struck at the site that states the thinness
+  ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by
+  [#172](https://github.com/winniel123/verge-asm/issues/172). **The inference is walked and it holds.**
+  ADR-0033's `Transition` gate is the reason: a `Signal` opening at `fired` is a message only where a
+  facet `Transition` opens beneath it in the same fold, and `reachability` — the one facet proven to
+  flap without bound — is excluded from that gate by construction (ADR-0026's layer rule), so the noisy
+  generator this bullet worried about was never reachable from the message layer at all. What remains
+  eligible (`Reach`, `Exposure`, `Custody`, `certificate`, `dns-record`, membership, aperture) is the
+  same population this ADR's `Span` table already showed stable, minus `reachability` itself. Walking
+  the seventeen-rule set against the shipped `Scan` cadences puts the structural ceiling at roughly
+  2,000 messages a year even if every eligible rule flipped on every cycle it is evaluated on — a
+  scenario none of this corpus's own baselines approach — and a generously provisioned populated estate
+  (hundreds of live TLS endpoints renewing quarterly, plus DNS and port churn, stress-tested at 10×)
+  lands in the low thousands to tens of thousands. Either way it is four to five orders of magnitude
+  under the ~98M-row, 13 GB/year observation ceiling this ADR already accepted as unbounded, and a
+  message carries no rows (ADR-0039 §3), so the disk cost of the difference is megabytes. **The second
+  leg now holds on arithmetic and not only on inference.**
 - ~~**The observation floor being the *longest* bound in force is derived here rather than cited.**
   ADR-0041 says the dial is *"floored at the currency bound"* and the currency bound is per-timeline;
   turning one per-timeline bound into one floor over one corpus is this ADR's step, and the
