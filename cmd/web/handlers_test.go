@@ -137,6 +137,19 @@ func (f *fakeStore) GetScanByKind(_ context.Context, kind string) (db.Scan, erro
 	return db.Scan{}, pgx.ErrNoRows
 }
 
+// TightestEnabledScanCadenceSeconds mirrors the MIN-over-enabled-Scans query the
+// observation floor rests on (#208). newFakeStore seeds the dns Scan (daily), so
+// the tightest bound in force is k*daily and the observation dial floors at 2 days.
+func (f *fakeStore) TightestEnabledScanCadenceSeconds(context.Context) (int64, error) {
+	var tightest int64
+	for _, sc := range f.scans {
+		if sc.Enabled && (tightest == 0 || sc.CadenceSeconds < tightest) {
+			tightest = sc.CadenceSeconds
+		}
+	}
+	return tightest, nil
+}
+
 func (f *fakeStore) RecordHeartbeat(context.Context) (db.Heartbeat, error) {
 	return f.hb, f.hbErr
 }

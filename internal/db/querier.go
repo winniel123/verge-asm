@@ -70,6 +70,28 @@ type Querier interface {
 	// on any timeline. The FK change in migration 20900 lets the delete null the
 	// operational back-references rather than cascade into measured data.
 	DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error)
+	// Retire the evidential observations the operator's dial no longer keeps (v1 spec
+	// §4.6, ADR-0041, ADR-0094). This is the ONLY path that deletes Observation rows,
+	// and it deletes Observation rows and NOTHING else: batch, scan and span are read
+	// to resolve each row's own bound and its subject's membership, never written — so
+	// a Batch travels with any observation it produced (it is not retired per row) and
+	// a Span is never compacted.
+	//
+	// The query evaluates EACH ROW'S OWN bound, never a collapsed one: `cover` groups
+	// observations by their full timeline key (subject, facet, discriminator, vantage,
+	// source) and takes the tightest ENABLED covering Scan's cadence, so a zone-sourced
+	// row ages on the zone cadence and a resolver-sourced row on the resolver's. A row
+	// survives while its age is inside EITHER k cadences of that bound OR the dial,
+	// whichever is longer — the control collapses to one number, the query never does.
+	// Two populations fall opposite ways: a timeline no enabled Scan covers has an
+	// undefined bound and is NEVER retired (the `cover` LEFT JOIN misses, so the guard
+	// excludes it); a withdrawn subject (every span closed) carries NO floor, so the
+	// dial alone governs it.
+	//
+	// @dial_seconds is the operator's observation dial in seconds (0 == unbounded, the
+	// v1 default — the caller does not run the sweep then); @floor_cadences is k; @as_of
+	// is the sweep instant, injected so a sweep is reproducible.
+	DeleteExpiredObservations(ctx context.Context, arg DeleteExpiredObservationsParams) (int64, error)
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
@@ -154,6 +176,18 @@ type Querier interface {
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
 	// derives operator by extension (ADR-0013 §3).
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
+	// The gate every derivation reads observations through (v1 spec §4.6, ADR-0041):
+	// it returns ONLY live-tier rows — those within k cadences of the tightest ENABLED
+	// Scan covering their timeline — so an evidential row is structurally unreadable by
+	// any derivation reading through it, and no derivation can re-derive history from a
+	// stale observation. The bound is evaluated PER TIMELINE and never collapsed:
+	// `cover` groups by the full timeline key (subject, facet, discriminator, vantage,
+	// source) and takes the tightest covering cadence, so a zone-sourced row's live
+	// window is the zone cadence and a resolver-sourced row's is the resolver's. A
+	// timeline no enabled Scan covers has an undefined bound: the INNER JOIN drops it,
+	// so it yields no live row (it is retained as evidence, not read). @floor_cadences
+	// is k; @as_of is the read instant.
+	ListLiveObservationsForDerivation(ctx context.Context, arg ListLiveObservationsForDerivationParams) ([]ListLiveObservationsForDerivationRow, error)
 	// The latest `dns-record` observation per (Name, qtype discriminator). The engine
 	// reads two of these: the CNAME discriminator carries the alias target (for
 	// cname-target-name-error) and the NS discriminator carries the delegation walk's
@@ -265,6 +299,15 @@ type Querier interface {
 	// nothing. It reads only the scan table and never the operational or measured
 	// corpora.
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
+	// The tightest enabled Scan's cadence — the smallest cadence_seconds among enabled
+	// Scans — which is k cadences of the smallest per-timeline observation bound any
+	// in-force timeline can carry, and therefore the observation dial's floor (v1 spec
+	// §4.6, ADR-0094). Symmetric to the Dispatch floor's SlowestEnabledScanCadence
+	// (which takes MAX): Dispatch floors at the slowest Scan, observations at the
+	// tightest. COALESCE to 0 when no Scan is enabled: with no bound in force there is
+	// nothing to floor against and the dial is unconstrained. Reads only the scan
+	// table, never the measured corpora.
+	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.

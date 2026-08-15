@@ -93,6 +93,18 @@ func main() {
 		}
 	}()
 
+	// Observation retention runs beside it (#208, v1 spec §4.6). It retires only
+	// EVIDENTIAL observations — those past their own per-timeline bound AND the
+	// operator's dial — and never a live row: the delete evaluates each row's own
+	// bound, so a derivation always reads live-tier data. It is a no-op until the
+	// operator sets the dial (v1 ships the raw corpus growing without bound).
+	obsRetirer := retention.NewObservationRetirer(db.New(pool), time.Now, logger)
+	go func() {
+		if err := obsRetirer.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: observation retention stopped: %v", err)
+		}
+	}()
+
 	log.Print("worker: started queue dispatch + worker loop")
 	if err := worker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		log.Fatalf("worker: %v", err)
