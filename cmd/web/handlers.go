@@ -71,6 +71,12 @@ type store interface {
 	ListNameResolutionsByClass(ctx context.Context) ([]db.ListNameResolutionsByClassRow, error)
 	ListNameDNSRecords(ctx context.Context) ([]db.ListNameDNSRecordsRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+	// Annotation management (#204): an operator dial keyed on one
+	// (subject, signal-name) pair, carrying the reason and the declared instant —
+	// no status, no expiry, no author. Declaring and withdrawing mint no Message.
+	CreateAnnotation(ctx context.Context, arg db.CreateAnnotationParams) (db.Annotation, error)
+	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
+	DeleteAnnotation(ctx context.Context, id int64) error
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -145,6 +151,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
+	mux.HandleFunc("POST /annotations", s.requireAdmin(s.declareAnnotation))
+	mux.HandleFunc("POST /annotations/withdraw", s.requireAdmin(s.withdrawAnnotation))
 
 	// Registry proposer lookups and the confirm/decline of the Proposals they
 	// yield are admin acts (v1 spec §4.3): confirming opens the probing gate on

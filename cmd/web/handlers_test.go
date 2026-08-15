@@ -37,6 +37,9 @@ type fakeStore struct {
 	exclusions []db.Exclusion
 	exclNextID int64
 
+	annotations []db.Annotation
+	annoNextID  int64
+
 	sourceStates map[string]db.SourceState
 
 	vantages      []db.Vantage
@@ -90,7 +93,7 @@ type fakeChannel struct {
 func newFakeStore() *fakeStore {
 	return &fakeStore{
 		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
-		seedNextID: 1, exclNextID: 1, vantageNextID: 1, chanNextID: 1,
+		seedNextID: 1, exclNextID: 1, annoNextID: 1, vantageNextID: 1, chanNextID: 1,
 		lookupNextID: 1, proposalNext: 1,
 		sourceStates: map[string]db.SourceState{},
 		scans: []db.Scan{
@@ -345,6 +348,44 @@ func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
 	for i, e := range f.exclusions {
 		if e.ID == id {
 			f.exclusions = append(f.exclusions[:i], f.exclusions[i+1:]...)
+			return nil
+		}
+	}
+	return nil // idempotent: a missing row is not an error
+}
+
+func (f *fakeStore) CreateAnnotation(_ context.Context, arg db.CreateAnnotationParams) (db.Annotation, error) {
+	// The unique index on (subject_key, signal_name): a pair is declared once.
+	for _, a := range f.annotations {
+		if a.SubjectKey == arg.SubjectKey && a.SignalName == arg.SignalName {
+			return db.Annotation{}, &pgconn.PgError{Code: "23505", Message: "duplicate annotation"}
+		}
+	}
+	a := db.Annotation{
+		ID: f.annoNextID, SubjectKey: arg.SubjectKey, SignalName: arg.SignalName,
+		Reason: arg.Reason, DeclaredAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.annotations = append(f.annotations, a)
+	f.annoNextID++
+	return a, nil
+}
+
+func (f *fakeStore) ListAnnotations(context.Context) ([]db.Annotation, error) {
+	rows := append([]db.Annotation(nil), f.annotations...)
+	// ORDER BY signal_name, subject_key.
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SignalName != rows[j].SignalName {
+			return rows[i].SignalName < rows[j].SignalName
+		}
+		return rows[i].SubjectKey < rows[j].SubjectKey
+	})
+	return rows, nil
+}
+
+func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) error {
+	for i, a := range f.annotations {
+		if a.ID == id {
+			f.annotations = append(f.annotations[:i], f.annotations[i+1:]...)
 			return nil
 		}
 	}

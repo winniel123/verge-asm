@@ -121,6 +121,18 @@ ol.chain .chainval { margin: 2px 0; }
 .mgroup-list li { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--hairline); }
 .mgroup-list li:last-child { border-bottom: none; }
 .mgroup-empty { padding: var(--space-3) var(--space-4); color: var(--muted); }
+.fullmute { padding: var(--space-4); border-left: 2px solid var(--ink); background: var(--paper); }
+.fullmute p { margin: var(--space-3) 0 0; max-width: 78ch; }
+.annoform { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap;
+  margin-bottom: var(--space-5); }
+.annoform label { margin-bottom: 0; }
+.annoform label.grow { flex: 1; min-width: 220px; }
+.annoform select { width: auto; }
+table.annos { margin-top: var(--space-4); }
+table.annos td form { margin: 0; }
+.orphan { display: inline-block; margin-left: var(--space-3); font-family: var(--mono);
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); border: 1px solid var(--hairline); padding: 1px 5px; }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -815,6 +827,12 @@ is nothing to census. This is a legible state, not a clean bill of health.</p>
 <div class="members">
 {{range .Groups}}
 <div class="mgroup">
+{{if .Prose}}
+<div class="fullmute">
+<div class="microlabel">Fired · every subject accepted</div>
+<p>{{.Prose}}</p>
+</div>
+{{else}}
 <div class="mgroup-head"><span class="microlabel">{{.Label}}</span><span class="count">{{len .Members}}</span></div>
 {{if .Members}}
 <ul class="mgroup-list">
@@ -823,12 +841,53 @@ is nothing to census. This is a legible state, not a clean bill of health.</p>
 {{else}}
 <div class="mgroup-empty">None.</div>
 {{end}}
-</div>
 {{end}}
 </div>
 {{end}}
 </div>
 {{end}}
+</div>
+{{end}}
+
+<div class="section">
+<div class="microlabel">Operator dial · annotations</div>
+<h2>Annotations</h2>
+<p>An annotation accepts one rule's firing on one subject as a known risk on a
+thing you are still measuring. It moves no number — the subject is still measured,
+still counted under fired — and changes only the message: an annotated pair's next
+firing reaches no one. It carries your reason and the instant you declared it, and
+nothing else: no status, no expiry and no author. Declaring and withdrawing are
+neither of them a message.</p>
+{{if .IsAdmin}}
+{{if .AnnoError}}<div class="error">{{.AnnoError}}</div>{{end}}
+<form method="post" action="/annotations" class="annoform">
+<label class="grow"><span>Subject</span><input name="subject" value="{{.AnnoSubject}}" placeholder="host.example.com" autocomplete="off" required></label>
+<label><span>Signal</span><select name="signal" required>
+<option value="">Choose a signal…</option>
+{{range .RuleNames}}<option value="{{.}}"{{if eq . $.AnnoSignal}} selected{{end}}>{{.}}</option>{{end}}
+</select></label>
+<label class="grow"><span>Reason</span><input name="reason" value="{{.AnnoReason}}" placeholder="Why this firing is accepted" autocomplete="off" required></label>
+<button type="submit">Declare</button>
+</form>
+{{end}}
+{{if .Annotations}}
+<table class="annos">
+<tr><th>Subject</th><th>Signal</th><th>Reason</th><th>Declared</th>{{if .IsAdmin}}<th></th>{{end}}</tr>
+{{range .Annotations}}
+<tr>
+<td><a class="mono" href="/subjects/{{.Subject}}">{{.Subject}}</a>{{if .Orphan}}<span class="orphan">names no current member</span>{{end}}</td>
+<td class="mono">{{.Signal}}</td>
+<td>{{.Reason}}</td>
+<td class="mono">{{.At}}</td>
+{{if $.IsAdmin}}<td><form method="post" action="/annotations/withdraw"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Withdraw</button></form></td>{{end}}
+</tr>
+{{end}}
+</table>
+{{else}}
+<p class="muted">No annotation is declared. A fired signal you accept as a known
+risk is declared here, keyed on its subject.</p>
+{{end}}
+</div>
 </main>
 {{template "foot" .}}{{end}}
 
