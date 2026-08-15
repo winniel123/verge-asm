@@ -271,10 +271,40 @@ not. See [ADR-0005](./docs/adr/0005-scan-execution-model.md),
 _Avoid_: job, scan job
 
 **Annotation**:
-Operator opinion attached to a subject — a suppression, an accepted risk. Kept separate
-from observations so that opinion is never mistaken for measurement. It never removes a
-subject: that is a claim about where the estate ends, so it belongs to `Seed`.
-_Avoid_: status, triage state, finding state
+An operator's declaration, about one `(subject, signal-name)` pair, that a fired rule is an
+**accepted risk on a thing we are still measuring**. Its whole effect is on the **message**: a
+`not-fired` → `fired` `Transition` on an annotated pair is **recorded and is not a message**. It
+moves no number — not a count, a timeline, a domain, a census or a subject. ~~a suppression~~ and
+~~attached to a subject~~ are **superseded here, at the site that specifies them**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+both read forward as mechanisms three decisions had already refused. Kept separate from
+observations so that opinion is never mistaken for measurement, and the separation is now
+structural rather than a caution — **operator opinion may move a message and may never move a
+number**. So an annotated pair is still measured on its cadence, still holds every `Span` it held,
+still sits **inside** the rule's `Predicate domain` at the same version, and is still counted under
+`fired`. Three routes are barred by name and none reopens here: it **never removes a subject** —
+that is a claim about where the estate ends, so it belongs to `Seed`
+([ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md)); it **never narrows a `Predicate
+domain`**, since an accepted risk is a subject of which the fact is still true
+([ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md)); and it **never marks
+a `Span`**, which is immutable, or `Finding` returns with better provenance
+([ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md)). It is legal where it is because the
+model already puts every operator dial **outside** every derivation, beside notification routing and
+flap suppression — this is that object keyed on a subject rather than on a channel, which is the
+whole reason it needs a name. Six riders. It reaches the **firing edge alone**: never `fired` →
+`not-fired`, which on four rules means a name somebody else could claim, and never the coverage
+class, which is *we stopped looking* and is unreachable in any case since no coverage message is
+keyed on a signal name. It **never removes a row from a census it appears in**, a census being
+payload that is enumerable in full — so an annotated rule opening at `fired` still rides the census
+of the move above it. It **may not partition a census**: `fired` is not cut into accepted and
+outstanding, or the rule acquires a second population it does not version. It carries **no timeline,
+no status and no expiry** — editing one is a **new** `Annotation`, as with `Proposal`, and an expiry
+would be a state moving because time passed. It is keyed on the **exact subject and never travels**,
+the stated cost being that a redeploy onto a new address lapses the acceptance rather than silencing
+a subject nobody chose. And it **states its reason** and does **not** appear on `Coverage`: a `Seed`
+exclusion is there because it shrinks the estate, and this shrinks nothing. Its home is `Signals`.
+See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md).
+_Avoid_: status, triage state, finding state, suppression, exception, risk acceptance workflow
 
 ### Observed
 

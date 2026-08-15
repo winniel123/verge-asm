@@ -288,9 +288,13 @@ clearest available demonstration that a domain is a property of the **rule**, no
 - **A rule's census may not be rendered as a delta, a trend or a series.** This is a new binding
   presentation rule and it lands on `Signals`, alongside ADR-0015's existing obligation not to
   render a broad signal's census as a findings list.
-- **`Annotation` loses its last route into the comparison path.** The map's open question about
-  whether *accepted risk* is worth a Declared-layer term is untouched, but the domain is now
-  explicitly not where it could have been spent.
+- **`Annotation` loses its last route into the comparison path.** ~~The map's open question about
+  whether *accepted risk* is worth a Declared-layer term is untouched~~ — **that question is closed**
+  by [#117](https://github.com/winniel123/verge-asm/issues/117) and
+  [ADR-0016](./0016-an-annotation-moves-a-message-never-a-number.md): the term survives with exactly
+  one job, and the job is on the **message**. This bullet's ruling is untouched and is one of the
+  three bars ADR-0016 rests on — the domain is not where operator opinion may be spent, because an
+  accepted risk is a subject of which the rule's fact is still true.
 
 ## Alternatives rejected
 
