@@ -32,6 +32,18 @@ comparison path at all.
 
 ### Declared
 
+**A Declared term holds a current value and no instant.** An instant is not a field this layer may
+carry; it is a per-term exception earned on two limbs together — the term must be **replaced rather
+than edited**, so the instant has one value for the object's whole life and acquires no successor,
+and the act must leave **no dated residue** anywhere in the Observed or Operational corpus while a
+named v1 reader needs it dated. Every Declared act but one is dated by what it moved: a `Seed`
+declaration by `revealed` and the earliest `revealed` beneath the scope, a narrowing by the
+coverage-class message at the scope, a `Source` toggle by the `Batch`'s recorded source set, a `Scan`
+config change by the `Batch`'s recorded completed scope, a `Channel` by a `Delivery`. `Annotation` is
+the sole exception, and the reason is not its prose: **its whole effect is a message that does not
+fire**, so nothing else dates it. See
+[ADR-0093](./docs/adr/0093-an-instant-on-a-declared-term-is-earned-by-an-act-nothing-else-dates.md).
+
 **Seed**:
 An operator's assertion of where the estate ends — either a *name scope* (a registrable
 domain) or an *address scope* (a CIDR). It declares a boundary, not a starting point: no name is
@@ -397,10 +409,15 @@ It carries the **instant it was declared and no author** — the one Declared te
 prose is still an operator dial, and every dial in the model is unattributed, so
 [#127](https://github.com/winniel123/verge-asm/issues/127)'s ruling that no operator act is written
 down with an actor on it holds here without exception. A date names nobody; an undated standing mute
-on an object with no expiry cannot be reviewed at all.
+on an object with no expiry cannot be reviewed at all. It is the **only** Declared term carrying an
+instant, and what earns it is not the prose: it cannot be edited, so the instant acquires no
+successor, and **its whole effect is a message that does not fire**, so no `Message`, `Batch`, `Gap`
+or `revealed` anywhere in the model dates the act. Every other Declared act is dated by what it
+moved, and carries no instant of its own.
 See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md),
-[ADR-0073](./docs/adr/0073-an-operator-dial-carries-no-author-however-specific-its-target.md) and
-[ADR-0092](./docs/adr/0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md).
+[ADR-0073](./docs/adr/0073-an-operator-dial-carries-no-author-however-specific-its-target.md),
+[ADR-0092](./docs/adr/0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md)
+and [ADR-0093](./docs/adr/0093-an-instant-on-a-declared-term-is-earned-by-an-act-nothing-else-dates.md).
 _Avoid_: status, triage state, finding state, suppression, exception, risk acceptance workflow,
 author, declared by
 
