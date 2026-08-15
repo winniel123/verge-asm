@@ -14,12 +14,27 @@ project's, and nothing in the corpus has ever said what one of these sentences r
 
 What is settled and is **not** reopened here: **four causes** — the world moved · we stopped
 looking · we changed how we look · a clock crossed — partitioned into **three classes** that
-partition **messages** rather than events; the coverage class carrying **nine** members and two of
+partition **messages** rather than events; the coverage class carrying ~~**nine**~~ **ten** members
+and two of
 the four causes, the third cause carrying **two triggers whose payloads differ and must not be
 levelled** ([ADR-0014](./0014-only-revealed-generalises.md)); the clock class carrying **three**
 ([ADR-0004](./0004-signals-are-release-coupled-rules.md)); the census payload's **five producers**
 ([ADR-0033](./0033-a-move-carries-the-rule-that-opens-at-fired.md)); routing by class and by nothing
 finer, and **no coalescing and no flap suppression in v1** (ADR-0039 §4, §6).
+
+> **`nine` is superseded here, at the site that states it — the class is `ten`.**
+> [#130](https://github.com/winniel123/verge-asm/issues/130) ·
+> [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md)
+> resolved in the same parallel batch as this ADR and minted a tenth member: a `Seed` narrowing that
+> removes membership ground nothing else cites fires **one coverage-class message at the scope**,
+> because the act takes the subject that would have carried the news away with it. Both passes
+> branched from `4001e4c` and neither could see the other; this ADR read **nine** and confirmed it,
+> which was correct when it was written and is not now. **Nothing else in this paragraph moves** —
+> the clock class is still **three** and the census payload still has **five producers**, both
+> re-checked on merge. Recorded by the merging session, per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): the
+> superseded count, read alone and in the present tense, would have a competent session build a
+> nine-member class.
 
 Three things arrive here needing an answer.
 
@@ -355,7 +370,7 @@ than a strike alone ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsif
 | --- | --- |
 | **A message catalogue — one hand-authored string per message kind** | The obvious build, and it is a **curated table asserting about the product**, with no owner, no attestation and no watch — [#125](https://github.com/winniel123/verge-asm/issues/125)'s shape one layer across. It rots the way this corpus has already watched a figure rot four times: a rule stated once and applied at twenty sites has to be re-remembered at twenty sites, and #35's *not always good news* is exactly the one forgotten at the nineteenth. It also hides the class inside the prose, so the operator cannot learn the vocabulary — and class routing is the only volume control v1 ships, so an operator who cannot read the class cannot use it |
 | **Four registers, hand-cut per cause, with no shared grammar** | The honest-looking middle, and it answers the ticket's question *no*. It is falsified by the corpus rather than by argument: #44's absence vocabulary already runs **four** registers under **one** cause, so cause is demonstrably not the unit the wording keys on. A per-cause register would have to level *we stopped looking* with *you stopped telling us*, which ADR-0020 built precisely to keep apart |
-| **Key the vocabulary on the class rather than the cause** | Worse than per-cause, and for a measurable reason: the coverage class holds **nine** members across **two** causes with **two** triggers under one of them, whose payloads ADR-0014 rules differ. Three registers over nine members is levelling by construction |
+| **Key the vocabulary on the class rather than the cause** | Worse than per-cause, and for a measurable reason: the coverage class holds ~~**nine**~~ **ten** members (#130 · ADR-0074, merged after this pass) across **two** causes with **two** triggers under one of them, whose payloads ADR-0014 rules differ. Three registers over ~~nine~~ ten members is levelling by construction — **the rejection strengthens as the class grows**, so the count moving does not disturb it |
 | **Class per rule — the three certificate rules are always clock class** | The tidiest reading and the one ADR-0004 supports on its face. It loses on the deploy: a certificate that arrives **already expired** is the world moving, and filing it under *a clock crossed* tells the operator that nothing happened but time, which is false about their estate. Worse, it is false in the direction that costs — an operator routing the clock class away to escape the ACME flap goes silent on a real deploy defect, which is [#14](https://github.com/winniel123/verge-asm/issues/14)'s false reassurance arriving through the routing layer |
 | **Class per rule — the three certificate rules are always drift class** | Empties the clock class and withdraws the fourth cause, which the ticket bars and is right to bar: *a clock crossed* has a genuine referent, ADR-0004 measured that exactly three rules have it, and ADR-0038 needs it as `certificate-expiring`'s carrier. It also hands the ACME flap back to a channel that cannot silence it |
 | **A severity field, or a colour scale, on the message** | The most-requested thing in any alerting product and the one this model cannot supply honestly. A clear can be an attack (#35), a widening is neither good nor bad, and the threshold behind any severity is set from an unmeasured base rate. It also performs on the message store the collapse #22 refused on `Coverage` — four routes cut apart so the operator does not learn to dismiss all of them |
