@@ -32,6 +32,13 @@ check. **[measured]** the corpus's one external G8 measurement, §40.5's charact
 of `security-checklist.md`, was made *"in the raw markdown **at the pinned commit**"* — against a
 target that cannot move.
 
+**A second question arrived mid-flight and is answered here rather than deferred.**
+[#153](https://github.com/winniel123/verge-asm/issues/153), landing in the same wave, measured a
+**summarising fetch fabricating a word in RFC 4251 §1** at the clause its own ruling turned on, and
+recorded at §45.10 that G7's rider *"should be read as reaching **any** intermediary"* — leaving open
+whether that earns a gate check. Naming *which* citations a release re-resolves is worthless if
+*re-resolve* is undefined, so the two questions meet in this ADR: see rider 4.
+
 The full working, including the roster, is
 [`sensitive-ports.md`](../research/sensitive-ports.md) **§44**.
 
@@ -78,6 +85,24 @@ portal page, a live registry, and any page with no version marker at all.
    [ADR-0046](./0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
    as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), which is a **reading** and
    therefore a queue item.
+4. **Every member is resolved as the artefact's own bytes.** A member resolved through any
+   intermediary that does not return them — a summarising reader, a search snippet, a mirror, a
+   paraphrase — is **UNRUN**, never green, per §40's own convention that an incomplete check is
+   recorded as incomplete and never as passed.
+
+**Rider 4 sites an old rule and mints nothing.** Its specifying site is `sensitive-ports.md` §33.11 —
+*"cite the bytes the repository returns, because a renderer and a summariser are two different
+substitutions"* — and **[measured]** it has fired at least six times in the corpus (§12.9, §22.10,
+§30.10, §33.11, §37.14, and §45.10, where a summarising fetch reported a word RFC 4251 §1 does not
+contain, at the clause [#153](https://github.com/winniel123/verge-asm/issues/153)'s ruling turned on).
+**It is a precondition on the fetch and not a check**, and specifically it is **not G7's**: G7 asks
+*did the **owner** publish this?*, its authority is
+[ADR-0045](./0045-an-owners-documentation-is-what-it-has-issued.md), and §45.10 records that G7 was
+**vacuous by construction** on the artefact where the hazard fired. G8's own words already exclude an
+intermediary — *still a **token** of the artefact* is a claim about **bytes** — so a member read
+through one has not tested the proposition at all. **This lives in the population statement because
+§39.6 has specified *targeted re-fetches* since #125 without ever saying how a re-fetch is performed,
+having had no list of them to attach the discipline to.** This is the first list.
 
 **And the corollary that makes the rule worth having rather than merely smaller: pinning is a cure,
 and it is free at the moment it is made.** A pass already reading an owner artefact is already
@@ -139,6 +164,15 @@ contain.
   the cells G11 cannot compare, which is the same fact and is raised at §44.11 rather than ruled on.
 - **G7, G10 and G11 are confirmed by use and none is amended.** G10's named list of one is a member of
   the recurring roster, so **one fetch answers G8 and G10 for that cell**.
+- **§45.10's open question — whether the summariser hazard earns a gate check — is answered in the
+  negative.** It is rider 4, a precondition on the fetch. **G7 is not widened and not amended**, and
+  the gate stays at eleven.
+- **The partition pays a second time, and it was not foreseen.** The artefacts a session is most
+  tempted to reach for an intermediary on are the ones plain fetching fails on — HPE's portal serving
+  an empty body, Dell's PDF host returning `403`, the JavaScript shells at `learn.microsoft.com` and
+  `docs.oracle.com`. **[measured]** all four vendor-document members are in the **entry** set, pinned
+  by part and revision number, so **a release never fetches them**. The place the temptation is
+  strongest is the place the recurring roster does not go.
 - **Nothing on any operator-facing surface moves.** `CONTEXT.md` is not amended: the curator is not a
   subject in the model, and the product holds nothing about a citation. ADR-0008's rule version is not
   triggered, and no row, class, tier, coverage or exclusion figure moves.

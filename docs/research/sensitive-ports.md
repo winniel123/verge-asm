@@ -20647,7 +20647,7 @@ question**, and the two checks separate cleanly the moment the population is cut
 > edits in place, a wiki, a vendor portal page, a live registry, and any page carrying no version
 > marker at all.
 >
-> **Three riders.**
+> **Four riders.**
 > **(1) A pin counts only where *this note* records it.** A citation to a tag the note does not name
 > is a moving citation, because the run has nothing to fetch. **(2) A citation naming more than one
 > target is as many members as it names targets** — §3.4 cites `ports-and-protocols.md` at
@@ -20657,6 +20657,58 @@ question**, and the two checks separate cleanly the moment the population is cut
 > [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
 > as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), which is a **reading** and
 > therefore a queue item rather than a gate check.
+> **(4) Every member is resolved *as the artefact's own bytes*, and a member resolved through any
+> intermediary that does not return them is UNRUN, never green.** §44.2.1 states why this rider is here
+> rather than in a check.
+
+### 44.2.1 Rider 4 — how a member is fetched, and why it is not a check
+
+**§45.10 ([#153](https://github.com/winniel123/verge-asm/issues/153)) measured the hazard that makes
+this rider necessary**, and it is read here rather than restated: a summarising fetch reported a word
+in RFC 4251 §1 that the artefact does not contain, at the exact clause that section's ruling turned
+on. §45.10 concludes that G7's rider *"should be read as reaching **any** intermediary, not only
+raw-versus-rendered"*, and expressly leaves open whether it earns a gate check of its own.
+
+**It does not, and G7 is not where it belongs.** Three reasons, and the first is decisive:
+
+1. **G7 was satisfied *by construction* on the artefact where the hazard fired.** §45.10 records that
+   the `.txt` at `rfc-editor.org` **is** the rendered artefact, so *"there is no unrendered-source
+   route into it"* — G7 was vacuous, and the fabrication happened anyway. **A check that cannot fail
+   on a case is not the check that governs it.**
+2. **The two propositions are about different parties.** G7 asks *did the **owner** publish this?* —
+   its subject is issuance, and its authority is
+   [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md). The hazard asks *did
+   **we** read the owner?* Nothing about issuance was ever in question: RFC 4251 §1 is issued, and the
+   summariser simply reported it wrong.
+3. **G8's own words already exclude an intermediary, and nobody had noticed.** The check reads *still
+   a **token** of the artefact* — a token claim is a claim about the artefact's **bytes** (§36.14,
+   §37.14). **A summariser does not return the artefact's bytes**, so a member "checked" through one
+   has not tested G8's proposition at all; it has tested a model of the artefact. That is not a failed
+   check. It is an **unrun** one, and §40's own convention governs: *"Where a check could not be
+   completed, it is recorded as **incomplete** with the reason, never as passed."*
+
+**The rule itself is old and its specifying site is §33.11** — *"cite the bytes the repository
+returns, because a renderer and a summariser are two different substitutions"*. **[measured]** it has
+fired at least **five** times in this corpus: two summariser-mediated false negatives on ZooKeeper's
+`zookeeperAdmin.md` (§33.11), a fabricated leading clause welded onto MongoDB's hardening sentence —
+*"the welded clause is precisely the one that would have met §10.3's failure condition for three
+rows"* (§37.14) — a Dell table reconstruction refused at §22.10, a paraphrase-shaped Microsoft row
+verified against raw source and found genuine (§35), and now #153's RFC 4251.
+
+> **So this rider mints nothing and adds no check. What it does is *site* a rule that had nowhere to
+> live.** §39.6 has specified *targeted re-fetches* since #125 and has never said **how a re-fetch is
+> performed** — because it never had a list of them to attach the discipline to. **§44.4 is the first
+> such list, so this is the first place the sentence can bind.** A named set is not executable until
+> *fetch* is defined; a roster resolved through a summariser is a check that returns green on
+> fabricated bytes, which is worse than an unrun check because it is indistinguishable from a paid one.
+
+**And the partition pays for itself a second time here, unforeseen.** The artefacts where a session is
+most tempted to reach for an intermediary are the ones plain fetching fails on — HPE's portal serving
+an empty body, Dell's PDF host returning `403`, `learn.microsoft.com`'s and `docs.oracle.com`'s
+JavaScript shells (§9.5, §14.6, §17.10, §36.14, §40.9). **[measured]** all four of the vendor-document
+members are in **§44.5's entry set**, pinned by part and revision number. **Under this ruling a
+release never fetches them at all**, so the one place the temptation is strongest is the one place the
+recurring roster does not go.
 
 **Three readings lost, and they are named so this ruling can be attacked.**
 
@@ -20842,6 +20894,21 @@ a true statement about 2026-08-15. What changes is that **UNRUN now has a denomi
 > that edit or by its owner; a member that was unrun here and fails there is **inherited**, and §40.6's
 > own reason for writing a baseline down applies unchanged.
 
+**The scoreline the rest of the gate now carries, walked rather than quoted.** §40.6's baseline is
+#133's and is dated; **[measured]** one check has moved since:
+
+| Check | #133 (§40.6) | Today | Moved by |
+| --- | --- | --- | --- |
+| G1 · G2 · G3 · G6 · G7 · G9 · G10 | GREEN | **GREEN** | — |
+| **G4** | GREEN as of §40's own edits, RED on arrival at 11 sites | **GREEN** | §45.8 confirms; **and this section's own three supersessions are marked at their clauses** (§39.6's G8 row, §40.9's first bullet, §40.5's `sole`), which is G4 run over this edit |
+| **G5** | **RED** at 2 of §4.6's 24 cells | **GREEN** | [#153](https://github.com/winniel123/verge-asm/issues/153) · §45.8. §40.3's population was exactly three cells; two were struck at §40.3 and the third — `22/tcp` — at §45 |
+| **G8** | internal GREEN, external **UNRUN** | internal **GREEN**, external **UNRUN over a named population of 36** | This section |
+| **G11** | **RED**, 5 defects over 27 cells | **RED**, inherited and untouched | — |
+
+**Nine green, one red, one partial** — against #133's eight, two and one. **This section moves none of
+them**: it names G8's population and does not run it, and the G5 move is #153's and is read here rather
+than restated. **[measured]** the eleven-check count is unchanged, and §44.2.1 adds no twelfth.
+
 ### 44.9 Every dependent figure, walked rather than asserted
 
 | Where | Was | Is |
@@ -20859,6 +20926,8 @@ a true statement about 2026-08-15. What changes is that **UNRUN now has a denomi
 | **§40.9's first bullet** | *"The criterion that would fix it is an enumeration of G8's population, which is a ticket rather than a reading"* | **DISCHARGED**, marked at its clause. It is this section |
 | **§40.5's G8 internal exception list** | *"the **sole** exception being ADR-0064"* | **`sole` struck** — **[measured]** `ADR-0076` is a second instance, minted as a gap by §40.8 in that same section. **The GREEN verdict does not move**; §44.3 restates the exception as a rule rather than an enumeration |
 | The queue (§39.4, §41.4) | nine items over eleven pairs and two non-port cells | **unchanged.** This section adds no item: pinning is an act **we** take, and the queue keys on acts the **owner** takes |
+| **§45.10's widening of G7's rider** ([#153](https://github.com/winniel123/verge-asm/issues/153)) | *"whether it earns a gate check of its own is left open"* | **ANSWERED — it does not, and it is not G7's.** It is a precondition on the **fetch**, sited as §44.2's **rider 4** because §44.4 is the corpus's first roster of re-fetches and therefore the first place the sentence can bind. **G7 is not amended**, and **[measured]** G7 was *vacuous by construction* on the artefact where the hazard fired (§45.10), which is why it cannot be G7's. §44.2.1 |
+| **§40.6's gate baseline** | eight green · two red · one partial | **nine green · one red · one partial** — G5 moved RED → GREEN by [#153](https://github.com/winniel123/verge-asm/issues/153) (§45.8), read here and not restated. **This section moves no check**; it gives G8's partial a denominator. §44.8 |
 | §2.2 / §2.3 / §2.4, §10.2's closed claim set | — | **untouched.** No claim, class, determinacy verdict or exclusion is reopened |
 | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet` is byte-identical; naming a gate check's population is not reference data |
 | `CONTEXT.md` | — | **not amended, as a ruling.** The curator is not a subject in the model and the product holds nothing about a citation — §39.8 and §40.8's answer, unchanged |
@@ -20937,10 +21006,20 @@ is hardest to measure** — §40.9's own words, arriving here from a second dire
 - **The four registers were read whole rather than sampled**, and where a register carries a
   superseded entry beside a live one (§3.4's withdrawn kubelet block, §4.6's struck clauses) the live
   one alone is taken, per §44.6.
+- **A summarising layer is not a retrieval, and this section is the first place the gate can say so.**
+  §33.11 specified it, §12.9, §22.10, §30.10, §36.14 and §37.14 each met it, and
+  [#153](https://github.com/winniel123/verge-asm/issues/153) met it a sixth time at §45.10 — **on an
+  artefact where G7 was vacuous**. It is §44.2's rider 4 rather than a check, and §44.2.1 states the
+  three reasons. **G7 is not amended by this section**, and §45.10's open question is answered in the
+  negative rather than absorbed.
 - **Sibling passes are editing this repository concurrently.** This section's delta is **empty** for
   every figure in §1 and every summary row in this note, so it composes with any of them; its only
-  write outside its own text is **§39.6's G8 row** and **§40.9's first bullet**, both of which are
-  clause-level marks required by ADR-0057 and ADR-0058 rather than rewrites.
+  write outside its own text is **§39.6's G8 row**, **§40.9's first bullet** and **§40.5's `sole`**,
+  all three clause-level marks required by ADR-0057 and ADR-0058 rather than rewrites. Its basis is
+  `main` at `1cd41bc`; **§45's figures are read from
+  [#153](https://github.com/winniel123/verge-asm/issues/153)'s branch and cited to §45.8 and §45.10
+  rather than restated**, so the two compose whichever merges first — #153 appends §45 at the same
+  anchor, which is textual adjacency and not disagreement.
   **Where §44 and §1 disagree, §1 governs.**
 
 ---
