@@ -1318,6 +1318,7 @@ board is unaffected.</p>
 </ul>
 </div>
 {{end}}
+{{end}}
 </main>
 {{template "foot" .}}{{end}}
 
