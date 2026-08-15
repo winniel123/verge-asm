@@ -25,10 +25,13 @@ type fakeStore struct {
 	accounts map[int64]db.Account
 	byName   map[string]int64
 	nextID   int64
+
+	seeds      []db.Seed
+	seedNextID int64
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1}
+	return &fakeStore{accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1, seedNextID: 1}
 }
 
 func (f *fakeStore) RecordHeartbeat(context.Context) (db.Heartbeat, error) {
@@ -88,6 +91,50 @@ func (f *fakeStore) ConfirmTOTP(_ context.Context, id int64) error {
 	acct.TotpEnabled = true
 	f.accounts[id] = acct
 	return nil
+}
+
+func (f *fakeStore) CreateNameSeed(_ context.Context, arg db.CreateNameSeedParams) (db.Seed, error) {
+	for _, s := range f.seeds {
+		if s.Kind == "name" && s.NameDomain.String == arg.NameDomain.String {
+			return db.Seed{}, &pgconn.PgError{Code: "23505", Message: "duplicate seed"}
+		}
+	}
+	sd := db.Seed{
+		ID: f.seedNextID, Kind: "name", NameDomain: arg.NameDomain, CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.seeds = append(f.seeds, sd)
+	f.seedNextID++
+	return sd, nil
+}
+
+func (f *fakeStore) CreateAddressSeed(_ context.Context, arg db.CreateAddressSeedParams) (db.Seed, error) {
+	for _, s := range f.seeds {
+		if s.Kind == "address" && s.AddressCidr != nil && arg.AddressCidr != nil && s.AddressCidr.String() == arg.AddressCidr.String() {
+			return db.Seed{}, &pgconn.PgError{Code: "23505", Message: "duplicate seed"}
+		}
+	}
+	sd := db.Seed{
+		ID: f.seedNextID, Kind: "address", AddressCidr: arg.AddressCidr, CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.seeds = append(f.seeds, sd)
+	f.seedNextID++
+	return sd, nil
+}
+
+func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
+	rows := make([]db.ListSeedsRow, 0, len(f.seeds))
+	// Newest first, mirroring the SQL ORDER BY created_at DESC, id DESC.
+	for i := len(f.seeds) - 1; i >= 0; i-- {
+		s := f.seeds[i]
+		rows = append(rows, db.ListSeedsRow{
+			ID: s.ID, Kind: s.Kind, NameDomain: s.NameDomain, AddressCidr: s.AddressCidr,
+			CreatedBy: s.CreatedBy, CreatedAt: s.CreatedAt,
+			CreatedByUsername: f.accounts[s.CreatedBy].Username,
+		})
+	}
+	return rows, nil
 }
 
 // testKey is a fixed 32-byte session signing key for tests.
