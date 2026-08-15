@@ -231,6 +231,8 @@
   .anno p { margin: 0 0 var(--space-2); }
   .anno p:last-child { margin-bottom: 0; }
   .anno a { color: var(--accent); }
+  /* added by #144 for the dateline's <code> spans; the block above is #132's. */
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
 
   footer.ft { border-top: var(--rule); background: var(--surface); }
   .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
@@ -445,11 +447,40 @@ function chrome(active, body, F) {
     `<a href="?screen=${n === "Coverage" ? "coverage" : "signals"}&fill=${FILL}" class="${n === active ? "on" : ""}">${n}</a>`).join("")}</nav>
   <div class="nav-right">${st}</div>
 </div></header>
-<div class="shell">${body}</div>
+<div class="shell">${dateline()}${body}</div>
 <footer class="ft"><div class="ft-in">
   <span>prototype · issue #44</span><span class="sp"></span>
   <span>vocabulary: CONTEXT.md</span>
 </div></footer>`;
+}
+
+/* ── THE DATELINE — ADR-0075 (#131), applied by #144 ────────────────────────
+   A prototype is a dated record of a READING, never of a RULE. The provenance
+   has to be in what the browser DRAWS: every recorded instance of a prototype
+   being wrongly believed happened in a browser, where an HTML comment is
+   invisible.
+
+   ARTEFACT-SCOPED and UNCONDITIONAL. It renders on all eight of this file's
+   `screen × fill` drawings because every one of them is a reading. It is a
+   different object from `supersededMark()` below, which is FILL-scoped and
+   condemns one drawing: this says what kind of artefact you are looking at,
+   that says one drawing is a rule drawn after its withdrawal. Neither
+   substitutes for the other and neither should be merged into the other. */
+function dateline() {
+  return `
+  <div class="anno">
+    <span class="ml">prototype · not part of the design</span>
+    <p><b>Issue #44 — "Where does the operator see a signal that is not-evaluable?". Drawn
+      2026-08-13.</b> Throwaway: something to decide against, not production UI and not a component
+      library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a current value</b> — the corpus
+      as it stood on that date, and nothing here has been re-filled since. The only live absolutes
+      are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>): read a
+      figure there before believing one here. What is <i>not</i> a dated reading is the state these
+      screens draw — the acts they offer, the populations they show as non-empty and the sentences
+      they put in the product's mouth. A later ruling that makes one of those unreachable is marked
+      here in place and never redrawn.</p>
+  </div>`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

@@ -219,6 +219,8 @@
   .anno.no .ml { color: var(--danger); }
   .anno p { margin: 0 0 var(--space-2); }
   .anno p:last-child { margin-bottom: 0; }
+  /* added by #144 for the dateline's <code> spans */
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
 
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
   @media (max-width: 1100px) { .two { grid-template-columns: 1fr; } }
@@ -448,10 +450,33 @@ function chrome(body) {
       <button class="btn sm">Run scan</button>
     </div>
   </div></header>
-  <main class="shell">${body}</main>
+  <main class="shell">${dateline()}${body}</main>
   <footer class="ft"><div class="ft-in">
     <span>prototype — issue #123</span><span>not production</span><span>design system: design-system/</span>
   </div></footer>`;
+}
+
+/* ── THE DATELINE — ADR-0075 (#131), applied by #144 ────────────────────────
+   A prototype is a dated record of a READING, never of a RULE. The provenance
+   has to be in what the browser DRAWS: every recorded instance of a prototype
+   being wrongly believed happened in a browser, where an HTML comment is
+   invisible. Drawn on all 22 combinations, because every one is a reading. */
+function dateline() {
+  return `
+  <div class="anno">
+    <span class="ml">prototype · not part of the design</span>
+    <p><b>Issue #123 — "The Seeds screen: six jobs beyond listing, and three refusals with three
+      different right answers". Drawn 2026-08-15</b>, with one superseded staleness-window line
+      corrected the same day in the ten-ticket merge reconciliation. Throwaway: something to decide
+      against, not production UI and not a component library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a current value</b> — the corpus
+      as it stood on that date, and nothing here has been re-filled since. The only live absolutes
+      are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>): read a
+      figure there before believing one here. What is <i>not</i> a dated reading is the state these
+      screens draw — the acts they offer, the populations they show as non-empty and the sentences
+      they put in the product's mouth. A later ruling that makes one of those unreachable is marked
+      here in place and never redrawn.</p>
+  </div>`;
 }
 
 /* ------------------------------------------------------------------ shared parts */
