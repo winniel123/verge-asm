@@ -606,6 +606,18 @@ function provenanceSection(seed) {
 function seedBlock(seed) {
   const isName = seed.kind === "name";
   return `
+  ${anno("withdrawn — #165 · ADR-0093",
+    `<p><b>The <span class="mono">declared &lt;month&gt;</span> cell below is a field the product does
+     not have</b>, and so are the <span class="mono">declared &lt;month&gt;</span> on every exclusion
+     row and the date column in the declined region. An instant is not a field the Declared layer may
+     carry: it is earned only where the term is replaced rather than edited <i>and</i> the act leaves
+     no dated residue, and a <span class="mono">Seed</span> fails both — it is edited after creation,
+     and #127 already dates it from the estate.</p>
+     <p><b>What this surface would draw now:</b> the date read from the <b>earliest
+     <span class="mono">revealed</span> beneath the scope</b>, labelled as what it is — when something
+     was first seen there, not when you typed it — and nothing at all on a scope that has never
+     yielded a subject. An exclusion is dated by the coverage-class message #130 · ADR-0074 fires at
+     the scope, which carries the instant of the cause.</p>`, true)}
   <div class="seed">
     <div class="seed-h">
       <div>
