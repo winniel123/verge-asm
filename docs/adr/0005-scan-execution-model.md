@@ -35,7 +35,7 @@ observation, never an observation of absence.**
 | --- | --- |
 | Unit of work | **One queue job = one `Batch`** |
 | Batch partitioning | Along any dimension the source **retains enumerability** over |
-| Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence *(amended to **four** by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), on this row's own reasoning: `tls-acceptance`'s weekly enumeration is a fourth `Scan` whose scope is the open `Service` population and the TLS candidate set, not a port tier)*. *(Read **two** port tiers and **three** `Scan`s after [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly tier — see the amendment under "Port tiers are three `Scan`s".)* |
+| Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence *(amended to **four** by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), on this row's own reasoning: `tls-acceptance`'s weekly enumeration is a fourth `Scan` whose scope is the open `Service` population and the TLS candidate set, not a port tier)*. *(Read **two** port tiers and **three** `Scan`s after [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly tier — see the amendment under "Port tiers are three `Scan`s".)* *(Read **two port tiers and four `Scan`s** after [#124](https://github.com/winniel123/verge-asm/issues/124) added **`zone`**, on this row's reasoning again — the operator's zone file needed a cadence of its own and had none, so its observations had no currency bound. Same section.)* |
 | Tick firing | **Any worker**, under a Postgres advisory lock, idempotent on `(scan, scheduled_time)` |
 | Fan-out | **Atomic** — the `Dispatch` row and all its job rows commit in one transaction |
 | Overlap | **Skip**, recorded as a first-class operational event |
@@ -208,6 +208,34 @@ protecting them.
 > is not a cheaper version of the full-range tier but an inexpressible object, and why the widest
 > tier ships **configured and disabled** with an empty scope list —
 > [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md).
+
+> **Amended 2026-08-15 by [#124](https://github.com/winniel123/verge-asm/issues/124) — a fourth
+> `Scan`, `zone`, on this section's own reasoning.** Read **two port tiers and four `Scan`s**.
+>
+> The operator's zone file is a `Source` whose observations age under the currency bound —
+> [#48](https://github.com/winniel123/verge-asm/issues/48) route 4, *you stopped telling us* —
+> and **nothing covered it**, so `k × cadence` had no value for it and route 4 could never fire.
+> That is this section's amendment above, arriving for a source rather than for a port set: a
+> measurement with no cadence has no currency. #48 flagged it as its own thin ground and handed it
+> to the packaging patch.
+>
+> **`zone`: scope the name scopes holding a supplied zone, no port list and no vantage choice,
+> cadence the operator's declared re-supply interval, shipped at monthly.** Its batches restate the
+> stored file's observations **at the operator's supply instant**, so the bound holds the operator to
+> their own promise rather than to our read — re-reading unchanged bytes on a cadence would produce a
+> *current* observation of a *stale* fact, which hides #48's problem more thoroughly than a single
+> read does. A name scope with no zone supplied leaves the scope list empty, which is this ADR's own
+> legible state. Everything in this ADR applies to it unchanged.
+>
+> **Why it is not hung off the daily tier**, which is the cheap answer: a hand-supplied export would
+> then carry a **two-day** currency bound, so an operator who did everything right watches the source
+> go `not-evaluable` on the third day — and disabling the port tier would silently stop the zone being
+> read, which is the hidden-field failure this section exists to refuse.
+>
+> **A hole this amendment does not close, stated rather than absorbed:** `resolution` and our own
+> resolver's `dns-record` still have **no covering `Scan`** either, so they have no currency bound
+> for the same reason. That is wider than the packaging patch and is ticketed rather than guessed at
+> here. Full statement in [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §7.
 
 ### Vantage availability is Derived, and its window is fixed
 

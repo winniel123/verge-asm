@@ -211,8 +211,10 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   **A pair leaving the sensitive list costs the union nothing wherever the frequency half already
   carries it.** What stops is the `Signal`, not the measurement.
 - **The aperture *narrows*.** `safe-active-probing.md` §2.4's line reads
-  ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40`~~ **`0 of 38`** (#114) — a **denominator**, with the
-  numerator `0` for every `|S|`, and `0 of 16 rules unevaluable` unchanged. Nothing becomes unread, so
+  ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40`~~ ~~`0 of 38`~~ **`5 of 38`** (#114; numerator
+  corrected from `0` by [#124](https://github.com/winniel123/verge-asm/issues/124), five sensitive
+  pairs being UDP and UDP off on default settings) — a **denominator**, with the
+  numerator `5` for every `|S|`, and `0 of 16 rules unevaluable` unchanged. Nothing becomes unread, so
   [ADR-0014](./0014-only-revealed-generalises.md) does not bite and no timeline opens.
 - **ADR-0050, ADR-0054, ADR-0059 and ADR-0037 are all confirmed by use and none is amended.** Limb 1
   does not narrow ADR-0050 limb 3 or ADR-0059 limb 4; it says what they are **not** also deciding.
