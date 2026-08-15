@@ -1,0 +1,899 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #139: "Coverage owes the retention projection and
+  the two dials with their floors."
+
+  #121 / ADR-0041 decided retention across three corpora and said `Coverage`
+  gains a rendering obligation. It decided none of it visually, and #28's
+  Coverage prototype predates retention entirely. This renders it.
+
+  Three variants, ?variant=A|B|C — three answers to the same question, which is
+  what the operator is actually asking when they arrive here:
+
+    A — ledger        one table, four corpora, both dials inline in it
+    B — by instrument two panels, "retired by a clock" / "never retired",
+                      which is the shape ADR-0041's own decision table has
+    C — horizon-first one horizon statement as the hero; the corpora and the
+                      dials sit beneath it as its machinery
+
+  Six fills, ?fill=unbounded|set|floor|break|modal|zero :
+
+    unbounded  v1's shipped state — both dials keep everything, at the ceiling
+               install (one declared /22, a zone file supplied)
+    set        an operator has set both dials
+    floor      an operator has dragged a dial down onto its floor, and is
+               reaching below it — the case that decides whether a floor is a
+               validation error or territory
+    break      a `Break` is the binding clamp — the case that has to make
+               "retention may never be the tighter clamp" visible rather than
+               asserted
+    modal      the modal install: a name scope, no address scope declared, so
+               the projection has no declared denominator (>99% of installs)
+    zero       day one — nothing measured, nothing retained, no history at all
+
+  Not production code. No tests, no error handling, no abstractions. The visual
+  language is the real design system (../../design-system). The vocabulary is
+  CONTEXT.md, which overrides the kit where they disagree.
+
+  EVERY FIGURE ON THIS SCREEN IS COMPUTED FROM A NAMED INPUT, not authored.
+  The inputs are in MODEL below, each with its source. The one exception is the
+  span row count, which is quoted from ADR-0041 rather than recomputed, and is
+  marked as quoted where it is rendered. Both floors are computed as
+  `k` x cadence and are never written down as a day count — ADR-0038, which
+  ADR-0041 restated and then contradicted two sentences later with a fortnight.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — coverage retention prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 96px; }
+
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); text-decoration: none; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--surface-sunken); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); }
+
+  .card { background: var(--surface); border: var(--rule); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .sp { margin-left: auto; }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); }
+  .pad { padding: var(--space-4); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); vertical-align: bottom; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: top; }
+  tbody tr:first-child td { border-top: none; }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num { text-align: right; font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap; }
+  th.num { text-align: right; }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); white-space: nowrap; }
+  .tag.ink   { border-color: var(--border-ink); color: var(--ink); }
+  .tag.dial  { border-color: var(--border-ink); color: var(--ink); background: var(--surface-sunken); }
+  .tag.none  { border-style: dashed; color: var(--text-faint); }
+  .tag.trav  { border-style: dashed; border-color: var(--border-ink); color: var(--text-muted); }
+
+  /* ── the horizon: an ORDERED list of every clamp in force. The binding one
+     sorts first and is the only one drawn in ink. This is how "retention may
+     never be the tighter clamp" is made visible rather than asserted: if
+     retention ever sorted first, it would be drawn as the binding clamp — so
+     the screen renders instead that it does not bite. ─────────────────── */
+  .horizon { background: var(--surface); border: var(--rule); border-left: 3px solid var(--ink); }
+  .horizon .lede { padding: var(--space-4); display: flex; gap: var(--space-4); align-items: baseline; flex-wrap: wrap; }
+  .horizon .lede .big { font: var(--weight-semibold) var(--text-2xl)/1 var(--font-mono); color: var(--ink); }
+  .horizon .lede .txt { font-size: var(--text-base); line-height: var(--leading-body); flex: 1; min-width: 260px; }
+  .clamps { border-top: var(--rule); }
+  .clamp { display: flex; gap: var(--space-3); align-items: baseline; padding: var(--space-2) var(--space-4);
+           border-top: var(--rule-soft); font-size: var(--text-base); }
+  .clamp:first-child { border-top: none; }
+  .clamp .who { font-family: var(--font-mono); font-size: var(--text-sm); width: 190px; flex: none; color: var(--text-muted); }
+  .clamp .at  { font-family: var(--font-mono); font-size: var(--text-sm); width: 150px; flex: none; color: var(--text-faint); text-align: right; }
+  .clamp .why { color: var(--text-muted); font-size: var(--text-sm); }
+  .clamp.binds { background: var(--surface-sunken); }
+  .clamp.binds .who { color: var(--ink); font-weight: var(--weight-semibold); }
+  .clamp.binds .at  { color: var(--ink); }
+  .clamp.binds .why { color: var(--text); }
+  .clamp .rank { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono); letter-spacing: var(--tracking-label);
+                 text-transform: uppercase; color: var(--text-faint); width: 58px; flex: none; }
+  .clamp.binds .rank { color: var(--ink); }
+  .clamp.inert .who, .clamp.inert .at { text-decoration: line-through; text-decoration-color: var(--border); }
+
+  /* ── the dial. The track has two territories and only one of them is the
+     operator's. Below the floor is not a value they may pick and be told off
+     for — it is not theirs, so it is drawn as ground rather than as an error.
+     The right-hand terminal is a STATED position, "keep everything", and the
+     handle sits on it by default: an unbounded default is a place the handle
+     is parked, never an empty field. ─────────────────────────────────────── */
+  .dial { background: var(--surface); border: var(--rule); }
+  .dial > .hd { padding: var(--space-3) var(--space-4); border-bottom: var(--rule);
+                display: flex; gap: var(--space-3); align-items: baseline; }
+  .dial > .hd h3 { margin: 0; font-size: var(--text-base); font-weight: var(--weight-semibold); }
+  .dial > .hd .sp { margin-left: auto; }
+  .dial .bd { padding: var(--space-4); }
+
+  .track { position: relative; height: 30px; border: 1px solid var(--border); background: var(--surface);
+           display: flex; align-items: stretch; }
+  .track .not-yours { background: var(--surface-sunken); border-right: 1px dashed var(--border-ink); position: relative;
+                      background-image: repeating-linear-gradient(45deg,
+                        transparent 0 4px, var(--border) 4px 5px); }
+  .track .yours { position: relative; flex: 1; }
+  .track .handle { position: absolute; top: -4px; bottom: -4px; width: 3px; background: var(--ink); }
+  .track .handle::after { content: ""; position: absolute; left: -3px; top: -5px; width: 9px; height: 9px; background: var(--ink); }
+  .track .term { position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: var(--border-ink); }
+  .track .reaching { position: absolute; top: 0; bottom: 0; background: var(--danger-soft);
+                     border-left: 2px solid var(--danger); }
+  .track-labels { display: flex; margin-top: var(--space-2); font: var(--weight-medium) var(--text-xs)/1.3 var(--font-mono);
+                  color: var(--text-muted); }
+  .track-labels .sp { margin-left: auto; }
+  .track-labels .r { text-align: right; }
+
+  .deriv { margin-top: var(--space-3); font-family: var(--font-mono); font-size: var(--text-sm);
+           color: var(--text-muted); line-height: var(--leading-snug); }
+  .deriv b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .deriv .op { color: var(--text-faint); }
+
+  .priced { margin-top: var(--space-3); border-top: var(--rule-soft); padding-top: var(--space-3);
+            font-size: var(--text-base); line-height: var(--leading-body); }
+  .priced .ml { display: block; margin-bottom: var(--space-1); }
+
+  .ground { margin-top: var(--space-3); border-left: 3px solid var(--border-ink); background: var(--surface-sunken);
+            padding: var(--space-2) var(--space-3); font-size: var(--text-sm); line-height: var(--leading-body);
+            color: var(--text-muted); }
+
+  /* the projection — arithmetic over Declared input. Never a coverage figure,
+     never a percentage, never a bar. #28: the propose half carries no number
+     ever; this is the mirror rule — the retention panel carries no coverage
+     number ever. */
+  .proj { font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.9; }
+  .proj .step { display: flex; gap: var(--space-3); align-items: baseline; }
+  .proj .step .v { min-width: 132px; text-align: right; font-weight: var(--weight-semibold); color: var(--ink); }
+  .proj .step .l { color: var(--text-muted); }
+  .proj .step .src { color: var(--text-faint); font-size: var(--text-xs); margin-left: auto; text-align: right; }
+  .proj .arrow { color: var(--text-faint); }
+
+  .note { border: var(--rule); border-left: 3px solid var(--border-ink); background: var(--surface);
+          padding: var(--space-3) var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .note .ml { display: block; margin-bottom: var(--space-1); }
+  .note.empty-grp { border-left-style: dashed; }
+
+  /* the dateline — ADR-0075. Not part of the design being judged. The same
+     dashed accent box prototypes/seeds/ already ships, and it is DRAWN rather
+     than left in an HTML comment, because every recorded instance of a
+     prototype being wrongly believed happened in a browser. */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+
+  .stack > * + * { margin-top: var(--space-4); }
+  .stack-2 > * + * { margin-top: var(--space-2); }
+  .row { display: flex; gap: var(--space-4); align-items: flex-start; }
+  .col { flex: 1; min-width: 0; }
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5); }
+  h2.sec { margin: var(--space-8) 0 var(--space-1); font-size: var(--text-lg); font-weight: var(--weight-semibold);
+           letter-spacing: var(--tracking-tight); }
+  .sec-sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-4); }
+
+  details.d > summary { cursor: pointer; font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono);
+                        color: var(--text-muted); list-style: none; }
+  details.d > summary::-webkit-details-marker { display: none; }
+  details.d > summary::before { content: "\25B8  "; }
+  details.d[open] > summary::before { content: "\25BE  "; }
+  details.d > summary:hover { color: var(--ink); }
+  details.d > div { margin-top: var(--space-2); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+  .ft-in .sp { margin-left: auto; }
+
+  /* ── switcher: deliberately NOT part of the design being judged ─────── */
+  #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch;
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch .grp { display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
+                 border-left: 1px solid #3a3a30; }
+  #switch .grp:first-child { border-left: none; }
+  #switch .grp > span { color: #9a9a90; font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); margin-right: var(--space-1); }
+  #switch button { background: transparent; border: none; color: #9a9a90; cursor: pointer;
+                   font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); padding: 7px 8px; }
+  #switch button:hover { background: #3a3a30; color: var(--text-on-ink); }
+  #switch button.on { background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div id="switch">
+  <div class="grp" data-key="variant"><span>variant</span></div>
+  <div class="grp" data-key="fill"><span>fill</span></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   MODEL — every input, with its source. Nothing on this screen is authored;
+   every figure is computed from something in here, except the span row count,
+   which is quoted from ADR-0041 and marked as quoted where it renders.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const NAV = ["Exposure", "Subjects", "Signals", "Seeds", "Coverage", "Settings"];
+
+const MODEL = {
+  k:            { v: 2,       src: "ADR-0007, fixed" },
+  probedPairs:  { v: 131,     src: "verge-core 136 (131 TCP, 5 UDP) — #97, #124" },
+  bytesPerObs:  { v: 130,     src: "ADR-0041, engineering estimate" },
+  spanRows:     { v: 672000,  src: "ADR-0041, QUOTED not recomputed" },
+  rangeCap:     { v: 1024,    src: "ADR-0049, one knob at one setting" },
+};
+
+/* The four `Scan`s. CONTEXT.md: "there are four and only two are port tiers."
+   `enabled` is per-install, so it is set per fill below. */
+const SCANS = [
+  { id: "reachability-hot",  cadence: "daily",   days: 1,  tier: true  },
+  { id: "reachability-cold", cadence: "monthly", days: 30, tier: true  },
+  { id: "tls-acceptance",    cadence: "weekly",  days: 7,  tier: false },
+  { id: "zone",              cadence: "monthly", days: 30, tier: false },
+];
+
+/* Which `Scan` covers which facet's timelines. The two nulls are #142's open
+   question and they are the reason this table is a rendered list rather than a
+   sentence: #142 moves rows between the two halves and moves nothing else. */
+const FACETS = [
+  { f: "reachability",   by: "reachability-hot", note: "" },
+  { f: "certificate",    by: "reachability-hot", note: "the handshake rides the reachability exchange — ADR-0028" },
+  { f: "http-identity",  by: "reachability-hot", note: "" },
+  { f: "tls-acceptance", by: "tls-acceptance",   note: "" },
+  { f: "resolution",     by: null, zoneOnly: true,
+    note: "the zone Source's own timelines are covered by the zone Scan; the resolver's and the passive sources' are covered by none" },
+  { f: "dns-record",     by: null, zoneOnly: true,
+    note: "same — one timeline per source, and only the declared one has a cadence" },
+];
+
+/* ── fills ─────────────────────────────────────────────────────────────── */
+const FILLS = {
+  unbounded: {
+    label: "v1 shipped",
+    enabled: ["reachability-hot", "tls-acceptance", "zone"],
+    declaredAddrs: 1024, vantages: 2,
+    obsDial: null, dispatchDial: null,   /* null = keep everything */
+    reaching: null,
+    firstBatch: "2026-03-04",
+    breakAt: null,
+  },
+  set: {
+    label: "both dials set",
+    enabled: ["reachability-hot", "tls-acceptance", "zone"],
+    declaredAddrs: 1024, vantages: 2,
+    obsDial: 365, dispatchDial: 180,
+    reaching: null,
+    firstBatch: "2026-03-04",
+    breakAt: null,
+  },
+  floor: {
+    label: "reaching below the floor",
+    enabled: ["reachability-hot", "tls-acceptance", "zone"],
+    declaredAddrs: 1024, vantages: 2,
+    obsDial: 60, dispatchDial: 60,
+    reaching: "obs",
+    firstBatch: "2026-03-04",
+    breakAt: null,
+  },
+  break: {
+    label: "a Break is the binding clamp",
+    enabled: ["reachability-hot", "tls-acceptance", "zone"],
+    declaredAddrs: 1024, vantages: 2,
+    obsDial: 365, dispatchDial: 180,
+    reaching: null,
+    firstBatch: "2026-03-04",
+    breakAt: "2026-08-13 04:00 UTC",
+    breakLeaf: "reachability-canonicaliser",
+    breakVector: "exposure",
+  },
+  modal: {
+    label: "modal install — no address scope",
+    enabled: ["reachability-hot", "tls-acceptance"],
+    declaredAddrs: 0, vantages: 1,
+    measuredServices: 1417,   /* an arbitrary install fixture, deliberately NOT
+                                 prototypes/coverage/'s 1,290 — a fixture copied
+                                 between prototypes is the shape #131 measured */
+    obsDial: null, dispatchDial: null,
+    reaching: null,
+    firstBatch: "2026-05-19",
+    breakAt: null,
+  },
+  zero: {
+    label: "day one",
+    enabled: ["reachability-hot", "tls-acceptance"],
+    declaredAddrs: 0, vantages: 0,
+    measuredServices: 0,
+    obsDial: null, dispatchDial: null,
+    reaching: null,
+    firstBatch: null,
+    breakAt: null,
+  },
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   COMPUTED — the two floors. Each is `k` x a cadence, per ADR-0038, and
+   NEITHER is ever written down as a day count in the interface. The day count
+   below exists only to sort and to place a handle; it is never rendered as the
+   floor's value. ADR-0041 states the multiple rule and then contradicts it two
+   sentences later with "a fortnight" — that figure is a dated record and #124's
+   `zone` Scan has already moved it on any install with a zone file.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const enabledScans = (f) => SCANS.filter(s => f.enabled.includes(s.id));
+
+/* the Dispatch floor: `k` cadences of the SLOWEST ENABLED `Scan`, below which
+   Coverage cannot answer whether the slowest scan ran (ADR-0041, #22) */
+function dispatchFloor(f) {
+  const en = enabledScans(f);
+  if (!en.length) return null;
+  const slowest = en.reduce((a, b) => b.days > a.days ? b : a);
+  return { scan: slowest, days: MODEL.k.v * slowest.days, cadence: slowest.cadence,
+           why: "below this, Coverage cannot answer whether the slowest Scan ran" };
+}
+
+/* the observation floor: the currency bound. One dial over a corpus whose
+   bound is per-timeline, so the floor is the LONGEST bound in force — the
+   slowest Scan that COVERS anything. Structurally a different rule from the
+   Dispatch floor, and on this install it computes to the same number, which is
+   exactly why both derivations are rendered rather than one number shared. */
+function obsFloor(f) {
+  const en = enabledScans(f);
+  const covering = en.filter(s => FACETS.some(x => x.by === s.id) || s.id === "zone");
+  if (!covering.length) return null;
+  const slowest = covering.reduce((a, b) => b.days > a.days ? b : a);
+  return { scan: slowest, days: MODEL.k.v * slowest.days, cadence: slowest.cadence,
+           why: "below this, a derivation would lose an observation it is still allowed to read" };
+}
+
+const uncovered = () => FACETS.filter(x => !x.by);
+
+/* ── the projection: arithmetic over Declared input, forward, exact ────── */
+function projection(f) {
+  if (!f.declaredAddrs) return null;
+  const subjects = f.declaredAddrs * MODEL.probedPairs.v;
+  const perDay   = subjects * (f.vantages || 1);
+  const perYear  = perDay * 365;
+  const bytes    = perYear * MODEL.bytesPerObs.v;
+  return { addrs: f.declaredAddrs, subjects, perDay, perYear, gb: bytes / 1e9 };
+}
+
+/* ── the clamps, ordered. The binding one sorts first. ────────────────── */
+function clamps(f, fillKey) {
+  const out = [];
+  if (f.firstBatch) {
+    out.push({ who: "your first Batch", at: f.firstBatch, days: daysSince(f.firstBatch),
+               why: "nothing before this was ever measured", kind: "origin" });
+  }
+  if (f.breakAt) {
+    out.push({ who: "Break — " + f.breakVector, at: f.breakAt.split(" ")[0], days: daysSince(f.breakAt.split(" ")[0]),
+               why: "the " + f.breakLeaf + " moved; nothing before it may be compared with anything after",
+               kind: "break" });
+  }
+  const of = obsFloor(f), df = dispatchFloor(f);
+  out.push(retentionClamp("Observations", f.obsDial, of, f));
+  out.push(retentionClamp("Dispatch", f.dispatchDial, df, f));
+  return out.filter(Boolean);
+}
+function retentionClamp(name, dial, floor, f) {
+  if (dial == null) {
+    return { who: "Retention — " + name, at: "keeps everything", days: 1e9,
+             why: "no horizon set, so none applies", kind: "retention", inert: true };
+  }
+  return { who: "Retention — " + name, at: dial + "d back", days: dial,
+           why: "your dial", kind: "retention" };
+}
+const TODAY = new Date("2026-08-15T00:00:00Z");
+function daysSince(d) { return Math.round((TODAY - new Date(d + "T00:00:00Z")) / 86400000); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RENDER
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const num = (n) => n.toLocaleString("en-US");
+const gb  = (n) => n < 1 ? (n * 1000).toFixed(0) + " MB" : n.toFixed(1) + " GB";
+const mult = (k, cadence) => `<b>${k}</b> <span class="op">×</span> <b>${cadence}</b>`;
+
+/* the horizon — variant C's hero, and present in every variant, because it is
+   the only thing the operator actually came here to read. */
+function horizon(f, fillKey) {
+  if (!f.firstBatch) {
+    return `<div class="horizon"><div class="lede">
+      <span class="big">—</span>
+      <div class="txt">No history. Nothing has been measured, so there is nothing to keep and nothing to
+      discard. The two retention dials exist and are set to keep everything; they will have something to
+      act on after your first <span class="mono">Batch</span> completes.</div></div></div>`;
+  }
+  const cl = clamps(f, fillKey).slice().sort((a, b) => a.days - b.days);
+  const binding = cl[0];
+  return `<div class="horizon">
+    <div class="lede">
+      <span class="big">${binding.days > 1e6 ? "∞" : num(binding.days) + "d"}</span>
+      <div class="txt">Every timeline on this instance reaches back to
+        <span class="mono">${binding.at}</span>. ${binding.kind === "break"
+          ? `The <span class="mono">${f.breakVector}</span> derivation moved, so nothing before that
+             instant may be compared with anything after it. Durations across it render as floors.`
+          : `That is where your record starts, not where it is cut off.`}</div>
+    </div>
+    <div class="clamps">
+      ${cl.map((c, i) => `
+        <div class="clamp ${i === 0 ? "binds" : ""} ${c.inert ? "inert" : ""}">
+          <span class="rank">${i === 0 ? "binds" : c.inert ? "inert" : "looser"}</span>
+          <span class="who">${c.who}</span>
+          <span class="at">${c.at}</span>
+          <span class="why">${c.why}</span>
+        </div>`).join("")}
+    </div>
+    <div class="card-f" style="font-size:var(--text-sm);color:var(--text-muted);line-height:var(--leading-body)">
+      Clamps are listed tightest first. <b>Retention may never be the tighter clamp</b> — a
+      <span class="mono">Break</span> names the leaf that moved and a retention horizon names nothing,
+      so where a dial would cut earlier than the clamp above it, it does not cut at all.
+    </div>
+  </div>`;
+}
+
+/* the corpus table — four corpora, and two rows that travel rather than
+   holding a rule of their own. #47: this group renders when populated, so it
+   renders when empty, and says why. */
+function corpusRows(f) {
+  const of = obsFloor(f), df = dispatchFloor(f);
+  return [
+    { corpus: "Observation — live",
+      reader: "every derivation reads it",
+      inst: `<span class="tag none">no instrument</span>`,
+      note: `within <span class="mono">${MODEL.k.v} ×</span> the cadence of the tightest covering
+             <span class="mono">Scan</span>. May never be discarded.` },
+    { corpus: "Observation — evidential",
+      reader: "a person asking what we measured",
+      inst: `<span class="tag dial">dial</span>`,
+      note: `no derivation may read it and none may ever re-read it, so discarding it moves no value.
+             Floored at the currency bound.` },
+    { corpus: "Batch",
+      travels: "Observation",
+      reader: "the comparison path",
+      inst: `<span class="tag trav">travels</span>`,
+      note: `retained while any observation it produced is retained, or while it is a current
+             <span class="mono">Citation</span>. Not the operational record, however much
+             <em>what we ran</em> it looks like.` },
+    { corpus: "Span",
+      reader: "every timeline, forever",
+      inst: `<span class="tag none">no instrument</span>`,
+      note: `never compacted. No policy, no dial, no default. Deleting the span before an open one
+             converts <span class="mono">returned</span> into <span class="mono">appeared</span>.` },
+    { corpus: "Dispatch",
+      reader: "you, and nothing else",
+      inst: `<span class="tag dial">dial</span>`,
+      note: `the only corpus a wall clock may retire, because <a href="#">ADR-0005</a> already fenced it
+             off from every derivation. Floored at <span class="mono">${MODEL.k.v} ×</span> the
+             slowest enabled <span class="mono">Scan</span>.` },
+    { corpus: "Message",
+      reader: "you, whenever you read it back",
+      inst: `<span class="tag none">no instrument</span>`,
+      note: `the store is written and rendered unconditionally, cannot be disabled and cannot fail. A
+             retention dial is a way for it to fail, so it has none.` },
+    { corpus: "Delivery",
+      travels: "Message",
+      reader: "the Message it was against",
+      inst: `<span class="tag trav">travels</span>`,
+      note: `a message holds its delivery outcomes, so a dead-lettered delivery is what makes the message
+             read <em>undelivered</em>. Discard it and a delivery that licensed no silence has been
+             silenced by storage.` },
+  ];
+}
+
+function corpusTable(f) {
+  const rows = corpusRows(f);
+  return `<div class="card">
+    <table>
+      <thead><tr>
+        <th style="width:190px">corpus</th>
+        <th style="width:230px">retained while</th>
+        <th style="width:118px">instrument</th>
+        <th>on what ground</th>
+      </tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td class="m"><b>${r.corpus}</b>${r.travels
+          ? `<div class="ml" style="margin-top:3px;text-transform:none;letter-spacing:0;color:var(--text-faint)">travels with ${r.travels}</div>` : ""}</td>
+        <td class="muted" style="font-size:var(--text-sm)">${r.reader}</td>
+        <td>${r.inst}</td>
+        <td style="font-size:var(--text-sm);line-height:var(--leading-body)">${r.note}</td>
+      </tr>`).join("")}</tbody>
+    </table>
+    <div class="card-f" style="font-size:var(--text-sm);color:var(--text-muted);line-height:var(--leading-body)">
+      Seven rows and <b>two</b> dials. A corpus is retained by what may still read it, never by its age
+      — so a corpus nothing reads on its own account does not get a rule, it gets a companion.
+    </div>
+  </div>`;
+}
+
+/* ── a dial ────────────────────────────────────────────────────────────── */
+function dialCard(opts) {
+  const { title, sub, floor, dial, reaching, priced, ground } = opts;
+  if (!floor) {
+    return `<div class="dial"><div class="hd"><h3>${title}</h3></div><div class="bd">
+      <div class="note empty-grp"><span class="ml">no floor</span>
+      No <span class="mono">Scan</span> is enabled, so there is no cadence to floor this dial against and
+      the dial is not offered. An aperture with nothing configured behind it is not a legible state.</div>
+    </div></div>`;
+  }
+  /* geometry: the track spans floor..3y, and the floor territory is drawn to
+     scale so that a tight floor reads as a small territory and a slack one as
+     a large one. */
+  const SPAN = 1095;
+  const floorPct = Math.min(60, (floor.days / SPAN) * 100);
+  const handlePct = dial == null ? 100 : Math.max(0, Math.min(100, ((dial - floor.days) / (SPAN - floor.days)) * 100));
+  const reachPct = reaching ? Math.min(floorPct, floorPct * 0.55) : 0;
+
+  return `<div class="dial">
+    <div class="hd">
+      <h3>${title}</h3>
+      <span class="sp"></span>
+      <span class="mono" style="font-weight:var(--weight-semibold)">${dial == null
+        ? "keeps everything" : num(dial) + " days"}</span>
+    </div>
+    <div class="bd">
+      <div class="muted" style="font-size:var(--text-sm);line-height:var(--leading-body);margin-bottom:var(--space-3)">${sub}</div>
+
+      <div class="track">
+        <div class="not-yours" style="width:${floorPct}%">
+          ${reaching ? `<div class="reaching" style="left:${100 - (reachPct / floorPct) * 100}%;right:0"></div>` : ""}
+        </div>
+        <div class="yours">
+          <div class="handle" style="left:${handlePct}%"></div>
+          <div class="term"></div>
+        </div>
+      </div>
+      <div class="track-labels">
+        <span>← not yours to set</span>
+        <span class="sp"></span>
+        <span class="r">keep everything →</span>
+      </div>
+
+      <div class="deriv">
+        floor <span class="op">=</span> ${mult(MODEL.k.v, floor.cadence)}
+        <span class="op">(</span><span class="mono">${floor.scan.id}</span><span class="op">)</span>
+        <span class="op">—</span> ${floor.why}
+      </div>
+
+      ${reaching ? `<div class="ground" style="border-left-color:var(--danger);color:var(--text)">
+        You are reaching into the shaded ground. It is not a value you may set and be corrected for
+        — it is not the operator's territory at all, so the handle does not go there. The floor
+        is <b>${MODEL.k.v} × ${floor.cadence}</b>, and it moves when you change that
+        <span class="mono">Scan</span>'s cadence, not when you change this dial.
+      </div>` : ""}
+
+      ${priced ? `<div class="priced"><span class="ml">what this keeps</span>${priced}</div>` : ""}
+      ${ground ? `<div class="ground">${ground}</div>` : ""}
+    </div>
+  </div>`;
+}
+
+function obsDialCard(f) {
+  const fl = obsFloor(f), p = projection(f);
+  const unc = uncovered();
+  const priced = p
+    ? `At your declared scope, one year of evidential observations is
+       <span class="mono"><b>${num(p.perYear)}</b> rows</span>, about
+       <span class="mono"><b>${gb(p.gb)}</b></span> in one <span class="mono">compose</span> volume.
+       Keeping everything is the shipped position, and this is its price.`
+    : `You have declared no address scope, so there is no exact denominator to project from. What we
+       hold is measured rather than declared, and a measured estate is not a number this product will
+       forecast from.`;
+  const ground = `No default is derivable from anything. Ninety days is invented and a year is invented,
+    so v1 ships neither — the honest default for a quantity nothing bounds is not to bound it.
+    ${unc.length ? `<br><br><b>Outside this dial:</b> ${unc.map(u => `<span class="mono">${u.f}</span>`).join(" and ")}
+    have no covering <span class="mono">Scan</span>, so their observations have no currency bound, never
+    become evidential, and are never discarded. That is <a href="#">#142</a>'s open question showing
+    through: this dial's reach is a list, and #142 moves rows on it.` : ""}`;
+  return dialCard({
+    title: "Observations — evidential",
+    sub: `How long an observation nothing may derive from is kept for a person to read. The live tier is
+          not on this dial and never can be.`,
+    floor: fl, dial: f.obsDial, reaching: f.reaching === "obs", priced, ground,
+  });
+}
+
+function dispatchDialCard(f) {
+  const fl = dispatchFloor(f);
+  return dialCard({
+    title: "Dispatch",
+    sub: `How long the record of what was fired, and when, is kept. Nothing derived may read it, which is
+          the whole reason a clock is legal here and nowhere else.`,
+    floor: fl, dial: f.dispatchDial, reaching: f.reaching === "dispatch",
+    priced: `One row per firing of one <span class="mono">Scan</span>. There is nothing here to retire;
+             the dial exists because the forensic value of an old dispatch is yours to price, not ours.`,
+    ground: `An aged-out <span class="mono">Dispatch</span> may be the only evidence that a measurement
+             you believe is happening never happened. That is a forensic loss, and it is the reason this
+             dial is offered at all rather than the reason it defaults to anything.`,
+  });
+}
+
+/* ── the projection panel ──────────────────────────────────────────────── */
+function projectionPanel(f) {
+  const p = projection(f);
+  if (!p) {
+    return `<div class="card"><div class="card-h"><h2>Projection</h2>
+      <span class="sp"></span><span class="ml">from what you declared</span></div>
+      <div class="pad">
+        <div class="note empty-grp"><span class="ml">no declared denominator</span>
+          You have declared <b>name</b> scopes and no <b>address</b> scope, so there is no number you
+          typed for this to be arithmetic over. An address scope enumerates and a name scope does not.
+          ${f.measuredServices ? `What we currently hold is
+          <span class="mono">${num(f.measuredServices)}</span> <span class="mono">Service</span>
+          subjects — a count of what we have, not a forecast of what you have.` : ""}
+        </div>
+        <div class="ground" style="margin-top:var(--space-4)">
+          This panel renders empty rather than not rendering. A projection that appears only on installs
+          that declare an address scope teaches the other 99% that there is nothing here to know.
+        </div>
+      </div></div>`;
+  }
+  return `<div class="card">
+    <div class="card-h"><h2>Projection</h2><span class="sp"></span>
+      <span class="ml">from what you declared</span></div>
+    <div class="pad">
+      <div class="proj">
+        <div class="step"><span class="v">${num(p.addrs)}</span><span class="l">addresses declared</span>
+          <span class="src">you typed this</span></div>
+        <div class="step"><span class="v arrow">× ${MODEL.probedPairs.v}</span>
+          <span class="l">pairs probed on default settings</span>
+          <span class="src">${MODEL.probedPairs.src}</span></div>
+        <div class="step"><span class="v">${num(p.subjects)}</span>
+          <span class="l"><span class="mono">Service</span> subjects</span></div>
+        <div class="step"><span class="v arrow">× ${f.vantages}</span>
+          <span class="l">vantage ${f.vantages === 1 ? "class" : "classes"}</span>
+          <span class="src">Exposure needs both legs</span></div>
+        <div class="step"><span class="v">${num(p.perDay)}</span>
+          <span class="l">observation rows per day</span></div>
+        <div class="step" style="border-top:var(--rule-soft);margin-top:var(--space-2);padding-top:var(--space-2)">
+          <span class="v">${num(p.perYear)}</span><span class="l">rows a year</span>
+          <span class="src">linear in time</span></div>
+        <div class="step"><span class="v">${gb(p.gb)}</span><span class="l">a year, one volume</span>
+          <span class="src">@ ${MODEL.bytesPerObs.v} B/row — ${MODEL.bytesPerObs.src}</span></div>
+      </div>
+      <div class="ground" style="margin-top:var(--space-4)">
+        Exact, computed from what you declared, and re-rendered whenever a scope is widened. It is
+        <b>not</b> a completeness score: it is arithmetic over a CIDR, and it says nothing at all about
+        how much of your estate you have declared.
+      </div>
+      <details class="d" style="margin-top:var(--space-3)"><summary>the corpus that never grows</summary>
+        <div class="proj">
+          <div class="step"><span class="v">${num(MODEL.spanRows.v)}</span>
+            <span class="l"><span class="mono">Span</span> rows, flat</span>
+            <span class="src">${MODEL.spanRows.src}</span></div>
+          <div class="step"><span class="v">≈ ${(p.perYear / MODEL.spanRows.v).toFixed(0)}×</span>
+            <span class="l">smaller than one year of observations</span>
+            <span class="src">and it does not grow</span></div>
+        </div>
+        <div class="ground" style="margin-top:var(--space-3)">
+          A <span class="mono">Span</span> is written when a value <b>moves</b>, so that corpus is
+          proportional to drift and this one is proportional to time. The corpus that may never be
+          deleted is the small one.
+        </div>
+      </details>
+    </div>
+  </div>`;
+}
+
+/* ── the discarded group. #47: a group that renders when populated must render
+   when empty, and say why it is empty. In v1 it is always empty, which is
+   exactly the case the rule was written for. ──────────────────────────── */
+function discardedPanel(f) {
+  const anySet = f.obsDial != null || f.dispatchDial != null;
+  return `<div class="card">
+    <div class="card-h"><h2>Discarded</h2><span class="sp"></span>
+      <span class="ml">what is no longer here</span></div>
+    <div class="pad">
+      <div class="note empty-grp"><span class="ml">nothing</span>
+        Nothing has been discarded${anySet
+          ? `. Both dials sit above their floors and nothing has aged past them yet.`
+          : `, because neither dial is set. Both keep everything, and the
+             <span class="mono">Span</span> and <span class="mono">Message</span> corpora have no dial
+             at all.`}
+      </div>
+      <div class="ground" style="margin-top:var(--space-4)">
+        This panel renders in every state, including the one where it will always be empty. A group that
+        appears only once something has been thrown away is a group nobody reads until after they have
+        lost something.
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   VARIANTS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function variantA(f, key) {   /* ledger: one table, dials inline */
+  return `
+    <h1 class="page">Coverage</h1>
+    <div class="sub">Is what you are looking at complete — in extent, in source, and in how far back it reaches.</div>
+    <h2 class="sec">History</h2>
+    <div class="sec-sub">Four corpora, three rules, and two dials. Everything below is one table.</div>
+    <div class="stack">
+      ${corpusTable(f)}
+      <div class="card"><div class="card-h"><h2>The two dials</h2></div>
+        <div class="pad stack">${obsDialCard(f)}${dispatchDialCard(f)}</div></div>
+      ${projectionPanel(f)}
+      ${discardedPanel(f)}
+      ${horizon(f, key)}
+    </div>`;
+}
+
+function variantB(f, key) {   /* split by instrument — ADR-0041's own shape */
+  const rows = corpusRows(f);
+  const clock = rows.filter(r => r.inst.includes("dial"));
+  const never = rows.filter(r => !r.inst.includes("dial"));
+  const half = (title, sub, rs) => `<div class="card">
+    <div class="card-h"><h2>${title}</h2></div>
+    <div class="pad" style="padding-bottom:0"><div class="muted"
+      style="font-size:var(--text-sm);line-height:var(--leading-body)">${sub}</div></div>
+    <table style="margin-top:var(--space-3)"><tbody>${rs.map(r => `<tr>
+      <td class="m" style="width:180px"><b>${r.corpus}</b>${r.travels
+        ? `<div class="ml" style="margin-top:3px;text-transform:none;letter-spacing:0;color:var(--text-faint)">travels with ${r.travels}</div>` : ""}</td>
+      <td style="font-size:var(--text-sm);line-height:var(--leading-body)">${r.note}</td>
+    </tr>`).join("")}</tbody></table></div>`;
+  return `
+    <h1 class="page">Coverage</h1>
+    <div class="sub">Is what you are looking at complete — in extent, in source, and in how far back it reaches.</div>
+    <h2 class="sec">History</h2>
+    <div class="sec-sub">Split by the only thing that separates them: whether a clock may touch it.</div>
+    <div class="stack">
+      <div class="row">
+        <div class="col">${half("Retired by a clock", "Two corpora, two dials, both floored and both shipped keeping everything.", clock)}</div>
+        <div class="col">${half("Never retired", "Five corpora with no dial — three because nothing may take them, two because they travel with something else.", never)}</div>
+      </div>
+      ${obsDialCard(f)}
+      ${dispatchDialCard(f)}
+      ${projectionPanel(f)}
+      ${discardedPanel(f)}
+      ${horizon(f, key)}
+    </div>`;
+}
+
+function variantC(f, key) {   /* horizon-first */
+  return `
+    <h1 class="page">Coverage</h1>
+    <div class="sub">Is what you are looking at complete — in extent, in source, and in how far back it reaches.</div>
+    <h2 class="sec">History</h2>
+    <div class="sec-sub">How far back every timeline on this instance can reach, and what decides it.</div>
+    <div class="stack">
+      ${horizon(f, key)}
+      <div class="row">
+        <div class="col">${obsDialCard(f)}</div>
+        <div class="col">${dispatchDialCard(f)}</div>
+      </div>
+      ${projectionPanel(f)}
+      <details class="d" style="background:var(--surface);border:var(--rule);padding:var(--space-3) var(--space-4)">
+        <summary>every corpus, and what keeps it</summary>
+        <div>${corpusTable(f)}</div>
+      </details>
+      ${discardedPanel(f)}
+    </div>`;
+}
+
+const VARIANTS = { A: variantA, B: variantB, C: variantC };
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SHELL + SWITCHER
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ADR-0075: a prototype is a dated record of a READING, never of a RULE. Drawn
+   on the surface, not left in a comment. */
+const DATELINE = `
+  <div class="anno">
+    <span class="ml">prototype — not the product</span>
+    <p><b>Issue #139</b>, drawn <b>2026-08-15</b>. Throwaway, built to decide against.</p>
+    <p>Every quantity below is a <b>dated reading</b> taken on that date. The only live absolutes are the
+      <span class="mono">THE CURRENT COMPOSED STATE</span> bullet on map issue #1 — read a figure there
+      before believing one here. What is <em>not</em> dated is the drawn state: the acts this screen
+      offers, the groups it renders empty, and the sentences it puts in the product's mouth.</p>
+    <p>Two readings are load-bearing and are computed rather than typed:
+      <span class="mono">${MODEL.probedPairs.v}</span> pairs probed (${MODEL.probedPairs.src}) and
+      <span class="mono">${MODEL.rangeCap.v}</span> addresses per scope (${MODEL.rangeCap.src}). The
+      <span class="mono">Span</span> row count is <b>quoted</b> from ADR-0041, not recomputed, and is
+      marked as quoted where it renders. <b>No quantity on this screen was copied from
+      <span class="mono">prototypes/coverage/</span></b> — the header chrome is reused on purpose, the
+      install fixtures are arbitrary and deliberately differ from it, and its
+      <span class="mono">254</span> denominator was measured stale by #131.</p>
+  </div>`;
+
+function shell(body, f) {
+  const st = !f.firstBatch
+    ? `<span class="status muted"><span class="dot" style="background:var(--text-faint)"></span>no batches yet</span>`
+    : `<span class="status" style="color:var(--ok)"><span class="dot live"></span>batch b-8851 running</span>`;
+  return `
+  <header class="nav"><div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <nav class="items">${NAV.map(n => n === "Coverage"
+      ? `<a href="#" class="on">${n}</a>` : `<a href="#">${n}</a>`).join("")}</nav>
+    <div class="nav-right">${st}<button class="btn sm">Run scan</button></div>
+  </div></header>
+  <main class="shell">${DATELINE}${body}</main>
+  <footer class="ft"><div class="ft-in">
+    <span>verge-asm — prototype for #139</span>
+    <span class="sp"></span><span>Coverage owes the retention projection and the two dials with their floors</span>
+  </div></footer>`;
+}
+
+function qs() {
+  const p = new URLSearchParams(location.search);
+  return { variant: p.get("variant") || "C", fill: p.get("fill") || "unbounded" };
+}
+function setQs(k, v) {
+  const p = new URLSearchParams(location.search);
+  p.set(k, v); location.search = p.toString();
+}
+function render() {
+  const { variant, fill } = qs();
+  const f = FILLS[fill] || FILLS.unbounded;
+  document.getElementById("app").innerHTML = shell((VARIANTS[variant] || variantC)(f, fill), f);
+  document.querySelectorAll("#switch .grp").forEach(g => {
+    const key = g.dataset.key;
+    const opts = key === "variant" ? Object.keys(VARIANTS) : Object.keys(FILLS);
+    const cur = key === "variant" ? variant : fill;
+    g.querySelectorAll("button").forEach(b => b.remove());
+    opts.forEach(o => {
+      const b = document.createElement("button");
+      b.textContent = o; if (o === cur) b.className = "on";
+      b.onclick = () => setQs(key, o);
+      g.appendChild(b);
+    });
+  });
+}
+render();
+</script>
+</body>
+</html>
