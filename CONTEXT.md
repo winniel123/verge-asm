@@ -353,8 +353,15 @@ would be a state moving because time passed. It is keyed on the **exact subject 
 the stated cost being that a redeploy onto a new address lapses the acceptance rather than silencing
 a subject nobody chose. And it **states its reason** and does **not** appear on `Coverage`: a `Seed`
 exclusion is there because it shrinks the estate, and this shrinks nothing. Its home is `Signals`.
-See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md).
-_Avoid_: status, triage state, finding state, suppression, exception, risk acceptance workflow
+It carries the **instant it was declared and no author** — the one Declared term holding operator
+prose is still an operator dial, and every dial in the model is unattributed, so
+[#127](https://github.com/winniel123/verge-asm/issues/127)'s ruling that no operator act is written
+down with an actor on it holds here without exception. A date names nobody; an undated standing mute
+on an object with no expiry cannot be reviewed at all.
+See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md) and
+[ADR-0073](./docs/adr/0073-an-operator-dial-carries-no-author-however-specific-its-target.md).
+_Avoid_: status, triage state, finding state, suppression, exception, risk acceptance workflow,
+author, declared by
 
 **Channel**:
 The operator's declaration of where `Message`s go — an absolute `https` URL, an optional

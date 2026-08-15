@@ -1,0 +1,790 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #129: "Draw the annotated Signals row and the
+  annotation list — and does an Annotation carry its author?"
+
+  ADR-0016 gave `Annotation` exactly one job and three barred renderings, and
+  then never drew it. #28's precedent — a screen with no prototype gets one.
+
+  THE QUESTION THIS IS BUILT TO EXPOSE. #127 ruled operator attribution out of
+  v1: no operator act is written down anywhere with an actor on it, because
+  named accounts create identity and never a log. But ADR-0016 rider 6 says an
+  annotation carries "the operator's rationale in their own words beside the
+  key, THE AUTHOR and the time", and its Rationale says the object "has a
+  target, an author, a time and a reason". Two documents, one field, opposite
+  answers. So the author is a SWITCH here rather than a decision baked into the
+  markup, and it is drawn against two install shapes on purpose.
+
+  Three variants, ?variant=A|B|C — they disagree about WHERE the enumeration
+  lives, which is the whole design question once the numbers are fixed:
+
+    A  inline     annotations sit inside the rule block they belong to,
+                  beneath that rule's census
+    B  listed     rule rows carry a non-numeric mute marker only; the
+                  enumeration is its own block beneath the rule list
+    C  ledger     reframed on the EDGE rather than the pair — a list of
+                  firings that were recorded and did not page
+
+  ?author=off|on   render the author cell or not. This is the ruling, drawn.
+  ?fill=single|multi
+                   single — #11's modal install: one mutating role, so every
+                           author cell reads the same name
+                   multi  — three admins, which is #127's own reopening
+                           condition and the only shape where the field has
+                           a reader
+  ?refusals=show|hide
+                   draws ADR-0016's three barred renderings, struck and
+                   labelled, plus the three this drawing found. Shown by
+                   default: the barred renderings are most of the decision and
+                   a screen that merely omits them teaches nobody why.
+
+  FIGURES AND STATES — #131, ADR-0075. A prototype is a dated record of a
+  READING, never of a RULE. This file carries its dateline in what the browser
+  DRAWS rather than here, because every recorded instance of a prototype being
+  wrongly believed happened in a browser where this comment is invisible.
+
+    readings  every count on the page. Invented for the drawing, copied from
+              no other prototype, correct against nothing. A later ruling that
+              moves one owes this file nothing.
+    states    the author cell (?author=on), variant A's nesting and variant
+              C's ledger. All three are surfaces the product would now refuse
+              — ADR-0073 §1, §6, §7 — and all three are LEFT STANDING with a
+              red .anno mark on them. The wrong screen is the evidence.
+
+  Against the map's composed state as drawn, 2026-08-15: the v1 rule set is
+  SEVENTEEN, five of which are rendered, and the screen says five-of-seventeen
+  rather than letting a reader infer the set.
+
+  Not production code. Vocabulary is CONTEXT.md — the kit's `Findings` section,
+  its severity badge and its fingerprinting claim are all absent by rule. The
+  visual language is the real design system (../../design-system).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — annotated Signals prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 104px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); text-decoration: none; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+  .who { font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5);
+         max-width: 82ch; line-height: var(--leading-body); }
+  .sub b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .stack > * + * { margin-top: var(--space-4); }
+  .stack-2 > * + * { margin-top: var(--space-2); }
+
+  h2.sect { margin: var(--space-8) 0 var(--space-2); font-size: var(--text-md);
+            font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+  h2.sect + .sub { margin-bottom: var(--space-4); }
+
+  /* ── THE RULE ROW ─────────────────────────────────────────────────────
+     One rule, one census, three members. No severity, no ordering by
+     badness — ADR-0004. Rules render in declaration order.
+
+     The census is IDENTICAL whether or not a pair beneath it is annotated,
+     and that is the point ADR-0016 is spending its whole content on: an
+     annotated pair is still measured, still inside the `Predicate domain`,
+     still counted under `fired`. Nothing here moves. */
+  .rule { background: var(--surface); border: var(--rule); }
+  .rule + .rule { border-top: none; }
+  .rule-h { display: flex; align-items: baseline; gap: var(--space-4);
+            padding: var(--space-3) var(--space-4); }
+  .rule-h .nm { font: var(--weight-semibold) var(--text-base)/1.3 var(--font-mono); color: var(--ink); }
+  .rule-h .ver { font: var(--weight-medium) var(--text-2xs)/1 var(--font-mono); color: var(--text-faint);
+                 letter-spacing: var(--tracking-label); }
+  .rule-h .sp { margin-left: auto; }
+
+  .cens { display: flex; align-items: stretch; border-top: var(--rule-soft); }
+  .cens .m { flex: 1; padding: var(--space-3) var(--space-4); border-left: var(--rule-soft); }
+  .cens .m:first-child { border-left: none; }
+  .cens .m .v { font: var(--weight-semibold) var(--text-xl)/1 var(--font-mono); color: var(--ink);
+                margin-top: var(--space-2); display: block; }
+  .cens .m.ne .v { color: var(--text-muted); }
+  .cens .m.pop { background: var(--surface-sunken); flex: 0 0 auto; min-width: 190px; }
+
+  /* the mute marker on the rule header. NON-NUMERIC by rule — see the
+     refusals panel. A glyph says "something beneath this is muted"; a count
+     beside `fired` says "and this many of them", which is the partition. */
+  .mutemark { display: inline-flex; align-items: center; gap: 6px;
+              font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+              text-transform: uppercase; letter-spacing: var(--tracking-label);
+              color: var(--text-muted); border: var(--rule); padding: 4px 7px;
+              background: var(--surface-sunken); }
+  .mutemark .g { font-size: var(--text-sm); line-height: 1; color: var(--ink); }
+
+  /* ── THE ANNOTATION ROW ───────────────────────────────────────────────
+     The unit is `(subject, signal-name)` and the row leads with it, because
+     the key is what the operator has to recognise six months later. Sunken
+     ground and a hairline — no colour, no badge, no rank. An annotation is
+     not a state of the subject and must not read as one.
+
+     Every value on this row is either the key, the operator's own prose, a
+     recorded measurement, or the declaration instant. Nothing is derived and
+     nothing is aggregated. */
+  .arow { display: flex; gap: var(--space-4); align-items: flex-start;
+          padding: var(--space-3) var(--space-4); border-top: var(--rule-soft);
+          background: var(--surface-sunken); }
+  .arow:first-child { border-top: none; }
+  .arow .key { flex: 0 0 300px; min-width: 0; }
+  .arow .key .subj { display: block; font-family: var(--font-mono); font-size: var(--text-sm);
+                     color: var(--ink); word-break: break-all; }
+  .arow .key .sig { display: block; margin-top: 3px;
+                    font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                    text-transform: uppercase; letter-spacing: var(--tracking-label);
+                    color: var(--text-faint); word-break: break-all; }
+  .arow .body { flex: 1; min-width: 0; }
+  .arow .body .why { font-size: var(--text-base); line-height: var(--leading-snug); color: var(--text); }
+  .arow .body .meta { display: block; margin-top: var(--space-2);
+                      font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono); color: var(--text-faint); }
+  .arow .body .meta b { color: var(--text-muted); font-weight: var(--weight-semibold); }
+  .arow .act { flex: 0 0 130px; text-align: right; }
+
+  /* the author cell. Drawn only under ?author=on, and ADR-0073 has since
+     ruled it out — see the marks on that fill. Deliberately given the same
+     weight as everything else on the row: the argument was never that a name
+     would be ugly. */
+  .arow .who { flex: 0 0 150px; min-width: 0; }
+  .arow .who .n { display: block; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); }
+  .arow .who .r { display: block; margin-top: 3px;
+                  font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                  text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-faint); }
+
+  /* the recorded edge — a measurement, so it may be shown. ONE instant, and
+     never a count of firings the mute swallowed. */
+  .arow .edge { flex: 0 0 210px; text-align: right;
+                font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+  .arow .edge .lbl { display: block; font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                     text-transform: uppercase; letter-spacing: var(--tracking-label);
+                     color: var(--text-faint); margin-bottom: 2px; }
+
+  .arow-empty { padding: var(--space-4); font-size: var(--text-base); color: var(--text-muted);
+                line-height: var(--leading-body); background: var(--surface); }
+  .arow-empty b { color: var(--ink); font-weight: var(--weight-semibold); }
+
+  /* ── PROTOTYPE-ONLY ANNOTATION ────────────────────────────────────────
+     ADR-0075 (#131). Verbatim from prototypes/seeds/ — no new token, nothing
+     added to the design system. Dashed accent, so it reads as not part of the
+     design; `.no` for a surface the product would now refuse. */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  .card { background: var(--surface); border: var(--rule); }
+  .card-h { display: flex; align-items: baseline; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h3 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .sp { margin-left: auto; }
+  .card-h .n { font: var(--weight-semibold) var(--text-sm)/1 var(--font-mono); color: var(--text-muted); }
+
+  /* ── VARIANT C's LEDGER ROW ───────────────────────────────────────────
+     Ordered by the recorded edge rather than by the key. Reads as an inbox
+     of pages that did not arrive, which is the thing to look at and decide
+     about. */
+  .led { display: flex; gap: var(--space-4); align-items: baseline;
+         padding: var(--space-3) var(--space-4); border-top: var(--rule-soft); }
+  .led:first-child { border-top: none; }
+  .led .when { flex: 0 0 170px; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); }
+  .led .what { flex: 1; min-width: 0; }
+  .led .what .edgeline { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink);
+                         word-break: break-all; }
+  .led .what .edgeline em { font-style: normal; color: var(--text-muted); }
+  .led .what .why { display: block; margin-top: var(--space-1); font-size: var(--text-base);
+                    color: var(--text-muted); line-height: var(--leading-snug); }
+  .led .stamp { flex: 0 0 190px; text-align: right; }
+  .led .stamp .k { font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-faint); }
+  .led .stamp .n { display: block; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink);
+         font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); }
+
+  .note { border: var(--rule); border-left: 3px solid var(--border-ink); background: var(--surface);
+          padding: var(--space-3) var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .note .ml { display: block; margin-bottom: var(--space-1); }
+  .note code { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .note b { font-weight: var(--weight-semibold); }
+
+  /* ── THE REFUSALS PANEL ───────────────────────────────────────────────
+     Not part of the product. It draws what the screen may not draw, struck
+     and labelled, because ADR-0016's content is almost entirely what may not
+     be rendered and an omission teaches nobody. */
+  .ref { border: var(--rule-ink); background: var(--surface); }
+  .ref > .hd { background: var(--ink); color: var(--text-on-ink);
+               padding: var(--space-3) var(--space-4); display: flex; align-items: baseline; gap: var(--space-3); }
+  .ref > .hd .ml { color: #9a9a90; }
+  .ref > .hd b { font-size: var(--text-base); font-weight: var(--weight-semibold); }
+  .ref .r { display: flex; gap: var(--space-4); padding: var(--space-4); border-top: var(--rule-soft);
+            align-items: flex-start; }
+  .ref .r:first-of-type { border-top: none; }
+  .ref .r .draw { flex: 0 0 290px; padding: var(--space-3); background: var(--surface-sunken);
+                  border: 1px dashed var(--border); opacity: .55; }
+  .ref .r .draw .x { display: block; margin-bottom: var(--space-2);
+                     font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                     text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--danger); }
+  .ref .r .draw .demo { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted);
+                        text-decoration: line-through; text-decoration-color: var(--danger); }
+  .ref .r .draw .demo span { display: inline-block; margin-right: var(--space-3); }
+  .ref .r .draw .demo b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .ref .r .arg { flex: 1; min-width: 0; font-size: var(--text-base); line-height: var(--leading-body); }
+  .ref .r .arg .t { display: block; font-weight: var(--weight-semibold); color: var(--ink);
+                    margin-bottom: var(--space-1); }
+  .ref .r .arg code { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .ref .r .arg .src { display: block; margin-top: var(--space-2);
+                      font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+                      text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-faint); }
+  .ref .r.found .arg .src { color: var(--accent); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-4) var(--page-pad);
+           display: flex; align-items: center; gap: var(--space-4);
+           font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+  .ft-in .sp { margin-left: auto; }
+
+  #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+            z-index: 99; display: flex; align-items: stretch;
+            background: var(--ink); border: var(--rule-ink); box-shadow: var(--shadow-hard); }
+  #switch .grp { display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
+                 border-left: 1px solid #3a3a30; }
+  #switch .grp:first-child { border-left: none; }
+  #switch .grp > span { color: #9a9a90; font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); margin-right: var(--space-1); }
+  #switch button { background: transparent; border: none; color: #9a9a90; cursor: pointer;
+                   font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                   text-transform: uppercase; letter-spacing: var(--tracking-label); padding: 7px 8px; }
+  #switch button:hover { background: #3a3a30; color: var(--text-on-ink); }
+  #switch button.on { background: var(--paper); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div id="switch">
+  <div class="grp" data-key="variant"><span>variant</span></div>
+  <div class="grp" data-key="author"><span>author</span></div>
+  <div class="grp" data-key="fill"><span>install</span></div>
+  <div class="grp" data-key="refusals"><span>refusals</span></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   FAKE ESTATE
+
+   Five of the SEVENTEEN v1 rules. The screen says five-of-seventeen rather
+   than rendering five and letting the reader infer the set — the census is
+   payload and enumerable in full, but the RULE LIST here is a prototype's
+   excerpt and must say so.
+
+   Counts are invented. Not one is copied from another prototype and not one
+   is a record of anything (#131).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const RULES = [
+  { id:"sprfi",  name:"sensitive-port-reached-from-internet",
+    ver:"reach/4 · sensitive-list/11", fired:3,  notFired:211, ne:2 },
+  { id:"expiry", name:"certificate-expiring",
+    ver:"certificate/3",               fired:4,  notFired:612, ne:0 },
+  { id:"plain",  name:"plaintext-http-no-https",
+    ver:"http-identity/5",             fired:11, notFired:398, ne:0 },
+  { id:"lame",   name:"lame-delegation",
+    ver:"resolution/2",                fired:1,  notFired:806, ne:1 },
+  { id:"selfsig",name:"certificate-self-signed",
+    ver:"certificate/3",               fired:2,  notFired:614, ne:0 },
+];
+
+/* An `Annotation` is one `(subject, signal-name)` pair. The account column is
+   carried in the data so the ?author switch can render or withhold it — the
+   point of the switch is that the field is cheap and available, and the
+   question is whether it should exist at all, not whether it is affordable. */
+const ANNOTATIONS = [
+  { rule:"sprfi",
+    subj:"198.51.100.24:5432/tcp",
+    sig:"sensitive-port-reached-from-internet",
+    why:"Postgres is reachable on 5432 only from the bastion — the edge ACL drops everything else, and application traffic goes through pgbouncer on 6432. Confirmed with the platform team; the exposure the rule reports is real and is fronted.",
+    at:"2026-06-02 09:14",
+    lastEdge:"2026-08-14 04:07",
+    by:{ single:"admin", multi:"r.okonkwo" } },
+  { rule:"expiry",
+    subj:"mail.acmecorp.io:443/tcp",
+    sig:"certificate-expiring",
+    why:"Renewal on the mail appliance is manual and happens on the 25th of each month, so this fires for five days every cycle and clears itself. Decommission is tracked as OPS-4411.",
+    at:"2026-07-25 16:40",
+    lastEdge:"2026-08-01 04:07",
+    by:{ single:"admin", multi:"a.mireles" } },
+  { rule:"plain",
+    subj:"legacy-vpn.acmecorp.io:80/tcp",
+    sig:"plaintext-http-no-https",
+    why:"Vendor appliance. Port 80 serves a fixed redirect stub for an old bookmark and nothing else; the appliance cannot be configured to drop it and the vendor has been asked.",
+    at:"2026-04-18 11:02",
+    lastEdge:"2026-05-02 04:07",
+    by:{ single:"admin", multi:"r.okonkwo" } },
+  { rule:"lame",
+    subj:"eu.acmecorp.io",
+    sig:"lame-delegation",
+    why:"The EU subsidiary runs its own nameservers and one of the two has been unreachable since the migration. Their problem, their timeline, and they know.",
+    at:"2026-08-09 08:31",
+    lastEdge:"2026-08-09 04:07",
+    by:{ single:"admin", multi:"j.tran" } },
+];
+
+const ACCOUNTS = {
+  single: { count:1, line:"One account can mutate. #11 ships one mutating role — admin — and a viewer role that mutates nothing." },
+  multi:  { count:3, line:"Three accounts can mutate. This is the shape #127 named as its own reopening condition." },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SWITCHES
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const OPTS = {
+  variant:  ["A","B","C"],
+  author:   ["off","on"],
+  fill:     ["single","multi"],
+  refusals: ["show","hide"],
+};
+const VNAME = { A:"inline", B:"listed", C:"ledger" };
+
+function q(k){ const v = new URLSearchParams(location.search).get(k); return OPTS[k].includes(v) ? v : OPTS[k][0]; }
+function setq(k,v){ const u = new URL(location.href); u.searchParams.set(k,v); history.replaceState(null,"",u); render(); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CHROME
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const NAV = ["Exposure","Subjects","Signals","Seeds","Coverage","Settings"];
+
+function chrome(fill){
+  return `
+  <header class="nav"><div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <nav class="items">${NAV.map(n=>`<a href="#" class="${n==="Signals"?"on":""}">${n}</a>`).join("")}</nav>
+    <div class="nav-right"><span class="who">${fill==="multi"?"j.tran":"admin"}</span></div>
+  </div></header>`;
+}
+
+function foot(){
+  return `<footer class="ft"><div class="ft-in">
+    <span>prototype · issue #129 · not production</span>
+    <span class="sp"></span>
+    <span>five of seventeen v1 rules · counts invented</span>
+  </div></footer>`;
+}
+
+function head(sub){
+  return `<h1 class="page">Signals</h1><p class="sub">${sub}</p>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PIECES
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function census(r){
+  return `
+  <div class="cens">
+    <div class="m pop"><span class="ml">population</span><span class="v">${r.fired + r.notFired + r.ne}</span></div>
+    <div class="m"><span class="ml">fired</span><span class="v">${r.fired}</span></div>
+    <div class="m"><span class="ml">not-fired</span><span class="v">${r.notFired}</span></div>
+    <div class="m ne"><span class="ml">not-evaluable</span><span class="v">${r.ne}</span></div>
+  </div>`;
+}
+
+function muteMark(n){
+  /* NON-NUMERIC. `n` decides whether the marker renders and never what it
+     says. See refusal 4. */
+  return n ? `<span class="mutemark"><span class="g">◍</span>annotated</span>` : "";
+}
+
+function anno(label, html, bad){
+  return `<div class="anno${bad ? " no" : ""}"><span class="ml">${label}</span>${html}</div>`;
+}
+
+/* ── THE DATELINE ─────────────────────────────────────────────────────────
+   ADR-0075 (#131): the provenance line must be in what the browser DRAWS.
+   Every recorded instance of a prototype being wrongly believed happened in
+   a browser, where an HTML comment is invisible. */
+function dateline(){
+  return anno("prototype · not part of the design", `
+    <p><b>Issue #129 · drawn 2026-08-15 · branch <code>ticket/129-annotation-surface</code>.</b>
+       Throwaway. Nothing here is a specification and nothing here is a current value.</p>
+    <p>Every quantity on this page is a <b>dated reading</b>, invented for the drawing and correct
+       against nothing. <b>The only live absolutes are on the map</b> — issue #1, the
+       <code>THE CURRENT COMPOSED STATE</code> line in its Notes. Read a figure there, never here.
+       As drawn, the v1 rule set stood at <b>seventeen</b> and five are rendered.</p>
+    <p>What is <i>not</i> a reading is the <b>state</b> this screen draws — the acts it offers and
+       the cells it fills. Where a later ruling has made one of those unreachable it is marked
+       below in red and <b>left standing</b>: the wrong screen is the evidence.</p>`);
+}
+
+function annoRow(a, author, fill, opts){
+  opts = opts || {};
+  const who = author === "on"
+    ? `<div class="who"><span class="n">${a.by[fill]}</span><span class="r">declared by</span></div>`
+    : "";
+  return `
+  <div class="arow">
+    <div class="key">
+      <span class="subj">${a.subj}</span>
+      ${opts.hideSig ? "" : `<span class="sig">${a.sig}</span>`}
+    </div>
+    <div class="body">
+      <div class="why">${a.why}</div>
+      <span class="meta">declared <b>${a.at}</b></span>
+    </div>
+    ${who}
+    <div class="edge">
+      <span class="lbl">last recorded firing</span>
+      ${a.lastEdge}
+    </div>
+    <div class="act"><button class="btn ghost sm">Withdraw</button></div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VARIANT A — INLINE
+   The enumeration lives inside the rule block it belongs to.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function variantA(author, fill){
+  const rules = RULES.map(r=>{
+    const mine = ANNOTATIONS.filter(a=>a.rule===r.id);
+    return `
+    <div class="rule">
+      <div class="rule-h">
+        <span class="nm">${r.name}</span>
+        <span class="ver">${r.ver}</span>
+        <span class="sp"></span>
+        ${muteMark(mine.length)}
+      </div>
+      ${census(r)}
+      ${mine.map(a=>annoRow(a, author, fill, {hideSig:true})).join("")}
+    </div>`;
+  }).join("");
+
+  return `
+  ${anno("drawn state · the product would refuse this", `
+     <p><b>This layout is barred.</b> ADR-0073 §6 (#129, 2026-08-15) rules that the annotation
+        enumeration is <b>its own block</b> beneath the rule list and may not be nested inside a rule
+        block — <b>spatial containment is a claim</b>, and annotations rendered as children of a
+        rule's census read as a subdivision of <code>fired</code> whatever the arithmetic says. That
+        is ADR-0016 rider 3's barred partition arriving through layout.</p>
+     <p><b>Left standing on purpose</b>, because this variant is the evidence: it is the most natural
+        reading of rider 3's <i>"rendered on the row"</i>, and it took a drawing to see that
+        <i>the row</i> means the <b>subject's</b> row and not the <b>rule's</b> census. What ships is
+        <b>variant B</b>.</p>`, true)}
+  ${head(`Seventeen rules evaluate on their own cadence; five are shown. A rule's census is the whole population it versions. <b>An annotated pair is counted here exactly as any other</b> — the acceptance is on the message and never on the measurement.`)}
+  <div>${rules}</div>
+  <div class="note" style="margin-top:var(--space-4)">
+    <span class="ml">what the inline placement costs</span>
+    Putting the enumeration inside the rule block puts it under the rule's own census, so the eye
+    reads it as a subdivision of <code>fired</code> — the partition ADR-0016 rider 3 bars, arriving
+    through layout rather than through a number. Nothing here is labelled <code>accepted</code> and
+    the arithmetic is untouched, and it makes no difference: <b>spatial containment is a claim</b>.
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VARIANT B — LISTED
+   Rule rows carry a marker; the enumeration is its own block.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function variantB(author, fill){
+  const rules = RULES.map(r=>{
+    const n = ANNOTATIONS.filter(a=>a.rule===r.id).length;
+    return `
+    <div class="rule">
+      <div class="rule-h">
+        <span class="nm">${r.name}</span>
+        <span class="ver">${r.ver}</span>
+        <span class="sp"></span>
+        ${muteMark(n)}
+      </div>
+      ${census(r)}
+    </div>`;
+  }).join("");
+
+  const list = ANNOTATIONS.length
+    ? ANNOTATIONS.map(a=>annoRow(a, author, fill)).join("")
+    : `<div class="arow-empty"><b>No annotations.</b> Every firing reaches your channels.
+       An annotation accepts a risk on a pair you are still measuring; you declare one from the
+       pair's own row on Subjects.</div>`;
+
+  return `
+  ${anno("drawn state · this is the variant that ships", `
+     <p>ADR-0073 §6 (#129, 2026-08-15): a non-numeric marker on the rule row, the enumeration as its
+        own block beneath the rule list. Every act offered here is one the product offers — declaring
+        an acceptance, and withdrawing one in a click (ADR-0016 rider 4).</p>`)}
+  ${head(`Seventeen rules evaluate on their own cadence; five are shown. A rule's census is the whole population it versions, and <b>an annotated pair is counted in it exactly as any other</b>.`)}
+  <div>${rules}</div>
+
+  <h2 class="sect">Annotations</h2>
+  <p class="sub">Pairs you have accepted. Each is still measured, still counted under
+     <code>fired</code>, and still holds every span it held — what an annotation changes is that
+     its next firing is recorded and does not reach a channel.</p>
+  <div class="card">
+    <div class="card-h">
+      <h3>Accepted pairs</h3>
+      <span class="sp"></span>
+      <span class="n">${ANNOTATIONS.length}</span>
+    </div>
+    ${list}
+  </div>
+  <div class="note" style="margin-top:var(--space-4)">
+    <span class="ml">why the count sits here and not on the rule</span>
+    <b>${ANNOTATIONS.length}</b> is the length of this list — one number over one enumerable list,
+    which is what rider 3 permits. The same figure printed per rule beside <code>fired</code> is a
+    different object: it invites <code>3 − 1</code> and the operator has computed
+    <code>outstanding</code>, which no rule versions.
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VARIANT C — LEDGER
+   Reframed on the edge: firings that were recorded and did not page.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function variantC(author, fill){
+  const rules = RULES.map(r=>`
+    <div class="rule">
+      <div class="rule-h">
+        <span class="nm">${r.name}</span>
+        <span class="ver">${r.ver}</span>
+        <span class="sp"></span>
+        ${muteMark(ANNOTATIONS.filter(a=>a.rule===r.id).length)}
+      </div>
+      ${census(r)}
+    </div>`).join("");
+
+  const sorted = ANNOTATIONS.slice().sort((x,y)=> y.lastEdge.localeCompare(x.lastEdge));
+  const rows = sorted.map(a=>`
+    <div class="led">
+      <div class="when">${a.lastEdge}</div>
+      <div class="what">
+        <div class="edgeline">${a.subj} <em>→</em> ${a.sig} <em>fired</em></div>
+        <span class="why">${a.why}</span>
+      </div>
+      <div class="stamp">
+        <span class="k">accepted</span>
+        <span class="n">${a.at}</span>
+        ${author==="on" ? `<span class="n">${a.by[fill]}</span>` : ""}
+      </div>
+    </div>`).join("");
+
+  return `
+  ${anno("drawn state · the product would refuse this as the primary surface", `
+     <p><b>This screen is barred as drawn.</b> ADR-0073 §7 (#129, 2026-08-15): the ledger goes
+        <b>empty on a quiet estate</b> while acceptances stand, so the operator cannot enumerate what
+        they have muted — which is ADR-0016 rider 6's whole reason for the object existing. It also
+        invites a <b>count of firings a mute has swallowed</b>, barred by ADR-0073 §5 as severity on
+        the screen ADR-0004 kept severity off.</p>
+     <p><b>Left standing on purpose.</b> The framing is honest and may earn a secondary view; what it
+        may not be is the only place annotations are enumerated. What ships is <b>variant B</b>.</p>`, true)}
+  ${head(`Seventeen rules evaluate on their own cadence; five are shown. A rule's census is the whole population it versions, and <b>an annotated pair is counted in it exactly as any other</b>.`)}
+  <div>${rules}</div>
+
+  <h2 class="sect">Recorded, not sent</h2>
+  <p class="sub">Firings on annotated pairs, most recent first. Each of these was a message your
+     channels did not receive because you accepted the pair.</p>
+  <div class="card">${rows}</div>
+  <div class="note" style="margin-top:var(--space-4)">
+    <span class="ml">what the ledger framing costs</span>
+    Ordering by the edge makes the surface an inbox, and an inbox wants a count — <i>how many pages
+    did this mute save me</i>. That number ranks mutes by noise avoided, which is severity arriving
+    as a service metric, and it is the first thing a reader asks this layout for. The list also goes
+    <b>empty on a quiet estate</b> even where four acceptances stand, so the operator cannot
+    enumerate what they have muted, which rider 6's whole reason for the object refuses.
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE REFUSALS PANEL
+   Three from ADR-0016, three the drawing found.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const REFUSALS = [
+  { found:false, title:"Partition the census into accepted and outstanding",
+    demo:`<span><b>fired</b> 3</span><span><b>accepted</b> 1</span><span><b>outstanding</b> 2</span>`,
+    arg:`A census member is the only cut of a rule's population that the rule itself <b>versions</b>.
+         An operator-authored cut is a second, unversioned population over one rule, and the two
+         numbers disagree the moment the rule set moves.`,
+    src:"ADR-0016 rider 3 · #74 · ADR-0024 · #28" },
+
+  { found:false, title:"Show a delta",
+    demo:`<span><b>fired</b> 3 <b>▾ −1</b> since accepted</span>`,
+    arg:`An annotation is Declared and Declared does not drift, so there is no prior value to
+         difference against. A delta here would report a change in <b>opinion</b> as a change in the
+         <b>world</b>, on the one screen whose job is to keep those apart.`,
+    src:"ADR-0016 · ADR-0007" },
+
+  { found:false, title:"Drop an annotated row from a message's census payload",
+    demo:`<span>membership · 6 names entered</span><span><b>(1 hidden — accepted)</b></span>`,
+    arg:`The mute is on the pair's own firing edge and never on somebody else's payload. An
+         annotated rule opening at <code>fired</code> beneath a <code>Reach</code> move still rides
+         that move's census, because the message belongs to the leg and not to the rule.`,
+    src:"ADR-0016 rider 2 · ADR-0031" },
+
+  { found:true, title:"Count annotations per rule",
+    demo:`<span>sensitive-port-reached-from-internet</span><span><b>1 muted</b></span>`,
+    arg:`Found by drawing it. The count is arithmetic the operator finishes: <code>3 fired</code>
+         beside <code>1 muted</code> is <code>2 outstanding</code>, and the partition arrives without
+         anybody rendering it. The list's own length is one number over one list and is legal; the
+         same figure cut per rule is not. <b>The marker on a rule row is therefore a glyph and never
+         a quantity.</b>`,
+    src:"#129 · ADR-0073" },
+
+  { found:true, title:"Render the declaration instant as an age",
+    demo:`<span>accepted <b>412 days ago</b></span>`,
+    arg:`Found by drawing it. An age with a colour ramp is an expiry the operator implements by eye,
+         and rider 4 refused an expiry because a state changing on the clock with no measurement
+         behind it is <code>Finding</code>'s lifecycle arriving through time. The instant is
+         therefore an <b>absolute date in mono</b>, uncoloured and never sorted-by-staleness.`,
+    src:"#129 · ADR-0073" },
+
+  { found:true, title:"Count the firings a mute has swallowed",
+    demo:`<span>198.51.100.24:5432/tcp</span><span><b>14 suppressed</b></span>`,
+    arg:`Found by drawing it, in variant C. It ranks acceptances by noise avoided, which is severity
+         through the back door on the screen ADR-0004 kept severity off. The honest single value is
+         the <b>last recorded firing</b> — one measurement, no ordering claim.`,
+    src:"#129 · ADR-0073" },
+];
+
+function refusalsPanel(){
+  return `
+  <h2 class="sect">What this screen refuses to draw</h2>
+  <p class="sub">Not part of the product. Three of these are ADR-0016's, named in the decision;
+     three were found by drawing the screen and are this ticket's.</p>
+  <div class="ref">
+    <div class="hd"><span class="ml">refused</span><b>six renderings</b></div>
+    ${REFUSALS.map(r=>`
+      <div class="r ${r.found?"found":""}">
+        <div class="draw"><span class="x">never</span><div class="demo">${r.demo}</div></div>
+        <div class="arg"><span class="t">${r.title}</span>${r.arg}<span class="src">${r.src}</span></div>
+      </div>`).join("")}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE AUTHOR NOTE — the ticket's own question, stated against the fill
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function authorNote(author, fill){
+  const acc = ACCOUNTS[fill];
+  if (author === "off"){
+    return `<div class="note" style="margin-top:var(--space-4)">
+      <span class="ml">author · withheld · this is the ruling</span>
+      No row above says who declared it, and that is what ships — <b>an <code>Annotation</code>
+      carries no author</b> (#129, ADR-0073). ${acc.line} What each row does carry is the
+      <b>reason, in the operator's own words, and the instant it was declared</b> — which is what a
+      reviewer six months from now actually needs, and which names no account.
+      The reason is the reviewable artefact; the name is not.
+    </div>`;
+  }
+  const same = fill === "single";
+  return anno("drawn state · the product will not draw this", `
+    <p><b>The author cell is ruled out of v1.</b> ADR-0073 §1 (#129, 2026-08-15): an
+       <code>Annotation</code> carries <b>no author</b> — not stored and not rendered. It is
+       <a href="https://github.com/winniel123/verge-asm/issues/127">#127</a>'s ruling reaching its
+       last site: no operator act is written down anywhere with an actor on it, because named
+       accounts create identity and never a log.</p>
+    <p><b>Why it lost, given that #127's own arguments do not reach this object.</b> An annotation
+       cannot be edited, so the field would never go stale; and nothing derived reads one, so
+       identity is not joinable to the probing gate. It loses on what the field <i>makes</i> the
+       object: an annotation is an <b>operator dial</b> keyed on a subject, every other dial in the
+       model is unattributed, and the author is the single edit that turns a dial into a record.
+       A dial pointed at one pair is still a dial.</p>
+    <p><b>What this fill shows.</b> ${acc.line}
+       ${ same
+         ? `Every row reads <code>admin</code>, because only one account could have written any of
+            them — <b>a constant in a per-row cell</b>, which is #28's two-numbers hazard with the
+            second number carrying no information, and the same objection ADR-0032 §7 used to keep
+            the evidence tier off this screen.`
+         : `Three names appear and the column finally discriminates. This is the <b>only</b> shape in
+            which it does, and it is <b>#127's own reopening condition</b> — written before this
+            screen existed. The field is not wrong here; it is simply not v1.` }</p>
+    <p><b>Left standing on purpose</b>, because the two fills side by side are the argument: the same
+       markup, a dead column and a live one. Note also what the column would never have survived —
+       an annotation is withdrawn in one click and leaves nothing behind, so it is a record of who
+       muted what <i>and still has it muted</i>, never of who muted what.</p>`, true);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function render(){
+  const variant = q("variant"), author = q("author"), fill = q("fill"), refusals = q("refusals");
+  const body = variant==="A" ? variantA(author,fill)
+             : variant==="B" ? variantB(author,fill)
+             : variantC(author,fill);
+
+  document.getElementById("app").innerHTML =
+    chrome(fill) +
+    `<div class="shell">
+       ${dateline()}
+       ${body}
+       ${authorNote(author, fill)}
+       ${refusals==="show" ? refusalsPanel() : ""}
+     </div>` +
+    foot();
+
+  document.querySelectorAll("#switch .grp").forEach(g=>{
+    const k = g.dataset.key;
+    g.querySelectorAll("button").forEach(b=>b.remove());
+    OPTS[k].forEach(v=>{
+      const b = document.createElement("button");
+      b.textContent = k==="variant" ? `${v} · ${VNAME[v]}` : v;
+      if (q(k)===v) b.className = "on";
+      b.onclick = ()=>setq(k,v);
+      g.appendChild(b);
+    });
+  });
+}
+
+/* ← → cycle variants, per the prototype skill. */
+addEventListener("keydown", e=>{
+  const t = e.target;
+  if (t && (t.tagName==="INPUT" || t.tagName==="TEXTAREA" || t.isContentEditable)) return;
+  if (e.key!=="ArrowLeft" && e.key!=="ArrowRight") return;
+  const i = OPTS.variant.indexOf(q("variant"));
+  const n = (i + (e.key==="ArrowRight"?1:OPTS.variant.length-1)) % OPTS.variant.length;
+  setq("variant", OPTS.variant[n]);
+});
+
+render();
+</script>
+</body>
+</html>
