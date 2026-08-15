@@ -47,7 +47,7 @@ the other.
 | The number of dials | **Two, unchanged.** Seven corpus rows, two dials |
 | The projection on an install with no address scope | **Renders, and states that it has no declared denominator.** It may show what we hold, never a forecast of what the operator has |
 | The discarded group | **Renders in every state, including the one where it is always empty in v1**, and says why |
-| Which facets the observation dial reaches | **A rendered enumeration**, because two facets currently have no covering `Scan` and therefore no floor — [#142](https://github.com/winniel123/verge-asm/issues/142) |
+| Which facets the observation dial reaches | ~~**A rendered enumeration**, because two facets currently have no covering `Scan` and therefore no floor — [#142](https://github.com/winniel123/verge-asm/issues/142)~~ **The enumeration survives and its reason is spent** — #142 · ADR-0084 gave both facets a covering `Scan`, so the exclusion half is empty. It is now **a row per facet–source pair carrying that pair's own floor and the `Scan` supplying it** — [#171](https://github.com/winniel123/verge-asm/issues/171) · [ADR-0094](./0094-a-retention-control-collapses-and-a-retention-query-never-does.md) |
 
 ## Rationale
 
@@ -167,15 +167,38 @@ it declined to compact `Span`s to save 135 MB once.
 ### The observation dial's floor is an enumeration, because two facets have no floor at all
 
 The observation dial is one control over a corpus whose currency bound is **per timeline** — `k`
-cadences of the *tightest covering* `Scan` for that `(subject, facet, port, vantage)`. One dial cannot
+cadences of the *tightest covering* `Scan` for that `(subject, facet, port, vantage)`. ~~One dial cannot
 carry a per-timeline bound, so its floor must be the **longest** bound in force, or it discards
-something still live.
+something still live.~~
+
+> **Both sentences are withdrawn here, at the site that specifies them**
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), **with
+> replacements** (ADR-0057) — [#171](https://github.com/winniel123/verge-asm/issues/171) ·
+> [ADR-0094](./0094-a-retention-control-collapses-and-a-retention-query-never-does.md), which is this
+> ADR's own thin-ground flag answered.
+>
+> **The tuple is wrong** and is repaired at ADR-0007's site: the bound is resolved on the **timeline
+> key**, `(subject, facet, discriminator, vantage, source)`. `source` is what decides it —
+> `dns-record`'s two timelines are covered by `zone` (monthly) and `dns` (daily).
+>
+> **And the collapse is withdrawn.** One dial cannot carry a per-timeline bound *as a control*, and it
+> never had to: **the control collapses and the query does not.** The dial's floor is the **tightest**
+> bound in force — below it the control has no effect on any row, which is what *not the operator's
+> territory* means — and the retirement query applies each row's own bound beneath it, `age <
+> max(bound(row), dial)`. Nothing live is discarded, because the floor doing that work is per row and
+> in the engine rather than collapsed onto the control. *n* computed instants under one control is not
+> *n* controls, and only the second is an invisible horizon.
 
 Rendering that forced the enumeration, and the enumeration found the hole
-[#142](https://github.com/winniel123/verge-asm/issues/142) is open on. Four facets have a covering
+[#142](https://github.com/winniel123/verge-asm/issues/142) is open on. ~~Four facets have a covering
 `Scan`. **`resolution` and `dns-record` do not** — except on the timelines a supplied zone file
-sources, which the `zone` `Scan` covers. An observation with no covering `Scan` has no currency bound,
-so it never becomes evidential, so **this dial never reaches it and it is never discarded.**
+sources, which the `zone` `Scan` covers.~~ **#142 · ADR-0084 closed it: all six facets have a covering
+`Scan`, `resolution` and our own resolver's `dns-record` on the fifth `Scan` `dns` at daily. The
+exclusion half of this list is empty and stays rendered, per #47.** An observation with no covering
+`Scan` has no currency bound, so it never becomes evidential, so **this dial never reaches it and it
+is never discarded** — a population reachable in v1 only where an operator disables a `Scan`, and
+ruled by [ADR-0094](./0094-a-retention-control-collapses-and-a-retention-query-never-does.md) as
+**never retired**, since undefined is not expired.
 
 That is drawn as a named exclusion beneath the dial rather than left implicit, on the same ground as
 #47's empty group: a dial whose reach is silent is a dial the operator believes covers everything. And
@@ -187,19 +210,44 @@ and moves nothing else on the screen.
 The `Dispatch` floor is `k` cadences of the **slowest enabled** `Scan`, because below it `Coverage`
 cannot answer whether the slowest scan ran. The observation floor is `k` cadences of the **slowest
 covering** `Scan`, because below it a derivation loses an observation it is still allowed to read.
-Different questions, different populations — and on every install drawn here they produce the same
-number.
+Different questions, different populations — and ~~on every install drawn here they produce the same
+number.~~ **they have already come apart, which the paragraph below predicted and understated.**
 
 That coincidence is the reason each dial renders **its own derivation** rather than the two sharing
 one floor line. A shared number invites the next session to implement one floor and use it twice, and
 the two come apart the moment a `Scan` is enabled that covers nothing — which `zone` on an install
-with no name scope holding a zone file is already close to.
+with no name scope holding a zone file ~~is already close to~~ **already is**.
+
+> **Walked against the corpus** by [#171](https://github.com/winniel123/verge-asm/issues/171) ·
+> [ADR-0094](./0094-a-retention-control-collapses-and-a-retention-query-never-does.md), and both
+> struck clauses are withdrawn at this site
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)). `zone`'s
+> scope is *"the name scopes holding a supplied zone file"* and *"a `Scan` whose scope list is empty is
+> a legible state"* — so on **any install with no zone file** `zone` is enabled and covers nothing.
+> The `Dispatch` floor is then `k` × monthly (`zone`), the observation floor `k` × weekly
+> (`tls-acceptance`): **a factor of four, today, at shipped settings, on an ordinary install.** The
+> decision to keep them as two rules is confirmed by a case rather than by an argument — and ADR-0094
+> moves the observation floor further still, to the **tightest** covering `Scan`, so nothing may read
+> the two as one number again.
 
 ### One dated figure this drawing found, and the rule that makes it not matter
 
 ADR-0041 states the multiple rule — *"stated as a multiple and never as a day count, the cadence being
-a quantity the operator moves"* — and then, two sentences later, states a day count: *"today that is a
-fortnight with `tls-acceptance` slowest, two months with the cold tier enabled."*
+a quantity the operator moves"* — and ~~then, two sentences later, states a day count~~ **stated, two
+sentences later**, a day count: *"today that is a fortnight with `tls-acceptance` slowest, two months
+with the cold tier enabled."*
+
+> **Past tense, and withdrawn at this site**
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) —
+> [#171](https://github.com/winniel123/verge-asm/issues/171) ·
+> [ADR-0094](./0094-a-retention-control-collapses-and-a-retention-query-never-does.md). **ADR-0041 no
+> longer states the figure**: it was struck at its own site by the session that merged the
+> fifteen-agent batch, replaced with the multiple rule and a note that `dns` at daily does not move
+> the floor. Read alone and in the present tense, this section and the *Render the floors as day
+> counts* row below send a session to ADR-0041 to repair something that is already repaired, and the
+> next reader to find it gone concludes the wrong document was edited. The **finding** stands — a
+> document stating a rule and violating it in its own next paragraph — and the **structural repair**
+> below is what makes it not matter.
 
 `zone` is the fourth `Scan` and ships at **monthly**
 ([#124](https://github.com/winniel123/verge-asm/issues/124)), so on any install that supplies a zone
@@ -263,8 +311,17 @@ violating it in its own next paragraph.
   an inference from *alerting fires at the cause with a census*, and nobody has measured how many
   messages a year an unstable estate writes. If it is wrong, the structural argument still holds — the
   store may not acquire a way to fail — but the second leg of the reasoning goes.
-- **The observation floor being the *longest* bound in force is derived here rather than cited.**
+- ~~**The observation floor being the *longest* bound in force is derived here rather than cited.**
   ADR-0041 says the dial is *"floored at the currency bound"* and the currency bound is per-timeline;
   turning one per-timeline bound into one floor over one corpus is this ADR's step, and the
   conservative direction was chosen without an argument that the tight direction is unsafe for every
-  timeline it would touch.
+  timeline it would touch.~~
+  **NO LONGER THIN — DISCHARGED, and the step is OVERTURNED**, struck at the site that states the
+  thinness ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)),
+  by [#171](https://github.com/winniel123/verge-asm/issues/171) ·
+  [ADR-0094](./0094-a-retention-control-collapses-and-a-retention-query-never-does.md). The tight
+  direction is unsafe on **one** population and it is named and closed — a subject in the estate whose
+  timeline no `Scan` covers, whose bound is *undefined rather than loose* and whose rows are therefore
+  never retired. Everywhere else the collapse was a guard over the wrong hazard: what would discard a
+  live row is **ADR-0007's under-keyed currency tuple**, repaired at that ADR's site. The control
+  collapses; the query does not.
