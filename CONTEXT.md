@@ -821,7 +821,18 @@ the site that specifies it**
 ([ADR-0019](./docs/adr/0019-the-probing-gate-is-total-over-an-address.md)), leaving the opt-in
 limb, which is the `custody extension`. A public name resolving to an address is the *name
 holder's* invitation to their own service and never the *listener holder's* consent to be
-measured, which is the whole distinction the rename below draws. So an install holding custody of
+measured, which is the whole distinction the rename below draws. `operator` is **necessary and not
+sufficient**: the gate asks *may we connect to this address*, which presupposes the address denotes
+one machine, and a **non-globally-reachable** address denotes one **per network realm**. So an
+address whose most specific block in the IANA special-purpose registries reads `Globally Reachable`
+= `False` is connected to only where a declared **address scope** covers it — a `custody extension`
+may not open the gate over one, which generalises ADR-0013 §6's refusal to let an extension decide a
+realm — and only from a `Vantage` that is not `internet`-class, which by its own definition sits
+outside every realm the operator declared. The internet `Reach` leg over such an address is not
+merely unmeasured but **unmeasurable**, so a connect from there measures a different machine and
+files it on the flagship timeline
+([ADR-0079](./docs/adr/0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md)).
+So an install holding custody of
 nothing measures `resolution` and `dns-record` at full aperture — **a query is not a connect** —
 and measures none of the four facets that ride a TCP connect; its `Service` population is empty,
 and every rule below that connect has an empty `Predicate domain`. There is **no
