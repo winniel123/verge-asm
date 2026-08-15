@@ -202,8 +202,8 @@ and no **verdict** moves on any.
 
 | Row | Defeating artefact under this ADR | Verdict |
 |---|---|---|
-| `9200/tcp` Elasticsearch | **None.** No current placement statement for WSP on `9200/tcp` was found; the WAP suite's own bearer ports are WDP/**UDP** (§15.3), a different key. OpenSearch and the Wazuh indexer are the **same protocol** — limb 3 | **Listed**, ground restated |
-| `9300`, `2181`, `9042`, `10250`, `10255`, `623/udp` | **None found** — §15.4 walks each and names what was searched. `9042`'s ScyllaDB is limb 3; `623/udp`'s `asf-rmcp` is the transport IPMI rides, so it is limb 3 as well | **Listed** |
+| `9200/tcp` Elasticsearch | **None.** No current placement statement for WSP on `9200/tcp` was found; the WAP suite's own bearer ports are WDP/**UDP** (§15.3), a different key. OpenSearch and the Wazuh indexer are the **same protocol** — limb 3 | ~~**Listed**, ground restated~~ — **the ROW is REMOVED by [#114](https://github.com/winniel123/verge-asm/issues/114)** on the **claim** gate (`sensitive-ports.md` §38). **This ADR's determinacy verdict is unchanged, unread and correct**; determinacy is not what removed it |
+| `9300`, `2181`, `9042`, `10250`, `10255`, `623/udp` | **None found** — §15.4 walks each and names what was searched. `9042`'s ScyllaDB is limb 3; `623/udp`'s `asf-rmcp` is the transport IPMI rides, so it is limb 3 as well | **Listed** — except `9300`, whose **row is REMOVED by [#114](https://github.com/winniel123/verge-asm/issues/114)** on the same claim gate, determinacy verdict unchanged |
 | `9100/tcp` node_exporter | HP's own best-practices document — *"9100 Printing should always be enabled"* | **Excluded** |
 | `6443/tcp` kube-apiserver | Kubernetes' own *"the API serves on port 443"* — the **displacement** half of limb 2 | **Excluded** |
 | `79/tcp` finger | **RFC 4146**, in force, specifying a listener on 79 for a protocol that is not finger. IANA's annotation corroborates | **Excluded**, ground strengthened |

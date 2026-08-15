@@ -300,7 +300,7 @@ baseline is full-range; if they did not, it is `verge-core`. Either way it is a 
 ~900 tail ports the retired warm tier used to cover. That is the honest statement of v1's aperture,
 and it is stated on `Coverage` rather than left to be discovered: the port-tier line names the tier,
 its cadence and its off state, and carries ~~`0 of 39 sensitive pairs unread`~~ ~~`0 of 41 sensitive
-pairs unread`~~ **`0 of 40 sensitive pairs unread`** and `0 of 16 rules unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
+pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ **`0 of 38 sensitive pairs unread`** and `0 of 16 rules unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
 puts every sensitive pair inside the hot set, and of the sixteen rules one names a port (fully
 covered), four read `Name`s, and eleven read a facet on a subject. **The tier bounds which subjects
 exist, never which rules can speak**, so what the cold tier buys is drift breadth rather than signal
@@ -339,6 +339,14 @@ estate-completeness score in port clothing.
 > The aperture **narrows** by one pair's worth of rule coverage and reveals nothing, so
 > [ADR-0014](../adr/0014-only-revealed-generalises.md) does not bite. ADR-0044 and ADR-0047 are
 > updated with it.
+>
+> **And it reads `0 of 38` after [#114](https://github.com/winniel123/verge-asm/issues/114)**, which
+> **removed** `9200/tcp` **and** `9300/tcp` from the sensitive list
+> ([`sensitive-ports.md`](./sensitive-ports.md) §38). **The denominator's second downward move and its
+> first by two**, and the identity predicted it again: the numerator stayed `0`, nothing was
+> re-measured, and **[measured]** the **probed set did not move at all**, both pairs being in the
+> frequency half so `verge-core` stays at 136 pairs / 131 probed. The aperture **narrows** and reveals
+> nothing, so ADR-0014 does not bite. ADR-0044 and ADR-0047 are updated with it.
 
 **No middle tier replaces the retired warm one**, and the refusal does not rest on
 [`nmap-services-licence.md`](./nmap-services-licence.md) §3. Under ADR-0009's union, any set authored

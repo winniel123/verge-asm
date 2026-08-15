@@ -475,6 +475,10 @@ that check belongs to the curation patch, which is where the watch lives.
 > [#109](https://github.com/winniel123/verge-asm/issues/109)**, which removed `1433/tcp` on the claim
 > gate — class totals `12 / 7 / 21`. *(Struck in the #108/#109/#110 merge reconciliation; the figure
 > above was correct as of its own pass and is withdrawn as an absolute, not as a record.)*
+> **~~40 pairs~~ 38 pairs since [#114](https://github.com/winniel123/verge-asm/issues/114)**, which
+> removed `9200/tcp` and `9300/tcp` on the same claim gate — class totals ~~`12 / 7 / 21`~~
+> **`12 / 7 / 19`**, coverage **27 of 38** at tiers **13 · 11 · 3 · 11**. **§8's watch list is
+> unchanged at three rows** — `5432`, `5984`, `10248` — no weak-tier member having moved.
 
 ## The v1 walk — all sixteen rules, walked rather than asserted
 
