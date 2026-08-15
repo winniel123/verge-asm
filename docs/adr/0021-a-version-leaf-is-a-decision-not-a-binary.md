@@ -462,3 +462,64 @@ Two riders this ADR's own text makes load-bearing:
   `connect-outcome` taking no bytes at all; `datagram-outcome` takes **bytes we authored** and one of
   three replies — a datagram, an ICMP error, or silence — so its rows carry a payload and are
   authorable in the same sense the DNS rows are.
+
+## Annotation — [#177](https://github.com/winniel123/verge-asm/issues/177), 2026-08-15: the uncovered move is given form
+
+Nothing above is superseded. The gate's third limb — *"or a recorded uncovered move naming the input
+class the corpus cannot reach"* — was named in the Decision table and reasoned about in *"The release
+where we cannot tell"* above, but the object itself was never drawn: no fields, no home, no rule for
+what makes an entry valid. [ADR-0085](./0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md)
+gave the **pin block** — the escape hatch's counterpart, the thing that discharges the obligation
+normally — exact form: rows, a boundary-pairing rule, a home, a coverage assertion. This annotation
+does the same job for the **escape hatch**, at the site that named it, per
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+
+**The object is a row in a register**, checked in as data — *"reviewable and countable"*, this ADR's
+own phrase, taken literally rather than left as an aspiration. The register lives in
+[`golden-corpus.md`](../spec/golden-corpus.md) §9, beside the pin blocks and the CI matrix that
+consult it, on the same *"the tables will be revised and an ADR is a decision that will not"*
+precedent that already governs that file's §2 and §8.
+
+### The fields
+
+| Field | Content |
+| --- | --- |
+| **Leaf** | One of this ADR's six named leaves, by its exact identifier: `connect-outcome` · `tls-handshake` · `http-exchange` · `resolution-walk` · `wildcard-discrimination` · `datagram-outcome`. Free text is not a leaf name — CI matches the string |
+| **Bumped to** | The exact post-bump version string recorded on that leaf's `derivation` row ([ADR-0008](./0008-derivation-versions-move-on-content.md)). Not a description of the change — the literal value CI compares by string equality |
+| **Input class** | One line of prose naming the class of input the corpus cannot reach — a **class**, never an instance, in the form this ADR's own worked example already set: *"behaviour against servers that close on an unrecognised extension."* A named instance the corpus simply forgot is a missing row, not an uncovered move |
+| **Ticket** | The issue (and PR, once it exists) that shipped the bump the entry licenses |
+| **Date** | The date the entry was checked in |
+
+### The validity rule
+
+> **A row licenses exactly one leaf's exactly one version transition, is checked in no later than the
+> PR that ships it, and is never edited or removed once merged.**
+
+Three consequences follow, and each closes a specific way the escape hatch would otherwise leak:
+
+- **One row per `(Leaf, Bumped to)` pair, matched by exact string equality.** An entry licenses the
+  transition onto that string and no other. A leaf that bumps again later needs a new row — the old
+  one does not carry forward, which is what stops one recorded gap from silently excusing every future
+  bump of the same leaf.
+- **Present by the commit A6 evaluates.** A6 ([`golden-corpus.md`](../spec/golden-corpus.md) §3.2) runs
+  on every pull request; the row that licenses a PR's bump has to exist at that PR's tip, in practice
+  added by the same PR, exactly as a moved pin row or a changed declared parameter already must be.
+- **Append-only.** A row, once merged, is never edited or deleted. This ADR's own words are *"recorded
+  rather than resolved"* — the entry is a permanent admission, not a tracked TODO, so a later corpus
+  row that comes to cover the same input class does not retire it; it only means the *next* bump on
+  that class can be justified the ordinary way instead. Immutability is what keeps *"if uncovered moves
+  become the common case, the corpus is failing and the count says so out loud"* true: a row that could
+  be deleted after the fact is a frequency signal a later PR can quietly launder away.
+
+**No status field, and none is missing.** The temptation is a `resolved` column once the gap closes.
+This ADR already refused that shape in naming the mechanism — an uncovered move is *recorded*, not
+tracked to resolution — and a status field would let a reviewer read a live gap as closed. The count
+`golden-corpus.md` §9 accumulates is the whole of what this object owes the project; there is nothing
+else to compute from it and nothing here mandates a report be built on top of it, only that the data
+exists to build one from.
+
+**Scope today.** Only [`golden-corpus.md`](../spec/golden-corpus.md)'s own A6, for `resolution-walk`
+and `wildcard-discrimination`, currently reads this register — those are the two leaves whose corpus
+and CI matrix are specified in that file. A row naming one of the other four leaves is legal, checked-in
+data with no consumer yet, on the same ground this ADR already used for `datagram-outcome`: *"specified
+and ships nowhere."* It becomes load-bearing the day that leaf's own matrix is specified elsewhere.
