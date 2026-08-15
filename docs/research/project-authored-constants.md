@@ -905,3 +905,103 @@ manufactured into an instance by a sweep run on form alone.
   been chosen cannot have been swept. The four-limb test is the durable output; the tally of
   eighteen is a snapshot and [#12](https://github.com/winniel123/verge-asm/issues/12) will add to it.
 </content>
+
+---
+
+## 12. The cure has an architecture hazard, and now a failing test
+
+*Added by [#143](https://github.com/winniel123/verge-asm/issues/143) /
+[ADR-0085](../adr/0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md).
+§8.1's cure is unchanged; what is added is the thing that checks it.*
+
+### 12.1 What #124 found, and what it did not supply
+
+[#124](https://github.com/winniel123/verge-asm/issues/124) took §8.1's *ship the rule* cure and found
+a hazard one layer beneath it. A fraction is a **division**, and Go's language specification permits
+an implementation to fuse floating-point operations:
+
+> "An implementation may combine multiple floating-point operations into a single fused operation,
+> possibly across statements, and produce a result that differs from the value obtained by executing
+> and rounding the instructions individually."
+> — [Go spec, Floating-point operators](https://go.dev/ref/spec#Floating_point_operators) `[spec]`
+
+Go's `arm64` backend emits the fused instruction; baseline `amd64` at `GOAMD64=v1` has none. So one
+expression, one release, two architectures, two results — and the model has no object for it,
+because a `Derivation` version is a claim about **content** and the content is identical. #124's
+ruling ([`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §1.3) is that
+**`GOAMD64` is pinned at `v1`** and **a declared parameter expressed as a fraction is evaluated in
+exact integer arithmetic**, and it says the rule *"binds every fraction in the declared-parameter
+set, present and future"* — which is **this note's population**, named as such.
+
+**What it did not supply is anything that fails when the rule is broken.** The pin is a precaution
+and the integer-arithmetic rule is a sentence. Neither is checked, and the failure they prevent is
+silent: one certificate at one instant is `certificate-expiring` on an `amd64` instance and not on
+an `arm64` one, with equal derivation vectors on both, so the model licenses the comparison.
+
+### 12.2 The check — the contraction differential
+
+ADR-0085 adds a third CI leg to the golden corpus matrix
+([`golden-corpus.md`](../spec/golden-corpus.md) §3):
+
+> **Leg 3 builds `linux/amd64` at `GOAMD64=v3`, runs the same corpus against the same expected
+> output, and fails where it differs from leg 1 (`GOAMD64=v1`).**
+
+`v3` is the microarchitecture level at which Go's `amd64` backend first gains FMA. So a difference
+between legs 1 and 3 is proof that **a contraction-eligible floating-point expression sits on the
+evaluated path** — which, for a declared parameter expressed as a fraction, means the cure was
+applied in `float64` rather than in exact integer arithmetic. The failure names the fraction.
+
+Leg 3 **is not an architecture in the matrix**. It ships no artefact, so #124's rule that *an
+architecture is in the matrix exactly where the golden corpus is run on it in CI* is untouched.
+
+Two properties of the check, stated because they bound what it proves:
+
+- **It is a detector, not an equaliser.** Building `amd64` at `v3` narrows the gap to `arm64` and
+  does not close it — the two backends' rewrite-rule sets are not the same set. A green leg 3 says
+  *no expression on this path was contraction-eligible*, which is exactly the property #124's rule
+  asserts, and it does **not** say the two architectures would agree if one were introduced.
+- **There is no lever on the `arm64` side.** Go's `arm64` rewrite rules fuse behind a predicate with
+  no architecture or CPU-feature gate, whose only off switch is a bisection debug variable the Go
+  team documents with the words *"if you have an architecture-dependent FP glitch, this will help you
+  find it"*, and FMADD is ARMv8.0 baseline so no `GOARM64` level removes it. The `amd64` `v1`/`v3`
+  pair is the only lever this project has.
+
+### 12.3 The alternative cure the specification offers, and why it is refused
+
+The Go specification supplies a second, narrower cure: an **explicit floating-point conversion**
+rounds to the target type's precision and prevents the fusion that would discard that rounding, so
+`r = float64(x*y) + z` is unfusable where `r = x*y + z` is not.
+
+It is refused as this project's cure, and the reason is §8.1's own shape. **A conversion rule is
+per-expression discipline**: it must be re-applied correctly by every future author of every
+fraction, it is invisible when omitted, and nothing fails. #124's integer-arithmetic cure is
+checkable by leg 3 — one assertion, over every corpus, catching the omission wherever it happens.
+It is recorded here because the specification offers it prominently and the next session to hit an
+architecture-dependent result will find it first.
+
+### 12.4 What this changes in this note
+
+**Nothing in §§1–8 moves.** No verdict is revised, no constant is re-expressed, and the cure is the
+same cure. What is added is that §8.1's cure now has an **enforcement**, and that the rule reaching
+*"every fraction in the declared-parameter set, present and future"* has a check whose blast radius
+is the same set.
+
+One thing to carry forward, because it is the shape of the hazard rather than an instance of it:
+
+> **A cure that replaces a stale number with a computation moves the risk from the number to the
+> arithmetic.** §8.1 traded a constant that goes stale for a rule evaluated at read time; #124 found
+> the trade's price, which is that arithmetic has an execution environment and a constant does not.
+> The cure is still right. The lesson is that *ship the rule* acquires whatever
+> environment-dependence the rule's evaluation has, and that dependence needs a check rather than a
+> sentence.
+
+Two dispositions follow, and neither is a new number:
+
+- **`k`, the currency multiplier (§6.2)** — an integer multiplier over a cadence, evaluated in
+  integer arithmetic already. Not at risk, and it is the sweep's positive control here as it was
+  there.
+- **`certificate-expiring`'s `N` (§§1, 8.1)** — ⅓ of the certificate's validity period, ½ below a
+  ten-day validity. **Both fractions are evaluated on whole seconds in integer arithmetic**, which is
+  #124's ruling and is what leg 3 checks. The §8.2 amendment stands unchanged: expressing the
+  constant as a fraction removes the **quantity** from the watch and not the **attestation**, and the
+  issuer may still revise ⅓, ½ or the ten-day threshold.
