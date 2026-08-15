@@ -19461,7 +19461,7 @@ blocks the *edit*, never the release.
 | # | Check | Source |
 | --- | --- | --- |
 | **G1** | A row's footing tier agrees with its class where the two are coupled | defect — [#83](https://github.com/winniel123/verge-asm/issues/83) |
-| **G2** | Every graded footing cell has been walked against the tier criterion **as it currently stands**, and the walk's date is at or after the criterion's last amendment | defect — [#93](https://github.com/winniel123/verge-asm/issues/93), [#98](https://github.com/winniel123/verge-asm/issues/98), [#101](https://github.com/winniel123/verge-asm/issues/101), [#107](https://github.com/winniel123/verge-asm/issues/107); **and triggers 3 and 6, which are this check read at two moments** |
+| **G2** | Every graded footing cell has been walked against the tier criterion **as it currently stands**, and the walk's date is at or after the criterion's last amendment. **Its population is the criterion's DOMAIN — the two graded tiers, 24 cells, and NOT all 27 footing cells: the weak tier is outside the domain, the criterion reading an owner statement and a weak cell having none ([#154](https://github.com/winniel123/verge-asm/issues/154), §46)** | defect — [#93](https://github.com/winniel123/verge-asm/issues/93), [#98](https://github.com/winniel123/verge-asm/issues/98), [#101](https://github.com/winniel123/verge-asm/issues/101), [#107](https://github.com/winniel123/verge-asm/issues/107); **and triggers 3 and 6, which are this check read at two moments** |
 | **G3** | No row rests on an owner's documented hard failure its shipped bytes do not enforce | defect — [#92](https://github.com/winniel123/verge-asm/issues/92) |
 | **G4** | No sentence the edit supersedes stands unmarked anywhere the edit's terms occur, **the edited file included** | defect — [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), [#102](https://github.com/winniel123/verge-asm/issues/102), [#106](https://github.com/winniel123/verge-asm/issues/106) |
 | **G5** | No exclusion's stated ground has been withdrawn | defect — [#104](https://github.com/winniel123/verge-asm/issues/104) |
@@ -19878,8 +19878,19 @@ denotation; §36's **own** walk covered *"all **26** members of both graded tier
 is the amendment's date by construction. Today's graded population is **24** — §36's 26 less `9200`
 and `9300`, removed by §38 — and is therefore a **subset** of what was walked. *Disclosure:* the
 **weak tier** is outside the criterion's domain, the four-limb conjunction requiring an owner
-**statement** and a weak cell being precisely a cell with none. **No section says so**, so a later
-reader may score G2's population at 27 and read it red.
+**statement** and a weak cell being precisely a cell with none. ~~**No section says so**, so a later
+reader may score G2's population at 27 and read it red.~~
+
+> **The struck clause is DISCHARGED by §46** ([#154](https://github.com/winniel123/verge-asm/issues/154)).
+> **A section says so now**, and G2's row at §39.6 carries the domain where a session gating an edit
+> meets it. Everything before the strike is **correct and unchanged** — the 24, its derivation from
+> §36's 26, and the reason. What §154 adds is that the domain is stated as a **population** rather
+> than as a number, that the weak tier's three cells are *outside the domain* rather than passed or
+> unwalked ([ADR-0024](../adr/0024-a-rules-domain-is-the-extension-of-its-name.md)'s first register),
+> and that **[measured]** the `24` here and §4.6's `24` are different denominators sharing no member.
+> **G2's verdict is unmoved: GREEN, and this section's defect count of 18 is unaffected**, the
+> omission having been recorded as a disclosure against a green check rather than as a defect. §46.3,
+> §46.7.
 
 **G3 — green, one row in the population.** `2375/tcp` is the only row resting on an owner's documented
 hard failure, and §35 recorded the enforcement test with its answer — *"yes — a code path"*.
@@ -20911,6 +20922,355 @@ staying out of that file while concurrent passes run applies with more force in 
   after the repair, on one artefact under either reading of *independent* (§45.4). #154 holds the
   **weak tier**; this section touches no tier and adds no footing cell, so it does not reach that
   territory in either direction.
+
+---
+
+## 46. G2's domain — the tier criterion reads a statement, so the weak tier is outside it and G2's population is 24 rather than 27
+
+**Ticket [#154](https://github.com/winniel123/verge-asm/issues/154).** §40.5 recorded, as a
+*disclosure* attached to a green verdict, that G2's population *"is smaller than it looks"* — and that
+**no section says so**, so a later reader scores G2 over 27 footing cells and reads it **red**. This
+section says so.
+
+**What this section is.** A **statement of a fact the note already holds**, not a rule. It moves no
+row, no class, no tier and no coverage figure; it mints no ADR; it reopens nothing §32, §36, §39, §40
+or §41 settled, and it performs **no retrieval**. Every fact it uses was measured by a prior pass and
+is cited to it. What it produces is one sentence with a referent — **the domain of the tier
+criterion** — and the marks that keep the sentence findable from the three sites that would otherwise
+send a reader to the wrong population.
+
+### 46.1 The defect is an omission, and the two premises are already in the note
+
+**Nothing in the corpus is wrong.** G2's verdict at §40.1 is **GREEN** and stays green; the walk §40.5
+relied on is §36.6's and it was correctly run. What is missing is a statement of **what the criterion
+is a criterion of**, and its absence is what makes the green unreproducible: a reader who re-runs G2
+from §39.6's own words counts a different population from the one that was walked and cannot arrive at
+the recorded verdict.
+
+**Both premises are already here, and no section joins them.**
+
+| Premise | Where it is measured | What it says |
+|---|---|---|
+| The criterion reads an **owner statement of the port's permitted network** | [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md) limb 1 as widened by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)), with the four-limb conjunction at §32.2 and limb 2's denotation restated at §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) | The tier is a **count of premises** between that statement and the row's proposition. Zero premises is the prohibition tier; one is the scoping tier |
+| The weak tier's three cells carry **no such statement at all** | **§32.7's walk**, per cell | `10248/tcp`, `5432/tcp` and `5984/tcp` each read *"the owner's statement of the permitted network, if any: **none**"* and *"premises: **n/a**"*. §10.4 supplies the reason: a restricting default states a **bind address**, never a permitted **network**, and the owner must say somewhere else that the address is a boundary |
+
+**§37.1 already drew the conclusion once, for one sweep, and scoped it to that sweep** — *"the weak
+tier is outside §36.6's sweep **by construction** … §32.7 rules that its three rows carry **no owner
+statement of a permitted network at all**, so a candidate qualifier *on a carrying statement* cannot
+bite there"*. That is this section's ruling written for a single pass's question. **[measured]** the
+generalisation is nowhere: the strings that would carry it — a domain for the criterion, a population
+for G2 — occur in no section, which is why §40.5 had to write the disclosure as a warning to a future
+reader rather than as a citation.
+
+### 46.2 The statement
+
+> **The tier criterion's domain is the footing cells that carry an owner statement of the port's
+> permitted network — the prohibition tier and the scoping tier, which is what this note has always
+> called *the two graded tiers*. The weak tier is the criterion's complement, not a verdict within
+> its range: a weak cell is precisely a cell the criterion has no input for, and it is therefore
+> OUTSIDE THE DOMAIN rather than passed, failed, or unwalked.**
+>
+> **G2's population is the two graded tiers. It is 24 cells as of 2026-08-15 and it is derived from
+> the tier counts rather than fixed at a number.**
+
+**Three registers, and the note already runs all three.**
+[ADR-0024](../adr/0024-a-rules-domain-is-the-extension-of-its-name.md) partitions them for a rule:
+*outside the domain* = **the question does not arise** · `not-evaluable` = **we cannot see the
+answer** · `Gap` = **we did not look**. A weak cell is the first and not the second or third: it is
+not that the owner's statement is unreadable, and not that nobody looked — §32.7 looked, per cell, and
+the finding is that there is nothing of the kind to grade. §2's own
+[#33](https://github.com/winniel123/verge-asm/issues/33) amendment already uses this register for this
+kind of object — *"elsewhere they are **outside the domain** rather than passed"* — so the word is the
+note's, borrowed from the product model by a rule
+([ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)) that is already
+what licenses one instrument's standard to travel and not another's.
+
+**Why *complement* and not *third value*.** ADR-0059 limb 1 names the weak tier in the same breath as
+the other two — *"in the weakest tier where the owner has published **no statement at all** and the
+footing is a restricting default"* — and a reader can take that as a third verdict the criterion
+returns. It is not one, and the ADR's own Rationale table is the check: the premise-count column for
+`5432` and `5984` reads ***"n/a — no sentence to stand at a distance"***, which is the notation for an
+operation that does not apply, not for an operation returning a third value. **The clause defines the
+residue; it is not a test that can be run.** A cell falls into the weak tier by the criterion having
+no purchase on it, which is exactly what *outside the domain* means.
+
+### 46.3 The arithmetic, walked rather than quoted — and the two 24s are not the same 24
+
+**The population is derived per cell rather than taken from a summary row**, because the whole reason
+this section exists is that a figure was read off the wrong denominator.
+
+| Step | Walk | Figure |
+|---|---|---|
+| Footing cells in existence | §40.4's G11 table enumerates every one, and G11 ran over all of them: `6379` · `5984` · `10250` · `10255` · `10249` · `10259` · `10257` · `10248` · `9042` · `873` · `11211/tcp` · `11211/udp` · `3306` · `27017` · `27018` · `27019` · `2049` · `2181` · `25672` · `4369` · `2376` · `2375` · `5432` · `2379` · `2380` · `445` · `623/udp` | **27** |
+| Of which weak | `5432/tcp` · `5984/tcp` · `10248/tcp` — §32.7's three *"none"* rows, unchanged since §27 | **3** |
+| **G2's domain** | 27 − 3, and equivalently prohibition **13** + scoping **11** | **24** |
+| Cross-check against the last walk | §36.6 walked *"all **26** members of both graded tiers"* at prohibition 15 · scoping 11; §38 removed `9200/tcp` and `9300/tcp` and their prohibition cells left the graded table with their rows | 26 − 2 = **24** ✔ |
+| Cross-check against §2.2's coverage line | `13 + 11 + 3 = 27` footing cells, `27 + 11` outside-subject `= 38` pairs | **27 of 38** ✔ |
+
+**[measured] the 27 is not a coincidence and the 24 is one, and a reader meets the coincidence first.**
+
+- **The 27 is real and shared.** *Coverage 27 of 38* counts **footing cells**, which is the same
+  population G2's *"every graded footing cell"* names on its face. A reader who walks 27 has read the
+  right denominator for the wrong check; that is precisely how this defect is reached, and it is why
+  restating G2's phrase without stating its domain would not cure it.
+- **The 24 in `§4.6 24 entries` is a different denominator that collides.** §4.6's 24 counts
+  **excluded pairs** — §40.3 verifies it as `16 base + 2 (§14) + 1 (§24) + 1 (§27) + 1 (§35) + 2 (§38)
+  + 1 (§39) = 24` — and shares **no member** with the 24 graded footing cells, an excluded pair having
+  no footing cell by construction. The two 24s are numerically equal today and will come apart on the
+  next exclusion or the next tier move. **The composed-state line carries both**, adjacent
+  — *coverage 27 of 38 · §4.6 24 entries* — so a session correcting the 27 to 24 lands on a figure
+  that already means something else in the same sentence.
+
+> **This is §40.2's `161/udp` hazard in the admitting direction.** There, *"the **38** sensitive
+> pairs … attested for **37**"* was *"correct again by coincidence and everything after it false"*, and
+> it survived eleven passes because a reader checking the headline matched and read no further. Here
+> the coincidence sits between two live figures on the map's own composed-state line. **The domain is
+> therefore stated as a population and not as a number**, and the number is written as *derived from
+> the tier counts* wherever it appears.
+
+### 46.4 The gate does not lose the weak tier — it checks it somewhere else
+
+**Stating G2's domain shrinks G2's population and shrinks the gate's coverage by nothing.** A weak
+cell is outside G2 and inside four other checks, and the checks it is inside are the ones that read
+the artefact rather than our grading of it.
+
+| Check | Reaches a weak cell? | On what |
+|---|---|---|
+| **G2** | **No — outside the domain** | It reads our criterion against a held statement, and there is no statement |
+| **G11** | **Yes, and it did** | §40.4 ran the tag comparison over **all 27** cells; `5984/tcp` CouchDB `3.5.0` → `3.5.2` is one of the nine stale-against-tag findings and `10248/tcp` is inside the six-cell Kubernetes group |
+| **G7** | **Yes, and it did** | Both raw-source doc-comment cells tested against Kubernetes' rendered config-API reference; `10248`'s two riders at §40.5 are findings about a weak cell |
+| **G6** | **Yes** | §37's sweep population includes the weak tier — §37.1's whole correction — an affirmation needing no carrying statement |
+| **Queue** | **Yes, at the front** | §39.4 items 1, 6 and 7 are the three weak cells, at rungs 1, 3 and 3. §39.4: *"the queue is a superset of the weak tier"* |
+
+**So the weak tier is the most-watched population in the table and the least gradable one, and those
+two facts are the same fact.** A cell with no owner statement is a cell whose only support is a
+shipped default, which is what makes it weak, what puts it on the queue, and what leaves the tier
+criterion nothing to read.
+
+**A weak cell can still move, and the act that moves it is a retrieval rather than a check.** If an
+owner publishes a statement of the port's permitted network, the cell acquires an input and the
+criterion applies to it for the first time. That is an **addition to the domain**, discovered by
+reading somebody else's corpus — the queue's business under §39.6's own partition — and ruled on by a
+release under [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+limb 2, on a retrieval scoped to the cell. **The gate raises; only a release rules** (§39.6), and G2
+is the half that cannot even raise here.
+
+### 46.5 The options that lost
+
+**Option 1 — widen the criterion so that it does reach the weak tier, and let G2's population be 27.**
+The strongest losing option, and the one ADR-0059 limb 1's own residue clause invites: read *"no
+statement at all"* as a third verdict, and a weak cell can be walked by confirming the owner has
+published nothing. **It loses on §39.6's closed/open partition, which is the gate's founding
+distinction.** A check is *closed* where *"its population is enumerable and its evidence is bytes the
+project already holds, plus a finite named set of targeted re-fetches"*. Confirming that an owner has
+published **no** statement anywhere is a universal negative over that owner's corpus:
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+gives it a corpus and a terminating procedure — the owner's own class list — and that procedure is a
+**sweep**, which is a retrieval and a ticket. Under this option G2 stops terminating, so the gate can
+never be green, so §40.6's baseline sentence loses the referent §40 just gave it. **It loses a second
+time on ADR-0037 limb 2**: the only thing the widened check could find is a statement the corpus does
+not hold, and a cell moves on that only through a retrieval scoped to the cell, which §39.6 forbids a
+gate to perform. **The option is not merely more expensive; it converts a gate check into a queue
+item and calls it a gate check.**
+
+**Option 2 — leave the criterion alone and write the number `24` into G2's check text at §39.6.**
+Cheapest, and it repairs the reader's immediate error. **It loses because the tier counts move and the
+check text would not.** The tiers have read `13`/`15`/`9`/`2`, `15`/`11`/`2`, `14`/`13`/`3`,
+`16`/`11`/`3`, `15`/`11`/`3` and `13`/`11`/`3` across §16, §18, §24, §27, §30, §32, §33 and §38 —
+eight moves, none of which touched G2's text. A number inside a check is a **dated record standing in
+the present tense**, which is G4's own shape planted deliberately in the document that specifies G4,
+and §39.2's lesson — *the unit is wrong rather than the reader careless* — is the same finding one
+instrument over. **The domain is therefore stated as a population and the count derived from it**, so
+that the next tier move updates the figure by arithmetic rather than by anybody remembering.
+
+**Option 3 — do nothing; §40.5 already discloses it.** It is what the corpus does today. **It loses on
+its own words**: §40.5 says *"**no section says so**"*, which is a disclosure recording its own absence
+rather than curing it, and a disclosure that names a gap is exactly the shape §39.7 measured
+regenerating nineteen times — *a sentence that names no successor is re-derived by the next session
+that needs one*. It loses a second time on **where a reader stands**: the sentence that produces the
+27-cell walk is G2's row at §39.6, and §40 is a **run** — a dated record of a reading — which a session
+gating an edit has no reason to open. A repair sited only in the run is the *restating* site being
+corrected while the *specifying* site stands, which is §40.2's sharpest single finding about ADR-0044,
+reproduced two sections later in the same file.
+
+**Option 4 — mint an ADR for it.** Refused, and the refusal is the house rule rather than modesty. The
+domain is entailed by ADR-0059 limb 1 read with §32.2's conjunction and measured by §32.7's walk; no
+rule is being decided, and §30's and §16.6's precedent — *"both general rules this section applies were
+available"* — is met exactly. **ADR-0090 is left unused, and the customary recital of the other unused
+numbers is deliberately omitted — see §46.9, which is why.** ADR-0059 is **confirmed by use** and gains
+a rider stating its own domain, which is a statement of extent rather than an amendment.
+
+### 46.6 Stated for hand-off, because two open tickets read this population
+
+**The paragraph below is written to be quoted whole.**
+
+> **G2's population is every footing cell carrying an owner statement of the port's permitted network
+> — the prohibition and scoping tiers, 24 cells as of 2026-08-15 (prohibition 13 + scoping 11). The
+> weak tier's three cells — `5432/tcp`, `5984/tcp`, `10248/tcp` — are OUTSIDE THE DOMAIN, the
+> criterion reading a statement and a weak cell being by definition a cell with none. G2 grades held
+> statements against OUR criterion as it currently stands; it does not read the owner's bytes. A
+> demotion caused by the owner's artefact moving is therefore outside G2 for a graded cell exactly as
+> it is for a weak one, and belongs to G11, to G8, or to the queue.**
+
+**[measured] the second sentence of that paragraph is §40.4's finding restated, not a new one** —
+*"**G2 does not reach this**, testing against our tier criterion rather than the artefact's bytes, so
+#135's successor is narrowed rather than discharged: the *staleness* half is answered here, the
+*demotion* half is not."* Composed with §41's *"G11 is vacuous for an artefact with no retrievable
+tag"*, the two together bound what the gate can currently see of an owner-caused demotion, and the
+bound is stated here rather than left to be reconstructed from two sections in two passes.
+
+### 46.7 Where the statement is marked, and where it deliberately is not
+
+**Marked**, per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+as widened by [#106](https://github.com/winniel123/verge-asm/issues/106) and given a population by
+[#102](https://github.com/winniel123/verge-asm/issues/102) — the sites that **specify** G2 or the
+criterion, each of which read alone in the present tense sends a session to the 27-cell walk:
+
+| Site | The clause | Treatment |
+|---|---|---|
+| **§39.6**, G2's row | *"Every **graded footing cell** has been walked against the tier criterion"* | **Pointer added** naming the domain and this section. The clause is not struck: it is **true** on the correct reading of *graded*, and under-specified rather than false |
+| **[ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)**, the same gate table | the identical row, carried into the ADR that specifies the watch | **Pointer added.** #102's ruling is that ADR-0058's shape *"runs in every direction rather than note-to-ADR alone"*, and §40.2 measured the cost of correcting a copy while the original stood |
+| **ADR-0059**, its own extent | the ADR states what it does **not** reach and has never stated the population it **does** | **Rider added** — Confirmed by use, stating the domain. No limb moves |
+| **§40.5**, G2's disclosure | *"**No section says so**, so a later reader may score G2's population at 27 and read it red"* | **The clause is struck**, this section being what says so. The rest of the paragraph — the population arithmetic and the reason — is **correct and left standing** |
+
+**Not marked, and the reason is stated so the omission is not read as an oversight.**
+[ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)
+uses the phrase — *"G2 walks every graded footing cell against the tier criterion as it currently
+stands"* — inside an argument about the **queue's filter**, where the claim it carries is that
+over-statement of our own distance is the gate's business rather than the queue's. That claim is true
+of the graded cells and is not a population statement; ADR-0058's test asks whether the sentence read
+alone would cause a session to **build the thing**, and this one would not cause a session to walk 27
+because it is not telling anyone what to walk. **A restating site is left standing where its own claim
+survives the correction** — the converse of §40.2's ADR-0044 finding rather than an exception to it.
+
+### 46.8 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 38 | **38, unchanged.** No row is added or removed |
+| §3 class totals | `12 / 7 / 19` | **unchanged.** No row changes class |
+| §2.2 footing tiers | `13 / 11 / 3` | **unchanged.** No footing moves and no cell enters or leaves a tier. **The weak tier's three cells keep their cells and their tier** — being outside a criterion's domain is not being ungraded |
+| §2.2 footing coverage | 27 of 38 | **unchanged, and it is a coverage of footing cells rather than of G2's population** — which is the distinction this section exists to draw |
+| §4.6 exclusions | 24 | **unchanged**, and **flagged as a collision** with G2's 24 — §46.3 |
+| §6.1 containment arithmetic | `25 + 8 + 5 = 38` | **unchanged.** Nothing enters or leaves |
+| **G2's verdict at §40.1** | **GREEN**, one disclosure, 0 defects | **GREEN, and the disclosure is DISCHARGED.** The verdict does not move; what moves is whether a later reader can reproduce it |
+| §40.6's gate baseline | G1, G2, G3, G6, G7, G9, G10 green · G5, G11 red · G8 half-unrun | **unchanged in every check.** This section edits no cell of the table the baseline is over |
+| §40's defect count | 18 | **unchanged.** The omission was recorded at §40.1 as a *disclosure* against a green check and was never one of the 18 |
+| The queue | nine items over eleven pairs and two non-port cells | **unchanged.** All three weak cells stay on it — §46.4 |
+| `verge-core` | 136 pairs, 131 TCP, 5 UDP | **unchanged** |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet` is byte-identical; the domain of a **disclosure column's** criterion is not reference data |
+| `CONTEXT.md` | — | **not amended, as a ruling**, for §39.8's reason unchanged: the curator is not a subject in the model, a footing tier reaches no screen (ADR-0032 §7), and the product holds nothing about either. ADR-0024's three registers are **read** here and are not widened — they are already this note's, by §2's [#33](https://github.com/winniel123/verge-asm/issues/33) amendment |
+
+**Outside this note.** **No ADR is minted and ADR-0090 is left unused.** ADR-0057 is **marked** at its
+gate table's G2 row; ADR-0059 gains a **Confirmed by use** rider stating its domain, is **marked at two
+further clauses** on §46.9's by-catch, and is not amended; ADR-0024, ADR-0032, ADR-0037 and ADR-0046
+are **confirmed by use** and none is amended. **The map needs one line and a by-catch**: G2's domain,
+and that the corpus's *left unused* recitals name ten dead reservations beside one live one, the true
+gap pool standing at **`0076` alone** — §46.9.
+
+### 46.9 One incidental hit, outside the ticket — the corpus's *left unused* recitals name one live gap and ten dead ones
+
+**It was found by refusing to copy one.** This section's ruling mints no ADR, so house style called
+for the customary sentence — *ADR-0090 is left unused, as `0039`, `0041`, `0052`, `0053`, `0057`,
+`0062`, `0063`, `0064`, `0068`, `0070` and `0076` are*. Writing it required checking it, and it does
+not check.
+
+> **[measured] of the eleven numbers that sentence would have named, ten now EXIST as files under
+> `docs/adr/`**: `0039`, `0041`, `0052`, `0053`, `0057`, `0062`, `0063`, `0064`, `0068` and `0070`.
+> `0069` — recited at a twelfth site — exists too. **`0001`–`0075` and `0077`–`0085` are present
+> without a break other than `0076`, so the true gap pool as of 2026-08-15 is `0076` alone**, plus
+> `0090` from this ticket.
+
+**This is ADR-0058's shape on a figure nobody thought of as a figure.** *An unused reservation is a
+gap only until it is re-issued* — the map's own Notes say so in terms — so *`0039` is left unused* is a
+**dated record standing in the present tense**, and read alone it would cause a competent session to
+mint `ADR-0039` for a new decision. That is the test, failed on the nose.
+
+**[measured] the string *left unused* occurs at 37 places under `docs/`** — **33** in this note and
+**4** in ADRs (two in ADR-0059, one each in ADR-0054 and ADR-0067). **How many of the 37 are stale is
+NOT measured here**, and the distinction is the whole of the sweep's work: a recital naming `0076` is
+**current** — §40.8's is, and it is the freshest — while every recital naming any of the eleven above
+is **dead**. The two kinds are typographically identical and sit side by side, which is why a reader
+correcting one has no way to tell whether the next is worth reading.
+
+| Where | Treatment |
+|---|---|
+| **ADR-0059**, the #101 and #110 amendments' *"why no second ADR was minted"* paragraphs | **Struck at their clauses**, this section already editing the file — the true pool stated in the strike |
+| **This note**, 33 places, inside per-pass ruling boxes and §1's summary rows | **Reported, not struck.** A sweep of them is §39.7's shape — nineteen sites, one pass, one **replacement** — which is a **ticket**, not a subsection of a ticket about something else |
+| **ADR-0054**, **ADR-0067** | **Reported.** Same sweep |
+
+**The replacement matters more than the strikes, and §39.7 is why.** *A withdrawal that supplies no
+replacement does not hold*: every pass that mints no ADR needs a sentence to write, and the only one
+available is the recital, so each pass reaches for the previous pass's list and writes the stale
+numbers forward. **[measured]** that is visibly what happened — the list grows monotonically across
+§32 (`0039`, `0041`, `0053`), §33/§36 (`+0052`, `+0057`, `+0062`, `+0063`), ADR-0059's #110 amendment
+(`+0064`) — each pass copying its predecessor and appending its own number, **and none re-checking the
+inherited ones**. The replacement this section can supply is one sentence, and it is stated here so
+the sweep has something to write: **name the gap pool by measuring `docs/adr/`, never by reciting the
+previous pass's list.**
+
+**Nothing is ruled here and no number is re-issued.** Re-issuing `0090` or re-pooling a stale
+reservation would move a figure the map owns — the map's Notes carry *Current ADR gaps* and *Next new
+number* — and a section may not write the map. **It is raised**, with the criterion that decides it
+named: **whether the corpus should carry a gap pool at all, or state it as *measure the directory* and
+delete every recital.** This section's own practice is the second, and it is the whole reason the
+defect was visible.
+
+### 46.10 Thin ground, flagged per the standing rule
+
+- **The strongest objection is that the residue clause is a verdict and this section calls it a
+  gap, and it is a reading of one sentence rather than a measurement.** ADR-0059 limb 1 does put the
+  weak tier in the same enumeration as the other two, and a reader who takes the three as a
+  trichotomy over one domain is reading the sentence as written. **The ground for preferring the
+  complement reading is the Rationale table's `n/a`, §32.7's per-cell `none`, and §36.6's and §37.1's
+  practice of excluding the tier from every footing sweep** — three artefacts against one clause,
+  which is a strong preponderance and is not a proof. **The criterion that would settle it** is
+  whether any pass has ever run the criterion *over* a weak cell and returned *weak* as its output;
+  **[measured] none has** — §32.7 walked the six non-prose footings and recorded the weak three as
+  having no input rather than as scoring one.
+- **This section's central figure is a count of this note's own cells and is as good as §40.4's
+  enumeration.** The 27 is taken from G11's table, which is the only place every footing cell is
+  listed in one column; if that table omits a cell, this section's 24 is wrong by the same amount and
+  so is §40.4's *"run to completion over all 27"*. It agrees with `13 + 11 + 3` and with §36.6's
+  `26 − 2`, which are three derivations from two independent enumerations, and that is the whole of
+  the assurance.
+- **The two-24 collision is reported and not repaired, and repairing it is not this section's to
+  do.** The composed-state line lives on the map, and the map is written by the session that merges
+  rather than by a section. What this section can do is refuse to add a third bare `24` to the
+  corpus, which is why §46.2 states a population and §46.6 states the count with its derivation
+  attached.
+- **§46.9's *37 places* is a count of this corpus's own text and is as good as one search term.** It
+  was found by grepping the literal string *left unused* over `docs/`; a site phrasing it *not minted
+  and the number is free*, *reserved and not spent*, or naming a number without the phrase would not
+  have matched, and **[measured]** at least one variant already exists — §23's *"gaps are fine — 0039,
+  0041 and …"*. §39.9's warning about the nineteen identity sites applies here unchanged. **The
+  directory measurement underneath it is exact and is the half the sweep should rest on**: which
+  numbers exist as files is a byte question with a byte answer, and it is the only figure in §46.9
+  this section would defend as complete.
+- **The marking policy at §46.7 draws a line ADR-0058 does not draw for itself** — *specifying* sites
+  are marked and a *restating* site whose own claim survives is left. §40.2's ADR-0044 finding is
+  authority for the first half and for nothing about the second. The distinction is stated so that a
+  later session disagreeing with it can find it, rather than meeting an unmarked ADR-0077 and reading
+  it as a miss.
+
+### 46.11 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10 and §40.10
+
+- **This section performed no retrieval, and that is a method rather than an omission.** #154 states a
+  fact about an instrument the project authored, over cells the project already holds. A section that
+  re-retrieved would be re-deciding a footing, which is a retrieval scoped to a cell and a different
+  ticket under ADR-0037 limb 2.
+- **Every quoted string in this section is quoted from this repository**, so G7 is vacuous here and G8
+  reduces to an internal cross-reference check; both were run by hand over this section's own
+  citations, including the four sites marked at §46.7.
+- **The population was re-derived rather than copied.** §40.5 already states *24*; this section
+  reaches it from §40.4's enumeration and from `13 + 11` independently, because the ticket that
+  produced it asked for exactly that and because the failure being repaired is a figure read off the
+  wrong denominator.
+- **Sibling passes are editing this note concurrently, and this section's delta is empty.** No row,
+  class, tier, coverage or §4.6 figure moves and no summary or index row is rewritten, so it composes
+  with any of them. Its basis is `main` at `1cd41bc`. The only overlaps are the append anchor before
+  `## Sources`, which is textual adjacency rather than disagreement, and the four marked clauses at
+  §46.7 — none of which is a figure. **Where §46 and §1 disagree, §1 governs.**
 
 ---
 
