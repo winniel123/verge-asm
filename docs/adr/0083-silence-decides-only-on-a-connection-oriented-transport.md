@@ -157,8 +157,26 @@ same. So:
 
 > **Opening the knob with a payload-free instrument moves the five pairs from `not-evaluable` because
 > they are outside the recorded scope to `not-evaluable` because the exchange did not decide, and
-> changes nothing the operator sees.** It buys probe traffic, a sixth leaf, a golden corpus of a new
+> ~~changes nothing the operator sees~~ CHANGES ONE THING THE OPERATOR SEES, AND IT CHANGES IT FOR
+> THE WORSE.** It buys probe traffic, a sixth leaf, a golden corpus of a new
 > medium and an eighth aperture input, and it buys **zero** net new firings.
+
+> **The struck clause is CONTRADICTED, not refined — 2026-08-15 by
+> [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+> [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md),
+> the successor this ADR named.** The signal-level claim is correct and untouched: the five pairs
+> return `not-evaluable` before and after, so the operator's `Signals` rows do not move. The
+> **aperture statement** does. [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md)'s
+> port-tier line counts sensitive pairs that are **unread**, meaning outside the recorded scope —
+> and a payload-free UDP tier **reads** all five. The line goes to **`0 of 38 sensitive pairs
+> unread`**, a clean bill of health on the one surface built to prevent one, while the five go on
+> returning `not-evaluable` forever. **Zero net new firings is right; *changes nothing* is not.**
+>
+> **This strengthens the ruling above rather than weakening it.** The knob does not merely buy
+> nothing — it costs the sentence that says we are not looking. ADR-0095's repair is a **second
+> figure** on that line, valued `0` today: *`M of 38 sensitive pairs the instrument cannot report as
+> `reached``*. Nothing in this ADR's Decision moves; UDP stays off, the union stays at three
+> members, the leaf count stays five, and `datagram-outcome` stays specified and unshipped.
 
 That is [ADR-0015](./0015-the-value-space-is-the-commitment.md)'s wire-prober refusal arriving in a
 second costume — *"buys six ports and zero net new firings"* — and it decides the knob's fate on the
@@ -290,6 +308,14 @@ is unbounded for a reason the operator cannot fix and we can.
   identity — *absence of a `Reach` value ⟺ the pair was outside the recorded scope* — would no longer
   hold. That is a real cost, it lands on `Coverage`'s reading of a `Gap`, and it is the first thing
   the successor ticket owes.
+  *(**Paid, 2026-08-15 — [#173](https://github.com/winniel123/verge-asm/issues/173) ·
+  [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md).**
+  ADR-0010 takes a **conditional** at three sentences and a strike at none — the identity holds while
+  every probed transport's outcome union projects totally onto `Reach`, which TCP's does and this
+  ADR's does not. `Coverage`'s reading is a **second figure** on the port-tier line, valued `0` on
+  every shipped configuration. And the route splits: where the leg had already opened it is a `Gap`,
+  and where it never opened it is **nothing at all** — the second having no span and therefore no
+  recorded cause, which is why the aperture statement had to carry it.)*
 - **[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) fires at
   three sites**, all saying the question is open or the knob has nothing honest to open:
   `safe-active-probing.md` §9's UDP row, `packaging-and-configuration.md` §6's closing paragraph, and
@@ -332,5 +358,5 @@ is unbounded for a reason the operator cannot fix and we can.
 | A `not-probed` state distinct from `not-evaluable` | ADR-0009 already considered and rejected it for these exact five pairs; nothing here revives it |
 | Name it `filtered`, `open|filtered` or `silent` | `filtered` names a conclusion a datagram cannot establish, refused for TCP already; `open|filtered` is two conclusions joined by a bar and not one value; `silent` names a property of the listener rather than of our exchange, which `CONTEXT.md` bars |
 | Widen `reachability` to five members in v1, on *the value space is decided once* | The land-grab argument ADR-0015 killed map-wide. Its surviving form covers a **field**, and a variant firing only where nothing was recorded is ADR-0011's strictly-additive carve-out — free whenever it lands, and CI-checkable |
-| Ship the UDP leg payload-free, since the values are honest | Honest and useless: `answered` is unreachable without a payload, so the five pairs move from `not-evaluable` for one reason to `not-evaluable` for another and the operator sees no change. ADR-0015's *zero net new firings* refusal, in a second costume |
+| Ship the UDP leg payload-free, since the values are honest | Honest and useless: `answered` is unreachable without a payload, so the five pairs move from `not-evaluable` for one reason to `not-evaluable` for another ~~and the operator sees no change~~. ADR-0015's *zero net new firings* refusal, in a second costume. **~~No change~~ is corrected at this cell by [#173](https://github.com/winniel123/verge-asm/issues/173) · [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md): the aperture statement's port-tier line goes from `5 of 38 sensitive pairs unread` to `0 of 38`, because *unread* means outside the recorded scope and a payload-free tier reads all five. The refusal is unchanged and better founded — it is worse than useless, not merely useless.** |
 | Turn UDP on as part of this ruling | An aperture change, and a scope matter this ticket was explicitly not given |

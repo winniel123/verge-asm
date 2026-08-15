@@ -171,7 +171,7 @@ not the same thing, and the difference is in what the value is *about*:
 | --- | --- | --- |
 | A fact about the world under which the rule's question does not arise (`NoTLS`, `NoHTTPResponse`, no CNAME, a non-sensitive port) | **outside the domain** | nothing — the subject is not in this rule's population |
 | A fact about **our own sight** (`Shadowed` — ADR-0007's *a value meaning we cannot see*) | **`not-evaluable`** | a census member and a row, cause *we measured; this rule cannot read the answer* |
-| No value at all | **`Gap`** | a census member and a row, cause *we never looked* / *we stopped looking* / *you stopped answering* |
+| No value at all | **`Gap`** | a census member and a row, cause *we never looked* / *we stopped looking* / *you stopped answering* *(and, on a connectionless leg alone, **we asked and heard nothing** — a fifth register added by [#173](https://github.com/winniel123/verge-asm/issues/173) · [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md) on [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)'s own **what moved** axis, the mover being our own instrument working as specified. **Unreachable in v1**, which probes TCP alone. This list omits #48's **you stopped telling us** and is a rendering table rather than the vocabulary's enumeration)* |
 
 So #44's fourth cause survives and stops being thin ground. It is not a wording judgement about one
 sentence of ADR-0004; `Shadowed` is the only value in the model whose content is our own blindness,
