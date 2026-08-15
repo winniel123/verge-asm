@@ -1,13 +1,16 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
@@ -70,6 +73,64 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 		return
 	}
 	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+}
+
+// previewExclusion computes the narrowing receipt for a candidate exclusion and
+// re-renders the Seeds screen with it, before the operator commits (#205 AC8,
+// ADR-0074). This is ticket 4's deferred receipt, now honestly computable: the
+// Message model can count what a withdrawal message would carry. The preview
+// fires only where the message would — an address exclusion over ground nothing
+// else cites shows the count and names the loss; a name or subtree whose names
+// still resolve (the survives-via-`Gap` case) withdraws nothing and shows no
+// receipt, because a preview for a message that will not fire is a promise the
+// widening side never has to make good on.
+func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	kind := r.FormValue("kind")
+	value := strings.TrimSpace(r.FormValue("value"))
+	fail := func(msg string) {
+		s.renderSeeds(w, r, acct, seedsForms{exclError: msg, exclKind: kind, exclValue: value})
+	}
+
+	var receipt message.NarrowingReceipt
+	switch kind {
+	case "address":
+		p, err := seed.NormalizeExclusionCIDR(value)
+		if err != nil {
+			fail(err.Error())
+			return
+		}
+		// The message fires at the Seed whose scope moved — the address scope that
+		// contains the excluded ground. Fall back to the excluded value itself
+		// where no declared scope covers it (nothing is enumerated there, so the
+		// count is zero and the receipt does not fire anyway).
+		scope := p.String()
+		if covering, err := s.store.FindCoveringAddressSeed(r.Context(), p.Addr()); err == nil && covering.AddressCidr != nil {
+			scope = covering.AddressCidr.String()
+		} else if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			s.serverError(w, "find covering seed", err)
+			return
+		}
+		row, err := s.store.PreviewExclusionWithdrawal(r.Context(), db.PreviewExclusionWithdrawalParams{
+			Cidr: p, Kind: "address",
+		})
+		if err != nil {
+			s.serverError(w, "preview exclusion withdrawal", err)
+			return
+		}
+		receipt = message.PreviewNarrowing(scope, p.String(), int(row.SubjectsWithdrawn), int(row.TimelinesRemoved))
+	case "name", "subtree":
+		if _, err := seed.NormalizeExclusionName(value); err != nil {
+			fail(err.Error())
+			return
+		}
+		// A name or subtree whose names still resolve survives and its Gap carries
+		// it; the honest count is zero and no receipt fires (ADR-0074).
+		receipt = message.PreviewNarrowing(value, value, 0, 0)
+	default:
+		fail("Choose an exclusion type.")
+		return
+	}
+	s.renderSeeds(w, r, acct, seedsForms{exclKind: kind, exclValue: value, exclPreview: &receipt})
 }
 
 // unexclude withdraws an exclusion. It is admin-only and idempotent: deleting a

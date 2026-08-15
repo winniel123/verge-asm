@@ -30,6 +30,9 @@ type Querier interface {
 	// refused so an operator cannot lock every admin out.
 	CountAdmins(ctx context.Context) (int64, error)
 	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
+	// The unread count the global nav element carries on every screen. Reads the
+	// partial index over unread rows.
+	CountUnreadMessages(ctx context.Context) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
@@ -179,6 +182,17 @@ type Querier interface {
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
+	// Reads and writes behind the global message panel (#205). A Message is one
+	// firing of one cause, written once at the cause and never recomputed
+	// (CONTEXT.md `Message`, ADR-0064). The store is unconditional — there is no
+	// enable, no routing and no way to turn it off — so there is a plain insert, an
+	// unbounded newest-first list, an unread count for the nav element, and a
+	// read-state toggle. There is deliberately no update-of-content and no delete:
+	// a message is written once and retained while the operator may still read it.
+	// Write one computed message. The caller has already decided the cause, class,
+	// fired-at key, instant, census and headline at the cause; this only persists
+	// them. census is NULL where the firing carries a count rather than rows.
+	InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error)
 	InsertObservation(ctx context.Context, arg InsertObservationParams) error
 	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
 	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
@@ -257,6 +271,10 @@ type Querier interface {
 	// so it yields no live row (it is retained as evidence, not read). @floor_cadences
 	// is k; @as_of is the read instant.
 	ListLiveObservationsForDerivation(ctx context.Context, arg ListLiveObservationsForDerivationParams) ([]ListLiveObservationsForDerivationRow, error)
+	// Every message, newest-first, unbounded — no cap or load-more ships, since no
+	// install has yet accumulated enough live volume to say whether one is needed
+	// (v1 spec §6.7, #160). The panel renders each row linking per its mover.
+	ListMessages(ctx context.Context) ([]Message, error)
 	// The latest `dns-record` observation per (Name, qtype discriminator). The engine
 	// reads two of these: the CNAME discriminator carries the alias target (for
 	// cname-target-name-error) and the NS discriminator carries the delegation walk's
@@ -327,9 +345,15 @@ type Querier interface {
 	// the content, so the operator sees which scopes hold a zone file, when it was
 	// supplied and by whom.
 	ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error)
+	// Mark every unread message read — the panel's "mark all read" affordance.
+	MarkAllMessagesRead(ctx context.Context, readAt pgtype.Timestamptz) error
 	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error
 	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error
 	MarkJobRetried(ctx context.Context, id int64) error
+	// Mark one message read at the given instant. Idempotent: marking an already-read
+	// message leaves its first read instant in place, since read-state is a fact
+	// about the operator having seen it and does not move on a second view.
+	MarkMessageRead(ctx context.Context, arg MarkMessageReadParams) error
 	// A pinned host key later mismatched, or the position went unreachable: the
 	// vantage is marked unavailable rather than silently re-trusting a new key.
 	MarkVantageUnavailable(ctx context.Context, id int64) error
@@ -358,6 +382,21 @@ type Querier interface {
 	// the vantage available. The host_key IS NULL guard makes this a no-op once a
 	// key is pinned, so a first-connect race can never overwrite an existing pin.
 	PinVantageHostKey(ctx context.Context, arg PinVantageHostKeyParams) error
+	// The honestly-computable narrowing receipt (#205 AC8, ADR-0074): count the
+	// subjects a candidate ADDRESS exclusion would withdraw and the timelines they
+	// take out of the estate, read from the live span corpus rather than fabricated.
+	// A narrowing withdraws only ground nothing else cites — a subject a current
+	// resolution still holds survives, and its `Gap` carries it, so it is NOT
+	// counted here (the NOT EXISTS clause). The preview fires only where the count is
+	// non-zero. Scoped to address exclusions, the one narrowing whose withdrawn set
+	// the prototype (#167) demonstrates firing; a name/subtree exclusion whose names
+	// still resolve is the survives-via-Gap case and returns zero.
+	// The address subjects the exclusion removes: an IPv4 address inside the excluded
+	// scope, currently in the estate (an open span), whose membership no current
+	// resolution still holds.
+	// Every subject the withdrawal takes with it: the addresses and the Services and
+	// Endpoints sitting on them (their keys carry the address as a prefix).
+	PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExclusionWithdrawalParams) (PreviewExclusionWithdrawalRow, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	// Set, replace or clear the secret. A NULL clears it; the value is written and
 	// never read back.

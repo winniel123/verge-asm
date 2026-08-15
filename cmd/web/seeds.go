@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
@@ -44,6 +45,11 @@ type seedsForms struct {
 	// The org-name lookup echo: an error keeps the search box populated on a
 	// rejected submit, a notice reports a lookup that returned no candidates.
 	proposalError, proposalNotice, proposalQuery string
+	// exclPreview is the narrowing receipt shown before the operator commits an
+	// exclusion (#205 AC8, ADR-0074): the count of what it would withdraw, and the
+	// loss named — but only where a withdrawal message would actually fire. Nil
+	// when no preview was requested.
+	exclPreview *message.NarrowingReceipt
 }
 
 // nameScopes returns the name-scope subset of a seed listing, in the same order.
@@ -183,6 +189,9 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ProposalLookups": lookups,
 		"ProposalError":   f.proposalError, "ProposalNotice": f.proposalNotice,
 		"ProposalQuery": f.proposalQuery,
+		// The narrowing receipt (#205 AC8): shown before an exclusion commits,
+		// only where a withdrawal message would fire.
+		"ExclPreview": f.exclPreview,
 	})
 }
 

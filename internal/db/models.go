@@ -82,6 +82,19 @@ type Heartbeat struct {
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
 }
 
+type Message struct {
+	ID          int64              `json:"id"`
+	Cause       string             `json:"cause"`
+	Class       string             `json:"class"`
+	SubjectKind string             `json:"subject_kind"`
+	FiredAt     string             `json:"fired_at"`
+	Instant     pgtype.Timestamptz `json:"instant"`
+	Census      []byte             `json:"census"`
+	Headline    string             `json:"headline"`
+	ReadAt      pgtype.Timestamptz `json:"read_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type Observation struct {
 	ID            int64              `json:"id"`
 	BatchID       int64              `json:"batch_id"`

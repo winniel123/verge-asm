@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -343,11 +344,38 @@ func (s *server) render(w http.ResponseWriter, name string, data any) {
 // be set before WriteHeader commits the header block, or it is silently
 // dropped and the browser renders the markup as plain text.
 func (s *server) renderStatus(w http.ResponseWriter, status int, name string, data any) {
+	s.injectUnread(data)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
 		log.Printf("web: render %s: %v", name, err)
 	}
+}
+
+// injectUnread supplies the chrome's global message element with the unread
+// count on every authenticated screen, so no per-page handler has to thread it
+// through (v1 spec §6.1: the count rides every screen). It is a single central
+// touchpoint: a chrome page is any render whose data carries an "IsAdmin" key —
+// the auth pages (login/setup/totp) have no chrome and no such key, so they are
+// left alone. A page that already computed its own "Unread" (the panel itself)
+// keeps it. The count is a lightweight read; on error it defaults to zero rather
+// than failing the page.
+func (s *server) injectUnread(data any) {
+	m, ok := data.(map[string]any)
+	if !ok {
+		return
+	}
+	if _, isChrome := m["IsAdmin"]; !isChrome {
+		return
+	}
+	if _, has := m["Unread"]; has {
+		return
+	}
+	n, err := s.store.CountUnreadMessages(context.Background())
+	if err != nil {
+		log.Printf("web: unread count: %v", err)
+	}
+	m["Unread"] = n
 }
 
 func (s *server) serverError(w http.ResponseWriter, what string, err error) {
