@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/proposer"
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
@@ -54,6 +55,12 @@ type store interface {
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
+	CreateProposerLookup(ctx context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error)
+	CreateProposal(ctx context.Context, arg db.CreateProposalParams) (db.Proposal, error)
+	ListPendingProposals(ctx context.Context) ([]db.ListPendingProposalsRow, error)
+	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
+	ConfirmProposal(ctx context.Context, arg db.ConfirmProposalParams) (int64, error)
+	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -70,6 +77,11 @@ type server struct {
 	// cover. It defaults to seed.DefaultAddressCap; the Settings screen (#206)
 	// will make it operator-configurable.
 	seedAddressCap int
+
+	// proposer runs the enabled keyless registry proposer paths for one operator
+	// lookup (ADR-0012). It defaults to the shipped registry over a real HTTP
+	// client; tests inject a fake so no lookup touches the network.
+	proposer proposerRunner
 
 	// secureCookies forces the Secure attribute on auth cookies even when the
 	// request did not itself arrive over TLS — set it when web is fronted by a
@@ -90,6 +102,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		sessionTTL:     12 * time.Hour,
 		pendingTTL:     5 * time.Minute,
 		seedAddressCap: seed.DefaultAddressCap,
+		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
 	}
 }
 
@@ -120,6 +133,14 @@ func (s *server) handler() http.Handler {
 
 	mux.HandleFunc("GET /subjects", s.requireLogin(s.subjectsPage))
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
+
+	// Registry proposer lookups and the confirm/decline of the Proposals they
+	// yield are admin acts (v1 spec §4.3): confirming opens the probing gate on
+	// address space, declining is a boundary claim. A viewer reads the pending
+	// list on /seeds but mutates nothing.
+	mux.HandleFunc("POST /proposals", s.requireAdmin(s.runLookup))
+	mux.HandleFunc("POST /proposals/confirm", s.requireAdmin(s.confirmProposal))
+	mux.HandleFunc("POST /proposals/decline", s.requireAdmin(s.declineLookup))
 
 	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))
 	mux.HandleFunc("GET /sources", s.requireLogin(s.sourcesModal))

@@ -270,6 +270,8 @@ address scope — a CIDR block of up to {{.AddressCap}} addresses.</p>
 {{end}}
 </div>
 
+{{template "proposals" .}}
+
 <div class="microlabel">Declared · custody extension</div>
 <p>A custody extension declares that the addresses your name scopes resolve to are yours, and so
 under your control. It is off by default and declared once per name scope — one act, never a queue
