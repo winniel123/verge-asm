@@ -257,6 +257,19 @@
            display: flex; align-items: center; gap: var(--space-4);
            font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
 
+  /* ── prototype-only annotation ─────────────────────────────────────────
+     ADR-0075 limb 3's stated form, copied from `prototypes/seeds/` rather
+     than invented: the dashed accent box that ships there for reviewer
+     commentary. No new token and no design-system addition — like the
+     switcher below, it is deliberately NOT part of the design being
+     judged. */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+
   /* ── switcher: deliberately NOT part of the design being judged ─────── */
   #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
             z-index: 99; display: flex; align-items: stretch;
@@ -846,8 +859,19 @@ function declinedLedger() {
    the operator did not type by hand. It states the consequence in the
    operator's terms, and repeats the count in the button, because the
    button is the one thing they cannot skip reading. There is no threshold
-   and no size cap — #27 refused both — and no typed confirmation, which
-   is a threshold wearing a keyboard.
+   and no typed confirmation, which is a threshold wearing a keyboard —
+   #27 refused both.
+
+   WITHDRAWN by ADR-0047 and ADR-0049 (#145): this sentence also said
+   "and no size cap", and there IS one — 1,024 addresses per scope,
+   operator-configurable, checked when the scope is declared. Confirming a
+   proposal is that declaration, so it reaches this dialog. It is not #27's
+   refused threshold: #27 barred a threshold inside the safety path, and
+   the cap adjudicates cost rather than truth, refusing only what the
+   shipped configuration cannot measure. Nothing branches on the number
+   beneath the cap, so this dialog's own rule survives untouched. The
+   consequence for the drawing is marked on the rendered surface at
+   ?fill=cloud rather than redrawn here.
    ═══════════════════════════════════════════════════════════════════════ */
 
 function openDialog(cidr, handle, holder, kind, addr, scopes) {
@@ -901,6 +925,57 @@ const HEAD = {
   reoffer:  ["One scope proposed", "The upstream re-SWIPed a different range under the same name. A Proposal is Declared and has no timeline, so this is a new Proposal rather than an existing one changed, and the wording says so."]
 };
 
+/* ═══════════════════════════════════════════════════════════════════════
+   THE MARK — ?fill=cloud only
+   ADR-0075 limb 2: this fill draws a control the product now refuses at
+   declaration, which is a rule drawn after its withdrawal rather than a
+   figure that moved. So limb 3 applies — the drawing is left standing,
+   NOT redrawn and NOT re-sized, and marked on the rendered surface.
+   The mark is a REPLACEMENT rather than a strike (ADR-0057 §5): it names
+   the ruling and states what this surface would draw now.
+
+   Attached to the fill, never to the file. It is the right granularity by
+   arithmetic rather than by choice: `cloud` is the only fill whose scopes
+   exceed 1,024 addresses — the largest scope in any other fill is 256 —
+   and on `cloud` every one of the four variants offers a live confirm over
+   the cap, so the condemned drawing is exactly this fill and all of it.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function capMark() {
+  return `
+  <div class="anno">
+    <span class="ml">Marked — this fill draws an act the product refuses (ADR-0075 limb 2)</span>
+    <p><b>Every confirm control on this fill is an act the shipped configuration now refuses at
+    declaration.</b> ADR-0049 denominates the range size cap in <b>addresses</b> —
+    <span class="mono">1,024</span> per scope, operator-configurable, one knob at one setting — and
+    ADR-0047 checks it <i>when the scope is declared</i> rather than at scan time. Confirming a
+    proposal <b>is</b> that declaration, so the cap reaches this screen. The smallest scope drawn
+    below is <span class="mono">1,048,576</span> addresses, which is <span class="mono">1,024</span>
+    times the cap; <span class="mono">Confirm 8,388,608 addresses</span> is
+    <span class="mono">8,192</span> times it.</p>
+    <p><b>What this surface would draw now.</b> A live confirm survives only where the scope is at or
+    under the cap — every other fill here qualifies, and none on this holder does. An over-cap row
+    carries the refusal in the row instead of a live control, so the wrong act is not offered and the
+    click is not the place the operator learns. That leaves <span class="mono">Decline all 177
+    scopes</span> as the only live act on this holder, which ADR-0013 already makes the expected one
+    for the modal cloud-resident install — the AWS case gets <i>more</i> legible, not less.</p>
+    <p><b>And the operator who really does hold this space is routed, not stopped.</b> Custody at a
+    larger scale belongs to a <b>name scope carrying a custody extension</b>, not to a raised cap: an
+    extension's extent is recomputed rather than typed, so it self-corrects when the world moves,
+    where a literal declaration of <span class="mono">76,046,336</span> addresses is ADR-0013 §4's
+    silently-growing overreach — it holds the probing gate open on a stranger's machine and nothing
+    notices. Per ADR-0052 the route is <i>named</i> and never taken for them: nothing here pre-fills,
+    converts or auto-corrects the declaration.</p>
+    <p><b>The drawing is left standing on purpose, and it is not re-sized.</b> Under ADR-0075 a
+    prototype is a dated record of a reading, and restating this example at an admissible size would
+    destroy the evidence and make the record lie about when the ruling arrived. #81's <i>the example
+    wants restating at an admissible size</i> is superseded by that ADR. <b>What the cap does not
+    touch is the design being judged here:</b> #50's answer stands, and so do the control's shape —
+    confirm per scope, decline per group, deliberately asymmetric — and its <i>nothing branches on
+    the number</i> rule. The cap refuses the act; it adds no threshold to the control.</p>
+  </div>`;
+}
+
 function page(variant, fill) {
   const f = FILLS[fill];
   const [h, s] = HEAD[fill];
@@ -925,6 +1000,7 @@ function page(variant, fill) {
     <div class="sub" style="margin-bottom:var(--space-4)">${s}</div>
 
     ${f.edge ? edgeNote() : ``}
+    ${fill === "cloud" ? capMark() : ``}
     ${V[variant](f)}
     ${f.showDeclined ? declinedLedger() : ``}
   `;
