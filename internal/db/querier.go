@@ -128,6 +128,22 @@ type Querier interface {
 	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
+	// The latest `dns-record` observation per (Name, qtype discriminator). The engine
+	// reads two of these: the CNAME discriminator carries the alias target (for
+	// cname-target-name-error) and the NS discriminator carries the delegation walk's
+	// Lame verdict (folded into the composed resolution the rules read).
+	ListNameDNSRecords(ctx context.Context) ([]ListNameDNSRecordsRow, error)
+	// Reads behind the Signals screen (#202). All three are additive read queries
+	// over the wave-0/1 corpus (observation / vantage / zone_file) — no new schema.
+	// The web layer folds these into the per-Name Derived snapshot the `Signal`
+	// engine (internal/signal) evaluates: the five Name-only rules read `resolution`
+	// (which `resolution-walk` and `wildcard-discrimination` decide jointly), the
+	// `dns-record` CNAME target and NS delegation, and the operator's zone file.
+	// The latest `resolution` observation per (Name, Vantage class). The engine folds
+	// these into a cross-class composed outcome (for the four cross-class rules) and
+	// keeps the internet-class view apart (for the one vantage-scoped rule, ADR-0071).
+	// DISTINCT ON keeps the most recent value per (name, class).
+	ListNameResolutionsByClass(ctx context.Context) ([]ListNameResolutionsByClassRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	// The pending Proposals the Seeds screen renders, grouped for the caller by
 	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
@@ -150,6 +166,11 @@ type Querier interface {
 	// (host set) whose public half has not been published, so no key material has
 	// ever left the worker volume for them.
 	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
+	// The latest supplied zone file per name-scope Seed, with its declared domain and
+	// content, so the web layer can extract the owner names the operator declares
+	// (signal.DeclaredNames) — the domain of the two zone rules. One row per Seed;
+	// DISTINCT ON keeps the most recent supply.
+	ListZoneDeclarations(ctx context.Context) ([]ListZoneDeclarationsRow, error)
 	// The Seeds-screen view: the latest supplied file per name-scope Seed, without
 	// the content, so the operator sees which scopes hold a zone file, when it was
 	// supplied and by whom.
