@@ -1268,9 +1268,16 @@ its progress, and the `Scan` config it was fired under. It exists for display an
 operational visibility; it carries no observations, and **the comparison path must never
 read it**. Batches anchor scope, timelines anchor comparison, a dispatch anchors neither.
 See [ADR-0005](./docs/adr/0005-scan-execution-model.md).
-It is **the whole of the operational record and the only corpus a wall clock may retire** — and the
+It is **the only corpus a wall clock may retire** — and the
 fence above is the reason rather than a coincidence, since the property that makes a record safe to
-delete on a schedule is the property that makes it safe to keep out of the comparison path. Its
+delete on a schedule is the property that makes it safe to keep out of the comparison path.
+~~It is the whole of the operational record~~ is **superseded here, at the site that specifies it**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+[#119](https://github.com/winniel123/verge-asm/issues/119) added `Message` and `Delivery` to this
+layer, so the operational record is **three** corpora and this is the only one of them carrying a
+dial — a `Message` is retained while the operator may still read it back, and a `Delivery` travels
+with the message it was against
+([ADR-0081](./docs/adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md)). Its
 retention window is an **operator dial**, the strongest instance of *outside every derivation* in the
 model, floored at `k` cadences of the slowest **enabled** `Scan` — stated as a multiple and never as a
 day count, the cadence being a quantity the operator moves — below which `Coverage` cannot answer
@@ -1321,7 +1328,11 @@ no absence. It is **never itself a `Message`** — a delivery failure is not the
 our looking changing, or a clock crossing, so it has no cause and gets no fifth one — and it
 never touches `Coverage`, which answers *is what I am looking at complete?* rather than *were
 you told?*. It is rendered on the message it failed to carry and on the channel it belongs to,
-and nowhere else. See
+and nowhere else — and it is **retained exactly as long as that message is**, holding no retention
+rule of its own, since a message renders *its* delivery outcomes and discarding one converts *we
+could not reach you* into *we told you*, which is the licence-no-silence rule defeated by storage.
+So it **travels with its `Message`** as a `Batch` travels with its observations, and gets no dial
+([ADR-0081](./docs/adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md)). See
 [ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
 _Avoid_: send, push, notification attempt, dispatch (reserved), retry
 
