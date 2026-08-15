@@ -319,6 +319,9 @@ what `authority` grades; in a zone file it is the rule an authority applies, who
 model already measures as the wildcard poison signature — a measurement whose subject is the `Name`
 those effects were probed **under**, never the wildcard, and one v1 holds nowhere
 ([ADR-0062](./docs/adr/0062-a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under.md)).
+That name is a discriminated name's **parent**, and a parent is a label sequence the probe
+constructs rather than a subject it admits, so it need not be held or exist
+([ADR-0066](./docs/adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)).
 The refusal takes the protocol's own test
 where the protocol supplies one and the blunt one where it does not: only a leftmost label of
 exactly `*` is a wildcard in DNS — `the*` and `**` are ordinary labels and ordinary names, and a
@@ -444,14 +447,30 @@ binary inside one batch**, never assembled afterwards from two observations. Tha
 about **the `Name` the control labels were generated under** — the name whose immediate child space
 the wildcard synthesises into, named by the measurement rather than inferred from it, which is why it
 is not *the apex*; and it admits nothing, since an answer served for a name that does not exist may
-cite no `Address` and open no `Endpoint`. **v1 holds it nowhere and ships no carrier for it.** It is
+cite no `Address` and open no `Endpoint`. **A name is discriminated at its parent**: the control-probe
+population of a `Batch` is the set of **immediate parents of the `Name`s in that batch's resolution
+scope**, deduplicated, intersected with the `Seed` name scopes they sit inside, and recorded on the
+`Batch` **by content** as the **seventh aperture input** — never a declared parameter of
+`wildcard-discrimination`, whose control-label count and match predicate stay where they are. That
+needs no depth rule, because a control label constructed under a parent falls off the tree at the
+same closest encloser its children do, whatever depth the wildcard sits at and **whether or not the
+parent exists or is a `Name` we hold** — a probe site is a label sequence we construct rather than a
+subject we cite, so nothing is admitted. The probe runs the batch's **declared qtype set**, all
+seven, since this value is committed on `dns-record` for *any* qtype. A wildcard at or above the
+operator's own apex is out of reach, the probing gate stopping the population at the `Seed`. Where
+the probe under a name's parent **did not complete**, that name records a **`Gap`** and never a
+value — *an undiscriminated answer is never a value* — while a probe that completed and found no
+wildcard licenses everything beneath it. See
+[ADR-0066](./docs/adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md). **v1 holds it nowhere and ships no carrier for it.** It is
 an input to this decision and a value on no timeline, so a wildcard being **repointed** is invisible:
 every name beneath it stays `Shadowed` across the move, which is the suppression above working as
 intended on the fictional names and swallowing the real one alongside them. The carrier is named and
 **deferred rather than refused** — a facet of its own, never a value on `dns-record`, whose key is
-already occupied by what the authority served for that subject itself. Where no signature was
+already occupied by what the authority served for that subject itself. ~~Where no signature was
 measured beneath a wildcard this value is unavailable and the synthesised answer reads as `Resolved`,
-so **which names are control-probed** is a live question rather than a detail. See
+so **which names are control-probed** is a live question rather than a detail.~~ *(Settled by
+ADR-0066, above: no held `Name` is left undiscriminated, and an incomplete probe yields a `Gap`
+rather than a `Resolved` answer nobody could read.)* See
 [ADR-0062](./docs/adr/0062-a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under.md).
 _Avoid_: unverifiable, synthetic, wildcard hit, poison signature (our instrument's name, never the fact)
 
@@ -563,7 +582,11 @@ still retains completeness over, and no further. Every dimension of the recorded
 library that chose it for us, since a widening is detected by diffing named dimensions and two
 version strings cannot tell a widening from a narrowing. It also records the **`Derivation` leaf
 versions of the measurement procedures it ran**, since a prober leaf's content is fixed when the
-measurement happens and not when the fold reads it.
+measurement happens and not when the fold reads it. Among its recorded dimensions is the
+**control-probe population** — the `Name`s wildcard control labels were generated under, which are
+the **parents** of the names in its resolution scope — because a name whose parent was not probed
+can never be `Shadowed`, which is a silence rather than a value
+([ADR-0066](./docs/adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)).
 _Avoid_: run, scan run, execution, sweep
 
 **Citation**:
@@ -861,7 +884,12 @@ _Avoid_: seam (reserved for architectural boundaries), fault, discontinuity, ver
 **Gap**:
 A `Span` holding no value — the period over which we could not say. Opened by a dead-lettered
 `Batch`'s empty scope, by a `Vantage` becoming `unavailable`, by evidence absent where a
-`Signal` would be `not-evaluable`, and by an observation ageing past its currency bound. A gap
+`Signal` would be `not-evaluable`, by an observation ageing past its currency bound, and by an
+answer we cannot read — a truncated RRset no fallback transport recovered, or a `resolution` we
+could not discriminate because the control probe under the name's parent did not complete. **A
+truncated answer is never a value and an undiscriminated answer is never a value**
+([ADR-0025](./docs/adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md),
+[ADR-0066](./docs/adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)). A gap
 never withdraws a subject: ceasing to measure is not measuring absence. It **records its
 cause**, which is what makes a fourth opening kind unnecessary: a value arriving after a gap
 is accounted for by the gap sitting before it. Distinct from a timeline that never existed —

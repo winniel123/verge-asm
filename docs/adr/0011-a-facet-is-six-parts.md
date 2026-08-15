@@ -316,7 +316,9 @@ all.
 ### What takes two measurements is decided by the prober
 
 `Shadowed` breaks the architecture as stated everywhere else. Deciding it means comparing this
-name's answer against the parent zone's **measured wildcard poison signature** — a *different*
+name's answer against the ~~parent zone's~~ **parent name's measured wildcard poison signature** — the
+control probe runs under a name's **parent**, which is an owner name and not a zone boundary
+([ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)) — a *different*
 observation. Either the canonicaliser is not a pure function of one observation, and now carries a
 cross-observation dependency with its own currency and staleness problem inside the comparison
 path, or the decision happens earlier.
@@ -358,9 +360,14 @@ seventh facet, writes a canonicaliser, and silently skips the batch-scope obliga
   `dns-record` as well as `resolution` and are marked prober-decided; `Span` records that the key
   carries a facet-defined discriminator; and `tls-acceptance` is named.
 - **[ADR-0007](./0007-drift-is-a-timeline-of-spans.md) is amended twice.** The timeline key is
-  `(subject, facet, discriminator, vantage, source)`, and aperture has **five** inputs rather than
-  three — the qtype set and the TLS candidate set join enabled sources, port tiers and the
+  `(subject, facet, discriminator, vantage, source)`, and aperture has ~~**five** inputs rather than
+  three~~ **seven inputs** — the qtype set and the TLS candidate set join enabled sources, port tiers and the
   ownership gate. Both were already true in substance; neither was written.
+  *(The count moved twice after this bullet was written and the figure here is **withdrawn**:
+  [ADR-0017](./0017-exposure-needs-both-legs.md) added `Vantage class` for six, and
+  [#108](https://github.com/winniel123/verge-asm/issues/108) /
+  [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+  added the **control-probe population** for seven.)*
 - **[ADR-0006](./0006-subjects-leave-by-measurement.md) is amended once, and only in its
   example.** Its cascade rule was already general; what it now says out loud is that an
   `Endpoint` closes on either leg, `Name` or `Service`, because a key component may be absent

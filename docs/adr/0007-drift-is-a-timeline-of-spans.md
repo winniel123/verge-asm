@@ -267,7 +267,16 @@ so the rule is stated once rather than rediscovered three times: **alerting fire
 never per affected subject**, while every consequence is fully recorded.
 
 ## Amendment — [#36](https://github.com/winniel123/verge-asm/issues/36): the key carries a
-discriminator, and aperture has five inputs
+discriminator, and aperture has ~~five~~ **seven** inputs
+
+> **The count in this heading and in the body below is WITHDRAWN.** It moved twice after #36:
+> [ADR-0017](./0017-exposure-needs-both-legs.md) added `Vantage class` for six, and
+> [#108](https://github.com/winniel123/verge-asm/issues/108) /
+> [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+> added the **control-probe population** for **seven**.
+> [ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md) also corrected this
+> amendment's *"both start timelines that did not exist"* — true of the qtype set, false of the TLS
+> candidate set.
 
 Two corrections, both of things this ADR asserted in substance and did not write down. Neither
 disturbs the decision above.
