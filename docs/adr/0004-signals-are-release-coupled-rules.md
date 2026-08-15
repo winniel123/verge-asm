@@ -293,7 +293,13 @@ That is [#68](https://github.com/winniel123/verge-asm/issues/68), which **blocks
 here asks *may this ship as a rule* — a question about how often reference data may move.
 [#21](https://github.com/winniel123/verge-asm/issues/21)'s claim/attestation/determinacy standard
 asks *is this row's content licensed*, and ADR-0032 rules that it attaches to a **table**, never to a
-rule, so thirteen of the sixteen rules have nothing for it to govern. Two questions, two documents:
+rule, so thirteen of the ~~sixteen~~ **seventeen** rules have nothing for it to govern *(denominator
+struck at the clause by [#133](https://github.com/winniel123/verge-asm/issues/133)'s gate run, G4 —
+the v1 set is seventeen per the [#128](https://github.com/winniel123/verge-asm/issues/128) amendment
+**in this same file** below, which this sentence stood above unmarked;
+[#106](https://github.com/winniel123/verge-asm/issues/106)'s intra-document shape. The **thirteen** is
+unchanged — #128's rule carries a curated table, so it is one of the four that has something to
+govern)*. Two questions, two documents:
 this ADR's sentence *"that is a statement about cadence, not correctness — hence #21"* is exactly
 right and is the boundary. What a table asserting about the **world** additionally owes — an
 attestation per row, its own closed claim set derived from what its rule reads, and a determinacy
