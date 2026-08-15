@@ -133,6 +133,36 @@ table.annos td form { margin: 0; }
 .orphan { display: inline-block; margin-left: var(--space-3); font-family: var(--mono);
   font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--muted); border: 1px solid var(--hairline); padding: 1px 5px; }
+.msgnav { display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  color: var(--ink); font-weight: 600; }
+.msgnav:hover { color: var(--accent); }
+.msgnav .count { font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.04em; background: var(--ink); color: #fff; padding: 1px 5px; min-width: 16px;
+  text-align: center; }
+.msglist { list-style: none; margin: var(--space-5) 0 0; padding: 0; }
+.msgitem { border: 1px solid var(--hairline); background: var(--surface);
+  padding: var(--space-4); margin-bottom: var(--space-4); border-left: 2px solid var(--ink); }
+.msgitem.unread { border-left-color: var(--accent); }
+.msgitem-head { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap;
+  margin-bottom: var(--space-3); }
+.msgitem-head .cause { font-family: var(--mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+  border: 1px solid var(--hairline); padding: 1px 6px; }
+.msgitem-head .when { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.msgitem .headline { margin: 0 0 var(--space-3); }
+.msgitem .rowlink { font-family: var(--mono); font-size: 12px; }
+.msgitem .actions { margin-top: var(--space-3); }
+.msgitem .actions form { display: inline; margin: 0; }
+.msgcensus { list-style: none; margin: var(--space-3) 0 0; padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--hairline); }
+.msgcensus li { padding: 2px 0; font-family: var(--mono); font-size: 12px; }
+.msgcensus li .k { color: var(--muted); text-transform: uppercase; font-size: 10px;
+  letter-spacing: 0.06em; margin-right: 6px; }
+.receipt { border: 1px solid var(--ink); background: var(--surface);
+  padding: var(--space-4); margin-top: var(--space-4); box-shadow: 3px 3px 0 rgba(22,22,15,.1); }
+.receipt .microlabel { margin-bottom: var(--space-3); }
+.receipt .headline { font-family: var(--mono); font-size: 12px; margin: 0 0 var(--space-3); }
+.receipt .loss { margin: 0; color: var(--muted); max-width: 78ch; }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -205,6 +235,7 @@ Two-factor is not active until you confirm.</p>
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
 <nav class="nav"><a href="/">Home</a><a href="/subjects">Subjects</a><a href="/signals">Signals</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
+<a class="msgnav" href="/messages">Messages{{if .Unread}}<span class="count">{{.Unread}}</span>{{end}}</a>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
 </div>{{end}}
@@ -461,8 +492,23 @@ mine</em> is a different claim from <em>not there</em> — and an excluded name 
 <option value="address"{{if eq .ExclKind "address"}} selected{{end}}>address</option>
 </select></label>
 <label class="scope"><span>Value</span><input class="scope" name="value" value="{{.ExclValue}}" placeholder="api.example.com or 203.0.113.5" autocomplete="off" required></label>
+<button type="submit" formaction="/exclusions/preview" class="secondary">Preview</button>
 <button type="submit">Exclude</button>
 </form>
+{{with .ExclPreview}}
+{{if .Fires}}
+<div class="receipt">
+<div class="microlabel">What this exclusion would withdraw</div>
+<p class="headline">{{.Headline}}</p>
+<p class="loss">{{.Loss}}</p>
+</div>
+{{else}}
+<div class="receipt">
+<div class="microlabel">What this exclusion would withdraw</div>
+<p class="loss">Nothing is withdrawn. No subject leaves the estate, so no message fires — an excluded name that still resolves survives, and its Gap carries it.</p>
+</div>
+{{end}}
+{{end}}
 </div>
 {{end}}
 
@@ -1025,6 +1071,49 @@ neither of them a message.</p>
 risk is declared here, keyed on its subject.</p>
 {{end}}
 </div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "messages"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="rulehead">
+<div><div class="microlabel">Operational · messages</div>
+<h1>Messages</h1></div>
+{{if .Messages}}<form method="post" action="/messages/read-all"><button class="secondary" type="submit">Mark all read</button></form>{{end}}
+</div>
+<p>Every message that has fired, newest first. Each names what moved — the estate's
+own object, our own aperture, your declared input, or a threshold crossed — and
+links to what it fired at. The store carries the message and never the estate: the
+fact itself is in the timelines.</p>
+{{if not .Messages}}
+<div class="section">
+<p>No message has fired. Messages appear here as the estate moves — declare a seed
+and run the first batch to begin measuring.</p>
+</div>
+{{else}}
+<ul class="msglist">
+{{range .Messages}}
+<li class="msgitem{{if not .Read}} unread{{end}}">
+<div class="msgitem-head">
+<span class="cause">{{.Cause}}</span>
+<span class="microlabel">{{.Class}}</span>
+{{if .Instant}}<span class="when">{{.Instant}}</span>{{end}}
+</div>
+<p class="headline">{{.Headline}}</p>
+<div class="rowlink"><a href="{{.Href}}">{{.LinkText}}</a></div>
+{{if .Census}}
+<ul class="msgcensus">
+{{range .Census}}<li><span class="k">{{.Kind}}</span>{{if .Href}}<a href="{{.Href}}">{{.Key}}</a>{{else}}{{.Key}}{{end}}</li>{{end}}
+</ul>
+{{end}}
+{{if not .Read}}
+<div class="actions"><form method="post" action="/messages/read"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Mark read</button></form></div>
+{{end}}
+</li>
+{{end}}
+</ul>
+{{end}}
 </main>
 {{template "foot" .}}{{end}}
 
