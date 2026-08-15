@@ -58,6 +58,14 @@
   Not production code. Vocabulary is CONTEXT.md — the kit's `Findings` section,
   its severity badge and its fingerprinting claim are all absent by rule. The
   visual language is the real design system (../../design-system).
+
+  AMENDED — #164, 2026-08-15, on variant B only. "12 fired and the phone never
+  rings": the state where a rule's entire fired census is annotated, so the
+  mutes' aggregate effect is indistinguishable from the rule being off. Adds
+  `fullMuteBlock()`, wired into every variant-B rule row, plus a dedicated
+  demonstration section (`section164`) so the point is not carried by
+  `lame-delegation`'s incidental 1-of-1 case alone. Variants A and C, and the
+  author question above, are #129/ADR-0073's and are untouched.
 -->
 <html lang="en">
 <head>
@@ -185,6 +193,21 @@
   .arow-empty { padding: var(--space-4); font-size: var(--text-base); color: var(--text-muted);
                 line-height: var(--leading-body); background: var(--surface); }
   .arow-empty b { color: var(--ink); font-weight: var(--weight-semibold); }
+
+  /* ── #164 — THE FULLY-MUTED RULE ──────────────────────────────────────
+     Renders inside a rule block, beneath the census, ONLY when every pair
+     that rule counts under `fired` also carries an Annotation. Prose, not a
+     number: no count, no ratio, no percentage, no colour. It states the one
+     fact the mutemark glyph alone cannot carry — that this rule's silence is
+     total rather than partial — which is #47's empty-group rule ("render,
+     and say why") applied to the channel this rule speaks through. */
+  .fullmute { padding: var(--space-3) var(--space-4); border-top: var(--rule-soft);
+              background: var(--surface-sunken); }
+  .fullmute .ml { display: block; margin-bottom: var(--space-1); }
+  .fullmute p { margin: 0; font-size: var(--text-base); line-height: var(--leading-body);
+                color: var(--text); max-width: 74ch; }
+  .fullmute p b { font-weight: var(--weight-semibold); color: var(--ink); }
+  .fullmute code { font-family: var(--font-mono); font-size: var(--text-sm); }
 
   /* ── PROTOTYPE-ONLY ANNOTATION ────────────────────────────────────────
      ADR-0075 (#131). Verbatim from prototypes/seeds/ — no new token, nothing
@@ -368,6 +391,116 @@ const ACCOUNTS = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════
+   #164 — "12 fired and the phone never rings"
+
+   A dedicated rule, held APART from the composed five above and not counted
+   in "five of seventeen" — its population exists only to demonstrate
+   fullMuteBlock() at a size that is not a fluke. `lame-delegation` above
+   already triggers the same block incidentally, at one fired and one
+   accepted; 1-of-1 reads as "of course," and does not carry the argument by
+   itself. The ticket's own phrasing names twelve; this drawing uses four,
+   per ADR-0075 limb 1 — a figure invented for a drawing owes nobody
+   accuracy, and four is legible where twelve rows is not.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const RULE_164 = { id:"weaksig", name:"certificate-weak-signature",
+  ver:"certificate/3", fired:4, notFired:588, ne:0 };
+
+const ANNOTATIONS_164 = [
+  { rule:"weaksig", subj:"api-legacy.acmecorp.io:443/tcp", sig:"certificate-weak-signature",
+    why:"SHA-1 leaf on the legacy API gateway. Replacement cert is cut and staged; the appliance vendor's rollout window is the last week of the quarter. Tracked as OPS-4488.",
+    at:"2026-07-30 10:02", lastEdge:"2026-08-14 04:07",
+    by:{ single:"admin", multi:"a.mireles" } },
+  { rule:"weaksig", subj:"partner-feed.acmecorp.io:443/tcp", sig:"certificate-weak-signature",
+    why:"Same appliance family and the same vendor window as OPS-4488. The partner has been told and is not blocking on it.",
+    at:"2026-07-30 10:04", lastEdge:"2026-08-14 04:07",
+    by:{ single:"admin", multi:"a.mireles" } },
+  { rule:"weaksig", subj:"vpn-eu.acmecorp.io:443/tcp", sig:"certificate-weak-signature",
+    why:"EU subsidiary's own appliance — same estate as the lame-delegation acceptance above, their timeline.",
+    at:"2026-08-01 09:20", lastEdge:"2026-08-14 04:07",
+    by:{ single:"admin", multi:"j.tran" } },
+  { rule:"weaksig", subj:"status.acmecorp.io:443/tcp", sig:"certificate-weak-signature",
+    why:"Static status-page host with no session state, scheduled for decommission with the Q3 infra cleanup rather than a certificate swap.",
+    at:"2026-08-05 14:11", lastEdge:"2026-08-14 04:07",
+    by:{ single:"admin", multi:"r.okonkwo" } },
+];
+
+function section164(author, fill){
+  const n = ANNOTATIONS_164.length;
+  return `
+  <h2 class="sect">#164 — every fired pair, accepted</h2>
+  <p class="sub"><code>"12 fired"</code> and the phone never rings — the one state where the
+     mutes' aggregate effect is indistinguishable from the rule being off, unless the row itself
+     says so. One rule below, held apart from the composed five above: its population is invented
+     for this demonstration alone and is not part of "five of seventeen."</p>
+  ${anno("prototype · issue #164 · drawn 2026-08-15", `
+     <p>Same components as the rest of variant B — <code>census()</code>, the non-numeric mute
+        glyph, <code>annoRow()</code> — plus one addition, <code>fullMuteBlock()</code>, which is
+        wired into <b>every</b> rule row on this variant, including the five above.
+        <code>lame-delegation</code>'s row already triggers it, at one fired and one accepted.</p>`)}
+
+  <div class="rule">
+    <div class="rule-h">
+      <span class="nm">${RULE_164.name}</span>
+      <span class="ver">${RULE_164.ver}</span>
+      <span class="sp"></span>
+      ${muteMark(n)}
+    </div>
+    ${census(RULE_164)}
+    ${fullMuteBlock(RULE_164, n)}
+  </div>
+
+  <div class="card" style="margin-top:var(--space-4)">
+    <div class="card-h">
+      <h3>Accepted pairs · ${RULE_164.name}</h3>
+      <span class="sp"></span>
+      <span class="n">${n}</span>
+    </div>
+    ${ANNOTATIONS_164.map(a=>annoRow(a, author, fill)).join("")}
+  </div>
+
+  ${anno("ruling · argued both sides — #164, 2026-08-15", `
+     <p><b>What ships: a categorical sentence, not a number.</b> <code>fullMuteBlock()</code>
+        renders only when every pair a rule counts under <code>fired</code> also carries an
+        <code>Annotation</code>, and it says so in prose — no count, no ratio, no partition. That is
+        legal on the ground ADR-0073's own late addendum stands on (the dead-row mark, #163 ·
+        ADR-0092): a fact <b>derived on read</b>, carrying <b>no valence, no quantity, no colour
+        scale and no sort</b>, is not the barred partition. ADR-0016 rider 3 bars a <i>number</i>
+        that cuts the census; ADR-0073 §3 bars a <i>count</i> of mutes per rule. A sentence true only
+        in the all-or-nothing case is neither.</p>
+     <p><b>Why it is owed at all — the nearest precedent is #47's.</b> #47 ruled that a group which
+        renders when populated must render when empty, <i>and say why</i>: silence with no stated
+        cause reads as "nothing here" rather than as "there was something here and it was decided."
+        The channel a rule speaks through is exactly such a group. Ordinarily some fraction of
+        <code>fired</code> still pages; when it goes fully quiet for a rule that is visibly still
+        firing, the operator needs the same distinction #47 drew for LACNIC's unenumerable
+        group — not a bigger version of the ordinary case, a different shape of message.</p>
+     <p><b>Rejected: say nothing new, let the existing glyph carry it.</b> The marker already on
+        every annotated row (<code>◍ annotated</code>) does not distinguish one-of-many from
+        all-of-all — the identical glyph renders whether 1 of 12 pairs is accepted or all 12 are.
+        That is the exact ambiguity the ticket names, left as silent omission rather than answered.</p>
+     <p><b>Rejected: a second glyph — solid vs. hollow — for "some" vs. "all."</b> Not a number, but
+        a code the operator has to learn and remember, and it fails #47's second clause — render
+        <i>and say why</i>, not render differently and leave the reason implicit. It also risks
+        reading as a severity step in a design system that keeps colour and fill off this exact
+        screen for that reason (ADR-0004, ADR-0073 §5): solid ink reads as "more" here, and "more
+        accepted" is not a worse state, so a fill change would teach the wrong lesson before the
+        operator reads a word.</p>
+     <p><b>Rejected: print the two numbers.</b> <code>4 fired · 4 accepted</code> is ADR-0016 rider
+        3's barred partition and ADR-0073 §3's barred per-rule count, by the shortest possible path.
+        Not reopened here.</p>
+     <p><b>Rejected: grey or otherwise re-style the <code>fired</code> figure itself.</b> The census
+        is identical whether or not a pair beneath it is annotated — this file's opening claim,
+        stated once for variants A through C and not owed a rider. Softening the number in the one
+        state where every pair beneath it happens to be accepted would make the census's own honesty
+        conditional on an operator act, which is what ADR-0016 spends its whole content refusing.</p>
+     <p><b>No new ADR.</b> ADR-0103 was considered and not minted. Nothing here reopens ADR-0016 or
+        ADR-0073's rulings, moves a number, or adds a <code>Derivation</code> input — the block is a
+        sentence inside the existing rule card, on the ground ADR-0073's own dead-row addendum
+        already cleared for exactly this shape of mark. Prototypes render readings, not rules.</p>`)}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    SWITCHES
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -427,6 +560,23 @@ function muteMark(n){
   /* NON-NUMERIC. `n` decides whether the marker renders and never what it
      says. See refusal 4. */
   return n ? `<span class="mutemark"><span class="g">◍</span>annotated</span>` : "";
+}
+
+/* #164 — "12 fired and the phone never rings." `n` decides whether this
+   renders and never what it says: a categorical fact derived on read, no
+   valence, no quantity, no colour, no sort — the same ground ADR-0073's own
+   dead-row mark (#163 · ADR-0092) stands on. It is not a second number beside
+   `fired`; it is a sentence, and it fires only in the all-or-nothing case. */
+function fullMuteBlock(r, n){
+  if (!(r.fired > 0 && n >= r.fired)) return "";
+  return `
+  <div class="fullmute">
+    <span class="ml">every fired pair here is accepted</span>
+    <p>This rule is evaluating on its own cadence and the census above is live — it is
+       <b>not off</b>. What changed is the channel: every pair counted under <code>fired</code>
+       carries an <code>Annotation</code> right now, so its next firing reaches nobody. See why,
+       pair by pair, under <b>Annotations</b>.</p>
+  </div>`;
 }
 
 function anno(label, html, bad){
@@ -534,6 +684,7 @@ function variantB(author, fill){
         ${muteMark(n)}
       </div>
       ${census(r)}
+      ${fullMuteBlock(r, n)}
     </div>`;
   }).join("");
 
@@ -748,7 +899,7 @@ function authorNote(author, fill){
 function render(){
   const variant = q("variant"), author = q("author"), fill = q("fill"), refusals = q("refusals");
   const body = variant==="A" ? variantA(author,fill)
-             : variant==="B" ? variantB(author,fill)
+             : variant==="B" ? variantB(author,fill) + section164(author,fill)
              : variantC(author,fill);
 
   document.getElementById("app").innerHTML =
