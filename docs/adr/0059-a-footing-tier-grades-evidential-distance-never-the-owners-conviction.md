@@ -95,7 +95,7 @@ assignments as they stand:
 | `6379` Redis | *"not a good idea to expose the Redis instance directly to **the internet**"* | none | **Prohibition** — and it is **hedged**, which limb 2 says is irrelevant |
 | `11211/tcp`+`/udp` memcached | *"you **must not** expose memcached directly to **the internet**"* | none | **Prohibition** |
 | `3306` MySQL | *"Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by default. This port should not be accessible from untrusted hosts."* | none | **Prohibition** |
-| ~~`1433` MS SQL~~ | *"don't connect your SQL Server instances directly to **the Internet**"* | none | ~~**Prohibition**~~ — **DEMOTED out of the graded table by [#107](https://github.com/winniel123/verge-asm/issues/107)** on limbs 2 and 4(c): Microsoft names internet-facing TCP/1433 as supported. `sensitive-ports.md` §33.4 |
+| ~~`1433` MS SQL~~ | *"don't connect your SQL Server instances directly to **the Internet**"* | none | ~~**Prohibition**~~ — **DEMOTED out of the graded table by [#107](https://github.com/winniel123/verge-asm/issues/107)** on limbs 2 and 4(c): Microsoft names internet-facing TCP/1433 as supported. `sensitive-ports.md` §33.4. **And the ROW is REMOVED from the list by [#109](https://github.com/winniel123/verge-asm/issues/109)** on `sensitive-ports.md` §10.3's failure condition — a **claim**-gate ruling, not this table's ([ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)); the pair is now in §4.6 |
 | `9200`, `9300` Elasticsearch | *"Never expose an unprotected node to **the public internet**"* | none | **Prohibition** |
 | `445` SMB | *"unlikely that any SMB communication originating from **the internet** … is legitimate"* | none | **Prohibition** |
 | `623/udp` IPMI | *"not designed nor intended to be placed on or connected to **the internet**"* | none | **Prohibition** |
@@ -169,7 +169,7 @@ disclosed rather than smoothed.
   [ADR-0008](./0008-derivation-versions-move-on-content.md) is **not** triggered — the rule's reference
   data is byte-identical. A tier records how strong a footing is, never whether a row qualifies.
   > **Composed: 41 pairs, `12 / 7 / 22`, §6.1's `28 + 8 + 5 = 41`, §4.6's 20 exclusions** — all of it
-  > #95's, none of it this ADR's. *No pair moves and no row moves* remains true of #98's own act.
+  > #95's, none of it this ADR's. **Superseded as an absolute by [#109](https://github.com/winniel123/verge-asm/issues/109): 40 pairs, `12 / 7 / 21`, `27 + 8 + 5 = 40`, 21 exclusions**, `1433/tcp` having been removed from the list on a claim-gate ruling — still none of it this ADR's. *No pair moves and no row moves* remains true of #98's own act.
 - **§20.8's universal becomes true.** *"Every prohibition-tier sentence names the public internet"* is
   now a correct statement of a **fourteen**-member tier, made true by moving the counterexample rather
   than by widening the sentence. §20.8's `4369` ruling is **unchanged and re-founded**: `DEP-001` is one
@@ -251,6 +251,16 @@ coverage 30 of 41~~ — two cells, no rows, and ADR-0008 is not triggered.**
 > option. **The conjunction refuses one of sixteen, and the tiers read prohibition 15 · scoping 11 ·
 > weak 3 · outside-subject 11 · uncovered-in-subject 1, coverage 29 of 41.** Still no rows, and
 > ADR-0008 is still not triggered. `sensitive-ports.md` §33.
+>
+> > **Composed again after [#109](https://github.com/winniel123/verge-asm/issues/109).** The **row**
+> > `1433/tcp` is **removed from the sensitive list** on `sensitive-ports.md` §10.3's failure
+> > condition ([ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)),
+> > so **every tier count above is unchanged** — no pair enters or leaves a tier — while the
+> > arithmetic beneath them is not: the list is **40**, coverage is **29 of 40**, the
+> > **uncovered-in-subject population returns to 0**, and `15 + 11 + 3 + 11 = 40`. **ADR-0008 IS now
+> > triggered**, by the row's removal and not by any footing move. This ADR is **confirmed by use**
+> > and is not amended: a tier records how strong a footing is and never whether a row qualifies, and
+> > #109 is that separation being spent in the direction that costs a row. `sensitive-ports.md` §35.
 
 **What this amendment does not reach, stated so its extent is in the artefact.** The closure claim is a
 **ruling**: it holds that the row's proposition has four terms and that a reader-supplied premise can
@@ -324,6 +334,10 @@ disposition the #101 amendment's own limb-4 sentence specifies. A footing failin
 not enter the grading, so the cell leaves the table rather than descending a tier. **[measured]** MS
 SQL ships no configuration artefact (`sensitive-ports.md` §13.1), so no weaker form catches it and the
 row becomes the table's only uncovered in-subject member.
+
+> **That population is back to zero — [#109](https://github.com/winniel123/verge-asm/issues/109).**
+> The row was removed from the list, so its only member leaves the table's **subject** rather than
+> gaining a cell. `sensitive-ports.md` §35.11.
 
 **[measured] The demotion takes no neighbour, which is the test this ADR set for itself at §30.5 and
 #101 re-set at §32.3.** Redis, Elastic, memcached and Oracle all document managed or public offerings

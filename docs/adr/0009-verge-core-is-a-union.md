@@ -18,7 +18,9 @@ numbers**, and specified that it ship "as an editable list file, not compiled in
 > [#97](https://github.com/winniel123/verge-asm/issues/97): the frequency half is **123, all TCP**, and
 > `verge-core` — this ADR's union — is **136 pairs** as composed after
 > [#95](https://github.com/winniel123/verge-asm/issues/95). The label is left standing above per the
-> name-and-withdraw convention; nothing in this ADR's Decision reads it.
+> name-and-withdraw convention; nothing in this ADR's Decision reads it. **Still 136 after
+> [#109](https://github.com/winniel123/verge-asm/issues/109) removed `1433/tcp` from the sensitive
+> half** — the pair is in the frequency half, so the union does not move; see the #109 amendment.
 
 [#21](https://github.com/winniel123/verge-asm/issues/21) built the **38-pair sensitive list** on a
 normative standard — *given the port is open to the internet, is that ever correct?* — keyed on
@@ -314,7 +316,7 @@ kube-proxy is **refused** — §24. The list is **39** pairs.
 > **`verge-core = frequency-set ∪ sensitive-list` is unchanged. The sensitive half gains two more TCP
 > pairs — `10249/tcp` kube-proxy metrics (Class A) and `10248/tcp` kubelet healthz (Class C) — and
 > `10258/tcp` cloud-controller-manager is refused and adds nothing.** The list is **41 pairs**, class
-> totals `12 / 7 / 22`. [`sensitive-ports.md`](../research/sensitive-ports.md) §27.
+> totals `12 / 7 / 22` — **40 pairs and `12 / 7 / 21` after the [#109](https://github.com/winniel123/verge-asm/issues/109) amendment below**. [`sensitive-ports.md`](../research/sensitive-ports.md) §27.
 
 - **The definition does not move and neither does the arithmetic's shape.** This is the second
   widening in two sections, and it is the same act: the sensitive half is edited, the union follows
@@ -353,7 +355,7 @@ one **sentence inside it** — written in this ADR, and contradicting the Decisi
 
 [#97](https://github.com/winniel123/verge-asm/issues/97) enumerated the frequency half from
 [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 and tested all 39 sensitive pairs against
-it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29. **The list is 41 as composed**, and
+it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29. **The list is 41 as composed** (**40 after [#109](https://github.com/winniel123/verge-asm/issues/109)** removed `1433/tcp` — see the amendment below; the union is unchanged either way), and
 #95's two are measured against the same limb with the same answer (§27.12): neither is in the
 frequency half.
 
@@ -397,6 +399,44 @@ frequency half.
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) is the rule
   that forces the withdrawal to happen at the superseded site instead. §6, §6.1, §6.3, §7.1 and §1's
   summary row are amended in place.
+
+### Amendment — [#109](https://github.com/winniel123/verge-asm/issues/109): the sensitive half loses `1433/tcp`, and **the union does not move**
+
+The Decision is unchanged for the fourth time, and this is the **first** amendment in which the
+sensitive half **shrinks**. It is recorded here at length because the answer is counter-intuitive and
+this ADR is the first place a reader would check it.
+
+> **`verge-core = frequency-set ∪ sensitive-list` is unchanged. The sensitive half loses `1433/tcp`
+> Microsoft SQL Server (Class C), and `verge-core` stays at 136 pairs — 131 TCP, 5 UDP.** The list is
+> **40 pairs**, class totals **`12 / 7 / 21`**.
+> [`sensitive-ports.md`](../research/sensitive-ports.md) §35;
+> [ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md).
+
+- **The union does not move, and the reason is the definition rather than luck.** **[measured]**
+  `1433/tcp` is in the **frequency half** — `sensitive-ports.md` §29.2 scores it *top-100, retained*,
+  and §6.1's enumeration of the 28 in-hot-set pairs carries it. So it was never in `S \ F`, and
+  `|F| + |S \ F| = 123 + (8 + 5) = 136` is untouched. **A pair leaving the sensitive list costs the
+  union nothing wherever the frequency half already carries it**, which is true of **27 of the list's
+  40 pairs**. The daily probe budget, #4 §6's rate limits and the 131-TCP figure every downstream ADR
+  quotes are all unchanged.
+- **What does move is one cell of §6.1's containment arithmetic**: ~~`28 + 8 + 5 = 41`~~
+  **`27 + 8 + 5 = 40`**, cell 1 alone, exactly as §29.3's identity predicts for a TCP pair **inside**
+  `F` leaving `S`. Cells 2 and 3 do not move and `F` does not move.
+- **The price is spent for the first time in the *removing* direction, and it is not the price the
+  ticket named.** `sensitive-port-reached-from-internet`'s content moves, its rule version bumps under
+  [ADR-0008](./0008-derivation-versions-move-on-content.md) and every evaluation `Break`s — still
+  pre-install, so still vacuous and still **not waived**. But the aperture **narrows** rather than
+  widening: `safe-active-probing.md` §2.4 reads ~~`0 of 41 sensitive pairs unread`~~ **`0 of 40`**, a
+  denominator whose numerator is `0` for every `|S|`, so nothing becomes unread and
+  [ADR-0014](./0014-only-revealed-generalises.md) does not bite.
+  [#109](https://github.com/winniel123/verge-asm/issues/109) priced the removal as *"a version bump
+  **and an aperture widening**"*; **the second half is wrong**, and `sensitive-ports.md` §35.12
+  re-derives it. `sensitive-ports.md` §7.2's *"the cost is symmetric between adding and removing a
+  port"* is now instantiated on both sides and is confirmed **for the rule** and refined **for the
+  union**: symmetric in version cost, asymmetric in union cost.
+- **The operator keeps probing 1433 every day.** What stops is the `Signal`, never the measurement —
+  which is the property §6's coupling direction was chosen for, arriving from the direction nobody had
+  needed yet.
 
 ## Alternatives rejected
 
