@@ -246,9 +246,14 @@ is not wanted now, and minting it here would be the second constant
 > contradiction was internal to one paragraph. **v1 ships none**: no suppression, no coalescing, no
 > digest window. The ACME flap's actual v1 treatment is **routing by class**, and whether that
 > reaches it turns on an unsettled class assignment — ADR-0026 §5 puts `not-fired` → `fired` in the
-> **drift** class for all sixteen rules while #60 and this ADR put the three certificate-lifetime
-> rules in the **clock** class. Flagged to
+> **drift** class for all ~~sixteen~~ **seventeen** rules while #60 and this ADR put the three
+> certificate-lifetime rules in the **clock** class. Flagged to
 > [#120](https://github.com/winniel123/verge-asm/issues/120), which owns the causes.
+>
+> > **The quoted count is restated at seventeen** per the #128 amendment below — ADR-0026 §5's own
+> > text now reads *seventeen*, so this quotation tracks it. **The contradiction is unaffected by the
+> > count** and remains #120's to settle: it is about *which class* three rules sit in, not how many
+> > rules there are.
 
 ### Amendment — [#33](https://github.com/winniel123/verge-asm/issues/33): the curated count is three, and what licenses a table's content is a separate question from this ADR's
 

@@ -928,9 +928,29 @@ disappeared" alerts.
    two requests is genuinely the highest-leverage keyless capability found in this research. Fall back to
    RIPE DB REST for the RIPE region, where RDAP entity search returns 500.
 
-5. **RIPEstat closes the ASN gap but carries a non-commercial clause.** Decide deliberately: default-on with
+5. **RIPEstat closes the ASN gap but carries a non-commercial clause.** ~~Decide deliberately: default-on with
    a README note distinguishing self-hosted-own-estate use (fine) from paid-service use (needs RIPE NCC
-   permission), or default-off for zero ambiguity. Recommendation: default-on, documented.
+   permission), or default-off for zero ambiguity. Recommendation: default-on, documented.~~
+
+   > **DECIDED, and the recommendation above is WITHDRAWN with its replacement supplied**
+   > (per [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md): *a withdrawal
+   > that supplies no replacement does not hold*). **RIPEstat ships OFF, under `operator-accepted`** —
+   > [#15](https://github.com/winniel123/verge-asm/issues/15) /
+   > [#19](https://github.com/winniel123/verge-asm/issues/19),
+   > [ADR-0003](../adr/0003-third-party-source-consent-bar.md). The non-commercial clause is the
+   > reason, and the modal-operator terms test is what decides it — not a README note, which cannot
+   > carry a permission the software never obtained.
+   >
+   > **And the ASN gap it was closing is no longer a gap worth closing**:
+   > [#126](https://github.com/winniel123/verge-asm/issues/126) /
+   > [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md) rules the **BGP
+   > leg out of v1 entirely** — a routing announcement names who carries packets toward a prefix,
+   > never who controls what listens in it — and
+   > [#26](https://github.com/winniel123/verge-asm/issues/26) rules the modal operator
+   > **registry-less**, which makes the ASN the wrong axis to begin with.
+   >
+   > *Flagged by #126 as an unrepaired site and deliberately left by it to keep that branch to one
+   > decision; repaired in the ten-ticket merge reconciliation of 2026-08-15.*
 
 6. **Passive DNS is effectively unavailable keylessly.** Do not architect around it. Treat it as an
    opt-in enrichment, and make sure the discovery pipeline produces good results with it entirely absent.
