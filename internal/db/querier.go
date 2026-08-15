@@ -85,6 +85,19 @@ type Querier interface {
 	// A pinned host key later mismatched, or the position went unreachable: the
 	// vantage is marked unavailable rather than silently re-trusting a new key.
 	MarkVantageUnavailable(ctx context.Context, id int64) error
+	// The Addresses a current resolution cites, per Name — an `Address` is in the
+	// estate exactly while a current resolution cites it. Only a `Resolved` value
+	// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
+	// so every `Address` held only by a superseded `Resolved` leaves the estate.
+	NameCitedAddresses(ctx context.Context) ([]NameCitedAddressesRow, error)
+	// Membership reads the `resolution` facet, which `resolution-walk` and
+	// `wildcard-discrimination` decide jointly (ADR-0086): the recorded value is one
+	// or the other, so this reads BOTH leaves' outputs off one timeline. A Name is
+	// withdrawn only where every available vantage's latest resolution is NameError;
+	// a `Shadowed` answer never withdraws a Name and cites no `Address`. This extends
+	// #188's observation corpus additively so #189's Subjects listing can suppress a
+	// Shadowed Name's addresses without forking a second membership path.
+	NameMembership(ctx context.Context) ([]NameMembershipRow, error)
 	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
 	// the vantage available. The host_key IS NULL guard makes this a no-op once a
 	// key is pinned, so a first-connect race can never overwrite an existing pin.

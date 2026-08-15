@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -37,7 +38,8 @@ type Job struct {
 	Kind      string
 	Names     []string
 	Offers    resolutionwalk.Offers
-	resolver  string // the Vantage's recursive resolver, set by the dispatcher
+	resolver  string   // the Vantage's recursive resolver, set by the dispatcher
+	seeds     []string // the name-scope Seeds bounding the control-probe population
 }
 
 // BuildDNSJobs fans a dns Scan out into one job per Vantage over the given
@@ -83,9 +85,34 @@ func (j Job) JobSpec(batch string) (wire.JobSpec, error) {
 
 // AttemptedScope is the by-content record of what the job set out to cover, used
 // as the completed Batch scope on success and replaced by an empty scope on a
-// dead-letter.
+// dead-letter. It carries the **control-probe population** — the parents of the
+// resolved names, deduplicated and intersected with the Seed scopes — as the
+// seventh aperture input, recorded on the Batch by content so a name whose parent
+// was not probed can never be `Shadowed`, which is a silence rather than a value
+// (ADR-0066; ADR-0086).
 func (j Job) AttemptedScope() ([]byte, error) {
-	return json.Marshal(scopeRecord{Vantage: j.Vantage, Names: j.Names})
+	return json.Marshal(scopeRecord{
+		Vantage:                j.Vantage,
+		Names:                  j.Names,
+		ControlProbePopulation: wildcarddiscrim.ControlPopulation(j.Names, j.seedScopes()),
+	})
+}
+
+// seedScopes is the Seed name-scope set bounding the control-probe population. In
+// v1 the resolution scope is the seed domains themselves, so an unset seeds slice
+// falls back to the Names it is drawn from.
+func (j Job) seedScopes() []string {
+	if len(j.seeds) > 0 {
+		return j.seeds
+	}
+	return j.Names
+}
+
+// WithSeeds returns a copy of the job carrying the name-scope Seeds that bound its
+// control-probe population, set by the dispatcher from the Seed rows.
+func (j Job) WithSeeds(seeds []string) Job {
+	j.seeds = seeds
+	return j
 }
 
 // EmptyScope is what a dead-lettered Batch records — never the attempted scope,
@@ -98,8 +125,9 @@ func EmptyScope(vantage string) ([]byte, error) {
 func (j Job) OffersJSON() ([]byte, error) { return json.Marshal(j.Offers) }
 
 type scopeRecord struct {
-	Vantage string   `json:"vantage"`
-	Names   []string `json:"names"`
+	Vantage                string   `json:"vantage"`
+	Names                  []string `json:"names"`
+	ControlProbePopulation []string `json:"control_probe_population,omitempty"`
 }
 
 // resolverFor is where a job's resolver comes from. The Vantage row carries it;

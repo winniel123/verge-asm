@@ -386,6 +386,104 @@ func (q *Queries) MarkJobRetried(ctx context.Context, id int64) error {
 	return err
 }
 
+const nameCitedAddresses = `-- name: NameCitedAddresses :many
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key, o.vantage_id)
+        o.subject_key AS subject_key,
+        o.value->>'outcome' AS outcome,
+        o.value AS value
+    FROM observation o
+    WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
+    ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC
+)
+SELECT DISTINCT
+    subject_key,
+    jsonb_array_elements_text(value->'addresses') AS address
+FROM latest
+WHERE outcome = 'Resolved'
+ORDER BY subject_key, address
+`
+
+type NameCitedAddressesRow struct {
+	SubjectKey string `json:"subject_key"`
+	Address    string `json:"address"`
+}
+
+// The Addresses a current resolution cites, per Name — an `Address` is in the
+// estate exactly while a current resolution cites it. Only a `Resolved` value
+// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
+// so every `Address` held only by a superseded `Resolved` leaves the estate.
+func (q *Queries) NameCitedAddresses(ctx context.Context) ([]NameCitedAddressesRow, error) {
+	rows, err := q.db.Query(ctx, nameCitedAddresses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []NameCitedAddressesRow{}
+	for rows.Next() {
+		var i NameCitedAddressesRow
+		if err := rows.Scan(&i.SubjectKey, &i.Address); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const nameMembership = `-- name: NameMembership :many
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key, o.vantage_id)
+        o.subject_key AS subject_key,
+        o.value->>'outcome' AS outcome
+    FROM observation o
+    WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
+    ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC
+)
+SELECT
+    subject_key,
+    bool_and(outcome = 'NameError') AS withdrawn,
+    bool_or(outcome = 'Shadowed') AS shadowed
+FROM latest
+GROUP BY subject_key
+ORDER BY subject_key
+`
+
+type NameMembershipRow struct {
+	SubjectKey string `json:"subject_key"`
+	Withdrawn  bool   `json:"withdrawn"`
+	Shadowed   bool   `json:"shadowed"`
+}
+
+// Membership reads the `resolution` facet, which `resolution-walk` and
+// `wildcard-discrimination` decide jointly (ADR-0086): the recorded value is one
+// or the other, so this reads BOTH leaves' outputs off one timeline. A Name is
+// withdrawn only where every available vantage's latest resolution is NameError;
+// a `Shadowed` answer never withdraws a Name and cites no `Address`. This extends
+// #188's observation corpus additively so #189's Subjects listing can suppress a
+// Shadowed Name's addresses without forking a second membership path.
+func (q *Queries) NameMembership(ctx context.Context) ([]NameMembershipRow, error) {
+	rows, err := q.db.Query(ctx, nameMembership)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []NameMembershipRow{}
+	for rows.Next() {
+		var i NameMembershipRow
+		if err := rows.Scan(&i.SubjectKey, &i.Withdrawn, &i.Shadowed); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const tryFanOut = `-- name: TryFanOut :one
 INSERT INTO dispatch (scan_id, scheduled_time, status)
 VALUES ($1, $2, 'fanned-out')
