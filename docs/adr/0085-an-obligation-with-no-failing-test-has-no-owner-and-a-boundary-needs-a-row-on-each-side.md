@@ -66,6 +66,22 @@ corpus would be worse than leaving them unwritten: it would put a leaf's rows in
 where a bump of the leaf that decides them moves nothing, and the obligation would read discharged
 while protecting nothing.
 
+> **ROUTED AND ANSWERED — [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+> [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md), 2026-08-15.**
+> Recorded at this section per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): read alone
+> and in the present tense, *"specified but explicitly undischarged"* sends a competent session to
+> leave seventeen written cells unfiled. **The second horn is the true one — the membership vector is
+> wider than ADR-0041 records.** `Shadowed` **cites no `Address`**, so the discrimination verdict
+> decides whether an answer's address set enters the estate, which is a cited `Address`'s membership
+> affirmatively rather than by suppression; and membership reads `resolution`, which two leaves decide
+> jointly. The escrow is **adopted whole** into `wildcard-discrimination`'s corpus as
+> [`golden-corpus.md`](../spec/golden-corpus.md) §8, with one boundary pair added for the citation
+> ground. **The unpriced `5` → `9` consequence is priced at zero** — nothing has shipped and no
+> `resolution` timeline exists — **and the reason expires at the first shipped release.** This ADR's
+> own rule is what makes the adoption correct rather than a re-filing: a row protects the leaf whose
+> gate runs it, so the two blocks are **counted together and run apart**.
+
 ## Decision
 
 | Concern | Decision |
@@ -73,9 +89,9 @@ while protecting nothing.
 | Who owes the obligation | **The release**, per ADR-0041's own framing — unchanged |
 | Who **owns** it | **A checked-in enumeration of cells**, in [`golden-corpus.md`](../spec/golden-corpus.md), that CI counts. An obligation with no failing test has no owner |
 | Where a missing row is caught | **CI, on the coverage assertion** — a cell with no row fails the build, and the failure names the cell |
-| Which leaf is discharged | **`resolution-walk`, and only it.** Four outcomes: `Resolved`, `NoData`, `NameError`, `Lame`, plus the per-nameserver RRset the delegation walk decides |
-| The fifth outcome | **`Shadowed` is routed, not pinned.** Two candidate homes, named in [`golden-corpus.md`](../spec/golden-corpus.md) §7; the obligation **cannot be discharged for it** until [#140](https://github.com/winniel123/verge-asm/issues/140)'s successor answers the vector question |
-| The pin block | **27 cells** — 24 outcome, boundary and provenance pins, plus 3 withdrawal→return rows. **17 further cells are specified and held in escrow** against the `Shadowed` routing |
+| Which leaf is discharged | **`resolution-walk`, and only it** *by this ADR*. Four outcomes: `Resolved`, `NoData`, `NameError`, `Lame`, plus the per-nameserver RRset the delegation walk decides. **The fifth leaf is discharged by [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)**, so the file now discharges two |
+| The fifth outcome | ~~**`Shadowed` is routed, not pinned.**~~ **ROUTED AND NOW PINNED** — [#146](https://github.com/winniel123/verge-asm/issues/146) · [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) rules home **A**: `wildcard-discrimination` **is** in the membership vector, and the escrow is adopted whole as [`golden-corpus.md`](../spec/golden-corpus.md) **§8**. The two candidate homes stay recorded in §7 as history |
+| The pin block | **27 cells** *for `resolution-walk`* — 24 outcome, boundary and provenance pins, plus 3 withdrawal→return rows. ~~**17 further cells are specified and held in escrow** against the `Shadowed` routing~~ — **the escrow is spent**: those 17 are now §8's, adopted whole, plus a citation pin ADR-0086 adds, for **19** against `wildcard-discrimination`. **File total 46, escrow 0** |
 | How a boundary is pinned | **By a pair of rows, one on each side.** A single row cannot detect a collapse toward itself |
 | The CI matrix | **Three legs**, all gating, all native, all on **one** expected-output artefact: `amd64`/`GOAMD64=v1` · `arm64`/`GOARM64=v8.0` · `amd64`/`GOAMD64=v3` asserting **identity with leg 1** |
 | Every leg's build settings | **Stated explicitly, never defaulted** — `CGO_ENABLED=0` above all. The Go defaults are a function of the runner, and the native `arm64` leg is where they flip |
@@ -84,7 +100,7 @@ while protecting nothing.
 | Per-architecture expected output | **Refused, permanently.** An architecture-specific golden file is the divergence written down and blessed |
 | Emulated legs | **Refused**, and *not* on the FMA ground — on the scripted clock |
 | When the matrix runs | **Every pull request and every release.** The corpus is hermetic, so there is no cheaper trigger to design around |
-| What the pin block licenses | ADR-0021's gate, **second direction**: on `resolution-walk`, a version bump with no moved pin row and no changed parameter **fails the build** |
+| What the pin block licenses | ADR-0021's gate, **second direction**: on `resolution-walk` **and, since [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md), on `wildcard-discrimination`** — a version bump with no moved pin row and no changed parameter **fails the build**. Evaluated **per leaf** against that leaf's own block |
 
 ## Rationale
 
@@ -116,6 +132,13 @@ The rows themselves are not wasted. §7 of [`golden-corpus.md`](../spec/golden-c
 all seventeen in the same form as the discharged block, so the successor ticket inherits a written
 enumeration and rules only the routing question. Escrow is cheaper than re-derivation and it is
 visible, which an omission is not.
+
+> **The bet is settled and it paid** — [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+> [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) ruled the
+> routing (**home A**), adopted all seventeen **whole and unamended**, and re-derived nothing. Noted
+> here so the paragraph does not read, alone and in the present tense, as an open question. The one
+> correction the successor made is recorded in the thin section below: the escrow had **no cell** for
+> the ground the ruling turned on, and ADR-0086 added a boundary pair for it.
 
 ### Why a corpus row, and not the rule everybody reaches for first
 
@@ -301,7 +324,9 @@ not a special case at all, which is the only way to be sure it is covered.
 ## Consequences
 
 - **[`golden-corpus.md`](../spec/golden-corpus.md) is new**, and holds the two things that will be
-  revised: the 27-cell enumeration, the 17-cell escrow, and the three-leg matrix. It follows
+  revised: the 27-cell enumeration, ~~the 17-cell escrow~~ **§8's 19-cell block (the escrow adopted
+  whole by [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md), plus
+  a citation pin)**, and the three-leg matrix. It follows
   [`measurement-offers.md`](../spec/measurement-offers.md)'s precedent — *the tables will be revised
   and an ADR is a decision that will not.*
 - **ADR-0041's obligation 2 is defective and is *routed*, not amended here.** Its five-outcome list
@@ -309,10 +334,18 @@ not a special case at all, which is the only way to be sure it is covered.
   amending that ADR on its own branch and has ticketed the vector question, so the correction is
   made once, at one site, by the ticket that owns it. This ADR states the defect, discharges what it
   can, and takes nothing that is #140's.
+  **The correction has since been made**, at obligation 2's own site, by
+  [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+  [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md): **the list of
+  five is right and the scope was wrong** — the outcomes are pinned in two blocks against two gates.
 - **[ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s *"the release where we cannot
   tell"* gains a scope.** *"The honest default is to bump"* and its price — *"one facet family
-  clamped for one cadence"* — are true for three leaves and false for `resolution-walk`. Whether
-  they are false for a fourth is the routing question.
+  clamped for one cadence"* — are true for three leaves and false for `resolution-walk`. ~~Whether
+  they are false for a fourth is the routing question.~~ **They are false for a fourth**
+  ([ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)): the honest
+  default is true for **three** — `connect-outcome`, `tls-handshake`, `http-exchange` — and **false
+  for two**, `resolution-walk` and `wildcard-discrimination`. Superseded here, at the site that
+  states it.
 - **ADR-0021's gate gains no third direction.** The second direction already refuses an unjustified
   bump; what was missing was the evidence that would let it fire, and that is the pin block. This is
   deliberate: a third direction would be a new mechanism where an old one was merely unfed.
@@ -331,7 +364,10 @@ not a special case at all, which is the only way to be sure it is covered.
   golden-corpus sentence says the gate runs *in CI* and stops there; it now says the corpus runs on
   every shipped architecture against **one** expected output. No term is added, and the
   membership-vector sentence in `Transition` is **deliberately untouched** — that sentence is what
-  the routing question is about.
+  the routing question is about. **It has since been amended** by
+  [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+  [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md), which is the
+  ticket that owns it: the vector is `resolution-walk` **and** `wildcard-discrimination`.
 - **`Resolved`'s address set acquires a serialisation order and no ordering.** Ascending by
   `Address` key on the NDJSON, and unordered in the model, which is where ADR-0021's three-corpora
   chain already puts the boundary: the wire stops at the binary's edge, and a total order on bytes
@@ -349,7 +385,7 @@ not a special case at all, which is the only way to be sure it is covered.
 | --- | --- |
 | **Leave the obligation as ADR-0041's sentence and let the corpus author read it** — the smallest change, and what the ticket would have been closed as | It is the state the ticket names: a failure mode with no owner. Nothing counts the rows, nothing fails when they are absent, and the first reader to discover the gap is the operator whose `returned` became `appeared` |
 | **Pin all five outcomes to `resolution-walk`'s corpus, as ADR-0041's sentence literally instructs** | **The losing option, and it loses on the gate rather than on tidiness.** A row protects the leaf whose gate runs it. A `Shadowed` row in `resolution-walk`'s corpus is silent when `wildcard-discrimination` bumps — the leaf that actually decides the value — so the obligation would read discharged while protecting nothing. A false discharge is worse than an absent cell, which A5 at least counts |
-| **Rule the vector question here — `wildcard-discrimination` is in the membership vector, on the ground that a bump `Break`s `resolution`** | It is a defensible reading and it is not this ticket's to make. #140 has ticketed it, a decision lives in exactly one place, and the ruling carries an unpriced consequence — #115's `5` → `9` move would retroactively have broken every `Name`'s membership timeline. That deserves its own ticket, not a paragraph in this one |
+| **Rule the vector question here — `wildcard-discrimination` is in the membership vector, on the ground that a bump `Break`s `resolution`** | It is a defensible reading and it is not this ticket's to make. #140 has ticketed it, a decision lives in exactly one place, and the ruling carries an unpriced consequence — #115's `5` → `9` move would retroactively have broken every `Name`'s membership timeline. That deserves its own ticket, not a paragraph in this one. **[#146](https://github.com/winniel123/verge-asm/issues/146) · [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) is that ticket and it ruled the same way** — on a stronger ground than *a bump `Break`s `resolution`*, namely that `Shadowed` **cites no `Address`** — and it paid the price: **zero**, because nothing has shipped, with the expiry named. Deferring was right; the successor had the room to price it and this one did not |
 | **Say nothing about the fifth outcome and discharge four quietly** | The defect would survive undetected in ADR-0041's text, and the next session to read obligation 2 would write the rows against the wrong gate. Routing costs a section and buys the successor a written enumeration |
 | **A policy: never bump a membership-composing leaf on a dependency upgrade** | Discipline where this project ships failing tests, and it is also already covered — ADR-0021's second gate direction forbids an unjustified bump. The gap was never the rule, it was the evidence |
 | **A third gate direction, specific to membership leaves** | A new mechanism where an old one was unfed. The second direction fires correctly once the pin block exists; adding a third would leave two rules for one fact |
@@ -375,11 +411,17 @@ not a special case at all, which is the only way to be sure it is covered.
   its own list*), but completeness of the enumeration is not checkable by anything. An
   under-enumerated block passes its own coverage assertion silently, which is the same shape as
   ADR-0021's uncovered move and is disposed of the same way.
-- **The escrow's size is a guess about a question that is not answered.** Seventeen cells are
-  written against `wildcard-discrimination`'s value space as it stands today. If the routing question
-  answers that `Shadowed` decides no subject's presence, the correct number is **zero** and the
-  escrow is discarded rather than filed — and this ADR would have specified seventeen rows for
-  nothing. That is the cheaper error of the two available.
+- ~~**The escrow's size is a guess about a question that is not answered.**~~ **NO LONGER THIN —
+  the guess was taken and it paid.** [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+  [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) answers the
+  routing question **A** and adopts all seventeen **whole and unamended**, so the cheaper error was
+  not paid and the successor re-derived no rows. Struck at the site that states the thinness, per
+  [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). One thing
+  the escrow got **wrong** and ADR-0086 repairs: the seventeen pin the *suppression* ground and have
+  **no cell** for the ground the ruling actually turns on — that `Shadowed` carries no address set and
+  therefore cites no `Address`. ADR-0086 adds that boundary as a pair, taking the block to **19**.
+  The lesson is not that escrow is unsafe; it is that **an escrow written against a question's
+  framing may miss the ground its answer lands on**, and the adopting ticket has to check.
 - **Leg 3's yield is unmeasured.** No fraction in the declared-parameter set has been shown to
   diverge at `v3`; the argument is that the check is cheap and the failure it catches is silent.
   If it never fires, that is the pin working, and there is no way to distinguish that from the leg

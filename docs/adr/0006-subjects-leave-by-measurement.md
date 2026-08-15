@@ -191,9 +191,17 @@ the three, **`measured-absent`**, is a measurement of the subject that left.
   > `Transition` is derived, and the message fires reading **`appeared`** — the pair collapsing into
   > its uninteresting member exactly when a decommissioned host comes back. Retention cannot fix it
   > and history is never re-derived, so **the release owes the statement**: the re-baseline message
-  > names the loss ([ADR-0014](./0014-only-revealed-generalises.md)), `resolution-walk`'s golden
-  > corpus must pin the membership-deciding outcomes so a dependency upgrade provably does not bump
-  > the leaf, and the membership vector may not be widened. Retention's own floor — never deleting
+  > names the loss ([ADR-0014](./0014-only-revealed-generalises.md)), ~~`resolution-walk`'s golden
+  > corpus~~ **the membership leaves' golden corpora — `resolution-walk`'s *and*
+  > `wildcard-discrimination`'s, two blocks against two gates
+  > ([#146](https://github.com/winniel123/verge-asm/issues/146) ·
+  > [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md),
+  > [`golden-corpus.md`](../spec/golden-corpus.md) §2 and §8)** — must pin the membership-deciding
+  > outcomes so a dependency upgrade provably does not bump the leaf, and the membership vector may
+  > not be widened **by a release** (a correction of the record is not a widening — ADR-0086's rider
+  > on obligation 3). The one-leaf phrase is struck here, at the site that states it, per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+  > Retention's own floor — never deleting
   > the span before an open one — is the storage-layer twin of *nothing leaves because time passed*,
   > and it is discharged by never compacting the `Span` corpus at all.
 

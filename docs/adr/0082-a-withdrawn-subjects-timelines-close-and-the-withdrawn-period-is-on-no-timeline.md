@@ -250,9 +250,13 @@ The remedy is the three obligations ADR-0041 already wrote, and they now rest on
   alone and in the present tense, either would send a competent session to re-run a test that has
   been run.
 - **The three release obligations are unchanged and are no longer provisional.** ADR-0014's
-  re-baseline payload keeps its third element; `resolution-walk`'s golden corpus keeps the
-  membership-deciding rows ([#143](https://github.com/winniel123/verge-asm/issues/143) owns them);
-  and the membership vector may not be widened.
+  re-baseline payload keeps its third element; ~~`resolution-walk`'s golden corpus keeps the
+  membership-deciding rows~~ **the membership leaves' golden corpora keep the membership-deciding
+  rows — two blocks against two gates** ([#143](https://github.com/winniel123/verge-asm/issues/143)
+  owns `resolution-walk`'s, [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+  [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)
+  `wildcard-discrimination`'s); and the membership vector may not be widened **by a release** — a
+  correction of the record is not a widening, per ADR-0086's rider on obligation 3.
 - ~~**The closure is now the sole record of a departure, and only one closure reason has ever been
   named.** ADR-0007 gives `cascaded` for the cascade route. The model has at least three more —
   measured absence at the root, an `Address` losing its last citation, and an `Address` leaving a
@@ -271,15 +275,27 @@ The remedy is the three obligations ADR-0041 already wrote, and they now rest on
   covering it — a route ADR-0047 had already cut off from the measured ones and ADR-0074 had already
   given its own message class). The four routes named above are therefore **three reasons**. Nothing
   else is added to the closure: no vector, no actor, no pointer, no marker.
-- **An open item is raised against obligation 3, and it is not settled here.** ADR-0041 states that
-  membership composes `resolution-walk` and nothing else. But a `Name` under a `Shadowed` answer
-  *cannot leave at all*, and `Shadowed` is `wildcard-discrimination`'s output rather than
-  `resolution-walk`'s (ADR-0021's leaf table). If deciding that a subject does **not** leave is
-  deciding presence, then `wildcard-discrimination` is in the membership vector — and its
+- ~~**An open item is raised against obligation 3, and it is not settled here.**~~ **SETTLED** by
+  [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+  [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md), and
+  discharged at the clause that raises it, per
+  [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) — read
+  alone and in the present tense it sends a session to open a ticket that has been closed. The item
+  was: ADR-0041 states that membership composes `resolution-walk` and nothing else, but a `Name` under
+  a `Shadowed` answer *cannot leave at all*, and `Shadowed` is `wildcard-discrimination`'s output
+  rather than `resolution-walk`'s (ADR-0021's leaf table); if deciding that a subject does **not**
+  leave is deciding presence, then `wildcard-discrimination` is in the membership vector — and its
   control-label count has already moved `5` → `9`
-  ([#115](https://github.com/winniel123/verge-asm/issues/115)). This bears directly on *never widen
-  the membership vector* and on which leaf's golden corpus owes the `Shadowed` rows, and it is a
-  different question from this one.
+  ([#115](https://github.com/winniel123/verge-asm/issues/115)).
+  **The answer is yes, the vector is `resolution-walk` and `wildcard-discrimination`, and it is not a
+  widening but a correction of the record.** The deciding ground turned out **not** to be the
+  suppression this bullet names — that case is sound and unmeasured — but the **citation**:
+  `Shadowed` cites no `Address`, so the verdict decides whether an answer's address set enters the
+  estate, which is a cited `Address`'s membership affirmatively. The `5` → `9` move is priced at
+  **zero** because nothing has shipped and no `resolution` timeline exists, and ADR-0086 records that
+  the reason **expires at the first shipped release**. The `Shadowed` rows go to
+  `wildcard-discrimination`'s corpus — [`golden-corpus.md`](../spec/golden-corpus.md) §8, ADR-0085's
+  seventeen escrowed cells **adopted whole** plus a citation pin ADR-0086 adds.
 - **Nothing new is stored.** No value, no marker on a span, no membership timeline object, no
   fourth transition name.
 

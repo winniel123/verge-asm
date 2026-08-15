@@ -256,8 +256,21 @@ and the word is a lie, and the cause is a release.
 Which leaf? [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md) answers it, and the
 answer is uncomfortable. A `Name`'s membership is decided by `resolution-walk`; a cited `Address`'s
 membership is decided by the resolution that cites it, which is `resolution-walk` again. And #49 put
-the DNS library inside `resolution-walk`'s declared parameters, on a **dependency** cadence. **So the
-one leaf that reaches membership across the whole estate is a leaf `go.mod` can move.**
+the DNS library inside `resolution-walk`'s declared parameters, on a **dependency** cadence. ~~**So the
+one leaf that reaches membership across the whole estate is a leaf `go.mod` can move.**~~
+
+> **`one leaf` is superseded here, at the site that states it** — [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+> [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md), per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) and #106's
+> rule that a document supersedes itself. **There are two**, and the paragraph's conclusion is
+> unchanged and if anything sharper. Both a `Name`'s and a cited `Address`'s membership are read off
+> the **`resolution` value**, and that value is decided by `resolution-walk` **and**
+> `wildcard-discrimination` jointly — the second deciding `Shadowed`, which **cites no `Address`** and
+> so decides whether an answer's address set enters the estate at all. `go.mod` still reaches
+> membership, and it now does so through **two** gates: the DNS library is a declared parameter of
+> both leaves, so a library change that moves discrimination but not resolution breaks membership
+> where this paragraph says nothing would. The `Seed`-covered `Address` is still immune, for the
+> reason the next paragraph gives.
 
 The one population with an unbreakable membership timeline is the `Seed`-covered `Address`: it is in
 the estate *"exactly while a current resolution cites it or a `Seed` covers it"*, and a `Seed` is
@@ -276,14 +289,32 @@ consequence — *until a subject has withdrawn and returned again under this vec
 corrected afterwards, and an unnamed loss is indistinguishable from a decommissioned host coming back
 as a new one.
 
-**2. `resolution-walk`'s golden corpus is the instrument that keeps `returned` alive, and that is a
-new job for it.** ADR-0008's gate is bidirectional: a version may move *only* where a corpus row's
-output moved. So a DNS-library upgrade that changes retry timing but cannot change whether a name
-resolves must **provably** not bump the leaf — and *provably* means the corpus carries rows that pin
-the membership-deciding outcomes specifically: `Resolved`, `NoData`, `NameError`, `Lame`, `Shadowed`.
-A corpus that under-covers those turns every dependency upgrade into an estate-wide loss of
-`returned`. The corpus was built to stop versions moving for nothing; it now also protects the one
-transition a break destroys rather than clamps.
+**2. ~~`resolution-walk`'s~~ The membership leaves' golden corpora are the instrument that keeps
+`returned` alive, and that is a new job for them.** ADR-0008's gate is bidirectional: a version may
+move *only* where a corpus row's output moved. So a DNS-library upgrade that changes retry timing but
+cannot change whether a name resolves must **provably** not bump the leaf — and *provably* means the
+corpus carries rows that pin the membership-deciding outcomes specifically: `Resolved`, `NoData`,
+`NameError`, `Lame`, `Shadowed`. A corpus that under-covers those turns every dependency upgrade into
+an estate-wide loss of `returned`. The corpus was built to stop versions moving for nothing; it now
+also protects the one transition a break destroys rather than clamps.
+
+> **The scope of this obligation is corrected here, at the site that states it**
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by
+> [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+> [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md). **The list of
+> five is right; scoping it to `resolution-walk`'s corpus was wrong.**
+> [#143](https://github.com/winniel123/verge-asm/issues/143) ·
+> [ADR-0085](./0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md)
+> found that the five outcomes **span two leaves while naming one**: four are `resolution-walk`'s and
+> `Shadowed` is `wildcard-discrimination`'s (ADR-0021's leaf table). It discharged the four, escrowed
+> the fifth, and routed the vector question. ADR-0086 answers it: **`wildcard-discrimination` is in
+> the membership vector**, because `Shadowed` cites no `Address` and the verdict therefore decides
+> whether an answer's address set enters the estate. So the outcomes are pinned in **two blocks
+> against two gates** — [`golden-corpus.md`](../spec/golden-corpus.md) §2 for `resolution-walk` (27
+> cells) and §8 for `wildcard-discrimination` (19). **They are counted together and run apart**: a row
+> protects the leaf whose gate runs it, so filing a `Shadowed` row against `resolution-walk`'s gate
+> would read green while protecting nothing. Read alone and in the present tense, the sentence above
+> would send a competent session to do exactly that.
 
 **3. A release may not widen the membership vector.** Membership composes the narrowest vector that
 decides presence, and adding a leaf to it is not priced as a versioning cost — it is priced in
@@ -291,6 +322,19 @@ decides presence, and adding a leaf to it is not priced as a versioning cost —
 named for what it decides, never for the artefact that ships it* produced this for free; what it did
 not do is say that membership is the timeline where the rule is load-bearing rather than merely tidy.
 It is said here.
+
+> **This obligation stands, and it gains the rider without which it cannot be broken** —
+> [#146](https://github.com/winniel123/verge-asm/issues/146) ·
+> [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md). **The
+> membership vector is discovered from what decides presence, never declared.** A leaf omitted from
+> the record was never thereby outside the vector, so finding one is a **correction** and not a
+> widening; what this obligation forbids is a release **making** a leaf decide presence that did not.
+> Without the rider, *do not widen the vector* is satisfied by leaving a leaf out of the sentence,
+> which is precisely what had happened: the vector has been **`resolution-walk` and
+> `wildcard-discrimination`** since ADR-0021 named the second leaf, and this ADR recorded one.
+> The vector is **still the narrowest** — `connect-outcome`, `tls-handshake` and `http-exchange`
+> decide values membership does not read and stay out — and the `Seed`-covered `Address` still
+> composes nothing at all.
 
 ### Retention may never be the tighter clamp
 
