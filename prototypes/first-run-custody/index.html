@@ -195,6 +195,17 @@
            display: flex; align-items: center; gap: var(--space-4);
            font: 400 var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
   .ft-in .sp { margin-left: auto; }
+
+  /* ── THE DATELINE — ADR-0075 (#131), applied by #144 ──────────────────
+     The .anno box above is this file's own, and predates prototypes/seeds/'s
+     paragraph rules. Only the missing declarations are added, and the two that
+     would move existing layout — margin-bottom and max-width — are scoped to
+     the shell's first child, which is the dateline and never one of the twelve
+     annotations below. Nothing about those twelve changes. */
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .shell > .anno:first-child { margin-bottom: var(--space-5); max-width: 92ch; }
 </style>
 </head>
 <body>
@@ -261,11 +272,33 @@ function chrome(active, body) {
     <div class="nav-right"><span class="status faint">no cadence complete</span>
       <button class="btn sm ghost">Run scan</button></div>
   </div></header>
-  <div class="shell">${body}</div>
+  <div class="shell">${dateline()}${body}</div>
   <footer class="ft"><div class="ft-in">
     <span>prototype — issue #51</span><span class="sp"></span>
     <span>vocabulary: CONTEXT.md · visuals: design-system/</span>
   </div></footer>`;
+}
+
+/* ── THE DATELINE — ADR-0075 (#131), applied by #144 ────────────────────────
+   A prototype is a dated record of a READING, never of a RULE. The provenance
+   has to be in what the browser DRAWS: every recorded instance of a prototype
+   being wrongly believed happened in a browser, where an HTML comment is
+   invisible. Drawn on every screen, because every one is a reading. */
+function dateline() {
+  return `
+  <div class="anno">
+    <span class="ml">prototype · not part of the design</span>
+    <p><b>Issue #51 — "What does the operator type on first run, and what does the custody extension
+      declaration say?". Drawn 2026-08-13.</b> Throwaway: something to decide against, not
+      production UI and not a component library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a current value</b> — the corpus
+      as it stood on that date, and nothing here has been re-filled since. The only live absolutes
+      are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>): read a
+      figure there before believing one here. What is <i>not</i> a dated reading is the state these
+      screens draw — the acts they offer, the populations they show as non-empty and the sentences
+      they put in the product's mouth. A later ruling that makes one of those unreachable is marked
+      here in place and never redrawn.</p>
+  </div>`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

@@ -42,6 +42,54 @@ at the map's `THE CURRENT COMPOSED STATE` line as the only live absolutes. The `
 provenance in the HTML comment is not enough: nobody reads a prototype in its source, and every
 recorded instance of a prototype being believed happened in a browser.
 
+**The form is fixed, and it is copied rather than composed** —
+[#144](https://github.com/winniel123/verge-asm/issues/144) applied it to all eleven prototypes that
+lacked it, so a new prototype matches what the other thirteen already draw. Paste the CSS block —
+`prototypes/seeds/`'s dashed accent box, no new token — and render `dateline()` as the **first child
+of `.shell`**, from inside the file's single `chrome()` / `shell()` function so it draws on every
+variant, fill, screen and state:
+
+```css
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
+```
+
+```html
+  <div class="anno">
+    <span class="ml">prototype · not part of the design</span>
+    <p><b>Issue #N — "&lt;the question the ticket asked&gt;". Drawn YYYY-MM-DD.</b> Throwaway:
+      something to decide against, not production UI and not a component library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a current value</b> — the corpus
+      as it stood on that date, and nothing here has been re-filled since. The only live absolutes
+      are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>): read a
+      figure there before believing one here. What is <i>not</i> a dated reading is the state these
+      screens draw — the acts they offer, the populations they show as non-empty and the sentences
+      they put in the product's mouth. A later ruling that makes one of those unreachable is marked
+      here in place and never redrawn.</p>
+  </div>
+```
+
+Three riders on filling it in:
+
+- **The date is the date the prototype was *drawn*, never the date the dateline was added.** For a
+  new prototype those are the same day. For one being marked later, read it off the file's own
+  history — `git log --diff-filter=A --date=short -- prototypes/<name>/index.html` — because
+  stamping today's date on a two-day-old reading makes the dateline the false-currency artefact it
+  exists to prevent.
+- **Where a later ticket restated copy on the rendered surface, name it too**, as `#28`'s and
+  `#47`'s datelines do. The dateline's three parts are the ticket, the date and the composed-state
+  clause; a second hand on the surface is part of the first.
+- **The dateline is artefact-scoped and unconditional; the mark below is drawing-scoped.** They are
+  two different objects and neither substitutes for the other. `prototypes/signal-evaluability/`
+  carries both and keeps them apart.
+
 **Meeting one whose figure a later ruling invalidated.** Two questions, in order:
 
 1. **Did the ruling move a quantity?** Then it is a **figure**, it is dated, and **nothing is owed** —
