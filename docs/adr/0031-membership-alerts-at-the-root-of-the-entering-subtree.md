@@ -319,4 +319,9 @@ flagship the whole time.
 
 **One count here is stale.** *"All ten signal rules are transition-shaped"* is right about the
 shape and wrong about the number: [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s
-domain table enumerates **sixteen** rules. Nothing in the argument depends on the count.
+domain table enumerates ~~**sixteen**~~ **seventeen** rules since
+[#128](https://github.com/winniel123/verge-asm/issues/128). Nothing in the argument depends on the
+count — and the seventeenth is a live instance of what this ADR rules: a `Name` entering the estate
+already resolving into non-globally-reachable space opens
+`non-globally-reachable-address-resolved-from-internet` at `fired`, with no `Transition` beneath it,
+and the entering subject's membership **census** is its only carrier.

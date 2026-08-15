@@ -249,7 +249,10 @@ different sets, deliberately: `Custody` may move on a resolution, and a `Vantage
 moved because a DNS answer changed would shuttle observations between the two legs of `Exposure`
 and manufacture drift in the flagship value. It is what `Reach` is measured per,
 and therefore what makes `Exposure` a conclusion across two classes rather than a reading from
-one prober. It is also an **aperture input**: the first vantage of a class widens what the
+one prober. It is **not `Reach`'s alone**: a `Signal` whose fact is scoped to a vantage restricts its
+`Predicate domain` to that class and carries the class in its name, which is what admits
+`non-globally-reachable-address-resolved-from-internet` on `resolution` and refuses its internal twin
+([ADR-0071](./docs/adr/0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)). It is also an **aperture input**: the first vantage of a class widens what the
 composition covers, and because `Exposure` needs both legs there is nothing there to break — it
 **opens** the `Reach` and `Exposure` timelines, yielding `revealed` and one coverage-class message
 ([ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md)). The cost is stated rather than hidden: a vantage inside operator address space the
@@ -901,18 +904,31 @@ leaving a `Predicate domain` is neither — it is not a `Transition` — but a r
 it where one exists, or **the facet `Transition` beneath it** where the subject entered the domain
 because a value the rule reads moved. Where there is neither — the timeline merely opened, on a
 slower `Scan` we authored — it reaches nobody, because a schedule arriving is not the world moving.
+Where the fact a rule reads is **scoped to a vantage**, that scope is carried in the rule's name and
+in its `Predicate domain`, and the rule is evaluated nowhere else: a claim read outside the context
+that gives its operative term meaning ranks nothing, which is why
+`sensitive-port-reached-from-internal` is refused and
+`non-globally-reachable-address-resolved-from-internet` ships
+([ADR-0071](./docs/adr/0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)).
 Where a rule reads a **curated table asserting about the world**, that table — not the rule — is
 what an evidence standard governs, and the naming discipline above is usually why there is no such
-table to govern: a rule named for the fact it reads needs no list to say what the fact means.
+table to govern: a rule named for the fact it reads needs no list to say what the fact means. Where
+such a table exists, **transcribing an owner's artefact is not authoring a table and selecting from
+one is** — the rows may be somebody else's, the *selection* is always ours, so a table whose selection
+predicate is a column of the artefact itself is attested by that artefact whole, while a table whose
+selection predicate is a judgement of ours owes an owner for the judgement (ADR-0071).
 See
 [ADR-0004](./docs/adr/0004-signals-are-release-coupled-rules.md),
 [ADR-0015](./docs/adr/0015-the-value-space-is-the-commitment.md),
 [ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md) — whose v1 table
-enumerates **sixteen** rules, against the stale *ten* in three ADRs —
+enumerates ~~**sixteen**~~ **seventeen** rules since
+[#128](https://github.com/winniel123/verge-asm/issues/128), against the stale *ten* in three ADRs —
 [ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md),
 [ADR-0032](./docs/adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md),
-[ADR-0033](./docs/adr/0033-a-move-carries-the-rule-that-opens-at-fired.md) and
-[ADR-0065](./docs/adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md).
+[ADR-0033](./docs/adr/0033-a-move-carries-the-rule-that-opens-at-fired.md),
+[ADR-0065](./docs/adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md)
+and
+[ADR-0071](./docs/adr/0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md).
 _Avoid_: finding, issue, alert, vulnerability, detection, severity
 
 **Predicate domain**:

@@ -152,8 +152,17 @@ the aperture lands, and the obligation is owed to whoever lands it.
 
 ## Consequences
 
-- **The v1 rule set stays at sixteen.** No count in the corpus moves, and
-  [#12](https://github.com/winniel123/verge-asm/issues/12) carries sixteen unchanged.
+- ~~**The v1 rule set stays at sixteen.** No count in the corpus moves, and
+  [#12](https://github.com/winniel123/verge-asm/issues/12) carries sixteen unchanged.~~
+  > **SUPERSEDED as a figure, not as a ruling, by [#128](https://github.com/winniel123/verge-asm/issues/128)**
+  > ([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)). The set
+  > is **seventeen** and #12 carries seventeen. Nothing about this ADR's decision moves — #128 is its
+  > first application in the **admitting** direction, and it admits precisely because **neither** of
+  > the two grounds is available: the fact clears every admissibility test, and the aperture ground is
+  > unavailable in the strongest form, the observation already existing. What remains is this ADR's own
+  > third route, a scope cost weighed — and #128 weighed it and did not decline it. Marked at the
+  > sentence per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+  > as widened by [#106](https://github.com/winniel123/verge-asm/issues/106).
 - **[`insecure-listener-rules.md`](../research/insecure-listener-rules.md) §1, §9.2 and §12 q2 are
   amended in place** by [#104](https://github.com/winniel123/verge-asm/issues/104): the *fits neither
   rule* ground is withdrawn, the verdict is restated on the aperture ground, and §12 q2 is answered

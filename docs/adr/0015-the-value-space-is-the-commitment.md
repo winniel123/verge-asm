@@ -275,7 +275,14 @@ question was posed on the assumption that the prober ships.
 The Decision row *"SMB signing — admissible in principle; **out of v1** for want of the prober, not
 for want of a principle"* **stands unchanged**, and #104 ratified it after carrying it back to
 [`insecure-listener-rules.md`](../research/insecure-listener-rules.md) §9.2, which had never heard of
-it. **The v1 rule set stays at sixteen.**
+it. ~~**The v1 rule set stays at sixteen.**~~ **SEVENTEEN since
+[#128](https://github.com/winniel123/verge-asm/issues/128)**, which admitted
+`non-globally-reachable-address-resolved-from-internet`
+([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)) — marked at
+the sentence per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+as widened by [#106](https://github.com/winniel123/verge-asm/issues/106). **The SMB row and this ADR's
+own ruling are untouched**: #128 adds a rule whose aperture already exists, which is the opposite case
+to the one deferred here and does not disturb it.
 
 Two things this ADR did not say, added rather than corrected.
 

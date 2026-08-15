@@ -107,13 +107,18 @@ none does.~~ ADR-0024's stated **reason** is withdrawn; see §7.
 
 ### 5. The signal layer, per rule — where the drift class actually lives
 
-A `Signal`'s edges are messages. Sixteen rules are named in ADR-0024's v1 domain table.
+A `Signal`'s edges are messages. ~~Sixteen~~ **Seventeen** rules are named in ADR-0024's v1 domain
+table, [#128](https://github.com/winniel123/verge-asm/issues/128) having added
+`non-globally-reachable-address-resolved-from-internet`. **Every count in this section is marked at
+its sentence and only the denominators move** — the membership of the four below is unchanged, #128's
+clearing edge being an ordinary silent one
+([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)).
 
-- **`not-fired` → `fired` is a message, drift class, for all sixteen.** On a subject already in the
+- **`not-fired` → `fired` is a message, drift class, for all ~~sixteen~~ seventeen.** On a subject already in the
   estate this edge is by construction *something got worse*, so it needs no base rate to place it
   on [#17](https://github.com/winniel123/verge-asm/issues/17)'s alerting side.
 - **`fired` → `not-fired` is silent, except where a third party could have caused the clearing.**
-  Exactly four of sixteen qualify, and they are exactly the four rules whose clearing condition is a
+  Exactly four of ~~sixteen~~ seventeen qualify, and they are exactly the four rules whose clearing condition is a
   name somebody else can claim: `lame-delegation`, `cname-target-name-error`,
   `zone-declared-name-returns-name-error` and `resolved-name-absent-from-zone`. Those four carry
   [#35](https://github.com/winniel123/verge-asm/issues/35)'s *this improved and you should still
@@ -174,7 +179,14 @@ The only additions are payload: two more producers of a census shape that alread
   [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md), ADR-0029 and ADR-0031 each say
   *ten*. This is [#47](https://github.com/winniel123/verge-asm/issues/47)'s hazard again — a count
   written once and copied three times after the thing it counted grew — and
-  [#12](https://github.com/winniel123/verge-asm/issues/12) must use sixteen.
+  [#12](https://github.com/winniel123/verge-asm/issues/12) must use ~~sixteen~~ **seventeen**.
+  > **The set grew again at [#128](https://github.com/winniel123/verge-asm/issues/128)**
+  > ([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)), which is
+  > this bullet's own hazard arriving on schedule. The ruling — *a count written once and copied is the
+  > defect* — is why the live figure belongs on the map's composed-state line and every ADR figure is a
+  > dated record. Marked at the sentence per
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+  > by [#106](https://github.com/winniel123/verge-asm/issues/106).
 - **`dns-record` is a recording facet in v1 and has no channel at all.** An MX, TXT or NS change
   reaches nobody. This is a scope statement rather than a hole: the route to alerting on one is a
   rule under ADR-0004's cadence test, which [#35](https://github.com/winniel123/verge-asm/issues/35)
