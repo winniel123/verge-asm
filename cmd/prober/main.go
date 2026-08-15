@@ -5,9 +5,11 @@
 package main
 
 import (
+	"io"
 	"log"
 	"os"
 
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -17,17 +19,23 @@ func main() {
 	}
 }
 
-func run(stdin *os.File, stdout *os.File) error {
+func run(stdin io.Reader, stdout io.Writer) error {
 	spec, err := wire.DecodeJobSpec(stdin)
 	if err != nil {
 		return err
 	}
 
-	// The skeleton emits no real measurement yet — later tickets add the
-	// DNS/TCP/TLS/HTTP kinds. This proves the stdin JobSpec -> stdout
-	// NDJSON contract end to end.
-	return wire.EncodeObservation(stdout, wire.Observation{
-		Batch: spec.Batch,
-		Kind:  spec.Kind,
-	})
+	switch spec.Kind {
+	case resolutionwalk.Kind:
+		// The first live measurement: the resolution-walk leaf, dispatched
+		// by the dns Scan (v1 spec §3.3/§3.4).
+		return resolutionwalk.Run(spec, stdout)
+	default:
+		// The skeleton's job-spec-in / NDJSON-out proof for kinds whose leaf
+		// a later ticket adds (TCP/TLS/HTTP).
+		return wire.EncodeObservation(stdout, wire.Observation{
+			Batch: spec.Batch,
+			Kind:  spec.Kind,
+		})
+	}
 }

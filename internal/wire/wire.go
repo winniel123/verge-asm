@@ -27,12 +27,21 @@ type JobSpec struct {
 
 // Observation is one NDJSON line the prober writes to stdout per
 // measurement it performs.
+//
+// The Facet/Subject/Discriminator/Vantage fields are additive and optional:
+// a leaf that decides a facet value (e.g. resolution-walk) fills them so the
+// worker can attribute the line to a (subject, facet, discriminator, vantage)
+// timeline without re-deriving it. Kinds that predate them leave them empty.
 type Observation struct {
-	Batch   string          `json:"batch"`
-	Kind    string          `json:"kind"`
-	Address string          `json:"address,omitempty"`
-	Data    json.RawMessage `json:"data,omitempty"`
-	Err     string          `json:"err,omitempty"`
+	Batch         string          `json:"batch"`
+	Kind          string          `json:"kind"`
+	Facet         string          `json:"facet,omitempty"`
+	Subject       string          `json:"subject,omitempty"`
+	Discriminator string          `json:"discriminator,omitempty"`
+	Vantage       string          `json:"vantage,omitempty"`
+	Address       string          `json:"address,omitempty"`
+	Data          json.RawMessage `json:"data,omitempty"`
+	Err           string          `json:"err,omitempty"`
 }
 
 // DecodeJobSpec reads a single JobSpec JSON object from r.
