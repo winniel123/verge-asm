@@ -367,6 +367,27 @@ document.
 > on every firing of a row would be a constant sitting beside a per-subject decision. **Do not read
 > the arrival of `Annotation` as the trigger.** The condition stands as written and is still unmet.
 
+> **This section is NOT reopened, and it is distinguished at one point** —
+> [#136](https://github.com/winniel123/verge-asm/issues/136),
+> [ADR-0078](./0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md), 2026-08-15. **The screen
+> ruling stands exactly as written**: the weak tier reaches no v1 interface, the four grounds above
+> are undisturbed, and the condition that would move it — *the operator acquires a sanctioned way to
+> disagree with a row* — is unchanged and still unmet. What #136 settles is the siting of a
+> **different** disclosure. §7's *"it stays in the instrument's own document"* is about the **weak
+> tier**, whose subject is a **row of that table**. The **bounded-residue disclosure** that
+> [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) makes a release owe the
+> queue has a different subject — a **reading budget spent over one order that spans all four curated
+> tables** — so no single table's document can state *how far down it read*. **[measured]**
+> [`sensitive-ports.md`](../research/sensitive-ports.md) §39.4 carries two cells that are not port
+> cells, interleaved by **rung** among the port cells rather than appended after them, one of them at
+> rung 1; and `weak-key-and-signature.md` contributes zero, so a per-table statement there would be a
+> standing statement of nothing — the **permanent caveat** this section forbids by name. That disclosure is sited at
+> [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md), as one **dated entry per
+> release**, and it is a **curator's document that reaches no interface** on this section's own
+> grounds — including, by the fourth ground, no operator-facing release note. **This box is written
+> here rather than only in ADR-0078** because #125 measured what a withdrawal that supplies no
+> replacement does: a clause that names no successor is re-derived by the next session that needs one.
+
 ### 8. An attestation moving is already specified — and §10.4 made de-attestation silent
 
 The ticket asks what happens when an attestation changes underneath a shipped rule, and carries #21's
