@@ -133,11 +133,22 @@ func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 		s := f.seeds[i]
 		rows = append(rows, db.ListSeedsRow{
 			ID: s.ID, Kind: s.Kind, NameDomain: s.NameDomain, AddressCidr: s.AddressCidr,
-			CreatedBy: s.CreatedBy, CreatedAt: s.CreatedAt,
+			CustodyExtension: s.CustodyExtension,
+			CreatedBy:        s.CreatedBy, CreatedAt: s.CreatedAt,
 			CreatedByUsername: f.accounts[s.CreatedBy].Username,
 		})
 	}
 	return rows, nil
+}
+
+func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExtensionParams) error {
+	for i, s := range f.seeds {
+		if s.ID == arg.ID && s.Kind == "name" {
+			f.seeds[i].CustodyExtension = arg.CustodyExtension
+			return nil
+		}
+	}
+	return nil // a missing or address-scope row is a no-op, matching the SQL guard
 }
 
 func (f *fakeStore) CreateNameExclusion(_ context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error) {
