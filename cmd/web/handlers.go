@@ -51,6 +51,7 @@ type store interface {
 	GetNameSubject(ctx context.Context, subjectKey string) (db.GetNameSubjectRow, error)
 	GetNameCitation(ctx context.Context, subjectKey string) (db.GetNameCitationRow, error)
 	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
+	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)

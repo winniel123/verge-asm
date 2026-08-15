@@ -126,9 +126,38 @@ func TestSubjectDrilldownRendersCitationChainAndPlaceholders(t *testing.T) {
 	if !strings.Contains(drill, "Resolved") || !strings.Contains(drill, "203.0.113.2") {
 		t.Errorf("current resolution not rendered; body: %s", drill)
 	}
-	// Placeholder sections for the later tickets.
-	if !strings.Contains(drill, "ticket 10") || !strings.Contains(drill, "ticket 22") {
-		t.Errorf("timeline/rules placeholders missing; body: %s", drill)
+	// The Timelines section is now wired (#190): the two Resolved answers fold to a
+	// closed span and a current one, on the resolution timeline. The Rules section
+	// remains a placeholder for ticket 22.
+	if !strings.Contains(drill, "Current and closed timelines") {
+		t.Errorf("timelines section missing; body: %s", drill)
+	}
+	if !strings.Contains(drill, "ticket 22") {
+		t.Errorf("rules placeholder missing; body: %s", drill)
+	}
+}
+
+func TestSubjectDrilldownRendersCurrentAndClosedTimelines(t *testing.T) {
+	// AC6: re-running the dns Scan with a changed answer produces a new Span and
+	// closes the old; the drill-down renders current + closed timelines.
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.1"]}`)
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock.Add(24*time.Hour), `{"outcome":"Resolved","addresses":["203.0.113.2"]}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	drill := getBody(t, ac, base+"/subjects/api.example.com", http.StatusOK)
+
+	// A current span (the later answer) and a closed-history row (the earlier one).
+	for _, want := range []string{"Current and closed timelines", "Current", "Opened", "Closed"} {
+		if !strings.Contains(drill, want) {
+			t.Errorf("timeline drill-down missing %q; body: %s", want, drill)
+		}
+	}
+	// The resolution facet timeline is labelled and its closed span is present.
+	if !strings.Contains(drill, "resolution") {
+		t.Errorf("resolution timeline not labelled; body: %s", drill)
 	}
 }
 
