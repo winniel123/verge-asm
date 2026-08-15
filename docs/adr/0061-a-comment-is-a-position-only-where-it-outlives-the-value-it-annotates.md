@@ -94,6 +94,12 @@ Four limbs.
    [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list, where a
    default changeable in one commit with no release note is a different exposure from one on a released
    documentation page — and that is a different column from the tier.
+   > **CONFIRMED and taken up by [#125](https://github.com/winniel123/verge-asm/issues/125).** This
+   > clause is the ruling, written a ticket early: **artefact class is the key to the watch**, read as
+   > the **revision act**, and it is *a different column from the tier* exactly as stated. The five
+   > rungs are this sentence's *one commit with no release note* versus *a released documentation page*
+   > generalised to a ladder. [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md),
+   > [`sensitive-ports.md`](../research/sensitive-ports.md) §39.3.
 
 ## Rationale
 
@@ -179,8 +185,12 @@ published API surface inherits limbs 2 and 3.
   endpoint"* is a **label** under limb 1: set `healthzBindAddress: "0.0.0.0"` and the sentence is false.
   #95's conservative branch is **confirmed on a rule rather than on a citation**, and the
   `15 / 13 / 2` the ticket priced — `14 / 14 / 2` on the composed state — is not spent.
-  [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list stays at
-  `5432/tcp`, `5984/tcp` and `10248/tcp`.
+  ~~[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list stays at
+  `5432/tcp`, `5984/tcp` and `10248/tcp`.~~ *(The **weak tier** stays at those three; the identity with
+  the watch list is **SUPERSEDED** by [#125](https://github.com/winniel123/verge-asm/issues/125), which
+  keys the watch on the **revision act**. `10248` is on the queue either way, and at its **head** —
+  this ADR's own artefact class, a config-API doc comment, is **rung 1**.
+  [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md).)*
 - **§16.5's `10255/tcp` ruling is re-founded rather than disturbed.** It fails at limb 1's **second**
   step, not its first: the sentence survives its value and is refused as a description of what the port
   serves. The row is in the prohibition tier on §18's category statement and its footing does not depend
