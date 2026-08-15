@@ -267,6 +267,15 @@ type Querier interface {
 	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
 	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
+	// The two most recent `reachability` spans per (Service, vantage), joined to the
+	// vantage's prober endpoint — the Exposure landing view's read (#196). rn = 1 is
+	// the current span (the leg's value) and rn = 2 is its immediate predecessor
+	// (the flagship internet not-reached -> reached transition is read from the pair).
+	// Vantage class is deliberately NOT selected: the caller re-verifies it every
+	// render from the prober's presented (dialled) address against the operator's
+	// declared address scopes (CONTEXT.md `Vantage class`), never from a static
+	// column, so this read carries the host and availability instead.
+	ListReachabilitySpansForExposure(ctx context.Context) ([]ListReachabilitySpansForExposureRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The operator's overrides of the authored ship defaults. The handler merges

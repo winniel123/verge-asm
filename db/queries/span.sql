@@ -59,3 +59,34 @@ SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
 FROM span
 WHERE subject_kind = @subject_kind AND subject_key = @subject_key
 ORDER BY facet, discriminator, vantage_id, source, opened_at, id;
+
+-- name: ListReachabilitySpansForExposure :many
+-- The two most recent `reachability` spans per (Service, vantage), joined to the
+-- vantage's prober endpoint — the Exposure landing view's read (#196). rn = 1 is
+-- the current span (the leg's value) and rn = 2 is its immediate predecessor
+-- (the flagship internet not-reached -> reached transition is read from the pair).
+-- Vantage class is deliberately NOT selected: the caller re-verifies it every
+-- render from the prober's presented (dialled) address against the operator's
+-- declared address scopes (CONTEXT.md `Vantage class`), never from a static
+-- column, so this read carries the host and availability instead.
+SELECT subject_key, vantage_id, host, availability, value, is_gap, derivation, opened_at, closed_at, rn
+FROM (
+    SELECT sp.subject_key AS subject_key,
+           sp.vantage_id  AS vantage_id,
+           v.host         AS host,
+           v.availability AS availability,
+           sp.value       AS value,
+           sp.is_gap      AS is_gap,
+           sp.derivation  AS derivation,
+           sp.opened_at   AS opened_at,
+           sp.closed_at   AS closed_at,
+           ROW_NUMBER() OVER (
+               PARTITION BY sp.subject_key, sp.vantage_id
+               ORDER BY sp.opened_at DESC, sp.id DESC
+           ) AS rn
+    FROM span sp
+    LEFT JOIN vantage v ON v.id = sp.vantage_id
+    WHERE sp.subject_kind = 'service' AND sp.facet = 'reachability'
+) ranked
+WHERE rn <= 2
+ORDER BY subject_key, vantage_id, rn;
