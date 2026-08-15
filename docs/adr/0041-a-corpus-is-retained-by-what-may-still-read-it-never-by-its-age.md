@@ -125,9 +125,30 @@ rather than as a day count, per [ADR-0038](./0038-a-constant-is-a-product-only-w
 the cadence is a quantity the operator moves, so shipping the product of a multiple and a cadence
 would go stale with nothing in the repository changing. Below that floor `Coverage` cannot answer its
 own question — *did the slowest scan run, and when did it last complete* — which is the one question
-that destination exists for ([#22](https://github.com/winniel123/verge-asm/issues/22)). At today's
+that destination exists for ([#22](https://github.com/winniel123/verge-asm/issues/22)). ~~At today's
 shipped `Scan`s the floor is two weeks with `tls-acceptance` the slowest enabled one, and two months
-if an operator enables the cold tier.
+if an operator enables the cold tier.~~
+
+> **The worked day count is withdrawn here, at the site that states it** — and it is withdrawn
+> rather than re-filled, because the sentence before it forbids exactly what it does.
+> [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md) is quoted two
+> sentences earlier: *shipping the product of a multiple and a cadence would go stale with nothing in
+> the repository changing.* It then shipped that product, and the product went stale on the next
+> ticket but one. **`tls-acceptance` is not the slowest enabled `Scan`.**
+> [#124](https://github.com/winniel123/verge-asm/issues/124) added **`zone`** at **monthly** and did
+> not discharge this clause, so on any install supplying a zone file the floor has been `k` × monthly
+> since that ticket landed — and the *"two months if an operator enables the cold tier"* half no
+> longer distinguishes anything, the default already being there.
+> [#142](https://github.com/winniel123/verge-asm/issues/142) ·
+> [ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)
+> has since added a fifth `Scan`, **`dns`** at daily, which does not move the floor.
+> **No replacement figure is written here**, per ADR-0038 and per this paragraph's own rule: the
+> floor is `k` cadences of the slowest enabled `Scan`, stated as a multiple, and it is **computed at
+> render time from the enabled `Scan` set** — [#139](https://github.com/winniel123/verge-asm/issues/139) ·
+> [ADR-0081](./0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md) draws it that
+> way precisely so no interface can ever carry a stale one again.
+> Found independently by #142 and #139 in the same parallel batch, each deferring the repair to the
+> other; recorded by the merging session.
 
 The cost the fog patch named is real and is accepted: *an aged-out `Dispatch` may be the only
 evidence a believed-in measurement never happened.* That is a forensic loss, not a modelling one, and
