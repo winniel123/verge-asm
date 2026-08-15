@@ -302,10 +302,21 @@ permanently** — including the
 and it is stated on `Coverage` rather than left to be discovered: the port-tier line names the tier,
 its cadence and its off state, and carries ~~`0 of 39 sensitive pairs unread`~~ ~~`0 of 41 sensitive
 pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ ~~`0 of 38 sensitive pairs unread`~~
-**`5 of 38 sensitive pairs unread`** and `0 of 16 rules unevaluable`. ~~Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
+**`5 of 38 sensitive pairs unread`** and `0 of` ~~`16`~~ **`17`** `rules unevaluable`. ~~Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
 puts every sensitive pair inside the hot set, and~~ **The second is true by construction and the
-first was not**, and of the sixteen rules one names a port (fully
-covered), four read `Name`s, and eleven read a facet on a subject. **The tier bounds which subjects
+first was not**, and of the ~~sixteen~~ **seventeen** rules one names a port (fully
+covered), four read `Name`s, and ~~eleven~~ **twelve** read a facet on a subject.
+
+> **DENOMINATOR moved to seventeen, 2026-08-15 by
+> [#128](https://github.com/winniel123/verge-asm/issues/128)**
+> ([ADR-0071](../adr/0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)),
+> which admits `non-globally-reachable-address-resolved-from-internet`. **The `0` is unchanged and
+> the new rule does not disturb the aperture claim**: it reads `resolution`'s existing address set,
+> which is a facet on a subject and names no port, so it joins the third bucket and the tier bounds
+> it no more than the other eleven. *Recorded in the ten-ticket merge reconciliation; #128 and #124
+> ran concurrently and neither could see the other's figure.* **The per-bucket split is arithmetic
+> here, not a re-walk** — ADR-0032's own seventeen-rule walk is the authority, and running that gate
+> whole is its own open item. **The tier bounds which subjects
 exist, never which rules can speak**, so what the cold tier buys is drift breadth rather than signal
 correctness. A count of unmeasured ports is deliberately absent: it is knowable, which is what makes
 it tempting, and it is [#28](https://github.com/winniel123/verge-asm/issues/28)'s refused
