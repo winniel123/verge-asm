@@ -23,14 +23,28 @@ are squatted, and that **"uncontested convention has to be"** the test instead.
 That sentence has been deciding rows for a year without saying what makes a convention *contested*,
 and the table contains two rulings that look identical and came out opposite:
 
-- **`9200/tcp` is on the list.** Elasticsearch squats on `wap-wsp`, *"WAP connectionless session
+- **~~`9200/tcp` is on the list.~~** Elasticsearch squats on `wap-wsp`, *"WAP connectionless session
   service"*.
 - **`9100/tcp` is excluded.** `sensitive-ports.md` §4.6: *"Squats on `hp-pdl-datastr` … One port,
   two completely different services, opposite populations."*
 
-Nothing written down separates them. Read as *a squat is fatal*, `9200`, `9300`, `2181`, `9042`,
+Nothing written down separates them. Read as *a squat is fatal*, ~~`9200`, `9300`,~~ `2181`, `9042`,
 `10250`, `10255` and `623/udp` all leave the list. Read as *a squat is never fatal*, `9100` returns
-and the gate stops doing work. The table has been running on an unstated third reading, and an
+and the gate stops doing work.
+
+> **Both `9200` clauses and the `9300` clause struck at the clause by
+> [#133](https://github.com/winniel123/verge-asm/issues/133)'s gate run (G4).** `9200/tcp` and
+> `9300/tcp` **are not on the list** — [#114](https://github.com/winniel123/verge-asm/issues/114)
+> removed both rows on the **claim** gate ([`sensitive-ports.md`](../research/sensitive-ports.md)
+> §38), and they are §4.6 entries. **This ADR's determinacy verdicts on `wap-wsp` and `vrace` are
+> unchanged, unread and correct** — determinacy is not what removed them, and the reconstruction
+> table below already says so **per row**. What #114 did not do is strike the **premise** three
+> hundred lines above the table, which is the clause a session reads first and the one that would
+> cause it to rebuild the belief. That is
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) exactly:
+> the amendment landed at the site that *records* the verdict and not at the site that *specifies*
+> the puzzle. **The puzzle is unaffected** — `9100` versus the surviving five is the same puzzle and
+> the ADR's answer to it is untouched. The table has been running on an unstated third reading, and an
 unstated criterion is precisely what §2 exists to prevent — the defect
 [#30](https://github.com/winniel123/verge-asm/issues/30) found in Claim 1 and #37 repaired, one gate
 across.
