@@ -9,8 +9,11 @@
 
 [ADR-0011](./0011-a-facet-is-six-parts.md) ruled that **any facet value requiring more than one
 measurement to establish is decided by the measurement binary inside a single batch, never
-assembled afterwards** — because assembling `Shadowed` from this name's answer plus the parent
-zone's poison signature puts a cross-observation dependency, with its own currency problem,
+assembled afterwards** — because assembling `Shadowed` from this name's answer plus the ~~parent
+zone's~~ **parent name's** poison signature (the control probe runs under a name's **parent**, not at
+a zone boundary —
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md))
+puts a cross-observation dependency, with its own currency problem,
 inside the comparison path. It named the price and did not pay it: *the measurement binary is now
 load-bearing for four facet values, so a prober version is an input to what a value is.*
 
@@ -114,7 +117,7 @@ carrying stated reasons* would have no reason to state.
 | `tls-handshake` | Handshake completed, chain read off it, or `NoTLS`; per-candidate accept/reject | `certificate`, `tls-acceptance` | Handshake timeout; **the TLS library** |
 | `http-exchange` | `Responded(status, Location, WWW-Authenticate, Server, title) │ NotHTTP` | `http-identity` | Request timeout, capped body read; **the HTTP client and parser** |
 | `resolution-walk` | `NameError │ NoData │ Lame │ Resolved(unordered address set)`, and per-nameserver `serves │ does-not-serve` | `resolution`, `dns-record` | Query timeout, retries, TCP fallback policy; **the DNS library** |
-| `wildcard-discrimination` | `Shadowed`, on any qtype | `resolution`, `dns-record` | Control-label count and construction, the match predicate |
+| `wildcard-discrimination` | `Shadowed`, on any qtype | `resolution`, `dns-record` | Control-label count and construction, the match predicate. **The `Name`s the labels are generated under are not here and never were** — that population is the **seventh aperture input**, recorded on the `Batch` ([ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)), because it is a function of the batch's scope and a parameter is authored data. The match predicate has **no value anywhere**: [#111](https://github.com/winniel123/verge-asm/issues/111) |
 
 Two properties of that table are the whole answer to *what happens on the release where we cannot
 gate this*, and they are structural rather than procedural.

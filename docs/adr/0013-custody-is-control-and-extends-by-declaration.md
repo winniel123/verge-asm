@@ -212,7 +212,10 @@ The coverage class already holds **a closing custody gate**, and this ADR's Cons
 put the gate *opening by operator act* there too — `revealed`, one message at the cause. What had
 no message was the gate opening **because the world moved under a standing declaration**. That is
 the same aperture input in the same direction, so **no fifth cause, no fourth class, and no sixth
-aperture input** — this ADR's *"no new notification class"* survives unamended. What is new is the
+aperture input *from this ticket*** — *a claim about what #55 added, not about the list's size, which
+is **seven** since [ADR-0017](./0017-exposure-needs-both-legs.md) and
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)*
+— this ADR's *"no new notification class"* survives unamended. What is new is the
 **agency**: it is the first coverage-class member caused by neither our act nor the operator's,
 after [#48](https://github.com/winniel123/verge-asm/issues/48) added the first one caused by the
 operator's own input.
@@ -325,10 +328,16 @@ machine they control and can see, and this is not the estate.
 - **The modal install can evaluate the flagship signal.** A cloud-resident operator types the
   domain they were going to type anyway and ticks one box.
 - **Turning the extension on widens the aperture through an input that already exists.**
-  [#36](https://github.com/winniel123/verge-asm/issues/36) counts the custody gate among the five
-  aperture inputs, so services first seen on those addresses are **`revealed`**, never
+  [#36](https://github.com/winniel123/verge-asm/issues/36) counts the custody gate among the ~~five~~
+  aperture inputs — *the count is withdrawn; it is **seven** since
+  [ADR-0017](./0017-exposure-needs-both-legs.md) and
+  [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
+  and the gate's membership is untouched* — so services first seen on those addresses are **`revealed`**, never
   `appeared`, and it fires **one message at the cause** rather than one per service
-  ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)). **No sixth aperture input and no new
+  ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)). **No sixth aperture input *from this ticket*** — *the phrase is a claim about what this ticket
+  added, not about the list's size, which is **seven** since
+  [ADR-0017](./0017-exposure-needs-both-legs.md) and
+  [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)* — **and no new
   notification class.**
 - **Withdrawing the extension and re-enabling it puts a value where a `Gap` was**, which is a
   second live instance of the question open as

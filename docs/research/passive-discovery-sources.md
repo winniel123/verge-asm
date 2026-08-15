@@ -257,12 +257,52 @@ Consequence: on a wildcarded zone, **every** guessed or third-party-sourced name
 that treats "resolves" as "exists" reports an unbounded, entirely fictional asset inventory. Detection is
 cheap and must run before any name-based expansion:
 
-1. Query 3–5 long random labels under the apex (e.g. `<random32>.example.com`) for A, AAAA, and CNAME.
+> **Steps 1 and 3 below are WITHDRAWN by [#108](https://github.com/winniel123/verge-asm/issues/108) /
+> [ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
+> which rules the population.** *Under the apex* and *repeat one level down for each discovered
+> sub-zone* are both replaced: **a name is discriminated at its parent.** The control-probe
+> population of a `Batch` is the set of **immediate parents of the `Name`s in that batch's resolution
+> scope**, deduplicated and intersected with the `Seed` name scopes they sit inside — which needs no
+> depth rule, because a control label constructed under P falls off the tree at the same closest
+> encloser the names under P do, whatever depth the wildcard sits at and **whether or not P itself
+> exists**. There is no in-batch sub-zone discovery loop: the population is computable at batch
+> start. The **A, AAAA and CNAME** qtype clause in step 1 is withdrawn by the same ruling — the
+> control probe runs the batch's **declared qtype set**, all seven
+> ([`measurement-offers.md`](../spec/measurement-offers.md) §2), because `Shadowed` is committed on
+> `dns-record` for *any* qtype and three qtypes leave MX, TXT, NS and SOA synthesised answers
+> recorded as the name's own records. The population is the **seventh aperture input**, recorded on
+> the `Batch` by content, and never a declared parameter of `wildcard-discrimination`.
+
+1. ~~Query 3–5 long random labels under the apex (e.g. `<random32>.example.com`) for A, AAAA, and CNAME.~~
+   Query 3–5 long random labels under **each name in the control-probe population** (e.g.
+   `<random32>.dev.example.com`) for the declared qtype set.
 2. If they answer, record the wildcard answer set as a **poison signature**.
-3. Repeat one level down for each discovered sub-zone — wildcards can exist at any label depth.
+3. ~~Repeat one level down for each discovered sub-zone — wildcards can exist at any label depth.~~
+   No repetition and no depth walk: the parent population already covers every held name at every
+   depth.
 4. Suppress (or flag as unverifiable) any candidate whose answer matches the poison signature.
+   **The match predicate is unspecified and is not set equality** — **[measured]** 2026-08-14,
+   `herokuapp.com` returned three distinct synthesised address sets across five control labels and
+   `vercel.com` returned five, seconds apart from one vantage, while `github.io` and `localtest.me`
+   held still. Open as [#111](https://github.com/winniel123/verge-asm/issues/111).
 5. Note the RFC 4592 escape hatch: a name that resolves to something *different* from the wildcard
    signature is genuinely present even under a wildcard, because an exact match blocks synthesis.
+6. Where the control probe under a name's parent **did not complete**, that name records a **`Gap`**
+   and never a value — *an undiscriminated answer is never a value* (ADR-0066). A probe that
+   completed and found no wildcard licenses everything beneath it.
+
+**[measured]** 2026-08-14, against live authorities over Google Public DNS, and it is what decides
+the population. `render.com`'s apex control label is **NXDOMAIN** while `*.staging.render.com`
+answers `10.4.3.1` for anything beneath it, at every depth — so apex-only probing reports *no
+wildcard* over a sub-tree that is entirely synthesised. On the `%.iana.org` estate §7 already
+sampled, crt.sh returns **25 distinct non-wildcard names** whose immediate parents are **six** names
+inside the seed, and **exactly one of the six — the apex — is a zone cut**: `itar.`, `rzm-epp.` and
+`ns.` sit inside `iana.org` and `int.`/`rzm.` CNAME into `vip.icann.org`. So *the apex plus each
+measured zone cut* probes the same single site as the apex alone and leaves **11 of those 25 names
+(44%) undiscriminated**, while the parent set covers **25 of 25** from **6** sites — against 25 for
+*every `Name`*, of which 19 are leaves whose probes discriminate nothing the estate holds.
+`ns.iana.org` is itself **NXDOMAIN** and in no `Citation`, and probing under it is still correct:
+`www.ns.iana.org` is a held name whose closest encloser is `iana.org`.
 
 ### 3.3 AXFR and operator-supplied zone data — the defensive advantage
 
@@ -675,7 +715,7 @@ disappeared" alerts.
 | Source | Yields | Misses | Keyless? | Rate limit (source) | Reliability | ToS constraint | Default? |
 |---|---|---|---|---|---|---|---|
 | Own recursive resolver | A/AAAA/CNAME/MX/NS/TXT/SOA/CAA/PTR | Names you don't know yet | Yes | Operator's own | Excellent | None | **Tier 0** |
-| Wildcard detection (RFC 4592) | Poison signature for a zone | — | Yes | n/a | Excellent | None | **Tier 0 (mandatory)** |
+| Wildcard detection (RFC 4592) | Poison signature for ~~a zone~~ **a name's child space** — the population is *the parents of the names in scope*, per §3.2 / [ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md) | — | Yes | n/a | Excellent | None | **Tier 0 (mandatory)** |
 | Zone file / AXFR (RFC 5936) | Complete authoritative zone | Zones the operator doesn't control | Yes | n/a | Excellent | Must be operator-authorised | **Tier 0** |
 | NSEC walk (RFC 5155) | Full zone for NSEC-signed zones | NSEC3 zones, unsigned zones | Yes | n/a | Good | None (own zone) | **Tier 0 when applicable** |
 | IANA RDAP bootstrap | TLD/IP/ASN → RDAP base URL | — | Yes | None observed | Excellent | None | **Tier 0** |
