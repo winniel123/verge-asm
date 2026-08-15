@@ -402,7 +402,14 @@ come, and no record of an approach exists*. And **the ambiguity corollary's proc
 been shown to have been followed**, which is a debt against this ADR rather than against the
 sources: whether it is discharged by sending or by formally recording that nothing was sent
 is an outbound act and belongs to the dev, carried by
-[#59](https://github.com/winniel123/verge-asm/issues/59). The ship states do not wait on it,
+[#59](https://github.com/winniel123/verge-asm/issues/59).
+**Discharged on 2026-08-14 by the second branch: the dev ruled the four asks and the two defect
+reports will not be sent, and that ruling is recorded at
+[`docs/correspondence/README.md`](../correspondence/README.md#the-four-asks-and-the-two-defect-reports-will-not-be-sent).
+The debt is settled; ~~has not been shown to have been followed~~ is withdrawn as a live claim
+about this ADR, and no source's ship state moved on the discharge — which is what the next
+sentence already predicted.**
+The ship states do not wait on it,
 because *ambiguous terms ship off indefinitely* produces the identical result whether the
 question was asked and ignored or never put at all. **Only what the project may claim
 differs.**
