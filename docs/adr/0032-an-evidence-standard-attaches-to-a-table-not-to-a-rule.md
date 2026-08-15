@@ -342,6 +342,17 @@ acquires a sanctioned way to disagree with a row — the map's open `Annotation`
 disclosure becomes that act's input and earns that home. Until then it stays in the instrument's own
 document.
 
+> **The `Annotation` question is closed and this conditional does NOT fire** —
+> [#117](https://github.com/winniel123/verge-asm/issues/117),
+> [ADR-0016](./0016-an-annotation-moves-a-message-never-a-number.md), 2026-08-15. An `Annotation` is
+> an act on the **message** and never on the **verdict**: the rule fires, the census counts it, the
+> table is untouched, and no evidence is weighed. What §7 was waiting for is an act that changes what
+> a rule **concludes**, and v1 ships none — ADR-0016 bars the domain route, the subject route and the
+> span route by name. So the weak tier stays in the instrument's own document, and the three
+> objections above are undisturbed: the second one in particular still bites, since a tier identical
+> on every firing of a row would be a constant sitting beside a per-subject decision. **Do not read
+> the arrival of `Annotation` as the trigger.** The condition stands as written and is still unmet.
+
 ### 8. An attestation moving is already specified — and §10.4 made de-attestation silent
 
 The ticket asks what happens when an attestation changes underneath a shipped rule, and carries #21's
