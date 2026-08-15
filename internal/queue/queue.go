@@ -65,8 +65,12 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 		return
 	}
 	for _, s := range scans {
-		if s.Kind != scan.DNSKind {
-			continue // this ticket dispatches the dns Scan only
+		switch s.Kind {
+		case scan.DNSKind, scan.ZoneKind:
+			// The dns Scan (worker-probed, per Vantage) and the zone Scan
+			// (worker-read, no Vantage) both fan out on their own cadence.
+		default:
+			continue // the port tiers and tls-acceptance land in later tickets
 		}
 		tick := scheduledTick(d.now(), time.Duration(s.CadenceSeconds)*time.Second)
 		if _, err := d.fanOut(ctx, s, tick); err != nil {
@@ -87,8 +91,9 @@ func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, error) {
 }
 
 // fanOut inserts a Dispatch for (scan, scheduledTime) under a per-scan advisory
-// lock and enqueues one job per Vantage over the name-scope Seeds. It returns 0
-// with no error when the tick was already dispatched — skipped and recorded.
+// lock and enqueues its jobs — per Vantage for the dns Scan, per supplied zone
+// file for the zone Scan. It returns 0 with no error when the tick was already
+// dispatched — skipped and recorded.
 func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
@@ -114,23 +119,15 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 		return 0, fmt.Errorf("queue: try fan out: %w", err)
 	}
 
-	names, err := nameSeedDomains(ctx, qtx)
-	if err != nil {
-		return 0, err
-	}
-	vantages, err := vantageList(ctx, qtx)
-	if err != nil {
-		return 0, err
-	}
-
-	jobs := scan.BuildDNSJobs(s.ID, names, vantages.scanVantages())
 	enqueued := 0
-	for _, j := range jobs {
-		j = j.WithResolver(vantages.resolver(j.VantageID))
-		if err := enqueueJob(ctx, qtx, s.ID, dispatchID, j); err != nil {
-			return 0, err
-		}
-		enqueued++
+	switch s.Kind {
+	case scan.ZoneKind:
+		enqueued, err = d.fanOutZone(ctx, qtx, s.ID, dispatchID)
+	default:
+		enqueued, err = d.fanOutDNS(ctx, qtx, s.ID, dispatchID)
+	}
+	if err != nil {
+		return 0, err
 	}
 
 	if enqueued > 0 {
@@ -142,6 +139,44 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 		return 0, err
 	}
 	d.log.Printf("dispatcher: %s fanned out %d job(s) at %s", s.Kind, enqueued, scheduledTime.Format(time.RFC3339))
+	return enqueued, nil
+}
+
+// fanOutDNS enqueues one dns job per Vantage over the name-scope Seeds.
+func (d *Dispatcher) fanOutDNS(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
+	names, err := nameSeedDomains(ctx, qtx)
+	if err != nil {
+		return 0, err
+	}
+	vantages, err := vantageList(ctx, qtx)
+	if err != nil {
+		return 0, err
+	}
+	enqueued := 0
+	for _, j := range scan.BuildDNSJobs(scanID, names, vantages.scanVantages()) {
+		j = j.WithResolver(vantages.resolver(j.VantageID))
+		if err := enqueueJob(ctx, qtx, scanID, dispatchID, j); err != nil {
+			return 0, err
+		}
+		enqueued++
+	}
+	return enqueued, nil
+}
+
+// fanOutZone enqueues one worker-read job per supplied zone file. No Vantage is
+// read: the zone Scan has no vantage choice at all (v1 spec §3.4).
+func (d *Dispatcher) fanOutZone(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
+	files, err := zoneFiles(ctx, qtx)
+	if err != nil {
+		return 0, err
+	}
+	enqueued := 0
+	for _, j := range scan.BuildZoneJobs(scanID, files) {
+		if err := enqueueZoneJob(ctx, qtx, scanID, dispatchID, j); err != nil {
+			return 0, err
+		}
+		enqueued++
+	}
 	return enqueued, nil
 }
 

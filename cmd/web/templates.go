@@ -306,6 +306,64 @@ custody to the addresses it resolves into.</p>
 </div>
 {{end}}
 
+<div class="microlabel">Declared · zone files</div>
+<p>Your own zone file is ground truth: the estate as you declare it, not as it resolves. Upload it
+here — it is stored so both services can read it, and it is evidence, not a secret. Uploading is the
+supply act, so its instant is recorded now; the zone scan restates the file at that instant, never at
+whatever later time the worker reads it. Re-export on your own cadence and upload again — a new upload
+is a new supply, shipped monthly by default.</p>
+
+{{if .IsAdmin}}
+{{if .NameScopes}}
+<div class="section">
+<h2>Upload a zone file</h2>
+{{if .ZoneError}}<div class="error">{{.ZoneError}}</div>{{end}}
+<form method="post" action="/seeds/zone" enctype="multipart/form-data" class="seedform">
+<label><span>Name scope</span><select name="seed_id">
+{{range .NameScopes}}<option value="{{.ID}}">{{.Scope}}</option>{{end}}
+</select></label>
+<label class="scope"><span>Zone file</span><input class="scope" type="file" name="zonefile" required></label>
+<button type="submit">Upload</button>
+</form>
+</div>
+{{else}}
+<div class="section">
+<div class="microlabel">No name scopes</div>
+<p>A zone file is attached to a name scope. Declare a name scope above, then upload its zone file.</p>
+</div>
+{{end}}
+
+<div class="section">
+<h2>Re-supply interval</h2>
+<p>How often you promise to re-export. The scan reports the file as stale past this interval, so set
+it to your real export cadence rather than a hope.</p>
+{{if .ZoneIntervalError}}<div class="error">{{.ZoneIntervalError}}</div>{{end}}
+<form method="post" action="/seeds/zone/interval">
+<div class="dial">
+<label><span>Interval</span><input name="interval_days" inputmode="numeric" value="{{.ZoneIntervalDays}}" required><span class="unit">days</span></label>
+<button type="submit">Save interval</button>
+</div>
+</form>
+</div>
+{{end}}
+
+{{if .ZoneScopes}}
+<div class="section">
+<h2>Supplied zone files</h2>
+<table>
+<thead><tr><th>Name scope</th><th>Supplied</th><th>Uploaded by</th><th>Size</th></tr></thead>
+<tbody>
+{{range .ZoneScopes}}<tr>
+<td class="mono">{{.Domain}}</td>
+<td class="mono">{{if .HasFile}}{{.SuppliedAt}}{{else}}<span class="muted">none supplied</span>{{end}}</td>
+<td class="mono">{{if .HasFile}}{{.By}}{{else}}<span class="muted">—</span>{{end}}</td>
+<td class="mono">{{if .HasFile}}{{.Bytes}} bytes{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
 <div class="microlabel">Declared · exclusions</div>
 <p>An exclusion draws the boundary inwards: an exact name, a name subtree, or an address scope
 you declare is <em>not yours</em>. Excluding a name that still resolves is legal — <em>not

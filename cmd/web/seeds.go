@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -34,6 +36,10 @@ type seedsForms struct {
 	exclError, exclKind, exclValue                  string
 	custodyError                                    string
 	proberError, proberHost, proberPort, proberUser string
+	zoneError, zoneIntervalError                    string
+	// zoneIntervalDays echoes a rejected interval so the admin need not retype
+	// it; empty means render the stored dial.
+	zoneIntervalDays string
 }
 
 // nameScopes returns the name-scope subset of a seed listing, in the same order.
@@ -116,11 +122,27 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list vantages", err)
 		return
 	}
+	zoneStatus, err := s.store.ListZoneFileStatus(r.Context())
+	if err != nil {
+		s.serverError(w, "list zone files", err)
+		return
+	}
+	cadence, err := s.store.GetZoneCadenceSeconds(r.Context())
+	if err != nil {
+		s.serverError(w, "get zone cadence", err)
+		return
+	}
 	status := http.StatusOK
-	if f.seedError != "" || f.exclError != "" || f.custodyError != "" || f.proberError != "" {
+	if f.seedError != "" || f.exclError != "" || f.custodyError != "" || f.proberError != "" ||
+		f.zoneError != "" || f.zoneIntervalError != "" {
 		status = http.StatusBadRequest
 	}
 	seeds := toSeedViews(rows)
+	nameSeeds := nameScopes(seeds)
+	intervalDays := f.zoneIntervalDays
+	if intervalDays == "" {
+		intervalDays = strconv.FormatInt(cadence/86400, 10)
+	}
 	s.renderStatus(w, status, "seeds", map[string]any{
 		"Title": "Seeds", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"Seeds": seeds, "AddressCap": s.seedAddressCap,
@@ -129,10 +151,16 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
 		// The custody-extension section reads name scopes alone — an address
 		// scope can never carry one.
-		"CustodyScopes": nameScopes(seeds), "CustodyError": f.custodyError,
+		"CustodyScopes": nameSeeds, "CustodyError": f.custodyError,
 		"Probers":     toProberViews(probers),
 		"ProberError": f.proberError, "ProberHost": f.proberHost,
 		"ProberPort": f.proberPort, "ProberUser": f.proberUser,
+		// The zone-file section: the upload dropdown lists name scopes, the
+		// status rows show which hold a supplied file, and the interval dial is
+		// the operator's declared re-supply cadence.
+		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus), "NameScopes": nameSeeds,
+		"ZoneError": f.zoneError, "ZoneIntervalError": f.zoneIntervalError,
+		"ZoneIntervalDays": intervalDays,
 	})
 }
 
@@ -159,4 +187,131 @@ func seedCreateError(err error, noun string) string {
 		return "That " + noun + " is already declared."
 	}
 	return "Could not declare the scope."
+}
+
+// maxZoneUpload bounds a single zone-file upload. A zone file is text and the
+// modal operator's is small; the cap is a defence against an accidental huge
+// upload, not a product limit.
+const maxZoneUpload = 8 << 20 // 8 MiB
+
+// zoneView is a name scope shaped for the zone-file section: the scope, and
+// whether it currently holds a supplied file with its supply instant, uploader
+// and size.
+type zoneView struct {
+	SeedID     int64
+	Domain     string
+	HasFile    bool
+	SuppliedAt string
+	By         string
+	Bytes      int64
+}
+
+// toZoneViews decorates each name scope with its latest supplied zone file, if
+// any. A scope with no file is shown too, as an empty state inviting an upload.
+func toZoneViews(nameSeeds []seedView, status []db.ListZoneFileStatusRow) []zoneView {
+	bySeed := make(map[int64]db.ListZoneFileStatusRow, len(status))
+	for _, st := range status {
+		bySeed[st.SeedID] = st
+	}
+	out := make([]zoneView, 0, len(nameSeeds))
+	for _, s := range nameSeeds {
+		v := zoneView{SeedID: s.ID, Domain: s.Scope}
+		if st, ok := bySeed[s.ID]; ok {
+			v.HasFile = true
+			v.By = st.UploadedByUsername
+			v.Bytes = st.ContentBytes
+			if st.SuppliedAt.Valid {
+				v.SuppliedAt = st.SuppliedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+			}
+		}
+		out = append(out, v)
+	}
+	return out
+}
+
+// uploadZoneFile stores an operator's zone file for a name scope. The upload is
+// the supply act, so its instant is recorded now — the zone Scan restates the
+// file's observations at this instant, never at the worker's later read (v1 spec
+// §3.4). The file is stored in the shared database so both web and worker read
+// it; it is evidence, not a secret (§4.2).
+func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	fail := func(msg string) {
+		s.renderSeeds(w, r, acct, seedsForms{zoneError: msg})
+	}
+	if err := r.ParseMultipartForm(maxZoneUpload); err != nil {
+		fail("The upload was too large or malformed. A zone file is text, up to 8 MB.")
+		return
+	}
+	seedID, err := strconv.ParseInt(r.FormValue("seed_id"), 10, 64)
+	if err != nil {
+		fail("Choose a name scope to attach the zone file to.")
+		return
+	}
+	if !s.isNameSeed(r, seedID) {
+		fail("That name scope no longer exists.")
+		return
+	}
+	file, _, err := r.FormFile("zonefile")
+	if err != nil {
+		fail("Choose a zone file to upload.")
+		return
+	}
+	defer file.Close()
+	content, err := io.ReadAll(io.LimitReader(file, maxZoneUpload+1))
+	if err != nil {
+		fail("Could not read the uploaded file.")
+		return
+	}
+	if len(content) == 0 {
+		fail("The uploaded file is empty.")
+		return
+	}
+	if len(content) > maxZoneUpload {
+		fail("The zone file is over the 8 MB cap.")
+		return
+	}
+	if _, err := s.store.CreateZoneFile(r.Context(), db.CreateZoneFileParams{
+		SeedID:     seedID,
+		SuppliedAt: pgtype.Timestamptz{Time: s.now().UTC(), Valid: true},
+		Content:    string(content),
+		UploadedBy: acct.ID,
+	}); err != nil {
+		s.serverError(w, "create zone file", err)
+		return
+	}
+	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+}
+
+// setZoneInterval moves the re-supply interval dial: the operator's promise
+// about how often they will re-export, held as the zone Scan's cadence and
+// shipped at monthly (v1 spec §3.4).
+func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	raw := strings.TrimSpace(r.FormValue("interval_days"))
+	days, err := strconv.Atoi(raw)
+	if err != nil || days < 1 {
+		s.renderSeeds(w, r, acct, seedsForms{
+			zoneIntervalError: "Enter a re-supply interval of at least one day.",
+			zoneIntervalDays:  raw,
+		})
+		return
+	}
+	if err := s.store.SetZoneCadenceSeconds(r.Context(), int64(days)*86400); err != nil {
+		s.serverError(w, "set zone cadence", err)
+		return
+	}
+	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+}
+
+// isNameSeed reports whether id is a currently declared name-scope Seed.
+func (s *server) isNameSeed(r *http.Request, id int64) bool {
+	rows, err := s.store.ListSeeds(r.Context())
+	if err != nil {
+		return false
+	}
+	for _, row := range rows {
+		if row.ID == id && row.Kind == "name" {
+			return true
+		}
+	}
+	return false
 }

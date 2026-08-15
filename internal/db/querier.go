@@ -37,6 +37,9 @@ type Querier interface {
 	// key has been pinned yet. The explicit casts keep the params plain scalars even
 	// though the prober columns are nullable on the table.
 	CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error)
+	// Records one supply act: a name-scope Seed's zone file at the operator's supply
+	// instant. Append-only — a re-export is a new row, never an update.
+	CreateZoneFile(ctx context.Context, arg CreateZoneFileParams) (CreateZoneFileRow, error)
 	DeleteChannel(ctx context.Context, id int64) error
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
@@ -50,8 +53,14 @@ type Querier interface {
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
+	// The operator's declared re-supply interval, held as the zone Scan's cadence.
+	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
 	InsertObservation(ctx context.Context, arg InsertObservationParams) error
+	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
+	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
+	// the most recent supply per Seed.
+	LatestZoneFilesForDispatch(ctx context.Context) ([]LatestZoneFilesForDispatchRow, error)
 	// The accounts management list on the Settings screen. It omits password_hash
 	// and totp_secret: managing accounts never needs either, so they stay out of the
 	// render path.
@@ -79,6 +88,10 @@ type Querier interface {
 	// (host set) whose public half has not been published, so no key material has
 	// ever left the worker volume for them.
 	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
+	// The Seeds-screen view: the latest supplied file per name-scope Seed, without
+	// the content, so the operator sees which scopes hold a zone file, when it was
+	// supplied and by whom.
+	ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error)
 	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error
 	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error
 	MarkJobRetried(ctx context.Context, id int64) error
@@ -103,6 +116,9 @@ type Querier interface {
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
+	// Moves the re-supply interval dial. cadence_seconds > 0 is enforced by the
+	// table's CHECK, so a non-positive interval is rejected by the database.
+	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.

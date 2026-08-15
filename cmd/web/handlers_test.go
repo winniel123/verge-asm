@@ -41,6 +41,10 @@ type fakeStore struct {
 	channels   []fakeChannel
 	chanNextID int64
 	retention  db.GetRetentionSettingsRow
+
+	zoneFiles   []fakeZoneFile
+	zoneNextID  int64
+	zoneCadence int64
 }
 
 // fakeChannel mirrors a channel row, secret included, so tests can assert the
@@ -389,6 +393,62 @@ func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRete
 	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
 	f.retention.UpdatedBy = arg.UpdatedBy
 	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
+type fakeZoneFile struct {
+	seedID     int64
+	suppliedAt time.Time
+	content    string
+	uploadedBy int64
+}
+
+func (f *fakeStore) CreateZoneFile(_ context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error) {
+	f.zoneFiles = append(f.zoneFiles, fakeZoneFile{
+		seedID: arg.SeedID, suppliedAt: arg.SuppliedAt.Time, content: arg.Content, uploadedBy: arg.UploadedBy,
+	})
+	f.zoneNextID++
+	return db.CreateZoneFileRow{ID: f.zoneNextID, SuppliedAt: arg.SuppliedAt}, nil
+}
+
+func (f *fakeStore) ListZoneFileStatus(context.Context) ([]db.ListZoneFileStatusRow, error) {
+	// Latest supply per seed, mirroring the SQL DISTINCT ON.
+	latest := map[int64]fakeZoneFile{}
+	for _, z := range f.zoneFiles {
+		cur, ok := latest[z.seedID]
+		if !ok || !z.suppliedAt.Before(cur.suppliedAt) {
+			latest[z.seedID] = z
+		}
+	}
+	rows := make([]db.ListZoneFileStatusRow, 0, len(latest))
+	for _, s := range f.seeds {
+		if s.Kind != "name" {
+			continue
+		}
+		z, ok := latest[s.ID]
+		if !ok {
+			continue
+		}
+		rows = append(rows, db.ListZoneFileStatusRow{
+			SeedID:             s.ID,
+			NameDomain:         s.NameDomain,
+			SuppliedAt:         pgtype.Timestamptz{Time: z.suppliedAt, Valid: true},
+			UploadedByUsername: f.accounts[z.uploadedBy].Username,
+			ContentBytes:       int64(len(z.content)),
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) GetZoneCadenceSeconds(context.Context) (int64, error) {
+	if f.zoneCadence == 0 {
+		return 2592000, nil // the shipped monthly default
+	}
+	return f.zoneCadence, nil
+}
+
+func (f *fakeStore) SetZoneCadenceSeconds(_ context.Context, cadenceSeconds int64) error {
+	f.zoneCadence = cadenceSeconds
 	return nil
 }
 

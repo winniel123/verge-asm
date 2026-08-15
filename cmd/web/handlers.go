@@ -45,6 +45,10 @@ type store interface {
 	DeleteChannel(ctx context.Context, id int64) error
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
+	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
+	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
+	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
+	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -103,6 +107,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /seeds", s.requireLogin(s.seedsPage))
 	mux.HandleFunc("POST /seeds", s.requireAdmin(s.declareSeed))
 	mux.HandleFunc("POST /seeds/custody", s.requireAdmin(s.setCustody))
+	mux.HandleFunc("POST /seeds/zone", s.requireAdmin(s.uploadZoneFile))
+	mux.HandleFunc("POST /seeds/zone/interval", s.requireAdmin(s.setZoneInterval))
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
