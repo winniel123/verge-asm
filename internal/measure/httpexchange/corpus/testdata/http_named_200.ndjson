@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"http-exchange","facet":"http-identity","subject":"api.example.com@198.51.100.10:443/tcp","vantage":"v1","address":"198.51.100.10","data":{"status":200,"server":"nginx","content_type":"text/html","body_sha256":"sha256:fe26c59e91ac8de694b2531dc3bdc1b7faf471d3d7e4e00870af60f5f22897cb","body_bytes":15,"body_truncated":false}}

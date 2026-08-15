@@ -58,6 +58,11 @@ type store interface {
 	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
 	ListCurrentServiceSubjects(ctx context.Context, search string) ([]db.ListCurrentServiceSubjectsRow, error)
 	GetServiceSubject(ctx context.Context, subjectKey string) (db.GetServiceSubjectRow, error)
+	// Endpoint subjects (#198): the (Name, Service) pair the http-exchange leaf's
+	// http-identity facet is held on. Rendered on the Subjects page additively next
+	// to Name and Service, with its own drill-down.
+	ListCurrentEndpointSubjects(ctx context.Context, search string) ([]db.ListCurrentEndpointSubjectsRow, error)
+	GetEndpointSubject(ctx context.Context, subjectKey string) (db.GetEndpointSubjectRow, error)
 	FindNameCitingAddress(ctx context.Context, address string) (db.FindNameCitingAddressRow, error)
 	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
 	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
@@ -165,9 +170,11 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
 
 	mux.HandleFunc("GET /subjects", s.requireLogin(s.subjectsPage))
-	// The Service drill-down reads its key from a query parameter because a
-	// Service key carries a `/`; its literal path wins over the {key} wildcard.
+	// The Service and Endpoint drill-downs read their key from a query parameter
+	// because those keys carry `/` and `@`; their literal paths win over the {key}
+	// wildcard.
 	mux.HandleFunc("GET /subjects/service", s.requireLogin(s.servicePage))
+	mux.HandleFunc("GET /subjects/endpoint", s.requireLogin(s.endpointPage))
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))

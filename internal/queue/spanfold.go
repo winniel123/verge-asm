@@ -12,6 +12,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -128,6 +129,10 @@ func facetVector(facet string) drift.Vector {
 		// touching `reachability` (ADR-0086).
 		return drift.NewVector(
 			drift.Component{Leaf: "tls-handshake", Version: connectoutcome.CertVersion},
+		)
+	case httpexchange.FacetHTTPIdentity:
+		return drift.NewVector(
+			drift.Component{Leaf: httpexchange.Kind, Version: httpexchange.Version},
 		)
 	default:
 		return drift.NewVector(

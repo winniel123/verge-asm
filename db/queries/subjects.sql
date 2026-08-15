@@ -103,6 +103,46 @@ WITH latest AS (
 SELECT subject_key, value, observed_at
 FROM latest;
 
+-- name: ListCurrentEndpointSubjects :many
+-- Every Endpoint currently in the estate, with optional search (#198). An Endpoint
+-- is a (Name, Service) pair — keyed `name@service`, or `@service` for the nameless
+-- endpoint — the only key under which HTTP identity is single-valued (CONTEXT.md
+-- `Endpoint`). Its membership rides its Service's (the Address's membership
+-- restated), so this is the thin "current Endpoints" read the drill-down lists.
+-- Like the Name and Service listings it carries no denominator (ADR-0072). The
+-- value shown is the latest http-identity the http-exchange leaf recorded.
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value,
+        o.observed_at AS observed_at
+    FROM observation o
+    WHERE o.subject_kind = 'endpoint' AND o.facet = 'http-identity'
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value, observed_at
+FROM latest
+WHERE (@search::text = '' OR subject_key ILIKE '%' || @search::text || '%')
+ORDER BY subject_key;
+
+-- name: GetEndpointSubject :one
+-- Resolve an Endpoint key to at most one subject (#198). An Endpoint drill-down
+-- reaches a subject by its own key — including one whose Service has left the
+-- estate, which is a population of no current member rather than a false "no
+-- record" (ADR-0072). The caller reads the latest http-identity value to render
+-- the current HTTP identity and split the key into its Name and Service legs.
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value,
+        o.observed_at AS observed_at
+    FROM observation o
+    WHERE o.subject_kind = 'endpoint' AND o.facet = 'http-identity' AND o.subject_key = $1
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value, observed_at
+FROM latest;
+
 -- name: FindNameCitingAddress :one
 -- A Name whose current resolution cites the given Address (#195) — the Citation
 -- hop that answers why a Service's Address is in the estate. An Address has no
