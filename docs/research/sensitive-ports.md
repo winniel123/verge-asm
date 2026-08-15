@@ -22168,6 +22168,119 @@ defect was visible.
   `## Sources`, which is textual adjacency rather than disagreement, and the four marked clauses at
   §46.7 — none of which is a figure. **Where §46 and §1 disagree, §1 governs.**
 
+## 49. G11 against a stated horizon — a tag match does not discharge a second, self-stated comparand
+
+**Ticket [#152](https://github.com/winniel123/verge-asm/issues/152).** §40.4 already measured the
+shape: `2375/tcp`'s Class A ground cites Docker's deprecation page — *"deprecated v26.0, target removal
+v28.0"* — and Docker is at `docker-v29.7.2`, past its own stated target, while G11's own comparison
+(read-at tag against current tag) returns **equal**. **The row stands** — §35 measured the enforcement
+directly at the current tag, *"yes — a code path"* — and nothing here moves it. What §40.4 flagged and
+did not repair is that G11 has no check for the second, independent fact the same ground states: *this
+artefact promised its own boundary would move, and reality has passed the date it named.*
+
+### 49.1 The ruling
+
+**A new gate check, named and not numbered.** [ADR-0099](../adr/0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md)
+mints it: for every graded cell whose held ground quotes an owner-declared horizon — a specific future
+release, version or date at which the owner states a named behaviour will change — compare the current
+tag or date G11 already fetches against that horizon. Where current ≥ horizon and no subsequent
+retrieval records whether the promised change occurred, the cell is **horizon-passed-unverified**.
+Numbering it **G12** or folding it into a check #149 also needs is the merge session's call, per the
+batch's shared constraint that a twelfth check must terminate and at most one may be minted. This
+section calls it **(new gate check, number pending merge)**.
+
+### 49.2 Why this is not G11 amended
+
+G11 was **run to completion** at §40, and §40.6 states plainly that *"a later run is compared to this."*
+`2375/tcp`'s recorded verdict there is **Current** — the tag comparison, answered. Redefining G11 to
+also read horizons would change what that recorded verdict means without re-running anything, which is
+ADR-0057's own rationale 5 in a new place: *a sentence that names no successor is re-derived by the next
+session that needs one*. G11 stays exactly as ADR-0057 wrote it and exactly as §40 ran it. The horizon
+comparison is a sibling check, reusing G11's own re-fetch of the current tag rather than replacing any
+part of G11's definition.
+
+### 49.3 Population, and why it terminates
+
+**Closed.** The population is cells whose *already-held* ground text quotes explicit horizon language —
+a deprecation-to-removal target, an end-of-life or sunset date, a support-window close — found by
+re-reading grounds this note already cites, not by scanning the owner's corpus further. **Measured
+today: one** — `2375/tcp`'s Class A cell. No new re-fetch class is introduced: the "current" value
+compared against the horizon is the same tag value G11 already retrieves for every footing cell. A
+check with a population of one is not thereby unspecified — G3 was kept at population one at its first
+run (§40.5) — and this population is expected to grow only as further grounds are read for horizon
+language, never to require a new class of retrieval to evaluate.
+
+### 49.4 Same check as #149, or a different one — argued, not asserted
+
+**§43.6 item 5 files both tickets under one heading, *the gate's reach*, and that heading is correct
+without the two gaps being one check.** [#149](https://github.com/winniel123/verge-asm/issues/149) and
+[ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s
+Rationale 2 name a gap where **G11 has no comparand at all** — *"vacuous for an artefact with no tag to
+diff … a continuously-published page with no version pin"* — reaching, per §43.6 item 5's own
+measurement, the register's **whole rung-1 head**: an unbounded-feeling, growing population. This
+ticket's gap is the opposite shape: **a comparand that exists and correctly passes**, alongside a
+second, distinct fact the same tagged ground states that a passing tag comparison gives no reason to
+read. One gap is an absence; the other is an omission next to a presence. Measured against each other:
+
+| | #149's gap | #152's gap |
+| --- | --- | --- |
+| Does a tag exist for the artefact? | No — rung 1/2 by definition | Yes — `docker-v29.7.2` |
+| Does G11's existing comparison run at all? | No — vacuous | Yes — and passes (`equal`) |
+| What's missing | Any currency signal for the artefact | A second, self-stated comparand the ground already quotes |
+| Measured population | The register's rung-1/2 head (large, growing) | Cells citing a horizon (one, today) |
+
+**A generalised check could cover both** — *compare every temporal comparand a ground states, tagged
+artefact or not* — and it is named here rather than pre-empted, because folding two closed checks into
+one open-ended one is exactly the trade this note's own instrument was built to refuse: the merged
+check's population is no longer discoverable by a mechanical rule (*has a version tag* / *cites a
+horizon*) but by a reader's judgement about what counts as a "temporal comparand," which is the
+closed/open line ADR-0057 draws around every one of the eleven existing checks. **This section's
+ruling is that they are different checks**, kept separate so each population stays finite and named by
+construction, and it is stated as an argument for the merge session rather than as a foreclosure of it.
+
+### 49.5 What lost
+
+**Amending G11's own definition.** Tempting, because the machinery is identical — fetch the current
+tag, compare it against a value the ground supplies. Refused because G11 already has a baseline run
+(§40) whose verdict is a stated comparison; changing the comparison after the fact is the shape §5's
+regenerating-clause failure describes, one section over.
+
+**A single merged check with #149.** The stronger argument on the other side, and named in full at
+§49.4. It loses on population discoverability, not on elegance: a check whose finite, named population
+requirement (ADR-0057 §39.6) can only be satisfied by re-reading arbitrary prose for temporal content is
+not closed, it is open wearing a closed check's badge.
+
+**Leaving §40.4's disclosure sentence as the whole repair.** It is already written, and it already
+demonstrates the failure it would leave standing: a sentence in one walk section does not re-ask itself
+on the next edit. Nothing currently re-runs it, and the next `2375/tcp`-shaped cell — a tagged artefact
+whose ground states a horizon — would be found only by a session that happens to be reading that cell,
+which is the exact failure ADR-0057 built eleven mechanical checks to stop happening by chance.
+
+### 49.6 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+| --- | --- | --- |
+| `2375/tcp`'s row, class, footing tier | Class A, prohibition tier, strengthened (§10.4.3, §35) | **unchanged** |
+| §1 pair count, §3 class totals, §2.2 footing tiers and coverage, §4.6 exclusions | 38 · `12/7/19` · `13/11/3` · 27 of 38 · 24 | **unchanged.** This section moves no cell |
+| §40's gate baseline — G11 | RED, 5 findings, `2375/tcp` listed **Current** | **unchanged.** The check this section adds is not G11 and does not revise G11's verdict |
+| The gate — eleven checks G1–G11 | eleven | **unchanged in membership here.** One new check is described (ADR-0099) and left unnumbered, pending the merge session |
+| [`curated-table-watch.md`](../spec/curated-table-watch.md) §3's *"the gate is eleven checks, G1–G11"* | eleven | **not edited by this section** — reserved to the merge session, which numbers the check (or checks) this ticket and #149 between them produce |
+| CONTEXT.md | — | **not amended**, on ADR-0057's own last Decision row |
+
+### 49.7 Thin ground, flagged per the standing rule
+
+**The population is one.** That is the whole measured case for this check, and it is worth stating
+plainly rather than dressing a single cell up as a pattern: nothing in this note has yet re-read every
+held ground for horizon language, so *one* is a floor, not a count of how many exist. The check is kept
+anyway on G3's precedent (§40.5, also population one at first run) rather than deferred to a future
+ticket, because the alternative — a disclosure sentence with no mechanism behind it — is the shape §40.4
+already shows failing to renew itself.
+
+**The same-check-or-different judgement in §49.4 is this section's own reading of #149's issue body as
+it stands today, not a binding cross-ticket ruling.** #149 is running its own resolution independently;
+if it reaches a different characterisation of its own gap, the comparison table at §49.4 is what a
+merge session should re-check first.
+
 ---
 
 ## Sources
