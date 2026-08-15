@@ -34,7 +34,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle** |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — five in the word (three of them in a table column headed `Direction`), three in the verb's preposition, sixteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). §33.2's discriminator gains the rider **the direction is part of the class**. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — **six** in the word, three in the verb's preposition, fifteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two owners write it in a table column headed `Direction`** — Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** (*"`IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against *"`Remote support port | 7906 | TCP | Outbound¹`"*). **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). **[measured]** the clean case of addressee coming apart from direction — MongoDB Atlas on `27017` — is **not** load-bearing, `27017` failing limb 3 first. §33.2's discriminator gains the rider **the direction is part of the class**; §28.9's instance is **re-founded on a current artefact**, HPE having retired *Insight Online direct connect*; and §33.11's *"the string `6379` occurs zero times"* is **corrected at its clause** to a **token** claim without moving the spare it carries. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -14965,9 +14965,19 @@ and §33.12 are wrong and the parametric statement is right.**
   judged:
   - **Redis — the supported endpoint is not on the port.** Redis Cloud database endpoints carry the
     port in the hostname and the owner's own port table gives the range as `10000-10049, 10051-19999`.
-    **[measured]** the string `6379` occurs **zero** times in the Redis Software port-configurations
+    **[measured]** the string `6379` occurs ~~**zero** times~~ in the Redis Software port-configurations
     page, the Redis Cloud connect page and the Cloud TLS page, all retrieved 2026-08-14. The class the
-    defeat would need is **empty**. Redis's own page also treats internet exposure as a failure it
+    defeat would need is **empty**.
+    > **The struck string count is CORRECTED by §36** ([#110](https://github.com/winniel123/verge-asm/issues/110)),
+    > **and the verdict is unchanged.** **[measured]**, re-retrieved 2026-08-14: `6379` occurs
+    > **once** on the Redis Software port-configurations page as a **substring of `36379`**, in an
+    > unrelated internal row — *"TCP | 3333-3345, 3350-3354, **36379** | ❌ No | Internal | Internode
+    > communication"*. **The claim that survives is the one the ruling needed and it is a token match,
+    > not a substring one: `6379` is listed as a port nowhere in the owner's port table**, and the
+    > database-endpoint row reads *"TCP | **10000-10049, 10051-19999** | ✅ Yes | Internal, External,
+    > Active-Active | Database traffic"*. Corrected because §33.11 states it as a **string** count
+    > under ADR-0046's dated-negative rule, and a session re-running that grep would get `1` and
+    > conclude the note was wrong about a spare it was right about. §36.14. Redis's own page also treats internet exposure as a failure it
     shipped **protected mode** to counter — *"Unfortunately, many users fail to protect Redis instances
     … Many instances are simply left exposed on the internet with public IPs"* — which is §4.4's
     concession shape pointing the **other** way.
@@ -15516,12 +15526,13 @@ routed here rather than deciding.
 > position. **All four limbs as written; nothing entailed about the row.** §36.2.
 >
 > **[measured] Direction and addressee run as candidate limbs across all 26 members of both graded
-> tiers.** Direction is **written as a word by the owner for five** (`445`, `25672`, `10250`, `10259`,
-> `10257` — three of them in a table column literally headed `Direction`), carried by the carrying
-> verb's own preposition for **three**, entailed by an exposure or placement verb whose object is a
-> listener for **sixteen**, and **absent from two** — `2049/tcp` and `4369/tcp`, both of which already
-> fail limb 3 and are therefore not at risk on either candidate. **A verdict turns on direction for
-> two** — `445/tcp` and `623/udp` — and **on addressee for one**, `445/tcp`. §36.6.
+> tiers.** Direction is **written as a word by the owner for six** (`445`, `25672`, `10250`, `10259`,
+> `10257`, `623/udp` — **four** of them in a table column literally headed `Direction`, in **two**
+> owners' documents), carried by the carrying verb's own preposition for **three**, entailed by an
+> exposure or placement verb whose object is a listener for **fifteen**, and **absent from two** —
+> `2049/tcp` and `4369/tcp`, both of which already fail limb 3 and are therefore not at risk on either
+> candidate. **A verdict turns on direction for two** — `445/tcp` and `623/udp` — and **on addressee
+> for one**, `445/tcp`. §36.6.
 >
 > **[measured] §32.12's *"no member of either tier turns on direction today"* was false when it was
 > written, not merely after §33.** `623/udp`'s footing survived a candidate defeater — HPE's *iLO
@@ -15772,11 +15783,14 @@ available twice more in the sweep and needed neither time**, because in both cas
 narrower ground read off an owner artefact:
 
 - **`6379/tcp` Redis.** Redis Cloud is Redis's **own** hosted listener, so addressee would spare the
-  cell. §33.11 did not use it: *"the supported endpoint is not on the port"* — **[measured]** the
-  owner's port table gives database endpoints as `10000-10049, 10051-19999` and `6379` occurs **zero**
-  times across the Redis Software port-configurations page, the Redis Cloud connect page and the Cloud
-  TLS page. The class the defeat would need is **empty**, which is a limb-2 enumeration fact and not an
-  addressee argument.
+  cell. §33.11 did not use it: *"the supported endpoint is not on the port"* — **[measured]**,
+  re-retrieved 2026-08-14, the owner's port table gives database endpoints as *"TCP | **10000-10049,
+  10051-19999** | ✅ Yes | Internal, External, Active-Active | Database traffic"* and **`6379` is listed
+  as a port nowhere in it**; the Redis Cloud PrivateLink prerequisites say the same from the other side
+  (*"the database port range (port 10000-19999)"*). The class the defeat would need is **empty**, which
+  is a limb-2 enumeration fact and not an addressee argument. **§33.11's *"the string `6379` occurs
+  zero times"* is corrected at its clause** — it occurs once, as a substring of `36379` on an unrelated
+  internal row — **and the spare is unaffected**, because the claim it rests on is a **token** match.
 - **`9200/tcp` Elasticsearch.** §33.11: *"the supported endpoint is not the node"* — **[measured]**
   Elastic Cloud Enterprise's own inbound-port table puts `9200`/`9243` on the **Proxy** role and the
   Elasticsearch nodes on `18000-18999`. That is a **component**-identity ground, not a party one, and
@@ -15784,9 +15798,19 @@ narrower ground read off an owner artefact:
   even if it had been reached for.
 
 > **Addressee is load-bearing exactly once in twenty-six members, and at that one member it is
-> inseparable from direction.** *One exception, not a pattern* — and the pattern claim is falsifiable
-> rather than asserted: a second member disposed of on addressee **alone**, with the direction ground
-> unavailable, defeats this subsection without touching §36.4.
+> inseparable from direction.** *One exception, not a pattern* — where *exception* means a **verdict
+> that turned on it**, which is the only sense in which a limb does work.
+>
+> **The independence claim is measured rather than asserted, and it is measured against interest.**
+> **[measured]** MongoDB Atlas is an **inbound** internet-reachable listener on `27017` that MongoDB
+> documents as supported and scopes away from its own trusted-networks guidance **by page title**
+> (*for Self-Managed Deployments*) — so addressee **does** come apart from direction, cleanly, in a
+> live owner's live documentation. It is not a second load-bearing instance because `27017` fails
+> **limb 3** and limb 4's defeat test never runs. §36.6.
+>
+> **What would defeat this subsection** is a member whose **verdict** turns on addressee with the
+> direction ground unavailable — MongoDB is that shape and is refused a limb earlier, so the
+> falsifier is named, retrieved, and still not met.
 
 **What follows for the closure.** §32.2 does not acquire a second exception. It acquires **one**
 under-written limb, which is the shape the note has repaired four times before — §20.8's criterion
@@ -15822,7 +15846,7 @@ depended on the candidate.
 | 5 | `9200/tcp` Elasticsearch · P | **entailed** — *"Never **expose** an unprotected node to the public internet"* | No | **No — and it was available.** Spared on **component identity**, and the ECE proxy is the operator's (§36.5) |
 | 6 | `9300/tcp` Elasticsearch · P | **entailed** — same sentence | No | No |
 | 7 | **`445/tcp` SMB · P** | **named** — *"Block TCP port 445 **inbound** from the internet **at your corporate hardware firewalls**"*; and the carrying directive is bidirectional — *"unsolicited communication (from the internet) **and outgoing traffic (to the internet)**"* | **YES** — §33.5 | **YES** — §33.5, and it is the same disposal (§36.5) |
-| 8 | **`623/udp` IPMI · P** | **entailed** — Dell, *"not designed nor intended to be **placed on or connected to** the internet"*; HPE, *"Do not **connect** iLO directly to the Internet"* | **YES** — §28.9's *iLO Direct Connect* near-miss, disposed of as **outbound**. §36.7 | No |
+| 8 | **`623/udp` IPMI · P** | **named** — **[measured]** HPE's *Ports used by iLO features* table carries a **`Direction`** column and reads `IPMI/DCMI over LAN port \| 623 \| UDP \| Inbound⁴`, footnote 4 defined as *"An external client initiates the connection to iLO."* The prose is *entailed* — Dell, *"not designed nor intended to be **placed on or connected to** the internet"*; HPE, *"Do not **connect** iLO directly to the Internet"* | **YES** — the outbound remote-support path, disposed of at §28.9 and **re-founded on a current artefact** at §36.7 | No |
 | 9 | `9042/tcp` Cassandra · P | **entailed** — *"you should not **expose** this port to the internet"* | No | No |
 | 10 | `2379/tcp` etcd · P | **entailed** — *"must not be **exposed** to untrusted networks or the public internet"* | No | No |
 | 11 | `2380/tcp` etcd · P | **entailed** — same sentence | No | No |
@@ -15840,9 +15864,28 @@ depended on the candidate.
 | 25 | `10257/tcp` kube-controller-manager · S | **named** — `\| TCP \| Inbound \| 10257 \| kube-controller-manager \| Self \|` | No | No |
 | 26 | `10249/tcp` kube-proxy · S | **entailed** — `source-ip.md`, *"on the node where kube-proxy is running"*, *"Run this in a shell on the node you want to query"*: the owner placing the **caller** relative to the listener | No | No |
 
-> **Twenty-six members walked · direction named by the owner in five · carried by the verb's
-> preposition in three · entailed in sixteen · absent in two · two verdicts turn on direction · one on
+> **Twenty-six members walked · direction named by the owner in six · carried by the verb's
+> preposition in three · entailed in fifteen · absent in two · two verdicts turn on direction · one on
 > addressee · zero cells move.**
+
+**Two owners write the direction in a column header, and neither was known to do so before this
+section.** **[measured]**, retrieved 2026-08-14 from the owner's own current documentation:
+
+> "| IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴ |" … "| Remote support port | 7906 | TCP |
+> Outbound¹ |"
+>
+> footnote **4**: *"An external client initiates the connection to iLO."*
+> footnote **1**: *"iLO initiates the connection to an external server."*
+> — HPE, *iLO 6 User Guide*, **Ports used by iLO features**, doc `sd00002007en_us`, part number
+> **30-7A345B12-032**, published **July 2026**, Edition 1. The same table's settings half reads
+> *"IPMI/DCMI over LAN — Specifies whether to allow IPMI/DCMI communications over the LAN with iLO.
+> **| Disabled**"*
+
+**HPE draws this section's own distinction, in its own column, with initiator-defining footnotes, on
+one page — and it draws it across the exact pair of ports the candidate turns on**: `623/udp` inbound
+and disabled by default, the remote-support path outbound and iLO-initiated. That is the strongest
+single piece of evidence in the sweep that direction is a property **of the listener** rather than a
+premise the reader supplies, and it is the owner's rather than this note's.
 
 **[measured]** the Kubernetes table's `Direction` column, retrieved 2026-08-14 from
 [`kubernetes/website` `main`, `content/en/docs/reference/networking/ports-and-protocols.md`](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/networking/ports-and-protocols.md):
@@ -15853,7 +15896,7 @@ place it on `source-ip.md` instead.
 
 **The headline number, and it is the one that answers the ticket's *"one exception or a pattern"*
 question.** **Direction is supplied by the owner in twenty-four of twenty-six carrying statements —
-five in the word, three in the preposition, sixteen in the verb — and it is absent from the two that
+six in the word, three in the preposition, fifteen in the verb — and it is absent from the two that
 were already refused on other limbs.** So the reader supplies no directional premise anywhere in either
 graded tier. **That is why the column's arithmetic is safe and why nothing moves**: a term that the
 owners themselves fix in every live member costs zero premises, which is ADR-0059 limb 1's own
@@ -15865,14 +15908,42 @@ are there: `445`'s Azure Files pages and `623`'s *iLO Direct Connect*. That is �
 forbids* — and §33.2 already wrote **one** of the two candidates into it as a rider: *"the addressee is
 part of the class"*. **Direction is the same rider's sibling and §33.2 did not write it**; §36.8 does.
 
-**A note on MongoDB Atlas, because it is the obvious place to look for a second addressee instance and
-it is not one.** MongoDB Atlas is MongoDB's own hosted service and its clusters are reachable from the
-internet, which is the `445` shape exactly. It does not become an addressee instance here for a reason
-that arrives one limb earlier: `27017`/`27018`/`27019` sit in the **scoping** tier because *"only
-accessible on trusted networks"* fails limb 3, and limb 4's defeat test does not run on a footing that
-has already failed a limb. **Recorded because a later pass promoting MongoDB on a new sentence would
-inherit this question**, and at that point the addressee ground would be live and the *one exception*
-claim would need re-running.
+**MongoDB Atlas — retrieved rather than assumed, because it is the obvious place to look for a second
+addressee instance, and it is the cleanest case in the corpus of addressee coming apart from
+direction.** **[measured]**, retrieved 2026-08-14 from the owner's own current manual:
+
+> "Make sure that your `mongod` and `mongos` instances are only accessible on trusted networks."
+> — MongoDB, *Network and Configuration Hardening* **for Self-Managed Deployments**, Database Manual
+> 8.3
+>
+> "Atlas clusters operate on port `27017`. You must be able to reach this port to connect to your
+> clusters."
+> — MongoDB, *Troubleshoot Connection Issues — Atlas*
+>
+> "Adding the `/0` CIDR, such as `0.0.0.0/0`, allows access from anywhere. … Restrict access to trusted
+> IP addresses or CIDR ranges whenever possible, and use strong credentials for all database users
+> **when allowing access from the public internet**."
+> — MongoDB, *Configure IP Access List Entries — Atlas*
+>
+> **[measured]** MongoDB's pages carry **no publication or revision date**; the only version marker is
+> the manual's version selector, which reads **8.3 (Current)**. Recorded as a dated-negative gap per
+> ADR-0046 rather than guessed at
+
+**Atlas is an *inbound* listener on 27017 that MongoDB documents as reachable from the public
+internet. Direction gives no answer here; only addressee does** — and MongoDB draws the addressee line
+itself, in its **page titles**: every trusted-networks statement in the manual is headed *for
+Self-Managed Deployments*, so the guidance addresses the operator's own `mongod` and the
+counter-example is the vendor's hosted service.
+
+**And it is still not a second load-bearing instance, for a reason that arrives one limb earlier.**
+`27017`/`27018`/`27019` sit in the **scoping** tier because *"only accessible on trusted networks"*
+fails **limb 3**, and limb 4's defeat test does not run on a footing that has already failed a limb.
+**Nothing here moves and nothing here is decided.** What the retrieval buys is that §36.5's
+independence claim is now **measured** rather than constructed: addressee genuinely comes apart from
+direction, in a live owner's live documentation — and it is *still* a coordinate of the same limb,
+because the question it answers is *which listener the statement is about*. **The *one exception*
+claim is therefore about **load-bearing** instances and is stated that way**; a later pass promoting
+MongoDB on a sentence that names the internet inherits this as a live limb-4 question on day one.
 
 ### 36.7 §32.12's withdrawn clause was false when it was written — `623/udp` is the second instance and it predates §32
 
@@ -15912,6 +15983,29 @@ The clause was scoped to the wrong half of the conjunction.
 restated limb 2 unchanged: iLO's outbound HTTPS session to `api.support.hpe.com` is not a listener on
 `623/udp` at all, so it is not an instance of the class HPE's *"Do not connect iLO directly to the
 Internet"* forbids. **The cell stands, on a ground the note now names.**
+
+**One correction to §28.9, made because this section re-opened the artefact and found the feature
+retired.** **[measured]**, retrieved 2026-08-14: the *iLO Direct Connect* / **HPE Insight Online direct
+connect** feature §28.9 named is **no longer current** — the iLO 6 User Guide's *HPE embedded remote
+support* topic reads *"HPE now supports only Insight Remote Support **central connect**. If you are
+using HPE Insight Online direct connect, Hewlett Packard Enterprise recommends unregistering Insight
+Online direct connect and register with Insight Remote Support central connect."* §28.9's citation is
+HPE advisory `a00050194en_us` Document Version 4, **2019-10-15**, which was current when #96 read it.
+
+> **The disposal is *re-founded on a current artefact* rather than corrected, and the replacement is
+> stronger.** **[measured]** HPE's *Compute Ops Management Getting Started Guide* (doc
+> `sd00001293en_us`, version **98**, content update **15-07-2026**) reads *"Ensure that the iLO
+> networking port is able to communicate with the following Hewlett Packard Enterprise websites
+> through an **outbound** TCP connection over port 443"*, and the table beneath it carries an
+> **`Initiator`** column whose value is **`iLO`** on every row — *"`device.cloud.hpe.com` | iLO |
+> Device activation"*. **The owner names the initiator in a column.** So `623/udp`'s direction ground
+> is not a 2019 near-miss preserved by inertia: it is HPE's current architecture, described by HPE in
+> the vocabulary this section rules in. **[measured] no HPE document read for this section presents an
+> internet-reachable iLO IPMI service on UDP 623 as supported** — the iLO 6 User Guide, its Security
+> Technology Brief, the Compute Ops Management guide, the OneView 7.1 remote-support page, the Insight
+> Remote Support Monitored Devices Configuration Guide (`a00127664en_us`, **February 2026**, Edition
+> 7.16.2) and the iLO 5 User Guide's contents. **§10.3's failure condition stays unmet for `623/udp`,
+> §28.9's verdict stands, and no cell moves.**
 
 ### 36.8 Limb 2, restated
 
@@ -15965,9 +16059,17 @@ in it.
 >   satisfies all four limbs as written and entails nothing about the row. §32.12's hypothetical is a
 >   heading in the document that carries the footing. §36.2.
 > - **[measured] The sweep across both graded tiers: direction is supplied by the owner in 24 of 26
->   carrying statements** — five in the word, three in the preposition, sixteen in the verb — **and is
->   absent from the two members that already fail another limb.** **Two verdicts turn on direction**
->   (`445/tcp`, `623/udp`); **one turns on addressee** (`445/tcp`). §36.6.
+>   carrying statements** — **six in the word**, three in the preposition, fifteen in the verb — **and
+>   is absent from the two members that already fail another limb.** **Two owners write it in a table
+>   column headed `Direction`** — Kubernetes for `10250`/`10259`/`10257` and **HPE for `623/udp`**,
+>   with initiator-defining footnotes. **Two verdicts turn on direction** (`445/tcp`, `623/udp`);
+>   **one turns on addressee** (`445/tcp`). §36.6.
+> - **[measured] The falsifier for *one exception, not a pattern* is named, retrieved, and not met.**
+>   MongoDB Atlas is an **inbound** internet-reachable listener on `27017` that MongoDB documents as
+>   supported and scopes away from its own trusted-networks guidance **by page title** (*for
+>   Self-Managed Deployments*) — so **addressee does come apart from direction**, cleanly, in a live
+>   owner's live documentation. It is **not** a second load-bearing instance because `27017` fails limb
+>   3 and limb 4's defeat test never runs. §36.5, §36.6.
 > - **[measured] §32.12's *"no member of either tier turns on direction today"* was false when
 >   written**, not only after §33: §28.9 had already spared `623/udp` from a candidate defeater on
 >   direction. The clause was scoped to the carrying statements and the candidate bites on the defeat
@@ -16094,7 +16196,10 @@ section's verdicts are unaffected because none of them is a membership claim.
 | §33.5's *"unstated directional qualifier"* | recorded, routed | **discharged.** It was **one** limb read with an unstated denotation, not two limbs; the denotation is now stated |
 | §33.9 item 2 (*direction, ticketed*) | ticketed | **closed by this section.** It did not block #12 and does not |
 | §33.4's `1433/tcp` demotion | one cell out of the graded table | **untouched and not reopened**, per #110's own constraint. §36.13 records the one place it brushes against #109 |
-| §28.9's `623/udp` near-miss disposal | *"HPE iLO Direct Connect is outbound, not inbound"* | **unchanged and re-founded** on the restated limb 2, and identified as the candidate's **first** live instance (§36.7) |
+| §28.9's `623/udp` near-miss disposal | *"HPE iLO Direct Connect is outbound, not inbound"*, on a 2019 advisory | **verdict unchanged; artefact re-founded and instance re-counted.** **[measured]** HPE has **retired** *Insight Online direct connect*; the current outbound path is Compute Ops Management, with an owner-written **`Initiator`** column reading `iLO` (doc `sd00001293en_us`, content update **15-07-2026**). Identified as the candidate's **first** live instance, four sections before §32 (§36.7) |
+| §28's `623/udp` footing artefacts | Dell and HPE *Security Configuration Guides*, §28.10 | **unchanged, and one gains a `Direction` column nobody had read.** **[measured]** HPE's *iLO 6 User Guide* (part number **30-7A345B12-032**, **July 2026**) tabulates `623/udp` as **`Inbound`** and **`Disabled`**, with footnotes defining the initiator on both directions. `623/udp` moves from `entailed` to **`named`** in §36.6's sweep. **No cell moves** |
+| §33.11's Redis spare — *"the string `6379` occurs **zero** times"* | a **substring** count, stated under ADR-0046's dated-negative rule | **corrected at its clause; the spare is unaffected.** **[measured]** `6379` occurs **once**, inside `36379` on an unrelated internode row. The claim the spare rests on is a **token** match — `6379` is listed as a port nowhere in the owner's table — and it holds. §36.14 |
+| §10.3's failure condition for `623/udp` | unmet across every co-owner (§28.9) | **re-measured and still unmet.** **[measured]** six HPE documents read, none presenting an internet-reachable iLO IPMI service on UDP 623 as supported (§36.7) |
 | §3.4's `445` carve-out paragraph | *"about **outbound** access to named IP ranges"* | **correct, incomplete twice, and now complete.** §33.5 added the two Azure Files pages; §36.2 adds the owner's own **`Block outbound SMB access`** section, in the carrying document |
 | §2.2's thin-cell note · §4.5's weakest row · §17.1's negatives | — | **unchanged.** Nothing here creates or retires a negative |
 | [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | `5432`, `5984`, `10248` | **unchanged.** The weak tier is outside this sweep by construction (§36.6) |
@@ -16125,11 +16230,17 @@ It is stated so it can be attacked rather than left as the thing that silently d
 introduces an object no limb reaches — §36.4's *before version 4.0* — which this test admits as a fifth
 limb and which the absorbing move could not.
 
-**The *one exception, not a pattern* claim on addressee rests on twenty-six members, which is the
-whole population and is still small.** It is falsifiable in one move — a member disposed of on
-addressee with the direction ground unavailable — and §36.6 names where that will first arise
-(MongoDB Atlas, if `27017` is ever promoted on a sentence that names the internet). **It has not
-arisen and the claim is made about today's table, dated to `94ff868`.**
+**The *one exception, not a pattern* claim on addressee is a claim about **load-bearing** instances,
+and the distinction is doing work — so both counts are given rather than the convenient one.**
+**[measured]** addressee is **available** at `6379` and at `9200` and was needed at neither, and it
+comes apart from direction **cleanly** at MongoDB Atlas — an inbound internet-reachable listener on
+`27017` that MongoDB documents as supported and scopes away from its own trusted-networks guidance by
+page title. **None of those three is a verdict**, because in each case a narrower limb refused first.
+**A reader who counts *availability* rather than *verdicts* gets three instances and may reach a
+different answer to the ticket's second question.** This section counts verdicts, because a limb that
+never decides anything is not doing the work a limb does — and it states the other count here so the
+choice is visible. The claim is made about today's table, dated to `94ff868`; a later pass promoting
+MongoDB on a sentence that names the internet inherits it as a live limb-4 question on day one.
 
 **Direction being *entailed* by a verb is the softest column in §36.6's sweep.** Sixteen of the
 twenty-six rest on the reading that *expose*, *exposed publicly*, *placed on* and *connected to* take a
@@ -16169,17 +16280,37 @@ serial merge.
   are two different substitutions* — is followed: `ports-and-protocols.md` was fetched from
   `raw.githubusercontent.com` at `kubernetes/website` `main`, and the column header is in the source
   table.
-- **`623/udp`'s instance is quoted from §28.9 rather than re-fetched, and named as such.** HPE advisory
-  `a00050194en_us` Document Version 4 (2019-10-15) was retrieved by #96 and is not re-retrieved here;
-  §36.7 relies on **what the note records §28.9 measured**, which is §18.7's own qualifier. A
-  re-retrieval would strengthen §36.7 and cannot change §36.4, because §36.7 bears on how *many*
-  instances exist and not on where the qualifier lives.
-- **The sweep is a re-reading for twenty-four members and a retrieval for two.** `445/tcp`'s carrying
-  document and the Kubernetes ports table were re-fetched; the other carrying statements are quoted
-  from the note as §3.4, §32 and §33 hold them, all of which were retrievals when they were run.
-  **Where §36.6 says the carrying statement entails direction for a member it did not re-fetch, it
-  means the sentence the note records entails it** — the same qualifier §33.9 attached to its own
-  walk.
+- **The sweep is a re-reading for twenty-two members and a retrieval for four.** `445/tcp`'s carrying
+  document, the Kubernetes ports table, HPE's iLO 6 port and security pages, and MongoDB's
+  self-managed-hardening and Atlas pages were fetched for this section; the other carrying statements
+  are quoted from the note as §3.4, §32 and §33 hold them, all of which were retrievals when they were
+  run. **Where §36.6 says the carrying statement entails direction for a member it did not re-fetch, it
+  means the sentence the note records entails it** — the same qualifier §33.9 attached to its own walk.
+- **`623/udp` was re-fetched rather than inherited, and the re-fetch changed two things and not the
+  verdict.** §28.9's *iLO Direct Connect* citation is HPE advisory `a00050194en_us` Document Version 4,
+  **2019-10-15**; **[measured]** the feature it names is **retired** and the current outbound path is
+  Compute Ops Management with an owner-written `Initiator` column. The instance is **re-founded on a
+  current artefact** (§36.7) and `623/udp` moves from `entailed` to **`named`** in §36.6's sweep,
+  because HPE's own port table has a **`Direction`** column. **Neither change moves a cell**, and
+  §36.4's ruling would be the same on §28.9's inherited reading. This is §30.10's *cite the version the
+  server returns* firing on a **feature name** rather than on a URL — a new shape and the reason a
+  quoted-from-the-note instance was worth opening.
+- **HPE's documentation portal serves a JavaScript shell to a plain client**, the `learn.microsoft.com`
+  shape §9.5 recorded and §14.6 met again on `docs.oracle.com`. The quotations above were taken from
+  the portal's own document content endpoint rather than from a rendering or a mirror, which is
+  §33.11's *cite the bytes the repository returns* applied to a vendor portal that has no repository.
+  **Recorded as a third instance of the same hazard class**, and as the reason a session that reports
+  *HPE publishes nothing* should check what it was served.
+- **MongoDB's pages carry no publication or revision date**, and the only version marker is the
+  manual's selector (**8.3, Current**). **[measured]** and recorded as a dated-negative gap per
+  ADR-0046 rather than papered over — it is the same defect §33.9 item 4 recorded for Dell's iDRAC
+  *Security Configuration Guides*, in a second vendor.
+- **A string count in a sibling section was found wrong and is corrected at its clause.** **[measured]**
+  §33.11's *"the string `6379` occurs **zero** times"* on the Redis Software port-configurations page
+  is false as a **substring** search — `6379` occurs once, inside `36379` on an unrelated internal row
+  — and true as a **token** claim, which is what the spare rests on. The verdict is unaffected and the
+  measurement is restated, because ADR-0046's dated-negative rule is about strings and a session
+  re-running the grep would get `1`.
 - **The neighbour test was run in the direction that would have been expensive to skip.** For each of
   the twenty-six the question *does this member's verdict depend on direction or on addressee* was
   asked rather than assumed from the fact that §33 had already walked it. **[measured]** it depends on
@@ -16450,4 +16581,8 @@ Retrieved for §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) 
 
 - **Microsoft SMB — the measurement that shows the conjunction as written was defective.** [*Secure SMB Traffic in Windows Server*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic), `ms.date` **2024-10-25**, `updated_at` **2025-04-28T22:34Z**, git commit [`00769866`](https://github.com/MicrosoftDocs/windowsserverdocs-pr/blob/00769866e7fbcab34905970bd165f4f12c5e9626/WindowsServerDocs/storage/file-server/smb-secure-traffic.md), `word_count` **1602** — read **whole** rather than for the one sentence §3.4 carries, per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1. It has **two** sections: `## Block inbound SMB access` (*"Block TCP port 445 **inbound** from the internet at your corporate hardware firewalls"* — the row's) and **`## Block outbound SMB access`** (*"Block TCP port 445 **outbound** to the internet at your corporate firewall"* — **not** the row's, and §32.12's hypothetical fifth-limb sentence made actual). Also carries *"Shares made with SMB2 or later don't use NetBIOS ports 137-139"*, confirming §33.3's re-founding unchanged · [*Preventing SMB traffic from lateral connections and entering or leaving the network*](https://support.microsoft.com/en-us/topic/preventing-smb-traffic-from-lateral-connections-and-entering-or-leaving-the-network-c0541db7-2244-0dce-18fd-14a3ddeb282a), `updated_at` **2026-07-13**, re-read for the **direction** of its own directive: *"unsolicited communication (from the internet) **and outgoing traffic (to the internet)**"*, and *"originating from the internet **or destined for the internet**"* — **[measured]** the corpus's strongest sentence is **bidirectional**, and the note has quoted it in full since §3.4 without recording that half of it is about egress (§36.2) · [*SMB over QUIC*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-over-quic), `ms.date` **2025-07-24**, `updated_at` **2025-09-15T17:34Z**, git commit [`825a9b7a`](https://github.com/MicrosoftDocs/windowsserverdocs-pr/blob/825a9b7a89b5e872e1542287bec3a6904fb08c83/WindowsServerDocs/storage/file-server/smb-over-quic.md) — *"By default SMB over QUIC uses UDP/443 inbound. **Do not allow TCP/445 inbound to the file server.**"* re-confirmed at the tag §33.5 cites, the owner's substitute for internet-facing TCP/445 and the reason the prohibition is **strengthened** rather than defeated
 - **Kubernetes — the owner writing the direction in a column header.** [`content/en/docs/reference/networking/ports-and-protocols.md` at `kubernetes/website` `main`](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/networking/ports-and-protocols.md), fetched as **raw repository bytes** rather than as the rendered page, per §33.11's rider. **[measured]** both the control-plane and worker-node tables carry the columns `Protocol · **Direction** · Port Range · Purpose · Used By`, and **every** `Direction` value in both reads **`Inbound`** — for `6443`, `2379-2380`, `10250`, `10259` and `10257`. `10249` appears in **neither** table, which is why §27.5 placed it on `source-ip.md` instead. This is the artefact behind three of §36.6's five *direction named by the owner* cells
-- **Quoted from this note rather than re-fetched, and named as such** (§36.14) — `623/udp`'s *iLO Direct Connect* disposal is **§28.9's**, on HPE advisory `a00050194en_us` Document Version 4, last updated **2019-10-15** (*"communication **from the device to** `https://api.support.hpe.com` over port 443"*), run for [#96](https://github.com/winniel123/verge-asm/issues/96) and not re-run; `6379`'s and `9200`'s neighbour spares are **§33.11's**; every other carrying statement in §36.6's sweep is quoted as §3.4, §32 and §33 hold it. Where §36.6 says a carrying statement **entails** direction for a member it did not re-fetch, it means the sentence the note records entails it — §33.9's own qualifier, carried forward
+- **HPE — the second owner who writes the direction in a column, and the re-founding of §28.9's instance.** Read through the portal's own document content endpoint rather than from a rendering, because `support.hpe.com` serves a JavaScript shell to a plain client (§9.5's and §14.6's hazard, third instance). [*HPE iLO 6 User Guide*](https://support.hpe.com/hpesc/public/docDisplay?docId=sd00002007en_us&docLocale=en_US), doc `sd00002007en_us`, part number **30-7A345B12-032**, published **July 2026**, Edition 1 — **Ports used by iLO features**, whose table carries a **`Direction`** column: `IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴` with footnote 4 *"An external client initiates the connection to iLO"*, against `Remote support port | 7906 | TCP | Outbound¹` with footnote 1 *"iLO initiates the connection to an external server"*, and the setting itself **`Disabled`**; **Security guidelines**, *"Do not connect iLO directly to the Internet."* … *"The iLO processor is a management and administration tool, not an Internet gateway."* … *"Disable ports and protocols that you do not use (for example, SNMP or IPMI/DCMI over LAN)."*; and **HPE embedded remote support**, *"HPE now supports only Insight Remote Support **central connect**"* — **the measurement that retires the feature §28.9 named** · [*HPE Compute Ops Management Getting Started Guide*](https://support.hpe.com/hpesc/public/docDisplay?docId=sd00001293en_us&docLocale=en_US), doc `sd00001293en_us`, version **98**, content update **15-07-2026** — *"communicate with the following Hewlett Packard Enterprise websites through an **outbound** TCP connection over port 443"*, over a table with an **`Initiator`** column reading `iLO` on every row. **The current artefact §36.7 re-founds `623/udp`'s direction instance on** · *HPE iLO 6 Security Technology Brief* (`sd00002198en_us`) — *"IPMI/DCMI over LAN | Disabled (includes port setting)"* · **[measured]** across those, the *HPE OneView 7.1* remote-support page (`sd00001752en_us`), the *Insight Remote Support Monitored Devices Configuration Guide* (`a00127664en_us`, **February 2026**, Edition 7.16.2) and the iLO 5 User Guide's contents, **no HPE document presents an internet-reachable iLO IPMI service on UDP 623 as supported**
+- **MongoDB — addressee coming apart from direction, retrieved because it is the obvious falsifier (§36.5, §36.6).** [*Network and Configuration Hardening for Self-Managed Deployments*](https://www.mongodb.com/docs/manual/core/security-hardening/), Database Manual **8.3 (Current)** — *"Make sure that your `mongod` and `mongos` instances are only accessible on trusted networks"* · [*Troubleshoot Connection Issues — Atlas*](https://www.mongodb.com/docs/atlas/troubleshoot-connection/) — *"Atlas clusters operate on port `27017`. You must be able to reach this port to connect to your clusters."* · [*Configure IP Access List Entries — Atlas*](https://www.mongodb.com/docs/atlas/security/ip-access-list/) — *"Adding the `/0` CIDR, such as `0.0.0.0/0`, allows access from anywhere"* and *"…**when allowing access from the public internet**"*. **[measured]** MongoDB's pages carry **no publication or revision date** in their source; the manual version selector is the only marker. **The addressee line is drawn by the owner in its own page titles** — *for Self-Managed Deployments* — and the case is **not load-bearing**, `27017` failing limb 3 a limb earlier
+- **Redis — a sibling section's string count corrected without moving its verdict (§36.14).** [*Network port configurations*, Redis Software](https://redis.io/docs/latest/operate/rs/networking/port-configurations/) — *"TCP | **10000-10049, 10051-19999** | ✅ Yes | Internal, External, Active-Active | Database traffic"*, and **[measured]** `6379` occurs **once** on the page, as a substring of `36379` on an unrelated internode row. §33.11's *"zero times"* is a **substring** claim and is wrong; the **token** claim it rests on — `6379` is listed as a port nowhere in the owner's table — is right, and the spare stands · [*Connect to AWS PrivateLink*](https://redis.io/docs/latest/operate/rc/security/aws-privatelink/) — *"the database port range (port 10000-19999)"*, the same fact from the ingress side
+- **Docker — the control case, and it behaves like one.** [`dockerd` reference](https://docs.docker.com/reference/cli/dockerd/) — *"it's not advisable on an **open network**"*, *"By default, it listens on `unix:///var/run/docker.sock` to allow only local connections by the root user"* · [*Configure remote access for Docker daemon*](https://docs.docker.com/engine/daemon/remote-access/) — *"The default port is `2376` if you're using TLS encrypted transport, or `2375` otherwise."* **[measured]** across those and [*Docker Engine security*](https://docs.docker.com/engine/security/) and [*Protect the Docker daemon socket*](https://docs.docker.com/engine/security/protect-access/), **Docker documents no internet-reachable daemon socket as supported and operates no hosted listener**, so **neither** candidate produces a counter-example — which is what a control case looks like and is the reason it was retrieved
+- **Quoted from this note rather than re-fetched, and named as such** (§36.14) — `9200`'s neighbour spare is **§33.11's**; `623/udp`'s prose footing is **§28.10's**; every other carrying statement in §36.6's sweep is quoted as §3.4, §32 and §33 hold it. Where §36.6 says a carrying statement **entails** direction for a member it did not re-fetch, it means the sentence the note records entails it — §33.9's own qualifier, carried forward
