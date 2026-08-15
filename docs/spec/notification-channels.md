@@ -40,7 +40,8 @@ one surface that reports a delivery failure is the one surface that cannot have 
 ### 1.1 Where the store renders
 
 A **global element carrying an unread count**, present on every screen, opening a list whose rows
-each link to the object the message is about. Not a nav destination: `Exposure · Subjects · Signals
+each link to the object or scope the message fired at — §3.3 says what that is per mover, since it
+is not always the object the sentence is about. Not a nav destination: `Exposure · Subjects · Signals
 · Seeds · Coverage · Settings` is unchanged. `[derived]` — [#10](https://github.com/winniel123/verge-asm/issues/10)
 kept the nav to five and demoted the estate listing to do it; #22 spent the sixth slot and argued
 for it.
@@ -83,7 +84,7 @@ One JSON document per message. It carries exactly what the in-app message carrie
 | Subject or scope | The **key** of the thing the message fired at — never a rendering of it |
 | Instant of the cause | Not the instant of the attempt |
 | Census | Counts only, where the message has one |
-| Link | An absolute URL into this instance, at the object the message is about |
+| Link | An absolute URL into this instance, at the object or scope the message fired at — §3.3 |
 
 **No rows, in any field.** Not the services behind a census count, not the address set behind a
 `resolution` move, not the evidence behind a `Signal`. `[derived]` — the map's
@@ -111,6 +112,36 @@ because there is nothing for them to ask.
 The channel is **one-way**: no callback, no ack channel, no fetch, no inbound surface.
 [#6](https://github.com/winniel123/verge-asm/issues/6)'s bearer-token bypass is untouched, because
 no credential here reads the estate.
+
+### 3.3 What "Subject or scope" and "Link" key on, per mover
+
+ADR-0064 §1 assigns every message a **mover** — an object in the estate, us, the operator, or
+nothing — and that is what the *sentence* is about. It is not always what the message **fired
+at**, and §3.1's `Subject or scope` field and `Link` are keyed on the fired-at object, never on
+the mover alone. Two of the four movers are not themselves keyed objects (`us`, `nothing`), and
+what they fired at was open until this ticket. `[derived]` for the first two rows,
+[**RULED by #159**](https://github.com/winniel123/verge-asm/issues/159) for the fourth.
+
+| Mover | What the message fired at | Link target |
+| --- | --- | --- |
+| An object in the estate (drift) | That object | The object's own page. Settled — ADR-0064 §1 |
+| Nothing — a threshold crossed (clock) | The object whose clock-read span the rule evaluated — e.g. an `Endpoint` whose `certificate` a `certificate-expired` firing reads | That object's own page. The mover is nothing; what the rule read is not, and it is never the estate as a whole |
+| The operator's own declared input | The declared `Source` the rule reads (e.g. a zone file's name scope) | That `Source`'s own page. The same shape as drift, and not examined afresh by #159 — named here for completeness |
+| Us — our aperture, or a rule of ours (an aperture widening) | The `Seed` whose scope the widening act was performed over — [`CONTEXT.md`](../../CONTEXT.md)'s own **"the message fires at the scope"**, true of both a `Seed`'s address-scope declaration and [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)'s per-`Seed`-scope cold-tier enable | That `Seed`'s own entry, on the existing `Seeds` destination |
+
+**Never `Coverage`'s standing aperture statement.** [#44 decision 10](../adr/0044-a-one-off-measurement-has-no-currency.md)
+discharged that statement's three-densities obligation on the ground that it is **constant**; a
+widening is an event with an instant, so a link that lands there loses which act the message was
+about — the same failure ADR-0064 §5 already refused for a magnitude-conditional rendering, one
+layer across. It is also not a new nav destination: the `Seed` is rendered on `Seeds`, which
+already exists, and following the link offers no act the operator does not already have (they
+declared the `Seed`), which is [ADR-0052](../adr/0052-a-declaration-refusal-names-a-route-and-never-takes-it.md)'s
+guard against a link that names a route the operator cannot take.
+
+Where a future "us" trigger's aperture change is not `Seed`-scoped (for example, adding a
+`Vantage`), the same principle governs — link to the Declared configuration object whose change
+was the widening act — but which object that is for a trigger besides the port-aperture case is
+not decided here.
 
 ---
 

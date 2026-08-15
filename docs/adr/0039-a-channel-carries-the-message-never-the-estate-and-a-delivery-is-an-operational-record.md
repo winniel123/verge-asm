@@ -285,6 +285,14 @@ completes is a schedule arriving, dressed as a message.
   the operations framing — and a seventh nav item was refused because #10 and #22 both spent real
   capital keeping the nav short. Recorded here rather than promoted, on #10's and #22's precedent
   that IA decisions live in the ticket.
+
+  > **Narrowed by [#159](https://github.com/winniel123/verge-asm/issues/159).** *The object each
+  > message is about* reads correctly for the drift mover and needed a rider for the other three —
+  > ADR-0064 §1's mover is not always what the message **fired at**, and the link is keyed on the
+  > latter. Settled per mover, including the previously open **`us`** case (an aperture widening
+  > links to the `Seed` whose scope it fired at, never to `Coverage`'s constant aperture
+  > statement), in [`notification-channels.md`](../spec/notification-channels.md) §3.3. No nav
+  > destination is added and nothing above moves.
 - **The measurement path gains nothing and the worker gains one job kind.** Delivery is worker-side
   ([ADR-0001](./0001-stack-and-runtime.md) split the tiers by blast radius and this is outbound
   network work), which means the **channel secret is a worker secret** — a fourth entry in
