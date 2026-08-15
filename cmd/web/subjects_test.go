@@ -161,6 +161,74 @@ func TestSubjectDrilldownRendersCurrentAndClosedTimelines(t *testing.T) {
 	}
 }
 
+func TestServiceSubjectsListedAndDrilledDown(t *testing.T) {
+	// AC #195: the Subjects page renders Service subjects, and the Service
+	// drill-down shows its reachability verdict and citation back to a Seed.
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	// A Name resolves to the address the Service sits on — the citation ground.
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.addReachability(t, "198.51.100.1:443/tcp", obsClock, `{"outcome":"reached","result":"open"}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// The listing carries a Service subjects section with the triple and verdict.
+	page := getBody(t, ac, base+"/subjects", http.StatusOK)
+	for _, want := range []string{"Service subjects", "198.51.100.1:443/tcp", "reached"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("subjects listing missing %q; body: %s", want, page)
+		}
+	}
+	if !strings.Contains(page, "/subjects/service?key=") {
+		t.Errorf("service drill-down link missing; body: %s", page)
+	}
+
+	// The drill-down: verdict, address split out, and citation to the Name and Seed.
+	drill := getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A443%2Ftcp", http.StatusOK)
+	for _, want := range []string{
+		"Observed · Service", "198.51.100.1:443/tcp", "reached",
+		"Citation chain", "api.example.com", "443",
+	} {
+		if !strings.Contains(drill, want) {
+			t.Errorf("service drill-down missing %q; body: %s", want, drill)
+		}
+	}
+}
+
+func TestServiceDrilldownRendersOpenCloseTimeline(t *testing.T) {
+	// AC #195: re-running the hot Scan with a Service opening produces the correct
+	// Span transition — a not-reached span closes and a reached span opens — visible
+	// on the Service's own drill-down.
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.addReachability(t, "198.51.100.1:443/tcp", obsClock, `{"outcome":"not-reached","result":"refused"}`)
+	f.addReachability(t, "198.51.100.1:443/tcp", obsClock.Add(24*time.Hour), `{"outcome":"reached","result":"open"}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	drill := getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A443%2Ftcp", http.StatusOK)
+	// A current span (reached) and a closed-history row (the earlier not-reached).
+	for _, want := range []string{"Current and closed timelines", "reachability", "Current", "Opened", "Closed", "not-reached"} {
+		if !strings.Contains(drill, want) {
+			t.Errorf("service timeline missing %q; body: %s", want, drill)
+		}
+	}
+}
+
+func TestServiceMissingReturns404(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/subjects/service?key=203.0.113.9%3A22%2Ftcp", http.StatusNotFound)
+	if !strings.Contains(got, "No such subject") {
+		t.Errorf("missing service not reported as 404; body: %s", got)
+	}
+}
+
 func TestSubjectMissingReturns404(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

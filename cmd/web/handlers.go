@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -51,6 +52,10 @@ type store interface {
 	GetNameSubject(ctx context.Context, subjectKey string) (db.GetNameSubjectRow, error)
 	GetNameCitation(ctx context.Context, subjectKey string) (db.GetNameCitationRow, error)
 	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
+	ListCurrentServiceSubjects(ctx context.Context, search string) ([]db.ListCurrentServiceSubjectsRow, error)
+	GetServiceSubject(ctx context.Context, subjectKey string) (db.GetServiceSubjectRow, error)
+	FindNameCitingAddress(ctx context.Context, address string) (db.FindNameCitingAddressRow, error)
+	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
 	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
@@ -142,6 +147,9 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
 
 	mux.HandleFunc("GET /subjects", s.requireLogin(s.subjectsPage))
+	// The Service drill-down reads its key from a query parameter because a
+	// Service key carries a `/`; its literal path wins over the {key} wildcard.
+	mux.HandleFunc("GET /subjects/service", s.requireLogin(s.servicePage))
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))

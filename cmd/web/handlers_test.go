@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"sort"
 	"strings"
 	"testing"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 )
@@ -590,24 +592,30 @@ func (f *fakeStore) ListZoneFileStatus(context.Context) ([]db.ListZoneFileStatus
 	return rows, nil
 }
 
-// ListSpansForSubject folds the fake's observations for one subject into Span
-// rows using the real drift.Fold, so the drill-down test exercises the same
-// open/close logic the worker's ingest does. The production store reads persisted
-// spans; the fake derives them so the web tests stay hermetic.
-func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error) {
-	// Both resolution and dns-record are decided by the two membership leaves
-	// jointly (ADR-0086), so every fold carries the same two-leaf vector.
-	vector := drift.NewVector(
+// fakeFacetVector mirrors queue.facetVector: reachability folds under the single
+// connect-outcome leaf; resolution and dns-record under the two membership leaves
+// jointly (ADR-0086). The fake derives spans so the web tests stay hermetic.
+func fakeFacetVector(facet string) drift.Vector {
+	if facet == connectoutcome.FacetReachability {
+		return drift.NewVector(drift.Component{Leaf: connectoutcome.Kind, Version: connectoutcome.Version})
+	}
+	return drift.NewVector(
 		drift.Component{Leaf: "resolution-walk", Version: resolutionwalk.Version},
 		drift.Component{Leaf: "wildcard-discrimination", Version: wildcarddiscrim.Version},
 	)
-	derivation, _ := json.Marshal(vector)
+}
 
+// ListSpansForSubject folds the fake's observations for one subject into Span
+// rows using the real drift.Fold, so the drill-down test exercises the same
+// open/close logic the worker's ingest does. It is facet-generic: a `service`
+// subject's `reachability` observations fold exactly as a `name`'s resolution
+// ones do. The production store reads persisted spans; the fake derives them.
+func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error) {
 	type tlkey struct{ facet, discriminator, source string }
 	order := []tlkey{}
 	byKey := map[tlkey][]drift.Reading{}
 	for _, o := range f.observations {
-		if o.SubjectKind != "name" || o.SubjectKey != arg.SubjectKey {
+		if o.SubjectKind != arg.SubjectKind || o.SubjectKey != arg.SubjectKey {
 			continue
 		}
 		k := tlkey{facet: o.Facet, discriminator: o.Discriminator, source: o.Source}
@@ -616,7 +624,7 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 		}
 		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
 		byKey[k] = append(byKey[k], drift.Reading{
-			Value: string(o.Value), IsGap: gap, Vector: vector, ObservedAt: o.ObservedAt.Time,
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
 		})
 	}
 
@@ -630,14 +638,15 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 	rows := []db.ListSpansForSubjectRow{}
 	var id int64
 	for _, k := range order {
+		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
 		key := drift.TimelineKey{
-			SubjectKind: "name", SubjectKey: arg.SubjectKey,
+			SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,
 			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
 		}
 		for _, s := range drift.Fold(key, byKey[k]) {
 			id++
 			row := db.ListSpansForSubjectRow{
-				ID: id, SubjectKind: "name", SubjectKey: arg.SubjectKey,
+				ID: id, SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,
 				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
 				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
 				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
@@ -652,6 +661,116 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 		}
 	}
 	return rows, nil
+}
+
+// addReachability records a reachability observation for a Service in a fresh
+// batch — the connect-outcome leaf's output the hot Scan writes. It is the seam
+// the Service drill-down tests populate.
+func (f *fakeStore) addReachability(t *testing.T, serviceKey string, at time.Time, value string) {
+	t.Helper()
+	scanID := f.ensureScan("hot")
+	b := db.Batch{ID: f.batchNextID, ScanID: scanID, Kind: "connect-outcome", Outcome: "completed"}
+	f.batches = append(f.batches, b)
+	f.batchNextID++
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: b.ID, Facet: "reachability", SubjectKind: "service",
+		SubjectKey: serviceKey, Source: "prober", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+func (f *fakeStore) latestReachabilityByService() map[string]db.Observation {
+	latest := map[string]db.Observation{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "service" || o.Facet != "reachability" {
+			continue
+		}
+		cur, ok := latest[o.SubjectKey]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[o.SubjectKey] = o
+		}
+	}
+	return latest
+}
+
+func (f *fakeStore) ListCurrentServiceSubjects(_ context.Context, search string) ([]db.ListCurrentServiceSubjectsRow, error) {
+	latest := f.latestReachabilityByService()
+	keys := make([]string, 0, len(latest))
+	for k := range latest {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	rows := []db.ListCurrentServiceSubjectsRow{}
+	for _, k := range keys {
+		if search != "" && !strings.Contains(strings.ToLower(k), strings.ToLower(search)) {
+			continue
+		}
+		o := latest[k]
+		rows = append(rows, db.ListCurrentServiceSubjectsRow{
+			SubjectKey: k, Value: o.Value, ObservedAt: o.ObservedAt,
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) GetServiceSubject(_ context.Context, key string) (db.GetServiceSubjectRow, error) {
+	o, ok := f.latestReachabilityByService()[key]
+	if !ok {
+		return db.GetServiceSubjectRow{}, pgx.ErrNoRows
+	}
+	return db.GetServiceSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
+}
+
+func (f *fakeStore) FindNameCitingAddress(_ context.Context, address string) (db.FindNameCitingAddressRow, error) {
+	// The earliest current resolution whose Resolved answer names the address.
+	var best *db.FindNameCitingAddressRow
+	for name, o := range f.latestResolutionByName() {
+		if fakeResolutionOutcome(o.Value) != "Resolved" {
+			continue
+		}
+		var v struct {
+			Addresses []string `json:"addresses"`
+		}
+		_ = json.Unmarshal(o.Value, &v)
+		for _, a := range v.Addresses {
+			if a == address {
+				cand := db.FindNameCitingAddressRow{SubjectKey: name, ObservedAt: o.ObservedAt}
+				if best == nil || cand.ObservedAt.Time.Before(best.ObservedAt.Time) {
+					best = &cand
+				}
+			}
+		}
+	}
+	if best == nil {
+		return db.FindNameCitingAddressRow{}, pgx.ErrNoRows
+	}
+	return *best, nil
+}
+
+func (f *fakeStore) FindCoveringAddressSeed(_ context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error) {
+	var best *db.FindCoveringAddressSeedRow
+	var bestBits int
+	for _, s := range f.seeds {
+		if s.Kind != "address" || s.AddressCidr == nil {
+			continue
+		}
+		if s.AddressCidr.Contains(address) {
+			if best == nil || s.AddressCidr.Bits() > bestBits {
+				row := db.FindCoveringAddressSeedRow{
+					ID: s.ID, AddressCidr: s.AddressCidr, CreatedAt: s.CreatedAt,
+					CreatedByUsername: f.accounts[s.CreatedBy].Username,
+				}
+				best = &row
+				bestBits = s.AddressCidr.Bits()
+			}
+		}
+	}
+	if best == nil {
+		return db.FindCoveringAddressSeedRow{}, pgx.ErrNoRows
+	}
+	return *best, nil
 }
 
 // addVantageClass registers a resolver-only vantage of the given class and
