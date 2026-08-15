@@ -355,6 +355,23 @@ gate.**
   declared parameter and moving one is ADR-0021's business. If that ticket lands badly, the
   population being right buys less than this ADR implies.
 
+> **[#111](https://github.com/winniel123/verge-asm/issues/111) landed and repays this ADR twice.**
+> [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md) rules the
+> predicate as **set equality per `(qtype, RR type)` component at determinate components only**.
+> Two riders bear on the entries above.
+>
+> **The converse residue is narrowed rather than closed.** RFC 4592 §2.2.1 blocks synthesis for
+> *every* type once a name exists, so a name discriminated at **any** component has **no**
+> synthesised RRset — with seven qtypes it gets seven chances to differ, and reads `Shadowed` only
+> where it coincides at all of them. **[measured]** that residue is real and survives: five live
+> GitHub Pages sites return **exactly** the `*.github.io` wildcard's four addresses.
+>
+> **This ADR's seven-qtype by-catch turns out to be load-bearing for the predicate, on a ground
+> nobody argued here.** **[measured]** `appspot.com`'s only determinate *positive* component in the
+> seven is **MX** — A and AAAA both rotate — so under the withdrawn A/AAAA/CNAME clause that parent
+> has no positive determinate component at all and everything beneath it is suppressed. The
+> widening was argued from `{161}` and paid a second time.
+
 ## Consequences
 
 - **The enumerated aperture input list moves from six to seven**, and every site asserting an older
@@ -399,7 +416,15 @@ gate.**
   section.** The population is not an offer and this document enumerates offers.
 - **`{161}` closes on four qtypes.** MX, TXT, NS and SOA become `Shadowed`-capable on `dns-record`,
   which they were promised and could not be.
-- **One new ticket, and it is the other half of making §3.2 implementable.** The **match
+- **One new ticket, and it is the other half of making §3.2 implementable.** ***Resolved —*
+  [#111](https://github.com/winniel123/verge-asm/issues/111) /
+  [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md).** It
+  also found that *a probe that completed and found no wildcard licenses everything beneath it*
+  — this ADR's own rule, restated below — has a residue it did not know about: **[measured]**
+  `nip.io` and `sslip.io` answer **NODATA** to random control labels while `10.0.0.1.nip.io`
+  answers `10.0.0.1`, so a completed probe can license a fictional inventory where the synthesis is
+  a function of the **label's construction**. That is `wildcard-discrimination`'s *other* declared
+  parameter and is ticketed rather than folded. The **match
   predicate** is unspecified and measurably harder than set equality: **[measured]** `herokuapp.com`
   returned three distinct address sets across five control labels and `vercel.com` returned five,
   seconds apart, from one vantage, while `github.io` and `localtest.me` were stable. A predicate

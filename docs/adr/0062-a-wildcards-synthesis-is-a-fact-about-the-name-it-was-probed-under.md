@@ -49,7 +49,7 @@ ship in v1.**
 | The decisive objection to `dns-record` | **The `Span` key collides.** `(subject, facet, discriminator, vantage, source)` with discriminator = qtype is already occupied by the A RRset the authority served for this very name |
 | Its discriminator, if it ships | **The qtype** — which is a reason it is **not** `dns-record`, not a reason it is: two facets with one discriminator each is the model's shape, one facet with a two-part discriminator is not |
 | Its name, if it ships | **`wildcard-synthesis`.** Never `poison-signature`: that names **our instrument** and borrows a security taxonomy's word, and the project has chosen the measured word over the taxonomy's four times running (`Lame`, `no-response`, `tls-acceptance`, `Shadowed`) |
-| Its value space | A closed union — at minimum *no synthesis* and *synthesised RRset*. **Not settled here**, and deliberately: see the sixth part below |
+| Its value space | ~~A closed union — at minimum *no synthesis* and *synthesised RRset*. **Not settled here**, and deliberately: see the sixth part below~~ — **SETTLED** by [#111](https://github.com/winniel123/verge-asm/issues/111) / [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md), and it is **three** members rather than the two guessed here, drawn **per component** (`(qtype, RR type)`): **`NoSynthesis`** │ **`Determinate(RRset)`** │ **`Indeterminate`**. The guess was short because *the* synthesised RRset is not a well-formed object — **[measured]** an authority returns a different one for the **same** control label on consecutive queries |
 | Does a synthesised RRset admit subjects? | **No, and never.** It cites no `Address`, opens no `Endpoint`, and writes no `Citation`. It is a value and only a value |
 | What a repoint is | A **`Transition` on one timeline**, and nothing else |
 | Is that `Transition` a message? | **No.** `dns-record`'s status verbatim under [ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md): recorded, and reaching nobody until a rule reads it |
@@ -300,9 +300,13 @@ than the facet was.
   `Break` whenever it is taken up. Nothing is bought now and nothing needs rework later.
   *(**The condition is met** —
   [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).
-  The shelf entry stands, on price alone, and now carries two open items: a probe site with no
+  The shelf entry stands, on price alone, and now carries ~~two open items: a probe site with no
   carrier, and the value space, which waits on
-  [#111](https://github.com/winniel123/verge-asm/issues/111). See the amendment below.)*
+  [#111](https://github.com/winniel123/verge-asm/issues/111)~~ **one open item — a probe site with
+  no carrier. The value space is settled by
+  [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md)** as a
+  three-member closed union drawn per component, so **both parts this facet was blocked on are now
+  writable** and the refusal rests on price alone. See the amendment below.)*
 - **The cost is zero and there is no re-baseline.** No signature has ever been held, so nothing is
   withdrawn, no timeline closes, no `Break` fires and no message is owed. This is ADR-0027's cheap
   direction for the second time: the ruling names something that could not yet have produced a value.
@@ -354,3 +358,13 @@ this facet, and it is [#111](https://github.com/winniel123/verge-asm/issues/111)
 ADR left open (*a closed union of no-synthesis and synthesised RRset*) cannot be drawn until #111
 lands, because on the churning half *the* RRset is not a well-formed object. The deferral was right
 for a second reason it did not know about.
+
+> **#111 landed, and the churn is worse than this entry recorded.**
+> [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md).
+> **[measured]** 2026-08-14 the answer is not a function of the label either: **six repeats of one
+> label** against `vercel.com` returned five distinct address pairs, and **four repeats of one
+> label direct to `ns01.herokudns.net`** returned four different ingress nodes with four disjoint
+> address sets — so the rotation is the **authority's own** rather than an anycast resolver's. The
+> batch-to-batch direction this entry named is therefore answered *a fortiori* and remains
+> unmeasured only as a separate number. The value space is settled at **three** members per
+> component, and the guess of two was short for exactly this reason.
