@@ -33,7 +33,7 @@ Three constraints from decisions already made shape the answer before any eviden
 
 | Decision | Answer |
 |---|---|
-| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle** |
+| The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle. **Superseded again by §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)) — the list is 40 pairs, class totals `12 / 7 / 21`: `1433/tcp` Microsoft SQL Server is REMOVED**, Claim 3 failing on §10.3's own failure condition on a retrieval **scoped to the row**, and no other claim in the closed set fitting. The note's **second** row removal after `161/udp`, and the first to leave by losing a claim it held. The pair goes to **§4.6**, which becomes **21** entries; §6.1's arithmetic is ~~`28 + 8 + 5 = 41`~~ **`27 + 8 + 5 = 40`**; §2.2's uncovered-in-subject population returns to **0** and coverage reads ~~29 of 41~~ **29 of 40**; **`verge-core` is UNCHANGED at 136 pairs**, `1433/tcp` being in the frequency half. §35** |
 | Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
@@ -111,6 +111,38 @@ Three constraints from decisions already made shape the answer before any eviden
 > against `main` at `9a8f1df`, the composed post-#99/#100/#101/#102 state. Four siblings were resolving
 > concurrently, so the statement to carry forward is the parametric one: **where §34 and §1 disagree,
 > §1 governs.**
+>
+> ---
+>
+> #### §35's delta on top of everything above — [#109](https://github.com/winniel123/verge-asm/issues/109), and it is the first delta on this note that removes a row since §11
+>
+> **`S := S − {1433/tcp}`, and every figure below is that one substitution propagated.** Stated
+> parametrically because two siblings ([#108](https://github.com/winniel123/verge-asm/issues/108),
+> [#110](https://github.com/winniel123/verge-asm/issues/110)) were resolving concurrently against
+> `main` at `94ff868`.
+>
+> | Figure | Above | After §35 | How it composes |
+> |---|---|---|---|
+> | §1 pair count | 41 | **40** | 41 `− 1433/tcp` — §35 |
+> | §3 class totals | `12 / 7 / 22` | **`12 / 7 / 21`** | Class C loses one row; A and B untouched |
+> | §4.6 exclusions | 20 | **21** | `+ 1433/tcp`, removed — §35.10 |
+> | §2.2 prohibition · scoping · weak · outside-subject | 15 · 11 · 3 · 11 | **15 · 11 · 3 · 11, all unchanged** | the cell left the graded table at §33; the **row** was already uncovered |
+> | §2.2 *uncovered, inside the table's subject* | **1 — `1433/tcp`** | **0** | §33 created this population with one member and §35 empties it |
+> | §2.2 footing coverage | 29 of 41 | **29 of 40** | the numerator does not move; `15 + 11 + 3 + 11 = 40` |
+> | §6.1 containment arithmetic | `28 + 8 + 5 = 41` | **`27 + 8 + 5 = 40`** | cell 1 alone — `1433/tcp` is **in** `F` (§29.2, *top-100, retained*) |
+> | §29.3's identity | cell 1 = 28 · `\|S_tcp\| = 36` · `\|S\| = 41` | **27 · 35 · 40** | the identity is untouched; three numerals move |
+> | `verge-core` | 136 pairs — 131 TCP, 5 UDP | **136 pairs — 131 TCP, 5 UDP, UNCHANGED** | `\|F\| + \|S \ F\|` = `123 + (8 + 5)`; `1433/tcp` was never in `S \ F` |
+> | [`safe-active-probing.md`](./safe-active-probing.md) §2.4's aperture line | `0 of 41 sensitive pairs unread` | **`0 of 40 sensitive pairs unread`** | denominator only; the probed set does not move |
+> | §17.1's population of negatives | fifteen | **fifteen, unchanged** | the new exclusion's ground is an owner's **affirmative** sentence, which is not a negative |
+> | [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | three rows | **three, unchanged** | no weak-tier member moves |
+> | [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) | not triggered by §33 | **TRIGGERED** | `sensitive-port-reached-from-internet`'s content moves; vacuous pre-install and **not waived** |
+> | Everything else in the tables above | — | **unchanged** | §35 touches no other row, class, tier, footing or exclusion |
+>
+> **In prose, and parametrically, so a merger re-derives rather than patches:** *the sensitive list
+> loses `{1433/tcp}`; §4.6 gains it; §6.1's first cell loses it; §2.2's uncovered-in-subject
+> population loses it and empties; every tier, the union, the frequency half and the probed set are
+> unchanged.* **The delta is `−1` on `|S|` for any baseline.** §35.11 states the basis and §35.14 its
+> risk.
 
 The headline result is the one that would not have come out of a frequency instrument:
 
@@ -568,6 +600,14 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > swept into this ruling, per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
 > limb 2 and §26.4's precedent. §33.9.
 >
+> > **The row IS decided now, and it does not survive — §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)).
+> > On a retrieval **scoped to the row**, Claim 3 fails on §10.3's failure condition; Claim 1 is
+> > unavailable and Claim 2 fails on its successor clause; §10.2's set is closed. **`1433/tcp` is
+> > removed from the list and is in §4.6.** The tier figures in this block are **unchanged in every
+> > cell** — no pair enters or leaves a tier — but the arithmetic beneath them is not: the list is
+> > **40**, coverage is **29 of 40**, the **uncovered-in-subject population returns to 0**, and
+> > `15 + 11 + 3 + 11 = 40`. **ADR-0008 IS now triggered**, by §35 rather than by §33. §35.8, §35.11.
+>
 > **[measured] The conjunction takes no neighbour in the demoting direction either.** Fifteen of
 > sixteen hold, and each is spared on an owner artefact rather than on judgement: Elastic's sentence is
 > conditioned on *"unprotected"* and its managed 9200 is a **proxy** port with the nodes on
@@ -992,7 +1032,7 @@ trade against the determinacy gate.
 | 2376/tcp | Docker daemon REST API (TLS) | yes | TLS authenticates the client but does not change the audience; whoever holds the keys has root on the host, and Docker still directs that it be reachable only from a trusted network or VPN |
 | 3306/tcp | MySQL / MariaDB | yes | A database wire protocol whose clients are application tiers; upstream states the port should not be reachable from untrusted hosts |
 | 5432/tcp | PostgreSQL | yes | Same role; upstream ships `listen_addresses` defaulting to loopback (see §4.5 — this is the list's weakest row and it is labelled as such) |
-| 1433/tcp | Microsoft SQL Server | yes | Vendor directs that instances not be connected directly to the internet |
+| ~~1433/tcp~~ | ~~Microsoft SQL Server~~ | yes | **ROW REMOVED by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)). ~~Vendor directs that instances not be connected directly to the internet~~ — the prohibition is not withdrawn and it does not carry the row. **Claim 3 fails on §10.3's own failure condition**: Microsoft names the public internet as a supported deployment environment for an operator's own SQL Server instance on TCP/1433 and ships the provisioning option. Claim 1 is unavailable and Claim 2 fails on its successor clause, so §10.2's closed set is exhausted. **The pair is now in §4.6** ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md), §35.6, §35.10) |
 | 27017/tcp | MongoDB | yes | Binds to localhost by default; upstream directs that instances be reachable only on trusted networks |
 | 27018/tcp | MongoDB shard member | yes | An intra-cluster port with no external client |
 | 27019/tcp | MongoDB config server | yes | Holds cluster metadata; intra-cluster only |
@@ -1011,6 +1051,23 @@ trade against the determinacy gate.
 | 10259/tcp | kube-scheduler secure serving port (HTTPS) | -- | Upstream places the port with `Used By: **Self**` in its control-plane ports table — the node itself, and no other client, which is §10.3's narrowest branch; the owner's own installer binds it to `127.0.0.1`. The shipped configuration serves only `/healthz`, `/livez` and `/readyz` anonymously and `403`s everything else, so it is not a Claim 1 row (§24.3, §24.6) |
 | 10257/tcp | kube-controller-manager secure serving port (HTTPS) | -- | Same table, same `Used By: **Self**` cell, same loopback default in the owner's installer; `/healthz` alone is served anonymously (§24.3, §24.6) |
 | 10248/tcp | kubelet healthz | -- | A stdlib `ServeMux` carrying `/healthz` and nothing else, on plain HTTP with no authentication or authorization. Claim 1 fails at both steps — the anonymous caller gets a liveness boolean, and the owner's shipped RBAC grants `get` on `/healthz` to `system:unauthenticated` by name. Upstream's published config API calls it *"the port of the **localhost** healthz endpoint"* and ships `healthzBindAddress` defaulting to `"127.0.0.1"`, which is §10.3's first branch — the same system — named by a restricting default (§27.6) |
+
+> **Amended by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)). **`1433/tcp`
+> Microsoft SQL Server is REMOVED. Class C is 21 rows and the list is 40 pairs — class totals
+> ~~`12 / 7 / 22`~~ `12 / 7 / 21`.** It is the note's **second** row removal, after `161/udp` (§11.6),
+> and the first to leave by **losing** a claim it held rather than by never having one. **[measured]**,
+> retrieved 2026-08-14 in a retrieval **scoped to the row** per
+> [#37](https://github.com/winniel123/verge-asm/issues/37): Microsoft's own current documentation names
+> the public internet as a supported deployment environment for an operator's own SQL Server instance on
+> TCP/1433 — *"| **Public** | Connect to SQL Server over the internet. |"*, *"select **Public
+> (internet)** to allow connections to SQL Server from machines or services on the internet"* (`ms.date`
+> **2026-03-18**), *"**Any client with internet access can connect to the SQL Server instance**"* — and
+> the portal opens the VM firewall on 1433 and writes the network security group rule. §33 demoted the
+> **cell** on the same measurement and routed the **row**; this section rules it.
+> **[ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+> is minted** — a claim fails on the owner's **affirmative naming**, never on the reach of the owner's
+> own prohibition, so §33.10's *"directly"* counter-argument cannot rescue the row however it is read.
+> The row goes to **§4.6**, which becomes **21** entries. §35.
 
 > **Added by §27** ([#95](https://github.com/winniel123/verge-asm/issues/95)). **Class C is 22 rows
 > and the list is 41 pairs.** `10248/tcp`'s footing is the **weak tier** — a restricting shipped
@@ -1186,9 +1243,18 @@ default is distribution and build-time behaviour that X.Org does not document as
 > MySQL behind the firewall or in a demilitarized zone (DMZ)."
 > — [MySQL 8.4 Security Guidelines](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html)
 
-> "Install databases in the secure zone of the corporate intranet and don't connect your SQL Server
-> instances directly to the Internet."
-> — [Microsoft Learn, Security considerations for a SQL Server installation](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation)
+> ~~"Install databases in the secure zone of the corporate intranet and don't connect your SQL Server
+> instances directly to the Internet."~~
+> — ~~[Microsoft Learn, Security considerations for a SQL Server installation](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation)~~
+>
+> **WITHDRAWN as a row's footing by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)),
+> and the row is **removed** — §3.3, §4.6. The sentence itself is not withdrawn as a quotation and
+> Microsoft has not retracted it; what ends is its service as the footing of a listed row, `1433/tcp`
+> having failed §10.3's failure condition on Microsoft's own affirmative naming of the public internet
+> as a supported deployment environment for the pair. The `ms.date` is **2025-08-14** and the sentence
+> is a **physical-security** bullet; **[measured]** the page numbers no port (§33.4) and the owner's
+> freshest security page, *SQL Server security best practices* at `ms.date` **2026-05-07**, contains
+> neither `1433` nor the word *internet* (§35.3). §35.
 
 > "MongoDB binaries, `mongod` and `mongos`, bind to `localhost` by default." … "Make sure that your
 > `mongod` and `mongos` instances are only accessible on trusted networks."
@@ -1712,7 +1778,7 @@ it refuses.
 | **5601/tcp Kibana** | Elastic states no prohibition; Kibana is routinely and legitimately fronted on the internet behind auth. Its evidence is a secure default only, and it squats on `esmagent` |
 | **8500/tcp Consul HTTP API** | Consul "is not secure-by-default" and ships `acl.default_policy` = `"allow"`, but its stated position is only that external access "should be considered", and 8500 is registered to `fmtp` |
 | **9092/tcp Kafka** | Upstream declines to take any network posture. Its only relevant sentence is neutral: "security is optional - non-secured clusters are supported" |
-| **5672, 15672/tcp RabbitMQ AMQP + management UI** | Upstream's "should not be publicly exposed" sentence covers 4369 and 25672 specifically, not these. AMQP brokers are sometimes legitimately public |
+| **5672, 15672/tcp RabbitMQ AMQP + management UI** | Upstream's "should not be publicly exposed" sentence covers 4369 and 25672 specifically, not these. ~~AMQP brokers are sometimes legitimately public~~ — **WITHDRAWN by §17.4** ([#79](https://github.com/winniel123/verge-asm/issues/79)): it was **an assertion of ours**, which §2.2's opening sentence bars, and it is replaced by the owner's own sentence — RabbitMQ's production checklist puts client-library ports in the category that *"should be accessible to hosts that run applications, **which in some cases can mean public networks**"*. The exclusion does not move; its ground does. *Marked in place by §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)), which found the clause still standing here — a 26th site of [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s shape, after #106's 25* |
 | **8080/tcp Jenkins** | Upstream explicitly acknowledges public-internet deployment as supported: "Jenkins is used everywhere from workstations on corporate intranets, to high-powered servers connected to the public internet", and responds with auth-by-default rather than a network demand |
 | **1099/tcp Java RMI registry** | Contrary to reputation, modern JDK defaults are secure — `jmxremote.ssl` and `jmxremote.authenticate` both default to `true` |
 | **Hadoop NameNode / YARN UIs** | Hadoop's default `simple` authentication would qualify under Claim 1, but the web UI port moved from 50070 to 9870 between major versions, so port-to-service inference is version-dependent. Fails determinacy |
@@ -1785,6 +1851,21 @@ it refuses.
 > different party: any one cloud provider's own current documentation placing its
 > cloud-controller-manager on `10258` by default *and* naming a boundary admits the row **on that
 > vendor's attestation**, which is ADR-0056's third limb.
+
+> **Amended by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)). **One entry is added
+> and the table is twenty-one — and it is the first entry in this table that arrives by a row being
+> REMOVED from the list rather than by a candidate being refused.**
+>
+> | Excluded | The ground |
+> |---|---|
+> | **`1433/tcp` Microsoft SQL Server** | **Claim 3 fails on §10.3's own failure condition, and no other claim in the closed set fits.** Microsoft names the public internet as a supported deployment environment for an operator's own SQL Server instance on TCP/1433, in three current first-party documents scoped to **SQL Server on Azure VM**: *"\| **Public** \| Connect to SQL Server over the internet. \|"* and *"**Any client with internet access can connect to the SQL Server instance**"* (*Connect to a SQL Server virtual machine on Azure*, `ms.date` 2026-01-23); *"select **Public (internet)** to allow connections to SQL Server from machines or services on the internet"* and *"These settings automatically configured the virtual machine to allow **SQL Server connections from any client over the internet**"* (*Provision a SQL Server virtual machine in the Azure portal*, `ms.date` **2026-03-18**); *"If you require **Public** (internet) access to the SQL Server VM, then make sure to follow other best practices in this topic"* (*Security considerations and best practices for SQL Server on Azure VMs*, `ms.date` 2025-12-05). The owner **ships the provisioning option**, opens the VM firewall on 1433 and writes the network security group rule. Microsoft's *"don't connect your SQL Server instances **directly** to the Internet"* is not withdrawn and does not save the row — it is a statement about what the owner **forbids**, and §10.3's condition fires on what the owner **affirms** ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 1). **Claim 1** is unavailable — SQL Server ships admitting no anonymous command, and Microsoft's own page says public access **requires** SQL authentication. **Claim 2** fails on its successor clause — TDS negotiates TLS on the **same** port. §35 |
+>
+> **The exclusion is on the claim gate**, like `10256/tcp` (§24.7) and `10258/tcp` (§27.7): `1433/tcp`
+> passes §2.4 determinacy comfortably. **The cell is worded from Microsoft's own sentence from the
+> start**, which is the whole point — §17.4 had to withdraw *"AMQP brokers are sometimes legitimately
+> public"* from the `5672`/`15672` cell below because it was **an assertion of ours**, and #79 replaced
+> it with the owner's sentence two years of note-time later. **The criterion that would change the
+> verdict** is at §35.10, and **[measured]** neither half of it exists as of 2026-08-14.
 
 **The WinRM case deserves its own paragraph, because the tempting argument is factually false.**
 5985 is the WinRM *HTTP* listener, and the natural inference — HTTP transport, therefore cleartext
@@ -1915,8 +1996,14 @@ Computing the current `verge-core` hot set from
 ephemeral/obsolete tail, plus the named modern-services supplement — against §3's list:
 
 **In the hot set already — 28 of 38:** 21, 23, 139, 445, 513, 514, 873, 2049, 2181, 2375, 2376,
-2379, 2380, 3306, 5432, 1433, 5900, 5984, 6000, 6379, 9042, 9200, 9300, 10250, 10255, 11211/tcp,
+2379, 2380, 3306, 5432, ~~1433~~, 5900, 5984, 6000, 6379, 9042, 9200, 9300, 10250, 10255, 11211/tcp,
 27017, 27018.
+
+> **`1433` is struck and this cell is 27 — §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)).
+> The pair is **removed from the sensitive list**, so it leaves this enumeration; it does **not** leave
+> the hot set, which is why `verge-core` is unchanged. The arithmetic is ~~`28 + 8 + 5 = 41`~~
+> **`27 + 8 + 5 = 40`** and **cell 1 is the only cell that moves**, which is what §29.3's identity
+> predicts for a TCP pair **inside** `F` leaving `S`. §35.11, §35.12.
 
 **Missing from the hot set — 4 TCP rows that would silently never fire:**
 
@@ -4071,8 +4158,11 @@ from the project's own repository tree or release tarball listing, never guessed
 | CouchDB | `rel/overlay/etc/default.ini` — `apache/couchdb` `3.5.0` (§12 read `3.4.2`) | Operative |
 | etcd | `etcd.conf.yml.sample`, `contrib/systemd/etcd.service` — `etcd-io/etcd` `v3.7.1` | Neither, and §13.6 is about that |
 
-**Three rows have no artefact to read, and that is a finding rather than a gap.** `1433/tcp` MS SQL
-Server, `445/tcp` SMB with `139/tcp` and `137`, `138/udp`, and `623/udp` IPMI. Microsoft configures
+**Three rows have no artefact to read, and that is a finding rather than a gap.** ~~`1433/tcp` MS SQL
+Server~~ (**no longer a listed row — REMOVED by §35**, [#109](https://github.com/winniel123/verge-asm/issues/109);
+the finding about the artefact stands as a retrieval verdict and is now beside the point, the row
+having left on the **claim** gate), `445/tcp` SMB with `139/tcp` and `137`, `138/udp`, and `623/udp`
+IPMI. Microsoft configures
 SMB and SQL Server through setup and the registry rather than through a file it ships, and a BMC's
 configuration is firmware. **There is nothing to open, so nothing in these rows can move on this
 ticket** — recorded per §11.8's rule that a negative retrieval is a verdict, and per
@@ -5652,7 +5742,7 @@ names — the defining **specification**, the **operational or deployment** reco
 | 10 | **`3389/tcp`** — no first-party non-Azure prohibition was found (§4.6) | vendor deployment, cloud-scoped (Azure) · third-party (CISA) | Microsoft's on-premises hardening guidance | **No** — express purpose; GCP ships it open to `0.0.0.0/0` | **Bounded on arrival** |
 | 11 | **`5601/tcp`** — Elastic states no prohibition (§4.6, §12.6) | project documentation (Kibana settings) · shipped default (`kibana.yml`) | Elastic's deployment guidance for Kibana | **Partly** — the second ground is a squat on `esmagent`, and ADR-0042's liveness test has **never been run on it** | **Exposed, not swept — §17.8** |
 | 12 | **`8500/tcp`** — the position is only that external access *"should be considered"* (§4.6, §12.6) | project documentation ×3 (security model, ACL config, ports) · no configuration file ships | HashiCorp's deployment guidance | **Partly** — same shape: the second ground is a squat on `fmtp`, untested under ADR-0042 | **Exposed, not swept — §17.8** |
-| 13 | **`1433`, `445`, `623`** — *"no shipped configuration artefact exists"* (§13.1) | — | — | **No** — it is a negative about an **artefact's existence**, not about an owner's silence, and all three rows rest on prose in the prohibition tier | **Not a class negative** |
+| 13 | **~~`1433`~~, `445`, `623`** — *"no shipped configuration artefact exists"* (§13.1). **`1433/tcp` is no longer a listed row — REMOVED by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)); this row now names **two** listed rows and one §4.6 exclusion | — | — | **No** — it is a negative about an **artefact's existence**, not about an owner's silence, and ~~all three rows rest~~ **both surviving rows rest** on prose in the prohibition tier. **`1433` left on the *claim* gate**, which no configuration artefact could have answered either way, so this scoring was never in play for it | **Not a class negative** |
 | 14 | **`10255/tcp`** — *"The owner states **no position** on `10255` anywhere that was retrieved"* (§16.5, [#76](https://github.com/winniel123/verge-asm/issues/76)) — **created after this population was fixed** | project documentation ×2 (`ports-and-protocols.md`, `kubelet-authn-authz.md`) · shipped bytes (`types.go`, `defaults.go`) · generated CLI reference | **the project's security documentation** | **Yes** — it is the weak tier's third row and rests on a restricting default alone | **Swept (§17.6). A category prohibition exists in the owner's voice, and whether it reaches the port is a footing question** |
 
 > **Amended by §22** ([#87](https://github.com/winniel123/verge-asm/issues/87)). **Rows 11 and 12 both
@@ -6459,6 +6549,12 @@ back badly, `1433` is the next cell to check.
 > ADR-0050 limb 3, because **[measured]** the carrying page numbers no port at all and Microsoft
 > elsewhere names internet-facing TCP/1433 as supported. **The paragraph above is the note correctly
 > predicting its own defect two passes early, and it is left standing for that reason.** §33.4.
+>
+> > **And it is spent a second time, on the row — §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)).
+> > The same measurement that defeated the cell meets §10.3's failure condition for `1433/tcp`'s
+> > **claim**, and on a retrieval scoped to the row the claim does not survive. **The row is removed
+> > from the list.** A trigger armed on *"the softest cell in the tier"* found a cell that was soft
+> > because the **row** was, which is the more useful reading of what §18.7 caught.
 
 ### 18.8 Every dependent figure, walked rather than asserted
 
@@ -10029,7 +10125,7 @@ which classes of that owner were never opened.**
 | 1 | `6379/tcp` Redis | Redis | **deployment / security** — `redis.io` *Security*, under *operate → management* | **A** |
 | 2-3 | `11211/tcp`+`/udp` memcached | memcached | **deployment** — the project wiki's `ConfiguringServer` | **A** |
 | 4 | `3306/tcp` MySQL | Oracle | **security** — *Security Guidelines*, Reference Manual §8.1.1 | **C** |
-| 5 | `1433/tcp` MS SQL | Microsoft | **security** — *Security considerations for a SQL Server installation* | **A** |
+| 5 | ~~`1433/tcp` MS SQL~~ | Microsoft | **security** — *Security considerations for a SQL Server installation* | **A** — **and the pair has since left both this population and the list**: the cell was demoted out of the graded table by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) and the **row** removed by §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)). The population above is a **dated** enumeration of §2.2's prose tiers, which §26.6 already governs; it is 23 as composed |
 | 6 | `9200/tcp` Elasticsearch | Elastic | **implementation guidance** — the networking configuration reference | **A** |
 | 7 | `9300/tcp` Elasticsearch | Elastic | **security** — *Secure cluster communications*, under *deploy-manage → security* | **A** |
 | 8 | `873/tcp` rsync | the rsync project | **implementation guidance** — `rsyncd.conf(5)` | **retrieval — §26.3** |
@@ -12177,7 +12273,7 @@ stops at the kubelet and reaches no other control-plane component.
 | `2376/tcp` | C | **yes** | supplement — orchestration |
 | `3306/tcp` | C | **yes** | top-100, retained |
 | `5432/tcp` | C | **yes** | top-100, retained |
-| `1433/tcp` | C | **yes** | top-100, retained |
+| ~~`1433/tcp`~~ | C | **yes** | top-100, retained — **and the row is REMOVED from `S` by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)). The scoring was right and stays; what ends is the **membership**. It leaves **cell 1**, so `28 + 8 + 5 = 41` becomes **`27 + 8 + 5 = 40`** and `verge-core` does **not** move, the pair having been in `F` all along |
 | `27017/tcp` | C | **yes** | supplement — data stores |
 | `27018/tcp` | C | **yes** | supplement — data stores |
 | `27019/tcp` | C | **no** | the supplement took `27017` and `27018` and stopped one short |
@@ -12196,6 +12292,9 @@ stops at the kubelet and reaches no other control-plane component.
 | **`10257/tcp`** | C | **no** | same |
 
 **28 in · 6 TCP out · 5 UDP out.** `28 + 6 + 5 = 39`.
+
+> **Composed and then reduced: 28 → 27 in, after §35** ([#109](https://github.com/winniel123/verge-asm/issues/109))
+> removed `1433/tcp`. The composed figure is **`27 + 8 + 5 = 40`** over **40** rows.
 
 > **Composed: 28 in · 8 TCP out · 5 UDP out — `28 + 8 + 5 = 41`.** §27
 > ([#95](https://github.com/winniel123/verge-asm/issues/95)) admitted `10249/tcp` and `10248/tcp` in a
@@ -12238,6 +12337,22 @@ and 2 and simply **count** cell 3.
 composed, after §27 admitted 10249/tcp and 10248/tcp — neither in F:
 |verge-core| = |F| + |S \ F| = 123 + (8 + 5) = 136 pairs — 131 TCP, 5 UDP
 ```
+
+> **Composed again after §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)) removed
+> `1433/tcp` — and the union does NOT move.**
+>
+> ```
+> cell 1 = 27   cell 2 = 8   cell 3 = 5      |S_tcp| = 35 ;  |S| = 40
+>
+> |verge-core| = |F| + |S \ F| = 123 + (8 + 5) = 136 pairs — 131 TCP, 5 UDP.  UNCHANGED.
+> ```
+>
+> **[measured]** `1433/tcp` is scored *top-100, retained* in the table above, so it is in `F` and was
+> never in `S \ F`. **A pair leaving `S` moves cell 1 alone and leaves the union, the frequency half
+> and the probed set exactly where they were** — the mirror of the rule this section already states
+> for an addition, and the first time it has been spent in the removing direction. It is also why
+> §35.12 rules that the removal's price is a rule-version bump and a denominator, and **not** the
+> aperture widening [#109](https://github.com/winniel123/verge-asm/issues/109) priced it as.
 
 > **`136` is the figure to quote, and `134` is this section's own against the pre-§27 list.** It is the
 > identity above that survives, not the numeral — which is why §29.3 was written this way and why the
@@ -14751,8 +14866,19 @@ where the note keeps them apart.
 >   [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
 > - **No `(port, transport)` pair moves, no row moves, no class total moves, no exclusion is created or
 >   retired, and [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered.**
+>   > **True of §33 and superseded as a statement about `1433/tcp` by §35**
+>   > ([#109](https://github.com/winniel123/verge-asm/issues/109)): the row **is** removed, a class
+>   > total **does** move, an exclusion **is** created, and **ADR-0008 is triggered**. §33 was right
+>   > that none of it followed from a *footing* move; all of it follows from the *claim* ruling §33.9
+>   > routed.
 > - **Cost: nothing.** A footing-tier move that changes no row's class is free; a sensitive-list
->   revision would cost a version bump *and* an aperture widening (#80), and this is not one.
+>   revision would cost a version bump ~~*and* an aperture widening (#80)~~, and this is not one.
+>   > **The second half is CORRECTED by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)),
+>   > which spent the price and re-derived it. A sensitive-list **removal** costs a version bump and an
+>   > aperture ***narrowing*** — a denominator, `0 of |S| sensitive pairs unread`, with the numerator
+>   > `0` for every `|S|` — and **[measured]** it costs `verge-core` **nothing** where the pair is in
+>   > the frequency half, so nothing changes about what is probed. An **addition** outside the
+>   > frequency half is the case that widens. §35.12.
 
 **Why no row moves here, stated because it is the constraint the ticket set.** A tier records how
 strong a footing is, never whether a row qualifies (§30.4, §32.8). The measurement that demotes
@@ -14771,6 +14897,19 @@ declining to move `2049/tcp` on exactly this condition; and #37's rule is that *
 retrieval scoped to the row**, which this was not — it was scoped to a tier. **Ticketed, and it
 blocks [#12](https://github.com/winniel123/verge-asm/issues/12)**, because it can reach a row removal
 and therefore a version bump and an aperture widening.
+
+> **DISCHARGED by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)). The row-scoped
+> retrieval was run and **the row does not survive** — `1433/tcp` is removed and is in §4.6. This
+> paragraph's routing was correct on all three grounds and the answer went the way it anticipated.
+> **Two of its clauses are corrected by the ruling it produced.** *"A version bump and an aperture
+> widening"* is wrong about the second half: the aperture **narrows** — a denominator, `0 of 41
+> sensitive pairs unread` becoming `0 of 40`, with the numerator `0` for every `|S|` — and
+> **[measured]** `verge-core` does **not** move at all, `1433/tcp` being in the frequency half, so
+> nothing changes about what is probed. And §33.10's *"directly"* counter-argument, which this
+> paragraph left live for the row, **cannot reach it**: §10.3's failure condition fires on the owner's
+> **affirmative** naming and not on the reach of the owner's own prohibition
+> ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+> limb 1), so granting the carve-out leaves the naming **unopposed**. §35.2, §35.4, §35.12.
 
 **2. Direction, as the candidate fifth limb, now has its first live instance.** §32.12 named it and
 said no member turned on it. `445/tcp` does. This does not falsify §32.2's closure — direction is
@@ -14811,6 +14950,25 @@ one is the arbitrariness §2.2's founding paragraph names — which is §30.3's 
 run the other way. **The criterion that would change the verdict:** Microsoft withdrawing the Public
 connectivity option, or qualifying the *Security considerations* sentence the way Elastic qualifies
 its *"unprotected"* one.
+
+> **The counter-argument is heard again on the ROW by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109))
+> **and it does not travel — for a reason that leaves this paragraph's footing analysis intact.**
+> §10.3's failure condition fires on the owner's **affirmative** naming of the public internet as a
+> supported deployment environment, not on the reach of the owner's own prohibition
+> ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+> limb 1). **Grant the *"directly"* carve-out in full and the affirmative naming is left standing
+> alone** — the carve-out removes the only thing arguing with it, so it makes the row's case
+> *stronger* rather than weaker. Two further corrections. **The first ground above is withdrawn for
+> the row**: §34.3 limb (c) ([#105](https://github.com/winniel123/verge-asm/issues/105)), landed in
+> the same merge as this section and therefore unavailable to it, rules that §10.4's one-way rule
+> governs the **attestation** gate and not the **claim** gate — so §10.4 does not silence the Azure
+> page at the row question at all, and the ground is not merely outweighed but inapplicable. The
+> second ground, §17.4's symmetry, stands and is now **instantiated on the costly side**. And
+> **[measured]** the criterion above was tested on 2026-08-14 and **neither half is met**: Microsoft
+> has not withdrawn the Public option — the SQL-Server-on-Azure-VMs *What's new* page carries no such
+> entry through June 2026, and the provisioning walkthrough still instructs the reader to select it at
+> `ms.date` **2026-03-18** — and has attached no Elastic-shaped condition to it. **The tier verdict
+> this paragraph flags is unchanged; the row is removed.** §35.2, §35.4, §35.13.
 
 **`11211/udp`'s limb 2 is the cell that needed the most artefacts, and it ends satisfied rather than
 thin.** **[measured]** the shipped man page `doc/memcached.1` at tag **1.6.45** documents `-U` as
@@ -14914,10 +15072,10 @@ and §33.12 are wrong and the parametric statement is right.**
 | §2.2 footing table — scoping tier | 11 pairs | **11, unchanged.** `1433` does **not** land here — a footing failing limb 2 or 4 does not enter the grading at all (§32.2) |
 | §2.2 footing table — weak tier | 3 rows | **3, unchanged.** `5432`, `5984`, `10248` |
 | §2.2 footing table — *outside this table's subject* | 11 pairs | **11, unchanged.** `139`/`137`/`138` are re-founded inside `445`'s cell, not moved |
-| **§2.2 — uncovered, inside the table's subject** | **0** | **1 — `1433/tcp`.** §13.7's shape, which last stood at seven and was closed by §16 |
+| **§2.2 — uncovered, inside the table's subject** | **0** | **1 — `1433/tcp`.** §13.7's shape, which last stood at seven and was closed by §16. **Back to 0 after §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)) — the population's only member leaves the **subject** rather than gaining a cell, the row having been removed from the list |
 | **§2.2 footing coverage** | **30 of 41** | **29 of 41.** `15 + 11 + 3 = 29`; `29 + 11 + 1 = 41` |
 | §1 pair count | 41 | **41, unchanged.** No row is added or removed |
-| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 22 | **unchanged.** `1433` stays Class C on Claim 3; the claim question is **routed**, not answered (§33.9) |
+| §3.1 / §3.2 / §3.3 class totals | 12 / 7 / 22 | **unchanged.** `1433` stays Class C on Claim 3; the claim question is **routed**, not answered (§33.9). **Superseded by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)): the routed question is answered, Claim 3 **fails**, and the totals are **`12 / 7 / 21`** over **40** pairs |
 | §6.1 containment arithmetic | `28 + 8 + 5 = 41` | **unchanged** |
 | §4.6 exclusions | 20 | **unchanged** |
 | §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** `1433` is now the weakest **footing**, which is a different column |
@@ -15393,6 +15551,710 @@ commit `9a8f1df`. Four siblings were resolving concurrently, so the safe stateme
   not performed.
 ---
 
+## 35. `1433/tcp`'s row does not survive — §10.3's failure condition is met on a retrieval scoped to the row, and the counter-argument that saves a footing cannot save a claim
+
+[#109](https://github.com/winniel123/verge-asm/issues/109), and it is the ticket §33.9 routed. §33
+([#107](https://github.com/winniel123/verge-asm/issues/107)) demoted `1433/tcp`'s footing cell out of
+the graded table on a measurement that **also** meets Claim 3's own stated failure condition, and
+declined to act on the row for three reasons that travelled together: [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+limb 2, §26.4's `2049/tcp` precedent, and [#37](https://github.com/winniel123/verge-asm/issues/37)'s
+rule that **a row moves on a retrieval scoped to the row**. §33's retrieval was scoped to a **tier**.
+This one is scoped to the row.
+
+> **`1433/tcp` Microsoft SQL Server leaves the list.** Claim 3 fails on §10.3's own failure
+> condition — **[measured]**, retrieved 2026-08-14, Microsoft's own current documentation names the
+> public internet as a supported deployment environment for an operator's own SQL Server instance on
+> TCP/1433, ships the provisioning option, and writes the firewall and network security group rules
+> that admit it. **No other claim in the closed set fits**: Claim 1 is unavailable because SQL Server
+> as shipped admits no anonymous command, and Claim 2 fails on its successor clause because TDS
+> negotiates TLS **on the same port**. §10.2 closed the set, so *no claim* is *no row* — §24.7's and
+> §11.6's disposal shape, reached a third time.
+>
+> **The list is 40 pairs, class totals `12 / 7 / 21`.** §6.1's containment arithmetic is
+> ~~`28 + 8 + 5 = 41`~~ **`27 + 8 + 5 = 40`**; §4.6 gains a **21st** exclusion, worded from
+> Microsoft's own sentence from the start so §17.4's mistake is not repeated; §2.2's
+> uncovered-in-subject population returns to **0** and coverage reads ~~29 of 41~~ **29 of 40**, with
+> 15 + 11 + 3 + 11 = **40**.
+>
+> **`verge-core` does NOT lose a member, and the ticket's own pricing is wrong about that.**
+> **[measured]** `1433/tcp` is in the **frequency half** — §29.2 scores it *top-100, retained* — so
+> `F ∪ S` is unchanged at **136 pairs, 131 TCP, 5 UDP**. A pair leaving the sensitive list costs the
+> union **nothing** where the frequency half already carries it, which is
+> [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s definition doing its job in the **removing**
+> direction for the first time. Nothing changes about what is probed.
+>
+> **The cost is a version bump and an aperture *narrowing*, not a widening** — the ticket priced it
+> as the latter, and §35.12 re-derives it. `sensitive-port-reached-from-internet`'s content moves, so
+> [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) **is** triggered and every
+> evaluation `Break`s. Pre-install all of it is vacuous, and **not waived** — the same statement
+> ADR-0009's #91 and #95 amendments made in the adding direction.
+>
+> **[ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+> is minted**, and it is the first ADR minted since #104. Two limbs: §10.3's failure condition is
+> answered by the owner's **affirmative** naming and never by the reach of the owner's own
+> prohibition — a reading that **narrows** the prohibition leaves the affirmative statement standing
+> **alone**, so it makes the claim's case stronger rather than weaker; and an `applies to` banner
+> scopes the **artefact**, not the **pair**, so a deployment-scoped document is the owner speaking
+> about the pair wherever its subject is the protocol's clients and its addressee is the operator.
+
+### 35.1 What was retrieved
+
+**Nine Microsoft artefacts, all first-party, all current, retrieved 2026-08-14.** Two are the ones
+§33 read; seven are new to this note, and four of the seven are the reason this retrieval is scoped
+to the row rather than to a tier. Every negative below is dated to 2026-08-14 per
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), and every one is a count over
+the file retrieved rather than a claim about Microsoft's corpus — ADR-0037 limb 3.
+
+| # | Artefact | `ms.date` | `applies to` | Why it was opened |
+|---|---|---|---|---|
+| 1 | *Security considerations for a SQL Server installation* | **2025-08-14** | SQL Server on Windows | The **carrying** page — the row's whole footing before §33 |
+| 2 | *Connect to a SQL Server virtual machine on Azure* (`ways-to-connect-to-sql`) | **2026-01-23** | SQL Server on Azure VM | §33's defeating artefact, re-read whole |
+| 3 | ***Provision a SQL Server VM in the Azure portal*** (`create-sql-vm-portal`) | **2026-03-18** | SQL Server on Azure VM | **New.** The freshest page in the set, and the one that *instructs* |
+| 4 | *Security considerations and best practices — SQL Server on Azure VMs* | **2025-12-05** | SQL Server on Azure VM | **New.** The owner's **security** class for this deployment — the class the conditioning argument needs |
+| 5 | ***SQL Server security best practices*** | **2026-05-07** | SQL Server · Azure SQL DB · Azure SQL MI | **New.** The owner's flagship security page, and the source of this section's sharpest negative |
+| 6 | *Configure a server to listen on a specific TCP port* | **2025-08-26** | SQL Server | The mapping artefact — `1433` as the default instance's port |
+| 7 | *Azure SQL Database connectivity architecture* | **2026-02-26** | Azure SQL Database | Checked as a defeater and **refused** — Microsoft's own managed service |
+| 8-9 | *Azure SQL Managed Instance public endpoint* — overview and configure | **2025-08-26** · **2025-09-11** | Azure SQL Managed Instance | Checked as a defeater and **refused** — **3342**, and the port is fixed |
+
+**[measured]** Artefacts 1, 5, 8 and 9 were verified against the raw `live`-branch markdown in
+`MicrosoftDocs/sql-docs` and grepped, rather than read through a summarising layer, because three of
+this section's load-bearing facts are **zero counts** and §33.11 records a summariser producing a
+false negative on exactly this shape one pass ago.
+
+### 35.2 The question is not the one §33 answered, and that is the whole of why the counter-argument does not travel
+
+**Two gates, two questions, one artefact.** §33 asked a **footing** question: does the owner's
+prohibition *reach* `1433/tcp`, and is the reach *defeated*? That is ADR-0050 limb 3 and
+[ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)
+limb 4, and both are questions **about the prohibition sentence** — its class, its scope, whether the
+supported architecture falls inside what it forbids.
+
+This section asks a **claim** question, and §10.3 states it without reference to any prohibition at
+all:
+
+> "**The boundary must be named by the owner.** Where the owner names the public internet as a
+> **supported deployment environment**, Claim 3 fails however strongly a third party disapproves."
+
+**Nothing in that sentence is a test on the owner's prohibition.** It is a test on the owner's
+**affirmative** statement. The prohibition's job at the claim gate is to *name the boundary*; the
+failure condition fires on a second, independent utterance that names the internet. So the two gates
+read the same two documents for different propositions, and a defeater at one is not a defeater at
+the other — which is [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)'s
+discipline applied one level up, and §34.3's limb (c) — *"a value read for what the software does is
+not read under §10.4 at all"* — applied to the same pair of gates from the other side.
+
+**This is why §33.10's live counter-argument does not reach the row, and the demonstration is one
+line long.** §33.10's counter-argument is that *directly* in *"don't connect your SQL Server
+instances **directly** to the Internet"* carves out a filtered exposure, so the Azure Public option
+sits outside the forbidden class. **Grant it in full.** What remains is Microsoft, in its own current
+documentation, naming the public internet as a supported deployment environment for a SQL Server
+instance on TCP/1433. §10.3's failure condition is met on that sentence alone, and granting the
+carve-out **removes the only thing that was in tension with it**. The reading that saves the footing
+makes the row's case **stronger**, not weaker — §35.4 works it through.
+
+**§33.10 also rested the counter-argument on §10.4's one-way rule, and §34 has since taken that
+instrument away from it.** §33.10: *"on that reading the Azure VM page is **silent** under §10.4's
+one-way rule."* §34.3 limb (c), landed in the same merge as §33 and therefore not available to it,
+rules that **§10.4's one-way rule governs the attestation gate and not the claim gate**. The row
+question is a claim-gate question. So §10.4 does not silence the Azure page here at all — not
+because §33.10 was wrong about §10.4, but because §10.4 is not the gate the row is standing at.
+
+### 35.3 The retrieval, scoped to the row
+
+**The carrying sentence, re-read whole and unchanged from §33.4.** **[measured]** at commit
+`f7648b1a`, `ms.date` **2025-08-14**, *applies to SQL Server on Windows*:
+
+> "Physical and logical isolation form the foundation of SQL Server security. To enhance the physical
+> security of the SQL Server installation, complete the following tasks:
+> - Place the server in a room accessible only to authorized persons.
+> - Place computers that host a database in a physically protected location, ideally a locked computer
+>   room with monitored flood detection and fire detection or suppression systems.
+> - **Install databases in the secure zone of the corporate intranet and don't connect your SQL Server
+>   instances directly to the Internet.**
+> - Back up all data regularly and secure the backups in an off-site location."
+
+**Three negatives on that page, all counts over the raw markdown at `live`, retrieved 2026-08-14.**
+
+> **[measured]** The string `1433` occurs **zero** times — §33.4's measurement, reproduced
+> independently against the raw source rather than the rendered page.
+>
+> **[measured]** The word *Internet* occurs **exactly twice**, case-insensitively: the bullet above,
+> and *"Put a firewall between the server and the Internet."*
+>
+> **[measured]** **No sentence anywhere on the page conditions, qualifies or defines the *directly*
+> bullet.** There is no *unless*, no *if properly firewalled*, no cross-reference to the Azure VM
+> connectivity guidance. The nearest candidate is the *Use firewalls* section, quoted in full at
+> §35.4 because it is the counter-argument's best evidence.
+
+**The affirmative naming, in three current owner documents rather than one.** §33 had the second;
+the first and third are new to the note and are the reason this retrieval was worth running.
+
+> "If you want to connect to your SQL Server database engine from the internet, select **Public** for
+> the **SQL connectivity** type in the portal during provisioning. The portal automatically does the
+> following steps:
+> - Enables the TCP/IP protocol for SQL Server.
+> - **Configures a firewall rule to open the SQL Server TCP port (default 1433).**
+> - Enables SQL Server authentication, required for public access.
+> - Configures the network security group on the VM to all TCP traffic on the SQL Server port."
+>
+> "| **Public** | Connect to SQL Server over the internet. |"
+>
+> "**Any client with internet access can connect to the SQL Server instance** by specifying either the
+> public IP address of the virtual machine or any DNS label assigned to that IP address."
+>
+> "| Create a network security group rule for TCP 1433 | You must allow the VM to receive traffic on
+> the SQL Server port (default 1433) **if you want to connect over the internet.** Local and
+> virtual-network-only connections don't require this. |"
+> — Microsoft Learn, *Connect to a SQL Server virtual machine on Azure*, `ms.date` and `updated_at`
+> **2026-01-23**, git commit
+> [`86bc09c4`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/86bc09c49875bd1d235b1ecb885cfcd6b9459d16/azure-sql/virtual-machines/windows/ways-to-connect-to-sql.md),
+> `ms.topic: how-to`, **applies to SQL Server on Azure VM**
+
+> "Under **SQL connectivity**, specify the type of access you want for the SQL Server instance on this
+> VM. For the purposes of this walkthrough, **select Public (internet) to allow connections to SQL
+> Server from machines or services on the internet.** With this option selected, Azure automatically
+> configures the firewall and the network security group to allow traffic on the port selected."
+>
+> "In this walkthrough, you selected **Public** access for the virtual machine and SQL Server
+> Authentication. **These settings automatically configured the virtual machine to allow SQL Server
+> connections from any client over the internet** (assuming they have the correct SQL login)."
+>
+> "In general, improve security by choosing the most restrictive connectivity that your scenario
+> allows. **But all the options are securable** through network security group (NSG) rules and
+> SQL/Windows Authentication."
+> — Microsoft Learn, *Provision a SQL Server virtual machine in the Azure portal*, `ms.date`
+> **2026-03-18** — **the most recently authored page in this retrieval** — **applies to SQL Server on
+> Azure VM**
+
+> "When you create a SQL Server virtual machine with an Azure gallery image, the **SQL Server
+> Connectivity** option gives you the choice of **Local (inside VM)**, **Private (within Virtual
+> Network)**, or **Public (Internet)**."
+>
+> "For the best security, choose the most restrictive option for your scenario. … **If you require
+> Public (internet) access to the SQL Server VM, then make sure to follow other best practices in
+> this topic to reduce your attack surface area.**"
+>
+> "You can modify or create new inbound NSG rules to allow traffic to the SQL Server port (default
+> 1433). You can also specify IP addresses that are allowed to communicate over this port."
+> — Microsoft Learn, *Security considerations and best practices for SQL Server on Azure VMs*,
+> `ms.date` **2025-12-05**, `ms.topic: best-practice`, **applies to SQL Server on Azure VM**.
+> **[measured]** the string `1433` occurs on **exactly one** line of this page, the third quotation
+> above
+
+**Artefact 4 is the one that closes the conditioning rider.** §33.2's first rider — *conditioning
+narrows the class*, which spared Elastic's `9200` because Elastic forbids exposing an *"unprotected"*
+node — requires a condition **in the owner's own words** attached to the exposure. Microsoft's
+security-class page for this deployment is where such a condition would live, and what it says is
+*"if you require Public (internet) access … follow other best practices in this topic"*. That is a
+**hardening instruction attached to a supported option**, not a condition that removes the option
+from support. §4.4 names that shape by its own words — *"a hardening preference expressed against a
+real, supported architecture"* — and excluded `6443/tcp` on it.
+
+**And the sharpest measurement in this section is a zero on the page a reader would reach for first.**
+
+> **[measured]** On [*SQL Server security best practices*](https://learn.microsoft.com/en-us/sql/relational-databases/security/sql-server-security-best-practices),
+> `ms.date` **2026-05-07** — **the most recently authored SQL Server security page in Microsoft's
+> corpus**, `ms.topic: best-practice`, applying to SQL Server, Azure SQL Database and Azure SQL
+> Managed Instance — the string `1433` occurs **zero** times and the word *internet* occurs **zero**
+> times, in any casing. Its subjects are column- and row-level protection, encryption and TDE,
+> auditing, identity, SQL injection, side-channel and ransomware. **Microsoft's flagship, freshest
+> SQL Server security document states no network-placement position at all.**
+
+That negative is recorded because it cuts **against** the row and a session must not be able to say
+it was not looked for. The row's only prohibition is a **physical-security** bullet on a page
+authored a year earlier, and the owner's current security writing does not repeat it.
+
+### 35.4 The *"directly"* reading, heard again on the row — and it makes the case stronger
+
+**§33 rejected it for the footing; the ticket requires it to be heard again for the row, and it is
+stated here at its strongest.** The argument:
+
+> *"Directly"* is doing real work. Microsoft's own *Use firewalls* section, four paragraphs below the
+> bullet, says *"Put a firewall between the server and the Internet"* and *"Block all traffic, and
+> then selectively admit only what is required."* A firewall through which 1433 is selectively
+> admitted is precisely a server that is **not connected directly** to the Internet. The Azure Public
+> option is exactly that — a Windows Firewall rule plus a network security group rule, both written
+> by the owner — so the two documents do not contradict each other at all: the prohibition forbids an
+> unfiltered listener and the Azure page describes a filtered one. On that reading `1433` sits
+> outside the forbidden class, no failure condition is met, and the row stands.
+
+**It is a good argument and it is better on this page than §33 gave it credit for**, because *Use
+firewalls* is on the **same page** as the prohibition and its instruction is *selectively admit only
+what is required*. §33's *"there is no qualifier of any kind"* is true of the bullet's own sentence
+and slightly overstated about the page.
+
+**It loses on three grounds, and the first is sufficient on its own.**
+
+1. **It is an argument about the prohibition, and the row does not turn on the prohibition.** This is
+   ADR-0067 limb 1. §10.3's failure condition fires on the owner **affirmatively naming** the public
+   internet as a supported deployment environment. Grant the carve-out entirely and Microsoft has
+   still written *"Connect to SQL Server over the internet"*, *"select Public (internet) to allow
+   connections to SQL Server from machines or services on the internet"* and *"Any client with
+   internet access can connect to the SQL Server instance"*. **The carve-out does not delete those
+   sentences; it removes the only thing that was arguing with them.** A reading that reconciles the
+   corpus by narrowing the prohibition leaves the affirmative naming **unopposed**, which is a
+   stronger position for the failure condition than the one §33 ruled on.
+2. **The bullet's first clause is a positive placement requirement that a firewall does not satisfy.**
+   *"Install databases in the **secure zone of the corporate intranet**"* is not a filtering
+   instruction; it is a location. #46's hazard is tested for the third time on this bullet and
+   reading the whole sentence-run makes the affirmative half **stronger**, exactly as §33.4 found.
+   A SQL Server on an Azure VM with a public IP and an NSG rule for 1433 is not in the secure zone of
+   a corporate intranet under any reading of that phrase.
+3. **The page never says it.** **[measured]** *Internet* occurs twice on the page and nothing joins
+   the two occurrences; there is no *unless*, no cross-reference, and the *Use firewalls* bullets are
+   general hardening addressed to the whole installation rather than a stated exception to the
+   isolation bullet. Supplying the join is **the reader's inference**, and §2.2's opening sentence —
+   *the claim may not be asserted by us* — bars it in the admitting direction as firmly as in the
+   refusing one.
+
+**A reader who accepts limb 1's separation and rejects grounds 2 and 3 still reaches this section's
+verdict.** A reader who rejects limb 1 reaches the opposite one. **Limb 1 is where this ruling
+actually lives**, and §35.14 flags it as such.
+
+### 35.5 The deployment-banner reading — the strongest argument for the row, and it is not the one the ticket named
+
+**The ticket named §33.10's *"directly"* argument as the live counter-argument. The retrieval turned
+up a better one**, and it is stated here because a review that only meets the argument the ticket
+anticipated has not been given the case.
+
+> **The `applies to` banners partition the corpus, and the partition is clean.** **[measured]** the
+> prohibition page's banner reads *SQL Server* on Windows and carries a single moniker icon — no
+> Azure SQL, no SQL Server on Azure VM. The Public-connectivity pages' banners read *SQL Server on
+> Azure VM* and nothing else. **The two sets never cross-reference each other**: the prohibition page
+> does not mention Azure connectivity and the Azure pages carry no `[!WARNING]`, no *not recommended*
+> and no pointer back to the isolation bullet.
+>
+> On that reading Microsoft has **two subjects**, not one contradiction. For the subject the
+> sensitive list is about — an operator's own SQL Server instance — the owner's position is the
+> prohibition. The Azure pages are Microsoft speaking about **its own cloud platform's provisioning
+> experience**, which is §10.5's **distributor** position: Azure owns the *choice to install* and the
+> NSG rule; Microsoft-as-SQL-Server's-owner owns the *claim*. A distributor's shipped configuration
+> corroborates and **is never sole grounds**, and §10.5's #69 amendment adds that a distributor
+> *cannot* satisfy §10.3's requirement that the boundary be named by the owner. So the Azure pages
+> attest about Azure and not about SQL Server's intended clients, the failure condition is not met,
+> and the row stands.
+
+**This is the best case for the row anywhere in the corpus and it loses on four grounds.**
+
+1. **§10.5 keys on the artefact, and the artefact is SQL Server documentation.** *"The **artefact**,
+   not the party, is what the rule keys on."* **[measured]** `ways-to-connect-to-sql.md` and
+   `create-sql-vm-portal.md` live in **`MicrosoftDocs/sql-docs`**, the same repository as the
+   prohibition page, under `azure-sql/virtual-machines/windows/`. They are not Azure platform
+   documentation that happens to mention SQL Server; they are SQL Server documentation about SQL
+   Server running on a virtual machine.
+2. **The addressee is the operator in both documents, which is the rider that spares `445`.** §33.2's
+   second rider — *the addressee is part of the class; a statement telling an operator not to expose
+   **its own** listener is not defeated by the owner running **its own** hardened service on the same
+   number* — is what keeps `445/tcp` on the list against Azure Files, and it is what keeps Azure SQL
+   Database's 1433 gateway out of this ruling (§35.13). **It does not reach the Azure VM pages**,
+   because Microsoft does not run that SQL Server. The operator provisions it, administers it, holds
+   its credentials and chooses its connectivity. Microsoft is telling **the operator** how to make
+   **the operator's own** SQL Server reachable from the internet.
+3. **The sentence's subject is the SQL Server instance, not the VM.** *"Any client with internet
+   access can connect to **the SQL Server instance**"*; *"allow **SQL Server connections** from any
+   client over the internet"*; *"the type of access you want for **the SQL Server instance** on this
+   VM"*. Claim 3 is a proposition about the protocol's **intended clients**, and these are sentences
+   about who may be a client. They answer Claim 3's question directly, which is what ADR-0054
+   requires of evidence read at a claim step.
+4. **The list is keyed on the pair, and it has no cell in which to write *except on Azure VMs*.**
+   §2.1 says the successor clause *"is why the list is keyed on `(port, transport)` pairs rather than
+   services"*. A claim must be true **of the pair**. `1433/tcp` reached from an internet vantage is,
+   on the owner's own current instructions, a configuration the owner provisions in three clicks. §5
+   already refused the only structure that could carry the distinction — a middle band for *rarely
+   correct, worth mentioning* — and refused it for this exact reason.
+
+**And the product argument is §4.4's third ground, verbatim and stronger here than there.** §4.4
+excluded `6443/tcp` partly because *"if the signal fires on every managed Kubernetes control plane in
+the operator's estate and the correct answer is 'yes, that is how EKS works', it has cried wolf on
+its most visible firing. The list's entire value is that a firing is never arguable."* Here the
+operator selected **Public (internet)** because Microsoft's own walkthrough told them to, and Azure
+wrote the firewall rule. A firing on that instance is arguable, and the operator arguing it would be
+holding a Microsoft page dated 2026-03-18.
+
+**ADR-0067 limb 2 is this section's act and is stated so it can be attacked**: an `applies to` banner
+scopes the **artefact** and not the **pair**; a deployment-scoped document is the owner speaking
+about the pair wherever the sentence's subject is the protocol's clients and its addressee is the
+operator. The banner is admissible — it is what tells you whose deployment is being described — and
+it is not a boundary around the owner's voice.
+
+### 35.6 Claim 1 and Claim 2, tested rather than assumed
+
+The ticket asserted both were unavailable. §10.2 closed the claim set, so *no claim* is *no row*, and
+a closed set makes this the whole of the remaining work — it is checked rather than taken.
+
+**Claim 1 — unavailable, and it fails before §10.1's Step 1 is reached.** §2.1's claim is *"the
+service, **in the configuration its maintainers ship**, admits anonymous commands"*. SQL Server ships
+admitting none: TDS requires a `LOGIN7` carrying credentials before any statement is accepted, and
+Microsoft's own Azure page makes the point in the opposite direction — *"**Enables SQL Server
+authentication, required for public access**"* and *"Outside clients have to use the correct username
+and password"*. There is no anonymous command surface for Step 2 to examine and no *answer whoever
+asks* purpose for Step 1 to refuse. **The tempting route is already closed by §28.5**, which refused
+`623/udp`'s parallel argument and named `1433` in doing so: *"collapsing supports an unauthenticated
+mode into ships one moves `5432/tcp` to Class A on its `trust` method, `3306` and `1433` on their
+no-password accounts"*. A blank-`sa`-password instance is two configuration acts, not a shipped
+default, and §28.5's ruling that the reading *"admits half the list"* governs here unchanged.
+
+**Claim 2 — inapplicable, and it fails on the successor clause specifically.** §2.1's Claim 2 is
+*"credentials or session content in cleartext, **with a standardised encrypted successor reachable on
+a different port**"*, and §2.1 states in terms that *"the successor clause matters: it is what makes
+the plaintext port wrong rather than the protocol family wrong."* TDS negotiates TLS **inside** the
+`PRE_LOGIN` exchange on the same port; Microsoft's own guidance is *"consider enabling encrypted
+connections for the instance of the SQL Server Database Engine … configure SQL Server instance with a
+signed certificate"* — a setting on the listener, not a second port. **There is no encrypted
+successor on another number, so there is no discriminator and no pair to key on.** This is §9.2's
+LDAP disposal exactly: `389` with StartTLS is correct, so the port is not the discriminator, and
+§10.8 records that as Class B's coverage boundary rather than as an accident.
+
+**So the closed set is exhausted.** §11.6 disposed of `161/udp` this way and §24.7 disposed of
+`10256/tcp` this way; `1433/tcp` is the third, and the first of the three to reach it by **losing** a
+claim it held rather than by never having one.
+
+### 35.7 The rule
+
+> **§35 — a claim fails on the owner's affirmative naming, not on the reach of its own prohibition.**
+>
+> **Limb 1 — the two gates read the same artefacts for different propositions.** §10.3's failure
+> condition is answered by the owner's **affirmative** statement naming the public internet as a
+> supported deployment environment for the pair. Whether the owner's own **prohibition** reaches the
+> pair, and whether that reach is defeated, is a **footing** question — ADR-0050 limb 3, ADR-0059
+> limb 4 — and it is answered at the attestation gate. **A reading that narrows the prohibition does
+> not rescue the claim.** It removes the tension and leaves the affirmative naming standing alone,
+> which strengthens the failure condition rather than weakening it. Symmetrically, an affirmative
+> naming that defeats a footing does not by itself remove a row: the row falls only when **no claim
+> in §10.2's closed set fits**, tested per claim.
+>
+> **Limb 2 — an `applies to` banner scopes the artefact, not the pair.** An owner's
+> **deployment-scoped** document is the owner speaking about the pair wherever the sentence's subject
+> is the protocol's clients and its addressee is **the operator**. The banner is admissible evidence
+> of whose deployment is described and is never a boundary around the owner's voice. Where the
+> addressee is the **owner's own managed service**, §33.2's addressee rider governs instead and the
+> document corroborates without defeating.
+>
+> **What this does not do.** It does not reopen §10.2's closed claim set, §10.3's wording, ADR-0050,
+> ADR-0059 or §32.2's four limbs. It does not make a *hardening instruction attached to a supported
+> option* into a condition that narrows the class — §33.2's conditioning rider is untouched and needs
+> the condition to be **in the owner's words and attached to the exposure**.
+
+[ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+carries it. **Why an ADR rather than an amendment in place** — the answer #101, #105 and #106 all
+gave, and it goes the other way here — is at §35.9.
+
+### 35.8 The ruling
+
+> - **`1433/tcp` Microsoft SQL Server leaves the list.** Claim 3 fails on §10.3's own failure
+>   condition, met by the owner in the present tense in three current documents; Claim 1 is
+>   unavailable and Claim 2 is inapplicable; §10.2's set is closed. **The list is 40 pairs, class
+>   totals `12 / 7 / 21`.** §35.3, §35.6.
+> - **The row goes to §4.6, which becomes 21 entries**, worded from Microsoft's own sentence from the
+>   start so §17.4's *"AMQP brokers are sometimes legitimately public"* mistake is not repeated.
+>   §35.10.
+> - **§2.2's footing table is unchanged in every tier and its uncovered-in-subject population returns
+>   to 0.** `1433/tcp` was the only member; it does not leave a hole, it leaves the subject.
+>   **Prohibition 15 · scoping 11 · weak 3 · outside-subject 11 · uncovered-in-subject 0**, coverage
+>   **29 of 40**, and 15 + 11 + 3 + 11 = **40**.
+> - **§6.1's containment arithmetic is `27 + 8 + 5 = 40`** — cell 1 loses `1433/tcp`, which §29.2
+>   scores *top-100, retained*. Cells 2 and 3 do not move and `F` does not move.
+> - **`verge-core` is unchanged at 136 pairs — 131 TCP, 5 UDP.** `|S \ F|` is unchanged at 13,
+>   `1433/tcp` having been in `F`. **A pair leaving the sensitive list costs the union nothing where
+>   the frequency half already carries it**, and nothing changes about what is probed. §35.12.
+> - **[ADR-0008](../adr/0008-derivation-versions-move-on-content.md) IS triggered** —
+>   `sensitive-port-reached-from-internet`'s content moves, its rule version bumps and every
+>   evaluation `Break`s. Vacuous pre-install and **not waived**. The aperture moves by a **narrowing**
+>   of the rule's denominator — `0 of 41 sensitive pairs unread` becomes `0 of 40` — and **not** by a
+>   widening. §35.12.
+> - **§18.7's armed trigger, which §33 fired on the cell, is now spent on the row as well**, and the
+>   paragraph it lives in predicted both.
+> - **[ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+>   is minted**, and `0063` and `0064` stay gaps alongside `0039`, `0041`, `0052`, `0053`, `0057` and
+>   `0062`. **ADR-0037 limb 2's cycle closes for the third time** — §33 found and routed, this section
+>   ruled — and ADR-0050, ADR-0054 and ADR-0059 are **confirmed by use**.
+> - **No other row moves, no other class total moves, no footing tier moves, and no exclusion other
+>   than the new one is created or retired.**
+> - **Cost: a rule-version bump on a pre-install spec.** The most expensive act this note has taken,
+>   and it is cheaper than [#109](https://github.com/winniel123/verge-asm/issues/109) priced it.
+
+### 35.9 The options that lost
+
+**Option A — the row survives on the *"directly"* carve-out (§33.10's counter-argument, heard on the
+row).** Refused because it answers the footing question and the row does not turn on it (ADR-0067
+limb 1). Granting it in full leaves the affirmative naming **unopposed**, which is a worse position
+for the row than the contested one §33 ruled on. Two supporting grounds, either sufficient: the
+bullet's first clause is a **placement** requirement that no firewall satisfies, and **[measured]**
+nothing on the page joins *Use firewalls* to the isolation bullet, so the join is the reader's. §35.4.
+
+**Option B — the row survives because an `applies to` banner narrows the owner's subject, and the
+Azure pages are §10.5's distributor position.** The best argument against this ruling, and it is not
+the one the ticket named. Refused on four grounds at §35.5: the artefacts are in `MicrosoftDocs/sql-docs`
+and are SQL Server documentation; the **addressee is the operator**, not Microsoft, so §33.2's
+addressee rider does not reach them; the sentences' **subject is the SQL Server instance**, which is
+exactly what Claim 3 is about; and the list is keyed on the **pair**, which has no cell for *except
+on Azure VMs*. **This is the option a reviewer should attack**, and ADR-0067 limb 2 is where it is
+answered.
+
+**Option C — keep the row and re-found it on another claim.** Unavailable rather than refused. Claim
+1 fails on the antecedent — SQL Server ships admitting no anonymous command, and §28.5 already
+refused the *supports an unauthenticated mode* reading by name for this port. Claim 2 fails on the
+successor clause — TDS negotiates TLS on the same port, which is §9.2's LDAP disposal. §35.6.
+
+**Option D — keep the row with a stated exception.** Refused on §5, which declined to build a middle
+band and gave `6443/tcp` as the concrete case that made the question real. A row whose exception is a
+**supported architecture** is the *rarely correct, worth mentioning* shape §5 exists to refuse, and
+the value space has no place to put it — a `Signal` is binary
+([ADR-0004](../adr/0004-signals-are-release-coupled-rules.md), §5).
+
+**Option E — decline to rule and route again, on the ground that ADR-0067 limb 2 is a new instrument
+being minted in the same pass that spends it.** This is the strongest procedural objection and it is
+what §33 did one pass earlier. Refused: §33 routed because its **retrieval** was tier-scoped, which
+#37's rule makes dispositive; this retrieval is row-scoped, so the condition that forced the routing
+is discharged. Routing a second time on the ground that the ruling is hard would leave #12 blocked on
+a question that has now been retrieved twice and would be, in the map's own words, *leaving the
+question hanging*. **The instrument is stated before it is applied (§35.7 precedes §35.8) and is
+flagged as this section's own act at §35.14**, which is the discipline §33.2 used for the
+discriminator it minted and spent in one pass.
+
+### 35.10 §4.6's cell, worded from Microsoft's own sentence
+
+**§17.4 is the reason this cell is written the way it is.** §4.6's `5672`/`15672` cell said *"AMQP
+brokers are sometimes legitimately public"* — an assertion of ours, which §2.2's opening sentence
+bars, and #79 had to withdraw it and replace it with RabbitMQ's own sentence two years of note-time
+later. **The `1433` cell is written from Microsoft's sentence on arrival**, with the artefact, its
+date and its banner, so there is nothing for a later sweep to withdraw.
+
+| Excluded | The ground |
+|---|---|
+| **`1433/tcp` Microsoft SQL Server** | **Claim 3 fails on §10.3's own failure condition, and no other claim in the closed set fits.** Microsoft names the public internet as a supported deployment environment for an operator's own SQL Server instance on TCP/1433, in three current first-party documents scoped to **SQL Server on Azure VM**: *"\| **Public** \| Connect to SQL Server over the internet. \|"* and *"**Any client with internet access can connect to the SQL Server instance**"* (*Connect to a SQL Server virtual machine on Azure*, `ms.date` 2026-01-23); *"select **Public (internet)** to allow connections to SQL Server from machines or services on the internet"* and *"These settings automatically configured the virtual machine to allow **SQL Server connections from any client over the internet**"* (*Provision a SQL Server virtual machine in the Azure portal*, `ms.date` **2026-03-18**); *"If you require **Public** (internet) access to the SQL Server VM, then make sure to follow other best practices in this topic"* (*Security considerations and best practices for SQL Server on Azure VMs*, `ms.date` 2025-12-05). The owner **ships the provisioning option**, opens the VM firewall on 1433 and writes the network security group rule. Microsoft's *"don't connect your SQL Server instances **directly** to the Internet"* is not withdrawn and does not save the row — it is a statement about what the owner **forbids**, and §10.3's condition fires on what the owner **affirms** ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 1). **Claim 1** is unavailable — SQL Server ships admitting no anonymous command and Microsoft's own page says public access **requires** SQL authentication. **Claim 2** fails on its successor clause — TDS negotiates TLS on the **same** port. §35 |
+
+**The exclusion is on the claim gate**, like `10256/tcp` (§24.7) and `10258/tcp` (§27.7) and unlike
+every determinacy refusal in the table: `1433/tcp` passes §2.4 comfortably and §35.13 records the one
+retrieval finding that bears on it. **The criterion that would change the verdict:** Microsoft
+withdrawing the **Public** SQL connectivity option, or attaching to it a condition in its own words
+of the kind Elastic attaches to *"unprotected"* — not a hardening recommendation beside it, but a
+statement that the exposure is unsupported. **[measured]** neither exists as of 2026-08-14; §35.13
+records the negative search.
+
+### 35.11 Every dependent figure, walked rather than asserted
+
+Walked against `main` at `94ff868`, the composed post-#105/#107 state — **41 pairs · classes
+`12 / 7 / 22` · tiers 15 / 11 / 3 / 11 · uncovered-in-subject 1 · coverage 29 of 41 · §6.1
+`28 + 8 + 5 = 41` · §4.6 exclusions 20 · `verge-core` 136**. Two sibling passes ([#108](https://github.com/winniel123/verge-asm/issues/108),
+[#110](https://github.com/winniel123/verge-asm/issues/110)) are resolving concurrently, so the delta
+is stated parametrically first and the numerals second.
+
+> **`S := S − {1433/tcp}`.** Every figure below is that one substitution propagated. `F` does not
+> move; `|S \ F|` does not move, `1433/tcp` being **in** `F`; `|S|` falls by one; §3's Class C total
+> falls by one; §4.6 rises by one; §2.2's uncovered-in-subject falls by one and no tier moves.
+> **If the composed baseline differs from `94ff868`, the numerals below are wrong and this paragraph
+> is right.**
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 41 | **40.** `1433/tcp` removed — the note's **second** row removal, after `161/udp` (§11.6) |
+| §3.1 / §3.2 / §3.3 class totals | `12 / 7 / 22` | **`12 / 7 / 21`.** Class C loses one row; Classes A and B are untouched |
+| §3.3's table | 22 rows | **21 rows.** The `1433/tcp` row is struck in place with a pointer, per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened by [#106](https://github.com/winniel123/verge-asm/issues/106) |
+| §3.4's quote block | carries Microsoft's sentence | **struck in place.** The sentence is not withdrawn as a quotation; what is withdrawn is its service as a row's footing |
+| §4.6 exclusions | 20 | **21.** §35.10 |
+| §2.2 footing table — **prohibition** | 15 pairs | **15, unchanged.** `1433`'s cell left the graded table at §33; this section moves the **row**, and the row was already uncovered |
+| §2.2 footing table — scoping · weak · outside-subject | 11 · 3 · 11 | **11 · 3 · 11, all unchanged.** No pair enters or leaves any tier |
+| §2.2 — **uncovered, inside the table's subject** | **1 — `1433/tcp`** | **0.** §33 created this population with exactly one member and this section empties it. §13.7's shape is gone again, and this time by a row leaving rather than by a cell being found |
+| §2.2 footing coverage | 29 of 41 | **29 of 40.** The numerator does not move; the denominator does. 15 + 11 + 3 + 11 = **40** |
+| §6.1 containment arithmetic | `28 + 8 + 5 = 41` | **`27 + 8 + 5 = 40`.** Cell 1 alone moves — §29.3's identity says a TCP pair **in** `F` leaving `S` lands nowhere but cell 1 |
+| §6.1's enumeration of the 28 | includes `1433` | **27, and `1433` is struck from the list.** §29.2 confirmed this enumeration set-exact in both directions; it stays exact |
+| §29.2's membership table | 41 rows, `1433/tcp` scored *yes* | **40 rows.** The `1433/tcp` line is struck in place with its scoring intact, because the scoring was right and it is the **membership** that ends |
+| §29.3's identity | cell 1 = 28 · `\|S_tcp\| = 36` · `\|S\| = 41` | **cell 1 = 27 · `\|S_tcp\| = 35` · `\|S\| = 40`.** The identity is untouched; three numerals move |
+| [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union | **136 pairs — 131 TCP, 5 UDP** | **136 pairs — 131 TCP, 5 UDP, UNCHANGED.** `\|F\| + \|S \ F\| = 123 + (8 + 5)`, and `1433/tcp ∈ F` so it was never in `S \ F`. **The first row removal in this note's history that costs the union nothing** |
+| [`safe-active-probing.md`](./safe-active-probing.md) §2.4's aperture line | `0 of 41 sensitive pairs unread` | **`0 of 40 sensitive pairs unread`.** The numerator is `0` for every `\|S\|`; `0 of 16 rules unevaluable` is unchanged, and the probed set is **unchanged** because `F` carries `1433/tcp` |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | not triggered by §33 | **TRIGGERED.** `sensitive-port-reached-from-internet`'s content moves. First time this note has spent it in the **removing** direction; §7.2's *"the cost is symmetric between adding and removing a port"* is now instantiated on both sides |
+| §10.1's Class A walk | twelve rows | **twelve, unchanged.** `1433/tcp` is Class C and never entered it |
+| §4.5 *the list's weakest row* | `5432/tcp` | **unchanged.** `1433` is not a candidate — it is not on the list |
+| §2.2's thin-cell note (`10250`, `10255`) | two cells | **unchanged** |
+| [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list | three rows — `5432`, `5984`, `10248` | **unchanged.** The watch list is the weak tier and no weak-tier member moves. Its sequence stands at 3 → 2 → 3 → 2 → 3 → **3** |
+| §17.1's population of negatives | fifteen | **fifteen, unchanged.** The new §4.6 entry's ground is an owner's **affirmative** sentence, which is not a negative at all — §17.2's own second un-exposing gate, *an owner sentence naming the internet as supported*, names this exact shape |
+| §17.1 row 13 (`1433`/`445`/`623`) | three listed rows with no shipped configuration artefact | **two listed rows and one exclusion.** The row is marked in place; the finding about the artefact's non-existence is untouched and was never about the claim |
+| §13.1's *"three rows have no artefact to read"* | `1433`, `445`, `623` | **stands as a retrieval verdict, and is now beside the point for `1433`** — the row leaves on the **claim** gate, which no configuration artefact could have answered |
+| §26.1's population of prose footings | 24 | **marked in place.** Row 5 (`1433/tcp`) left the graded table at §33 and leaves the list here; the population was a **dated** enumeration of §2.2's prose tiers and §26.6 already governs that |
+| §30.2's tier-criterion walk, row 5 | already marked by §33 | **unchanged.** §33's mark is correct and this section adds a pointer, not a second correction |
+| §5's *no middle* | holds | **unchanged, and instantiated.** Option D at §35.9 is the middle band, refused for the second time on the second-hardest row |
+| `insecure-listener-rules.md`, `project-authored-constants.md`, `nmap-services-licence.md` | quote **136** | **unchanged** — every one of them quotes the **union**, which does not move |
+| [ADR-0001](../adr/0001-stack-and-runtime.md), [ADR-0005](../adr/0005-scan-execution-model.md), [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md), [ADR-0049](../adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md) | *136 pairs, 131 probed* | **unchanged, all four.** **[measured]** each quotes `verge-core`'s size or its probe budget, never `\|S\|` |
+| [#12](https://github.com/winniel123/verge-asm/issues/12)'s body | carries no count | **[measured]** confirmed — it carries no list figure of any kind, so nothing there moves |
+
+**Outside this note, three files move and no more.** `safe-active-probing.md`'s aperture line
+(denominator only), and the `1433` rows in ADR-0050, ADR-0054 and ADR-0059 — each already annotated
+by §33 for the **cell**, and each gaining a sentence for the **row** at the site that specifies it,
+per ADR-0058 as widened by #106. ADR-0009 gains an amendment stating the union's non-movement,
+because that is the first place a reader would go to check it and the answer is counter-intuitive.
+
+### 35.12 The price, re-derived — and it is cheaper than the ticket priced it
+
+**[#109](https://github.com/winniel123/verge-asm/issues/109) priced this as *"a version bump and an
+aperture widening"*, and named it *"the most expensive outcome any open ticket currently carries"*.
+Two of those three claims are wrong and the correction is worth stating because a future curator will
+price a removal from this paragraph.**
+
+1. **The version bump is real and is spent.** `sensitive-port-reached-from-internet` reads the
+   sensitive list, so its content moves, its leaf bumps under ADR-0008 and every span of that
+   derivation `Break`s uniformly. Pre-install this is **vacuous and not waived** — the same sentence
+   ADR-0009's #91 and #95 amendments wrote in the adding direction, and §7.2 already ruled the cost
+   **symmetric between adding and removing**.
+2. **The aperture **narrows**; it does not widen.** The aperture statement's sensitive-pair line is
+   `0 of |S| sensitive pairs unread`, and `|S|` falls to 40. **The numerator is `0` for every `|S|`**
+   — nothing becomes unread — so what moves is a **denominator**, and one fewer pair is subject to
+   the rule. A narrowing is not a revealing, so [ADR-0014](../adr/0014-only-revealed-generalises.md)
+   does not bite and no timeline opens. `0 of 16 rules unevaluable` is unchanged.
+3. **`verge-core` does not move, and neither does anything that is probed.** **[measured]**
+   `1433/tcp` is in the frequency half — §29.2, *top-100, retained* — so `F ∪ S` is unchanged at
+   **136 pairs, 131 TCP, 5 UDP**, the daily probe budget is unchanged, and #4 §6's rate limits are
+   untouched. The operator keeps probing 1433 every day; what changes is that the **rule** no longer
+   evaluates it. **A row leaving costs the union nothing whenever the frequency half already carries
+   it**, and that is true of 27 of the list's 40 pairs.
+
+**So the honest price is: one rule-version bump, vacuous pre-install; one denominator; no probing
+change; no union change.** It is still the most consequential *decision* on the map's backlog,
+because it removes the corpus's most recognisable row on an evidence standard rather than on an
+opinion. It is not the most expensive one.
+
+### 35.13 By-catch and open items, routed rather than acted on
+
+**1. ADR-0037 limb 1 discharged over all nine artefacts, and it yields no candidate.** Every port
+named in every artefact opened here, checked against the table's domain:
+
+| Port named | Where | Disposal |
+|---|---|---|
+| `137/udp`, `138/udp`, `139/tcp`, `445/tcp` | artefact 1, *Disable NetBIOS and SMB* | **All four already held.** §33.9 recorded this and it is unchanged |
+| `1500`, `1401` | artefacts 2 and 3, as examples of moving off the default | **Not subjects.** No owner places a service on either; they are illustrations inside a *change the port* suggestion |
+| `11000-11999` | artefact 7, Azure SQL Database's redirect range | **Refused on its face without entering §4.6**, being a **range** rather than a pair — §19.10's disposal of `30000-32767`, applied a second time |
+| **`3342/tcp`** | artefacts 8 and 9, Azure SQL Managed Instance's public endpoint | **Refused, and it is the interesting one.** Claim 3 fails at sight: Microsoft **is** the operator of a Managed Instance, and the endpoint's whole purpose is *"scenarios where you need to provide a public endpoint connection"*. §33.2's addressee rider disposes of it in the same breath as Azure SQL Database. Recorded, not ticketed |
+
+**2. Azure SQL Database's 1433 gateway is checked again and refused again, and the ground is now
+written down rather than asserted.** §33's Sources entry refused it as *"Microsoft's own managed
+service, a different addressee"*. **[measured]** *"Clients connect to the gateway that has a public
+IP address and listens on port 1433"*, and a client outside Azure gets `Proxy` mode by default — so
+the exposure is real and it is Microsoft's. It is refused by §33.2's addressee rider, now stated as
+ADR-0067 limb 2's second sentence. **The defeat still rests entirely on the Azure VM pages**, and a
+session that reaches for the PaaS gateway has reached for the wrong artefact.
+
+**3. Microsoft contradicts itself about moving off port 1433, in three current pages, and it is
+recorded rather than used.** *"For additional security, you can avoid the well-known port 1433"*
+(artefact 2) and *"For increased security, change the port … such as 1401"* (artefact 3) are
+answered by artefact 6: *"the TCP/IP architecture permits a port scanner to query for open ports, so
+**changing the port number isn't considered a robust security measure**."* Two consequences and
+neither moves anything. It **weakens §33.4's use of the hedge** as evidence of anything — the hedge
+recommends a mitigation the same owner calls not robust — which strengthens §33's verdict rather than
+disturbing it. And it does **not** touch §2.4 determinacy for `1433`: a recommendation to move a
+service **off** a number puts no other service **on** it, so nothing contests the convention. Recorded
+per ADR-0048; no residue opens.
+
+**4. `1433/tcp` stays in `verge-core` and is still probed, so the by-catch of removing it is
+observability rather than blindness.** Worth stating because the obvious worry about a row removal is
+*we stop looking*. We do not. `Availability` and the port census still carry it; what stops is the
+`Signal`. **Recorded and not ticketed** — it is a property of ADR-0009's union, not a new question.
+
+**5. ADR-0067 limb 2 reaches rows other than this one, and the sweep has not been run.** The
+instrument says a deployment-scoped `applies to` banner does not narrow the owner's voice. Every
+prohibition-tier owner in this note sells or documents a managed offering on the same port —
+Elastic Cloud on `9200`, MongoDB Atlas on `27017`, Azure Files on `445`, Oracle HeatWave on `3306`,
+Confluent on `9092`. §33.2's two riders dispose of each of those **as the note currently reads
+them**, and none was tested against limb 2 because limb 2 did not exist. **This is exactly ADR-0037
+limb 2's shape and it is ticketed rather than swept**: it can reach a row, so it **blocks
+[#12](https://github.com/winniel123/verge-asm/issues/12)**.
+
+**6. §17.4's RabbitMQ instance and this one are now the corpus's only two met instances of §10.3's
+failure condition, and they differ in a way that is worth a curator's attention.** §17.4's was met
+for two rows that were **already excluded**, so it strengthened a negative and moved nothing.
+This one is met for a row **on the list**, and it removes it. §10.3's failure condition has therefore
+now run in both directions, which discharges the asymmetry §33.10 named — *applying this test only
+where it cuts against a row and not where it cuts for one* — by instantiating it on the costly side.
+Recorded, not ticketed.
+
+### 35.14 Thin ground, flagged per the standing rule
+
+**ADR-0067 limb 1 is where this ruling actually lives, and it is a separation nobody had written
+down.** §10.3, §10.4, §32.2 and ADR-0059 all treat the failure condition and the footing's defeat
+test as the same measurement met at two places — §33.4 read them that way explicitly, failing limb
+4(c) and limb 2 *"on the same measurement"*. Limb 1 says they are two propositions that happen to
+share an artefact. It reconstructs §26.4 (an aspiration is not an affirmation), §4.4 (a concession is
+an affirmation) and §17.4 (a scoping sentence's other half is an affirmation) and reproduces all
+three verdicts — **but no prior section states it**, and a reader who holds that the failure
+condition is defeated when the prohibition is narrowed reaches the opposite verdict on this row.
+**That reader is the one Option A speaks for**, and §35.4 is written so the argument is available to
+them in full.
+
+**ADR-0067 limb 2 is the newer half and it is the one a challenger should attack.** *An `applies to`
+banner scopes the artefact and not the pair* is stated from **one** instance — this one. Its four
+supporting grounds are strong and they are grounds about **this** artefact set: the repository it
+lives in, the addressee, the sentence's subject, and the list's key. A different owner with a
+genuinely partitioned corpus — one that says *this guidance does not apply to deployment X* in its
+own words — would be a real counter-instance, and **[measured]** Microsoft's partition is not of that
+shape: the two document sets do not disclaim each other, they simply never mention each other.
+**Silence is the whole of the partition**, and reading a silence as a boundary is
+[ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode with the
+subject changed. That is limb 2's best argument and it is also the sharpest thing said against it,
+because a corpus whose partition is silence could equally be a corpus with **drift** rather than
+doctrine — Microsoft may simply not have reconciled two teams' pages. §35.13's item 5 is the sweep
+that would tell.
+
+**The freshest owner security document says nothing at all, and that cuts against this ruling as well
+as for it.** **[measured]** *SQL Server security best practices*, `ms.date` 2026-05-07, contains
+neither `1433` nor *internet*. A reader could take that as the owner having **no current network
+position** on this port, in which case the prohibition is stale, the Azure pages are the only live
+statement, and the row falls — which is this section's verdict, reached by a different route. A
+reader could equally take it as the security corpus having moved on while the operative guidance
+stands, in which case nothing follows either way. **It is recorded because it is the strongest
+evidence that the prohibition is not being maintained**, and because a session that finds it later
+and thinks it was missed would be right to distrust the rest.
+
+**One thing this section did not do.** It did not retrieve the TDS specification. Claim 2's refusal
+rests on the **successor clause** — no encrypted SQL Server listener on a second number exists in any
+Microsoft document read here, and `1433` is the default instance's port on artefact 6 — and on
+Microsoft's own *"consider enabling encrypted connections for the instance"*, which is a setting on
+the listener. **That is adequate for a refusal and would not be adequate for an admission**, and the
+asymmetry is stated rather than relied on silently.
+
+**Two sibling passes are editing this file concurrently.** §35.11's delta is stated parametrically
+and the substitution is a single set difference, so a merger re-derives rather than patches. **If the
+composed baseline differs from `94ff868`, the numerals at §35.8 and §35.11 are wrong and the
+parametric statement is right.**
+
+### 35.15 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13 and §33.11
+
+- **Three load-bearing zeros were taken against the raw `live`-branch markdown in
+  `MicrosoftDocs/sql-docs`, not against a rendered page and not through a summarising layer.**
+  `1433` on artefact 1; `1433` and `internet` on artefact 5; `1433` on artefact 9. §33.11 records a
+  summariser returning a false negative on ZooKeeper's `zookeeperAdmin.md` one pass earlier, and the
+  same discipline was applied here **before** any zero was written down. Each is a verdict about
+  **that file on 2026-08-14** and says nothing about Microsoft's corpus — ADR-0037 limb 3.
+- **A positive was verified the same way, because it was suspicious.** The *"Create a network
+  security group rule for TCP 1433"* table row reads like a summariser's paraphrase; it is genuine,
+  at line 121 of the raw source. A quotation that reads too conveniently is re-pulled, which is the
+  discipline §12.9 named for substitutions and §33.11 extended to summarisers.
+- **The `applies to` banners were read off the rendered pages rather than inferred from URLs**, and
+  they are the evidence ADR-0067 limb 2 rules about. Artefact 1 carries a **single** moniker; artefact
+  5 carries **three** and SQL Server on Azure VM is **not** among them. Getting these wrong would
+  invert §35.5, so they were checked individually.
+- **The deprecation question was asked as a search and its answer is a dated negative.** Microsoft has
+  **not** withdrawn or deprecated the **Public** SQL connectivity option: the SQL-Server-on-Azure-VMs
+  *What's new* page (`ms.date` 2026-07-10, `updated_at` 2026-08-03) carries **no** entry mentioning
+  connectivity, the Public/Private/Local option, port 1433 or NSGs in any of its Preview, GA or
+  documentation-changes tables from September 2025 to June 2026, and artefact 3 still instructs the
+  reader to select it at `ms.date` **2026-03-18**. **This is the negative §35.10's reopening criterion
+  is measured against**, and it is dated rather than permanent.
+- **One search result was surfaced and deliberately not relied on** — that post-deployment editing of
+  connectivity settings was removed from the Azure portal in April 2023. No primary page was
+  retrieved for it, it is a management-surface change rather than a deprecation, and it is recorded
+  as **unverified** rather than quoted. §21's rule about what an owner has **issued** is the reason a
+  search snippet is not evidence here.
+- **The two artefacts that would have refuted this section were opened first, not last.** Artefact 4
+  is the owner's **security** class for the Azure VM deployment — the only place a §33.2-shaped
+  condition could live — and artefact 5 is the owner's flagship security page. Both were retrieved
+  before the ruling was drafted, and artefact 5's double zero is reported at §35.3 and §35.14 as
+  evidence cutting **both** ways rather than only the convenient one.
+- **Nothing was executed and no instance was provisioned.** *Any client with internet access can
+  connect* is read off Microsoft's sentence, not observed. The Azure portal was not opened and no
+  SQL Server was reached; a row removal on this corpus is decided on the owner's documentation, which
+  is §2.2's first sentence.
+
+---
 ## Sources
 
 Government and standards bodies
@@ -15647,3 +16509,16 @@ Retrieved for §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) 
 - **[`postgres/postgres` `REL_18_0`, `src/backend/utils/misc/guc_tables.c`](https://raw.githubusercontent.com/postgres/postgres/REL_18_0/src/backend/utils/misc/guc_tables.c)** — opened to answer *does a provenance rule move `5432/tcp`?*, the reading §32.7 names as the signal a footing rule is wrong. **[measured]** it does not: the `listen_addresses` entry carries `"localhost"` as `ListenAddresses`'s boot value, written by the owner
 - **[`apache/couchdb` `3.5.0`, `rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.5.0/rel/overlay/etc/default.ini)** — the same question for `5984/tcp`. **[measured]** `[chttpd] bind_address = 127.0.0.1` is an active written line, as are the `[httpd]` and `[prometheus]` ones beside it. Both of these are **negative** results for §34's extension argument and are reported as such at §34.11
 - **`623/udp`'s footing quoted from §28.10 rather than re-fetched, and named as such** — Dell's `iDRAC.IPMILan.Enable — 0 - Disabled` and HPE's *"This setting is disabled by default"*. It carries §34.7's extension argument and no cell; a correction there would weaken an argument rather than move a figure (§34.11)
+
+Retrieved for §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)) — nine Microsoft artefacts, one owner, **scoped to the row** rather than to a tier, which is [#37](https://github.com/winniel123/verge-asm/issues/37)'s condition and the reason §33 routed rather than ruled. **Every retrieval below was performed 2026-08-14**, and every negative is dated to it per [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md) as amended by [#93](https://github.com/winniel123/verge-asm/issues/93)
+
+- **The carrying page, re-read whole and re-measured against the raw source.** [*Security considerations for a SQL Server installation*](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation), `ms.date` **2025-08-14**, `updated_at` **2026-06-23T17:40Z**, source `docs/sql-server/install/security-considerations-for-a-sql-server-installation.md` at `MicrosoftDocs/sql-docs@live`, monikers `sql-server-2017` / `ver15` / `ver16` / `ver17`, ***applies to SQL Server on Windows only — a single moniker icon***. **[measured]** the string `1433` occurs **zero** times (§33.4's measurement reproduced independently, against the raw markdown rather than the rendered page) · **[measured]** the word *Internet* occurs **exactly twice**, case-insensitively — the *"don't connect your SQL Server instances **directly** to the Internet"* bullet and *"Put a firewall between the server and the Internet"* — and **no sentence anywhere on the page conditions, qualifies or cross-references the first**. The *Use firewalls* section is quoted in full at §35.4 because it is the losing option's best evidence, and its instruction — *"Block all traffic, and then selectively admit only what is required"* — is general hardening addressed to the whole installation
+- **The affirmative naming, artefact 1 of 3.** [*Connect to a SQL Server virtual machine on Azure*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/ways-to-connect-to-sql), `ms.date` and `updated_at` **2026-01-23**, commit [`86bc09c4`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/86bc09c49875bd1d235b1ecb885cfcd6b9459d16/azure-sql/virtual-machines/windows/ways-to-connect-to-sql.md), `ms.topic: how-to`, ***applies to SQL Server on Azure VM***. §33's defeating artefact, re-read end to end. **[measured]** `1433` occurs on **6 lines** of the raw markdown; the page carries **no `[!WARNING]`**, no *not recommended*, and no cross-reference to the on-premises isolation bullet · **Verified against the raw source because it read like a paraphrase:** the *"Create a network security group rule for TCP 1433 … if you want to connect over the internet"* table row is **genuine**, at line 121. §33.11's summariser hazard, met in the positive direction
+- **The affirmative naming, artefact 2 of 3, and the freshest page in the set.** [*Provision a SQL Server virtual machine in the Azure portal*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/create-sql-vm-portal), source `azure-sql/virtual-machines/windows/create-sql-vm-portal.md`, `ms.date` **2026-03-18**, ***applies to SQL Server on Azure VM***. **New to this note, and it is the one that *instructs*** — *"select **Public (internet)** to allow connections to SQL Server from machines or services on the internet"*, *"Azure automatically configures the firewall and the network security group to allow traffic on the port selected"*, *"These settings automatically configured the virtual machine to allow **SQL Server connections from any client over the internet**"*, and *"all the options are securable through network security group (NSG) rules and SQL/Windows Authentication"*. It also carries the port-change suggestion artefact 6 contradicts: *"For increased security, change the port … such as 1401"*
+- **The affirmative naming, artefact 3 of 3 — and the owner's *security* class for this deployment, opened because it is where a §33.2-shaped condition would live.** [*Security considerations and best practices for SQL Server on Azure VMs*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/security-considerations-best-practices), `ms.date` **2025-12-05**, `updated_at` **2026-04-06T17:42Z**, `ms.topic: best-practice`, ***applies to SQL Server on Azure VM***. *"the **SQL Server Connectivity** option gives you the choice of **Local (inside VM)**, **Private (within Virtual Network)**, or **Public (Internet)**"*, *"For the best security, choose the most restrictive option for your scenario"*, *"**If you require Public (internet) access to the SQL Server VM, then make sure to follow other best practices in this topic** to reduce your attack surface area"*. **[measured]** the string `1433` occurs on **exactly one** line — *"You can modify or create new inbound NSG rules to allow traffic to the SQL Server port (default 1433). You can also specify IP addresses that are allowed to communicate over this port."* **[measured] no condition anywhere on the page removes the Public option from support**; what it carries is hardening advice **attached** to it, which is §4.4's *"a hardening preference expressed against a real, supported architecture"* · **[measured]** its just-in-time and Bastion recommendations are scoped to **management** ports (RDP/SSH) and to no other, so they do not reach TCP/1433
+- **The sharpest negative in the section, and it cuts both ways.** [*SQL Server security best practices*](https://learn.microsoft.com/en-us/sql/relational-databases/security/sql-server-security-best-practices), source `docs/relational-databases/security/sql-server-security-best-practices.md`, `ms.date` **2026-05-07** — **the most recently authored SQL Server security page retrieved anywhere in this note** — `updated_at` **2026-07-20T22:35Z**, `ms.topic: best-practice`, *applies to **SQL Server · Azure SQL Database · Azure SQL Managed Instance*** — and **SQL Server on Azure VM is not in its banner**. **[measured]** the string `1433` occurs **zero** times and the word *internet* occurs **zero** times, in any casing, verified against the raw `live` markdown. Its subjects are column- and row-level protection, encryption and TDE, auditing, identity, SQL injection, side-channel and ransomware. **Microsoft's flagship, freshest SQL Server security document states no network-placement position at all** — reported at §35.14 as evidence for **and** against this ruling
+- **The mapping artefact, and the source of a three-page contradiction.** [*Configure a server to listen on a specific TCP port*](https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/configure-a-server-to-listen-on-a-specific-tcp-port), `ms.date` **2025-08-26**, *applies to SQL Server* — *"the default instance of the SQL Server Database Engine listens on **TCP port 1433**"*, which is limb 2(b)'s mapping and is unchanged from §33. Its own note answers the other two pages: *"Because port 1433 is the known standard for SQL Server, some organizations specify that the SQL Server port number should be changed to enhance security. … However, the TCP/IP architecture permits a port scanner to query for open ports, so **changing the port number isn't considered a robust security measure**."* Recorded at §35.13; it weakens §33.4's hedge and moves no figure
+- **Checked as a defeater and refused, for the second time and now with the ground written down.** [*Azure SQL Database connectivity architecture*](https://learn.microsoft.com/en-us/azure/azure-sql/database/connectivity-architecture), `ms.date` **2026-02-26**, *applies to Azure SQL Database · SQL database in Fabric* — *"Clients connect to the gateway that has a public IP address and **listens on port 1433**"*, and a client outside Azure gets `Proxy` mode by default. **The exposure is real and it is Microsoft's own**, so §33.2's addressee rider disposes of it — now stated as [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 2's second sentence. Corroborative only; **the defeat rests entirely on the Azure VM pages**
+- **Checked as a defeater and refused, and the 3342 measurement re-taken rather than inherited.** [*Use Azure SQL Managed Instance securely with public endpoints*](https://learn.microsoft.com/en-us/azure/azure-sql/managed-instance/public-endpoint-overview) (`ms.date` **2025-08-26**) and [*Configure public endpoint*](https://learn.microsoft.com/en-us/azure/azure-sql/managed-instance/public-endpoint-configure) (`ms.date` **2025-09-11**). **[measured]** `1433` occurs **zero** times on the configure page and `3342` on **five** lines; *"Port 3342 is used for public endpoint connections to SQL managed instance, and **can't be changed** currently"*. Microsoft's own guidance — *"**Use a network security group to limit access** to the SQL managed instance public endpoint on port 3342"* — is the strongest source-IP-restriction language in this whole retrieval, and it is about a port that is not on the list and a service Microsoft operates. `3342/tcp` is examined as an ADR-0037 limb 1 candidate at §35.13 and refused on Claim 3 at sight
+- **A dated negative on deprecation, searched for rather than assumed.** **[measured]** the [SQL Server on Azure VMs *What's new*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/doc-changes-updates-release-notes-whats-new) page (`ms.date` **2026-07-10**, `updated_at` **2026-08-03**) carries **no** entry mentioning connectivity, the Public/Private/Local option, port 1433 or network security groups in any of its Preview, GA or documentation-changes tables from September 2025 through June 2026. **Microsoft has not withdrawn the Public SQL connectivity option**, and artefact 3 still instructs the reader to select it at `ms.date` 2026-03-18. This is the negative §35.10's reopening criterion is measured against · **One search result surfaced and deliberately not relied on:** that post-deployment editing of connectivity settings was removed from the Azure portal in April 2023. No primary page was retrieved, it is a management-surface change rather than a deprecation, and it is recorded as **unverified** — §21's rule about what an owner has **issued** is why a search snippet is not evidence
+- **Quoted from this note rather than re-fetched, and named as such** — §28.5's refusal of the *supports an unauthenticated mode* reading, which names `1433` by number and carries Claim 1's disposal at §35.6; §29.2's scoring of `1433/tcp` as *top-100, retained*, which carries the whole of §35.12's finding that the union does not move. **The ruling turns on the first and every figure at §35.11 turns on the second**, so both are named rather than absorbed

@@ -225,6 +225,13 @@ are how that selection was made, not a transformation applied to somebody else's
 > > the sensitive half's contribution, `|S \ F|`, from 11 to 13. The frequency half is editable and the
 > > union is not ([ADR-0009](../adr/0009-verge-core-is-a-union.md)); a sensitive-list admission changes
 > > `verge-core` without changing anything on this page.
+> >
+> > **And [#109](https://github.com/winniel123/verge-asm/issues/109) took the sensitive list to 40 by
+> > REMOVING `1433/tcp`, and `verge-core` did not move either.** **[measured]** `1433/tcp` **is** in
+> > `F` — it is in the retained top-100 — so `|S \ F|` stays at **13** and the union stays at **136
+> > pairs, 131 probed**. This is the removal case of the sentence above: a sensitive-list edit changes
+> > `verge-core` only where the pair is **not** in the frequency half, which is 13 of the list's 40
+> > pairs and was never `1433/tcp`. [`sensitive-ports.md`](./sensitive-ports.md) §35.12.
 >
 > **This limb reaches no kube control-plane component beyond the kubelet.** The orchestration limb is
 > `2375, 2376, 2379, 2380, 6443, 10250, 10255` and stops there, so `10259/tcp` kube-scheduler and
@@ -292,8 +299,8 @@ baseline is full-range; if they did not, it is `verge-core`. Either way it is a 
 **So a default-settings install measures `verge-core` and nothing else, permanently** — including the
 ~900 tail ports the retired warm tier used to cover. That is the honest statement of v1's aperture,
 and it is stated on `Coverage` rather than left to be discovered: the port-tier line names the tier,
-its cadence and its off state, and carries ~~`0 of 39 sensitive pairs unread`~~ **`0 of 41 sensitive
-pairs unread`** and `0 of 16 rules unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
+its cadence and its off state, and carries ~~`0 of 39 sensitive pairs unread`~~ ~~`0 of 41 sensitive
+pairs unread`~~ **`0 of 40 sensitive pairs unread`** and `0 of 16 rules unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
 puts every sensitive pair inside the hot set, and of the sixteen rules one names a port (fully
 covered), four read `Name`s, and eleven read a facet on a subject. **The tier bounds which subjects
 exist, never which rules can speak**, so what the cold tier buys is drift breadth rather than signal
@@ -321,8 +328,17 @@ estate-completeness score in port clothing.
 > Two ADRs quote this line at the stale `0 of 37` — [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)
 > and [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) — and are deliberately left
 > for a single reconciliation pass rather than hand-patched while `|S|` is in motion
-> ([`sensitive-ports.md`](./sensitive-ports.md) §29.9). **That pass has run and both now read `0 of
-> 41`.**
+> ([`sensitive-ports.md`](./sensitive-ports.md) §29.9). **That pass has run and both now read ~~`0 of
+> 41`~~ `0 of 40`.**
+>
+> **And it reads `0 of 40` after [#109](https://github.com/winniel123/verge-asm/issues/109)**, which
+> **removed** `1433/tcp` from the sensitive list ([`sensitive-ports.md`](./sensitive-ports.md) §35).
+> **The first time this denominator has moved *down*, and the identity above predicted it exactly** —
+> the numerator stayed `0`, nothing was re-measured, and **[measured]** the **probed set did not move
+> at all**, `1433/tcp` being in the frequency half so `verge-core` stays at 136 pairs / 131 probed.
+> The aperture **narrows** by one pair's worth of rule coverage and reveals nothing, so
+> [ADR-0014](../adr/0014-only-revealed-generalises.md) does not bite. ADR-0044 and ADR-0047 are
+> updated with it.
 
 **No middle tier replaces the retired warm one**, and the refusal does not rest on
 [`nmap-services-licence.md`](./nmap-services-licence.md) §3. Under ADR-0009's union, any set authored

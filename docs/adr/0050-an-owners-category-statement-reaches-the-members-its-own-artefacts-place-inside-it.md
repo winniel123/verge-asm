@@ -299,6 +299,17 @@ Connect to SQL Server over the internet. |"*; *"Any client with internet access 
 Server instance"*). That is limb 3's defeat condition met by the owner, for the member, in the present
 tense. [`sensitive-ports.md`](../research/sensitive-ports.md) §33.4.
 
+> **And the row has since gone too — [#109](https://github.com/winniel123/verge-asm/issues/109),
+> 2026-08-14, on a retrieval scoped to the row.** `1433/tcp` is **removed from the sensitive list**;
+> the list is 40 pairs and the pair is in `sensitive-ports.md` §4.6. **This rule is not what removed
+> it, and the distinction is now written down.** Limb 3 is a **defeat test on this rule's reach** and
+> is answered at the **attestation** gate; the row fell on `sensitive-ports.md` §10.3's failure
+> condition, which fires on the owner's **affirmative** naming and is answered at the **claim** gate —
+> [ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)
+> limb 1. The consequence that matters for a reader of *this* ADR: **an argument that narrows the
+> owner's category statement rescues the footing and does not rescue the row.** `sensitive-ports.md`
+> §35.
+
 **It is a stronger instance than the one this ADR was argued from.** Rationale §4 turns on Kubernetes
 **conceding** that *"many managed Kubernetes distributions are publicly exposing the API server by
 default"* — the owner reporting what third parties do. Here the owner **ships the provisioning option
