@@ -28,6 +28,13 @@ func scheduledTick(now time.Time, cadence time.Duration) time.Time {
 	return time.Unix(floored, 0).UTC()
 }
 
+// Backoff exposes the shared retry schedule so a second corpus running on the
+// queue's own retry/backoff/dead-letter machinery — Channel delivery (#207) —
+// waits on the same curve as a measurement job, rather than minting a second
+// schedule beside it (notification-channels.md §4.2). It is the exported face of
+// backoff and nothing more.
+func Backoff(attempt int32) time.Duration { return backoff(attempt) }
+
 // backoff is the delay before a retried job's new Batch runs: exponential from a
 // base, capped, so five attempts span roughly an hour (v1 spec §4.5's retry
 // budget, shared machinery).
