@@ -500,13 +500,14 @@ carried nowhere else. Declare a channel to have messages POSTed out.</p>
 <div class="microlabel">Retention</div>
 <div class="section">
 <h2>Retention dials</h2>
-<p>Retention is what may still be read, never age. The floors that bound these dials
-land with later work; for now each floors at zero, where zero means no operator floor.</p>
+<p>Retention is what may still be read, never age. Dispatch retention is a multiple of the
+slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. The
+observation-currency floor lands with later work; for now zero means no operator floor.</p>
 {{if .RetError}}<div class="error">{{.RetError}}</div>{{end}}
 <form method="post" action="/settings/retention">
 <div class="dial">
 <label><span>Observation-currency floor</span><input name="observation_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetObs}}{{else}}{{.Retention.ObservationCurrencyDays}}{{end}}" required><span class="unit">days</span></label>
-<label><span>Dispatch floor</span><input name="dispatch_cadence_multiple" inputmode="numeric" value="{{if .RetError}}{{.RetDispatch}}{{else}}{{.Retention.DispatchCadenceMultiple}}{{end}}" required><span class="unit">× cadence</span></label>
+<label><span>Dispatch retention</span><input name="dispatch_cadence_multiple" inputmode="numeric" value="{{if .RetError}}{{.RetDispatch}}{{else}}{{.Retention.DispatchCadenceMultiple}}{{end}}" required><span class="unit">× slowest scan cadence</span></label>
 <button type="submit">Save dials</button>
 </div>
 </form>
