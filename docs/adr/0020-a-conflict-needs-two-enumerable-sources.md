@@ -222,6 +222,32 @@ split-horizon estate, which is the failure ADR-0006 wrote its rule to prevent.
 The declared side needs no composition. A `Batch` is *from one vantage* and the zone-file batch is
 read by the worker, so that timeline has one vantage and no disagreement is possible on it.
 
+> **NAMED by [#138](https://github.com/winniel123/verge-asm/issues/138) ·
+> [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md).**
+> Both rules take the **cross-class** `Vantage composition`, as does membership; the *"every
+> available vantage"* phrasing above is repaired at ADR-0006's own bullet and means **every
+> `Vantage class` holds a current value and they agree**. Three consequences for this section.
+>
+> **The asymmetric alternative below is no longer *rejected* — it is inexpressible.** *"Unanimity to
+> assert an absence, one vantage to assert a presence"* tries to put a quantifier on a cross-class
+> composition, and the cross-class kind has no quantifier place. What this section correctly saw as a
+> split-horizon hazard is now structural: across classes a difference is a fact about our aperture,
+> not about the estate.
+>
+> **`lame-delegation` and `cname-target-name-error` are placed here too** — this ADR's neighbours from
+> [#35](https://github.com/winniel123/verge-asm/issues/35) stated no composition at all. Both are
+> cross-class: a lame delegation and a CNAME target's Name Error are facts about the delegation rather
+> than about where the question was asked.
+>
+> **A cost this section did not state.** A cross-class composition over **one** class is that class's
+> value agreed with nobody, so *"split DNS is a non-event by construction"* holds only on an install
+> running two classes. On [#14](https://github.com/winniel123/verge-asm/issues/14)'s modal internal
+> install — the one most likely to hold a split zone and to have supplied a file —
+> `resolved-name-absent-from-zone` fires on every internal-only name in the zone. Disclosed rather
+> than fixed: making the rule class-scoped to `internet` would make it `not-evaluable` there and leave
+> the zone file's `completeness` with no consumer on the only install that has one, which is the
+> argument this ADR shipped the rule on.
+
 ### Two rules, and not a `source-disagreement`
 
 A single rule over the whole class is tempting and fails twice.

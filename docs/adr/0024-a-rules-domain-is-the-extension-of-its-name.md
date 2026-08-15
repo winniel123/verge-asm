@@ -282,6 +282,22 @@ all sixteen out is what tested the rule.
 > question to be about. That is this ADR's *a domain is a property of the rule, not of the facet*,
 > with a DNS value rather than the 3xx that first showed it.
 
+> **A second thing this table now carries, added by
+> [#138](https://github.com/winniel123/verge-asm/issues/138) ·
+> [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md).**
+> Every rule over a **per-vantage** facet also declares a `Vantage composition`, and **the class half
+> of it lands in this column** — which is why #128's row reads *internet-class* here and the four
+> other `resolution` rows read nothing. The quantifier half lands in the **predicate**, so the
+> composition is **not a fifth part of a rule**: a rule is still four parts, and what was missing was
+> the requirement to state both halves rather than a place to put them.
+>
+> Writing the compositions out found the same class of defect this table found for domains.
+> `lame-delegation` and `cname-target-name-error` — [#35](https://github.com/winniel123/verge-asm/issues/35)'s
+> pair, and the two oldest `resolution` readers — **stated no composition at all**; both are
+> **cross-class**. The two #48 rows are cross-class, #128's row is class-scoped on `internet` with
+> quantifier `existential`, and `Reach`'s own within-class quantifier had never been written either.
+> **No row's domain moves and no rule's leaf moves**, so the set stays at **seventeen**.
+
 Two things fell out of writing it. `hostname-SAN mismatch` has a domain nobody had noticed, because
 ADR-0011 made an `Endpoint`'s `Name` optional and a nameless endpoint has no hostname to mismatch.
 And the same value sits on both sides of the line in one facet: a **3xx** is outside
