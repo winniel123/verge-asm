@@ -11,21 +11,46 @@ import (
 type Querier interface {
 	ConfirmTOTP(ctx context.Context, id int64) error
 	CountAccounts(ctx context.Context) (int64, error)
+	// Guards the last-admin invariant: a role change that would drop this to zero is
+	// refused so an operator cannot lock every admin out.
+	CountAdmins(ctx context.Context) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
+	// Returns the id only: the secret is write-only and no query hands it back.
+	CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error)
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
+	DeleteChannel(ctx context.Context, id int64) error
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
+	// Also omits the secret; a caller reads presence, never the value.
+	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
+	// The single operator-global row seeded by the migration; it always exists.
+	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
+	// The accounts management list on the Settings screen. It omits password_hash
+	// and totp_secret: managing accounts never needs either, so they stay out of the
+	// render path.
+	ListAccounts(ctx context.Context) ([]ListAccountsRow, error)
+	// Never selects the secret: it exposes only whether one is set, so the render
+	// path is structurally unable to leak it.
+	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
+	// Set, replace or clear the secret. A NULL clears it; the value is written and
+	// never read back.
+	SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
+	UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error
+	// Updates everything but the secret; the secret has its own write path so an
+	// edit that leaves it blank keeps the existing one untouched.
+	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
+	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
 }
 
 var _ Querier = (*Queries)(nil)
