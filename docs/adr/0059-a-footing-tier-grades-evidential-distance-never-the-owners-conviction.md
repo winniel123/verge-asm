@@ -87,7 +87,7 @@ assignments as they stand:
 | `6379` Redis | *"not a good idea to expose the Redis instance directly to **the internet**"* | none | **Prohibition** — and it is **hedged**, which limb 2 says is irrelevant |
 | `11211/tcp`+`/udp` memcached | *"you **must not** expose memcached directly to **the internet**"* | none | **Prohibition** |
 | `3306` MySQL | *"Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by default. This port should not be accessible from untrusted hosts."* | none | **Prohibition** |
-| `1433` MS SQL | *"don't connect your SQL Server instances directly to **the Internet**"* | none | **Prohibition** |
+| ~~`1433` MS SQL~~ | *"don't connect your SQL Server instances directly to **the Internet**"* | none | ~~**Prohibition**~~ — **DEMOTED out of the graded table by [#107](https://github.com/winniel123/verge-asm/issues/107)** on limbs 2 and 4(c): Microsoft names internet-facing TCP/1433 as supported. `sensitive-ports.md` §33.4 |
 | `9200`, `9300` Elasticsearch | *"Never expose an unprotected node to **the public internet**"* | none | **Prohibition** |
 | `445` SMB | *"unlikely that any SMB communication originating from **the internet** … is legitimate"* | none | **Prohibition** |
 | `623/udp` IPMI | *"not designed nor intended to be placed on or connected to **the internet**"* | none | **Prohibition** |
@@ -218,9 +218,20 @@ are **not** promoted by this ADR"*. §32 re-retrieved both sentences in their ow
 satisfy all four conditions; the conjunction promotes exactly those two and, run across the whole
 scoping tier, promotes **nothing else** — `4369/tcp` epmd is refused on condition 1, RabbitMQ being a
 non-owner for that port, and `2049/tcp` NFS on condition 4, RFC 7530 §1.2's Internet sentence being a
-goal RFC 8881 records as unmet. Run in the demoting direction the conjunction refuses **none** of the
-fourteen sitting members. **The tiers read prohibition 16 · scoping 11 · weak 3 · outside-subject 11,
-coverage 30 of 41 — two cells, no rows, and ADR-0008 is not triggered.**
+goal RFC 8881 records as unmet. ~~Run in the demoting direction the conjunction refuses **none** of the
+fourteen sitting members.~~ **The tiers read ~~prohibition 16 · scoping 11 · weak 3 · outside-subject 11,
+coverage 30 of 41~~ — two cells, no rows, and ADR-0008 is not triggered.**
+
+> **Both struck clauses are SUPERSEDED by [#107](https://github.com/winniel123/verge-asm/issues/107).**
+> This amendment ran the demoting direction as a **re-reading of §18.5's ratification**, not as a
+> retrieval — `sensitive-ports.md` §32.12 recorded the dependency against itself in terms. #107 walked
+> limbs 2 and 4 **per row over all sixteen members**, and **[measured] one fails**: `1433/tcp` MS SQL,
+> on [ADR-0050](./0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
+> limb 3 and independently on limb 4's third branch, because the carrying page numbers no port and
+> Microsoft elsewhere names internet-facing TCP/1433 SQL Server as a supported, portal-provisioned
+> option. **The conjunction refuses one of sixteen, and the tiers read prohibition 15 · scoping 11 ·
+> weak 3 · outside-subject 11 · uncovered-in-subject 1, coverage 29 of 41.** Still no rows, and
+> ADR-0008 is still not triggered. `sensitive-ports.md` §33.
 
 **What this amendment does not reach, stated so its extent is in the artefact.** The closure claim is a
 **ruling**: it holds that the row's proposition has four terms and that a reader-supplied premise can
@@ -262,6 +273,38 @@ test leaves the sufficient condition unstated. **[measured]** the kubelet's `rea
 survives its value and is still refused — the one instance on that side.
 
 **No cell moves, and this ADR's rule is unchanged.**
+
+## Confirmed by use — [#107](https://github.com/winniel123/verge-asm/issues/107), 2026-08-14
+
+**The four-limb conjunction was run as a retrieval over all sixteen prohibition-tier members, one row
+at a time. Fifteen hold. One does not, and this ADR's own limb 2 is what refuses the objection to
+demoting it.**
+
+**Limb 2's inadmissibility of mood and force is load-bearing in the demoting direction for the first
+time.** Microsoft's Azure VM page hedges its internet-facing option — *"this doesn't imply that anyone
+can connect to your SQL Server instance. Outside clients have to use the correct username and
+password"* — and a reader will reach for that hedge to save the cell. **It is a fact about the
+utterance, not about the gap between the utterance and the proposition**, so limb 2 refuses it in the
+demoting direction exactly as it refuses Redis's *"usually it is not a good idea"* in the admitting
+one. The column still does not measure how much the owner minds.
+
+**Limb 1's premise count is untouched and was not needed for the verdict.** `1433/tcp` does not move
+from zero premises to one — it stops being **evidence of the row's proposition at all**, which is the
+disposition the #101 amendment's own limb-4 sentence specifies. A footing failing limbs 1, 2 or 4 does
+not enter the grading, so the cell leaves the table rather than descending a tier. **[measured]** MS
+SQL ships no configuration artefact (`sensitive-ports.md` §13.1), so no weaker form catches it and the
+row becomes the table's only uncovered in-subject member.
+
+**[measured] The demotion takes no neighbour, which is the test this ADR set for itself at §30.5 and
+#101 re-set at §32.3.** Redis, Elastic, memcached and Oracle all document managed or public offerings
+and all four are **spared on an artefact rather than on judgement** — Redis Cloud endpoints are on
+`10000-19999` and `6379` occurs zero times in the owner's port table; Elastic's managed `9200` is a
+**proxy** port with nodes on `18000-19999`; memcached operates no service; MySQL's class is conditioned
+on *"untrusted hosts"*. **The discriminator is that the architecture the owner supports must be an
+instance of the class the owner's own statement forbids**, and it is `sensitive-ports.md` §33.2's act
+rather than this ADR's.
+
+**One cell moves. The rule is unchanged in every limb.**
 
 ## Alternatives rejected
 
