@@ -1012,7 +1012,12 @@ in CI rather than by discipline, since neither a hash of the code (bumps on a re
 hash of the parameters (silent on a behavioural fix) tracks what we care about. The gate runs
 **both ways**: a version may move only where a corpus row's output moved, a declared parameter
 changed, or an uncovered move was recorded — so a version that moves for nothing fails the build
-as loudly as an output that moves for free. A `Span`
+as loudly as an output that moves for free. That corpus runs on **every shipped architecture**
+against **one** expected output, never a per-architecture one: an architecture-specific golden file
+is an architecture-dependent value recorded as the fix, and two installs would then hold **equal**
+vectors over values produced by two implementations. See
+[ADR-0085](./docs/adr/0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md).
+A `Span`
 carries the **vector** of derivation versions it was produced under: one leaf per named
 derivation, flattened across everything that derivation reads, with parameters held inside
 their own leaf rather than beside it. Comparison is legal exactly where two vectors are equal.
