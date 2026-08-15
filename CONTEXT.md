@@ -61,7 +61,12 @@ years to walk. **IPv6 space is not swept and no configuration makes it sweepable
 reached by a name scope with a `custody extension`, which is family-agnostic and already works,
 AAAA being in the shipped resolution offer. Declaring or widening an address scope is an
 **aperture widening** — `revealed`, one coverage-class message at the scope carrying a count of
-timelines opened, never one message per address. A
+timelines opened, never one message per address. **Narrowing a seed is the same trigger in the other
+direction and is not silent**: where the act removes membership ground nothing else cites, the
+subjects leave and take the timelines that would have carried the news, so the message fires at the
+scope — one of them, carrying a count of subjects withdrawn and naming what can no longer be told.
+Where a current resolution still cites the ground, the subject survives, the gate closes and the
+`Gap` carries it as it already did. A
 boundary can be drawn inwards too: a seed carries **exclusions** — exact names, subtrees, or
 address scopes the operator declares are not theirs. Excluding a name that still resolves is legal —
 *not mine* is a different claim from *not there* — and an excluded name is no longer

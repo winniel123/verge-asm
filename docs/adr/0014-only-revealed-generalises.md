@@ -226,16 +226,35 @@ ADR-0011 says a strictly-additive widening ships *"with no break and one re-base
 borrowing #18's word for a trigger #18 never defined: a re-baseline fires when a `Derivation`
 **vector** moves, and an aperture widening moves no vector at all.
 
-They are **one class with two triggers**, named for the cause and not the mechanism. Both say *we
+They are **one class with ~~two~~ THREE triggers**, named for the cause and not the mechanism. Both say *we
 changed how we look*, and the operator has no use for the distinction between *our rule changed*
 and *our aperture widened* — both were already coverage-class under the five-precedent messages
 partition.
+
+> **A third trigger — [#130](https://github.com/winniel123/verge-asm/issues/130) ·
+> [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md).** An
+> aperture **narrowing** says this same sentence, so it is this cause and this class. It fires only
+> where the act takes the carrier with it — a `Seed` narrowing withdraws the subjects that would have
+> held the `Gap`, so one message fires **at the scope**; every other narrowing leaves a subject
+> holding a `Gap`, which already carries it. **The *class* here is the CAUSE-class, and its triggers
+> are separate coverage-class members** — `revealed` is member 2 and the vector move member 4 — so
+> this third trigger is **member ten** and the coverage class stands at **ten**. Marked at the
+> sentence per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md),
+> because *two triggers* read alone specifies that a narrowing has none. **Nothing about `revealed`
+> moves**: no transition name is minted in the closing family, in this or any other.
 
 The **payloads differ and should**. A vector move carries a difference set computed across a
 `Break`, with all of ADR-0008's caveats about never persisting it. An aperture widening carries a
 count of timelines opened and **no comparison at all**, because per the additive rule there is
 nothing to compare. Writing that down stops the safer payload inheriting the riskier one's
 apparatus for no reason.
+
+> **A ~~second~~ THIRD payload under this heading, and they must not be levelled** — #130 · ADR-0074.
+> An aperture **narrowing** carries a count of **subjects withdrawn**, no comparison and no rows,
+> **plus the loss named**: a listener appearing in the removed ground is invisible afterwards and no
+> later message recovers it. That third element is the #121 rider below arriving on a second trigger,
+> for the identical reason — there is no repair, so naming it is the whole of the remedy. The copy of
+> all three is [#120](https://github.com/winniel123/verge-asm/issues/120)'s.
 
 > **A third element on the vector-move payload —
 > [#121](https://github.com/winniel123/verge-asm/issues/121) ·
