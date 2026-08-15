@@ -20,26 +20,6 @@ type Account struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
-type Batch struct {
-	ID            int64              `json:"id"`
-	ScanID        int64              `json:"scan_id"`
-	DispatchID    pgtype.Int8        `json:"dispatch_id"`
-	VantageID     pgtype.Int8        `json:"vantage_id"`
-	Kind          string             `json:"kind"`
-	Outcome       string             `json:"outcome"`
-	Offers        []byte             `json:"offers"`
-	RecordedScope []byte             `json:"recorded_scope"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-}
-
-type Dispatch struct {
-	ID            int64              `json:"id"`
-	ScanID        int64              `json:"scan_id"`
-	ScheduledTime pgtype.Timestamptz `json:"scheduled_time"`
-	Status        string             `json:"status"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-}
-
 type Exclusion struct {
 	ID          int64              `json:"id"`
 	Kind        string             `json:"kind"`
@@ -54,45 +34,6 @@ type Heartbeat struct {
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
 }
 
-type Observation struct {
-	ID            int64              `json:"id"`
-	BatchID       int64              `json:"batch_id"`
-	Facet         string             `json:"facet"`
-	SubjectKind   string             `json:"subject_kind"`
-	SubjectKey    string             `json:"subject_key"`
-	Discriminator string             `json:"discriminator"`
-	VantageID     pgtype.Int8        `json:"vantage_id"`
-	Source        string             `json:"source"`
-	Value         []byte             `json:"value"`
-	ObservedAt    pgtype.Timestamptz `json:"observed_at"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-}
-
-type QueueJob struct {
-	ID             int64              `json:"id"`
-	ScanID         int64              `json:"scan_id"`
-	VantageID      pgtype.Int8        `json:"vantage_id"`
-	DispatchID     pgtype.Int8        `json:"dispatch_id"`
-	Kind           string             `json:"kind"`
-	Spec           []byte             `json:"spec"`
-	AttemptedScope []byte             `json:"attempted_scope"`
-	Offers         []byte             `json:"offers"`
-	State          string             `json:"state"`
-	Attempt        int32              `json:"attempt"`
-	MaxAttempts    int32              `json:"max_attempts"`
-	BatchID        pgtype.Int8        `json:"batch_id"`
-	RunAfter       pgtype.Timestamptz `json:"run_after"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-}
-
-type Scan struct {
-	ID             int64              `json:"id"`
-	Kind           string             `json:"kind"`
-	Enabled        bool               `json:"enabled"`
-	CadenceSeconds int64              `json:"cadence_seconds"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-}
-
 type Seed struct {
 	ID          int64              `json:"id"`
 	Kind        string             `json:"kind"`
@@ -102,10 +43,9 @@ type Seed struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
-type Vantage struct {
-	ID        int64              `json:"id"`
-	Name      string             `json:"name"`
-	Class     string             `json:"class"`
-	Resolver  string             `json:"resolver"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+type SourceState struct {
+	Slug      string             `json:"slug"`
+	Enabled   bool               `json:"enabled"`
+	ToggledBy int64              `json:"toggled_by"`
+	ToggledAt pgtype.Timestamptz `json:"toggled_at"`
 }

@@ -30,6 +30,8 @@ type store interface {
 	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
 	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
 	DeleteExclusion(ctx context.Context, id int64) error
+	ListSourceStates(ctx context.Context) ([]db.ListSourceStatesRow, error)
+	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -89,6 +91,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /seeds", s.requireAdmin(s.declareSeed))
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
+
+	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))
+	mux.HandleFunc("GET /sources", s.requireLogin(s.sourcesModal))
+	mux.HandleFunc("POST /sources/toggle", s.requireAdmin(s.toggleSource))
 
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
 	mux.HandleFunc("POST /account/totp/enable", s.requireLogin(s.totpEnable))
