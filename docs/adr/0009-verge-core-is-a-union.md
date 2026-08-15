@@ -413,9 +413,17 @@ this ADR is the first place a reader would check it.
 
 > **`verge-core = frequency-set ∪ sensitive-list` is unchanged. The sensitive half loses `1433/tcp`
 > Microsoft SQL Server (Class C), and `verge-core` stays at 136 pairs — 131 TCP, 5 UDP.** The list is
-> **40 pairs**, class totals **`12 / 7 / 21`**.
+> ~~**40 pairs**, class totals **`12 / 7 / 21`**~~.
 > [`sensitive-ports.md`](../research/sensitive-ports.md) §35;
 > [ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md).
+>
+> > **Both absolutes are superseded by [#114](https://github.com/winniel123/verge-asm/issues/114) —
+> > the list is 38 pairs, class totals `12 / 7 / 19`**, and the *"27 of the list's 40 pairs"* below
+> > is **25 of 38**. The `1433/tcp` verdict and the *union does not move* finding are unchanged; only
+> > the composed figures are. Struck **here**, at the site that states them, rather than left to the
+> > #114 amendment section below — [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+> > is on the **sentence**, so an amendment appended to a file does not discharge the clause it
+> > supersedes further up that same file.
 
 - **The union does not move, and the reason is the definition rather than luck.** **[measured]**
   `1433/tcp` is in the **frequency half** — `sensitive-ports.md` §29.2 scores it *top-100, retained*,
