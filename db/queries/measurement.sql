@@ -23,6 +23,31 @@ FROM seed
 WHERE kind = 'name' AND name_domain IS NOT NULL
 ORDER BY name_domain;
 
+-- name: ListAddressScopeCidrs :many
+-- The declared address-scope Seeds, for the hot Scan's Custody derivation: every
+-- address inside one derives operator directly (ADR-0013).
+SELECT address_cidr
+FROM seed
+WHERE kind = 'address' AND address_cidr IS NOT NULL
+ORDER BY id;
+
+-- name: ListExtendedZoneDomains :many
+-- The registrable domains of custody-extended name-scope Seeds, for the hot
+-- Scan's Custody derivation: an address a name in one of these zones resolves to
+-- derives operator by extension (ADR-0013 §3).
+SELECT name_domain
+FROM seed
+WHERE kind = 'name' AND custody_extension = TRUE AND name_domain IS NOT NULL
+ORDER BY name_domain;
+
+-- name: ListVergeCoreFrequencyEdits :many
+-- The operator's edits to verge-core's frequency half (v1 spec §3.5). Only the
+-- frequency half is operator-editable; these deltas are applied over the shipped
+-- default at hot fan-out.
+SELECT port, action
+FROM verge_core_frequency_edit
+ORDER BY id;
+
 -- name: TryFanOut :one
 -- Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 -- Dispatch; an overlapping tick conflicts and returns no row, which the caller

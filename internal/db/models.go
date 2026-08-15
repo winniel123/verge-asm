@@ -182,6 +182,14 @@ type Vantage struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type VergeCoreFrequencyEdit struct {
+	ID        int64              `json:"id"`
+	Port      int32              `json:"port"`
+	Action    string             `json:"action"`
+	CreatedBy int64              `json:"created_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type ZoneFile struct {
 	ID         int64              `json:"id"`
 	SeedID     int64              `json:"seed_id"`

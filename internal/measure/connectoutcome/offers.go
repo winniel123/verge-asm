@@ -1,0 +1,120 @@
+// Package connectoutcome is the `connect-outcome` Derivation leaf inside the
+// shared measurement binary (v1 spec §3.3). It decides the `reachability` facet
+// for a `Service` — an `(Address, port, transport)` triple — by a TCP
+// **connect** (never SYN): the leaf opens a full connection and closes it, so it
+// runs non-root with `cap_drop: [ALL]` and no added capabilities. It is the
+// leaf the daily `hot` Scan dispatches over `verge-core`'s TCP pairs.
+//
+// The verdict is the closed pair `reached │ not-reached` (CONTEXT.md `Reach`):
+// on a connection-oriented transport, silence still decides, so a connect that
+// is refused (RST) or times out after its retries is `not-reached`, and only a
+// completed connection is `reached`. UDP is off — `connect-outcome` cannot
+// decide an honest UDP value (ADR-0083) — so the `hot` Scan records UDP pairs in
+// scope and never probes them.
+//
+// The safety profile (§3.3) that paces the probing lives in `safety.go` and is
+// deliberately OUTSIDE the verdict: the adaptive back-off changes the rate and
+// never the deadline, and it can neither manufacture nor suppress a reachability
+// value (ADR-0021). The verdict here is the golden-corpus-gated part; the pacing
+// is not.
+package connectoutcome
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+)
+
+// Version is the leaf's Derivation version (ADR-0008/ADR-0021). It moves on an
+// output-affecting change and only on one, gated bidirectionally by this leaf's
+// own golden corpus (§4.4) — separately from the other leaves, so a break names
+// its leaf.
+const Version = "connect-outcome/v1"
+
+// Kind is the JobSpec.Kind that dispatches to this leaf. It is distinct from the
+// `hot` Scan's DB kind: the Scan is `hot`, the leaf it dispatches is
+// `connect-outcome`, exactly as the `dns` Scan dispatches `resolution-walk`.
+const Kind = "connect-outcome"
+
+// SafetyProfile is the leaf's declared-parameter set: the exact §3.3 safety
+// table, recorded on the Batch by content (ADR-0025) so what governed the probe
+// is legible and never a library default. None of it is operator-configurable.
+//
+// The rate/concurrency/ceiling knobs are consumed by the limiter in safety.go;
+// they are declared here so a change to any of them is a declared-parameter
+// change that moves the leaf's params digest and forces a Version bump.
+type SafetyProfile struct {
+	// Technique is fixed: TCP connect, never SYN. Recorded so the Batch states it
+	// rather than leaving it to be inferred from the absence of raw sockets.
+	Technique string `json:"technique"`
+	// HostDiscovery is skipped — the `-Pn` posture. Targets are seeded, not swept
+	// for liveness, so "no ports responded" is a diffable observation about a
+	// real subject rather than a reason to skip the host.
+	HostDiscovery string `json:"host_discovery"`
+
+	// PerHostConnPerSec is the per-host connection rate ceiling — ≤ 50 conn/s.
+	PerHostConnPerSec int `json:"per_host_conn_per_sec"`
+	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20.
+	PerHostConcurrency int `json:"per_host_concurrency"`
+	// ConnectTimeoutMillis bounds one connect attempt — 3 s.
+	ConnectTimeoutMillis int `json:"connect_timeout_millis"`
+	// Retries is the number of re-attempts after a timeout/error before the
+	// verdict is decided — 2. A refusal (RST) is an answer and is never retried.
+	Retries int `json:"retries"`
+
+	// GlobalPacketsPerSec is the estate-wide ceiling — 200 pkt/s across all
+	// targets, round-robin by host so adding targets never multiplies load.
+	GlobalPacketsPerSec int `json:"global_packets_per_sec"`
+	// RoundRobinByHost records that scheduling cycles hosts, never ports — the
+	// canonical way to avoid a dense burst against one destination.
+	RoundRobinByHost bool `json:"round_robin_by_host"`
+
+	// AdaptiveBackoff records the back-off policy: halve the rate on a
+	// timeout/RST-spike/429/503 signal, never touching the deadline (ADR-0021).
+	AdaptiveBackoff BackoffPolicy `json:"adaptive_backoff"`
+}
+
+// BackoffPolicy is the adaptive back-off's declared shape. It halves the rate on
+// a stress signal and never touches the deadline — the deadline is the leaf's,
+// the rate is the limiter's.
+type BackoffPolicy struct {
+	HalveOnTimeout  bool `json:"halve_on_timeout"`
+	HalveOnRSTSpike bool `json:"halve_on_rst_spike"`
+	HalveOn429      bool `json:"halve_on_429"`
+	HalveOn503      bool `json:"halve_on_503"`
+	TouchesDeadline bool `json:"touches_deadline"` // always false — the invariant, recorded
+}
+
+// DefaultProfile is the v1 shipped safety profile — the §3.3 table exactly. It
+// is authored here, not defaulted by any library, so the job spec carries it to
+// the leaf and the Batch records exactly what governed the probe.
+func DefaultProfile() SafetyProfile {
+	return SafetyProfile{
+		Technique:            "tcp-connect",
+		HostDiscovery:        "skipped", // -Pn
+		PerHostConnPerSec:    50,
+		PerHostConcurrency:   20,
+		ConnectTimeoutMillis: 3000,
+		Retries:              2,
+		GlobalPacketsPerSec:  200,
+		RoundRobinByHost:     true,
+		AdaptiveBackoff: BackoffPolicy{
+			HalveOnTimeout:  true,
+			HalveOnRSTSpike: true,
+			HalveOn429:      true,
+			HalveOn503:      true,
+			TouchesDeadline: false,
+		},
+	}
+}
+
+// Digest is a stable content hash of the profile, used by the golden-corpus lock
+// to bind a declared-parameter change to a Version bump.
+func (p SafetyProfile) Digest() string {
+	b, err := json.Marshal(p)
+	if err != nil {
+		panic("connectoutcome: marshal safety profile: " + err.Error())
+	}
+	sum := sha256.Sum256(b)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}

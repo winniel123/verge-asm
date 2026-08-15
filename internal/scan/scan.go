@@ -25,6 +25,11 @@ type Vantage struct {
 	ID       int64
 	Name     string
 	Resolver string
+	// Class is the Vantage class (`internet` / `internal` / `unverified`). The
+	// dns Scan does not read it, but the hot Scan's Custody gate does — a
+	// non-globally-reachable address is probed only from a non-`internet` class
+	// (ADR-0079) — so it is carried here additively for hot.go.
+	Class string
 }
 
 // Job is one queue job the dns Scan produces: one Vantage, the full name-scope

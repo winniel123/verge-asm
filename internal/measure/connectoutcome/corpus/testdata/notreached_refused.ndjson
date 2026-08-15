@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.11:3306/tcp","vantage":"v1","address":"198.51.100.11","data":{"outcome":"not-reached","result":"refused"}}

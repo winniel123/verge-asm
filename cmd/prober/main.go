@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -37,6 +38,11 @@ func run(stdin io.Reader, stdout io.Writer) error {
 		// Shadowed. It is versioned separately from resolution-walk and, with it,
 		// is one of the two leaves membership composes (ADR-0086).
 		return wildcarddiscrim.Run(spec, stdout)
+	case connectoutcome.Kind:
+		// The connect-outcome leaf: the daily hot Scan's TCP connect (never SYN),
+		// deciding the reachability facet for each Service in scope. It is paced by
+		// the §3.3 safety limiter, which never changes a verdict (ADR-0021).
+		return connectoutcome.Run(spec, stdout)
 	default:
 		// The skeleton's job-spec-in / NDJSON-out proof for kinds whose leaf
 		// a later ticket adds (TCP/TLS/HTTP).
