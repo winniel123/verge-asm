@@ -1385,10 +1385,23 @@ which named `certificate` until
 [ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) found that
 facet's handshake rides the `reachability` exchange and opens with its `Service`.
 **`returned` is the one member a `Break` destroys rather than clamps**, and the cause is a release
-rather than an operator setting. A withdrawn subject's timeline is closed, so a `Break` between the
-withdrawal and the return leaves the reopening with nothing legally before it: no `Transition` is
-derived, the subject re-enters the estate, and the membership message fires reading **`appeared`** —
-the carrier correct and the word a lie. It cannot be repaired afterwards, since history is never
+rather than an operator setting. ~~A withdrawn subject's timeline is closed, so a `Break` between
+the withdrawal and the return leaves the reopening with nothing legally before it~~ is **amended
+here, at the site that specifies the single-timeline case**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)),
+by [#148](https://github.com/winniel123/verge-asm/issues/148) ·
+[ADR-0097](./docs/adr/0097-returned-composes-every-witness-a-presence-read-rests-on.md): read alone
+and in the present tense it names one timeline where
+[ADR-0080](./docs/adr/0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)
+has since shown a presence read composes a **set** — one witness per `Vantage class`, existential
+within a class, agreed across classes. **A withdrawn subject's timelines close, so a `Break` on any
+witness the composed presence read currently relies on leaves that witness's contribution with
+nothing legally before it: no `Transition` is derived for the subject, it re-enters the estate, and
+the membership message fires reading `appeared`** — the carrier correct and the word a lie. One
+witness is the modal case (one `Vantage class`, over 99% of installs — [#26](https://github.com/winniel123/verge-asm/issues/26))
+and the sentence collapses to it exactly; a second witness (the optional external vantage,
+[#14](https://github.com/winniel123/verge-asm/issues/14)) must independently hold, since cross-class
+agreement has no dispensable term. It cannot be repaired afterwards, since history is never
 re-derived, so the release **states** the loss on the re-baseline message that already names the leaf
 that moved. Membership therefore composes the **narrowest** vector that decides presence and a
 release may not widen it: a `Name`'s and a cited `Address`'s membership both compose

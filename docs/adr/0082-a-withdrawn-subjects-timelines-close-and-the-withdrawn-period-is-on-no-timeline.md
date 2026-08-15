@@ -328,8 +328,15 @@ The remedy is the three obligations ADR-0041 already wrote, and they now rest on
   that leaves `descoped` and returns by an ordinary measured resolution reads **`returned`** on the
   spans alone — a decommission undone that never happened, which is ADR-0014's membership/aperture
   distinction collapsing at the storage layer.
-- **`returned`'s own predicate has never been written down.** A subject holds many timelines, at
+- ~~**`returned`'s own predicate has never been written down.** A subject holds many timelines, at
   many `(vantage, source)` keys, whose last spans may have closed under different vectors. Which
   closed span the return is compared against — and what the answer is when they disagree — is
   assumed rather than stated, here and in ADR-0041 alike, which both write as though there were one
-  timeline. The ruling does not depend on it; the message's word does.
+  timeline. The ruling does not depend on it; the message's word does.~~
+  **DISCHARGED** by [#148](https://github.com/winniel123/verge-asm/issues/148) ·
+  [ADR-0097](./0097-returned-composes-every-witness-a-presence-read-rests-on.md): a presence read
+  composes a set of witnesses, chosen by
+  [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)'s
+  own quantifiers, and `returned` requires no `Break` on any of them — this ADR's mechanism applied
+  once per witness and conjoined, not superseded. The ruling above is unaffected; the gap this
+  bullet named is closed.
