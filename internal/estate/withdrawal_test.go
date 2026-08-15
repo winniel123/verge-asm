@@ -69,7 +69,7 @@ func TestMembershipCrossClassWithdrawalConvergesWithDrift(t *testing.T) {
 	est := Membership([]Observation{
 		{Name: "split.example.com", Vantage: "in", Class: "internal", Resolution: ne},
 		{Name: "split.example.com", Vantage: "out", Class: "internet", Resolution: ok},
-	}, nil)
+	}, nil, nil)
 	if !contains(est.Names, "split.example.com") {
 		t.Error("cross-class disagreement keeps the Name present")
 	}
@@ -78,7 +78,7 @@ func TestMembershipCrossClassWithdrawalConvergesWithDrift(t *testing.T) {
 	est2 := Membership([]Observation{
 		{Name: "dead.example.com", Vantage: "in", Class: "internal", Resolution: ne},
 		{Name: "dead.example.com", Vantage: "out", Class: "internet", Resolution: ne},
-	}, nil)
+	}, nil, nil)
 	if contains(est2.Names, "dead.example.com") {
 		t.Error("cross-class agreement on NameError withdraws the Name")
 	}

@@ -74,12 +74,25 @@ type Querier interface {
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
+	// The address-scope Seed a Service's Address falls inside (#195) — the other
+	// limb of Address membership, and where the Citation chain terminates when no
+	// resolution cites the Address. Native CIDR containment (`>>=`) is a test over
+	// the address and never its spelling, so the gate cannot turn on a rendering
+	// (CONTEXT.md `Seed`). The most specific covering scope wins where scopes nest.
+	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (FindCoveringAddressSeedRow, error)
 	// The Seed a Name's Citation chain terminates at: the name scope whose query set
 	// the dns Scan was drawn from (CONTEXT.md `Citation` — every chain bottoms out at
 	// a Seed or a declared source). Wave-0 measures the seed domains themselves; the
 	// label-wise suffix match also carries a later enumerated subdomain to its scope,
 	// and the longest matching domain wins when scopes nest.
 	FindCoveringNameSeed(ctx context.Context, name string) (FindCoveringNameSeedRow, error)
+	// A Name whose current resolution cites the given Address (#195) — the Citation
+	// hop that answers why a Service's Address is in the estate. An Address has no
+	// lifecycle of its own, so its membership is grounded in evidence about ANOTHER
+	// subject: the Name whose Resolved answer names it. Where a resolution stops
+	// citing the Address this returns no row, which is exactly the `uncited` ground a
+	// departure records. Best-effort: the longest-lived citing Name, one hop.
+	FindNameCitingAddress(ctx context.Context, address string) (FindNameCitingAddressRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
@@ -114,6 +127,12 @@ type Querier interface {
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
+	// Resolve a Service key to at most one subject (#195). A Service drill-down
+	// reaches a subject by its own key — including one whose Address has left the
+	// estate, which is not a false "no record" but a population of no current member
+	// (ADR-0072). The caller reads the latest reachability value to render the
+	// current verdict and the Address the triple sits on.
+	GetServiceSubject(ctx context.Context, subjectKey string) (GetServiceSubjectRow, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
@@ -148,6 +167,15 @@ type Querier interface {
 	// there is nothing here to total. A withdrawn Name (latest resolution =
 	// NameError) is filtered out and reached only by key (GetNameSubject).
 	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
+	// Every Service currently in the estate, with optional search (#195). A Service
+	// is an (Address, port, transport) triple whose membership is its Address's
+	// membership restated — an Address is in the estate exactly while a current
+	// resolution cites it or a Seed covers it — so this is the thin "current
+	// Services" read the drill-down lists. Like the Name listing it carries no
+	// denominator (ADR-0072). A Service that has fallen out of the estate (its
+	// Address de-cited) is reached only by its own key; the value shown is the latest
+	// reachability verdict, reached or not-reached, both measured values.
+	ListCurrentServiceSubjects(ctx context.Context, search string) ([]ListCurrentServiceSubjectsRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	// The registrable domains of custody-extended name-scope Seeds, for the hot

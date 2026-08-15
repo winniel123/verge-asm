@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -51,12 +52,45 @@ type subjectRow struct {
 	Resolution string
 }
 
+// serviceRow is one Service in the estate listing: its (Address, port,
+// transport) key and its current reachability verdict. A Service exists open or
+// closed, which is what gives `unreachable` a subject to be a verdict about, so
+// both `reached` and `not-reached` are values a row may carry (CONTEXT.md
+// `Service`). The key carries a `/` (the transport separator), so the drill-down
+// link is a query parameter rather than a path segment.
+type serviceRow struct {
+	Key   string
+	Reach string
+}
+
 // citationHop is one link in a subject's "why is this here" chain, rendered
 // top-to-bottom from the subject down to the Seed the chain terminates at.
 type citationHop struct {
 	Label  string // the micro-label: what kind of hop this is
 	Value  string // the load-bearing value, rendered mono
 	Detail string // optional muted qualifier
+}
+
+// servicePageData is the drill-down view for one Service subject.
+type servicePageData struct {
+	Key       string
+	Address   string
+	Port      string
+	Transport string
+	// Withdrawn reports that the Service's Address has left the estate — no
+	// current resolution cites it and no Seed covers it — so the Service is a
+	// population of no current member, reached only by its own key (ADR-0072).
+	Withdrawn bool
+	Reach     string
+	// Citation is the "why is this here" chain: Service → Address → the Name whose
+	// resolution cites the Address (or the address-scope Seed that covers it),
+	// terminating at a Seed.
+	Citation           []citationHop
+	CitationTerminated bool
+	// Timelines are the Service's reachability Span timelines — current and closed
+	// — with Breaks and closures derived on read (#195). A Service opening or
+	// closing across a re-run of the hot Scan is one Span transition here.
+	Timelines []timelineView
 }
 
 // subjectPageData is the drill-down view for one Name.
@@ -123,10 +157,156 @@ func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 			Resolution: decodeResolution(row.Value).Outcome,
 		})
 	}
+
+	// Service subjects share the listing (#195): they arrive from the
+	// connect-outcome leaf's `reachability` facet on the hot Scan. A best-effort
+	// read — a failure degrades to the Name listing rather than a 500.
+	var svcViews []serviceRow
+	if svcRows, serr := s.store.ListCurrentServiceSubjects(r.Context(), search); serr == nil {
+		svcViews = make([]serviceRow, 0, len(svcRows))
+		for _, row := range svcRows {
+			svcViews = append(svcViews, serviceRow{
+				Key:   row.SubjectKey,
+				Reach: decodeReachability(row.Value).Outcome,
+			})
+		}
+	}
+
 	s.render(w, "subjects", map[string]any{
 		"Title": "Subjects", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Subjects": views, "Search": search,
+		"Subjects": views, "Services": svcViews, "Search": search,
 	})
+}
+
+// reachabilityValue is the JSON payload of a reachability observation — the
+// verdict and the raw connect result as evidence. The web layer reads only the
+// verdict it renders.
+type reachabilityValue struct {
+	Outcome string `json:"outcome"`
+	Result  string `json:"result"`
+}
+
+func decodeReachability(raw []byte) reachabilityValue {
+	var v reachabilityValue
+	_ = json.Unmarshal(raw, &v)
+	return v
+}
+
+// servicePage is the drill-down for one Service subject (#195). The Service key
+// carries a `/`, so it arrives as a `?key=` query parameter rather than a path
+// segment. It renders the current reachability verdict, the Citation chain back
+// to a Seed, and the reachability Span timelines the hot Scan folds.
+func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	key := strings.TrimSpace(r.FormValue("key"))
+	if key == "" {
+		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
+			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+			"Name": key,
+		})
+		return
+	}
+	subject, err := s.store.GetServiceSubject(r.Context(), key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
+			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+			"Name": key,
+		})
+		return
+	}
+	if err != nil {
+		s.serverError(w, "get service subject", err)
+		return
+	}
+
+	addr, port, transport := splitServiceKey(subject.SubjectKey)
+	data := servicePageData{
+		Key:       subject.SubjectKey,
+		Address:   addr,
+		Port:      port,
+		Transport: transport,
+		Reach:     decodeReachability(subject.Value).Outcome,
+	}
+	data.Citation, data.CitationTerminated, data.Withdrawn = s.buildServiceCitation(r, addr)
+	data.Timelines = s.buildTimelines(r, "service", subject.SubjectKey)
+
+	s.render(w, "service", map[string]any{
+		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"Service": data,
+	})
+}
+
+// splitServiceKey parses an `address:port/transport` Service key into its parts,
+// rendering the Address, port and transport for display. It splits the transport
+// off the right of the `/` and the port off the right of the last `:`, so an
+// IPv6 address (which itself carries `:`) keeps its own colons.
+func splitServiceKey(key string) (addr, port, transport string) {
+	rest := key
+	if i := strings.LastIndex(rest, "/"); i >= 0 {
+		transport = rest[i+1:]
+		rest = rest[:i]
+	}
+	if i := strings.LastIndex(rest, ":"); i >= 0 {
+		port = rest[i+1:]
+		addr = rest[:i]
+	} else {
+		addr = rest
+	}
+	return addr, port, transport
+}
+
+// buildServiceCitation assembles the "why is this here" chain for a Service: the
+// Service itself, the Address the triple sits on, and the ground the Address's
+// membership rests on — the Name whose current resolution cites the Address, or
+// the address-scope Seed that covers it, terminating at a Seed. Where neither
+// limb holds, the Address has left the estate (the `uncited` / `descoped`
+// departure), which the caller renders as a withdrawn Service.
+func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn bool) {
+	hops = []citationHop{
+		{Label: "Subject · Service", Value: r.FormValue("key")},
+		{Label: "On address · Address", Value: addr},
+	}
+
+	cited := false
+	if citing, err := s.store.FindNameCitingAddress(r.Context(), addr); err == nil {
+		detail := ""
+		if citing.ObservedAt.Valid {
+			detail = "cited since " + citing.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+		}
+		hops = append(hops, citationHop{
+			Label:  "Cited by · resolution",
+			Value:  citing.SubjectKey,
+			Detail: detail,
+		})
+		cited = true
+	}
+
+	// The covering Seed terminates the chain. An address-scope Seed covers the
+	// Address directly; failing that, the Name that cites it traces to a name
+	// scope, which we surface via the Address's citing Name.
+	if parsed, perr := netip.ParseAddr(addr); perr == nil {
+		if seed, err := s.store.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
+			scope := ""
+			if seed.AddressCidr != nil {
+				scope = seed.AddressCidr.String()
+			}
+			detail := ""
+			if seed.CreatedByUsername != "" {
+				detail = "declared by " + seed.CreatedByUsername
+			}
+			hops = append(hops, citationHop{
+				Label:  "Declared · Seed",
+				Value:  "address scope " + scope,
+				Detail: detail,
+			})
+			terminated = true
+		}
+	}
+
+	// The Address is in the estate exactly while a current resolution cites it or
+	// a Seed covers it (CONTEXT.md `Address`). Neither limb holding means it has
+	// withdrawn — its Services with it.
+	withdrawn = !cited && !terminated
+	return hops, terminated, withdrawn
 }
 
 func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -156,7 +336,7 @@ func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		Addresses:  res.Addresses,
 	}
 	data.Citation, data.CitationTerminated = s.buildCitation(r, subject.SubjectKey)
-	data.Timelines = s.buildTimelines(r, subject.SubjectKey)
+	data.Timelines = s.buildTimelines(r, "name", subject.SubjectKey)
 
 	s.render(w, "subject", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -220,9 +400,9 @@ const spanTimeFmt = "2006-01-02 15:04 UTC"
 // timelines are all closed, and the closed corpus is never compacted, so they
 // render in full. A best-effort read: a failure degrades to no timelines rather
 // than a 500, since the drill-down is diagnostic.
-func (s *server) buildTimelines(r *http.Request, key string) []timelineView {
+func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineView {
 	rows, err := s.store.ListSpansForSubject(r.Context(), db.ListSpansForSubjectParams{
-		SubjectKind: "name", SubjectKey: key,
+		SubjectKind: kind, SubjectKey: key,
 	})
 	if err != nil || len(rows) == 0 {
 		return nil
@@ -320,6 +500,11 @@ func valueLabel(facet string, raw []byte, isGap bool) string {
 			return "1 record"
 		}
 		return strconv.Itoa(len(v.RRs)) + " records"
+	case "reachability":
+		if o := decodeReachability(raw).Outcome; o != "" {
+			return o
+		}
+		return "—"
 	default:
 		return "—"
 	}
