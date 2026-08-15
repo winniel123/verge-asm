@@ -20,6 +20,14 @@ type Account struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type Annotation struct {
+	ID         int64              `json:"id"`
+	SubjectKey string             `json:"subject_key"`
+	SignalName string             `json:"signal_name"`
+	Reason     string             `json:"reason"`
+	DeclaredAt pgtype.Timestamptz `json:"declared_at"`
+}
+
 type Batch struct {
 	ID            int64              `json:"id"`
 	ScanID        int64              `json:"scan_id"`
