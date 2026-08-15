@@ -19467,7 +19467,7 @@ blocks the *edit*, never the release.
 | **G5** | No exclusion's stated ground has been withdrawn | defect — [#104](https://github.com/winniel123/verge-asm/issues/104) |
 | **G6** | No artefact **already held** carries an owner affirmation defeating a held row | defect — [#109](https://github.com/winniel123/verge-asm/issues/109), [#112](https://github.com/winniel123/verge-asm/issues/112), [#114](https://github.com/winniel123/verge-asm/issues/114). Grepping a corpus we already downloaded is closed; **finding a new one is a queue item** |
 | **G7** | Every quotation retrieved from **raw source bytes** is present in the owner's **rendered** artefact | trigger — **new**, §39.5 item 3 |
-| **G8** | Every citation resolves, and its quoted string is still a **token** of the artefact at the tag named | trigger 5's closed half — §37.14, §38.16 |
+| **G8** | Every citation resolves, and its quoted string is still a **token** of the artefact at the tag named. ~~*(population unnamed)*~~ **Its population is named at §44** ([#150](https://github.com/winniel123/verge-asm/issues/150), [ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md)): **internal** — every relative link, `ADR-00NN`, `§N` and `#N`, no fetch; **G8-entry** — a citation to a **content-addressed** target, checked once by the edit that pins it and never re-fetched; **G8-recurring** — a citation to a **moving** target carrying a **live** cell, **36 members over 30 owners**, listed at §44.4. **A run may not choose a subset**, which is what §40.9 recorded as this row's defect | trigger 5's closed half — §37.14, §38.16; population §44 |
 | **G9** | No shipped constant is the product of a fraction and a moving world quantity the subject carries | trigger 4 — [ADR-0034](../adr/0034-derive-the-claim-before-looking-for-the-owner.md), ADR-0038 limb 3 |
 | **G10** | Every document refused as **unissued** is re-tested for issuance | trigger 7 — ADR-0045, [#86](https://github.com/winniel123/verge-asm/issues/86). A targeted re-fetch over a named list, currently of one |
 | **G11** | For every footing cell, the owner's **current release tag** against the tag the cell was read at; a difference marks the cell **stale-against-tag** | trigger 2's closed half, and the queue's tie-break |
@@ -19916,9 +19916,12 @@ branches are loopback, so the restricting-default reading survives in both.**
 
 **G8 — partial, and the partition is stated rather than smoothed.** The **internal** half ran to
 completion and is **green**: every relative markdown link in `docs/` resolves, every `ADR-00NN` cited
-has a file — the sole exception being **ADR-0064**, which is cited only in the three places that record
+has a file — the ~~sole~~ exception being **ADR-0064**, which is cited only in the three places that record
 it as *left unused*, which is not a citation — and no `§N` reference exceeds the highest section that
-exists. The **external** half is **not completable** over the note's full citation set inside one pass;
+exists. *(**`sole` is struck by §44.3** ([#150](https://github.com/winniel123/verge-asm/issues/150)):
+**ADR-0076** is a second instance, minted as a gap by §40.8 in this same section. The verdict is
+unaffected — an ADR named only in a gap record is not a citation — and §44.3 restates the exception as
+a **rule** so the next unused reservation does not reopen it.)* The **external** half is **not completable** over the note's full citation set inside one pass;
 it is the check whose *finite named set* is largest. The named subset run today all resolved: Kafka's
 six URLs, `security-checklist.md` raw and rendered, two Kubernetes config-API references, and fifteen
 owner release pages. **One quoted string was checked character-for-character** — `security-checklist.md`'s
@@ -20025,6 +20028,16 @@ amended.
   several hundred. The named subset run here was chosen by this section, which is exactly the
   discretion a closed check is supposed to remove. **The criterion that would fix it** is an
   enumeration of G8's population, which is a ticket rather than a reading.
+
+  > **DISCHARGED by §44** ([#150](https://github.com/winniel123/verge-asm/issues/150),
+  > [ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md)). The
+  > population is named, and it is named by a cut nobody had drawn: **a citation is re-resolved every
+  > release where its target can move, and checked once where it cannot.** G8-recurring is **36
+  > members over 30 owners** (§44.4); G8-entry is ~31 members discharged by the edits that pinned
+  > them (§44.5); the internal half is total and mechanical (§44.3). **This run's one external string
+  > check falls in the entry half** — it was made *"at the pinned commit"* — so the corpus still holds
+  > no measurement of a moving target, which §44.11 raises rather than repairs. §39.6's G8 row is
+  > amended at its clause.
 - **G11's population was tractable only because the corpus records read-at tags**, and the cell that
   cost most to reach is the cell §36.7 records as *already de-attested once*. `623/udp` sits behind
   two vendor document portals: HPE's returns an **empty body** to plain fetching, being a JavaScript
@@ -21271,6 +21284,466 @@ defect was visible.
   with any of them. Its basis is `main` at `1cd41bc`. The only overlaps are the append anchor before
   `## Sources`, which is textual adjacency rather than disagreement, and the four marked clauses at
   §46.7 — none of which is a figure. **Where §46 and §1 disagree, §1 governs.**
+
+---
+
+## 44. G8's population, named — a citation is re-resolved where its target can move, and checked once where it cannot
+
+**Ticket [#150](https://github.com/winniel123/verge-asm/issues/150).** §39.6 calls a gate check
+*closed* where *"its population is enumerable and its evidence is bytes the project already holds,
+plus a finite named set of targeted re-fetches"*, and specifies **G8** as *"Every citation resolves,
+and its quoted string is still a **token** of the artefact at the tag named"*. §40 then ran the gate
+whole and could not complete G8, recording the reason at §40.9 as a defect of the **design** rather
+than of the run: *"It is finite and it is **not named** — no section enumerates the citations G8 must
+re-resolve, and the note carries several hundred. The named subset run here was chosen by this
+section, which is exactly the discretion a closed check is supposed to remove."*
+
+**This section names the set.** It performs **no retrieval**: every fact it uses is already in this
+note or in an ADR, and the test it rules on is answered by reading a **URL**, which is a string this
+repository holds. **No row, class, tier, coverage or §4.6 figure moves**, and
+[ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered. The reasoning is
+[ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md).
+
+**This adds no twelfth check.** G8 stays one check. What it gains is a **population**, and the
+population has two cadences — which is naming the *finite named set* §39.6 already promised, not
+widening the gate.
+
+### 44.1 The two questions G8 asks are not the same question, and only one of them recurs
+
+G8's sentence is a conjunction and its halves behave differently:
+
+| Half | What it can find | Can it fail twice? |
+| --- | --- | --- |
+| **(a) the quoted string is a token of the artefact** | **We quoted something the artefact does not say** — a transcription error, a fabrication, a string read off the wrong page | **No.** Run once against a target that cannot move, it is settled forever |
+| **(b) the citation resolves** | The URL no longer returns the artefact | **Yes**, but it decides nothing on its own |
+
+Half (b) alone is barred from ruling by this note's own discipline. §40.10: *"Inferring withdrawal
+from a fetch failure is the failure mode this discipline exists to prevent."* A `404` is a server
+response; it is not a withdrawal, and §17.10, §21.2, §36.14 and §40.9 record four separate hosts that
+serve an empty body, a `403` or a JavaScript shell to a plain client while the document is plainly
+there. **So a citation that carries no quoted string can only ever satisfy the half that decides
+nothing.**
+
+Half (a) is where §37.14's fabrication hazard and §38.16's *wrong page* hazard live, and it is the
+half that has actually caught something: **[measured]** §38.16 found *"assuming that your Elastic
+Cloud Enterprise proxies are accessible"* occurring **zero** times in `elastic/docs-content` at
+`main` — this note's own prior section quoting a page it was remembered on rather than the page it is
+on. **That is the check earning its place**, and it is a check about **our** bytes as much as the
+owner's.
+
+> **The consequence nobody had drawn: half (a) is *idempotent* against a target that cannot move.**
+> A quotation pinned to an RFC number, a git blob at a tag, or a PDF at the owner's own revision
+> number is checked **once**, at the pass that pinned it, and re-checking it a release later reads
+> the same bytes and reaches the same verdict. **[measured] §40.5's single G8 string check is exactly
+> this case**: `security-checklist.md`'s *"The Kubernetes API, kubelet API and etcd are not exposed
+> publicly on Internet"* was confirmed *"in the raw markdown **at the pinned commit**"* — a check
+> that could not have failed in the drift direction, chosen from a set whose members mostly could.
+> That is not a criticism of #133's choice; it is the strongest available evidence that the set had
+> never been partitioned.
+
+**What a moving citation carries that a pinned one does not is G11's question, not G8's.** *Is this
+still what the owner says?* is the **tag comparison**, and G11 owns it and ran it to completion over
+all 27 footing cells (§40.4). A citation to a moving target answers both questions at one fetch and
+therefore looks like a G8 obligation; a citation to a pinned target hands the currency question
+wholly to G11 and keeps none of it. **G8's set looked unnameable because it had been carrying G11's
+question**, and the two checks separate cleanly the moment the population is cut on mutability.
+
+### 44.2 The ruling — three populations, one rule, and the test is a string test on the URL
+
+> **G8's population is the set of citations on which a LIVE cell of the composed table rests, and it
+> is partitioned by whether the cited target can move under its own name.**
+>
+> - **Internal** — resolvable against bytes in this repository. **Every gate run, no fetch.** Total
+>   and mechanical; §44.3 states it.
+> - **G8-entry** — a citation whose target is **content-addressed**. **Checked once, by the edit that
+>   introduces or moves it**, never re-fetched by a later run. §44.5 names the members.
+> - **G8-recurring** — a citation whose target is **moving**. **Checked every gate run.** §44.4 is the
+>   roster, and it is the *finite named set of targeted re-fetches* §39.6 promised.
+>
+> **The mutability test, which has a byte answer and needs no judgement.** A target is
+> **content-addressed** where the citation names an object that cannot change under that name:
+> **(i)** an RFC number; **(ii)** a git blob or tree at a **tag** or a 40-hex commit; **(iii)** a
+> released archive verified against a **published checksum**; **(iv)** a vendor document named by its
+> own **part, document or revision number**; **(v)** a frozen per-release page an owner does not
+> revise. Everything else is **moving**: a **branch** (`main`, `trunk`, `release-1.34`), a
+> `latest` / `stable` / `current` documentation path, a release-line documentation path the owner
+> edits in place, a wiki, a vendor portal page, a live registry, and any page carrying no version
+> marker at all.
+>
+> **Four riders.**
+> **(1) A pin counts only where *this note* records it.** A citation to a tag the note does not name
+> is a moving citation, because the run has nothing to fetch. **(2) A citation naming more than one
+> target is as many members as it names targets** — §3.4 cites `ports-and-protocols.md` at
+> `release-1.34` **and** `main`, which is two members with two verdicts and not one. **(3) A cell
+> whose ground is an *absence* is in no G8 population at all** — half (a) has no string to test, and a
+> dated negative is re-swept under
+> [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
+> as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), which is a **reading** and
+> therefore a queue item rather than a gate check.
+> **(4) Every member is resolved *as the artefact's own bytes*, and a member resolved through any
+> intermediary that does not return them is UNRUN, never green.** §44.2.1 states why this rider is here
+> rather than in a check.
+
+### 44.2.1 Rider 4 — how a member is fetched, and why it is not a check
+
+**§45.10 ([#153](https://github.com/winniel123/verge-asm/issues/153)) measured the hazard that makes
+this rider necessary**, and it is read here rather than restated: a summarising fetch reported a word
+in RFC 4251 §1 that the artefact does not contain, at the exact clause that section's ruling turned
+on. §45.10 concludes that G7's rider *"should be read as reaching **any** intermediary, not only
+raw-versus-rendered"*, and expressly leaves open whether it earns a gate check of its own.
+
+**It does not, and G7 is not where it belongs.** Three reasons, and the first is decisive:
+
+1. **G7 was satisfied *by construction* on the artefact where the hazard fired.** §45.10 records that
+   the `.txt` at `rfc-editor.org` **is** the rendered artefact, so *"there is no unrendered-source
+   route into it"* — G7 was vacuous, and the fabrication happened anyway. **A check that cannot fail
+   on a case is not the check that governs it.**
+2. **The two propositions are about different parties.** G7 asks *did the **owner** publish this?* —
+   its subject is issuance, and its authority is
+   [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md). The hazard asks *did
+   **we** read the owner?* Nothing about issuance was ever in question: RFC 4251 §1 is issued, and the
+   summariser simply reported it wrong.
+3. **G8's own words already exclude an intermediary, and nobody had noticed.** The check reads *still
+   a **token** of the artefact* — a token claim is a claim about the artefact's **bytes** (§36.14,
+   §37.14). **A summariser does not return the artefact's bytes**, so a member "checked" through one
+   has not tested G8's proposition at all; it has tested a model of the artefact. That is not a failed
+   check. It is an **unrun** one, and §40's own convention governs: *"Where a check could not be
+   completed, it is recorded as **incomplete** with the reason, never as passed."*
+
+**The rule itself is old and its specifying site is §33.11** — *"cite the bytes the repository
+returns, because a renderer and a summariser are two different substitutions"*. **[measured]** it has
+fired at least **five** times in this corpus: two summariser-mediated false negatives on ZooKeeper's
+`zookeeperAdmin.md` (§33.11), a fabricated leading clause welded onto MongoDB's hardening sentence —
+*"the welded clause is precisely the one that would have met §10.3's failure condition for three
+rows"* (§37.14) — a Dell table reconstruction refused at §22.10, a paraphrase-shaped Microsoft row
+verified against raw source and found genuine (§35), and now #153's RFC 4251.
+
+> **So this rider mints nothing and adds no check. What it does is *site* a rule that had nowhere to
+> live.** §39.6 has specified *targeted re-fetches* since #125 and has never said **how a re-fetch is
+> performed** — because it never had a list of them to attach the discipline to. **§44.4 is the first
+> such list, so this is the first place the sentence can bind.** A named set is not executable until
+> *fetch* is defined; a roster resolved through a summariser is a check that returns green on
+> fabricated bytes, which is worse than an unrun check because it is indistinguishable from a paid one.
+
+**And the partition pays for itself a second time here, unforeseen.** The artefacts where a session is
+most tempted to reach for an intermediary are the ones plain fetching fails on — HPE's portal serving
+an empty body, Dell's PDF host returning `403`, `learn.microsoft.com`'s and `docs.oracle.com`'s
+JavaScript shells (§9.5, §14.6, §17.10, §36.14, §40.9). **[measured]** all four of the vendor-document
+members are in **§44.5's entry set**, pinned by part and revision number. **Under this ruling a
+release never fetches them at all**, so the one place the temptation is strongest is the one place the
+recurring roster does not go.
+
+**Three readings lost, and they are named so this ruling can be attacked.**
+
+| Option | Why it lost |
+| --- | --- |
+| **A — every citation in the note** (457 unique URLs, 394 of them external) | **It loses on relevance before it loses on cost.** It re-resolves the artefacts behind rows this note has **removed** — `161/udp` (§11.6), `1433/tcp` (§35.8), `9200`/`9300` (§38) — and behind clauses it has **withdrawn**, where a failure moves nothing that is not already moved. Then it loses on cost: it would make G8 dearer than the other ten checks together, and **a check a release cannot pay is a check a release skips**, which is the precise failure §39.6's closed/open partition exists to prevent. It also conflates *resolves* with *carries* |
+| **B — the live cells' citations, undifferentiated** | **Half the answer, and the honest runner-up.** It loses because it re-runs, every release, checks that **cannot fail**: §44.1's idempotence argument applies to roughly **half** the live-cell set. A gate that spends its budget on questions with known answers is the *reading budget spent backwards* §39.3 diagnosed for the watch list, one instrument over |
+| **D — the note's own `## Sources` section** | **A bibliography is a record of what was *read*, never of what is *relied on*.** It carries no cell-to-artefact mapping, so a run could not tell which failure matters; and it deliberately holds entries *"citable only for what they **do not** contain"* — ten SNMP RFCs read for an absence, four LDAP RFCs read for a zero count. G8 must key on **reliance**, and `## Sources` does not record it |
+
+**The bar this ruling has to clear is §39.6's own, and it clears it in the direction that was
+failing.** *Closed* means the check terminates without discretion. Option A terminates and is not
+payable; today's state is payable and does not terminate. **This partition is the only one on the
+table that is both.**
+
+### 44.3 The internal population — total, mechanical, and already green
+
+**No fetch, and no roster is needed, because the population is defined by construction over bytes
+this repository holds.** Four kinds, all of them checkable by grep over `docs/`:
+
+| Kind | Test |
+| --- | --- |
+| A relative markdown link — a link target beginning `./` or `../` | The path exists in the tree |
+| An `ADR-00NN` token | `docs/adr/00NN-*.md` exists |
+| A `§N` or `§N.M` cross-reference | `N` does not exceed the highest section heading in the file it is read in |
+| A `#N` ticket link to `winniel123/verge-asm` | The issue exists |
+
+**[measured]** this note carries **46** distinct relative link targets and **634** own-repository
+issue links. §40.5 ran this half to completion and it is **GREEN**, with recorded exceptions that are
+not exceptions: an ADR number named **only** where it is recorded as *left unused* is not a citation.
+
+> **§40.5's *"the sole exception being ADR-0064"* is corrected here, and the correction is the
+> internal half's first defect.** **[measured]** re-running the check today returns **two**: `ADR-0064`
+> and **`ADR-0076`**. The second was minted as a gap by **§40's own section** — §40.8 records *"no ADR
+> is minted … **ADR-0076 is left unused**"* — so the clause was already false three subsections below
+> where it was written. **The verdict does not move**: `ADR-0076` is named only in the gap record, so
+> it is not a citation either and the half is still GREEN. What is corrected is the word **sole**,
+> which a later run would have read as a closed list and flagged the second name against.
+> **[#106](https://github.com/winniel123/verge-asm/issues/106)'s intra-document shape, found inside a
+> check's own report of itself.** The exception list is therefore stated as a **rule** rather than an
+> enumeration, so that the next unused reservation does not reopen it.
+
+**Everything a prior section quotes from this repository is here rather than in either external
+population**, per §39.10 and §40.10 — *"G8 reduces there to the cross-reference check"*. That is the
+whole of *which citations are internal-only*, and it is the cheap half by an order of magnitude.
+
+### 44.4 G8-recurring — the finite named set, member by member
+
+**Thirty-six members over thirty owners.** Every member is a **moving** target carrying at least one
+**live** cell of the composed table. Cited to the section that placed the cell; nothing here is
+retrieved.
+
+**A. The 38-row table's own cells — claim, class and footing**
+
+| # | Owner and target | Live cells it carries | Why it moves |
+| --- | --- | --- | --- |
+| 1 | Docker — `docs.docker.com/engine/deprecated/` | `2375/tcp` Claim 1 (§3.4, §25.7) | No version in the path |
+| 2 | Docker — `/engine/security/`, `/engine/security/protect-access/`, `/reference/cli/dockerd/` | `2376`+`2375` Claim 3 and scoping footing (§3.4) | No version in the path |
+| 3 | Redis — `redis.io/docs/latest/…/management/security/` | `6379/tcp` prohibition footing, Claim 1 | `latest` |
+| 4 | memcached — `github.com/memcached/memcached/wiki/ConfiguringServer` | `11211/tcp` + `11211/udp` prohibition footing, Claim 1 | **A wiki** — no version, no release note, and the most volatile target in the roster |
+| 5 | ZooKeeper — `zookeeper.apache.org/security.html` | `2181/tcp` scoping footing | Unversioned path (the `doc/r3.9.3/` companion is pinned — §44.5) |
+| 6 | Cassandra — `cassandra.apache.org/doc/latest/…/security.html` | `9042/tcp` Claim 1 (the prose half; the shipped-bytes half is pinned) | `latest` |
+| 7 | MySQL — `dev.mysql.com/doc/refman/8.4/en/security-guidelines.html` | `3306/tcp` prohibition footing, Claim 3 | A release-line path the owner edits in place |
+| 8 | MongoDB — `/docs/manual/core/security-hardening/`, `/docs/manual/reference/configuration-options/` | `27017`/`27018`/`27019` scoping footing, Claim 3 | `manual` is current, and **[measured] §36.14: the pages carry no publication or revision date at all** |
+| 9 | CouchDB — `docs.couchdb.org/en/stable/setup/cluster.html`, `/en/stable/config/http.html` | `5984/tcp` weak footing, Claim 3 | `stable` |
+| 10 | RabbitMQ — `rabbitmq.com/docs/networking` | `25672/tcp` + `4369/tcp` scoping footing, Claim 3 | No version marker |
+| 11 | Microsoft — `support.microsoft.com/…/preventing-smb-traffic-…` | `445`+`139`+`137`+`138` prohibition footing, Claim 3 — **four pairs on one sentence** (§16.7) | Rung 2, and **[measured] §40.4: the page was edited without an `ms.date` bump** |
+| 12 | Microsoft — `learn.microsoft.com/…/file-server/smb-secure-traffic` | The same cell's inbound imperative and §36.2's outbound heading | Same defect |
+| 13 | nfs-utils — `man7.org/linux/man-pages/man5/nfs.5.html` | `2049/tcp` scoping footing, Claim 3 | A rendering of the current man page |
+| 14 | rsync — `download.samba.org/pub/rsync/rsyncd.conf.5` | `873/tcp` prohibition footing, Claim 3 | Upstream's current copy, no version — and §3.4 records it has already **diverged** from distribution renderings |
+| 15 | PostgreSQL — `postgresql.org/docs/current/runtime-config-connection.html` | `5432/tcp` weak footing, §2.2's worked example | `current` |
+| 16 | Kubernetes — `kubernetes/website` `…/ports-and-protocols.md` @ **`release-1.34`** | `10250` boundary and scoping footing; `10259`, `10257` boundary (§19.5, §24.3) | A branch |
+| 17 | Kubernetes — the same file @ **`main`** | The same cells, §3.4 citing both | A branch — rider 2 |
+| 18 | Erlang/OTP — *Secure Coding Guidelines*, rule `DEP-001` | `4369/tcp`'s owner attestation (§20.4) | No pin recorded in this note |
+| 19 | CERT/CC — `kb.cert.org/vuls/id/843044` | `623/udp` prohibition footing, **the Dell half's carrying sentence** | A VU note is revised in place |
+| 20 | IANA — Service Name and Transport Protocol Port Number Registry | The `reg.` column on all 38 rows; `512`/`513` Class B attestations; `623/udp` `asf-rmcp` against `623/tcp` `oob-ws-http` (§6) | A live registry — **[measured]** `## Sources` records it *last updated 2026-08-11* |
+
+**B. §4.6's exclusion grounds — all 24 entries are live cells, and G5 walks them for a different defect**
+
+| # | Owner and target | Live cells it carries | Why it moves |
+| --- | --- | --- | --- |
+| 21 | Kafka — `docs/security/security-model.md` @ `trunk` and branch `4.4`; three `kafka.apache.org` paths | `9092/tcp`'s surviving ground (§21, §40.5) | Branches, and a published site. **Shared with G10 — one fetch answers both** |
+| 22 | Broadcom — Control Compliance Suite *Network ports* table | `5601/tcp`'s determinacy refusal (§22.6) | A vendor portal page |
+| 23 | EUROCONTROL — the standards catalogue (2026-01-20) | `8500/tcp`'s liveness half (§22.6) | A catalogue, revised in place (the **SPEC** it lists is pinned — §44.5) |
+| 24 | Adobe — ColdFusion 2025 release port list | `8500/tcp`'s second placement (§22.6) | A release-labelled page with no retrievable prior version |
+| 25 | HashiCorp — Consul's ACL / security documentation | `8500/tcp`'s *"is not secure-by-default"* and `acl.default_policy` = `"allow"` | No version marker recorded |
+| 26 | Microsoft — three *SQL Server on Azure VM* pages (`ms.date` 2026-01-23 · 2026-03-18 · 2025-12-05) | `1433/tcp`'s exclusion ground (§35, §4.6) | The `ms.date` defect at §40.4, on three more pages |
+| 27 | Kubernetes — `kubernetes/website` `virtual-ips.md` @ `release-1.34` | `10256/tcp`'s exclusion ground (§24.7) | A branch |
+| 28 | Elastic — `elastic/docs-content` @ `main` | `9200/tcp` and `9300/tcp`'s exclusion grounds (§38.11, §4.6) | A branch — **and the corpus §38.16 already caught this note misquoting** |
+| 29 | HP — the printing best-practices document | `9100/tcp`'s exclusion ground | No version marker recorded |
+| 30 | Jenkins — `jenkins.io` | `8080/tcp`'s exclusion ground | No version marker recorded |
+| 31 | Oracle — the JDK's `jmxremote.ssl` / `jmxremote.authenticate` default documentation | `1099/tcp`'s exclusion ground | A per-current-release documentation path |
+| 32 | Apache Hadoop — the NameNode/YARN UI port documentation | The Hadoop exclusion's determinacy ground (50070 → 9870) | A per-current-release documentation path |
+| 33 | Google Cloud — the default firewall rules | `22/tcp` and `3389/tcp`'s *"ships it open to `0.0.0.0/0`"* | No version marker |
+| 34 | RabbitMQ — the production checklist | `5672`/`15672`'s replacement ground (§17.4) | No version marker. Same owner as #10, a different page |
+
+**C. The two non-port cells the queue already holds (§39.4 items 2 and 8)**
+
+| # | Owner and target | Live cell it carries | Why it moves |
+| --- | --- | --- | --- |
+| 35 | `nmap-services` | `verge-core`'s frequency half | Rung 1 — a dataset with no successor and no announcement |
+| 36 | The issuer's published certificate-lifetime schedule | `certificate-expiring`'s fraction, **value** half (the **form** half is RFC 9773 §1 and is pinned) | Published and revised without a version |
+
+> **Thirty-six members over thirty owner fetches.** For comparison, G11 ran to completion at **27
+> cells over sixteen owners** (§40.4), and §40.9 records that as *"the check whose completion cost the
+> most"*. G8-recurring is of that order and roughly twice it — **payable, and now bounded**. The note
+> carries **394** unique external URLs; the roster is under a tenth of them. That is deliberately
+> **not** written as a subtraction: a member may name several URLs and a URL may appear in many
+> members, so the two figures are counted in different units and only their **ratio** is meaningful.
+
+### 44.5 G8-entry — checked once, by the edit that pins it, and never again
+
+**These are citations to targets that cannot move under their own name.** Each is checked by the edit
+that introduces or moves it and is **not** re-fetched by a later gate run. Named by class, with their
+members, because the class is what a later edit is tested against:
+
+| Class | Members |
+| --- | --- |
+| **An RFC number** — immutable by publication | RFC 1350 and RFC 3617 (`69/udp`) · RFC 4248 (`23`) · RFC 2577 (`21`) · RFC 1282 (`513`, `514`) · RFC 6143 (`5900`) · RFC 3410 (§3.4's SNMP counterweight) · RFC 4513 (`389` exclusion) · RFC 1288 (`79` exclusion) · RFC 9773 §1 (`certificate-expiring`'s form half) — **10** |
+| **A git blob at a tag or commit** | `etcd-io/etcd` `THREAT_MODEL.md` @ `v3.7.1` (`2379`, `2380`) · `kubernetes/kubernetes` `types.go` @ `v1.34.1` and `v1.36.3` (`10255`, `10248`) · `security-checklist.md` @ its pinned commit (`10250`, `10255` footings) · `elastic/elasticsearch` `networking-settings.md`, `elasticsearch.yml` and `remote-clusters.md` @ `v9.5.1` (`9200`, `9300`, `9443` exclusions) · `cmd/cloud-controller-manager/main.go` and `hack/lib/golang.sh` @ `v1.34.0` (`10258` exclusion) · `moby/moby` `daemon/command/daemon.go` @ `docker-v29.7.2` (§25's annotation) · `conf/cassandra.yaml` at its release tags (`9042` footing) · Cassandra's `7000`/`7001` bytes at three release tags · `postgresql.conf.sample` and `pg_hba.conf.sample` at their release (`5432` footing) · CouchDB `default.ini` at its release (`5984` footing) — **~13** |
+| **A vendor document named by part or revision number** | HPE iLO 7 *Security Technology Brief* PN 30-869C87FF-011 Ed. 1 · HPE iLO 6 *User Guide* `sd00002007en_us` PN 30-7A345B12-032 · Dell iDRAC9 Security Configuration Guide Rev. A01 · Dell iDRAC10 Rev. A00 — **4** |
+| **A frozen per-release page** | OpenBSD `plus32.html` and `plus56.html` (`512`, `513`, `514`) — **2** |
+| **A specification edition** | EUROCONTROL-SPEC-0100 Ed. 2.0 §6.6 (`8500` determinacy) — **1** |
+| **A released archive verified against a published checksum** | `kafka_2.13-4.3.1-site-docs.tgz`, SHA-512 verified (§21) — **1** |
+
+**About thirty-one members**, and the count is given as *about* on purpose: the git-blob class is
+counted from the tags this note records, and a pass that pinned a file without writing the tag down
+has produced a **moving** citation under rider 1 rather than an entry-only one. **That is the correct
+direction to be wrong in** — an unrecorded pin costs a re-fetch and never a missed check.
+
+> **The vendor-document class is where entry-only pays for itself most.** §40.9 records that HPE's
+> portal *"returns an empty body to plain fetching"* and Dell's PDF host *"returns HTTP 403"*, and
+> that Dell's revision marker *"appears only on the PDF title page and never on the HTML topic"*.
+> Those four members are the hardest fetches in the corpus, and under this ruling a release **does not
+> make them**. What a release does instead is G11's tag comparison, which §40.4 already ran on both.
+
+### 44.6 What is in no G8 population at all, each with its reason
+
+| Not in the population | Why |
+| --- | --- |
+| **Every citation behind a removed row** — `161/udp` (§11.6), `1433/tcp` (§35.8), `9200`/`9300` (§38) *as rows* | The cell is not live. Their §4.6 **exclusion** grounds **are** live and are in the roster at #26 and #28; the rows' former **footings** are not |
+| **Every citation behind a withdrawn clause** — §3.4's kubelet CLI-reference block, `1433`'s withdrawn Microsoft footing, the etcd.io consequence quotes superseded as grounds by §16.3 | Same reason. A withdrawn ground carries nothing, so half (a) has nothing to protect |
+| **Every corroborator** — the nineteen `cisa.gov` citations, CERT/CC's corroborating BOD 23-02 guidance, the NIST and NSA documents, CIS | **§2.3 bars a corroborator from being a ground**, and §39.5 item 2 states the symmetry: a corroborator *"can neither carry a cell nor remove it from the queue"*. It carries no cell, so it is in no gate check's population. **This is a real hole and it is the correct one** — a corroborator's withdrawal moves nothing, which is what *corroborator* means |
+| **Every cell whose ground is an absence** — `5601`'s *"Elastic states no prohibition"*, `10258`'s zero-result code search, `10255`'s positively-verified absence from `kubernetes/website`, §38.16's four zero counts | **Rider 3.** Half (a) has no string to test. These are ADR-0046 dated negatives and are re-swept by **reading**, which is a queue item and not a gate check |
+| **Every citation in a *method* or *hazard* paragraph** — the §N.10 retrieval-method subsections, §9.5's expired certificate, §17.10's shell hazard | They record how a pass worked, not what a cell rests on. **[measured]** §40.9 reports `git.linux-nfs.org` still serving an expired certificate two months on; nothing in the composed table rests on reaching it |
+| **`## Sources`** | A bibliography, not a reliance map — §44.2 Option D. It is not edited by this section and is not a population |
+
+### 44.7 The cure — pinning moves a citation off the recurring roster, and it is free at the moment it is made
+
+**The roster is not a fixed cost.** Rider 1 makes it **shrinkable by an act the note already performs
+for other reasons**: a pass that is reading an owner artefact is already holding the tag, and writing
+the tag into the citation moves that member from §44.4 to §44.5 permanently.
+
+**Two members already demonstrate both directions.** `9042/tcp`'s footing was re-founded on
+`conf/cassandra.yaml`'s shipped bytes by §12 and is **entry-only** today, while its prose half at
+`cassandra.apache.org/doc/latest/` is **recurring** — one row, two citations, two cadences, because
+one was pinned and the other was not. And `2379`/`2380` moved wholesale: §3.4's original citation was
+the unpinned `etcd.io/docs/v3.5/op-guide/security/`, and §16.3 replaced it with `THREAT_MODEL.md` at
+`v3.7.1`, which is a pin.
+
+> **This is the reason the ruling is worth having rather than merely smaller.** A release that pays
+> the roster once and pins three of its members pays a smaller roster next time, and the pinning is a
+> byte written into a citation rather than a retrieval. **Nothing in the corpus previously rewarded
+> pinning at all**, so nothing did it systematically.
+
+**Two hard cases are named rather than assumed away**, and both are in the roster permanently:
+member **8** (MongoDB publishes no revision marker of any kind, §36.14) and member **4** (a wiki has
+no releases). **A target with no version to pin is a target with no exit from the recurring set**,
+and it is also the target G11 cannot compare — which is not a coincidence and is stated at §44.9.
+
+### 44.8 What the gate baseline now reads for G8
+
+§40.6's baseline is a **dated record of #133's run** and is not rewritten here, per §39.7's
+convention. What it says of G8 — *"internal half is GREEN and its external half is UNRUN"* — remains
+a true statement about 2026-08-15. What changes is that **UNRUN now has a denominator**:
+
+> **G8, as specified from this section forward.** **Internal:** total, mechanical, no fetch —
+> **GREEN** at #133 and re-run every gate run. **G8-entry:** ~31 members, each discharged by the edit
+> that pinned it; a later run inherits them and does not re-fetch. **G8-recurring:** **36 members over
+> 30 owners**, named at §44.4, **UNRUN as of this section** — this section performs no retrieval, so
+> the first release to run the roster is the first to turn G8 green whole.
+>
+> **A later run's G8 is compared to this.** A member that resolved here and fails there was broken by
+> that edit or by its owner; a member that was unrun here and fails there is **inherited**, and §40.6's
+> own reason for writing a baseline down applies unchanged.
+
+**The scoreline the rest of the gate now carries, walked rather than quoted.** §40.6's baseline is
+#133's and is dated; **[measured]** one check has moved since:
+
+| Check | #133 (§40.6) | Today | Moved by |
+| --- | --- | --- | --- |
+| G1 · G2 · G3 · G6 · G7 · G9 · G10 | GREEN | **GREEN** | — |
+| **G4** | GREEN as of §40's own edits, RED on arrival at 11 sites | **GREEN** | §45.8 confirms; **and this section's own three supersessions are marked at their clauses** (§39.6's G8 row, §40.9's first bullet, §40.5's `sole`), which is G4 run over this edit |
+| **G5** | **RED** at 2 of §4.6's 24 cells | **GREEN** | [#153](https://github.com/winniel123/verge-asm/issues/153) · §45.8. §40.3's population was exactly three cells; two were struck at §40.3 and the third — `22/tcp` — at §45 |
+| **G8** | internal GREEN, external **UNRUN** | internal **GREEN**, external **UNRUN over a named population of 36** | This section |
+| **G11** | **RED**, 5 defects over 27 cells | **RED**, inherited and untouched | — |
+
+**Nine green, one red, one partial** — against #133's eight, two and one. **This section moves none of
+them**: it names G8's population and does not run it, and the G5 move is #153's and is read here rather
+than restated. **[measured]** the eleven-check count is unchanged, and §44.2.1 adds no twelfth.
+
+### 44.9 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 38 | **38, unchanged.** No row is added or removed |
+| §3 class totals | `12 / 7 / 19` | **unchanged.** No row changes class |
+| §2.2 footing tiers | `13 / 11 / 3` | **unchanged.** No footing moves |
+| §2.2 footing coverage | 27 of 38 | **unchanged** |
+| §4.6 exclusions | 24 | **unchanged.** Every entry is read as a live cell and none is edited |
+| §6.1 containment arithmetic | `25 + 8 + 5 = 38` | **unchanged** |
+| `verge-core` | 136 pairs, 131 TCP, 5 UDP | **unchanged** |
+| §17.1's population of negatives | fifteen | **unchanged** |
+| **§39.6's gate** | **eleven checks** | **eleven, unchanged.** G8's row is **amended at its clause** to name its population; a population is not a check |
+| **§39.6's G8 row** | *"trigger 5's closed half"*, population unnamed | **amended in place.** Per [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) — *a withdrawal that supplies no replacement does not hold* — the replacement is written **at the specifying site**, not only appended here |
+| **§40.9's first bullet** | *"The criterion that would fix it is an enumeration of G8's population, which is a ticket rather than a reading"* | **DISCHARGED**, marked at its clause. It is this section |
+| **§40.5's G8 internal exception list** | *"the **sole** exception being ADR-0064"* | **`sole` struck** — **[measured]** `ADR-0076` is a second instance, minted as a gap by §40.8 in that same section. **The GREEN verdict does not move**; §44.3 restates the exception as a rule rather than an enumeration |
+| The queue (§39.4, §41.4) | nine items over eleven pairs and two non-port cells | **unchanged.** This section adds no item: pinning is an act **we** take, and the queue keys on acts the **owner** takes |
+| **§45.10's widening of G7's rider** ([#153](https://github.com/winniel123/verge-asm/issues/153)) | *"whether it earns a gate check of its own is left open"* | **ANSWERED — it does not, and it is not G7's.** It is a precondition on the **fetch**, sited as §44.2's **rider 4** because §44.4 is the corpus's first roster of re-fetches and therefore the first place the sentence can bind. **G7 is not amended**, and **[measured]** G7 was *vacuous by construction* on the artefact where the hazard fired (§45.10), which is why it cannot be G7's. §44.2.1 |
+| **§40.6's gate baseline** | eight green · two red · one partial | **nine green · one red · one partial** — G5 moved RED → GREEN by [#153](https://github.com/winniel123/verge-asm/issues/153) (§45.8), read here and not restated. **This section moves no check**; it gives G8's partial a denominator. §44.8 |
+| §2.2 / §2.3 / §2.4, §10.2's closed claim set | — | **untouched.** No claim, class, determinacy verdict or exclusion is reopened |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet` is byte-identical; naming a gate check's population is not reference data |
+| `CONTEXT.md` | — | **not amended, as a ruling.** The curator is not a subject in the model and the product holds nothing about a citation — §39.8 and §40.8's answer, unchanged |
+
+**Outside this note.**
+[ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md) is added.
+**§39.6's G8 row and §40.9's first bullet are amended at their clauses**, which is ADR-0058 and
+ADR-0057 applied to this section's own output rather than to somebody else's. ADR-0037, ADR-0040,
+ADR-0045, ADR-0046, ADR-0057 and ADR-0058 are **confirmed by use** and none is amended.
+[`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) is **not** written here: it holds
+the **queue's** residue per [ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md),
+and the gate's own record is reserved by §42 for the gate to establish.
+
+### 44.10 Thin ground, flagged per the standing rule
+
+- **The roster is built from this note's own registers, not by re-reading all 38 rows' cells.** §3.4
+  (*the quotes behind the rows*), §16.7's footing table, §4.6's twenty-four entries and §39.4's queue
+  are the four registers walked. **A cell whose carrying artefact moved without its register being
+  updated is missed by this enumeration**, and that is the same weakness §39.9 flagged for its
+  nineteen identity sites — *"as good as the search terms"*. The **rule** at §44.2 is what regenerates
+  the roster; the roster itself is a **dated record** and should be read as one, in this note's own
+  convention.
+- **The mutability test is a string test on a URL, and that is both its strength and its edge.** It
+  needs no retrieval, which is why this section could run at all — but it classifies by **URL form**
+  rather than by an owner's actual practice. A `latest` path an owner has frozen is scored moving and
+  costs a wasted fetch; **a tag an owner re-points is scored pinned and is the failure mode that
+  costs something.** Force-pushed tags are the case, and no member of §44.5 is known to be one. The
+  criterion that would settle it is a commit SHA rather than a tag, which is a **stricter pin the note
+  may adopt per citation** and is not required here.
+- **The `~31` in §44.5 is approximate and says so.** It is counted from the tags this note records,
+  and rider 1 means an unrecorded pin is scored **moving**. The error therefore runs towards a larger
+  recurring roster and never towards a missed check, which is the only asymmetry that matters.
+- **`36 members over 30 owners` is a count of this section's own table**, not a measurement of the
+  world, and §39.9's warning about counts of a note's own text applies unchanged.
+- **Two further gate defects are exposed by this enumeration and are RAISED, not repaired**, per
+  §39.6's *a machine may raise; only a release may rule* — §44.11.
+
+### 44.11 Two defects the enumeration exposes, raised and not repaired
+
+**1. §40's single G8 string check was made against a content-addressed target and could not have
+failed in the drift direction.** **[measured]** §40.5 records the check as run *"in the raw markdown
+at the pinned commit"*. Under §44.2 that member is **entry-only**, so the one external G8 measurement
+the corpus holds is of the half that is idempotent. **Nothing about #133's verdict moves** — the
+string is present, the two kubelet footings are confirmed, and G8's verdict was `PARTIAL` on the
+population question rather than on this cell. What is raised is that **the corpus holds no measurement
+at all of half (a) against a moving target**, so §44.4's roster is unrun in the strict sense as well
+as the arithmetic one.
+
+**2. A cell can be simultaneously unpinnable for G8 and uncomparable for G11, and the two are the
+same fact.** Member 8 (MongoDB) and member 4 (a wiki) publish no version marker of any kind, so there
+is no tag to pin **and** no tag to compare — §36.14 measured MongoDB's, and §40.4's `445/tcp`
+paragraph is the same shape one rung down, where a marker exists and the owner does not always move
+it. **The queue ranks the artefact class it finds most volatile, and that is the class whose currency
+is hardest to measure** — §40.9's own words, arriving here from a second direction.
+
+> **This is [#149](https://github.com/winniel123/verge-asm/issues/149)'s and
+> [#152](https://github.com/winniel123/verge-asm/issues/152)'s territory and this section stops at it.**
+> Both are live on the gate's reach — a tier demotion with no retrievable tag, and G11 against a
+> stated **horizon** rather than a tag (§40.4's `2375/tcp` paragraph). Either may warrant a twelfth
+> check; **this section warrants none**, naming an existing check's population and nothing more. The
+> dependency is reported and not crossed, and the fact above is offered to whichever of the two owns
+> it rather than ruled on here.
+
+### 44.12 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10 and §40.10
+
+- **This section performed no retrieval, and that is a method rather than an omission.** #150 asks
+  which citations a release must re-resolve; answering it by re-resolving them would be **running**
+  the check rather than **specifying** it, which is the distinction §40 drew in the other direction —
+  *a run of an instrument is not a decision about it*, and a decision about one is not a run.
+- **The ruling's own test is answerable without a fetch, and that is what made this section possible.**
+  *Is this URL content-addressed?* is decided by reading the URL, which is a string this repository
+  holds. A test requiring a fetch to decide **whether** a fetch is needed would not have terminated.
+- **Every quoted string in this section is quoted from this repository**, so G7 is vacuous here and
+  G8 reduces to §44.3's internal cross-reference check, which was run by hand over this section's own
+  citations — including the four registers at §44.10 and the two ADR filenames it names.
+- **The four registers were read whole rather than sampled**, and where a register carries a
+  superseded entry beside a live one (§3.4's withdrawn kubelet block, §4.6's struck clauses) the live
+  one alone is taken, per §44.6.
+- **A summarising layer is not a retrieval, and this section is the first place the gate can say so.**
+  §33.11 specified it, §12.9, §22.10, §30.10, §36.14 and §37.14 each met it, and
+  [#153](https://github.com/winniel123/verge-asm/issues/153) met it a sixth time at §45.10 — **on an
+  artefact where G7 was vacuous**. It is §44.2's rider 4 rather than a check, and §44.2.1 states the
+  three reasons. **G7 is not amended by this section**, and §45.10's open question is answered in the
+  negative rather than absorbed.
+- **Sibling passes are editing this repository concurrently.** This section's delta is **empty** for
+  every figure in §1 and every summary row in this note, so it composes with any of them; its only
+  write outside its own text is **§39.6's G8 row**, **§40.9's first bullet** and **§40.5's `sole`**,
+  all three clause-level marks required by ADR-0057 and ADR-0058 rather than rewrites. Its basis is
+  `main` at `1cd41bc`; **§45's figures are read from
+  [#153](https://github.com/winniel123/verge-asm/issues/153)'s branch and cited to §45.8 and §45.10
+  rather than restated**, so the two compose whichever merges first — #153 appends §45 at the same
+  anchor, which is textual adjacency and not disagreement.
+  **Where §44 and §1 disagree, §1 governs.**
 
 ---
 
