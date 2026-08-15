@@ -1,23 +1,28 @@
-// Command worker has no listener. It applies no migrations (web owns
-// that), runs the local prober self-test once at startup, and will host
-// the Postgres-backed queue dispatch loop a later ticket adds.
+// Command worker has no listener. It applies no migrations (web owns that),
+// runs the local prober self-test once at startup, and hosts the
+// Postgres-backed queue: the Dispatcher fans each Scan out on its cadence and
+// the Worker claims jobs and commits each Batch with its Observations.
 package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
+	"github.com/winniel123/verge-asm/internal/queue"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
 func main() {
 	healthcheck := flag.Bool("healthcheck", false, "check that the running instance is healthy, then exit")
+	trigger := flag.String("trigger", "", "manually dispatch a Scan by kind (e.g. dns), drain it, then exit")
 	flag.Parse()
 
 	databaseURL, err := env.Require("DATABASE_URL")
@@ -41,10 +46,38 @@ func main() {
 	}
 	defer pool.Close()
 
-	runSelfTest(ctx, env.OrDefault("VERGE_PROBER_PATH", "/app/prober"))
+	proberPath := env.OrDefault("VERGE_PROBER_PATH", "/app/prober")
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	dispatcher := queue.NewDispatcher(pool, time.Now, logger)
+	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger)
 
-	log.Print("worker: started, waiting for shutdown")
-	<-ctx.Done()
+	// A manual run dispatches an existing Scan, drains it synchronously, and
+	// exits — the operator/CI path that produces Observation rows on demand.
+	if *trigger != "" {
+		n, err := dispatcher.Trigger(ctx, *trigger)
+		if err != nil {
+			log.Fatalf("worker: trigger %s: %v", *trigger, err)
+		}
+		log.Printf("worker: triggered %s, %d job(s) enqueued", *trigger, n)
+		if err := worker.Drain(ctx); err != nil {
+			log.Fatalf("worker: drain: %v", err)
+		}
+		log.Print("worker: trigger drained")
+		return
+	}
+
+	runSelfTest(ctx, proberPath)
+
+	go func() {
+		if err := dispatcher.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: dispatcher stopped: %v", err)
+		}
+	}()
+
+	log.Print("worker: started queue dispatch + worker loop")
+	if err := worker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		log.Fatalf("worker: %v", err)
+	}
 	log.Print("worker: shutting down")
 }
 
