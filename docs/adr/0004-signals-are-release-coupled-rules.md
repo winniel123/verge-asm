@@ -245,6 +245,18 @@ have never been written down anywhere in this repo — it appears in the Consequ
 That is [#68](https://github.com/winniel123/verge-asm/issues/68), which **blocks**
 [#12](https://github.com/winniel123/verge-asm/issues/12).
 
+> **The count of curated tables is FOUR since [#128](https://github.com/winniel123/verge-asm/issues/128)**,
+> which admitted `non-globally-reachable-address-resolved-from-internet` reading a transcription of
+> the two IANA Special-Purpose Address Registries
+> ([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md),
+> [`special-purpose-address-registry.md`](../research/special-purpose-address-registry.md)). The
+> sentence below reading *"The count of curated tables stays at three"* is left standing **and marked**
+> per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as
+> widened by [#106](https://github.com/winniel123/verge-asm/issues/106). The fourth table passes this
+> ADR's cadence test with the widest headroom of the four — 50 rows over a finite address space,
+> moving at RFC publication cadence, and its staleness produces a **blind spot** rather than a false
+> verdict, which is the harm this ADR was written for.
+
 > **Closed by #68.** The table is now written —
 > [`docs/research/weak-key-and-signature.md`](../research/weak-key-and-signature.md), five rows, with
 > [ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md) recording the general parts.
@@ -316,8 +328,43 @@ routing: the rule still fires and clears every cycle on a healthy ACME estate, a
 its **evaluation instant** as part of its input. It now carries **`not_before`** as well, or the
 row's expected output is underdetermined.
 
+### Amendment — [#128](https://github.com/winniel123/verge-asm/issues/128): a seventeenth rule joins the set, and it is the cheapest admission the set has taken
+
+**`non-globally-reachable-address-resolved-from-internet` ships** — a `Name` whose `resolution`,
+composed existentially over the available **internet-class** vantages, holds an address inside a block
+the IANA Special-Purpose Address Registry marks `Globally Reachable = False`, read longest-match. Its
+`Predicate domain` is `Name`s whose internet-class `resolution` holds an **answer**; `Shadowed` is
+`not-evaluable`, `NameError` / `NoData` / `Lame` are outside the domain, and on an install with no
+internet-class vantage every `Name` is `not-evaluable` exactly as
+`sensitive-port-reached-from-internet` already is there.
+
+Three things it does **not** cost, which is why the #35 amendment's *scope cost, weighed* came out the
+way it did: **no new measurement** (the address set is already measured every cadence, and AAAA is in
+the shipped offer), **no new field and no widened value space** so
+[ADR-0015](./0015-the-value-space-is-the-commitment.md) sets no deadline and nothing `Break`s, and
+**no new aperture input, offer, dial or notification vocabulary**. Under
+[ADR-0065](./0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md)
+neither exclusion ground was available at all — the fact clears, and the aperture is not merely cheap
+but already here.
+
+**The vantage class is in the rule's name and in its domain, and that is what separates it from the
+`sensitive-port-reached-from-internal` [ADR-0029](./0029-an-alert-fires-on-a-leg.md) refused.** A
+claim scoped to a vantage is read only at the vantage that scopes it; the internal twin of this rule
+is refused in advance on ADR-0029's own ground, because inside the perimeter a name resolving into
+private space is the correct configuration.
+[ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) holds the
+reasoning.
+
+**The v1 set is seventeen rules.** The Consequences list below enumerates the earlier ones and is
+left standing and marked.
+
 ## Consequences
 
+- **The v1 set is** ~~ten rules~~ **seventeen**, per the
+  [#35](https://github.com/winniel123/verge-asm/issues/35),
+  [#48](https://github.com/winniel123/verge-asm/issues/48) and
+  [#128](https://github.com/winniel123/verge-asm/issues/128) amendments above; the enumeration that
+  follows is this ADR's own output at the time #16 ran and is **not** the current set.
 - **The v1 set is:** certificate expired / not-yet-valid / expiring within ~~N days (one rule,
   operator-configurable N)~~ **a fraction of the certificate's own lifetime** — see below —,
   self-signed, hostname-SAN mismatch, weak key or signature

@@ -109,7 +109,15 @@ ADR-0017's aperture ruling exists to secure.
   bare-`Reach`-is-loud rule the internal install would have gained a channel that fires on every
   deploy. Cutting on the leg is what makes both come out right, and it is ADR-0010's *a rule reads a
   leg, never a state* generalised from predicates to notification.
-- **`sensitive-port-reached-from-internet` needs no sibling, and could not have one.** A
+- **`sensitive-port-reached-from-internet` needs no sibling, and could not have one.** *(The ruling
+  stands. [#128](https://github.com/winniel123/verge-asm/issues/128) gives it a **positive** form it
+  did not have:
+  [ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) — **a claim
+  scoped to a vantage is read only at the vantage that scopes it, and a rule that reads one carries
+  the vantage in its name and in its domain.** This bullet is that rule's refusing half. Its admitting
+  half is `non-globally-reachable-address-resolved-from-internet`, whose fact is likewise
+  vantage-relative and which ships because the scope is **carried** rather than assumed — and whose
+  internal twin is refused in advance on the ground stated here.)* A
   `sensitive-port-reached-from-internal` rule was the obvious way to give the internal install a
   sharp alert, and it fails on evidence rather than on taste:
   [#21](https://github.com/winniel123/verge-asm/issues/21)'s list is attested for what is *never
@@ -210,6 +218,16 @@ a prober — but the price is larger than stated and is recorded rather than lef
 
 **One count here is stale.** *"Nine of the ten v1 signals"* was written against a set
 [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s own domain table enumerates at
-**sixteen**. The claim survives in its real form — every rule that does not read the internet
-`Reach` leg is evaluable and fires on a one-vantage-class internal install — but the number does
-not.
+~~**sixteen**~~ **seventeen** since [#128](https://github.com/winniel123/verge-asm/issues/128). The
+claim survives in its real form — every rule that does not read the internet `Reach` leg is evaluable
+and fires on a one-vantage-class internal install — but the number does not.
+
+> **And the *real form* now needs one word widened, by
+> [#128](https://github.com/winniel123/verge-asm/issues/128).** It is not the internet **`Reach` leg**
+> that darkens a rule on a one-vantage-class internal install; it is **reading anything at the
+> internet vantage class at all**.
+> `non-globally-reachable-address-resolved-from-internet` reads `resolution` rather than `Reach`, and
+> it is likewise permanently `not-evaluable` on that install. **Two of seventeen rules are dark there,
+> not one**, and the standing aperture statement
+> [#44](https://github.com/winniel123/verge-asm/issues/44) put on `Coverage` carries both. This ADR's
+> load-bearing correction — that the modal install's alerting surface is far from empty — is untouched.
