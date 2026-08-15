@@ -100,10 +100,13 @@ it: `10248/tcp`'s footing is *"a Go source file's comment, which one contributor
 commit without any release note"* (#95), and the docs-source-comment hazard (§38.14 item 6) is the same
 rung read from the retrieval end.
 
-### The eleven gate checks
+### The thirteen gate checks
 
 Each is decidable over bytes the project already holds, or over a **finite named** set of targeted
-re-fetches. Six are the detectable-defect list; five are watch triggers that turn out to terminate.
+re-fetches. Six are the detectable-defect list; five are watch triggers that turn out to terminate; G12
+and G13 were added in the same merge, per [#149](https://github.com/winniel123/verge-asm/issues/149) and
+[#152](https://github.com/winniel123/verge-asm/issues/152)/[ADR-0099](./0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md)
+respectively — ruled to be two checks, not one, over disjoint populations (see the rationale below).
 
 | # | Check | Source |
 | --- | --- | --- |
@@ -118,6 +121,8 @@ re-fetches. Six are the detectable-defect list; five are watch triggers that tur
 | **G9** | No shipped constant is the product of a fraction and a moving world quantity the subject carries | trigger 4 — [ADR-0034](./0034-derive-the-claim-before-looking-for-the-owner.md), ADR-0038 limb 3 |
 | **G10** | Every document refused as **unissued** is re-tested for issuance | trigger 7 — [ADR-0045](./0045-an-owners-documentation-is-what-it-has-issued.md), [#86](https://github.com/winniel123/verge-asm/issues/86). A targeted re-fetch over a named finite list, currently of one |
 | **G11** | For every footing cell, the owner's **current release tag** against the tag the cell was read at; a difference marks the cell **stale-against-tag** | trigger 2's closed half, and the queue's tie-break |
+| **G12** | Every cell in G2's domain whose carrying artefact sits at rung 1 or rung 2 (no retrievable tag): a targeted re-fetch, diffing the quoted sentence the cell rests on against the sentence on record; a sentence removed or materially weakened marks the cell **demoted-untagged** | new — [#149](https://github.com/winniel123/verge-asm/issues/149), `sensitive-ports.md` §47 |
+| **G13** | For every graded cell whose held ground quotes an owner-declared horizon: compare the owner's current tag/date (already fetched by G11) against that horizon; where current ≥ horizon and nothing records whether the promised change occurred, mark the cell **horizon-passed-unverified** | new — [#152](https://github.com/winniel123/verge-asm/issues/152), [ADR-0099](./0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md), `sensitive-ports.md` §49 |
 
 **G11 is where *evidence age* lands, and it is the whole answer to what age is measured on.** *This
 footing was read at `v1.34.1` and the owner is at `v1.37.0`* is a fact about the subject in the
@@ -125,7 +130,7 @@ subject's own units and is mechanically checkable. *This footing is fourteen mon
 about **us** and says nothing — a specification thirty years old is fresher than a documentation-branch
 line from last month, and every rung above says why.
 
-### A twelfth check, ruled but not yet numbered — [#149](https://github.com/winniel123/verge-asm/issues/149)
+### G12, ruled by [#149](https://github.com/winniel123/verge-asm/issues/149)
 
 [ADR-0077](./0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)
 ruled that a tier demotion is not a de-attestation and routed the hazard to **the gate**, then recorded
@@ -139,18 +144,17 @@ not a wider population of an old one. **The population is finite and named, so t
 
 | Check | Population | Test | Verdict |
 | --- | --- | --- | --- |
-| **(new — number pending merge with [#152](https://github.com/winniel123/verge-asm/issues/152))** | Every cell in **G2's domain** (the two graded footing tiers) whose carrying artefact sits at **rung 1 or rung 2** — no retrievable tag. Currently: `10250/tcp`'s and `10255/tcp`'s footing cells, both carried by `security-checklist.md` (`sensitive-ports.md` §41.3) | **Targeted re-fetch**, over the named population only: pull the artefact's current bytes and diff the quoted sentence the cell rests on against the sentence on record | A sentence removed or materially weakened, such that the cell would fall to a lower tier under the criterion **as it currently stands** (G2's own test), marks the cell **demoted-untagged** |
+| **G12** | Every cell in **G2's domain** (the two graded footing tiers) whose carrying artefact sits at **rung 1 or rung 2** — no retrievable tag. Currently: `10250/tcp`'s and `10255/tcp`'s footing cells, both carried by `security-checklist.md` (`sensitive-ports.md` §41.3) | **Targeted re-fetch**, over the named population only: pull the artefact's current bytes and diff the quoted sentence the cell rests on against the sentence on record | A sentence removed or materially weakened, such that the cell would fall to a lower tier under the criterion **as it currently stands** (G2's own test), marks the cell **demoted-untagged** |
 
 **This is a different check from #152's**, not the same one under a different name. #152's gap is a
 comparison of two facts **already on record** — the owner's current tag/date (which G11 already tracks)
 against a horizon the artefact **itself states** — and needs no retrieval at all. This check's gap is
 that **no tag exists to compare**, so the only instrument that can reach it is one that re-reads the
 artefact's current bytes. Different inputs, different termination shape, both real. The merge session
-assigns G12/G13 across the two.
+numbered this check **G12** and #152's **G13** — lower ticket number first, no other significance to the
+order.
 
-**The gate's membership is unchanged today.** This ADR still describes eleven checks that run; the
-twelfth is ruled and specified, not yet merged into the table above as a numbered row — that is the
-orchestrating session's act, per this batch's numbering note.
+**The gate now runs thirteen checks.** Merged into the table above as **G12**.
 
 ## Rationale
 
