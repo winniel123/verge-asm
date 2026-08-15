@@ -259,6 +259,26 @@ all sixteen out is what tested the rule.
 | `cname-target-name-error` | `Name`s whose `dns-record` holds a CNAME | a `Name` with no CNAME; `Shadowed` is `not-evaluable`, inside |
 | `zone-declared-name-returns-name-error` | `Name`s the operator's zone file declares | every `Name` the file does not declare |
 | `resolved-name-absent-from-zone` | `Name`s our resolver resolved **within a declared zone** | a `Name` outside every declared zone ([#48](https://github.com/winniel123/verge-asm/issues/48)'s zone-not-registrable-domain rule) |
+| `non-globally-reachable-address-resolved-from-internet` | `Name`s whose **internet-class** `resolution` holds an **answer** — `Resolved` or `Shadowed` | `NameError`, `NoData`, `Lame` — no address set, so the question does not arise. `Shadowed` is `not-evaluable`, inside. [#128](https://github.com/winniel123/verge-asm/issues/128) |
+
+> **Added by [#128](https://github.com/winniel123/verge-asm/issues/128)**
+> ([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)). Two
+> things this row tests that no earlier row did.
+>
+> **The domain carries a `Vantage class`.** `sensitive-port-reached-from-internet` reads one leg of
+> `Reach`, but `Reach` is already defined per class; this is the first domain to restrict a
+> **per-vantage** facet to one class. It is not damping: the fact the rule is named for — *a
+> non-globally-reachable address was resolved **from the internet*** — is simply not assertable of a
+> name nobody asked about from the internet, so the name-extension test admits the restriction rather
+> than tolerating it. The internal twin is a **different rule**, and it is refused
+> ([ADR-0029](./0029-an-alert-fires-on-a-leg.md)).
+>
+> **The same value lands in different registers under different rules, a second time.** `Lame` is
+> `not-evaluable` under [#48](https://github.com/winniel123/verge-asm/issues/48)'s two rules — which
+> ask about a `NameError` a lame delegation makes unobtainable — and **outside the domain** here,
+> because this rule asks about an address set and a lame delegation means there is none for the
+> question to be about. That is this ADR's *a domain is a property of the rule, not of the facet*,
+> with a DNS value rather than the 3xx that first showed it.
 
 Two things fell out of writing it. `hostname-SAN mismatch` has a domain nobody had noticed, because
 ADR-0011 made an `Endpoint`'s `Name` optional and a nameless endpoint has no hostname to mismatch.
@@ -340,3 +360,10 @@ what tested the rule"* is correct, and the *ten v1 signals* in
 [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md),
 [ADR-0029](./0029-an-alert-fires-on-a-leg.md) and
 [ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md) is stale against it.
+
+> **The count is SEVENTEEN since [#128](https://github.com/winniel123/verge-asm/issues/128)**, whose
+> row is in the table above. Both *sixteen*s in this file — the section preamble and the sentence
+> immediately above — are left standing **and marked** per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+> by [#106](https://github.com/winniel123/verge-asm/issues/106). They remain correct as a record of
+> what tested the rule; they are no longer the live figure, which is on the map's composed-state line.
