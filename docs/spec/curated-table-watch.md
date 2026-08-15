@@ -174,8 +174,8 @@ release line.**
 
 | Item — `(cell, artefact, revision act)` | Pairs | Ground |
 | --- | --- | --- |
-| `3306/tcp`'s **footing** @ Oracle's *Security Guidelines*, MySQL Reference Manual §8.1.1 | `3306/tcp` | §13.2 — four Oracle packaging files, permissive and silent |
-| `3306/tcp`'s **claim** cell @ the same page | `3306/tcp` | §30.3 (Shape 2) |
+| `3306/tcp`'s **footing** @ Oracle's *Security Guidelines*, MySQL Reference Manual §8.1.1 | `3306/tcp` | §13.2 — four Oracle packaging files, permissive and silent; a moving citation — intensive-bound class boundary ruled at §2.2.1 (#157) |
+| `3306/tcp`'s **claim** cell @ the same page | `3306/tcp` | §30.3 (Shape 2); a moving citation — intensive-bound class boundary ruled at §2.2.1 (#157) |
 | `2049/tcp`'s **footing** @ `nfs(5)` (`utils/mount/nfs.man`, `nfs-utils-2.9.2`) | `2049/tcp` | §13.2 — `nfs.conf` ships every setting commented, permissive and silent |
 | `2049/tcp`'s **claim** cell @ the same man page's SECURITY CONSIDERATIONS | `2049/tcp` | §3.3, §26.2 row 19 (Shape 2) |
 | `4369/tcp`'s **footing** @ Erlang/OTP `secure_coding.md` rule `DEP-001` | `4369/tcp` | §20.7 — RabbitMQ's and CouchDB's sentences corroborate only; sole-ground on `DEP-001` |
@@ -235,6 +235,77 @@ class* is falsified by naming one artefact inside that class. This is ADR-0040's
 applied at the item rather than at the list — and **[measured]** ADR-0040's founding failure was a
 class boundary drawn too narrow, [#68](https://github.com/winniel123/verge-asm/issues/68) having read
 the **specification** class and missed the **deployment BCP** that carried the number.
+
+### 2.2.1 The first ambiguous case, ruled — a version-looking path is not a pin
+
+**[Ticket #157](https://github.com/winniel123/verge-asm/issues/157).**
+[`sensitive-ports.md`](../research/sensitive-ports.md) §39.9 flagged that the register's own rung ladder
+will first fail at the rung 2/4 boundary — *"a vendor that versions its documentation site and then edits
+a prior version in place sits in neither [rung] cleanly"* — and that the ladder survives by a byte
+question, *"is there a retrievable prior version?"*, with the first ambiguous case **ticketed rather than
+decided by whoever meets it**
+([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)'s
+precedent). §42.9 read the same failure mode into the **intensive bound** above: *"which artefacts count
+as one class of this owner's has the same failure mode … the first ambiguous case should be ticketed
+rather than decided by whoever meets it."* Neither section ruled the case. This section is that ruling,
+under [ADR-0101](../adr/0101-an-intensive-bound-is-stated-by-tag-only-where-the-artefact-is-content-addressed-and-by-retrieval-where-it-is-not.md).
+
+**The first instance, measured rather than hypothetical.** §1.1's rung 4 carries `3306/tcp`'s footing and
+claim cells, grounded on MySQL's `dev.mysql.com/doc/refman/8.4/en/security-guidelines.html`. That same
+citation is independently a member of
+[ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md)'s G8-recurring
+roster — `sensitive-ports.md` §44.4 item 7 — described there in terms: *"A release-line path the owner
+edits in place."* The path names a release (`8.4`) exactly as rung 4's *"issued prose in a versioned
+documentation set"* expects, but ADR-0088's own mutability test, already run over this exact citation for
+an unrelated purpose, finds it **moving**, never content-addressed. Rung 4's defining half — *"the prior
+version stays retrievable"* — is not merely undemonstrated here; it is measured false. §39.9's predicted
+failure is sitting on a live register member.
+
+**The byte question already had an instrument.** *"Is there a retrievable prior version of the thing I
+opened?"* is [ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md)'s own
+mutability test, asked of a second consumer: an artefact is content-addressed — a tag, a commit, a
+checksum, a vendor part or revision number, a frozen per-release page — exactly where a prior version
+stays retrievable under it, and moving exactly where it does not. §39.9 and §42.9 each asked for a test
+with a byte answer; ADR-0088 had already built one, over the same population, for G8's re-fetch cadence.
+
+> **The ruling.** An intensive bound states its class **by version** only where the opened artefact is
+> **content-addressed** under ADR-0088's mutability test. Where the artefact is a **moving** target under
+> that same test — including one whose path names a release line the owner edits in place — the class is
+> stated **by the artefact and the reading's own retrieval**: its URL or path, and our basis commit or
+> fetch date. **Never by the path's nominal version.** A version-looking path is not a pin; only ADR-0088's
+> test says whether one exists.
+
+**Rung does not decide the class's form.** [ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md)'s
+own Alternatives already refused the rung ladder as G8's axis — *"the rung ladder is about the owner's
+act; this cut is about the citation's form"* — and this ruling extends the same refusal to the intensive
+bound. `3306/tcp` sits at rung 4 and its class is drawn as a moving target's, on the artefact's own
+measured mutability, never on the ladder's placement.
+
+**Falsification, argued.** A class stated as *"MySQL's Reference Manual at 8.4, and no other class"* is
+not falsifiable in the promised sense against a moving artefact: the owner can add or edit pages inside
+that path indefinitely with no version bump, so *"name one artefact inside it we did not open"* never
+terminates — the same disease ADR-0078 built the intensive bound to cure, reappearing one level down
+through an unpinned class name. Stated instead as *"this page, as our repository's basis held it at commit
+`<sha>` (or fetched on `<date>`), and no other page,"* the class is a fixed set of bytes again, and the
+falsification test terminates exactly as it does for a genuinely tagged artefact. **[measured]** this is
+the same near-miss §2.4's own entry already caught once, in miniature, on **breadth** rather than
+mutability — the `623/udp` class drafted as *"HPE's, Dell's and NEC's BMC-security documentation"* sat a
+document (HPE's iLO 6 brief) inside it unopened, and was narrowed to the three documents actually opened.
+A class too wide on breadth and a class unpinned on mutability are the same failure, measured on two
+different axes of one form.
+
+**What this does not do.** It does not move `3306/tcp`'s rung and does not reopen
+[`sensitive-ports.md`](../research/sensitive-ports.md) §39.3 or
+[ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)'s ladder — whether the rung
+ladder's own rung 2/4 boundary should itself be redrawn on ADR-0088's mutability test, rather than on the
+*"announced"* language it currently uses, is a live successor question and is not settled here. It does
+not reopen ADR-0088's ruling on G8's population or cadence, which stands unamended, confirmed by use at a
+second consumer. It does not amend §2.1's entry form — part 3's shape is unchanged; this rules how the
+class is **drawn** where §2.1 left it a judgement.
+
+**Does a moving artefact lose its place in the queue.** No. ADR-0088 §44.7 already names members with **no
+version to pin at all** — MongoDB, the memcached wiki — as permanently moving, and neither is thereby
+refused a reading. This ruling refuses only the **tag form** of the class, never the reading itself.
 
 ### 2.3 What the entry may not contain
 
