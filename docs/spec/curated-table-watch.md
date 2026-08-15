@@ -48,6 +48,28 @@ in the owner's own release line.
 > walk over all 38 pairs plus the frequency half. **§39.4 is the register until then, and is cited
 > rather than copied**: a second copy of a provisional list is exactly the shape gate check **G4**
 > exists to catch, and a transcription made before #134 would be superseded on arrival.
+>
+> > **The *until then* has arrived — [#134](https://github.com/winniel123/verge-asm/issues/134) has
+> > run**, and this clause is marked here per
+> > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) rather
+> > than at the site that supersedes it. **The live register is
+> > [`sensitive-ports.md`](../research/sensitive-ports.md) §43.3.** §39.4 and §41.4 are no longer the
+> > register; their items all stand on it with their grounds and rungs unchanged, and §39.9's
+> > provisionality is discharged. **The register is still CITED and not COPIED here**, for this box's own
+> > reason and for one more: it now spans cell kinds §39.4 never held — claim cells, *why* cells and
+> > cells whose artefact coordinate holds a **set** of carriers
+> > ([ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md)),
+> > and a second copy would fork on the next walk exactly as G4 predicts. **No length of it appears here,
+> > and §43 quotes none either.**
+> >
+> > **Two things the register's new shape owes an entry, and neither changes the form at §2.1.** An item
+> > whose proposition is carried by a **set** states its **intensive bound per carrier opened**, which is
+> > strictly more falsifiable than one bound per item. And **one reading can discharge several items** —
+> > **[measured]** §43.2's shape 2, where one owner artefact carries both a row's claim cell and its
+> > footing cell at `3306/tcp`, `25672/tcp`, `2049/tcp` and the `445`-group — so a head that names both
+> > items and one opening is correct and is not double-counting. **[measured]** §43.6 also records that
+> > **G11 is vacuous for the register's largest class**, its carriers having no retrievable tag, which is
+> > what §3 below asks the gate to supply and cannot yet get.
 
 **No figure for the register's size appears in this document, here or anywhere below.** #135 has
 already moved it once and #134 is expected to move it again — and **the movement is one-way**, #135's
