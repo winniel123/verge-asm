@@ -120,6 +120,15 @@ func facetVector(facet string) drift.Vector {
 		return drift.NewVector(
 			drift.Component{Leaf: connectoutcome.Kind, Version: connectoutcome.Version},
 		)
+	case connectoutcome.FacetCertificate:
+		// `certificate` is decided by the tls-handshake leaf alone — the reached
+		// connect gates whether the handshake runs, but the presented chain (or
+		// either TLS negative) is a function of the handshake, not of the connect
+		// verdict — so a tls-handshake bump Breaks `certificate` timelines without
+		// touching `reachability` (ADR-0086).
+		return drift.NewVector(
+			drift.Component{Leaf: "tls-handshake", Version: connectoutcome.CertVersion},
+		)
 	default:
 		return drift.NewVector(
 			drift.Component{Leaf: "resolution-walk", Version: resolutionwalk.Version},
