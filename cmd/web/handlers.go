@@ -65,6 +65,12 @@ type store interface {
 	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error)
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
+	// Signals reads (#202): the Derived corpus the Signal engine folds into its
+	// per-Name snapshot — resolution per Vantage class, the dns-record CNAME/NS
+	// records, and the operator's zone declarations.
+	ListNameResolutionsByClass(ctx context.Context) ([]db.ListNameResolutionsByClassRow, error)
+	ListNameDNSRecords(ctx context.Context) ([]db.ListNameDNSRecordsRow, error)
+	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -137,6 +143,8 @@ func (s *server) handler() http.Handler {
 
 	mux.HandleFunc("GET /subjects", s.requireLogin(s.subjectsPage))
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
+
+	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
 
 	// Registry proposer lookups and the confirm/decline of the Proposals they
 	// yield are admin acts (v1 spec §4.3): confirming opens the probing gate on

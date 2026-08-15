@@ -56,9 +56,9 @@ type fakeStore struct {
 	batchNextID  int64
 	scanNextID   int64
 
-	zoneFiles   []fakeZoneFile
-	zoneNextID  int64
-	zoneCadence int64
+	zoneFiles    []fakeZoneFile
+	zoneNextID   int64
+	zoneCadence  int64
 	lookups      []db.ProposerLookup
 	lookupNextID int64
 	proposals    []db.Proposal
@@ -650,6 +650,136 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 			}
 			rows = append(rows, row)
 		}
+	}
+	return rows, nil
+}
+
+// addVantageClass registers a resolver-only vantage of the given class and
+// returns its id, so a resolution observation can be tied to a Vantage class the
+// Signals reads join against.
+func (f *fakeStore) addVantageClass(class string) int64 {
+	v := db.Vantage{ID: f.vantageNextID, Name: class + "-resolver", Class: class}
+	f.vantages = append(f.vantages, v)
+	f.vantageNextID++
+	return v.ID
+}
+
+// addClassResolution records a resolution observation at a Vantage of the given
+// class — the Signals reads need the class join the plain Subjects reads do not.
+func (f *fakeStore) addClassResolution(t *testing.T, name, class string, at time.Time, value string) {
+	t.Helper()
+	vid := f.vantageForClass(class)
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: 1, Facet: "resolution", SubjectKind: "name",
+		SubjectKey: name, VantageID: pgtype.Int8{Int64: vid, Valid: true},
+		Source: "resolver", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+// addDNSRecord records a dns-record observation for a Name on one qtype
+// discriminator (CNAME, NS, …) — the CNAME target and NS Lame verdict the rules
+// read.
+func (f *fakeStore) addDNSRecord(t *testing.T, name, discriminator string, at time.Time, value string) {
+	t.Helper()
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: 1, Facet: "dns-record", SubjectKind: "name",
+		SubjectKey: name, Discriminator: discriminator, Source: "resolver",
+		Value: []byte(value), ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+func (f *fakeStore) vantageForClass(class string) int64 {
+	for _, v := range f.vantages {
+		if v.Class == class && !v.Host.Valid {
+			return v.ID
+		}
+	}
+	return f.addVantageClass(class)
+}
+
+func (f *fakeStore) ListNameResolutionsByClass(context.Context) ([]db.ListNameResolutionsByClassRow, error) {
+	classOf := map[int64]string{}
+	for _, v := range f.vantages {
+		classOf[v.ID] = v.Class
+	}
+	type key struct{ name, class string }
+	latest := map[key]db.Observation{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "name" || o.Facet != "resolution" || !o.VantageID.Valid {
+			continue
+		}
+		class, ok := classOf[o.VantageID.Int64]
+		if !ok {
+			continue
+		}
+		k := key{o.SubjectKey, class}
+		cur, ok := latest[k]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[k] = o
+		}
+	}
+	rows := []db.ListNameResolutionsByClassRow{}
+	for k, o := range latest {
+		rows = append(rows, db.ListNameResolutionsByClassRow{SubjectKey: k.name, Class: k.class, Value: o.Value})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SubjectKey != rows[j].SubjectKey {
+			return rows[i].SubjectKey < rows[j].SubjectKey
+		}
+		return rows[i].Class < rows[j].Class
+	})
+	return rows, nil
+}
+
+func (f *fakeStore) ListNameDNSRecords(context.Context) ([]db.ListNameDNSRecordsRow, error) {
+	type key struct{ name, disc string }
+	latest := map[key]db.Observation{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "name" || o.Facet != "dns-record" {
+			continue
+		}
+		k := key{o.SubjectKey, o.Discriminator}
+		cur, ok := latest[k]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[k] = o
+		}
+	}
+	rows := []db.ListNameDNSRecordsRow{}
+	for k, o := range latest {
+		rows = append(rows, db.ListNameDNSRecordsRow{SubjectKey: k.name, Discriminator: k.disc, Value: o.Value})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SubjectKey != rows[j].SubjectKey {
+			return rows[i].SubjectKey < rows[j].SubjectKey
+		}
+		return rows[i].Discriminator < rows[j].Discriminator
+	})
+	return rows, nil
+}
+
+func (f *fakeStore) ListZoneDeclarations(context.Context) ([]db.ListZoneDeclarationsRow, error) {
+	latest := map[int64]fakeZoneFile{}
+	for _, z := range f.zoneFiles {
+		cur, ok := latest[z.seedID]
+		if !ok || !z.suppliedAt.Before(cur.suppliedAt) {
+			latest[z.seedID] = z
+		}
+	}
+	rows := []db.ListZoneDeclarationsRow{}
+	for _, s := range f.seeds {
+		if s.Kind != "name" || !s.NameDomain.Valid {
+			continue
+		}
+		z, ok := latest[s.ID]
+		if !ok {
+			continue
+		}
+		rows = append(rows, db.ListZoneDeclarationsRow{NameDomain: s.NameDomain, Content: z.content})
 	}
 	return rows, nil
 }
