@@ -279,6 +279,46 @@ mine</em> is a different claim from <em>not there</em> — and an excluded name 
 <p>Nothing is excluded. Everything inside your declared scopes is yours.</p>
 {{end}}
 </div>
+
+<div class="microlabel">Declared · probers</div>
+<p>Provisioning a prober declares <em>this vantage is on the internet</em>. You supply the host, port,
+and a non-root username; the instance generates the SSH keypair on the worker volume and exposes only
+the public half — install it on the prober host. The private key never leaves the instance.</p>
+
+{{if .IsAdmin}}
+<div class="section">
+<h2>Provision a prober</h2>
+{{if .ProberError}}<div class="error">{{.ProberError}}</div>{{end}}
+<form method="post" action="/probers" class="seedform">
+<label><span>Host</span><input name="host" value="{{.ProberHost}}" placeholder="prober.example.com" autocomplete="off" required></label>
+<label><span>Port</span><input name="port" value="{{.ProberPort}}" placeholder="22" autocomplete="off"></label>
+<label><span>Username</span><input name="username" value="{{.ProberUser}}" placeholder="scanner" autocomplete="off" required></label>
+<button type="submit">Provision</button>
+</form>
+</div>
+{{end}}
+
+<div class="section">
+<h2>Provisioned probers</h2>
+{{if .Probers}}
+<table>
+<thead><tr><th>Endpoint</th><th>Username</th><th>Availability</th><th>Public key</th><th>Provisioned by</th><th>Provisioned</th></tr></thead>
+<tbody>
+{{range .Probers}}<tr>
+<td class="mono">{{.Endpoint}}</td>
+<td class="mono">{{.Username}}</td>
+<td><span class="badge">{{.Availability}}</span></td>
+<td>{{if .KeySet}}<span class="badge">set</span><div class="secret" style="margin-top:8px">{{.PublicKey}}</div>{{else}}<span class="microlabel">not set</span>{{end}}</td>
+<td class="mono">{{.By}}</td>
+<td class="mono">{{.At}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="microlabel">No probers provisioned</div>
+<p>No vantage is on the internet yet. Provision a prober to declare one — until then, exposure cannot be measured.</p>
+{{end}}
+</div>
 </main>
 {{template "foot" .}}{{end}}
 `))

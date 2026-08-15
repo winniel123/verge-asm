@@ -25,8 +25,9 @@ type seedView struct {
 // the scope declaration and the exclusion — so a rejected submission on one
 // leaves its own error and typed value in place without disturbing the other.
 type seedsForms struct {
-	seedError, seedKind, seedScope string
-	exclError, exclKind, exclValue string
+	seedError, seedKind, seedScope                  string
+	exclError, exclKind, exclValue                  string
+	proberError, proberHost, proberPort, proberUser string
 }
 
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -91,8 +92,13 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list exclusions", err)
 		return
 	}
+	probers, err := s.store.ListVantages(r.Context())
+	if err != nil {
+		s.serverError(w, "list vantages", err)
+		return
+	}
 	status := http.StatusOK
-	if f.seedError != "" || f.exclError != "" {
+	if f.seedError != "" || f.exclError != "" || f.proberError != "" {
 		status = http.StatusBadRequest
 	}
 	s.renderStatus(w, status, "seeds", map[string]any{
@@ -101,6 +107,9 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"FormError": f.seedError, "FormKind": f.seedKind, "FormScope": f.seedScope,
 		"Exclusions": toExclusionViews(excl),
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
+		"Probers":     toProberViews(probers),
+		"ProberError": f.proberError, "ProberHost": f.proberHost,
+		"ProberPort": f.proberPort, "ProberUser": f.proberUser,
 	})
 }
 
