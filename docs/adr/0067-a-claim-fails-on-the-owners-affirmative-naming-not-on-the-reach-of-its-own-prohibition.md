@@ -110,6 +110,36 @@ Three consequences, and the second is the operative one.
 > carrying statement, whose class has no supported instance — while the **rows** meet §10.3's failure
 > condition and are **routed** under ADR-0037 limb 2. A footing surviving on a rider the claim gate does
 > not read.
+>
+> > **Amended again at this clause by [#114](https://github.com/winniel123/verge-asm/issues/114)**
+> > (`sensitive-ports.md` §38), per ADR-0058. **A fourth candidate rider was tested against the
+> > taxonomy above and it does NOT travel, because it bounds nothing — so the taxonomy is applied
+> > rather than extended and it stays an *iff*.**
+> >
+> > **[measured]** Elastic **disclaims** the component that supplies ECE's internet reach: *"ECE does
+> > not include a built-in load balancer, so **you must provision and configure one** in front of the
+> > ECE proxies"*, and *"Provisioning and configuring the load balancer is the customer's
+> > responsibility and is **outside the scope of this documentation**."* A session could read that as
+> > bounding the affirmation. **It is not the second bullet's shape**: that one travels because an
+> > endpoint answering an **enumerated source set** is not reached from an internet vantage
+> > ([ADR-0010](./0010-exposure-composes-two-reaches.md),
+> > [ADR-0017](./0017-exposure-needs-both-legs.md)), and a disclaimer of responsibility enumerates no
+> > source set — it bounds **who writes the configuration**, which is not a scope. It is not the first
+> > or third bullet either.
+> >
+> > **The underlying point is about this ADR's own decision sentence: the element is *naming*, not
+> > *supplying*.** *"Microsoft ships the provisioning option"* was corroboration in Consequences below,
+> > never a limb. **[measured] the reading that makes supply an element is falsified by
+> > `sensitive-ports.md` §17.4**, where RabbitMQ's *"[client ports] should be accessible to hosts that
+> > run applications, **which in some cases can mean public networks, for example, behind a load
+> > balancer**"* was ruled to meet §10.3's failure condition — and RabbitMQ ships no load balancer
+> > either. Adding the element withdraws that finding and reopens two §4.6 cells. `sensitive-ports.md`
+> > §10.3 is amended at its own clause to say so. §38.7.
+> >
+> > **And consequence 3's converse, recorded above as a first, survived exactly one pass.** #114
+> > removed both rows on a pair-scoped retrieval, and the footing cells left §2.2's graded table **with
+> > them** — *a cell cannot outlive its row*. That is consequence 3 read literally rather than a
+> > counter-example to it: two rulings, two retrievals, and the second disposed of both.
 
 ### Limb 2 — an `applies to` banner scopes the artefact, not the pair
 
@@ -167,6 +197,9 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   fails on its successor clause (TDS negotiates TLS on the **same** port). §10.2 closed the set, so
   *no claim* is *no row*. **The list is 40 pairs, class totals `12 / 7 / 21`**, and the pair is in
   §4.6 as the table's **21st** entry.
+  > **Superseded as an absolute by [#114](https://github.com/winniel123/verge-asm/issues/114)** —
+  > **the list is 38 pairs, class totals `12 / 7 / 19`, and §4.6 is 23 entries**, `9200/tcp` and
+  > `9300/tcp` having been removed on this ADR's own limbs. The `1433/tcp` verdict is unchanged.
 - **[ADR-0008](./0008-derivation-versions-move-on-content.md) is triggered.**
   `sensitive-port-reached-from-internet`'s content moves, its leaf bumps and every span of that
   derivation `Break`s. Pre-install this is vacuous and **not waived**, which is the same sentence
@@ -178,8 +211,8 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   **A pair leaving the sensitive list costs the union nothing wherever the frequency half already
   carries it.** What stops is the `Signal`, not the measurement.
 - **The aperture *narrows*.** `safe-active-probing.md` §2.4's line reads
-  ~~`0 of 41 sensitive pairs unread`~~ **`0 of 40`** — a **denominator**, with the numerator `0` for
-  every `|S|`, and `0 of 16 rules unevaluable` unchanged. Nothing becomes unread, so
+  ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40`~~ **`0 of 38`** (#114) — a **denominator**, with the
+  numerator `0` for every `|S|`, and `0 of 16 rules unevaluable` unchanged. Nothing becomes unread, so
   [ADR-0014](./0014-only-revealed-generalises.md) does not bite and no timeline opens.
 - **ADR-0050, ADR-0054, ADR-0059 and ADR-0037 are all confirmed by use and none is amended.** Limb 1
   does not narrow ADR-0050 limb 3 or ADR-0059 limb 4; it says what they are **not** also deciding.
@@ -200,6 +233,31 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   > direction, `3306` on a bounded affirmation, and `6379` on the pair.** The blocking relationship to
   > #12 passes to the successor ticket; **the rider taxonomy that decided it all is at limb 1's clause
   > above.**
+  > > **The routing is DISCHARGED by [#114](https://github.com/winniel123/verge-asm/issues/114)**
+  > > (`sensitive-ports.md` §38), on a retrieval **scoped to the pair** across all four of Elastic's
+  > > corpora — self-managed, ECK, ECE and the shipped `elasticsearch.yml` at `v9.5.1`. **Both rows are
+  > > REMOVED**; the list is **38 pairs**, class totals **`12 / 7 / 19`**, §4.6 **23** entries, tiers
+  > > **13 / 11 / 3 / 11**, coverage **27 of 38**, §6.1 **`25 + 8 + 5 = 38`**, aperture denominator
+  > > **38**. **`verge-core` is unchanged at 136 pairs — 131 TCP, 5 UDP**, both pairs being in the
+  > > frequency half. **[ADR-0008](./0008-derivation-versions-move-on-content.md) is triggered.** This
+  > > ADR is **applied and not extended**; **no ADR is minted and `0070` is left unused**.
+  > >
+  > > **[measured] the corpus that decides `9200/tcp` is self-managed, and #112 had not opened it**:
+  > > Elastic's own security documentation says *"**The HTTP layer**: Used for communication between
+  > > your cluster or deployment **and the internet**"*, of the interface `networking-settings.md`
+  > > binds with *"`http.port` … Defaults to `9200-9300`"*. That is an **affirmation**, not a default,
+  > > so §10.4's one-way rule is never reached for it — the whole *"ECE describes a default, not an
+  > > offering"* counter-argument is unavailable against that pair. **The same sentence's next bullet
+  > > separates the two pairs**: *"**The transport layer**: Used mainly for inter-node communications,
+  > > and in certain cases for cluster to cluster communication"* is Claim 3's boundary stated by the
+  > > owner, so **`9300/tcp` falls on ECE alone**, through ADR-0050 limb 2 on three of Elastic's own
+  > > artefacts. **Claim 1 and Claim 2 were measured off the shipped bytes rather than assumed**, per
+  > > `sensitive-ports.md` §35.6's precedent, and both are unavailable.
+  > >
+  > > **Limb 2's second live instance is confirmed and it now carries a removal.** #112 recorded
+  > > Elastic's banner partition as limb 2's second instance; #114 spends it — and **[measured]** the
+  > > counter-instance this ADR's thin-ground paragraph names, an owner disclaiming a deployment *in
+  > > its own words*, is **still not met** across twelve further Elastic artefacts.
 - **This is a *detectable* defect and not a curation trigger**, on the reasoning
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) uses for
   its own: both sides are written down — a row's claim, and the owner's affirmative sentences — and

@@ -68,7 +68,10 @@ does not answer Claim 1 Step 1's *is publication the purpose?*.
 
 The ground is measurable rather than stylistic. §18.6's **explicit prohibition** tier is 15 pairs and
 it straddles the classes: `6379`, `11211/tcp`, `11211/udp`, `9042`, `2379` and `2380` are **Class
-A**, while `3306`, ~~`1433`~~, `9200`, `9300`, `873`, `445`, `623`, `10250` and `10255` are **Class C**.
+A**, while `3306`, ~~`1433`~~, ~~`9200`~~, ~~`9300`~~, `873`, `445`, `623`, `10250` and `10255` are **Class C**.
+*(`9200` and `9300` are struck by [#114](https://github.com/winniel123/verge-asm/issues/114) — both
+rows are removed and the prohibition tier is 13. The argument is unaffected: it needs the tier to
+straddle the classes, and it still does.)*
 A sentence-shape compatible with six rows in one class and nine in another cannot discriminate
 between them, so it cannot carry the step whose whole job is to discriminate.
 
@@ -236,3 +239,8 @@ left unused**, on the precedent of #76, #84, #87, #90, #91 and #93.
 > [#109](https://github.com/winniel123/verge-asm/issues/109): the list is 40 pairs, classes
 > `12 / 7 / 21`, coverage 29 of 40 at tiers 15 · 11 · 3 · 11** — `1433/tcp`'s cell left the graded
 > table and then its row left the list. **`623/udp` is untouched by both of those too.**
+> **Composed again after [#114](https://github.com/winniel123/verge-asm/issues/114): the list is 38
+> pairs, classes `12 / 7 / 19`, coverage 27 of 38 at tiers 13 · 11 · 3 · 11** — `9200/tcp` and
+> `9300/tcp`'s rows left the list and their cells left with them. **`623/udp` is untouched by that
+> too**, and this ADR is **confirmed by use**: §38.2's admission of Elastic's HTTP-layer sentence turns
+> on its being evidence about **the claim**, at the claim.

@@ -96,7 +96,7 @@ assignments as they stand:
 | `11211/tcp`+`/udp` memcached | *"you **must not** expose memcached directly to **the internet**"* | none | **Prohibition** |
 | `3306` MySQL | *"Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by default. This port should not be accessible from untrusted hosts."* | none | **Prohibition** |
 | ~~`1433` MS SQL~~ | *"don't connect your SQL Server instances directly to **the Internet**"* | none | ~~**Prohibition**~~ — **DEMOTED out of the graded table by [#107](https://github.com/winniel123/verge-asm/issues/107)** on limbs 2 and 4(c): Microsoft names internet-facing TCP/1433 as supported. `sensitive-ports.md` §33.4. **And the ROW is REMOVED from the list by [#109](https://github.com/winniel123/verge-asm/issues/109)** on `sensitive-ports.md` §10.3's failure condition — a **claim**-gate ruling, not this table's ([ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)); the pair is now in §4.6 |
-| `9200`, `9300` Elasticsearch | *"Never expose an unprotected node to **the public internet**"* | none | **Prohibition** |
+| ~~`9200`, `9300` Elasticsearch~~ | *"Never expose an unprotected node to **the public internet**"* | none | ~~**Prohibition**~~ — **both ROWS are REMOVED from the list by [#114](https://github.com/winniel123/verge-asm/issues/114)** on `sensitive-ports.md` §10.3's failure condition, a **claim**-gate ruling and not this table's ([ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md), applied). **The cells leave the graded table with their rows** — *a cell cannot outlive its row* — so the prohibition tier is **13**. The sentence quoted is **not withdrawn** and it is not what failed; the pairs are now in §4.6. `sensitive-ports.md` §38 |
 | `445` SMB | *"unlikely that any SMB communication originating from **the internet** … is legitimate"* | none | **Prohibition** |
 | `623/udp` IPMI | *"not designed nor intended to be placed on or connected to **the internet**"* | none | **Prohibition** |
 | `9042` Cassandra | *"you should not expose this port to **the internet**"* | none | **Prohibition** |
@@ -261,6 +261,18 @@ coverage 30 of 41~~ — two cells, no rows, and ADR-0008 is not triggered.**
 > > triggered**, by the row's removal and not by any footing move. This ADR is **confirmed by use**
 > > and is not amended: a tier records how strong a footing is and never whether a row qualifies, and
 > > #109 is that separation being spent in the direction that costs a row. `sensitive-ports.md` §35.
+> >
+> > **Composed again after [#114](https://github.com/winniel123/verge-asm/issues/114), and this time a
+> > tier count DOES move — because two rows left, not because a footing did.** `9200/tcp` and
+> > `9300/tcp` are **removed from the sensitive list** on §10.3's failure condition, so their
+> > prohibition cells leave the graded table **with them**: *a cell cannot outlive its row*. The
+> > **prohibition tier is ~~15~~ 13**, scoping **11**, weak **3**, outside-subject **11**; the list is
+> > **38**, coverage is **27 of 38**, the uncovered-in-subject population stays at **0**, and
+> > `13 + 11 + 3 + 11 = 38`. **ADR-0008 is triggered by the rows, not by the cells.** **This ADR is
+> > again confirmed by use and is not amended** — and the separation it records is now visible from
+> > both sides: #109 moved a row without moving a tier, #114 moved a tier **only** because the rows
+> > moved. **[measured]** the carrying sentence quoted in the table above is **not withdrawn** and is
+> > not what failed. `sensitive-ports.md` §38.8, §38.12.
 
 **What this amendment does not reach, stated so its extent is in the artefact.** The closure claim is a
 **ruling**: it holds that the row's proposition has four terms and that a reader-supplied premise can

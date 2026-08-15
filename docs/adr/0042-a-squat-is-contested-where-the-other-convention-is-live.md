@@ -108,8 +108,8 @@ out of it without strain, which is the test a reconstruction has to pass:
 
 | Row | Squat | Live competitor? | Verdict, and it is the existing one |
 |---|---|---|---|
-| `9200/tcp` Elasticsearch | `wap-wsp` | **No** — WAP has no deployed population | **Listed** |
-| `9300/tcp`, `2181/tcp`, `9042/tcp`, `10250`, `10255`, `623/udp` | `vrace`, `eforward`, unassigned, unassigned, `asf-rmcp` | **No** | **Listed** |
+| `9200/tcp` Elasticsearch | `wap-wsp` | **No** — WAP has no deployed population | ~~**Listed**~~ — **the ROW is REMOVED by [#114](https://github.com/winniel123/verge-asm/issues/114)** on the **claim** gate (`sensitive-ports.md` §10.3's failure condition, §38). **This ADR's determinacy verdict is unchanged, unread and correct** — determinacy is not what removed it |
+| `9300/tcp`, `2181/tcp`, `9042/tcp`, `10250`, `10255`, `623/udp` | `vrace`, `eforward`, unassigned, unassigned, `asf-rmcp` | **No** | **Listed** — except `9300/tcp`, whose **row is REMOVED by [#114](https://github.com/winniel123/verge-asm/issues/114)** on the same claim gate, with its determinacy verdict likewise unchanged |
 | `9100/tcp` node_exporter | `hp-pdl-datastr` | **Yes** — HP's own best-practices document says *"9100 Printing should always be enabled"* | **Excluded** |
 | `6443/tcp` kube-apiserver | `sun-sr-https` | Contested by Kubernetes itself — upstream notes the API *"serves on port 443"* in typical production | **Excluded** |
 | `79/tcp` finger | registered to finger | **Yes** — RFC 4146 records a mail-notification listener on 79 as an additional usage, in IANA's own reference | **Excluded** |
