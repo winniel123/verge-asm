@@ -199,9 +199,21 @@ question answered that the model left open.
 **A withdrawn subject's timelines close; they do not hold an open `withdrawn` span.** `Span`'s own
 entry says *"it opens, it is current, it closes; the open span is the current state"*, and a subject
 that is not in the estate has no current state to hold. ADR-0006's cascade *"writes a span, reason
-`cascaded`"* — that is a closure, not a new open span. This is ruled here because the rest of the
+`cascaded`"* — that is a closure, not a new open span. ~~This is ruled here because the rest of the
 paragraph is unstatable without it, and it is the thinnest load-bearing sentence in this ADR; it is
-flagged as such below.
+flagged as such below.~~ **The flag is DISCHARGED at this clause** by
+[#140](https://github.com/winniel123/verge-asm/issues/140) ·
+[ADR-0082](./0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md),
+marked here per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+because read alone and in the present tense it sends a session to re-run a test that has been run.
+The sentence was tested on its own and **confirmed**, on three grounds independent of the glossary's
+wording: an **open span must be fed**, so one held over a withdrawal either rots to a `Gap` within
+`k` cadences or requires querying every withdrawn subject forever, while a closed span costs nothing
+to keep; withdrawal needs **every available vantage** to agree, so it is a property of the subject
+and a `Span` is keyed per `(vantage, source)`; and ADR-0007 had in fact already ruled it for the
+cascade population. ADR-0082 also supplies the corollary this paragraph needed and never stated —
+**the withdrawn period is on no timeline at all**, neither a value nor a `Gap`, which is what leaves
+the spans either side of it adjacent and `returned` derivable by ordinary machinery.
 
 With it, the sequence is exact:
 
@@ -358,11 +370,24 @@ default for a quantity nothing bounds is not to bound it.**
 
 ## Where this is thin, stated rather than smoothed
 
-- **That a withdrawn subject's timelines *close* rather than holding an open `withdrawn` span is
+- ~~**That a withdrawn subject's timelines *close* rather than holding an open `withdrawn` span is
   ruled here on the glossary's own wording, not on a prior decision.** It is load-bearing for exactly
   one thing — the mechanism by which a `Break` destroys `returned` — and if it goes the other way, the
   break re-opens the withdrawn span under the new vector and `returned` survives. The obligations on
-  the release get cheaper and nothing else in this ADR moves.
+  the release get cheaper and nothing else in this ADR moves.~~
+  **NO LONGER THIN — struck at the site that states the thinness**
+  ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by
+  [#140](https://github.com/winniel123/verge-asm/issues/140) ·
+  [ADR-0082](./0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md).
+  Both halves are wrong. **It was not ruled on the wording alone**: ADR-0007's cascade closure —
+  *"those spans must close, or a dead endpoint keeps an open span and every current-state query
+  returns it as live"* — is a prior decision on the same question, narrower only in that it governs
+  the cascade population rather than the root. And **the other way does not get cheaper**: the
+  strongest competing reading is not an invented `withdrawn` value but an open `NameError` span, and
+  it is inexpressible for a cited `Address` (which has no lifecycle of its own) and rots to a `Gap`
+  within `k` cadences because nothing measures a withdrawn subject — so it loses `returned` two days
+  after every decommission with no release to state the loss on. **The three obligations below stand
+  unchanged and are now founded rather than provisional.**
 - **The disk figures are engineering estimates, not measurements.** ~130 bytes per observation row
   all-in and ~200 per span are stated with their assumptions; the ruling turns on the **ratio** between
   the corpora, which is a row count and is exact.
