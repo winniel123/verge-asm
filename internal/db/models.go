@@ -8,6 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Account struct {
+	ID           int64              `json:"id"`
+	Username     string             `json:"username"`
+	Role         string             `json:"role"`
+	PasswordHash string             `json:"password_hash"`
+	TotpSecret   pgtype.Text        `json:"totp_secret"`
+	TotpEnabled  bool               `json:"totp_enabled"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
 type Heartbeat struct {
 	ID        int64              `json:"id"`
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
