@@ -103,6 +103,50 @@ sent remains a `Gap` whose cause is that the project kept no record. **This sear
 where the evidence could have been. It did not convert an absence of evidence into evidence of
 absence**, which is the one move the whole directory exists to prevent.
 
+## The four asks and the two defect reports will not be sent
+
+**Decided by the dev on 2026-08-14**, closing
+[#59](https://github.com/winniel123/verge-asm/issues/59): *"I'm not going to send the emails."*
+This is the second of the two discharges #59 offered — **recorded as deliberately not sent**,
+rather than sent and filed.
+
+**This is a record of a decision, not of an act.** Nothing went to RIPE NCC, APNIC, AFRINIC or
+LACNIC. The drafts stay under `drafts/` and stay evidence of nothing. The rule above is
+unchanged and now binds in the direction it was written for: **absence of a file at the top
+level of this directory is evidence of absence** — and that absence is now *settled* rather
+than pending.
+
+**What it discharges.** [ADR-0003](../adr/0003-third-party-source-consent-bar.md)'s
+ambiguity-corollary debt, which that ADR states is settled *"by sending or by formally
+recording that nothing was sent"*. This is the second branch. The debt was against the ADR,
+never against the sources.
+
+**What does not move — which is why the decision is cheap.** No source changes ship state.
+[#34](https://github.com/winniel123/verge-asm/issues/34)'s five-registry table stands.
+Ambiguous terms ship off indefinitely, the identical result whether the question was asked and
+ignored or never put at all. The operator-facing wording is
+[#57](https://github.com/winniel123/verge-asm/issues/57)'s, and it is **already correct and now
+permanently so**: *no reply has ever come, and no record of an approach exists* is true today
+and stays true. The ask date stays unrenderable, because there is no ask.
+
+**What it costs, stated rather than glossed.** Two of the four regions have no keyless fallback
+at all ([#19](https://github.com/winniel123/verge-asm/issues/19),
+[#25](https://github.com/winniel123/verge-asm/issues/25)), and LACNIC's ask was rated *"the
+cheapest of the four and the most likely to resolve cleanly"* — one sentence from LACNIC would
+have made it `unencumbered` outright. That gain is **forgone, not lost**: it was never held.
+
+**The two defect reports are included in this disposition** — AFRINIC's documented
+`whois/terms` URL returning 404, and LACNIC serving a byte-identical 7,014 B JavaScript shell
+at the RDAP `terms-of-service` target and four other documented policy URLs. They were
+dispositioned alongside the asks because #59 closes as a unit. They remain **separable and
+separately reversible**: different recipients, different urgency, only one of them is
+ADR-0003's business, and neither blocks anything. Reporting them later needs no ticket and no
+permission — write the message, send it, file it here.
+
+**What reopens this: sending.** Nothing else, and specifically not elapsed time. A message sent
+later is filed at the top level under the ordinary rule, and the surfaces gain their stronger
+sentence the moment it lands.
+
 ## One habit worth carrying
 
 **Do not bundle a question the project needs with a courtesy the source needs.**

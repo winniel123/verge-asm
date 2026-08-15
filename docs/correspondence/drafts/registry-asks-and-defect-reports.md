@@ -8,6 +8,16 @@ Prepared by [#57](https://github.com/winniel123/verge-asm/issues/57) for
 [#59](https://github.com/winniel123/verge-asm/issues/59), which is the dev's to act on. No
 session may send any of this.
 
+> **These will not be sent. Decided by the dev on 2026-08-14, closing #59** — recorded in
+> [the README](../README.md#the-four-asks-and-the-two-defect-reports-will-not-be-sent). The text
+> below is kept because it is the record of what was drafted, not because it is pending: it
+> **asserts nothing about whether anything was sent**, exactly as it did before the decision.
+> **The "Before sending" section below is now conditional on a decision that has been made the
+> other way** — it stands as the instruction that would apply if the dev ever reverses this,
+> and a session must not read it as outstanding work. The two defect reports are separable and
+> separately reversible; sending anything later means moving that message up one level under
+> the ordinary rule.
+
 ## Before sending
 
 **Confirm every recipient against the organisation's own current contact page.** Do not send
