@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subjects — verge-asm prototype (#122)</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<!--
+  PROTOTYPE — throwaway. Issue #122, "The Subjects screen: which populations render alongside the
+  living?" Not production code and not a component library.
+
+  URL:  ?screen=subjects|search|vsmember|cells
+          &variant=A|B|C                                  (screen=subjects only)
+          &fill=estate|custodyless|declared               (screen=subjects, variant=C only)
+
+  Arrow keys step the variant on ?screen=subjects; the floating bar switches everything.
+
+  THE QUESTION
+    Which populations render alongside the living, and which can be listed without a comparison
+    at all? Plus #74's question nobody had asked: what distinguishes a rule's census member list
+    from `Subjects` filtered by that rule, given both are lists of bare subjects.
+
+  THE SIX ABSENCE POPULATIONS the map's fog patch handed this screen (#42, every `Gap` states
+  its cause):
+      withdrawn · `Shadowed` · we never looked · we stopped looking · you stopped answering ·
+      a closed custody gate
+  Five of them are CELL states on a living row. One — withdrawn — is a population, and it is
+  the only one that cannot be read off current state. ?screen=cells draws all six.
+
+  CARRIED, not re-derived:
+    - every duration and count must be able to declare itself a floor (#18, #28)
+    - a value arriving after a `Gap` cannot be dated (#42 / ADR-0014)
+    - rendering the custody extension here as a `custody: operator` filter is WRONG (#51)
+    - no per-row controls, ever, or this is ADR-0002's rejected approval queue (#51, #74)
+    - a row's subject is a link and a link is not a control (#74 decision 7)
+    - only two of the four subjects can be a root (ADR-0031)
+
+  FIXTURE WARNING. The estate below is invented for this prototype and every count on screen is
+  computed from it (`list.length`), never authored. No figure is copied from another prototype:
+  #72's 412/403, #74's 2,904/3,204 and #44's 616/409 are that session's fixtures and two of them
+  were superseded by #118. Nothing here restates the map's composed state either.
+
+  Annotations in a dashed box marked PROTOTYPE NOTE are commentary for the reviewer and are not
+  part of the design.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 104px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+  .sp { margin-left: auto; }
+  .row { display: flex; align-items: center; gap: var(--space-3); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-3) var(--page-pad);
+           display: flex; gap: var(--space-5); font: var(--weight-regular) var(--text-xs)/1.4 var(--font-mono);
+           color: var(--text-faint); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { margin: 0 0 var(--space-6); font-size: var(--text-base); color: var(--text-muted);
+         line-height: var(--leading-body); max-width: 82ch; }
+
+  /* the two-count header — never summed, never a denominator */
+  .counts { display: flex; gap: var(--space-6); align-items: flex-end; margin-bottom: var(--space-5);
+            padding-bottom: var(--space-4); border-bottom: var(--rule-ink-heavy); flex-wrap: wrap; }
+  .counts .c .v { font-family: var(--font-mono); font-size: var(--text-2xl);
+                  font-weight: var(--weight-semibold); line-height: 1; }
+  .counts .c .ml { display: block; margin-top: 5px; }
+  .counts .asof { margin-left: auto; text-align: right; }
+  .counts .asof .v { display: block; font-family: var(--font-mono); font-size: var(--text-sm); }
+  .counts .asof .ml { display: block; margin-top: 3px; }
+
+  .card { background: var(--surface); border: var(--rule); margin-bottom: var(--space-5); }
+  .card-h { display: flex; align-items: baseline; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2, .card-h h3 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .hint { font-size: var(--text-sm); color: var(--text-muted); }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); background: var(--surface-sunken);
+            font-size: var(--text-sm); color: var(--text-muted); line-height: var(--leading-body); }
+  .pad { padding: var(--space-4); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: top; }
+  tbody tr:first-child td { border-top: none; }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num, th.num { text-align: right; }
+  td.num { font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap; }
+  td a.k { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-semibold);
+           color: var(--ink); text-decoration: none; box-shadow: inset 0 -1px 0 var(--border); }
+  td a.k:hover { box-shadow: inset 0 -1px 0 var(--accent); color: var(--accent); }
+  .rowsub { display: block; margin-top: 3px; font-size: var(--text-sm);
+            color: var(--text-muted); line-height: var(--leading-snug); }
+  .rowsub.cite { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-faint); }
+
+  /* the absence cell — one treatment, the cause stated. #44 decision 3's band. */
+  td.gapcell { background: var(--surface-sunken); border-left: 1px dashed var(--border-ink); }
+  td.gapcell .cause { display: block; font: var(--weight-semibold) var(--text-2xs)/1.3 var(--font-mono);
+                      text-transform: uppercase; letter-spacing: var(--tracking-label);
+                      color: var(--text-muted); }
+  td.gapcell .prior { display: block; margin-top: 3px; font-family: var(--font-mono);
+                      font-size: var(--text-xs); color: var(--text-faint); }
+  td.gapcell.fault { border-left-color: var(--danger); }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted);
+         white-space: nowrap; }
+  .tag.blue { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .tag.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .tag.gone { border-style: dashed; color: var(--text-faint); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink);
+         font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); transition: background var(--duration) var(--ease); }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); padding: 0 10px; }
+
+  .inkp { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+          padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body);
+          margin-bottom: var(--space-5); }
+  .inkp .ml { color: #9a9a90; display: block; margin-bottom: var(--space-2); }
+  .inkp code, .inkp .mono { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-on-ink); }
+  .inkp strong, .inkp b { color: var(--text-on-ink); }
+  .inkp h3 { margin: 0 0 var(--space-2); font-size: var(--text-md); font-weight: var(--weight-semibold);
+             color: var(--text-on-ink); }
+  .inkp p { margin: 0 0 var(--space-3); max-width: 88ch; }
+  .inkp p:last-child { margin-bottom: 0; }
+
+  .note { display: block; border: var(--rule); border-left: 3px solid var(--border-ink);
+          background: var(--surface); padding: var(--space-3) var(--space-4);
+          font-size: var(--text-sm); line-height: var(--leading-body); color: var(--text);
+          max-width: 92ch; margin-bottom: var(--space-4); }
+  .note.inert { border-left-color: var(--border); color: var(--text-muted); }
+  .note.warnk { border-left-color: var(--warn); background: var(--surface-sunken); }
+  .note b { font-weight: var(--weight-semibold); }
+  .note p { margin: 0 0 var(--space-2); }
+  .note p:last-child { margin-bottom: 0; }
+
+  .empty { border: 1px dashed var(--border); background: var(--surface);
+           padding: var(--space-6) var(--space-4); }
+  .empty .ml { display: block; margin-bottom: var(--space-2); }
+  .empty p { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted);
+             line-height: var(--leading-body); max-width: 84ch; }
+  .empty p:last-child { margin-bottom: 0; }
+
+  /* search — the one lookup that reaches outside the estate */
+  .searchbar { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); max-width: 620px; }
+  .searchbar input { flex: 1; height: var(--control-h-lg); padding: 0 var(--control-pad-x);
+                     border: 1px solid var(--border-ink); background: var(--surface);
+                     font: var(--weight-regular) var(--text-md)/1 var(--font-mono);
+                     color: var(--text); border-radius: var(--radius); }
+  .hit { border: var(--rule-ink); background: var(--surface); margin-bottom: var(--space-4); }
+  .hit .hh { padding: var(--space-3) var(--space-4); border-bottom: var(--rule-ink-heavy);
+             display: flex; align-items: baseline; gap: var(--space-3); }
+  .hit .hh .k { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+  .hit .hb { padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); max-width: 88ch; }
+  .hit .hb p { margin: 0 0 var(--space-3); }
+  .hit .hb p:last-child { margin-bottom: 0; }
+  .hit.bad { border-color: var(--danger); }
+  .hit.bad .hh { border-bottom-color: var(--danger); }
+
+  /* side-by-side */
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+  @media (max-width: 1180px) { .two { grid-template-columns: 1fr; } }
+  .lane { background: var(--surface); border: var(--rule-ink); }
+  .lane > .lh { padding: var(--space-3) var(--space-4); border-bottom: var(--rule-ink-heavy); }
+  .lane > .lh .who { font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .lane > .lh .den { margin-top: 3px; font-family: var(--font-mono); font-size: var(--text-sm);
+                     color: var(--text-muted); }
+  .lane > .lh .den b { color: var(--ink); font-weight: var(--weight-semibold); }
+  .lane .barestack { padding: var(--space-2) 0; }
+  .lane .barestack .r { padding: 5px var(--space-4); font-family: var(--font-mono);
+                        font-size: var(--text-sm); border-top: var(--rule-soft); }
+  .lane .barestack .r:first-child { border-top: none; }
+  .lane .barestack .r .cite { display: block; font-size: var(--text-xs); color: var(--text-faint); margin-top: 2px; }
+  .lane .lf { padding: var(--space-3) var(--space-4); border-top: var(--rule);
+              background: var(--surface-sunken); font-size: var(--text-sm);
+              color: var(--text-muted); line-height: var(--leading-body); }
+
+  .disc { width: 100%; border-collapse: collapse; background: var(--surface);
+          border: var(--rule); margin-bottom: var(--space-5); }
+  .disc th { border-bottom: var(--rule-ink-heavy); }
+  .disc td { font-size: var(--text-sm); line-height: var(--leading-body); }
+  .disc td:first-child { font-weight: var(--weight-semibold); white-space: nowrap; }
+
+  /* prototype-only annotation */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 96ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+  /* the forbidden renderings, drawn properly */
+  .cbx { width: 15px; height: 15px; border: 1px solid var(--border-ink); background: var(--surface);
+         display: inline-block; vertical-align: -2px; }
+  .badge { display: inline-block; min-width: 18px; padding: 1px 5px; background: var(--danger);
+           color: #fff; font: var(--weight-semibold) var(--text-2xs)/1.5 var(--font-mono);
+           text-align: center; margin-left: 5px; }
+  .chips { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); flex-wrap: wrap; }
+  .chips button { border: var(--rule); background: var(--surface); padding: 4px 10px;
+                  font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono); cursor: pointer;
+                  border-radius: var(--radius); color: var(--text-muted); }
+  .chips button.on { background: var(--ink); color: var(--text-on-ink); border-color: var(--border-ink); }
+
+  #switch { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+            background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+            box-shadow: var(--shadow-hard); padding: 8px 10px; display: flex; gap: var(--space-4);
+            align-items: center; z-index: 50; max-width: calc(100vw - 32px); flex-wrap: wrap; }
+  #switch .grp { display: flex; align-items: center; gap: 5px; }
+  #switch .grp > span { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); color: #9a9a90; }
+  #switch button { border: 1px solid #3a3a30; background: transparent; color: var(--text-on-ink);
+                   font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); padding: 5px 7px;
+                   cursor: pointer; border-radius: var(--radius); }
+  #switch button.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="switch"></div>
+
+<script>
+/* ------------------------------------------------------------------ routing */
+const SCREENS  = ["subjects", "search", "vsmember", "cells"];
+const VARIANTS = ["A", "B", "C"];
+const FILLS    = ["estate", "custodyless", "declared"];
+
+function params() {
+  const p = new URLSearchParams(location.search);
+  const g = (k, list, d) => { const v = p.get(k); return list.includes(v) ? v : d; };
+  return {
+    screen:  g("screen",  SCREENS,  "subjects"),
+    variant: g("variant", VARIANTS, "C"),
+    fill:    g("fill",    FILLS,    "estate"),
+  };
+}
+function go(next) {
+  const s = { ...params(), ...next };
+  history.replaceState(null, "", "?" + new URLSearchParams(s).toString());
+  render();
+}
+
+/* ------------------------------------------------------------------ helpers */
+const n   = x => x.toLocaleString("en-GB");
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const mo  = s => `<span class="mono">${esc(s)}</span>`;
+function anno(label, html, bad) {
+  return `<div class="anno${bad ? " no" : ""}"><span class="ml">${label}</span>${html}</div>`;
+}
+
+/* ==================================================================== FIXTURE
+
+   An invented estate. Every count printed anywhere on this prototype is computed from these
+   arrays — nothing is authored as a number. That is #28's rule ("a census is derived from its
+   own partition") and #74's ("every census scalar is list.length") implemented rather than
+   described, and it is also this ticket's central argument standing up in code: a list that
+   states a denominator has to be able to produce it.
+
+   Chosen to exercise all six absence populations at once, plus the two presentational
+   obligations and the disjunctive Address membership limbs (ADR-0047).
+------------------------------------------------------------------------------- */
+
+const TODAY = "2026-08-15";
+
+/* --- Names. `state` is the row's own membership; `cells` are per-facet. -------------------- */
+const NAMES = [
+  { k: "example.com",        state: "live",
+    cite: "seed example.com · declared 2026-06-02",
+    since: "2026-06-02", sinceFloor: false,
+    res: { v: "Resolved · 3 addresses", note: "18.164.52.11 · .72 · .140" } },
+
+  { k: "www.example.com",    state: "live",
+    cite: "resolution-walk under example.com · 2026-08-15 04:07",
+    since: "2026-06-02", sinceFloor: true,
+    res: { v: "Resolved · 2 addresses", note: "203.0.113.17 · .18" } },
+
+  { k: "api.example.com",    state: "live",
+    cite: "resolution-walk under example.com · 2026-08-15 04:07",
+    since: "2026-06-02", sinceFloor: true,
+    res: { v: "Resolved · 3 addresses", note: "203.0.113.41 · .42 · 2001:db8:4::11" } },
+
+  { k: "mail.example.com",   state: "live",
+    cite: "zone file example.com.zone · supplied 2026-06-04",
+    since: "2026-06-04", sinceFloor: true,
+    res: { v: "Resolved · 2 addresses", note: "198.51.100.12 · .13" } },
+
+  { k: "vpn.example.com",    state: "live",
+    cite: "resolution-walk under example.com · 2026-08-15 04:07",
+    since: "2026-06-02", sinceFloor: true,
+    res: { v: "Resolved · 1 address", note: "203.0.113.90" } },
+
+  { k: "git.example.com",    state: "live",
+    cite: "zone file example.com.zone · supplied 2026-06-04",
+    since: "2026-06-04", sinceFloor: true,
+    res: { v: "Resolved · 1 address", note: "203.0.113.44" } },
+
+  { k: "ci.example.com",     state: "live",
+    cite: "zone file example.com.zone · supplied 2026-06-04",
+    since: "2026-06-04", sinceFloor: true,
+    res: { v: "Resolved · 1 address", note: "10.4.3.9" },
+    fires: "non-globally-reachable-address-resolved-from-internet" },
+
+  { k: "shop.example.com",   state: "live",
+    cite: "resolution-walk under example.com · 2026-08-15 04:07",
+    since: "2026-06-11", sinceFloor: true,
+    res: { v: "Resolved · 4 addresses", note: "via d1x2y3.cloudfront.net — the chain leaves the zone" } },
+
+  { k: "help.example.com",   state: "live",
+    cite: "resolution-walk under example.com · 2026-08-15 04:07",
+    since: "2026-06-11", sinceFloor: true,
+    res: { v: "Resolved · 2 addresses", note: "via example.zendesk.com" } },
+
+  { k: "status.example.com", state: "live",
+    cite: "resolution-walk under example.com · 2026-08-15 04:07",
+    since: "2026-07-19", sinceFloor: false,
+    res: { v: "Resolved · 2 addresses", note: "via stspg-customer.com" } },
+
+  /* --- absence population 2: `Shadowed`. A value, not a Gap — and the one absence that is a
+         statement about MEMBERSHIP while the subject is alive. ------------------------------ */
+  { k: "wild.example.com",   state: "live",
+    cite: "crt.sh · 2026-07-28",
+    since: "2026-07-28", sinceFloor: false,
+    res: { v: "Shadowed", shadow: true,
+           note: "the authority answers every label beneath its parent — the control probe could not tell this name's answer from a synthesised one" },
+    membershipNote: "cannot be measured absent · supply coverage or exclude it" },
+
+  /* --- absence population 5: you stopped answering (#35's lame delegation) ------------------ */
+  { k: "old.example.com",    state: "live",
+    cite: "zone file example.com.zone · supplied 2026-06-04",
+    since: "2026-06-04", sinceFloor: true,
+    res: { gap: true, cause: "you stopped answering",
+           prior: "last read Resolved · 1 address · 2026-08-02 04:07",
+           extra: "every authority for old.example.com was reached and none serves the zone — lame-delegation is firing on this name" } },
+
+  /* --- absence population 4: we stopped looking (a configured leg went silent) -------------- */
+  { k: "stage.example.com",  state: "live",
+    cite: "resolution-walk under example.com · 2026-08-12 04:07",
+    since: "2026-06-02", sinceFloor: true,
+    res: { gap: true, cause: "we stopped looking", fault: true,
+           prior: "last read Resolved · 1 address · 2026-08-12 04:07",
+           extra: "the internet-class vantage vantage-fra1 has been unavailable since 2026-08-12" } },
+
+  /* --- absence population 1: withdrawn. NOT a row on this screen. -------------------------- */
+  { k: "legacy.example.com", state: "withdrawn",
+    cite: "was: zone file example.com.zone",
+    left: "2026-07-02", leftFloor: false,
+    lastValue: "Resolved · 1 address · 198.51.100.61",
+    how: "our own resolver measured a Name Error from every available vantage" },
+
+  { k: "beta.example.com",   state: "withdrawn",
+    cite: "was: resolution-walk under example.com",
+    left: "2026-08-04", leftFloor: true,
+    lastValue: "Resolved · 2 addresses",
+    how: "our own resolver measured a Name Error from every available vantage" },
+];
+
+/* --- Addresses. Two membership limbs, disjunctive (ADR-0047), and they overlap. ------------ */
+const ADDR_RESOLVED = [
+  { k: "18.164.52.11",   cite: "cited by example.com", custody: "operator", note: "flattened ALIAS at the apex" },
+  { k: "18.164.52.72",   cite: "cited by example.com", custody: "operator", note: "flattened ALIAS at the apex" },
+  { k: "18.164.52.140",  cite: "cited by example.com", custody: "operator", note: "flattened ALIAS at the apex" },
+  { k: "203.0.113.17",   cite: "cited by www.example.com",  custody: "operator" },
+  { k: "203.0.113.18",   cite: "cited by www.example.com",  custody: "operator" },
+  { k: "203.0.113.41",   cite: "cited by api.example.com",  custody: "operator" },
+  { k: "203.0.113.42",   cite: "cited by api.example.com",  custody: "operator" },
+  { k: "2001:db8:4::11", cite: "cited by api.example.com",  custody: "operator" },
+  { k: "203.0.113.44",   cite: "cited by git.example.com",  custody: "operator" },
+  { k: "203.0.113.90",   cite: "cited by vpn.example.com",  custody: "operator" },
+  { k: "198.51.100.12",  cite: "cited by mail.example.com · and inside seed 198.51.100.0/24", custody: "operator", both: true },
+  { k: "198.51.100.13",  cite: "cited by mail.example.com · and inside seed 198.51.100.0/24", custody: "operator", both: true },
+  { k: "52.94.18.6",     cite: "cited by shop.example.com", custody: "third-party",
+    note: "the chain leaves the zone — outside the custody extension", gated: true },
+  { k: "52.94.18.7",     cite: "cited by shop.example.com", custody: "third-party",
+    note: "the chain leaves the zone — outside the custody extension", gated: true },
+];
+const SCOPE_SIZE = 256;                       /* seed 198.51.100.0/24 */
+const SCOPE_OVERLAP = ADDR_RESOLVED.filter(a => a.both).length;
+const ADDR_TOTAL = SCOPE_SIZE + ADDR_RESOLVED.length - SCOPE_OVERLAP;
+
+/* Sample rows from the declared scope. 254 of the 256 have never had anything answer — they hold
+   Reach = not-reached, a MEASURED value and not a Gap (ADR-0047). */
+const ADDR_SCOPE_SAMPLE = [
+  { k: "198.51.100.1",  cite: "inside seed 198.51.100.0/24 · from the declaration", custody: "operator",
+    reach: "not-reached", never: true },
+  { k: "198.51.100.2",  cite: "inside seed 198.51.100.0/24 · from the declaration", custody: "operator",
+    reach: "not-reached", never: true },
+  { k: "198.51.100.61", cite: "inside seed 198.51.100.0/24 · from the declaration", custody: "operator",
+    reach: "not-reached", never: true,
+    note: "legacy.example.com resolved here until 2026-07-02; the address stays, the name did not" },
+];
+
+/* --- Service and Endpoint: derived populations, never listed as peers (ADR-0031) ----------- */
+const TCP_PAIRS_IN_SCOPE = 131;               /* verge-core's TCP half; UDP is outside v1's aperture */
+const SERVICE_COUNT  = ADDR_TOTAL * TCP_PAIRS_IN_SCOPE;
+const ENDPOINT_COUNT = 46;                    /* fixture */
+/* What variant A's header would have to say if all four kinds were peers. Two of the four terms
+   are the other two's membership restated, which is the whole objection. */
+const FLAT_TOTAL = NAMES.length + ADDR_TOTAL + SERVICE_COUNT + ENDPOINT_COUNT;
+
+/* --- The rule used for the side-by-side. Subject is the `Name` (ADR-0071 / #128). ---------- */
+const RULE = {
+  name: "non-globally-reachable-address-resolved-from-internet",
+  gloss: "fires where the address's most specific IANA special-purpose allocation is marked not globally reachable",
+  domainWords: "Names whose internet-class resolution holds an answer — Resolved or Shadowed",
+  instant: "2026-08-15 04:07",
+  leaf: "resolution-walk v4 · availability v2",
+};
+const liveNames = () => NAMES.filter(x => x.state === "live");
+const goneNames = () => NAMES.filter(x => x.state === "withdrawn");
+
+/* The census, computed. A name is:
+     outside the domain — resolution holds no answer at all (Lame)
+     not-evaluable      — Shadowed, or a Gap where the answer would be
+     fired / did not fire otherwise                                                            */
+function census() {
+  const outside = [], ne = [], fired = [], notFired = [];
+  for (const x of liveNames()) {
+    if (x.res.gap && x.res.cause === "you stopped answering") { outside.push(x); continue; }
+    if (x.res.gap)     { ne.push(x); continue; }
+    if (x.res.shadow)  { ne.push(x); continue; }
+    if (x.fires)       { fired.push(x); continue; }
+    notFired.push(x);
+  }
+  return { outside, ne, fired, notFired, domain: ne.length + fired.length + notFired.length };
+}
+
+/* ------------------------------------------------------------------ chrome */
+
+/* ADR-0075: a prototype is a dated record of a READING, never of a RULE. The provenance line has
+   to be in what the browser DRAWS — every recorded instance of a prototype being wrongly believed
+   happened in a browser, where an HTML comment is invisible. */
+function dateline() {
+  return anno("prototype · not part of the design", `
+    <p><b>Issue #122 — the <code>Subjects</code> screen. Drawn 2026-08-15.</b> Throwaway: something
+    to decide against, not production UI and not a component library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a live value.</b> The estate is
+    invented and the counts are computed from it. The only live absolutes for this project are the
+    map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>) — check any figure
+    there before quoting one from here, and expect no figure below to have been re-filled when one
+    moved. What is <i>not</i> a dated reading is the shape: the acts these screens offer, the
+    populations they show as non-empty and the sentences they put in the product's mouth are rules
+    drawn, and a later ruling that makes one unreachable is marked in place rather than redrawn.</p>`);
+}
+
+function chrome(body) {
+  return `
+  <header class="nav"><div class="nav-in">
+    <span class="wordmark"><b>Verge</b><span class="chip">ASM</span></span>
+    <nav class="items">
+      <a href="#">Exposure</a><a href="#" class="on">Subjects</a><a href="#">Signals</a>
+      <a href="#">Seeds</a><a href="#">Coverage</a><a href="#">Settings</a>
+    </nav>
+    <span class="nav-right"><span class="status"><span class="dot live"></span>batch 04:07</span></span>
+  </div></header>
+  <div class="shell">${dateline()}${body}</div>
+  <footer class="ft"><div class="ft-in">
+    <span>PROTOTYPE — issue #122</span><span>invented estate, every count computed</span>
+    <span>design system: visual layer canonical, vocabulary is CONTEXT.md's</span>
+  </div></footer>`;
+}
+
+/* ==================================================================== SCREEN: subjects ===== */
+
+function screenSubjects(p) {
+  const head = `
+    <h1 class="page">Subjects</h1>
+    <p class="sub">What is in your estate right now. Every row here has an open span; nothing on this
+    screen is a comparison between two batches, and nothing on it is a task.</p>`;
+
+  if (p.variant === "A") return head + variantA(p);
+  if (p.variant === "B") return head + variantB(p);
+  return head + variantC(p);
+}
+
+/* --- Variant A: one flat list of four kinds with a `state` column. Drawn to lose. ---------- */
+function variantA(p) {
+  const rows = [];
+  for (const x of liveNames()) {
+    let state = "live", why = "";
+    if (x.res.gap)    { state = x.res.cause === "you stopped answering" ? "not answering" : "not measured"; why = x.res.cause; }
+    if (x.res.shadow) { state = "unconfirmable"; why = "Shadowed"; }
+    rows.push({ kind: "Name", k: x.k, state, why });
+  }
+  for (const x of goneNames()) rows.push({ kind: "Name", k: x.k, state: "withdrawn", why: `left ${x.left}` });
+  for (const a of ADDR_RESOLVED.slice(0, 6)) rows.push({ kind: "Address", k: a.k, state: a.gated ? "not measured" : "live", why: a.gated ? "custody gate shut" : "" });
+  rows.push({ kind: "Service", k: "203.0.113.17:443/tcp", state: "live", why: "" });
+  rows.push({ kind: "Service", k: "203.0.113.17:80/tcp",  state: "live", why: "" });
+  rows.push({ kind: "Endpoint", k: "www.example.com @ 203.0.113.17:443/tcp", state: "live", why: "" });
+
+  return `
+    ${anno("Variant A — drawn in order to lose", `
+      <p>One flat list of all four subject kinds with a <code>state</code> column. It is the
+      conventional inventory and it is the thing a build session writes first.</p>
+      <p><b>Three failures, and the third is fatal.</b> The <code>state</code> axis holds two kinds
+      of thing at once — <i>the subject is gone</i> is a fact about the estate, <i>we could not
+      measure this facet</i> is a fact about one of its six timelines — which is exactly the axis
+      defect #45 killed its own variant A on. Membership is counted up to four times, because a
+      <code>Service</code>'s membership <i>is</i> its <code>Address</code>'s restated and an
+      <code>Endpoint</code>'s is two subjects' restated (ADR-0031). And a subject in two absences
+      at once — <code>stage.example.com</code> is both gapped and, on its addresses, behind a shut
+      gate — forces the column to pick one.</p>
+      <p>Scroll to the bottom: with <code>Service</code> a peer, this list is
+      <b>${n(FLAT_TOTAL)}</b> rows on an estate of ${n(liveNames().length)} names and
+      ${n(ADDR_TOTAL)} addresses.</p>`, true)}
+
+    <div class="counts">
+      <div class="c"><span class="v">${n(FLAT_TOTAL)}</span><span class="ml">subjects</span></div>
+    </div>
+    ${anno("what that number is", `<p>A sum over four kinds, two of which restate the membership of the
+      other two. It is not wrong so much as it is not <i>about</i> anything: there is no question an
+      operator asks whose answer is this number.</p>`, true)}
+
+    <table>
+      <thead><tr><th>Kind</th><th>Key</th><th>State</th><th>Why</th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr><td><span class="tag">${r.kind}</span></td>
+            <td class="m">${esc(r.k)}</td>
+            <td class="m">${r.state === "withdrawn" ? `<span class="tag gone">withdrawn</span>` : esc(r.state)}</td>
+            <td class="muted">${esc(r.why)}</td></tr>`).join("")}
+        <tr><td colspan="4" class="muted">… and ${n(SERVICE_COUNT - 2)} more <code>Service</code> rows</td></tr>
+      </tbody>
+    </table>`;
+}
+
+/* --- Variant B: two lists, absence as a filter-chip row over one population. --------------- */
+function variantB(p) {
+  return `
+    ${anno("Variant B — the closest loss", `
+      <p>Two lists (the two roots, correctly), but absence is a <b>view of the same list</b>: chips
+      switch between <i>living</i>, <i>withdrawn</i> and <i>not measured</i>.</p>
+      <p><b>It loses on the header.</b> A chip row is a partition, and a partition owes a
+      denominator — otherwise the operator reads <code>2 names</code> under a chip and cannot tell
+      whether that is two of thirteen or two of two hundred. Supply the denominator and this screen
+      has one, which is the thing #28 ruled the estate can never honestly have. Refuse it and the
+      chips lie by omission.</p>
+      <p><b>And <i>not measured</i> is not a property of a row.</b> It is a property of a cell.
+      <code>old.example.com</code> is gapped on <code>resolution</code>; every other timeline it has
+      is fine. Which chip is it under?</p>`, true)}
+
+    <div class="chips">
+      <button class="on">living · 13</button><button>withdrawn · 2</button><button>not measured · 2</button>
+    </div>
+    <div class="note warnk"><p>The three counts sum to seventeen and there are fifteen names.
+    <code>old</code> and <code>stage</code> are counted twice, because they are living <i>and</i>
+    not measured. A partition that is not a partition is #28's two-numbers hazard with an extra
+    step.</p></div>
+
+    <table>
+      <thead><tr><th>Name</th><th>Resolution</th><th>In the estate since</th></tr></thead>
+      <tbody>${liveNames().map(x => `
+        <tr><td><a class="k" href="#">${esc(x.k)}</a></td>
+            <td class="m muted">${esc(x.res.gap ? "—" : (x.res.shadow ? "Shadowed" : x.res.v))}</td>
+            <td class="num muted">${esc(x.since)}</td></tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+/* --- Variant C: two roots, absence as cell state, withdrawn reachable by key only. SHIPS --- */
+function variantC(p) {
+  if (p.fill === "custodyless") return fillCustodyless();
+  if (p.fill === "declared")    return fillDeclared();
+
+  const names = liveNames();
+
+  const nameRows = names.map(x => {
+    let cell;
+    if (x.res.gap) {
+      const cls = "gapcell" + (x.res.fault ? " fault" : "");
+      cell = `<td class="${cls}">
+                <span class="cause">${esc(x.res.cause)}</span>
+                <span class="prior">${esc(x.res.prior)}</span>
+                <span class="prior">${esc(x.res.extra)}</span>
+              </td>`;
+    } else if (x.res.shadow) {
+      cell = `<td><span class="tag warn">Shadowed</span>
+                <span class="rowsub">${esc(x.res.note)}</span></td>`;
+    } else {
+      cell = `<td class="m">${esc(x.res.v)}<span class="rowsub">${esc(x.res.note)}</span></td>`;
+    }
+    const since = x.sinceFloor
+      ? `≥ ${esc(x.since)} <span class="faint">(floor)</span>`
+      : esc(x.since);
+    return `<tr>
+      <td><a class="k" href="#">${esc(x.k)}</a>
+        ${x.membershipNote ? `<span class="rowsub"><span class="tag warn">${esc(x.membershipNote)}</span></span>` : ""}
+        <span class="rowsub cite">${esc(x.cite)}</span></td>
+      ${cell}
+      <td class="num muted">${since}</td>
+    </tr>`;
+  }).join("");
+
+  const addrRows = ADDR_RESOLVED.concat(ADDR_SCOPE_SAMPLE).map(a => {
+    let cell;
+    if (a.gated) {
+      cell = `<td class="gapcell">
+                <span class="cause">we stopped looking · the custody gate is shut</span>
+                <span class="prior">no value has ever been held here — the gate was never open</span>
+              </td>`;
+    } else if (a.never) {
+      cell = `<td class="m">not-reached
+                <span class="rowsub">a measured value from the declaration, not a gap — nothing has answered here yet</span></td>`;
+    } else {
+      cell = `<td class="m">reached on 2 ports
+                <span class="rowsub">of ${TCP_PAIRS_IN_SCOPE} pairs in the recorded scope</span></td>`;
+    }
+    return `<tr>
+      <td><a class="k" href="#">${esc(a.k)}</a>
+        ${a.note ? `<span class="rowsub">${esc(a.note)}</span>` : ""}
+        <span class="rowsub cite">${esc(a.cite)}</span></td>
+      <td><span class="tag${a.custody === "third-party" ? "" : " blue"}">${esc(a.custody)}</span></td>
+      ${cell}
+    </tr>`;
+  }).join("");
+
+  return `
+    ${anno("Variant C — ships", `
+      <p><b>Two lists, not four.</b> Only a <code>Name</code> and an <code>Address</code> can be the
+      root of an entering sub-tree (ADR-0031); a <code>Service</code>'s membership is its
+      <code>Address</code>'s restated and an <code>Endpoint</code>'s is two subjects' restated. So
+      those two are reached <i>through</i> a root and are never peers in a listing — which is also
+      why the header states two counts and never sums them.</p>
+      <p><b>Absence is a cell, not a row.</b> Five of the six absence populations render inside a
+      row that is otherwise entirely alive. The sixth — <code>withdrawn</code> — is not here at all;
+      it has no open span, so it is a member of no current population. Try
+      <code>?screen=search</code>.</p>
+      <p><b>No search denominator, and no per-row control.</b> This screen has a search box and no
+      denominator; a census member has a denominator and no search box (<code>?screen=vsmember</code>).
+      Each is the reason for the other.</p>`)}
+
+    <div class="counts">
+      <div class="c"><span class="v">${n(names.length)}</span><span class="ml">names</span></div>
+      <div class="c"><span class="v">${n(ADDR_TOTAL)}</span><span class="ml">addresses</span></div>
+      <div class="asof">
+        <span class="v">as of 2026-08-15 04:07</span>
+        <span class="ml">the open span · not a comparison</span>
+      </div>
+    </div>
+
+    <div class="searchbar">
+      <input type="text" placeholder="a name or an address" value="">
+      <button class="btn">Look up</button>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Names</h2>
+        <span class="hint">${n(names.length)} in the estate · ordered by the name</span></div>
+      <table>
+        <thead><tr><th>Name</th><th>Resolution</th><th class="num">In the estate since</th></tr></thead>
+        <tbody>${nameRows}</tbody>
+      </table>
+      <div class="card-f"><b>In the estate since</b> declares itself a floor wherever the membership
+      timeline can break. A name's membership composes <code>resolution-walk</code>, so a release
+      that moves that leaf clamps the date and the cell reads <code>≥</code>. An address inside a
+      declared scope composes nothing at all — a <code>Seed</code> is Declared and carries no vector
+      — so its date is exact, on the same screen, in the same column.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Addresses</h3>
+        <span class="hint">${n(ADDR_TOTAL)} in the estate · ${n(SCOPE_SIZE)} from one declared scope,
+        ${n(ADDR_RESOLVED.length)} cited by a resolution, ${SCOPE_OVERLAP} both</span></div>
+      <table>
+        <thead><tr><th>Address</th><th>Custody</th><th>Reach</th></tr></thead>
+        <tbody>${addrRows}
+          <tr><td colspan="3" class="muted">… and ${n(SCOPE_SIZE - ADDR_SCOPE_SAMPLE.length - SCOPE_OVERLAP)}
+          more inside <code>198.51.100.0/24</code>, all holding <code>not-reached</code></td></tr>
+        </tbody>
+      </table>
+      <div class="card-f"><b>Custody is a column and never a filter that answers a different
+      screen's question.</b> Filtering to <code>custody: operator</code> here returns the right
+      rows and the wrong screen (#51): the custody extension's question is <i>what does my
+      declaration reach</i>, and its answer needs the four names whose chains leave the zone
+      standing <i>beside</i> the covered addresses. Those are not addresses under operator custody,
+      so they are absent from this screen by construction — the boundary rule is invisible exactly
+      where you would go to audit it. That surface is on <code>Seeds</code>.</div>
+    </div>
+
+    ${anno("what is not on this screen, deliberately", `
+      <p><b>No signal column.</b> A rule's population is versioned inside the rule's own leaf; a
+      column of verdicts on a list with no version authors that population a second time, which is
+      #74's own ground for refusing to render a broad census member here. A subject's <i>own</i>
+      page carries its rules.</p>
+      <p><b>No control in any row.</b> A row's key is a link and a link is not a control (#74
+      decision 7) — it carries no state and approves nothing. A checkbox, an
+      <code>Acknowledge</code>, a <code>Mute</code> or an <code>Exclude</code> in any row makes this
+      ADR-0002's rejected approval queue, and the resemblance is visual rather than semantic, which
+      is why it has to be refused by name.</p>
+      <p><b>No badge on the nav.</b> Same discriminator as #51 §4 and #123 §3: a number on the nav
+      that goes down as you work is how a queue recruits attention.</p>`)}`;
+}
+
+/* --- fill: the install holding custody of nothing (#118) ---------------------------------- */
+function fillCustodyless() {
+  const names = liveNames();
+  return `
+    ${anno("fill=custodyless — the modal install (#118)", `
+      <p>The <code>custody extension</code> is off, which for a cloud-resident estate is the
+      <b>correct</b> setting. The probing gate is total over an <code>Address</code>, so no
+      <code>Service</code> is ever observed and therefore none exists. <code>Name</code> and
+      <code>Address</code> render <i>in full</i>; the two derived kinds are empty by construction.</p>
+      <p>This is the fill that makes variant C's two-roots decision pay: a screen whose roots are
+      <code>Name</code> and <code>Address</code> is <b>the same screen</b> here as on the estate
+      fill. A four-kind listing would be two-thirds empty and would have to explain itself.</p>
+      <p><b>No port-reading rule is populated on this fill</b>, and nothing here restates
+      #44's <code>?fill=modal</code> figures, which #118 superseded.</p>`)}
+
+    <div class="counts">
+      <div class="c"><span class="v">${n(names.length)}</span><span class="ml">names</span></div>
+      <div class="c"><span class="v">${n(ADDR_RESOLVED.length)}</span><span class="ml">addresses</span></div>
+      <div class="asof"><span class="v">as of 2026-08-15 04:07</span><span class="ml">the open span</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Names</h2><span class="hint">measured at full aperture — a query is not a connect</span></div>
+      <table><thead><tr><th>Name</th><th>Resolution</th><th class="num">Since</th></tr></thead>
+        <tbody>${names.slice(0, 8).map(x => `<tr>
+          <td><a class="k" href="#">${esc(x.k)}</a><span class="rowsub cite">${esc(x.cite)}</span></td>
+          <td class="m muted">${esc(x.res.shadow ? "Shadowed" : (x.res.gap ? "—" : x.res.v))}</td>
+          <td class="num muted">≥ ${esc(x.since)}</td></tr>`).join("")}</tbody></table>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Addresses</h3><span class="hint">in the estate, and nothing connects to them</span></div>
+      <table><thead><tr><th>Address</th><th>Custody</th><th>Reach</th></tr></thead>
+        <tbody>${ADDR_RESOLVED.slice(0, 6).map(a => `<tr>
+          <td><a class="k" href="#">${esc(a.k)}</a><span class="rowsub cite">${esc(a.cite)}</span></td>
+          <td><span class="tag">third-party</span></td>
+          <td class="gapcell"><span class="cause">we never looked</span>
+            <span class="prior">the custody gate has never been open here — no timeline exists</span></td>
+        </tr>`).join("")}</tbody></table>
+    </div>
+
+    <div class="empty">
+      <span class="ml">Services and endpoints</span>
+      <p>There are none, and none will be added. A <code>Service</code> enters the estate by being
+      observed, and nothing can be observed through a shut gate — so this is a closing remainder
+      rather than a standing debt.</p>
+      <p>You have not lost anything you were entitled to. The addresses your names point to are
+      somebody else's, and this tool has taken you at your word about that.</p>
+    </div>`;
+}
+
+/* --- fill: an address scope declared, before anything has answered ------------------------ */
+function fillDeclared() {
+  return `
+    ${anno("fill=declared — after the declaration, before the first batch", `
+      <p>Two seeds were declared five minutes ago and no batch has run. <b>The screen is not
+      empty</b>, and that is the interesting part: an address inside a declared address scope is a
+      subject <i>from the declaration</i>, with its <code>Citation</code> hopping straight to the
+      <code>Seed</code> (ADR-0047). A name scope enumerates nothing, so the name list <i>is</i>
+      empty.</p>
+      <p>So <code>Subjects</code> is half-populated before the product has measured anything, and
+      the two halves are empty for different reasons. A single &ldquo;no data yet&rdquo; state would
+      be false on one of them.</p>`)}
+
+    <div class="counts">
+      <div class="c"><span class="v">0</span><span class="ml">names</span></div>
+      <div class="c"><span class="v">${n(SCOPE_SIZE)}</span><span class="ml">addresses</span></div>
+      <div class="asof"><span class="v">no batch has completed</span><span class="ml">declared 2026-08-15 09:12</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Names</h2></div>
+      <div class="pad"><div class="empty"><span class="ml">Nothing yet</span>
+        <p>A name scope enumerates nothing. <code>example.com</code> is declared, and the names
+        inside it are reached only by measured resolution — the first batch will put them here.</p>
+        <p>Supplying the zone file is what makes their <i>absence</i> measurable later, so removal
+        detection exists in this scope at all.</p></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Addresses</h3>
+        <span class="hint">${n(SCOPE_SIZE)} from the declaration · ${n(SCOPE_SIZE)} holding
+        <code>not-reached</code></span></div>
+      <table><thead><tr><th>Address</th><th>Custody</th><th>Reach</th></tr></thead>
+        <tbody>${ADDR_SCOPE_SAMPLE.map(a => `<tr>
+          <td><a class="k" href="#">${esc(a.k)}</a><span class="rowsub cite">${esc(a.cite)}</span></td>
+          <td><span class="tag blue">operator</span></td>
+          <td class="m">not-reached<span class="rowsub">a measured value from the declaration, not a
+            gap and not nothing at all</span></td></tr>`).join("")}
+        <tr><td colspan="3" class="muted">… and ${n(SCOPE_SIZE - ADDR_SCOPE_SAMPLE.length)} more</td></tr>
+        </tbody></table>
+      <div class="card-f">This is the one place in the product where a subject exists and a
+      measurement does not, and it is deliberate: the declaration <i>is</i> the enumeration
+      (ADR-0047), so the coverage denominator for this scope is ${n(SCOPE_SIZE)} from the moment it
+      was typed.</div>
+    </div>`;
+}
+
+/* ==================================================================== SCREEN: search ======= */
+
+function screenSearch(p) {
+  const gone = goneNames()[0];
+  return `
+    <h1 class="page">Search — the one lookup that reaches outside the estate</h1>
+    <p class="sub">The finding this screen exists for. A list of the living, on its own, manufactures
+    a false absence at the search box — and the repair is not a listing.</p>
+
+    ${anno("the defect, drawn", `
+      <p>An operator types <code>legacy.example.com</code>. It withdrew on 2026-07-02, measured
+      properly: our own resolver got a Name Error from every available vantage. If search runs over
+      the estate list, the answer is <b>no results</b>.</p>
+      <p><code>No results</code> reads as <i>we have no record of this</i>. The truth is
+      <i>we measured it gone, on this date, this way</i>. That is a source erroring and producing an
+      observation of absence — the failure the project refuses everywhere else, arriving through a
+      text box.</p>`, true)}
+
+    <div class="hit bad">
+      <div class="hh"><span class="k">legacy.example.com</span><span class="tag gone">what a living-only search says</span></div>
+      <div class="hb"><p class="muted">No results.</p></div>
+    </div>
+
+    <div class="inkp">
+      <span class="ml">the ruling</span>
+      <h3>Search answers over the estate and the withdrawn. The listing is the estate alone.</h3>
+      <p>Search takes a <b>key</b> and returns at most one subject, so it is a lookup and not a
+      list — no ordering to choose, no length that grows, no partition to state a denominator for.
+      That is the whole of why it can safely reach a population a listing may not.</p>
+      <p>And it is the only surface that has to: <i>is this still here?</i> is the one question an
+      operator brings a key to, and it is unanswerable from a list of what is here.</p>
+    </div>
+
+    <div class="hit">
+      <div class="hh"><span class="k">${esc(gone.k)}</span><span class="tag gone">withdrawn</span></div>
+      <div class="hb">
+        <p><b>Withdrawn on ${esc(gone.left)}</b>${gone.leftFloor ? ` <span class="muted">(floor — a
+          release moved <code>resolution-walk</code> since, so nothing crosses back past the
+          re-baseline)</span>` : ""}.</p>
+        <p>${esc(gone.how)}. Nothing left because time passed, and nothing left by a state we
+        invented.</p>
+        <p class="muted mono">last value: ${esc(gone.lastValue)} · ${esc(gone.cite)}</p>
+        <p>Its timelines are closed. It has no current state, so it appears in no count and no list
+        on this screen — and if it is ever measured back, it returns as <code>returned</code> and
+        the estate list is where you will find it.</p>
+      </div>
+    </div>
+
+    ${anno("what lost, and it lost on arithmetic", `
+      <p><b>A <i>withdrawn</i> listing.</b> The obvious answer, and the one a usability pass will
+      propose. It cannot be rendered honestly in any ordering:</p>
+      <p>— <b>Ordered by when it left</b>, it is a reverse-chronological feed of change, which is
+      #10's rejected variant B rebuilt on the second screen.<br>
+      — <b>Ordered by the subject</b>, it is the complete list of everything that has ever left this
+      install, which grows monotonically for the instance's whole life and never shrinks. The
+      <code>Span</code> corpus is never compacted (ADR-0041), so nothing ever bounds it. That is a
+      screen whose length is a function of the install's <b>age</b> — the defect #74 removed from
+      <code>Signals</code>, where it was a function of estate size.<br>
+      — <b>Truncated</b>, it is #74's refused row threshold, a number on a screen that nothing
+      versions.<br>
+      — <b>Filtered to the last 30 days</b>, it is a screen-side partition of a population, which is
+      ADR-0024's refused object with a date in it instead of a predicate.</p>
+      <p><b>Four renderings, four different refusals already on the books.</b> That is what makes
+      this a ruling rather than a preference.</p>`)}
+
+    <div class="note">
+      <p><b>The operator is not left without a record, and the record is not this screen.</b>
+      A withdrawal fires a membership message at the cause, and the message store is written and
+      rendered unconditionally — it is not a <code>Channel</code>, has no configuration, cannot be
+      disabled and cannot fail. Ordered by time, which is correct for a log and wrong for an
+      inventory. The exposure board carries the <code>withdrawn</code> column for the comparison
+      window. The subject's own page still exists and renders its closed timelines.</p>
+      <p><b>Three carriers, and this ruling leans on the first.</b> If the message store ever
+      acquires a retention horizon, the durable record of departures goes with it and this refusal
+      needs re-pricing. v1 ships it unbounded, so the debt is not due — but it is named.</p>
+    </div>
+
+    ${anno("a second false absence, repaired the same way", `
+      <p><code>198.51.100.61</code> is <i>in</i> the estate — it is inside a declared address scope,
+      so it is a subject from the declaration — and <code>legacy.example.com</code>, which used to
+      resolve there, is not. Searching either key has to say something true about the other, or the
+      operator concludes the address left too. The address row carries it as a note; the name's hit
+      carries its last value. Neither is a link between two live rows, because one of them is not a
+      row.</p>`)}`;
+}
+
+/* ============================================================== SCREEN: vsmember =========== */
+
+function screenVsMember(p) {
+  const c = census();
+  const est = liveNames();
+
+  const memberRows = c.notFired.map(x => `<div class="r">${esc(x.k)}</div>`).join("");
+  const estateRows = est.map(x =>
+    `<div class="r">${esc(x.k)}<span class="cite">${esc(x.cite)}</span></div>`).join("");
+
+  return `
+    <h1 class="page">A census member, and <code>Subjects</code>, side by side</h1>
+    <p class="sub">#74's question nobody had asked. Both are lists of bare
+    <code>Name</code>s; #74 ruled they may not be the same object and nobody had drawn them
+    together. Drawn, five things separate them and two of them are visible from across the room.</p>
+
+    <div class="two">
+      <div class="lane">
+        <div class="lh">
+          <div class="who">Signals → <code>${esc(RULE.name)}</code> → did not fire</div>
+          <div class="den"><b>${n(c.notFired.length)}</b> of <b>${n(c.domain)}</b> in the domain ·
+            fired ${n(c.fired.length)} · not-evaluable ${n(c.ne.length)}<br>
+            as evaluated ${esc(RULE.instant)} · ${esc(RULE.leaf)}</div>
+        </div>
+        <div class="barestack">${memberRows}</div>
+        <div class="lf"><b>Domain:</b> ${esc(RULE.domainWords)}. The rows are bare because the
+        evidence is constant across the member — what is the same on every row belongs above them
+        (#74 decision 4). No search box: forty rows under a header reading
+        <code>${n(c.notFired.length)}</code> would be two numbers over one population disagreeing on
+        screen.</div>
+      </div>
+
+      <div class="lane">
+        <div class="lh">
+          <div class="who">Subjects → Names</div>
+          <div class="den"><b>${n(est.length)}</b> names<br>
+            as of 2026-08-15 04:07 · the open span</div>
+        </div>
+        <div class="barestack">${estateRows}</div>
+        <div class="lf">No denominator, because the estate has none — <i>how many names ought there
+        to be</i> is estate completeness, and the operator is the only source for it. A search box
+        instead, and every row carries the one thing the member list may never carry: why it is
+        here.</div>
+      </div>
+    </div>
+
+    <table class="disc">
+      <thead><tr><th>Discriminator</th><th>A census member</th><th><code>Subjects</code></th></tr></thead>
+      <tbody>
+        <tr><td>Header</td>
+          <td>States a <b>denominator</b> — it is a cell of a stated partition, and its count is the
+            length of its own list</td>
+          <td>States <b>counts and no denominator</b> — the estate is not a fraction of anything
+            measurable</td></tr>
+        <tr><td>Search</td>
+          <td><b>None, ever.</b> A visible subset under a stated total is two numbers over one
+            population (#74 decision 8)</td>
+          <td><b>Required.</b> #10 made this screen searchable and complete; with no denominator
+            there is no total for a subset to contradict</td></tr>
+        <tr><td>Row content</td>
+          <td>Bare — and never a <code>Citation</code>. Provenance is constant per seed and says
+            nothing about what the rule concluded</td>
+          <td><b>Carries the <code>Citation</code></b>. <i>Why is this here</i> is answerable for
+            every subject by walking back to a <code>Seed</code>, and it is this screen's job</td></tr>
+        <tr><td>Which subject kinds</td>
+          <td>Whatever the rule's subject is — including <code>Endpoint</code> and
+            <code>Service</code>, which have no listing anywhere else</td>
+          <td>Only the two that can be the root of an entering sub-tree (ADR-0031)</td></tr>
+        <tr><td>An absent row means</td>
+          <td><b>One of three things</b> — not in the estate, outside the domain, or in another
+            member. The census states all three, which is why every member is drillable</td>
+          <td><b>One thing</b> — it is not in your estate</td></tr>
+        <tr><td>Instant</td>
+          <td>The evaluation instant of the census it came from, never one of its own</td>
+          <td>Now — the open span</td></tr>
+        <tr><td>Version</td>
+          <td>Inside the rule's leaf; the population <code>Break</code>s when the leaf moves</td>
+          <td>None. There is no rule, so there is nothing to version</td></tr>
+      </tbody>
+    </table>
+
+    ${anno("the arithmetic that proves they are different populations", `
+      <p>The estate holds <b>${n(est.length)}</b> living names. The rule's domain holds
+      <b>${n(c.domain)}</b>. The difference is <code>${esc(c.outside.map(x => x.k).join(", "))}</code>,
+      which is <b>in the estate and outside the rule's domain</b> — its delegation is lame, so it has
+      no address set and the question the rule asks does not arise.</p>
+      <p>Neither list is a subset of the other in general, either. A member list can hold a subject
+      that has withdrawn since the census instant; <code>Subjects</code> cannot hold one at all.</p>`)}
+
+    ${anno("so what is `Subjects` filtered by that rule?", `
+      <p><b>There is no such object, and the reason is not fussiness.</b> To filter this screen by a
+      rule, the screen would have to evaluate the rule — and a filter on a screen is unversioned by
+      construction (ADR-0024), so the same population would exist twice, once inside a leaf that
+      <code>Break</code>s and once on a page that does not. The two copies disagree the first time
+      the leaf moves and nothing on screen can say why.</p>
+      <p><b>The general rule that falls out, and it is the useful part:</b> a filter on
+      <code>Subjects</code> is legal exactly where its predicate is a value the row already renders.
+      <code>custody</code> is a column, so <code>custody: third-party</code> is a legal filter and
+      narrows to rows whose visible cell says so. A rule's verdict is not a column and may not
+      become one. That single test also discharges #51's warning without a special case: the custody
+      extension's population is <i>addresses a name inside the scope resolves to directly</i>, which
+      is not a cell on any row here, and whose honest rendering includes rows this screen does not
+      have.</p>`)}`;
+}
+
+/* ================================================================= SCREEN: cells =========== */
+
+function screenCells(p) {
+  const rows = [
+    { pop: "withdrawn", what: "The subject left the estate, measured (ADR-0006). Its timelines are closed.",
+      where: "<b>Not a cell and not a row.</b> The only one of the six that is a population, and the only one that cannot be read off current state — there is no open span to read. Reached by key, on search.",
+      cmp: "yes" },
+    { pop: "<code>Shadowed</code>", what: "The resolution holds a value we cannot discriminate from a synthesised answer.",
+      where: "A living row, with a <b>membership</b> annotation: <i>cannot be measured absent · supply coverage or exclude it</i>. The only absence that says something about membership while the subject is alive.",
+      cmp: "no" },
+    { pop: "we never looked", what: "No vantage of that class was ever configured. The timeline never existed.",
+      where: "A cell in the absence treatment, cause stated, and <code>never evaluated · no prior value</code> beneath it. Nothing failed, so no fault keying.",
+      cmp: "no" },
+    { pop: "we stopped looking", what: "A configured leg went silent — our vantage, our batch, our currency bound, our gate.",
+      where: "A cell, cause stated, the last value in the muted role with an explicit as-of, and the fault keying <b>only</b> where something failed.",
+      cmp: "no" },
+    { pop: "you stopped answering", what: "A lame delegation beneath the operator's own infrastructure (#35).",
+      where: "A cell that <b>cites the rule already reporting it</b> rather than raising a second fault. The only one of the six carrying an action the operator can take.",
+      cmp: "no" },
+    { pop: "a closed custody gate", what: "A withdrawn extension, or a decline carving a confirmed scope.",
+      where: "During the retention window: <b>an ordinary current value</b>, with <code>third-party</code> above the table rather than per row, because one act covers every row identically. After it: a cell.",
+      cmp: "no" },
+  ];
+
+  return `
+    <h1 class="page">The six absence populations, sorted</h1>
+    <p class="sub">The map's fog patch handed this screen six populations read off one record. Sorted
+    by <i>what the absence is an absence of</i>, five of them turn out not to be populations of this
+    screen at all.</p>
+
+    <div class="inkp">
+      <span class="ml">the cut</span>
+      <h3>Absence is a property of a cell, not of a row — and <code>withdrawn</code> is the
+      exception, on both halves of the question at once.</h3>
+      <p>Five of the six are states of one facet timeline on a subject that is fully alive and
+      already in the list. Only <code>withdrawn</code> changes whether a row exists.</p>
+      <p>And the ticket's second half has the same answer. A <code>Gap</code> is a span, and it
+      records its cause — so every one of the five is read off <b>current state</b>, exactly like the
+      living. <code>withdrawn</code> has no open span, so it is found by reading a <b>closed</b> span
+      with nothing after it. It is the one population that cannot be listed without a comparison,
+      and it is the one population that is not a cell. The two halves of the question cut in the same
+      place, which is what makes this a cut rather than two rulings.</p>
+    </div>
+
+    <table class="disc">
+      <thead><tr><th>Population</th><th>What it is</th><th>How it renders</th><th>Needs history?</th></tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td>${r.pop}</td><td>${r.what}</td><td>${r.where}</td>
+        <td class="m">${r.cmp === "yes" ? "<b>yes</b>" : "no"}</td></tr>`).join("")}</tbody>
+    </table>
+
+    ${anno("one correction to the vocabulary the fog handed over", `
+      <p>The patch says <i>six populations read off one record, since every <code>Gap</code> states
+      its cause</i>. The record is right and the object named is not: <code>Shadowed</code> is
+      <b>not a <code>Gap</code></b>. It is a value the model holds on <code>resolution</code>, and
+      what is absent is a rule's ability to apply a predicate to it — #44's fourth cause,
+      <i>we measured; this rule cannot read the answer</i>, which is a <code>Gap</code> on the
+      <b>signal's</b> timeline sitting above a perfectly good value on the facet's.</p>
+      <p>The record all six are read off is therefore <b>the open span</b>, not the <code>Gap</code>.
+      That is a strictly wider claim and it is the one that makes the ruling work: reading the open
+      span is what every living row already does.</p>`)}
+
+    <div class="card">
+      <div class="card-h"><h3>Drawn: five cells on rows that are alive</h3></div>
+      <table>
+        <thead><tr><th>Name</th><th>Resolution</th><th class="num">In the estate since</th></tr></thead>
+        <tbody>
+          <tr><td><a class="k" href="#">wild.example.com</a>
+                <span class="rowsub"><span class="tag warn">cannot be measured absent · supply coverage or exclude it</span></span></td>
+              <td><span class="tag warn">Shadowed</span>
+                <span class="rowsub">the authority answers every label beneath its parent</span></td>
+              <td class="num muted">2026-07-28</td></tr>
+          <tr><td><a class="k" href="#">old.example.com</a></td>
+              <td class="gapcell"><span class="cause">you stopped answering</span>
+                <span class="prior">last read Resolved · 1 address · 2026-08-02 04:07</span>
+                <span class="prior">lame-delegation is firing on this name — no second fault is raised here</span></td>
+              <td class="num muted">≥ 2026-06-04 <span class="faint">(floor)</span></td></tr>
+          <tr><td><a class="k" href="#">stage.example.com</a></td>
+              <td class="gapcell fault"><span class="cause">we stopped looking</span>
+                <span class="prior">last read Resolved · 1 address · 2026-08-12 04:07</span>
+                <span class="prior">vantage-fra1 has been unavailable since 2026-08-12</span></td>
+              <td class="num muted">≥ 2026-06-02 <span class="faint">(floor)</span></td></tr>
+          <tr><td><a class="k" href="#">arch.example.com</a></td>
+              <td class="gapcell"><span class="cause">we never looked</span>
+                <span class="prior">never evaluated · no prior value</span>
+                <span class="prior">no internal-class vantage has ever been configured</span></td>
+              <td class="num muted">2026-08-14</td></tr>
+          <tr><td><a class="k" href="#">edge.example.com</a>
+                <span class="rowsub">its addresses sit behind a gate you shut on 2026-08-14</span></td>
+              <td class="m">Resolved · 2 addresses
+                <span class="rowsub">a current value. The gate stopped us feeding the reachability
+                timelines; this one was never gated, and the ports below are held for 2 cadences
+                and then age out</span></td>
+              <td class="num muted">2026-06-02</td></tr>
+        </tbody>
+      </table>
+      <div class="card-f">Four cells and one ordinary value. The closed-gate row is drawn as a
+      <b>value</b> because during the retention window it is one — the gate stopped the feed, and the
+      reading ages out under the currency bound rather than being retracted. No countdown, no fault
+      band, no strike-through and no <code>stale</code>: all four say <i>this reading no longer
+      counts</i>, and it counts.</div>
+    </div>
+
+    ${anno("the undatable pair, which only bites here", `
+      <p>A value arriving after a <code>Gap</code> cannot be dated (#42). On this screen that lands
+      in exactly one place: a cell whose gap has just closed shows both values and <b>no date for the
+      move</b> — <code>not-reached → reached · undatable (a gap sits between them)</code>. It may
+      never render as <code>changed 3 days ago</code>, and it may never be silently dropped either,
+      because a genuine escalation that happened while a vantage was down would then vanish without
+      trace.</p>
+      <p>Note what it is <i>not</i>: a <code>Break</code>. Across a break we lack the licence to
+      compare; across a gap both values are the same kind of thing under one derivation and what we
+      lack is <i>when</i>. Same shape as the floor beside it in the <code>since</code> column, and
+      the two are deliberately worded differently so a reader does not fuse them.</p>`)}`;
+}
+
+/* ------------------------------------------------------------------ render */
+function render() {
+  const p = params();
+  let body;
+  if (p.screen === "search")   body = screenSearch(p);
+  else if (p.screen === "vsmember") body = screenVsMember(p);
+  else if (p.screen === "cells")    body = screenCells(p);
+  else body = screenSubjects(p);
+
+  document.getElementById("app").innerHTML = chrome(body);
+
+  const grp = (label, key, list, cur) => `<div class="grp"><span>${label}</span>` +
+    list.map(v => `<button data-k="${key}" data-v="${v}" class="${v === cur ? "on" : ""}">${v}</button>`).join("") +
+    `</div>`;
+
+  let bar = grp("screen", "screen", SCREENS, p.screen);
+  if (p.screen === "subjects") {
+    bar += grp("variant", "variant", VARIANTS, p.variant);
+    if (p.variant === "C") bar += grp("fill", "fill", FILLS, p.fill);
+  }
+  const sw = document.getElementById("switch");
+  sw.innerHTML = bar;
+  sw.querySelectorAll("button").forEach(b =>
+    b.onclick = () => go({ [b.dataset.k]: b.dataset.v }));
+}
+
+document.addEventListener("keydown", e => {
+  const p = params();
+  if (p.screen !== "subjects") return;
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const i = VARIANTS.indexOf(p.variant);
+  const j = (i + (e.key === "ArrowRight" ? 1 : VARIANTS.length - 1)) % VARIANTS.length;
+  go({ variant: VARIANTS[j] });
+});
+
+render();
+</script>
+</body>
+</html>
