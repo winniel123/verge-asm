@@ -42,10 +42,28 @@ type Querier interface {
 	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
+	// The Seed a Name's Citation chain terminates at: the name scope whose query set
+	// the dns Scan was drawn from (CONTEXT.md `Citation` — every chain bottoms out at
+	// a Seed or a declared source). Wave-0 measures the seed domains themselves; the
+	// label-wise suffix match also carries a later enumerated subdomain to its scope,
+	// and the longest matching domain wins when scopes nest.
+	FindCoveringNameSeed(ctx context.Context, name string) (FindCoveringNameSeedRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
+	// The Citation chain's load-bearing hop: the observation that introduced a Name
+	// — its earliest resolution observation — plus the Batch and Scan it rode in on
+	// (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
+	// measurement that first admitted the subject; the chain terminates one hop
+	// further at the covering Seed (FindCoveringNameSeed).
+	GetNameCitation(ctx context.Context, subjectKey string) (GetNameCitationRow, error)
+	// Resolve a Name key to at most one subject, withdrawn or not. Search is a
+	// lookup and not a listing (ADR-0072 decision 3): the drill-down reaches a
+	// measured-gone Name by its own key rather than manufacturing a false "no
+	// record" at the URL. The caller reads the latest resolution value to decide
+	// whether the subject names a population of no current member.
+	GetNameSubject(ctx context.Context, subjectKey string) (GetNameSubjectRow, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
@@ -59,6 +77,21 @@ type Querier interface {
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
+	// Reads behind the Subjects screen (#189). All four are additive read queries
+	// over the wave-0 measurement corpus (observation / batch / scan) and the seed
+	// table — no new schema. `ListCurrentNameSubjects` is the thin "current Names"
+	// membership read the seam note (#189 → #192) asks for: it is the one place a
+	// caller decides which Names are in the estate, so a later refinement of
+	// membership (Shadowed suppression, #192; the cross-class withdrawal quorum,
+	// ADR-0006/ADR-0080) narrows this predicate here rather than growing a second
+	// computation elsewhere.
+	// Every Name currently in the estate, with optional search. A Name is a member
+	// while its latest resolution observation is not a measured Name Error — the
+	// only route a Name leaves is our resolver measuring NameError (ADR-0006). No
+	// count is selected: the estate can carry no honest denominator (ADR-0072), so
+	// there is nothing here to total. A withdrawn Name (latest resolution =
+	// NameError) is filtered out and reached only by key (GetNameSubject).
+	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
