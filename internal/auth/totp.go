@@ -26,6 +26,17 @@ const (
 // shared secret.
 var b32 = base32.StdEncoding.WithPadding(base32.NoPadding)
 
+// totpMod is 10^totpDigits, the modulus that truncates the HOTP value to
+// totpDigits digits. It is derived from the constant so the width and the
+// modulus cannot drift apart.
+var totpMod = func() uint32 {
+	m := uint32(1)
+	for i := 0; i < totpDigits; i++ {
+		m *= 10
+	}
+	return m
+}()
+
 // NewTOTPSecret returns a fresh random base32 TOTP secret.
 func NewTOTPSecret() (string, error) {
 	buf := make([]byte, totpSecretBytes)
@@ -89,7 +100,7 @@ func codeFromKey(key []byte, t time.Time) string {
 		uint32(sum[offset+1])<<16 |
 		uint32(sum[offset+2])<<8 |
 		uint32(sum[offset+3])
-	return fmt.Sprintf("%0*d", totpDigits, bin%1_000_000)
+	return fmt.Sprintf("%0*d", totpDigits, bin%totpMod)
 }
 
 // OtpauthURI builds the otpauth:// URI an authenticator app consumes via QR

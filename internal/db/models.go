@@ -5,6 +5,8 @@
 package db
 
 import (
+	"net/netip"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -21,4 +23,13 @@ type Account struct {
 type Heartbeat struct {
 	ID        int64              `json:"id"`
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
+}
+
+type Seed struct {
+	ID          int64              `json:"id"`
+	Kind        string             `json:"kind"`
+	NameDomain  pgtype.Text        `json:"name_domain"`
+	AddressCidr *netip.Prefix      `json:"address_cidr"`
+	CreatedBy   int64              `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
