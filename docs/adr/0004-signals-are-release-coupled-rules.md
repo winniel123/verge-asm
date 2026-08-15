@@ -41,9 +41,13 @@ rejected; in a product whose subject is change, urgency comes from the transitio
 surfaced the signal.
 
 **Absent evidence yields `not-evaluable`, never "did not fire."**
-[ADR-0002](./0002-ownership-gates-probing.md) limits probing on `third-party` addresses to the
-ports the `Name` implies, so port-facts rules have no evidence there. Reporting that as clean
-would give every SaaS-fronted address in the estate a bill of health it never earned.
+[ADR-0002](./0002-ownership-gates-probing.md) ~~limits probing on `third-party` addresses to the
+ports the `Name` implies~~ — **amended by [#118](https://github.com/winniel123/verge-asm/issues/118)
+/ [ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md): the gate is **total** over the
+address and no port is probed there at all** — so port-facts rules have no evidence there.
+Reporting that as clean would give every SaaS-fronted address in the estate a bill of health it
+never earned. The correction makes the sentence *stronger*, not weaker: it is not that only some
+ports are unread there, it is that none is.
 
 **A new signal is alertable if and only if the effective rule version was unchanged between
 the two evaluations.** A signal is a pure function of its inputs and its rule; hold the rule
@@ -81,9 +85,12 @@ matters because the example is what an implementer would build from.
 
 [ADR-0014](./0014-only-revealed-generalises.md) settled that a `Batch` whose recorded scope
 excludes a thing **never touches its timeline**, so a `Gap` — which is a span — does not open
-where there was never a timeline to interrupt. Applied here: on a `third-party` address only
-the ports the `Name` implies are probed, so no `Service` on a sensitive-list `(port,
-transport)` pair is ever *observed* there. No subject exists. A signal cannot return
+where there was never a timeline to interrupt. Applied here: on a `third-party` address ~~only
+the ports the `Name` implies are probed~~ **nothing is probed at all**
+([#118](https://github.com/winniel123/verge-asm/issues/118) /
+[ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md)), so no `Service` on **any**
+`(port, transport)` pair — sensitive-list or otherwise — is ever *observed* there. No subject
+exists, and the population is empty rather than merely thinned. A signal cannot return
 `not-evaluable` about a subject that is not in the estate, so the sentence *"port-facts rules
 have no evidence there"* describes something real that this term cannot express.
 

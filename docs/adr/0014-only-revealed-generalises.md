@@ -262,6 +262,43 @@ signal timelines open, so the flagship predicate, the projection and all ten rul
 transition-shaped and match none of them. The census is the only thing that reaches the operator,
 which makes it load-bearing rather than decorative.
 
+## Amendment — [#118](https://github.com/winniel123/verge-asm/issues/118): the deferred
+rendering cost, discharged
+
+*"Custody closing does not touch currency"* above says the cost *"is real and is **discharged
+elsewhere** rather than accepted"*, and names the discharge: **"every surface says *this is not
+yours* beside the aged value."** No surface had drawn it. #118 draws it
+([`prototypes/custody-of-nothing/`](../../prototypes/custody-of-nothing/)) and settles four things
+this section left to whoever got there first.
+
+- **The retained value is a value, not a leftover, and is rendered as one** — ordinary ground,
+  ordinary weight, with the as-of stamp and the **bound as a rule** beside it (`held for 2
+  cadences · 2 days on this Scan`). It is current, rules keep reading it, and the flagship keeps
+  firing off it. Every treatment that implies otherwise — a countdown, the fault band, blanking at
+  the toggle, striking the value through — is a way of saying *this reading no longer counts*, and
+  it counts.
+- **The bound is stated and the date is not.** A deadline implies an act available before it, and
+  the only act here is to re-assert custody the operator does not have — which is
+  [#44](https://github.com/winniel123/verge-asm/issues/44)'s refused `Enable` button arriving as a
+  clock. Note the true magnitude: every sensitive-list pair sits in `verge-core`, so the covering
+  cadence is **daily** and the window is **two days**, not the fortnight the weekly tier implied
+  before [#78](https://github.com/winniel123/verge-asm/issues/78) retired it.
+- **The custody marker's altitude follows the extent of the move.** A withdrawn extension is one
+  act over the whole scope, so `third-party` is true of every row identically and belongs **above**
+  the board as an ink bar, per [#74](https://github.com/winniel123/verge-asm/issues/74)'s rule that
+  what is the same on every row belongs above them. A **per-row** chip is correct only where
+  custody is mixed — a resolution chain leaving the zone while the extension stays on — and there
+  it marks the exception rather than the rule. A constant column would be noise on every install
+  that is not this one.
+- **The two ends of the window are not the same screen, and the far end is not the same screen as
+  an install that never opened the gate.** `never` has no subject: no timeline, no `Gap`, no row,
+  and the honest carrier is the standing aperture statement on `Coverage`. `aged` has the full
+  subject population holding `Gap`s that record their cause and their last reading. Drawing them
+  alike would say the operator's act never happened. What makes the second bearable is a fact the
+  gate supplies for free: **the population can only shrink** — nothing can observe a new `Service`
+  through a shut gate, so no row can join it, and rows leave as resolutions stop citing their
+  addresses.
+
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in three entries.** `Transition` now says that
