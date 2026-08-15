@@ -469,9 +469,15 @@ swallowed — a source that starts emitting unkeyable names is a source that has
   text.
 - **ADR-0051's corpus gains twelve rows and a second input shape.** One artefact, one inverted gate;
   a master-file row's input is `(owner field, current origin)`.
-- **The `Seeds` screen owes refusal copy for a U-label**, naming the A-label as the route, in the
-  shape #85 established for an over-cap IPv6 declaration. The legal future conversion — the box
-  offers, the operator declares — is named so nobody builds the illegal one.
+- ~~**The `Seeds` screen owes refusal copy for a U-label**, naming the A-label as the route, in the
+  shape #85 established for an over-cap IPv6 declaration.~~ **Discharged by
+  [ADR-0052](./0052-a-declaration-refusal-names-a-route-and-never-takes-it.md) and
+  [#123](https://github.com/winniel123/verge-asm/issues/123)** — the copy is written, and the *shape*
+  three ADRs asserted without stating is now stated: a refusal names a route and never takes it. One
+  rider that was not obvious from here: the refusal **may not compute the A-label**, because printing
+  *did you mean `xn--…`* runs the UTS-46 conversion this ADR bars and renders its output as advice.
+  The route named is where to obtain the A-label, never the A-label. The legal future conversion —
+  the box offers, the operator declares — is named so nobody builds the illegal one.
 - **`Name`'s lifecycle is unchanged and no subject is added.** ADR-0006 governs departure and
   nothing here touches it.
 

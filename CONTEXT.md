@@ -69,7 +69,16 @@ queried. A name scope and its name exclusions are held in the same form their na
 **subtree containment is label-wise suffix comparison** over the key: the candidate's labels end
 with the scope's labels, compared label by label. That is the name-side twin of the address rule
 above, and it is what stops `evilexample.com` reading as inside `example.com`, which a suffix test
-over text would admit and the probing gate would then open on.
+over text would admit and the probing gate would then open on. A name's own labels end with its own
+labels, so **a subtree exclusion covers the subtree's own name** as well as everything beneath it —
+which is exactly where it parts from the wildcard it is mistaken for, `*.example.com` matching
+`foo.example.com` and never `example.com`. The consequence is stated rather than hidden: *the names
+beneath a name but not the name itself* is a set v1 has **no object for**, since the three exclusion
+kinds are all it has and the remaining set is infinite. Because those three kinds are the whole of
+what may be typed, **a refused declaration names a route and never takes it** — a route may move the
+shipped configuration, never the operator's claim, so a form reaching a *different* set is named and
+never pre-filled, converted or auto-corrected. See
+[ADR-0052](./docs/adr/0052-a-declaration-refusal-names-a-route-and-never-takes-it.md).
 Registry lookups **propose** seeds and never author them: a `Proposal` the operator
 has not confirmed is not a `Seed`, asserts nothing, and is read by nothing, which is what
 keeps a third party's file out of the probing gate. Declining one is an exclusion of this kind
