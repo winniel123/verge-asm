@@ -171,7 +171,7 @@ denominator, and inventing one is [#28](https://github.com/winniel123/verge-asm/
 estate-completeness score arriving through the port axis.
 
 So the aperture statement's port-tier line states the tier, its cadence and its off state; it carries
-~~`0 of 37 sensitive pairs unread`~~ **`0 of 41 sensitive pairs unread`** and `0 of 16 rules
+~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41 sensitive pairs unread`~~ **`0 of 40 sensitive pairs unread`** (#109 removed `1433/tcp`) and `0 of 16 rules
 unevaluable`, both of which are ours, closed and
 true; and it says in prose that ports outside `verge-core` produce no `Service`, so nothing on them
 is measured, evaluated **or counted**. Unlike #44's custody row it may carry a pointer to the `Scan`
@@ -265,11 +265,11 @@ position ever changes.
   > alternatives is the shipped worst case rather than a hypothesis — the losing option's arithmetic
   > becomes unconditional. And the hot tier at that same cap costs **12 to 36 minutes per day** at
   > the 200 pkt/s ceiling, which is the figure this ADR could not state and the reason the surviving
-  > default fits inside its own cadence. ~~`0 of 37 sensitive pairs unread`~~ **`0 of 41 sensitive
-  > pairs unread`** is untouched **by the enumeration**: it is a
+  > default fits inside its own cadence. ~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41 sensitive
+  > pairs unread`~~ **`0 of 40 sensitive pairs unread`** is untouched **by the enumeration**: it is a
   > count over our own list, evaluated per `Service`, and enumeration only widens the population it
   > is true over. The denominator moved because the **list** moved — 37 → 39 → 41 — and the numerator
-  > is `0` for every value of it.
+  > is `0` for every value of it. **And it moved DOWN for the first time — 41 → 40 — when [#109](https://github.com/winniel123/verge-asm/issues/109) removed `1433/tcp` from the sensitive list; the numerator is still `0`, and **[measured]** the probed set did not move at all, `verge-core` staying at 136 pairs / 131 probed because the pair is in the frequency half.**
 
 ## Alternatives rejected
 
