@@ -362,8 +362,19 @@ operator-configurable.
 
 ## 6. What a default install measures
 
-> **v1 measures `verge-core`'s TCP pairs daily on every address in custody, and nothing else, until
-> the operator says otherwise.**
+> **v1 measures `verge-core`'s TCP pairs daily on every address in custody, ~~and nothing else,~~
+> until the operator says otherwise.**
+>
+> ***And nothing else* is withdrawn at this site**
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)). The
+> sentence is about the **port-tier aperture**, and read alone in the present tense it denies two
+> measurements a default install makes: `tls-acceptance`'s weekly enumeration over open `Service`s,
+> and — since [#142](https://github.com/winniel123/verge-asm/issues/142) /
+> [ADR-0084](../adr/0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)
+> — the **`dns` `Scan`, daily over the name scopes and ungated by `Custody`**, which is the only
+> thing an install holding custody of nothing measures at all
+> ([ADR-0019](../adr/0019-the-probing-gate-is-total-over-an-address.md)). The figures below are
+> untouched: they are about ports, and `dns` has none.
 
 That is [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)'s sentence with **three
 words added**, and the three words move a published figure.
@@ -432,7 +443,15 @@ so a measurement with no cadence has no currency bound* — and
 staleness is unbounded unless something covers it. Nothing did.
 
 **A fourth `Scan`, `zone`.** Scope: the name scopes holding a supplied zone. **No port list, no
-vantage choice** — the worker reads it. Cadence: the **operator's re-supply interval**, shipped at
+vantage choice** — the worker reads it.
+
+> **There are now five, and this section's *fourth* is an ordinal rather than a count** —
+> [#142](https://github.com/winniel123/verge-asm/issues/142) /
+> [ADR-0084](../adr/0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)
+> added **`dns`** on the same reasoning, covering `resolution` and our own resolver's `dns-record`.
+> Read **two port tiers and five `Scan`s** wherever this document counts them. *(ADR-0005's #124
+> amendment points at this section for the "full statement" of that hole; the statement was never
+> written here, and it is now discharged rather than transcribed.)* Cadence: the **operator's re-supply interval**, shipped at
 **monthly**, which is their declaration of how often they will re-export. Its batches restate the
 stored file's observations at the **supply instant**, so `k × cadence` bounds the operator's promise
 rather than our read, and a zone last supplied more than two cadences ago ages into a `Gap` — #48's

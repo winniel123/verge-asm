@@ -235,6 +235,12 @@ exists to remove, not a cheaper version of the fix.
   is not a port tier and must not be modelled as one — its scope is the open `Service` population
   and the TLS candidate set. Everything else in ADR-0005 applies to it unchanged: it is Declared, a
   manual dispatch does not reset its cadence, and its `Batch` records what it completed.
+  *This bullet is a **record of what this ADR did**, not a live count: there are now **five**
+  `Scan`s and still two port tiers — `zone` ([#124](https://github.com/winniel123/verge-asm/issues/124))
+  and `dns` ([#142](https://github.com/winniel123/verge-asm/issues/142) /
+  [ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md))
+  were added on ADR-0005's own reasoning afterwards. This ADR's rule is what added all three: **a
+  measurement needing a cadence of its own takes a `Scan` of its own.***
 - **[ADR-0011](./0011-a-facet-is-six-parts.md) is amended in one word and vindicated in
   substance.** *"A `Gap` opens two weeks after the weekly tier stops"* becomes *after its weekly
   `Scan` stops*; `tls-1.0-accepted` remains the slowest-moving signal in the set, and that is now

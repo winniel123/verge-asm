@@ -299,14 +299,28 @@ that address, since the extension is barred here by design. See
 _Avoid_: external, network position, inside/outside
 
 **Scan**:
-The operator's configured recurring intent — which scopes, which ports, which vantages,
-what cadence. The configured thing, never the executed one. **Not every `Scan` is a port
+The operator's configured recurring intent — which scopes, ~~which ports,~~ which vantages,
+what cadence, **and which ports only where its exchange is a connect**: the port list is
+**withdrawn from the general enumeration at this site**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)),
+two of the five carrying none. The configured thing, never the executed one. **Not every `Scan` is a port
 tier**: ~~two are, and the third is `tls-acceptance`'s weekly enumeration, whose scope is the
-open `Service` population and the TLS candidate set.~~ **there are four and only two are port
+open `Service` population and the TLS candidate set.~~ ~~there are four and only two are port
+tiers.~~ **there are five and only two are port
 tiers.** The third is `tls-acceptance`'s weekly enumeration, whose scope is the open `Service`
 population and the TLS candidate set; the fourth is **`zone`**, whose scope is the name scopes
 holding a supplied zone file and which has **no port list and no vantage choice at all**, the
-worker reading it. A measurement that needs a cadence of its
+worker reading it; the fifth is **`dns`**, whose scope is the name scopes **unconditionally** —
+independent of `Custody`, since **a query is not a connect** — which has **no port list** but
+runs at **every configured `Vantage`**, a resolution's answer being a function of where it was
+asked from, and whose cadence is the operator's, shipped at **daily**. It covers `resolution`
+and **our own resolver's** `dns-record`; the zone file's `dns-record` timeline is `zone`'s, one
+timeline per source. Until [#142](https://github.com/winniel123/verge-asm/issues/142) those two
+facets were covered by nothing, and an uncovered facet's currency bound is **undefined rather
+than loose** — so no `Gap` could open on either, and the `Address` entry's *in the estate
+exactly while a **current** resolution cites it* had no truth value at all
+([ADR-0084](./docs/adr/0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)).
+A measurement that needs a cadence of its
 own takes a `Scan` of its own, because a slower cadence hidden inside another `Scan` makes the
 aperture a hidden field rather than a configured object. **Recurring is load-bearing and not
 incidental**: currency is `k` cadences of the covering `Scan`, so a measurement with no cadence
