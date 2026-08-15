@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -138,6 +139,12 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 	var spec wire.JobSpec
 	if err := json.Unmarshal(job.Spec, &spec); err != nil {
 		return fmt.Errorf("decode spec: %w", err)
+	}
+
+	// The zone Scan is worker-read: no prober exec, no Vantage, and its
+	// observations are stamped at the operator's supply instant (v1 spec §3.4).
+	if spec.Kind == scan.ZoneKind {
+		return w.completeZone(ctx, job, spec)
 	}
 
 	obs, probeErr := w.prober.Probe(ctx, spec)
