@@ -35,7 +35,7 @@ observation, never an observation of absence.**
 | --- | --- |
 | Unit of work | **One queue job = one `Batch`** |
 | Batch partitioning | Along any dimension the source **retains enumerability** over |
-| Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence *(amended to **four** by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), on this row's own reasoning: `tls-acceptance`'s weekly enumeration is a fourth `Scan` whose scope is the open `Service` population and the TLS candidate set, not a port tier)*. *(Read **two** port tiers and **three** `Scan`s after [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly tier — see the amendment under "Port tiers are three `Scan`s".)* *(Read **two port tiers and four `Scan`s** after [#124](https://github.com/winniel123/verge-asm/issues/124) added **`zone`**, on this row's reasoning again — the operator's zone file needed a cadence of its own and had none, so its observations had no currency bound. Same section.)* |
+| Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence *(amended to **four** by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), on this row's own reasoning: `tls-acceptance`'s weekly enumeration is a fourth `Scan` whose scope is the open `Service` population and the TLS candidate set, not a port tier)*. *(Read **two** port tiers and **three** `Scan`s after [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly tier — see the amendment under "Port tiers are three `Scan`s".)* *(~~Read **two port tiers and four `Scan`s** after [#124](https://github.com/winniel123/verge-asm/issues/124) added **`zone`**~~, on this row's reasoning again — the operator's zone file needed a cadence of its own and had none, so its observations had no currency bound. Same section.)* *(Read **two port tiers and five `Scan`s** after [#142](https://github.com/winniel123/verge-asm/issues/142) added **`dns`** — [ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md), on this row's reasoning a third time, closing the hole #124 stated and would not guess at. Same section.)* |
 | Tick firing | **Any worker**, under a Postgres advisory lock, idempotent on `(scan, scheduled_time)` |
 | Fan-out | **Atomic** — the `Dispatch` row and all its job rows commit in one transaction |
 | Overlap | **Skip**, recorded as a first-class operational event |
@@ -221,7 +221,9 @@ protecting them.
 > [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md).
 
 > **Amended 2026-08-15 by [#124](https://github.com/winniel123/verge-asm/issues/124) — a fourth
-> `Scan`, `zone`, on this section's own reasoning.** Read **two port tiers and four `Scan`s**.
+> `Scan`, `zone`, on this section's own reasoning.** ~~Read **two port tiers and four `Scan`s**.~~
+> **Read two port tiers and five `Scan`s** — the fifth arrives in the amendment immediately below
+> this one.
 >
 > The operator's zone file is a `Source` whose observations age under the currency bound —
 > [#48](https://github.com/winniel123/verge-asm/issues/48) route 4, *you stopped telling us* —
@@ -244,9 +246,47 @@ protecting them.
 > read, which is the hidden-field failure this section exists to refuse.
 >
 > **A hole this amendment does not close, stated rather than absorbed:** `resolution` and our own
-> resolver's `dns-record` still have **no covering `Scan`** either, so they have no currency bound
+> resolver's `dns-record` ~~still have **no covering `Scan`** either~~ **had no covering `Scan`
+> either until [#142](https://github.com/winniel123/verge-asm/issues/142), which closed it in the
+> amendment below**, so they have no currency bound
 > for the same reason. That is wider than the packaging patch and is ticketed rather than guessed at
 > here. Full statement in [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §7.
+
+> **Amended 2026-08-15 by [#142](https://github.com/winniel123/verge-asm/issues/142) — a fifth
+> `Scan`, `dns`, on this section's own reasoning a third time.** Read **two port tiers and five
+> `Scan`s** —
+> [ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md).
+>
+> **`dns`: scope the name scopes unconditionally, no port list, every configured `Vantage`, cadence
+> the operator's and shipped at daily.** It covers `resolution` and **our own resolver's**
+> `dns-record` — the zone file's `dns-record` timeline is `zone`'s, one timeline per source.
+> Everything in this ADR applies to it unchanged.
+>
+> **The defect it closes is sharper than *loose*.**
+> [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) finds currency by *the Declared `Scan` whose
+> scope covers that `(subject, facet, port, vantage)`*; where no `Scan` covers the tuple there is no
+> cadence to multiply, so *is this observation current?* is **unanswerable** rather than answered
+> loosely. Downstream of that unanswerable question sat the whole `Address` population — *in the
+> estate exactly while a **current** resolution cites it* — the probing gate's staleness under a
+> `custody extension`, and `Gap` itself, which could never open on either facet.
+>
+> **Why it is not hung off a port tier**, which is the cheap answer and the one with an ADR behind
+> it: [ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md) established that an install
+> holding custody of nothing measures these two facets **and nothing else**, so the exchange they
+> would ride is not made there at all. `certificate` rides `reachability` because it *cannot* be read
+> without the connect; `resolution` is measured precisely **where the connect cannot happen**. The
+> populations are disjoint in both directions besides — a name scope enumerates no addresses and an
+> address scope produces no names — and disabling the daily tier would silently stop the estate being
+> resolved, which is this section's hidden-field failure for the third time.
+>
+> **It has no port list**, and with `zone` that is two of five. A `Scan` carries a port list exactly
+> where its exchange is a **connect**; the destination port of a query to an authority enumerates
+> nothing about the estate and no value carries a per-port negative over it. `CONTEXT.md`'s `Scan`
+> entry is amended at the site that specifies otherwise.
+>
+> **It adds no aperture input, because a cadence is not aperture.** ADR-0014's criterion is that
+> aperture is what a `Batch` records as its completed scope, and a batch records what we asked about
+> and never how often. The count stays at **seven**, and the same argument explains `zone`.
 
 ### Vantage availability is Derived, and its window is fixed
 

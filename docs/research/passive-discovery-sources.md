@@ -1919,3 +1919,70 @@ words, and `resolution-walk` is already there for `Lame`. It loses four ways.
   invisible. Same class as `Vantage`'s existing *declared as intent* residue, not repaired here,
   because re-verifying a resolver's identity needs a probe whose answer is itself path-dependent.
 - **No control probe has ever run inside a batch**, verbatim from ADR-0066, ADR-0068 and ADR-0069.
+
+---
+
+## 16. Which sources have a covering `Scan`, after the fifth
+
+Ruled by [#142](https://github.com/winniel123/verge-asm/issues/142) /
+[ADR-0084](../adr/0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md),
+which minted the fifth `Scan`, **`dns`**, over this document's Tier 0 own-resolver row.
+
+**This section is a derivation over the corpus and not a retrieval.** Nothing was measured for it and
+no `[owner]`, `[spec]` or `[measured]` cell is claimed. It exists because #142's opening premise —
+*the same hole is still open for our own resolver's DNS **and for the passive sources*** — names two
+populations, and only the first is closed by that ruling. Enumerating the second is what turns the
+residue into one row instead of a worry.
+
+### 16.1 The two hops a source can leave, and only one of them ages on a `Scan`
+
+`CONTEXT.md` gives a source exactly two ways to put a subject in the estate:
+
+- **By observing a facet.** The observation ages under the currency bound — `k` cadences of the
+  covering `Scan` — and past it a `Gap` opens. This is what #142 was about.
+- **By admitting without observing** ([ADR-0027](../adr/0027-a-source-may-admit-without-observing.md)).
+  There is no observation to age; the subject's `Citation` hops to the source's `Batch` instead, and
+  what goes stale is the **citation**. The consequence is **subject withdrawal**, not a `Gap` —
+  *"a subject whose last citation goes stale has no chain back to a `Seed`, which withdraws it."*
+
+[ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) marks the
+seam and steps over it in one sentence: *"a `Batch` cited by a source that admits without observing is
+not an observation and does not age the same way."* Nothing since has said **how** it ages.
+
+### 16.2 The table
+
+| Source (as this document names it) | Puts subjects in the estate by | Covering `Scan` after #142 | What bounds it |
+|---|---|---|---|
+| **Own recursive resolver** (§8 Tier 0) | Observing `resolution` and `dns-record` | **`dns`** — new | `k` × its cadence; **two days** shipped |
+| **Wildcard detection** (§8 Tier 0, mandatory) | No admission of its own — it decides `Shadowed` on the two facets above, inside the same batch | **`dns`**, necessarily: the control probe and the answer it discriminates are one batch (§14, ADR-0070) | As above |
+| **Zone file** (§3.3, §8 Tier 0) | Observing `dns-record` with `declared` authority, at the operator's supply instant | **`zone`** — [#124](https://github.com/winniel123/verge-asm/issues/124) | `k` × the re-supply interval; **two months** shipped |
+| **Our own prober** | Observing `reachability`, `certificate`, `http-identity`, `tls-acceptance` | The **two port tiers** and **`tls-acceptance`** | `k` × the tightest tier covering that port |
+| **Certificate transparency**, however reached (§2 — crt.sh, or a log directly) | **Admitting without observing** — the `Name`s a SAN carries, `authority: inferred`, no facet at all | **None** | **Nothing. The residue** |
+| **The registry paths** — RDAP, RIPEstat, RIPE DB, Team Cymru, passive DNS as a range source (§4, §5) | **Nothing.** They yield `Proposal`s, and a `Proposal` *"is read by nothing"* until confirmed into a `Seed` | **None, and none is owed** | Not a source at all ([ADR-0012](../adr/0012-a-proposer-is-not-a-source.md)); proposals are produced *"only in answer to an operator act … never on a cadence"* |
+| **Common Crawl, Wayback, public DoH** (§6, §3.6) | Either a proposer, per the row above, or a transport for the resolver's own exchange | Row above, or **`dns`** | As above |
+
+### 16.3 The residue is one row, and it is not a `Scan`-shaped question
+
+**Certificate transparency is the only source in the shipped set with no covering `Scan` and no
+exemption**, so its citations never go stale and a `Name` a SAN once carried sits in the estate
+permanently.
+
+The tempting repair is a sixth `Scan` over the CT poll. It is **not** obviously right, and that is why
+#142 declined to guess at it:
+
+- The consequence of covering it is **withdrawal**, not a `Gap`. Retiring a `Name` by silence is
+  [ADR-0006](../adr/0006-subjects-leave-by-measurement.md)'s question — *nothing leaves because time
+  passed* — and a citation expiring is time passing.
+- CT is **`corroborative`**, not `enumerable`: *"certificate transparency is append-only, so a
+  certificate's absence from a query means nothing, however the query went."* A source whose silence
+  asserts nothing cannot have its silence retire a subject, which points at an **exemption rather than
+  a `Scan`** — but nothing in the corpus says so, and an exemption makes those `Name`s immortal by
+  decision instead of by omission, which is a different thing to defend.
+- The failure mode is **measured in this document**: §7's series records crt.sh at a **50% failure
+  rate over eight samples, with spurious 404s**. A citation clock ticking against that instrument
+  would mass-withdraw an estate on a bad afternoon — the map's standing rule (*a source that errors
+  must produce no observation, never an observation of absence*) read one layer up, where it has never
+  been applied.
+
+So the question the successor owes is **not** *what cadence covers CT* but *does a citation age at
+all, and against which of the two `completeness` values*. §16.1's seam is where it starts.
