@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seeds — verge-asm prototype (#123)</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<!--
+  PROTOTYPE — throwaway. Issue #123, "The Seeds screen: six jobs beyond listing, and three
+  refusals with three different right answers". Not production code and not a component library.
+
+  URL:  ?screen=seeds|declare|notqueue|extension
+          &variant=A|B|C      (screen=seeds only — the three structures)
+          &fill=zero|single|estate|cloud   (screen=seeds only)
+          &refusal=none|cap4|cap6|ulabel|wildcard   (screen=declare only)
+          &state=off|on|nothing|withdrawn          (screen=extension only)
+
+  The six jobs beyond listing that this screen has to do:
+    1. the two Seed kinds, and what differs downstream of each
+    2. exclusions — three kinds, rendering when empty and saying why (#47)
+    3. retained Proposal provenance on a confirmed Seed (ADR-0012)
+    4. the custody extension declaration surface + its census (#51, ADR-0013 §7)
+    5. #50's "what answered" panel — the no-false-absence rule for the propose half
+    6. the range size cap as declaration-time validation (#81, ADR-0047 / ADR-0049)
+
+  Two tables that look alike ship on this screen at once. The Proposal list legitimately IS an
+  approval queue; the extension census must carry NO per-row control and NO nav badge.
+  ?screen=notqueue draws both, and the forbidden one is drawn properly rather than described.
+
+  Glossary is binding (CONTEXT.md). No "asset" as a modelled thing, no "host", no "finding",
+  no "scan run", no "discovery"/"probe" as nouns. Design system is canonical for the visual
+  layer only; where kit and glossary collide the glossary wins.
+
+  Annotations in a dashed box marked PROTOTYPE NOTE are commentary for the reviewer and are not
+  part of the design.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 104px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+  .sp { margin-left: auto; }
+  .row { display: flex; align-items: center; gap: var(--space-3); }
+  .col { display: flex; flex-direction: column; gap: var(--space-2); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-3) var(--page-pad);
+           display: flex; gap: var(--space-5); font: var(--weight-regular) var(--text-xs)/1.4 var(--font-mono);
+           color: var(--text-faint); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { margin: 0 0 var(--space-6); font-size: var(--text-base); color: var(--text-muted);
+         line-height: var(--leading-body); max-width: 78ch; }
+  h2.reg { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .reg-h { display: flex; align-items: baseline; gap: var(--space-3); margin: var(--space-8) 0 var(--space-3); }
+  .reg-h:first-child { margin-top: 0; }
+  .reg-h .why { font-size: var(--text-sm); color: var(--text-muted); max-width: 70ch; line-height: var(--leading-snug); }
+
+  .card { background: var(--surface); border: var(--rule); margin-bottom: var(--space-5); }
+  .card.ink { border: var(--rule-ink); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2, .card-h h3 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); background: var(--surface-sunken); }
+  .pad { padding: var(--space-4); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: top; }
+  tbody tr:first-child td { border-top: none; }
+  td.m, th.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num, th.num { text-align: right; }
+  td.num { font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap; }
+  td.act { text-align: right; white-space: nowrap; }
+  tr.sel td { background: var(--accent-soft); }
+  .rowsub { display: block; margin-top: var(--space-1); font-size: var(--text-sm);
+            color: var(--text-muted); line-height: var(--leading-snug); }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted);
+         white-space: nowrap; }
+  .tag.ink   { border-color: var(--border-ink); color: var(--ink); }
+  .tag.warn  { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .tag.blue  { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .tag.gone  { border-style: dashed; color: var(--text-faint); }
+  .tag.off   { border-style: dashed; color: var(--text-muted); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink);
+         font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); transition: background var(--duration) var(--ease); }
+  .btn:hover { background: #3a3a30; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--surface-sunken); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); padding: 0 10px; }
+  .btn[disabled] { opacity: .4; cursor: not-allowed; }
+  .btn .n { font-family: var(--font-mono); font-weight: var(--weight-semibold); }
+
+  .inkp { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+         padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .inkp .ml { color: #9a9a90; display: block; margin-bottom: var(--space-2); }
+  .inkp code, .inkp .mono { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-on-ink); }
+  .inkp strong, .inkp b { color: var(--text-on-ink); }
+  .inkp h3 { margin: 0 0 var(--space-2); font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--text-on-ink); }
+  .inkp p { margin: 0 0 var(--space-3); }
+  .inkp p:last-child { margin-bottom: 0; }
+  .inkp a { color: var(--text-on-ink); }
+
+  .origin { background: var(--surface-sunken); border-bottom: var(--rule);
+            padding: var(--space-2) var(--space-4);
+            font: var(--weight-medium) var(--text-xs)/1.5 var(--font-mono); color: var(--text-muted); }
+  .grp-act { padding: var(--space-3) var(--space-4); border-top: var(--rule);
+             background: var(--surface-sunken); display: flex; align-items: center; gap: var(--space-3); }
+  .seat { border: 1px dashed var(--border); background: var(--surface-sunken);
+          padding: var(--space-4); margin-bottom: var(--space-5); }
+  .seat .txt { font-size: var(--text-sm); color: var(--text-muted);
+               line-height: var(--leading-body); margin-top: var(--space-2); max-width: 84ch; }
+
+  .note { display: block; border: var(--rule); border-left: 3px solid var(--border-ink);
+          background: var(--surface); padding: var(--space-3) var(--space-4);
+          font-size: var(--text-sm); line-height: var(--leading-body); color: var(--text); max-width: 88ch; }
+  .note.invite { border-left-color: var(--accent); }
+  .note.warnk  { border-left-color: var(--warn); background: var(--surface-sunken); }
+  .note.fault  { border-left-color: var(--danger); }
+  .note.inert  { border-left-color: var(--border); color: var(--text-muted); }
+  .note b { font-weight: var(--weight-semibold); }
+  .note p { margin: 0 0 var(--space-2); }
+  .note p:last-child { margin-bottom: 0; }
+
+  .empty { border: 1px dashed var(--border); background: var(--surface);
+           padding: var(--space-6) var(--space-4); text-align: left; }
+  .empty .ml { display: block; margin-bottom: var(--space-2); }
+  .empty p { margin: 0; font-size: var(--text-sm); color: var(--text-muted);
+             line-height: var(--leading-body); max-width: 80ch; }
+
+  .grp-h { display: flex; align-items: flex-start; gap: var(--space-4);
+           padding: var(--space-4); border-bottom: var(--rule); background: var(--surface); }
+  .grp-h .who .h { font-size: var(--text-lg); font-weight: var(--weight-semibold); margin-top: var(--space-1); }
+  .grp-h .who .hh { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+  .grp-h .fig { text-align: right; }
+  .grp-h .fig .v { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+  .grp-h .fig .v.big { font-size: var(--text-2xl); color: var(--danger); }
+  .grp-h .fig .ml.k { display: block; margin-top: 2px; }
+
+  /* the seed block — Variant C's unit */
+  .seed { background: var(--surface); border: var(--rule); margin-bottom: var(--space-5); }
+  .seed-h { display: flex; align-items: flex-start; gap: var(--space-4);
+            padding: var(--space-4); border-bottom: var(--rule-ink-heavy); }
+  .seed-h .k { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+  .seed-h .meta { margin-top: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); }
+  .seed-h .fig { text-align: right; }
+  .seed-h .fig .v { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+  .sect { border-top: var(--rule); }
+  .sect-h { display: flex; align-items: baseline; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); background: var(--surface-sunken); border-bottom: var(--rule); }
+  .sect-h .hint { font-size: var(--text-sm); color: var(--text-muted); }
+
+  /* provenance strip — read-only, deliberately not a table */
+  .prov { display: flex; flex-wrap: wrap; gap: var(--space-6); padding: var(--space-4); }
+  .prov .kv .ml { display: block; margin-bottom: 3px; }
+  .prov .kv .v { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  /* declaration box */
+  .box { max-width: 760px; }
+  .box label { display: block; margin-bottom: var(--space-2); }
+  .box input { width: 100%; height: var(--control-h-lg); padding: 0 var(--control-pad-x);
+               border: 1px solid var(--border-ink); background: var(--surface);
+               font: var(--weight-regular) var(--text-md)/1 var(--font-mono); color: var(--text); border-radius: var(--radius); }
+  .box input.bad { border-color: var(--danger); box-shadow: inset 0 -2px 0 var(--danger); }
+  .box .live { margin-top: var(--space-2); font: var(--weight-medium) var(--text-sm)/1.5 var(--font-mono);
+               color: var(--text-muted); }
+  .refuse { margin-top: var(--space-4); border: var(--rule-ink); background: var(--surface); }
+  .refuse .rh { padding: var(--space-3) var(--space-4); border-bottom: var(--rule-ink-heavy); }
+  .refuse .rh h3 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .refuse .rb { padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); max-width: 84ch; }
+  .refuse .rb p { margin: 0 0 var(--space-3); }
+  .refuse .rb p:last-child { margin-bottom: 0; }
+  .refuse .rb ul { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+  .refuse .rb li { margin-bottom: var(--space-1); }
+  .refuse .rf { padding: var(--space-3) var(--space-4); border-top: var(--rule);
+                background: var(--surface-sunken);
+                font: var(--weight-medium) var(--text-sm)/1.5 var(--font-sans); color: var(--text-muted); }
+
+  /* prototype-only annotation */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+  @media (max-width: 1100px) { .two { grid-template-columns: 1fr; } }
+
+  /* the forbidden queue rendering, drawn properly */
+  .cbx { width: 15px; height: 15px; border: 1px solid var(--border-ink); background: var(--surface);
+         display: inline-block; vertical-align: -2px; }
+  .badge { display: inline-block; min-width: 18px; padding: 1px 5px; background: var(--danger);
+           color: #fff; font: var(--weight-semibold) var(--text-2xs)/1.5 var(--font-mono);
+           text-align: center; margin-left: 5px; }
+
+  /* rail — Variant B */
+  .rail-wrap { display: grid; grid-template-columns: 280px 1fr; gap: var(--space-5); align-items: start; }
+  .rail { background: var(--surface); border: var(--rule); }
+  .rail a { display: block; padding: var(--space-3) var(--space-4); border-bottom: var(--rule-soft);
+            text-decoration: none; color: var(--text); font-size: var(--text-base); }
+  .rail a .k { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+  .rail a .s { display: block; font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+  .rail a.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .rail .rail-sect { padding: var(--space-2) var(--space-4); background: var(--surface-sunken);
+                     border-bottom: var(--rule); }
+
+  #switch { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+            background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+            box-shadow: var(--shadow-hard); padding: 8px 10px; display: flex; gap: var(--space-4);
+            align-items: center; z-index: 50; max-width: calc(100vw - 32px); flex-wrap: wrap; }
+  #switch .grp { display: flex; align-items: center; gap: 5px; }
+  #switch .grp > span { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+                        text-transform: uppercase; letter-spacing: var(--tracking-label); color: #9a9a90; }
+  #switch button { border: 1px solid #3a3a30; background: transparent; color: var(--text-on-ink);
+                   font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); padding: 5px 7px;
+                   cursor: pointer; border-radius: var(--radius); }
+  #switch button.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="switch"></div>
+
+<script>
+/* ------------------------------------------------------------------ routing */
+const SCREENS  = ["seeds", "declare", "notqueue", "extension"];
+const VARIANTS = ["A", "B", "C"];
+const FILLS    = ["zero", "single", "estate", "cloud"];
+const REFUSALS = ["none", "cap4", "cap6", "ulabel", "wildcard"];
+const STATES   = ["off", "on", "nothing", "withdrawn"];
+
+function params() {
+  const p = new URLSearchParams(location.search);
+  const g = (k, list, d) => { const v = p.get(k); return list.includes(v) ? v : d; };
+  return {
+    screen:  g("screen",  SCREENS,  "seeds"),
+    variant: g("variant", VARIANTS, "C"),
+    fill:    g("fill",    FILLS,    "estate"),
+    refusal: g("refusal", REFUSALS, "cap6"),
+    state:   g("state",   STATES,   "on"),
+  };
+}
+function go(next) {
+  const s = { ...params(), ...next };
+  history.replaceState(null, "", "?" + new URLSearchParams(s).toString());
+  render();
+}
+
+/* ------------------------------------------------------------------ helpers */
+const n   = x => x.toLocaleString("en-GB");
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const mo  = s => `<span class="mono">${esc(s)}</span>`;
+
+function anno(label, html, bad) {
+  return `<div class="anno${bad ? " no" : ""}"><span class="ml">${label}</span>${html}</div>`;
+}
+
+/* ------------------------------------------------------------------ the estate
+
+   A fake estate chosen to exercise every job at once:
+     - one name scope with a custody extension ON, including three flattened apex ALIAS
+       records pointing at a CDN, which the census cannot flag and does not (#51 §4)
+     - one IPv4 address scope confirmed from a Proposal, so it carries provenance
+     - one IPv6 /128 address scope: the internal prober's own address, the route ADR-0049
+       leaves open when the extension is barred from the Vantage class check
+     - exclusions of all three kinds on one seed, and none at all on another
+------------------------------------------------------------------------------- */
+
+const EXT_ADDRESSES = [
+  { addr: "203.0.113.17",  via: "www.example.com",       how: "A" },
+  { addr: "203.0.113.18",  via: "www.example.com",       how: "A" },
+  { addr: "203.0.113.41",  via: "api.example.com",       how: "A" },
+  { addr: "203.0.113.42",  via: "api.example.com",       how: "A" },
+  { addr: "2001:db8:4::11", via: "api.example.com",      how: "AAAA" },
+  { addr: "198.51.100.12", via: "mail.example.com",      how: "A" },
+  { addr: "198.51.100.13", via: "mail.example.com",      how: "A" },
+  { addr: "203.0.113.90",  via: "vpn.example.com",       how: "A" },
+  { addr: "18.164.52.11",  via: "example.com",           how: "A" },
+  { addr: "18.164.52.72",  via: "example.com",           how: "A" },
+  { addr: "18.164.52.140", via: "example.com",           how: "A" },
+];
+const EXT_OUTSIDE = [
+  { name: "shop.example.com",   target: "d1x2y3.cloudfront.net" },
+  { name: "help.example.com",   target: "example.zendesk.com" },
+  { name: "status.example.com", target: "stspg-customer.com" },
+  { name: "pay.example.com",    target: "checkout.stripe.com" },
+];
+
+const NAME_SEED = {
+  kind: "name",
+  key: "example.com",
+  declared: "2026-06-02",
+  extension: { on: true, addresses: EXT_ADDRESSES, outside: EXT_OUTSIDE },
+  exclusions: {
+    exact:   [{ v: "legacy.example.com", when: "2026-06-11", why: "sold with the product line", origin: "typed" }],
+    subtree: [{ v: "partners.example.com", when: "2026-07-02", why: "run by the partner, not by you", origin: "typed" }],
+    addr:    [],
+  },
+  provenance: null,
+};
+
+const V4_SEED = {
+  kind: "address",
+  key: "198.51.100.0/24",
+  addresses: 256,
+  declared: "2026-06-04",
+  extension: null,
+  exclusions: { exact: [], subtree: [], addr: [
+    { v: "198.51.100.128/25", when: "2026-07-30", why: "the other half of the range is not yours", origin: "decline" },
+    { v: "52.94.0.0/16", when: "2026-06-04", why: "Amazon's, not yours", origin: "decline", andMore: 176 },
+  ] },
+  provenance: {
+    recordKind: "reassignment",
+    holder: "Level 3 Parent, LLC",
+    handle: "NET-198-51-100-0-1",
+    reassignedTo: "Example Ltd",
+    confirmed: "2026-06-04",
+    lookupFrom: "the address you declared",
+  },
+};
+
+const V6_SEED = {
+  kind: "address",
+  key: "2001:db8:4:1::c7/128",
+  addresses: 1,
+  declared: "2026-07-19",
+  extension: null,
+  exclusions: { exact: [], subtree: [], addr: [] },
+  provenance: null,
+  note: "the internal prober's own address — declared so its vantage verifies as internal",
+};
+
+const DECLINED = [
+  { cidr: "52.94.0.0/16", addresses: 65536, when: "2026-06-04", from: "198.51.100.0/24",
+    holder: "Amazon Technologies Inc.", effect: "inert" },
+  { cidr: "52.95.0.0/16", addresses: 65536, when: "2026-06-04", from: "198.51.100.0/24",
+    holder: "Amazon Technologies Inc.", effect: "inert", andMore: 175 },
+  { cidr: "198.51.100.128/25", addresses: 128, when: "2026-07-30", from: "198.51.100.0/24",
+    holder: "Level 3 Parent, LLC", effect: "gate" },
+];
+
+const PROPOSALS = [
+  { holder: "Amazon Technologies Inc.", handle: "AMAZON-04", kind: "delegation", addresses: 76046336,
+    scopes: 177, alarming: true, rows: [
+      { cidr: "52.94.0.0/16",  addr: 65536,  shares: "1 of 177 resources under AMAZON-04" },
+      { cidr: "52.95.0.0/16",  addr: 65536,  shares: "1 of 177 resources under AMAZON-04" },
+      { cidr: "54.240.0.0/12", addr: 1048576, shares: "1 of 177 resources under AMAZON-04" },
+    ], more: 174 },
+  { holder: "Example Ltd", handle: "NET-198-51-100-0-1", kind: "reassignment", addresses: 256,
+    scopes: 1, upstream: "Level 3 Parent, LLC", alarming: false, rows: [
+      { cidr: "198.51.100.0/24", addr: 256, shares: "reassigned to you inside 198.51.100.0/22, held by Level 3 Parent, LLC" },
+    ], more: 0 },
+];
+
+const KIND = {
+  delegation: { label: "RIR delegation",
+    caveat: "Written by the registry. Allocated, and not necessarily in current use." },
+  reassignment: { label: "Reassignment",
+    caveat: "Written by your upstream provider under a /29 floor. The name string was typed by them, not by the registry." },
+};
+
+const ANSWERED = [
+  { who: "ARIN", q: "entities?fn=Example+Ltd", state: "zero",
+    head: "ARIN holds nothing else under this name.",
+    body: "Searched North America. A complete answer over that registry." },
+  { who: "RIPEstat", q: "not enabled", state: "off",
+    head: "RIPEstat was not asked.",
+    body: "It ships off. Its terms are unresolved and you have not taken them on." },
+  { who: "APNIC", q: "entities?fn=Example+Ltd", state: "blind",
+    head: "APNIC could not be searched for this name.",
+    body: "Its entity search returns an empty array with an HTTP 200 for every query form. Read this as unknown, never as an empty estate." },
+  { who: "LACNIC", q: "entities?fn=Example+Ltd", state: "blind",
+    head: "LACNIC could not be searched for this name.",
+    body: "Its fn= matches a single token, so a name containing a space returns an empty answer with an HTTP 200. Read this as unknown, never as an empty estate." },
+  { who: "CAIDA as-org2info", q: "offline join, fetched 2026-08-14", state: "ok",
+    head: "Answered.",
+    body: "The join ran over the August file." },
+];
+
+function seedsFor(fill) {
+  if (fill === "zero")   return [];
+  if (fill === "single") return [{ ...NAME_SEED, extension: { on: false, addresses: [], outside: EXT_OUTSIDE },
+                                   exclusions: { exact: [], subtree: [], addr: [] } }];
+  if (fill === "cloud")  return [V4_SEED];
+  return [NAME_SEED, V4_SEED, V6_SEED];
+}
+function proposalsFor(fill) {
+  if (fill === "cloud") return PROPOSALS;
+  return [];
+}
+function declinedFor(fill) {
+  if (fill === "estate") return DECLINED;
+  return [];
+}
+function answeredFor(fill) {
+  if (fill === "cloud" || fill === "estate") return ANSWERED;
+  return [];
+}
+
+/* ------------------------------------------------------------------ chrome */
+const NAV = ["Exposure", "Subjects", "Signals", "Seeds", "Coverage", "Settings"];
+
+function chrome(body) {
+  return `
+  <header class="nav"><div class="nav-in">
+    <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+    <nav class="items">${NAV.map(x => x === "Seeds"
+      ? `<a href="#" class="on">${x}</a>` : `<a href="#">${x}</a>`).join("")}</nav>
+    <div class="nav-right">
+      <span class="status" style="color:var(--ok)"><span class="dot live"></span>batch b-8851 running</span>
+      <button class="btn sm">Run scan</button>
+    </div>
+  </div></header>
+  <main class="shell">${body}</main>
+  <footer class="ft"><div class="ft-in">
+    <span>prototype — issue #123</span><span>not production</span><span>design system: design-system/</span>
+  </div></footer>`;
+}
+
+/* ------------------------------------------------------------------ shared parts */
+
+function exclusionsSection(seed) {
+  const e = seed.exclusions;
+  const total = e.exact.length + e.subtree.length + e.addr.length;
+  const group = (label, rows, emptyWhy, render) => `
+    <div style="padding:var(--space-3) var(--space-4);border-top:var(--rule-soft)">
+      <span class="ml">${label}</span>
+      ${rows.length
+        ? `<div style="margin-top:var(--space-2)">${rows.map(render).join("")}</div>`
+        : `<div class="muted" style="margin-top:var(--space-2);font-size:var(--text-sm);line-height:var(--leading-body);max-width:76ch">${emptyWhy}</div>`}
+    </div>`;
+
+  const line = (v, r) => `<div style="margin-bottom:var(--space-2)">
+      <span class="mono" style="font-weight:var(--weight-semibold)">${esc(v)}</span>
+      ${r.origin === "decline" ? ` <span class="tag gone">from a decline</span>` : ``}
+      ${r.andMore ? ` <span class="muted" style="font-size:var(--text-sm)">and ${r.andMore} more under the same holder</span>` : ``}
+      <span class="rowsub">declared ${mo(r.when)} — ${esc(r.why)}</span></div>`;
+
+  return `
+  <div class="sect">
+    <div class="sect-h">
+      <span class="ml">Exclusions</span>
+      <span class="hint">${total
+        ? `${total} declared. An exclusion is a claim that something is not yours, not that it is not there. A decline writes one of these; this is the list, and the declined region below is this list filtered.`
+        : `None declared on this seed.`}</span>
+      <span class="sp"></span>
+      <button class="btn ghost sm">Add an exclusion</button>
+    </div>
+    ${group("Exact names", e.exact,
+      "No name inside this scope has been declared outside your estate. An excluded name is no longer queried, even if it still resolves.",
+      r => line(r.v, r))}
+    ${group("Subtrees", e.subtree,
+      "No subtree has been excluded. A subtree covers the name itself as well as everything beneath it.",
+      r => line(r.v, r))}
+    ${group("Address scopes", e.addr,
+      seed.kind === "name"
+        ? "No address range has been excluded. On a name scope an address exclusion carves nothing unless the custody extension is on."
+        : "No address range has been excluded from this scope.",
+      r => line(r.v, r))}
+  </div>`;
+}
+
+function extensionCensus(seed, opts = {}) {
+  const ext = seed.extension;
+  if (!ext) return "";
+  const showControls = !!opts.forbidden;
+
+  if (!ext.on) {
+    return `
+    <div class="sect">
+      <div class="sect-h">
+        <span class="ml">Custody extension</span>
+        <span class="tag off">off</span>
+        <span class="hint">The addresses ${esc(seed.key)} resolves to are treated as somebody else's.</span>
+        <span class="sp"></span>
+        <a href="?screen=extension&state=off" class="btn ghost sm" style="text-decoration:none;line-height:24px;display:inline-block">Open the declaration</a>
+      </div>
+      <div class="pad">
+        <span class="note inert">
+          <p>Their ports are not probed and no exposure is concluded for them.
+          ${ext.outside.length ? `Four names inside this scope point at somebody else's name, so they would be outside the extension in any case.` : ``}</p>
+          <p>If the machines behind your names are somebody else's — shared hosting, a CDN, a managed load
+          balancer — this is the correct setting and there is nothing here to fix.</p>
+        </span>
+      </div>
+    </div>`;
+  }
+
+  if (!ext.addresses.length) {
+    return `
+    <div class="sect">
+      <div class="sect-h"><span class="ml">Custody extension</span><span class="tag ink">on</span>
+        <span class="hint">0 addresses · 0 names</span></div>
+      <div class="pad">
+        <div class="empty">
+          <span class="ml">Nothing is covered yet</span>
+          <p>The extension is on, and no name inside ${esc(seed.key)} resolves directly to an address.
+          That is a different state from having it off: the claim has been made and it currently reaches nothing.
+          It will cover an address the moment a name inside this scope resolves to one directly.</p>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const names = new Set(ext.addresses.map(a => a.via)).size;
+  return `
+  <div class="sect">
+    <div class="sect-h">
+      <span class="ml">Custody extension</span>
+      <span class="tag ink">on</span>
+      <span class="hint">${ext.addresses.length} addresses · ${names} names. Worked out again every cadence.</span>
+      <span class="sp"></span>
+      ${showControls
+        ? `<span class="tag warn">7 pending</span><button class="btn sm">Approve all</button>`
+        : `<a href="?screen=extension&state=on" style="font-size:var(--text-sm)">Change the declaration</a>`}
+    </div>
+    <table>
+      <thead><tr>
+        ${showControls ? `<th style="width:28px"></th>` : ``}
+        <th class="m">Address</th><th class="m">Cited by</th><th>Record</th>
+        ${showControls ? `<th></th>` : ``}
+      </tr></thead>
+      <tbody>
+        ${ext.addresses.map(a => `<tr>
+          ${showControls ? `<td><span class="cbx"></span></td>` : ``}
+          <td class="m" style="font-weight:var(--weight-semibold)">${esc(a.addr)}</td>
+          <td class="m">${esc(a.via)}</td>
+          <td class="muted" style="font-size:var(--text-sm)">${esc(a.how)}</td>
+          ${showControls ? `<td class="act"><button class="btn sm">Approve</button>
+             <button class="btn ghost sm">Reject</button></td>` : ``}
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    <div style="padding:var(--space-3) var(--space-4);border-top:var(--rule);background:var(--surface-sunken)">
+      <span class="ml">Not covered — the chain leaves ${esc(seed.key)}</span>
+      <div style="margin-top:var(--space-2);font-size:var(--text-sm);line-height:var(--leading-body)">
+        ${ext.outside.map(o => `<div class="mono">${esc(o.name)} &rarr; ${esc(o.target)}</div>`).join("")}
+      </div>
+      <div class="muted" style="margin-top:var(--space-2);font-size:var(--text-sm);max-width:80ch;line-height:var(--leading-body)">
+        A name pointing at somebody else's name is outside the extension, and so is everything past that point.
+        These are shown so the boundary is visible; nothing about them is a task.
+      </div>
+    </div>
+  </div>`;
+}
+
+function provenanceSection(seed) {
+  const p = seed.provenance;
+  if (!p) return "";
+  const k = KIND[p.recordKind];
+  return `
+  <div class="sect">
+    <div class="sect-h"><span class="ml">Confirmed from a proposal</span>
+      <span class="hint">Kept as provenance. It records where the offer came from; it asserts nothing now.</span></div>
+    <div class="prov">
+      <div class="kv"><span class="ml">Record kind</span><span class="v"><span class="tag ${p.recordKind === "reassignment" ? "warn" : "ink"}">${k.label}</span></span></div>
+      <div class="kv"><span class="ml">Registered holder</span><span class="v">${esc(p.holder)}</span></div>
+      <div class="kv"><span class="ml">Handle</span><span class="v">${esc(p.handle)}</span></div>
+      <div class="kv"><span class="ml">Reassigned to</span><span class="v">${esc(p.reassignedTo)}</span></div>
+      <div class="kv"><span class="ml">Confirmed</span><span class="v">${esc(p.confirmed)}</span></div>
+    </div>
+    <div style="padding:0 var(--space-4) var(--space-4)">
+      <span class="note inert">${esc(k.caveat)} The offer came from expanding ${esc(p.lookupFrom)}.
+      Confirming it is what made this a seed; the record itself opens nothing.</span>
+    </div>
+  </div>`;
+}
+
+function seedBlock(seed) {
+  const isName = seed.kind === "name";
+  return `
+  <div class="seed">
+    <div class="seed-h">
+      <div>
+        <div class="k">${esc(seed.key)}</div>
+        <div class="meta">
+          <span class="tag ${isName ? "ink" : ""}">${isName ? "name scope" : "address scope"}</span>
+          &nbsp;declared ${mo(seed.declared)}
+          ${seed.note ? ` — ${esc(seed.note)}` : ``}
+        </div>
+      </div>
+      <span class="sp"></span>
+      <div class="fig">
+        ${isName
+          ? `<div class="v" style="font-size:var(--text-md);color:var(--text-muted)">enumerates nothing</div>
+             <span class="ml k">no coverage denominator</span>`
+          : `<div class="v">${n(seed.addresses)}</div><span class="ml k">addresses, every one measured</span>`}
+      </div>
+      <button class="btn ghost sm">Withdraw</button>
+    </div>
+    <div class="origin">${isName
+      ? `a name scope enumerates nothing &middot; its addresses are reached only by measured resolution, and only under a custody extension &middot; no coverage denominator`
+      : `an address scope is its own complete extension &middot; every address in it is a subject from this declaration, walked every cadence whether or not anything has ever answered there &middot; <a href="#">coverage &rarr;</a>`}</div>
+    ${exclusionsSection(seed)}
+    ${isName ? extensionCensus(seed) : ""}
+    ${provenanceSection(seed)}
+  </div>`;
+}
+
+function proposalsRegion(props, fill) {
+  if (!props.length) {
+    return `
+    <div class="empty">
+      <span class="ml">No proposals</span>
+      <p>Nothing is waiting. A registry lookup runs only when you ask for one — expanding an address
+      scope you declared, or searching an organisation name — never on a schedule, so nothing
+      accumulates here while you are away.</p>
+      <p style="margin-top:var(--space-2)"><a href="?screen=seeds&fill=cloud&variant=${params().variant}">Search for an organisation name</a></p>
+    </div>`;
+  }
+  return props.map(g => `
+    <div class="card ${g.alarming ? "ink" : ""}">
+      <div class="grp-h">
+        <div class="who">
+          <span class="ml">Registered holder</span>
+          <div class="h">${esc(g.holder)}</div>
+          <div class="hh">${esc(g.handle)}${g.upstream ? ` &middot; reassigned by ${esc(g.upstream)}` : ``}</div>
+          <div style="margin-top:var(--space-3)"><span class="tag ${g.kind === "reassignment" ? "warn" : "ink"}">${KIND[g.kind].label}</span></div>
+          <div class="muted" style="font-size:var(--text-sm);margin-top:var(--space-2);max-width:44ch;line-height:var(--leading-snug)">${esc(KIND[g.kind].caveat)}</div>
+        </div>
+        <span class="sp"></span>
+        <div class="fig"><div class="v ${g.alarming ? "big" : ""}">${n(g.addresses)}</div><span class="ml k">addresses</span></div>
+        <div class="fig"><div class="v">${n(g.scopes)}</div><span class="ml k">scopes</span></div>
+      </div>
+      <table>
+        <thead><tr><th class="m">Scope</th><th class="num">Addresses</th><th>What else is on this record</th><th></th></tr></thead>
+        <tbody>
+          ${g.rows.map(r => `<tr>
+            <td class="m" style="font-weight:var(--weight-semibold)">${esc(r.cidr)}</td>
+            <td class="num">${n(r.addr)}</td>
+            <td class="muted" style="font-size:var(--text-sm)">${esc(r.shares)}</td>
+            <td class="act" ${r.addr > 1024 ? `style="white-space:normal;max-width:30ch"` : ``}>${r.addr > 1024
+              ? `<button class="btn sm" disabled>Confirm <span class="n">${n(r.addr)}</span> addresses</button>
+                 <span class="rowsub" style="text-align:right">Over the cap of 1,024 addresses per scope. Confirming is a declaration, and the cap is checked at the declaration.</span>`
+              : `<button class="btn sm">Confirm <span class="n">${n(r.addr)}</span> addresses</button>`}</td>
+          </tr>`).join("")}
+          ${g.more ? `<tr><td colspan="4" class="muted" style="text-align:center;padding:var(--space-4)">
+            <b class="mono">${n(g.more)}</b> more scopes under ${esc(g.handle)}. <a href="#">Show all</a></td></tr>` : ``}
+        </tbody>
+      </table>
+      <div class="grp-act">
+        <button class="btn ghost">Decline all <span class="n">${n(g.scopes)}</span> scopes</button>
+        <span class="muted" style="font-size:var(--text-sm)">Declining writes an exclusion on the seed the lookup ran from. It opens nothing.</span>
+      </div>
+    </div>`).join("") + anno("surfaced by drawing this — a collision with a closed ticket's artefact", `
+      <p><b>Confirming a proposal <i>is</i> the declaration the range cap validates</b>, so an over-cap
+      proposal cannot carry a live confirm control. Most of the 177 AWS scopes are over the cap by
+      several orders of magnitude, and the refusal renders in the row rather than after the click.</p>
+      <p>This makes the AWS case more legible rather than less: the correct action was always
+      <i>decline all</i>, and now the wrong action is not offered. It also means
+      <span class="mono">prototypes/proposal-confirm</span> carries a stale example —
+      <span class="mono">Confirm 8,388,608 addresses</span> is an act the shipped default now refuses.
+      The control's shape and its <i>nothing branches on the number</i> rule both survive; the figure
+      wants restating at an admissible size. Left in place as that session's dated record, and named
+      here rather than edited.</p>`);
+}
+
+function declinedRegion(rows) {
+  if (!rows.length) {
+    return `<div class="empty"><span class="ml">Nothing declined</span>
+      <p>A declined proposal is listed here, dated and reversible. Nothing has been declined on this
+      install, so the ledger is empty — not hidden.</p></div>`;
+  }
+  return `
+  <div class="card">
+    <table>
+      <thead><tr><th class="m">Scope</th><th class="num">Addresses</th><th>What declining did</th><th class="m">Declined</th><th></th></tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr>
+          <td class="m" style="font-weight:var(--weight-semibold)">${esc(r.cidr)}
+            <span class="rowsub">${esc(r.holder)} &middot; from ${mo(r.from)}${r.andMore ? ` &middot; and ${r.andMore} more under this holder` : ``}</span></td>
+          <td class="num">${n(r.addresses)}</td>
+          <td style="font-size:var(--text-sm);line-height:var(--leading-body)">
+            ${r.effect === "gate"
+              ? `<span class="tag ink">closed the gate</span>
+                 <span class="rowsub">128 addresses inside a scope you confirmed stopped being probed from this date. Their custody reads third-party.</span>`
+              : `<span class="tag gone">nothing today</span>
+                 <span class="rowsub">No seed covered this, so its custody was already third-party. The exclusion stops it being offered again.</span>`}</td>
+          <td class="m">${esc(r.when)}</td>
+          <td class="act"><button class="btn ghost sm">Undo</button></td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    <div class="card-f"><span class="muted" style="font-size:var(--text-sm)">Undo returns the scope to the proposals. It never confirms it.</span></div>
+  </div>`;
+}
+
+function answeredRegion(rows) {
+  if (!rows.length) {
+    return `<div class="empty"><span class="ml">Nothing has been asked</span>
+      <p>This panel lists every registry that was asked and what it said, including the ones that
+      answered. It is empty because no lookup has been run — not because every lookup came back empty.</p></div>`;
+  }
+  const key = { ok: "", zero: "", blind: "warnk", off: "inert" };
+  return `<div class="col" style="gap:var(--space-3);max-width:92ch">
+    ${rows.map(r => `<span class="note ${key[r.state]}">
+      <p><b>${esc(r.head)}</b></p>
+      <p>${esc(r.body)}</p>
+      <p class="muted mono" style="font-size:var(--text-xs)">${esc(r.who)} &middot; ${esc(r.q)}</p>
+    </span>`).join("")}
+  </div>`;
+}
+
+/* ------------------------------------------------------------------ screen: seeds */
+
+function pageHead(fill) {
+  return `
+  <div class="row" style="align-items:flex-start">
+    <div>
+      <h1 class="page">Seeds</h1>
+      <p class="sub">Where your estate ends. Everything measured is inside something on this screen,
+      and everything on this screen you declared.</p>
+    </div>
+    <span class="sp"></span>
+    <a class="btn" href="?screen=declare&refusal=none" style="text-decoration:none;line-height:32px;display:inline-block">Declare a scope</a>
+  </div>`;
+}
+
+function region(title, why, body) {
+  return `<div class="reg-h"><h2 class="reg">${title}</h2><span class="why">${why}</span></div>${body}`;
+}
+
+function seedsZero() {
+  return `
+  ${anno("empty state — #47's rule, applied to four groups at once",
+    `<p>Every group that renders when populated renders here, and each says <b>why</b> it is empty in its
+     own terms. Four different empties, and the wording of each is the whole point: nothing declared;
+     no lookup asked for; nothing declined; nothing asked. A heading that disappeared when its contents
+     were empty would leave you unable to tell <i>there is nothing here</i> from <i>this tool has no such idea</i>.</p>`)}
+  <div class="empty" style="margin-bottom:var(--space-5)">
+    <span class="ml">Nothing is declared</span>
+    <p>Nothing is measured until something here says where your estate ends. Start with the domain you
+    already own — it is the one thing you know for certain, and it is what the rest is built from.</p>
+    <p style="margin-top:var(--space-3)"><a class="btn" href="?screen=declare&refusal=none" style="text-decoration:none;line-height:32px;display:inline-block">Declare your domain</a></p>
+  </div>
+  ${region("Proposed scopes", "A registry's guess at what else you hold. Real only once you confirm it.", proposalsRegion([], "zero"))}
+  ${region("Declined scopes", "Durable claims that something is not yours. Reversible.", declinedRegion([]))}
+  ${region("What answered", "Which registries were asked, and what each of them said.", answeredRegion([]))}`;
+}
+
+function variantC(fill) {
+  const seeds = seedsFor(fill), props = proposalsFor(fill), dec = declinedFor(fill), ans = answeredFor(fill);
+  if (!seeds.length && !props.length) return seedsZero();
+  return `
+  ${anno("variant C — ships",
+    `<p><b>The seed is the block, and everything about it is inside it.</b> A seed's exclusions, its
+     custody extension and its retained provenance are properties of that seed, so they are sections of
+     its block rather than screens of their own. The three regions below it are #50's ruling drawn out:
+     confirming writes a seed, declining writes a seed exclusion, and there is no third outcome.</p>
+     <p>The two lookalike tables are separated <b>structurally</b>, not by styling: the census sits
+     <i>inside</i> a seed block with no controls in any row, the queue sits in its own region with a
+     group header and actions. See <a href="?screen=notqueue">?screen=notqueue</a>.</p>`)}
+  ${region("Declared scopes", `${seeds.length} declared. Each carries its own cap; the cap is per scope and is never summed across them.`,
+    seeds.map(seedBlock).join(""))}
+  ${region("Proposed scopes", "A registry's guess at what else you hold. Real only once you confirm it, one scope at a time.", proposalsRegion(props, fill))}
+  ${region("Declined scopes", "Durable claims that something is not yours. Listed, dated, reversible.", declinedRegion(dec))}
+  ${region("What answered", "Which registries were asked, and what each of them said — including the ones that answered.", answeredRegion(ans))}`;
+}
+
+function variantA(fill) {
+  const seeds = seedsFor(fill), props = proposalsFor(fill), dec = declinedFor(fill);
+  if (!seeds.length && !props.length) return seedsZero();
+
+  const rows = [];
+  seeds.forEach(s => {
+    rows.push({ k: s.key, kind: s.kind === "name" ? "name scope" : "address scope",
+      state: "declared", size: s.kind === "name" ? "—" : n(s.addresses), act: "Withdraw", ghost: true });
+    Object.entries(s.exclusions).forEach(([t, list]) => list.forEach(x =>
+      rows.push({ k: x.v, kind: "exclusion (" + t + ")", state: "excluded", size: "—", act: "Remove", ghost: true, sub: s.key })));
+    if (s.extension && s.extension.on) s.extension.addresses.forEach(a =>
+      rows.push({ k: a.addr, kind: "covered by the extension", state: "covered", size: "1", act: "Approve", ghost: false, sub: a.via }));
+  });
+  props.forEach(g => g.rows.forEach(r =>
+    rows.push({ k: r.cidr, kind: "proposal (" + KIND[g.kind].label + ")", state: "proposed", size: n(r.addr), act: "Confirm", ghost: false, sub: g.holder })));
+  dec.forEach(d => rows.push({ k: d.cidr, kind: "declined", state: "declined", size: n(d.addresses), act: "Undo", ghost: true, sub: d.holder }));
+
+  return `
+  ${anno("variant A — drawn in order to lose", `
+    <p>One table, one <span class="mono">state</span> column, one action column. Nothing about the
+    layout is wrong and the affordance is fatal: an <b>address covered by the custody extension</b> and
+    a <b>proposed scope</b> become two rows of one table, distinguished by a word in a column, each
+    carrying a button. That is the per-address approval queue ADR-0002 rejected and ADR-0013 re-rejected,
+    arriving through a shared component rather than through a decision.</p>
+    <p>It also has nowhere to put a seed's <i>properties</i>. Exclusions and covered addresses are
+    facts about the seed above them, and a flat table has no way to say so — so
+    <span class="mono">198.51.100.128/25</span> sits at the same rank as the scope it carves a hole in.</p>`, true)}
+  <div class="card">
+    <table>
+      <thead><tr><th style="width:28px"></th><th class="m">Scope</th><th>Kind</th><th>State</th><th class="num">Addresses</th><th></th></tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr>
+          <td><span class="cbx"></span></td>
+          <td class="m" style="font-weight:var(--weight-semibold)">${esc(r.k)}${r.sub ? `<span class="rowsub">${esc(r.sub)}</span>` : ``}</td>
+          <td class="muted" style="font-size:var(--text-sm)">${esc(r.kind)}</td>
+          <td><span class="tag">${esc(r.state)}</span></td>
+          <td class="num">${r.size}</td>
+          <td class="act"><button class="btn ${r.ghost ? "ghost " : ""}sm">${esc(r.act)}</button></td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    <div class="grp-act">
+      <button class="btn">Confirm selected</button>
+      <button class="btn ghost">Decline selected</button>
+      <span class="muted" style="font-size:var(--text-sm)">4 selected &middot; 1,114,368 addresses</span>
+    </div>
+  </div>`;
+}
+
+function variantB(fill) {
+  const seeds = seedsFor(fill), props = proposalsFor(fill), dec = declinedFor(fill);
+  if (!seeds.length && !props.length) return seedsZero();
+  const sel = seeds[0];
+  return `
+  ${anno("variant B — the interesting loss", `
+    <p>A rail of every scope, and one detail pane. It separates the census from the queue by <b>screen</b>,
+    which is the strongest separation available, and it satisfies #51's requirement that the census sit
+    beside the declaration it is the extension of.</p>
+    <p><b>It loses on what the screen is for.</b> <i>Where does my estate end</i> is a question about the
+    whole boundary, and a rail answers it one row at a time — you cannot read the seed, its exclusions
+    and the hole a decline carved in it in one look. Worse, a rail entry is a <i>durable</i> place, and
+    proposals are not durable: they exist only in answer to an act you just took. Giving them a permanent
+    rail slot is the inbox #50 refused, wearing navigation.</p>`, true)}
+  <div class="rail-wrap">
+    <div class="rail">
+      <div class="rail-sect"><span class="ml">Declared</span></div>
+      ${seeds.map((s, i) => `<a href="#" class="${i === 0 ? "on" : ""}"><span class="k">${esc(s.key)}</span>
+        <span class="s">${s.kind === "name" ? "name scope" : n(s.addresses) + " addresses"}</span></a>`).join("")}
+      <div class="rail-sect"><span class="ml">Proposed</span></div>
+      ${props.length ? props.map(g => `<a href="#"><span class="k">${esc(g.handle)}</span>
+        <span class="s">${n(g.scopes)} scopes &middot; ${n(g.addresses)} addresses</span></a>`).join("")
+        : `<a href="#" style="pointer-events:none"><span class="s">Nothing proposed. A lookup runs only when you ask.</span></a>`}
+      <div class="rail-sect"><span class="ml">Declined</span></div>
+      ${dec.length ? `<a href="#"><span class="k">${n(dec.length)} scopes</span><span class="s">reversible</span></a>`
+        : `<a href="#" style="pointer-events:none"><span class="s">Nothing declined.</span></a>`}
+    </div>
+    <div>${sel ? seedBlock(sel) : ""}</div>
+  </div>`;
+}
+
+function screenSeeds(p) {
+  const body = p.variant === "A" ? variantA(p.fill) : p.variant === "B" ? variantB(p.fill) : variantC(p.fill);
+  return pageHead(p.fill) + body;
+}
+
+/* ------------------------------------------------------------------ screen: declare */
+
+const REFUSAL_COPY = {
+  cap4: {
+    typed: "198.51.100.0/16",
+    live: "address scope · 65,536 addresses · over the cap of 1,024 addresses per scope",
+    head: "Declare a smaller range, or raise the cap",
+    body: `
+      <p>An address scope is walked in full every cadence, so it is capped at
+      <b>1,024 addresses per scope</b>. <span class="mono">198.51.100.0/16</span> holds 65,536.</p>
+      <p>Split it into ranges of <span class="mono">/22</span> or smaller. The cap is per scope, not a
+      budget across them, so several small scopes cost you nothing.</p>
+      <p>Or <a href="#">raise the cap under Settings</a>. A range this configuration cannot walk inside
+      its own cadence will be measured late or not at all, and its coverage figure will say so.</p>
+      <p>The cap is checked here rather than at scan time, so there is no half-declared scope: every
+      address a seed covers is measured, or the seed was never accepted.</p>`,
+    foot: "Nothing has been declared. The box still holds what you typed.",
+    note: `<p><b>This is the one refusal of the four that may offer to take its own route</b>, and the
+      reason is not that the range is IPv4. Raising the cap changes <i>this tool's</i> configuration and
+      then declares exactly <span class="mono">198.51.100.0/16</span> — the set you typed, unchanged.
+      Nothing is substituted, so nothing is claimed on your behalf.</p>`,
+  },
+  cap6: {
+    typed: "2001:db8:abcd::/48",
+    live: "address scope · 1,208,925,819,614,629,174,706,176 addresses · over the cap of 1,024 addresses per scope",
+    head: "Declare the domain instead",
+    body: `
+      <p>An address scope is walked in full every cadence, so it is capped at
+      <b>1,024 addresses per scope</b>. <span class="mono">2001:db8:abcd::/48</span> holds
+      1,208,925,819,614,629,174,706,176.</p>
+      <p><b>Do not raise the cap for this.</b> No setting makes an IPv6 prefix measurable. One pass over a
+      <span class="mono">/64</span> — the smallest prefix anyone is assigned — would take around
+      410,000,000,000 years at the rate this tool probes at. Raising the cap would accept the declaration
+      and then never finish it, and the coverage figure for this scope would sit near zero for as long as
+      it exists.</p>
+      <p><b>Declare the domain those machines answer for, and tick <i>treat the addresses it resolves to
+      as under your control</i>.</b> Addresses reached that way are found by resolution rather than by
+      walking, are probed exactly like any other, and the list is worked out again every cadence. IPv6 has
+      worked that way since the first release.</p>
+      <p>What that does not do is tell you when a machine appears at an address no name points to. Nothing
+      can do that in IPv6, and it is the part the two routes do not share.</p>
+      <p>If what you want is one address covered literally — a prober inside your own network, for
+      instance — declare that address on its own, as a <span class="mono">/128</span>.</p>`,
+    foot: "Nothing has been declared, and no domain has been filled in for you.",
+    note: `<p><b>The knob is named in order to shut it, and this was a real call with two sides.</b>
+      Staying silent about the cap setting is the cautious-looking option — do not mention what you do not
+      want used. It loses because the setting is not hidden: it is in Settings, and the IPv4 refusal one
+      screen away points straight at it. Silence here is not silence; it is leaving the trap unlabelled
+      for the operator who has just been told, correctly, that raising the cap is what you do.</p>
+      <p>What is refused is any <i>affordance</i>: no link to Settings on this panel, no pre-filled
+      domain, no "declare example.com instead" button. The route reaches a <b>different set</b> — the
+      extension covers what resolves, not the prefix — so taking it would substitute a boundary claim you
+      did not make.</p>`,
+  },
+  ulabel: {
+    typed: "bücher.example",
+    live: "name scope · this form is not one the DNS carries",
+    head: "Type the ASCII form of the name",
+    body: `
+      <p><span class="mono">bücher.example</span> is not a form the DNS carries. An internationalised
+      label travels on the wire in an ASCII form beginning <span class="mono">xn--</span>, and that is the
+      form every answer, every certificate and every zone file will hand back. It is the form this tool
+      holds and shows.</p>
+      <p>Typed as text it has two readings — a label of raw octets, which is legal and is a different
+      name, and an A-label. <b>This tool will not choose between them for you.</b> The conversion depends
+      on Unicode tables that move on somebody else's schedule, and a name whose spelling can move is a
+      name whose identity can move.</p>
+      <p><b>Your DNS provider shows the ASCII form beside the name.</b> Copy it from there and paste it
+      here. An internationalised estate reads as <span class="mono">xn--</span> throughout this tool,
+      which is a real cost and the honest one.</p>`,
+    foot: "Nothing has been declared, and nothing has been converted.",
+    note: `<p><b>The refusal does not compute the A-label, and this is the sharp part.</b> Printing
+      <i>did you mean</i> beside the box would mean running the conversion — the exact reference-data
+      lookup ADR-0055 bars a key normalisation from making — and then showing its output as advice. A
+      value this tool refuses to hold may not be rendered as a suggestion. So the route named is a place
+      to get the answer, not the answer.</p>`,
+  },
+  wildcard: {
+    typed: "*.example.com",
+    live: "not a name · a pattern over names",
+    head: "Name the subtree, and read what it covers",
+    body: `
+      <p><span class="mono">*.example.com</span> is a matching pattern, not a name. It denotes a set of
+      names rather than one, so there is nothing here for it to be about, and this tool holds no such
+      subject anywhere.</p>
+      <p>The object that does this job is a <b>subtree exclusion</b>, and the one you would type is
+      <span class="mono">example.com</span>. <b>It is not the same set, and that makes this a decision
+      rather than a spelling:</b></p>
+      <ul>
+        <li>a subtree exclusion on <span class="mono">example.com</span> covers
+            <span class="mono">example.com</span> itself as well as every name beneath it;</li>
+        <li><span class="mono">*.example.com</span> matches <span class="mono">foo.example.com</span> and
+            never matches <span class="mono">example.com</span>.</li>
+      </ul>
+      <p>So if <span class="mono">example.com</span> is outside your estate too, exclude the subtree
+      <span class="mono">example.com</span> and that is the whole of it.</p>
+      <p>If <span class="mono">example.com</span> is yours and only the names beneath it are not, a
+      subtree exclusion is the wrong object — exclude those names by name. There is nothing here that
+      means <i>everything beneath this name but not the name</i>.</p>`,
+    foot: "Nothing has been excluded, and nothing has been rewritten.",
+    note: `<p><b>The two objects are one label apart and a different set, so the substitution has to be
+      yours.</b> Silently reading <span class="mono">*.example.com</span> as the subtree
+      <span class="mono">example.com</span> would put the apex outside your estate on the strength of a
+      pattern that expressly excludes it — a boundary claim you did not make, made by a text
+      transformation.</p>
+      <p><b>Surfaced by drawing this:</b> the last paragraph names a set v1 has no object for. Exclusions
+      are exact names, subtrees or address scopes, and <i>everything beneath a name but not the name</i>
+      is none of the three. Said plainly rather than papered over. Ticket in the resolution.</p>`,
+  },
+};
+
+function screenDeclare(p) {
+  const r = p.refusal;
+  const ok = r === "none";
+  const c = ok ? null : REFUSAL_COPY[r];
+  const typed = ok ? "198.51.100.0/24" : c.typed;
+  const live = ok ? "address scope · 256 addresses · within the cap of 1,024 addresses per scope" : c.live;
+
+  return `
+  <h1 class="page">Declare a scope</h1>
+  <p class="sub">A registrable domain, or a range of addresses. Everything measured is inside something
+  you declare here.</p>
+
+  ${anno("the shape all four refusals share", `
+    <p><b>The refusal names a route and never takes it.</b> A route may move this tool's configuration;
+    it may never move your claim. So the IPv4 cap refusal offers its route — raising the cap declares
+    exactly the range you typed — and the other three name a route and stop, because in each of them the
+    route reaches a <b>different set</b> from the thing typed. Nothing is pre-filled, nothing is
+    corrected, and the box keeps what you wrote.</p>
+    <p>Cycle <span class="mono">refusal</span> in the bar below. <span class="mono">none</span> is the
+    accepted case; <span class="mono">cap4</span> is the contrast that makes the other three legible.</p>`)}
+
+  <div class="box">
+    <label><span class="ml">Domain or address range</span></label>
+    <input value="${esc(typed)}" ${ok ? "" : `class="bad"`} readonly>
+    <div class="live" ${ok ? "" : `style="color:var(--danger)"`}>${esc(live)}</div>
+
+    ${ok ? `
+      <div style="margin-top:var(--space-4)">
+        <span class="note">
+          <p><b>Address scope.</b> Every address in it is a subject from this declaration, walked every
+          cadence whether or not anything has ever answered there. That is what gives
+          <i>no ports responded</i> something to be a fact about, and it is why this scope has a coverage
+          denominator and a domain does not.</p>
+          <p>The cap is checked per scope and is never summed across them. Declaring a second scope does
+          not spend it. It is checked <b>here</b> rather than at scan time, so there is no such thing as a
+          partial scope: every address a seed covers is measured, which is what lets coverage speak at all.</p>
+        </span>
+      </div>
+      <div style="margin-top:var(--space-4)" class="row"><button class="btn">Declare</button>
+        <button class="btn ghost">Cancel</button></div>
+      <div style="margin-top:var(--space-5)">
+        <span class="ml">what happens when you press it</span>
+        <div class="inkp" style="margin-top:var(--space-2);max-width:84ch">
+          <p><b>One message, at the scope.</b> <span class="mono">198.51.100.0/24 revealed &middot; 256
+          addresses &middot; 35,840 timelines opened</span></p>
+          <p>Not 256 messages, and not <span class="mono">appeared</span>. Nothing in that space turned up
+          — you widened what is looked at, so the news is about this tool and it is filed as coverage.</p>
+          <p>Every address in it holds <span class="mono">not-reached</span> from the first pass, which is
+          a measured value rather than a gap. That is what gives <i>nothing answered at
+          198.51.100.77</i> something to be a fact about.</p>
+        </div>
+      </div>
+    ` : `
+      <div class="refuse">
+        <div class="rh"><h3>${esc(c.head)}</h3></div>
+        <div class="rb">${c.body}</div>
+        <div class="rf">${esc(c.foot)}</div>
+      </div>
+      <div style="margin-top:var(--space-4)" class="row"><button class="btn" disabled>Declare</button>
+        <button class="btn ghost">Cancel</button></div>
+    `}
+  </div>
+
+  ${ok ? `` : `<div style="margin-top:var(--space-6)">${anno("why this one is shaped this way", c.note, r !== "cap4")}</div>`}`;
+}
+
+/* ------------------------------------------------------------------ screen: notqueue */
+
+function screenNotQueue() {
+  const seed = NAME_SEED;
+  return `
+  <h1 class="page">Two tables that look alike</h1>
+  <p class="sub">Both ship on this screen. One is legitimately an approval queue; the other must never
+  read as one. Drawn side by side, with the forbidden rendering drawn properly rather than described.</p>
+
+  ${anno("the discriminator", `
+    <p>A census of addresses and a queue of addresses are the same table with one column added. The
+    distinguishing question is not <i>whose addresses</i> but <b>whose claim</b>: a proposal is a third
+    party's guess you adjudicate, a custody census is your own declaration read back to you. If the two
+    ever share a component, <b>that component must not carry per-row controls by default</b> — the queue
+    is the special case and the census is the base.</p>`)}
+
+  <div class="card">
+    <table>
+      <thead><tr><th>Census — ships</th><th>Queue — does not ship</th></tr></thead>
+      <tbody>
+        ${[
+          ["No control in any row", "A checkbox and a button per row"],
+          ["No pending state; every row is already in force", "A count of items not yet cleared"],
+          ["Ordered by the name citing the address", "Ordered by what needs attention"],
+          ["No badge anywhere in the navigation", "A number on the nav that goes down as you work"],
+          ["The only act is the one act on the whole declaration — turn it off", "An act per address, forever"],
+          ["Header states a fact: <span class=\"mono\">11 addresses · 5 names</span>", "Header states a task"],
+          ["Recomputed every cadence, so a row leaves on its own", "A row leaves because you cleared it"],
+          ["Rows that are <i>not</i> covered are shown too, so the boundary is visible", "Only what needs work is shown"],
+        ].map(([a, b]) => `<tr><td>${a}</td><td class="muted">${b}</td></tr>`).join("")}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="two">
+    <div>
+      <div class="reg-h"><h2 class="reg">Census</h2><span class="why">Ships. Inside the seed block, under the declaration it is the extension of.</span></div>
+      <div class="card">${extensionCensus(seed)}</div>
+    </div>
+    <div>
+      <div class="reg-h"><h2 class="reg">The same data as a queue</h2><span class="why">Does not ship. Drawn properly so the difference is visible rather than asserted.</span></div>
+      ${anno("forbidden", `<p>Per-row checkbox, per-row approve and reject, a pending count, and — the one
+        that does the most work — <b>a badge on the navigation</b>: <span class="mono">Seeds</span>
+        <span class="badge">7</span>. A nav badge is how an approval queue recruits attention, and it is
+        also how a census would become a nag. Refusing it discharges two constraints at once.</p>`, true)}
+      <div class="card ink" style="padding:0">${extensionCensus(seed, { forbidden: true })}</div>
+    </div>
+  </div>
+
+  ${anno("the honest weakness, drawn rather than argued", `
+    <p>Three addresses in the census — <span class="mono">18.164.52.11</span>,
+    <span class="mono">.72</span> and <span class="mono">.140</span> — are flattened
+    <span class="mono">ALIAS</span> records at the apex pointing at a CDN. They appear in the covered list
+    with <b>no warning, no flag and no different treatment whatsoever</b>, because recognising them would
+    need a list of provider ranges that this project has refused twice by name. You recognising your own
+    apex is the entirety of the second safety carrier, and rendering it is the only way to see how thin
+    that is.</p>`)}`;
+}
+
+/* ------------------------------------------------------------------ screen: extension */
+
+function screenExtension(p) {
+  const st = p.state;
+  const seed = {
+    ...NAME_SEED,
+    extension: st === "on" ? NAME_SEED.extension
+             : st === "nothing" ? { on: true, addresses: [], outside: EXT_OUTSIDE }
+             : { on: false, addresses: [], outside: EXT_OUTSIDE },
+  };
+
+  const tick = `
+  <div class="card">
+    <div class="pad">
+      <label class="row" style="align-items:flex-start;gap:var(--space-3)">
+        <span class="cbx" style="${st === "on" || st === "nothing" ? "background:var(--ink)" : ""};margin-top:3px"></span>
+        <span>
+          <b>Treat the addresses <span class="mono">example.com</span> resolves to as under your control</b>
+          <span class="rowsub">off by default &middot; one setting for the whole scope</span>
+        </span>
+      </label>
+    </div>
+    <div class="sect">
+      <div class="sect-h"><span class="ml">What you are asserting</span></div>
+      <div class="pad" style="max-width:84ch;line-height:var(--leading-body)">
+        <p style="margin:0 0 var(--space-3)">That you control what listens on the machines your names point
+        to, and can therefore consent to their ports being probed. Without it, those addresses are treated
+        as somebody else's and nothing connects to them.</p>
+        <p style="margin:0">It covers an address only while a name inside <span class="mono">example.com</span>
+        resolves to it <b>directly</b>. A name pointing at somebody else's name — for example
+        <span class="mono">shop.example.com &rarr; d1x2y3.cloudfront.net</span> — is outside it, and so is
+        everything past that point. The list is worked out again every cadence, so an address you stop
+        using drops out on its own.</p>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect-h"><span class="ml">Leave this off if the machine answering is not yours</span></div>
+      <div class="pad" style="max-width:84ch;line-height:var(--leading-body)">
+        <p style="margin:0 0 var(--space-2)"><b>Shared hosting.</b> One address serves your site and other
+        people's, and a probe against it is a probe against theirs.</p>
+        <p style="margin:0 0 var(--space-2)"><b>A CDN.</b> The address your name resolves to is Cloudflare's
+        or Fastly's edge, not your origin. You configure it; you do not run it.</p>
+        <p style="margin:0 0 var(--space-3)"><b>A load balancer you do not run.</b> A managed one answers
+        the connection before anything of yours does, and the address belongs to the platform.</p>
+        <p style="margin:0">Leaving it off costs you nothing you were entitled to. Turning it on when the
+        machine belongs to somebody else is a false claim about their equipment, and this tool acts on it.</p>
+      </div>
+    </div>
+    <div style="padding:var(--space-4)">
+      <div class="inkp">
+        <h3>Check your apex before you tick this</h3>
+        <p><span class="mono">example.com</span> on its own — no label in front of it — cannot hold a
+        <span class="mono">CNAME</span>; the DNS does not permit one there. So DNS providers offer
+        <span class="mono">ALIAS</span>, <span class="mono">ANAME</span> or CNAME flattening instead, and
+        what they publish is a plain <span class="mono">A</span> record. It arrives here indistinguishable
+        from a machine of yours.</p>
+        <p>If your apex is pointed at a CDN, at a platform like Netlify, Vercel or Heroku, or at a managed
+        load balancer, <b>that address is somebody else's and this setting will cover it anyway.</b>
+        Nothing will warn you, now or later.</p>
+        <p>Read the address list below before you rely on this. You know your own estate; an address you do
+        not recognise is the whole of the check.</p>
+      </div>
+    </div>
+  </div>`;
+
+  const withdrawn = `
+  <div class="card">
+    <div class="pad"><div class="inkp">
+      <h3>11 addresses are now somebody else's, as far as this tool is concerned</h3>
+      <p><b>Nothing was removed.</b> All 11 are still in your estate — your names still resolve to them —
+      and they still appear under <span class="mono">example.com</span>.</p>
+      <p><b>Their ports are no longer probed.</b> What was already measured stays on screen for up to
+      <span class="mono">2 cadences</span> — a fortnight on the weekly tier — labelled as last measured and
+      shown beside <span class="mono">third-party</span>, never as current. After that it goes blank rather
+      than reading as absent, because ceasing to look is not measuring absence.</p>
+      <p><b><span class="mono">sensitive-port-reached-from-internet</span> can no longer be evaluated</b>
+      for the 30 services on these addresses. That is this tool having stopped looking, not those services
+      having improved.</p>
+      <p><b>Turning it back on before the next cadence completes changes nothing.</b> No gap opens, no
+      history is re-baselined and no message is sent. After that, switching it back on starts measurement
+      again, and anything measured for the first time is recorded as newly looked at rather than newly
+      appeared.</p>
+    </div></div>
+  </div>`;
+
+  return `
+  <h1 class="page">Custody extension &mdash; <span class="mono" style="font-size:var(--text-lg)">example.com</span></h1>
+  <p class="sub">A property of this name scope, opened from its block on <a href="?screen=seeds&variant=C&fill=estate">Seeds</a>.
+  The declaration and the census are one pair: the declaration says what is being asserted, the census
+  shows what the assertion currently reaches.</p>
+
+  ${anno("three empties, and they are three different facts", `
+    <p><span class="mono">state=off</span> — no claim has been made. <span class="mono">state=nothing</span>
+    — the claim is made and currently reaches nothing, because no name resolves directly to an address.
+    <span class="mono">state=on</span> — the claim reaches 11 addresses. A group that renders when populated
+    renders when empty and says <b>why</b>, and here the why differs in kind between the two empty states.</p>`)}
+
+  ${st === "withdrawn" ? withdrawn : tick}
+  <div class="card" style="padding:0">${extensionCensus(seed)}</div>
+  ${st === "on" ? `<div class="row"><button class="btn ghost">Turn the extension off</button>
+    <span class="muted" style="font-size:var(--text-sm)">Applies immediately. Off is the safe direction, so there is no confirmation step.</span></div>` : ``}`;
+}
+
+/* ------------------------------------------------------------------ switcher */
+
+const GROUPS = [
+  { key: "screen",  label: "screen",  list: SCREENS,  on: () => true },
+  { key: "variant", label: "variant", list: VARIANTS, on: p => p.screen === "seeds" },
+  { key: "fill",    label: "fill",    list: FILLS,    on: p => p.screen === "seeds" },
+  { key: "refusal", label: "refusal", list: REFUSALS, on: p => p.screen === "declare" },
+  { key: "state",   label: "state",   list: STATES,   on: p => p.screen === "extension" },
+];
+
+function buildSwitch(p) {
+  document.getElementById("switch").innerHTML = GROUPS.filter(g => g.on(p)).map(g => `
+    <div class="grp"><span>${g.label}</span>${g.list.map(v =>
+      `<button data-k="${g.key}" data-v="${v}" class="${p[g.key] === v ? "on" : ""}">${v}</button>`).join("")}</div>`).join("");
+  document.querySelectorAll("#switch button").forEach(b =>
+    b.onclick = () => go({ [b.dataset.k]: b.dataset.v }));
+}
+
+/* ------------------------------------------------------------------ render */
+
+function render() {
+  const p = params();
+  const body =
+    p.screen === "declare"   ? screenDeclare(p) :
+    p.screen === "notqueue"  ? screenNotQueue()  :
+    p.screen === "extension" ? screenExtension(p) :
+                               screenSeeds(p);
+  document.getElementById("app").innerHTML = chrome(body);
+  buildSwitch(p);
+}
+
+document.addEventListener("keydown", e => {
+  if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  const p = params();
+  const g = GROUPS.filter(x => x.on(p));
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    const last = g[g.length - 1];
+    const i = last.list.indexOf(p[last.key]);
+    const d = e.key === "ArrowRight" ? 1 : -1;
+    go({ [last.key]: last.list[(i + d + last.list.length) % last.list.length] });
+  }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    const i = SCREENS.indexOf(p.screen);
+    const d = e.key === "ArrowDown" ? 1 : -1;
+    go({ screen: SCREENS[(i + d + SCREENS.length) % SCREENS.length] });
+  }
+});
+
+render();
+</script>
+</body>
+</html>
