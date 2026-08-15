@@ -22295,7 +22295,7 @@ across the two in whichever order it prefers; nothing here depends on the order.
 
 | Where | Was | Is |
 | --- | --- | --- |
-| ADR-0057 gate-checks table | eleven checks, G1–G11 | **Eleven checks still run; a twelfth is specified and appended, number pending merge.** Marked at ADR-0057's own table |
+| ADR-0057 gate-checks table | eleven checks, G1–G11 | **Thirteen checks now run — this section's check is G12, #152's is G13.** Marked at ADR-0057's own table |
 | ADR-0077 Consequences — *"a gate shortfall is opened rather than closed"* | open | **Discharged, not superseded** — the statement was true at ADR-0077's date and stays true as history; the gap it named now has a specified instrument. Marked at ADR-0077's own clause |
 | §41.7's *"ticketed rather than decided here"* | open | **Closed by this section** |
 | §41.6's *"The gate — eleven checks G1–G11 … one shortfall is recorded rather than repaired"* | recorded | **Unchanged as a historical statement of §41's date.** This section does not edit §41; it is superseded in effect, not in text, per ADR-0058's own practice of a replacement rather than a strike-through at a site this session may not touch |
@@ -22497,14 +22497,14 @@ artefact promised its own boundary would move, and reality has passed the date i
 
 ### 49.1 The ruling
 
-**A new gate check, named and not numbered.** [ADR-0099](../adr/0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md)
+**A new gate check, numbered G13.** [ADR-0099](../adr/0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md)
 mints it: for every graded cell whose held ground quotes an owner-declared horizon — a specific future
 release, version or date at which the owner states a named behaviour will change — compare the current
 tag or date G11 already fetches against that horizon. Where current ≥ horizon and no subsequent
-retrieval records whether the promised change occurred, the cell is **horizon-passed-unverified**.
-Numbering it **G12** or folding it into a check #149 also needs is the merge session's call, per the
-batch's shared constraint that a twelfth check must terminate and at most one may be minted. This
-section calls it **(new gate check, number pending merge)**.
+retrieval records whether the promised change occurred, the cell is **horizon-passed-unverified**. The
+merge session numbered it **G13**, keeping it separate from #149's **G12** rather than folding the two
+together — argued in ADR-0099 §2 and confirmed in the merge, since each check's population is only
+mechanically enumerable when kept apart (tagged-with-a-horizon vs. no-tag-at-all).
 
 ### 49.2 Why this is not G11 amended
 
@@ -22580,8 +22580,8 @@ which is the exact failure ADR-0057 built eleven mechanical checks to stop happe
 | `2375/tcp`'s row, class, footing tier | Class A, prohibition tier, strengthened (§10.4.3, §35) | **unchanged** |
 | §1 pair count, §3 class totals, §2.2 footing tiers and coverage, §4.6 exclusions | 38 · `12/7/19` · `13/11/3` · 27 of 38 · 24 | **unchanged.** This section moves no cell |
 | §40's gate baseline — G11 | RED, 5 findings, `2375/tcp` listed **Current** | **unchanged.** The check this section adds is not G11 and does not revise G11's verdict |
-| The gate — eleven checks G1–G11 | eleven | **unchanged in membership here.** One new check is described (ADR-0099) and left unnumbered, pending the merge session |
-| [`curated-table-watch.md`](../spec/curated-table-watch.md) §3's *"the gate is eleven checks, G1–G11"* | eleven | **not edited by this section** — reserved to the merge session, which numbers the check (or checks) this ticket and #149 between them produce |
+| The gate — eleven checks G1–G11 | eleven | **Thirteen now run — this section's check is G13 (ADR-0099), #149's is G12.** Numbered by the merge session |
+| [`curated-table-watch.md`](../spec/curated-table-watch.md) §3's *"the gate is eleven checks, G1–G11"* | eleven | **Updated by the merge session to "thirteen checks, G1–G13."** |
 | CONTEXT.md | — | **not amended**, on ADR-0057's own last Decision row |
 
 ### 49.7 Thin ground, flagged per the standing rule

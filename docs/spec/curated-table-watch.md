@@ -146,10 +146,13 @@ ships a curated table.
 
 ## 3. The gate ledger — reserved
 
-**The gate is eleven checks, G1–G11, run over the table as edited; an edit is complete only when the
+**The gate is thirteen checks, G1–G13, run over the table as edited; an edit is complete only when the
 gate is green over the post-edit state, and a red gate blocks the *edit*, never the release**
 ([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md);
-[`sensitive-ports.md`](../research/sensitive-ports.md) §39.6).
+[`sensitive-ports.md`](../research/sensitive-ports.md) §39.6). G12 and G13 were added in the 2026-08-15
+merge of [#149](https://github.com/winniel123/verge-asm/issues/149) and
+[#152](https://github.com/winniel123/verge-asm/issues/152)/[ADR-0099](../adr/0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md);
+ADR-0057's own table is the canonical list.
 
 **This section's shape is [#133](https://github.com/winniel123/verge-asm/issues/133)'s and is
 deliberately unspecified here.** The gate has never been run whole; #133 is running G1–G11 to

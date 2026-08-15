@@ -39,7 +39,7 @@ The full working is `sensitive-ports.md` **§49**.
 | --- | --- |
 | **Is the row wrong?** | **No.** §35 measured the enforcement directly, at the current tag. This ADR does not touch the row, the class, the footing tier or the coverage figure |
 | **Does G11 need to change?** | **No — G11's own definition is left exactly as ADR-0057 wrote it and exactly as §40 ran it.** §40 is the gate's baseline; redefining G11 after its baseline run would retroactively change what that green/red verdict meant, which is the silent-regeneration failure ADR-0057 §5 exists to prevent |
-| **What closes the gap** | **A new, sibling gate check — named here but not numbered.** Numbering a twelfth check is reserved to the merge session per the batch's shared constraint (ADR-0057: a twelfth check must terminate, and at most one may be minted). This ADR calls it **(new gate check, number pending merge)** |
+| **What closes the gap** | **A new, sibling gate check — numbered G13 at merge**, alongside [#149](https://github.com/winniel123/verge-asm/issues/149)'s G12; lower ticket number first, no other significance to the order |
 | **What the new check tests** | For every graded cell whose held ground quotes an owner-declared **horizon** — a specific future release, version or date at which the owner states a named behaviour will change (a deprecation-to-removal target, an end-of-life or sunset date, a support-window close) — compare the owner's **current** tag or date, already fetched by G11's own re-fetch, against that horizon. Where current ≥ horizon and no subsequent retrieval records whether the promised change occurred, mark the cell **horizon-passed-unverified** |
 | **Is it closed (terminating)?** | **Yes.** Its population is enumerable from bytes already held — cells whose cited ground text contains explicit horizon language — and it introduces **no new re-fetch class**: the "current" value is the same tag G11 already retrieves. Measured today, the population is **one**: `2375/tcp` |
 | **Is it the same check #149 needs?** | **No, on the evidence read for this ticket — see Rationale 2.** #149's gap is the *absence* of any comparand for a whole artefact class (rung 1/2, no tag at all). This gap is a comparand that *exists and passes*, alongside a second, independent fact the same ground states that nothing compares at all. Flagged for the merge session rather than asserted as settled, because a generalised formulation exists that could subsume both — named in Rationale 3 and deliberately not chosen here |
@@ -109,13 +109,11 @@ addressed in Alternatives rejected.
   measured it.
 - **G11's own definition is unchanged**, and its `sensitive-ports.md` §40 baseline is unchanged and
   unre-interpreted.
-- **A new gate check is described but not numbered.** `sensitive-ports.md` §49 states it in full; the
-  merge session assigns the final number, in the same pass that resolves whether it is one check with
-  [#149](https://github.com/winniel123/verge-asm/issues/149)'s or two.
+- **The new gate check is G13.** `sensitive-ports.md` §49 states it in full; the merge session numbered
+  it alongside [#149](https://github.com/winniel123/verge-asm/issues/149)'s G12, ruling the two stay
+  separate rather than merging into one.
 - **[`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) §3's *"the gate is eleven
-  checks, G1–G11"* is not edited here.** That document's gate-ledger section is explicitly reserved to
-  [#133](https://github.com/winniel123/verge-asm/issues/133)'s shape and is the merge session's to
-  update once the check is numbered, not this ticket's.
+  checks, G1–G11"* is updated by the merge session to *"thirteen checks, G1–G13."***
 - **`CONTEXT.md` is not amended**, on ADR-0057's own last Decision row: the curator is not a subject in
   the model.
 - **ADR-0057 and ADR-0077 are confirmed by use and neither is amended.** This ADR adds a check
