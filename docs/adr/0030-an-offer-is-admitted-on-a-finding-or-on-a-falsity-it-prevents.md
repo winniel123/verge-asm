@@ -41,7 +41,7 @@ recorded scope is what went on the wire, not what we intended.
 | What a failed query writes | **Nothing.** It narrows the batch's recorded scope; currency decides whether a `Gap` opens |
 | ADR-0025's test, corrected | The test is asked **of the offer**, never per facet — otherwise one offer gets two homes and the doubling trap rebuilds itself |
 | Widening the TLS offer | `Break`s **`certificate` as well as `tls-acceptance`**. ADR-0025 priced only the second |
-| The enumerated aperture input count | **Unchanged at six.** This ADR adds none |
+| The enumerated aperture input count | ~~**Unchanged at six.**~~ **Unchanged by this ADR** — *the figure is withdrawn; it is **seven** since [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md) added the control-probe population, which is not an offer.* This ADR adds none |
 | Operator-configurable offers | **None in v1.** An offer the operator can narrow is a finding the operator can silence |
 
 ## Rationale
@@ -133,7 +133,10 @@ recorded scope dimension of the `certificate` batch too, then widening the offer
 list wide now stronger than the ticket's framing already made it.
 
 This adds **no seventh aperture input**. It is the same input recorded on more batches, and the
-enumerated count stays at six.
+enumerated count stays at six. *(**The figure is withdrawn.** The seventh arrived later and from
+elsewhere: [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)'s
+**control-probe population**, which is not an offer, so nothing in this section is disturbed —
+*this ADR adds none* stands.)*
 
 ### 4. Go will not let the whole TLS offer be declared, and the residue must leave the value
 
@@ -285,7 +288,7 @@ offers here are excepted by this section rather than by #60's silence.
 - **Two qtypes are deferred** — CAA and PTR — priced at `revealed` plus one message whenever anyone
   wants them. PTR additionally needs `dns-record` to key on `Address`, which is left as fog.
 - **The map's *"`dns-record` multiplies by six qtypes"* is corrected to seven.**
-- **The aperture input list is unchanged at six.**
+- **The aperture input list is unchanged ~~at six~~ by this ADR.** *(The figure is withdrawn — **seven** since [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).)*
 - **What is decided on thin ground and marked as such**: the DNS retry and fallback budget, and the
   DO bit. Neither has a measurement or an attestation behind it, and both are cheap to revise.
 

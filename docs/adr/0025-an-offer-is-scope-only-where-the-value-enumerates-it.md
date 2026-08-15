@@ -39,7 +39,7 @@ earlier batches offered.
 | ALPN and the HTTP versions we speak | **Declared parameter** of `http-exchange`. Not an aperture input |
 | EDNS options and buffer size | **Declared parameter** of `resolution-walk` and `wildcard-discrimination`. Not an aperture input |
 | DNS transport and fallback policy | **Declared parameter** of `resolution-walk`. Not an aperture input |
-| The enumerated aperture input list | **Unchanged at six** — and it was six, not five, from [ADR-0017](./0017-exposure-needs-both-legs.md) |
+| The enumerated aperture input list | ~~**Unchanged at six**~~ **Unchanged *by this ticket*** — and it was six, not five, from [ADR-0017](./0017-exposure-needs-both-legs.md). **The figure is withdrawn: it is seven since [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)** added the control-probe population, which is not an offer, so the test below is unreached |
 | Can a library **default** be recorded honestly? | **No, in either home.** A default is not a declaration |
 | What v1 must therefore do | Every offer the binary makes is **enumerated in the job spec and passed to the library explicitly**; the `Batch` records what went on the wire, never the library's identity |
 | What an aperture widening costs | A **`Break`** on the timelines it touches; **`revealed`** only on the timelines it *opens*. Sorted by whether the dimension sits in the **key** or in the **value** |
@@ -77,6 +77,13 @@ member of a three-value closed union, not a set with a missing member.
 
 The test recovers all six settled aperture inputs and correctly excludes the settled parameters,
 which is the tell that it is the cut and not a rationalisation:
+
+> **The count *six* here is withdrawn** — the list is **seven** since
+> [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).
+> The seventh, the **control-probe population**, is not an offer and this table's test is not asked
+> of it: nothing about it goes on the wire as a candidate. The `Control-label count` row below is
+> untouched and stays a parameter — the count conditions a value, the population decides whether
+> the value is available at all.
 
 | Input | Per-candidate negative? | Home |
 | --- | --- | --- |
@@ -338,8 +345,12 @@ ours. It bumps the leaf and nothing else.
 - **Two prober obligations enter the spec, both discharging false-value risks rather than aperture
   ones.** A truncated DNS answer is never a value. A transport-level refusal is never a zone-level
   value, so no `BADCOOKIE` or cookie-driven `REFUSED` may produce `Lame`.
-- **The aperture input list is unchanged at six.** This ticket adds none — which is the answer, and
+- **The aperture input list is unchanged ~~at six~~ by this ticket.** This ticket adds none — which is the answer, and
   is why [#12](https://github.com/winniel123/verge-asm/issues/12) can carry a closed enumeration.
+  *(**The figure is withdrawn**: the enumeration is **seven** since
+  [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+  added the control-probe population. *This ticket adds none* is untouched, and #12's enumeration is
+  still closed — it is a longer list, not an open one.)*
 - **What the offers actually *are* is now required v1 spec content and is not decided here** — the
   concrete TLS candidate list, the prober's qtype list, the ALPN list, the EDNS buffer and the
   fallback policy. Opened as its own ticket, blocking #12.
@@ -407,4 +418,33 @@ the scope record, visible, and not a silent one"* is discharged by a **build-tim
 check** (ADR-0030 §5), not by the scope record alone, which would only reveal the narrowing after
 the `Break` had fired.
 
-The **aperture input count is unchanged at six**, and *"this ticket adds none"* stands for #62 too.
+The **aperture input count is unchanged ~~at six~~ by #62**, and *"this ticket adds none"* stands for
+#62 too. *(**The figure is withdrawn** — seven since
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).)*
+
+## Amendment — [#108](https://github.com/winniel123/verge-asm/issues/108): the seventh input is not an offer, and the offer test is not asked of it
+
+Recorded by
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
+which made the **control-probe population** — the set of `Name`s `wildcard-discrimination` generates
+control labels under — the **seventh** aperture input.
+
+Nothing above is overturned. The offer test is untouched and was **unreached**: an offer is wire
+content, and this is a set of subjects, so the population never entered the table it would have been
+sorted by. What the ticket exposed is that *offer* and *aperture input* were never coextensive — three
+of the six settled inputs are subject populations rather than wire content, and this ADR's own table
+states their per-candidate negatives.
+
+Two of this ADR's rules did the deciding, both unchanged:
+
+- **A default is not a declaration**, read one term over. A declared parameter must be *declared
+  data* (ADR-0021), and this population is a function of the batch's own resolution scope — so filed
+  as a parameter it would bump the leaf on every newly-discovered subdomain and `Break` the name half
+  of the estate. A parameter whose value is *whatever the batch found* is no more declared than one
+  whose value is *whatever the library defaults to*.
+- **A recorded scope dimension is recorded by content.** The `Batch` records the set of label
+  sequences, never the rule that produced it, for the reason this ADR gave against the library
+  version: a rule cannot be diffed to tell a widening from a narrowing.
+
+The `Control-label count` row stays **Parameter**. Count and population are two facts, so this is not
+the one-fact-two-homes trap the #62 amendment closed above.

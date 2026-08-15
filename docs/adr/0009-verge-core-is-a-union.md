@@ -145,8 +145,13 @@ before the first install there are none. So the aperture rule is not *waived* pr
 the moment an install has a timeline the rule binds by its own terms with nothing to repeal. Taking
 the exemption would have meant authoring a freeze policy with exactly one user, in order to avoid
 using a mechanism [ADR-0007](https://github.com/winniel123/verge-asm/blob/adr-0007-drift-model/docs/adr/0007-drift-is-a-timeline-of-spans.md)
-already built and already prices at zero: port tiers are one of its three named aperture inputs,
+already built and already prices at zero: port tiers are one of its ~~three~~ named aperture inputs,
 alongside enabled sources and the ownership gate, and all three yield `revealed`.
+*(**The count is withdrawn** — there were three when this was written, six after
+[ADR-0017](./0017-exposure-needs-both-legs.md), and **seven** after
+[#108](https://github.com/winniel123/verge-asm/issues/108) /
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).
+Port tiers being one of them, and all three yielding `revealed`, is untouched.)*
 
 State it as vacuity, not as a grace period. The distinction is the whole safety of it.
 

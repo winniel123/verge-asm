@@ -57,7 +57,9 @@ The zone file cannot produce a `resolution` value. ADR-0011 divided the two DNS 
 versus reading**: `resolution` follows CNAMEs and, since #35, queries the delegated authorities
 directly; `dns-record` records what an authority served for a qtype. A file is a reading. It also
 cannot reach the two values that need a second measurement — `Lame` needs the delegation walked
-and `Shadowed` needs the parent zone's poison signature — which
+and `Shadowed` needs the ~~parent zone's~~ **parent name's** poison signature — the control probe runs
+under a name's **parent**, which is not a zone boundary
+([ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)) — which
 [ADR-0011](./0011-a-facet-is-six-parts.md) puts inside the measurement binary in one batch.
 
 So the collision is on **`dns-record`**, which is where ADR-0011 already put this pair when it
