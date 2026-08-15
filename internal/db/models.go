@@ -145,3 +145,12 @@ type Vantage struct {
 	CreatedBy    pgtype.Int8        `json:"created_by"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
+
+type ZoneFile struct {
+	ID         int64              `json:"id"`
+	SeedID     int64              `json:"seed_id"`
+	SuppliedAt pgtype.Timestamptz `json:"supplied_at"`
+	Content    string             `json:"content"`
+	UploadedBy int64              `json:"uploaded_by"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
