@@ -81,8 +81,22 @@ one nobody can review later"*, and an **undated** reason is not reviewable eithe
 in April* is the first thing a reviewer needs and the last thing the reason text will reliably say.
 
 `Annotation` is consequently the only Declared term carrying an instant. That is admitted rather
-than hidden, and it is the same asymmetry that already earns the object its name: it is the only
-Declared term carrying operator prose.
+than hidden, and ~~it is the same asymmetry that already earns the object its name: it is the only
+Declared term carrying operator prose.~~
+
+> **Amended by [#165](https://github.com/winniel123/verge-asm/issues/165) ·
+> [ADR-0093](./0093-an-instant-on-a-declared-term-is-earned-by-an-act-nothing-else-dates.md), and
+> amended at this site under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
+> **The outcome stands; the ground does not.** Read alone and in the present tense, the struck clause
+> would give a new prose-carrying Declared term an instant — and `prototypes/seeds/` already draws a
+> free-text `why` on every exclusion row beside a rendered date. **Prose is a correlate, not the
+> discriminator.** The replacement: an instant is earned on **two limbs together** — the term is
+> **replaced rather than edited**, so the instant acquires no successor (which is this section's own
+> premise, stated as the condition it actually is); and the act leaves **no dated residue** anywhere
+> in the model while a named v1 reader needs it dated. `Annotation` passes both because **its whole
+> effect is a message that does not fire** — §5's recorded firing goes empty on a quiet estate, as
+> variant C lost on — so nothing else dates the acceptance. Every other Declared act is dated by what
+> it moved.
 
 ### 3. A count of annotations may exist once, over the list, and never per rule
 
@@ -227,8 +241,14 @@ Three variants were drawn — `prototypes/signals-annotated/`, `?variant=A|B|C`.
 - **The `Signals` screen gains one block and no destination.** The nav is unchanged, the notification
   classes stay a partition of three, and the annotation list is the sole place an operator can
   enumerate what they have accepted.
-- **`Annotation` is the only Declared term carrying an instant**, and the only one carrying operator
-  prose. Both exceptions are now written down in one place rather than inferred.
+- **`Annotation` is the only Declared term carrying an instant**, ~~and the only one carrying operator
+  prose. Both exceptions are now written down in one place rather than inferred.~~ **Amended by
+  [#165](https://github.com/winniel123/verge-asm/issues/165) ·
+  [ADR-0093](./0093-an-instant-on-a-declared-term-is-earned-by-an-act-nothing-else-dates.md)**, per
+  §2's amendment above. The instant is earned by an act **nothing else dates**, never by the prose;
+  and *the only one carrying operator prose* was **already inaccurate on `main` when written** —
+  `prototypes/seeds/` renders a free-text `why` on every `Seed` exclusion. The rule now lives in
+  `CONTEXT.md`'s Declared-layer preamble rather than being inferred from this asymmetry.
 - **Six refused renderings, not three.** ADR-0016's three are joined by the per-rule count, the
   rendered age, and the suppressed-firings count. All six are drawn, struck and labelled in the
   prototype's refusals panel, so the next session finds the refusals rather than re-deriving them.

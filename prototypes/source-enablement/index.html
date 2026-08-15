@@ -113,6 +113,14 @@
   .note.invite { border-left-color: var(--accent); }
   .note .ml { display: block; margin-bottom: var(--space-1); }
   .note.invite .ml { color: var(--accent); }
+  /* ADR-0075's withdrawal mark. Reviewer commentary, not part of the design — the same
+     dashed box prototypes/seeds/ ships. */
+  .anno { border: 1px dashed var(--danger); background: var(--danger-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4);
+          font-size: var(--text-sm); line-height: var(--leading-body); }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
 
   .stack > * + * { margin-top: var(--space-4); }
   .stack-2 > * + * { margin-top: var(--space-2); }
@@ -757,6 +765,24 @@ function acceptScreen(srcKey, stage) {
               <button class="btn ghost sm" onclick="go('screen','stored')">Open what was stored →</button>
             </div>`}
         </div>
+      </div>
+
+      <div class="anno">
+        <span class="ml">withdrawn — two cells, two rulings</span>
+        <p><b><span class="mono">accepted by</span> is refused outright.</b>
+          <a href="https://github.com/winniel123/verge-asm/issues/127">#127</a> ruled operator
+          attribution out of v1 and ADR-0073 §1 made it total: <i>no account, no name, no initials,
+          no avatar, no &ldquo;declared by&rdquo; cell &mdash; not stored and not rendered</i>. This
+          drawing predates both. <b>What it would draw now:</b> nothing &mdash; the row is gone, and
+          no cell replaces it.</p>
+        <p><b><span class="mono">accepted at</span> is refused as a property of the declaration</b>
+          &mdash; <a href="https://github.com/winniel123/verge-asm/issues/165">#165</a> · ADR-0093.
+          An instant is not a field the Declared layer may carry, and a <span class="mono">Source</span>
+          toggle fails both limbs: it is flipped in place, and the <span class="mono">Batch</span>'s
+          recorded source set already dates it. <b>What it would draw now:</b> the retrieval receipt
+          above, unchanged &mdash; <span class="mono">requested &hellip; at</span> dates <i>our</i>
+          fetch, which is an operational fact about what the project did and is correct as drawn. The
+          rest of this record &mdash; the stored copy, the questions shown &mdash; is untouched.</p>
       </div>
 
       <div class="card">
