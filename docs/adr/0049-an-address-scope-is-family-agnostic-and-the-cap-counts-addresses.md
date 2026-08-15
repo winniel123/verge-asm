@@ -222,6 +222,27 @@ where the prober sits, not of what it is probing, so an `internal` prober measur
 records on the `internal` leg exactly as it does for IPv4. And §6's deliberate two-sets divergence is
 untouched — the extension still may not decide a vantage's class, in either family.
 
+> **Amended 2026-08-15 by [#124](https://github.com/winniel123/verge-asm/issues/124): the
+> quantifier stands and the *set* is narrowed to the addresses the vantage is observed to
+> **present**.** **`every`** is not reopened — the closed-direction argument above is untouched and
+> is what the narrowing runs under.
+>
+> What this ADR left open is the question one layer down: *which* addresses a vantage holds, and how
+> we learn them. The answer is [#14](https://github.com/winniel123/verge-asm/issues/14)'s own two
+> self-contained checks and nothing else — a prober's presented address is the one the instance
+> dialled, known by construction; the instance's is `SSH_CLIENT` as the prober reports it. **An
+> interface address is not a presented address.** The forcing argument is **this ADR's own cap**:
+> read literally, a NATed instance could verify `internal` only by declaring its own LAN as an
+> address scope, and the 1,024-address cap **refuses** anything above a `/22` — so an operator on
+> `10.0.0.0/8` could never verify one and `Exposure` would be unreachable by construction on their
+> install. The narrowing is forced rather than chosen.
+>
+> **The dual-stack residue this section was written for is narrowed rather than closed, and that is
+> disclosed rather than smoothed.** A prober dialled over IPv4 has an IPv6 egress **nobody observed**,
+> so `every` runs over a set that does not contain it. That is a smaller hole than the permissive
+> `any` reading and it is not nothing: closing it needs a second observation from a second family,
+> which the instrument does not make and which this ticket did not buy. Ticketed rather than guessed.
+
 ### Where this is thin, stated rather than smoothed
 
 - **No measurement exists of how operators hold or subdivide IPv6 space**, and the ticket flags it.

@@ -176,9 +176,10 @@ denominator, and inventing one is [#28](https://github.com/winniel123/verge-asm/
 estate-completeness score arriving through the port axis.
 
 So the aperture statement's port-tier line states the tier, its cadence and its off state; it carries
-~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ **`0 of 38 sensitive pairs unread`** (#109 removed `1433/tcp`; [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp`) and `0 of 16 rules
-unevaluable`, both of which are ours, closed and
-true; and it says in prose that ports outside `verge-core` produce no `Service`, so nothing on them
+~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ ~~`0 of 38 sensitive pairs unread`~~ **`5 of 38 sensitive pairs unread`** (#109 removed `1433/tcp`; [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp`; **the numerator is corrected from `0` by [#124](https://github.com/winniel123/verge-asm/issues/124) — five sensitive pairs are UDP and UDP is off on default settings, so ADR-0009's union puts them in `verge-core` without any of them being read. See the correction under the Consequences below**) and `0 of 16 rules
+unevaluable`, ~~both of which are ours, closed and
+true~~ **both of which are ours and closed, the second of which is true and the first of which is
+now stated over the intersection of `verge-core` with the transports we probe**; and it says in prose that ports outside `verge-core` produce no `Service`, so nothing on them
 is measured, evaluated **or counted**. Unlike #44's custody row it may carry a pointer to the `Scan`
 configuration, because here an action genuinely exists and recommending it tells the operator nothing
 false about themselves.
@@ -275,6 +276,31 @@ position ever changes.
   > count over our own list, evaluated per `Service`, and enumeration only widens the population it
   > is true over. The denominator moved because the **list** moved — 37 → 39 → 41 — and the numerator
   > is `0` for every value of it. **And it moved DOWN for the first time — 41 → 40 — when [#109](https://github.com/winniel123/verge-asm/issues/109) removed `1433/tcp` from the sensitive list; the numerator is still `0`, and **[measured]** the probed set did not move at all, `verge-core` staying at 136 pairs / 131 probed because the pair is in the frequency half. It moved down a second time and by two — 40 → 38 — when [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp`, with the same disposal in every respect: numerator `0`, probed set unmoved, `verge-core` at 136 pairs / 131 probed, both pairs being in the frequency half.**
+  >
+  > > **The numerator is CORRECTED at this clause, 2026-08-15 by
+  > > [#124](https://github.com/winniel123/verge-asm/issues/124). It reads `5 of 38 sensitive pairs
+  > > unread`, not `0`, and it always did.**
+  > >
+  > > The reading that produced `0` is this ADR's own and is stated in the rationale: *ADR-0009's
+  > > union puts every sensitive pair inside the hot set, so `sensitive-port-reached-from-internet`
+  > > reads all of them daily.* The first clause is true and the second does not follow.
+  > > [ADR-0009](./0009-verge-core-is-a-union.md) says in the same breath that `verge-core` is
+  > > **136 pairs** of which **131 are probed on default settings, UDP being off** — and the five it
+  > > leaves out (`69/udp`, `137/udp`, `138/udp`, `623/udp`, `11211/udp`) reach `verge-core` from the
+  > > **sensitive list alone**. Every one of them is therefore a sensitive pair that a default install
+  > > does not read. The figure sat inside the same sentence as its own refutation for four
+  > > amendments, and every one of them re-checked the **denominator**.
+  > >
+  > > **Membership of `verge-core` is not measurement.** The aperture is `verge-core` ∩ the transports
+  > > the shipped configuration probes, and the count is over the intersection.
+  > >
+  > > **`0 of 16 rules unevaluable` is untouched.** `sensitive-port-reached-from-internet` reads a leg
+  > > on a `Service` and its domain is populated by the 131 TCP pairs, so the rule speaks. What the
+  > > five cost is **subjects**, not evaluability: there is no `Service` for a pair outside the
+  > > recorded scope. And this ADR's *"no unearned clean bill of health"* now holds for the reason it
+  > > claimed rather than in spite of a rounded figure — the line names the transport and, on this
+  > > ADR's own allowance, points at the tier config, because here an action genuinely exists. See
+  > > [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §6.
 
 ## Alternatives rejected
 

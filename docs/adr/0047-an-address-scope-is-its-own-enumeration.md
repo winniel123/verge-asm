@@ -330,10 +330,12 @@ Three riders keep this from generalising into the thing that was refused.
   can raise the figure — which is #28's own test, passed.
 
 **[#80](https://github.com/winniel123/verge-asm/issues/80)'s ~~`0 of 37 sensitive pairs unread`~~
-~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ **`0 of 38 sensitive pairs
-unread`** (#109 removed `1433/tcp`; [#114](https://github.com/winniel123/verge-asm/issues/114) removed
-`9200/tcp` and `9300/tcp`)
-survives unchanged and is strengthened.** It is a count over *our* list, evaluated per `Service`, and
+~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ ~~`0 of 38 sensitive pairs
+unread`~~ **`5 of 38 sensitive pairs unread`** (#109 removed `1433/tcp`; [#114](https://github.com/winniel123/verge-asm/issues/114) removed
+`9200/tcp` and `9300/tcp`; **the numerator is corrected from `0` by
+[#124](https://github.com/winniel123/verge-asm/issues/124) — five sensitive pairs are UDP and UDP is
+off on default settings**)
+survives **this ticket's** enumeration unchanged and is strengthened by it.** It is a count over *our* list, evaluated per `Service`, and
 [ADR-0009](./0009-verge-core-is-a-union.md) puts every sensitive pair inside the daily tier by
 construction. Enumeration multiplies the `Service`s the claim ranges over and changes nothing about
 the claim; what it adds is that the population is now a **declared, counted** one rather than
@@ -449,8 +451,8 @@ is what keeps it to one message: a `Service` entering is never a message.
 - **[ADR-0044](./0044-a-one-off-measurement-has-no-currency.md) is confirmed, not amended.** Its
   per-address figures stand; its two estate limbs collapse to one; its unresolved-seam bullet is
   discharged by this ADR; and its rejection of the enabled cold `Scan` stops being conditional on
-  this ticket. Its ~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41`~~ ~~`0 of 40`~~ **`0 of 38`** is untouched by this ticket; the
-  denominator moved with the sensitive list — down by one when [#109](https://github.com/winniel123/verge-asm/issues/109) removed `1433/tcp` and down by two more when [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp` — and the numerator is `0` for every value of it.
+  this ticket. Its ~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41`~~ ~~`0 of 40`~~ ~~`0 of 38`~~ **`5 of 38`** is untouched by this ticket; the
+  denominator moved with the sensitive list — down by one when [#109](https://github.com/winniel123/verge-asm/issues/109) removed `1433/tcp` and down by two more when [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp` — and the numerator ~~is `0` for every value of it~~ **is `5` for every value of it, corrected by [#124](https://github.com/winniel123/verge-asm/issues/124): five sensitive pairs are UDP, and UDP is off on default settings, so `verge-core`'s union carries them without any of them being probed**.
 - **[`safe-active-probing.md`](../research/safe-active-probing.md) §3.4 is confirmed and cited
   rather than corrected**, and §9's `Target range size cap` row gains *where* the cap is applied —
   at declaration, per scope, never to a sum.
