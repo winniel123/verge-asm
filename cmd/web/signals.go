@@ -47,10 +47,18 @@ type signalMember struct {
 // memberGroupView is one census member — a labelled list whose header count is
 // exactly len(Members), locked (ADR-0102). Kind is the member's register, used
 // only for styling; the three registers are deliberately not a severity ramp.
+//
+// Prose, when set, replaces the count-and-list rendering entirely: it is the
+// fully-annotated `fired` census's categorical sentence (v1 spec §6.5, #164).
+// When every subject a rule counts under `fired` carries an `Annotation`, the
+// member renders as prose, never a mute count — no number, no ratio, no
+// partition, the same all-or-nothing categorical fact the census's own honesty
+// would otherwise turn on its head.
 type memberGroupView struct {
 	Label   string
 	Kind    string
 	Members []signalMember
+	Prose   string
 }
 
 // signalCensusView is one rule's rendered census: three member lists over one
@@ -64,21 +72,94 @@ type signalCensusView struct {
 	Groups  []memberGroupView
 }
 
+// annotationView is one declared `Annotation` shaped for rendering: the pair it
+// is keyed on, the operator's reason, and the instant declared. There is no
+// author cell and no status — every operator dial is unattributed (ADR-0073) and
+// an Annotation carries neither a timeline nor an expiry. Orphan is derived on
+// read and stored nowhere (ADR-0092): a row whose key is in no current
+// population of its rule names a withdrawn or never-measured subject and matches
+// nothing right now.
+type annotationView struct {
+	ID      int64
+	Subject string
+	Signal  string
+	Reason  string
+	At      string
+	Orphan  bool
+}
+
+// signalsForms carries a declare-form error back onto a re-rendered Signals page
+// so a rejected declaration keeps its message and its typed values without a
+// redirect.
+type signalsForms struct {
+	annoError   string
+	annoSubject string
+	annoSignal  string
+	annoReason  string
+}
+
 func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	s.renderSignals(w, r, acct, signalsForms{})
+}
+
+// renderSignals folds the Derived corpus into the per-rule censuses, folds the
+// operator's annotations against them, and renders the Signals screen. It is the
+// single render path the GET handler and the declare handler's failure case both
+// use, so a rejected declaration re-renders the live page with its error.
+func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.Account, forms signalsForms) {
 	facts, err := s.buildNameFacts(r)
 	if err != nil {
 		s.serverError(w, "build name facts", err)
 		return
 	}
+	annos, err := s.store.ListAnnotations(r.Context())
+	if err != nil {
+		s.serverError(w, "list annotations", err)
+		return
+	}
 
+	// annotated[signal][subject] — the set of accepted pairs, so a census can ask
+	// whether its fired members are all annotated. population[signal][subject] —
+	// every subject a rule censuses, so an annotation can be marked orphan when
+	// its key names no current member.
+	annotated := map[string]map[string]bool{}
+	for _, a := range annos {
+		m := annotated[a.SignalName]
+		if m == nil {
+			m = map[string]bool{}
+			annotated[a.SignalName] = m
+		}
+		m[a.SubjectKey] = true
+	}
+
+	population := map[string]map[string]bool{}
 	views := make([]signalCensusView, 0)
 	for _, c := range signal.EvaluateAll(facts) {
+		pop := map[string]bool{}
+		for _, m := range c.Fired {
+			pop[m.Subject] = true
+		}
+		for _, m := range c.NotFired {
+			pop[m.Subject] = true
+		}
+		for _, m := range c.NotEvaluable {
+			pop[m.Subject] = true
+		}
+		population[c.Rule] = pop
+
+		fired := memberGroupView{Label: "Fired", Kind: "fired", Members: members(c.Fired)}
+		if firedAllAnnotated(c, annotated[c.Rule]) {
+			fired.Prose = "This rule is evaluating on its own cadence and its census is live — " +
+				"it is not off. Every subject counted under fired carries an annotation right " +
+				"now, so its next firing reaches no one. See each acceptance, and its reason, " +
+				"under Annotations below."
+		}
 		views = append(views, signalCensusView{
 			Rule:    c.Rule,
 			Version: c.Version.String(),
 			Empty:   c.Empty(),
 			Groups: []memberGroupView{
-				{Label: "Fired", Kind: "fired", Members: members(c.Fired)},
+				fired,
 				{Label: "Did not fire", Kind: "not-fired", Members: members(c.NotFired)},
 				{Label: "Not-evaluable", Kind: "not-evaluable", Members: members(c.NotEvaluable)},
 			},
@@ -87,8 +168,49 @@ func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	s.render(w, "signals", map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Censuses": views,
+		"Censuses":    views,
+		"Annotations": annotationViews(annos, population),
+		"RuleNames":   signal.RuleNames(),
+		"AnnoError":   forms.annoError,
+		"AnnoSubject": forms.annoSubject,
+		"AnnoSignal":  forms.annoSignal,
+		"AnnoReason":  forms.annoReason,
 	})
+}
+
+// firedAllAnnotated reports whether every subject the rule counts under `fired`
+// carries an Annotation — the all-or-nothing case that renders as prose. An empty
+// fired census is never "fully annotated": there is nothing to have accepted.
+func firedAllAnnotated(c signal.Census, annotated map[string]bool) bool {
+	if len(c.Fired) == 0 {
+		return false
+	}
+	for _, m := range c.Fired {
+		if !annotated[m.Subject] {
+			return false
+		}
+	}
+	return true
+}
+
+// annotationViews shapes the stored annotations for rendering, marking each as
+// orphan (naming no current member of its rule) purely on read.
+func annotationViews(annos []db.Annotation, population map[string]map[string]bool) []annotationView {
+	out := make([]annotationView, 0, len(annos))
+	for _, a := range annos {
+		v := annotationView{
+			ID:      a.ID,
+			Subject: a.SubjectKey,
+			Signal:  a.SignalName,
+			Reason:  a.Reason,
+			Orphan:  !population[a.SignalName][a.SubjectKey],
+		}
+		if a.DeclaredAt.Valid {
+			v.At = a.DeclaredAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+		}
+		out = append(out, v)
+	}
+	return out
 }
 
 func members(in []signal.Member) []signalMember {

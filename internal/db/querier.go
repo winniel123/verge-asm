@@ -33,6 +33,15 @@ type Querier interface {
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
+	// Reads and writes behind `Annotation` management on the Signals screen (#204).
+	// An Annotation is an operator dial keyed on one `(subject, signal-name)` pair,
+	// carrying the operator's reason and the instant declared — no status, no expiry
+	// and no author (CONTEXT.md `Annotation`, ADR-0073). Declaring and withdrawing
+	// are plain state changes: neither is a `Message`, and neither mints a cause.
+	// Declare an acceptance on one pair. The unique index on (subject_key,
+	// signal_name) rejects a re-declaration of the same pair — an Annotation cannot
+	// be edited, so changing the reason is a withdraw-then-declare, not an update.
+	CreateAnnotation(ctx context.Context, arg CreateAnnotationParams) (Annotation, error)
 	// Returns the id only: the secret is write-only and no query hands it back.
 	CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error)
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
@@ -60,6 +69,11 @@ type Querier interface {
 	// batch because a pending Proposal is read by nothing, so 'declined' and 'never
 	// answered' have the same effect on the gate.
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
+	// Withdraw an acceptance. Withdrawing is a plain state change that produces no
+	// `Message` — its carrier is the message it releases, the pair's own next firing.
+	// Deleting a row that is already gone is not an error: the operator's intent, that
+	// the acceptance no longer stand, is satisfied either way.
+	DeleteAnnotation(ctx context.Context, id int64) error
 	DeleteChannel(ctx context.Context, id int64) error
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
@@ -130,6 +144,11 @@ type Querier interface {
 	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
 	// address inside one derives operator directly (ADR-0013).
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	// Every declared acceptance, ordered by signal then subject — a deterministic
+	// list with no sort by attention, age or count (an operator dial carries no such
+	// axis). The Signals layer folds these against the live census to decide the
+	// fully-annotated prose case and to mark a row whose key names no current member.
+	ListAnnotations(ctx context.Context) ([]Annotation, error)
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
