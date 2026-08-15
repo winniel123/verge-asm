@@ -48,11 +48,11 @@ probe (§3). **Single-tenant, self-hosted** via `docker compose`; no multi-tenan
 hosted infrastructure. **The user** is a small-org security owner asking *what of ours is exposed
 to the internet, and what changed?* **The instance is a high-value target** — its database is a
 complete, current map of the operator's attack surface — and every architecture and secrets
-decision in §2 is weighed against that.
+decision in §4 is weighed against that.
 
 The design system at [`design-system/`](../../design-system/) is canonical for the visual layer;
 its IA and vocabulary are not — it predates [core domain model](https://github.com/winniel123/verge-asm/issues/7)
-and ships a `Findings` section this spec's UI (§5) replaces. Where the kit and `CONTEXT.md`
+and ships a `Findings` section this spec's UI (§6) replaces. Where the kit and `CONTEXT.md`
 collide, `CONTEXT.md` wins. Invoke the `verge-asm-design` skill before writing any markup.
 
 ---
@@ -165,11 +165,11 @@ often.
 
 ### 3.3 The measurement binary
 
-One statically-linked Go binary (`CGO_ENABLED=0` — see §2) performs every vantage-dependent
+One statically-linked Go binary (`CGO_ENABLED=0` — see §4.2) performs every vantage-dependent
 measurement: DNS resolution, TCP connect, TLS handshake, HTTP GET. It decides values through five
 named **`Derivation` leaves** — `connect-outcome`, `tls-handshake`, `http-exchange`,
 `resolution-walk`, `wildcard-discrimination` — each versioned separately and gated bidirectionally
-in CI by a golden corpus (§2.4). `resolution-walk` and `wildcard-discrimination` are the two leaves
+in CI by a golden corpus (§4.4). `resolution-walk` and `wildcard-discrimination` are the two leaves
 membership itself composes: `Shadowed` (wildcard discrimination's suppression) cites no `Address`,
 so it decides membership as affirmatively as `resolution-walk`'s own outcomes
 ([ADR-0086](../adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)).
@@ -244,7 +244,9 @@ count of sensitive pairs unread on a default install, never zero, and the corres
 `sensitive-port-reached-from-internet` rule's evaluability count is untouched by that gap (the
 rule reads a leg on a `Service`; the UDP pairs simply never produce one). `verge-core` is shipped
 as an editable list file, and the frequency half alone is operator-editable — the sensitive half is
-not, per the operator-dial gate in §2.
+not, per `CONTEXT.md`'s `Derivation` entry: a declared parameter is authored by the project and ships
+in the release, and none is ever operator-configurable, because moving one would move a version and
+`Break` the estate without a release and without a golden-corpus row moving.
 
 **Governance.** A curated table is revised by **the release**, never by a standing operator or
 curator duty. Two instruments watch it: a **gate** of closed, terminating checks (currently
@@ -305,8 +307,9 @@ outcomes, never an operator dial (widening it would silently make the whole boar
 
 ### 4.2 Deployment topology
 
-**One image, three compose services** — `web` (the only listener), `worker` (no listener), and
-upstream `postgres` (no published port). `linux/{amd64,arm64}` only, `CGO_ENABLED=0` always,
+**One image, two compose services** (`web`, the only listener, and `worker`, no listener) **plus
+upstream `postgres`** (no published port) — `postgres` runs the standard upstream image, never the
+project's build. `linux/{amd64,arm64}` only, `CGO_ENABLED=0` always,
 `GOAMD64` pinned at `v1` (Go's floating-point contraction is architecture-dependent — an unpinned
 level makes a declared fraction like `certificate-expiring`'s horizon evaluate differently on two
 architectures of the same release). An architecture is in the matrix exactly where the golden
@@ -392,6 +395,42 @@ undelivered, and a failed delivery is never itself a message (it has no cause am
 closed four). No channel ships configured by default. Full enumeration:
 [`notification-channels.md`](./notification-channels.md).
 
+### 4.6 Data retention
+
+Retention is a property of what may still be **read**, never of age
+([ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)). Three
+corpora, three different rules:
+
+- **Observations** hold two tiers. **Live** — within `k` cadences of the tightest `Scan` covering
+  that timeline — is what every derivation reads and may never be discarded. Past that, an
+  observation is **evidential**: a derivation may not read it and may never re-derive history from
+  it, so discarding it moves no value on any timeline; it is kept only for a person asking *what did
+  we actually measure*. The bound is keyed on the **timeline it bounds** —
+  `(subject, facet, discriminator, vantage, source)` — and never collapsed: a row is retained while
+  its age is inside **either** its own bound **or** the operator's retention dial, whichever is
+  longer. **The dial's floor is the tightest bound in force** — below that it changes no row at all —
+  so **the control collapses to one number and the query never does**; it still reads each row's own
+  bound
+  ([ADR-0094](../adr/0094-a-retention-control-collapses-and-a-retention-query-never-does.md)). Two
+  populations sit outside the ordinary rule: a timeline with **no covering `Scan`** has an **undefined**
+  bound, so it is never retired (reachable in v1 only where an operator disables a `Scan`); a
+  **withdrawn** subject's timelines carry **no floor at all** — the dial alone governs them.
+- **`Span`s are never compacted**, on two independent grounds: deleting the span before an open one
+  converts `returned` into `appeared`, a clock silently moving a fact about the world, and the corpus
+  is proportional to **drift** rather than to **time** — at the shipped `/22` ceiling it is
+  ~672,000 rows and flat, against ~98M observation rows a year, so it is the small corpus and not the
+  one that needs a dial.
+- **`Dispatch`** is the one corpus a wall clock **may** retire — it carries no observations and the
+  comparison path is structurally barred from reading it. Its retention window is an **operator
+  dial**, floored at `k` cadences of the slowest **enabled** `Scan` (below that, `Coverage` cannot
+  answer whether the slowest scan ran), stated as a multiple rather than a day count. **v1 ships it
+  unbounded** — one row per firing is nothing to retire yet.
+- **`Message` and `Delivery` ship with no retention dial in v1 at all** — the store is defined as
+  unable to fail, and a dial is a supported way for it to fail anyway; `Delivery` travels with its
+  `Message` rather than being a corpus in its own right
+  ([ADR-0081](../adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md)). See
+  [Out of scope](#7-explicitly-out-of-scope) for the reopening condition.
+
 ---
 
 ## 5. Drift model
@@ -448,10 +487,14 @@ rule is excluded by its **fact** (no evidence, or the evidence never determines 
 **aperture** (the measurement costs more than it buys) — never by the shape of the resulting set:
 being true of nearly the whole estate is not disqualifying on its own.
 
-**v1 ships seventeen rules** (a dated count), one naming a port and fully covered by `verge-core`'s
-probed pairs, four reading facts about `Name`s alone, twelve reading a facet on a `Service` or
-`Endpoint` and therefore bounded by which port tiers are enabled — the port tier bounds **which
-subjects exist**, never **which rules can speak**.
+**v1 ships seventeen rules** (a dated count): **five** reading facts about `Name`s alone
+(`lame-delegation`, `cname-target-name-error`, `zone-declared-name-returns-name-error`,
+`resolved-name-absent-from-zone`, `non-globally-reachable-address-resolved-from-internet`), unbounded
+by any port tier, and **twelve** reading a facet on a `Service` or `Endpoint` and therefore bounded by
+which port tiers are enabled — the port tier bounds **which subjects exist**, never **which rules can
+speak**. `sensitive-port-reached-from-internet`, the one rule naming a port, is one of those twelve:
+it reads `Reach` on a `Service` like the rest, additionally restricted to `verge-core`'s probed
+pairs.
 ([ADR-0024](../adr/0024-a-rules-domain-is-the-extension-of-its-name.md) carries the full table.)
 Where a rule reads a curated table asserting about the world (the sensitive-port list, §3.5), that
 table — never the rule — is what the attestation standard governs.
@@ -506,7 +549,7 @@ rather than a seventh
 | **Signals** | Every v1 rule's fired/not-fired/`not-evaluable` census, and `Annotation` management |
 | **Seeds** | Declare/confirm/decline scopes, custody extensions, source enablement's entry point |
 | **Coverage** | The aperture statement, per-`Scan` rows, retention, and the day-one checklist |
-| **Settings** | Accounts, `Channel`s, retention dials — the operator's dials, gated per §4.3/§2's rules |
+| **Settings** | Accounts, `Channel`s, retention dials — the operator's dials, gated per §4.3's auth model and §4.6's floor rules |
 
 ### 6.2 Exposure (landing view)
 
@@ -541,7 +584,7 @@ naming a capability and, where an act genuinely exists, pointing at the surface 
 never adding a prompt of its own
 ([#28](https://github.com/winniel123/verge-asm/issues/28),
 [#51](https://github.com/winniel123/verge-asm/issues/51)). `Coverage` also carries retention (the
-two dials — the operational `Dispatch` floor and the observation-currency floor, §5.1) and is the
+two dials — the operational `Dispatch` floor and the observation-currency floor, §4.6) and is the
 entry point for the source-enablement modal (§6.4).
 
 ### 6.4 Seeds
