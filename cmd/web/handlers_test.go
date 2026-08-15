@@ -48,6 +48,10 @@ type fakeStore struct {
 	vantages      []db.Vantage
 	vantageNextID int64
 
+	// reachSpans stands in for the reachability-span read behind the Exposure
+	// landing view (#196); the exposure test seeds it directly.
+	reachSpans []db.ListReachabilitySpansForExposureRow
+
 	channels   []fakeChannel
 	chanNextID int64
 	retention  db.GetRetentionSettingsRow
@@ -398,6 +402,10 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 		})
 	}
 	return rows, nil
+}
+
+func (f *fakeStore) ListReachabilitySpansForExposure(context.Context) ([]db.ListReachabilitySpansForExposureRow, error) {
+	return f.reachSpans, nil
 }
 
 func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
