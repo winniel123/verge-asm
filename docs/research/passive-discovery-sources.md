@@ -1963,6 +1963,16 @@ not an observation and does not age the same way."* Nothing since has said **how
 
 ### 16.3 The residue is one row, and it is not a `Scan`-shaped question
 
+> **ANSWERED by [#176](https://github.com/winniel123/verge-asm/issues/176) ·
+> [ADR-0096](../adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md),
+> and marked here at the site that states the question** (ADR-0058, intra-document per
+> [#106](https://github.com/winniel123/verge-asm/issues/106)). §17 holds the answer. Read this
+> section for the shape of the problem and **not** for its two live claims, both of which move:
+> the residue is **one row plus one undecided row** (§17.3 — Common Crawl is mis-filed in §16.2's
+> last row and is a second instance of ADR-0027's shape), and *"a `Name` a SAN once carried sits in
+> the estate permanently"* is **false for every such name outside a `Shadowed` answer or a `Lame`
+> delegation**, which is ADR-0006's own residue and not a new one.
+
 **Certificate transparency is the only source in the shipped set with no covering `Scan` and no
 exemption**, so its citations never go stale and a `Name` a SAN once carried sits in the estate
 permanently.
@@ -1986,3 +1996,144 @@ The tempting repair is a sixth `Scan` over the CT poll. It is **not** obviously 
 
 So the question the successor owes is **not** *what cadence covers CT* but *does a citation age at
 all, and against which of the two `completeness` values*. §16.1's seam is where it starts.
+
+> **The successor ran and the question was malformed in its second half.** §17 rules that a
+> `Citation` **never ages, at either `completeness` value** — what `completeness` decides is whether
+> a later `Batch` may *contradict* one, and only `enumerable` may. The phrasing above is left
+> standing because it is the question that produced the answer, but a session reading it alone would
+> go looking for a rate that does not exist.
+
+---
+
+## 17. Does a `Citation` age? — the residue answered, and the enumeration re-walked
+
+Ruled by [#176](https://github.com/winniel123/verge-asm/issues/176) /
+[ADR-0096](../adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md).
+**This section is a derivation over the corpus and not a retrieval**, in the same sense §16 is.
+**Nothing was measured or retrieved for it**, by any route: every artefact it quotes is a file in
+this repository, read directly, and no intermediary stood between this section and any of them —
+recorded because [#153](https://github.com/winniel123/verge-asm/issues/153) has just established at
+[`sensitive-ports.md`](./sensitive-ports.md) §45.10 that **G7's rider reaches any intermediary**,
+after a summarising fetch asserted a sentence RFC 4251 §1 does not contain.
+
+The one `[measured]` figure it leans on is **§7's, dated 2026-07-31, quoted and NOT re-run** — a
+dated record, not a current value. §17.2 is explicit about why that is safe here and it is worth
+stating up front: **the ruling is not a reliability argument.** A session that re-measured crt.sh at
+99% success would not have reopened anything. Its job is to hold what §16 left owing and to correct
+§16's own table.
+
+### 17.1 The answer, in one line
+
+**A `Citation` does not age.** Where its hop is an **observation**, the thing with a clock is the
+observation, and it is `k` cadences of the covering `Scan` like every other observation in the model.
+Where its hop is a **`Batch`** — a source that admits without observing — there is no observation, so
+there is no clock, and none is created. What `completeness` governs is not a *rate* but whether a
+later `Batch` may **contradict** a citation: an `enumerable` source's silence within a recorded scope
+covering the subject is a measured absence and withdraws it under
+[ADR-0006](../adr/0006-subjects-leave-by-measurement.md); a `corroborative` source's silence does
+nothing, ever, because that is the definition of the value.
+
+Certificate transparency is `corroborative`. **Its citations do not expire.**
+
+### 17.2 Why the sixth `Scan` is not merely risky but empty — the half §16.3 understated
+
+§16.3 priced a citation clock over crt.sh as dangerous: §7's **[measured 2026-07-31, quoted here and
+not re-run] 4 successes in 8 identical requests, with two spurious 404s**, would mass-withdraw an
+estate on a bad afternoon. That is true and it is not the strongest thing available — and it is worth
+noticing **why** the stronger argument is worth having, because it is a retrieval-hygiene point as
+much as a modelling one. **A reliability argument inherits its measurement's staleness.** §16.3's
+version of this refusal would be reopened by any session that re-ran §7 and got a better number,
+which is a bad property for a refusal to have when the source ships enabled and its operator has
+twice changed its limits.
+
+**Certificate transparency is append-only.** A `Name` that appeared in a logged SAN in 2019 comes back
+from the same `crt.sh` query in 2026 — whether it ever resolved, whether the certificate expired,
+whether the operator decommissioned it. So a citation clock re-arms on every poll for every name that
+is really there, and the complete set of ways it could ever expire a citation is:
+
+| Route | Status |
+|---|---|
+| The source errored | Barred twice — the map's standing rule, and ADR-0005's *a dead-lettered batch records an empty scope*. **[measured 2026-07-31, §7, quoted not re-run]** |
+| The 999-row cap truncated | A well-formed **200**, so rule 1 does not catch it. Documented in ADR-0027 as the `{161}` defect arriving through the value |
+| The name was only ever in a wildcard SAN | Then it was never admitted at all ([ADR-0060](../adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md)) — no citation to expire |
+| `crt.sh` drops rows from **retired** logs (Oak is retired — §2) | **Unmeasured.** Named as a candidate, not asserted; if true it is a fourth instrument property and reinforces the row above |
+
+**Every route is a defect of our own reading and none is a fact about the estate.** A clock whose
+entire firing set is instrument defects is not a measurement, which is why ADR-0096 refuses the
+withdrawal `Scan` on **capability** and not on cost — it does not come back with a better instrument,
+append-only being a property of certificate transparency rather than of `crt.sh`.
+
+**So §7's number is the second reason and never the first, and the refusal holds at a 0% failure
+rate.** §7 is still owed a re-run on its own account — it is the reliability input to a source that
+ships enabled, its operator has cut limits twice, and the series is a single eight-sample draw — but that
+re-run belongs to whoever specifies the crt.sh client and **it moves nothing in §17**. Whoever takes
+it: **retrieve raw**, per §17's preamble and #153.
+
+### 17.3 §16.2's table is one row short, and the extra row is undecided rather than absent
+
+§16.2 says the residue is *exactly one row*. Walking it against the corpus rather than quoting it,
+six of the seven rows hold as written and the seventh does not.
+
+**The last row — *Common Crawl, Wayback, public DoH* — files Common Crawl as "either a proposer … or
+a transport for the resolver's own exchange". It is neither.**
+
+- It yields *"hostnames linked from the crawled web"* (§6, §8). A `Proposal` is defined in
+  `CONTEXT.md` as *"a candidate **address scope**"*, so a hostname cannot be one and
+  [ADR-0012](../adr/0012-a-proposer-is-not-a-source.md)'s route is closed to it.
+- It makes no DNS query, so it is not a transport for the resolver's exchange either. Wayback and
+  public DoH are correctly filed; Common Crawl travelled with them and does not belong there.
+
+**A source that yields hostnames and observes no facet is a second instance of ADR-0027's shape** —
+it admits `Name`s without observing, and its hop is a `Batch`.
+
+Whether it ships is **undecided in the corpus rather than decided against**:
+
+| Where | What it says |
+|---|---|
+| This note, §1 | **Tier 1 — on by default**, *"keyless, generous, open data licence. Weak signal but free."* |
+| This note, §8 | *"Tier 1 (cheap supplement)"*, open data terms |
+| [ADR-0003](../adr/0003-third-party-source-consent-bar.md) | Disqualifies **two** sources on terms — HackerTarget and unauthenticated Cert Spotter. Common Crawl is neither, and is not named |
+| `CONTEXT.md`, `docs/adr/`, `docs/spec/` | **Not mentioned once, anywhere.** Grepped for the name across all three: zero hits. The nearest thing is [ADR-0060](../adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md) quoting a third party's phrase *"passive DNS, brute force, and web archives combined"*, which is not about shipping and not about this source |
+
+**Nothing in ADR-0096 turns on it**, and that is by construction: the ruling is a property of
+`completeness`, not a CT carve-out, so it already governs Common Crawl. A crawl index is
+`corroborative` beyond argument — a hostname's absence from a crawl means nothing — so its citations
+do not age either, and they never will however the row is settled.
+
+What the row *does* block is §17.4.
+
+### 17.4 What is still open: the poll has no cadence at all, and its scope cannot be drawn yet
+
+**[verified against the corpus]** Nothing in `CONTEXT.md`, `docs/adr/` or `docs/spec/` says when
+`crt.sh` is polled. ADR-0003 clears it and ships it enabled; ADR-0005 gives it a hard 5 req/min
+throttle held instance-wide in Postgres; ADR-0084 declines to hang it off `dns` and refuses the name
+`discovery` partly to stop a later session doing so. **v1's flagship keyless discovery source has no
+schedule anywhere.**
+
+That is a real hole and it is a **different** one. With withdrawal off the table it carries no
+currency consequence whatsoever; its warrant is **admission latency** — a name issued a certificate
+today should enter the estate on some stated clock — and **`Coverage`**, whose whole job
+([#22](https://github.com/winniel123/verge-asm/issues/22)) is *did it run, and when*.
+
+ADR-0096 establishes the safety property in advance so the successor does not re-derive it:
+
+> **A `Scan` covering a source that admits without observing carries no currency bound and no
+> withdrawal power.** ADR-0007's currency rule quantifies over **observations**, and such a source
+> produces none — so the bound has an empty domain. It schedules, and it gives `Coverage` a row.
+
+It does **not** mint the `Scan`, because §17.3 shows the scope is undrawn: a `Scan` covering *the
+admitting sources* has one member or two depending on a decision nobody has made, and ADR-0084's own
+objection to the name `discovery` was that a `Scan`'s name must describe its scope truthfully. The
+successor owes, in this order: **is Common Crawl in the shipped source set**, and **then** what
+covers the admitting sources' poll.
+
+### 17.5 The cost, stated
+
+`Name`s admitted by certificate transparency **beneath a `Shadowed` answer or a `Lame` delegation
+never leave the estate**. That is ADR-0006's residue reached through a second door and not a new one —
+`CONTEXT.md`'s `Name` entry already says it in the present tense — and its three routes out are the
+operator's: supply coverage, declare it out of scope, or repair the delegation.
+
+Every other CT-admitted `Name` leaves by measurement, on the `dns` `Scan` #142 minted, within `k` × its
+cadence — **two days at shipped settings**.
+

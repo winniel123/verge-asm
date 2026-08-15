@@ -91,12 +91,22 @@ beneath an entering subject *opens*, nothing compares, and a bare count cannot t
 whether to get out of bed. It is computed once at the cause, is a description and never a
 `Transition`, and carries no difference set.
 
-> *`admin.example.com` entered the estate, cited by a `crt.sh` observation. It resolves to
+> *`admin.example.com` entered the estate, cited by the `crt.sh` `Batch` that returned it. It resolves to
 > `203.0.113.9`, which is new. 214 `Service` timelines opened; 3 read `reached` from the
 > internet — 22/tcp, 443/tcp, 6379/tcp — and `sensitive-port-reached-from-internet` opened
 > *fired* on 6379/tcp. Nothing is compared.*
 
 The 3 are **not** alerted individually. They are openings.
+
+> **The example's citation is REPAIRED at this site**, per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). It read
+> *"cited by a `crt.sh` observation"* until [#176](https://github.com/winniel123/verge-asm/issues/176),
+> and [ADR-0027](./0027-a-source-may-admit-without-observing.md) had already made that impossible:
+> **crt.sh observes no facet at all**, so the hop is its `Batch`. Read alone and in the present tense
+> the old wording would cause a competent session to build a `crt.sh` observation — which is the
+> defect ADR-0027 was written to remove, surviving in a payload example its own consequence sweep
+> did not reach. [#102](https://github.com/winniel123/verge-asm/issues/102)'s shape, not a new one.
+> The message's structure, its census and the no-individual-alert rule are untouched.
 
 **4. A first run is not `appeared`. It is `revealed`, coverage class, one message.** Declaring
 the first `Seed` moves the **custody gate**, and enabling the discovery sources moves the
