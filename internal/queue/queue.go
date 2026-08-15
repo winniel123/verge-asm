@@ -126,7 +126,7 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 	jobs := scan.BuildDNSJobs(s.ID, names, vantages.scanVantages())
 	enqueued := 0
 	for _, j := range jobs {
-		j = j.WithResolver(vantages.resolver(j.VantageID))
+		j = j.WithResolver(vantages.resolver(j.VantageID)).WithSeeds(names)
 		if err := enqueueJob(ctx, qtx, s.ID, dispatchID, j); err != nil {
 			return 0, err
 		}
