@@ -374,6 +374,17 @@ answers stop varying by vantage*. It loses on ADR-0025's own ground read backwar
 geo-variation destroys the very fact the `vantage` key exists to record. **v1 sends no ECS extension
 in either form.**
 
+> **The ground under that refusal is wider than ECS**
+> ([#116](https://github.com/winniel123/verge-asm/issues/116) /
+> [ADR-0070](../adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md)).
+> ADR-0025's rule is for anything that makes an answer a function of **where the query appeared to
+> come from**, and the instance v1 actually ships is the **recursive resolver** — ECS with the subnet
+> implicit. So **which resolver the prober resolves through is part of the `Vantage`**, in the key,
+> never in the scope record and never a declared parameter. **[measured]** one wildcarded name drew
+> from two **disjoint** address pools at two vantages in one week
+> ([`passive-discovery-sources.md`](../research/passive-discovery-sources.md) §14.5). This document
+> gains no offer: the query path is not wire content and no value enumerates over it.
+
 ---
 
 ## 5. The DNS transport and fallback policy
@@ -400,6 +411,20 @@ What is *not* thin is the shape. `resolution-walk` queries the **delegated autho
 **horizontal** — across nameservers — and a deep per-nameserver retry stack buys a second copy of
 redundancy the walk already has, at the cost of multiplying load against the operator's own
 authorities under #4's safety frame.
+
+> **QUALIFIED at this site by [#116](https://github.com/winniel123/verge-asm/issues/116) /
+> [ADR-0070](../adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md).**
+> Read alone and in the present tense, *`resolution-walk` queries the delegated authorities directly*
+> would build a leaf that reads its **value** off the walk. It does not. The leaf makes **two**
+> queries and the sentence above describes one of them: the **delegation walk** decides `Lame` and
+> the per-nameserver `serves │ does-not-serve` RRset direct to the authorities, exactly as written
+> and ungoverned by any parameter — while **`Resolved`, `NoData` and `NameError` are read on the
+> batch's declared query path**, which is a declared parameter shared with `wildcard-discrimination`
+> and valued at the `Vantage`'s configured recursive resolver. **[measured]** the two answers are not
+> interchangeable: at `s3.amazonaws.com`, at one instant, the delegated authority answers a
+> synthesised name with a CNAME and no address while a resolver answers it with eight, so reading the
+> address set off the walk would systematically **under-report** exposure. The budget above is
+> untouched — it is the walk's, and the walk is untouched.
 
 The revision price is stated rather than hidden: these are declared parameters of one leaf, so
 changing them bumps `resolution-walk` and `Break`s `resolution` and `dns-record` for one cadence.
