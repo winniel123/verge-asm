@@ -102,8 +102,26 @@ arriving through a clock. Withdrawal is an operator act, and it is one click.
 the `Service`s under the addresses that name resolves to. A rule that propagated operator opinion
 down a derived tree is #17's refused glob — *a rule whose blast radius nobody can see as they write
 it*. **The cost is stated rather than hidden**: in a cloud estate a redeploy onto a new address is a
-new `Service` key, so the acceptance lapses and is re-declared. That is the loud failure and the
-intended one — a lapsed mute pages somebody, a travelling mute silences a subject nobody chose.
+new `Service` key, so the acceptance ~~lapses and is re-declared~~ **matches nothing, and the new
+pair is decided afresh**. That is the loud failure and the intended one — a mute that no longer
+matches pages somebody, a travelling mute silences a subject nobody chose.
+
+> **`lapses` is WITHDRAWN here, at the site that specifies it** —
+> [#163](https://github.com/winniel123/verge-asm/issues/163),
+> [ADR-0092](./0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md),
+> 2026-08-15, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> **An `Annotation` never lapses.** Read alone and in the present tense, *the acceptance lapses*
+> would cause a competent session to build an event on the record or a `lapsed` state on the row —
+> rider 4's refused status field arriving through a synonym, with `Finding`'s lifecycle behind it.
+> Nothing happens to the record: it is Declared, holds no timeline and no status, and still names
+> the key it always named. What withdrew is the **`Service`**, so the fold's mover is the **estate**
+> and the estate's own messages already fire (ADR-0064 §1). Two consequences the word was hiding.
+> A **returning** key is the same pair — ADR-0051 — so a withdrawal-and-return needs no
+> re-declaration and the mute takes effect again with no operator act; *re-declared* is true of the
+> redeploy alone, where the new key is a genuinely different subject. And the exposure is narrower
+> than this sentence reads: it is a **name scope with a `custody extension`**, an address scope's
+> `Service`s existing *open or closed* from the declaration, so a redeploy inside declared space
+> withdraws nothing. **The cost is confirmed, not reversed** — only its mechanism-word is repaired.
 
 **6. It states its reason, and it is not on `Coverage`.** An annotation carries the operator's
 rationale in their own words beside the key, ~~the author and~~ the time; a mute with no stated reason
@@ -259,9 +277,22 @@ repair is at `CONTEXT.md`, and it is a larger part of this ticket's value than t
   well-founded.** *"Once `Annotation` and versioning have run in production"* previously named a term
   with no specification behind it; there is now something that can run.
 - **A stated, unfixed cost.** An acceptance is keyed on the exact subject, so a redeploy onto a new
-  address lapses it. v1 does not solve this, and the two candidate solutions — propagating opinion
-  down a derived tree, or keying on something coarser than a subject — are refused by #17 and by
-  ADR-0051 respectively.
+  address ~~lapses it~~ **leaves it matching nothing**. v1 does not solve this, and the two candidate
+  solutions — propagating opinion down a derived tree, or keying on something coarser than a
+  subject — are refused by #17 and by ADR-0051 respectively.
+  *(**`lapses` withdrawn here too**, at the second site that specifies it — #163 ·
+  [ADR-0092](./0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md),
+  per ADR-0058, which is on the **sentence**, so a document supersedes itself and rider 5's
+  amendment above does not discharge this line. The cost stands; the record does not lapse, its
+  subject withdraws. **Both barred repairs stay barred** — ADR-0092 discharges the map's fog patch
+  without reopening either.)*
+- **Neither declaring nor withdrawing an `Annotation` is a message** — #163 · ADR-0092. A `Message`
+  is one firing of one cause and an operator dial's movement is none of the four, so no cause, class
+  or member is minted; withdrawal's carrier is the message it releases, and declaration's is the
+  annotation list. Recorded here because this ADR specifies the act (rider 4's *one click*) and was
+  silent on whether it speaks, and a silence about notification is what
+  [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md) found
+  had been mistaken for a ruling once already.
 - **`Annotation` is now a term with a decision using it**, which it had not been since #7. The
   parallel is `authority`, which sat in the glossary through four tickets with *"no decision ever
   using it"* until ADR-0007 found its job. The difference is that this one's job is to be read by
@@ -277,7 +308,7 @@ repair is at `CONTEXT.md`, and it is a larger part of this ticket's value than t
 | Give it an **expiry** — *accept for 90 days* | A state that changes because time passed with no measurement behind it. ADR-0006 refused exactly this shape for membership, and it is `Finding`'s lifecycle arriving through a clock rather than through a status field |
 | Let it annotate a **coverage gap**, so three dead hosts stop holding the figure at 99% | #22 refused it and gave the reason: the correct fix is the host leaving the inventory, which is #17's question, and suppression here papers over it. Rider 1 keeps it unreachable structurally as well as by rule |
 | Split the `fired` census into *accepted* and *outstanding* | Two independently-authored populations over one rule (ADR-0024), a denominator the rule does not version (#74), and the queue surface that makes the object a work item |
-| Let an annotation on a `Name` **travel** to the `Service`s beneath it, so a redeploy does not lapse it | A rule whose blast radius nobody can see as they write it — #17's refused glob, applied to muting instead of to exclusion. The lapse is the loud failure and is preferred to a silent one |
+| Let an annotation on a `Name` **travel** to the `Service`s beneath it, so a redeploy does not ~~lapse~~ **unmatch** it | A rule whose blast radius nobody can see as they write it — #17's refused glob, applied to muting instead of to exclusion. A mute that stops matching is the loud failure and is preferred to a silent one. *(Third `lapse` site in this document, narrowed per ADR-0058 — #163 · ADR-0092. The rejection is untouched)* |
 | Make it **Operational** rather than Declared | Operational records *"what the system did"*. An annotation is what the operator did, and it is input to a consumer, which is what Declared holds |
 | Keep the glossary wording and rule only on the scope | The wording **is** the defect. Three decisions superseded *suppression* and none repaired the specifying site; leaving it is ADR-0058's failure repeated with this ADR as the new supersession that also fails to reach back |
 | Treat the arrival of `Annotation` as firing ADR-0032 §7's condition | Muting a message is not disagreeing with a row. Nothing the operator does changes what the rule concludes, so the weak-tier disclosure has no act to be an input to — and §7's other two objections to shipping it are untouched |
