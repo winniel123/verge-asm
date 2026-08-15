@@ -234,15 +234,19 @@ func TestViewerDeniedMutation(t *testing.T) {
 	// A viewer is denied the account-creation mutation.
 	vc := login(t, base, "viewer", "hunter2hunter2")
 	resp := postForm(t, vc, base+"/accounts", url.Values{"username": {"eve"}, "password": {"hunter2hunter2"}, "role": {"admin"}})
+	ct := resp.Header.Get("Content-Type")
+	page403 := body(t, resp)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("viewer mutation: status=%d, want 403", resp.StatusCode)
 	}
 	// The error page must carry a Content-Type, or the browser renders the
-	// markup as plain text.
-	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+	// markup as plain text — and it must actually tell the viewer why.
+	if !strings.HasPrefix(ct, "text/html") {
 		t.Fatalf("403 Content-Type = %q, want text/html", ct)
 	}
-	resp.Body.Close()
+	if !strings.Contains(page403, "admin role") {
+		t.Fatalf("403 page does not explain the denial: %s", page403)
+	}
 	if n, _ := f.CountAccounts(t.Context()); n != 2 {
 		t.Fatalf("accounts after denied mutation = %d, want 2", n)
 	}

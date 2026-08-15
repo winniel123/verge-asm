@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/seed"
 )
 
 // store is the slice of the database the web handlers use. Narrowing it to an
@@ -22,6 +23,9 @@ type store interface {
 	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
 	SetTOTPSecret(ctx context.Context, arg db.SetTOTPSecretParams) error
 	ConfirmTOTP(ctx context.Context, id int64) error
+	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
+	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -34,6 +38,10 @@ type server struct {
 	now        func() time.Time
 	sessionTTL time.Duration
 	pendingTTL time.Duration
+	// seedAddressCap is the ceiling on addresses an address-scope Seed may
+	// cover. It defaults to seed.DefaultAddressCap; the Settings screen (#206)
+	// will make it operator-configurable.
+	seedAddressCap int
 
 	// secureCookies forces the Secure attribute on auth cookies even when the
 	// request did not itself arrive over TLS — set it when web is fronted by a
@@ -47,12 +55,13 @@ type server struct {
 
 func newServer(s store, key []byte, setupToken string, now func() time.Time) *server {
 	return &server{
-		store:      s,
-		key:        key,
-		setupToken: setupToken,
-		now:        now,
-		sessionTTL: 12 * time.Hour,
-		pendingTTL: 5 * time.Minute,
+		store:          s,
+		key:            key,
+		setupToken:     setupToken,
+		now:            now,
+		sessionTTL:     12 * time.Hour,
+		pendingTTL:     5 * time.Minute,
+		seedAddressCap: seed.DefaultAddressCap,
 	}
 }
 
@@ -71,6 +80,9 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("POST /login/totp", s.loginTOTP)
 	mux.HandleFunc("POST /logout", s.logout)
+
+	mux.HandleFunc("GET /seeds", s.requireLogin(s.seedsPage))
+	mux.HandleFunc("POST /seeds", s.requireAdmin(s.declareSeed))
 
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
 	mux.HandleFunc("POST /account/totp/enable", s.requireLogin(s.totpEnable))

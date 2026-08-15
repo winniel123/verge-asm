@@ -59,6 +59,18 @@ button.secondary { background: var(--surface); color: var(--ink); border-color: 
 .secret { font-family: var(--mono); word-break: break-all; background: var(--paper);
   border: 1px solid var(--hairline); padding: var(--space-3); margin-bottom: var(--space-4); }
 .row { display: flex; gap: var(--space-3); align-items: center; }
+.nav { display: flex; gap: var(--space-5); }
+.nav a { text-decoration: none; color: var(--ink); font-weight: 600; }
+.nav a:hover { color: var(--accent); }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-family: var(--mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+  padding: var(--space-3) var(--space-4) var(--space-3) 0; border-bottom: 2px solid var(--ink); }
+td { padding: var(--space-3) var(--space-4) var(--space-3) 0; border-bottom: 1px solid var(--hairline);
+  vertical-align: top; }
+.seedform { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
+.seedform label { margin-bottom: 0; }
+.seedform .scope { min-width: 280px; }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -128,10 +140,15 @@ Two-factor is not active until you confirm.</p>
 </form>
 </div></div>{{template "foot" .}}{{end}}
 
-{{define "home"}}{{template "head" .}}
-<div class="header">` + wordmark + `
+{{define "chrome"}}<div class="header">` + wordmark + `
+<div class="row">
+<nav class="nav"><a href="/">Home</a><a href="/seeds">Seeds</a></nav>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
+</div>{{end}}
+
+{{define "home"}}{{template "head" .}}
+{{template "chrome" .}}
 <main>
 {{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
 <div class="section">
@@ -163,6 +180,63 @@ Two-factor is not active until you confirm.</p>
 <p>You have read access. Account management is admin-only.</p>
 </div>
 {{end}}
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "forbidden"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="section">
+<div class="microlabel">Not permitted</div>
+<h2>Admin only</h2>
+<p>{{.Message}}</p>
+</div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "seeds"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+{{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
+<div class="microlabel">Declared · seeds</div>
+<h1>Seeds</h1>
+<p>A seed is where you assert your estate ends: a name scope — a registrable domain — or an
+address scope — a CIDR block of up to {{.AddressCap}} addresses.</p>
+
+{{if .IsAdmin}}
+<div class="section">
+<h2>Declare a scope</h2>
+{{if .FormError}}<div class="error">{{.FormError}}</div>{{end}}
+<form method="post" action="/seeds" class="seedform">
+<label><span>Scope type</span><select name="kind">
+<option value="name"{{if ne .FormKind "address"}} selected{{end}}>name</option>
+<option value="address"{{if eq .FormKind "address"}} selected{{end}}>address</option>
+</select></label>
+<label class="scope"><span>Scope</span><input class="scope" name="scope" value="{{.FormScope}}" placeholder="example.com or 203.0.113.0/24" autocomplete="off" required></label>
+<button type="submit">Declare</button>
+</form>
+</div>
+{{end}}
+
+<div class="section">
+<h2>Declared scopes</h2>
+{{if .Seeds}}
+<table>
+<thead><tr><th>Type</th><th>Scope</th><th>Declared by</th><th>Declared</th></tr></thead>
+<tbody>
+{{range .Seeds}}<tr>
+<td><span class="badge">{{if .IsAddress}}address{{else}}name{{end}}</span></td>
+<td class="mono">{{.Scope}}</td>
+<td class="mono">{{.By}}</td>
+<td class="mono">{{.At}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="microlabel">No scopes declared</div>
+<p>Nothing is declared yet. Declare a domain or a CIDR block to set where your estate begins.</p>
+{{end}}
+</div>
 </main>
 {{template "foot" .}}{{end}}
 `))
