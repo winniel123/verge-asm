@@ -70,6 +70,22 @@ in the owner's own release line.
 > > items and one opening is correct and is not double-counting. **[measured]** §43.6 also records that
 > > **G11 is vacuous for the register's largest class**, its carriers having no retrievable tag, which is
 > > what §3 below asks the gate to supply and cannot yet get.
+> >
+> > > **The *still CITED and not COPIED* clause above is superseded here, by**
+> > > [#155](https://github.com/winniel123/verge-asm/issues/155), **per
+> > > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
+> > > ADR-0078's own Decision row (*"Where the register lives today"*) and its Consequences already
+> > > commit to this step — *"the first live register is #134's per-cell walk, and it transcribes into
+> > > the watch document at that point"* — and the box above did the citing half of that but deferred the
+> > > copying half to its own ticket, which is #155. **§1.1 now holds the transcription.** The two reasons
+> > > this box gave for not copying are answered rather than dropped: the new cell kinds (claim cells,
+> > > *why* cells, set-carried cells) are carried into §1.1's triples exactly as §43.3 states them, and
+> > > the G4 fork risk is why §1.1 is explicit that it is a snapshot *as transcribed*, cited to the
+> > > sensitive-ports.md rows it copies, rather than a second live authority — a future growth of the
+> > > register (§39.2's *movement is one-way*) still lands in `sensitive-ports.md` first and this snapshot
+> > > goes stale until a later ticket re-transcribes it, exactly as a residue entry goes stale one release
+> > > later. **This document remains the CITED pointer's owner; §1.1 is a dated transcription of it, not a
+> > > second live register.**
 
 **No figure for the register's size appears in this document, here or anywhere below.** #135 has
 already moved it once and #134 is expected to move it again — and **the movement is one-way**, #135's
@@ -83,6 +99,98 @@ two cells that are not port cells — `verge-core`'s frequency half at `nmap-ser
 than appended after them: the frequency half sits at **rung 1**, above every rung-2 and rung-3 port
 item. That is why the residue disclosure below is one statement and not one per table: *how far down
 it read* is a fact about the order, and no single table's document owns the order.
+
+### 1.1 The register, transcribed — every member, by rung
+
+**[Ticket #155](https://github.com/winniel123/verge-asm/issues/155).** This is a transcription, not a
+re-derivation: every member below stands on the measurement cited in its **Ground** column, and this
+section restates none of that measurement's reasoning. The **rung** and the **ordering within a rung**
+are copied as `sensitive-ports.md` §43.3 states them — tie-broken, per [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)
+and §39.3, on how far the owner has moved past the tag the cell was read at, in the owner's own release
+line — and that tie-break is **not re-run here**. §43.3 already carries [#151](https://github.com/winniel123/verge-asm/issues/151)'s
+ruling ([ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s
+Amendment, worked at §48) folded in at the cell, marked **RULED §151** below where it changed a cell's
+disposition; nothing here is walked independently of that fold. A conjunctively-carried cell
+([ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md))
+is entered once, at its most volatile carrier's rung, and names every carrier. **No length appears
+anywhere below** — not of a rung, not of the whole register — per §39.2 and ADR-0078's own bar.
+
+**Rung 1 — one contributor, one commit, nothing rendered changes.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+| --- | --- | --- |
+| `verge-core`'s **frequency half** @ `nmap-services` — a third party publishing replacement frequency data, never announced to us | *not a port cell* | ADR-0038; §39.4 item 2 |
+| `10248/tcp`'s **footing** @ the config-API doc comment `healthzBindAddress: "127.0.0.1"` | `10248/tcp` | §27.5, §27.12; §39.4 item 1 |
+| `10248/tcp`'s **claim** cell @ the same doc comment | `10248/tcp` | §27.6, §31.6 — the port is a label; the comment's prose adds no second ground (Shape 2, §43.2) |
+| `10255/tcp`'s **claim** cell @ `readOnlyPort`'s *"no authentication/authorization"* doc comment, `staging/src/k8s.io/kubelet/config/v1beta1/types.go` | `10255/tcp` | §41.7's flagged first cell; discharged sole-ground, and **undetermined at Step 1** — §43.3, §43.5 |
+| The **rexec / rlogin / rsh claim cell** @ the IANA Service Name and Transport Protocol Port Number Registry's own service descriptions | `512/tcp`, `513/tcp`, `514/tcp` | §3.2; the attestation question over a registry description is routed, not decided — §43.6 |
+
+**Rung 2 — a continuously-published page with no version pin, or a documentation branch tracking a
+release line.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+| --- | --- | --- |
+| The **SMB footing cell** @ one Microsoft page | `445/tcp`, `139/tcp`, `137/udp`, `138/udp` | §16.7, §13.1 — no configuration artefact behind any of the four; §39.4 item 3 |
+| The **SMB claim cell** @ the same page's perimeter directive, which numbers all four pairs | `445/tcp`, `139/tcp`, `137/udp`, `138/udp` | §33.3 (Shape 2) |
+| `623/udp`'s **footing** @ Dell's and HPE's default-value documentation | `623/udp` | §13.1 as qualified by §28; §36.7 already de-attested once; §39.4 item 4 |
+| `623/udp`'s **claim** cell @ the same convergent owner corpus | `623/udp` | §28.6 (Shape 2) |
+| etcd's **prohibition (footing) cell** @ `THREAT_MODEL.md` | `2379/tcp`, `2380/tcp` | §16.3, §15.9; §39.4 item 5 |
+| `10250/tcp`'s **claim** cell @ `ports-and-protocols.md`'s `Used By: Self, Control plane` | `10250/tcp` | §19.12; §41.4 item 9 |
+| `10250/tcp`'s **footing** cell @ `security-checklist.md` | `10250/tcp` | **RULED §151** — one `kubernetes/website` `release-1.34` act reaches both this and the claim cell above; §48.3 |
+| `2375/tcp`'s and `2376/tcp`'s **footing** cell @ docs.docker.com *Docker Engine security* | `2375/tcp`, `2376/tcp` | **RULED §151** — three pages of one continuously-published documentation set; §48.3 |
+| `2376/tcp`'s **claim** cell @ the same page | `2376/tcp` | **RULED §151** — same act as the footing cell above; §48.3 |
+| The **memcached footing cell** @ the project wiki's `ConfiguringServer` | `11211/tcp`, `11211/udp` | §13.2 — upstream ships permissive and silent; strike the wiki and nothing remains |
+| The **memcached claim cell** @ the wiki sentence + `memcached/memcached` `1.6.45` dispatch | `11211/tcp`, `11211/udp` | Conjunctive — §10.1, §25.2; ADR-0076, entered at the wiki's rung |
+| `25672/tcp`'s **footing** @ `rabbitmq.com/docs/networking` | `25672/tcp` | §32.6 (Shape 3) |
+| `25672/tcp`'s **claim** cell @ the same page's *Port Access* bullet | `25672/tcp` | §18.5 (Shape 2) |
+| `2375/tcp`'s **claim** cell @ Docker Engine security + `moby/moby` `docker-v29.7.2` dispatch | `2375/tcp` | Conjunctive — §10.1, §25.2; ADR-0076 |
+| `2375/tcp`'s ***why*** cell @ docs.docker.com's *deprecated features* page | `2375/tcp` | The one *why* cell in §3 carrying a proposition its claim cell does not — §43.6 |
+| `6379/tcp`'s **claim** cell @ redis.io *Security* + `redis` `8.10.0` shipped bytes | `6379/tcp` | Conjunctive — §10.1, §25.4/§25.5; ADR-0076 |
+| `9042/tcp`'s **claim** cell @ cassandra.apache.org *security* + `apache/cassandra` `cassandra-5.0.9` dispatch | `9042/tcp` | Conjunctive — §10.1, §25.2; ADR-0076 |
+| `10249/tcp`'s **claim** cell @ Kubernetes' metrics documentation + `serveMetrics` at `v1.34.0` | `10249/tcp` | Conjunctive — §27.2–§27.4; ADR-0076 |
+| The **etcd claim cell** @ `THREAT_MODEL.md` + `etcd-io/etcd` `v3.7.1` dispatch | `2379/tcp`, `2380/tcp` | Conjunctive — §25.1–§25.3; ADR-0076 |
+| The **kube-scheduler / kube-controller-manager claim cell** @ `ports-and-protocols.md`'s `Used By: Self` + kubeadm's `--bind-address=127.0.0.1` | `10259/tcp`, `10257/tcp` | §24.6; ADR-0076 |
+| `6000/tcp`'s **claim** cell @ `Xsecurity(7)` + `xhost(1)` | `6000/tcp` | §3.4 — two X11 artefacts, neither yielding Claim 2 alone; both served at moving locations, rung 2 |
+
+**Rung 3 — a shipped configuration default, announced by a version we can pin and diff.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+| --- | --- | --- |
+| `5432/tcp`'s **footing** @ `postgresql.conf.sample` | `5432/tcp` | §4.5; §39.4 item 6. **RULED §151 — unmoved**: already an item under ADR-0077's removal bar, confirmed independently by the act reading; §48.3 |
+| `5984/tcp`'s **footing** @ CouchDB's `default.ini` | `5984/tcp` | §13.2; §39.4 item 7 (Shape 3) |
+| `5432/tcp`'s **claim** cell @ `postgresql.conf.sample` | `5432/tcp` | **RULED §151** — one PostgreSQL-release act moves the manual and the sample together; §48.3 |
+| `5984/tcp`'s **claim** cell @ `default.ini` | `5984/tcp` | **RULED §151** — CouchDB's documentation ships in the project's own tree; §48.3 |
+| `9042/tcp`'s **footing** @ shipped `conf/cassandra.yaml` | `9042/tcp` | §12.7, §13.2 — the owner sentence is the configuration artefact |
+| `2181/tcp`'s **claim** cell @ the Administrator's Guide + `apache/zookeeper` `release-3.9.5` dispatch | `2181/tcp` | Conjunctive — §10.1, §25.2; ADR-0076, shipped bytes the weakest link |
+| `4369/tcp`'s **claim** cell @ Erlang/OTP's epmd documentation + shipped `epmd_srv.c` | `4369/tcp` | Conjunctive — §10.1 (read limb), §20.6; ADR-0076 |
+
+**Rung 4 — issued prose in a versioned documentation set.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+| --- | --- | --- |
+| `3306/tcp`'s **footing** @ Oracle's *Security Guidelines*, MySQL Reference Manual §8.1.1 | `3306/tcp` | §13.2 — four Oracle packaging files, permissive and silent |
+| `3306/tcp`'s **claim** cell @ the same page | `3306/tcp` | §30.3 (Shape 2) |
+| `2049/tcp`'s **footing** @ `nfs(5)` (`utils/mount/nfs.man`, `nfs-utils-2.9.2`) | `2049/tcp` | §13.2 — `nfs.conf` ships every setting commented, permissive and silent |
+| `2049/tcp`'s **claim** cell @ the same man page's SECURITY CONSIDERATIONS | `2049/tcp` | §3.3, §26.2 row 19 (Shape 2) |
+| `4369/tcp`'s **footing** @ Erlang/OTP `secure_coding.md` rule `DEP-001` | `4369/tcp` | §20.7 — RabbitMQ's and CouchDB's sentences corroborate only; sole-ground on `DEP-001` |
+| `873/tcp`'s **footing** cell @ `rsyncd.conf.5.md` | `873/tcp` | **RULED §151** — `rsyncd.conf.5.md` and `rsync.1.md` are shipped man pages of `RsyncProject/rsync` `v3.5.0`; one release moves both; §48.3 |
+| `873/tcp`'s **claim** cell @ the same man page | `873/tcp` | **RULED §151** — same act as the footing cell above; §48.3 |
+| `2181/tcp`'s **footing** cell @ the Administrator's Guide | `2181/tcp` | **RULED §151 — undetermined, step 4.** Whether one act reaches the version-pinned Guide and the unpinned `security.html` is not decidable from bytes this note holds; §48.3, §48.5 |
+
+**Rung 5 — a specification: a new document with a new number, announced and never silently.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+| --- | --- | --- |
+| `certificate-expiring`'s **fraction** @ RFC 9773 §1 on form and the issuer's published lifetime schedule on value | *not a port cell* | ADR-0038; §39.4 item 8 |
+| `23/tcp`'s **claim** cell @ RFC 4248 §3 | `23/tcp` | Sole-ground on the cleartext conjunct; **undetermined on Claim 2's successor conjunct** — §43.5 |
+| `21/tcp`'s **claim** cell @ RFC 2577 §§5–6 | `21/tcp` | Same shape (Shape 3) |
+| `5900/tcp`'s **claim** cell @ RFC 6143 §9 (with §7.2.1 and §7.2.2) | `5900/tcp` | Same shape; the vendor position points the other way, so no vendor artefact is available as a fallback |
+
+**What is deliberately absent from this transcription.** Cells §41.2 disposed as *not an item* —
+`sensitive-ports.md` §43.4's whole table, and §43.5's `10255/tcp` and `certificate-weak-key-or-signature`
+rows — carry no ground here because they are not register members; naming them is that table's job, not
+this one's. The *why*-cell and by-catch routing notes at §43.6 are cited above only where they changed a
+member's ground, per the same rule.
 
 ---
 
