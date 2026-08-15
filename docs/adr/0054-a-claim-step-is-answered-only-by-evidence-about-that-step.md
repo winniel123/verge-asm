@@ -68,9 +68,18 @@ does not answer Claim 1 Step 1's *is publication the purpose?*.
 
 The ground is measurable rather than stylistic. §18.6's **explicit prohibition** tier is 15 pairs and
 it straddles the classes: `6379`, `11211/tcp`, `11211/udp`, `9042`, `2379` and `2380` are **Class
-A**, while `3306`, `1433`, `9200`, `9300`, `873`, `445`, `623`, `10250` and `10255` are **Class C**.
+A**, while `3306`, ~~`1433`~~, `9200`, `9300`, `873`, `445`, `623`, `10250` and `10255` are **Class C**.
 A sentence-shape compatible with six rows in one class and nine in another cannot discriminate
 between them, so it cannot carry the step whose whole job is to discriminate.
+
+> **`1433/tcp` is struck: the row is REMOVED from the list by
+> [#109](https://github.com/winniel123/verge-asm/issues/109)** and is in `sensitive-ports.md` §4.6.
+> **The measurement above is unaffected** — it is a count over the tier as it stood, and a
+> sentence-shape compatible with six Class A rows and **eight** Class C rows discriminates no better
+> than with nine. **This ADR is confirmed by use** by that ruling: §10.3's failure condition and
+> ADR-0050 limb 3's defeat test are **different steps**, answered by evidence about different
+> propositions, which is this ADR's own discipline moved from steps-within-a-gate to the two gates —
+> [ADR-0067](./0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md).
 
 What *does* answer Step 1 is an owner's statement about its **intended caller population** or about
 whether its callers are **identified** — which is what the corrected cells rest on:
@@ -202,7 +211,9 @@ party. §28.4, §28.5, §28.6.
 **Cipher Suite 0** — the specification marks RAKP-none `M` for BMC *support* (Table 13-17) and states
 it *"provides a way to enable access to the BMC without requiring a username and password"* (§13.28.2)
 — loses because mandatory **support** is not a shipped **configuration**, and because the reading that
-collapses them moves `5432/tcp` PostgreSQL to Class A on its `trust` method, along with `3306`, `1433`
+collapses them moves `5432/tcp` PostgreSQL to Class A on its `trust` method, along with `3306`, ~~`1433`~~
+(**removed from the list by [#109](https://github.com/winniel123/verge-asm/issues/109)**; the argument
+is unchanged and loses one of its four examples)
 and `2049`. And **RAKP Message 2's password-keyed `HMAC_K[UID]`**, disclosed before the caller proves
 anything (§13.31), loses because a handshake message is not an **operation**, because the value is
 computed rather than carried, and because it is a **Claim 2**-shaped fact on a protocol where §10.8
@@ -221,3 +232,7 @@ left unused**, on the precedent of #76, #84, #87, #90, #91 and #93.
 > `873/tcp` between footing tiers in the same merge, so composed the list is **41 pairs**, classes
 > **`12 / 7 / 22`**, coverage **30 of 41** at tiers **14 · 13 · 3 · 11**. **`623/udp` is untouched by
 > both.** [`sensitive-ports.md`](../research/sensitive-ports.md) §1 carries the current absolutes.
+> **Composed again after [#107](https://github.com/winniel123/verge-asm/issues/107) and
+> [#109](https://github.com/winniel123/verge-asm/issues/109): the list is 40 pairs, classes
+> `12 / 7 / 21`, coverage 29 of 40 at tiers 15 · 11 · 3 · 11** — `1433/tcp`'s cell left the graded
+> table and then its row left the list. **`623/udp` is untouched by both of those too.**
