@@ -437,10 +437,14 @@ sits in cloud ranges, the RDAP-expansion limb contributes **nothing** — there 
 their organisation to expand. So:
 
 - With **no** address-scope `Seed`, every cloud `Address` reached by following a name-scope `Seed`
-  derives `third-party` (or `unknown`, which ADR-0002 treats as `third-party`). Probing is confined
-  to *"only the ports the `Name` implies (443, 80)"*. Exposure attribution lands on the `Name` —
-  *"this name is served from infrastructure you do not control"* — which ADR-0002 already calls a
-  finding worth surfacing in its own right, available without scanning a stranger.
+  derives `third-party` (or `unknown`, which ADR-0002 treats as `third-party`). ~~Probing is confined
+  to *"only the ports the `Name` implies (443, 80)"*.~~ **Withdrawn by
+  [#118](https://github.com/winniel123/verge-asm/issues/118) /
+  [ADR-0019](../adr/0019-the-probing-gate-is-total-over-an-address.md): the gate is total over the
+  address, so nothing is probed there at all** — such an install measures `resolution` and
+  `dns-record` and nothing else. Exposure attribution lands on the `Name` —
+  *"this name is served from infrastructure you do not control"* — which ADR-0019 rules is surfaced
+  as a **census** and never as a `Signal`, available without scanning a stranger.
 - With an address-scope `Seed` covering their allocated addresses, those become `owned` and the full
   tiered port sets apply.
 

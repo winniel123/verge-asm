@@ -1616,9 +1616,13 @@ will report a bill of health the estate never earned.
 
 **Inherited from `sensitive-port-exposed`:**
 
-1. **Ownership.** ADR-0002 limits probing on `third-party` and `unknown` addresses to the ports the
-   `Name` implies. On a SaaS-fronted estate that is most of the estate, and only the HTTP-shaped rule
-   has any evidence there at all.
+1. **Ownership.** ADR-0002 ~~limits probing on `third-party` and `unknown` addresses to the ports the
+   `Name` implies~~ **shuts the gate on them entirely** — withdrawn by
+   [#118](https://github.com/winniel123/verge-asm/issues/118) /
+   [ADR-0019](../adr/0019-the-probing-gate-is-total-over-an-address.md). On a SaaS-fronted estate
+   that is most of the estate, and ~~only the HTTP-shaped rule has any evidence there at all~~
+   **no rule below a TCP connect has any evidence there, the HTTP-shaped one included**: its
+   population is empty rather than thinned, so it renders a no-population panel and not a row.
 2. **No internet vantage.** `Exposure` cannot be constructed without one, and both rules compose it
    (§9.3). A default single-vantage deployment can evaluate neither rule, ever.
 3. **Tier cadence.** A port in the weekly or monthly tier is unmeasured between measurements.

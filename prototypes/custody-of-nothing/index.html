@@ -1,0 +1,781 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #118: "What does an install that is honest about
+  holding custody of nothing see?"
+
+  The install: a cloud-resident estate. One name scope, `acmecorp.io`. No
+  address scope. The `custody extension` is off, correctly — the operator does
+  not control what listens on the machines their names point to. So `Custody`
+  reads `third-party` for all 412 addresses, and ADR-0002's gate is shut on
+  every one of them.
+
+  Three moments, ?state= :
+
+    never   the extension was never on. No Service subject has ever existed.
+    held    the operator withdrew the extension two days ago. The values the
+            gate stopped feeding are still CURRENT under the currency bound.
+            This is the cell #118 was opened to draw — ADR-0014 deferred it
+            with "every surface says this is not yours beside the aged value"
+            and nobody had drawn a surface.
+    aged    the bound has passed. Every one of those timelines holds a `Gap`.
+
+  Three screens, ?screen= :
+
+    exposure  the landing view. `never` and `aged` both render no board, and
+              they must not render the SAME no board.
+    signals   the census, corrected. Two rules are untouched by the gate
+              because they read DNS, and DNS is not gated.
+    cell      the anatomy of the retained cell, plus four treatments that lose,
+              drawn properly rather than described.
+
+  Numbers used throughout. Weekly is gone (ADR-0028's top-1000 tier was
+  retired by #78), so every sensitive-list pair sits in `verge-core` on the
+  DAILY tier and the currency bound is k=2 cadences = 2 days. That matters:
+  the window this ticket is about is two days wide, not a fortnight.
+
+  Not production code. No tests, no error handling, no abstractions. The visual
+  language is the real design system (../../design-system). The vocabulary is
+  CONTEXT.md, which overrides the kit where they disagree: no "finding", no
+  "host", no "scan run".
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — custody of nothing prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto;
+           padding: var(--page-pad) var(--page-pad) 110px; }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+          letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted);
+                text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold);
+                   box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+  .dot { width: 8px; height: 8px; border-radius: var(--radius-dot); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); animation: verge-pulse 1.6s infinite; }
+  .status { display: inline-flex; align-items: center; gap: 7px;
+            font: var(--weight-medium) var(--text-xs)/1.2 var(--font-mono); color: var(--text-muted); }
+
+  h1.page { margin: 0 0 var(--space-2); font-size: var(--text-xl); font-weight: var(--weight-semibold); }
+  p.sub { margin: 0 0 var(--space-6); max-width: 86ch; color: var(--text-muted);
+          font-size: var(--text-base); line-height: var(--leading-body); }
+
+  .card { background: var(--surface); border: var(--rule); margin-bottom: var(--space-5); }
+  .card-h { display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .card-h h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .card-h .sp { margin-left: auto; }
+  .card-b { padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .card-b p { margin: 0 0 var(--space-3); max-width: 86ch; }
+  .card-b p:last-child { margin-bottom: 0; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: var(--tracking-label);
+       color: var(--text-muted); border-bottom: var(--rule-ink-heavy); white-space: nowrap; }
+  td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); line-height: var(--leading-snug); vertical-align: top; }
+  tbody tr:first-child td { border-top: none; }
+  td.m { font-family: var(--font-mono); font-size: var(--text-sm); }
+  td.num { text-align: right; font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  /* ── the ink register (#28 density 3, #44's no-population panel) ────────
+     The loudest non-severity thing in the system. Reserved for a statement
+     that replaces a surface rather than annotating one. */
+  .ink { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+         padding: var(--space-6) var(--space-8); margin-bottom: var(--space-5); }
+  .ink h2 { margin: 0 0 var(--space-3); font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+  .ink p { margin: 0 0 var(--space-4); max-width: 78ch; color: #d0d0c6; line-height: var(--leading-body); }
+  .ink p:last-child { margin-bottom: 0; }
+  .ink b { color: var(--text-on-ink); font-weight: var(--weight-semibold); }
+  .ink code { background: rgba(255,255,255,.09); padding: 1px 4px;
+              font-family: var(--font-mono); font-size: var(--text-sm); }
+  .ink .ml { color: #9a9a90; display: block; margin-bottom: var(--space-3); }
+
+  /* ── the ink BAR: #28 density 2. Annotates a surface that still renders. */
+  .inkbar { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+            padding: var(--space-3) var(--space-4); display: flex; gap: var(--space-4);
+            align-items: flex-start; }
+  .inkbar .k { color: #9a9a90; flex: none; padding-top: 2px; }
+  .inkbar .body { font-size: var(--text-base); line-height: var(--leading-body); max-width: 92ch; }
+  .inkbar b { font-weight: var(--weight-semibold); }
+  .inkbar code { background: rgba(255,255,255,.09); padding: 1px 4px;
+                 font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  /* ── the custody marker ─────────────────────────────────────────────────
+     ADR-0014's deferred promise: "every surface says this is not yours
+     beside the aged value". Ink outline, never a severity fill — it is a
+     statement of authority, not of risk. */
+  .cust { display: inline-block; border: 1px solid var(--border-ink); background: var(--surface);
+          color: var(--ink); padding: 1px 5px; vertical-align: middle;
+          font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+          text-transform: uppercase; letter-spacing: var(--tracking-label); }
+
+  /* ── the three cell states ──────────────────────────────────────────── */
+  .cellrow { display: grid; grid-template-columns: 260px 1fr; gap: var(--space-4);
+             padding: var(--space-4); border-top: var(--rule-soft); align-items: start; }
+  .cellrow:first-child { border-top: none; }
+  .cellrow .subj { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); }
+
+  /* HELD — a value. Ordinary ground, ordinary weight. It IS current. */
+  .v-held .val { font: var(--weight-semibold) var(--text-md)/1.2 var(--font-mono); color: var(--ink); }
+  .v-held .asof { margin-top: 5px; }
+  .v-held .bound { margin-top: 3px; font-size: var(--text-xs); color: var(--text-muted);
+                   font-family: var(--font-mono); }
+
+  /* AGED — #28's not-comparable band: sunken fill, dashed hairline, cause as
+     a micro-label, no colour and no rank. NO fault marker: nothing failed. */
+  .v-aged { background: var(--surface-sunken); border-left: 1px dashed var(--border);
+            padding: var(--space-2) var(--space-3); margin: -6px 0 0 -12px; }
+  .v-aged .val { font: var(--weight-medium) var(--text-md)/1.2 var(--font-mono); color: var(--text-muted); }
+  .v-aged .prior { margin-top: 6px; font-size: var(--text-xs); color: var(--text-muted);
+                   font-family: var(--font-mono); }
+
+  /* NEVER — there is no row. Drawn as the absence of one. */
+  .v-never { border: 1px dashed var(--border); padding: var(--space-3);
+             color: var(--text-faint); font-size: var(--text-sm); }
+
+  .note { border-left: 2px solid var(--border-ink); background: var(--surface);
+          padding: var(--space-3) var(--space-4); font-size: var(--text-base);
+          line-height: var(--leading-body); margin-bottom: var(--space-4); max-width: 92ch; }
+
+  /* ── the rejected treatments ────────────────────────────────────────── */
+  .rej { border: var(--rule); background: var(--surface); margin-bottom: var(--space-4); }
+  .rej .rh { display: flex; align-items: baseline; gap: var(--space-3);
+             padding: var(--space-2) var(--space-4); border-bottom: var(--rule);
+             background: var(--surface-sunken); }
+  .rej .rh .nm { font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .rej .rh .tag { margin-left: auto; }
+  .rej .draw { padding: var(--space-4); border-bottom: var(--rule); }
+  .rej .why { padding: var(--space-3) var(--space-4); font-size: var(--text-base);
+              line-height: var(--leading-body); max-width: 92ch; }
+
+  /* R1's countdown, drawn properly so it can be rejected on sight */
+  .cd { display: flex; align-items: center; gap: var(--space-3); }
+  .cd .bar { width: 220px; height: 6px; background: var(--surface-sunken); border: 1px solid var(--border); }
+  .cd .bar i { display: block; height: 100%; background: var(--warn); width: 28%; }
+  .cd .t { font: var(--weight-semibold) var(--text-sm)/1 var(--font-mono); color: var(--warn); }
+  /* R2's fault band */
+  .fault { background: var(--warn-soft); border-left: 3px solid var(--warn);
+           padding: var(--space-2) var(--space-3); }
+  /* R4's retraction */
+  .struck { text-decoration: line-through; color: var(--text-faint);
+            font: var(--weight-medium) var(--text-md)/1.2 var(--font-mono); }
+
+  /* ── the census ─────────────────────────────────────────────────────── */
+  .rule { border: var(--rule); background: var(--surface); margin-bottom: var(--space-4); }
+  .rule-h { display: flex; align-items: baseline; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .rule-h .nm { font: var(--weight-semibold) var(--text-base)/1.3 var(--font-mono); }
+  .rule-h .ver { font-size: var(--text-2xs); font-family: var(--font-mono); color: var(--text-faint); }
+  .rule-h .sp { margin-left: auto; }
+  .cens { display: flex; }
+  .cens .m { flex: 1; padding: var(--space-3) var(--space-4); border-left: var(--rule); }
+  .cens .m:first-child { border-left: none; }
+  .cens .m.ne { background: var(--surface-sunken); border-left: 1px dashed var(--border); }
+  .cens .m.pop { background: var(--surface-sunken); }
+  .cens .v { display: block; font: var(--weight-semibold) var(--text-xl)/var(--leading-tight) var(--font-mono);
+             margin-top: 4px; }
+  .cens .d { display: block; font-size: var(--text-xs); color: var(--text-muted); margin-top: 3px; }
+  .recon { padding: var(--space-2) var(--space-4); border-top: var(--rule);
+           font: 400 var(--text-xs)/1.5 var(--font-mono); color: var(--text-muted); }
+  .necause { padding: var(--space-3) var(--space-4); border-top: var(--rule);
+             background: var(--surface-sunken); border-left: 1px dashed var(--border);
+             font-size: var(--text-base); line-height: var(--leading-body); max-width: 92ch; }
+  .hollow { border: var(--rule-ink); background: var(--surface); margin-bottom: var(--space-4); }
+  .hollow .hd { background: var(--ink); color: var(--text-on-ink); padding: var(--space-3) var(--space-4);
+                display: flex; align-items: baseline; gap: var(--space-3); }
+  .hollow .hd .ml { color: #9a9a90; }
+  .hollow .hd .nm { font: var(--weight-semibold) var(--text-base)/1.3 var(--font-mono); }
+  .hollow .bd { padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); }
+  .hollow .bd p { margin: 0 0 var(--space-3); max-width: 86ch; }
+  .hollow .bd p:last-child { margin-bottom: 0; }
+
+  code { font-family: var(--font-mono); font-size: 0.92em; background: var(--surface-sunken); padding: 1px 3px; }
+
+  /* ── the switcher: deliberately NOT part of the design being judged ──── */
+  .sw { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 50;
+        display: flex; gap: 6px; align-items: center; background: var(--surface);
+        border: 1px solid var(--border-ink); box-shadow: var(--shadow-hard);
+        padding: 6px 10px; font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); }
+  .sw b { font-weight: var(--weight-semibold); text-transform: uppercase;
+          letter-spacing: var(--tracking-label); color: var(--text-muted); font-size: var(--text-2xs); }
+  .sw button { height: 24px; padding: 0 8px; border: 1px solid var(--border);
+               background: var(--surface); cursor: pointer;
+               font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); }
+  .sw button.on { background: var(--ink); color: var(--text-on-ink); border-color: var(--border-ink); }
+  .sw .div { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="sw" id="sw"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   THE ESTATE — one cloud-resident install, three moments in its life
+   ═══════════════════════════════════════════════════════════════════════
+
+   Seed:      one NAME scope, `acmecorp.io`. No address scope anywhere.
+   Custody:   all 412 cited addresses read `third-party`.
+   Cadence:   the sensitive-list pairs are all in `verge-core`, which is the
+              DAILY tier, so the currency bound is k=2 cadences = 2 days.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const E = {
+  seed: "acmecorp.io",
+  names: 806,
+  addresses: 412,
+  /* verge-core is 136 pairs, 131 TCP and 5 UDP; UDP is not probed. */
+  servicesPerAddress: 131,
+  services: 412 * 131,              /* 53,972 */
+  endpoints: 616,
+  /* sensitive list: 38 pairs, 6 of them UDP -> 32 TCP pairs per address */
+  sensitiveServices: 412 * 32,      /* 13,184 */
+  withdrew: "2026-08-12",
+  lastRead: "2026-08-12 04:07",
+  agedOut: "2026-08-14 04:07",
+  today: { never: "2026-08-15", held: "2026-08-13", aged: "2026-08-29" },
+};
+
+const num = (n) => n.toLocaleString();
+
+/* Two rules read DNS. DNS is not gated, so the gate never touches them —
+   which is the whole of what this install still has. */
+const DNS_RULES = [
+  { id:"lame",  name:"lame-delegation",             ver:"v3", dom:"Names with a delegation", fired:1, notFired:805 },
+  { id:"cnerr", name:"cname-target-name-error",     ver:"v2", dom:"Names with a CNAME",      fired:0, notFired:143 },
+  { id:"zone",  name:"zone-declared-name-does-not-resolve", ver:"v1", dom:"Names the zone declares", fired:2, notFired:804 },
+];
+
+/* Three rules sit below a TCP connect. Every one of them is a function of
+   the gate. */
+const PROBE_RULES = [
+  { id:"sprfi", name:"sensitive-port-reached-from-internet", ver:"v4",
+    dom:"Services on a sensitive-list (port, transport) pair",
+    pop: E.sensitiveServices, fired: 3,
+    reads:"the internet <code>Reach</code> of a <code>Service</code>",
+    hollow:`This rule reads the internet <code>Reach</code> of a <code>Service</code> on a
+            sensitive-list <code>(port, transport)</code> pair. Your estate contains no
+            <code>Service</code> at all — not because nothing is listening, but because
+            nothing has been connected to.` },
+  { id:"expiry", name:"certificate-expiring", ver:"v6",
+    dom:"Endpoints presenting a certificate",
+    pop: E.endpoints, fired: 4,
+    reads:"the chain an <code>Endpoint</code> presents",
+    hollow:`This rule reads the certificate chain an <code>Endpoint</code> presents. No
+            endpoint in your estate presents a certificate, because an <code>Endpoint</code>
+            is a <code>(Name, Service)</code> pair and you hold no <code>Service</code>.` },
+  { id:"plain", name:"plaintext-http-no-https", ver:"v3",
+    dom:"Endpoints answering an HTTP exchange",
+    pop: 409, fired: 11,
+    reads:"an <code>http-identity</code> value",
+    hollow:`This rule reads an <code>http-identity</code> value. Nothing in your estate has
+            one: the exchange that produces it begins with a TCP connect, and no address in
+            your estate is connected to.` },
+];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CHROME
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const NAV = ["Exposure","Subjects","Signals","Seeds","Coverage","Settings"];
+
+function chrome(active, body) {
+  const banner = STATE === "held"
+    ? `<span class="status"><span class="dot" style="background:var(--text-faint)"></span>internet-01 · probing gate closed ${E.withdrew}</span>`
+    : STATE === "aged"
+    ? `<span class="status"><span class="dot" style="background:var(--text-faint)"></span>internet-01 · nothing to probe</span>`
+    : `<span class="status"><span class="dot live"></span>internet-01 · last complete cadence 4h ago</span>`;
+  return `
+<header class="nav"><div class="nav-in">
+  <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+  <nav class="items">${NAV.map(n =>
+    `<a href="#" class="${n===active?"on":""}">${n}</a>`).join("")}</nav>
+  <div class="nav-right">${banner}</div>
+</div></header>
+<div class="shell">${body}</div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN — Exposure. The landing view (#10).
+   The finding: `never` and `aged` both render no board, and they are NOT
+   the same no board. One has no subjects; the other has 53,972 subjects
+   holding no value. Rendering them alike would say the operator's own act
+   never happened.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function exposureScreen() {
+  if (STATE === "never") return chrome("Exposure", `
+  <h1 class="page">Exposure</h1>
+  <p class="sub">What of yours is reachable from the internet, and what moved.</p>
+
+  <div class="ink">
+    <span class="ml">no population</span>
+    <h2>No <code>Service</code> is in your estate.</h2>
+    <p>An exposure state is a conclusion about a <code>Service</code> — an address, a port
+    and a transport that something has connected to. Your estate holds
+    <b>${num(E.names)}</b> names and <b>${num(E.addresses)}</b> addresses and no services at
+    all. Not zero in each state: <b>no states at all</b>.</p>
+    <p>Every address your names resolve to reads <code>third-party</code>, because
+    <code>${E.seed}</code> carries no custody extension. The probing gate is shut on all
+    <b>${num(E.addresses)}</b> of them, and it is shut over the whole address rather than
+    over some of its ports.</p>
+    <p><b>There is no clean bill of health here, and no defect either.</b> If you do not
+    control what listens on those machines, this is the correct configuration and there is
+    nothing on this screen to fix.</p>
+    <p class="muted">What is measured: <code>resolution</code> and <code>dns-record</code>
+    on ${num(E.names)} names, every cadence. Three rules read those and are running. See
+    <b>Signals</b>.</p>
+  </div>
+
+  ${measuredPanel()}`);
+
+  if (STATE === "held") return chrome("Exposure", `
+  <h1 class="page">Exposure</h1>
+  <p class="sub">What of yours is reachable from the internet, and what moved.</p>
+
+  <div class="inkbar" style="margin-bottom:var(--space-5)">
+    <span class="ml k">this is not yours</span>
+    <div class="body">
+      You withdrew the custody extension on <code>${E.withdrew}</code>. Every value on this
+      board was measured before that and is <b>still current</b> — nothing is being fed into
+      it now. Each reading is held for <code>2 cadences</code>, which is <b>2 days</b> on
+      the daily tier these ports sit in, and then it stops being a value.
+      <b>Nothing was removed and nothing is being added.</b>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Internet reach · ${num(E.services)} services</h2>
+      <span class="sp"></span>
+      <span class="cust">third-party · all ${num(E.addresses)} addresses</span></div>
+    <table>
+      <thead><tr><th>Exposure</th><th class="num">Services</th><th>Last measured</th><th>Held until</th></tr></thead>
+      <tbody>
+        <tr><td class="m">exposed</td><td class="num">37</td>
+            <td class="m muted">${E.lastRead}</td><td class="m muted">${E.agedOut}</td></tr>
+        <tr><td class="m">edge-only</td><td class="num">4</td>
+            <td class="m muted">${E.lastRead}</td><td class="m muted">${E.agedOut}</td></tr>
+        <tr><td class="m">firewalled</td><td class="num">1,842</td>
+            <td class="m muted">${E.lastRead}</td><td class="m muted">${E.agedOut}</td></tr>
+        <tr><td class="m">unreachable</td><td class="num">52,089</td>
+            <td class="m muted">${E.lastRead}</td><td class="m muted">${E.agedOut}</td></tr>
+      </tbody>
+    </table>
+    <div class="recon">37 + 4 + 1,842 + 52,089 = ${num(E.services)} services · summed from
+      the board's own partition, counted no other way</div>
+  </div>
+
+  <div class="note">
+    <span class="ml">why the marker is above the board and not in the rows</span>
+    The extension came off in one act, so <code>third-party</code> is true of every row
+    identically. What is the same on every row belongs above them
+    (<a href="https://github.com/winniel123/verge-asm/issues/74">#74</a>). A per-row chip is
+    correct only where custody is <b>mixed</b> — a resolution chain that left the zone while
+    the extension stayed on — and then it marks the exception rather than the rule.
+  </div>
+
+  ${measuredPanel()}`);
+
+  /* aged */
+  return chrome("Exposure", `
+  <h1 class="page">Exposure</h1>
+  <p class="sub">What of yours is reachable from the internet, and what moved.</p>
+
+  <div class="ink">
+    <span class="ml">no value</span>
+    <h2>${num(E.services)} services are in your estate, and none of them holds an exposure
+      state.</h2>
+    <p>They were measured until <code>${E.lastRead}</code>. You withdrew the custody
+    extension on <code>${E.withdrew}</code>; nothing has fed these timelines since, and the
+    last readings aged out of currency on <code>${E.agedOut}</code>. What sits on every one
+    of them now is a <code>Gap</code> — <b>we stopped looking</b>, at your instruction.</p>
+    <p><b>This is not the same screen as an install that never had the extension on.</b>
+    That install has no services. This one has ${num(E.services)}, and each of them keeps
+    its history and its last reading. Drawing the two alike would say your act never
+    happened.</p>
+    <p><b>None will be added.</b> The gate is shut, so no batch can observe a new
+    <code>Service</code>. This population can only shrink — a service leaves when its
+    address stops being cited by a resolution.</p>
+    <p class="muted">Last reading before the gate closed: <b>37</b> exposed, <b>4</b>
+    edge-only. That is what was true on <code>${E.lastRead}</code> and is not a claim about
+    today.</p>
+  </div>
+
+  ${measuredPanel()}`);
+}
+
+function measuredPanel() {
+  return `
+  <div class="card">
+    <div class="card-h"><h2>What is measured</h2><span class="sp"></span>
+      <span class="ml">the gate does not reach DNS</span></div>
+    <table>
+      <thead><tr><th>Facet</th><th>Subject</th><th class="num">Timelines</th><th>Gated by custody</th></tr></thead>
+      <tbody>
+        <tr><td class="m">resolution</td><td class="m">Name</td><td class="num">${num(E.names)}</td>
+            <td class="muted">no — a query is not a connect</td></tr>
+        <tr><td class="m">dns-record</td><td class="m">Name × 7 qtypes</td><td class="num">${num(E.names*7)}</td>
+            <td class="muted">no</td></tr>
+        <tr><td class="m">reachability</td><td class="m">Service</td>
+            <td class="num">${STATE==="never" ? "0" : num(E.services)}</td>
+            <td class="m">yes</td></tr>
+        <tr><td class="m">certificate</td><td class="m">Endpoint</td>
+            <td class="num">${STATE==="never" ? "0" : num(E.endpoints)}</td>
+            <td class="m">yes — it rides the reachability exchange</td></tr>
+        <tr><td class="m">http-identity</td><td class="m">Endpoint</td>
+            <td class="num">${STATE==="never" ? "0" : num(E.endpoints)}</td><td class="m">yes</td></tr>
+        <tr><td class="m">tls-acceptance</td><td class="m">Service</td>
+            <td class="num">${STATE==="never" ? "0" : "1,104"}</td>
+            <td class="m">yes — its scope is the open Service population</td></tr>
+      </tbody>
+    </table>
+    <div class="recon">Two facets of six are outside the gate. They are not a consolation
+      prize: <code>resolution</code> is what puts every address in the estate in the first
+      place, and it is what withdraws them.</div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN — Signals. The census (#44), corrected for a gate that is total.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function signalsScreen() {
+  const dns = DNS_RULES.map(R => `
+  <div class="rule">
+    <div class="rule-h"><span class="nm">${R.name}</span><span class="ver">${R.ver}</span>
+      <span class="sp"></span><span class="mono muted">${R.dom}</span></div>
+    <div class="cens">
+      <div class="m"><span class="ml">fired</span><span class="v">${num(R.fired)}</span>
+        <span class="d">subjects the rule is true of</span></div>
+      <div class="m"><span class="ml">did not fire</span><span class="v">${num(R.notFired)}</span>
+        <span class="d">evaluated, and false</span></div>
+      <div class="m ne"><span class="ml">not-evaluable</span><span class="v">0</span>
+        <span class="d">evidence absent</span></div>
+      <div class="m pop"><span class="ml">population</span>
+        <span class="v">${num(R.fired + R.notFired)}</span>
+        <span class="d">subjects in this rule's domain</span></div>
+    </div>
+    <div class="recon">${num(R.fired)} fired + ${num(R.notFired)} did not fire + 0
+      not-evaluable = ${num(R.fired + R.notFired)} in population · identical in all three
+      states of this install</div>
+  </div>`).join("");
+
+  const probe = PROBE_RULES.map(R => {
+    if (STATE === "never") return `
+    <div class="hollow">
+      <div class="hd"><span class="ml">no population</span><span class="nm">${R.name}</span></div>
+      <div class="bd">
+        <p>${R.hollow}</p>
+        <p><b>There is no clean bill of health here, and no defect either.</b> You are right
+        that you do not control those listeners. This rule has nothing to say about your
+        estate and will not acquire anything to say until the aperture changes.</p>
+        <p class="muted">An empty domain renders as this panel and never as a census of
+        zeroes: four zeroes in mono numerals read as reassurance.</p>
+      </div>
+    </div>`;
+    if (STATE === "held") return `
+    <div class="rule">
+      <div class="rule-h"><span class="nm">${R.name}</span><span class="ver">${R.ver}</span>
+        <span class="sp"></span><span class="cust">third-party</span></div>
+      <div class="cens">
+        <div class="m"><span class="ml">fired</span><span class="v">${num(R.fired)}</span>
+          <span class="d">subjects the rule is true of</span></div>
+        <div class="m"><span class="ml">did not fire</span>
+          <span class="v">${num(R.pop - R.fired)}</span><span class="d">evaluated, and false</span></div>
+        <div class="m ne"><span class="ml">not-evaluable</span><span class="v">0</span>
+          <span class="d">evidence absent</span></div>
+        <div class="m pop"><span class="ml">population</span><span class="v">${num(R.pop)}</span>
+          <span class="d">subjects in this rule's domain</span></div>
+      </div>
+      <div class="recon">${num(R.fired)} fired + ${num(R.pop - R.fired)} did not fire + 0
+        not-evaluable = ${num(R.pop)} in population · read from values last measured
+        ${E.lastRead}</div>
+      ${R.id === "sprfi" ? `
+      <div class="necause">
+        <span class="ml">withdrawing custody did not clear this</span>
+        <b>${R.fired}</b> services still fire. The ports did not close when you withdrew the
+        extension — your claim about who controls them changed, and theirs did not. A rule
+        reads ${R.reads}, and that value is current until it ages. A setting that silenced a
+        firing rule the moment it was flipped would be a dial that turns off a measurement,
+        which this project refuses everywhere else.
+      </div>` : ""}
+    </div>`;
+    /* aged */
+    return `
+    <div class="rule">
+      <div class="rule-h"><span class="nm">${R.name}</span><span class="ver">${R.ver}</span>
+        <span class="sp"></span><span class="cust">third-party</span></div>
+      <div class="cens">
+        <div class="m"><span class="ml">fired</span><span class="v">0</span>
+          <span class="d">subjects the rule is true of</span></div>
+        <div class="m"><span class="ml">did not fire</span><span class="v">0</span>
+          <span class="d">evaluated, and false</span></div>
+        <div class="m ne"><span class="ml">not-evaluable</span><span class="v">${num(R.pop)}</span>
+          <span class="d">evidence absent — cause below</span></div>
+        <div class="m pop"><span class="ml">population</span><span class="v">${num(R.pop)}</span>
+          <span class="d">subjects in this rule's domain</span></div>
+      </div>
+      <div class="recon">0 fired + 0 did not fire + ${num(R.pop)} not-evaluable =
+        ${num(R.pop)} in population</div>
+      <div class="necause">
+        <span class="ml">we stopped looking</span>
+        You withdrew the custody extension on <code>${E.withdrew}</code>, which shut the
+        probing gate on all <b>${num(E.addresses)}</b> addresses. The last readings aged out
+        on <code>${E.agedOut}</code>.
+        ${R.id === "sprfi"
+          ? `<b>${R.fired} of these last read <span class="mono">reached from internet</span>,
+             as measured ${E.lastRead}.</b> That is this tool having stopped looking, not
+             those services having improved.`
+          : `Last read as measured <code>${E.lastRead}</code>.`}
+        <b>None will be added</b> — the gate is shut, so no new subject can enter this
+        population. It can only shrink.
+      </div>
+    </div>`;
+  }).join("");
+
+  return chrome("Signals", `
+  <h1 class="page">Signals</h1>
+  <p class="sub">A signal is a named fact with evidence and no severity. Where its evidence
+  is absent it is <b>not-evaluable</b>, which is not the same as not firing — so each rule's
+  census has three members over one population, and the third is listed rather than
+  summarised away.</p>
+
+  <div class="note">
+    <span class="ml">the shape of this install</span>
+    Three rules read DNS and are untouched by the probing gate — a query is not a connect.
+    Three sit below a TCP connect and are a function of it. That division is what an install
+    holding custody of nothing actually sees, and it does not move with the weather.
+  </div>
+
+  <h2 style="font-size:var(--text-md);margin:var(--space-6) 0 var(--space-3)">Rules that read DNS</h2>
+  ${dns}
+  <h2 style="font-size:var(--text-md);margin:var(--space-6) 0 var(--space-3)">Rules that read a listener</h2>
+  ${probe}`);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCREEN — the cell. #118's named gap, and the four treatments that lose.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function cellScreen() {
+  return chrome("Subjects", `
+  <h1 class="page">The cell a closing gate leaves behind</h1>
+  <p class="sub">One <code>Service</code>, at the three moments an install that holds
+  custody of nothing can be in. ADR-0014 priced this window and deferred the drawing of it
+  — <i>"a disclaimed address keeps rendering its last measured <code>exposed</code> … every
+  surface says this is not yours beside the aged value"</i>. This is that surface.</p>
+
+  <div class="card">
+    <div class="card-h"><h2>Three moments</h2><span class="sp"></span>
+      <span class="ml">203.0.113.41:6379/tcp · redis</span></div>
+
+    <div class="cellrow">
+      <div>
+        <span class="ml">never</span>
+        <div class="subj" style="margin-top:6px">the extension was never on</div>
+      </div>
+      <div class="v-never">
+        There is no row. No batch ever recorded a scope covering this address, so no
+        <code>Service</code> was ever observed, no timeline was ever opened, and there is no
+        subject for a value or a <code>Gap</code> to sit on. The honest place for this is a
+        standing aperture statement on <b>Coverage</b>, which counts our own lists and never
+        the operator's estate.
+      </div>
+    </div>
+
+    <div class="cellrow">
+      <div>
+        <span class="ml">held · ${E.withdrew} → ${E.agedOut}</span>
+        <div class="subj" style="margin-top:6px">203.0.113.41:6379/tcp</div>
+        <div class="muted" style="font-size:var(--text-xs);margin-top:4px">the gate closed two
+          days ago</div>
+      </div>
+      <div class="v-held">
+        <span class="val">reached from internet</span>
+        <span class="cust" style="margin-left:var(--space-3)">third-party</span>
+        <div class="asof mono muted">last measured ${E.lastRead}</div>
+        <div class="bound">held for <b>2 cadences</b> · 2 days on this <code>Scan</code></div>
+      </div>
+    </div>
+
+    <div class="cellrow">
+      <div>
+        <span class="ml">aged · after ${E.agedOut}</span>
+        <div class="subj" style="margin-top:6px">203.0.113.41:6379/tcp</div>
+        <div class="muted" style="font-size:var(--text-xs);margin-top:4px">still a subject,
+          still in the estate</div>
+      </div>
+      <div class="v-aged">
+        <span class="ml">we stopped looking</span>
+        <div class="val" style="margin-top:5px">no value</div>
+        <div class="prior">you withdrew custody ${E.withdrew} · last read
+          <b>reached from internet</b>, as measured ${E.lastRead}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="ml">what the held cell is, precisely</span>
+    <b>It is a value, not a leftover.</b> The gate closing does not open a
+    <code>Gap</code> — it stops <i>feeding</i> the timeline, and the span stays open and
+    current until the reading ages past <code>k</code> cadences. Rules keep reading it, so
+    the flagship keeps firing, so a toggle inside one cadence is a non-event in the drift
+    model. Everything on this screen follows from that one fact, and every rejected
+    treatment below contradicts it.
+  </div>
+
+  <h2 style="font-size:var(--text-md);margin:var(--space-8) 0 var(--space-3)">
+    Four treatments that lose, drawn rather than described</h2>
+
+  <div class="rej">
+    <div class="rh"><span class="nm">R1 — a countdown</span>
+      <span class="tag ml">rejected</span></div>
+    <div class="draw">
+      <div class="cd">
+        <span class="mono" style="font-weight:var(--weight-semibold)">reached from internet</span>
+        <span class="bar"><i></i></span>
+        <span class="t">expires in 11 hours</span>
+      </div>
+    </div>
+    <div class="why">The date is computable — <code>k</code> is ours and the cadence is on
+      the operator's own <code>Scan</code> — and that is the whole trap. A deadline implies
+      an act available before it, and the only act here is to re-assert custody the operator
+      does not have. That is <a href="https://github.com/winniel123/verge-asm/issues/44">#44</a>'s
+      refused <code>Enable</code> button arriving as a clock. It is also a bar with no
+      denominator anyone asked for, on a window that is <b>two days</b> wide on the ports
+      that matter. The cell states the <b>rule</b> — <code>2 cadences</code> — and the
+      current product beside it, and never a countdown.</div>
+  </div>
+
+  <div class="rej">
+    <div class="rh"><span class="nm">R2 — the fault band, from the moment the gate closes</span>
+      <span class="tag ml">rejected</span></div>
+    <div class="draw">
+      <div class="fault">
+        <span class="ml" style="color:var(--warn)">stale — action required</span>
+        <div class="mono" style="margin-top:5px;font-weight:var(--weight-semibold)">reached from internet</div>
+        <div class="mono muted" style="font-size:var(--text-xs);margin-top:3px">not refreshed since 2026-08-12</div>
+      </div>
+    </div>
+    <div class="why">The fault treatment fires where something <b>failed</b>. Nothing failed:
+      the operator declined to assert control they do not have, and the product agreed with
+      them. This is <a href="https://github.com/winniel123/verge-asm/issues/22">#22</a>'s
+      <i>degraded by consent rendered as degraded by failure</i>, aimed squarely at a safety
+      property — colour the correct configuration amber and the next operator ticks the box
+      to make it go away. <code>stale</code> is also a word <code>CONTEXT.md</code> refuses
+      for exactly this reason: the value is <b>current</b>.</div>
+  </div>
+
+  <div class="rej">
+    <div class="rh"><span class="nm">R3 — blank at the toggle</span>
+      <span class="tag ml">rejected — and already refused at the model layer</span></div>
+    <div class="draw">
+      <div class="mono faint">—</div>
+    </div>
+    <div class="why">The intuitive one, and it is barred by ADR-0014's rejected-alternatives
+      table: <i>"<code>Custody</code> closing forcing the currency bound — a Declared input
+      reaching into the staleness bound; a second mechanism doing <code>Gap</code>'s job."</i>
+      Drawn here because a session that has not read that table will reach for it, and
+      because it has a visible cost: a toggle flipped twice in one minute would write
+      <code>value → Gap → value</code> on every timeline beneath the address, a
+      <code>Gap</code> during which no measurement was ever missed. It would also let a
+      setting silence a firing rule instantly, which is the thing the retention window is
+      structurally preventing.</div>
+  </div>
+
+  <div class="rej">
+    <div class="rh"><span class="nm">R4 — strike the value through</span>
+      <span class="tag ml">rejected</span></div>
+    <div class="draw">
+      <span class="struck">reached from internet</span>
+      <span class="cust" style="margin-left:var(--space-3)">third-party</span>
+    </div>
+    <div class="why">A retraction. Nothing was retracted — the port <b>was</b> reached from
+      the internet, and it very likely still is. What changed is our licence to look, not
+      the fact. Striking it through says the measurement was withdrawn, which is the one
+      thing this window exists to deny, and it would let an operator make an uncomfortable
+      reading look cancelled by flipping a setting.</div>
+  </div>
+
+  <div class="note" style="margin-top:var(--space-6)">
+    <span class="ml">the sentence all four share</span>
+    Each of the four is a way of saying <i>this reading no longer counts</i>. It counts. It
+    is a measurement we made, under a licence we held at the time, and the only honest
+    annotation is <b>who the address belongs to</b> and <b>when we last looked</b>. That is
+    the whole of the treatment.
+  </div>`);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SWITCHER — not part of the design being judged
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const OPTS = { screen:["exposure","signals","cell"], state:["never","held","aged"] };
+let SCREEN = "exposure", STATE = "never";
+
+function params() {
+  const q = new URLSearchParams(location.search);
+  SCREEN = OPTS.screen.includes(q.get("screen")) ? q.get("screen") : "exposure";
+  STATE  = OPTS.state.includes(q.get("state"))   ? q.get("state")  : "never";
+}
+
+function go(next) {
+  const s = { screen: SCREEN, state: STATE, ...next };
+  history.replaceState(null, "", "?" + new URLSearchParams(s).toString());
+  render();
+}
+
+function switcher() {
+  const grp = (k, label) => `<b>${label}</b>` + OPTS[k].map(v =>
+    `<button data-k="${k}" data-v="${v}" class="${(k==="screen"?SCREEN:STATE)===v?"on":""}">${v}</button>`
+  ).join("");
+  document.getElementById("sw").innerHTML =
+    grp("screen","screen") + `<span class="div"></span>` + grp("state","state");
+  document.querySelectorAll("#sw button").forEach(b =>
+    b.onclick = () => go({ [b.dataset.k]: b.dataset.v }));
+}
+
+function render() {
+  params();
+  const body = SCREEN === "signals" ? signalsScreen()
+             : SCREEN === "cell"    ? cellScreen()
+             : exposureScreen();
+  document.getElementById("app").innerHTML = body;
+  switcher();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    const i = OPTS.state.indexOf(STATE);
+    const n = (i + (e.key === "ArrowRight" ? 1 : OPTS.state.length - 1)) % OPTS.state.length;
+    go({ state: OPTS.state[n] });
+  }
+});
+
+render();
+</script>
+</body>
+</html>
