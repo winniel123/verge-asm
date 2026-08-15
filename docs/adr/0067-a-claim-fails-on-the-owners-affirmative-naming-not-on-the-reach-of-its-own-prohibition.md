@@ -217,7 +217,11 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40`~~ ~~`0 of 38`~~ **`5 of 38`** (#114; numerator
   corrected from `0` by [#124](https://github.com/winniel123/verge-asm/issues/124), five sensitive
   pairs being UDP and UDP off on default settings) — a **denominator**, with the
-  numerator `5` for every `|S|`, and `0 of 16 rules unevaluable` unchanged. Nothing becomes unread, so
+  numerator `5` for every `|S|`, and ~~`0 of 16 rules unevaluable`~~ **`0 of 17 rules unevaluable`**
+  unchanged — the denominator moved at [#128](https://github.com/winniel123/verge-asm/issues/128) ·
+  [ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md), and this
+  sentence had its **pairs** half amended three times without its **rules** half ever being walked.
+  Corrected by the merging session of the 2026-08-15 batch. Nothing becomes unread, so
   [ADR-0014](./0014-only-revealed-generalises.md) does not bite and no timeline opens.
 - **ADR-0050, ADR-0054, ADR-0059 and ADR-0037 are all confirmed by use and none is amended.** Limb 1
   does not narrow ADR-0050 limb 3 or ADR-0059 limb 4; it says what they are **not** also deciding.
