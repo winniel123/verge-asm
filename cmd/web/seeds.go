@@ -15,10 +15,15 @@ import (
 // display string, with the kind kept so name and address scopes stay visually
 // distinct.
 type seedView struct {
+	ID        int64
 	IsAddress bool
 	Scope     string
 	By        string
 	At        string
+	// CustodyExtension is the name scope's declared custody extension — the
+	// operator's assertion that the addresses its names resolve to are under
+	// their Custody. Off by default and meaningful on name scopes alone.
+	CustodyExtension bool
 }
 
 // seedsForms carries the echo state of the two forms the Seeds screen hosts —
@@ -27,6 +32,20 @@ type seedView struct {
 type seedsForms struct {
 	seedError, seedKind, seedScope string
 	exclError, exclKind, exclValue string
+	custodyError                   string
+}
+
+// nameScopes returns the name-scope subset of a seed listing, in the same order.
+// The custody-extension section is over name scopes alone: an address scope is
+// its own complete enumeration and carries no extension.
+func nameScopes(views []seedView) []seedView {
+	out := make([]seedView, 0, len(views))
+	for _, v := range views {
+		if !v.IsAddress {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -92,22 +111,26 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	status := http.StatusOK
-	if f.seedError != "" || f.exclError != "" {
+	if f.seedError != "" || f.exclError != "" || f.custodyError != "" {
 		status = http.StatusBadRequest
 	}
+	seeds := toSeedViews(rows)
 	s.renderStatus(w, status, "seeds", map[string]any{
 		"Title": "Seeds", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Seeds": toSeedViews(rows), "AddressCap": s.seedAddressCap,
+		"Seeds": seeds, "AddressCap": s.seedAddressCap,
 		"FormError": f.seedError, "FormKind": f.seedKind, "FormScope": f.seedScope,
 		"Exclusions": toExclusionViews(excl),
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
+		// The custody-extension section reads name scopes alone — an address
+		// scope can never carry one.
+		"CustodyScopes": nameScopes(seeds), "CustodyError": f.custodyError,
 	})
 }
 
 func toSeedViews(rows []db.ListSeedsRow) []seedView {
 	out := make([]seedView, 0, len(rows))
 	for _, row := range rows {
-		v := seedView{By: row.CreatedByUsername}
+		v := seedView{ID: row.ID, By: row.CreatedByUsername, CustodyExtension: row.CustodyExtension}
 		if row.Kind == "address" && row.AddressCidr != nil {
 			v.IsAddress = true
 			v.Scope = row.AddressCidr.String()
