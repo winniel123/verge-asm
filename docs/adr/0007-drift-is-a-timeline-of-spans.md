@@ -207,7 +207,25 @@ Separately, ADR-0005 required that a stale batch not be treated as current, with
 staleness starts.
 
 **An observation is current while it is within `k` cadences of the Declared `Scan` whose scope
-covers that `(subject, facet, port, vantage)`** — the tightest such cadence where several apply.
+covers that ~~`(subject, facet, port, vantage)`~~ **timeline*** — the tightest such cadence where
+several apply.
+
+> **The tuple is withdrawn here, at the site that specifies it**
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), **with a
+> replacement rather than a strike** (ADR-0057) — [#171](https://github.com/winniel123/verge-asm/issues/171) ·
+> [ADR-0094](./0094-a-retention-control-collapses-and-a-retention-query-never-does.md). **The bound is
+> resolved on the timeline key this ADR already states** — `(subject, facet, discriminator, vantage,
+> source)` — and on nothing else. Two defects, and the second produces a wrong value. `port` is a
+> restatement: a `Service` **is** `(Address, port, transport)` and an `Endpoint` is `(Name, Service)`,
+> so the port is already inside the subject, and the two `Name` facets have none. **`source` is
+> missing, and it decides the answer.** `dns-record` holds *one timeline per source*, and v1 has
+> exactly one pair — the operator's zone file against our own resolver — whose two timelines are
+> covered by **two different `Scan`s**: `zone` at the operator's monthly re-supply interval
+> ([#124](https://github.com/winniel123/verge-asm/issues/124)) and `dns` at daily
+> ([#142](https://github.com/winniel123/verge-asm/issues/142) · ADR-0084). Read alone and in the
+> present tense, the four-tuple resolves both rows to one `Scan`, takes *the tightest such cadence*
+> below, and hands the zone-sourced row a **two-day** bound where its own is **two months** — ageing a
+> live observation out of the corpus the map calls the product's spine.
 Cadence lives on `Scan`, which is **Declared**, so reading it is legal in the way reading
 `Dispatch` is not.
 
