@@ -40,7 +40,7 @@ nine signals?* — has a false presupposition in it, and finding that is most of
 | Concern | Decision |
 | --- | --- |
 | What the standard governs | **A curated table, never a rule.** A rule carrying no table has nothing for it to govern, and *does the standard apply to `certificate-expired`?* is malformed, not hard |
-| Does it generalise to the other fifteen v1 rules | **It reaches two of them, and thirteen have no table at all** — walked below, not asserted |
+| Does it generalise to the other fifteen v1 rules | ~~**It reaches two of them, and thirteen have no table at all**~~ — walked below, not asserted. **THREE of seventeen since [#128](https://github.com/winniel123/verge-asm/issues/128)**, which admitted `non-globally-reachable-address-resolved-from-internet` and its transcription of the IANA Special-Purpose Address Registry ([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)); thirteen still have no table at all |
 | Gate 1, the closed set of three claims | **Does not generalise, and cannot.** Its closure is derived from what an internet vantage supplies, and exactly one v1 rule reads `Exposure`. A second table needs **its own** closed set, derived the same way from what its rule reads |
 | Gate 2, attestation by the owner | **Generalises fully.** It binds every project-authored table that asserts something about the **world** |
 | Gate 3, determinacy | **The surrogate gate.** It binds any table whose key is not the fact the rule names. v1 has exactly one surrogate, so elsewhere the question does not arise — this is *outside the domain*, not a pass |
@@ -186,7 +186,8 @@ was a curated port table arriving one rule at a time.
 So the standard's reach did not shrink because this ticket ruled it narrow. It shrank because
 ADR-0010, ADR-0015, ADR-0024 and #36 kept renaming rules onto the facts they read, and each rename
 deleted a table. **The naming discipline is the evidence standard's first line, and it discharges
-thirteen of sixteen rules before this ADR is consulted.**
+thirteen of ~~sixteen~~ *seventeen* rules before this ADR is consulted** — the denominator moved at
+[#128](https://github.com/winniel123/verge-asm/issues/128) and the thirteen did not.
 
 ### 3. Gate 1 is a theorem about the only rule that reads `Exposure`
 
@@ -242,10 +243,22 @@ instrument gets the same three-way treatment the model gives a signal, which is 
 answer is the right shape.
 
 It stays a live gate, and the statement is falsifiable rather than decorative: **any future rule
-whose predicate keys on a surrogate owes a determinacy argument.** The nearest live candidate is the
+whose predicate keys on a surrogate owes a determinacy argument.** ~~The nearest live candidate is the
 map's private-range-address rule, which keys on the IANA Special-Purpose Address Registry — a
 spec-defined closed set naming the addresses themselves, not a proxy for them. It clears, and it
-clears for a reason that can be checked.
+clears for a reason that can be checked.~~
+
+> **DISCHARGED by [#128](https://github.com/winniel123/verge-asm/issues/128)** — and marked rather
+> than left standing, because the #67 amendment above rules that **a performed retrieval may not leave
+> a row pointing at itself**. The candidate shipped as
+> **`non-globally-reachable-address-resolved-from-internet`**, and the check named here was **run**
+> rather than cited: the key is the address and the fact is a property of the address, so the registry
+> does not stand in for the classification, it **is** the classification. Gate 3 reads **outside the
+> domain** — ADR-0024's third register — exactly as predicted. The forward statement is spent;
+> [ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) §5 holds the
+> worked gate-by-gate discharge and
+> [`special-purpose-address-registry.md`](../research/special-purpose-address-registry.md) holds the
+> table. The *live gate* sentence above it is untouched and still binds on the next candidate.
 
 ### 5. Gate 2 generalises, and the line is *about the world* versus *about our own measurement*
 
@@ -266,6 +279,7 @@ measurement, so the reason is stated rather than buried."*
 | The prober's timeout and retry budget | Our own measurement | Inapplicable. ADR-0021's leaves govern |
 | The frequency half of `verge-core` | Where we look | Inapplicable — aperture, and #31's line governs |
 | `Custody`, and the estate `redirect-to-host-outside-estate` reads | The operator's own declaration | Inapplicable. Declared input, ADR-0013 |
+| The IANA Special-Purpose Address Registry, transcribed | The world — *the allocating authority designated this block for a purpose other than global reachability* | **Applies and passes by construction**, [#128](https://github.com/winniel123/verge-asm/issues/128). The table is a **transcription** whose selection predicate is the artefact's own `Globally Reachable` column, so one retrieval attests all fifty rows (ADR-0037). *Applies* is load-bearing: the rows are not ours but the **selection** always is, and a hand-picked *RFC 1918 / 6598 / 4193* would have been an authored table with no owner — [ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) |
 
 The last row answers the ticket's third worked example directly. *A redirect to a host outside the
 estate* depends on `Custody`, which is Derived — but Derived **from the operator's own `Seed`s**, so
@@ -491,9 +505,16 @@ that check belongs to the curation patch, which is where the watch lives.
 > **`12 / 7 / 19`**, coverage **27 of 38** at tiers **13 · 11 · 3 · 11**. **§8's watch list is
 > unchanged at three rows** — `5432`, `5984`, `10248` — no weak-tier member having moved.
 
-## The v1 walk — all sixteen rules, walked rather than asserted
+## The v1 walk — all ~~sixteen~~ **seventeen** rules, walked rather than asserted
 
 The claim that thirteen rules carry no curated table is checkable, so it is checked.
+
+> **The count moved to seventeen at [#128](https://github.com/winniel123/verge-asm/issues/128)**, which
+> admitted a seventeenth rule carrying a table inside gate 2. The heading and the arithmetic below are
+> marked at the sentence per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+> by [#106](https://github.com/winniel123/verge-asm/issues/106). **Thirteen rules carrying nothing is
+> unchanged**; what moved is the denominator and the gate-2 numerator.
 
 | Rule | Curated table it reads | Instrument |
 | --- | --- | --- |
@@ -513,17 +534,27 @@ The claim that thirteen rules carry no curated table is checkable, so it is chec
 | `cname-target-name-error` | none — as above | — |
 | `zone-declared-name-returns-name-error` | none — ADR-0004: *zero rows of reference data* | — |
 | `resolved-name-absent-from-zone` | none — as above; the zone file is Declared input | — |
+| `non-globally-reachable-address-resolved-from-internet` | **the two IANA Special-Purpose Address Registries, transcribed** — [`special-purpose-address-registry.md`](../research/special-purpose-address-registry.md), 50 blocks, firing set 32 | **#21 gate 2 — attested by construction**; gate 1's own closed set derived at one member; gate 3 **outside the domain**. [#128](https://github.com/winniel123/verge-asm/issues/128), [ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) |
 
-**Thirteen of sixteen carry nothing this ADR governs.** Two carry a table inside gate 2 and one of
-those two has no content yet. One carries a table inside all three gates, and it is the one #21 was
+~~**Thirteen of sixteen carry nothing this ADR governs.** Two carry a table inside gate 2 and one of
+those two has no content yet.~~ **Thirteen of SEVENTEEN carry nothing this ADR governs**, per
+[#128](https://github.com/winniel123/verge-asm/issues/128); **three** carry a table inside gate 2 and
+all three now have content. One carries a table inside all three gates, and it is the one #21 was
 written for.
 
 ## Consequences
 
 - **[ADR-0004](./0004-signals-are-release-coupled-rules.md) is amended once**, in the place #60
   already corrected: its Consequences call `sensitive-port-reached-from-internet` *the only signal
-  whose reference data we curate*; #60 made it two; it is **three**, the third being
-  `certificate-weak-key-or-signature`'s unwritten table.
+  whose reference data we curate*; #60 made it two; it is ~~**three**, the third being
+  `certificate-weak-key-or-signature`'s unwritten table~~ **FOUR since
+  [#128](https://github.com/winniel123/verge-asm/issues/128)** — the third is
+  `certificate-weak-key-or-signature`'s table, now written, and the fourth is
+  `non-globally-reachable-address-resolved-from-internet`'s transcription of the IANA
+  Special-Purpose Address Registry ([ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md)).
+  Marked at the sentence per
+  [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+  by [#106](https://github.com/winniel123/verge-asm/issues/106).
 - **A curated table's cost gains an item.** Under ADR-0024 a rule is four parts plus one cost. Where
   a rule carries a table that asserts about the world, the table owes a **closed claim set derived
   from what the rule reads**, an **owner attestation per row**, and a **determinacy argument where
