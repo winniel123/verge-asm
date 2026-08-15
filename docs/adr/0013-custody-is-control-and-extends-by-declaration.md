@@ -305,7 +305,18 @@ untouched by all three.
 
 **The test is *every* address, not *any*.** §6 says the class is re-verified against the
 address-scope `Seed`s the system holds; it never said what a **dual-stacked** prober is verified
-against. It is verified `internal` only where **every** address it holds is covered, of either
+against.
+
+> **Rider added 2026-08-15 by [#124](https://github.com/winniel123/verge-asm/issues/124): the
+> quantifier stands, and *address the vantage holds* means an address it is observed to **present**.**
+> A prober's is the address the instance dialled; the instance's own is `SSH_CLIENT` as the prober
+> reports it — [#14](https://github.com/winniel123/verge-asm/issues/14)'s two self-contained checks,
+> which are now the whole of the set. **An interface address is not one**, because
+> [ADR-0049](./0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md)'s own
+> 1,024-address cap would otherwise make `internal` unverifiable for any operator whose LAN exceeds a
+> `/22`. Two consequences: **`Exposure` requires a prober unconditionally**, an internet vantage
+> existing only where a second host observed this one's address; and the dual-stack residue this
+> amendment addresses is **narrowed, not closed** — see ADR-0049's rider. It is verified `internal` only where **every** address it holds is covered, of either
 family — the closed direction, matching `Custody`'s *everything not covered is `third-party`*. The
 permissive reading would let a prober whose IPv4 address is declared verify `internal` while its
 IPv6 address sits somewhere undeclared, and a vantage wrongly verified `internal` moves observations

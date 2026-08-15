@@ -597,6 +597,8 @@ Walked for completeness, since ADR-0021's parameter set is the authoritative pop
 | `tls-handshake` | the TLS library; the candidate set | **No** | An offer under ADR-0030, not an assertion; widening is an aperture change, already priced |
 | `http-exchange` | request timeout (10 s) | **No** | §6.1 |
 | `http-exchange` | **capped body read** | **Open — no value has been chosen** | See below |
+| `http-exchange` | the **redirect policy** | **No** | Added by [#124](https://github.com/winniel123/verge-asm/issues/124) and **arriving with a value**, so the open count below does not move. Valued at **not followed**, which is [#4](https://github.com/winniel123/verge-asm/issues/4) §4.3's own recommendation on three reasons: a redirect to a different host stops measuring the asset being tracked, the redirect **is** the finding, and following multiplies request volume against a live service. No world quantity enters — it is a choice of what we do with an answer. It is a **parameter** rather than a knob because following moves the `status` and the `title` this leaf decides; §4.3's *"when the operator enables following"* paragraph and §9's row are struck at their sites |
+| `http-exchange` | the **`User-Agent` string** | **No** | Added by [#124](https://github.com/winniel123/verge-asm/issues/124), **arriving with a value** — the identifying string §9 already names. No world quantity enters: it is a name we chose for ourselves. Filed here because §9 listed it as a knob and it is not one — a WAF that blocks unknown agents returns a **different response**, so the string moves `http-identity`. Note this is **not** an ADR-0025 offer in the candidate-set sense: it carries no per-candidate negative, which is exactly the test that files it here |
 | `resolution-walk` | query timeout, retries, TCP fallback policy | **No** | §6.1 |
 | `resolution-walk` | EDNS payload size | **No** | §6.7 |
 | `resolution-walk` | the qtype set (seven) | **No** | An enumeration chosen against what v1 rules read; ADR-0015 gives it no deadline |
@@ -621,6 +623,21 @@ added the match-predicate row to this table without touching §9's and §10's *t
 have no value yet (§6.4, §6.8)*, which was briefly three;
 [#111](https://github.com/winniel123/verge-asm/issues/111) closed the row, so both prose sites are
 correct again and the two are the **availability window** (§6.4) and the **capped body read** below.
+**Unmoved again by [#124](https://github.com/winniel123/verge-asm/issues/124)**, which adds two
+`http-exchange` rows — the redirect policy and the `User-Agent` string — and both arrive valued.
+
+> **A rider #124 adds to every fraction in this table, and it is the one thing in this section that
+> is not about staleness.** §8.1's cure is *ship the rule*, of which *ship the fraction* is one case
+> — and a fraction is a **division**, which the Go specification permits an implementation to fuse
+> with a neighbouring operation and *"produce a result that differs"*
+> ([Go spec, Floating-point operators](https://go.dev/ref/spec#Floating_point_operators)). Go's
+> `arm64` backend emits FMA where baseline `amd64` has none, and the release matrix is
+> [ADR-0001](../adr/0001-stack-and-runtime.md)'s **`linux/amd64` and `linux/arm64`**. So `⅓` and `½`
+> evaluated in `float64` can put one certificate on two sides of `certificate-expiring` at one
+> instant, on one release, with **equal derivation vectors** — a divergence the model licenses the
+> comparison across because there is nothing in it that moved. **The fractions are evaluated in exact
+> integer arithmetic on whole seconds**, and `GOAMD64` is pinned at `v1` so the same architecture
+> cannot differ from itself. The cure must not reintroduce the disease one layer down.
 
 > **A caution for whoever next audits this table.** #113 gave *control-label count and construction*
 > its value, and that row was **never in the open count** — this table filed it **No** on the ground

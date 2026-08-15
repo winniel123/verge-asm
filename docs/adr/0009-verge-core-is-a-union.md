@@ -439,9 +439,11 @@ this ADR is the first place a reader would check it.
   ticket named.** `sensitive-port-reached-from-internet`'s content moves, its rule version bumps under
   [ADR-0008](./0008-derivation-versions-move-on-content.md) and every evaluation `Break`s — still
   pre-install, so still vacuous and still **not waived**. But the aperture **narrows** rather than
-  widening: `safe-active-probing.md` §2.4 reads ~~`0 of 41 sensitive pairs unread`~~ **`0 of 40`**, a
-  denominator whose numerator is `0` for every `|S|`, so nothing becomes unread and
-  [ADR-0014](./0014-only-revealed-generalises.md) does not bite.
+  widening: `safe-active-probing.md` §2.4 reads ~~`0 of 41 sensitive pairs unread`~~ ~~**`0 of 40`**~~
+  **`5 of 40` as of [#124](https://github.com/winniel123/verge-asm/issues/124)**, a
+  denominator whose numerator ~~is `0` for every `|S|`~~ **is `5` for every `|S|` — the five UDP pairs
+  this ADR's own union carries and the shipped configuration does not probe** — so nothing becomes
+  unread and [ADR-0014](./0014-only-revealed-generalises.md) does not bite.
   [#109](https://github.com/winniel123/verge-asm/issues/109) priced the removal as *"a version bump
   **and an aperture widening**"*; **the second half is wrong**, and `sensitive-ports.md` §35.12
   re-derives it. `sensitive-ports.md` §7.2's *"the cost is symmetric between adding and removing a
@@ -476,8 +478,19 @@ leave at once, and it is recorded because it is where a reader would check wheth
   evaluation `Break`s — **one** rule-version bump for **two** rows, because the bump is a property of
   the content moving rather than of how much of it moved. Still pre-install, still vacuous, still
   **not waived**. The aperture **narrows** again: `safe-active-probing.md` §2.4 reads
-  ~~`0 of 40 sensitive pairs unread`~~ **`0 of 38`**, a denominator whose numerator is `0` for every
-  `|S|`, so nothing becomes unread and [ADR-0014](./0014-only-revealed-generalises.md) does not bite.
+  ~~`0 of 40 sensitive pairs unread`~~ ~~**`0 of 38`**~~ **`5 of 38`**, a denominator whose numerator
+  ~~is `0` for every `|S|`~~ **is `5` for every `|S|`**, so nothing becomes
+  unread and [ADR-0014](./0014-only-revealed-generalises.md) does not bite.
+
+  > **The numerator is corrected at both of this ADR's sites, 2026-08-15 by
+  > [#124](https://github.com/winniel123/verge-asm/issues/124), and this ADR is where the correction
+  > belongs**: the union it decides is **136 pairs of which 131 are probed on default settings, UDP
+  > being off** — its own sentence, three sections up — and the five it leaves out (`69/udp`,
+  > `137/udp`, `138/udp`, `623/udp`, `11211/udp`) reach `verge-core` from the **sensitive list
+  > alone**. So *the union puts every sensitive pair inside the hot set* is true and *therefore the
+  > rule reads all of them daily* does not follow. **Membership of `verge-core` is not measurement.**
+  > Nothing about this ADR's union, its dissolved invariant or its pricing moves; what moves is a
+  > figure four passes re-checked the denominator of and none re-checked the numerator of.
   `sensitive-ports.md` §38.13.
 - **The operator keeps probing 9200 and 9300 every day.** What stops is the `Signal`, never the
   measurement — the same property, spent a second time and on the note's largest row movement.
