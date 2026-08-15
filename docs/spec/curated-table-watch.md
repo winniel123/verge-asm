@@ -242,13 +242,173 @@ the **specification** class and missed the **deployment BCP** that carried the n
 
 ### 2.4 The ledger
 
-**Empty, and the reason is stated rather than left blank.** v1 has not shipped, so no release has
-spent a reading budget and no entry is owed yet. The first entry is owed by the first release that
-ships a curated table.
+**No longer empty — the entry below is the form's first execution.** §2.1's five-part form has been
+specified since this document's founding and nothing had run it:
+[`sensitive-ports.md`](../research/sensitive-ports.md) §43.9 said so in terms — *"the entry form at its
+§2.1 has never been executed against a real register"* — and that is the gap the entry below closes, on
+the same footing [#133](https://github.com/winniel123/verge-asm/issues/133) closed the matching gap for
+the gate: **a form whose first run has not happened is a design.**
 
-| Release | Entry |
-| --- | --- |
-| — | **None yet.** No release has occurred |
+**A note on who signs it, argued rather than assumed.**
+[ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md)'s *"who writes it"* row ties
+authorship to **the release** — *"the same act that revises a curated table"*
+([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)). Read strictly, no such
+act has occurred since the obligation took effect: v1 has not shipped, and every session since #125 that
+has touched `sensitive-ports.md`'s register — #134, #151, #153 — is queue-walk or gate-walk work the
+corpus is careful to mark as moving **no row, class, tier or coverage figure**, the curated table's own
+content untouched. On that reading this entry is signed ahead of the event ADR-0078 names. It is signed
+anyway, for the reason #133 ran the gate to completion before v1 shipped: an obligation that has never
+run is unfalsifiable by construction, which is the worse failure. The signing act below is this ticket's
+own resolution (#156, 2026-08-15) — a human-judgement reading of cited artefacts, never a mechanical
+sweep, which is the distinction ADR-0078 actually polices (*"a machine may raise; only a release may
+rule"*). **The stricter reading — that no entry may be signed before an actual curated-table-shipping
+release — is not dismissed here; it is left as live, thin ground**, and is this entry's own successor
+question (closing note, below).
+
+#### Entry — 2026-08-15 (ticket #156)
+
+**Part 1 — the order.** The register read against is
+[`sensitive-ports.md`](../research/sensitive-ports.md) **§43.3**, as it stands after
+[#151](https://github.com/winniel123/verge-asm/issues/151)'s RULED amendment (§48) — the live register
+per this document's own §1 box, confirmed unmoved since [#155](https://github.com/winniel123/verge-asm/issues/155)'s
+transcription by [#179](https://github.com/winniel123/verge-asm/issues/179)'s independent check. Not
+re-enumerated here; §43.3 and this document's own §1.1 are the citation.
+
+**Part 2 — the head.** Every cell below was read this release, in pairs under Shape 2 (§43.2 of
+`sensitive-ports.md`): one artefact-opening discharges both cells of each pair.
+
+| Item — `(cell, artefact, revision act)` | Rung | Found |
+| --- | --- | --- |
+| `10248/tcp`'s **footing** cell @ the config-API doc comment `healthzBindAddress: "127.0.0.1"` | 1 | Unchanged |
+| `10248/tcp`'s **claim** cell @ the same doc comment | 1 | Unchanged |
+| `623/udp`'s **footing** cell @ Dell's and HPE's default-value documentation | 2 | Unchanged |
+| `623/udp`'s **claim** cell @ the same convergent owner corpus | 2 | Unchanged |
+
+**Part 3 — the intensive bound.** One row per reading — a class boundary is a property of the reading,
+not of the cell, so a Shape-2 pair states it once.
+
+| Reading | Artefacts opened | Class boundary | Found |
+| --- | --- | --- | --- |
+| `10248/tcp`'s footing + claim | The `kubernetes/kubernetes` config-API source file carrying the `healthzBindAddress` doc comment, at the commit §27.5/§27.12 cite | This one doc comment, in this one source file, at this one commit — no other comment, file, or commit in the `kubernetes/kubernetes` tree | Unchanged. The comment still states the restricting default; §31.6's reading of the claim cell as a label, with no second ground, still holds |
+| `623/udp`'s footing + claim | HPE's *iLO 7 Security Technology Brief* (PN 30-869C87FF-011, July 2026), Dell's *iDRAC10 Security Configuration Guide* (December 2024), and NEC's advisory NV21-002 — the three co-owner documents §28.8 cites | These three named documents, cited by §28.8, and no other BMC vendor's documentation | Unchanged, and the tension already on record is restated rather than closed — see the falsification note below |
+
+**Part 4 — the extensive residue.** Every register item not read, named by rung. G11's mark is cited per
+item, per §3's own rule.
+
+*Rung 1*
+
+| Item | Pairs | G11 |
+| --- | --- | --- |
+| `verge-core`'s frequency half @ `nmap-services` | not a port cell | Vacuous — no retrievable tag (§43.6 item 5) |
+| `10255/tcp`'s claim cell @ `readOnlyPort`'s doc comment | `10255/tcp` | Vacuous — no retrievable tag (§43.6 item 5) |
+| The rexec/rlogin/rsh claim cell @ the IANA registry's service descriptions | `512/tcp`, `513/tcp`, `514/tcp` | Vacuous — no retrievable tag (§43.6 item 5) |
+
+*Rung 2*
+
+| Item | Pairs | G11 |
+| --- | --- | --- |
+| The SMB footing cell @ one Microsoft page | `445/tcp`, `139/tcp`, `137/udp`, `138/udp` | Vacuous (§43.6 item 5) |
+| The SMB claim cell @ the same page's perimeter directive | `445/tcp`, `139/tcp`, `137/udp`, `138/udp` | Vacuous (§43.6 item 5) |
+| etcd's prohibition (footing) cell @ `THREAT_MODEL.md` | `2379/tcp`, `2380/tcp` | Vacuous (§43.6 item 5) |
+| `10250/tcp`'s claim cell @ `ports-and-protocols.md`'s `Used By` | `10250/tcp` | Vacuous (§43.6 item 5) |
+| `10250/tcp`'s footing cell @ `security-checklist.md` (RULED §151) | `10250/tcp` | Vacuous (§43.6 item 5) |
+| `2375/tcp`'s and `2376/tcp`'s footing cell @ docs.docker.com (RULED §151) | `2375/tcp`, `2376/tcp` | Vacuous (§43.6 item 5) |
+| `2376/tcp`'s claim cell @ the same page (RULED §151) | `2376/tcp` | Vacuous (§43.6 item 5) |
+| The memcached footing cell @ the project wiki | `11211/tcp`, `11211/udp` | Vacuous (§43.6 item 5) |
+| The memcached claim cell @ the wiki + shipped dispatch | `11211/tcp`, `11211/udp` | Vacuous (§43.6 item 5) |
+| `25672/tcp`'s footing @ `rabbitmq.com/docs/networking` | `25672/tcp` | Vacuous (§43.6 item 5) |
+| `25672/tcp`'s claim cell @ the same page's *Port Access* bullet | `25672/tcp` | Vacuous (§43.6 item 5) |
+| `2375/tcp`'s claim cell @ Docker Engine security + shipped dispatch | `2375/tcp` | Vacuous (§43.6 item 5) |
+| `2375/tcp`'s *why* cell @ the deprecated-features page | `2375/tcp` | Vacuous (§43.6 item 5) |
+| `6379/tcp`'s claim cell @ redis.io + shipped bytes | `6379/tcp` | Vacuous (§43.6 item 5) |
+| `9042/tcp`'s claim cell @ cassandra.apache.org + shipped dispatch | `9042/tcp` | Vacuous (§43.6 item 5) |
+| `10249/tcp`'s claim cell @ Kubernetes' metrics documentation + `serveMetrics` | `10249/tcp` | Vacuous (§43.6 item 5) |
+| The etcd claim cell @ `THREAT_MODEL.md` + shipped dispatch | `2379/tcp`, `2380/tcp` | Vacuous (§43.6 item 5) |
+| The kube-scheduler / kube-controller-manager claim cell @ `Used By: Self` + kubeadm | `10259/tcp`, `10257/tcp` | Vacuous (§43.6 item 5) |
+| `6000/tcp`'s claim cell @ `Xsecurity(7)` + `xhost(1)` | `6000/tcp` | Vacuous (§43.6 item 5) |
+
+*Rung 3*
+
+| Item | Pairs | G11 |
+| --- | --- | --- |
+| `5432/tcp`'s footing @ `postgresql.conf.sample` | `5432/tcp` | Not localized this entry — the composed-table run is RED overall (§40.6); this entry does not resolve which rung-3-through-5 cell(s) it names |
+| `5984/tcp`'s footing @ CouchDB's `default.ini` | `5984/tcp` | Same as above |
+| `5432/tcp`'s claim cell @ `postgresql.conf.sample` (RULED §151) | `5432/tcp` | Same as above |
+| `5984/tcp`'s claim cell @ `default.ini` (RULED §151) | `5984/tcp` | Same as above |
+| `9042/tcp`'s footing @ shipped `conf/cassandra.yaml` | `9042/tcp` | Same as above |
+| `2181/tcp`'s claim cell @ the Administrator's Guide + shipped dispatch | `2181/tcp` | Same as above |
+| `4369/tcp`'s claim cell @ epmd documentation + shipped `epmd_srv.c` | `4369/tcp` | Same as above |
+
+*Rung 4*
+
+| Item | Pairs | G11 |
+| --- | --- | --- |
+| `3306/tcp`'s footing @ Oracle's *Security Guidelines* | `3306/tcp` | Not localized this entry (as above) |
+| `3306/tcp`'s claim cell @ the same page | `3306/tcp` | Same |
+| `2049/tcp`'s footing @ `nfs(5)` | `2049/tcp` | Same |
+| `2049/tcp`'s claim cell @ the same man page's SECURITY CONSIDERATIONS | `2049/tcp` | Same |
+| `4369/tcp`'s footing @ `secure_coding.md` rule `DEP-001` | `4369/tcp` | Same |
+| `873/tcp`'s footing cell @ `rsyncd.conf.5.md` (RULED §151) | `873/tcp` | Same |
+| `873/tcp`'s claim cell @ the same man page (RULED §151) | `873/tcp` | Same |
+| `2181/tcp`'s footing cell @ the Administrator's Guide (RULED §151, undetermined step 4) | `2181/tcp` | Same |
+
+*Rung 5*
+
+| Item | Pairs | G11 |
+| --- | --- | --- |
+| `certificate-expiring`'s fraction @ RFC 9773 §1 + issuer schedule | not a port cell | Not localized this entry (as above) |
+| `23/tcp`'s claim cell @ RFC 4248 §3 | `23/tcp` | Same |
+| `21/tcp`'s claim cell @ RFC 2577 §§5–6 | `21/tcp` | Same |
+| `5900/tcp`'s claim cell @ RFC 6143 §9 | `5900/tcp` | Same |
+
+**Part 5 — the gate's record.** The gate this release's reading was completed against:
+[`sensitive-ports.md`](../research/sensitive-ports.md) **§40**'s baseline run (G1–G11 over the composed
+table), extended by **G12** (§47) and **G13** (§49) — thirteen checks, per
+[ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)'s table. State as last
+confirmed at §43.7's closing table: **G5 RED→GREEN**, **G11 RED** (`2375/tcp` itself listed Current),
+**G8's external half UNRUN**; **G12** and **G13** each population-complete and clean (no cell yet marked
+`demoted-untagged` or `horizon-passed-unverified`). This release opened no artefact the gate had not
+already fetched and edited no curated-table row, so it required no fresh gate run of its own.
+
+**Falsification, run.**
+
+- *Extensive test* (name one register item in neither part 2 nor part 4): **survives.** Every item at
+  §43.3, across all five rungs, appears in exactly one of the two parts above — checked rung by rung
+  against §43.3 and against this document's own §1.1 transcription, which #179 confirmed is not stale.
+- *Intensive test* (name one artefact inside a stated class boundary the reading did not open):
+  **survives, on the narrow reading of the class — and nearly did not.** The `10248/tcp` class (one
+  file, one comment, one commit) has nothing else inside it. The `623/udp` class was first drafted
+  broader — *"HPE's, Dell's and NEC's BMC-security documentation"* — and that draft **fails**: HPE's own
+  *iLO 6 Security Technology Brief* (PN 30-3CC3279C-024), cited in this note's own Sources list, sits
+  inside that class and was not opened by this reading. The class actually stated above is narrower —
+  the three documents §28.8 names, and no other — which the iLO 6 Brief sits outside of, so it survives.
+  **This is ADR-0040's own founding failure shape, caught before publication rather than after**: #68's
+  defect was a class drawn too wide (the *specification* class, missing the deployment BCP); this entry
+  repeats that near-miss in miniature, and the fix is the same in both places — narrow the class to what
+  was actually opened, not to what sounds like the right authority.
+
+**The predicted defect fired.** `sensitive-ports.md` §43.8 named it before this entry existed: *"the
+register is now large enough that §42.9's predicted defect — the intensive bound being expensive enough
+per item to depress the head — is the one to watch for."* It is confirmed rather than merely predicted
+now. Writing two honest, narrow, falsifiable class boundaries — including catching and correcting the
+`623/udp` over-broad draft above — was the majority of this entry's effort; doing the same for the
+register's remaining rung-3-through-5 items, each resting on a versioned artefact whose class boundary
+has never been drawn this precisely before, was not attempted this release. **The extensive residue is
+cheap** — every unread item was already named and grounded by the queue walk, so naming it again costs a
+citation. **The intensive bound is not cheap** — each one requires opening artefacts fresh and checking
+the drawn class against the rest of the corpus for a document that would sit inside a looser version of
+it. That asymmetry, not any reluctance to read, is why this entry's head is small against a register
+much larger than it. Per the ticket that commissioned this entry: **the answer is not to drop the
+bound.** ADR-0078 argued that trade in full and ruled against it, and the near-miss above is itself the
+argument restated — a form without the intensive bound would have let the `623/udp` reading stand on the
+wrong class, and nobody but a second reader guessing at what *"BMC documentation"* was supposed to mean
+could have caught it.
+
+**What this entry does not do.** It does not move a row, a class, a tier, or a coverage figure — no part
+above authors a claim, and no cell here changes disposition. It does not quote a length anywhere above —
+the residue is stated over members, per rung, exactly as §2.2 and §39.2 require. It does not resolve the
+*"who signs it"* tension recorded above; that is named as fog for a successor ticket, not settled here by
+the act of writing the entry.
 
 ---
 
