@@ -244,8 +244,13 @@ The channel surface follows #22's shape for a cadence misconfiguration — a con
 next to the thing the operator would change, never an entry in a log they would have to go read —
 and #22's *raw errors appear as drill-down, never as a top-level log* governs the error string.
 
-**Retention of the delivery record is [#121](https://github.com/winniel123/verge-asm/issues/121)'s**,
-and it is a fourth corpus beside that ticket's three. It is Operational, so nothing in the
-comparison path may read it and nothing is lost by compacting it aggressively — but the **message**
-corpus is what the operator reads back, and it is not the same corpus as the delivery attempts
-against it.
+**Retention of the delivery record is settled by
+[#139](https://github.com/winniel123/verge-asm/issues/139) ·
+[ADR-0081](../adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md).** A `Delivery`
+**travels with its `Message`** and holds no retention rule of its own, so neither corpus gets a dial:
+the message corpus is what the operator reads back, and a message renders *its* delivery outcomes.
+~~Nothing is lost by compacting it aggressively~~ is **superseded here, at the site that specifies
+it** ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+*nothing in the comparison path reads it* is not *nothing reads it*, and discarding a dead-lettered
+delivery converts *we could not reach you* into *we told you* — **a dead-lettered `Delivery` licenses
+no silence**, defeated by storage.
