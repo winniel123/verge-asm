@@ -240,6 +240,16 @@ MX, TXT, NS and SOA answers recorded as the name's own records. The **population
 not an offer and is not enumerated here: it is a function of the batch's scope, held on the `Batch`
 as the **seventh aperture input**. This document stays at **five offers**.
 
+**The seven earn their keep a second way, and it is measured.**
+[ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md) reads
+the control probe's answers **per `(qtype, RR type)` component** and discriminates only where a
+component held still across every control label. **[measured]** 2026-08-14, `appspot.com`'s only
+determinate *positive* component in the seven is **MX** — its A and AAAA both rotate — so under the
+withdrawn three-qtype clause that parent would have no positive determinate component at all and
+every name beneath it would be suppressed. The qtype set is still one offer and this list does not
+move; the widening simply pays twice. The **match predicate** that reads them is a declared
+parameter of the leaf, not an offer, and has no row here.
+
 **Not queried in v1:**
 
 | qtype | Why not |

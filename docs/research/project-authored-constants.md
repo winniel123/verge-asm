@@ -601,7 +601,7 @@ Walked for completeness, since ADR-0021's parameter set is the authoritative pop
 | `resolution-walk` | EDNS payload size | **No** | §6.7 |
 | `resolution-walk` | the qtype set (seven) | **No** | An enumeration chosen against what v1 rules read; ADR-0015 gives it no deadline |
 | `wildcard-discrimination` | control-label count and construction | **No** | A count of our own probes; no world quantity enters. RFC 4592 fixes the mechanism |
-| `wildcard-discrimination` | the match predicate | **Open — no value has been chosen** | ADR-0021 names it; nothing anywhere gives it one. **[measured]** a synthesised answer set is not stable across control labels on two of four live wildcarded zones, so set equality is not it — [#111](https://github.com/winniel123/verge-asm/issues/111) |
+| `wildcard-discrimination` | the match predicate | ~~**Open — no value has been chosen**~~ **No — closed, and not a product** | ~~ADR-0021 names it; nothing anywhere gives it one.~~ **Valued** by [#111](https://github.com/winniel123/verge-asm/issues/111) / [ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md): **set equality on the RDATA set, per `(qtype, RR type)` component, at determinate components only**. No world quantity enters — it is a comparison rule over our own probe's answers, like the control-label count above. **[measured]** a synthesised answer set is not stable across control labels on two of four live wildcarded zones — **nor across repeated queries for one label at one authority**, which is why the value is a determinacy gate rather than a comparison |
 
 **One thing ADR-0021's table does not contain, and this section's *authoritative population* claim
 must not be read as covering it:** the **`Name`s the control labels are generated under**. That is
@@ -609,6 +609,12 @@ an **aperture input** recorded on the `Batch`, not a declared parameter of any l
 function of the batch's own scope where a parameter is authored data —
 [ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).
 It is therefore correctly absent from this walk rather than missing from it.
+
+**The open-parameter count is back to two.** [#108](https://github.com/winniel123/verge-asm/issues/108)
+added the match-predicate row to this table without touching §9's and §10's *two declared parameters
+have no value yet (§6.4, §6.8)*, which was briefly three;
+[#111](https://github.com/winniel123/verge-asm/issues/111) closed the row, so both prose sites are
+correct again and the two are the **availability window** (§6.4) and the **capped body read** below.
 
 **The capped body read is the one live item, and it is live because it has no value yet.**
 ADR-0021 names the parameter; no ADR fixes a number, and #4 §4's *"64 KB"* was never carried
