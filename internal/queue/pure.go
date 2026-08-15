@@ -9,6 +9,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -79,7 +80,10 @@ func toObservationParams(batchID int64, vantageID pgtype.Int8, observedAt pgtype
 // subject. The switch grows one additive case per wave-4 facet.
 func subjectKindFor(facet string) string {
 	switch facet {
-	case connectoutcome.FacetReachability:
+	case connectoutcome.FacetReachability, tlsacceptance.Facet:
+		// Both are about a `Service` — the (Address, port, transport) triple.
+		// `tls-acceptance` keys on the Service, never an Endpoint: SNI is not a
+		// candidate, so no name selects the subject (measurement-offers §1.6).
 		return "service"
 	case connectoutcome.FacetCertificate, httpexchange.FacetHTTPIdentity:
 		// The presented chain and HTTP identity are single-valued only under an
@@ -99,9 +103,11 @@ func subjectKindFor(facet string) string {
 // ages against the resolver's cadence (CONTEXT.md `Observation`).
 func sourceFor(facet string) string {
 	switch facet {
-	case connectoutcome.FacetReachability, connectoutcome.FacetCertificate, httpexchange.FacetHTTPIdentity:
+	case connectoutcome.FacetReachability, connectoutcome.FacetCertificate,
+		httpexchange.FacetHTTPIdentity, tlsacceptance.Facet:
 		// All ride our own prober's exchange — a distinct timeline source from
 		// the resolver, so a bound never ages against the resolver's cadence.
+		// `tls-acceptance` is our own prober's enumeration on its own weekly Scan.
 		return "prober"
 	default:
 		return "resolver"

@@ -60,6 +60,25 @@ FROM span
 WHERE subject_kind = @subject_kind AND subject_key = @subject_key
 ORDER BY facet, discriminator, vantage_id, source, opened_at, id;
 
+-- name: ListReachedServices :many
+-- The open `Service` population the weekly `tls-acceptance` Scan enumerates over
+-- (#199, ADR-0028): every Service whose CURRENT `reachability` span reads `reached`,
+-- with the vantage it was reached from. This is an enumeration over open Services,
+-- NOT a port list — the ports are whatever the Services are open on, inherited from
+-- `reachability` — so the Scan consults no port tier at all. A closed or gap span is
+-- excluded: `tls-acceptance` is attempted only against a Service known open, the same
+-- way the `certificate` handshake rides a reached connect. vantage_id is part of the
+-- key and may be NULL (the shipped position carries no vantage row), carried through
+-- so the fan-out partitions per vantage exactly as reachability does.
+SELECT sp.subject_key AS service_key, sp.vantage_id AS vantage_id
+FROM span sp
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.closed_at IS NULL
+  AND sp.is_gap = FALSE
+  AND (sp.value ->> 'outcome') = 'reached'
+ORDER BY sp.vantage_id, sp.subject_key;
+
 -- name: ListReachabilitySpansForExposure :many
 -- The two most recent `reachability` spans per (Service, vantage), joined to the
 -- vantage's prober endpoint — the Exposure landing view's read (#196). rn = 1 is

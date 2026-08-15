@@ -308,6 +308,16 @@ type Querier interface {
 	// declared address scopes (CONTEXT.md `Vantage class`), never from a static
 	// column, so this read carries the host and availability instead.
 	ListReachabilitySpansForExposure(ctx context.Context) ([]ListReachabilitySpansForExposureRow, error)
+	// The open `Service` population the weekly `tls-acceptance` Scan enumerates over
+	// (#199, ADR-0028): every Service whose CURRENT `reachability` span reads `reached`,
+	// with the vantage it was reached from. This is an enumeration over open Services,
+	// NOT a port list — the ports are whatever the Services are open on, inherited from
+	// `reachability` — so the Scan consults no port tier at all. A closed or gap span is
+	// excluded: `tls-acceptance` is attempted only against a Service known open, the same
+	// way the `certificate` handshake rides a reached connect. vantage_id is part of the
+	// key and may be NULL (the shipped position carries no vantage row), carried through
+	// so the fan-out partitions per vantage exactly as reachability does.
+	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
