@@ -471,7 +471,10 @@ that check belongs to the curation patch, which is where the watch lives.
 >
 > **Recorded in the merge reconciliation rather than by #95 itself**, which stated the delta in its own
 > figure table and did not reach this file. **No gate changes and no rule version moves** on this
-> account; a footing tier is not reference data. The list is **41 pairs**.
+> account; a footing tier is not reference data. The list is ~~**41 pairs**~~ **40 pairs since
+> [#109](https://github.com/winniel123/verge-asm/issues/109)**, which removed `1433/tcp` on the claim
+> gate — class totals `12 / 7 / 21`. *(Struck in the #108/#109/#110 merge reconciliation; the figure
+> above was correct as of its own pass and is withdrawn as an absolute, not as a record.)*
 
 ## The v1 walk — all sixteen rules, walked rather than asserted
 

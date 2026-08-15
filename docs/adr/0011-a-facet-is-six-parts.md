@@ -47,7 +47,7 @@ six: [#16](https://github.com/winniel123/verge-asm/issues/16) filed *TLS 1.0/1.1
 | Differ | **Unversioned**, and may consult nothing but the two values |
 | Adding a union variant | **No `Break`** where strictly additive, checked on the corpus; one re-baseline message |
 | Multi-measurement values | Decided by the **measurement binary within one batch**, never assembled later |
-| Aperture inputs | Now **five** — sources, port tiers, the ownership gate, the qtype set, the TLS candidate set |
+| Aperture inputs | ~~Now **five** — sources, port tiers, the ownership gate, the qtype set, the TLS candidate set~~ **Seven.** [ADR-0017](./0017-exposure-needs-both-legs.md) added `Vantage class` for six and [#108](https://github.com/winniel123/verge-asm/issues/108) / [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md) added the **control-probe population** for seven. *(Struck in the #108/#109/#110 merge reconciliation: ADR-0066's sweep repaired this file's prose clause at the `ADR-0007 is amended twice` bullet and did not reach this row — [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s unit is the **sentence** per [#106](https://github.com/winniel123/verge-asm/issues/106), so an amendment 313 lines below does not discharge a decision-table row above it.)* |
 | What a facet is | **Six parts**: value space, decoder per source, canonicaliser, differ, discriminator, batch-scope obligation |
 
 ## Rationale
