@@ -1,14 +1,18 @@
 <!doctype html>
 <!--
   PROTOTYPE — throwaway. Issue #160: "Draw the message surface, and one message
-  at magnitude."
+  at magnitude." Extended by issue #180: "Draw the click-through targets for
+  the three non-aperture message forms."
 
   Draws ADR-0039's global message element in context, ADR-0064's four sentence
-  forms as real message text, and one aperture message at seven-figure
-  magnitude down through #74's card shape (no rows, paginated at that size).
+  forms as real message text, one aperture message at seven-figure magnitude
+  down through #74's card shape (no rows, paginated at that size) — #160 — and
+  now the other three forms' own click-through targets, per
+  docs/spec/notification-channels.md §3.3's per-mover link-target table — #180.
 
   Not to be re-derived here, and not re-derived: ADR-0064's grammar, ADR-0039's
-  surface rules, #74's card. This file draws them; it does not re-argue them.
+  surface rules, #74's card, §3.3's link-target table. This file draws them; it
+  does not re-argue them.
 
   ── AXES ───────────────────────────────────────────────────────────────────
 
@@ -25,16 +29,28 @@
     coverage-us is the seven-figure aperture message.
 
   &view=seed|drilldown        replaces the MAIN viewport (not the panel) —
-    reached only from coverage-us's detail, per #159: an aperture widening
-    links to the Seed whose scope it fired at, never to Coverage. The Seed's
-    own card is where the #74-shaped drill-down is reached from.
+    reached from coverage-us's detail, per #159: an aperture widening links to
+    the Seed whose scope it fired at, never to Coverage. The Seed's own card
+    is where the #74-shaped drill-down is reached from.                (#160)
+
+  &view=endpoint               reached from drift-1's AND clock-1's detail —
+    §3.3's "an object in the estate" and "nothing — a threshold crossed" rows
+    both key on "that object's own page" / "the object whose clock-read span
+    the rule evaluated", and both fixture messages name the same Endpoint, so
+    one screen serves both forms. See the shared-target verdict below. (#180)
+
+  &view=source                 reached from coverage-operator's detail — §3.3's
+    "the operator's own declared input" row keys the link on the declared
+    `Source` the rule reads, never on the `Name` the sentence is about. Drawn
+    as a second view of the SAME `Seed` object the aperture case already
+    opened (a name scope is a `Seed`, same as an address scope), not as a new
+    kind of screen. See the no-stat-row verdict below.                 (#180)
 
   &p=<n>                      drilldown page (seven-figure population,
                                paginated 100/page — 20,930 pages total)
 
-  &pager=jump|basic           the one thing this ticket found. See the
-                               pagination verdict at the bottom of the
-                               drilldown view.
+  &pager=jump|basic           the one thing #160 found. See the pagination
+                               verdict at the bottom of the drilldown view.
 
   ── WHAT IS NOT DRAWN, ON PURPOSE ────────────────────────────────────────
   No colour, badge or ramp keyed to class (ADR-0064 §3: no valence, no
@@ -42,7 +58,9 @@
   second confirmation above a size threshold (§5) — the message's own markup
   is identical in shape whether its count is 3 or 2,092,928; only the number
   changes. If you came here looking for that treatment, its absence is the
-  point, not an omission.
+  point, not an omission. #180 adds no count-bearing message and no
+  magnitude-conditional treatment either — ADR-0064 §5 has none to draw for
+  any of the three non-aperture forms, confirmed rather than assumed.
 
   Vocabulary is CONTEXT.md and ADR-0064; visual language is the real design
   system (../../design-system). Not production code.
@@ -214,6 +232,76 @@
   .pgo button { height: var(--control-h-sm); padding: 0 var(--space-3); border: 1px solid var(--border-ink);
                 background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-sm)/1 var(--font-sans); cursor: pointer; }
 
+  /* ── SHARED SUBJECT/DECLARED-OBJECT CHROME — #180 ─────────────────────
+     One small vocabulary reused by both new views below, on the same
+     footing as #161's subject-page tags (state facts, not message valence —
+     ADR-0064 §3 constrains the MESSAGE, not every fact rendered on the
+     object a message links to). */
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted);
+         white-space: nowrap; }
+  .tag.blue { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .tag.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .tag.bad  { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+  .tag.ok   { border-color: var(--ok); color: var(--ok); }
+
+  .obj-h { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5);
+           padding: var(--space-4); border-bottom: var(--rule-ink-heavy); flex-wrap: wrap; }
+  .obj-h .k { font-family: var(--font-mono); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+              word-break: break-all; }
+  .obj-h .kindrow { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+  .obj-h .asof { text-align: right; font: var(--weight-medium) var(--text-sm)/1 var(--font-mono); color: var(--text-muted); }
+  .obj-h .asof .ml { display: block; margin-top: 3px; }
+
+  .obj-card { background: var(--surface); border: var(--rule); margin-bottom: var(--space-4); }
+  .obj-card .cardh { display: flex; align-items: baseline; gap: var(--space-3);
+                      padding: var(--space-3) var(--space-4); border-bottom: var(--rule); }
+  .obj-card .cardh h2 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .obj-card .cardh .hint { font-size: var(--text-xs); color: var(--text-muted); margin-left: auto; font-family: var(--font-mono); }
+  .obj-card .cardf { padding: var(--space-3) var(--space-4); border-top: var(--rule); background: var(--surface-sunken);
+                      font-size: var(--text-sm); color: var(--text-muted); line-height: var(--leading-body); }
+
+  /* --- endpoint view: facets ------------------------------------------- */
+  table.facets { width: 100%; border-collapse: collapse; background: var(--surface); }
+  table.facets th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); text-transform: uppercase;
+       letter-spacing: var(--tracking-label); color: var(--text-muted); border-bottom: var(--rule-ink-heavy); }
+  table.facets td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft);
+       font-size: var(--text-base); vertical-align: top; }
+  table.facets tr:first-child td { border-top: none; }
+  td.fname { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); white-space: nowrap; }
+  td.fval  { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .fnote { display: block; margin-top: 3px; font-family: var(--font-sans); font-size: var(--text-xs); color: var(--text-muted); }
+  .fired-by { display: inline-block; margin-left: var(--space-2); font: var(--weight-medium) var(--text-2xs)/1.4 var(--font-mono);
+              color: var(--accent); }
+
+  table.rules-sm { width: 100%; border-collapse: collapse; }
+  table.rules-sm th { padding: var(--space-2) var(--table-cell-pad-x); text-align: left;
+       font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); text-transform: uppercase;
+       letter-spacing: var(--tracking-label); color: var(--text-muted); border-bottom: var(--rule-ink-heavy); }
+  table.rules-sm td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-top: var(--rule-soft); font-size: var(--text-base); }
+  table.rules-sm tr:first-child td { border-top: none; }
+  td.rname { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+
+  /* --- source view: declared-source state ------------------------------ */
+  .srcgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-soft); }
+  .srcgrid .cell { background: var(--surface); padding: var(--space-3) var(--space-4); }
+  .srcgrid .cell .ml { display: block; margin-bottom: var(--space-1); }
+  .srcgrid .cell .v { font: var(--weight-semibold) var(--text-sm)/1.3 var(--font-mono); color: var(--ink); }
+
+  .currency { padding: var(--space-4); }
+  .currency .state { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-3); flex-wrap: wrap; }
+  .currency p { margin: 0 0 var(--space-2); font-size: var(--text-base); line-height: var(--leading-body); max-width: 88ch; }
+  .currency p:last-child { margin-bottom: 0; }
+  .currency .window { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  .empty-obj { border: 1px dashed var(--border); background: var(--surface); padding: var(--space-5) var(--space-4); }
+  .empty-obj .ml { display: block; margin-bottom: var(--space-2); }
+  .empty-obj p { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); line-height: var(--leading-body); max-width: 88ch; }
+  .empty-obj p:last-child { margin-bottom: 0; }
+  .empty-obj a { color: var(--accent); }
+
   /* ── ANNOTATION APPARATUS (prototype chrome, not product) ─────────────── */
   .verdict { border: var(--rule-ink); background: var(--surface); margin-bottom: var(--space-4); }
   .verdict .hd { display: flex; gap: var(--space-3); align-items: baseline; padding: var(--space-2) var(--space-4);
@@ -277,6 +365,10 @@ const MESSAGES = [
     id: "drift-1", class: "drift", mover: "an object in the estate",
     subj: "admin.example.com:443/tcp", time: "2026-08-15 09:14 UTC", unread: true,
     sentence: `<code>admin.example.com:443/tcp</code> is now reached from the internet.`,
+    /* §3.3: "an object in the estate" → "that object" → "the object's own
+       page". The object's key carries a Name, so it renders as an Endpoint
+       (#180). */
+    target: { view: "endpoint", label: "admin.example.com:443/tcp" },
   },
   {
     id: "coverage-us", class: "coverage", mover: "us",
@@ -285,18 +377,31 @@ const MESSAGES = [
       now on: 65,404 more <code>(port, transport)</code> pairs × 16 addresses × 2 <code>Reach</code>
       legs — <b>2,092,928</b> timelines opened. Nothing is compared.`,
     seed: true,
+    /* §3.3: "us" → "the Seed whose scope the widening act was performed
+       over" → "that Seed's own entry, on Seeds" (#159, drawn by #160). */
+    target: { view: "seed", label: "10.0.0.0/28" },
   },
   {
     id: "clock-1", class: "clock", mover: "nothing — a threshold was crossed",
     subj: "admin.example.com:443/tcp", time: "2026-08-15 00:03 UTC", unread: true,
     sentence: `<code>admin.example.com:443/tcp</code>'s certificate expired on 2026-08-15.
       No measurement moved.`,
+    /* §3.3: "nothing" → "the object whose clock-read span the rule
+       evaluated — e.g. an Endpoint whose certificate a certificate-expired
+       firing reads" → "that object's own page". Same Endpoint as drift-1:
+       one screen, two of the three forms (#180). */
+    target: { view: "endpoint", label: "admin.example.com:443/tcp" },
   },
   {
     id: "coverage-operator", class: "coverage", mover: "the operator",
     subj: "example.com (Name)", time: "2026-08-14 22:03 UTC", unread: false,
     sentence: `You stopped telling us: the zone for <code>example.com</code> has aged out of its
       window.`,
+    /* §3.3: "the operator's own declared input" → "the declared Source the
+       rule reads (e.g. a zone file's name scope)" → "that Source's own
+       page" — the Seed's declared Source, never the Name subject page
+       (#180). */
+    target: { view: "source", label: "example.com's declared source" },
   },
 ];
 /* sorted by time alone — ADR-0064's Consequences: "sorts by time alone —
@@ -398,13 +503,10 @@ function messageDetail(id) {
         <span class="ml">count, stated as its factors — ADR-0064 §4</span>
         <div class="expr">65,404 more <b>(port, transport)</b> pairs &times; <b>16</b> addresses &times; <b>2</b> <b>Reach</b> legs</div>
         <div class="product"><span class="v">${num(TOTAL)}</span><span class="of">timelines opened. Exact; never rounded (§4, rider 1).</span></div>
-      </div>
-      <a class="go" href="${url({ panel: "closed", msg: "", view: "seed" })}">&rarr; open ${m.subj}</a>
-      <p class="unbuilt">the other link this message carries — its full delivery/read-state record — is not
-        drawn here; out of scope for this ticket.</p>` : `
-      <a class="go" style="color:var(--text-muted);cursor:default" title="not built for this prototype">&rarr; open ${m.subj}</a>
-      <p class="unbuilt">this message's own object screen is not built in this prototype (out of scope) —
-        only the seven-figure aperture message's target is drawn in full.</p>`}
+      </div>` : ``}
+    <a class="go" href="${url({ panel: "closed", msg: "", view: m.target.view })}">&rarr; open ${m.target.label}</a>
+    <p class="unbuilt">the other link this message carries — its full delivery/read-state record — is not
+      drawn here; out of scope for both #160 and #180.</p>
   </div>`;
 }
 
@@ -452,6 +554,112 @@ function seedView() {
           <span class="d">65,404 pairs &times; 16 addresses &times; 2 legs — no rows on this card (#74)</span>
           <span class="open">open ${num(TOTAL)} &rarr;</span>
         </a>
+      </div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ENDPOINT VIEW — #180. drift-1's AND clock-1's shared link target: "the
+   object's own page." A light-weight, purpose-built view of ONE Endpoint —
+   the full generic subject-page chrome (citation chain, every facet, every
+   rule) is #161's own object (prototypes/subjects/) and is not re-derived
+   here; this view draws only what the two messages that land on it need to
+   be seen resolving into something real.
+   ═══════════════════════════════════════════════════════════════════════ */
+function endpointView() {
+  const rules = [
+    { name: "certificate-expiring", member: "fired",
+      note: "0 days remaining · 90-day horizon · certificate presented at 2026-05-17. This is clock-1's own firing." },
+    { name: "plaintext-http-no-https", member: "did-not-fire",
+      note: "http-identity: NoHTTPResponse over plaintext — the endpoint answers only under TLS" },
+  ];
+  return `<div class="crumb"><a href="${url({ view: "" })}">&larr; back</a></div>
+    <div class="obj-card">
+      <div class="obj-h">
+        <div><span class="k">admin.example.com:443/tcp</span>
+          <div class="kindrow"><span class="tag blue">Endpoint</span><span class="tag ok">live</span></div>
+        </div>
+        <div class="asof"><span>as of 2026-08-15 09:14 UTC</span><span class="ml">the open span &middot; not a comparison</span></div>
+      </div>
+      <div class="cardh"><h2>Facets</h2><span class="hint">opened beneath this Endpoint's Service when its internet leg opened (ADR-0029 amendment)</span></div>
+      <table class="facets"><thead><tr><th>Facet</th><th>Reading</th></tr></thead><tbody>
+        <tr><td class="fname">reachability (internet leg)</td>
+            <td class="fval">reached<span class="fired-by">&larr; drift-1</span>
+              <span class="fnote">the flagship Reach move: not-reached &rarr; reached, 2026-08-15 09:14 UTC</span></td></tr>
+        <tr><td class="fname">certificate</td>
+            <td class="fval"><span class="tag bad" style="margin-right:6px">expired</span>not_after 2026-08-15 00:03 UTC
+              <span class="fired-by">&larr; clock-1</span>
+              <span class="fnote">the span itself is unchanged since 2026-05-17 — nothing was measured, a threshold was crossed</span></td></tr>
+        <tr><td class="fname">http-identity</td><td class="fval">Responded &middot; 200</td></tr>
+        <tr><td class="fname">tls-acceptance</td><td class="fval">TLS 1.2, TLS 1.3 offered</td></tr>
+      </table>
+      <div class="cardf">Two of these rows are literally what the two messages that link here are
+        about — the same object, two different facets, two different classes. That is the
+        argument for one shared screen rather than one page per message class: nothing here is
+        duplicated, each message's own fact sits on its own row.</div>
+    </div>
+    <div class="obj-card">
+      <div class="cardh"><h2>Signals</h2><span class="hint">${rules.length} of 17 v1 rules read this Endpoint</span></div>
+      <table class="rules-sm"><thead><tr><th>Rule</th><th>Member</th><th>Evidence</th></tr></thead><tbody>
+        ${rules.map(r => `<tr><td class="rname">${r.name}</td>
+          <td>${r.member === "fired" ? `<span class="tag bad">fired</span>` : `<span class="tag">did not fire</span>`}</td>
+          <td class="muted" style="font-size:var(--text-sm)">${r.note}</td></tr>`).join("")}
+      </table>
+      <div class="cardf"><b>#74's no-rows shape, applied and not re-argued.</b> This list is
+        populated because this Endpoint has two applicable rules with a verdict; where a subject's
+        Signals list is empty, #161 (<code>prototypes/subjects/</code>) already drew that case with
+        a stated reason rather than a blank — a bare <code>Address</code>'s own page, no rule reads
+        it directly, and the panel says so. Redrawing the empty branch here would duplicate that
+        finding rather than add to it; this view instead demonstrates the populated half, which
+        #161's own fixtures did not carry a certificate-bearing subject to show.</div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SOURCE VIEW — #180. coverage-operator's link target: NOT example.com's
+   own Name-subject page — §3.3 keys the link on the declared Source the
+   rule reads, "e.g. a zone file's name scope." A zone file is declared
+   against a name-scope Seed, so this is a second view of the SAME `Seed`
+   object #160 already opened for the address-scope case, not a new kind
+   of screen or a new nav destination.
+   ═══════════════════════════════════════════════════════════════════════ */
+function sourceView() {
+  return `<div class="crumb"><a href="${url({ view: "" })}">&larr; back</a></div>
+    <div class="obj-card">
+      <div class="obj-h">
+        <div><span class="k">example.com</span>
+          <div class="kindrow"><span class="tag blue">Seed &middot; name scope</span></div>
+        </div>
+        <div class="asof"><span>declared 2026-06-02</span><span class="ml">a Declared term &middot; no instant of its own</span></div>
+      </div>
+      <div class="cardh"><h2>Declared source</h2><span class="hint">the zone file this name scope reads — CONTEXT.md's Source</span></div>
+      <div class="srcgrid">
+        <div class="cell"><span class="ml">authority</span><span class="v">declared</span></div>
+        <div class="cell"><span class="ml">completeness</span><span class="v">enumerable</span></div>
+        <div class="cell"><span class="ml">consent</span><span class="v">operator-accepted</span></div>
+      </div>
+      <div class="cardf">These three properties are the Source's own, restated verbatim from
+        CONTEXT.md's <code>Source</code> entry — not invented for this screen. This is why the
+        message that links here does not say "your DNS provider" or "your registrar": the model
+        has no opinion about who ran the export, only about what was declared.</div>
+    </div>
+    <div class="obj-card">
+      <div class="cardh"><h2>Currency</h2><span class="hint">live vs evidential &mdash; CONTEXT.md's Observation entry</span></div>
+      <div class="currency">
+        <div class="state"><span class="tag warn">evidential &mdash; aged out of its window</span>
+          <span class="window">last supplied 2026-06-04 04:02 UTC &middot; re-supply cadence: monthly (the <code>zone</code> Scan)</span></div>
+        <p><b>This is coverage-operator's own firing, read from this object rather than restated.</b>
+          The zone file's own observations of every <code>Name</code> beneath this scope are held
+          live only within <code>k</code> cadences of the <code>zone</code> Scan's monthly re-supply.
+          Past that bound every reading it produced is evidential: no derivation may read it and
+          none may be re-derived from it, so this scope's names stop being told anything new by this
+          Source and the rules that read it go <code>not-evaluable</code> rather than silently
+          quiet.</p>
+        <p><b>Why the sentence says "you stopped telling us" and not "we lost your zone file."</b>
+          #48's fourth absence register names the mover, not the mechanism — the operator's own
+          supply act is what dates this Source's observations (CONTEXT.md's <code>Observation</code>
+          entry), so a stale window is the operator's own input going quiet, never our own looking
+          changing.</p>
       </div>
     </div>`;
 }
@@ -537,6 +745,74 @@ function topVerdicts() {
     and the four classes interleave rather than cluster.</p>`)}`;
 }
 
+function endpointVerdict() {
+  return `
+  ${V("win", "one Endpoint screen for both drift-1 and clock-1 — #180", `
+    <p>drift-1 (an object in the estate) and clock-1 (nothing — a threshold crossed) both key their
+    link on the fired-at object's own page (§3.3), and both fixture messages name the same object.
+    One screen serves both. <b>Rejected:</b> a screen per message class — a "reachability" page for
+    drift and a separate "certificate" page for clock. That would duplicate the Endpoint header, the
+    facet table's shared rows and the Signals section for no reason the model gives: nothing about
+    §3.3's rule is keyed on class, only on what fired at the object, and an Endpoint's own page is
+    already the one place HTTP identity and the presented certificate chain are single-valued
+    (CONTEXT.md's <code>Endpoint</code> entry) — exactly the two facts these two messages are about.</p>`)}
+  ${V("thin", "read as Endpoint rather than Service — argued, not derived", `
+    <p>ADR-0029 pins the flagship Reach alert to a <code>Service</code> (an <code>(Address, port,
+    transport)</code> triple with no Name), while ADR-0064 §1's own worked form for this exact
+    sentence renders the key with a Name in it — <code>admin.example.com:443/tcp</code>, not an
+    address:port form. Those two texts are in genuine tension and this ticket does not reopen either
+    one. <b>The call made here:</b> where the fired-at object's key carries a Name (the ordinary
+    case for anything worth telling a human about), the click-through target is that object's
+    <code>Endpoint</code> — the richer, HTTP/certificate-aware key CONTEXT.md defines for exactly
+    this purpose — rather than the bare <code>Service</code> beneath it. A nameless Endpoint (SNI
+    absent) degrades to exactly a Service-shaped page for free, since <code>Endpoint</code>'s own
+    key treats an absent Name as a distinguished variant rather than a different kind of object. If
+    this reading is wrong, the fix is local: swap the facet table's <code>reachability</code> row
+    onto a Service-kind page and leave the certificate row where it is.</p>`)}
+  ${V("lose", "reuse #161's subject.html directly, considered and rejected for THIS file", `
+    <p>#161 (<code>prototypes/subjects/</code>) already drew a general subject page — citation
+    chain, every facet, every rule — for <code>Name</code>, <code>Address</code> and
+    <code>Service</code> kinds. Deep-linking there and adding an <code>Endpoint</code> fixture to
+    its switcher was considered, on the same "extend, don't duplicate" ground this file uses for
+    Seeds. <b>Rejected for the same reason #160 drew its own light-weight <code>seedView()</code>
+    instead of deep-linking into <code>prototypes/seeds/</code>:</b> that file is a parallel
+    ticket's own object, editing it here risks colliding with concurrent work on it, and this
+    ticket's job is to prove the click-through resolves to something real, not to re-author the
+    definitive subject page. The two are consistent in shape (same tag vocabulary, same
+    "why is this here" instinct, stated lighter) precisely so a later session can fold them
+    together without a rewrite.</p>`)}`;
+}
+
+function sourceVerdict() {
+  return `
+  ${V("win", "the link targets the Source, not the Name subject page", `
+    <p>coverage-operator's sentence is about <code>example.com</code>, but §3.3 is explicit that
+    <code>Subject or scope</code> and <code>Link</code> key on what the message <b>fired at</b>,
+    never on the mover alone — and for this row that is "the declared <code>Source</code> the rule
+    reads (e.g. a zone file's name scope)," not the <code>Name</code>. <b>Rejected:</b> linking to
+    <code>example.com</code>'s own subject page (the kind #161 already draws for a <code>Name</code>)
+    — that page answers "what does this name currently resolve to," and the message is not about
+    a resolution, it is about the zone file that feeds every name beneath the scope going quiet. A
+    reader who followed a Name-page link here would find nothing about a stale window at all.</p>`)}
+  ${V("win", "no stat-row, no count — deliberately unlike the address-scope Seed view", `
+    <p>coverage-us's Seed view (#160) leads with a numeric stat-row because an address scope
+    <b>enumerates</b> and has a <code>Coverage</code> denominator. CONTEXT.md's <code>Seed</code>
+    entry is explicit that a name scope has neither: <i>"an address scope has a
+    <code>Coverage</code> denominator and a name scope has none, which is the same fact twice."</i>
+    <b>Rejected:</b> mirroring the stat-row shape with some other number in it — a count of names
+    beneath the scope, say. That count exists nowhere the model is willing to state as a denominator
+    (a name scope's addresses "are reached only by measured resolution," never enumerated), so
+    putting one on this card would manufacture the two-numbers hazard #28 exists to prevent rather
+    than avoid it. The two Seed-kind views are asymmetric because the object they render is.</p>`)}
+  ${V("lose", "a 'your DNS provider' framing, considered and rejected", `
+    <p>The obvious plain-English gloss for a stale zone file — name the vendor, tell the operator to
+    check their export job. Rejected: <code>Source</code>'s three properties (authority,
+    completeness, consent) are the model's whole account of a source, and none of them is a vendor
+    identity. The operator declared this zone file; the model has no view of who generated it, and
+    inventing one here would be exactly the kind of screen-side claim ADR-0024 refuses one layer
+    over in the rules domain.</p>`)}`;
+}
+
 function magnitudeVerdict() {
   return V("win", "the seven-figure aperture message — no treatment above what a four-figure one gets", `
     <p>Same markup, same font sizes, same card shape as the other three messages in the list. The
@@ -580,6 +856,9 @@ function dateline() {
     <p><b>Issue #160 — "Draw the message surface, and one message at magnitude." Drawn
       2026-08-15.</b> Throwaway: something to react to, not production UI and not a component
       library.</p>
+    <p><b>Issue #180 — "Draw the click-through targets for the three non-aperture message forms."
+      Also drawn 2026-08-15.</b> Adds the Endpoint view (drift-1, clock-1) and the Source view
+      (coverage-operator) reached from the message panel's remaining three "open" links.</p>
     <p><b>Every quantity on these screens is a dated reading, not a current value.</b> The only live
       absolutes are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>):
       read a figure there before believing one here.</p>
@@ -595,6 +874,8 @@ function render() {
   let main;
   if (VIEW === "drilldown") main = drilldownView();
   else if (VIEW === "seed") main = seedView();
+  else if (VIEW === "endpoint") main = endpointView();
+  else if (VIEW === "source") main = sourceView();
   else main = SCREEN === "coverage" ? coverageBackdrop() : signalsBackdrop();
 
   document.getElementById("app").innerHTML = `
@@ -603,9 +884,9 @@ function render() {
         <span class="wordmark"><b>Verge</b><span class="chip">ASM</span></span>
         <nav class="items">
           <a href="#" class="${navOn("exposure") ? "on" : ""}">Exposure</a>
-          <a href="#" class="${navOn("subjects") ? "on" : ""}">Subjects</a>
+          <a href="#" class="${navOn("subjects") || VIEW === "endpoint" ? "on" : ""}">Subjects</a>
           <a href="${url({ screen: "signals", view: "" })}" class="${navOn("signals") ? "on" : ""}">Signals</a>
-          <a href="#" class="${VIEW === "seed" || VIEW === "drilldown" ? "on" : ""}">Seeds</a>
+          <a href="#" class="${VIEW === "seed" || VIEW === "drilldown" || VIEW === "source" ? "on" : ""}">Seeds</a>
           <a href="${url({ screen: "coverage", view: "" })}" class="${navOn("coverage") ? "on" : ""}">Coverage</a>
           <a href="#">Settings</a>
         </nav>
@@ -620,6 +901,8 @@ function render() {
       ${VIEW === "" ? topVerdicts() : ""}
       ${VIEW === "seed" ? magnitudeVerdict() : ""}
       ${VIEW === "drilldown" ? pagerVerdict() : ""}
+      ${VIEW === "endpoint" ? endpointVerdict() : ""}
+      ${VIEW === "source" ? sourceVerdict() : ""}
       ${main}
     </div>`;
 
@@ -629,7 +912,7 @@ function render() {
     <span class="grp"><span class="ml">screen</span>${["signals", "coverage"].map(v => link("screen", v)).join("")}</span>
     <span class="grp"><span class="ml">panel</span>${["open", "closed"].map(v => link("panel", v)).join("")}</span>
     ${VIEW === "drilldown" ? `<span class="grp"><span class="ml">pager</span>${["jump", "basic"].map(v => link("pager", v)).join("")}</span>` : ""}
-    <span class="grp" style="margin-left:auto"><span class="ml">issue #160 · prototype</span></span>`;
+    <span class="grp" style="margin-left:auto"><span class="ml">issue #160 &middot; #180 · prototype</span></span>`;
 }
 render();
 </script>
