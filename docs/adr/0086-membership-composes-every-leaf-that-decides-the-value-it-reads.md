@@ -339,8 +339,13 @@ a reviewer can see which seventeen were inherited and which two were minted here
 - **W7 is minted here rather than escrowed, so it has had no second reader.** The seventeen adopted
   cells were written by ADR-0085 and reviewed by this ticket; the two new ones have been written and
   ruled by one session. They are the block's most load-bearing pair and the least examined.
-- **`returned`'s predicate across a two-leaf vector is not settled here and is not mine.** A subject
+- ~~**`returned`'s predicate across a two-leaf vector is not settled here and is not mine.** A subject
   holds many timelines whose last spans may have closed under different vectors, and the vector now
   has two members that can move independently — so *closed under a different vector* has a second way
   to happen. [#148](https://github.com/winniel123/verge-asm/issues/148) owns it, and it reads this
-  ruling rather than the other way round.
+  ruling rather than the other way round.~~
+  **SETTLED** by [#148](https://github.com/winniel123/verge-asm/issues/148) ·
+  [ADR-0097](./0097-returned-composes-every-witness-a-presence-read-rests-on.md): `returned` requires
+  no `Break` on any witness a presence read relies on — checking both leaf components this ADR adds —
+  conjoined across every witness [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)'s
+  quantifiers select. Nothing in this ADR's decision table moves.
