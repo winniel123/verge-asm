@@ -35,6 +35,7 @@ type store interface {
 	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
 	CountAdmins(ctx context.Context) (int64, error)
 	UpdateAccountRole(ctx context.Context, arg db.UpdateAccountRoleParams) error
