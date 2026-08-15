@@ -267,8 +267,11 @@
           padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
           font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
   .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
   .anno p { margin: 0 0 var(--space-2); }
   .anno p:last-child { margin-bottom: 0; }
+  .anno a { color: var(--accent); }
 
   /* ── switcher: deliberately NOT part of the design being judged ─────── */
   #switch { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
@@ -941,28 +944,46 @@ const HEAD = {
    the cap, so the condemned drawing is exactly this fill and all of it.
    ═══════════════════════════════════════════════════════════════════════ */
 
-function capMark() {
+/* ADR-0049's shipped range size cap, in addresses. Operator-configurable,
+   checked per scope at the declaration. The only figure in the mark below
+   that is not read off the fixture, because it is a fact about the corpus
+   rather than a reading of this drawing. */
+const CAP = 1024;
+
+function capMark(f) {
+  /* Every figure below is READ OFF THE FIXTURE through the same helpers the
+     drawing uses, never typed — so the mark cannot drift from the control it
+     condemns. `CAP` is the one exception and it is deliberately not a fixture
+     value: it is a corpus constant (ADR-0049's shipped default), not a reading
+     of this drawing. */
+  const addrs = allRows(f).map(r => r.addr);
+  const big   = Math.max(...addrs);
+  const small = Math.min(...addrs);
+  const held  = f.groups.reduce((a, g) => a + g.addresses, 0);
+
   return `
   <div class="anno">
-    <span class="ml">Marked — this fill draws an act the product refuses (ADR-0075 limb 2)</span>
+    <span class="ml">fill=cloud — a control drawn after its withdrawal · ADR-0049 / ADR-0047</span>
     <p><b>Every confirm control on this fill is an act the shipped configuration now refuses at
     declaration.</b> ADR-0049 denominates the range size cap in <b>addresses</b> —
-    <span class="mono">1,024</span> per scope, operator-configurable, one knob at one setting — and
-    ADR-0047 checks it <i>when the scope is declared</i> rather than at scan time. Confirming a
+    <span class="mono">${n(CAP)}</span> per scope, operator-configurable, one knob at one setting —
+    and ADR-0047 checks it <i>when the scope is declared</i> rather than at scan time. Confirming a
     proposal <b>is</b> that declaration, so the cap reaches this screen. The smallest scope drawn
-    below is <span class="mono">1,048,576</span> addresses, which is <span class="mono">1,024</span>
-    times the cap; <span class="mono">Confirm 8,388,608 addresses</span> is
-    <span class="mono">8,192</span> times it.</p>
+    below is <span class="mono">${n(small)}</span> addresses, which is
+    <span class="mono">${n(Math.round(small / CAP))}</span> times the cap;
+    <span class="mono">Confirm ${n(big)} addresses</span> is
+    <span class="mono">${n(Math.round(big / CAP))}</span> times it.</p>
     <p><b>What this surface would draw now.</b> A live confirm survives only where the scope is at or
-    under the cap — every other fill here qualifies, and none on this holder does. An over-cap row
+    under the cap — every other fill here qualifies, and no scope on this holder does. An over-cap row
     carries the refusal in the row instead of a live control, so the wrong act is not offered and the
-    click is not the place the operator learns. That leaves <span class="mono">Decline all 177
-    scopes</span> as the only live act on this holder, which ADR-0013 already makes the expected one
-    for the modal cloud-resident install — the AWS case gets <i>more</i> legible, not less.</p>
+    click is not the place the operator learns. That leaves declining — one act over the whole holder,
+    all <span class="mono">${n(allScopes(f))}</span> scopes of it — as the only live act here, which
+    ADR-0013 already makes the expected one for the modal cloud-resident install. The AWS case gets
+    <i>more</i> legible, not less.</p>
     <p><b>And the operator who really does hold this space is routed, not stopped.</b> Custody at a
     larger scale belongs to a <b>name scope carrying a custody extension</b>, not to a raised cap: an
     extension's extent is recomputed rather than typed, so it self-corrects when the world moves,
-    where a literal declaration of <span class="mono">76,046,336</span> addresses is ADR-0013 §4's
+    where a literal declaration of <span class="mono">${n(held)}</span> addresses is ADR-0013 §4's
     silently-growing overreach — it holds the probing gate open on a stranger's machine and nothing
     notices. Per ADR-0052 the route is <i>named</i> and never taken for them: nothing here pre-fills,
     converts or auto-corrects the declaration.</p>
@@ -1000,7 +1021,7 @@ function page(variant, fill) {
     <div class="sub" style="margin-bottom:var(--space-4)">${s}</div>
 
     ${f.edge ? edgeNote() : ``}
-    ${fill === "cloud" ? capMark() : ``}
+    ${fill === "cloud" ? capMark(f) : ``}
     ${V[variant](f)}
     ${f.showDeclined ? declinedLedger() : ``}
   `;
