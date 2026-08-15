@@ -19,6 +19,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 )
@@ -693,6 +694,9 @@ func fakeFacetVector(facet string) drift.Vector {
 	if facet == connectoutcome.FacetReachability {
 		return drift.NewVector(drift.Component{Leaf: connectoutcome.Kind, Version: connectoutcome.Version})
 	}
+	if facet == httpexchange.FacetHTTPIdentity {
+		return drift.NewVector(drift.Component{Leaf: httpexchange.Kind, Version: httpexchange.Version})
+	}
 	return drift.NewVector(
 		drift.Component{Leaf: "resolution-walk", Version: resolutionwalk.Version},
 		drift.Component{Leaf: "wildcard-discrimination", Version: wildcarddiscrim.Version},
@@ -815,6 +819,66 @@ func (f *fakeStore) GetServiceSubject(_ context.Context, key string) (db.GetServ
 		return db.GetServiceSubjectRow{}, pgx.ErrNoRows
 	}
 	return db.GetServiceSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
+}
+
+// addHTTPIdentity records an http-identity observation for an Endpoint in a fresh
+// batch — the http-exchange leaf's output the hot Scan writes (#198). It is the
+// seam the Endpoint drill-down tests populate.
+func (f *fakeStore) addHTTPIdentity(t *testing.T, endpointKey string, at time.Time, value string) {
+	t.Helper()
+	scanID := f.ensureScan("hot")
+	b := db.Batch{ID: f.batchNextID, ScanID: scanID, Kind: "http-exchange", Outcome: "completed"}
+	f.batches = append(f.batches, b)
+	f.batchNextID++
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: b.ID, Facet: "http-identity", SubjectKind: "endpoint",
+		SubjectKey: endpointKey, Source: "prober", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+func (f *fakeStore) latestHTTPIdentityByEndpoint() map[string]db.Observation {
+	latest := map[string]db.Observation{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "endpoint" || o.Facet != "http-identity" {
+			continue
+		}
+		cur, ok := latest[o.SubjectKey]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[o.SubjectKey] = o
+		}
+	}
+	return latest
+}
+
+func (f *fakeStore) ListCurrentEndpointSubjects(_ context.Context, search string) ([]db.ListCurrentEndpointSubjectsRow, error) {
+	latest := f.latestHTTPIdentityByEndpoint()
+	keys := make([]string, 0, len(latest))
+	for k := range latest {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	rows := []db.ListCurrentEndpointSubjectsRow{}
+	for _, k := range keys {
+		if search != "" && !strings.Contains(strings.ToLower(k), strings.ToLower(search)) {
+			continue
+		}
+		o := latest[k]
+		rows = append(rows, db.ListCurrentEndpointSubjectsRow{
+			SubjectKey: k, Value: o.Value, ObservedAt: o.ObservedAt,
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) GetEndpointSubject(_ context.Context, key string) (db.GetEndpointSubjectRow, error) {
+	o, ok := f.latestHTTPIdentityByEndpoint()[key]
+	if !ok {
+		return db.GetEndpointSubjectRow{}, pgx.ErrNoRows
+	}
+	return db.GetEndpointSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
 }
 
 func (f *fakeStore) FindNameCitingAddress(_ context.Context, address string) (db.FindNameCitingAddressRow, error) {
