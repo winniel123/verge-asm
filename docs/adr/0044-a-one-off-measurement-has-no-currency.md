@@ -214,7 +214,7 @@ legible state"* — and it is what keeps the aperture a configured object rather
 
 Enabling it is **per `Seed` scope, one scope at a time**, rather than an estate-wide switch. Two
 reasons, and the first is measured. Enabling over the whole estate is a single click that opens
-65,395 pairs × every address in custody × two `Reach` legs of new timelines — for a ten-address
+~~65,395~~ **65,404** pairs × every address in custody × two `Reach` legs of new timelines — for a ten-address
 estate, ~1.3 million — carried by one coverage-class message whose payload under ADR-0014 is *"a
 count of timelines opened and no comparison at all"*. The model absorbs it correctly and only
 because [ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md) ruled a `Service`
@@ -223,6 +223,19 @@ to offer estate-wide. Second, [ADR-0022](./0022-confirmation-is-singular.md)'s a
 shape by **analogy** rather than by direct application — it governs `Proposal` confirmation, and this
 is not a `Proposal` — and the analogy is stated rather than leaned on: an act that opens the widest
 aperture the product has, over a named scope, belongs on the singular side.
+
+> **The pair count is corrected here, at the site that computes it — `65,404`, not `65,395`.**
+> The subtrahend is `verge-core`'s **probed** size, and `~140` was retired: it was never
+> `verge-core`'s size, struck at ADR-0001, ADR-0005 and ADR-0009, and the union is **136 pairs, 131
+> of them TCP** with the five UDP pairs outside v1's aperture
+> ([#141](https://github.com/winniel123/verge-asm/issues/141) ·
+> [ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md) confirms UDP stays
+> off, so `131` is the live multiplier). `65,535 − 131 = 65,404`.
+> **The conclusion does not move** — a ten-address estate is still ~1.3 million and still
+> seven-figure, which is why five passes walked past the arithmetic: the strike landed at every site
+> that *defines* `~140` and at none that *multiplies* it.
+> Found by [#120](https://github.com/winniel123/verge-asm/issues/120), which reported it rather than
+> chasing it into two other ADRs mid-batch; verified and recorded by the merging session.
 
 Turning it off again is a narrowing, which opens a `Gap` on every timeline it fed once currency
 lapses. That asymmetry is a second reason the toggle is scoped rather than global.
