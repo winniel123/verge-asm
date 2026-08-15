@@ -226,6 +226,19 @@ Resolution should run through the **operator's own recursive resolver** (or a re
 This is the cleanest possible source: no third party, no terms to accept, no shared quota, and it reflects
 what the operator's own network actually sees.
 
+> **RULED, and *should* is now *does*** — [#116](https://github.com/winniel123/verge-asm/issues/116) /
+> [ADR-0070](../adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md).
+> The **query path** is a declared parameter shared by `resolution-walk` and
+> `wildcard-discrimination`, taking **one value per `Batch`**, and its value is **the `Vantage`'s
+> configured recursive resolver**. Three riders this recommendation did not carry. **`Resolved`,
+> `NoData` and `NameError` are read on that path** — `resolution-walk` also walks the delegation, and
+> nothing here said which of the two answers it holds becomes the value. **The delegation walk is not
+> governed by the parameter**: it decides `Lame` and the per-nameserver `serves │ does-not-serve`
+> RRset direct to the delegated authorities, as `Lame`'s own definition requires, and it **supplies no
+> address set**. And **which resolver stands at that path is part of the `Vantage`**, not of the
+> parameter — a declared parameter may never be operator-configurable, while §3.6's resolver choice
+> plainly is one. See §14.
+
 | Type | What it yields for ASM |
 |---|---|
 | **A / AAAA** | The exposure itself. Every discovered name must resolve to something before it is an asset. AAAA is routinely forgotten by operators — v6-only exposure is a real finding. |
@@ -305,6 +318,17 @@ cheap and must run before any name-based expansion:
    falls off at a **deeper** encloser — measuring somebody else's wildcard and filing it as P's.
    **[measured]** 2026-08-15 that manufactures a wildcard on **3 of 5** un-wildcarded zones. See
    §12.
+
+   **And the ten labels are asked on the batch's declared query path**
+   ([#116](https://github.com/winniel123/verge-asm/issues/116) /
+   [ADR-0070](../adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md))
+   — **the same path the candidate's own answer is read on**, which is the `Vantage`'s configured
+   recursive resolver, and there is **no second path** exactly as there is no second qtype list. A
+   control probe asked somewhere the candidate was not is not a measurement of the candidate's
+   synthesis: **[measured]** direct to `s3.amazonaws.com`'s own authority the A component is
+   `NoSynthesis` — a *determinate* reading — while a resolver answers every name beneath it with
+   eight addresses, so a skewed pair discriminates **every** fictional label and records it
+   `Resolved`. See §14.
 2. ~~If they answer, record the wildcard answer set as a **poison signature**.~~
    **WITHDRAWN by [#111](https://github.com/winniel123/verge-asm/issues/111) /
    [ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md):
@@ -442,6 +466,16 @@ resolver by default (zero third parties, zero terms, no shared quota), and offer
 whose environment blocks outbound 53 or who distrust their local resolver. Using a public resolver as the
 default for bulk ASM resolution would mean shipping software that free-rides on Google's and Cloudflare's
 infrastructure at every install.
+
+> **Where that choice lives** — [#116](https://github.com/winniel123/verge-asm/issues/116) / §14. It
+> is a **`Vantage` declaration**, never a declared parameter: `CONTEXT.md`'s `Derivation` says *none
+> is ever operator-configurable*, and this is an operator choice. So an operator moving to DoH
+> declares a different `Vantage`, and because `vantage` is in the timeline key that **opens**
+> timelines (`revealed`) rather than `Break`ing the estate. What the parameter fixes is the **kind**
+> of path — recursive rather than direct-to-authority — which is authored data and ships in the
+> release. **[measured]** the distinction is not academic: `vercel.com`'s wildcard draws from
+> `64.239.109.0/24` and `64.239.123.0/24` at one vantage against the `76.76.21.x` family §11
+> recorded at another, two disjoint pools for one name.
 
 ---
 
@@ -931,7 +965,12 @@ that zone has no positive determinate component at all.
 
 ### 11.4 The base rate, which is what makes the strict rule affordable
 
-**[measured]** nineteen zones, five long random labels each, A qtype:
+**[measured]** nineteen zones, five long random labels each, A qtype — **five *distinct* labels, and
+the distinctness is load-bearing rather than incidental** ([#116](https://github.com/winniel123/verge-asm/issues/116)):
+it is the shipped probe's shape at a smaller *n*, so no reading here is a cache artefact of the
+resolver these runs went through. §13.6's `Determinate`-over-a-resolver row is **one label repeated
+eight times**, a shape the ruled ten-label set never takes, which is why this table stands and
+`vercel.com` reads `Indeterminate` at A in it. See §14.2:
 
 | | Count |
 | --- | --- |
@@ -1398,6 +1437,18 @@ the most unstable thing in the sample, and behind a resolver with a **30-minute*
 one label sees **one** answer for the whole batch and every batch that follows within the half
 hour. **Repeating one label is annihilated by the cache the probe sits behind.**
 
+> **Two riders from [#116](https://github.com/winniel123/verge-asm/issues/116) / §14, neither
+> disturbing the conclusion.** First, **that `Determinate` is this table's *repeat* column and not
+> the shipped probe's**: the ruled set is **ten distinct** labels, which by this section's own
+> structural sentence are ten distinct cache entries and ten fresh draws — **[measured]** ten
+> distinct labels under `vercel.com` through a recursive resolver return **9 distinct A sets**,
+> `Indeterminate`. Nothing that reads *`vercel.com` is `Determinate` over a resolver* may be carried
+> to the probe as built. Second, **the annihilation is a property of that resolver rather than of
+> resolvers**: **[measured]** at a second vantage the same one-label ×8 repeat returns **7 distinct**
+> answers at the same reported TTL of 1800. The lever ranking is unchanged — distinct labels weakly
+> dominate at every mechanism and are unaffected by either finding — but the *degree* of
+> annihilation is a fact about the vantage, which is why §14 makes the vantage declared.
+
 Distinct labels are not, and the reason is structural rather than lucky: *n* distinct labels are *n*
 distinct cache entries, so each one is a fresh miss and a fresh draw at the authority. That gives
 distinct labels the property repeats do not have:
@@ -1531,6 +1582,13 @@ within **eight consecutive queries**.
 No new member, no new tier, no expiry field. `wildcard-synthesis`'s three-member per-component union
 is untouched, `resolution` does not move, and nothing `Break`s in the model's shape.
 
+> **The vantage in that sentence is now declared** ([#116](https://github.com/winniel123/verge-asm/issues/116)
+> / §14). *A claim about a vantage at a moment* was, when this section was written, a claim about an
+> **undeclared** vantage — which is what made it a caveat. It is now a claim about the vantage the
+> candidate's own answer was drawn from, on one query path, in one batch, and that is the only
+> vantage the predicate ever compares across. The sentence is unchanged and its status is not: it
+> stops being a warning and becomes the ruling's premise.
+
 ### 13.10 Where this is thin
 
 - **The count cannot reach a rare second answer, and that is a permanent boundary rather than a
@@ -1558,13 +1616,205 @@ is untouched, `resolution` does not move, and nothing `Break`s in the model's sh
   mostly direct rather than through a resolver, which is a different exposure and not a smaller one:
   the shipped probe stands where §13.6's resolver column stands, and every mechanism verdict here is
   read from the authority column.
-- **The probe's vantage is a parameter nobody has declared, and this section is the first evidence
-  that it matters.** §13.5 and §13.6 both turn a determinacy verdict on whether a recursive resolver
-  is in the path: `s3.amazonaws.com` reads `Determinate` at the authority and `Indeterminate`
-  through a resolver, and `vercel.com`'s `Determinate` is a 30-minute cache artefact over an
-  authority that redraws every query. Whether `wildcard-discrimination` should query
-  **direct-to-authority** is a **query-mode** change — the class ADR-0068 refused the DNSSEC
-  discriminator on — and it is not a number. **Not ruled here, and not folded in.**
+- ~~**The probe's vantage is a parameter nobody has declared, and this section is the first evidence
+  that it matters.**~~ **RULED by [#116](https://github.com/winniel123/verge-asm/issues/116) /
+  [ADR-0070](../adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md)
+  — see §14.** What stands verbatim is the evidence: §13.5 and §13.6 both turn a determinacy verdict
+  on whether a recursive resolver is in the path. What is withdrawn is the disposal. ~~Whether
+  `wildcard-discrimination` should query **direct-to-authority** is a **query-mode** change — the
+  class ADR-0068 refused the DNSSEC discriminator on — and it is not a number. **Not ruled here, and
+  not folded in.**~~ Read alone and in the present tense, *not ruled here* would leave a session
+  believing the path is still open; it is not. It is a **declared parameter shared by
+  `resolution-walk` and `wildcard-discrimination`, one value per `Batch`**, valued at **the
+  `Vantage`'s configured recursive resolver** — and *query-mode change* was never a third home,
+  ADR-0068 itself calling a query-mode change *"a parameter change of its own"*. §14.
 - **Every zone in the population is a third-party hosting provider's**, so *per-query at two of
   five* is a rate over **provider** zones and not over the operator estates ADR-0066's population
   actually intersects. Unchanged and unfixable from public data, and flagged for the fourth time.
+
+---
+
+## 14. The probe's vantage — one declared query path, and the resolver is part of the position
+
+Ruled by [#116](https://github.com/winniel123/verge-asm/issues/116) /
+[ADR-0070](../adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md).
+§3.2 settles **where** the control probe runs, §11 **how its answers are read**, §12 **what a
+control label is**, §13 **how many**; this settles **where it is asked from** — the fourth axis, and
+the one §13.10 recorded as a parameter nobody had declared.
+
+**[measured]** 2026-08-15, from a **second vantage** — a host resolver on a different network from
+the one §11, §12 and §13 were measured at — with direct-to-authority runs against each zone's own
+delegated servers. Every figure below is new to this document.
+
+### 14.1 The rule
+
+> **A control probe is asked from where the answer it discriminates was asked from.** The **query
+> path** — direct to the delegated authorities, or through the `Vantage`'s configured recursive
+> resolver — is a **declared parameter shared by `resolution-walk` and `wildcard-discrimination`**,
+> taking **exactly one value per `Batch`**. Its value is **the `Vantage`'s configured recursive
+> resolver**. **Which resolver stands there is part of the `Vantage`'s identity**, in the timeline
+> key, never in the scope record and never inside a leaf.
+
+Three riders, each answering a limb the ticket asked separately.
+
+- **`resolution-walk` has the same hole and it is one sentence wider.** The leaf already makes
+  **both** queries — a delegation walk for `Lame`, a resolution for the address set — and nothing
+  said which answer is the value. It is now stated: **`Resolved`, `NoData` and `NameError` are read
+  on the declared path**; the delegation walk decides `Lame` and the per-nameserver
+  `serves │ does-not-serve` RRset and **supplies no address set**; and **the parameter does not
+  govern the walk**, because `Lame`'s availability is its own definition's rather than a setting's.
+- **A determinacy verdict measured over a resolver is admissible**, and §11.4's base rate is **not**
+  re-opened. §14.2.
+- **The operator's own resolver is a `Vantage` fact, not a parameter fact.** §14.5.
+
+### 14.2 The base rate is not a cache artefact, because it was never measured with a repeat
+
+This is the limb that could have cost something, and it is closed by reading the two measurements
+apart rather than by re-measuring.
+
+| Reading | Probe shape | Verdict at `vercel.com`'s A component |
+| --- | --- | --- |
+| §13.6, over Google Public DNS | **one label, 8 repeats** | `Determinate` — a 30-minute cache artefact at a 1800 s TTL |
+| §11.3 / §11.4, over a resolver | **5 distinct** random labels | **`Indeterminate`** |
+| **This section**, over a resolver, second vantage | **10 distinct** random labels | **`Indeterminate` — 9 distinct A sets in 10 labels** |
+
+§13.6 supplies its own reason: *"n distinct labels are n distinct cache entries, so each one is a
+fresh miss and a fresh draw at the authority."* The shipped set is **ten distinct** labels and
+repeats none of them, and a candidate name is asked once per qtype — each qtype its own cache entry.
+So the shape that produces the artefact is **unreachable inside a batch**, and across batches
+ADR-0011 already forbids carrying the verdict.
+
+§11.4 therefore stands at **8 of 14** and owes nothing. The two readings the ticket put in tension
+are readings of two different probes, and the base rate is the one the product will run.
+
+### 14.3 The skew fabricates, and that is why the parameter is one parameter
+
+The failure a per-leaf setting would license, measured on the zone the corpus knows best.
+
+**[measured]** direct to `ns-63.awsdns-07.com` (205.251.192.63), `s3.amazonaws.com`'s own delegated
+authority, qtype A:
+
+| Probe | Answer |
+| --- | --- |
+| 4 distinct random labels | `CNAME s3-1-w.amazonaws.com.` and **no A record**, plus a delegation referral — byte-identical across all four |
+| 1 label, 4 repeats | the same, byte-identical |
+
+**[measured]** the same zone, the same instant, through this vantage's recursive resolver:
+
+| Probe | Answer |
+| --- | --- |
+| 3 distinct random labels | `CNAME s3-1-w.amazonaws.com.` → `CNAME s3-w.us-east-1.amazonaws.com.` → **eight A records, a different eight on every label** |
+
+Read the components. Direct to the authority the `(A asked, A answered)` component is
+**`NoSynthesis`**, which is a *determinate* reading and not an absent one; through the resolver it is
+**`Indeterminate`**. §11.1 discriminates a candidate carrying *"an RRset where the control
+determinately had none"* — so under a skewed pair (control at the authority, candidate at the
+resolver) **every** fictional label beneath that parent differs at a determinate component, is
+discriminated, and is recorded `Resolved` with eight fabricated addresses that cite `Address`es and
+open `Service`s and `Endpoint`s.
+
+The reverse skew is the safe direction and still wrong: `Indeterminate` at A, never consulted,
+everything beneath `Shadowed`. §11.6's asymmetry decides which of the two would have shipped as the
+disaster, and neither is acceptable — hence **one parameter, one value, one `Batch`**, and the rule
+stated as an equivalence rather than as a pair of settings.
+
+This also reproduces §13.5 at a second vantage and on a second day, with the attribution intact: the
+rotation is a **separate delegation's**, spliced into the chain by the resolver, and the authority
+for `s3.amazonaws.com` returns no address at all.
+
+### 14.4 The path is invisible on ordinary zones — the affordability check
+
+The strict direction is only affordable if declaring a path does not move honest verdicts.
+**[measured]** four distinct random labels per zone, each run twice — through the resolver and direct
+to the zone's own first delegated authority:
+
+| Zone | Authority probed | Resolver | Direct | Agreement |
+| --- | --- | --- | --- | --- |
+| `github.io` | `ns-692.awsdns-22.net` | 1 set — the four `185.199.10x.153` | 1 set — the same four | **byte-identical** |
+| `netlify.com` | `ns01.netlifydns.com` | 1 set — `18.208.88.157`, `98.84.224.111` | 1 set — the same pair | **byte-identical** |
+| `railway.app` | `blue.foundationdns.org` | 1 set — `34.107.141.139` | 1 set — the same | **byte-identical** |
+
+**3 of 3.** The path decides only on the pathological zones, which is the same result §12.5 got for
+the structured label and for the same reason: a measurement that moves only where something is
+already wrong is cheap to make strict.
+
+### 14.5 The resolver is the position, and that is measured rather than analogous
+
+Two sentences in the corpus look incompatible until the fact is placed. `CONTEXT.md`'s `Derivation`:
+*a declared parameter … **none is ever operator-configurable***. §3.6: verge-asm *offers DoH only
+for operators whose environment blocks outbound 53 or who distrust their local resolver* — an
+operator choice.
+
+Both stand, because they are two facts. The **kind of path** is authored data in the leaf. **Which
+resolver stands at it** is a property of the `Vantage` — *a network position observations are made
+from, declared as intent* — which sits outside every derivation, is already in the timeline key, and
+is already what a `Batch` is *from one of*.
+
+ADR-0025 reached this for the neighbouring case and did not generalise it: EDNS Client Subnet is *"a
+`Vantage` in an option's clothes"*, and if v1 ever sends one *"ECS belongs in the **key**, never in
+the scope record"*. A recursive resolver is ECS with the subnet implicit. The measurement makes it
+concrete:
+
+| `vercel.com` wildcard, A qtype | Address pool observed |
+| --- | --- |
+| §11.2, first vantage, 2026-08-14 | a closed pool of **8**, the `76.76.21.x` family — `api.vercel.com` at `76.76.21.112`, `www.vercel.com` drawing both its addresses from it |
+| **This section**, second vantage, 2026-08-15 | `64.239.109.0/24` and `64.239.123.0/24` — **disjoint from the above** |
+
+Two vantages, one name, one week, **two disjoint pools**. Not more rotation or less — different
+content. A determinacy verdict, an address set and every `Address` it cites are all functions of
+where the query appeared to come from, which is what the `vantage` component of the timeline key
+exists for.
+
+And the instability itself moves with the vantage, not only the content:
+
+| `vercel.com`, one label × 8 repeats | Distinct answers | TTL reported |
+| --- | --- | --- |
+| Google Public DNS (§13.6) | **1** | 1800 |
+| This vantage's host resolver | **7** | 1800 |
+
+So *"repeating one label is annihilated by the cache the probe sits behind"* is true of that cache.
+The lever ranking in §13.6 is unaffected — distinct labels weakly dominate at every mechanism and
+are untouched by either resolver's behaviour — but the **degree** is a fact about the vantage, which
+is the whole argument for declaring it.
+
+### 14.6 Why the resolver and not the authority
+
+The competing value has the better story on paper: no cache, no middlebox, the authority's own
+words, and `resolution-walk` is already there for `Lame`. It loses four ways.
+
+- **It cannot produce an address set across a zone cut without becoming a resolver.** **[measured]**
+  above: at `s3.amazonaws.com`'s own authority a synthesised name is a CNAME into a zone that
+  authority does not serve, returned with a referral. Following the chain means implementing
+  recursion inside the leaf, with its own cache and its own answers —
+  [#5](https://github.com/winniel123/verge-asm/issues/5)'s *every seam is a place drift can be
+  manufactured*, and §3.6's rebuilt resolver.
+- **Its errors are the silent ones.** `NoData` where the resolver has eight addresses is an absent
+  `Address`, `Service`, `Endpoint` and `Reach` leg — ADR-0009's `{161}` in the direction that
+  **under-reports** exposure.
+- **It answers a question about a zone where the product's question is about an estate.** §3.1's own
+  ground: the operator's resolver *"reflects what the operator's own network actually sees"*, and an
+  address that network would never resolve to is not their exposure.
+- **The sensitivity it buys is unnecessary**, per §14.2 — ten distinct labels through a resolver
+  already read `Indeterminate` where it matters.
+
+### 14.7 Where this is thin
+
+- **One day, one second vantage, and that vantage's resolver is itself part of the finding.** It
+  does not honour `vercel.com`'s 1800 s TTL across eight repeats where Google Public DNS did.
+  Whether that is forwarding, an anycast pool or a shortened cache is **not isolated** — §13.2's
+  design would isolate it and was not run, because the ruling turns on the two vantages disagreeing
+  rather than on why.
+- **The value is chosen on `{161}` and on §3.1, not on a counted comparison of estates.** Nobody has
+  run a whole batch on each path and counted the `Address`es each admits. The under-report is argued
+  from one zone's chain plus the structure of CNAME-across-a-cut, and how often that shape occurs in
+  a small org's estate is **unmeasured** — the same hole §11.9, §12.8 and §13.10 each flagged.
+- **A hijacking or filtering resolver shadows the whole estate**, and that is left as the loud
+  failure rather than ticketed. A resolver that answers every name makes every parent read as
+  wildcarded; the result is total suppression, which is the **honest** reading of an instrument that
+  answers everything. §3.3's zone upload and §3.6's DoH fallback are the remedies and both are
+  already first-class.
+- **The resolver is recorded as declared intent**, so an upstream that moves under a stable
+  declaration — *the host's own resolver*, changed by DHCP — moves answers with no key change and is
+  invisible. Same class as `Vantage`'s existing *declared as intent* residue, not repaired here,
+  because re-verifying a resolver's identity needs a probe whose answer is itself path-dependent.
+- **No control probe has ever run inside a batch**, verbatim from ADR-0066, ADR-0068 and ADR-0069.

@@ -209,6 +209,22 @@ _Avoid_: enabled, licensed, tier
 A network position observations are made from, declared as intent and re-verified every
 batch rather than trusted as configuration. Declared, but carries a Derived
 **Availability** — the one property in the model whose layer differs from its term's.
+The **recursive resolver it resolves through is part of that position**, and therefore part of this
+term's identity rather than of any leaf's parameters: a DNS answer is a function of where the query
+appeared to come from, so two resolvers are two positions in the only sense an answer can tell.
+**[measured]** one wildcarded name drew its addresses from two **disjoint** pools at two vantages in
+one week, and one authority's per-query rotation read as **one** answer through one resolver and
+**seven** through another at the same TTL. This is
+[ADR-0025](./docs/adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md)'s ruling on EDNS
+Client Subnet — *a `Vantage` in an option's clothes*, belonging **in the key, never in the scope
+record** — generalised at the clause to the resolver itself. Two consequences. Declaring a different
+resolver is a different `Vantage`, so its timelines **open** (`revealed`) rather than `Break`ing the
+estate, which is what keeps an operator's change of upstream DNS from clamping everything. And it is
+why the resolver may **not** be a declared parameter: a parameter is never operator-configurable
+(see `Derivation`), while choosing a resolver plainly is the operator's. What *is* authored is the
+**kind** of query path — through this resolver, or direct to the delegated authorities — which is a
+declared parameter of `resolution-walk` and `wildcard-discrimination`, one value per `Batch`. See
+[ADR-0070](./docs/adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md).
 _Avoid_: prober location, scanner, agent
 
 **Vantage class**:
@@ -459,7 +475,18 @@ answers for *any* qtype — and it is **all-or-nothing across a name's qtypes**,
 for every type once the name exists, so a name discriminated at **any** component has **no**
 synthesised RRset (ADR-0068). Deciding it takes two measurements — the name's answer and the zone's
 poison signature — so like `Lame`, `NoTLS` and `NoHTTPResponse` it is decided by the **measurement
-binary inside one batch**, never assembled afterwards from two observations. That signature is a fact
+binary inside one batch**, never assembled afterwards from two observations. **Both are drawn on one
+query path**, the batch's declared one, because a control probe asked somewhere the candidate was
+not is not a measurement of the candidate's synthesis — **[measured]** direct to its own authority
+`s3.amazonaws.com` carries **no A record**, a *determinate* `NoSynthesis`, while a resolver answers
+every name beneath it with eight addresses, so a skewed pair discriminates **every** fictional label
+and records it `Resolved` with a fabricated set. **A control probe is asked from where the answer it
+discriminates was asked from**, and the path is one declared parameter with one value per `Batch`,
+shared with `resolution-walk`
+([ADR-0070](./docs/adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md)).
+A determinacy verdict read over that path is a claim about the **vantage** rather than about the
+authority, which is exactly what the predicate needs, since the vantage is the one the candidate's
+own answer came from too. That signature is a fact
 about **the `Name` the control labels were generated under** — the name whose immediate child space
 the wildcard synthesises into, named by the measurement rather than inferred from it, which is why it
 is not *the apex*; and it admits nothing, since an answer served for a name that does not exist may
@@ -504,7 +531,16 @@ the project uses the protocol's own word rather than a security taxonomy's. It i
 separates it from a source error, and it is only available because the measurement binary
 queries the delegated authorities directly: a recursive resolver's SERVFAIL cannot tell a
 dead delegation from a bad upstream, and attribution by inference is the *whose fault was
-it* judgement that would make this a coverage gap wearing a value's clothes. A delegation
+it* judgement that would make this a coverage gap wearing a value's clothes. That walk is **not
+governed by the query path**
+([ADR-0070](./docs/adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md)):
+a parameter able to route it through a resolver would delete this value, and a setting that silences
+a finding is refused here as it is on an `Offer`. The walk's converse also holds and had never been
+stated — **it supplies no address set**. `Resolved(unordered address set)`, `NoData` and `NameError`
+are read on the declared path, because the leaf holds two answers to one name and **[measured]** they
+differ: at `s3.amazonaws.com`, at one instant, the delegated authority answers a synthesised name
+with a CNAME and no address while a resolver answers it with eight. What the walk decides is this
+value and the per-nameserver `serves │ does-not-serve` RRset below, and nothing else. A delegation
 only *partly* lame is not this value — the name still resolves, so `resolution` has not
 moved — and is recorded per nameserver on `dns-record`, whose NS qtype therefore holds an RRset
 of `(nameserver, serves | does-not-serve)` pairs rather than a name list. Like `Shadowed` it is
