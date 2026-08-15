@@ -133,6 +133,12 @@ type Querier interface {
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
+	// Resolve an Endpoint key to at most one subject (#198). An Endpoint drill-down
+	// reaches a subject by its own key — including one whose Service has left the
+	// estate, which is a population of no current member rather than a false "no
+	// record" (ADR-0072). The caller reads the latest http-identity value to render
+	// the current HTTP identity and split the key into its Name and Service legs.
+	GetEndpointSubject(ctx context.Context, subjectKey string) (GetEndpointSubjectRow, error)
 	// The Citation chain's load-bearing hop: the observation that introduced a Name
 	// — its earliest resolution observation — plus the Batch and Scan it rode in on
 	// (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
@@ -201,6 +207,14 @@ type Querier interface {
 	// to the addresses an address-scope enumerates or a name-scope's names resolve
 	// to. An empty result is the shipped disabled state — no jobs (ADR-0044).
 	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
+	// Every Endpoint currently in the estate, with optional search (#198). An Endpoint
+	// is a (Name, Service) pair — keyed `name@service`, or `@service` for the nameless
+	// endpoint — the only key under which HTTP identity is single-valued (CONTEXT.md
+	// `Endpoint`). Its membership rides its Service's (the Address's membership
+	// restated), so this is the thin "current Endpoints" read the drill-down lists.
+	// Like the Name and Service listings it carries no denominator (ADR-0072). The
+	// value shown is the latest http-identity the http-exchange leaf recorded.
+	ListCurrentEndpointSubjects(ctx context.Context, search string) ([]ListCurrentEndpointSubjectsRow, error)
 	// Reads behind the Subjects screen (#189). All four are additive read queries
 	// over the wave-0 measurement corpus (observation / batch / scan) and the seed
 	// table — no new schema. `ListCurrentNameSubjects` is the thin "current Names"

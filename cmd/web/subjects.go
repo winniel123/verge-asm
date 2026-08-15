@@ -63,6 +63,20 @@ type serviceRow struct {
 	Reach string
 }
 
+// endpointRow is one Endpoint in the estate listing: its `name@service` key
+// split into its Name and Service legs (Nameless where the Name is absent — the
+// distinguished nameless variant), and a short label for its current HTTP
+// identity. An Endpoint exists for every (Name, Service) pair with a successful
+// HTTP exchange (CONTEXT.md `Endpoint`). The key carries a `/` and an `@`, so the
+// drill-down link is a query parameter rather than a path segment.
+type endpointRow struct {
+	Key      string
+	Name     string
+	Nameless bool
+	Service  string
+	Identity string
+}
+
 // citationHop is one link in a subject's "why is this here" chain, rendered
 // top-to-bottom from the subject down to the Seed the chain terminates at.
 type citationHop struct {
@@ -90,6 +104,39 @@ type servicePageData struct {
 	// Timelines are the Service's reachability Span timelines — current and closed
 	// — with Breaks and closures derived on read (#195). A Service opening or
 	// closing across a re-run of the hot Scan is one Span transition here.
+	Timelines []timelineView
+}
+
+// endpointPageData is the drill-down view for one Endpoint subject (#198): the
+// (Name, Service) pair the http-exchange leaf's http-identity facet is held on.
+type endpointPageData struct {
+	Key      string
+	Name     string // empty for the nameless endpoint
+	Nameless bool
+	Service  string
+	Address  string
+	Port     string
+	// Withdrawn reports that the Endpoint's Service has left the estate — its
+	// Address is no longer cited by any resolution nor covered by a Seed — so the
+	// Endpoint names a population of no current member, reached only by its own key
+	// (ADR-0072). An Endpoint closes when either leg withdraws (CONTEXT.md
+	// `Endpoint`).
+	Withdrawn bool
+	// The current HTTP identity, decoded for display.
+	Status           string
+	Server           string
+	ContentType      string
+	RedirectLocation string
+	BodySHA256       string
+	BodyBytes        int
+	BodyTruncated    bool
+	HasIdentity      bool
+	// Citation is the "why is this here" chain: Endpoint → its Name leg → its
+	// Service leg → the Address → the Seed the chain terminates at.
+	Citation           []citationHop
+	CitationTerminated bool
+	// Timelines are the Endpoint's http-identity Span timelines — current and
+	// closed — with Breaks and closures derived on read (#198).
 	Timelines []timelineView
 }
 
@@ -172,9 +219,28 @@ func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		}
 	}
 
+	// Endpoint subjects share the listing (#198): they arrive from the
+	// http-exchange leaf's `http-identity` facet on the (Name, Service) pair. A
+	// best-effort read — a failure degrades to the rest of the listing rather than
+	// a 500.
+	var epViews []endpointRow
+	if epRows, eerr := s.store.ListCurrentEndpointSubjects(r.Context(), search); eerr == nil {
+		epViews = make([]endpointRow, 0, len(epRows))
+		for _, row := range epRows {
+			name, svc := splitEndpointKey(row.SubjectKey)
+			epViews = append(epViews, endpointRow{
+				Key:      row.SubjectKey,
+				Name:     name,
+				Nameless: name == "",
+				Service:  svc,
+				Identity: httpIdentityLabel(decodeHTTPIdentity(row.Value)),
+			})
+		}
+	}
+
 	s.render(w, "subjects", map[string]any{
 		"Title": "Subjects", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Subjects": views, "Services": svcViews, "Search": search,
+		"Subjects": views, "Services": svcViews, "Endpoints": epViews, "Search": search,
 	})
 }
 
@@ -190,6 +256,151 @@ func decodeReachability(raw []byte) reachabilityValue {
 	var v reachabilityValue
 	_ = json.Unmarshal(raw, &v)
 	return v
+}
+
+// httpIdentityValue is the JSON payload of an http-identity observation — the
+// shape the http-exchange leaf emits (#198). The web layer reads only the fields
+// it renders; the body itself is never stored, only its digest and length.
+type httpIdentityValue struct {
+	Status           int    `json:"status"`
+	Server           string `json:"server"`
+	ContentType      string `json:"content_type"`
+	RedirectLocation string `json:"redirect_location"`
+	BodySHA256       string `json:"body_sha256"`
+	BodyBytes        int    `json:"body_bytes"`
+	BodyTruncated    bool   `json:"body_truncated"`
+}
+
+func decodeHTTPIdentity(raw []byte) httpIdentityValue {
+	var v httpIdentityValue
+	_ = json.Unmarshal(raw, &v)
+	return v
+}
+
+// httpIdentityLabel renders a short one-line identity for the listing: the status
+// code and, where present, the Server header (e.g. `200 · nginx`). An empty status
+// renders nothing, which the row shows as an em dash.
+func httpIdentityLabel(v httpIdentityValue) string {
+	if v.Status == 0 {
+		return ""
+	}
+	label := strconv.Itoa(v.Status)
+	if v.Server != "" {
+		label += " · " + v.Server
+	}
+	return label
+}
+
+// splitEndpointKey parses a `name@service` Endpoint key into its Name and Service
+// legs, splitting at the FIRST `@`. Neither a DNS Name nor a Service key contains
+// an `@`, so the split is unambiguous. A key beginning with `@` is the nameless
+// endpoint — an empty Name leg, the distinguished nameless variant — never an
+// empty name masquerading as a named one.
+func splitEndpointKey(key string) (name, service string) {
+	if i := strings.Index(key, "@"); i >= 0 {
+		return key[:i], key[i+1:]
+	}
+	return "", key
+}
+
+// endpointPage is the drill-down for one Endpoint subject (#198). The Endpoint key
+// carries a `/` and an `@`, so it arrives as a `?key=` query parameter rather than
+// a path segment. It renders the current HTTP identity, the Citation chain back to
+// a Seed through the Endpoint's Name and Service legs, and the http-identity Span
+// timelines the hot Scan folds.
+func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	key := strings.TrimSpace(r.FormValue("key"))
+	if key == "" {
+		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
+			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+			"Name": key,
+		})
+		return
+	}
+	subject, err := s.store.GetEndpointSubject(r.Context(), key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
+			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+			"Name": key,
+		})
+		return
+	}
+	if err != nil {
+		s.serverError(w, "get endpoint subject", err)
+		return
+	}
+
+	name, service := splitEndpointKey(subject.SubjectKey)
+	addr, port, _ := splitServiceKey(service)
+	id := decodeHTTPIdentity(subject.Value)
+	data := endpointPageData{
+		Key:              subject.SubjectKey,
+		Name:             name,
+		Nameless:         name == "",
+		Service:          service,
+		Address:          addr,
+		Port:             port,
+		Status:           httpIdentityLabel(id),
+		Server:           id.Server,
+		ContentType:      id.ContentType,
+		RedirectLocation: id.RedirectLocation,
+		BodySHA256:       id.BodySHA256,
+		BodyBytes:        id.BodyBytes,
+		BodyTruncated:    id.BodyTruncated,
+		HasIdentity:      id.Status != 0,
+	}
+	data.Citation, data.CitationTerminated, data.Withdrawn = s.buildEndpointCitation(r, name, service, addr)
+	data.Timelines = s.buildTimelines(r, "endpoint", subject.SubjectKey)
+
+	s.render(w, "endpoint", map[string]any{
+		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"Endpoint": data,
+	})
+}
+
+// buildEndpointCitation assembles the "why is this here" chain for an Endpoint:
+// the Endpoint itself, its Name leg (or a nameless marker), its Service leg, and
+// then the Address membership limbs the Service rests on — the Name whose current
+// resolution cites the Address, or the address-scope Seed that covers it,
+// terminating at a Seed. Where neither limb holds, the Address (and with it the
+// Service and Endpoint) has left the estate. It reuses the same address-membership
+// store reads the Service citation does, so the two chains agree on the ground.
+func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn bool) {
+	hops = []citationHop{{Label: "Subject · Endpoint", Value: r.FormValue("key")}}
+	if name != "" {
+		hops = append(hops, citationHop{Label: "Named · Name", Value: name})
+	} else {
+		hops = append(hops, citationHop{Label: "Nameless endpoint", Value: "(no name — reached with no citing Name)"})
+	}
+	hops = append(hops, citationHop{Label: "On service · Service", Value: service})
+
+	cited := false
+	if citing, err := s.store.FindNameCitingAddress(r.Context(), addr); err == nil {
+		detail := ""
+		if citing.ObservedAt.Valid {
+			detail = "cited since " + citing.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+		}
+		hops = append(hops, citationHop{Label: "Cited by · resolution", Value: citing.SubjectKey, Detail: detail})
+		cited = true
+	}
+
+	if parsed, perr := netip.ParseAddr(addr); perr == nil {
+		if seed, err := s.store.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
+			scope := ""
+			if seed.AddressCidr != nil {
+				scope = seed.AddressCidr.String()
+			}
+			detail := ""
+			if seed.CreatedByUsername != "" {
+				detail = "declared by " + seed.CreatedByUsername
+			}
+			hops = append(hops, citationHop{Label: "Declared · Seed", Value: "address scope " + scope, Detail: detail})
+			terminated = true
+		}
+	}
+
+	withdrawn = !cited && !terminated
+	return hops, terminated, withdrawn
 }
 
 // servicePage is the drill-down for one Service subject (#195). The Service key
@@ -503,6 +714,11 @@ func valueLabel(facet string, raw []byte, isGap bool) string {
 	case "reachability":
 		if o := decodeReachability(raw).Outcome; o != "" {
 			return o
+		}
+		return "—"
+	case "http-identity":
+		if l := httpIdentityLabel(decodeHTTPIdentity(raw)); l != "" {
+			return l
 		}
 		return "—"
 	default:

@@ -117,6 +117,38 @@ func (q *Queries) FindNameCitingAddress(ctx context.Context, address string) (Fi
 	return i, err
 }
 
+const getEndpointSubject = `-- name: GetEndpointSubject :one
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value,
+        o.observed_at AS observed_at
+    FROM observation o
+    WHERE o.subject_kind = 'endpoint' AND o.facet = 'http-identity' AND o.subject_key = $1
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value, observed_at
+FROM latest
+`
+
+type GetEndpointSubjectRow struct {
+	SubjectKey string             `json:"subject_key"`
+	Value      []byte             `json:"value"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
+}
+
+// Resolve an Endpoint key to at most one subject (#198). An Endpoint drill-down
+// reaches a subject by its own key — including one whose Service has left the
+// estate, which is a population of no current member rather than a false "no
+// record" (ADR-0072). The caller reads the latest http-identity value to render
+// the current HTTP identity and split the key into its Name and Service legs.
+func (q *Queries) GetEndpointSubject(ctx context.Context, subjectKey string) (GetEndpointSubjectRow, error) {
+	row := q.db.QueryRow(ctx, getEndpointSubject, subjectKey)
+	var i GetEndpointSubjectRow
+	err := row.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt)
+	return i, err
+}
+
 const getNameCitation = `-- name: GetNameCitation :one
 SELECT o.id, o.observed_at, o.source, o.vantage_id, o.batch_id,
        b.scan_id, sc.kind AS scan_kind
@@ -220,6 +252,55 @@ func (q *Queries) GetServiceSubject(ctx context.Context, subjectKey string) (Get
 	var i GetServiceSubjectRow
 	err := row.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt)
 	return i, err
+}
+
+const listCurrentEndpointSubjects = `-- name: ListCurrentEndpointSubjects :many
+WITH latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value,
+        o.observed_at AS observed_at
+    FROM observation o
+    WHERE o.subject_kind = 'endpoint' AND o.facet = 'http-identity'
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value, observed_at
+FROM latest
+WHERE ($1::text = '' OR subject_key ILIKE '%' || $1::text || '%')
+ORDER BY subject_key
+`
+
+type ListCurrentEndpointSubjectsRow struct {
+	SubjectKey string             `json:"subject_key"`
+	Value      []byte             `json:"value"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
+}
+
+// Every Endpoint currently in the estate, with optional search (#198). An Endpoint
+// is a (Name, Service) pair — keyed `name@service`, or `@service` for the nameless
+// endpoint — the only key under which HTTP identity is single-valued (CONTEXT.md
+// `Endpoint`). Its membership rides its Service's (the Address's membership
+// restated), so this is the thin "current Endpoints" read the drill-down lists.
+// Like the Name and Service listings it carries no denominator (ADR-0072). The
+// value shown is the latest http-identity the http-exchange leaf recorded.
+func (q *Queries) ListCurrentEndpointSubjects(ctx context.Context, search string) ([]ListCurrentEndpointSubjectsRow, error) {
+	rows, err := q.db.Query(ctx, listCurrentEndpointSubjects, search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCurrentEndpointSubjectsRow{}
+	for rows.Next() {
+		var i ListCurrentEndpointSubjectsRow
+		if err := rows.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listCurrentNameSubjects = `-- name: ListCurrentNameSubjects :many

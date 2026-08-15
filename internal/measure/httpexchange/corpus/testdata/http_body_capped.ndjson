@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"http-exchange","facet":"http-identity","subject":"big.example.com@198.51.100.13:443/tcp","vantage":"v1","address":"198.51.100.13","data":{"status":200,"server":"caddy","body_sha256":"sha256:bf718b6f653bebc184e1479f1935b8da974d701b893afcf49e701f3e2f9f9c5a","body_bytes":65536,"body_truncated":true}}

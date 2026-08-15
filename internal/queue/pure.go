@@ -7,6 +7,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -73,11 +74,15 @@ func toObservationParams(batchID int64, vantageID pgtype.Int8, observedAt pgtype
 
 // subjectKindFor gives the subject kind for a facet. resolution and dns-record
 // are about a Name; reachability is about a Service (an (Address, port,
-// transport) triple), whose key the connect-outcome leaf renders on the subject.
+// transport) triple); http-identity is about an Endpoint (the (Name, Service)
+// pair, keyed name@service), whose key the http-exchange leaf renders on the
+// subject. The switch grows one additive case per wave-4 facet.
 func subjectKindFor(facet string) string {
 	switch facet {
 	case connectoutcome.FacetReachability:
 		return "service"
+	case httpexchange.FacetHTTPIdentity:
+		return "endpoint"
 	case resolutionwalk.FacetResolution, resolutionwalk.FacetDNSRecord:
 		return "name"
 	default:
@@ -86,14 +91,17 @@ func subjectKindFor(facet string) string {
 }
 
 // sourceFor gives the observation source for a facet. Our own resolver sources
-// resolution and dns-record; our own prober sources reachability — a distinct
-// timeline source, so a reachability bound never ages against the resolver's
-// cadence (CONTEXT.md `Observation`).
+// resolution and dns-record; our own prober sources reachability AND http-identity
+// — the HTTP exchange rides the reachability exchange, so it shares the prober
+// source, a distinct timeline source from the resolver so a prober bound never
+// ages against the resolver's cadence (CONTEXT.md `Observation`).
 func sourceFor(facet string) string {
-	if facet == connectoutcome.FacetReachability {
+	switch facet {
+	case connectoutcome.FacetReachability, httpexchange.FacetHTTPIdentity:
 		return "prober"
+	default:
+		return "resolver"
 	}
-	return "resolver"
 }
 
 func pgInt8(v int64) pgtype.Int8 { return pgtype.Int8{Int64: v, Valid: true} }

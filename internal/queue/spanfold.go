@@ -12,6 +12,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -119,6 +120,10 @@ func facetVector(facet string) drift.Vector {
 	case connectoutcome.FacetReachability:
 		return drift.NewVector(
 			drift.Component{Leaf: connectoutcome.Kind, Version: connectoutcome.Version},
+		)
+	case httpexchange.FacetHTTPIdentity:
+		return drift.NewVector(
+			drift.Component{Leaf: httpexchange.Kind, Version: httpexchange.Version},
 		)
 	default:
 		return drift.NewVector(
