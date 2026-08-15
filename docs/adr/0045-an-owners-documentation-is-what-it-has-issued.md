@@ -77,6 +77,29 @@ part that travels.
    but absent from the owner's website is issued, and a document served on the website and absent from
    the artefact is issued. The ordinary case is both, and that case was never in doubt.
 
+> **Amendment — [#125](https://github.com/winniel123/verge-asm/issues/125): a rider on limb 5, and it
+> is a rider rather than a sixth limb.** [#114](https://github.com/winniel123/verge-asm/issues/114) met
+> the first case where the **unit** came apart from the **document**: a `%` source comment in
+> `elastic/docs-content` saying the opposite of the finding it sits beside, **invisible in the rendered
+> page**, refused under this ADR and visible only to a session reading raw bytes
+> ([`sensitive-ports.md`](../research/sensitive-ports.md) §38.14 item 6, §38.16). Limb 5 is untouched —
+> **issuance still does not require rendering**, a release artefact being a route of its own. What the
+> case adds is the other half of the same test:
+>
+> > **A string the owner strips from *every* published form of a document has been issued by no route.**
+> > Limb 5 says a document may be issued without being rendered; it does not say a fragment of a source
+> > file is issued because the file it sits in is. **A retrieval that reads raw source must therefore
+> > state whether the string it quotes is present in the owner's rendered artefact** — the marker being
+> > the only thing that distinguishes the two cases from inside the bytes.
+>
+> **What is new is the route, not the standard.** §38.16's corpus-grep method — *read the corpus, not
+> the page list* — is right and it found the sentence that decided `9200/tcp`; it also enlarges the set
+> of strings a session can quote that the owner has never published, so the issuance test becomes
+> **skippable by accident** where a page-by-page retrieval could not reach it at all. The check is
+> **G7** of [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)'s gate.
+> **No row and no footing moves**; `9300/tcp`'s removal never rested on the comment and expressly
+> refused it.
+
 ## Rationale
 
 **The costly-act test decides it, and it is the same instrument that decided ADR-0036.**
@@ -180,8 +203,13 @@ rule saying a draft cannot carry, and now it does.
   quoting an `erlang/otp` `master` page rather than a released one.
 - **It gives ADR-0032 §8's etcd flag its vocabulary, and moves no row.** §16.9 flags `2379`/`2380` on a
   prohibition *"three months old and absent from the `3.5` and `3.6` lines"*. Limb 3 says that precisely:
-  the footing is **issued at `v3.7.1` and not at `3.5` or `3.6`**. Whether the watch list should key on
-  tier or on evidence age is the map's patch and is untouched here, and the row is
+  the footing is **issued at `v3.7.1` and not at `3.5` or `3.6`**. ~~Whether the watch list should key on
+  tier or on evidence age is the map's patch and is untouched here~~ — **ANSWERED by
+  [#125](https://github.com/winniel123/verge-asm/issues/125): neither.** It keys on the **revision
+  act**, and this bullet's own vocabulary is what makes the etcd cell a **rung 2** item — a
+  documentation branch tracking a release line, one contributor, one commit. Evidence age survives as
+  the **tie-break**, measured in the **owner's release line**, which is limb 3's unit exactly.
+  [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md). The row is
   [#76](https://github.com/winniel123/verge-asm/issues/76)'s.
 - **The map's curation patch gains a seventh trigger, and it is the cheapest one it has.** A drafted
   owner document **becoming issued** changes a footing with nothing in the world having moved. It is

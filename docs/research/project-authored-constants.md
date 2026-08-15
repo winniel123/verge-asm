@@ -804,6 +804,12 @@ And the state ADR-0034 named as *"a third state … the one to aim for"* is now 
 The map's port-curation patch already carries the routing and needs only the criterion. §9 has the
 text.
 
+> **CLOSED by [#125](https://github.com/winniel123/verge-asm/issues/125).** The criterion is the
+> **revision act**, and this section's *watched by shape* survives it intact — what #125 adds is that
+> the shape has an **order**, because the reading budget is finite. *No fourth pile* is respected and
+> re-derived: the piles are causes, and the queue keys on the act rather than the cause.
+> [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md).
+
 ### 8.4 The rule's reach, bounded
 
 The sweep is the measurement, so the bound is stated as one:
@@ -826,6 +832,18 @@ manufactured into an instance by a sweep run on form alone.
 - **To the map's port-curation patch** — the watch criterion widens per §8.3, and `verge-core`'s
   frequency half is a member of it under the widened criterion rather than a new object. Exact text
   in the resolution comment.
+
+  > **DISCHARGED by [#125](https://github.com/winniel123/verge-asm/issues/125)**, which closed that
+  > patch. §8.3's *watched by shape* is **kept and completed**: the three cause-piles stay causes, no
+  > fourth pile is added, and all of them land on **one queue** keyed on the **revision act** — the
+  > smallest act by the owner that would falsify the cell, and whether that act publishes a notice we
+  > read. `verge-core`'s frequency half is **queue item 2**, at **rung 1**, and it is a
+  > *cure-availability* item rather than a de-attestation one: nothing can de-attest data already
+  > stale by eighteen years, and its act is a third party publishing a replacement dataset, which is
+  > never announced to us. The queue holds both kinds and orders them on the same key, which is
+  > exactly what §8.3 said a widened criterion should do.
+  > [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md),
+  > [`sensitive-ports.md`](./sensitive-ports.md) §39.4.
 - **To the map's Notes** — #61's *"two days modally"* is an evaluation of `k × cadence` and should
   carry the formula beside it (§6.5). Exact text in the resolution comment.
 - **To [#12](https://github.com/winniel123/verge-asm/issues/12)** — two parameters have no value yet

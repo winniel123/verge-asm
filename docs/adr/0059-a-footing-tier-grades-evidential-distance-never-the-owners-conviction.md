@@ -177,8 +177,12 @@ disclosed rather than smoothed.
   under limb 2.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) is not touched.** The spec carries the
   list, the claims and the containment arithmetic; none of them reads a tier.
-- **The weak tier, and therefore [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
-  §8's watch list, is unchanged at `5432/tcp` and `5984/tcp`.** **Unchanged by this ADR; composed it is
+- **The weak tier, ~~and therefore [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
+  §8's watch list,~~ is unchanged at `5432/tcp` and `5984/tcp`.** *(The **therefore** is **SUPERSEDED**
+  by [#125](https://github.com/winniel123/verge-asm/issues/125): the watch keys on the **revision act**,
+  and a tier grading **evidential distance** — this ADR's own ruling — is orthogonal to how easily the
+  artefact can be edited. **[measured]** the two disagree on at least four pairs.
+  [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md).)* **Unchanged by this ADR; composed it is
   three rows** — `10248/tcp` joined the weak tier at #95 in the same merge, and ADR-0032 §8 carries the
   amendment.
 - **It does not generalise beyond a graded footing column**, and that is ADR-0032's ruling rather than a
@@ -316,6 +320,12 @@ documentation page. #95's amendment to ADR-0032 §8 already said so for `10248/t
 correct where it sits and is not a reason to move a tier; it gives the map's open *should the watch list
 key on tier or on volatility* patch a third candidate axis and is reported rather than acted on
 (`sensitive-ports.md` §31.7, §31.12).
+
+> **CLOSED by [#125](https://github.com/winniel123/verge-asm/issues/125), which took the third
+> candidate.** Artefact class **is** the key, read as the **revision act**; the other four axes each get
+> a different job, and this ADR's own *evidential distance* keeps the one it always had — the
+> **disclosure**. The paragraph above is right in every clause and is left standing as written: *a
+> different column* is exactly the ruling. [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md).
 
 **Limb 3's *necessary and not sufficient* structure is inherited by a second instrument.**
 [ADR-0061](./0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)'s survival

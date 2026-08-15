@@ -483,8 +483,18 @@ that check belongs to the curation patch, which is where the watch lives.
 > sensitive list in the **weak** footing tier, on a restricting `healthzBindAddress: "127.0.0.1"` shipped
 > default **and nothing else** — no owner sentence, and **[measured]** `security-checklist.md` at
 > `release-1.34` does not name the port, so ADR-0050's category statement does not reach it
-> ([`sensitive-ports.md`](../research/sensitive-ports.md) §27.5, §27.12). **The weak tier is the watch
-> list, so the watch list grows with it.**
+> ([`sensitive-ports.md`](../research/sensitive-ports.md) §27.5, §27.12). ~~**The weak tier is the watch
+> list, so the watch list grows with it.**~~
+>
+> > **THAT SENTENCE IS SUPERSEDED, AND IT WAS ALREADY WITHDRAWN WHEN IT WAS WRITTEN.** The box four
+> > amendments above — [#102](https://github.com/winniel123/verge-asm/issues/102)'s, carrying ADR-0038's
+> > *"§8's watch list is **redefined by shape**"* — withdrew the identity *watch list = weak tier*, and
+> > this box re-asserts it below the withdrawal in the same section. That is
+> > [#106](https://github.com/winniel123/verge-asm/issues/106)'s intra-document shape at the one
+> > sentence the shape was named to protect, and it is visible from this file alone: the box carries
+> > `#109` and `#114` strike-throughs, so it was edited **after** the withdrawal was written.
+> > **[#125](https://github.com/winniel123/verge-asm/issues/125) supplies the replacement the
+> > withdrawal never named** — [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md).
 >
 > > **The rows exposed to silent de-attestation are `5432/tcp`, `5984/tcp` and `10248/tcp`.**
 >
@@ -504,6 +514,50 @@ that check belongs to the curation patch, which is where the watch lives.
 > removed `9200/tcp` and `9300/tcp` on the same claim gate — class totals ~~`12 / 7 / 21`~~
 > **`12 / 7 / 19`**, coverage **27 of 38** at tiers **13 · 11 · 3 · 11**. **§8's watch list is
 > unchanged at three rows** — `5432`, `5984`, `10248` — no weak-tier member having moved.
+
+> **Amendment — [#125](https://github.com/winniel123/verge-asm/issues/125): this section's *list* is
+> superseded by an *instrument*, and the enumeration above stops being a watch.** Every row-count in
+> the four amendment boxes above is a correct record of a **weak tier**, which is a real and unchanged
+> object; **none of them is the watch.**
+> [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) holds the ruling and
+> [`sensitive-ports.md`](../research/sensitive-ports.md) **§39** the working.
+>
+> **The watch is two instruments.** A **gate** over what is **closed** — eleven checks, decidable over
+> bytes already held plus a finite named set of targeted re-fetches, run to completion **over the table
+> as edited**, an edit being complete only when the gate is green over the post-edit state. And a
+> **queue** over what is **open** — somebody else's corpus, which never terminates and is therefore
+> sampled. **[measured]** of the eight triggers a release can check **four completely**, **two in half**
+> and **two not at all**; all six defect checks it can run completely, and the six defects and five of
+> the eight triggers turn out to be **one instrument** — the reason the two lists looked different is
+> that nobody had asked which of them **terminates**.
+>
+> **The queue keys on the *revision act*** — the smallest act by the owner that would falsify the cell,
+> and whether that act publishes a notice we read — on five rungs read off the artefact, filtered to
+> **sole-ground** cells, with the unit a **`(cell, artefact, revision act)` triple** and **its count
+> barred as an indicator**. That is what retires this section's `3 → 2 → 3 → 2 → 3`: the sequence was a
+> count over **rows** of a quantity that moves **per cell**. The other four candidate axes each get a
+> different job — tier stays the **disclosure**, evidence age becomes the gate's bound and the queue's
+> tie-break **in the owner's release line**, support count becomes the **filter**, and contradiction by
+> the owner's own product documentation leaves the queue for the **gate**.
+>
+> **[measured] the footing tier is the wrong key, and this section had already recorded the
+> counterexamples twice.** #76 flagged `2379`/`2380` as worth watching *"despite not being on this
+> list … a shape §8 does not currently have a name for"*; #88 flagged both kubelet cells the same way.
+> And one such de-attestation has **already happened** — `sensitive-ports.md` §36.7 records that
+> `623/udp`'s direction disposal had to be re-founded, **HPE having retired the artefact carrying it**.
+> `623/udp` is in the **top** footing tier and was never on this list.
+>
+> **The queue as of evidence already held is eight items over ten `(port, transport)` pairs and two
+> non-port cells**, and it is a **superset** of the weak tier — all three rows above stay on it, so this
+> supersession takes nothing off anybody's attention. `certificate-weak-key-or-signature`'s table
+> contributes **zero** items, its residue being a **scope** weakness that de-attestation cannot reach;
+> `certificate-expiring`'s horizon contributes **one**, ADR-0038 having removed the **quantity** from
+> the watch and never the **attestation**; `verge-core`'s frequency half is the queue's other rung-1
+> item, which discharges `project-authored-constants.md` §9's hand-off without a fourth pile.
+>
+> **§7 is untouched** — nothing here reaches a screen, and its condition is unchanged. **No gate
+> changes, no row moves and no rule version moves**; the list stays at **38 pairs**, `12 / 7 / 19`,
+> tiers `13 / 11 / 3`, coverage **27 of 38**, and **§4.6 goes to 24** on `9443/tcp`.
 
 ## The v1 walk — all ~~sixteen~~ **seventeen** rules, walked rather than asserted
 
