@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/delivery"
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
 	"github.com/winniel123/verge-asm/internal/queue"
@@ -102,6 +103,20 @@ func main() {
 	go func() {
 		if err := obsRetirer.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Printf("worker: observation retention stopped: %v", err)
+		}
+	}()
+
+	// Channel delivery runs beside the measurement worker (#207, v1 spec §4.5). It
+	// drains routed Deliveries off the queue and POSTs each to its Channel, on the
+	// same retry/backoff/dead-letter curve the measurement queue uses (queue.Backoff)
+	// rather than a second mechanism beside it. It is a no-op on a default install:
+	// no Channel ships configured, so nothing is ever routed until an admin declares
+	// one. VERGE_PUBLIC_URL is the absolute base each body's link is built on; empty
+	// leaves the link off rather than fabricating one.
+	deliveryRunner := delivery.NewRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger)
+	go func() {
+		if err := deliveryRunner.Run(ctx, 5*time.Second); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: delivery stopped: %v", err)
 		}
 	}()
 
