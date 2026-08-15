@@ -193,6 +193,26 @@ rotation reading as one answer through one resolver and seven through another.
 The existential read errs **toward firing**, which is the direction `Vantage class` already chose
 for itself and stated: *"a false `exposed` is investigated, a false quiet reading is not."*
 
+> **NAMED and PARTLY DISCHARGED by [#138](https://github.com/winniel123/verge-asm/issues/138) ·
+> [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md).**
+> This is the **class-scoped** `Vantage composition` on the `internet` class with quantifier
+> `existential`, and #48's is the **cross-class** kind. Both halves of this section survive, and the
+> thin ground it flagged — *"the existential composition across internet-class vantages is argued, not
+> measured, and no prior ticket rules on how a presence claim composes"* — is discharged in one half
+> and not the other.
+>
+> **Discharged:** the rule is now *a presence claim composes `existential`, an absence claim composes
+> `unanimous`*, resting on what the evidence can carry rather than on the safety direction — one
+> vantage receiving an answer establishes it was served, while no number of vantages failing to
+> receive one establishes that none exists. It is corroborated independently: `Reach` is a class-scoped
+> composition whose quantifier had also never been written, and it lands on `existential` from the same
+> rule.
+>
+> **Not discharged:** no v1 reader takes the `unanimous` **within-class** cell, so that half of the
+> closed union is analytic rather than measured. And the two departures this section makes from #48
+> are **not** two free axes — a free 2×2 is refuted by `resolved-name-absent-from-zone`, and #48's
+> unanimity turns out to be a **coherence guard** rather than a quantifier.
+
 ### 4. The domain, the registers, and why `Shadowed` is load-bearing here more than anywhere else
 
 Per [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md) the domain is the extension of
@@ -367,6 +387,13 @@ made this a signature database is supplied by the owner, which is as good as thi
 - **The `resolution` composition question is handed on.** Two compositions now exist over one facet,
   both inside rules' leaves. Whether they should be named and enumerated — the way `Reach` names its
   class composition — is open, and it is the seam #6 warns about.
+  > **DISCHARGED by [#138](https://github.com/winniel123/verge-asm/issues/138) ·
+  > [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md):**
+  > they are named as two **kinds** — cross-class and class-scoped — and the `Reach` treatment is
+  > **refused**, both compositions staying inside their readers' leaves with no leaf, subject, value
+  > space, timeline or vector place. The premise that *"`Reach` names its class composition"* was half
+  > true: `Reach` names its class and never its quantifier, and adopting its treatment would have
+  > imported the hole.
 
 ## Alternatives rejected
 
