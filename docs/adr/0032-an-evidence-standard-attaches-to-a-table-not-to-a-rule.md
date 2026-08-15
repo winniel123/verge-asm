@@ -581,6 +581,17 @@ that check belongs to the curation patch, which is where the watch lives.
 > the watch and never the **attestation**; `verge-core`'s frequency half is the queue's other rung-1
 > item, which discharges `project-authored-constants.md` §9's hand-off without a fourth pile.
 >
+> > **The FIGURE above is SUPERSEDED as a statement of the queue's membership by
+> > [#134](https://github.com/winniel123/verge-asm/issues/134)**, marked here per
+> > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). #134 ran the
+> > per-cell test over every cell of all 38 pairs and both non-port cells, discharging §39.9's
+> > provisionality. **The live register is [`sensitive-ports.md`](../research/sensitive-ports.md) §43.3
+> > and it is stated over MEMBERS** — the replacement is a pointer to a set, never a new number, §39.2
+> > barring the queue's count as an indicator. **Everything else in this box is unchanged**: the queue is
+> > still a superset of the weak tier and takes nothing off anybody's attention, the bar being one-way;
+> > `certificate-weak-key-or-signature` still contributes zero; `certificate-expiring`'s horizon and
+> > `verge-core`'s frequency half are on the register with their grounds and rungs unchanged.
+>
 > **§7 is untouched** — nothing here reaches a screen, and its condition is unchanged. **No gate
 > changes, no row moves and no rule version moves**; the list stays at **38 pairs**, `12 / 7 / 19`,
 > tiers `13 / 11 / 3`, coverage **27 of 38**, and **§4.6 goes to 24** on `9443/tcp`.

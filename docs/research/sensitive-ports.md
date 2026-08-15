@@ -34,7 +34,7 @@ Three constraints from decisions already made shape the answer before any eviden
 | Decision | Answer |
 |---|---|
 | The list | **38 `(port, transport)` pairs** in three classes — §3. **Superseded by §11 — the list is 37 pairs; `161/udp` is removed. Confirmed at 37 by §14, which refused `7000/tcp` and `7001/tcp` on determinacy. Confirmed at 37 again by §19, which moved `10250/tcp` from Class A to Class C without moving a pair — the class totals are `11 / 7 / 19`, not `12 / 7 / 18`. Superseded again by §24 — the list is **39 pairs**, class totals `11 / 7 / 21`; `10259/tcp` kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** to Class C and `10256/tcp` kube-proxy is **refused**, closing §19.8's three ADR-0037 candidates. Superseded again by §27 — the list is **41 pairs**, class totals `12 / 7 / 22`; `10249/tcp` kube-proxy metrics is **admitted to Class A** and `10248/tcp` kubelet healthz to **Class C**, `10258/tcp` cloud-controller-manager is **refused**, closing §24.11's three candidates and completing ADR-0037 limb 2's second cycle. **Superseded again by §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)) — the list is 40 pairs, class totals `12 / 7 / 21`: `1433/tcp` Microsoft SQL Server is REMOVED**, Claim 3 failing on §10.3's own failure condition on a retrieval **scoped to the row**, and no other claim in the closed set fitting. The note's **second** row removal after `161/udp`, and the first to leave by losing a claim it held. The pair goes to **§4.6**, which becomes **21** entries; §6.1's arithmetic is ~~`28 + 8 + 5 = 41`~~ **`27 + 8 + 5 = 40`**; §2.2's uncovered-in-subject population returns to **0** and coverage reads ~~29 of 41~~ **29 of 40**; **`verge-core` is UNCHANGED at 136 pairs**, `1433/tcp` being in the frequency half. §35** **Superseded again by §38 ([#114](https://github.com/winniel123/verge-asm/issues/114)) — the list is 38 pairs, class totals `12 / 7 / 19`: `9200/tcp` and `9300/tcp` Elasticsearch are BOTH REMOVED**, Claim 3 failing on §10.3's own failure condition on a retrieval **scoped to the pair** across all four of Elastic's corpora, with Claim 1 and Claim 2 **measured at `v9.5.1`** and both unavailable. **The note's first two-row removal**, and its third and fourth row removals. **The two pairs are decided separately and do not fall on the same evidence**: `9200` falls on the **self-managed** corpus #112 never opened — *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"*, of the interface `http.port` binds with *"Defaults to `9200-9300`"* — with ECE a second and independent instance; `9300` falls on **ECE alone**, the same sentence's next bullet naming the transport layer's clients as **nodes and clusters**, and its removal runs through ADR-0050 limb 2 on three of Elastic's own artefacts. Both pairs go to **§4.6**, which becomes ~~**23**~~ **24 entries since §39** ([#125](https://github.com/winniel123/verge-asm/issues/125)), which adds `9443/tcp` on the claim gate and **moves no pair**; §2.2's prohibition tier is ~~15~~ **13** and coverage ~~29 of 40~~ **27 of 38** — *a cell cannot outlive its row*; §6.1's arithmetic is ~~`27 + 8 + 5 = 40`~~ **`25 + 8 + 5 = 38`**; **`verge-core` is UNCHANGED at 136 pairs**, both pairs being in the frequency half. **No ADR is minted; ADR-0067 is applied and ADR-0070 is left unused.** §38 |
-| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — **six** in the word, three in the verb's preposition, fifteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two owners write it in a table column headed `Direction`** — Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** (*"`IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against *"`Remote support port | 7906 | TCP | Outbound¹`"*). **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). **[measured]** the clean case of addressee coming apart from direction — MongoDB Atlas on `27017` — is **not** load-bearing, `27017` failing limb 3 first. §33.2's discriminator gains the rider **the direction is part of the class**; §28.9's instance is **re-founded on a current artefact**, HPE having retired *Insight Online direct connect*; and §33.11's *"the string `6379` occurs zero times"* is **corrected at its clause** to a **token** claim without moving the spare it carries. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** **Amended by §37 ([#112](https://github.com/winniel123/verge-asm/issues/112)) — [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 2 is **swept over all thirty-two members it can reach**, and **§33.2's riders do not all travel to the claim gate**: a rider fixing **which listener** the statement is about (addressee, direction) travels, a rider **bounding the affirmation** travels, and a rider **narrowing the prohibition's own class** does **not** — ADR-0067 limb 1 makes carrying it across backwards, since narrowing the prohibition leaves the affirmative naming standing alone. **[measured]** §33 spared `9200`/`9300` on the rider that does not travel and `3306` on the rider that does. **The population is the union of the two graded tiers (26, for the footing gate) and Class C (21 rows, for the claim gate) = 32**, which contains **six rows the tiers do not** — `5432`, `5984`, `10248`, `139`, `137`, `138`. **[measured] `9200/tcp` and `9300/tcp` Elasticsearch MEET §10.3's failure condition** on Elastic Cloud Enterprise documentation addressed to the operator about the operator's own listener — *"**By default, all your deployments are accessible over the public internet**"*, with Elastic's own inbound table numbering `9200, 9243` and `9300, 9343` on the **Proxy** role under the heading **"Inbound traffic from any source"**, and ECK shipping a section headed *"**Allow public access**"* for the node's own `9200` with no warning attached. **The rows are ROUTED and NOT removed** — a row moves only on a retrieval **scoped to the row** ([#37](https://github.com/winniel123/verge-asm/issues/37), ADR-0037 limb 2) and this retrieval was scoped to a tier — and **their cells do not move**, §32.2 limb 4 being asked of the **carrying** statement, whose class (*an **unprotected** node*) has no supported instance. **This is the inverse of §33's shape: a footing surviving on a rider the claim gate does not read.** **§33.2's addressee rider and ADR-0067 limb 2 are TWO tests sharing one coordinate**, not one instrument stated twice — the rider decides `445/tcp` where limb 2's other three grounds are satisfied, limb 2 decides `1433/tcp` against a **banner** argument the rider is silent on, and folding them would convert the rider's silence about banners into a boundary ([ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode). **[measured] §36.5's falsifier is met one gate over** — addressee is load-bearing at `27017`/`27018`/`27019` at the **claim** gate with direction unavailable, because limb 3 does not exist there; §36.5 is **qualified at its clause** as a claim about the footing sweep and **§32.2's closure is untouched**. `3306/tcp` survives on the **bounded affirmation** (*"You must restrict the authorized public IP addresses to a single IP address or a small range"*), with the MySQL Manual's own §34.3 — *"You must enable ingress on the following ports: … **3306: MySQL**"*, imperative, unwarned — failing on the **network** limb alone and its reopening criterion written down. `6379/tcp` survives on the **pair**: **[measured]** Redis Software documents public-internet exposure as the unwarned **default**, and the endpoint is drawn from `10000-19999` with `6379` a token in none of the owner's port documentation. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0067 is amended in place and ADR-0069 is left unused** **Amended by §38 ([#114](https://github.com/winniel123/verge-asm/issues/114)) — ADR-0067 is **applied** rather than extended, over a retrieval **scoped to the pair** across all four of Elastic's corpora, and it removes **two rows**. **[measured]** the corpus that decides `9200/tcp` is **self-managed** and no prior section had opened it: *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"* is an **affirmation**, not a default, so §10.4's one-way rule is never reached for that pair — and the **very next bullet** draws the opposite boundary for the transport layer, which is why the two pairs are decided separately and `9300/tcp` falls on **ECE alone** through ADR-0050 limb 2. **Claim 1 and Claim 2 were measured off the shipped bytes at `v9.5.1` rather than assumed**: `xpack.security.enabled` defaults to `true`, anonymous access requires an operator act, `TransportTLSBootstrapCheck` makes a node **refuse to start** without transport TLS, and both encrypted successors are settings on the **same** ports — `9243`/`9343` being **ECE's proxy convention**, not standardised successors. **§37.3's rider taxonomy holds against a fourth candidate and is not extended**: a **disclaimer of the component that supplies the reach** — *"you must provision and configure [a load balancer]"*, *"outside the scope of this documentation"* — bounds nothing and does not travel, and the reading that would let it is **falsified by §17.4**, RabbitMQ having named public networks *"behind a load balancer"* it does not ship. **§10.3 is amended at its clause: the element is *naming*, not *supplying*.** **Two corrections to §37 are recorded**: its ECE quotation is the legacy *[3.8]* wording and occurs **zero** times in the current issued corpus, and its held footing cells leave the graded table with their rows. **The list is 38 pairs, `12 / 7 / 19`, tiers 13 / 11 / 3, coverage 27 of 38, ~~§4.6 23~~ §4.6 **24 since §39**; `verge-core` unchanged at 136; ADR-0008 TRIGGERED**; **no ADR is minted and ADR-0070 is left unused** **Amended by §39 ([#125](https://github.com/winniel123/verge-asm/issues/125)) — the *governance* half, and it moves no evidence.** **Who revises a curated table: the release** — an act, not a person, the party being the project and never the operator, with a **gate on the edit** rather than a standing duty on somebody. **The watch is two instruments**: a **gate** of **eleven closed checks** — six from the detectable-defect list, five from the trigger list — run to completion over the table **as edited**, and a **queue** over what is **open**, which cannot terminate and is therefore sampled. **[measured]** of the eight triggers a release can check **four completely**, **two in half** and **two not at all**. **The queue keys on the *revision act*** — the smallest act by the owner that would falsify the cell, and whether that act publishes a notice we read — on **five rungs read off the artefact**, and **never on the footing tier**, which grades evidential distance and **[measured]** disagrees with volatility on at least four pairs, the *top* tier holding the more volatile artefacts. Of the five candidate axes exactly one is the key (**artefact class**, read as the revision act) and the other four get different jobs: tier stays the **disclosure**, evidence age becomes the gate's bound and the queue's tie-break **in the owner's release line**, support count becomes the **filter** (sole-ground only), and contradiction by the owner's own product documentation leaves the queue for the **gate**. **The unit is a `(cell, artefact, revision act)` triple, and the queue's count is barred as an indicator** — which is what retires §8's useless `3 → 2 → 3 → 2 → 3`. **The queue as of evidence already held is ~~eight items over ten pairs~~ nine items over eleven pairs (§41) and two non-port cells, and ~~two~~ three of the pairs it adds are in the *top* footing tier.** **[measured]** the identity *watch list = weak tier*, withdrawn by ADR-0038, stands as a reason or a rule at **15 sites** in this note and one in ADR-0032 §8's own body **below** its withdrawal box — all sixteen marked — because **a withdrawal that supplies no replacement does not hold**. §38.14's three-item backlog is discharged: `9443/tcp` enters §4.6, `2375/tcp`'s corroborator is barred from being a ground in **both** directions, and the docs-source-comment hazard becomes an **ADR-0045 rider** and gate check **G7**. **No row, class, tier or coverage figure moves and ADR-0008 is NOT triggered**; **[ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) is minted** **Amended by §41 ([#135](https://github.com/winniel123/verge-asm/issues/135)) — the queue's **sole-ground filter**, and it moves no evidence either. ***Carries the same cell* means *would have yielded the cell's **proposition** standing alone*** — what the cell asserts about the world, stripped of our grading of it — and **the test is run per CELL, never per row**, ADR-0057's own unit having been the `(cell, artefact, revision act)` triple while §39.4 disposed of two **rows**. Three readings are refused: *a second artefact merely exists*; *it must reach the cell's own **tier*** (the ticket's own candidate, and it loses on the measurement that it empties §39.4's largest *not an item* row — *"most of the list"* — leaving the filter removing nothing, and on ADR-0059's warrant that a tier is **our** disclosure of evidential distance, which an owner's act cannot falsify, over-statement of it being the **gate's** business at G2 and G11); and *it must be at least as **strong***, which re-imports the tier as a key through the filter's back door. An **undetermined** second ground counts as **absent**, so the cell stays **on**. **[measured]** one cell moves: `10250/tcp`'s **claim** cell is sole-ground on `ports-and-protocols.md`'s `Used By: Self, Control plane` — §19.12, *"Claim 3 has **no second support** on this row"* — and becomes **queue item 9** at rung 2, while both kubelet **footing** cells stay off, §18.7 measuring `10250` falling back to the scoping tier and `10255` to the weak tier. **The queue is ~~8 items over 10 pairs~~ 9 items over 11 pairs and 2 non-port cells**, and ~~two~~ **three** of the pairs it adds are top-tier. §39.9's `10250` bullet is **discharged**; a **gate** shortfall is opened rather than closed — G11 is vacuous for an artefact with no retrievable tag. **No row, class, tier or coverage figure moves, `verge-core` is unchanged at 136, and ADR-0008 is NOT triggered**; **[ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md) is minted** **Amended by §40 ([#133](https://github.com/winniel123/verge-asm/issues/133)) — the gate's FIRST FULL RUN, and it moves no evidence.** §39.9 priced the instrument at one pass and recorded that the pass had not been paid; **G1–G11 have now been run to completion over the composed table**. **[measured] eight checks GREEN · two RED · one PARTIAL, with 18 defects on the first run and no row, class, tier or coverage figure moving.** **G4 RED at eleven sites in three shapes**, every one struck at its clause per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): the **v1 rule-set denominator** `sixteen → seventeen` at four sites, where the 2026-08-15 reconciliation had corrected the *restating* site and not the *specifying* one; **removed rows named in the present tense** at three, including `9200/tcp` inside §8's still-**open** question 5; and **`161/udp` cited as a live shipping example** at four, of which ADR-0032's gate-2 row — *"the **38** pairs … attested for **37**; `161/udp` disclosed"* — is right in its headline **by coincidence** and false in every clause after it. **G5 RED at two of §4.6's twenty-four cells**, `9092/tcp` and `5601/tcp`, whose grounds were withdrawn in amendment blocks below the table and never at the cell — the treatment the `5672`/`15672` cell three rows away already demonstrates. **G11 RED and run over all 27 footing cells**: nine stale-against-tag in four groups (Redis `8.0`→`8.10.0`, CouchDB `3.5.0`→`3.5.2`, Kubernetes `v1.34.1`→`v1.36.3` on six cells, Dell's iDRAC pins), plus `2375/tcp` stale against a **horizon** rather than a tag, Docker being past its own stated `v28.0` removal target for a feature the row still rests on. **G8 PARTIAL — its internal half is complete and green and its external half is not completable, because §39.6 calls G8 *closed* on a finite named set that no section has ever named.** **G10 GREEN on a re-fetch**: Kafka's list of one is unmoved, no `4.4.x` tag, still 404 on the published site. **G7 GREEN**, both kubelet raw-source quotations **[measured]** byte-identical to Kubernetes' rendered config-API reference. **The baseline is written down at §40.6** — an edit is complete only when the gate is green over the post-edit state, and that sentence now has a referent. **No row, class, tier or coverage figure moves, `verge-core` is unchanged at 136, and ADR-0008 is NOT triggered**; **no ADR is minted and ADR-0076 is left unused** |
+| Evidence standard | A **named claim** from three permitted claims, **attested** by the source that owns it, plus a **determinacy** gate — §2. **Amended by §12 — an example config attests nothing, and a distributor's shipped default corroborates and never carries a row.** **§2.2's footing table re-derived from shipped bytes by §13 — every cell confirmed, no row moves, and an attestation is retrieved over the artefact rather than over the row.** **Amended by §21 — the *second* form reads a document the owner has **issued**; a committed-but-unreleased document attests nothing in either direction** **Amended by §30 — §2.2's footing *tier* grades **evidential distance**, counted in premises the reader supplies, and never the owner's conviction; mood, force and hedging are inadmissible in both directions ([ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)). `873/tcp` moves to the scoping tier and **no row moves**; the tiers are ~~14 / 12 / 2~~ 14 / 13 / 3 as composed — §27 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` to the scoping tier and `10248/tcp` to the weak tier in a pass concurrent with §30's** **Amended by §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — a comment takes a **position** only where it **outlives the value it annotates**; where its content is exhausted by that value it is a **label** and attests only what the third form already attests. Necessary and not sufficient — §2.3's and §4.4's discrimination runs second ([ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)). A **published config-API doc comment** is the ordinary artefact answering the third form's *documented* limb only; the defaulting code answers *takes effect* and must be retrieved. **No row, tier, coverage figure or watch-list member moves** **Amended by §32 ([#101](https://github.com/winniel123/verge-asm/issues/101)) — §20.8's lexical test is **sufficient as well as necessary**, on the four-limb conjunction ADR-0059 limb 3 already enumerated: **owner's · reaches the pair · names the public internet · takes a position**, and the list is **closed**. `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ are **promoted** to the prohibition tier and **no row moves**; the tiers are ~~14 / 13 / 3~~ **16 / 11 / 3** against `main` at `c0881ae`. ADR-0059's limb 1 unit is widened from *sentence* to **the owner's statement of the port's permitted network**, which brings the non-prose footings inside it, **confirms** §24's and §27's placements and dissolves §30.7's two-population disclosure; **ADR-0059 is amended in place and no ADR is minted** **Amended by §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the four-limb conjunction is **run as a retrieval over all sixteen prohibition-tier members**, limbs 2 and 4 never having been walked per row. **Fifteen hold; `1433/tcp` MS SQL fails** — the carrying page contains the string `1433` **zero** times, so reach can only run through [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md), whose limb 3 defeat test is met by Microsoft documenting internet-facing TCP/1433 SQL Server as a supported portal-provisioned option; limb 4(c) fails on the same measurement, and either suffices. The cell **leaves the graded table** rather than descending a tier, MS SQL shipping no configuration artefact for a weaker form to catch. The tiers are ~~16 / 11 / 3~~ **15 / 11 / 3 · outside-subject 11 · 1 uncovered-in-subject** and coverage ~~30 of 41~~ **29 of 41**; **one cell, no rows, and the cost is nothing**. §32.12's `2181`/`6379` coupling is **withdrawn**, `2181`'s limb 4 having become a retrieval, and its *"no member of either tier turns on direction today"* is **refuted** by `445/tcp`; `139`/`137`/`138` are re-founded on **enumeration**. **ADR-0050 and ADR-0059 are confirmed by use, and ADR-0064 is left unused** **Amended by §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — **a default's provenance is not read**. *Takes effect* is satisfied by the value the operator meets at first run **however the shipped software arrives at it**, a language's **zero value** included; a zero value therefore attests only where the owner **documented** it as the default, on ADR-0036 limb 1's second half unchanged. And **§10.4's one-way rule governs the attestation gate and not the claim gate** — a value read to establish what the shipped artefact *does* (§10.1's steps, §10.4.3's remedy test) is read in both directions, documented or not. §16.5's and §27.2's readings are both **confirmed** and never disagreed; §19.2's *"by omission plus documentation"* clause is **promoted** to the rule it always was. **Nothing moves — the empty delta**; **ADR-0036 is amended in place and ADR-0063 is left unused** **Amended by §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **direction is not a fifth limb of the prohibition-tier conjunction; it is what limb 2's *"this `(port, transport)` pair"* denotes** — the pair **as the endpoint being reached, on the estate the statement addresses** — and **limb 2 is restated at its own clause**. **Addressee is that limb's second coordinate**, not a sixth candidate: at the one member where it bites it is the same disposal as direction read from the other end of one TCP connection. The conjunction stays at **four** and §32.2's closure over the **kinds** of gap is confirmed; what was incomplete was limb 2's **denotation**. **[measured]** the conjunction as written *was* defective — the document carrying `445/tcp`'s footing has a section headed **`## Block outbound SMB access`** (*"Block TCP port 445 outbound to the internet at your corporate firewall"*, `ms.date` 2024-10-25) which satisfies all four limbs and entails nothing about the row, so §32.12's hypothetical was a heading. **[measured]** across all **26** members of both graded tiers the **owner** supplies the direction in **24** carrying statements — **six** in the word, three in the verb's preposition, fifteen in the verb — so the reader supplies **no** directional premise and the zero-premise arithmetic holds; the two silent members already fail limb 3. **Two owners write it in a table column headed `Direction`** — Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** (*"`IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against *"`Remote support port | 7906 | TCP | Outbound¹`"*). **Two verdicts turn on direction** (`445/tcp`, and `623/udp` at §28.9, which no prior section counted, so §32.12's clause was **false when written** and not merely after §33) **and one on addressee** (`445/tcp`). **[measured]** the clean case of addressee coming apart from direction — MongoDB Atlas on `27017` — is **not** load-bearing, `27017` failing limb 3 first. §33.2's discriminator gains the rider **the direction is part of the class**; §28.9's instance is **re-founded on a current artefact**, HPE having retired *Insight Online direct connect*; and §33.11's *"the string `6379` occurs zero times"* is **corrected at its clause** to a **token** claim without moving the spare it carries. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0059 is amended in place and ADR-0068 is left unused** **Amended by §37 ([#112](https://github.com/winniel123/verge-asm/issues/112)) — [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 2 is **swept over all thirty-two members it can reach**, and **§33.2's riders do not all travel to the claim gate**: a rider fixing **which listener** the statement is about (addressee, direction) travels, a rider **bounding the affirmation** travels, and a rider **narrowing the prohibition's own class** does **not** — ADR-0067 limb 1 makes carrying it across backwards, since narrowing the prohibition leaves the affirmative naming standing alone. **[measured]** §33 spared `9200`/`9300` on the rider that does not travel and `3306` on the rider that does. **The population is the union of the two graded tiers (26, for the footing gate) and Class C (21 rows, for the claim gate) = 32**, which contains **six rows the tiers do not** — `5432`, `5984`, `10248`, `139`, `137`, `138`. **[measured] `9200/tcp` and `9300/tcp` Elasticsearch MEET §10.3's failure condition** on Elastic Cloud Enterprise documentation addressed to the operator about the operator's own listener — *"**By default, all your deployments are accessible over the public internet**"*, with Elastic's own inbound table numbering `9200, 9243` and `9300, 9343` on the **Proxy** role under the heading **"Inbound traffic from any source"**, and ECK shipping a section headed *"**Allow public access**"* for the node's own `9200` with no warning attached. **The rows are ROUTED and NOT removed** — a row moves only on a retrieval **scoped to the row** ([#37](https://github.com/winniel123/verge-asm/issues/37), ADR-0037 limb 2) and this retrieval was scoped to a tier — and **their cells do not move**, §32.2 limb 4 being asked of the **carrying** statement, whose class (*an **unprotected** node*) has no supported instance. **This is the inverse of §33's shape: a footing surviving on a rider the claim gate does not read.** **§33.2's addressee rider and ADR-0067 limb 2 are TWO tests sharing one coordinate**, not one instrument stated twice — the rider decides `445/tcp` where limb 2's other three grounds are satisfied, limb 2 decides `1433/tcp` against a **banner** argument the rider is silent on, and folding them would convert the rider's silence about banners into a boundary ([ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)'s failure mode). **[measured] §36.5's falsifier is met one gate over** — addressee is load-bearing at `27017`/`27018`/`27019` at the **claim** gate with direction unavailable, because limb 3 does not exist there; §36.5 is **qualified at its clause** as a claim about the footing sweep and **§32.2's closure is untouched**. `3306/tcp` survives on the **bounded affirmation** (*"You must restrict the authorized public IP addresses to a single IP address or a small range"*), with the MySQL Manual's own §34.3 — *"You must enable ingress on the following ports: … **3306: MySQL**"*, imperative, unwarned — failing on the **network** limb alone and its reopening criterion written down. `6379/tcp` survives on the **pair**: **[measured]** Redis Software documents public-internet exposure as the unwarned **default**, and the endpoint is drawn from `10000-19999` with `6379` a token in none of the owner's port documentation. **Nothing moves — the empty delta — and the cost is nothing**; **ADR-0067 is amended in place and ADR-0069 is left unused** **Amended by §38 ([#114](https://github.com/winniel123/verge-asm/issues/114)) — ADR-0067 is **applied** rather than extended, over a retrieval **scoped to the pair** across all four of Elastic's corpora, and it removes **two rows**. **[measured]** the corpus that decides `9200/tcp` is **self-managed** and no prior section had opened it: *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"* is an **affirmation**, not a default, so §10.4's one-way rule is never reached for that pair — and the **very next bullet** draws the opposite boundary for the transport layer, which is why the two pairs are decided separately and `9300/tcp` falls on **ECE alone** through ADR-0050 limb 2. **Claim 1 and Claim 2 were measured off the shipped bytes at `v9.5.1` rather than assumed**: `xpack.security.enabled` defaults to `true`, anonymous access requires an operator act, `TransportTLSBootstrapCheck` makes a node **refuse to start** without transport TLS, and both encrypted successors are settings on the **same** ports — `9243`/`9343` being **ECE's proxy convention**, not standardised successors. **§37.3's rider taxonomy holds against a fourth candidate and is not extended**: a **disclaimer of the component that supplies the reach** — *"you must provision and configure [a load balancer]"*, *"outside the scope of this documentation"* — bounds nothing and does not travel, and the reading that would let it is **falsified by §17.4**, RabbitMQ having named public networks *"behind a load balancer"* it does not ship. **§10.3 is amended at its clause: the element is *naming*, not *supplying*.** **Two corrections to §37 are recorded**: its ECE quotation is the legacy *[3.8]* wording and occurs **zero** times in the current issued corpus, and its held footing cells leave the graded table with their rows. **The list is 38 pairs, `12 / 7 / 19`, tiers 13 / 11 / 3, coverage 27 of 38, ~~§4.6 23~~ §4.6 **24 since §39**; `verge-core` unchanged at 136; ADR-0008 TRIGGERED**; **no ADR is minted and ADR-0070 is left unused** **Amended by §39 ([#125](https://github.com/winniel123/verge-asm/issues/125)) — the *governance* half, and it moves no evidence.** **Who revises a curated table: the release** — an act, not a person, the party being the project and never the operator, with a **gate on the edit** rather than a standing duty on somebody. **The watch is two instruments**: a **gate** of **eleven closed checks** — six from the detectable-defect list, five from the trigger list — run to completion over the table **as edited**, and a **queue** over what is **open**, which cannot terminate and is therefore sampled. **[measured]** of the eight triggers a release can check **four completely**, **two in half** and **two not at all**. **The queue keys on the *revision act*** — the smallest act by the owner that would falsify the cell, and whether that act publishes a notice we read — on **five rungs read off the artefact**, and **never on the footing tier**, which grades evidential distance and **[measured]** disagrees with volatility on at least four pairs, the *top* tier holding the more volatile artefacts. Of the five candidate axes exactly one is the key (**artefact class**, read as the revision act) and the other four get different jobs: tier stays the **disclosure**, evidence age becomes the gate's bound and the queue's tie-break **in the owner's release line**, support count becomes the **filter** (sole-ground only), and contradiction by the owner's own product documentation leaves the queue for the **gate**. **The unit is a `(cell, artefact, revision act)` triple, and the queue's count is barred as an indicator** — which is what retires §8's useless `3 → 2 → 3 → 2 → 3`. **The queue as of evidence already held is ~~eight items over ten pairs~~ nine items over eleven pairs (§41) and two non-port cells, and ~~two~~ three of the pairs it adds are in the *top* footing tier.** **[measured]** the identity *watch list = weak tier*, withdrawn by ADR-0038, stands as a reason or a rule at **15 sites** in this note and one in ADR-0032 §8's own body **below** its withdrawal box — all sixteen marked — because **a withdrawal that supplies no replacement does not hold**. §38.14's three-item backlog is discharged: `9443/tcp` enters §4.6, `2375/tcp`'s corroborator is barred from being a ground in **both** directions, and the docs-source-comment hazard becomes an **ADR-0045 rider** and gate check **G7**. **No row, class, tier or coverage figure moves and ADR-0008 is NOT triggered**; **[ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) is minted** **Amended by §41 ([#135](https://github.com/winniel123/verge-asm/issues/135)) — the queue's **sole-ground filter**, and it moves no evidence either. ***Carries the same cell* means *would have yielded the cell's **proposition** standing alone*** — what the cell asserts about the world, stripped of our grading of it — and **the test is run per CELL, never per row**, ADR-0057's own unit having been the `(cell, artefact, revision act)` triple while §39.4 disposed of two **rows**. Three readings are refused: *a second artefact merely exists*; *it must reach the cell's own **tier*** (the ticket's own candidate, and it loses on the measurement that it empties §39.4's largest *not an item* row — *"most of the list"* — leaving the filter removing nothing, and on ADR-0059's warrant that a tier is **our** disclosure of evidential distance, which an owner's act cannot falsify, over-statement of it being the **gate's** business at G2 and G11); and *it must be at least as **strong***, which re-imports the tier as a key through the filter's back door. An **undetermined** second ground counts as **absent**, so the cell stays **on**. **[measured]** one cell moves: `10250/tcp`'s **claim** cell is sole-ground on `ports-and-protocols.md`'s `Used By: Self, Control plane` — §19.12, *"Claim 3 has **no second support** on this row"* — and becomes **queue item 9** at rung 2, while both kubelet **footing** cells stay off, §18.7 measuring `10250` falling back to the scoping tier and `10255` to the weak tier. **The queue is ~~8 items over 10 pairs~~ 9 items over 11 pairs and 2 non-port cells**, and ~~two~~ **three** of the pairs it adds are top-tier. §39.9's `10250` bullet is **discharged**; a **gate** shortfall is opened rather than closed — G11 is vacuous for an artefact with no retrievable tag. **No row, class, tier or coverage figure moves, `verge-core` is unchanged at 136, and ADR-0008 is NOT triggered**; **[ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md) is minted** **Amended by §40 ([#133](https://github.com/winniel123/verge-asm/issues/133)) — the gate's FIRST FULL RUN, and it moves no evidence.** §39.9 priced the instrument at one pass and recorded that the pass had not been paid; **G1–G11 have now been run to completion over the composed table**. **[measured] eight checks GREEN · two RED · one PARTIAL, with 18 defects on the first run and no row, class, tier or coverage figure moving.** **G4 RED at eleven sites in three shapes**, every one struck at its clause per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): the **v1 rule-set denominator** `sixteen → seventeen` at four sites, where the 2026-08-15 reconciliation had corrected the *restating* site and not the *specifying* one; **removed rows named in the present tense** at three, including `9200/tcp` inside §8's still-**open** question 5; and **`161/udp` cited as a live shipping example** at four, of which ADR-0032's gate-2 row — *"the **38** pairs … attested for **37**; `161/udp` disclosed"* — is right in its headline **by coincidence** and false in every clause after it. **G5 RED at two of §4.6's twenty-four cells**, `9092/tcp` and `5601/tcp`, whose grounds were withdrawn in amendment blocks below the table and never at the cell — the treatment the `5672`/`15672` cell three rows away already demonstrates. **G11 RED and run over all 27 footing cells**: nine stale-against-tag in four groups (Redis `8.0`→`8.10.0`, CouchDB `3.5.0`→`3.5.2`, Kubernetes `v1.34.1`→`v1.36.3` on six cells, Dell's iDRAC pins), plus `2375/tcp` stale against a **horizon** rather than a tag, Docker being past its own stated `v28.0` removal target for a feature the row still rests on. **G8 PARTIAL — its internal half is complete and green and its external half is not completable, because §39.6 calls G8 *closed* on a finite named set that no section has ever named.** **G10 GREEN on a re-fetch**: Kafka's list of one is unmoved, no `4.4.x` tag, still 404 on the published site. **G7 GREEN**, both kubelet raw-source quotations **[measured]** byte-identical to Kubernetes' rendered config-API reference. **The baseline is written down at §40.6** — an edit is complete only when the gate is green over the post-edit state, and that sentence now has a referent. **No row, class, tier or coverage figure moves, `verge-core` is unchanged at 136, and ADR-0008 is NOT triggered**; **no ADR is minted and ~~ADR-0076 is left unused~~ — SUPERSEDED by §43, which mints it** **Amended by §43 ([#134](https://github.com/winniel123/verge-asm/issues/134)) — the queue's sole-ground filter RUN per cell over the whole table, and it moves no evidence.** §39.9 marked the queue **provisional** — the independence test having been run only over cells already measured — and §41 fixed the bar and the unit without running it. **[ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s four-step test has now been run over every claim cell, every footing cell and every *why* cell of all 38 pairs, and over both non-port cells.** **The output is a SET, and its length is barred everywhere** (§39.2, §42.6): the live register is **§43.3**, stated over **members**, and every figure for the queue's size anywhere in this repository is superseded by a **pointer** rather than by a larger number — §39.4, §41.4, ADR-0057's and ADR-0077's Consequences and ADR-0032 §8's `#125` box are all marked at their clauses. **Nothing comes off**, the bar being one-way, and §39.4's and §41.4's items all stand with their grounds and rungs unchanged. **[measured] §41.7's flagged first cell resolves as it predicted**: `10255/tcp`'s **claim** cell is sole-ground on the `readOnlyPort` doc comment and joins the register at **rung 1**, so `10255` returns on a **cell** rather than on a tier and [#88](https://github.com/winniel123/verge-asm/issues/88)'s rider is vindicated on the coordinate #88 could not name — and the cell is an item **twice over**, its §10.1 **Step 1** cell pointing at `10250`'s cell, which §19.5 withdrew, on a port §16.5 verified is absent from `ports-and-protocols.md`. **Three shapes carry the growth and none of them is visible from a row**: rows whose owner sentence **is** their configuration artefact (`9042/tcp`); rows where the note **leans on one artefact twice**, for the claim cell and the footing cell alike (`3306`, `25672`, `2049`, the `445`-group — §41.3's `10250` finding recurring at four further rows); and **redundancy inside one artefact**, which is redundancy against misreading and not a second ground (§32.6's second RabbitMQ sentence is on the **same page**). **[measured] two rung-1 items rest on third-party DATASETS whose descriptions change with no notice we read** — `nmap-services` and **IANA's registry**, the latter carrying `512`/`513`/`514`'s claim cell — which is §2.2's *first* form turning out to contain three artefact classes with three different revision acts. **§41.4's largest *not an item* row is enumerated at §43.4 as it asked**, and **[measured]** it is a statement about **footings**, so §41.5's refusal of the tier-strict reading is **confirmed and re-founded at the cell** rather than disturbed. **One rule the walk forced rather than applied is minted**: where a cell's proposition is carried by a **set** of artefacts no one of which yields it standing alone, the cell is **one** item entered at its **most volatile** carrier's rung, naming every carrier — [ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md). **No row, class, tier or coverage figure moves, NO FOOTING TIER MOVES, `verge-core` is unchanged at 136, §4.6 stays at 24, and ADR-0008 is NOT triggered**; **[ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md) is minted** |
 | Cloud-provider and government port lists | **Corroboration only, never sole grounds.** They are risk lists, not never-lists, and they contradict each other — §2.3 |
 | Management planes inside a VPC | **Not a problem for the list.** `Exposure` is defined from an internet vantage, so the vantage does the relativising and the list can be absolute — §4.1 |
 | Does TLS change a verdict | **No.** TLS bears on one of the three claims and never on the other two — §4.2 |
@@ -19357,6 +19357,16 @@ against a three-row list — and ~~two~~ **three** of the pairs it adds sit in t
 eight items above stand unchanged with their grounds and their rungs; **item 9 is `10250`'s claim cell**
 and is stated at §41.4.
 
+> **SUPERSEDED as a statement of the queue's membership by §43** ([#134](https://github.com/winniel123/verge-asm/issues/134)),
+> marked at this clause per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> **§39.9's provisionality is DISCHARGED**: the per-cell independence test has now been run over every
+> claim cell, every footing cell and every *why* cell of all 38 pairs, and over both non-port cells.
+> **The live register is §43.3 and it is stated over MEMBERS.** The replacement supplied here is a
+> **pointer to a set** and not a larger figure — §39.2 bars the queue's count as an indicator and §42.6
+> bars it from the residue entry, so a number is the one thing this clause may not be replaced with.
+> **Every item in the table above stands with its ground and its rung unchanged**; the register adds
+> cells and removes none.
+
 **Not on the queue, each with its reason:**
 
 | Not an item | Why |
@@ -19575,6 +19585,15 @@ staying causes. ADR-0045 gains the §39.5 rider. ADR-0046, ADR-0059, ADR-0043 an
 **The queue at §39.4 is provisional and its provisionality is the largest weakness here.** The
 independence test — *does a second artefact carry this same cell* — has been run only over the cells
 this note has already measured. Two cases are genuinely undetermined and are named rather than assumed:
+
+> **DISCHARGED by §43** ([#134](https://github.com/winniel123/verge-asm/issues/134)), marked at this
+> clause per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> **The test has now been run over every cell of all 38 pairs and both non-port cells**, and the live
+> register is **§43.3**, stated over members. The paragraph's diagnosis was right about the direction:
+> the walk **added** cells at every rung and removed none. **The two undetermined cases below are
+> unchanged** — `2379`/`2380` stays on for §13.6's reason, and the `10250` bullet stays discharged by
+> §41.3 — and §43.5 names two **further** cells that are items on step 4 with their undetermined step
+> stated.
 
 - **`2379`/`2380`.** §13.6 records `etcd.conf.yml.sample` as *"neither"* operative nor example — *"the
   first that does not declare itself"* — so whether a restricting default is available as a fallback
@@ -19952,7 +19971,16 @@ the note leaning on one **cell** twice; this is the note holding two **artefacts
 | `CONTEXT.md` | — | **not amended.** A gate run is an act at spec time on documents; the product holds nothing about it |
 
 **Outside this note.** **No ADR is minted** — every rule applied was available, and a *run* of an
-instrument is not a decision about it; **ADR-0076 is left unused**. Struck at their clauses:
+instrument is not a decision about it; ~~**ADR-0076 is left unused**~~ — **SUPERSEDED by §43**
+([#134](https://github.com/winniel123/verge-asm/issues/134)), marked at this clause per
+[ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): the number
+was returned to the gap pool and **re-issued**, and §43 mints
+[ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md).
+**This section's own reasoning is untouched and is confirmed**: a run of an instrument is not a decision
+about one, which is exactly why §40 minted nothing. §43 is also a run, and it mints an ADR because the
+run met a cell shape the instrument's stated test does not describe — *a run that mints nothing* and *a
+run that forces a rule* are the two outcomes, and §40 is the first while §43 is the second. Struck at
+their clauses:
 **ADR-0004** (rule denominator), **ADR-0032** (three sites — the gate-2 table row and two `161/udp`
 clauses), **ADR-0035** (one `161/udp` clause), **ADR-0042** (three clauses in its Context),
 **ADR-0044** (two clauses). ADR-0057, ADR-0058 and ADR-0077 are **confirmed by use** and none is
@@ -20093,6 +20121,15 @@ it narrows what counts as a second ground and never widens it. One item is added
 > footing tier, so **three** of the pairs the queue adds beyond the weak tier are top-tier rather than
 > two. **The queue's length is still barred as an indicator** (§39.2); it is written down because the
 > figure appears at four sites and a stale absolute is what ADR-0058 exists to prevent.
+>
+> > **SUPERSEDED as a statement of the queue's membership by §43**
+> > ([#134](https://github.com/winniel123/verge-asm/issues/134)), marked at this clause per
+> > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> > **The live register is §43.3 and it is stated over MEMBERS**; item 9 above stands on it with its
+> > ground and its rung unchanged. **The replacement is a pointer to a set, not a larger number** — and
+> > the paragraph above shows why that matters: writing the figure down *because it appears at four
+> > sites* is how a barred quantity keeps acquiring sites. §43 states its delta as *added / unchanged*
+> > over named cells and quotes no length of the register anywhere.
 
 **Still not on the queue, each with its reason restated at the cell:**
 
@@ -20100,7 +20137,7 @@ it narrows what counts as a second ground and never widens it. One item is added
 | --- | --- |
 | `10250/tcp`'s and `10255/tcp`'s **footing** cells | A second artefact yields the same proposition at a lower tier — §18.7 measures both fallbacks. The act **demotes** |
 | `certificate-weak-key-or-signature`'s whole table | Unchanged — **[measured]** [`weak-key-and-signature.md`](./weak-key-and-signature.md) §9.3, a **scope** weakness that silent de-attestation cannot reach |
-| Every graded row whose owner sentence **and** configuration artefact yield the **same** proposition | Unchanged, and this is the row the tier-strict reading would have emptied — §41.5. Its members are #134's to enumerate |
+| Every graded row whose owner sentence **and** configuration artefact yield the **same** proposition | Unchanged, and this is the row the tier-strict reading would have emptied — §41.5. Its members are #134's to enumerate — **DISCHARGED: they are enumerated at §43.4**, and **[measured]** the row is a statement about **footings**, so it is a minority of the table's cells rather than *"most of the list"* read at the cell. §41.5's refusal of the tier-strict reading is **confirmed and re-founded**, not disturbed |
 | The count of anything | Barred as an indicator — §39.2 |
 
 ### 41.5 The option that lost, stated at length because it is the ticket's own candidate
@@ -20194,6 +20231,24 @@ counted in §41.4's nine. If it turns out sole-ground, the queue is ten items ov
 `10255` returns to the queue on a cell rather than on a tier — which would be #88's rider
 (*"both kubelet cells are now exposed to its mirror"*) vindicated on the coordinate #88 could not name.
 **Flagged so #134 opens it first.**
+
+> **DISCHARGED by §43** ([#134](https://github.com/winniel123/verge-asm/issues/134)), which opened it
+> first as instructed. **The cell is SOLE-GROUND and it is on the register at rung 1** — §43.3. `10255`
+> returns on a **cell** rather than on a tier and **#88's rider is vindicated**, exactly as this
+> paragraph predicted. **No tier moves and no row moves.** The conditional clause above is
+> **superseded as to its figure and confirmed as to its verdict**, per
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): the
+> register's membership is at §43.3 and is stated over members, §39.2 barring the count.
+>
+> **And the cell is an item twice over.** §41.2 step 3 makes it one on sole-ground; **step 4 makes it one
+> again**, because its §10.1 **Step 1** cell — *"No — same scoping"* — points at `10250`'s Step 1 cell,
+> **withdrawn from that walk by §19.5**, and **[measured]** §16.5 verified positively that `10255` *"does
+> not appear in `ports-and-protocols.md` at all"*. The obvious repair, `security-checklist.md`'s
+> sentence, is a **placement** statement, which
+> [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) limb 1 **bars from
+> answering Step 1** (§27.3, in both directions). **The Step 1 defect is by-catch and is ticketed rather
+> than repaired** — it is a row question, priced as a removal, and ADR-0037 limb 2 requires a retrieval
+> scoped to the row. §43.5, §43.6.
 
 **The proposition test is a judgement about sentences wearing the clothes of a measurement, and the
 place it will first fail is `membership` against `position`.** §18.6 separates them cleanly for `10250`
@@ -20548,6 +20603,427 @@ the pressure should be refused at §42.6's row rather than argued afresh.
 - **The one thing this section reserves rather than specifies is the gate's own record.** §3 of the
   watch document holds a place for it and says nothing about its shape, because that is #133's to
   establish on the gate's first whole run.
+
+## 43. The queue's sole-ground filter run per cell over all 38 pairs and the frequency half — the register, stated over members
+
+**Ticket [#134](https://github.com/winniel123/verge-asm/issues/134).** §39.4's queue was marked
+**provisional** at §39.9: the independence test had been run only over the cells this note had already
+measured, and §41 fixed the bar and the unit without running it. This section runs it — every pair's
+**claim** cell, its **footing** cell where it has one, and every *why* cell tested for a proposition of
+its own — applying §41.2's four steps to each. **Nothing in this section is a retrieval.** Every fact it
+uses was measured by a prior pass and is cited to it. **No row, class, tier or coverage figure moves**,
+**no footing tier moves**, and
+[ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered.
+
+**The output is a SET and it is stated over members.** §39.2 bars the queue's count as an indicator and
+§42.6 bars it everywhere in the residue entry; this section quotes **no length** of the register
+anywhere, which is the rule it inherits applied to itself. The reasoning for the one thing this walk had
+to decide rather than apply is
+[ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md).
+
+### 43.1 What was walked, and what the unit came out as
+
+**The population**, enumerated rather than asserted, per ADR-0040's disclosure rule:
+
+| Cell kind | Population | How it was fixed |
+|---|---|---|
+| **Claim cells** | one per listed pair — **38** | §3.1's twelve Class A rows, §3.2's seven Class B rows, §3.3's nineteen Class C rows |
+| **Footing cells** | one per pair §2.2's table places — **27** | §18.6 as composed through §38: prohibition 13 · scoping 11 · weak 3. The eleven pairs the table names as *outside its subject* have **no footing cell**, so there is nothing to test |
+| ***Why* cells** | §3's fourth column, **38** tested | Tested for a proposition the row's claim cell does not already carry. Exactly **one** has one — §43.6 |
+| **Non-port cells** | `verge-core`'s frequency half · `certificate-expiring`'s fraction | §39.4 items 2 and 8, and the ticket's *not to be re-derived* |
+
+> **§4.6's exclusions are outside the population, and the reason is structural rather than a scoping
+> choice.** The register's population is **the composed table's cells**; an exclusion is **not a row and
+> takes no cell**, so there is nothing for §41.2 to strike out. **[measured]** by
+> [#153](https://github.com/winniel123/verge-asm/issues/153), which repaired `22/tcp`'s exclusion cell
+> and reports it **OFF** the queue before the repair and **OFF** after, notwithstanding that the cell is
+> sole-ground on RFC 4251 §1 once repaired. The same disposal reaches `3389/tcp` and `5985`/`5986/tcp`
+> — see §43.5.
+
+**Three dispositions were possible per cell** and all three occur: **item** (§41.2 step 3), **item with
+an undetermined step named** (step 4), and **not an item** (step 2, with the second ground named).
+
+> **The walk forced one decision the filter did not supply, and it is the only one this section makes.**
+> §41.2's test presumes a cell has **a** carrier **A**. **[measured]** the corpus contains cells whose
+> proposition is carried by a **set** of artefacts no one of which yields it standing alone — Claim 1's
+> two steps answered from an owner's prose and the owner's shipped dispatch (§10.1, §25.2); Claim 2's
+> cleartext conjunct and its successor conjunct (§2.1); `10259`/`10257` admitted *"not on the table cell
+> alone"* (§24.6). Step 3 makes each such cell an item, but it does not say **how many** items, or at
+> **which** rung — and the queue is a reading order, so a cell appearing twice in it is not an order.
+> **[ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md):
+> a conjunctively-carried cell is ONE item, entered at the rung of its MOST VOLATILE carrier, and the
+> item names every carrier.** ADR-0057 keys on *the smallest act by the owner that would falsify the
+> cell*; where every carrier is load-bearing, **any** carrier's act falsifies, so the smallest such act
+> is the one that moves the weakest link.
+
+### 43.2 The three shapes the walk found, before the register
+
+**Shape 1 — the row with an owner sentence *and* a configuration artefact.** §39.4's largest *not an
+item* row, whose members §41.4 left to this walk. It is the filter's whole yield and it is enumerated at
+§43.4. **[measured]** it is smaller than *"most of the list"* suggests once the test is run at the
+**cell**: it carries footing cells and it carries almost no claim cells, because a shipped default
+answers *where the port may be reached from* and does not answer *whom the protocol is specified to
+answer*.
+
+**Shape 2 — the note leaning on one artefact twice.** §41.3 found it once, at `10250`. **[measured]** it
+recurs at four further rows — `3306/tcp`, `25672/tcp`, `2049/tcp` and the `445`-group — where **one**
+owner artefact carries both the row's claim cell and its footing cell. Both cells are items and they are
+**two** items, the unit being the cell; what they share is that **one reading discharges both**, which
+is a fact the residue entry's head should record and the register may not fold in.
+
+**Shape 3 — redundancy inside one artefact is not a second ground.** **[measured]** §32.6 retrieved *"a
+second, independent, port-specific instance of all four limbs"* for `25672/tcp` and recorded that
+*"what it adds is **redundancy**, which is the one thing §16.9's volatility flag says the thin cells
+lack."* Both sentences are on **one continuously-published page**. Under §41.2 the unit struck out is
+the **artefact**: striking it strikes both sentences, and the redundancy is against **misreading**, not
+against **revision**. `25672`'s cells are sole-ground.
+
+> **Shape 3 is also the shape in which #151's two readings AGREE, and that is worth stating before
+> §43.5 states where they disagree.** Two sentences in **one** artefact are one artefact under the
+> *adequate artefact* reading and one act under the *falsifying act* reading; the cell is sole-ground
+> either way. **[measured]** [#153](https://github.com/winniel123/verge-asm/issues/153) reports the same
+> structure at §40.7's own shape — RFC 4251 §1 and §4.4 are two sentences of one specification moved by
+> one revision act, so ADR-0077 does not make that cell overdetermined and §40.7's open question is
+> **unmoved rather than answered**. **The cells where the two readings come apart are exactly those
+> where two adequate artefacts fall to one act**, and every one of them is named at §43.5.
+
+### 43.3 The register — every item, by rung, member by member
+
+**Ordered by rung, tie-broken per §39.3 on how far the owner has moved past the tag the cell was read
+at.** Every ground is cited to the section that measured it. Items carried over from §39.4 and §41.4
+are marked **§39.4** / **§41.4** and their grounds are unchanged.
+
+**Rung 1 — one contributor, one commit, nothing rendered changes.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+|---|---|---|
+| **§39.4** `verge-core`'s **frequency half** @ `nmap-services` — a third party publishing replacement frequency data, never announced to us | *not a port cell* | ADR-0038; §39.4 item 2 |
+| **§39.4** `10248/tcp`'s **footing** @ the config-API doc comment `healthzBindAddress: "127.0.0.1"` | `10248/tcp` | §27.5, §27.12; §39.4 item 1 |
+| **NEW** `10248/tcp`'s **claim** cell @ the same doc comment | `10248/tcp` | §27.6 — Claim 3 is carried by the restricting default and nothing else; **[measured]** §31.6 rules *"the port of the **localhost** healthz endpoint"* a **label**, so the comment's prose adds no second ground. Shape 2 |
+| **NEW** `10255/tcp`'s **claim** cell @ `readOnlyPort`'s *"no authentication/authorization"* doc comment, `staging/src/k8s.io/kubelet/config/v1beta1/types.go` | `10255/tcp` | §41.7's flagged first cell. **Sole-ground, and undetermined at Step 1** — §43.5 |
+| **NEW** the **rexec / rlogin / rsh claim cell** @ the IANA Service Name and Transport Protocol Port Number Registry's own service descriptions | `512/tcp`, `513/tcp`, `514/tcp` | §3.2: *"the attestation is IANA's own registry descriptions, which self-document the trust model"*. §43.6 routes the attestation question and does not decide it |
+
+> **§41.7's flag is DISCHARGED and it resolves the way §41.7 expected.** `10255/tcp`'s claim cell is
+> **sole-ground**, and `10255` returns to the register on a **cell** rather than on a tier — which is
+> [#88](https://github.com/winniel123/verge-asm/issues/88)'s rider (*"both kubelet cells are now exposed
+> to its mirror"*) vindicated on the coordinate #88 could not name. **No tier moves and no row moves**: a
+> register item is an observation that a cell is exposed, never a verdict on it.
+
+> **[measured] the two rung-1 dataset items are the same shape, and the second was invisible from a
+> row-shaped reading.** `nmap-services` and IANA's registry are both **third-party datasets whose
+> descriptions are revised without a notice we read**, and both carry cells for pairs whose rows nobody
+> would have thought volatile. That is ADR-0057's rung 1 doing exactly the work it was defined for, in a
+> place §39.4 could not reach because §39.4 was reading rows this note had already re-measured.
+
+**Rung 2 — a continuously-published page with no version pin, or a documentation branch tracking a
+release line.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+|---|---|---|
+| **§39.4** the **SMB footing cell** @ one Microsoft page | `445/tcp`, `139/tcp`, `137/udp`, `138/udp` | §16.7, §13.1 — no configuration artefact behind any of the four; §39.4 item 3 |
+| **NEW** the **SMB claim cell** @ the same page's perimeter directive, which numbers all four pairs | `445/tcp`, `139/tcp`, `137/udp`, `138/udp` | §33.3's re-founding — *"they are carried by the same document's perimeter directive, which **numbers all four pairs**"*. Shape 2, and the largest concentration in the table is now measured at **two** cells rather than one |
+| **§39.4** `623/udp`'s **footing** @ Dell's and HPE's default-value documentation | `623/udp` | §13.1 as qualified by §28; **§36.7 — already de-attested once**; §39.4 item 4. See §43.5, the one cell where the tightened bar points the disarming way |
+| **NEW** `623/udp`'s **claim** cell @ the same convergent owner corpus | `623/udp` | §28.6's Class C ruling rests on the same three owner prohibitions; Shape 2 |
+| **§39.4** etcd's **prohibition (footing) cell** @ `THREAT_MODEL.md` | `2379/tcp`, `2380/tcp` | §16.3, §15.9; §39.4 item 5. §13.6 leaves `etcd.conf.yml.sample`'s status **undetermined**, so it is not a ground — §41.6 |
+| **§41.4** `10250/tcp`'s **claim** cell @ `ports-and-protocols.md`'s `Used By: Self, Control plane` | `10250/tcp` | **[measured]** §19.12, *"Claim 3 has no second support on this row"*; §41.4 item 9 |
+| **NEW** the **memcached footing cell** @ the project wiki's `ConfiguringServer` | `11211/tcp`, `11211/udp` | **[measured]** §13.2 — upstream ships **no** `memcached.conf`; `memcached.sysconfig` carries `OPTIONS=""` and no `-l`, so it is permissive and **silent** under §10.4. Strike the wiki and nothing remains |
+| **NEW** the **memcached claim cell** @ the wiki sentence + `memcached/memcached` `1.6.45` dispatch | `11211/tcp`, `11211/udp` | Conjunctive: §10.1 Step 1 is the wiki's *"you must not expose memcached … to any untrusted users"*, §25.2 Step 2 is `settings_init()` and `try_read_udp()`. ADR-0076 — enters at the wiki's rung |
+| **NEW** `25672/tcp`'s **footing** @ `rabbitmq.com/docs/networking` | `25672/tcp` | §32.6 — **[measured]** the second owner sentence is on the **same page**; Shape 3. `rabbitmq.conf.example` self-declares as an example and attests nothing (§13.2) |
+| **NEW** `25672/tcp`'s **claim** cell @ the same page's *Port Access* bullet | `25672/tcp` | §18.5 lists `25672` under *"numbered by the owner"* on the bullet that carries the sentence; Shape 2 |
+| **NEW** `2375/tcp`'s **claim** cell @ Docker Engine security + `moby/moby` `docker-v29.7.2` dispatch | `2375/tcp` | Conjunctive: §10.1 Step 1, §25.2 Step 2 (`initMiddlewares`, no authentication middleware in the tree). ADR-0076 |
+| **NEW** `2375/tcp`'s ***why*** cell @ docs.docker.com's *deprecated features* page | `2375/tcp` | The **only** *why* cell in §3 carrying a proposition its claim cell does not — §43.6 |
+| **NEW** `6379/tcp`'s **claim** cell @ redis.io *Security* + `redis` `8.10.0` shipped bytes | `6379/tcp` | Conjunctive: §10.1 Step 1, and §25.4's corrected Step 2, which the row survives on §25.5's second limb. ADR-0076 |
+| **NEW** `9042/tcp`'s **claim** cell @ cassandra.apache.org *security* + `apache/cassandra` `cassandra-5.0.9` dispatch | `9042/tcp` | Conjunctive: §10.1 Step 1, §25.2 Step 2 (`AllowAllAuthenticator`, `AllowAllAuthorizer`). ADR-0076 |
+| **NEW** `10249/tcp`'s **claim** cell @ Kubernetes' metrics documentation + `serveMetrics` at `v1.34.0` | `10249/tcp` | Conjunctive: §27.3 Step 1 (ADR-0054 limb 1's first deciding use), §27.2/§27.4 Step 2. ADR-0076 |
+| **NEW** the **etcd claim cell** @ `THREAT_MODEL.md` + `etcd-io/etcd` `v3.7.1` dispatch | `2379/tcp`, `2380/tcp` | Conjunctive: §25.1's re-founded Step 1 cells, §25.2/§25.3's Step 2. ADR-0076 |
+| **NEW** the **kube-scheduler / kube-controller-manager claim cell** @ `ports-and-protocols.md`'s `Used By: **Self**` + kubeadm's `--bind-address=127.0.0.1` | `10259/tcp`, `10257/tcp` | §24.6, whose own title is *"admitted on Claim 3, and **not on the table cell alone**"* — the clearest statement of conjunctive carriage in the corpus, made a ticket before the rule existed. ADR-0076 |
+| **NEW** `6000/tcp`'s **claim** cell @ `Xsecurity(7)` + `xhost(1)` | `6000/tcp` | §3.4's two X11 artefacts. Neither yields Claim 2 alone — the cookie sentence carries the cleartext conjunct and `xhost(1)` carries a **different** proposition about host-based access control. Both are man pages served at **moving** locations (`man.openbsd.org`, `x.org/releases/current`), which is rung 2 and not rung 5 — **the one Class B row whose attestation is not a specification** |
+
+**Rung 3 — a shipped configuration default, announced by a version we can pin and diff.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+|---|---|---|
+| **§39.4** `5432/tcp`'s **footing** @ `postgresql.conf.sample` | `5432/tcp` | §4.5 — *"the one service surveyed whose upstream documentation states no position at all"*; §39.4 item 6. See §43.5 |
+| **§39.4** `5984/tcp`'s **footing** @ CouchDB's `default.ini` | `5984/tcp` | §13.2 — `bind_address = 127.0.0.1` **active**, and no prose position anywhere in the file; §39.4 item 7. The three occurrences under `[chttpd]`, `[httpd]` and `[prometheus]` are one artefact — Shape 3 |
+| **NEW** `9042/tcp`'s **footing** @ shipped `conf/cassandra.yaml` | `9042/tcp` | **[measured]** §12.7, §13.2 — the owner sentence **is** the configuration artefact, both in the same file. §39.4's *"an owner sentence **and** a configuration artefact"* row does not reach it, and cassandra.apache.org's *security* page yields Claim 1's ground rather than a **boundary** (§2.2's original *"an attack-surface observation rather than a prohibition"*, withdrawn as a tier claim by §12 and still true of the sentence's **content**) |
+| **NEW** `2181/tcp`'s **claim** cell @ the Administrator's Guide + `apache/zookeeper` `release-3.9.5` dispatch | `2181/tcp` | Conjunctive: §10.1 Step 1, §25.2 Step 2 (`OPEN_ACL_UNSAFE` on the root znode). ADR-0076 — the shipped bytes are the weakest link |
+| **NEW** `4369/tcp`'s **claim** cell @ Erlang/OTP's epmd documentation + shipped `epmd_srv.c` | `4369/tcp` | Conjunctive, and both cells were **corrected** at §20.6: Claim 1 survives on the **read** limb, `EPMD_ALIVE2_REQ` being gated on `s->local_peer`. ADR-0076 |
+
+**Rung 4 — issued prose in a versioned documentation set.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+|---|---|---|
+| **NEW** `3306/tcp`'s **footing** @ Oracle's *Security Guidelines*, MySQL Reference Manual §8.1.1 | `3306/tcp` | **[measured]** §13.2 — four Oracle-authored packaging files, *"none carrying a `bind-address` and none carrying a sentence about networks"*, therefore permissive and **silent** under §10.4. Strike the Guidelines and nothing remains |
+| **NEW** `3306/tcp`'s **claim** cell @ the same page | `3306/tcp` | §30.3's currency check reads the same sentence for the pair; Shape 2. §37's *bounded affirmation* finding bears on whether the **row** holds and not on whether the cell is sole-ground |
+| **NEW** `2049/tcp`'s **footing** @ `nfs(5)` (`utils/mount/nfs.man`, `nfs-utils-2.9.2`) | `2049/tcp` | **[measured]** §13.2 — `nfs.conf` ships every setting commented, `# host=` included, therefore permissive and silent. The DESCRIPTION sentence §13.2 added (*"a local area network"*) is in the **same** man page — Shape 3 |
+| **NEW** `2049/tcp`'s **claim** cell @ the same man page's SECURITY CONSIDERATIONS | `2049/tcp` | §3.3, §26.2 row 19; Shape 2 |
+| **NEW** `4369/tcp`'s **footing** @ Erlang/OTP `secure_coding.md` rule `DEP-001` | `4369/tcp` | **[measured]** §20.7 — RabbitMQ's and CouchDB's sentences are a **non-owner's** for this port and corroborate only; §16.6 and §18.5 measure Erlang/OTP's `distributed.md` sentence as **not reaching** epmd (*"limb 2 fails"*). Sole-ground on `DEP-001` |
+
+**Rung 5 — a specification: a new document with a new number, announced and never silently.**
+
+| Item — `(cell, artefact, revision act)` | Pairs | Ground |
+|---|---|---|
+| **§39.4** `certificate-expiring`'s **fraction** @ RFC 9773 §1 on form and the issuer's published lifetime schedule on value | *not a port cell* | ADR-0038; §39.4 item 8 |
+| **NEW** `23/tcp`'s **claim** cell @ RFC 4248 §3 | `23/tcp` | Sole-ground on the cleartext conjunct, and **undetermined on Claim 2's successor conjunct** — §43.5 |
+| **NEW** `21/tcp`'s **claim** cell @ RFC 2577 §§5–6 | `21/tcp` | Same shape; §§5 and 6 are one artefact — Shape 3 |
+| **NEW** `5900/tcp`'s **claim** cell @ RFC 6143 §9 (with §7.2.1 and §7.2.2) | `5900/tcp` | Same shape, and §3.4 records that the vendor position points the other way — *"RealVNC scopes the DES/8-character weakness to a non-default 'Legacy' mode"* — so no vendor artefact is available as a fallback |
+
+### 43.4 Not an item — §41.4's largest row, enumerated as it asked
+
+**Every cell below survives §41.2 step 2 with a second artefact that would have yielded its proposition
+standing alone.** This is the filter's entire yield, and stating it by member is what makes the filter
+falsifiable: **naming one cell here whose second ground does not carry the proposition alone puts the
+cell on the register.**
+
+| Cell | The first artefact | The second ground, which yields the proposition standing alone |
+|---|---|---|
+| `6379/tcp` **footing** | redis.io *Security* | **[measured]** §13.2 — shipped `redis.conf` at `redis/redis` `8.0` carries *"binding to all the interfaces is dangerous and will expose the instance to everybody on the internet"* with `bind 127.0.0.1 -::1` and `protected-mode yes` **active**: *"a §12(b) position, in the bytes as well as on the web page"* |
+| `27017`/`27018`/`27019` **footing** | mongodb.com *Security hardening* | **[measured]** §13.2 — `bindIp: 127.0.0.1` **active** in both `rpm/mongod.conf` and `debian/mongod.conf`, **MongoDB Inc's own** packaging. Two corpora, two owners' acts |
+| `27017`/`27018`/`27019` **claim** | mongodb.com *Security hardening* | The same shipped `mongod.conf` pair, plus the *configuration options* page that assigns the three numbers (§3.4) |
+| `2375`/`2376` **footing** | docs.docker.com *Docker Engine security* | *Protect the Docker daemon socket* and the `dockerd` reference each carry the scoping (§3.4), and §13.2 measures the operative default with **no TCP listener at all** |
+| `2376/tcp` **claim** | docs.docker.com *Docker Engine security* | The same two further Docker pages |
+| `2181/tcp` **footing** | the Administrator's Guide | **[measured]** §30.2 row 5 — `zookeeper.apache.org/security.html` carries *"intended for use inside a trusted network, not exposed directly to the Internet"* independently |
+| `10250/tcp` **footing** | `security-checklist.md` | **[measured]** §18.7 — *"`10250` falls back to the **scoping tier** on the ports table"*. The proposition survives; the tier does not, and a tier is our disclosure (ADR-0059) |
+| `10255/tcp` **footing** | `security-checklist.md` | **[measured]** §18.7 — *"`10255` falls back to the **weak tier** on `readOnlyPort` alone"*. §39.3's disposal confirmed and re-sited at the cell by §41.3 |
+| `10249/tcp` **footing** | `metricsBindAddress: 127.0.0.1:10249` | §27 — `source-ip.md` places the caller at `localhost` on the node, in a different repository from the default |
+| `10259`/`10257` **footing** | `ports-and-protocols.md`'s `Used By: **Self**` | kubeadm's `--bind-address=127.0.0.1` in the owner's own installer (§24.6), a different repository. **Their footing cells are two-ground and their claim cell is not** — the sharpest instance of §41's *a row with two cells is tested twice* |
+| `5432/tcp` **claim** | `postgresql.conf.sample` | The manual's `runtime-config-connection` — *"which allows only local TCP/IP 'loopback' connections"* (§2.2). See §43.5 |
+| `5984/tcp` **claim** | `default.ini` | docs.couchdb.org's `config/http` documents the same default independently (§3.4). See §43.5 |
+| `873/tcp` **footing** | `rsyncd.conf.5.md` | **[measured]** §26.3 — `rsync.1.md`'s own `## SECURITY` section carries a second owner imperative, *"the §20 shape — warrant strengthened inside a tier"*. See §43.5 |
+| `873/tcp` **claim** | `rsyncd.conf.5.md` | The same second man page |
+| `69/udp` **claim** | RFC 1350 §1 and Security Considerations | **RFC 3617 §5** — *"TFTP has no mechanism for access control within the protocol"* — a second specification, cited at §3.4, which yields Claim 1's proposition standing alone. **`69/udp` contributes no item at all**, which is the filter removing a pair outright |
+| `512`/`513`/`514` **footing** | — | **No footing cell exists.** §16.7 names all eleven out-of-subject pairs as resting on §2.2's **first** form; a pair with no cell has nothing to test |
+| `10248/tcp` **footing tier claim** | — | **not re-tested.** §39.4 item 1 stands unchanged |
+
+> **The row is real and it is smaller than *"most of the list"* reads.** §39.4 wrote *"every graded row
+> with an owner sentence **and** a configuration artefact — two independent acts are needed. **This is
+> most of the list**"*, and §41.5 relied on that sentence to refuse the tier-strict reading. **[measured]
+> the sentence is true of the rows it describes and the population it describes is a minority of the
+> table's cells**, because it is a statement about **footings** and the walk's unit is the cell. §41.5's
+> refusal is **not disturbed**: the tier-strict reading would still have emptied this row, and the row is
+> still what the filter removes. What moves is only the impression that the queue is short.
+
+### 43.5 Cells whose disposition turns on [#151](https://github.com/winniel123/verge-asm/issues/151), named per cell
+
+**[#151](https://github.com/winniel123/verge-asm/issues/151) asks whether the filter's step 2 counts
+*adequate artefacts* or *falsifying acts*.** §41.2 is written on the **artefact** — *"if some remaining
+artefact **B**, alone, still yields C's proposition"* — and glosses the result as *"two acts are needed
+to falsify C"*. **The two readings come apart exactly where two adequate artefacts fall to ONE act**:
+two files in one repository moved by one release, or two pages in one documentation set moved by one
+commit. This walk runs #151's ADR-0077 **exactly as written**, on artefacts, and names every cell whose
+disposition the other reading would move. **Nothing below is pre-empted or decided.**
+
+| Cell | Disposition under **artefacts**, as walked | Under **acts** | The measurement |
+|---|---|---|---|
+| `873/tcp` **footing** and **claim** | **not items** — two owner imperatives | **items** | **[measured]** §26.3 — both sentences are in **shipped man pages of `RsyncProject/rsync` at `v3.5.0`**. One rsync release moves both |
+| `10250/tcp` **footing** | **not an item** — §18.7's fallback | **an item** | `security-checklist.md` and `ports-and-protocols.md` are both `kubernetes/website` at `release-1.34`. One documentation-branch act reaches both |
+| `2375`/`2376` **footing**, `2376/tcp` **claim** | **not items** | **items** | *Docker Engine security*, *Protect the Docker daemon socket* and the `dockerd` reference are three pages of **one** continuously-published documentation set |
+| `5984/tcp` **claim** | **not an item** | **an item** | CouchDB's documentation ships **in the project's own tree**; one release moves `default.ini` and `config/http` together |
+| `5432/tcp` **claim** | **not an item** | **an item** | PostgreSQL's manual is built from `doc/src/sgml` **in the same tree** as `postgresql.conf.sample`, at the same release |
+| `2181/tcp` **footing** | **not an item** | **candidate** | The Administrator's Guide is version-pinned at `/doc/r3.9.3/` and `security.html` is an unpinned site page. Whether one act reaches both is the question, not the answer |
+| **`5432/tcp` footing — the flip in the DISARMING direction** | **an item** (§39.4 item 6) | **an item** | **[measured]** §13.2 records `pg_hba.conf.sample` as *"a **second, independent** restricting default"* while §30.2 records the row as resting on *"a restricting default with no owner sentence at all — it is the statement that they are **sole-ground**"*. **Read strictly on artefacts, step 2 would take this cell OFF the register.** It stays on, because ADR-0077's Decision row bars removal outright and because both files move in **one** PostgreSQL release. **This is the note disagreeing with itself, it is #151's question in its sharpest form, and it is the only cell where the artefact reading would REMOVE rather than add** |
+
+> **The direction matters and it is not symmetric.** Every #151-sensitive cell but one moves **onto** the
+> register under the act reading, which is the safe direction ADR-0077 chose for undetermined cases. The
+> one that moves **off** under the artefact reading is `5432/tcp`'s footing — *the list's weakest row*
+> (§4.5) — which is the strongest possible argument that the question is worth a ticket and the weakest
+> possible argument for deciding it inside a walk.
+
+**One live dependency reaches this walk and does not touch a cell of it.**
+[#153](https://github.com/winniel123/verge-asm/issues/153) reports that §17.2's arithmetic — *14
+negatives · 8 un-exposed · 5 searched · 1 exhausted · 0 residue* — **may no longer hold**, ADR-0089
+having put in question the premise of §10.2's closed-claim-set gate on which §17.1 rows **9**
+(`5985`/`5986/tcp` WinRM) and **10** (`3389/tcp` RDP) are scored *un-exposed*. **Neither row is in this
+walk's population**: both are §4.6 **exclusions**, an exclusion takes no cell, and §41.2 has nothing to
+strike out. **The register is therefore unaffected in either direction**, and the §17.2 figure question
+travels with #153's successor rather than with this section. Recorded so the independence is on the
+record rather than assumed.
+
+**Two cells are items on step 4 — the undetermined step, named.**
+
+- **`10255/tcp`'s claim cell.** Its §10.1 **Step 1** cell reads *"No — same scoping"*, whose antecedent
+  is `10250/tcp`'s Step 1 cell — **withdrawn from that walk by §19.5**. Two things follow and neither is
+  repaired here. **[measured]** §16.5 verified positively that `10255` *"does not appear in
+  `ports-and-protocols.md` at all"*, so the scoping the cell points at never named the port. And
+  `security-checklist.md`'s sentence, which §17.6 and §18.6 use for the **footing**, is a **placement**
+  statement, which [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)
+  limb 1 **bars from answering Step 1** — the ruling §27.3 made in both directions. So Step 1 has no
+  admissible carrier the project holds, the cell is an item under step 3 **and** step 4, and **the Step 1
+  defect is by-catch routed at §43.6 rather than fixed**: it is a row question, priced as a removal.
+- **The three specification-carried Class B claim cells** — `23/tcp`, `21/tcp`, `5900/tcp`. Each rests on
+  one specification for Claim 2's **cleartext** conjunct. **Claim 2's *standardised encrypted successor
+  on another port* conjunct is carried by no artefact this note cites** — §3.2 asserts the successor in
+  the *why* column and §3.4 quotes nothing for it. Under step 4 the cells are items and the undetermined
+  conjunct is named. **`5900/tcp` is the sharp one**: §3.2 names **no successor at all** for VNC, which
+  is a question about the **row** and is routed rather than answered.
+
+### 43.6 By-catch, routed rather than acted on
+
+1. **`2375/tcp`'s *why* cell is the only one in §3 carrying a proposition its claim cell does not, and
+   the shipped bytes contradict it.** The cell reads *"Docker deprecated unauthenticated TCP in v26.0
+   and the daemon now refuses to start with TLS disabled on a TCP address"*. **[measured]** §25's
+   annotation to §3.4: at `moby/moby` `docker-v29.7.2` `loadListeners()` *"logs … sleeps, and starts the
+   daemon; there is no such error path in the tree"*. It is on the register at rung 2. **It is also
+   **G3**'s shape** — *no row rests on an owner's documented hard failure its shipped bytes do not
+   enforce* — reaching a **cell** the row does not rest on, which is a gate question and is reported
+   under §43.7 rather than repaired.
+2. **Every other *why* cell is exhausted by its row's claim cell or is colour, and both were already
+   ruled.** §10.7 corrected `11211/udp`'s amplification lead (*"a **magnitude**, and the exact source
+   class §2.7 refuses"*) and §20.5 corrected `4369`'s cookie sentence. `10255`'s *"deprecated and slated
+   for removal"* is the same shape — a lifecycle statement, not the row's ground. **[measured]** no other
+   *why* cell asserts anything the claim cell does not, so §3's fourth column contributes **one** cell to
+   the register and no more.
+3. **§2.2's *first* form silently contains three artefact classes with three different revision acts.**
+   §16.7 names the eleven out-of-subject pairs as resting on *"a specification, IANA's registry, or
+   OpenBSD's deletions"*. A specification is rung 5; **IANA's registry is a continuously-updated dataset
+   whose service descriptions change with no notice we read**, which is rung 1; a vendor's deletion is a
+   dated release act. **Three pairs' claim cells rest on the registry alone**, and they sort at the head
+   of the register beside `10248` and the frequency half. **Whether a registry *description* can carry a
+   claim at all is a §2.2 attestation question this section may not decide** — ADR-0048's *a convention
+   is evidenced by placement, never by catalogue* is about **determinacy** and does not reach the
+   attestation gate. Ticketed.
+4. **`10255/tcp`'s Step 1 cell has no admissible carrier** — §43.5. A row question, priced as a removal,
+   and ADR-0037 limb 2 requires a retrieval **scoped to the row**. Ticketed, and it is the second time
+   this note has found a §10.1 cell resting on something that cannot answer its step, after §20.6.
+5. **A gate shortfall is confirmed rather than repaired**, and it is §41.7's. **[measured]** every rung-1
+   item on the register has a carrier with **no retrievable tag** — `nmap-services`, IANA's registry, and
+   the two kubelet config-API doc comments — and so does every rung-2 item carried by a continuously
+   published page, which is that rung's definition. **G11** — which compares the owner's current release
+   tag against the tag the cell was read at — is **vacuous** for every one of them. §41.7 opened this on
+   one cell; the walk finds it reaches the register's whole head. **Stated over members rather than
+   counted**, per §39.2 as ADR-0076 reads it: a count of the register's **parts** is the register's count
+   arriving in instalments. It belongs to
+   [#149](https://github.com/winniel123/verge-asm/issues/149) / [#152](https://github.com/winniel123/verge-asm/issues/152)'s
+   subject — the gate's reach — and **this section does not repair it**, because repairing a gate
+   shortfall inside the queue is the option §41.5 refuses.
+
+### 43.7 Every dependent figure, walked rather than asserted
+
+| Where | Was | Is |
+|---|---|---|
+| §1 pair count | 38 | **38, unchanged.** No row is added or removed |
+| §3 class totals | `12 / 7 / 19` | **unchanged.** No row changes class |
+| §2.2 footing tiers | 13 / 11 / 3 | **unchanged. No footing tier moves** — the ticket's binding constraint, and a register item is an observation about a cell's exposure, never a verdict on it |
+| §2.2 footing coverage | 27 of 38 | **unchanged** |
+| §4.6 exclusions | 24 | **unchanged.** Nothing is excluded or admitted here |
+| §6.1 containment arithmetic | `25 + 8 + 5 = 38` | **unchanged** |
+| §17.1's population of negatives | fifteen | **unchanged.** This section creates no negative and re-scores none |
+| `verge-core` | 136 pairs, 131 TCP, 5 UDP | **unchanged** |
+| **The queue / register** | §39.4 and §41.4's membership, marked **provisional** at §39.9 | **§43.3's register, and it is stated over MEMBERS.** §39.4's and §41.4's items all stand with their grounds and rungs unchanged; the register adds cells and removes none. **No length of it is quoted here or anywhere** (§39.2, §42.6) |
+| §39.9's *"the queue at §39.4 is provisional"* | open, the instrument's largest weakness | **DISCHARGED.** The independence test has now been run over every cell of all 38 pairs and both non-port cells |
+| §41.4's *"Every graded row whose owner sentence **and** configuration artefact yield the **same** proposition … Its members are #134's to enumerate"* | routed | **DISCHARGED** — §43.4 |
+| §41.7's `10255/tcp` claim-cell flag | asserted rather than measured, and not counted | **DISCHARGED.** Sole-ground, and an item at rung 1 — §43.3 |
+| §41.5's refusal of the tier-strict reading | on the measurement that it empties §39.4's largest *not an item* row | **CONFIRMED and re-founded at the cell** — §43.4's closing box. The row is real; it is a statement about footings |
+| §39.4's and §41.4's stated figures | *nine items over eleven pairs and two non-port cells* | **superseded as a statement of the register's membership**, marked at their clauses. **Replaced by a set, not by a number** — ADR-0057's own rationale 5 requires a replacement and §42.6 bars the replacement being a count |
+| ADR-0032 §7 — the weak tier reaches no screen | — | **unchanged and unreopened** |
+| [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) rule version, and the `Break` | — | **not triggered.** `sensitive-port-reached-from-internet` is byte-identical and a governance instrument is not reference data |
+| [`CONTEXT.md`](../../CONTEXT.md) | — | **not amended, as a ruling** — ADR-0057's last Decision row, unchanged: the curator is not a subject in the model |
+| The gate — eleven checks G1–G11 | eleven | **unchanged in membership.** One shortfall is **confirmed and re-sized** rather than repaired (§43.6 item 5) and one **G3**-shaped cell is reported (§43.6 item 1) |
+| §40.6's baseline | the post-#133 gate state, as moved by [#153](https://github.com/winniel123/verge-asm/issues/153) — **G5 RED → GREEN**, G11 still RED, G8's external half still UNRUN | **unchanged by this section.** It edits no row, no cell's content and no table figure, so the gate's verdict over the composed table is undisturbed. **A gate score is not a table figure**, which is why G5's move belongs in this row and in none of the rows above it |
+
+**Outside this note.**
+[ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md)
+is added. **ADR-0057's and ADR-0077's Consequences, ADR-0032 §8's `#125` box and §1's *Evidence
+standard* row are marked at their own clauses** per
+[ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), each with
+a **replacement** — a pointer to the register as members — rather than a strike-through.
+[`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) §1's *"§39.4 is the register until
+then"* is marked at its clause: **the live register is now §43.3**, which is what that box reserved a
+place for. **Its ledger at §2.4 is NOT written**: a residue entry is signed by a **release**, no release
+has occurred, and a walk is not a release (ADR-0078 §42.6). ADR-0046, ADR-0054, ADR-0057, ADR-0059 and
+ADR-0077 are **confirmed by use** and none is amended. **One further site restates the figure and this
+session may not edit it**: the map's *CURRENT COMPOSED STATE* bullet
+([#1](https://github.com/winniel123/verge-asm/issues/1)) reads *"a queue of 9 items over 11 pairs and 2
+non-port cells"*. It is recorded here so the site is not lost; the correction is the map author's, and
+the correct replacement is a **pointer to §43.3**, never a new number.
+
+### 43.8 Thin ground, flagged per the standing rule
+
+**ADR-0076 is a rule minted from a walk, and that is the thinnest thing about it.** Its warrant is
+ADR-0057's own key — *the smallest act that would falsify the cell* — and its measurement is that the
+corpus contains conjunctively-carried cells at four independent sites (§10.1's two steps, §24.6's
+*"not on the table cell alone"*, Claim 2's successor conjunct, §25.2's dispatch readings). It is not
+measured against a case where the weakest-link rule gives a **worse** reading order than listing the
+cell at every carrier's rung, because no such case was found — and *not found* is not *does not exist*.
+**The criterion that would reopen it:** a cell whose most volatile carrier is a **corroborating** limb
+of the conjunction while the load-bearing limb is stable, which would put the cell at the head of the
+order for a reason nobody would act on.
+
+**The `623/udp` footing cell is the one place this walk's answer disagrees with its own test, and it is
+stated rather than smoothed.** **[measured]** §28.8 records **three** co-owners stating the prohibition
+independently — HPE's *iLO 7 Security Technology Brief* (July 2026), Dell's *iDRAC10 Security
+Configuration Guide* (December 2024) and NEC's advisory NV21-002 — and §28.10 records a **restricting**
+shipped default from two of them. Read as three independent artefacts, §41.2 step 2 would take the cell
+**off** the register. It stays on, for three reasons stated in descending order of strength. **[measured]
+§36.7 has already watched this exact cell fall once** — the direction disposal had to be re-founded,
+*"HPE having retired *Insight Online direct connect*"* — so removal would be refuted by the corpus's own
+measurement. Each co-owner's statement is scoped to **its own implementation** and the row is the
+**protocol**, which §28.10 keeps deliberately (*"collapsing it would let any BMC vendor's firmware answer
+for the protocol, which is §10.5's distributor fence"*), so each is **part** of the pair's proposition —
+which §41.2's own table makes not a ground. And ADR-0077's Decision row bars removal outright. **The
+first two are reasons; the third is only an authority, and it is listed last for that reason.**
+
+**The rung-1/rung-2 boundary was crossed twice by judgement.** memcached's project wiki and IANA's
+registry are both *"continuously published with no version pin"* in one sense and *"a dataset with no
+successor … nothing rendered changes"* in another. The wiki is placed at **rung 2** because its rendered
+page does change; the registry at **rung 1** because a description edit inside a 14,531-row CSV changes
+nothing a reader of the registry would meet. **That is a judgement about artefacts wearing the clothes of
+a measurement**, and it is §39.9's flag arriving one rung lower than §39.9 predicted — §39.9 named
+rungs 2 and 4 as the boundary that would fail first. **The first ambiguous case should be ticketed rather
+than decided by whoever meets it**, which is ADR-0061's precedent and §39.9's own instruction.
+
+**This walk read cells and not artefacts, by design, and that bounds what it establishes.** Every ground
+above is cited to the section that measured it, and where two sections disagree about a cell the
+disagreement is **named** (§43.5's `5432` row) rather than resolved. A reader who takes §43 as *every
+cell has now been re-measured against the owner's current bytes* has over-read it by the whole corpus:
+that is **G11**'s job, it is red (§40), and §43.6 item 5 records that G11 is vacuous for the register's
+largest class.
+
+**The register has never been read.** No release has spent a reading budget against it, so
+[`curated-table-watch.md`](../spec/curated-table-watch.md) §2.4's ledger is still empty and the entry
+form at its §2.1 has never been executed against a real register. §42.9 priced the entry form at one
+release and recorded that it had not been paid; **that is still true, and the register is now large
+enough that §42.9's predicted defect — the intensive bound being expensive enough per item to depress
+the head — is the one to watch for.**
+
+### 43.9 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10, §41.8 and §42.10
+
+- **This section performed no retrieval, by design.** #134 is a walk of a filter over evidence this note
+  already holds, and a section that retrieved would be re-deciding the evidence half, which #21 closed.
+  **G7 is vacuous here and G8 reduces to an internal cross-reference check**, both run by hand over this
+  section's citations.
+- **The population was fixed before the walk, from §3's three tables and §18.6's composed footing table,
+  and it is enumerated at §43.1 rather than counted at the end.** §13.10 recorded a hand count as *"the
+  kind of thing that goes wrong"*; the defence here is that the walk's output is a **set** and its
+  membership is checkable cell by cell without any total being trusted.
+- **The hazard this section was most exposed to is the one §41.7 named** — collapsing §18.6's *which
+  artefact carries the cell today* into §18.7's *what the cell would say without the carrier*. Step 1 of
+  §41.2 asks the **second** question, and a session that collapses them errs in the **disarming**
+  direction. It was run explicitly for every cell in §43.4, and the two cells where the distinction
+  decides the answer are `10250`'s and `10255`'s footings, both of which stay off for §18.7's measured
+  fallbacks and neither of which moves a tier.
+- **The second hazard is re-tiering by accident, and it did not happen.** **No footing tier moves**,
+  ADR-0008 is not triggered, and §16.9's *"considered and lost only narrowly"* argument was not put a
+  fourth time.
+- **The third hazard is re-introducing a count**, and §42.9 predicted exactly where the pressure would
+  come from: an extensive residue named member by member grows with the register. **This section quotes
+  no length of the register anywhere**, including in its own summary rows, and states its deltas as
+  *added* / *unchanged* over named cells.
+- **Three sibling passes are appending to this note concurrently** —
+  [#150](https://github.com/winniel123/verge-asm/issues/150),
+  [#153](https://github.com/winniel123/verge-asm/issues/153) and
+  [#154](https://github.com/winniel123/verge-asm/issues/154), at §44, §45 and §46 — and the only overlap
+  is the append anchor, which is textual adjacency rather than disagreement. **All four sections append
+  ABOVE the `---` separator preceding `## Sources`, leaving both the separator and the heading
+  untouched**, so the anchor composes by construction rather than by a merge decision. **#153 ruled
+  mid-flight and three of its findings are folded in above rather than discovered later** — the
+  exclusion disposal (§43.1), §40.7's one-artefact shape (§43.2), and G5's move (§43.7).
+  **[#151](https://github.com/winniel123/verge-asm/issues/151) can move what step 2 counts**, and every
+  cell it would move is named at §43.5 rather than pre-empted. **[#149](https://github.com/winniel123/verge-asm/issues/149)
+  and [#152](https://github.com/winniel123/verge-asm/issues/152) own the gate's reach**, and §43.6 item 5
+  reports a gate shortfall to them rather than repairing it. This section's delta is stated as a delta —
+  **the register gains the cells named at §43.3 and loses none** — and **where §43 and §1 disagree, §1
+  governs.**
 
 ---
 
