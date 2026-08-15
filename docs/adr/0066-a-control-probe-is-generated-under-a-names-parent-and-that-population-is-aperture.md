@@ -164,12 +164,17 @@ with §3.2's 3–5 labels and the seven-qtype offer: 21–35 queries per site.
 | Parent set | 6 | 126–210 | ~1 s |
 | Every `Name` | 25 | 525–875 | ~4 s |
 
-> **The per-site figure is now fixed at 42, not 21–35**
+> ~~**The per-site figure is now fixed at 42, not 21–35**
 > ([ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)):
 > **6** control labels — five random and one structured — over the seven qtypes. The three rows
-> read **42**, **252** and **1,050** queries, and none of them changes this section's conclusion —
+> read **42**, **252** and **1,050** queries~~ **The per-site figure is now fixed at 70, not 21–35
+> and no longer 42** ([#115](https://github.com/winniel123/verge-asm/issues/115), raising
+> [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)'s
+> count): **10** control labels — **nine** random and one structured — over the seven qtypes. The
+> three rows read **70**, **420** and **1,750** queries, and none of them changes this section's conclusion —
 > the closed direction still loses on buying nothing rather than on cost, and every figure is still
-> orders below the ceiling. Restated here because the arithmetic above reads as current.
+> orders below the ceiling: 420 queries is ~2 s of wall clock at the 200 pkt/s global ceiling.
+> Restated here because the arithmetic above reads as current.
 
 None of that threatens the ceiling, and pretending otherwise would be the kind of safety argument
 [#21](https://github.com/winniel123/verge-asm/issues/21) refuses. These are queries to the
@@ -183,7 +188,8 @@ a discovery pipeline produces. On IANA's estate, 19 of the 25 sites option C pay
 and the probe under each one answers a question about a sub-tree the estate does not hold.
 
 There is a residual cost worth stating rather than leaning on. Control labels generate NXDOMAIN
-traffic at the operator's own authority — 210 a night on IANA's estate, against §3.5's *"a million
+traffic at the operator's own authority — ~~210~~ **420** a night on IANA's estate
+([#115](https://github.com/winniel123/verge-asm/issues/115)), against §3.5's *"a million
 queries"* objection to brute-forcing, so the shape is right and the magnitude is nowhere near it.
 And they pollute the recursive resolver's negative cache with junk names, which is a real if minor
 cost that scales with the site count and is another reason not to pay for leaves.
