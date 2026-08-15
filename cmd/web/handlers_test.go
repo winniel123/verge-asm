@@ -33,12 +33,16 @@ type fakeStore struct {
 	exclNextID int64
 
 	sourceStates map[string]db.SourceState
+
+	vantages      []db.Vantage
+	vantageNextID int64
 }
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
 		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
-		seedNextID: 1, exclNextID: 1, sourceStates: map[string]db.SourceState{},
+		seedNextID: 1, exclNextID: 1, vantageNextID: 1,
+		sourceStates: map[string]db.SourceState{},
 	}
 }
 
@@ -195,6 +199,37 @@ func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, err
 			ID: e.ID, Kind: e.Kind, Name: e.Name, AddressCidr: e.AddressCidr,
 			CreatedBy: e.CreatedBy, CreatedAt: e.CreatedAt,
 			CreatedByUsername: f.accounts[e.CreatedBy].Username,
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams) (db.Vantage, error) {
+	for _, v := range f.vantages {
+		if v.Host == arg.Host && v.Port == arg.Port && v.Username == arg.Username {
+			return db.Vantage{}, &pgconn.PgError{Code: "23505", Message: "duplicate vantage"}
+		}
+	}
+	v := db.Vantage{
+		ID: f.vantageNextID, Host: arg.Host, Port: arg.Port, Username: arg.Username,
+		Availability: "pending", CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.vantages = append(f.vantages, v)
+	f.vantageNextID++
+	return v, nil
+}
+
+func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) {
+	rows := make([]db.ListVantagesRow, 0, len(f.vantages))
+	// Newest first, mirroring the SQL ORDER BY created_at DESC, id DESC.
+	for i := len(f.vantages) - 1; i >= 0; i-- {
+		v := f.vantages[i]
+		rows = append(rows, db.ListVantagesRow{
+			ID: v.ID, Host: v.Host, Port: v.Port, Username: v.Username,
+			Availability: v.Availability, PublicKey: v.PublicKey, HostKey: v.HostKey,
+			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt,
+			CreatedByUsername: f.accounts[v.CreatedBy].Username,
 		})
 	}
 	return rows, nil

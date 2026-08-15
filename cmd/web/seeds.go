@@ -30,9 +30,10 @@ type seedView struct {
 // the scope declaration and the exclusion — so a rejected submission on one
 // leaves its own error and typed value in place without disturbing the other.
 type seedsForms struct {
-	seedError, seedKind, seedScope string
-	exclError, exclKind, exclValue string
-	custodyError                   string
+	seedError, seedKind, seedScope                  string
+	exclError, exclKind, exclValue                  string
+	custodyError                                    string
+	proberError, proberHost, proberPort, proberUser string
 }
 
 // nameScopes returns the name-scope subset of a seed listing, in the same order.
@@ -110,8 +111,13 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list exclusions", err)
 		return
 	}
+	probers, err := s.store.ListVantages(r.Context())
+	if err != nil {
+		s.serverError(w, "list vantages", err)
+		return
+	}
 	status := http.StatusOK
-	if f.seedError != "" || f.exclError != "" || f.custodyError != "" {
+	if f.seedError != "" || f.exclError != "" || f.custodyError != "" || f.proberError != "" {
 		status = http.StatusBadRequest
 	}
 	seeds := toSeedViews(rows)
@@ -124,6 +130,9 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// The custody-extension section reads name scopes alone — an address
 		// scope can never carry one.
 		"CustodyScopes": nameScopes(seeds), "CustodyError": f.custodyError,
+		"Probers":     toProberViews(probers),
+		"ProberError": f.proberError, "ProberHost": f.proberHost,
+		"ProberPort": f.proberPort, "ProberUser": f.proberUser,
 	})
 }
 

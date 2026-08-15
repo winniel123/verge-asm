@@ -17,29 +17,31 @@ type Querier interface {
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
+	CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error)
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
+	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
-	// The operator's overrides of the authored ship defaults. The handler merges
-	// these onto the in-binary catalogue: a source's effective state is its override
-	// where one exists and its shipped default otherwise.
-	ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error)
+	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
+	// Rows the worker still has to generate a keypair for: the public half has not
+	// been published, so no key material has ever left the worker volume for them.
+	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
+	// A pinned host key later mismatched, or the position went unreachable: the
+	// vantage is marked unavailable rather than silently re-trusting a new key.
+	MarkVantageUnavailable(ctx context.Context, id int64) error
+	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
+	// the vantage available. The host_key IS NULL guard makes this a no-op once a
+	// key is pinned, so a first-connect race can never overwrite an existing pin.
+	PinVantageHostKey(ctx context.Context, arg PinVantageHostKeyParams) error
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
-	// Declare (true) or withdraw (false) the custody extension on a name-scope Seed.
-	// The kind guard makes the act a no-op on an address scope rather than an error,
-	// matching the CHECK the migration installs — an address scope can never carry a
-	// custody extension. The flag has no timeline, so a withdrawal is the same UPDATE
-	// with false rather than a dated state change.
-	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
-	// Record the operator's on/off choice for one source. A toggle is a Declared act
-	// with no timeline, so re-toggling overwrites the single current value rather
-	// than appending, and toggled_at re-stamps to when the current state was set.
-	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
+	// The worker publishes only the public half of the pair it generated on its own
+	// volume; the private half never reaches Postgres.
+	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
 }
 
 var _ Querier = (*Queries)(nil)

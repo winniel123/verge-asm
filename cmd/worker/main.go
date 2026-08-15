@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
 	"github.com/winniel123/verge-asm/internal/queue"
@@ -65,6 +66,11 @@ func main() {
 		log.Print("worker: trigger drained")
 		return
 	}
+
+	// Generate SSH keypairs for any newly provisioned vantages, keeping the
+	// private half on this worker-only volume and publishing only the public
+	// half. No measurement is dispatched over the connection yet (#8, #14).
+	provisionVantageKeys(ctx, db.New(pool), env.OrDefault("VERGE_STATE_DIR", "/app/state"))
 
 	runSelfTest(ctx, proberPath)
 

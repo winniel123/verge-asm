@@ -50,3 +50,15 @@ type SourceState struct {
 	ToggledBy int64              `json:"toggled_by"`
 	ToggledAt pgtype.Timestamptz `json:"toggled_at"`
 }
+
+type Vantage struct {
+	ID           int64              `json:"id"`
+	Host         string             `json:"host"`
+	Port         int32              `json:"port"`
+	Username     string             `json:"username"`
+	Availability string             `json:"availability"`
+	PublicKey    pgtype.Text        `json:"public_key"`
+	HostKey      pgtype.Text        `json:"host_key"`
+	CreatedBy    int64              `json:"created_by"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
