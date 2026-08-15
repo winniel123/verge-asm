@@ -11,6 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteExpiredDispatches = `-- name: DeleteExpiredDispatches :execrows
+DELETE FROM dispatch
+WHERE scheduled_time < $1
+`
+
+// The one and only path that deletes Dispatch rows (v1 spec §4.6, ADR-0041). It
+// touches the dispatch table and nothing else: no Observation, Span, Batch or
+// queue_job row is read or written here, so retiring Dispatch can move no value
+// on any timeline. The FK change in migration 20900 lets the delete null the
+// operational back-references rather than cascade into measured data.
+func (q *Queries) DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredDispatches, scheduledTime)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getRetentionSettings = `-- name: GetRetentionSettings :one
 SELECT observation_currency_days, dispatch_cadence_multiple, updated_by, updated_at
 FROM retention_settings
@@ -35,6 +53,25 @@ func (q *Queries) GetRetentionSettings(ctx context.Context) (GetRetentionSetting
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const slowestEnabledScanCadenceSeconds = `-- name: SlowestEnabledScanCadenceSeconds :one
+SELECT COALESCE(MAX(cadence_seconds), 0)::bigint AS cadence_seconds
+FROM scan
+WHERE enabled = TRUE
+`
+
+// The slowest enabled Scan's cadence — the largest cadence_seconds among enabled
+// Scans — which the Dispatch dial is a multiple of and the floor k multiples of
+// (v1 spec §4.6). COALESCE to 0 when no Scan is enabled: with no cadence the
+// multiple has no meaning, so the sweep treats it as unbounded and retires
+// nothing. It reads only the scan table and never the operational or measured
+// corpora.
+func (q *Queries) SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, slowestEnabledScanCadenceSeconds)
+	var cadence_seconds int64
+	err := row.Scan(&cadence_seconds)
+	return cadence_seconds, err
 }
 
 const updateRetentionSettings = `-- name: UpdateRetentionSettings :exec

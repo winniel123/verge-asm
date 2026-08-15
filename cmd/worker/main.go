@@ -18,6 +18,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -77,6 +78,18 @@ func main() {
 	go func() {
 		if err := dispatcher.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Printf("worker: dispatcher stopped: %v", err)
+		}
+	}()
+
+	// Dispatch retention runs beside the dispatcher: expired Dispatch rows are
+	// the one corpus a wall clock may retire (v1 spec §4.6). It is a structurally
+	// separate path that never touches Observation or Span data, and a no-op
+	// until the operator sets the dial — v1 ships Dispatch unbounded. A daily
+	// sweep is ample for a corpus of one row per firing.
+	retirer := retention.NewRetirer(db.New(pool), time.Now, logger)
+	go func() {
+		if err := retirer.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: retention stopped: %v", err)
 		}
 	}()
 
