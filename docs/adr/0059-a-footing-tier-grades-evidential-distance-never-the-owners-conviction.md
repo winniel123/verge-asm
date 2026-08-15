@@ -199,6 +199,17 @@ disclosed rather than smoothed.
 > aspiration (§26.4) or a label (§27.6). **Such a statement leaves the reader nothing to supply, and
 > zero supplied premises is the top tier by limb 1.**
 >
+> > **Condition (2) is RESTATED by the [#110](https://github.com/winniel123/verge-asm/issues/110)
+> > amendment below, and it is marked here as well as there** because
+> > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s unit is
+> > the **sentence** per [#106](https://github.com/winniel123/verge-asm/issues/106), so an appended
+> > block does not discharge this clause. **(2) about this `(port, transport)` pair *as the endpoint
+> > being reached, on the estate the statement addresses*** — a **listener**, reached from outside that
+> > estate. A statement about traffic **leaving** that estate on the same number, or about a listener
+> > the **owner itself** runs and the addressed party does not, is about a different endpoint and does
+> > not satisfy this condition. **The conjunction stays at four**; this states what *"this pair"* has
+> > always denoted. `sensitive-ports.md` §36.8.
+>
 > **Limb 1's unit is *the owner's statement of the port's permitted network*, not a *sentence*.** The
 > narrower word was written because every footing this ADR walked was prose. Prose is one form of the
 > statement; a boundary the owner names in a ports-table cell or an issued document is another; a
@@ -246,7 +257,18 @@ coverage 30 of 41~~ — two cells, no rows, and ADR-0008 is not triggered.**
 only be needed for a term. It is modelled on `sensitive-ports.md` §10.2's closure of the claim set by
 construction, and it is falsified by exhibiting a **fifth kind** of gap rather than a new instance of
 one of the four. §32.12 names the standing candidate — **direction**, inbound versus outbound — and
-records that no member of either tier turns on it today.
+~~records that no member of either tier turns on it today~~.
+
+> **The struck clause is WITHDRAWN — twice over — and the extent statement is DISCHARGED by the
+> [#110](https://github.com/winniel123/verge-asm/issues/110) amendment below.** §33
+> ([#107](https://github.com/winniel123/verge-asm/issues/107)) withdrew the clause in the note on
+> `445/tcp` and **left this recital of it standing here**, which is the ADR-0058 defect #106 widened
+> the rule to catch; it is struck at its own clause now. **[measured]** the clause was in any case
+> **false when written**: §28.9 had spared `623/udp` from a candidate defeater — HPE's *iLO Direct
+> Connect*, which is outbound — four sections earlier. **And the closure survives the candidate.**
+> Direction introduces no term the proposition lacks; it fixes which of conditions (2) and (3)'s named
+> objects fills which place of the directed relation *reachable from*, so it is repaired **inside
+> condition (2)** and the conjunction stays at **four**. `sensitive-ports.md` §36.4, §36.7.
 
 ## Confirmed by use — [#100](https://github.com/winniel123/verge-asm/issues/100), 2026-08-14
 
@@ -313,6 +335,73 @@ instance of the class the owner's own statement forbids**, and it is `sensitive-
 rather than this ADR's.
 
 **One cell moves. The rule is unchanged in every limb.**
+
+## Amendment — [#110](https://github.com/winniel123/verge-asm/issues/110), 2026-08-14: condition (2) names the endpoint being reached, and the conjunction stays at four
+
+> **Direction is not a fifth limb. It is what condition (2)'s *"this `(port, transport)` pair"*
+> denotes, and condition (2) is restated — at its own clause above as well as here, per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
+> by [#106](https://github.com/winniel123/verge-asm/issues/106).**
+>
+> **(2) Reach, restated.** The statement is about **this `(port, transport)` pair as the endpoint being
+> reached, on the estate the statement addresses** — a **listener**, reached from outside that estate.
+> Reach is established exactly as before: either the owner numbers the pair, or
+> [ADR-0050](./0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)'s
+> three limbs carry it there on the owner's own artefacts. Two consequences, both of which the note has
+> been applying unstated since §3.4: a statement about traffic **leaving** that estate on the same
+> number is about the other end of the connection and satisfies this condition no more than a statement
+> about a different port would; and a listener the **owner itself** runs, which the addressed party
+> does not, is a different endpoint from the row's subject, so a statement about it neither carries
+> this condition nor defeats it.
+>
+> **Addressee is not a sixth condition.** It is condition (2)'s second coordinate — *whose* endpoint,
+> beside *which end* of the relation — and at the one member where it is load-bearing it is the same
+> disposal as direction read from the other end of one TCP connection.
+>
+> **The four-limb closure is unchanged and is confirmed rather than weakened.** A reader-supplied
+> premise can only be needed for a **term**, and direction introduces no term: *reachable from* is a
+> directed relation with two argument places, condition (2) names the endpoint reached and condition
+> (3) the vantage reached from, and direction is the **assignment** of those two named objects to those
+> two places. A candidate introducing an object no condition reaches would still falsify the closure.
+>
+> **Limb 1's premise-count mechanism and limb 2 are untouched**, as #101 left them. Mood, force,
+> hedging and priority label remain inadmissible in both directions.
+
+**What forced it, and it is a retrieval rather than a tidying.** **[measured]** `sensitive-ports.md`
+§32.12 wrote, as a hypothetical, that *"an owner sentence forbidding **outbound** traffic to the
+internet would satisfy all four limbs as written while entailing nothing about the row"*. It is not
+hypothetical. The document carrying `445/tcp`'s footing — *Secure SMB Traffic in Windows Server*,
+`ms.date` **2024-10-25**, commit `00769866`, `word_count` 1602, retrieved 2026-08-14 — has a section
+headed **`## Block outbound SMB access`**: *"Block TCP port 445 outbound to the internet at your
+corporate firewall."* Microsoft's, numbering the pair, naming the internet, an unhedged imperative.
+**Four conditions as written, satisfied; nothing entailed about the row.** The conjunction as written
+was defective and the defect is measured rather than argued.
+
+**Why it is repaired here and not only in the note.** ADR-0058's test is whether the superseded
+sentence, *read alone and in the present tense*, would cause a competent session to act on it.
+*"(2) about **this `(port, transport)` pair**"* read alone admits the outbound sentence, which is a
+promotion `sensitive-ports.md` §36 refuses — and the #101 amendment's own extent paragraph was still
+reciting §32.12's *"no member of either tier turns on direction today"* after §33 had withdrawn it in
+the note, which is the intra-document defect #106 widened the rule to catch, on this file, one section
+after it was widened. Both are struck at their own clauses. **This is also why no second ADR was
+minted:** ADR-0068 was reserved and is **left unused**, as `0039`, `0041`, `0052`, `0053`, `0057`,
+`0062`, `0063` and `0064` are.
+
+**[measured] and nothing moves.** Direction and addressee were run as candidate conditions across all
+**26** members of both graded tiers. The owner supplies the direction in **24** of the 26 carrying
+statements — **six in the word**, three in the carrying verb's preposition, fifteen in a verb whose
+object is a listener — and it is absent from the two, `2049/tcp` and `4369/tcp`, that already fail
+condition (3). **Two owners write the direction in a table column literally headed `Direction`**:
+Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** — *"`IPMI/DCMI over LAN port | 623 |
+UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against
+*"`Remote support port | 7906 | TCP | Outbound¹`"*, footnote 1 *"iLO initiates the connection to an
+external server"* (*iLO 6 User Guide*, part number 30-7A345B12-032, **July 2026**). **Two verdicts
+turn on direction** — `445/tcp` (§33.5) and `623/udp` (§28.9, which no prior section counted) — **and
+one on addressee**, `445/tcp`. **[measured]** the one case where addressee comes apart from direction
+cleanly — MongoDB Atlas, an inbound internet-reachable listener on `27017` that MongoDB scopes away
+from its own trusted-networks guidance by page title — is **not** load-bearing, `27017` failing
+condition (3) a limb earlier. **No cell moves, no row moves, and the cost is nothing.**
+`sensitive-ports.md` §36.
 
 ## Alternatives rejected
 
