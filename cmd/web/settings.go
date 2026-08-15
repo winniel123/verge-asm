@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/retention"
 )
 
 // The Settings screen is the operator's dials (v1 spec §6.1): accounts, Channels
@@ -250,10 +252,14 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 
 // --- retention -------------------------------------------------------------
 
-// updateRetention persists the two dial values. Both floor at zero for now
-// (§4.6): the real floors — the tightest observation bound in force, and k
-// cadences of the slowest enabled Scan for Dispatch — are validated once tickets
-// 28/29 define them. Until then zero means no operator floor.
+// updateRetention persists the two dial values. The observation-currency floor
+// stays at zero for now — its real floor (the tightest observation bound in
+// force) is validated once ticket 28 defines it. The Dispatch dial is floored
+// here (#209, §4.6): it is a multiple of the slowest enabled Scan's cadence, and
+// the floor is k of that same cadence, so the floor is unit-free — 0 is the
+// unbounded v1 default and any positive value below k is rejected. Deletion of
+// expired Dispatch rows is a structurally separate path (internal/retention),
+// never reached from here.
 func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	obsRaw := strings.TrimSpace(r.FormValue("observation_currency_days"))
 	dispRaw := strings.TrimSpace(r.FormValue("dispatch_cadence_multiple"))
@@ -271,6 +277,10 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 	disp, err := strconv.ParseInt(dispRaw, 10, 64)
 	if err != nil || disp < 0 {
 		fail("Dispatch floor must be a whole number of cadences, zero or more.")
+		return
+	}
+	if retention.BelowFloor(disp) {
+		fail(fmt.Sprintf("Dispatch retention must be at least %d cadences of the slowest enabled Scan, or 0 to leave it unbounded.", retention.FloorCadences))
 		return
 	}
 	if err := s.store.UpdateRetentionSettings(r.Context(), db.UpdateRetentionSettingsParams{
