@@ -1,0 +1,637 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Issue #160: "Draw the message surface, and one message
+  at magnitude."
+
+  Draws ADR-0039's global message element in context, ADR-0064's four sentence
+  forms as real message text, and one aperture message at seven-figure
+  magnitude down through #74's card shape (no rows, paginated at that size).
+
+  Not to be re-derived here, and not re-derived: ADR-0064's grammar, ADR-0039's
+  surface rules, #74's card. This file draws them; it does not re-argue them.
+
+  ── AXES ───────────────────────────────────────────────────────────────────
+
+  ?screen=signals|coverage    WHICH backdrop screen sits under the element
+    signals    a simplified Signals index                            ← default
+    coverage   Coverage, with its own constant aperture statement drawn
+               alongside the element on purpose — see the "no Coverage
+               framing" verdict below.
+
+  ?panel=open|closed          the global element's own state           ← open
+
+  &msg=<id>                   opens one message's detail in the panel
+    drift-1 | coverage-us | coverage-operator | clock-1 — the four forms.
+    coverage-us is the seven-figure aperture message.
+
+  &view=seed|drilldown        replaces the MAIN viewport (not the panel) —
+    reached only from coverage-us's detail, per #159: an aperture widening
+    links to the Seed whose scope it fired at, never to Coverage. The Seed's
+    own card is where the #74-shaped drill-down is reached from.
+
+  &p=<n>                      drilldown page (seven-figure population,
+                               paginated 100/page — 20,930 pages total)
+
+  &pager=jump|basic           the one thing this ticket found. See the
+                               pagination verdict at the bottom of the
+                               drilldown view.
+
+  ── WHAT IS NOT DRAWN, ON PURPOSE ────────────────────────────────────────
+  No colour, badge or ramp keyed to class (ADR-0064 §3: no valence, no
+  severity). No rounding of the seven-figure count (§4). No banner, bar or
+  second confirmation above a size threshold (§5) — the message's own markup
+  is identical in shape whether its count is 3 or 2,092,928; only the number
+  changes. If you came here looking for that treatment, its absence is the
+  point, not an omission.
+
+  Vocabulary is CONTEXT.md and ADR-0064; visual language is the real design
+  system (../../design-system). Not production code.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verge-asm — message surface prototype</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 108px; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); position: relative; }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .faint { color: var(--text-faint); }
+
+  /* ── NAV, carried over unchanged from every other prototype ─────────── */
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy);
+               position: relative; z-index: 30; }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+  nav.items a:hover { background: var(--surface-sunken); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); position: relative; }
+
+  /* ── THE GLOBAL MESSAGE ELEMENT — ADR-0039 ───────────────────────────
+     A trigger, never a nav link: it is a <button>, it carries no href, and
+     there is no route this element ever resolves to. Present in the SAME
+     markup position regardless of ?screen — that constancy is drawn, not
+     asserted, by the fact that this whole block sits outside the per-screen
+     render function. */
+  .msg-trigger { display: flex; align-items: center; gap: 7px; height: var(--control-h-sm);
+                 padding: 0 var(--space-3); background: transparent; border: var(--rule);
+                 cursor: pointer; font: var(--weight-medium) var(--text-sm)/1 var(--font-sans); color: var(--ink); }
+  .msg-trigger:hover { background: var(--surface-sunken); }
+  .msg-trigger .glyph { font-size: 13px; line-height: 1; }
+  .msg-trigger .count { display: inline-flex; align-items: center; justify-content: center;
+                         min-width: 16px; height: 16px; padding: 0 3px; background: var(--ink);
+                         color: var(--text-on-ink); font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono); }
+  .msg-trigger .count.zero { background: transparent; color: var(--text-faint); border: var(--rule); }
+  .msg-trigger.on { background: var(--surface-sunken); border-color: var(--border-ink); }
+
+  /* the panel: a floating layer, hard-offset shadow + ink border — exactly
+     the design system's elevation rule for menus/popovers, nothing bespoke */
+  .msg-panel { position: absolute; top: calc(100% + var(--space-2)); right: 0; width: 460px;
+               max-width: calc(100vw - var(--space-6)); background: var(--surface);
+               border: var(--rule-ink); box-shadow: var(--shadow-hard); z-index: 40; }
+  .msg-panel-h { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-3) var(--space-4);
+                 border-bottom: var(--rule-ink-heavy); }
+  .msg-panel-h .t { font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .msg-panel-h .n { margin-left: auto; }
+  .msg-panel-h .x { color: var(--text-muted); text-decoration: none; font-size: var(--text-lg); line-height: 1; }
+  .msg-panel-h .x:hover { color: var(--ink); }
+
+  .msg-list { max-height: 420px; overflow-y: auto; }
+  .msg-row { display: block; padding: var(--space-3) var(--space-4); border-bottom: var(--rule-soft);
+             text-decoration: none; color: inherit; position: relative; }
+  .msg-row:last-child { border-bottom: none; }
+  .msg-row:hover { background: var(--surface-sunken); }
+  .msg-row .top { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: 5px; }
+  /* the class tag — one shared style for all three classes, deliberately.
+     No colour keyed to class. If you can tell coverage from clock apart by
+     hue here, that is a bug, not a feature (ADR-0064 §3). */
+  .ctag { display: inline-block; padding: 1px 5px; border: var(--rule);
+          font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono);
+          text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mover { font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); color: var(--text-faint); }
+  .msg-row .when { margin-left: auto; font: var(--weight-medium) var(--text-2xs)/1 var(--font-mono); color: var(--text-faint); white-space: nowrap; }
+  .msg-row .unread-dot { width: 6px; height: 6px; border-radius: var(--radius-dot); background: var(--ink);
+                          display: inline-block; margin-right: 2px; }
+  .msg-row .sentence { font-size: var(--text-base); line-height: var(--leading-snug); color: var(--text); }
+  .msg-row .sentence code { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--surface-sunken); padding: 0 2px; }
+
+  .msg-detail { padding: var(--space-4); }
+  .msg-detail .crumb { font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); color: var(--text-muted); margin-bottom: var(--space-3); }
+  .msg-detail .crumb a { color: var(--accent); }
+  .msg-detail .top { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .msg-detail .sentence { font-size: var(--text-md); line-height: var(--leading-body); color: var(--text); margin-bottom: var(--space-4); }
+  .msg-detail .sentence code { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--surface-sunken); padding: 0 3px; }
+  .msg-detail .factors { border: var(--rule); border-left: 3px solid var(--ink); padding: var(--space-3) var(--space-4);
+                          margin-bottom: var(--space-4); background: var(--surface-sunken); }
+  .msg-detail .factors .ml { display: block; margin-bottom: var(--space-2); }
+  .msg-detail .factors .expr { font: var(--weight-medium) var(--text-sm)/1.6 var(--font-mono); color: var(--text); }
+  .msg-detail .factors .expr b { font-weight: var(--weight-semibold); color: var(--ink); }
+  .msg-detail .factors .product { display: flex; align-items: baseline; gap: var(--space-2); margin-top: var(--space-2);
+                                   padding-top: var(--space-2); border-top: var(--rule-soft); }
+  .msg-detail .factors .product .v { font: var(--weight-semibold) var(--text-xl)/1 var(--font-mono); color: var(--ink); }
+  .msg-detail .factors .product .of { font-size: var(--text-xs); color: var(--text-muted); }
+  .msg-detail .go { display: inline-block; margin-right: var(--space-3); font: var(--weight-semibold) var(--text-sm)/1 var(--font-sans); }
+  .msg-detail .unbuilt { margin-top: var(--space-3); font-size: var(--text-xs); color: var(--text-faint); font-style: italic; }
+
+  /* ── BACKDROP SCREENS (context only — not this ticket's object) ──────── */
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+  .sub { font-size: var(--text-base); color: var(--text-muted); margin-bottom: var(--space-5); max-width: 88ch; line-height: var(--leading-body); }
+
+  .rule-mini { background: var(--surface); border: var(--rule); margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4);
+               display: flex; align-items: baseline; gap: var(--space-4); }
+  .rule-mini .nm { font: var(--weight-semibold) var(--text-base)/1.3 var(--font-mono); color: var(--ink); }
+  .rule-mini .sp { margin-left: auto; }
+  .rule-mini .cens { font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); color: var(--text-muted); }
+  .rule-mini .cens b { color: var(--ink); font-weight: var(--weight-semibold); }
+
+  .aperture-card { background: var(--surface); border: var(--rule); padding: var(--space-4); max-width: 72ch; }
+  .aperture-card .ml { display: block; margin-bottom: var(--space-2); }
+  .aperture-card p { margin: 0; font-size: var(--text-base); line-height: var(--leading-body); }
+  .aperture-card p.note { margin-top: var(--space-3); font-size: var(--text-xs); color: var(--text-muted); }
+
+  /* ── SEED VIEW — the aperture message's own link target (#159) ───────── */
+  .crumb { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-3);
+           font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); color: var(--text-muted); }
+  .crumb a { color: var(--accent); text-decoration: none; }
+  .crumb a:hover { text-decoration: underline; }
+
+  .seed { background: var(--surface); border: var(--rule); }
+  .seed-h { padding: var(--space-4); border-bottom: var(--rule); }
+  .seed-h .ml { display: block; margin-bottom: var(--space-2); }
+  .seed-h .nm { font: var(--weight-semibold) var(--text-lg)/1 var(--font-mono); color: var(--ink); }
+
+  /* the census-style stat, carrying no rows itself — #74's card shape */
+  .stat-row { display: flex; align-items: stretch; border-top: var(--rule-soft); }
+  .stat-row .m { flex: 1; padding: var(--space-4); display: block; text-decoration: none; color: inherit; }
+  .stat-row .m .v { font: var(--weight-semibold) var(--text-2xl)/1 var(--font-mono); color: var(--ink); margin-top: var(--space-2); display: block; }
+  .stat-row .m .d { font: var(--weight-medium) var(--text-xs)/1.4 var(--font-mono); margin-top: var(--space-1); color: var(--text-muted); }
+  a.m { cursor: pointer; }
+  a.m:hover { background: var(--surface-sunken); }
+  a.m:hover .v { color: var(--accent); }
+  .m .open { display: block; margin-top: var(--space-2); font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+             letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--accent); }
+
+  /* ── DRILLDOWN — the seven-figure population, paginated ──────────────── */
+  .dd { background: var(--surface); border: var(--rule); }
+  .dd-h { padding: var(--space-4); border-bottom: var(--rule); }
+  .dd-h .ml { display: block; margin-bottom: var(--space-2); }
+  .dd-h .big { font: var(--weight-semibold) var(--text-2xl)/1 var(--font-mono); color: var(--ink); }
+  .dd-h .of { font-size: var(--text-base); color: var(--text-muted); margin-left: var(--space-2); }
+  .dd-const { padding: var(--space-3) var(--space-4); border-top: var(--rule-soft); border-left: 3px solid var(--ink);
+              background: var(--surface); font-size: var(--text-sm); line-height: var(--leading-body); }
+  .dd-const .ml { display: block; margin-bottom: var(--space-1); }
+  .dd-const code { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--surface-sunken); padding: 0 3px; }
+
+  table.rows { width: 100%; border-collapse: collapse; }
+  table.rows td { padding: var(--table-row-pad-y) var(--table-cell-pad-x); border-bottom: var(--rule-soft); }
+  table.rows tr:last-child td { border-bottom: none; }
+  td.subj { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); width: 45%; }
+  td.leg  { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+
+  .pager { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+           border-top: var(--rule); background: var(--surface-sunken); flex-wrap: wrap; }
+  .pager .pos { font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); color: var(--text-muted); margin-right: auto; }
+  .pbtn { height: var(--control-h-sm); padding: 0 var(--control-pad-x); border: var(--rule); background: var(--surface);
+          font: var(--weight-medium) var(--text-sm)/1 var(--font-sans); cursor: pointer; color: var(--ink); text-decoration: none;
+          display: inline-flex; align-items: center; }
+  .pbtn:hover { background: var(--surface-sunken); text-decoration: none; }
+  .pbtn[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+  .pgo { display: flex; align-items: center; gap: 6px; }
+  .pgo input { width: 84px; height: var(--control-h-sm); border: var(--rule); padding: 0 var(--space-2);
+               font: var(--weight-medium) var(--text-sm)/1 var(--font-mono); }
+  .pgo button { height: var(--control-h-sm); padding: 0 var(--space-3); border: 1px solid var(--border-ink);
+                background: var(--ink); color: var(--text-on-ink); font: var(--weight-medium) var(--text-sm)/1 var(--font-sans); cursor: pointer; }
+
+  /* ── ANNOTATION APPARATUS (prototype chrome, not product) ─────────────── */
+  .verdict { border: var(--rule-ink); background: var(--surface); margin-bottom: var(--space-4); }
+  .verdict .hd { display: flex; gap: var(--space-3); align-items: baseline; padding: var(--space-2) var(--space-4);
+                 border-bottom: var(--rule); background: var(--surface-sunken); }
+  .verdict .hd .tag { font: var(--weight-semibold) var(--text-2xs)/1.4 var(--font-mono); text-transform: uppercase;
+                       letter-spacing: var(--tracking-label); padding: 2px 6px; background: var(--ink); color: var(--text-on-ink); }
+  .verdict .hd .tag.lose { background: var(--surface); color: var(--text-muted); border: var(--rule); }
+  .verdict .bd { padding: var(--space-3) var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); max-width: 100ch; }
+  .verdict .bd b { color: var(--ink); }
+  .verdict .bd code { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--surface-sunken); padding: 0 3px; }
+  .verdict .bd p { margin: 0 0 var(--space-2); }
+  .verdict .bd p:last-child { margin-bottom: 0; }
+  .verdict .bd table { width: 100%; border-collapse: collapse; margin-top: var(--space-2); }
+  .verdict .bd table td, .verdict .bd table th { padding: 4px var(--space-2); border-bottom: var(--rule-soft); font-size: var(--text-sm); text-align: left; }
+
+  .foot { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface-ink); color: var(--text-on-ink);
+          border-top: var(--rule-ink); z-index: 20; }
+  .foot-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-2) var(--page-pad);
+             display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; }
+  .foot .grp { display: flex; align-items: center; gap: var(--space-2); }
+  .foot .grp > .ml { color: var(--text-faint); }
+  .foot a { color: var(--text-on-ink); opacity: .55; text-decoration: none; font: var(--weight-medium) var(--text-xs)/1 var(--font-mono);
+            padding: 5px 8px; border: 1px solid transparent; }
+  .foot a:hover { opacity: 1; }
+  .foot a.on { opacity: 1; border-color: var(--text-on-ink); }
+
+  /* ── THE DATELINE — ADR-0075 ──────────────────────────────────────────── */
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft); padding: var(--space-3) var(--space-4);
+          margin-bottom: var(--space-5); font-size: var(--text-sm); line-height: var(--leading-body); max-width: 92ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="foot"><div class="foot-in" id="foot"></div></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   PARAMS
+   ═══════════════════════════════════════════════════════════════════════ */
+const P      = new URLSearchParams(location.search);
+const SCREEN = P.get("screen") || "signals";
+const PANEL  = P.get("panel")  || "open";
+const MSG    = P.get("msg")    || "";
+const VIEW   = P.get("view")   || "";
+const PAGE   = Math.max(1, parseInt(P.get("p"), 10) || 1);
+const PAGER  = P.get("pager")  || "jump";
+
+const num = (n) => n.toLocaleString("en-GB");
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE FOUR MESSAGES — ADR-0064 §1's own worked forms, unaltered. This
+   prototype tests layout; it does not invent wording.
+   ═══════════════════════════════════════════════════════════════════════ */
+const MESSAGES = [
+  {
+    id: "drift-1", class: "drift", mover: "an object in the estate",
+    subj: "admin.example.com:443/tcp", time: "2026-08-15 09:14 UTC", unread: true,
+    sentence: `<code>admin.example.com:443/tcp</code> is now reached from the internet.`,
+  },
+  {
+    id: "coverage-us", class: "coverage", mover: "us",
+    subj: "10.0.0.0/28 (Seed)", time: "2026-08-15 08:52 UTC", unread: true,
+    sentence: `We widened the port aperture on <code>10.0.0.0/28</code>. The full-range tier is
+      now on: 65,404 more <code>(port, transport)</code> pairs × 16 addresses × 2 <code>Reach</code>
+      legs — <b>2,092,928</b> timelines opened. Nothing is compared.`,
+    seed: true,
+  },
+  {
+    id: "clock-1", class: "clock", mover: "nothing — a threshold was crossed",
+    subj: "admin.example.com:443/tcp", time: "2026-08-15 00:03 UTC", unread: true,
+    sentence: `<code>admin.example.com:443/tcp</code>'s certificate expired on 2026-08-15.
+      No measurement moved.`,
+  },
+  {
+    id: "coverage-operator", class: "coverage", mover: "the operator",
+    subj: "example.com (Name)", time: "2026-08-14 22:03 UTC", unread: false,
+    sentence: `You stopped telling us: the zone for <code>example.com</code> has aged out of its
+      window.`,
+  },
+];
+/* sorted by time alone — ADR-0064's Consequences: "sorts by time alone —
+   there is nothing else to sort by, which is the point." */
+const SORTED = [...MESSAGES].sort((a, b) => b.time.localeCompare(a.time));
+const UNREAD = MESSAGES.filter(m => m.unread).length;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE APERTURE MESSAGE'S DRILL-DOWN POPULATION — 65,404 pairs × 16
+   addresses × 2 Reach legs = 2,092,928. Computed per-page, never
+   materialised, exactly because the population is real and not a fixture
+   sized to fit in a browser tab.
+   ═══════════════════════════════════════════════════════════════════════ */
+const PAIRS = 65404, ADDRS = 16, LEGS = 2;
+const TOTAL = PAIRS * ADDRS * LEGS; // 2,092,928
+const PAGE_SIZE = 100;
+const TOTAL_PAGES = Math.ceil(TOTAL / PAGE_SIZE); // 20,930
+
+function rowAt(i) {
+  const perAddr = PAIRS * LEGS;
+  const addrIdx = Math.floor(i / perAddr);
+  const rem = i % perAddr;
+  const pairIdx = Math.floor(rem / LEGS);
+  const legIdx = rem % LEGS;
+  return {
+    address: `10.0.0.${addrIdx}`,
+    port: pairIdx + 1,
+    leg: legIdx === 0 ? "internet" : "internal",
+  };
+}
+function pageRows(p) {
+  const start = (p - 1) * PAGE_SIZE;
+  const count = Math.max(0, Math.min(PAGE_SIZE, TOTAL - start));
+  const out = [];
+  for (let k = 0; k < count; k++) out.push(rowAt(start + k));
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   URL HELPER — every affordance is a plain link carrying explicit state,
+   the same discipline the other thirteen prototypes use.
+   ═══════════════════════════════════════════════════════════════════════ */
+function url(o) {
+  const base = { screen: SCREEN, panel: PANEL, msg: MSG, view: VIEW, p: PAGE, pager: PAGER };
+  const merged = Object.assign(base, o);
+  const qp = new URLSearchParams();
+  Object.entries(merged).forEach(([k, v]) => { if (v !== "" && v != null) qp.set(k, v); });
+  return "?" + qp.toString();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE GLOBAL MESSAGE ELEMENT — ADR-0039. One block, rendered identically
+   regardless of ?screen. No enable, no settings link, nothing to turn it
+   off — there is no control that reaches it anywhere in this markup.
+   ═══════════════════════════════════════════════════════════════════════ */
+function messageElement() {
+  const trigger = `<button class="msg-trigger ${PANEL === "open" ? "on" : ""}"
+      onclick="location.href='${url({ panel: PANEL === "open" ? "closed" : "open", msg: "" })}'">
+    <span class="glyph">&#9993;</span>
+    <span class="count ${UNREAD === 0 ? "zero" : ""}">${UNREAD}</span>
+  </button>`;
+
+  if (PANEL !== "open") return trigger;
+
+  const body = MSG ? messageDetail(MSG) : messageList();
+  return `${trigger}
+    <div class="msg-panel">
+      <div class="msg-panel-h">
+        <span class="t">${MSG ? "Message" : "Messages"}</span>
+        <span class="n mono muted">${MSG ? "" : num(MESSAGES.length) + " · " + num(UNREAD) + " unread"}</span>
+        <a class="x" href="${url({ panel: "closed", msg: "" })}" aria-label="close">&times;</a>
+      </div>
+      ${body}
+    </div>`;
+}
+
+function messageList() {
+  return `<div class="msg-list">${SORTED.map(m => `
+    <a class="msg-row" href="${url({ msg: m.id })}">
+      <div class="top">
+        <span class="ctag">${m.class}</span>
+        <span class="mover">${m.mover.length > 24 ? m.mover.slice(0, 24) + "…" : m.mover}</span>
+        <span class="when">${m.unread ? `<span class="unread-dot"></span>` : ""}${m.time}</span>
+      </div>
+      <div class="sentence">${m.sentence}</div>
+    </a>`).join("")}
+  </div>`;
+}
+
+function messageDetail(id) {
+  const m = MESSAGES.find(x => x.id === id);
+  return `<div class="msg-detail">
+    <div class="crumb"><a href="${url({ msg: "" })}">&larr; messages</a></div>
+    <div class="top"><span class="ctag">${m.class}</span>
+      <span class="mono faint" style="font-size:var(--text-xs)">${m.time}</span></div>
+    <div class="sentence">${m.sentence}</div>
+    ${m.class === "coverage" && m.seed ? `
+      <div class="factors">
+        <span class="ml">count, stated as its factors — ADR-0064 §4</span>
+        <div class="expr">65,404 more <b>(port, transport)</b> pairs &times; <b>16</b> addresses &times; <b>2</b> <b>Reach</b> legs</div>
+        <div class="product"><span class="v">${num(TOTAL)}</span><span class="of">timelines opened. Exact; never rounded (§4, rider 1).</span></div>
+      </div>
+      <a class="go" href="${url({ panel: "closed", msg: "", view: "seed" })}">&rarr; open ${m.subj}</a>
+      <p class="unbuilt">the other link this message carries — its full delivery/read-state record — is not
+        drawn here; out of scope for this ticket.</p>` : `
+      <a class="go" style="color:var(--text-muted);cursor:default" title="not built for this prototype">&rarr; open ${m.subj}</a>
+      <p class="unbuilt">this message's own object screen is not built in this prototype (out of scope) —
+        only the seven-figure aperture message's target is drawn in full.</p>`}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BACKDROP SCREENS — context only. Neither is this ticket's object; both
+   exist so the element can be shown sitting on top of something real, and
+   so its persistence across screens is drawn rather than asserted.
+   ═══════════════════════════════════════════════════════════════════════ */
+function signalsBackdrop() {
+  const rules = [
+    ["certificate-expiring", "9 fired", "403 did not fire", "0 not-evaluable"],
+    ["plaintext-http-no-https", "2,913 fired", "291 did not fire", "0 not-evaluable"],
+    ["sensitive-port-reached-from-internet", "3 fired", "197 did not fire", "214 not-evaluable"],
+  ];
+  return `<h1 class="page">Signals</h1>
+    <p class="sub">Sixteen rule censuses (abbreviated to three for this backdrop — see
+      <a href="../census-member-drilldown/">#74's own prototype</a> for the full screen). Not this
+      ticket's object; present only so the message element has a real screen under it.</p>
+    ${rules.map(([nm, a, b, c]) => `<div class="rule-mini"><span class="nm">${nm}</span>
+      <span class="sp"></span><span class="cens">${a} · ${b} · <span class="faint">${c}</span></span></div>`).join("")}`;
+}
+
+function coverageBackdrop() {
+  return `<h1 class="page">Coverage</h1>
+    <p class="sub">Answers <i>is what I am looking at complete?</i> — a constant statement,
+      re-derived at every read, never dated and never a class. Drawn here specifically to sit next
+      to the message element, so the contrast ADR-0039 draws in prose is visible on a screen.</p>
+    <div class="aperture-card">
+      <span class="ml">aperture · full-range tier</span>
+      <p>This install probes the full-range tier on <b>1</b> of <b>1</b> declared scope with the
+        tier enabled. No gap.</p>
+      <p class="note">This sentence is not a message: it carries no class, no instant of a cause,
+        and it is never rendered in the panel above. It is re-read, not fired.</p>
+    </div>`;
+}
+
+function seedView() {
+  return `<div class="crumb"><a href="${url({ view: "" })}">&larr; back</a></div>
+    <div class="seed">
+      <div class="seed-h"><span class="ml">seed</span><span class="nm">10.0.0.0/28</span></div>
+      <div class="stat-row">
+        <a class="m" href="${url({ view: "drilldown", p: 1 })}">
+          <span class="ml">timelines opened · full-range tier</span>
+          <span class="v">${num(TOTAL)}</span>
+          <span class="d">65,404 pairs &times; 16 addresses &times; 2 legs — no rows on this card (#74)</span>
+          <span class="open">open ${num(TOTAL)} &rarr;</span>
+        </a>
+      </div>
+    </div>`;
+}
+
+function pagerBar() {
+  const start = (PAGE - 1) * PAGE_SIZE + 1;
+  const end = Math.min(PAGE * PAGE_SIZE, TOTAL);
+  const posEl = `<span class="pos">rows ${num(start)}&ndash;${num(end)} of ${num(TOTAL)} · page ${num(PAGE)} of ${num(TOTAL_PAGES)}</span>`;
+  if (PAGER === "basic") {
+    return `<div class="pager">${posEl}
+      <a class="pbtn" ${PAGE <= 1 ? `aria-disabled="true"` : ""} href="${url({ p: PAGE - 1 })}">&larr; prev</a>
+      <a class="pbtn" ${PAGE >= TOTAL_PAGES ? `aria-disabled="true"` : ""} href="${url({ p: PAGE + 1 })}">next &rarr;</a>
+    </div>`;
+  }
+  return `<div class="pager">${posEl}
+    <a class="pbtn" ${PAGE <= 1 ? `aria-disabled="true"` : ""} href="${url({ p: 1 })}">&laquo; first</a>
+    <a class="pbtn" ${PAGE <= 1 ? `aria-disabled="true"` : ""} href="${url({ p: PAGE - 1 })}">&larr; prev</a>
+    <span class="pgo">
+      <input id="pgoInput" type="number" min="1" max="${TOTAL_PAGES}" value="${PAGE}">
+      <button onclick="var v=parseInt(document.getElementById('pgoInput').value,10)||1;
+        location.href='${url({ p: "__P__" })}'.replace('__P__', Math.min(${TOTAL_PAGES}, Math.max(1, v)));">go</button>
+    </span>
+    <a class="pbtn" ${PAGE >= TOTAL_PAGES ? `aria-disabled="true"` : ""} href="${url({ p: PAGE + 1 })}">next &rarr;</a>
+    <a class="pbtn" ${PAGE >= TOTAL_PAGES ? `aria-disabled="true"` : ""} href="${url({ p: TOTAL_PAGES })}">last &raquo;</a>
+  </div>`;
+}
+
+function drilldownView() {
+  const rows = pageRows(PAGE);
+  return `<div class="crumb"><a href="${url({ view: "seed" })}">&larr; 10.0.0.0/28</a></div>
+    <div class="dd">
+      <div class="dd-h">
+        <span class="ml">10.0.0.0/28 · timelines opened · full-range tier</span>
+        <span class="big">${num(TOTAL)}</span><span class="of">timelines, exact</span>
+      </div>
+      <div class="dd-const">
+        <span class="ml">true of every row below</span>
+        Opened by the full-range tier's own enable on this <code>Seed</code>. Nothing here is a
+        finding: no per-row control, no severity, no comparison — this is a census population,
+        enumerable in full, never sampled, ranked, grouped or truncated (#74). Ordered by subject.
+      </div>
+      <table class="rows">${rows.map(r => `<tr>
+        <td class="subj">${r.address}:${r.port}/tcp</td>
+        <td class="leg">${r.leg}</td>
+      </tr>`).join("")}</table>
+      ${pagerBar()}
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VERDICTS — reviewable devil's-advocate notes, same convention as the
+   other thirteen prototypes.
+   ═══════════════════════════════════════════════════════════════════════ */
+function V(kind, label, html) {
+  return `<div class="verdict"><div class="hd">
+      <span class="tag ${kind === "lose" ? "lose" : ""}">${kind === "lose" ? "considered, rejected" : kind === "win" ? "shipped" : kind}</span>
+      <span class="ml">${label}</span></div><div class="bd">${html}</div></div>`;
+}
+
+function topVerdicts() {
+  return `
+  ${V("win", "the element is a trigger and a panel, never a route", `
+    <p>Drawn as a <code>&lt;button&gt;</code> opening a floating panel — the design system's own
+    elevation rule for menus (<code>--shadow-hard</code> + 1px ink border), not a bespoke widget.
+    <b>Rejected:</b> a seventh nav item, styled like <code>Exposure</code> or <code>Signals</code>.
+    ADR-0039 is explicit — <i>no nav destination</i> — and #10 and #22 both spent real capital
+    keeping the nav at five items; a sixth ("Messages") would be exactly the destination refused.
+    A route also implies a URL a bookmark or a share link could carry the reader to a page that is
+    never the point — the point is always the object the message names, reached through it.</p>`)}
+  ${V("win", "no colour or icon keyed to class", `
+    <p><code>.ctag</code> is one CSS rule applied to all three class values. <b>Rejected:</b> a
+    small coloured dot per class (drift/coverage/clock each their own hue) — the obvious affordance
+    for "scan quickly," and it reintroduces a ranking the vocabulary explicitly refuses (ADR-0064
+    §3: no valence word, no severity, not even "a colour standing for one"). The severity ramp this
+    design system ships (<code>--sev-critical</code>…<code>--sev-info</code>) exists for
+    <code>Signal</code> and is never reached from this file.</p>`)}
+  ${V("lose", "a digest / grouped-by-class panel, considered and rejected", `
+    <p>Grouping the panel by class (drift together, coverage together) reads naturally and was
+    drawn first, then rejected: ADR-0064's Consequences are explicit that the store <i>"sorts by
+    time alone — there is nothing else to sort by, which is the point."</i> Grouping is sorting by
+    class first and time second, and it is also one step from a digest window, which ADR-0039 §6
+    refuses for v1 on grounds unrelated to layout. The panel here is flat and chronological; open it
+    and the four classes interleave rather than cluster.</p>`)}`;
+}
+
+function magnitudeVerdict() {
+  return V("win", "the seven-figure aperture message — no treatment above what a four-figure one gets", `
+    <p>Same markup, same font sizes, same card shape as the other three messages in the list. The
+    only place the count grows past the sentence is the factors block on its detail — a fixed-size
+    structural summary (three factors, one product), not a row per timeline. <b>Rejected, on
+    ADR-0064 §5's own words:</b> a distinct card treatment above a size threshold (a bigger number,
+    a warning tone, a "this is a lot" interstitial) — any of it makes the message's shape a function
+    of magnitude, which is the rule §5 states and the reason the panel does not know the count is
+    large until you read it.</p>`);
+}
+
+function pagerVerdict() {
+  const naive = `20,929 clicks of "next" to reach the last page`;
+  return `
+  ${V("win", "the finding — plain pagination needs a jump control, and it is not magnitude-conditional", `
+    <p><b>[measured on this file]</b> Switch <code>?pager=basic</code>. Prev/next-only pagination is
+    honest and it is also useless at ${num(TOTAL_PAGES)} pages: reaching page 10,000 is
+    ${naive.replace("20,929", "9,999")}, and reaching the true end is <b>${naive}</b>. That is not a
+    rendering bug — every row shown is real, ordered by subject, nothing sampled or capped — it is a
+    control missing an affordance it needed the moment the population crossed a few dozen pages.</p>
+    <p><b>This is not the magnitude-conditional treatment ADR-0064 §5 rules out.</b> The jump-to-page
+    input, first/last buttons and the "rows N&ndash;M of TOTAL" position readout are not switched on
+    by a size check — they are the same three controls a 3-page list would carry, sitting idle at
+    that size. What changes at seven figures is not the control, only whether its absence would have
+    been noticed. <code>?pager=jump</code> is what ships; <code>?pager=basic</code> is drawn to show
+    why.</p>`)}
+  ${V("lose", "a bare row count with no pager at all, considered and rejected", `
+    <p>The cheapest option — render the header stat and stop, since the count is already exact and
+    stated. Rejected because #74's own obligation survives at this magnitude unchanged: the list
+    behind a census member is <i>reached</i>, not merely stated, and a count with no way to walk its
+    basis is #28's two-numbers hazard from the inside — a number with nothing behind it a reader can
+    actually open.</p>`)}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE DATELINE — ADR-0075
+   ═══════════════════════════════════════════════════════════════════════ */
+function dateline() {
+  return `<div class="anno">
+    <span class="ml">prototype · not part of the design</span>
+    <p><b>Issue #160 — "Draw the message surface, and one message at magnitude." Drawn
+      2026-08-15.</b> Throwaway: something to react to, not production UI and not a component
+      library.</p>
+    <p><b>Every quantity on these screens is a dated reading, not a current value.</b> The only live
+      absolutes are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1, <i>Notes</i>):
+      read a figure there before believing one here.</p>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════════════════════════════ */
+function render() {
+  const navOn = (s) => VIEW === "" && SCREEN === s;
+
+  let main;
+  if (VIEW === "drilldown") main = drilldownView();
+  else if (VIEW === "seed") main = seedView();
+  else main = SCREEN === "coverage" ? coverageBackdrop() : signalsBackdrop();
+
+  document.getElementById("app").innerHTML = `
+    <header class="nav">
+      <div class="nav-in">
+        <span class="wordmark"><b>Verge</b><span class="chip">ASM</span></span>
+        <nav class="items">
+          <a href="#" class="${navOn("exposure") ? "on" : ""}">Exposure</a>
+          <a href="#" class="${navOn("subjects") ? "on" : ""}">Subjects</a>
+          <a href="${url({ screen: "signals", view: "" })}" class="${navOn("signals") ? "on" : ""}">Signals</a>
+          <a href="#" class="${VIEW === "seed" || VIEW === "drilldown" ? "on" : ""}">Seeds</a>
+          <a href="${url({ screen: "coverage", view: "" })}" class="${navOn("coverage") ? "on" : ""}">Coverage</a>
+          <a href="#">Settings</a>
+        </nav>
+        <div class="nav-right">
+          <span class="mono faint" style="font-size:var(--text-xs)">example.com</span>
+          ${messageElement()}
+        </div>
+      </div>
+    </header>
+    <div class="shell">
+      ${dateline()}
+      ${VIEW === "" ? topVerdicts() : ""}
+      ${VIEW === "seed" ? magnitudeVerdict() : ""}
+      ${VIEW === "drilldown" ? pagerVerdict() : ""}
+      ${main}
+    </div>`;
+
+  const link = (k, v, label) => `<a href="${url({ [k]: v })}"
+    class="${(k === "screen" ? SCREEN : k === "panel" ? PANEL : PAGER) === v ? "on" : ""}">${label || v}</a>`;
+  document.getElementById("foot").innerHTML = `
+    <span class="grp"><span class="ml">screen</span>${["signals", "coverage"].map(v => link("screen", v)).join("")}</span>
+    <span class="grp"><span class="ml">panel</span>${["open", "closed"].map(v => link("panel", v)).join("")}</span>
+    ${VIEW === "drilldown" ? `<span class="grp"><span class="ml">pager</span>${["jump", "basic"].map(v => link("pager", v)).join("")}</span>` : ""}
+    <span class="grp" style="margin-left:auto"><span class="ml">issue #160 · prototype</span></span>`;
+}
+render();
+</script>
+</body>
+</html>
