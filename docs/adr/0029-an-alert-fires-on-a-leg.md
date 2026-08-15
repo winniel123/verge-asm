@@ -70,6 +70,12 @@ overwhelmingly the operator's own remediation, and the ways it could mean someth
 carried elsewhere — a closing custody gate, a `Vantage` becoming `unavailable`, and a service moving
 address, which is a `Service` `appeared` beside it. Flap suppression on this alert belongs to the
 notification patch, which owns all damping ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)).
+*(The patch answered: **none is built in v1**, on this alert or any other —
+[#119](https://github.com/winniel123/verge-asm/issues/119) /
+[ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
+Read alone this sentence would send a session to build it, so it is marked here per
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). The
+ownership claim is untouched: if damping is ever built it is built there.)*
 *Corrected by [#63](https://github.com/winniel123/verge-asm/issues/63) /
 [ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md): the third carrier is
 an **`Address`** `appeared`, not a `Service` `appeared`, and it is narrower than stated. See the

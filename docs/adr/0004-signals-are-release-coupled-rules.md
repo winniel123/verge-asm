@@ -226,11 +226,22 @@ still has the action the signal is telling them to take.~~
 
 **The operator gets no dial, and none is minted elsewhere.** #16's real complaint — an ACME estate
 renewing at 30 days makes the rule fire and clear every cycle — is a **flap**, and ADR-0007 put all
-damping in notification precisely so the model keeps the flap count as a fact. The remedy is the
-notification layer's existing suppression, not a second constant and not a per-operator threshold.
+damping in notification precisely so the model keeps the flap count as a fact. ~~The remedy is the
+notification layer's existing suppression~~, not a second constant and not a per-operator threshold.
 If one is ever wanted it is legal, because #22's line puts it outside the comparison path — but it
 is not wanted now, and minting it here would be the second constant
 [#28](https://github.com/winniel123/verge-asm/issues/28) refused.
+
+> **`existing` is WITHDRAWN** by [#119](https://github.com/winniel123/verge-asm/issues/119) /
+> [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
+> There was no notification-layer suppression to be the remedy, and this paragraph says so itself two
+> sentences later — *"if one is ever wanted it is legal ... but it is not wanted now"*. The
+> contradiction was internal to one paragraph. **v1 ships none**: no suppression, no coalescing, no
+> digest window. The ACME flap's actual v1 treatment is **routing by class**, and whether that
+> reaches it turns on an unsettled class assignment — ADR-0026 §5 puts `not-fired` → `fired` in the
+> **drift** class for all sixteen rules while #60 and this ADR put the three certificate-lifetime
+> rules in the **clock** class. Flagged to
+> [#120](https://github.com/winniel123/verge-asm/issues/120), which owns the causes.
 
 ### Amendment — [#33](https://github.com/winniel123/verge-asm/issues/33): the curated count is three, and what licenses a table's content is a separate question from this ADR's
 
@@ -310,7 +321,12 @@ population. No fixed day count survives the spread.
 gate still gates exactly the function every install runs. It changes **no measurement** —
 `not_before` is already read by `certificate-not-yet-valid`. And it does not disturb the ACME **flap**
 routing: the rule still fires and clears every cycle on a healthy ACME estate, and
-[ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s notification-layer damping is still the remedy.
+~~[ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s notification-layer damping is still the
+remedy~~ — **withdrawn** by [#119](https://github.com/winniel123/verge-asm/issues/119) /
+[ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
+on the same ground as the #60 amendment above: ADR-0007 granted a **licence** to damp there and no
+damping was ever built, and v1 builds none. The routing is undisturbed either way — the point this
+sentence was making survives; the mechanism it named does not.
 
 **One obligation widens.** The #60 amendment requires a corpus row for a clock-reading rule to carry
 its **evaluation instant** as part of its input. It now carries **`not_before`** as well, or the

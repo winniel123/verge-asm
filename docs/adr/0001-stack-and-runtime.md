@@ -215,3 +215,29 @@ credential class.
 | SPA + JSON API | npm in the page rendering the attack surface; reintroduces the second toolchain |
 | Unified process, separable by flag | Ships the weak topology as the default, and maintains both paths forever |
 | Read-only or full JSON API | Bearer credential bypassing TOTP; integration need is already served by push |
+
+## Amendment — [#119](https://github.com/winniel123/verge-asm/issues/119): the redirect is discharged, and the secret split gains a fourth entry
+
+This ADR deferred the JSON API into the map's notification-channels question in terms — *"the
+integration need here is push, not pull ... so deferring the API costs no integration story"* —
+and that sentence was promissory until now.
+[ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
+discharges it. **Nothing in this ADR's Decision moves; two things around it do.**
+
+**The push story exists and costs no inbound credential.** A `Channel` is an outbound, one-way,
+signed `https` POST — it authenticates us to the receiver, grants no read of the instance, and
+opens no second authenticated surface, so the reason this ADR gave for deferring the API is
+preserved rather than traded away. ADR-0039 also refuses the cheap alternative deliberately: a
+**pull** feed is the one option #6's constraint genuinely kills, because a feed reader holds no
+session and does no TOTP.
+
+**What is still not served is pull.** An operator who wanted to poll gets this ADR's session-authed
+CSV/JSON export and nothing else. That is unchanged and is now the settled position rather than a
+deferral.
+
+**The secret split gains a fourth entry, and it is the first of its kind.** Delivery is outbound
+network work and therefore **worker**-side, so a channel secret is a `worker` secret. It is the
+first secret on this instance whose compromise is useful **outside** it — the session key, database
+credentials, SSH key and zone file are all levers on this deployment; a channel secret is a lever on
+somebody else's receiver. Recorded for
+[#124](https://github.com/winniel123/verge-asm/issues/124), which owns the split.
