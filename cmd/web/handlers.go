@@ -61,6 +61,13 @@ type store interface {
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
+	// The cold Scan opt-in (#200): the full-range tier is enabled per-Seed, not
+	// globally. Opting a scope in or out reconciles the Scan's enabled flag, which
+	// is what puts it on — or takes it off — the dispatcher's cadence.
+	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
+	OptInColdScope(ctx context.Context, arg db.OptInColdScopeParams) error
+	OptOutColdScope(ctx context.Context, seedID int64) error
+	SyncColdScanEnabled(ctx context.Context) error
 	CreateProposerLookup(ctx context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error)
 	CreateProposal(ctx context.Context, arg db.CreateProposalParams) (db.Proposal, error)
 	ListPendingProposals(ctx context.Context) ([]db.ListPendingProposalsRow, error)
@@ -142,6 +149,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /seeds/custody", s.requireAdmin(s.setCustody))
 	mux.HandleFunc("POST /seeds/zone", s.requireAdmin(s.uploadZoneFile))
 	mux.HandleFunc("POST /seeds/zone/interval", s.requireAdmin(s.setZoneInterval))
+	mux.HandleFunc("POST /seeds/cold", s.requireAdmin(s.setColdScope))
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))

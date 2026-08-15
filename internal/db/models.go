@@ -45,6 +45,13 @@ type Channel struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
+type ColdScanScope struct {
+	ID        int64              `json:"id"`
+	SeedID    int64              `json:"seed_id"`
+	CreatedBy int64              `json:"created_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Dispatch struct {
 	ID            int64              `json:"id"`
 	ScanID        int64              `json:"scan_id"`
