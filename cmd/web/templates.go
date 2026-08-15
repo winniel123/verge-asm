@@ -730,11 +730,13 @@ would move a version without a golden-corpus row moving.</p>
 <main>
 <div class="microlabel">Observed · subjects</div>
 <h1>Subjects</h1>
-<p>Every Name and Service currently in your estate. A Service is a port on an
-address the hot Scan reached for — it is in the estate exactly while its address
-is, which holds while a current resolution cites the address or a Seed covers it.
-There is no total: how many subjects your estate ought to hold is its
-completeness, which only you know, so this screen states none.</p>
+<p>Every Name, Service, and Endpoint currently in your estate. A Service is a port
+on an address the hot Scan reached for; an Endpoint is a (name, service) pair the
+http-exchange leaf completed a GET / against — the key under which HTTP identity
+is single-valued. Each is in the estate exactly while its address is, which holds
+while a current resolution cites the address or a Seed covers it.
+There is no total: how many subjects your estate ought to hold is its completeness,
+which only you know, so this screen states none.</p>
 
 <form method="get" action="/subjects" class="searchbar">
 <label class="grow"><span>Search subjects</span><input name="q" value="{{.Search}}" placeholder="example.com or 198.51.100.1:443" autocomplete="off"></label>
@@ -775,6 +777,25 @@ completeness, which only you know, so this screen states none.</p>
 {{else}}
 <div class="microlabel">{{if .Search}}No service matches{{else}}No services yet{{end}}</div>
 <p>{{if .Search}}No current service matches that search. A service whose address left the estate is reached by its exact key, never by browsing.{{else}}No service has been measured yet. The hot Scan reaches for the verge-core ports on every address your names resolve to; run it once a resolution has cited an address.{{end}}</p>
+{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Endpoint subjects</div>
+{{if .Endpoints}}
+<table>
+<thead><tr><th>Endpoint</th><th>Service</th><th>HTTP identity</th></tr></thead>
+<tbody>
+{{range .Endpoints}}<tr>
+<td><a class="mono" href="/subjects/endpoint?key={{.Key}}">{{if .Nameless}}<span class="muted">(nameless)</span>{{else}}{{.Name}}{{end}}</a></td>
+<td class="mono">{{.Service}}</td>
+<td>{{if .Identity}}<span class="badge">{{.Identity}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="microlabel">{{if .Search}}No endpoint matches{{else}}No endpoints yet{{end}}</div>
+<p>{{if .Search}}No current endpoint matches that search. An endpoint whose service left the estate is reached by its exact key, never by browsing.{{else}}No endpoint has been measured yet. An endpoint is a (name, service) pair the http-exchange leaf completed a GET / against; it appears once the hot Scan has reached a web service and exchanged with it.{{end}}</p>
 {{end}}
 </div>
 </main>
@@ -925,6 +946,89 @@ completeness, which only you know, so this screen states none.</p>
 {{end}}
 {{else}}
 <p class="muted">No timeline has been folded yet. A Span opens when the hot Scan first reaches for this port; re-running it with the port opening or closing closes the open span and opens the next.</p>
+{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Rules</div>
+<h2>Rules over this subject</h2>
+<p class="muted">Every rule whose predicate domain includes this subject renders here, each carrying its own versioned verdict. Wired up by ticket 22.</p>
+</div>
+{{end}}
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "endpoint"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+{{with .Endpoint}}
+<div class="microlabel">Observed · Endpoint</div>
+<h1 class="mono">{{if .Nameless}}<span class="muted">(nameless)</span> {{end}}{{.Key}}</h1>
+{{if .Withdrawn}}
+<div class="notice">This endpoint's service has left the estate — no current resolution cites its address and no Seed covers it. It names a population of no current member; its timelines are closed and it is reached by its own key. An endpoint closes when either leg — its Name or its Service — withdraws.</div>
+{{end}}
+
+<div class="section">
+<div class="microlabel">Why is this here</div>
+<h2>Citation chain</h2>
+<p>An Endpoint is a (Name, Service) pair — the only key under which HTTP identity is single-valued. Its membership is its Service's, restated: a Service is in the estate exactly while a current resolution cites its address or a Seed covers it, so the chain runs from the Endpoint through its Name and Service legs down to the Seed you declared.</p>
+<ol class="chain">
+{{range .Citation}}<li>
+<div class="microlabel">{{.Label}}</div>
+<div class="mono chainval">{{.Value}}</div>
+{{if .Detail}}<div class="muted">{{.Detail}}</div>{{end}}
+</li>{{end}}
+</ol>
+{{if not .CitationTerminated}}<p class="muted">The chain does not reach a declared Seed. For an endpoint whose service address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</p>{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Current · http-identity</div>
+<h2>HTTP identity</h2>
+<div class="kv"><div class="k">Name</div><div class="mono">{{if .Nameless}}<span class="muted">nameless endpoint</span>{{else}}{{.Name}}{{end}}</div></div>
+<div class="kv"><div class="k">Service</div><div class="mono">{{.Service}}</div></div>
+{{if .HasIdentity}}
+<div class="kv"><div class="k">Status</div><div><span class="badge">{{.Status}}</span></div></div>
+{{if .Server}}<div class="kv"><div class="k">Server</div><div class="mono">{{.Server}}</div></div>{{end}}
+{{if .ContentType}}<div class="kv"><div class="k">Content-Type</div><div class="mono">{{.ContentType}}</div></div>{{end}}
+{{if .RedirectLocation}}<div class="kv"><div class="k">Redirect</div><div class="mono">{{.RedirectLocation}} <span class="muted">(recorded, not followed)</span></div></div>{{end}}
+{{if .BodySHA256}}<div class="kv"><div class="k">Body</div><div class="mono">{{.BodyBytes}} bytes{{if .BodyTruncated}} <span class="muted">(capped at 64 KB)</span>{{end}} · {{.BodySHA256}}</div></div>{{end}}
+{{else}}<p class="muted">No HTTP identity value recorded.</p>{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Timelines</div>
+<h2>Current and closed timelines</h2>
+{{if .Timelines}}
+<p class="muted">Each timeline is one period a value was held. A Break marks two spans the drift engine may not compare, naming the leaf that moved; it is derived on read and never stored.</p>
+{{range .Timelines}}
+<div class="timeline">
+<div class="microlabel">{{.Label}}</div>
+{{if .Current}}
+<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
+{{else}}
+<div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
+{{end}}
+{{if .Breaks}}{{range .Breaks}}
+<div class="notice">Break at {{.At}} — not comparable across it. Leaf that moved: <span class="mono">{{.MovedLeaves}}</span></div>
+{{end}}{{end}}
+{{if .Closed}}
+<table class="closedspans">
+<thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
+<tbody>
+{{range .Closed}}<tr>
+<td>{{if .IsGap}}<span class="muted">Gap</span>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
+<td class="mono">{{.OpenedAt}}</td>
+<td class="mono">{{.ClosedAt}}</td>
+<td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
+</div>
+{{end}}
+{{else}}
+<p class="muted">No timeline has been folded yet. A Span opens when the hot Scan first exchanges with this endpoint; re-running it with a changed identity closes the open span and opens the next.</p>
 {{end}}
 </div>
 

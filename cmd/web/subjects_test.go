@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -214,6 +215,79 @@ func TestServiceDrilldownRendersOpenCloseTimeline(t *testing.T) {
 		if !strings.Contains(drill, want) {
 			t.Errorf("service timeline missing %q; body: %s", want, drill)
 		}
+	}
+}
+
+func TestEndpointSubjectsListedAndDrilledDown(t *testing.T) {
+	// AC #198: the Subjects page renders Endpoint subjects, and the Endpoint
+	// drill-down shows its HTTP identity and citation back through its Service and
+	// Name legs to a Seed.
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.addHTTPIdentity(t, "api.example.com@198.51.100.1:443/tcp", obsClock,
+		`{"status":200,"server":"nginx","content_type":"text/html","body_sha256":"sha256:abc","body_bytes":15,"body_truncated":false}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// The listing carries an Endpoint subjects section with the pair and its identity.
+	page := getBody(t, ac, base+"/subjects", http.StatusOK)
+	for _, want := range []string{"Endpoint subjects", "api.example.com", "198.51.100.1:443/tcp", "200 · nginx"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("subjects listing missing %q; body: %s", want, page)
+		}
+	}
+	if !strings.Contains(page, "/subjects/endpoint?key=") {
+		t.Errorf("endpoint drill-down link missing; body: %s", page)
+	}
+
+	key := url.QueryEscape("api.example.com@198.51.100.1:443/tcp")
+	drill := getBody(t, ac, base+"/subjects/endpoint?key="+key, http.StatusOK)
+	for _, want := range []string{
+		"Observed · Endpoint", "api.example.com@198.51.100.1:443/tcp", "HTTP identity",
+		"nginx", "Citation chain", "api.example.com", "198.51.100.1:443/tcp",
+	} {
+		if !strings.Contains(drill, want) {
+			t.Errorf("endpoint drill-down missing %q; body: %s", want, drill)
+		}
+	}
+}
+
+func TestNamelessEndpointRendersAndRedirectRecorded(t *testing.T) {
+	// AC #198: the nameless endpoint (@service) is a distinguished key variant, and
+	// a 3xx records its Location as identity without following it.
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addHTTPIdentity(t, "@198.51.100.2:80/tcp", obsClock,
+		`{"status":301,"server":"nginx","redirect_location":"https://x.example/","body_sha256":"sha256:e3b0c4","body_bytes":0,"body_truncated":false}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/subjects", http.StatusOK)
+	if !strings.Contains(page, "(nameless)") {
+		t.Errorf("nameless endpoint not marked in listing; body: %s", page)
+	}
+
+	key := url.QueryEscape("@198.51.100.2:80/tcp")
+	drill := getBody(t, ac, base+"/subjects/endpoint?key="+key, http.StatusOK)
+	for _, want := range []string{"nameless endpoint", "301", "https://x.example/", "not followed"} {
+		if !strings.Contains(drill, want) {
+			t.Errorf("nameless/redirect drill-down missing %q; body: %s", want, drill)
+		}
+	}
+}
+
+func TestEndpointMissingReturns404(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	key := url.QueryEscape("gone.example.com@203.0.113.9:443/tcp")
+	got := getBody(t, ac, base+"/subjects/endpoint?key="+key, http.StatusNotFound)
+	if !strings.Contains(got, "No such subject") {
+		t.Errorf("missing endpoint not reported as 404; body: %s", got)
 	}
 }
 
