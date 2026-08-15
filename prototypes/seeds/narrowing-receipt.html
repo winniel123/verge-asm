@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seeds — narrowing receipt (#167)</title>
+<link rel="stylesheet" href="../../design-system/styles.css">
+<!--
+  PROTOTYPE — throwaway. Issue #167, "Does the Seeds screen show the count before the operator commits
+  a narrowing?" Not production code and not a component library.
+
+  Sibling to index.html (issue #123, variant C — the seed-block surface this reads against). Reads
+  index.html's own fixture rather than inventing a second one: V4_SEED's 198.51.100.128/25 exclusion,
+  the DECLINED Amazon rows, and NAME_SEED's custody extension are drawn here at the instant BEFORE they
+  were committed, to answer whether that instant should carry a receipt.
+
+  Kept as a separate file rather than a section inside index.html on purpose: #168, a sibling ticket in
+  the same batch, is very likely to touch index.html's declare/extension surfaces too, and a second file
+  has no lines for that branch to collide with. This file makes no edit to index.html.
+
+  Not to be re-derived here (settled elsewhere, cited only):
+    - ADR-0074 rules the MESSAGE exists. This page answers the SURFACE question only.
+    - "Off is the safe direction" is true of over-reach and false of blindness — ADR-0074's distinction.
+      The extension toggle below is drawn UNCHANGED, as the control case.
+    - The wording is ADR-0064's grammar, in both places (the store message and this act-time preview
+      read as the same sentence).
+    - ADR-0075's dateline binds — see the box below.
+
+  Annotations in a dashed box are commentary for the reviewer and are not part of the design.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  .shell { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: var(--page-pad); }
+
+  .ml { font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
+        text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .muted { color: var(--text-muted); }
+  .sp { margin-left: auto; }
+  .row { display: flex; align-items: center; gap: var(--space-3); }
+  .col { display: flex; flex-direction: column; gap: var(--space-2); }
+
+  header.nav { background: var(--surface); border-bottom: var(--rule-ink-heavy); }
+  .nav-in { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad);
+            height: 52px; display: flex; align-items: center; gap: var(--space-6); }
+  .wordmark { display: flex; align-items: baseline; gap: var(--space-2); }
+  .wordmark b { font-size: var(--text-lg); font-weight: var(--weight-bold);
+                letter-spacing: var(--tracking-tight); color: var(--ink); }
+  .chip { background: var(--ink); color: var(--text-on-ink); padding: 2px 5px;
+          font: var(--weight-semibold) var(--text-2xs)/1.2 var(--font-mono); letter-spacing: var(--tracking-label); }
+  nav.items { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.items a { padding: 6px var(--space-3); font-size: var(--text-base); color: var(--text-muted); text-decoration: none; }
+  nav.items a.on { color: var(--ink); font-weight: var(--weight-semibold); box-shadow: inset 0 -2px 0 var(--accent); }
+
+  footer.ft { border-top: var(--rule); background: var(--surface); }
+  .ft-in { max-width: var(--page-max); margin: 0 auto; padding: var(--space-3) var(--page-pad);
+           display: flex; gap: var(--space-5); font: var(--weight-regular) var(--text-xs)/1.4 var(--font-mono);
+           color: var(--text-faint); }
+
+  h1.page { margin: 0 0 var(--space-1); font-size: var(--text-xl); font-weight: var(--weight-semibold);
+            letter-spacing: var(--tracking-tight); }
+  .sub { margin: 0 0 var(--space-6); font-size: var(--text-base); color: var(--text-muted);
+         line-height: var(--leading-body); max-width: 82ch; }
+  h2.reg { margin: 0 0 var(--space-1); font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .reg-h { display: flex; align-items: baseline; gap: var(--space-3); margin: var(--space-8) 0 var(--space-3); }
+  .reg-h .why { font-size: var(--text-sm); color: var(--text-muted); max-width: 78ch; line-height: var(--leading-snug); }
+
+  .card { background: var(--surface); border: var(--rule); margin-bottom: var(--space-5); max-width: 84ch; }
+  .card.ink { border: var(--rule-ink); }
+  .card-f { padding: var(--space-3) var(--space-4); border-top: var(--rule); background: var(--surface-sunken); }
+  .pad { padding: var(--space-4); }
+
+  .tag { display: inline-block; padding: 1px 6px; border: var(--rule);
+         font: var(--weight-medium) var(--text-2xs)/1.5 var(--font-mono);
+         text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-muted);
+         white-space: nowrap; }
+  .tag.ink   { border-color: var(--border-ink); color: var(--ink); }
+  .tag.warn  { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .tag.gone  { border-style: dashed; color: var(--text-faint); }
+  .tag.off   { border-style: dashed; color: var(--text-muted); }
+
+  .btn { height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--border-ink);
+         background: var(--ink); color: var(--text-on-ink);
+         font: var(--weight-medium) var(--text-base)/1 var(--font-sans);
+         cursor: pointer; border-radius: var(--radius); }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn.sm { height: var(--control-h-sm); font-size: var(--text-sm); padding: 0 10px; }
+  .btn .n { font-family: var(--font-mono); font-weight: var(--weight-semibold); }
+
+  .inkp { background: var(--surface-ink); color: var(--text-on-ink); border: var(--rule-ink);
+         padding: var(--space-4); font-size: var(--text-base); line-height: var(--leading-body); max-width: 84ch; }
+  .inkp .ml { color: #9a9a90; display: block; margin-bottom: var(--space-2); }
+  .inkp .mono { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-on-ink); }
+  .inkp b { color: var(--text-on-ink); }
+  .inkp p { margin: 0 0 var(--space-3); }
+  .inkp p:last-child { margin-bottom: 0; }
+
+  .note { display: block; border: var(--rule); border-left: 3px solid var(--border-ink);
+          background: var(--surface); padding: var(--space-3) var(--space-4);
+          font-size: var(--text-sm); line-height: var(--leading-body); color: var(--text); max-width: 84ch; }
+  .note.inert  { border-left-color: var(--border); color: var(--text-muted); }
+  .note b { font-weight: var(--weight-semibold); }
+  .note p { margin: 0 0 var(--space-2); }
+  .note p:last-child { margin-bottom: 0; }
+
+  .box { max-width: 640px; }
+  .box .k { font-family: var(--font-mono); font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .box .live { margin-top: var(--space-2); font: var(--weight-medium) var(--text-sm)/1.5 var(--font-mono);
+               color: var(--text-muted); }
+
+  .sect-h { display: flex; align-items: baseline; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); background: var(--surface-sunken); border-bottom: var(--rule); }
+  .sect-h .hint { font-size: var(--text-sm); color: var(--text-muted); }
+
+  .anno { border: 1px dashed var(--accent); background: var(--accent-soft);
+          padding: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
+          font-size: var(--text-sm); line-height: var(--leading-body); max-width: 96ch; }
+  .anno .ml { display: block; margin-bottom: var(--space-2); color: var(--accent); }
+  .anno.no { border-color: var(--danger); background: var(--danger-soft); }
+  .anno.no .ml { color: var(--danger); }
+  .anno p { margin: 0 0 var(--space-2); }
+  .anno p:last-child { margin-bottom: 0; }
+  .anno code { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+  .site { background: var(--surface); border: var(--rule); margin-bottom: var(--space-6); max-width: 96ch; }
+  .site-h { padding: var(--space-3) var(--space-4); border-bottom: var(--rule-ink-heavy); background: var(--surface-sunken); }
+  .site-h h3 { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .site-h .s { display: block; margin-top: 2px; font-size: var(--text-sm); color: var(--text-muted); }
+  .site-b { padding: var(--space-4); }
+</style>
+</head>
+<body>
+
+<header class="nav"><div class="nav-in">
+  <div class="wordmark"><b>Verge</b><span class="chip">ASM</span></div>
+  <nav class="items"><a href="#">Exposure</a><a href="#">Subjects</a><a href="#">Signals</a>
+    <a href="index.html" class="on">Seeds</a><a href="#">Coverage</a><a href="#">Settings</a></nav>
+</div></header>
+
+<main class="shell">
+
+<div class="anno">
+  <span class="ml">prototype · not part of the design · ADR-0075</span>
+  <p><b>Issue #167 — "Does the Seeds screen show the count before the operator commits a narrowing?"
+    Drawn 2026-08-15.</b> Throwaway: something to decide against, not production UI and not a component
+    library.</p>
+  <p><b>Every quantity on this page is a dated reading, not a current value</b> — the corpus as it stood
+    on 2026-08-15, reusing <a href="index.html"><code>index.html</code></a>'s own fixture
+    (<code>V4_SEED</code>, <code>DECLINED</code>, <code>NAME_SEED</code>) rather than inventing a second
+    one. The only live absolutes are the map's <code>THE CURRENT COMPOSED STATE</code> line (issue #1,
+    <i>Notes</i>). What is <i>not</i> a dated reading is the state this page draws — the acts it offers
+    and the sentence it puts in the product's mouth. A later ruling that makes one of those unreachable
+    is owed a mark here in place, per ADR-0075 limb 2, and is never redrawn.</p>
+</div>
+
+<h1 class="page">Does a narrowing show its count before you commit it?</h1>
+<p class="sub">The widening act on <code>?screen=declare</code> already renders one — a black
+  <code>.inkp</code> panel naming exactly what fires. The narrowing act on this screen renders nothing.
+  ADR-0074 (#130) now gives a narrowing a number to show. Three sites below answer whether the act-time
+  surface changes, using the exact acts index.html already draws.</p>
+
+<div class="anno">
+  <span class="ml">the ruling</span>
+  <p><b>Yes, narrowly — only where the message would actually fire.</b> A narrowing act on this screen
+    now shows the same kind of preview the widening act already shows, in the same <code>.inkp</code>
+    chrome, carrying the exact sentence ADR-0064's grammar produces for the store message — the wording
+    is one thing, read in both places, not two copies to keep in sync. Where the act would <b>not</b>
+    fire the message — the withdrawn set is empty, or a <code>Gap</code> absorbs it — the screen shows
+    nothing new, because a preview for a message that will not fire is a promise the widening side never
+    has to make good on.</p>
+  <p><b>No confirmation step is added anywhere on this screen.</b> ADR-0074 rejected closing or gating
+    the quiet-shrink route in terms — <i>"the defect was never that the route exists; it was that it was
+    the quiet one"</i> — and a receipt that blocks the click is that gate wearing a different noun. The
+    custody extension toggle's <i>"off is the safe direction, so there is no confirmation step"</i> is
+    drawn unchanged below, exactly as ADR-0074 left it: that is the over-reach case, this ticket does not
+    reopen it, and nothing here touches its rendering.</p>
+</div>
+
+<div class="reg-h"><h2 class="reg">Site 1 — fires</h2>
+  <span class="why">An address-scope exclusion. No current resolution can ever cite an address scope's
+    own addresses, so there is no <code>Gap</code> to catch what leaves — every address excluded here is
+    ground nothing else cites, ADR-0074's condition met unconditionally.</span></div>
+
+<div class="site">
+  <div class="site-h"><h3><span class="mono">198.51.100.0/24</span> — add an exclusion</h3>
+    <span class="s">Declared address scope, confirmed from a Proposal (index.html's <code>V4_SEED</code>). Read at the
+      instant before <span class="mono">198.51.100.128/25</span> is excluded — the same row that ships,
+      already, as <code>?fill=cloud</code>'s dated exclusion.</span></div>
+  <div class="site-b">
+    <div class="box">
+      <span class="ml">Exclude</span>
+      <div class="k">198.51.100.128/25</div>
+      <div class="live">address exclusion · 128 addresses · the other half of the range is not yours</div>
+    </div>
+    <div class="row" style="margin-top:var(--space-4)">
+      <button class="btn">Add exclusion</button>
+      <button class="btn ghost">Cancel</button>
+    </div>
+    <div style="margin-top:var(--space-5)">
+      <span class="ml">what happens when you press it</span>
+      <div class="inkp" style="margin-top:var(--space-2)">
+        <p><b>One message, at the scope.</b> <span class="mono">198.51.100.0/24 narrowed &middot;
+          198.51.100.128/25 excluded &middot; 128 subjects withdrawn &middot; 17,920 timelines taken out
+          of the estate</span></p>
+        <p>Not a per-address message, and no comparison. You narrowed what is looked at, so the news is
+          about this tool and it is filed as coverage — the same class the widening message rides, the
+          third trigger under <i>we changed how we look</i>.</p>
+        <p><b>A listener answering inside <span class="mono">198.51.100.128/25</span> after this act is
+          invisible.</b> No later message recovers it — the loss, named, because there is no repair.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="reg-h"><h2 class="reg">Site 2 — silent</h2>
+  <span class="why">Declining a Proposal that was never confirmed. Nothing here was ever a subject of
+    this estate, so nothing is withdrawn — ADR-0074's fourth row: an empty residue fires nothing.</span></div>
+
+<div class="site">
+  <div class="site-h"><h3><span class="mono">AMAZON-04</span> — decline all 177 scopes</h3>
+    <span class="s">index.html's <code>PROPOSALS[0]</code> / <code>DECLINED</code>'s two <code>effect:
+      "inert"</code> rows — <span class="mono">52.94.0.0/16</span>, <span class="mono">52.95.0.0/16</span>
+      and 175 more, 76,046,336 addresses across the group. A registry's guess, never confirmed.</span></div>
+  <div class="site-b">
+    <div class="row">
+      <button class="btn ghost">Decline all <span class="n">177</span> scopes</button>
+      <span class="muted" style="font-size:var(--text-sm)">Declining writes an exclusion on the seed the lookup ran from. It opens nothing.</span>
+    </div>
+    <div style="margin-top:var(--space-4)">
+      <span class="ml">what happens when you press it</span>
+      <div class="note inert" style="margin-top:var(--space-2)">
+        <p><b>No message fires, and no preview is owed.</b> These 177 scopes were a delegation record, not
+          a declaration — nothing this tool ever measured leaves, because nothing here was ever a
+          <code>Seed</code>'s subject. Declining writes the exclusion and nothing else moves. Showing a
+          count beside this button would be the widening side's mistake in reverse: a number that reads
+          as a loss and is not one.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="reg-h"><h2 class="reg">Site 3 — untouched, drawn for contrast only</h2>
+  <span class="why">The custody extension toggle. A departure here narrows over-reach, not membership
+    ground — ADR-0013 §7, confirmed rather than amended by ADR-0074. Nothing below is changed by this
+    ticket; it is drawn so the contrast with sites 1 and 2 is visible rather than asserted.</span></div>
+
+<div class="site">
+  <div class="site-h"><h3><span class="mono">example.com</span> — custody extension</h3>
+    <span class="s">index.html's <code>NAME_SEED</code> at <code>?screen=extension&state=on</code>. A
+      current resolution may still cite these addresses through a name this decline does not touch, so a
+      <code>Gap</code> — not this ticket's message — is the carrier, exactly as ADR-0074 confirmed.</span></div>
+  <div class="site-b">
+    <div class="sect-h" style="border:var(--rule);margin-bottom:0">
+      <span class="ml">Custody extension</span><span class="tag ink">on</span>
+      <span class="hint">11 addresses &middot; 5 names. Worked out again every cadence.</span>
+    </div>
+    <div class="pad" style="border:var(--rule);border-top:none">
+      <div class="row">
+        <button class="btn ghost">Turn the extension off</button>
+        <span class="muted" style="font-size:var(--text-sm)">Applies immediately. Off is the safe direction, so there is no confirmation step.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="anno no">
+  <span class="ml">rejected</span>
+  <p><b>Show the count nowhere on this screen; the store message is enough.</b> Loses on ADR-0074's own
+    rejected-alternatives table: a receipt at the act was named there as <i>"compatible with the message
+    rather than a substitute for it"</i>, which only makes sense as a live option for a later ticket to
+    take up — refusing it here would be re-deciding a question ADR-0074 left open, not honouring one it
+    closed.</p>
+  <p><b>Add a blocking "are you sure?" step to every narrowing.</b> ADR-0074 rejected exactly this move
+    for the underlying act — <i>"close the quiet-shrink route instead… the defect was never that the
+    route exists; it was that it was the quiet one"</i> — and gating the click reintroduces the thing
+    that was rejected, one layer up, at the surface instead of the model.</p>
+  <p><b>Render the same preview uniformly on every exclusion and decline, whether or not a message will
+    fire.</b> Draws a promise the product does not keep. Site 2's "nothing today" and site 3's
+    <code>Gap</code>-carried departure both fire no message; a uniform receipt trains the operator to
+    distrust the number the one time — site 1 — it is real. #22's collapse, one layer across.</p>
+</div>
+
+</main>
+
+<footer class="ft"><div class="ft-in">
+  <span>prototype — issue #167</span><span>not production</span><span>design system: design-system/</span>
+</div></footer>
+
+</body>
+</html>
