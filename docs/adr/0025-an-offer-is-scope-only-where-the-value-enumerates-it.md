@@ -122,6 +122,22 @@ authority's answer a function of the subnet we claimed, which is the job the `va
 the timeline key already does. v1 sends no ECS, and if a later version does, ECS belongs in the
 **key**, never in the scope record.
 
+> **That clause is generalised at this site by [#116](https://github.com/winniel123/verge-asm/issues/116) /
+> [ADR-0070](./0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md).**
+> It is not an exception about one option; it is the rule for anything that makes an answer a
+> function of **where the query appeared to come from** — and the **recursive resolver** is the
+> instance v1 actually ships. A resolver is ECS with the subnet implicit, so **which resolver the
+> prober resolves through is part of the `Vantage`**, in the key, never in the scope record and
+> never as a declared parameter (a parameter is never operator-configurable, and §3.6 offers the
+> operator exactly this choice). **[measured]** one wildcarded name drew from two **disjoint**
+> address pools at two vantages in one week. What *is* a declared parameter is the **kind** of query
+> path — through the `Vantage`'s resolver, or direct to the delegated authorities — which joins the
+> **DNS transport and fallback policy** row below as a parameter of `resolution-walk`, shared with
+> `wildcard-discrimination` and taking one value per `Batch`. It passes this ADR's offer test rather
+> than bypassing it: no value it feeds carries a per-candidate negative, there being no *we asked
+> the authority and the authority was not there* inside any value — a failed path is a `Gap`, which
+> is ADR-0014's ordinary adjacency and not an opening.
+
 The second EDNS hazard needs saying because it lands on a v1 signal: an authority that requires DNS
 cookies may answer a cookieless query with `BADCOOKIE` or `REFUSED`, and a delegation walk that
 reads a refusal as *this nameserver does not serve the zone* would emit a false `Lame`.
