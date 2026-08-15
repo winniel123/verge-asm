@@ -1044,7 +1044,18 @@ which carries the qtype, or a batch covering MX and not TXT would assert an empt
 never measured. One timeline per source, so two sources that disagree hold two true facts rather
 than forcing an arbitration. It opens, it is current, it closes; the open span is the current
 state — so a **withdrawn** subject's timelines close rather than holding an open span, there being no
-current state for one to hold. Carries the versions it was derived under, which is what makes
+current state for one to hold. That clause was **tested on its own and confirmed**
+([#140](https://github.com/winniel123/verge-asm/issues/140) ·
+[ADR-0082](./docs/adr/0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)),
+on grounds independent of this wording: a closed span is free to keep while an **open span must be
+fed**, so holding one open means either rotting to a `Gap` within `k` cadences or querying every
+withdrawn subject forever; withdrawal needs **every available vantage** to agree, so it is a fact
+about the subject and a span is keyed per `(vantage, source)`; and ADR-0007 already closes a
+cascaded subject's spans, *or a dead one keeps an open span and every current-state query returns it
+as live*. The withdrawn period is therefore **on no timeline at all** — not a value and not a `Gap` —
+which is what leaves the span before it and the span after a return **adjacent**, and is why
+`returned` is derivable by ordinary machinery wherever no `Break` sits between them. Carries the
+versions it was derived under, which is what makes
 comparison legal. See [ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md).
 **This corpus is never compacted**, and the two reasons are independent. Deleting the span before an
 open one converts `returned` into `appeared`, which is a clock moving a value about the world —
