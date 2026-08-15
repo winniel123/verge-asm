@@ -416,8 +416,21 @@ feed is the shape that would re-open it, and there is none. It carries the **mes
 the estate**: the body holds the message's own content and no rows, so what accumulates
 wherever it lands is a list of what happened rather than a reconstructable copy of what the
 operator has. Routing is by **class** and nothing finer, a per-rule or per-subject filter being
-an operator-authored predicate over a versioned rule set. See
-[ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
+an operator-authored predicate over a versioned rule set. **The `cause` is refused too, and needs
+its own reason, because that one does not reach it**: a cause is the model's own closed union of
+four, carried on every message, and an operator cannot rename it — so read alone, the clause above
+leaves the cause open, and is widened here at the site that specifies it
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
+The classes **are** the causes with two of them merged, so routing on cause means one thing only:
+splitting the coverage class. It is refused because the corpus assigns a cause to only six of that
+class's ten members and rules that a seventh has **neither** — so the price is a ten-row
+classification with no owner that fails silently on the eleventh member — and because the cause was
+already measured too coarse to key the *wording*, four of #44's absence registers sitting under one
+cause. The cause is a field the operator **reads** and the router never does. Where that class must
+one day be split, the cut is the **mover** — the estate · us · the operator · nothing — which is
+total, falsifiable and already computed at every cause. See
+[ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
+and [ADR-0091](./docs/adr/0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md).
 _Avoid_: webhook, integration, endpoint (reserved), destination, sink, subscriber
 
 ### Observed

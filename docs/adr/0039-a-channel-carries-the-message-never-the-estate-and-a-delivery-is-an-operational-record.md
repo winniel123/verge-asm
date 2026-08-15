@@ -117,6 +117,22 @@ which is [#16](https://github.com/winniel123/verge-asm/issues/16)'s refusal one 
 it fails silently the first time a rule is renamed. Class routing is also the v1 answer to volume
 (§6), which is why it earns its place rather than being one dial too many.
 
+> **The reason above under-reaches, and is widened here at the site that specifies it** —
+> [#158](https://github.com/winniel123/verge-asm/issues/158) ·
+> [ADR-0091](./0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md), per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). *An
+> operator-authored predicate over a versioned rule set* reaches the per-rule and per-subject
+> filters and **not the `cause`**, which is the model's own closed union of four, carried on every
+> message, and unrenameable by an operator — so read alone this paragraph leaves the cause open, and
+> #158 arrived on exactly that reading. **The cause is refused too.** The classes *are* the causes
+> with two merged, so routing on cause means one thing: splitting the coverage class. It loses
+> because the corpus assigns a cause to six of that class's ten members and rules a seventh has
+> **neither**, making the price a ten-row classification with no owner that fails silently on the
+> eleventh member — this section's own failure mode through a door the class does not have — and
+> because ADR-0064 measured the cause too coarse to key even the *wording*, four of #44's absence
+> registers sitting under one cause. Where the class must one day be split, the candidate is the
+> **mover** and not the cause; see §6's reopening condition, which now carries it.
+
 What the operator does not get: the message set, any predicate, the payload, the wording, per-rule
 routing, the retry budget, and the delivery retention. The retry budget is ours because it governs
 how hard we hammer somebody else's server — the same class of safety property as #4's probing
@@ -175,6 +191,16 @@ The licence stays exactly where ADR-0007 put it — damping belongs in notificat
 The residue is stated: routing is per class, so an operator drowned by **one rule inside** a class
 must silence the whole class on that channel — and the messages are still in the store either way.
 Reopening condition: a **measured** volume in the class routing cannot rescue.
+
+> **The condition is unchanged and now carries a named candidate** —
+> [#158](https://github.com/winniel123/verge-asm/issues/158) ·
+> [ADR-0091](./0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md). If
+> it trips, the finer axis to reach for is the **mover** — ADR-0064 §1's total, falsifiable function
+> from the fold to what the sentence is about, *an object in the estate · us · the operator ·
+> nothing* — and **not the cause**, which is closed. The mover is already assigned on every message
+> by construction, so it needs no classification exercise and cannot be forgotten on a new member,
+> and it splits the coverage class where an operator can act: *you stopped telling us* is theirs to
+> fix and *we stopped looking* is ours.
 
 ### 7. A message is sent when its cause folds, and never held for a schedule
 
