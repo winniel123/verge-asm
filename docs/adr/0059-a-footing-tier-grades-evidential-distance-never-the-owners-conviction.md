@@ -389,12 +389,19 @@ minted:** ADR-0068 was reserved and is **left unused**, as `0039`, `0041`, `0052
 
 **[measured] and nothing moves.** Direction and addressee were run as candidate conditions across all
 **26** members of both graded tiers. The owner supplies the direction in **24** of the 26 carrying
-statements — five in the word (`445`, `25672`, and `10250`/`10259`/`10257`, the last three in a table
-column literally headed `Direction`), three in the carrying verb's preposition, sixteen in a verb whose
+statements — **six in the word**, three in the carrying verb's preposition, fifteen in a verb whose
 object is a listener — and it is absent from the two, `2049/tcp` and `4369/tcp`, that already fail
-condition (3). **Two verdicts turn on direction** — `445/tcp` (§33.5) and `623/udp` (§28.9's *iLO
-Direct Connect*, outbound, which no prior section counted) — **and one on addressee**, `445/tcp`.
-**No cell moves, no row moves, and the cost is nothing.** `sensitive-ports.md` §36.
+condition (3). **Two owners write the direction in a table column literally headed `Direction`**:
+Kubernetes for `10250`/`10259`/`10257`, and **HPE for `623/udp`** — *"`IPMI/DCMI over LAN port | 623 |
+UDP | Inbound⁴`"*, footnote 4 *"An external client initiates the connection to iLO"*, against
+*"`Remote support port | 7906 | TCP | Outbound¹`"*, footnote 1 *"iLO initiates the connection to an
+external server"* (*iLO 6 User Guide*, part number 30-7A345B12-032, **July 2026**). **Two verdicts
+turn on direction** — `445/tcp` (§33.5) and `623/udp` (§28.9, which no prior section counted) — **and
+one on addressee**, `445/tcp`. **[measured]** the one case where addressee comes apart from direction
+cleanly — MongoDB Atlas, an inbound internet-reachable listener on `27017` that MongoDB scopes away
+from its own trusted-networks guidance by page title — is **not** load-bearing, `27017` failing
+condition (3) a limb earlier. **No cell moves, no row moves, and the cost is nothing.**
+`sensitive-ports.md` §36.
 
 ## Alternatives rejected
 
