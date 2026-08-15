@@ -35,7 +35,7 @@ func TestProvisionProber(t *testing.T) {
 		t.Fatalf("vantages = %d, want 1", len(f.vantages))
 	}
 	v := f.vantages[0]
-	if v.Host != "prober.example.com" || v.Port != 2222 || v.Username != "scanner" {
+	if v.Host.String != "prober.example.com" || v.Port.Int32 != 2222 || v.Username.String != "scanner" {
 		t.Errorf("vantage row = %+v, want host/port/username as provisioned", v)
 	}
 
@@ -105,11 +105,14 @@ func TestPublicKeyShownAndPrivateNeverIs(t *testing.T) {
 	// A vantage the worker has already keyed: public half set, host key pinned.
 	pub := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITESTPUBLICKEYVALUE example"
 	f.vantages = append(f.vantages, db.Vantage{
-		ID: 1, Host: "prober.example.com", Port: 22, Username: "scanner",
-		Availability: "available",
+		ID: 1, Name: "scanner@prober.example.com:22", Class: "unverified",
+		Host:         pgtype.Text{String: "prober.example.com", Valid: true},
+		Port:         pgtype.Int4{Int32: 22, Valid: true},
+		Username:     pgtype.Text{String: "scanner", Valid: true},
+		Availability: pgtype.Text{String: "available", Valid: true},
 		PublicKey:    pgtype.Text{String: pub, Valid: true},
 		HostKey:      pgtype.Text{String: "ssh-ed25519 AAAAHOSTKEY", Valid: true},
-		CreatedBy:    adminID,
+		CreatedBy:    pgtype.Int8{Int64: adminID, Valid: true},
 		CreatedAt:    pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	})
 	f.vantageNextID = 2

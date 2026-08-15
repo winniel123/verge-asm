@@ -306,21 +306,32 @@ func (q *Queries) ListRecentObservations(ctx context.Context, limit int32) ([]Li
 	return items, nil
 }
 
-const listVantages = `-- name: ListVantages :many
+const listVantagesForDispatch = `-- name: ListVantagesForDispatch :many
 SELECT id, name, class, resolver, created_at
 FROM vantage
 ORDER BY id
 `
 
-func (q *Queries) ListVantages(ctx context.Context) ([]Vantage, error) {
-	rows, err := q.db.Query(ctx, listVantages)
+type ListVantagesForDispatchRow struct {
+	ID        int64              `json:"id"`
+	Name      string             `json:"name"`
+	Class     string             `json:"class"`
+	Resolver  string             `json:"resolver"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+// The dns Scan dispatches over every configured Vantage, reading only its
+// measurement identity (name, class, resolver). Distinct from the web prober
+// list (vantages.sql `ListVantages`), which is scoped to provisioned probers.
+func (q *Queries) ListVantagesForDispatch(ctx context.Context) ([]ListVantagesForDispatchRow, error) {
+	rows, err := q.db.Query(ctx, listVantagesForDispatch)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Vantage{}
+	items := []ListVantagesForDispatchRow{}
 	for rows.Next() {
-		var i Vantage
+		var i ListVantagesForDispatchRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,

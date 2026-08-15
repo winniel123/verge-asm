@@ -9,7 +9,10 @@ SELECT id, kind, enabled, cadence_seconds, created_at
 FROM scan
 WHERE kind = $1;
 
--- name: ListVantages :many
+-- name: ListVantagesForDispatch :many
+-- The dns Scan dispatches over every configured Vantage, reading only its
+-- measurement identity (name, class, resolver). Distinct from the web prober
+-- list (vantages.sql `ListVantages`), which is scoped to provisioned probers.
 SELECT id, name, class, resolver, created_at
 FROM vantage
 ORDER BY id;

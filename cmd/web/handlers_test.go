@@ -223,14 +223,23 @@ func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, err
 
 func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams) (db.Vantage, error) {
 	for _, v := range f.vantages {
-		if v.Host == arg.Host && v.Port == arg.Port && v.Username == arg.Username {
+		if v.Host.String == arg.Host && v.Port.Int32 == arg.Port && v.Username.String == arg.Username {
 			return db.Vantage{}, &pgconn.PgError{Code: "23505", Message: "duplicate vantage"}
 		}
 	}
+	// A provisioned prober carries its endpoint columns; the unified table leaves
+	// them NULL only for the resolver-only local vantage, which is never created
+	// through this path.
 	v := db.Vantage{
-		ID: f.vantageNextID, Host: arg.Host, Port: arg.Port, Username: arg.Username,
-		Availability: "pending", CreatedBy: arg.CreatedBy,
-		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		ID:           f.vantageNextID,
+		Name:         arg.Name,
+		Class:        "unverified",
+		Host:         pgtype.Text{String: arg.Host, Valid: true},
+		Port:         pgtype.Int4{Int32: arg.Port, Valid: true},
+		Username:     pgtype.Text{String: arg.Username, Valid: true},
+		Availability: pgtype.Text{String: "pending", Valid: true},
+		CreatedBy:    pgtype.Int8{Int64: arg.CreatedBy, Valid: true},
+		CreatedAt:    pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	}
 	f.vantages = append(f.vantages, v)
 	f.vantageNextID++
@@ -239,14 +248,20 @@ func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams)
 
 func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) {
 	rows := make([]db.ListVantagesRow, 0, len(f.vantages))
-	// Newest first, mirroring the SQL ORDER BY created_at DESC, id DESC.
+	// Newest first, mirroring the SQL ORDER BY created_at DESC, id DESC. The web
+	// list is scoped to provisioned probers (host set), so resolver-only rows are
+	// skipped just as the query's WHERE host IS NOT NULL does.
 	for i := len(f.vantages) - 1; i >= 0; i-- {
 		v := f.vantages[i]
+		if !v.Host.Valid {
+			continue
+		}
 		rows = append(rows, db.ListVantagesRow{
-			ID: v.ID, Host: v.Host, Port: v.Port, Username: v.Username,
+			ID: v.ID, Name: v.Name, Class: v.Class, Resolver: v.Resolver,
+			Host: v.Host, Port: v.Port, Username: v.Username,
 			Availability: v.Availability, PublicKey: v.PublicKey, HostKey: v.HostKey,
 			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt,
-			CreatedByUsername: f.accounts[v.CreatedBy].Username,
+			CreatedByUsername: f.accounts[v.CreatedBy.Int64].Username,
 		})
 	}
 	return rows, nil

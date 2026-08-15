@@ -12,20 +12,37 @@ import (
 )
 
 const createVantage = `-- name: CreateVantage :one
-INSERT INTO vantage (host, port, username, created_by)
-VALUES ($1, $2, $3, $4)
-RETURNING id, host, port, username, availability, public_key, host_key, created_by, created_at
+INSERT INTO vantage (name, host, port, username, availability, created_by)
+VALUES (
+    $1::text,
+    $2::text,
+    $3::int,
+    $4::text,
+    'pending',
+    $5::bigint
+)
+RETURNING id, name, class, resolver, host, port, username, availability,
+          public_key, host_key, created_by, created_at
 `
 
 type CreateVantageParams struct {
+	Name      string `json:"name"`
 	Host      string `json:"host"`
 	Port      int32  `json:"port"`
 	Username  string `json:"username"`
 	CreatedBy int64  `json:"created_by"`
 }
 
+// Provisioning a prober creates a Vantage with connection detail. Its
+// measurement identity is still mandatory: the caller derives `name` from the
+// endpoint (username@host:port) so it is unique per provisioned endpoint, class
+// defaults to 'unverified' until a prober re-verifies it, and resolver ships
+// blank (”) for the operator to set. availability starts 'pending' — no host
+// key has been pinned yet. The explicit casts keep the params plain scalars even
+// though the prober columns are nullable on the table.
 func (q *Queries) CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error) {
 	row := q.db.QueryRow(ctx, createVantage,
+		arg.Name,
 		arg.Host,
 		arg.Port,
 		arg.Username,
@@ -34,6 +51,9 @@ func (q *Queries) CreateVantage(ctx context.Context, arg CreateVantageParams) (V
 	var i Vantage
 	err := row.Scan(
 		&i.ID,
+		&i.Name,
+		&i.Class,
+		&i.Resolver,
 		&i.Host,
 		&i.Port,
 		&i.Username,
@@ -47,7 +67,8 @@ func (q *Queries) CreateVantage(ctx context.Context, arg CreateVantageParams) (V
 }
 
 const getVantage = `-- name: GetVantage :one
-SELECT id, host, port, username, availability, public_key, host_key, created_by, created_at
+SELECT id, name, class, resolver, host, port, username, availability,
+       public_key, host_key, created_by, created_at
 FROM vantage
 WHERE id = $1
 `
@@ -57,6 +78,9 @@ func (q *Queries) GetVantage(ctx context.Context, id int64) (Vantage, error) {
 	var i Vantage
 	err := row.Scan(
 		&i.ID,
+		&i.Name,
+		&i.Class,
+		&i.Resolver,
 		&i.Host,
 		&i.Port,
 		&i.Username,
@@ -70,26 +94,33 @@ func (q *Queries) GetVantage(ctx context.Context, id int64) (Vantage, error) {
 }
 
 const listVantages = `-- name: ListVantages :many
-SELECT v.id, v.host, v.port, v.username, v.availability, v.public_key, v.host_key,
-       v.created_by, v.created_at, a.username AS created_by_username
+SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
+       v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
+       a.username AS created_by_username
 FROM vantage v
 JOIN account a ON a.id = v.created_by
+WHERE v.host IS NOT NULL
 ORDER BY v.created_at DESC, v.id DESC
 `
 
 type ListVantagesRow struct {
 	ID                int64              `json:"id"`
-	Host              string             `json:"host"`
-	Port              int32              `json:"port"`
-	Username          string             `json:"username"`
-	Availability      string             `json:"availability"`
+	Name              string             `json:"name"`
+	Class             string             `json:"class"`
+	Resolver          string             `json:"resolver"`
+	Host              pgtype.Text        `json:"host"`
+	Port              pgtype.Int4        `json:"port"`
+	Username          pgtype.Text        `json:"username"`
+	Availability      pgtype.Text        `json:"availability"`
 	PublicKey         pgtype.Text        `json:"public_key"`
 	HostKey           pgtype.Text        `json:"host_key"`
-	CreatedBy         int64              `json:"created_by"`
+	CreatedBy         pgtype.Int8        `json:"created_by"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	CreatedByUsername string             `json:"created_by_username"`
 }
 
+// The web prober list: only provisioned vantages (those carrying a prober
+// endpoint). The resolver-only `local` vantage has no prober and is excluded.
 func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 	rows, err := q.db.Query(ctx, listVantages)
 	if err != nil {
@@ -101,6 +132,9 @@ func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 		var i ListVantagesRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Name,
+			&i.Class,
+			&i.Resolver,
 			&i.Host,
 			&i.Port,
 			&i.Username,
@@ -122,14 +156,16 @@ func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 }
 
 const listVantagesNeedingKey = `-- name: ListVantagesNeedingKey :many
-SELECT id, host, port, username, availability, public_key, host_key, created_by, created_at
+SELECT id, name, class, resolver, host, port, username, availability,
+       public_key, host_key, created_by, created_at
 FROM vantage
-WHERE public_key IS NULL
+WHERE host IS NOT NULL AND public_key IS NULL
 ORDER BY id
 `
 
-// Rows the worker still has to generate a keypair for: the public half has not
-// been published, so no key material has ever left the worker volume for them.
+// Rows the worker still has to generate a keypair for: a provisioned prober
+// (host set) whose public half has not been published, so no key material has
+// ever left the worker volume for them.
 func (q *Queries) ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error) {
 	rows, err := q.db.Query(ctx, listVantagesNeedingKey)
 	if err != nil {
@@ -141,6 +177,9 @@ func (q *Queries) ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
 		var i Vantage
 		if err := rows.Scan(
 			&i.ID,
+			&i.Name,
+			&i.Class,
+			&i.Resolver,
 			&i.Host,
 			&i.Port,
 			&i.Username,

@@ -25,11 +25,11 @@ func nameSeedDomains(ctx context.Context, q *db.Queries) ([]string, error) {
 
 // vantages is the configured Vantage set, with a lookup from id to resolver.
 type vantages struct {
-	rows []db.Vantage
+	rows []db.ListVantagesForDispatchRow
 }
 
 func vantageList(ctx context.Context, q *db.Queries) (vantages, error) {
-	rows, err := q.ListVantages(ctx)
+	rows, err := q.ListVantagesForDispatch(ctx)
 	if err != nil {
 		return vantages{}, err
 	}
