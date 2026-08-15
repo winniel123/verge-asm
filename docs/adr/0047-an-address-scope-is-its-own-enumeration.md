@@ -339,7 +339,14 @@ survives **this ticket's** enumeration unchanged and is strengthened by it.** It
 [ADR-0009](./0009-verge-core-is-a-union.md) puts every sensitive pair inside the daily tier by
 construction. Enumeration multiplies the `Service`s the claim ranges over and changes nothing about
 the claim; what it adds is that the population is now a **declared, counted** one rather than
-whatever happened to resolve. Likewise `0 of 16 rules unevaluable`.
+whatever happened to resolve. Likewise ~~`0 of 16 rules unevaluable`~~ **`0 of 17 rules
+unevaluable`** — the denominator only, the numerator being `0` here as it was; the rule set became
+seventeen at [#128](https://github.com/winniel123/verge-asm/issues/128) ·
+[ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) and this
+clause was not walked with it. Corrected by the merging session of the 2026-08-15 batch, after
+[#173](https://github.com/winniel123/verge-asm/issues/173) found the same figure stale at the site
+that **specifies** it (ADR-0044) and repaired that one in place. **Nothing in this ADR's reasoning
+turns on the denominator.**
 
 ### The arithmetic, and what it does to ADR-0044
 
