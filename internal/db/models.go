@@ -150,6 +150,23 @@ type SourceState struct {
 	ToggledAt pgtype.Timestamptz `json:"toggled_at"`
 }
 
+type Span struct {
+	ID            int64              `json:"id"`
+	SubjectKind   string             `json:"subject_kind"`
+	SubjectKey    string             `json:"subject_key"`
+	Facet         string             `json:"facet"`
+	Discriminator string             `json:"discriminator"`
+	VantageID     pgtype.Int8        `json:"vantage_id"`
+	Source        string             `json:"source"`
+	Value         []byte             `json:"value"`
+	IsGap         bool               `json:"is_gap"`
+	Derivation    []byte             `json:"derivation"`
+	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
+	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
+	ClosureReason pgtype.Text        `json:"closure_reason"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type Vantage struct {
 	ID           int64              `json:"id"`
 	Name         string             `json:"name"`

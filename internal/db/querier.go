@@ -15,6 +15,10 @@ type Querier interface {
 	// run_after has passed, oldest first, marking the winner running in one
 	// statement so two workers never claim the same job.
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
+	// Close an open span at closed_at, recording a closure reason only where the
+	// close is a withdrawal (reason is NULL for an ordinary value move or a version
+	// change). A span is closed once and never rewritten.
+	CloseSpan(ctx context.Context, arg CloseSpanParams) error
 	// Marks a single Proposal confirmed and retains the Seed it became as provenance.
 	// Guarded on status = 'pending' so a concurrent or repeated confirm is a no-op
 	// rather than a second Seed: confirmation is singular (ADR-0022).
@@ -88,6 +92,17 @@ type Querier interface {
 	// record" at the URL. The caller reads the latest resolution value to decide
 	// whether the subject names a population of no current member.
 	GetNameSubject(ctx context.Context, subjectKey string) (GetNameSubjectRow, error)
+	// The drift engine's Span reads and writes (#190). The fold is incremental — one
+	// completed Batch at a time (ADR-0007): for each observation's timeline it reads
+	// the open span, and where the value or the Derivation vector moved it closes
+	// that span and opens a new one. There is deliberately NO delete or compaction
+	// query here — the Span corpus is never compacted (ADR-0041). A Transition and a
+	// Break are derived on read from ListSpansForSubject's rows; neither is stored.
+	// The one open span on a timeline, or no row where the timeline is new. vantage
+	// and source are part of the key and vantage may be NULL (the shipped resolver
+	// position carries no vantage row yet), so they are matched with IS NOT DISTINCT
+	// FROM rather than =.
+	GetOpenSpan(ctx context.Context, arg GetOpenSpanParams) (GetOpenSpanRow, error)
 	// One pending Proposal, read at the moment of confirmation so the confirm act
 	// can copy its scope into a Seed. A Proposal already confirmed or declined does
 	// not come back, so a double submit cannot open the gate twice.
@@ -129,6 +144,9 @@ type Querier interface {
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
+	// Every open timeline a subject currently holds — what a withdrawal closes, all
+	// at once, with the ground it rests on.
+	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
 	// The pending Proposals the Seeds screen renders, grouped for the caller by
 	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
 	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
@@ -139,6 +157,11 @@ type Querier interface {
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
 	ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error)
+	// A subject's full Span history — current and closed — for the Subjects
+	// drill-down. Ordered by timeline, oldest first, so the renderer walks each
+	// timeline and derives its Breaks and Transitions on read. The closed corpus is
+	// never compacted, so a withdrawn Name's closed timelines render in full.
+	ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error)
 	// The web prober list: only provisioned vantages (those carrying a prober
 	// endpoint). The resolver-only `local` vantage has no prober and is excluded.
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
@@ -173,6 +196,9 @@ type Querier interface {
 	// #188's observation corpus additively so #189's Subjects listing can suppress a
 	// Shadowed Name's addresses without forking a second membership path.
 	NameMembership(ctx context.Context) ([]NameMembershipRow, error)
+	// Open a new span for a timeline. The caller passes the canonical value, the
+	// gap flag, and the Derivation vector as a JSON array of {leaf,version}.
+	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
 	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
 	// the vantage available. The host_key IS NULL guard makes this a no-op once a
 	// key is pinned, so a first-connect race can never overwrite an existing pin.

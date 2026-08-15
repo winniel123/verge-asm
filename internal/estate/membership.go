@@ -58,10 +58,14 @@ func Compose(rwOutcome string, rwAddresses []string, verdict wd.Verdict) FinalRe
 }
 
 // Observation is one Name's composed resolution at one Vantage — the latest such
-// value per (Name, Vantage) that Membership reads.
+// value per (Name, Vantage) that Membership reads. Class names the Vantage class
+// the vantage sits in; an empty Class is one default class, the modal
+// single-class install, so the cross-class withdrawal rule collapses to the
+// single-class case with no special path (ADR-0080).
 type Observation struct {
 	Name       string
 	Vantage    string
+	Class      string
 	Resolution FinalResolution
 }
 
@@ -82,22 +86,18 @@ type Estate struct {
 // how a repointed wildcard's fictional names stay out of the estate while the
 // real one beneath it holds by its Citation.
 func Membership(latest []Observation, seedCovered []string) Estate {
-	// Per Name: present unless every vantage withdrew it (NameError). Track
-	// whether any vantage was seen at all, so a Name with no observation is
-	// decided by Seed coverage alone.
-	sawVantage := map[string]bool{}
-	withdrawnEverywhere := map[string]bool{}
+	// Per Name, gather the composed outcome at each available (class, vantage) and
+	// the Addresses a current Resolved cites. Withdrawal is decided by the one
+	// cross-class composition (WithdrawnCrossClass), so a Name is present unless
+	// that predicate concludes it left — never by a survivor-only reading here.
+	sawName := map[string]bool{}
+	perName := map[string][]classedOutcome{}
 	citedAddrs := map[string]struct{}{}
 
 	for _, o := range latest {
 		name := o.Name
-		if !sawVantage[name] {
-			sawVantage[name] = true
-			withdrawnEverywhere[name] = true
-		}
-		if o.Resolution.Outcome != OutcomeNameError {
-			withdrawnEverywhere[name] = false
-		}
+		sawName[name] = true
+		perName[name] = append(perName[name], classedOutcome{class: o.Class, outcome: o.Resolution.Outcome})
 		// Only a Resolved value cites Addresses; Shadowed, NoData, Lame, NameError
 		// and Gap cite nothing, so an Address held only by a superseded Resolved
 		// leaves the estate.
@@ -109,8 +109,8 @@ func Membership(latest []Observation, seedCovered []string) Estate {
 	}
 
 	present := map[string]struct{}{}
-	for name := range sawVantage {
-		if !withdrawnEverywhere[name] {
+	for name := range sawName {
+		if !WithdrawnCrossClass(witnessesByClass(perName[name])) {
 			present[name] = struct{}{}
 		}
 	}
