@@ -270,4 +270,30 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	if f.retention.ObservationCurrencyDays != 90 {
 		t.Fatalf("rejected save mutated the dial: %+v", f.retention)
 	}
+
+	// A Dispatch multiple below the k=2 floor is refused; the previous value
+	// stands. The dial is a multiple of the slowest enabled Scan's cadence, so
+	// one cadence is below the floor.
+	resp = postForm(t, ac, base+"/settings/retention", url.Values{
+		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"1"},
+	})
+	got = body(t, resp)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "at least 2 cadences") {
+		t.Fatalf("below-floor dispatch dial not refused: status=%d body=%s", resp.StatusCode, got)
+	}
+	if f.retention.DispatchCadenceMultiple != 4 {
+		t.Fatalf("rejected save mutated the dispatch dial: %+v", f.retention)
+	}
+
+	// Zero (unbounded, the v1 default) is always allowed.
+	resp = postForm(t, ac, base+"/settings/retention", url.Values{
+		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"0"},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("unbounded (0) dispatch dial refused: status=%d (%s)", resp.StatusCode, body(t, resp))
+	}
+	resp.Body.Close()
+	if f.retention.DispatchCadenceMultiple != 0 {
+		t.Fatalf("unbounded dial not persisted: %+v", f.retention)
+	}
 }

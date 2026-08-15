@@ -56,6 +56,12 @@ type Querier interface {
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
+	// The one and only path that deletes Dispatch rows (v1 spec §4.6, ADR-0041). It
+	// touches the dispatch table and nothing else: no Observation, Span, Batch or
+	// queue_job row is read or written here, so retiring Dispatch can move no value
+	// on any timeline. The FK change in migration 20900 lets the delete null the
+	// operational back-references rather than cascade into measured data.
+	DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error)
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
@@ -126,6 +132,13 @@ type Querier interface {
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
+	// The slowest enabled Scan's cadence — the largest cadence_seconds among enabled
+	// Scans — which the Dispatch dial is a multiple of and the floor k multiples of
+	// (v1 spec §4.6). COALESCE to 0 when no Scan is enabled: with no cadence the
+	// multiple has no meaning, so the sweep treats it as unbounded and retires
+	// nothing. It reads only the scan table and never the operational or measured
+	// corpora.
+	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.
