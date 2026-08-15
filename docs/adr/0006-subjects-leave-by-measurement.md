@@ -139,9 +139,25 @@ also silent.
   since gone has no `Citation` chain back to a `Seed` — the precise condition
   [ADR-0002](./0002-ownership-gates-probing.md) forbids, and by then the provider has probably
   reassigned it. Losing the last citation stops the probe, it does not merely hide a row.
-- **Withdrawal needs every available vantage to agree**, composing `Availability` exactly as
-  `Exposure` does, or every split-DNS name flaps on every run. One vantage down makes
-  membership not-comparable rather than concluded from the survivor.
+- **Withdrawal needs ~~every available vantage~~ a cross-class `Vantage composition` to agree**,
+  composing `Availability` exactly as `Exposure` does, or every split-DNS name flaps on every run.
+  One vantage down makes membership not-comparable rather than concluded from the survivor.
+  > **NAMED and REPAIRED by [#138](https://github.com/winniel123/verge-asm/issues/138) ·
+  > [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md).**
+  > This is the **cross-class** kind: every `Vantage class` the install runs holds a current value and
+  > they agree, disagreement being incommensurability rather than evidence. The struck phrase is
+  > **superseded here, at the site that specifies it**
+  > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) for two
+  > reasons. Read alone, *"every **available** vantage"* excludes the down vantage and concludes from
+  > the survivor — the exact opposite of the sentence beside it, and it is the *phrase* rather than the
+  > sentence that travelled onward, into ADR-0004, ADR-0020, ADR-0071 and `CONTEXT.md`'s `Name` entry.
+  > And over an **empty** set unanimity is vacuously **true**, so read literally this bullet
+  > **withdraws every `Name` in the estate** the night every vantage goes unavailable. Under ADR-0080
+  > both are closed by construction: a cross-class composition needs a value from every class, so an
+  > absent class is a missing term rather than an empty conjunction.
+  >
+  > **This composition's consumer is not a rule**, which is why ADR-0080 refuses to describe a
+  > composition as a step inside a predicate.
 - **No cascade down the tree.** A Name Error at one name licenses no absence below it. RFC
   8020 says it should, but compliance is not universal, and every inferred absence is a
   "removed" alert we never measured. Re-querying is free.
