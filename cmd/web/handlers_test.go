@@ -500,6 +500,11 @@ func (f *fakeStore) ListCurrentNameSubjects(_ context.Context, search string) ([
 		}
 		rows = append(rows, db.ListCurrentNameSubjectsRow{
 			SubjectKey: k, Value: o.Value, ObservedAt: o.ObservedAt,
+		})
+	}
+	return rows, nil
+}
+
 type fakeZoneFile struct {
 	seedID     int64
 	suppliedAt time.Time
@@ -606,6 +611,8 @@ func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.Fin
 		ID: best.ID, NameDomain: best.NameDomain, CreatedAt: best.CreatedAt,
 		CreatedByUsername: f.accounts[best.CreatedBy].Username,
 	}, nil
+}
+
 func (f *fakeStore) GetZoneCadenceSeconds(context.Context) (int64, error) {
 	if f.zoneCadence == 0 {
 		return 2592000, nil // the shipped monthly default
@@ -616,6 +623,8 @@ func (f *fakeStore) GetZoneCadenceSeconds(context.Context) (int64, error) {
 func (f *fakeStore) SetZoneCadenceSeconds(_ context.Context, cadenceSeconds int64) error {
 	f.zoneCadence = cadenceSeconds
 	return nil
+}
+
 func (f *fakeStore) CreateProposerLookup(_ context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error) {
 	l := db.ProposerLookup{
 		ID: f.lookupNextID, Query: arg.Query, CreatedBy: arg.CreatedBy,
