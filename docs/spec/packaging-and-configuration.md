@@ -390,9 +390,22 @@ leg on a `Service`, and its domain is populated by the 131 TCP pairs, so the rul
 five UDP pairs cost is **subjects**, not evaluability — there is no `Service` for a pair outside the
 recorded scope.
 
-**Whether v1's instrument could measure a UDP `Service` honestly at all is not settled here.**
+~~**Whether v1's instrument could measure a UDP `Service` honestly at all is not settled here.**~~
+**SETTLED by [#141](https://github.com/winniel123/verge-asm/issues/141) /
+[ADR-0083](../adr/0083-silence-decides-only-on-a-connection-oriented-transport.md), and struck here
+per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
 `connect-outcome`'s union is `connected │ refused │ no-response`, and a connected UDP socket sends no
-packet, so `connected` would be a fact about our own kernel. It is ticketed rather than guessed.
+packet, so `connected` would be a fact about our own kernel. ~~It is ticketed rather than guessed.~~
+**It cannot, and neither could a widened `connect-outcome` — but an honest instrument is
+constructible: `answered │ refused │ unanswered`, decided by a **sixth leaf** `datagram-outcome` and
+specified rather than shipped. `refused` is reused unchanged; `no-response` is **not**, because it
+projects to `not-reached` and a connectionless exchange did not decide that; `unanswered` projects
+onto no `Reach` and therefore returns `not-evaluable`. **Nothing in this section's figures moves** —
+`verge-core` is still 136 pairs / 131 probed, and the aperture statement still reads
+`5 of 38 sensitive pairs unread`, because UDP does not turn on here. What ADR-0083 adds to this
+section is the reason it should not: a payload-free UDP leg buys **zero** net new firings, and the
+payload table that would change that is the wire prober
+[ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) deferred.**
 
 ---
 
