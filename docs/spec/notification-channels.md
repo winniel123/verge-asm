@@ -169,7 +169,7 @@ Retries run on the queue's existing retry, backoff and dead-lettering
 | Axis | Available? | Why |
 | --- | --- | --- |
 | **Class** — `drift` · `coverage` · `clock` | **Yes** | The partition the model itself owns, over messages rather than events |
-| Cause | No | The four causes are a wording distinction and belong to #120; the classes are the partition |
+| Cause | **No — ruled, not deferred** | The classes **are** the causes with two merged, so this buys one cut: splitting `coverage`. Six of that class's ten members carry a stated cause, one is ruled to have **neither**, and the axis was already measured too coarse to key the wording — §9 below, [#158](https://github.com/winniel123/verge-asm/issues/158) · [ADR-0091](../adr/0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md) |
 | Per rule, per signal | No | An operator-authored predicate over a versioned rule set — #16's refusal one layer across — and it fails silently the first time a rule is renamed |
 | Per subject, per `Seed`, per scope | No | Same shape, and it would let an operator route the flagship away from a scope without saying so |
 | Severity | No | There is no severity — [#16](https://github.com/winniel123/verge-asm/issues/16) |
@@ -190,12 +190,25 @@ being one dial too many. See §6.
 - **Stated cost, and it is real.** An operator drowned by **one rule inside** a class must silence
   the whole class on that channel. The messages are in the store either way. **Reopens on** a
   measured volume in the class routing cannot rescue.
-- **The ACME flap has no remedy in v1.** ADR-0004 routed it to a notification-layer suppression
-  that did not exist; its actual v1 treatment is class routing, and whether that reaches it depends
-  on an unsettled class assignment — ADR-0026 §5 puts `not-fired` → `fired` in the **drift** class
-  for all sixteen rules, while [#60](https://github.com/winniel123/verge-asm/issues/60) and ADR-0004
-  put the three certificate-lifetime rules in the **clock** class. Flagged, not ruled here: it is a
-  question about causes, and causes are #120's.
+- **The ACME flap's remedy is class routing, and it reaches it.** ~~The ACME flap has no remedy in
+  v1~~ and ~~whether that reaches it depends on an unsettled class assignment … Flagged, not ruled
+  here~~ are **superseded here, at the site that specifies them**
+  ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
+  read alone and in the present tense they would have a session re-open a settled question.
+  [#120](https://github.com/winniel123/verge-asm/issues/120) ·
+  [ADR-0064](../adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md) §2 ruled
+  the class assignment. The classes partition **messages**, so a class is read **per firing** from
+  the fold: every firing of the flap has an unchanged `certificate` span, so every firing is **clock
+  class** and an operator who routes that class off a channel silences the whole flap — while a
+  certificate arriving *already* inside its horizon moved the span and still reaches the drift
+  channel. The clearing edge was already silent (ADR-0026 §5). ADR-0026 §5's *drift class* sentence
+  is narrowed at its own site and reads **seventeen** rules, not ~~sixteen~~: drift unconditionally
+  for the fourteen that read no clock, per firing for the three certificate-lifetime rules.
+- **Routing on the cause instead of the class was asked and refused** —
+  [#158](https://github.com/winniel123/verge-asm/issues/158) ·
+  [ADR-0091](../adr/0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md),
+  §9 below. It is a refusal on the axis rather than a deferral, and the **Reopens on** condition two
+  bullets above now carries a **named candidate** — the `mover`, never the cause.
 - **No pull surface.** No feed, no JSON API, no polling endpoint — #6, unchanged, and the reason
   is the credential rather than the format.
 - **No email, no vendor integrations, no log-line channel.** ADR-0039's rejected alternatives, each
@@ -254,3 +267,72 @@ it** ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-tha
 *nothing in the comparison path reads it* is not *nothing reads it*, and discarding a dead-lettered
 delivery converts *we could not reach you* into *we told you* — **a dead-lettered `Delivery` licenses
 no silence**, defeated by storage.
+
+---
+
+## 9. Why the routing unit is the class and not the cause
+
+- **Ruling:** [ADR-0091](../adr/0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md)
+- **Ticket:** [#158 Is the routing unit the class or the cause?](https://github.com/winniel123/verge-asm/issues/158)
+
+§5's `Cause` row previously refused the cause on the ground that the causes *"are a wording
+distinction and belong to #120"*. #120 has ruled, so that reason expired and the row is given a
+reason of its own here rather than a pointer to a closed ticket
+([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md): *a withdrawal that
+supplies no replacement does not hold*).
+
+### 9.1 What routing on the cause would actually buy
+
+The three classes are the four causes **with two of them merged**, and nothing else:
+
+| Cause | Class |
+| --- | --- |
+| the world moved | `drift` |
+| we stopped looking | `coverage` |
+| we changed how we look | `coverage` |
+| a clock crossed | `clock` |
+
+So *route on the cause* means exactly and only **split the `coverage` class in two**. `[derived]` —
+the partition is ADR-0064's, read off its own Context paragraph.
+
+Two consequences fall straight out and both cut against the proposal.
+
+**The want that motivates it is already expressible.** *Tell me when the world moved, and put
+everything about our own looking somewhere quieter* names `drift` on one channel and `coverage` +
+`clock` on another. That is class routing as §5 already ships it, at zero latency and zero
+threshold.
+
+**ADR-0064's class-per-firing rule is not an instance of the class being coarser than the cause.**
+The cause moves in lockstep across that seam: a `certificate-expired` firing whose `certificate` span
+moved has the cause *the world moved*; one whose span did not has the cause *a clock crossed*. What
+ADR-0064 §2 made finer is the class relative to the **rule**, not relative to the cause.
+
+### 9.2 Why the split is refused
+
+| Ground | What it says |
+| --- | --- |
+| **The corpus has no cause assignment for the class it would split** | Six of the ten coverage members carry a stated cause — 2, 4 and 10 under *we changed how we look*; 3, 5 and 8 under *we stopped looking*. **Member 7 is ruled to have neither**: ADR-0014 says a `Gap` closing is *"neither drift, nor a clear, nor* we stopped looking*"*, and our looking did not change either — we resumed. Member 9 is ADR-0013's *"first coverage-class member caused by neither our act nor the operator's"*, and ADR-0008 puts two more in the class as *"the world or our own infrastructure failing"*. `[derived]` |
+| **So the price is not one enum widening** | It is a ten-row classification the project authors and owns forever, with no attestation and no failing test — #125's shape, and ADR-0085's *an obligation with no failing test has no owner*. It **fails silently on the eleventh member**, which is ADR-0039 §4's own failure mode through a door the class does not have: a class is assigned by ADR-0064 §2's fold test on every firing and cannot be forgotten |
+| **The cause was already measured too coarse to key the *wording*** | #44's absence vocabulary runs **four registers under one cause**, differing in **mover** — twice us, once the estate's authority, once the operator's own declaration. ADR-0064 states the conclusion in terms: *"cause is demonstrably not the unit the wording keys on."* Routing is blunter than wording, so cause routing puts #48's *you stopped telling us* on the same wire as a prober outage — the levelling ADR-0020 exists to prevent |
+| **The motivation is volume, and the volume is unmeasured** | A message fires **at the cause with a census**, so a widening is one message per declared act however many timelines it opens. `[thin]` — that this is absorbable is an argument about an install nobody has run, disclosed rather than inherited. §6's reopening condition is the one to trip: *a measured volume in the class routing cannot rescue* |
+
+### 9.3 The named candidate, if §6 ever trips
+
+**It is the `mover`, not the cause** — ADR-0064 §1's total, falsifiable function from the fold to
+what the sentence is about: *an object in the estate · us · the operator · nothing*. It is also a
+four-way refinement splitting `coverage`, but it splits it **{us} against {the operator}**, which is
+the cut an operator can act on — *you stopped telling us* is theirs to fix, *we stopped looking* is
+ours. It is assigned on every message by construction, so it needs no classification and cannot be
+forgotten; ADR-0064 §6 already assigns it where the cause is unassigned, filing member 9 as
+**coverage, subject us**.
+
+Not adopted here, on the same unmeasured-volume ground as everything else in §6. Named so the
+reopening condition has a candidate attached rather than an open invitation. **The cause is closed.**
+
+### 9.4 What binds
+
+- A `Channel` subscribes on a subset of the three classes and on **nothing else**.
+- The **cause is a field the operator reads and the router never does**. Its presence in the POST
+  body (§3.1) is not a routing axis in waiting.
+- Nothing is minted: no fifth cause, no fourth class, no new coverage member, no severity, no
+  per-rule, per-signal or per-subject filter, no operator-authored predicate.

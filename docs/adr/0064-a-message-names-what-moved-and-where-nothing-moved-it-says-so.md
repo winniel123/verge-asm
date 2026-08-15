@@ -35,6 +35,18 @@ finer, and **no coalescing and no flap suppression in v1** (ADR-0039 §4, §6).
 > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): the
 > superseded count, read alone and in the present tense, would have a competent session build a
 > nine-member class.
+>
+> **And *"two triggers"* is superseded here too, by the same ADR — it is `THREE`.** Recorded by
+> [#158](https://github.com/winniel123/verge-asm/issues/158) ·
+> [ADR-0091](./0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md).
+> ADR-0074 minted the `Seed` narrowing as a **third trigger** of *we changed how we look* and a
+> **third payload** that must not be levelled with the other two, marking both at
+> [ADR-0014](./0014-only-revealed-generalises.md)'s own site. The paragraph above says *"nothing else
+> in this paragraph moves"* and names what it re-checked — the clock class and the census producers,
+> both of which held. The trigger count was not among them, so the disclaimer is true of what it
+> checked and false of this. **It moves no conclusion in either ADR**: three triggers under one cause
+> makes the coverage class **coarser** than nine-and-two did, and every argument in this document
+> that turns on the class's coarseness is strengthened rather than disturbed.
 
 Three things arrive here needing an answer.
 
