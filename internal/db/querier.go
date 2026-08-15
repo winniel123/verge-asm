@@ -24,8 +24,16 @@ type Querier interface {
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
+	// The operator's overrides of the authored ship defaults. The handler merges
+	// these onto the in-binary catalogue: a source's effective state is its override
+	// where one exists and its shipped default otherwise.
+	ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
+	// Record the operator's on/off choice for one source. A toggle is a Declared act
+	// with no timeline, so re-toggling overwrites the single current value rather
+	// than appending, and toggled_at re-stamps to when the current state was set.
+	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
 }
 
 var _ Querier = (*Queries)(nil)
