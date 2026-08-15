@@ -40,7 +40,7 @@ shadow a name nor exempt one. Where no component is determinate, every name bene
 | Concern | Decision |
 | --- | --- |
 | What the predicate compares | **Set equality on the RDATA set**, per **component** — a component being one `(qtype asked, RR type in the answer)` pair — and **only at components measured determinate** |
-| What a *component* is, and why not *the answer* | The answer to one qtype is a **chain**, and its parts have different stabilities. **[measured]** `s3.amazonaws.com` rotates eight A addresses on every label while its CNAME component holds `s3-1-w.amazonaws.com.` still |
+| What a *component* is, and why not *the answer* | The answer to one qtype is a **chain**, and its parts have different stabilities. **[measured]** ~~`s3.amazonaws.com` rotates eight A addresses on every label~~ **an `s3.amazonaws.com` lookup carries eight fresh A addresses per lookup** while its CNAME component holds `s3-1-w.amazonaws.com.` still. **Attribution corrected by [#115](https://github.com/winniel123/verge-asm/issues/115):** **[measured]** direct to `ns-63.awsdns-07.com` the authority returns the CNAME and **no A record at all**, identical across 8 repeats, 8 distinct labels and all four servers; `s3-1-w.amazonaws.com` is a **separate delegation** it answers REFUSED for, and the rotation is *that* zone's, spliced in by the recursive resolver following the chain. **The ruling is untouched** — the component is still `Indeterminate` from where the probe stands, and this row's point about a chain having parts of different stabilities is if anything sharper — but the sentence *S3 rotates* names the wrong operator |
 | What the signature **is**, given n control labels | Per component, a **closed union of three**: `NoSynthesis` · `Determinate(RRset)` · `Indeterminate`. Never *the* answer set, and **never a union of the observed sets** |
 | Why never a union | The union is the object that licenses an intersection predicate, and recording it invites one back. It is not recorded, so it cannot be read |
 | When a candidate is **discriminated** | When it **differs at some determinate component** — a different RRset where the control had one, or an RRset where the control determinately had none |
@@ -49,7 +49,7 @@ shadow a name nor exempt one. Where no component is determinate, every name bene
 | Which way it errs | **Toward `Shadowed`, by construction** rather than by preference. An unmeasurable component is refused the power to exempt |
 | Is that stated? | **Yes, and it is required to be.** ADR-0011's *the leaf may not helpfully normalise* means the direction must be a decision |
 | Is the match predicate a declared parameter? | **Yes, still**, and it now has a value. ADR-0021's table row and §6.8's **Open** row both close |
-| Is the **determinacy verdict** a parameter? | **No, and not aperture either.** It is a **measured in-batch fact**, computed from the control probe's own answers — a parameter is authored data, and this is a function of what the authority said this batch |
+| Is the **determinacy verdict** a parameter? | **No, and not aperture either.** It is a **measured in-batch fact**, computed from the control probe's own answers — a parameter is authored data, and this is a function of what the authority said this batch. **[#115](https://github.com/winniel123/verge-asm/issues/115) makes that confinement load-bearing rather than tidy:** the verdict is a claim about a **vantage at a moment**, not about the authority — **[measured]** `vercel.com` rotates six answers in eight repeats at its authority and reads `Determinate` for the **1800 s** its TTL is cached over a resolver — so it expires at the batch boundary and **may never be carried into the next batch** to save queries. That is the shelf life; ADR-0011 already grants it, and nothing is added |
 | Does the aperture list move? | **No. It stays at seven.** Unlike ADR-0066's population, determinacy does not decide *which subjects were covered*; it decides what a covered subject's answer **means**, so no `Batch` scope dimension is added |
 | Does `resolution`'s value space move? | **No.** `Shadowed` already exists and no member is added, so there is **no `Break`** |
 | Which value space *does* move | **`wildcard-synthesis`'s** — ADR-0062's deferred closed union is **three** members, not the two it guessed. Its remaining blocker is discharged |
@@ -128,21 +128,31 @@ at all and every name beneath it is suppressed. Under seven it discriminates.
 | --- | --- |
 | Wildcarded (a random label answered) | **14** |
 | Not wildcarded (NXDOMAIN — `pages.dev`, `workers.dev`, `azurewebsites.net`, `fly.dev`, `repl.co`) | 5 |
-| Of the 14: **determinate at A** across five labels | **10** — `github.io`, `localtest.me`, `traefik.me`, `vcap.me`, `netlify.com`, `staging.render.com`, `railway.app`, `onrender.com`, `surge.sh`, `glitch.me` |
+| Of the 14: **determinate at A** across five labels | ~~**10**~~ **8** — `github.io`, `localtest.me`, ~~`traefik.me`~~, `vcap.me`, `netlify.com`, `staging.render.com`, `railway.app`, `onrender.com`, ~~`surge.sh`~~, `glitch.me` — the two struck members are corrected in the note below |
 | Of the 14: indeterminate at A | 4 — `herokuapp.com`, `vercel.com`, `appspot.com`, `s3.amazonaws.com` |
 | Of those 4: **still carry a determinate component** at another qtype or RR type | 3 — `s3` (CNAME/TXT/NS/SOA), `appspot` (MX), `vercel` (a determinate NODATA at six qtypes) |
 | **No determinate component anywhere** | **1 of 14 — `herokuapp.com`** |
 
-> **One row of this table does not reproduce, measured by
+> **~~One row~~ TWO ROWS of this table do not reproduce, measured by
 > [#113](https://github.com/winniel123/verge-asm/issues/113) on 2026-08-15.** `surge.sh` is filed
 > here under *determinate at A across five labels*; a fresh five-label run returned **two** distinct
-> answers and a ten-label run minutes later returned **one**. So *10 of 14* has at least one member
-> that is a coin-flip rather than a fact. This **strengthens** the ruling rather than weakening it —
-> it is one more zone needing the gate — and it is why #113 declined to raise the control-label
+> answers and a ten-label run minutes later returned **one**. **And `traefik.me` is an
+> address-parsing authority — it reads `Indeterminate` the moment ADR-0069's structured label is in
+> the set.** So *10 of 14* reads **8 of 14** on current evidence. This **strengthens**
+> the ruling rather than weakening it —
+> it is ~~one more zone~~ **two more zones** needing the gate — ~~and it is why #113 declined to raise the control-label
 > count on it: more labels saw *less* variation, so the count buys nothing statable against a
-> process nobody has identified.
+> process nobody has identified.~~
+>
+> **The `surge.sh` half is finished by [#115](https://github.com/winniel123/verge-asm/issues/115).**
+> It is not a coin-flip authority: **[measured]** direct to `ns1.surge.world` it is a **two-member
+> hash of the query label**, `188/172` over 360 labels, identical on all four of its servers and
+> unmoved over 35 minutes. Five random labels therefore land in one shard **3 times in 30**, which
+> is a **sampling rate**. #113 declined to raise the count on a single un-reproduced run; #115
+> isolated the mechanism, measured the rate to be **monotone in the count**, and raised the random
+> half to **9**.
 
-So set equality is not wrong. It is **unscoped**, and it is right for ten of fourteen outright. The
+So set equality is not wrong. It is **unscoped**, and it is right for ~~ten~~ **eight** of fourteen outright. The
 ticket's *two of four* sampled four zones of which two were the pathological ones. Total suppression
 — the expensive limb of this ruling — reaches **one measured parent in fourteen**, not half of them.
 
@@ -243,7 +253,8 @@ residue looks like when it survives.
 - **One vantage, one day.** `herokuapp.com`'s `ie0x` and `va0x` nodes are Ireland and Virginia, so
   part of the rotation is geographic, and ADR-0025 already calls EDNS Client Subnet *"a `Vantage` in
   an option's clothes"*. A multi-vantage run would see **more** rotation, never less: the direction
-  is safe, and *10 of 14 determinate* is an **upper bound** on determinacy rather than an estimate.
+  is safe, and ~~*10 of 14 determinate*~~ ***8 of 14 determinate*** (corrected at the base-rate
+  table) is an **upper bound** on determinacy rather than an estimate.
 - **No control probe has ever run inside a batch**, verbatim from ADR-0066. What is measured is DNS
   behaviour against live authorities.
 
@@ -290,9 +301,9 @@ residue looks like when it survives.
 | --- | --- |
 | **Non-empty intersection with the union of the observed signatures** — the *losing option*, and the ticket's own leading candidate | **[measured]** it buys **nothing** where it is needed. `herokuapp.com`'s synthesised sets are pairwise disjoint blocks, so intersection and set equality are the **same predicate** there — both catch **7 of 25** and leave **18 of 25 (72%)** fictional labels `Resolved` — while on `vercel.com` it catches **25 of 25**. Its correctness is a property of the provider's load balancer that the probe cannot observe and the `Batch` cannot record, so the predicate's error rate is unknowable in band. It also requires **recording the union**, which is the one object that makes this predicate expressible |
 | **The CNAME target rather than the address set** — the ticket's second candidate | **[measured]** half right, wrong half. `s3.amazonaws.com` holds `s3-1-w.amazonaws.com.` still; `herokuapp.com`'s CNAME target rotates over **eight** ingress nodes and over **four** across four repeats of one label at one authority. Privileging an RR type **by name** gets one zone right by luck. Determinacy subsumes the intuition and picks the right component per zone |
-| **Set equality unscoped**, §3.2 step 4 read literally | **[measured]** it is right for **10 of 14** wildcarded zones and catastrophic on the rest — 5 of 25 on `vercel.com`. The defect is that it is unscoped, not that it is wrong, which is why the ruling keeps it and gates it |
+| **Set equality unscoped**, §3.2 step 4 read literally | **[measured]** it is right for ~~**10 of 14**~~ **8 of 14** wildcarded zones and catastrophic on the rest — 5 of 25 on `vercel.com`. The defect is that it is unscoped, not that it is wrong, which is why the ruling keeps it and gates it |
 | **A convergence stopping rule** — draw control labels until the union stops growing, then treat disjointness as discrimination | It recovers `api.vercel.com` (76.76.21.112, plainly outside the pool), which total suppression loses, so it is a genuine middle. It loses three times over: it makes the **control-label count a function of what the batch found**, which is exactly the *"a parameter whose value is whatever the batch found is no more declared than one whose value is whatever the library defaults to"* that ADR-0066 used to push the population out of the parameter table — so it needs an **eighth aperture input** and a second `Batch` scope dimension for a leaf that has not shipped; it has **no termination guarantee** against an authority whose synthesis is a function of the label (`traefik.me`, measured); and **[measured]** it does not buy the false positive it exists to buy, since `www.vercel.com` draws both its addresses from the wildcard's own pool and is suppressed anyway |
-| **Abolish the escape hatch entirely** — shadow everything beneath any measured wildcard | The maximally safe reading, and it over-pays. **[measured]** **10 of 14** wildcarded zones are determinate at A across five labels, so wholesale abolition discards RFC 4592 §2.2.1's own licence on 71% of the population to fix the 7% where it does not hold. Determinacy is the smallest gate that separates them |
+| **Abolish the escape hatch entirely** — shadow everything beneath any measured wildcard | The maximally safe reading, and it over-pays. **[measured]** ~~**10 of 14**~~ **8 of 14** wildcarded zones are determinate at A across five labels, so wholesale abolition discards RFC 4592 §2.2.1's own licence on ~~71%~~ **57%** of the population to fix the 7% where it does not hold. Determinacy is the smallest gate that separates them |
 | **The DNSSEC wildcard proof** — RFC 4035 §3.1.3's short RRSIG `Labels` field plus NSEC/NSEC3 proving no closer match | The only **sound** discriminator that exists, and it is **[measured]** unavailable. Exactly **1 of 15** zones probed carries a DS (`herokuapp.com`) — and that one **online-signs its synthesised answers**: its RRSIG reads `cname 13 3 …`, `Labels` = **3** against a 3-label owner, with no NSEC3, so the proof that would discriminate is never served. It is missing precisely where content discrimination is also missing. It also changes the leaf's **query mode** (DO bit, RRSIG parsing, NSEC3 handling), which is a parameter change of its own. **Ticketed, not folded** |
 | **A new `Undiscriminated` member in `resolution`'s value space**, distinct from `Shadowed` | `Shadowed` **is** that value once the *matches the signature* clause is read as the instrument it was. Adding a member to `resolution` is ADR-0015's expensive move and would `Break` every timeline of the facet, to name a distinction the operator does not act on differently — in both cases we cannot see here, and in both the remedy is the zone file |
 | **Make the predicate an aperture input**, following ADR-0066's move on the population | The population decides **which subjects were covered**, which is what an aperture input is for and why the `Batch` records it by content. The predicate decides what a **covered** subject's answer means. Filing it as aperture would make every `Batch` record a rule rather than a scope, which is the *record the population as a rule* alternative ADR-0066 already refused, inverted |
