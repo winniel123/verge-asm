@@ -174,7 +174,7 @@ Two-factor is not active until you confirm.</p>
 
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
-<nav class="nav"><a href="/">Home</a><a href="/subjects">Subjects</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
+<nav class="nav"><a href="/">Home</a><a href="/subjects">Subjects</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
 </div>{{end}}
@@ -582,6 +582,76 @@ observation-currency floor lands with later work; for now zero means no operator
 </div>
 </form>
 {{if .Retention.UpdatedAt}}<p class="muted" style="margin-top:12px">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span class="mono">{{.Retention.UpdatedBy}}</span>{{end}}.</p>{{end}}
+</div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "vergecore"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="microlabel">Declared · verge-core</div>
+<h1>verge-core</h1>
+<p>The daily hot-tier port set: the union of a <em>frequency</em> half — the project's own
+open-frequency selection — and a <em>sensitive</em> half, the curated list of ports never
+legitimately internet-facing. Only the TCP pairs are probed; the {{.UDPCount}} UDP pairs are recorded
+in scope and never probed. You may edit the frequency half. The sensitive half is authored by the
+release — moving one of its pairs would move a version and break every timeline it touches — so it is
+read-only here.</p>
+
+<div class="section">
+<div class="microlabel">Composition</div>
+<div class="kv"><div class="k">Union</div><div class="mono">{{.Counts.Union}} pairs ({{.Counts.TCP}} TCP, {{.Counts.UDP}} UDP)</div></div>
+<div class="kv"><div class="k">Frequency</div><div class="mono">{{.Counts.Frequency}} pairs (TCP, editable)</div></div>
+<div class="kv"><div class="k">Sensitive</div><div class="mono">{{.Counts.Sensitive}} pairs (read-only)</div></div>
+</div>
+
+{{if .IsAdmin}}
+<div class="section">
+<h2>Add a frequency port</h2>
+<p>Add a TCP port to the frequency half. It joins the daily probe set from the next hot scan.</p>
+{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+{{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
+<form method="post" action="/verge-core/frequency" class="inlineform">
+<input type="hidden" name="action" value="add">
+<label><span>Port</span><input name="port" inputmode="numeric" value="{{.FormPort}}" placeholder="8443" autocomplete="off" required></label>
+<button type="submit">Add to frequency</button>
+</form>
+</div>
+{{else}}
+{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+{{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
+{{end}}
+
+<div class="section">
+<h2>Frequency half</h2>
+<p class="muted">{{.Counts.Frequency}} TCP ports. A port also on the sensitive half stays probed even if you
+remove it here — the union keeps it — which is exactly why removing it cannot move the sensitive half.</p>
+<table>
+<thead><tr><th>Port</th><th>Also sensitive</th><th>Edit</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+<tbody>
+{{range .Frequency}}<tr>
+<td class="mono">{{.Port}}/tcp</td>
+<td>{{if .AlsoSensitive}}<span class="badge">sensitive</span>{{else}}<span class="muted">—</span>{{end}}</td>
+<td>{{if .Edited}}<span class="badge">{{.EditAction}}</span>{{else}}<span class="muted">shipped</span>{{end}}</td>
+{{if $.IsAdmin}}<td class="row">
+<form method="post" action="/verge-core/frequency"><input type="hidden" name="action" value="remove"><input type="hidden" name="port" value="{{.Port}}"><button class="secondary" type="submit">Remove</button></form>
+{{if .Edited}}<form method="post" action="/verge-core/frequency"><input type="hidden" name="action" value="reset"><input type="hidden" name="port" value="{{.Port}}"><button class="secondary" type="submit">Reset</button></form>{{end}}
+</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<div class="section">
+<h2>Sensitive half · read-only</h2>
+<p class="muted">{{.Counts.Sensitive}} pairs, authored by the release. There is no control to move one — it
+would move a version without a golden-corpus row moving.</p>
+<table>
+<thead><tr><th>Port</th><th>Transport</th></tr></thead>
+<tbody>
+{{range .Sensitive}}<tr><td class="mono">{{.Port}}</td><td class="mono">{{.Transport}}</td></tr>{{end}}
+</tbody>
+</table>
 </div>
 </main>
 {{template "foot" .}}{{end}}
