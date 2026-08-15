@@ -241,9 +241,31 @@ Which side of the operator's boundary a `Vantage` sits on — `internet` or `int
 declared as intent and re-verified every batch against the **address-scope** `Seed`s the system
 already holds, and against nothing else: no registry file may decide which side of the boundary a
 prober is on, for the same reason none may open the probing gate, and **no `custody extension`
-either**. The test is over **every address the vantage holds**, of either family: one uncovered
+either**. The test is over ~~**every address the vantage holds**~~ **every address the vantage is
+observed to *present*** — a narrowing, and a forced one — of either family: one uncovered
 address and it verifies `internet`, which is the closed direction, because a vantage wrongly read as
-`internal` moves observations onto the leg that never alerts. A **target's** family moves nothing —
+`internal` moves observations onto the leg that never alerts.
+**A presented address is one an outside observer saw**, and v1 has exactly two: a prober's is the
+address the instance dialled, known by construction, and the instance's own is `SSH_CLIENT` as the
+prober reports it — [#14](https://github.com/winniel123/verge-asm/issues/14)'s two self-contained
+checks, which are now the *whole* of the set. **An interface address is not a presented address.**
+Read the older wording literally and a NATed instance could verify `internal` only by declaring its
+own LAN as an address scope, which [ADR-0049](./docs/adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md)'s
+1,024-address cap **refuses outright** for anything above a `/22` — so an operator on `10.0.0.0/8`
+could never verify one, and `Exposure` would be unreachable by construction on their install.
+[ADR-0049](./docs/adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md)'s
+**every-not-any** quantifier is untouched and runs over this set, so a **dual-stacked** prober dialled
+over one family has the other family's egress unobserved — a residue narrowed rather than closed, and
+disclosed rather than assumed away.
+The narrowing has a consequence worth stating plainly: **an internet `Vantage` exists exactly where a
+second host observed this one's presented address, so `Exposure` requires a prober, unconditionally.**
+With none, the instance's address is unobserved, its class is `unverified`, and #14's disposal
+applies — no exposure claims, internal-only, never `firewalled`, because we did not look. **Intent is
+declared by an act rather than by a field**: provisioning a prober declares *this vantage is on the
+internet*, and declaring an address scope covering the instance's presented address (in practice a
+`/32` or `/128`) declares *this one is inside my boundary*. There is no `network_position` enum and
+no setup prompt; both were specified in `safe-active-probing.md` §8.2 and both are struck there
+([#124](https://github.com/winniel123/verge-asm/issues/124)). A **target's** family moves nothing —
 the class says where the prober sits, not what it is looking at. This is the one place where two things fairly called *the operator's addresses* mean
 different sets, deliberately: `Custody` may move on a resolution, and a `Vantage` whose class
 moved because a DNS answer changed would shuttle observations between the two legs of `Exposure`
@@ -269,13 +291,24 @@ _Avoid_: external, network position, inside/outside
 **Scan**:
 The operator's configured recurring intent — which scopes, which ports, which vantages,
 what cadence. The configured thing, never the executed one. **Not every `Scan` is a port
-tier**: two are, and the third is `tls-acceptance`'s weekly enumeration, whose scope is the
-open `Service` population and the TLS candidate set. A measurement that needs a cadence of its
+tier**: ~~two are, and the third is `tls-acceptance`'s weekly enumeration, whose scope is the
+open `Service` population and the TLS candidate set.~~ **there are four and only two are port
+tiers.** The third is `tls-acceptance`'s weekly enumeration, whose scope is the open `Service`
+population and the TLS candidate set; the fourth is **`zone`**, whose scope is the name scopes
+holding a supplied zone file and which has **no port list and no vantage choice at all**, the
+worker reading it. A measurement that needs a cadence of its
 own takes a `Scan` of its own, because a slower cadence hidden inside another `Scan` makes the
 aperture a hidden field rather than a configured object. **Recurring is load-bearing and not
 incidental**: currency is `k` cadences of the covering `Scan`, so a measurement with no cadence
 has no currency bound, which is why there is no one-off measurement in the model and why the
-widest port tier ships **configured and disabled** rather than running once unasked. A `Scan`
+widest port tier ships **configured and disabled** rather than running once unasked. That is also
+why the zone file takes a `Scan`: it is a `Source` whose staleness the model must be able to
+report, and its cadence is the **operator's declared re-supply interval** — their promise about how
+often they will re-export, shipped at monthly. Its batches restate the file's observations **at the
+operator's supply instant** rather than at our read, because re-reading unchanged bytes on a cadence
+produces a current observation of a stale fact, and it is that instant the bound runs from
+([#48](https://github.com/winniel123/verge-asm/issues/48)'s fourth absence register, *you stopped
+telling us*). A `Scan`
 whose scope list is empty is a legible state; an aperture with nothing configured behind it is
 not. See [ADR-0005](./docs/adr/0005-scan-execution-model.md),
 [ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) and
@@ -472,7 +505,13 @@ _Avoid_: URL, site, web asset, vhost
 **Observation**:
 A single measured fact: at a time, from a vantage, in a batch, a source reported that a
 subject had a given value for a given facet. One concept across every facet, so that
-change detection is written once rather than per facet. It is held in **two tiers**, and the
+change detection is written once rather than per facet. *At a time* is **when the source spoke, not
+when we read it**, and the two come apart for exactly one class: a `declared` source's observation
+takes its instant from the **operator's supply act**. Re-parsing a stored zone file on a cadence
+would otherwise produce a *current* observation of a *stale* fact, which is worse than never
+re-reading it — it makes staleness invisible instead of `not-evaluable`, and
+[#48](https://github.com/winniel123/verge-asm/issues/48)'s fourth absence register, *you stopped
+telling us*, is the thing that would go unreachable. It is held in **two tiers**, and the
 boundary is what may still read it rather than how old it is. **Live** — within `k` cadences of
 the tightest `Scan` covering it — is what every derivation reads, and it may never be discarded.
 Past that it is **evidential**: a derivation may not read a stale observation and may never

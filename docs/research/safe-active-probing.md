@@ -296,17 +296,42 @@ The onboarding baseline is real and it already exists as an operator act:
 which dispatches whichever `Scan`s the operator has enabled. If they enabled the cold tier, the
 baseline is full-range; if they did not, it is `verge-core`. Either way it is a button, not a default.
 
-**So a default-settings install measures `verge-core` and nothing else, permanently** — including the
+**So a default-settings install measures ~~`verge-core`~~ `verge-core`'s TCP pairs and nothing else,
+permanently** — including the
 ~900 tail ports the retired warm tier used to cover. That is the honest statement of v1's aperture,
 and it is stated on `Coverage` rather than left to be discovered: the port-tier line names the tier,
 its cadence and its off state, and carries ~~`0 of 39 sensitive pairs unread`~~ ~~`0 of 41 sensitive
-pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ **`0 of 38 sensitive pairs unread`** and `0 of 16 rules unevaluable`. Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
-puts every sensitive pair inside the hot set, and of the sixteen rules one names a port (fully
+pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ ~~`0 of 38 sensitive pairs unread`~~
+**`5 of 38 sensitive pairs unread`** and `0 of 16 rules unevaluable`. ~~Both are true by construction — [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s union
+puts every sensitive pair inside the hot set, and~~ **The second is true by construction and the
+first was not**, and of the sixteen rules one names a port (fully
 covered), four read `Name`s, and eleven read a facet on a subject. **The tier bounds which subjects
 exist, never which rules can speak**, so what the cold tier buys is drift breadth rather than signal
 correctness. A count of unmeasured ports is deliberately absent: it is knowable, which is what makes
 it tempting, and it is [#28](https://github.com/winniel123/verge-asm/issues/28)'s refused
 estate-completeness score in port clothing.
+
+> **The NUMERATOR is corrected here for the first time, 2026-08-15 by
+> [#124](https://github.com/winniel123/verge-asm/issues/124). It is `5`, not `0`, and it always was.**
+> Four passes re-checked the denominator and none re-checked the numerator, because the sentence
+> struck above looked like a proof: *ADR-0009's union puts every sensitive pair inside the hot set*
+> is **true**, and *so the rule reads all of them daily* does **not follow**. ADR-0009 says in the
+> same breath that `verge-core` is **136 pairs of which 131 are probed on default settings, UDP being
+> off**, and the five it leaves out — `69/udp`, `137/udp`, `138/udp`, `623/udp`, `11211/udp` — reach
+> `verge-core` from the **sensitive list alone**. Every one is a sensitive pair a default install does
+> not read.
+>
+> **Membership of `verge-core` is not measurement.** The aperture is `verge-core` ∩ the transports the
+> shipped configuration probes, and the count is over the intersection. **`0 of 16 rules unevaluable`
+> is untouched**: `sensitive-port-reached-from-internet` reads a leg on a `Service` and its domain is
+> populated by the 131 TCP pairs, so the rule speaks — what the five cost is **subjects**, not
+> evaluability, there being no `Service` for a pair outside the recorded scope.
+>
+> The line names the transport and, on [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)'s
+> own allowance, may point at the tier config, because here an action genuinely exists. It must **not**
+> be rounded to zero, which is the unearned clean bill of health #80 went out of its way to say this
+> figure was not. Corrected at ADR-0044's site too;
+> [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §6.
 
 > **Denominator corrected by [#97](https://github.com/winniel123/verge-asm/issues/97): `0 of 37` reads
 > `0 of 39`.** [#80](https://github.com/winniel123/verge-asm/issues/80) measured it when the sensitive
@@ -473,6 +498,18 @@ container raw access to the host's network interface" (and that "Port mapping mu
 own network identity (attributable in the operator's logs, firewallable, throttleable) and it being
 indistinguishable from the host. That identity is worth more to an ASM tool than the raw access.
 
+> **Two additions 2026-08-15 by [#124](https://github.com/winniel123/verge-asm/issues/124); nothing
+> here is corrected.** The shipped file is `web`, `worker` and `postgres` from **one image**
+> ([ADR-0001](../adr/0001-stack-and-runtime.md)) with **three named volumes** — `pgdata`,
+> `web-state`, `worker-state` — the last two holding secrets each service **generates** rather than
+> receives ([ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md)),
+> and `postgres` publishing no port. And the **prober binary inherits this posture on the host it is
+> pushed to**: it is invoked as an ordinary unprivileged SSH user and needs no capability at all,
+> which is a property of §3.1's connect-scan choice rather than of the compose file, and is why
+> [#14](https://github.com/winniel123/verge-asm/issues/14)'s *"a host you can SSH into"* does not
+> quietly become *a host you can SSH into as root*. Full shape:
+> [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §2.
+
 This is the same posture ProjectDiscovery's naabu degrades to. Naabu's current default scan type is
 `-s c` (CONNECT) — `-scan-type, -s string  type of port scan (SYN/CONNECT) (default "c")` — and it
 logs `Running CONNECT scan with non root privileges` vs `Running SYN scan with root privileges`
@@ -596,11 +633,22 @@ Reasons specific to an ASM tool:
   host that starts 302-ing to an unexpected destination *is* exposure drift.
 - Following multiplies request volume by the chain length against a live service.
 
-When the operator enables following, use httpx's safer variant: `-follow-host-redirects` ("follow
+~~When the operator enables following, use httpx's safer variant: `-follow-host-redirects` ("follow
 redirects on the same host only"), cap at 5 (httpx's default is 10 —
 `-max-redirects int ... (default 10)`), and honour `-respect-hsts`
-([httpx usage](https://docs.projectdiscovery.io/tools/httpx/usage)). Always record the full redirect
+([httpx usage](https://docs.projectdiscovery.io/tools/httpx/usage)).~~ Always record the full redirect
 chain, so an off-host hop is visible even when it was not followed.
+
+> **The operator never enables following, so this paragraph's premise is withdrawn**, 2026-08-15 by
+> [#124](https://github.com/winniel123/verge-asm/issues/124) under
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). The
+> redirect policy is a **declared parameter of `http-exchange`**
+> ([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)) — following a redirect moves
+> the `status` and the `title` the leaf decides — and no declared parameter is ever
+> operator-configurable. It ships valued at **not followed**, which is this section's own
+> recommendation and its three reasons. §9's row is struck with it. **The last sentence stands and is
+> the important one**: the `Location` is recorded, which is the half this section correctly called
+> the finding.
 
 ### 4.4 Identifying an admin panel or default install
 
@@ -1059,18 +1107,59 @@ internet never sees. Both are useful; conflating them is not.
 ### 8.2 Design consequences
 
 1. **Vantage point is a first-class field on every observation**, not a global config setting.
-   Persist `vantage_id` (with its egress IP and a `network_position` of `internal` | `external` |
-   `unknown`) alongside every port, HTTP and TLS result. A finding without a vantage is
+   Persist `vantage_id` (with its egress IP and ~~a `network_position` of `internal` | `external` |
+   `unknown`~~) alongside every port, HTTP and TLS result. A finding without a vantage is
    uninterpretable.
+
+   > **`network_position` is WITHDRAWN at the site that specifies it.** Rejected by
+   > [#14](https://github.com/winniel123/verge-asm/issues/14) as **relative** — a prober in the
+   > operator's own VPC is external to their office LAN and internal to their cloud assets, and one
+   > enum value cannot hold both — and replaced by a **verified claim**, `Vantage class`, re-checked
+   > every batch against the operator's declared address scopes. This paragraph was never amended and
+   > is the earliest site of that ruling; written here 2026-08-15 by
+   > [#124](https://github.com/winniel123/verge-asm/issues/124) under
+   > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+   > The first half of the recommendation — *the vantage is a field on every observation* — is
+   > **correct and load-bearing**; it is `vantage` in the timeline key.
+   >
+   > What replaces the enum: the class is verified over **the address the vantage is observed to
+   > present**, which is the address the instance dialled for a prober and `SSH_CLIENT` for the
+   > instance itself. An **interface address is not a presented address** — under the literal reading
+   > a NATed instance could only verify `internal` by declaring its own LAN, which ADR-0049's
+   > 1,024-address cap refuses outright. `CONTEXT.md`'s `Vantage class`,
+   > [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §4.
 2. **Never emit an exposure-class finding from an internal vantage.** "Exposed admin panel",
    "plaintext HTTP", "unexpected open port" all carry an implicit "…to the internet". From inside,
    downgrade these to `internal-reachable` observations with distinct wording and no alerting.
    Findings that are vantage-independent — cert expiry, weak TLS version, dangling DNS — can fire
    from either side.
-3. **Ask the operator, then verify.** A first-run setup step should ask where the deployment sits,
+3. ~~**Ask the operator, then verify.** A first-run setup step should ask where the deployment sits,
    then check it: compare the scanner's egress IP against RFC 1918 ranges, and compare the resolved
-   address of a seed domain from the local resolver against a public resolver. A mismatch is
+   address of a seed domain from the local resolver against a public resolver.~~ A mismatch is
    positive evidence of split DNS and should be surfaced, not swallowed.
+
+   > **The *ask* half is WITHDRAWN at the site that specifies it**, 2026-08-15 by
+   > [#124](https://github.com/winniel123/verge-asm/issues/124) under
+   > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+   > *A first-run setup step should ask* is a **wizard**, and
+   > [#22](https://github.com/winniel123/verge-asm/issues/22) into
+   > [#28](https://github.com/winniel123/verge-asm/issues/28) made the day-one checklist the
+   > **zero-coverage rendering of `Coverage` at two densities**, not a sequence of prompts. Read
+   > alone and in the present tense this bullet would have a session build the one thing that
+   > ticket refused.
+   >
+   > **Intent survives, and it is declared by an act rather than by an answer.** Provisioning a
+   > prober is the declaration *this vantage is on the internet*; declaring an address scope over the
+   > instance's presented address is the declaration *this one is inside my boundary*. Both are
+   > Declared objects the model already has, both are audit-trailed, and neither can drift away from
+   > the deployment it describes the way a stored answer can. The **verify** half stands unchanged
+   > and is [#14](https://github.com/winniel123/verge-asm/issues/14) decision 7's three
+   > self-contained checks, of which the split-DNS comparison named here is the third.
+   >
+   > **The RFC 1918 test named here is not the test that ships.** `Vantage class` is verified against
+   > the **operator's own declared address scopes and nothing else** — no third party's file and no
+   > protocol registry decides which side of their boundary a prober is on, for the same reason none
+   > may open the probing gate.
 4. **Support multiple vantages in the data model from v1, even if v1 ships one.** The genuinely
    correct answer for a small org is a small external prober plus the internal instance, and
    diffing the two. Internal-open + external-filtered = correctly firewalled (reassuring, worth
@@ -1088,25 +1177,46 @@ internet never sees. Both are useful; conflating them is not.
 Each of these is *not* a preference; there is a specific way the default is wrong for some real
 operator.
 
+> **Swept 2026-08-15 by [#124](https://github.com/winniel123/verge-asm/issues/124). Six of the
+> eighteen rows are struck at their own cells and three are amended; the rest ship.** This section
+> predates the model, and *there is a specific way the default is wrong for some real operator* is
+> **necessary and not sufficient**. A knob must additionally clear three gates, and each of the six
+> fails at least one:
+>
+> 1. **It sits outside every `Derivation`** — `CONTEXT.md`'s `Derivation` and
+>    [#60](https://github.com/winniel123/verge-asm/issues/60) / [ADR-0004](../adr/0004-signals-are-release-coupled-rules.md):
+>    *a declared parameter is authored by the project and ships in the release; an operator's dial
+>    may sit anywhere outside every derivation and nowhere inside one.*
+> 2. **It cannot silence a finding by narrowing** —
+>    [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s *a port the operator can hide is a signal the
+>    operator can silence*, generalised by [`measurement-offers.md`](../spec/measurement-offers.md)
+>    §1.7 to *an offer the operator can narrow is a finding the operator can silence*.
+> 3. **If it moves the aperture it moves a named dimension** — a `Scan` scope, a `Seed`, a `Seed`
+>    exclusion; something a `Batch`'s recorded scope diffs, so the change carries its `revealed`, its
+>    `Gap` and its coverage-class message.
+>
+> The full walk, verdict by verdict, is
+> [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §5.3.
+
 | Knob | Default | Why it must be configurable |
 |---|---|---|
 | **Rate limit (per host)** | 50 pkt/s | The single most likely thing to hurt production. Some operators run fragile embedded/OT/legacy devices — nmap notes crash reports are "usually older legacy devices" ([legal-issues](https://nmap.org/book/legal-issues.html)). Must be settable to near-zero, and **per-target**, not just globally: one fragile appliance should not force the whole estate to crawl. |
 | **Concurrency (per host / global)** | 20 / 200 | Bounded by the scanner's own link, the target's connection-tracking table, and any shared-tenancy limits. Naabu itself says to tune when not on a VPS ([README](https://github.com/projectdiscovery/naabu/blob/main/README.md)). |
 | **Port set (per tier)** | `verge-core` / full range | Estates differ wildly; the shipped list is a prior, not a truth. Must be an editable file, and per-target-group (DMZ web hosts and a management VLAN want different sets). **The top-1000 tier is retired** ([#78](https://github.com/winniel123/verge-asm/issues/78)), and only the **frequency half** of `verge-core` is editable ([ADR-0009](../adr/0009-verge-core-is-a-union.md)). |
 | **Full-range sweep** | off | Genuinely risky against stateful middleboxes; genuinely necessary for some estates. Explicit opt-in **per `Seed` scope**, with a rate cap that cannot be disabled, and it never runs unasked — including at onboarding ([ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)). |
-| **UDP scanning** | off | Low yield (49 % even at top-1000, [performance-port-selection](https://nmap.org/book/performance-port-selection.html)), high cost, but essential for operators exposing DNS/SNMP/IPMI. |
+| **UDP scanning** — **AMENDED: it is not a shipped knob in v1** | off | Low yield (49 % even at top-1000, [performance-port-selection](https://nmap.org/book/performance-port-selection.html)), high cost, but essential for operators exposing DNS/SNMP/IPMI. **§2.5's *off by default* stands and the UDP leg is `verge-core`'s UDP pairs (ADR-0009). What [#124](https://github.com/winniel123/verge-asm/issues/124) found is that nobody has asked what the shipped instrument would *return*: `connect-outcome`'s union is `connected │ refused │ no-response`, and a connected UDP socket puts no packet on the wire, so `connected` would be a fact about our own kernel rather than about the world. Until that is answered the knob has nothing honest to turn on. Two consequences that do not wait: the five UDP pairs are **outside v1's aperture**, so the aperture statement reads `5 of 38 sensitive pairs unread` rather than `0` (ADR-0044, corrected there), and **membership of `verge-core` is not measurement**.** |
 | **Scan cadence per tier** | daily / monthly | Compliance regimes and change-velocity vary. Must allow *slower*, not just faster. (The weekly tier is retired — [#78](https://github.com/winniel123/verge-asm/issues/78).) |
 | **Quiet hours / maintenance windows** | none set | Scanning during a deploy produces pure-noise drift findings. Must be per-target. |
-| **Follow redirects** | off | Some estates redirect everything at the edge; without following, every finding is "301". Sub-knob: same-host-only (default on when following is enabled). |
-| **HTTP probe paths** | small curated list | The most likely thing to trip a WAF. Operators must be able to shrink it to `/` only — or extend it for their own products. |
-| **Cert expiry thresholds** | 30 / 14 / 7 days | 90-day ACME with automation wants 7/3/1; manual annual certs want 60/30/14; and the CA/B schedule takes the maximum to 47 days by 2029-03-15 ([BR.md](https://github.com/cabforum/servercert/blob/main/docs/BR.md)). A hardcoded threshold ages badly. |
+| ~~**Follow redirects**~~ **STRUCK — gate 1** | **not followed, and not a knob** | ~~Some estates redirect everything at the edge; without following, every finding is "301". Sub-knob: same-host-only (default on when following is enabled).~~ **`http-exchange` decides `Responded(status, Location, WWW-Authenticate, Server, title)`; following a redirect moves the `status` and the `title`, so this is a declared parameter of that leaf and none is ever operator-configurable ([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md), [#124](https://github.com/winniel123/verge-asm/issues/124)). It arrives valued at §4.3's own recommendation — *do not follow* — and §4.3's *"when the operator enables following"* paragraph is struck with it. The `Location` is recorded, which is the half §4.3 correctly called the finding.** |
+| ~~**HTTP probe paths**~~ **STRUCK — stale, and gate 1 besides** | **`GET /`, one exchange per `Endpoint`** | ~~The most likely thing to trip a WAF. Operators must be able to shrink it to `/` only — or extend it for their own products.~~ **There is no path list in v1 to shrink or extend: §4.1 makes one request per `Endpoint` and `http-identity`'s value space holds one exchange's worth of fact. The *small curated list* is §4.4's exposed-panel detection, which is [#5](https://github.com/winniel123/verge-asm/issues/5)'s refused fingerprinting and never entered the model. Were there a list, editing it would move `http-identity` and fail gate 1 anyway ([#124](https://github.com/winniel123/verge-asm/issues/124)).** |
+| ~~**Cert expiry thresholds**~~ **STRUCK — gate 1, and it was ruled twice before this sweep** | **⅓ of the certificate's validity period, ½ below a ten-day validity — a declared parameter** | ~~30 / 14 / 7 days~~ ~~90-day ACME with automation wants 7/3/1; manual annual certs want 60/30/14; and the CA/B schedule takes the maximum to 47 days by 2029-03-15. A hardcoded threshold ages badly.~~ **The complaint is right and the remedy was wrong, and both halves are already settled elsewhere. [#60](https://github.com/winniel123/verge-asm/issues/60): `N` is a declared parameter of `certificate-expiring`, *"and that is precisely why it may not be a dial"* — a settings field inside a leaf is the one actor that can `Break` the estate without a release. [#67](https://github.com/winniel123/verge-asm/issues/67) then fixed *ages badly* the legal way, by shipping the **fraction** rather than the product, which is [ADR-0034](../adr/0034-derive-the-claim-before-looking-for-the-owner.md)'s cure. This cell is the ADR-0058 site neither ticket struck; written here by [#124](https://github.com/winniel123/verge-asm/issues/124).** |
 | **TLS version/cipher enumeration cadence** | weekly | It is N handshakes per host (tlsx `-version-enum` / `-cipher-enum`, [README](https://github.com/projectdiscovery/tlsx/blob/main/README.md)). Some operators want it daily; some want it never. |
-| **Vantage / network position** | prompted at setup | Determines whether exposure findings are meaningful at all (§8). |
-| **Source address / interface** | container default | Operators who allowlist the scanner at the edge, or who need it to egress a specific path, must be able to pin it. |
-| **User-Agent** | identifying, e.g. `verge-asm/1.0 (+https://…; self-hosted ASM)` | Must be identifiable **by default** so the operator recognises their own traffic in their own logs; must be *changeable* because some WAFs block unknown agents outright, and then no probe works at all. |
-| **Per-target enable/disable + pause-all** | enabled | An incident is exactly when the operator wants the scanner to stop immediately. A global kill switch must exist and take effect mid-run. |
+| ~~**Vantage / network position**~~ **STRUCK — it is not a setting at all** | **declared by an act** | ~~prompted at setup~~ Determines whether exposure findings are meaningful at all (§8). **But *prompted at setup* is a wizard ([#22](https://github.com/winniel123/verge-asm/issues/22), [#28](https://github.com/winniel123/verge-asm/issues/28)) and *network position* is the enum [#14](https://github.com/winniel123/verge-asm/issues/14) rejected as relative. Intent is declared by **provisioning a prober** (*this vantage is on the internet*) and by **declaring an address scope covering the instance's presented address** (*this one is inside my boundary*) — see §8.2 rec 1 and rec 3 above, and [#124](https://github.com/winniel123/verge-asm/issues/124).** |
+| **Source address / interface** — **AMENDED: it is a `Vantage` change, not a plain setting** | container default | Operators who allowlist the scanner at the edge, or who need it to egress a specific path, must be able to pin it. **Pinning egress moves the address the vantage *presents*, and the vantage is in the timeline key — so under [ADR-0070](../adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md)'s generalisation this is a different `Vantage` and its timelines **open** (`revealed`) rather than a setting quietly relocating where answers were drawn from. It never `Break`s ([#124](https://github.com/winniel123/verge-asm/issues/124)).** |
+| ~~**User-Agent**~~ **AMENDED — identifiable stays, changeable is STRUCK on gate 1** | identifying, e.g. `verge-asm/1.0 (+https://…; self-hosted ASM)` — **a declared parameter of `http-exchange`** | Must be identifiable **by default** so the operator recognises their own traffic in their own logs; ~~must be *changeable* because some WAFs block unknown agents outright, and then no probe works at all.~~ **The changeable half fails gate 1: a WAF that blocks unknown agents returns a **different response**, so the string moves `http-identity`, and a leaf's inputs are not the operator's ([#124](https://github.com/winniel123/verge-asm/issues/124)). The cost is stated rather than hidden — an estate whose WAF blocks us records the WAF's identity, which is a true answer to the question the facet asks, *what does a client that names nothing meet*; and the only remedy a knob offers is sending a browser's string, which is the impersonation §10 refuses. The operator's remedy is on their WAF, where the allowlist entry is the identifying string this row already requires.** |
+| **Per-target enable/disable + pause-all** — **AMENDED: only in the form the model already has** | enabled | An incident is exactly when the operator wants the scanner to stop immediately. A global kill switch must exist and take effect mid-run. **Pause-all is operational and ships as written. A per-target *disable* is an aperture narrowing, so it is a `Seed` **exclusion** — a Declared claim about where the estate ends, which opens a `Gap` and says so — never a hidden mute, or it is gate 2 arriving one target at a time ([#124](https://github.com/winniel123/verge-asm/issues/124)).** |
 | **Adaptive back-off aggressiveness** | halve on error | Operators with lossy links need it gentler; operators with headroom find it too timid. |
-| **`suspect-firewall` port threshold** | 100 open ports | Depends on the estate; some hosts legitimately listen on many ports. |
+| ~~**`suspect-firewall` port threshold**~~ **STRUCK — there is no such rule** | ~~100 open ports~~ | ~~Depends on the estate; some hosts legitimately listen on many ports.~~ **The v1 rule set is **sixteen** ([ADR-0024](../adr/0024-a-rules-domain-is-the-extension-of-its-name.md)) and `suspect-firewall` is not among them — §6.3's suppression heuristic was never carried into the model. A threshold for a rule that does not exist is not a knob, and were the rule ever admitted its threshold would be a **declared parameter** on [#60](https://github.com/winniel123/verge-asm/issues/60)'s ground rather than a dial ([#124](https://github.com/winniel123/verge-asm/issues/124)). The underlying observation — a host answering on every port — is still recorded; what is absent is a rule reading it.** |
 | **Target range size cap** | 1,024 addresses per scope (`/22` in IPv4, `/118` in IPv6) | Prevents a typo'd `/8` from becoming a multi-day scan. **Checked when an address scope is *declared*** — §3.4's *"cannot be entered"* — and applied **per scope, never to a sum**, so four `/22`s are four deliberate acts. It bounds a Declared act's cost and asserts nothing about whether the claim is true; custody at a larger scale belongs to a `custody extension`, which the cap does not reach ([ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md)). **The unit is addresses and the knob is family-blind** — there is no separate IPv6 cap, which is why `/64` and every prefix an operator is assigned is refused: one `/64` is ≈ 4.1 × 10¹¹ years at the 200 pkt/s ceiling, so IPv6 space is not swept and an IPv6 estate is reached by a name scope with a `custody extension` ([ADR-0049](../adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md)). |
 
 ---

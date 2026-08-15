@@ -422,9 +422,36 @@ simply upload the zone file, or export it from their DNS provider. That single i
 DNS, brute force, and web archives combined — it is complete, authoritative, and instant.
 
 **Spec implication:** verge-asm should make "give me your zone" a **first-class, prominently-surfaced
-onboarding step**, supporting (a) zone file upload / on-disk path, (b) AXFR with optional TSIG key, and
+onboarding step**, supporting (a) zone file upload ~~/ on-disk path~~, ~~(b) AXFR with optional TSIG key,~~ and
 (c) a re-check that flags names present in the zone but not reachable, and names reachable but not in the
-zone (shadow records, third-party-managed sub-delegations). Everything else in this document exists to
+zone (shadow records, third-party-managed sub-delegations).
+
+> **Two of the three are struck at this site, 2026-08-15 by
+> [#124](https://github.com/winniel123/verge-asm/issues/124) under
+> [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md); (a)'s
+> upload half and (c) both stand, and (c) has already shipped as
+> [#48](https://github.com/winniel123/verge-asm/issues/48)'s two rules.**
+>
+> **The on-disk path is withdrawn.** A mount has no supply act and therefore no instant, and
+> [#48](https://github.com/winniel123/verge-asm/issues/48) needs one: its fourth absence register,
+> *you stopped telling us*, fires when the operator's ground truth ages past the currency bound, and a
+> cadence over a mount produces a **current observation of a stale fact** instead. A `declared`
+> source's observation takes its instant from the **operator's supply act**, never from our read of
+> it, and an upload is that act.
+>
+> **AXFR is out of v1, and it is not the same source.** It is `authority: measured` against an
+> authority we walked, where the file is `authority: declared` from the operator — two rows in the
+> source table, not two ways of filling one in. It appears in no enumerated source set anywhere in
+> the repository. If it is ever added it needs its own row, and its **TSIG key is `worker`'s** under
+> [ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md)
+> — written by its holder, never read back to `web`.
+>
+> **What is added instead:** the zone is covered by a **`Scan` of its own**, cadence the operator's
+> declared re-supply interval, and the **zone it records is read from the file's own `$ORIGIN` and
+> SOA owner name** rather than from the filename or the `Seed` — which is
+> [#48](https://github.com/winniel123/verge-asm/issues/48)'s *record the zone, not the registrable
+> domain*, discharged by construction.
+> [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §7. Everything else in this document exists to
 cover the cases where the operator *cannot* supply the zone — forgotten domains, shadow IT registered on a
 personal card, sub-zones delegated to a vendor, and acquisitions.
 
