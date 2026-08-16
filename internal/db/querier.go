@@ -254,6 +254,14 @@ type Querier interface {
 	// axis). The Signals layer folds these against the live census to decide the
 	// fully-annotated prose case and to mark a row whose key names no current member.
 	ListAnnotations(ctx context.Context) ([]Annotation, error)
+	// Every Service whose CURRENT `reachability` span is a Gap — a blanket responder,
+	// or an address whose control probe could not complete (ADR-0104). The Coverage
+	// aperture register (#254, ADR-0095) reads this to state, in prose, that these
+	// addresses answer on all ports and are a proxy edge rather than the origin — a
+	// read surface, never a Transition or a new message cause. The caller folds the
+	// Service keys to their distinct Addresses; a Gap span is never routed through the
+	// live-tier gate for the reason above.
+	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
@@ -426,13 +434,18 @@ type Querier interface {
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
-	// The latest `reachability` observation per (Service, Vantage class) (#203). The
-	// engine reads the internet-class leg for `sensitive-port-reached-from-internet`
-	// (ADR-0071: a class-scoped internet, existential composition — the internal twin
-	// is a different, refused rule). DISTINCT ON keeps the most recent value per
-	// (service, class), mirroring the Name resolution read one facet over. Reads
-	// through the live-tier gate (#237).
-	ListServiceReachabilityByClass(ctx context.Context, arg ListServiceReachabilityByClassParams) ([]ListServiceReachabilityByClassRow, error)
+	// The CURRENT `reachability` span per (Service, Vantage class) (#254, ADR-0104).
+	// buildServiceFacts reads the SPAN, not the latest observation, because the span
+	// carries `is_gap`: a blanket responder's reach is a Gap, and a Gap leg reads as
+	// absent (HasInternetReach=false) so `sensitive-port-reached-from-internet`
+	// returns not-evaluable with no rule edit, and a Gap is not a `reachability` value
+	// so a blanket responder's ports drop out of any open-port count without a special
+	// case. Span reads are NOT routed through the live-tier observation gate (#237):
+	// the span corpus is the already-derived timeline the fold produced, kept forever
+	// (ADR-0041), so an as_of bound would wrongly hide settled state rather than
+	// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
+	// (service, class), mirroring the observation read one facet over.
+	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.

@@ -109,7 +109,11 @@ type store interface {
 	// certificate value (the six certificate rules and plaintext-http-no-https).
 	// http-identity rides ListCurrentEndpointSubjects and the estate name set rides
 	// ListCurrentNameSubjects.
-	ListServiceReachabilityByClass(ctx context.Context, arg db.ListServiceReachabilityByClassParams) ([]db.ListServiceReachabilityByClassRow, error)
+	// buildServiceFacts reads the reachability SPAN (not the observation) so a
+	// blanket responder's Gap leg reads as absent (ADR-0104); ListBlanketedReachServices
+	// is the Coverage register's read of those Gap'd Services (#254).
+	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
 	// Annotation management (#204): an operator dial keyed on one
 	// (subject, signal-name) pair, carrying the reason and the declared instant —

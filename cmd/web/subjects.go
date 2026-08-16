@@ -121,6 +121,13 @@ type servicePageData struct {
 	// population of no current member, reached only by its own key (ADR-0072).
 	Withdrawn bool
 	Reach     string
+	// ReachGap reports the current reach is a `Gap` — a blanket responder answering
+	// on every port, or a control probe that could not complete (ADR-0104) — and
+	// ReachGapReason renders its cause in the operator's words. A Gap is the absence
+	// of a reach value, not `not-reached`, so the page states *we cannot see your
+	// origin from here* rather than *nothing is open*.
+	ReachGap       bool
+	ReachGapReason string
 	// Citation is the "why is this here" chain: Service → Address → the Name whose
 	// resolution cites the Address (or the address-scope Seed that covers it),
 	// terminating at a Seed.
@@ -291,12 +298,21 @@ func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 }
 
 // reachabilityValue is the JSON payload of a reachability observation — the
-// verdict and the raw connect result as evidence. The web layer reads only the
-// verdict it renders.
+// verdict and the raw connect result as evidence, plus (on a `Gap`) the sixth-cause
+// tag and the operator-facing reason a blanket responder's reach carries
+// (ADR-0104). The web layer reads the verdict and, where the reach is a Gap, the
+// reason it renders on the subject.
 type reachabilityValue struct {
 	Outcome string `json:"outcome"`
 	Result  string `json:"result"`
+	Cause   string `json:"cause"`
+	Reason  string `json:"reason"`
 }
+
+// reachOutcomeGap is the `outcome` tag a reachability `Gap` carries — a blanket
+// responder's undiscriminated reach (ADR-0104). Kept as a local constant so the
+// web binary reads the stored value without importing the measurement leaf.
+const reachOutcomeGap = "gap"
 
 func decodeReachability(raw []byte) reachabilityValue {
 	var v reachabilityValue
@@ -487,12 +503,19 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 
 	addr, port, transport := splitServiceKey(subject.SubjectKey)
+	rv := decodeReachability(subject.Value)
 	data := servicePageData{
 		Key:       subject.SubjectKey,
 		Address:   addr,
 		Port:      port,
 		Transport: transport,
-		Reach:     decodeReachability(subject.Value).Outcome,
+		Reach:     rv.Outcome,
+	}
+	if rv.Outcome == reachOutcomeGap {
+		// A blanket responder (or an undiscriminated reach): the reach is a Gap, so
+		// the subject states the proxy-edge finding in prose rather than a verdict.
+		data.ReachGap = true
+		data.ReachGapReason = rv.Reason
 	}
 	data.Citation, data.CitationTerminated, data.Withdrawn = s.buildServiceCitation(r, addr)
 	data.Timelines = s.buildTimelines(r, "service", subject.SubjectKey)
