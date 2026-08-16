@@ -339,7 +339,7 @@ address scope — a CIDR block of up to {{.AddressCap}} addresses.</p>
 <table>
 <thead><tr><th>Type</th><th>Scope</th><th>Declared by</th><th>Declared</th></tr></thead>
 <tbody>
-{{range .Seeds}}<tr>
+{{range .Seeds}}<tr id="seed-{{.Anchor}}">
 <td><span class="badge">{{if .IsAddress}}address{{else}}name{{end}}</span></td>
 <td class="mono">{{.Scope}}</td>
 <td class="mono">{{.By}}</td>

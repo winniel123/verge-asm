@@ -12,8 +12,8 @@ func TestCertificateRulesDomainIsPresented(t *testing.T) {
 	// Every certificate rule shares the domain `certificate` is `Presented`: a
 	// no-tls / tls-refused / unmeasured endpoint is outside all of them.
 	rules := []EndpointRule{
-		certificateExpired{}, certificateNotYetValid{}, certificateExpiring{},
-		certificateSelfSigned{}, certificateWeakKeyOrSignature{}, certificateHostnameSANMismatch{},
+		certificateExpired, certificateNotYetValid, certificateExpiring,
+		certificateSelfSigned, certificateWeakKeyOrSignature, certificateHostnameSANMismatch{},
 	}
 	outside := []EndpointFacts{
 		{CertMeasured: true, CertOutcome: CertNoTLS, HasName: true},
@@ -33,8 +33,8 @@ func TestCertificatePresentedButUnreadableIsNotEvaluable(t *testing.T) {
 	// A presented chain whose parsed attributes are unreadable (CertDetails nil)
 	// is in the domain but `not-evaluable` — never a clean not-fired.
 	rules := []EndpointRule{
-		certificateExpired{}, certificateNotYetValid{}, certificateExpiring{},
-		certificateSelfSigned{}, certificateWeakKeyOrSignature{}, certificateHostnameSANMismatch{},
+		certificateExpired, certificateNotYetValid, certificateExpiring,
+		certificateSelfSigned, certificateWeakKeyOrSignature, certificateHostnameSANMismatch{},
 	}
 	for _, r := range rules {
 		if got := r.Eval(presented(nil)); got != NotEvaluable {
@@ -49,11 +49,11 @@ func TestCertificatePredicates(t *testing.T) {
 		fired *CertDetails // predicate true
 		clean *CertDetails // predicate false
 	}{
-		{certificateExpired{}, &CertDetails{Expired: true}, &CertDetails{}},
-		{certificateNotYetValid{}, &CertDetails{NotYetValid: true}, &CertDetails{}},
-		{certificateExpiring{}, &CertDetails{Expiring: true}, &CertDetails{}},
-		{certificateSelfSigned{}, &CertDetails{SelfSigned: true}, &CertDetails{}},
-		{certificateWeakKeyOrSignature{}, &CertDetails{WeakKeyOrSignature: true}, &CertDetails{}},
+		{certificateExpired, &CertDetails{Expired: true}, &CertDetails{}},
+		{certificateNotYetValid, &CertDetails{NotYetValid: true}, &CertDetails{}},
+		{certificateExpiring, &CertDetails{Expiring: true}, &CertDetails{}},
+		{certificateSelfSigned, &CertDetails{SelfSigned: true}, &CertDetails{}},
+		{certificateWeakKeyOrSignature, &CertDetails{WeakKeyOrSignature: true}, &CertDetails{}},
 		{certificateHostnameSANMismatch{}, &CertDetails{SANMatchesName: false}, &CertDetails{SANMatchesName: true}},
 	}
 	for _, c := range cases {
@@ -78,8 +78,8 @@ func TestHostnameSANMismatchNamelessIsOutside(t *testing.T) {
 func TestCertificateVersionsComposeTLSHandshake(t *testing.T) {
 	const want = "rule@v1|tls-handshake/v1"
 	for _, r := range []EndpointRule{
-		certificateExpired{}, certificateNotYetValid{}, certificateExpiring{},
-		certificateSelfSigned{}, certificateWeakKeyOrSignature{}, certificateHostnameSANMismatch{},
+		certificateExpired, certificateNotYetValid, certificateExpiring,
+		certificateSelfSigned, certificateWeakKeyOrSignature, certificateHostnameSANMismatch{},
 	} {
 		if got := r.Version().String(); got != want {
 			t.Errorf("%s version = %q, want %q", r.Name(), got, want)

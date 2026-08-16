@@ -21,8 +21,14 @@ type seedView struct {
 	ID        int64
 	IsAddress bool
 	Scope     string
-	By        string
-	At        string
+	// Anchor is the row's in-page id — the seed-scoped fragment an
+	// aperture-widening message links to so it lands on the exact Seed whose
+	// scope moved, not merely the Seeds list (v1 spec §5.3). Built from Scope by
+	// seedAnchor, which the message renderer uses for the same key so the two
+	// agree.
+	Anchor string
+	By     string
+	At     string
 	// CustodyExtension is the name scope's declared custody extension — the
 	// operator's assertion that the addresses its names resolve to are under
 	// their Custody. Off by default and meaningful on name scopes alone.
@@ -205,12 +211,38 @@ func toSeedViews(rows []db.ListSeedsRow) []seedView {
 		} else {
 			v.Scope = row.NameDomain.String
 		}
+		v.Anchor = seedAnchor(v.Scope)
 		if row.CreatedAt.Valid {
 			v.At = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
 		}
 		out = append(out, v)
 	}
 	return out
+}
+
+// seedAnchor slugs a Seed's scope into a stable in-page anchor id. A scope key
+// carries dots and (for a CIDR) a slash, so every run of non-alphanumeric octets
+// collapses to a single '-': "198.51.100.0/24" -> "198-51-100-0-24",
+// "example.com" -> "example-com". The message renderer builds the same slug from
+// an aperture message's fired-at Seed key, so its `/seeds#seed-<anchor>` link
+// resolves to the row this stamps. A withdrawn Seed leaves no row and the link
+// falls back to the list head, which is acceptable.
+func seedAnchor(scope string) string {
+	var b strings.Builder
+	dash := false
+	for _, r := range scope {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			dash = false
+		default:
+			if !dash && b.Len() > 0 {
+				b.WriteByte('-')
+				dash = true
+			}
+		}
+	}
+	return strings.TrimRight(b.String(), "-")
 }
 
 func seedCreateError(err error, noun string) string {

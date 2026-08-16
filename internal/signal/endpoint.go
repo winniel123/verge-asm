@@ -92,11 +92,11 @@ type EndpointRule interface {
 // the four http-identity rules), the order they render and the gate walks them.
 func AllEndpointRules() []EndpointRule {
 	return []EndpointRule{
-		certificateExpired{},
-		certificateNotYetValid{},
-		certificateExpiring{},
-		certificateSelfSigned{},
-		certificateWeakKeyOrSignature{},
+		certificateExpired,
+		certificateNotYetValid,
+		certificateExpiring,
+		certificateSelfSigned,
+		certificateWeakKeyOrSignature,
 		certificateHostnameSANMismatch{},
 		plaintextHTTPNoHTTPS{},
 		redirectDoesNotUpgradeToTLS{},
@@ -139,104 +139,47 @@ func presentedCert(f EndpointFacts) bool {
 	return f.CertMeasured && f.CertOutcome == CertPresented
 }
 
-// --- certificate-expired --------------------------------------------------
+// --- the five certificate-detail rules ------------------------------------
 //
-// Domain: `certificate` is `Presented`. Predicate: the presented leaf's validity
-// window has ended. `not-evaluable`: the chain is presented but its parsed
-// attributes are unreadable (CertDetails nil).
+// All five share one shape: domain `certificate` is `Presented`; `not-evaluable`
+// where the chain is presented but its parsed attributes are unreadable
+// (CertDetails nil); Fired where the presented leaf's own boolean is set;
+// otherwise NotFired. They differ ONLY in which parsed-leaf attribute they read,
+// so one parameterised rule carries all five — a sixth of this kind is added by
+// naming it and its picker, never by copying the control flow. (certificate-
+// hostname-san-mismatch below keeps its own body: it adds a HasName domain guard
+// and reads the *negation* of its attribute, so it is not this shape.)
 
-type certificateExpired struct{}
+type certDetailRule struct {
+	name string
+	pick func(CertDetails) bool
+}
 
-func (certificateExpired) Name() string     { return "certificate-expired" }
-func (certificateExpired) Version() Version { return certVersion() }
-func (certificateExpired) Eval(f EndpointFacts) Outcome {
+func (r certDetailRule) Name() string     { return r.name }
+func (r certDetailRule) Version() Version { return certVersion() }
+func (r certDetailRule) Eval(f EndpointFacts) Outcome {
 	if !presentedCert(f) {
 		return OutsideDomain
 	}
 	if f.CertDetails == nil {
 		return NotEvaluable
 	}
-	if f.CertDetails.Expired {
+	if r.pick(*f.CertDetails) {
 		return Fired
 	}
 	return NotFired
 }
 
-// --- certificate-not-yet-valid --------------------------------------------
-
-type certificateNotYetValid struct{}
-
-func (certificateNotYetValid) Name() string     { return "certificate-not-yet-valid" }
-func (certificateNotYetValid) Version() Version { return certVersion() }
-func (certificateNotYetValid) Eval(f EndpointFacts) Outcome {
-	if !presentedCert(f) {
-		return OutsideDomain
-	}
-	if f.CertDetails == nil {
-		return NotEvaluable
-	}
-	if f.CertDetails.NotYetValid {
-		return Fired
-	}
-	return NotFired
-}
-
-// --- certificate-expiring -------------------------------------------------
-
-type certificateExpiring struct{}
-
-func (certificateExpiring) Name() string     { return "certificate-expiring" }
-func (certificateExpiring) Version() Version { return certVersion() }
-func (certificateExpiring) Eval(f EndpointFacts) Outcome {
-	if !presentedCert(f) {
-		return OutsideDomain
-	}
-	if f.CertDetails == nil {
-		return NotEvaluable
-	}
-	if f.CertDetails.Expiring {
-		return Fired
-	}
-	return NotFired
-}
-
-// --- certificate-self-signed ----------------------------------------------
-
-type certificateSelfSigned struct{}
-
-func (certificateSelfSigned) Name() string     { return "certificate-self-signed" }
-func (certificateSelfSigned) Version() Version { return certVersion() }
-func (certificateSelfSigned) Eval(f EndpointFacts) Outcome {
-	if !presentedCert(f) {
-		return OutsideDomain
-	}
-	if f.CertDetails == nil {
-		return NotEvaluable
-	}
-	if f.CertDetails.SelfSigned {
-		return Fired
-	}
-	return NotFired
-}
-
-// --- certificate-weak-key-or-signature ------------------------------------
-
-type certificateWeakKeyOrSignature struct{}
-
-func (certificateWeakKeyOrSignature) Name() string     { return "certificate-weak-key-or-signature" }
-func (certificateWeakKeyOrSignature) Version() Version { return certVersion() }
-func (certificateWeakKeyOrSignature) Eval(f EndpointFacts) Outcome {
-	if !presentedCert(f) {
-		return OutsideDomain
-	}
-	if f.CertDetails == nil {
-		return NotEvaluable
-	}
-	if f.CertDetails.WeakKeyOrSignature {
-		return Fired
-	}
-	return NotFired
-}
+// The five shipped certificate-detail rules, in ADR-0024 table order. Each names
+// the one parsed-leaf boolean it reads; the domain, not-evaluable, and
+// fired/not-fired control flow live once, in certDetailRule.Eval above.
+var (
+	certificateExpired            = certDetailRule{"certificate-expired", func(d CertDetails) bool { return d.Expired }}
+	certificateNotYetValid        = certDetailRule{"certificate-not-yet-valid", func(d CertDetails) bool { return d.NotYetValid }}
+	certificateExpiring           = certDetailRule{"certificate-expiring", func(d CertDetails) bool { return d.Expiring }}
+	certificateSelfSigned         = certDetailRule{"certificate-self-signed", func(d CertDetails) bool { return d.SelfSigned }}
+	certificateWeakKeyOrSignature = certDetailRule{"certificate-weak-key-or-signature", func(d CertDetails) bool { return d.WeakKeyOrSignature }}
+)
 
 // --- certificate-hostname-san-mismatch ------------------------------------
 //

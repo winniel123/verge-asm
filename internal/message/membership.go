@@ -45,20 +45,32 @@ func RootFires(subjectKind string) bool {
 // subject the world moved (CauseDrift / ClassDrift); `revealed` is a widened
 // aperture (CauseAperture / ClassCoverage), which is what makes a first run one
 // coverage-class message with no special case.
-func Membership(entry Entry, rootKind, rootKey string, census Census, instant time.Time) *Message {
+//
+// Where a message fires and where its row links are two different things for the
+// aperture case. A `revealed` firing is *about* the Seed whose scope moved, so it
+// fires at that Seed (SubjectKind "seed", FiredAt the seed scope key) and its row
+// links there per §5.3 — never to the entering subject and never to Coverage's
+// standing aperture statement. The entering Name/Address root still names the
+// headline and the census still carries everything that entered beneath it;
+// seedKey is read only for a `revealed` entry and ignored otherwise.
+func Membership(entry Entry, rootKind, rootKey, seedKey string, census Census, instant time.Time) *Message {
 	if !RootFires(rootKind) {
 		return nil
 	}
 	cause := CauseDrift
+	subjectKind, firedAt := rootKind, rootKey
 	if entry == EntryRevealed {
 		cause = CauseAperture
+		// The aperture mover is the Seed, so the message fires at it: the row must
+		// link to the exact Seed whose scope moved (ADR carried on Cause -> LinkSeed).
+		subjectKind, firedAt = "seed", seedKey
 	}
 	c := census
 	return &Message{
 		Cause:       cause,
 		Class:       ClassForCause(cause),
-		SubjectKind: rootKind,
-		FiredAt:     rootKey,
+		SubjectKind: subjectKind,
+		FiredAt:     firedAt,
 		Instant:     instant,
 		Census:      &c,
 		Headline:    membershipHeadline(entry, rootKey, census),
