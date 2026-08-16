@@ -47,6 +47,7 @@ type catalogSource struct {
 	Consent      string // the tier it runs under; "" for a barred source
 	DefaultOn    bool   // the state it ships in (§3.1)
 	Barred       bool   // excluded on terms — no operator reading consents past it
+	NoRunner     bool   // catalogued, but no execution path ships yet (#241) — nothing to enable
 	ShipNote     string // project-worded, why it ships in this state; never the source's own terms
 
 	// The two marked groups of the consent prompt (§6.4, ADR-0003 second
@@ -59,16 +60,18 @@ type catalogSource struct {
 }
 
 // sourceCatalog is the authored set the release ships. Defaults are §3.1's
-// consent-bar ruling: crt.sh on (throttled); the keyless RIR org→prefix paths
-// (ARIN, AFRINIC, APNIC via CAIDA) on; the operator-accepted registry paths
-// (RIPEstat, RIPE Database, APNIC registry, LACNIC registry) off; HackerTarget
-// and unauthenticated Cert Spotter excluded on terms.
+// consent-bar ruling: the keyless RIR org→prefix paths (ARIN, AFRINIC, APNIC via
+// CAIDA) on; the operator-accepted registry paths (RIPEstat, RIPE Database, APNIC
+// registry, LACNIC registry) off; HackerTarget and unauthenticated Cert Spotter
+// excluded on terms. crt.sh is catalogued but ships with no runner (#241): §3.1
+// would have it on (throttled), but nothing queries certificate transparency yet,
+// so it is presented as not-yet-executing rather than counted as an active source.
 var sourceCatalog = []catalogSource{
 	{
 		Slug: "crtsh", Name: "crt.sh",
 		Authority: "inferred", Completeness: "corroborative", Consent: consentUnencumbered,
-		DefaultOn: true,
-		ShipNote:  "Certificate transparency logs. Throttled to 5 req/min; a non-200 yields no observation, never an observation of absence.",
+		NoRunner: true,
+		ShipNote: "Certificate transparency logs. Catalogued, but no runner ships yet — nothing queries CT — so it observes nothing and cannot be enabled. Its throttle and admission path arrive with the runner.",
 	},
 	{
 		Slug: "arin", Name: "ARIN (entities?fn=)", IsProposer: true, Consent: consentUnencumbered,
@@ -141,6 +144,7 @@ type sourceView struct {
 	Consent      string
 	Enabled      bool
 	Toggleable   bool
+	NoRunner     bool // catalogued, no execution path yet (#241)
 	ShipNote     string
 	ShowGroups   bool
 	MayResolve   []string
@@ -192,8 +196,9 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	ctx := r.Context()
 
 	// Enabled sources — the first aperture input, counted against the toggleable
-	// catalogue (a barred source has no instrument to enable, so it is not a
-	// denominator). This counts sources, never the estate.
+	// catalogue: a barred source has no instrument to enable, and a source with no
+	// runner has no execution path to enable (#241), so neither is a denominator.
+	// This counts sources, never the estate.
 	views, err := s.sourceViews(r)
 	if err != nil {
 		s.serverError(w, "list source states", err)
@@ -381,9 +386,14 @@ func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 
-	var shipOn, shipOff, barred []sourceView
+	var shipOn, shipOff, notExecuting, barred []sourceView
 	for _, v := range views {
+		// A no-runner source is also non-toggleable, so its case must precede the
+		// barred case below — reversing the two would sink it into the barred
+		// bucket and render it as excluded-on-terms rather than not-yet-executing.
 		switch {
+		case v.NoRunner:
+			notExecuting = append(notExecuting, v)
 		case !v.Toggleable:
 			barred = append(barred, v)
 		case v.ShowGroups:
@@ -395,7 +405,7 @@ func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 	s.render(w, "sources", map[string]any{
 		"Title": "Source enablement", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"ShipOn": shipOn, "ShipOff": shipOff, "Barred": barred,
+		"ShipOn": shipOn, "ShipOff": shipOff, "NotExecuting": notExecuting, "Barred": barred,
 	})
 }
 
@@ -418,6 +428,12 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 		if o, ok := override[c.Slug]; ok {
 			enabled = o
 		}
+		// A source with no runner has nothing to enable — its effective state is
+		// never `on`, whatever an override or default might say — and it is not
+		// toggleable, exactly as a barred source is not (#241).
+		if c.NoRunner {
+			enabled = false
+		}
 		kind := "source"
 		if c.IsProposer {
 			kind = "proposer"
@@ -425,7 +441,8 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 		out = append(out, sourceView{
 			Slug: c.Slug, Name: c.Name, KindLabel: kind,
 			Authority: c.Authority, Completeness: c.Completeness, Consent: c.Consent,
-			Enabled: enabled, Toggleable: !c.Barred, ShipNote: c.ShipNote,
+			Enabled: enabled, Toggleable: !c.Barred && !c.NoRunner, NoRunner: c.NoRunner,
+			ShipNote:     c.ShipNote,
 			ShowGroups:   c.Consent == consentAccepted,
 			MayResolve:   c.MayResolve,
 			Unresolvable: c.Unresolvable,
@@ -441,7 +458,10 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	slug := r.FormValue("slug")
 	c, ok := catalogBySlug(slug)
-	if !ok || c.Barred {
+	// A barred source has no consent instrument to satisfy, and a source with no
+	// runner (#241) has nothing to run, so neither is toggleable; an unknown slug
+	// is refused rather than written.
+	if !ok || c.Barred || c.NoRunner {
 		http.Error(w, "unknown source", http.StatusBadRequest)
 		return
 	}
@@ -595,6 +615,24 @@ means. Turning a source off is always safe; turning one on never adds to the est
 </tr>{{end}}
 </tbody>
 </table>
+
+{{if .NotExecuting}}
+<div class="microlabel">Catalogued — not yet executing</div>
+<p>These sources are in the catalogue, but no runner ships for them yet — nothing queries them, so
+they observe nothing. There is nothing to enable until a runner exists; leaving one here never adds
+to the estate and never asserts absence.</p>
+<table>
+<thead><tr><th>Source</th><th>Kind</th><th>Authority</th><th>State</th></tr></thead>
+<tbody>
+{{range .NotExecuting}}<tr>
+<td><div class="mono">{{.Name}}</div><div class="src-note">{{.ShipNote}}</div></td>
+<td><span class="badge">{{.KindLabel}}</span></td>
+<td class="mono">{{if .Authority}}{{.Authority}} · {{.Completeness}}{{else}}—{{end}}</td>
+<td><span class="badge off">not yet executing</span></td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
 
 <div class="microlabel">Ship off — accept the terms to enable</div>
 <p>Each of these ships off. Enabling it is you making a reading the project declined to make on your behalf, so here is what is unresolved, in two groups.</p>
