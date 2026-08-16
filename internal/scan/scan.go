@@ -139,12 +139,13 @@ type scopeRecord struct {
 // this indirection is a seam for a later per-vantage override.
 func resolverFor(j Job) string {
 	// The resolver is carried on the Vantage and copied onto the job's spec by
-	// the dispatcher; jobs built without one fall back to the loopback stub the
-	// migration ships, which the operator replaces.
+	// the dispatcher; jobs built without one fall back to the same default the
+	// migration ships (Docker's embedded DNS on the compose deployment), which the
+	// operator replaces off compose. See db/migrations/18800_measurement_vantage.sql.
 	if j.resolver != "" {
 		return j.resolver
 	}
-	return "127.0.0.1:53"
+	return "127.0.0.11:53"
 }
 
 // WithResolver returns a copy of the job carrying the Vantage's resolver, set by
