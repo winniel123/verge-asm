@@ -1,6 +1,7 @@
 .git
 .claude
 docs
+deploy
 design-system
 prototypes
 *.md

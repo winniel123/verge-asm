@@ -14,8 +14,10 @@ This guide is the operational digest.
 - **Docker** with the Compose plugin. That is the whole list — the Go toolchain,
   `sqlc` and every dependency are baked into the images.
 - A host that can reach the addresses and names you intend to measure.
-- For **exposure** findings: SSH access to a separate Linux host to run as a prober
-  (see [using.md → Provision a prober](using.md#3-add-an-internet-vantage-provision-a-prober)).
+- For **exposure** findings: a separate Linux host to run as a prober. The
+  [`deploy/prober/`](../../deploy/prober/) recipe stands one up with `docker compose`;
+  the worked walkthrough is [prober.md](prober.md) (overview in
+  [using.md → Provision a prober](using.md#3-add-an-internet-vantage-provision-a-prober)).
 
 The images build and run on `linux/amd64` and `linux/arm64` only. Both are
 first-class; the prober binary for *both* architectures ships in every image, so an

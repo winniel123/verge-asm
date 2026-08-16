@@ -1,0 +1,48 @@
+# sshd config for a verge-asm prober target. Rendered at build time:
+# __PROBER_USER__ / __PROBER_HOME__ are replaced with the login account and its
+# home. The operator never edits this file — the recipe writes authorized_keys
+# and the host key for you (see entrypoint.sh).
+
+# The container drops CAP_NET_BIND_SERVICE (cap_drop: [ALL]) and runs non-root,
+# so sshd cannot bind a privileged port. It listens high; compose maps the host's
+# real SSH port (default 22) onto it.
+Port 2222
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+# The host key lives on a named volume so it survives restarts. Without that the
+# instance's TOFU host-key pin trips on every restart and the vantage stops
+# verifying (§3 — "a change is a hard failure, never a prompt"). Generated on
+# first boot by the entrypoint. The path is fixed (not under the account's home)
+# so the volume mount does not move when PROBER_USER changes.
+HostKey /hostkeys/ssh_host_ed25519_key
+
+# Public-key auth only, root disabled, one account. No passwords anywhere.
+PermitRootLogin no
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication no
+AuthorizedKeysFile __PROBER_HOME__/.ssh/authorized_keys
+AllowUsers __PROBER_USER__
+
+# Rootless container: sshd runs foreground as an unprivileged uid, so it writes
+# no pid file (it could not write /run anyway).
+PidFile none
+
+# Minimal surface. The instance opens a session, ships a binary and exec's it;
+# it needs no forwarding, tunnel or pty. The authorized_keys `restrict` prefix
+# the entrypoint adds enforces the same at the key level.
+AllowTcpForwarding no
+AllowAgentForwarding no
+X11Forwarding no
+PermitTunnel no
+GatewayPorts no
+PermitUserRC no
+
+# scp/sftp is the natural channel for pushing the prober binary; internal-sftp
+# runs in-process, which a rootless daemon can do.
+Subsystem sftp internal-sftp
+
+LogLevel VERBOSE

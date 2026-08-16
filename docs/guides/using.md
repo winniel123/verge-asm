@@ -105,6 +105,12 @@ Then:
    `SSH_CLIENT`. The instance then renders *your egress is `203.0.113.5`* and offers
    it for declaration.
 
+> **Don't hand-roll the host.** [`deploy/prober/`](../../deploy/prober/) is a
+> `docker compose` recipe that stands up exactly this — a minimal, hardened, non-root
+> SSH target — so steps 1–3 become "paste the rendered public key and `docker compose
+> up`." The copy-paste walkthrough, including the host-key pin and the `restrict` /
+> `from=` hardening, is in **[prober.md](prober.md)**.
+
 Until an internet vantage exists, exposure claims are withheld — the system degrades
 to internal-only and **never** reports `firewalled` or `exposed` for something it did
 not look at.

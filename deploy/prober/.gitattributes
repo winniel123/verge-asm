@@ -1,0 +1,6 @@
+# The entrypoint runs inside a Linux container and sshd_config is read there —
+# both must keep LF endings regardless of how this repo is checked out on Windows.
+entrypoint.sh text eol=lf
+sshd_config text eol=lf
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
