@@ -49,7 +49,7 @@ name at any depth in a zone while §3.2 probes at two.
 | What it holds where the probe **completed and found no wildcard** | An ordinary value. The modal case is unaffected. **QUALIFIED by [#113](https://github.com/winniel123/verge-asm/issues/113) / [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md): *found no wildcard* means no control label _of any shape_ carried an RR at any qtype.** Read alone and in the present tense, the unqualified sentence licenses a fictional inventory under an authority that **parses** the query name — **[measured]** `nip.io` answers NODATA to a random label and `203.0.113.7` to `203-0-113-7`, so a random-only set completes, finds nothing, and licenses everything beneath. Amended here rather than pointed at, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) |
 | What an aperture widening costs here | A **`Break`** on the timelines beneath the newly-probed parent — and it is **structurally vacuous** in the ordinary case, by the rule's own shape |
 | `Shadowed`'s decision site | **Untouched.** Both measurements still happen inside one batch and the leaf still decides ([ADR-0011](./0011-a-facet-is-six-parts.md)) |
-| `wildcard-discrimination` | **Still one leaf**, still five leaves total, and its declared parameters are **unchanged** |
+| `wildcard-discrimination` | **Still one leaf**, this ruling adds none (total ~~five~~ **six** since [ADR-0104](./0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)), and its declared parameters are **unchanged** |
 | Cost of the ruling | **Zero.** Nothing has shipped, no timeline exists, no `Break` fires |
 
 ## Rationale
