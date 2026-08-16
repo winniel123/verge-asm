@@ -1054,14 +1054,21 @@ func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string,
 	f.obsNextID++
 }
 
-func (f *fakeStore) ListServiceReachabilityByClass(_ context.Context, arg db.ListServiceReachabilityByClassParams) ([]db.ListServiceReachabilityByClassRow, error) {
+// reachClassKey is one (Service, Vantage class) reachability leg.
+type reachClassKey struct{ svc, class string }
+
+// currentReachByClass folds the fake's reachability observations into the current
+// value per (Service, class) — the span corpus's current-state read, which is NOT
+// live-tier-gated (spans are the already-derived timeline, ADR-0041), so it folds
+// every observation rather than only the live ones. is_gap is derived from the
+// value's outcome, exactly as the real fold's isGapValue reads it (ADR-0104).
+func (f *fakeStore) currentReachByClass() map[reachClassKey]db.Observation {
 	classOf := map[int64]string{}
 	for _, v := range f.vantages {
 		classOf[v.ID] = v.Class
 	}
-	type key struct{ svc, class string }
-	latest := map[key]db.Observation{}
-	for _, o := range f.liveObservations(arg.AsOf.Time) {
+	latest := map[reachClassKey]db.Observation{}
+	for _, o := range f.observations {
 		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
 			continue
 		}
@@ -1069,16 +1076,30 @@ func (f *fakeStore) ListServiceReachabilityByClass(_ context.Context, arg db.Lis
 		if !ok {
 			continue
 		}
-		k := key{o.SubjectKey, class}
+		k := reachClassKey{o.SubjectKey, class}
 		cur, ok := latest[k]
 		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
 			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
 			latest[k] = o
 		}
 	}
-	rows := []db.ListServiceReachabilityByClassRow{}
-	for k, o := range latest {
-		rows = append(rows, db.ListServiceReachabilityByClassRow{SubjectKey: k.svc, Class: k.class, Value: o.Value})
+	return latest
+}
+
+func reachOutcomeIsGap(value []byte) bool {
+	var v struct {
+		Outcome string `json:"outcome"`
+	}
+	_ = json.Unmarshal(value, &v)
+	return v.Outcome == "gap"
+}
+
+func (f *fakeStore) ListServiceReachabilitySpansByClass(_ context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error) {
+	rows := []db.ListServiceReachabilitySpansByClassRow{}
+	for k, o := range f.currentReachByClass() {
+		rows = append(rows, db.ListServiceReachabilitySpansByClassRow{
+			SubjectKey: k.svc, Class: k.class, Value: o.Value, IsGap: reachOutcomeIsGap(o.Value),
+		})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].SubjectKey != rows[j].SubjectKey {
@@ -1087,6 +1108,21 @@ func (f *fakeStore) ListServiceReachabilityByClass(_ context.Context, arg db.Lis
 		return rows[i].Class < rows[j].Class
 	})
 	return rows, nil
+}
+
+func (f *fakeStore) ListBlanketedReachServices(_ context.Context) ([]string, error) {
+	seen := map[string]struct{}{}
+	for k, o := range f.currentReachByClass() {
+		if reachOutcomeIsGap(o.Value) {
+			seen[k.svc] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for svc := range seen {
+		out = append(out, svc)
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 // addCertificate records a certificate observation for an Endpoint — the

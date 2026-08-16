@@ -1,0 +1,2 @@
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.43:443/tcp","vantage":"v1","address":"198.51.100.43","data":{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}}
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.44:443/tcp","vantage":"v1","address":"198.51.100.44","data":{"outcome":"not-reached","result":"refused"}}

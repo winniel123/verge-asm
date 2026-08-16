@@ -2,13 +2,72 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+// A blanket responder's internet reach is a Gap (ADR-0104), so a sensitive port on
+// it reads as ABSENT — HasInternetReach=false — and sensitive-port-reached-from-
+// internet returns not-evaluable (never not-fired, and never fired). An ordinary
+// reached sensitive port on another address still fires. The damping is at the
+// measurement: no rule is narrowed.
+func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
+	f := newFakeStore()
+	// A blanket responder: a sensitive internet pair whose reach is a Gap.
+	f.addClassReachability(t, "198.51.100.50:3389/tcp", "internet", obsClock,
+		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
+	// An ordinary origin: the same sensitive port reached from the internet -> fires.
+	f.addClassReachability(t, "198.51.100.51:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+
+	srv := newServer(f, testKey, "", fixedClock())
+	req := httptest.NewRequest(http.MethodGet, "/signals", nil)
+	facts, _, err := srv.buildServiceFacts(req)
+	if err != nil {
+		t.Fatalf("buildServiceFacts: %v", err)
+	}
+
+	byKey := map[string]signal.ServiceFacts{}
+	for _, sf := range facts {
+		byKey[sf.Subject] = sf
+	}
+	blanket, ok := byKey["198.51.100.50:3389/tcp"]
+	if !ok {
+		t.Fatal("blanket responder service missing from facts — a blanketed Service is still a subject")
+	}
+	if !blanket.OnSensitiveList {
+		t.Error("the blanketed pair is 3389/tcp — it must stay in the rule's domain")
+	}
+	if blanket.HasInternetReach {
+		t.Errorf("a blanketed internet reach must read as absent, got InternetReach=%q", blanket.InternetReach)
+	}
+	if origin := byKey["198.51.100.51:3389/tcp"]; !origin.HasInternetReach || origin.InternetReach != signal.Reached {
+		t.Errorf("an ordinary reached origin must keep its value, got %+v", origin)
+	}
+
+	// The rule buckets the blanket responder as not-evaluable (its evidence is a
+	// Gap), and the origin as fired — never the reverse.
+	var rule signal.ServiceRule
+	for _, r := range signal.AllServiceRules() {
+		if r.Name() == "sensitive-port-reached-from-internet" {
+			rule = r
+		}
+	}
+	if rule == nil {
+		t.Fatal("sensitive-port-reached-from-internet rule not found")
+	}
+	if got := rule.Eval(blanket); got != signal.NotEvaluable {
+		t.Errorf("blanket responder verdict = %v, want not-evaluable (not not-fired)", got)
+	}
+	if got := rule.Eval(byKey["198.51.100.51:3389/tcp"]); got != signal.Fired {
+		t.Errorf("ordinary origin verdict = %v, want fired", got)
+	}
+}
 
 // seedZone declares a name-scope Seed and attaches a zone file to it, returning
 // nothing — the Signals reads pick it up through ListZoneDeclarations.

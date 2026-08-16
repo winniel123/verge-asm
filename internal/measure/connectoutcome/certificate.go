@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/netip"
 
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -69,20 +70,40 @@ func (s Scope) endpointNames() []string {
 	return s.Names
 }
 
-// RunExchange runs the reachability exchange with the certificate handshake step
-// composed into it, writing both facets' NDJSON to w. For each TCP Service in
-// scope it emits a `reachability` observation exactly as RunWithConnector does;
-// and for each Service the connect REACHED it performs the TLS handshake — one
-// per Endpoint (nameless, or one per declared name) — and emits a `certificate`
-// observation. The handshake is a STEP inside this one exchange, not a second
-// dispatch (AC #197): `certificate` has no Scan and no cadence of its own, it
-// rides whichever port tier made the connect.
+// RunExchange runs the reachability exchange with the blanket-discrimination
+// control probe and the certificate handshake steps composed into it, writing both
+// facets' NDJSON to w. It is the production path (Run dispatches here); the
+// hermetic connect-outcome corpus drives the plain RunWithConnector, and the
+// blanket-discrimination corpus drives this function against a scripted connector
+// and a deterministic PortGen.
+//
+// Before probing an address's service ports it runs the control-port probe
+// (blanketdiscrim, ADR-0104): a batch-generated set of dynamic-range ports a
+// well-behaved origin refuses. Where the whole set answers, the address is a
+// **blanket responder** and every one of its `Service`s folds to a `reachability`
+// `Gap` — the sixth gap cause, never a value — and no certificate handshake runs
+// (there is no reached Service to hand it). Where the probe did not complete the
+// reach is a `Gap` for the same cause. Only a NotBlanket address takes the ordinary
+// connect: a `reachability` value per Service, and the TLS handshake — one per
+// Endpoint — on each Service the connect REACHED. The control probe rides the same
+// paced Connector as the port tiers, so it honours the §3.3 safety budget exactly
+// as they do (ADR-0104 Consequences).
 //
 // A later ticket adds an HTTP step to the same reached-Service branch (#198); this
 // function is the composition point the orchestrator reconciles.
-func RunExchange(ctx context.Context, c Connector, h Handshaker, batch string, scope Scope, w io.Writer) error {
+func RunExchange(ctx context.Context, c Connector, h Handshaker, gen blanketdiscrim.PortGen, batch string, scope Scope, w io.Writer) error {
+	verdicts := discriminateBlanket(ctx, c, gen, scope)
+
 	var out []wire.Observation
 	for _, target := range scope.targets() {
+		if v, ok := verdicts[target.Addr()]; ok && v.Gaps() {
+			// A blanket responder (or an incomplete control probe): the reach is
+			// undiscriminated, so the Service folds to a `Gap` with the sixth cause and
+			// no certificate handshake runs.
+			out = append(out, EmitServiceGap(batch, scope.Vantage, target,
+				blanketdiscrim.GapCause, blanketdiscrim.ReasonFor(v)))
+			continue
+		}
 		outcome, raw := Probe(ctx, c, scope.Profile, target)
 		out = append(out, EmitService(batch, scope.Vantage, target, outcome, raw))
 		if outcome != Reached {
@@ -94,4 +115,45 @@ func RunExchange(ctx context.Context, c Connector, h Handshaker, batch string, s
 		}
 	}
 	return writeNDJSON(w, out)
+}
+
+// discriminateBlanket runs the blanket-discrimination control probe for every
+// address in scope and returns the per-address verdict. The control-port set is
+// drawn once per batch and reused across addresses (ADR-0069's per-batch draw); an
+// address with no control ports to probe — an empty set — reads as a `Gap`, since
+// the discrimination did not run. The control connects use the same Profile retry
+// budget as the service connects, so a transient drop is retried before silence is
+// read as incomplete.
+func discriminateBlanket(ctx context.Context, c Connector, gen blanketdiscrim.PortGen, scope Scope) map[netip.Addr]blanketdiscrim.Verdict {
+	ports := gen.Ports()
+	out := make(map[netip.Addr]blanketdiscrim.Verdict, len(scope.Addresses))
+	for _, a := range scope.Addresses {
+		addr, err := netip.ParseAddr(a)
+		if err != nil {
+			continue
+		}
+		addr = addr.Unmap()
+		results := make([]blanketdiscrim.ControlResult, 0, len(ports))
+		for _, port := range ports {
+			_, raw := Probe(ctx, c, scope.Profile, netip.AddrPortFrom(addr, port))
+			results = append(results, controlResultOf(raw))
+		}
+		out[addr] = blanketdiscrim.Decide(results)
+	}
+	return out
+}
+
+// controlResultOf projects a raw connect result to the blanket decision's closed
+// union: an open handshake answers, a refusal is a decided closed port, and a
+// timeout or local error (after Probe has spent its retries) is an incomplete
+// reading we could not discriminate on.
+func controlResultOf(raw ConnResult) blanketdiscrim.ControlResult {
+	switch raw {
+	case ConnOpen:
+		return blanketdiscrim.ControlAnswered
+	case ConnRefused:
+		return blanketdiscrim.ControlClosed
+	default: // ConnTimedOut, ConnError
+		return blanketdiscrim.ControlIncomplete
+	}
 }

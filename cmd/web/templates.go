@@ -1037,7 +1037,10 @@ which only you know, so this screen states none.</p>
 <h2>Reachability</h2>
 <div class="kv"><div class="k">Address</div><div class="mono">{{.Address}}</div></div>
 <div class="kv"><div class="k">Port</div><div class="mono">{{.Port}}/{{.Transport}}</div></div>
-{{if .Reach}}
+{{if .ReachGap}}
+<div class="kv"><div class="k">Verdict</div><div><span class="badge">Gap</span></div></div>
+<div class="notice">{{.ReachGapReason}}. From this vantage we cannot tell a real origin service behind the edge from the edge answering for it, so the reach is undiscriminated — a Gap, not <span class="mono">reached</span>. Declare your origin IPs as an address scope to measure the real surface.</div>
+{{else if .Reach}}
 <div class="kv"><div class="k">Verdict</div><div><span class="badge">{{.Reach}}</span></div></div>
 {{else}}<p class="muted">No reachability value recorded.</p>{{end}}
 </div>

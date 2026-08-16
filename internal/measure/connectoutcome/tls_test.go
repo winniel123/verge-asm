@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -108,7 +109,7 @@ func TestRunExchangeRidesReachability(t *testing.T) {
 	}}
 
 	var buf bytes.Buffer
-	if err := RunExchange(context.Background(), conn, hs, "b1", scope, &buf); err != nil {
+	if err := RunExchange(context.Background(), conn, hs, blanketdiscrim.FixedPorts{}, "b1", scope, &buf); err != nil {
 		t.Fatal(err)
 	}
 	var certs, reach int
@@ -153,7 +154,7 @@ func TestRunExchangeNamelessEndpoint(t *testing.T) {
 		"@198.51.100.10:443/tcp": {Outcome: NoTLS},
 	}}
 	var buf bytes.Buffer
-	if err := RunExchange(context.Background(), conn, hs, "b1", scope, &buf); err != nil {
+	if err := RunExchange(context.Background(), conn, hs, blanketdiscrim.FixedPorts{}, "b1", scope, &buf); err != nil {
 		t.Fatal(err)
 	}
 	if got, ok := hs.seen["@198.51.100.10:443/tcp"]; !ok || got != "" {

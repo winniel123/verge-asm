@@ -452,25 +452,29 @@ func (s *server) buildSignalCorpus(r *http.Request) (signal.Corpus, error) {
 // (#199) lands concurrently, so every Service is left outside that rule's domain
 // (a no-population panel) rather than importing a leaf that may not exist yet.
 func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[string]bool, error) {
-	rows, err := s.store.ListServiceReachabilityByClass(r.Context(), db.ListServiceReachabilityByClassParams{
-		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	})
+	rows, err := s.store.ListServiceReachabilitySpansByClass(r.Context())
 	if err != nil {
 		return nil, nil, err
 	}
 	vc := vergecore.Default()
 
-	// subject -> class -> reachability outcome (reached | not-reached | "").
-	byClass := map[string]map[string]string{}
+	// subject -> class -> reach leg. Reading the SPAN (not the latest observation)
+	// gives us `is_gap`: a blanket responder's reach is a Gap, and a Gap leg reads
+	// as absent (ADR-0104), so it never becomes a value the rule can fire on.
+	type leg struct {
+		outcome string
+		isGap   bool
+	}
+	byClass := map[string]map[string]leg{}
 	order := []string{}
 	for _, row := range rows {
 		m := byClass[row.SubjectKey]
 		if m == nil {
-			m = map[string]string{}
+			m = map[string]leg{}
 			byClass[row.SubjectKey] = m
 			order = append(order, row.SubjectKey)
 		}
-		m[row.Class] = decodeReachability(row.Value).Outcome
+		m[row.Class] = leg{outcome: decodeReachability(row.Value).Outcome, isGap: row.IsGap}
 	}
 
 	estateAddrs := map[string]bool{}
@@ -480,13 +484,20 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 		if pair, addr, ok := parseServicePair(sub); ok {
 			// A Service exists only for a probed pair (TCP); the sensitive half is
 			// always in the probed union, so IsSensitive on the TCP pair is exactly
-			// "on the sensitive list AND probed" (the ticket's domain restriction).
+			// "on the sensitive list AND probed" (the ticket's domain restriction). A
+			// blanketed Service is still a subject here — its Address is real and in
+			// the estate — so it keeps its census membership; only its reach is absent.
 			f.OnSensitiveList = pair.Transport == vergecore.TCP && vc.IsSensitive(pair)
 			estateAddrs[addr] = true
 		}
-		if o, ok := byClass[sub]["internet"]; ok && o != "" {
+		// A blanket responder's internet reach is a Gap: the leg reads as absent, so
+		// HasInternetReach stays false and `sensitive-port-reached-from-internet`
+		// returns not-evaluable — the signal is damped at the measurement, never in
+		// the rule (ADR-0104 Decision §3). A Gap is not a `reachability` value either,
+		// so a blanketed port never enters an open-port count.
+		if l, ok := byClass[sub]["internet"]; ok && !l.isGap && l.outcome != "" {
 			f.HasInternetReach = true
-			f.InternetReach = o
+			f.InternetReach = l.outcome
 		}
 		facts = append(facts, f)
 	}

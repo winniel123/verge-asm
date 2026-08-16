@@ -322,6 +322,33 @@ func TestServiceSubjectsListedAndDrilledDown(t *testing.T) {
 	}
 }
 
+// A blanket responder's Service drill-down states the proxy-edge finding in prose
+// (ADR-0104 §4): the reach is a Gap, not `reached`, and the page says we cannot see
+// the origin from here rather than showing an open/closed verdict.
+func TestServiceDrilldownSurfacesBlanketGap(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["104.21.61.6"]}`)
+	f.addReachability(t, "104.21.61.6:443/tcp", obsClock,
+		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	drill := getBody(t, ac, base+"/subjects/service?key=104.21.61.6%3A443%2Ftcp", http.StatusOK)
+	for _, want := range []string{
+		"proxy edge", "answers on all ports", "Gap", "address scope",
+	} {
+		if !strings.Contains(drill, want) {
+			t.Errorf("blanket-responder drill-down missing %q; body: %s", want, drill)
+		}
+	}
+	// It must NOT claim a reached/closed verdict — the reach is undiscriminated.
+	if strings.Contains(drill, `<span class="badge">reached</span>`) {
+		t.Errorf("a blanketed reach must not render as reached; body: %s", drill)
+	}
+}
+
 func TestServiceDrilldownRendersOpenCloseTimeline(t *testing.T) {
 	// AC #195: re-running the hot Scan with a Service opening produces the correct
 	// Span transition — a not-reached span closes and a reached span opens — visible

@@ -361,6 +361,43 @@ func TestCoverageRetentionStub(t *testing.T) {
 	}
 }
 
+// Coverage surfaces blanket responders (ADR-0104 §4): when an address answers on
+// every port its reach is a Gap, and Coverage states the proxy-edge finding in
+// prose with the address, and points at declaring an address scope. Absent any
+// blanket responder the section does not render.
+func TestCoverageSurfacesBlanketResponders(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addClassReachability(t, "104.21.61.6:443/tcp", "internet", obsClock,
+		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+	for _, want := range []string{
+		"answer TCP on all ports", "104.21.61.6", "proxy edge", "address scope",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("Coverage blanket-responder statement missing %q; body: %s", want, page)
+		}
+	}
+}
+
+// With no blanket responder, the Coverage blanket-responder section does not
+// render — it is a standing statement only when there is something to state.
+func TestCoverageOmitsBlanketSectionWhenNone(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addClassReachability(t, "198.51.100.1:443/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+	if strings.Contains(page, "answer TCP on all ports") {
+		t.Errorf("Coverage rendered a blanket-responder statement with no blanket responder; body: %s", page)
+	}
+}
+
 // The web layer's mirror of the qtype set never drifts from the leaf's authored
 // set (resolutionwalk.DefaultOffers). If the leaf's set moves, this fails.
 func TestDNSQtypeSetMatchesLeaf(t *testing.T) {

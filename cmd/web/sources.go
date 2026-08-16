@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -260,6 +261,25 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	dnsCadence := cadenceLabel(dns.CadenceSeconds)
 	dnsOn := dns.Enabled
 
+	// Blanket responders (ADR-0104 §4): addresses whose current reachability is a
+	// Gap because they answer on every port — a CDN/anycast/proxy edge, not the
+	// origin. This is a read surface in the aperture register, never a Transition and
+	// never a new message cause: the finding must be surfaced, not silently absorbed
+	// into Gaps, or the operator reads *nothing open* where the honest statement is
+	// *we cannot see your origin from here*. A best-effort read — a failure degrades
+	// to no statement rather than a 500.
+	var blanketAddrs []string
+	if svc, berr := s.store.ListBlanketedReachServices(ctx); berr == nil {
+		seen := map[string]bool{}
+		for _, key := range svc {
+			if addr, _, _ := splitServiceKey(key); addr != "" && !seen[addr] {
+				seen[addr] = true
+				blanketAddrs = append(blanketAddrs, addr)
+			}
+		}
+		sort.Strings(blanketAddrs)
+	}
+
 	scopeState := "no scope declared"
 	if nameScopes+addrScopes > 0 {
 		scopeState = fmt.Sprintf("%d name · %d address", nameScopes, addrScopes)
@@ -342,6 +362,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"Lines": lines, "ZeroCoverage": zeroCoverage, "Steps": steps,
 		"DNSCadence": dnsCadence, "DNSOn": dnsOn,
+		"BlanketAddrs": blanketAddrs,
 	})
 }
 
@@ -523,6 +544,28 @@ what ships so far: the dns Scan and source enablement.</p>
 </tbody>
 </table>
 </div>
+
+{{if .BlanketAddrs}}
+<div class="section">
+<div class="microlabel">Aperture · blanket responders</div>
+<h2>These addresses answer on every port</h2>
+<p>{{len .BlanketAddrs}} address{{if ne (len .BlanketAddrs) 1}}es{{end}} in your estate answer TCP on all ports — a
+proxy edge (a CDN, anycast front, or reverse proxy), not your origin. We measured this with a
+control-port probe, not read it off any provider list. Their reaches are recorded as a Gap, never
+<span class="mono">reached</span>: from here we cannot tell a real origin service behind the edge from
+the edge answering for it, so their ports do not count as open and no sensitive-port signal fires on
+them. To measure the real surface, declare your origin IPs as an address scope.</p>
+<table>
+<thead><tr><th>Address</th><th>What it is</th></tr></thead>
+<tbody>
+{{range .BlanketAddrs}}<tr>
+<td class="mono">{{.}}</td>
+<td class="muted">proxy edge — answers on all ports, origin not visible from here</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
 
 {{if .ZeroCoverage}}
 <div class="section">

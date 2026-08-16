@@ -11,6 +11,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const listBlanketedReachServices = `-- name: ListBlanketedReachServices :many
+SELECT DISTINCT sp.subject_key AS subject_key
+FROM span sp
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.closed_at IS NULL
+  AND sp.is_gap = TRUE
+ORDER BY sp.subject_key
+`
+
+// Every Service whose CURRENT `reachability` span is a Gap — a blanket responder,
+// or an address whose control probe could not complete (ADR-0104). The Coverage
+// aperture register (#254, ADR-0095) reads this to state, in prose, that these
+// addresses answer on all ports and are a proxy edge rather than the origin — a
+// read surface, never a Transition or a new message cause. The caller folds the
+// Service keys to their distinct Addresses; a Gap span is never routed through the
+// live-tier gate for the reason above.
+func (q *Queries) ListBlanketedReachServices(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listBlanketedReachServices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var subject_key string
+		if err := rows.Scan(&subject_key); err != nil {
+			return nil, err
+		}
+		items = append(items, subject_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEndpointCertificates = `-- name: ListEndpointCertificates :many
 WITH cover AS (
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
@@ -242,70 +279,53 @@ func (q *Queries) ListNameResolutionsByClass(ctx context.Context, arg ListNameRe
 	return items, nil
 }
 
-const listServiceReachabilityByClass = `-- name: ListServiceReachabilityByClass :many
-WITH cover AS (
-    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
-           MIN(s.cadence_seconds) AS tightest_cadence
-    FROM observation o
-    JOIN batch b ON b.id = o.batch_id
-    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
-    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
-),
-live AS (
-    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
-           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
-    FROM observation o
-    JOIN cover c
-        ON  c.subject_key   = o.subject_key
-        AND c.facet         = o.facet
-        AND c.discriminator = o.discriminator
-        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
-        AND c.source        = o.source
-    WHERE EXTRACT(EPOCH FROM ($1::timestamptz - o.observed_at))
-          <= $2::bigint * c.tightest_cadence
-),
-latest AS (
-    SELECT DISTINCT ON (o.subject_key, v.class)
-        o.subject_key AS subject_key,
-        v.class       AS class,
-        o.value       AS value
-    FROM live o
-    JOIN vantage v ON v.id = o.vantage_id
-    WHERE o.facet = 'reachability' AND o.subject_kind = 'service'
-    ORDER BY o.subject_key, v.class, o.observed_at DESC, o.id DESC
-)
-SELECT subject_key, class, value
-FROM latest
-ORDER BY subject_key, class
+const listServiceReachabilitySpansByClass = `-- name: ListServiceReachabilitySpansByClass :many
+SELECT DISTINCT ON (sp.subject_key, v.class)
+    sp.subject_key AS subject_key,
+    v.class        AS class,
+    sp.value       AS value,
+    sp.is_gap      AS is_gap
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.closed_at IS NULL
+ORDER BY sp.subject_key, v.class, sp.opened_at DESC, sp.id DESC
 `
 
-type ListServiceReachabilityByClassParams struct {
-	AsOf          pgtype.Timestamptz `json:"as_of"`
-	FloorCadences int64              `json:"floor_cadences"`
-}
-
-type ListServiceReachabilityByClassRow struct {
+type ListServiceReachabilitySpansByClassRow struct {
 	SubjectKey string `json:"subject_key"`
 	Class      string `json:"class"`
 	Value      []byte `json:"value"`
+	IsGap      bool   `json:"is_gap"`
 }
 
-// The latest `reachability` observation per (Service, Vantage class) (#203). The
-// engine reads the internet-class leg for `sensitive-port-reached-from-internet`
-// (ADR-0071: a class-scoped internet, existential composition — the internal twin
-// is a different, refused rule). DISTINCT ON keeps the most recent value per
-// (service, class), mirroring the Name resolution read one facet over. Reads
-// through the live-tier gate (#237).
-func (q *Queries) ListServiceReachabilityByClass(ctx context.Context, arg ListServiceReachabilityByClassParams) ([]ListServiceReachabilityByClassRow, error) {
-	rows, err := q.db.Query(ctx, listServiceReachabilityByClass, arg.AsOf, arg.FloorCadences)
+// The CURRENT `reachability` span per (Service, Vantage class) (#254, ADR-0104).
+// buildServiceFacts reads the SPAN, not the latest observation, because the span
+// carries `is_gap`: a blanket responder's reach is a Gap, and a Gap leg reads as
+// absent (HasInternetReach=false) so `sensitive-port-reached-from-internet`
+// returns not-evaluable with no rule edit, and a Gap is not a `reachability` value
+// so a blanket responder's ports drop out of any open-port count without a special
+// case. Span reads are NOT routed through the live-tier observation gate (#237):
+// the span corpus is the already-derived timeline the fold produced, kept forever
+// (ADR-0041), so an as_of bound would wrongly hide settled state rather than
+// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
+// (service, class), mirroring the observation read one facet over.
+func (q *Queries) ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error) {
+	rows, err := q.db.Query(ctx, listServiceReachabilitySpansByClass)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListServiceReachabilityByClassRow{}
+	items := []ListServiceReachabilitySpansByClassRow{}
 	for rows.Next() {
-		var i ListServiceReachabilityByClassRow
-		if err := rows.Scan(&i.SubjectKey, &i.Class, &i.Value); err != nil {
+		var i ListServiceReachabilitySpansByClassRow
+		if err := rows.Scan(
+			&i.SubjectKey,
+			&i.Class,
+			&i.Value,
+			&i.IsGap,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

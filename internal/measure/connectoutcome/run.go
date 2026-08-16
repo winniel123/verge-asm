@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -77,7 +78,7 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	base := NetConnector{Timeout: time.Duration(scope.Profile.ConnectTimeoutMillis) * time.Millisecond}
 	paced := &pacedConnector{inner: base, pacer: NewPacer(scope.Profile), now: time.Now, sleep: time.Sleep}
 	hs := NetHandshaker{Timeout: time.Duration(scope.Profile.ConnectTimeoutMillis) * time.Millisecond}
-	return RunExchange(context.Background(), paced, hs, spec.Batch, scope, w)
+	return RunExchange(context.Background(), paced, hs, blanketdiscrim.CryptoPorts{}, spec.Batch, scope, w)
 }
 
 // RunWithConnector executes the leaf against an arbitrary Connector. Separating

@@ -11,6 +11,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
@@ -113,14 +114,17 @@ func foldOne(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observ
 // decide the value, composed as their union (ADR-0086), so a bump of any one
 // moves the value and Breaks the timeline. `resolution` and `dns-record` are
 // decided jointly by `resolution-walk` and `wildcard-discrimination`;
-// `reachability` is decided by the `connect-outcome` leaf alone. The vector is
-// keyed on the facet rather than hardcoded so a wave-4 facet adds its leaves here
-// without forking the fold.
+// `reachability` is decided jointly by `connect-outcome` and, since ADR-0104, the
+// `blanket-discrimination` leaf that gaps a blanket responder's reaches — a bump of
+// either Breaks the reach half of the estate once (ADR-0104 Consequences). The
+// vector is keyed on the facet rather than hardcoded so a wave-4 facet adds its
+// leaves here without forking the fold.
 func facetVector(facet string) drift.Vector {
 	switch facet {
 	case connectoutcome.FacetReachability:
 		return drift.NewVector(
 			drift.Component{Leaf: connectoutcome.Kind, Version: connectoutcome.Version},
+			drift.Component{Leaf: blanketdiscrim.Kind, Version: blanketdiscrim.Version},
 		)
 	case connectoutcome.FacetCertificate:
 		// `certificate` is decided by the tls-handshake leaf alone — the reached
@@ -151,18 +155,25 @@ func facetVector(facet string) drift.Vector {
 	}
 }
 
-// isGapValue reports whether a resolution observation records a Gap — a period
-// over which the system could not say. Only `resolution` carries the outcome tag;
-// a `dns-record` line is the RRset it measured and is never a gap here.
+// isGapValue reports whether an observation records a Gap — a period over which
+// the system could not say. Two facets carry a gap outcome tag: `resolution`, where
+// an undiscriminated DNS answer is a Gap (ADR-0066), and `reachability`, where an
+// undiscriminated reach on a blanket responder is a Gap (ADR-0104,
+// blanketdiscrim). A `dns-record` line is the RRset it measured and is never a gap
+// here; a `reachability` value (`reached` / `not-reached`) is not a gap either.
 func isGapValue(facet string, data json.RawMessage) bool {
-	if facet != resolutionwalk.FacetResolution {
-		return false
-	}
 	var v struct {
 		Outcome string `json:"outcome"`
 	}
 	_ = json.Unmarshal(data, &v)
-	return v.Outcome == string(resolutionwalk.OutcomeGap)
+	switch facet {
+	case resolutionwalk.FacetResolution:
+		return v.Outcome == string(resolutionwalk.OutcomeGap)
+	case connectoutcome.FacetReachability:
+		return v.Outcome == connectoutcome.GapOutcome
+	default:
+		return false
+	}
 }
 
 // canonicalJSON renders a JSON value in a stable form (object keys sorted by

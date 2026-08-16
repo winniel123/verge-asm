@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.42:443/tcp","vantage":"v1","address":"198.51.100.42","data":{"outcome":"gap","cause":"blanket-responder","reason":"the control-port probe did not complete, so this reach could not be discriminated from a blanket responder"}}
