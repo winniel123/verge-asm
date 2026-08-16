@@ -6,3 +6,6 @@
 
 # Local compose secrets
 .env
+
+# Local troubleshooting artifacts — screenshots, dumps, scratch
+temp/
