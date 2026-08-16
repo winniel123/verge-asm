@@ -10,13 +10,13 @@
   Three variants, ?variant=A|B|C — three answers to the same question, which is
   what the operator is actually asking when they arrive here:
 
-    A — ledger        one table, four corpora, both dials inline in it
+    A — ledger        one table, seven corpus rows, both dials inline in it
     B — by instrument two panels, "retired by a clock" / "never retired",
                       which is the shape ADR-0041's own decision table has
     C — horizon-first one horizon statement as the hero; the corpora and the
                       dials sit beneath it as its machinery
 
-  Six fills, ?fill=unbounded|set|floor|break|modal|zero :
+  Seven fills, ?fill=unbounded|set|floor|break|modal|zero|custody :
 
     unbounded  v1's shipped state — both dials keep everything, at the ceiling
                install (one declared /22, a zone file supplied)
@@ -30,6 +30,12 @@
     modal      the modal install: a name scope, no address scope declared, so
                the projection has no declared denominator (>99% of installs)
     zero       day one — nothing measured, nothing retained, no history at all
+    custody    ADR-0019's custody-of-nothing install. After #142 this is the
+               fill that pulls the two floors APART: `dns` is the only Scan with
+               anything in scope, so the observation floor is k x daily while
+               the Dispatch floor is still k x weekly. ADR-0081 predicted the
+               two would separate "the first time a Scan covering nothing is
+               enabled"; #142 delivered it in v1 rather than hypothetically.
 
   Not production code. No tests, no error handling, no abstractions. The visual
   language is the real design system (../../design-system). The vocabulary is
@@ -276,34 +282,43 @@ const MODEL = {
   rangeCap:     { v: 1024,    src: "ADR-0049, one knob at one setting" },
 };
 
-/* The four `Scan`s. CONTEXT.md: "there are four and only two are port tiers."
-   `enabled` is per-install, so it is set per fill below. */
+/* The FIVE `Scan`s, still two port tiers — #142 / ADR-0084 added `dns`, named
+   for the exchange rather than for discovery. It scopes the name scopes
+   unconditionally, carries no port list, runs at every configured `Vantage`,
+   and ships at daily. `enabled` is per-install and is set per fill below. */
 const SCANS = [
   { id: "reachability-hot",  cadence: "daily",   days: 1,  tier: true  },
   { id: "reachability-cold", cadence: "monthly", days: 30, tier: true  },
   { id: "tls-acceptance",    cadence: "weekly",  days: 7,  tier: false },
   { id: "zone",              cadence: "monthly", days: 30, tier: false },
+  { id: "dns",               cadence: "daily",   days: 1,  tier: false },
 ];
 
-/* Which `Scan` covers which facet's timelines. The two nulls are #142's open
-   question and they are the reason this table is a rendered list rather than a
-   sentence: #142 moves rows between the two halves and moves nothing else. */
+/* Which `Scan` covers which facet's timelines. This was a rendered list because
+   two rows had NO covering `Scan` and therefore no floor. #142 closed that hole
+   and the list is what absorbed it: two rows moved from one half to the other
+   and nothing else on the screen moved. It stays a list — the empty half now
+   renders empty and says why, which is #47's rule earning its keep twice. */
 const FACETS = [
   { f: "reachability",   by: "reachability-hot", note: "" },
   { f: "certificate",    by: "reachability-hot", note: "the handshake rides the reachability exchange — ADR-0028" },
   { f: "http-identity",  by: "reachability-hot", note: "" },
   { f: "tls-acceptance", by: "tls-acceptance",   note: "" },
-  { f: "resolution",     by: null, zoneOnly: true,
-    note: "the zone Source's own timelines are covered by the zone Scan; the resolver's and the passive sources' are covered by none" },
-  { f: "dns-record",     by: null, zoneOnly: true,
-    note: "same — one timeline per source, and only the declared one has a cadence" },
+  { f: "resolution",     by: "dns",
+    note: "covered unconditionally by dns — #142; the zone Source's own timelines ride the zone Scan" },
+  { f: "dns-record",     by: "dns",
+    note: "same, and one timeline per source: the declared one takes zone's cadence, the rest take dns's" },
 ];
 
-/* ── fills ─────────────────────────────────────────────────────────────── */
+/* ── fills ──────────────────────────────────────────────────────────────
+   `enabled` is the configured `Scan` set. `emptyScope` is the subset that is
+   enabled and has nothing in its scope list — a legible state, per CONTEXT.md,
+   and the state the ADR-0019 custody-of-nothing install is almost entirely in.
+   The two floors read different sets, which is why both are carried. */
 const FILLS = {
   unbounded: {
     label: "v1 shipped",
-    enabled: ["reachability-hot", "tls-acceptance", "zone"],
+    enabled: ["reachability-hot", "tls-acceptance", "zone", "dns"],
     declaredAddrs: 1024, vantages: 2,
     obsDial: null, dispatchDial: null,   /* null = keep everything */
     reaching: null,
@@ -312,7 +327,7 @@ const FILLS = {
   },
   set: {
     label: "both dials set",
-    enabled: ["reachability-hot", "tls-acceptance", "zone"],
+    enabled: ["reachability-hot", "tls-acceptance", "zone", "dns"],
     declaredAddrs: 1024, vantages: 2,
     obsDial: 365, dispatchDial: 180,
     reaching: null,
@@ -321,7 +336,7 @@ const FILLS = {
   },
   floor: {
     label: "reaching below the floor",
-    enabled: ["reachability-hot", "tls-acceptance", "zone"],
+    enabled: ["reachability-hot", "tls-acceptance", "zone", "dns"],
     declaredAddrs: 1024, vantages: 2,
     obsDial: 60, dispatchDial: 60,
     reaching: "obs",
@@ -330,7 +345,7 @@ const FILLS = {
   },
   break: {
     label: "a Break is the binding clamp",
-    enabled: ["reachability-hot", "tls-acceptance", "zone"],
+    enabled: ["reachability-hot", "tls-acceptance", "zone", "dns"],
     declaredAddrs: 1024, vantages: 2,
     obsDial: 365, dispatchDial: 180,
     reaching: null,
@@ -341,7 +356,7 @@ const FILLS = {
   },
   modal: {
     label: "modal install — no address scope",
-    enabled: ["reachability-hot", "tls-acceptance"],
+    enabled: ["reachability-hot", "tls-acceptance", "dns"],
     declaredAddrs: 0, vantages: 1,
     measuredServices: 1417,   /* an arbitrary install fixture, deliberately NOT
                                  prototypes/coverage/'s 1,290 — a fixture copied
@@ -353,12 +368,31 @@ const FILLS = {
   },
   zero: {
     label: "day one",
-    enabled: ["reachability-hot", "tls-acceptance"],
+    enabled: ["reachability-hot", "tls-acceptance", "dns"],
     declaredAddrs: 0, vantages: 0,
     measuredServices: 0,
     obsDial: null, dispatchDial: null,
     reaching: null,
     firstBatch: null,
+    breakAt: null,
+  },
+  /* ADR-0019 / #118: an install holding custody of nothing measures `resolution`
+     and `dns-record` and nothing else. After #142 that is not a screen with
+     nothing on it — `dns` scopes the name scopes unconditionally, so it is the
+     one `Scan` with anything in its scope list, and the others sit enabled with
+     empty scopes, which CONTEXT.md calls a legible state. This is also the fill
+     that pulls the two floors apart: the Dispatch floor reads the slowest
+     ENABLED `Scan` and the observation floor reads the slowest one that
+     actually COVERS something. */
+  custody: {
+    label: "custody of nothing",
+    enabled: ["reachability-hot", "tls-acceptance", "dns"],
+    emptyScope: ["reachability-hot", "tls-acceptance"],
+    declaredAddrs: 0, vantages: 1,
+    measuredServices: 0,
+    obsDial: null, dispatchDial: null,
+    reaching: null,
+    firstBatch: "2026-06-30",
     breakAt: null,
   },
 };
@@ -373,6 +407,7 @@ const FILLS = {
    ══════════════════════════════════════════════════════════════════════════ */
 
 const enabledScans = (f) => SCANS.filter(s => f.enabled.includes(s.id));
+const scopedScans  = (f) => enabledScans(f).filter(s => !(f.emptyScope || []).includes(s.id));
 
 /* the Dispatch floor: `k` cadences of the SLOWEST ENABLED `Scan`, below which
    Coverage cannot answer whether the slowest scan ran (ADR-0041, #22) */
@@ -390,15 +425,19 @@ function dispatchFloor(f) {
    Dispatch floor, and on this install it computes to the same number, which is
    exactly why both derivations are rendered rather than one number shared. */
 function obsFloor(f) {
-  const en = enabledScans(f);
-  const covering = en.filter(s => FACETS.some(x => x.by === s.id) || s.id === "zone");
+  const covering = scopedScans(f).filter(s => FACETS.some(x => x.by === s.id) || s.id === "zone");
   if (!covering.length) return null;
   const slowest = covering.reduce((a, b) => b.days > a.days ? b : a);
   return { scan: slowest, days: MODEL.k.v * slowest.days, cadence: slowest.cadence,
            why: "below this, a derivation would lose an observation it is still allowed to read" };
 }
 
-const uncovered = () => FACETS.filter(x => !x.by);
+/* Facets whose timelines no enabled `Scan` covers, and which therefore have no
+   currency bound, never become evidential and are never discarded. #142 emptied
+   this list. It still renders — a dial whose reach is silent is a dial the
+   operator believes covers everything, and the reach was silent right up until
+   somebody drew it. */
+const uncovered = (f) => FACETS.filter(x => !x.by || !scopedScans(f).some(s => s.id === x.by));
 
 /* ── the projection: arithmetic over Declared input, forward, exact ────── */
 function projection(f) {
@@ -558,6 +597,49 @@ function corpusTable(f) {
   </div>`;
 }
 
+/* The five `Scan`s, as the floor's own working. A floor stated as a multiple is
+   only auditable if the operator can see which `Scan` supplied the cadence and
+   what the alternatives were — otherwise "k x monthly (zone)" is as opaque as a
+   day count. `reads` marks the rows the given floor actually considers, which
+   is how the two floors reading two different sets is made visible. */
+function scanTable(f, mode) {
+  const en = enabledScans(f), sc = scopedScans(f);
+  const considered = (s) => mode === "dispatch"
+    ? en.includes(s)
+    : sc.includes(s) && (FACETS.some(x => x.by === s.id) || s.id === "zone");
+  return `<details class="d" style="margin-top:var(--space-3)">
+    <summary>which Scan sets this floor</summary>
+    <div><table><thead><tr>
+      <th style="width:170px">Scan</th><th style="width:100px">cadence</th>
+      <th style="width:130px">on this install</th><th>counts toward this floor</th>
+    </tr></thead><tbody>
+    ${SCANS.map(s => {
+      const isEn = f.enabled.includes(s.id);
+      const isEmpty = (f.emptyScope || []).includes(s.id);
+      return `<tr>
+        <td class="m">${s.id}${s.tier ? ` <span class="tag none">port tier</span>` : ""}</td>
+        <td class="m">${s.cadence}</td>
+        <td class="m ${isEn ? "" : "faint"}">${!isEn ? "not enabled"
+          : isEmpty ? "enabled, empty scope" : "enabled"}</td>
+        <td style="font-size:var(--text-sm)">${considered(s)
+          ? `<b>yes</b>${s === (mode === "dispatch" ? dispatchFloor(f).scan : obsFloor(f).scan)
+              ? ` — and it is the slowest, so it sets it` : ``}`
+          : `<span class="faint">no — ${!isEn ? "not enabled"
+              : isEmpty ? "nothing in its scope to observe" : "covers no facet"}</span>`}</td>
+      </tr>`;
+    }).join("")}
+    </tbody></table>
+    <div class="ground" style="margin-top:var(--space-3)">
+      ${mode === "dispatch"
+        ? `This floor reads every <b>enabled</b> <span class="mono">Scan</span>, including one with an
+           empty scope: it still fires, and <span class="mono">Coverage</span> still has to be able to
+           answer whether it ran.`
+        : `This floor reads only the <span class="mono">Scan</span>s that <b>cover a facet and have
+           something in scope</b>. An enabled <span class="mono">Scan</span> observing nothing bounds
+           the currency of nothing.`}
+    </div></div></details>`;
+}
+
 /* ── a dial ────────────────────────────────────────────────────────────── */
 function dialCard(opts) {
   const { title, sub, floor, dial, reaching, priced, ground } = opts;
@@ -606,6 +688,7 @@ function dialCard(opts) {
         <span class="op">(</span><span class="mono">${floor.scan.id}</span><span class="op">)</span>
         <span class="op">—</span> ${floor.why}
       </div>
+      ${opts.scanTable || ""}
 
       ${reaching ? `<div class="ground" style="border-left-color:var(--danger);color:var(--text)">
         You are reaching into the shaded ground. It is not a value you may set and be corrected for
@@ -622,7 +705,7 @@ function dialCard(opts) {
 
 function obsDialCard(f) {
   const fl = obsFloor(f), p = projection(f);
-  const unc = uncovered();
+  const unc = uncovered(f);
   const priced = p
     ? `At your declared scope, one year of evidential observations is
        <span class="mono"><b>${num(p.perYear)}</b> rows</span>, about
@@ -633,15 +716,22 @@ function obsDialCard(f) {
        forecast from.`;
   const ground = `No default is derivable from anything. Ninety days is invented and a year is invented,
     so v1 ships neither — the honest default for a quantity nothing bounds is not to bound it.
-    ${unc.length ? `<br><br><b>Outside this dial:</b> ${unc.map(u => `<span class="mono">${u.f}</span>`).join(" and ")}
-    have no covering <span class="mono">Scan</span>, so their observations have no currency bound, never
-    become evidential, and are never discarded. That is <a href="#">#142</a>'s open question showing
-    through: this dial's reach is a list, and #142 moves rows on it.` : ""}`;
+    <br><br><b>Outside this dial:</b> ${unc.length
+      ? `${unc.map(u => `<span class="mono">${u.f}</span>`).join(" and ")}
+         ${unc.length > 1 ? "have" : "has"} no covering <span class="mono">Scan</span> with anything in
+         its scope, so ${unc.length > 1 ? "those observations have" : "that facet's observations have"}
+         no currency bound, never become evidential, and are never discarded.`
+      : `nothing. All six facets have a covering <span class="mono">Scan</span>, so this floor is
+         <b>total</b> over the corpus rather than a maximum taken over part of it.
+         <span class="mono">resolution</span> and <span class="mono">dns-record</span> were outside it
+         until <a href="#">#142</a> minted the <span class="mono">dns</span> <span class="mono">Scan</span>
+         — the two facets every membership decision reads were the two with no floor.`}`;
   return dialCard({
     title: "Observations — evidential",
     sub: `How long an observation nothing may derive from is kept for a person to read. The live tier is
           not on this dial and never can be.`,
     floor: fl, dial: f.obsDial, reaching: f.reaching === "obs", priced, ground,
+    scanTable: fl ? scanTable(f, "obs") : "",
   });
 }
 
@@ -657,6 +747,7 @@ function dispatchDialCard(f) {
     ground: `An aged-out <span class="mono">Dispatch</span> may be the only evidence that a measurement
              you believe is happening never happened. That is a forensic loss, and it is the reason this
              dial is offered at all rather than the reason it defaults to anything.`,
+    scanTable: fl ? scanTable(f, "dispatch") : "",
   });
 }
 
