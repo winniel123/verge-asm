@@ -366,6 +366,38 @@ func (q *Queries) ListRecentObservations(ctx context.Context, limit int32) ([]Li
 	return items, nil
 }
 
+const listScans = `-- name: ListScans :many
+SELECT id, kind, enabled, cadence_seconds, created_at
+FROM scan
+ORDER BY id
+`
+
+func (q *Queries) ListScans(ctx context.Context) ([]Scan, error) {
+	rows, err := q.db.Query(ctx, listScans)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Scan{}
+	for rows.Next() {
+		var i Scan
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Enabled,
+			&i.CadenceSeconds,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVantagesForDispatch = `-- name: ListVantagesForDispatch :many
 SELECT id, name, class, resolver, created_at
 FROM vantage

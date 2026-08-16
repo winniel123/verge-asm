@@ -446,6 +446,7 @@ type Querier interface {
 	// so the fan-out partitions per vantage exactly as reachability does.
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
+	ListScans(ctx context.Context) ([]Scan, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The CURRENT `reachability` span per (Service, Vantage class) (#254, ADR-0104).
 	// buildServiceFacts reads the SPAN, not the latest observation, because the span

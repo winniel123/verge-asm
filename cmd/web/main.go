@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -23,6 +24,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
+	"github.com/winniel123/verge-asm/internal/queue"
 )
 
 func main() {
@@ -72,6 +74,12 @@ func main() {
 
 	web := newServer(queries, key, setupToken, time.Now)
 	web.secureCookies = isTruthy(env.OrDefault("VERGE_SECURE_COOKIES", ""))
+	// The on-demand scan trigger (#252) enqueues through the same queue Dispatcher
+	// the worker's CLI -trigger path uses. Web has no listener of its own — the
+	// running worker claims the enqueued jobs off the pg_notify the fan-out sends —
+	// so web only needs to insert the Dispatch and its jobs, which the Dispatcher
+	// over this pool does.
+	web.dispatcher = queue.NewDispatcher(pool, time.Now, log.New(os.Stderr, "", log.LstdFlags))
 	srv := &http.Server{Addr: listenAddr, Handler: web.handler()}
 
 	go func() {

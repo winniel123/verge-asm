@@ -1501,7 +1501,9 @@ its own key.</p>
 vantage, or per supplied zone file — and each job commits its own batch of
 observations. This is a read of the queue alone: it records what the system did,
 never what is true of your estate, so nothing here feeds a change report. Scans run
-on their own cadence; there is no button to press.</p>
+on their own cadence; an admin may also dispatch an enabled one on demand below.</p>
+
+{{template "scantrigger" .}}
 
 <div class="microlabel">In flight</div>
 {{if .Active}}

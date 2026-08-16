@@ -63,6 +63,9 @@ type fakeStore struct {
 	observations []db.Observation
 	batches      []db.Batch
 	scans        []db.Scan
+	// listScansErr forces ListScans to fail, so a test can assert the #252 trigger
+	// panel degrades to absent rather than 500ing the read-only monitor.
+	listScansErr error
 	obsNextID    int64
 	batchNextID  int64
 	scanNextID   int64
@@ -210,6 +213,13 @@ func (f *fakeStore) GetScanByKind(_ context.Context, kind string) (db.Scan, erro
 		}
 	}
 	return db.Scan{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) ListScans(context.Context) ([]db.Scan, error) {
+	if f.listScansErr != nil {
+		return nil, f.listScansErr
+	}
+	return f.scans, nil
 }
 
 // TightestEnabledScanCadenceSeconds mirrors the MIN-over-enabled-Scans query the

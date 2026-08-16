@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -14,9 +15,10 @@ import (
 // what the system did, never what is true of the estate — so this page reads them
 // freely and the drift engine never sees this read (CONTEXT.md, ADR-0041).
 //
-// It adds no trigger path: scans stay cadence-only, dispatched by the worker. The
-// on-demand trigger button (ask 3 of the ticket) is a product-and-security
-// decision carved off to a human-owned follow-up, so nothing here mutates.
+// The monitor read is a viewer act. The on-demand trigger (#252, ask 3 of #245)
+// is the one mutation this page hosts: an admin may dispatch an enabled scan now,
+// and it appears in flight here. The trigger's handler, guardrails and panel live
+// in scantrigger.go; scansPage only assembles the panel's read-side data.
 
 // scansHistoryLimit bounds the Dispatch read. A Dispatch is one fan-out of one
 // Scan, so recent history is short; 50 covers every enabled Scan's last several
@@ -72,9 +74,11 @@ func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 
 	var active, history []dispatchView
+	activeKinds := make(map[string]bool)
 	for _, row := range rows {
 		dv := toDispatchView(row)
 		if dv.Active {
+			activeKinds[row.ScanKind] = true
 			jobs, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: row.DispatchID, Valid: true})
 			if err != nil {
 				s.serverError(w, "scans: list jobs for dispatch", err)
@@ -89,14 +93,32 @@ func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		}
 	}
 
-	s.render(w, "scans", map[string]any{
-		"Title": "Scans", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+	isAdmin := acct.Role == roleAdmin
+	data := map[string]any{
+		"Title": "Scans", "Account": acct, "IsAdmin": isAdmin,
 		"Active": active, "History": history,
 		// A meta refresh keeps the in-flight view current as jobs complete, since
 		// the page is server-rendered with no client runtime. It runs only while a
 		// scan is in flight, so the idle page does not spin.
 		"Refresh": len(active) > 0,
-	})
+	}
+
+	// The admin on-demand trigger panel (#252) rides the same page as the monitor,
+	// so pressing it and watching the result stay in one place. Its "in flight"
+	// markers reuse the active kinds computed above rather than re-reading the
+	// Dispatch corpus. It is built only for an admin — a viewer never sees the
+	// panel (the template gates it on IsAdmin) so a viewer never pays its read —
+	// and a failed build degrades to an absent panel rather than 500ing the whole
+	// read-only monitor a viewer depends on.
+	if isAdmin {
+		if trigger, err := s.buildTriggerPanel(r, activeKinds); err != nil {
+			log.Printf("web: scans: build trigger panel: %v", err)
+		} else {
+			data["Trigger"] = trigger
+		}
+	}
+
+	s.render(w, "scans", data)
 }
 
 // toDispatchView folds one Dispatch's per-state job counts into progress. Live work

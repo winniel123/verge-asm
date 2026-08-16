@@ -146,6 +146,11 @@ type store interface {
 	// (ADR-0041); the drift engine never reads Dispatch, queue_job or batch.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+	// The on-demand scan trigger (#252): the trigger panel lists every scan with
+	// its enabled state so the disabled cold tier reads as not-triggerable rather
+	// than vanishing, and GetScanByKind re-reads the live enabled flag at the
+	// instant of a trigger (cold turns enabled once a scope opts in, ADR-0044).
+	ListScans(ctx context.Context) ([]db.Scan, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -167,6 +172,13 @@ type server struct {
 	// lookup (ADR-0012). It defaults to the shipped registry over a real HTTP
 	// client; tests inject a fake so no lookup touches the network.
 	proposer proposerRunner
+
+	// dispatcher is the on-demand scan-trigger seam (#252). main.go wires the real
+	// queue Dispatcher over the pool; it enqueues the same fan-out the CLI -trigger
+	// path uses and pg_notifies the running worker. Tests inject a fake so a trigger
+	// asserts the enqueue without a live Postgres or a running worker. It is unset
+	// on the read-only pages, which never reach the trigger handler.
+	dispatcher scanTrigger
 
 	// secureCookies forces the Secure attribute on auth cookies even when the
 	// request did not itself arrive over TLS — set it when web is fronted by a
@@ -258,9 +270,12 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))
 
 	// The Scans monitor (#245, v1 spec §4.1): a read-only window onto the queue.
-	// A viewer reads it — it surfaces in-flight Dispatches and their job state and
-	// mutates nothing, so there is no trigger path here to gate behind requireAdmin.
+	// A viewer reads it — it surfaces in-flight Dispatches and their job state.
+	// The on-demand trigger (#252) is the one mutation on this page: dispatching a
+	// scan enqueues a fan-out, so it is an admin act gated behind requireAdmin,
+	// exactly as /sources toggling is. A viewer sees no trigger control.
 	mux.HandleFunc("GET /scans", s.requireLogin(s.scansPage))
+	mux.HandleFunc("POST /scans/trigger", s.requireAdmin(s.triggerScan))
 
 	// The global message panel (#205, v1 spec §6.7): a viewer reads the unbounded
 	// list and its unread count on every screen; marking read is a per-account
