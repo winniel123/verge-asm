@@ -193,6 +193,23 @@ table.annos td form { margin: 0; }
 .receipt .microlabel { margin-bottom: var(--space-3); }
 .receipt .headline { font-family: var(--mono); font-size: 12px; margin: 0 0 var(--space-3); }
 .receipt .loss { margin: 0; color: var(--muted); max-width: 78ch; }
+@keyframes verge-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted); flex: none; }
+.dot.live { background: var(--accent); animation: verge-pulse 1.6s infinite; }
+.dot.done { background: var(--ink); }
+.dot.dead { background: var(--danger); }
+.scanhead { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap;
+  margin-bottom: var(--space-3); }
+.scanhead .kind { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+.scanhead .tick { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.scanhead .prog { margin-left: auto; font-family: var(--mono); font-size: 12px; }
+.meter { height: 6px; background: var(--paper); border: 1px solid var(--hairline);
+  margin: 0 0 var(--space-4); }
+.meter .fill { height: 100%; background: var(--accent); }
+.meter .fill.complete { background: var(--ink); }
+table.jobs td .dot { margin-right: 6px; vertical-align: middle; }
+table.jobs td.super { color: var(--muted); }
 `
 
 // wordmark is the typed Verge ASM mark: sans "Verge" plus a mono "ASM" chip.
@@ -202,7 +219,7 @@ const wordmark = `<span class="wordmark">Verge<span class="chip">ASM</span></spa
 var tmpl = template.Must(template.New("").Parse(`
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} · Verge ASM</title><style>` + pageCSS + `</style></head><body>{{end}}
+<title>{{.Title}} · Verge ASM</title>{{if .Refresh}}<meta http-equiv="refresh" content="6">{{end}}<style>` + pageCSS + `</style></head><body>{{end}}
 {{define "foot"}}</body></html>{{end}}
 
 {{define "setup"}}{{template "head" .}}
@@ -264,7 +281,7 @@ Two-factor is not active until you confirm.</p>
 
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
-<nav class="nav"><a href="/">Home</a><a href="/exposure">Exposure</a><a href="/subjects">Subjects</a><a href="/signals">Signals</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
+<nav class="nav"><a href="/">Home</a><a href="/exposure">Exposure</a><a href="/subjects">Subjects</a><a href="/signals">Signals</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/scans">Scans</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
 <a class="msgnav" href="/messages">Messages{{if .Unread}}<span class="count">{{.Unread}}</span>{{end}}</a>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
@@ -1389,6 +1406,81 @@ estate — this is not a withdrawn subject, which would still be reachable here 
 its own key.</p>
 <p><a href="/subjects">Back to subjects</a></p>
 </div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "scans"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="microlabel">Operational · scans</div>
+<h1>Scans</h1>
+<p>What the queue is doing right now. A scan runs as a fan-out of jobs — one per
+vantage, or per supplied zone file — and each job commits its own batch of
+observations. This is a read of the queue alone: it records what the system did,
+never what is true of your estate, so nothing here feeds a change report. Scans run
+on their own cadence; there is no button to press.</p>
+
+<div class="microlabel">In flight</div>
+{{if .Active}}
+{{range .Active}}
+<div class="section">
+<div class="scanhead">
+<span class="dot live"></span>
+<span class="kind">{{.ScanKind}}</span>
+<span class="tick">dispatched {{.DispatchedAt}}</span>
+<span class="prog">{{.Completed}} / {{.Live}} jobs · {{.Percent}}%</span>
+</div>
+<div class="meter"><div class="fill" style="width:{{.Percent}}%"></div></div>
+{{if .Jobs}}
+<table class="jobs">
+<thead><tr><th>Job</th><th>Kind</th><th>Vantage</th><th>State</th><th>Attempt</th><th>Outcome</th></tr></thead>
+<tbody>
+{{range .Jobs}}<tr>
+<td class="mono{{if .Superseded}} super{{end}}">#{{.ID}}</td>
+<td class="mono{{if .Superseded}} super{{end}}">{{.Kind}}</td>
+<td class="mono{{if .Superseded}} super{{end}}">{{if .Vantage}}{{.Vantage}}{{else}}<span class="muted">—</span>{{end}}</td>
+<td>{{if eq .State "running"}}<span class="dot live"></span><span class="badge">running</span>{{else if eq .State "ready"}}<span class="dot"></span><span class="badge">{{if .Retrying}}retrying{{else}}ready{{end}}</span>{{else if eq .State "done"}}<span class="dot done"></span><span class="badge">done</span>{{else if eq .State "dead"}}<span class="dot dead"></span><span class="badge">dead</span>{{else}}<span class="dot"></span><span class="muted">superseded</span>{{end}}</td>
+<td class="mono">{{.Attempt}}/{{.MaxAttempts}}</td>
+<td>{{if .Batch}}<span class="badge">{{.Batch}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
+</div>
+{{end}}
+{{else}}
+<div class="section">
+<div class="microlabel">No scan running</div>
+<p>Nothing is dispatched right now. When a scan's cadence comes due the worker fans
+it out, and it appears here with its jobs while it runs. This view refreshes on its
+own while a scan is in flight.</p>
+</div>
+{{end}}
+
+<div class="microlabel">Recent dispatches</div>
+{{if .History}}
+<div class="section">
+<table>
+<thead><tr><th></th><th>Scan</th><th>Dispatched</th><th>Jobs</th><th>Completed</th><th>Dead</th></tr></thead>
+<tbody>
+{{range .History}}<tr>
+<td><span class="dot{{if gt .Dead 0}} dead{{else}} done{{end}}"></span></td>
+<td class="mono">{{.ScanKind}}</td>
+<td class="mono">{{.DispatchedAt}}</td>
+<td class="mono">{{.Live}}</td>
+<td class="mono">{{.Completed}}</td>
+<td class="mono">{{if gt .Dead 0}}{{.Dead}}{{else}}<span class="muted">0</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<div class="section">
+<div class="microlabel">No dispatches yet</div>
+<p>No scan has been dispatched. Once a scan runs — on its cadence, or on the first
+batch after onboarding — its completed dispatches are listed here.</p>
+</div>
+{{end}}
 </main>
 {{template "foot" .}}{{end}}
 `))

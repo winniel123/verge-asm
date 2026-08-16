@@ -89,6 +89,11 @@ type fakeStore struct {
 	messages      []db.Message
 	msgNextID     int64
 	previewResult db.PreviewExclusionWithdrawalRow
+
+	// dispatchProgress and jobsByDispatch stand in for the queue reads behind the
+	// Scans monitor (#245); the scans test seeds them directly.
+	dispatchProgress []db.ListDispatchProgressRow
+	jobsByDispatch   map[int64][]db.ListJobsForDispatchRow
 }
 
 // fakeFreqEdit mirrors a verge-core frequency edit row.
@@ -125,6 +130,18 @@ func newFakeStore() *fakeStore {
 		freqEdits:  map[int32]fakeFreqEdit{},
 		coldScopes: map[int64]bool{},
 	}
+}
+
+func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.ListDispatchProgressRow, error) {
+	rows := f.dispatchProgress
+	if int(limit) < len(rows) {
+		rows = rows[:limit]
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) ListJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error) {
+	return f.jobsByDispatch[dispatchID.Int64], nil
 }
 
 func (f *fakeStore) ListColdScopeSeedIds(context.Context) ([]int64, error) {

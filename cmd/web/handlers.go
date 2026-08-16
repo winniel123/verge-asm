@@ -131,6 +131,12 @@ type store interface {
 	// receipt (#205 AC8, ADR-0074). It reads only ground nothing else cites, so a
 	// subject a current resolution still holds is not counted (its Gap carries it).
 	PreviewExclusionWithdrawal(ctx context.Context, arg db.PreviewExclusionWithdrawalParams) (db.PreviewExclusionWithdrawalRow, error)
+	// The Scans monitor (#245): a read over the Operational queue corpus — the
+	// recent Dispatches with their per-state job counts, and the per-job detail for
+	// one Dispatch. Both are barred from the comparison path by construction
+	// (ADR-0041); the drift engine never reads Dispatch, queue_job or batch.
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -239,6 +245,11 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /proposals/decline", s.requireAdmin(s.declineLookup))
 
 	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))
+
+	// The Scans monitor (#245, v1 spec §4.1): a read-only window onto the queue.
+	// A viewer reads it — it surfaces in-flight Dispatches and their job state and
+	// mutates nothing, so there is no trigger path here to gate behind requireAdmin.
+	mux.HandleFunc("GET /scans", s.requireLogin(s.scansPage))
 
 	// The global message panel (#205, v1 spec §6.7): a viewer reads the unbounded
 	// list and its unread count on every screen; marking read is a per-account

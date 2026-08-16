@@ -314,6 +314,20 @@ type Querier interface {
 	// §8): to which channels it went and whether any is dead-lettered. Reads from the
 	// delivery table by join — the Message row carries no delivery state of its own.
 	ListDeliveriesForMessage(ctx context.Context, messageID int64) ([]ListDeliveriesForMessageRow, error)
+	// The recent Dispatches with their per-state job counts, newest first — the read
+	// behind the Scans monitor (#245). Dispatch, queue_job and batch are Operational:
+	// they record what the system did, never what is true of the estate, so this read
+	// is barred from the comparison path by construction (CONTEXT.md, ADR-0041) and the
+	// drift engine never sees it. A retry enqueues a fresh job and marks the old one
+	// 'retried' (internal/queue/worker.go), so 'retried' rows are superseded attempts:
+	// the live work is total − retried, of which done + dead are complete and
+	// ready + running are still in flight. The LEFT JOIN keeps a Dispatch whose jobs
+	// were retired to NULL by the Dispatch sweep (ADR-0041) — it counts zero jobs
+	// rather than vanishing.
+	// created_at is the instant the fan-out actually happened, which is what "when did
+	// this scan start" means to an operator; scheduled_time is the cadence tick the
+	// Dispatch is idempotent on, not a wall-clock start, so it is not read here.
+	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	// The latest `certificate` observation per Endpoint (#203) — the value the six
 	// certificate rules and `plaintext-http-no-https` read. The value is the closed
@@ -328,6 +342,12 @@ type Querier interface {
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
 	// derives operator by extension (ADR-0013 §3).
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
+	// The per-job detail for one Dispatch — the progress drill-down (#245). Ordered by
+	// id so a retried attempt reads immediately before the fresh job that replaced it.
+	// A job's Batch outcome is NULL until the job reaches a terminal state, since a
+	// Batch is written only at completion or dead-letter (db/migrations/18804); the
+	// Vantage name is NULL for the zone Scan, which has no vantage choice at all.
+	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]ListJobsForDispatchRow, error)
 	// The read-side live-tier gate a derivation reads observations through (v1 spec
 	// §4.6, ADR-0041): it returns ONLY live-tier rows — those within k cadences of the
 	// tightest ENABLED Scan covering their timeline — so a derivation reading through
