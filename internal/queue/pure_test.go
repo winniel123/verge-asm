@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -59,13 +60,40 @@ func TestReachabilityFoldsToServiceProberTimeline(t *testing.T) {
 	if got := sourceFor(connectoutcome.FacetReachability); got != "prober" {
 		t.Errorf("reachability source = %q, want prober", got)
 	}
+	// Since ADR-0104 the reachability vector composes two leaves — connect-outcome
+	// and blanket-discrimination — so a bump of either Breaks the reach half once.
 	v := facetVector(connectoutcome.FacetReachability)
-	if len(v) != 1 || v[0].Leaf != connectoutcome.Kind || v[0].Version != connectoutcome.Version {
-		t.Errorf("reachability vector = %+v, want the single connect-outcome leaf", v)
+	if len(v) != 2 {
+		t.Fatalf("reachability vector = %+v, want two leaves (connect-outcome + blanket-discrimination)", v)
+	}
+	leaves := map[string]string{v[0].Leaf: v[0].Version, v[1].Leaf: v[1].Version}
+	if leaves[connectoutcome.Kind] != connectoutcome.Version {
+		t.Errorf("reachability vector missing connect-outcome leaf: %+v", v)
+	}
+	if leaves[blanketdiscrim.Kind] != blanketdiscrim.Version {
+		t.Errorf("reachability vector missing blanket-discrimination leaf: %+v", v)
 	}
 	// The resolution vector is unchanged — two leaves, not the reachability one.
 	if r := facetVector(resolutionwalk.FacetResolution); len(r) != 2 {
 		t.Errorf("resolution vector = %+v, want two leaves", r)
+	}
+}
+
+// A blanketed reach's Gap observation folds to an is_gap span, while an ordinary
+// reachability value does not — so a blanket responder's leg reads as absent
+// downstream without a special case (ADR-0104). The resolution gap still folds too.
+func TestReachabilityGapFoldsToIsGap(t *testing.T) {
+	gap := json.RawMessage(`{"outcome":"gap","cause":"blanket-responder","reason":"proxy edge"}`)
+	if !isGapValue(connectoutcome.FacetReachability, gap) {
+		t.Error("a reachability gap observation must fold to is_gap=true")
+	}
+	for _, v := range []string{`{"outcome":"reached","result":"open"}`, `{"outcome":"not-reached","result":"refused"}`} {
+		if isGapValue(connectoutcome.FacetReachability, json.RawMessage(v)) {
+			t.Errorf("a reachability value %s must not be a gap", v)
+		}
+	}
+	if !isGapValue(resolutionwalk.FacetResolution, json.RawMessage(`{"outcome":"Gap"}`)) {
+		t.Error("a resolution gap must still fold to is_gap=true")
 	}
 }
 

@@ -26,6 +26,47 @@ type reachabilityValue struct {
 	Result  ConnResult `json:"result"`
 }
 
+// GapOutcome is the `outcome` tag a reachability `Gap` carries — the marker the
+// span fold reads to set `is_gap`, and NOT a member of `reachability`'s value
+// space (that stays the closed pair `reached │ not-reached`, CONTEXT.md `Reach`).
+// An undiscriminated reach on a blanket responder holds no value; this tag records
+// its absence and the sixth gap cause (ADR-0104 Decision §2, blanketdiscrim).
+const GapOutcome = "gap"
+
+// reachabilityGapValue is the JSON payload of a reachability `Gap` observation: the
+// gap marker, the sixth-cause tag, and the operator-facing reason. It carries no
+// `reached │ not-reached` value, because a blanketed connect witnesses no listener
+// we can attribute to the origin — the reach is undiscriminated, and an
+// undiscriminated reach is never a value (ADR-0104). The `result` is still carried
+// as evidence of what the connect itself did.
+type reachabilityGapValue struct {
+	Outcome string     `json:"outcome"` // always GapOutcome
+	Cause   string     `json:"cause"`   // the sixth gap cause tag (blanketdiscrim.GapCause)
+	Reason  string     `json:"reason"`  // operator-facing prose (blanketdiscrim.ReasonFor)
+	Result  ConnResult `json:"result,omitempty"`
+}
+
+// EmitServiceGap renders one TCP `Service`'s reachability `Gap` at one Vantage into
+// an NDJSON observation — the value a `Service` takes on a blanket responder (or
+// where the blanket control probe did not complete). The subject and facet are the
+// Service's exactly as EmitService's are; the value is a `Gap`, not `reached` /
+// `not-reached`, so the span fold opens an `is_gap` span and every downstream
+// reader (the signal, inventory, Exposure) sees the leg as absent without a special
+// case (ADR-0104 Decision §3). `raw` is the connect's own result, carried as
+// evidence — a blanket responder's own port typically reads `open`, which is the
+// very reading the `Gap` refuses to trust.
+func EmitServiceGap(batch, vantage string, target netip.AddrPort, cause, reason string, raw ConnResult) wire.Observation {
+	return wire.Observation{
+		Batch:   batch,
+		Kind:    Kind,
+		Facet:   FacetReachability,
+		Subject: ServiceKey(target, "tcp"),
+		Vantage: vantage,
+		Address: target.Addr().String(),
+		Data:    mustJSON(reachabilityGapValue{Outcome: GapOutcome, Cause: cause, Reason: reason, Result: raw}),
+	}
+}
+
 // EmitService renders one TCP `Service`'s reachability verdict at one Vantage
 // into an NDJSON observation. The subject is the `(Address, port, tcp)` triple;
 // the facet is `reachability`; the value is `reached │ not-reached`. A `Service`

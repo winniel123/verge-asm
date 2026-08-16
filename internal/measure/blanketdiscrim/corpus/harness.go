@@ -1,4 +1,4 @@
-package certcorpus
+package corpus
 
 import (
 	"bytes"
@@ -16,17 +16,14 @@ import (
 )
 
 // RenderRow runs a row's step through the composed reachability exchange against
-// its scripted connector and handshaker, returning the NDJSON it emits — both the
-// reachability line and, for each reached Endpoint, the certificate line. It is
-// hermetic: the connector and handshaker are in-process, so nothing here touches
-// the network or a TLS stack.
+// its scripted connector, scripted handshaker, and the fixed control-port set,
+// returning the NDJSON it emits. It is hermetic: the connector, handshaker, and
+// control ports are all in-process, so nothing here touches the network or a
+// container.
 func RenderRow(r Row) ([]byte, error) {
 	var buf bytes.Buffer
-	// The certificate corpus pins the handshake step, not blanket discrimination, so
-	// it runs with an empty control-port set (no probe, NotBlanket, connect value
-	// passes through) — its rendered output is unchanged by ADR-0104's composition.
-	if err := co.RunExchange(context.Background(), r.Step.Connect, r.Step.Handshake, blanketdiscrim.FixedPorts{}, r.Step.Batch, r.Step.Scope, &buf); err != nil {
-		return nil, fmt.Errorf("certcorpus: render row %q: %w", r.Golden, err)
+	if err := co.RunExchange(context.Background(), r.Step.Connect, r.Step.Handshake, ControlPorts, r.Step.Batch, r.Step.Scope, &buf); err != nil {
+		return nil, fmt.Errorf("corpus: render row %q: %w", r.Golden, err)
 	}
 	return buf.Bytes(), nil
 }
@@ -45,8 +42,8 @@ func RenderAll() (map[string][]byte, error) {
 }
 
 // CorpusDigest is a stable hash over the rendered corpus, in golden-filename
-// order. It moves exactly when a row's expected output moves, binding an output
-// change to a leaf-version bump through the lock.
+// order. It moves exactly when a row's expected output moves, which binds an
+// output change to a leaf-version bump through the lock.
 func CorpusDigest(rendered map[string][]byte) string {
 	names := make([]string, 0, len(rendered))
 	for n := range rendered {
@@ -63,9 +60,11 @@ func CorpusDigest(rendered map[string][]byte) string {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
 
-// ParamsDigest is the digest of the tls-handshake leaf's declared-parameter set —
-// the fixed handshake shape — the second thing a version bump may be justified by.
-func ParamsDigest() string { return co.DefaultHandshakeParams().Digest() }
+// ParamsDigest is the digest of the leaf's declared-parameter set — the
+// control-port count and band — the second thing a version bump may be justified
+// by. It reflects the SHIPPED parameters (blanketdiscrim.DefaultParams), not the
+// corpus's fixed set, so a change to the production count still moves the lock.
+func ParamsDigest() string { return blanketdiscrim.DefaultParams().Digest() }
 
 // UncoveredMove is one row of golden-corpus.md §9's register: a version bump
 // justified by an input class the corpus cannot reach. Append-only.
@@ -78,7 +77,8 @@ type UncoveredMove struct {
 }
 
 // Lock is the checked-in manifest that binds the leaf version to the corpus and
-// parameter digests.
+// parameter digests. A lock edit that bumps the version with no digest move and no
+// new uncovered move is what CI's version gate refuses.
 type Lock struct {
 	LeafVersion    string          `json:"leaf_version"`
 	CorpusDigest   string          `json:"corpus_digest"`
@@ -94,14 +94,14 @@ func LoadLock(dir string) (Lock, error) {
 	}
 	var l Lock
 	if err := json.Unmarshal(b, &l); err != nil {
-		return Lock{}, fmt.Errorf("certcorpus: decode lock: %w", err)
+		return Lock{}, fmt.Errorf("corpus: decode lock: %w", err)
 	}
 	return l, nil
 }
 
-// WriteLock writes a freshly computed lock to dir — the deliberate "bless" action
-// a maintainer takes (via the -update test flag) when an output or parameter
-// change is intended and the version has been bumped to match.
+// WriteLock writes a freshly computed lock to dir. It is the deliberate "bless"
+// action a maintainer takes (via the -update test flag) when an output or
+// parameter change is intended and the version has been bumped to match.
 func WriteLock(dir string, l Lock) error {
 	b, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
