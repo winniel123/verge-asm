@@ -15,6 +15,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
+	"github.com/winniel123/verge-asm/internal/retention"
 )
 
 // The Subjects screen (v1 spec §6.6, ADR-0072). At wave-0 only `Name` subjects
@@ -206,7 +207,9 @@ type breakView struct {
 
 func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	search := strings.TrimSpace(r.FormValue("q"))
-	rows, err := s.store.ListCurrentNameSubjects(r.Context(), search)
+	rows, err := s.store.ListCurrentNameSubjects(r.Context(), db.ListCurrentNameSubjectsParams{
+		Search: search, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if err != nil {
 		s.serverError(w, "list current name subjects", err)
 		return
@@ -223,7 +226,9 @@ func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// connect-outcome leaf's `reachability` facet on the hot Scan. A best-effort
 	// read — a failure degrades to the Name listing rather than a 500.
 	var svcViews []serviceRow
-	if svcRows, serr := s.store.ListCurrentServiceSubjects(r.Context(), search); serr == nil {
+	if svcRows, serr := s.store.ListCurrentServiceSubjects(r.Context(), db.ListCurrentServiceSubjectsParams{
+		Search: search, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	}); serr == nil {
 		svcViews = make([]serviceRow, 0, len(svcRows))
 		for _, row := range svcRows {
 			svcViews = append(svcViews, serviceRow{
@@ -238,7 +243,9 @@ func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// best-effort read — a failure degrades to the rest of the listing rather than
 	// a 500.
 	var epViews []endpointRow
-	if epRows, eerr := s.store.ListCurrentEndpointSubjects(r.Context(), search); eerr == nil {
+	if epRows, eerr := s.store.ListCurrentEndpointSubjects(r.Context(), db.ListCurrentEndpointSubjectsParams{
+		Search: search, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	}); eerr == nil {
 		epViews = make([]endpointRow, 0, len(epRows))
 		for _, row := range epRows {
 			name, svc := splitEndpointKey(row.SubjectKey)
@@ -337,7 +344,9 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		})
 		return
 	}
-	subject, err := s.store.GetEndpointSubject(r.Context(), key)
+	subject, err := s.store.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
+		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
 			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -394,7 +403,9 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	hops = append(hops, citationHop{Label: "On service · Service", Value: service})
 
 	cited := false
-	if citing, err := s.store.FindNameCitingAddress(r.Context(), addr); err == nil {
+	if citing, err := s.store.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
+		Address: addr, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	}); err == nil {
 		detail := ""
 		if citing.ObservedAt.Valid {
 			detail = "cited since " + citing.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -435,7 +446,9 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		})
 		return
 	}
-	subject, err := s.store.GetServiceSubject(r.Context(), key)
+	subject, err := s.store.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
+		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
 			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -497,7 +510,9 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	}
 
 	cited := false
-	if citing, err := s.store.FindNameCitingAddress(r.Context(), addr); err == nil {
+	if citing, err := s.store.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
+		Address: addr, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	}); err == nil {
 		detail := ""
 		if citing.ObservedAt.Valid {
 			detail = "cited since " + citing.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -541,7 +556,9 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 
 func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := r.PathValue("key")
-	subject, err := s.store.GetNameSubject(r.Context(), key)
+	subject, err := s.store.GetNameSubject(r.Context(), db.GetNameSubjectParams{
+		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		// A Name nothing has ever measured is genuinely not a subject — not a
 		// withdrawn one. Refusing it here is not the false absence ADR-0072
@@ -585,7 +602,9 @@ func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool
 	}}
 
 	terminated := false
-	cit, err := s.store.GetNameCitation(r.Context(), key)
+	cit, err := s.store.GetNameCitation(r.Context(), db.GetNameCitationParams{
+		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if err == nil {
 		detail := "source " + cit.Source
 		if cit.ObservedAt.Valid {

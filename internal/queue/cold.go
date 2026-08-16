@@ -27,7 +27,7 @@ import (
 // are both Custody-admitted and inside an opted-in `Seed` scope, across the full
 // TCP port range.
 func (d *Dispatcher) fanOutCold(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	estate, addrs, err := hotEstate(ctx, qtx)
+	estate, addrs, err := hotEstate(ctx, qtx, d.now())
 	if err != nil {
 		return 0, err
 	}

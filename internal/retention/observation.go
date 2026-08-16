@@ -165,13 +165,13 @@ type AgedObservation struct {
 // twin is ListLiveObservationsForDerivation, which filters by each row's own bound
 // in the database.
 //
-// In v1 the boundary is ENFORCED by retirement, not by read-filtering every query:
-// the ObservationRetirer below is the sole delete path and removes evidential rows
-// on its sweep, so a derivation that reads the observation table directly sees only
-// live rows once the sweep has run. Routing each derivation read through this gate
-// (threading the read instant into every derivation query) is the stronger,
-// immediate form of the separation and remains to be wired; see the note on
-// ListLiveObservationsForDerivation.
+// The boundary is enforced by READ-FILTERING, not only by retirement: every
+// production derivation read of the observation corpus inlines this gate's bound,
+// evaluated against the caller's read instant (#237), so an evidential row is
+// structurally unreadable by a derivation the instant it crosses its bound —
+// independent of whether the ObservationRetirer below has swept. Retirement still
+// runs, but only to reclaim storage; the read gate, not the sweep, is what keeps a
+// stale observation out of a derivation. See ListLiveObservationsForDerivation.
 func LiveOnly(rows []AgedObservation) []AgedObservation {
 	out := make([]AgedObservation, 0, len(rows))
 	for _, r := range rows {

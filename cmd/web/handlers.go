@@ -54,18 +54,22 @@ type store interface {
 	// observation dial floors at (#208, ADR-0094) — symmetric to the Dispatch
 	// floor's SlowestEnabledScanCadenceSeconds.
 	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
-	ListCurrentNameSubjects(ctx context.Context, search string) ([]db.ListCurrentNameSubjectsRow, error)
-	GetNameSubject(ctx context.Context, subjectKey string) (db.GetNameSubjectRow, error)
-	GetNameCitation(ctx context.Context, subjectKey string) (db.GetNameCitationRow, error)
+	// The Subjects reads route through the live-tier gate (#237, ADR-0041), so each
+	// carries the read instant (@as_of) and k (@floor_cadences) in its params: an
+	// evidential observation is structurally unreadable here, not merely absent
+	// after the Retirer sweeps. The handlers thread s.now() as the read instant.
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	GetNameSubject(ctx context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error)
+	GetNameCitation(ctx context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error)
 	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
-	ListCurrentServiceSubjects(ctx context.Context, search string) ([]db.ListCurrentServiceSubjectsRow, error)
-	GetServiceSubject(ctx context.Context, subjectKey string) (db.GetServiceSubjectRow, error)
+	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
+	GetServiceSubject(ctx context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error)
 	// Endpoint subjects (#198): the (Name, Service) pair the http-exchange leaf's
 	// http-identity facet is held on. Rendered on the Subjects page additively next
 	// to Name and Service, with its own drill-down.
-	ListCurrentEndpointSubjects(ctx context.Context, search string) ([]db.ListCurrentEndpointSubjectsRow, error)
-	GetEndpointSubject(ctx context.Context, subjectKey string) (db.GetEndpointSubjectRow, error)
-	FindNameCitingAddress(ctx context.Context, address string) (db.FindNameCitingAddressRow, error)
+	ListCurrentEndpointSubjects(ctx context.Context, arg db.ListCurrentEndpointSubjectsParams) ([]db.ListCurrentEndpointSubjectsRow, error)
+	GetEndpointSubject(ctx context.Context, arg db.GetEndpointSubjectParams) (db.GetEndpointSubjectRow, error)
+	FindNameCitingAddress(ctx context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error)
 	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
 	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
 	// Exposure landing view (#196): the two most recent reachability spans per
@@ -96,8 +100,8 @@ type store interface {
 	// Signals reads (#202): the Derived corpus the Signal engine folds into its
 	// per-Name snapshot — resolution per Vantage class, the dns-record CNAME/NS
 	// records, and the operator's zone declarations.
-	ListNameResolutionsByClass(ctx context.Context) ([]db.ListNameResolutionsByClassRow, error)
-	ListNameDNSRecords(ctx context.Context) ([]db.ListNameDNSRecordsRow, error)
+	ListNameResolutionsByClass(ctx context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error)
+	ListNameDNSRecords(ctx context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
 	// The remaining twelve Signal rules (#203): the Service and Endpoint facets the
 	// Signal engine folds into its per-subject snapshots — the internet-class
@@ -105,8 +109,8 @@ type store interface {
 	// certificate value (the six certificate rules and plaintext-http-no-https).
 	// http-identity rides ListCurrentEndpointSubjects and the estate name set rides
 	// ListCurrentNameSubjects.
-	ListServiceReachabilityByClass(ctx context.Context) ([]db.ListServiceReachabilityByClassRow, error)
-	ListEndpointCertificates(ctx context.Context) ([]db.ListEndpointCertificatesRow, error)
+	ListServiceReachabilityByClass(ctx context.Context, arg db.ListServiceReachabilityByClassParams) ([]db.ListServiceReachabilityByClassRow, error)
+	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
 	// Annotation management (#204): an operator dial keyed on one
 	// (subject, signal-name) pair, carrying the reason and the declared instant —
 	// no status, no expiry, no author. Declaring and withdrawing mint no Message.
@@ -170,6 +174,16 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		seedAddressCap: seed.DefaultAddressCap,
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
 	}
+}
+
+// obsAsOf is the read instant every derivation read of the observation corpus is
+// gated against (#237, ADR-0041): the same injectable server clock the handlers
+// use everywhere, so a fixed-clock test reads its fixtures at the instant it
+// seeded them rather than filtering them out against wall-clock now(). Paired with
+// retention.FloorCadences (k), it bounds each read to the live tier — an
+// evidential row is structurally unreadable, not merely awaiting the Retirer.
+func (s *server) obsAsOf() pgtype.Timestamptz {
+	return pgtype.Timestamptz{Time: s.now().UTC(), Valid: true}
 }
 
 // handler wires every route. A permission check runs on every mutating

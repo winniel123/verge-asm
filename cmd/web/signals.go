@@ -11,6 +11,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
@@ -234,11 +235,15 @@ func members(in []signal.Member) []signalMember {
 func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	ctx := r.Context()
 
-	resRows, err := s.store.ListNameResolutionsByClass(ctx)
+	resRows, err := s.store.ListNameResolutionsByClass(ctx, db.ListNameResolutionsByClassParams{
+		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if err != nil {
 		return nil, err
 	}
-	dnsRows, err := s.store.ListNameDNSRecords(ctx)
+	dnsRows, err := s.store.ListNameDNSRecords(ctx, db.ListNameDNSRecordsParams{
+		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +443,9 @@ func (s *server) buildSignalCorpus(r *http.Request) (signal.Corpus, error) {
 // (#199) lands concurrently, so every Service is left outside that rule's domain
 // (a no-population panel) rather than importing a leaf that may not exist yet.
 func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[string]bool, error) {
-	rows, err := s.store.ListServiceReachabilityByClass(r.Context())
+	rows, err := s.store.ListServiceReachabilityByClass(r.Context(), db.ListServiceReachabilityByClassParams{
+		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -487,11 +494,15 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 // (a presented chain renders `not-evaluable`).
 func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, estateAddrs map[string]bool) ([]signal.EndpointFacts, error) {
 	ctx := r.Context()
-	certRows, err := s.store.ListEndpointCertificates(ctx)
+	certRows, err := s.store.ListEndpointCertificates(ctx, db.ListEndpointCertificatesParams{
+		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if err != nil {
 		return nil, err
 	}
-	httpRows, err := s.store.ListCurrentEndpointSubjects(ctx, "")
+	httpRows, err := s.store.ListCurrentEndpointSubjects(ctx, db.ListCurrentEndpointSubjectsParams{
+		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
 	if err != nil {
 		return nil, err
 	}

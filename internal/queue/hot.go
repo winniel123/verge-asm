@@ -7,8 +7,11 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
@@ -23,7 +26,7 @@ import (
 
 // fanOutHot enqueues one hot job per Vantage over the Custody-admitted addresses.
 func (d *Dispatcher) fanOutHot(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	estate, addrs, err := hotEstate(ctx, qtx)
+	estate, addrs, err := hotEstate(ctx, qtx, d.now())
 	if err != nil {
 		return 0, err
 	}
@@ -49,8 +52,11 @@ func (d *Dispatcher) fanOutHot(ctx context.Context, qtx *db.Queries, scanID, dis
 // hotEstate builds the Custody derivation's inputs from the confirmed Seeds and
 // the current resolutions, and returns the candidate address set the hot Scan
 // would probe (the addresses names currently resolve to). The gate then admits
-// or refuses each per Vantage class.
-func hotEstate(ctx context.Context, q *db.Queries) (custody.Estate, []netip.Addr, error) {
+// or refuses each per Vantage class. asOf is the dispatcher's read instant: the
+// current resolutions are read through the live-tier gate (#237, ADR-0041), so an
+// Address held only by an evidential resolution — one no derivation may still read
+// — is not admitted into the probed estate.
+func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Estate, []netip.Addr, error) {
 	scopes, err := q.ListAddressScopeCidrs(ctx)
 	if err != nil {
 		return custody.Estate{}, nil, err
@@ -73,7 +79,10 @@ func hotEstate(ctx context.Context, q *db.Queries) (custody.Estate, []netip.Addr
 		}
 	}
 
-	cited, err := q.NameCitedAddresses(ctx)
+	cited, err := q.NameCitedAddresses(ctx, db.NameCitedAddressesParams{
+		AsOf:          pgtype.Timestamptz{Time: asOf.UTC(), Valid: true},
+		FloorCadences: retention.FloorCadences,
+	})
 	if err != nil {
 		return custody.Estate{}, nil, err
 	}

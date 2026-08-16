@@ -81,13 +81,34 @@ func (q *Queries) FindCoveringNameSeed(ctx context.Context, name string) (FindCo
 }
 
 const findNameCitingAddress = `-- name: FindNameCitingAddress :one
-WITH latest AS (
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($2::timestamptz - o.observed_at))
+          <= $3::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key, o.vantage_id)
         o.subject_key AS subject_key,
         o.value->>'outcome' AS outcome,
         o.value       AS value,
         o.observed_at AS observed_at
-    FROM observation o
+    FROM live o
     WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
     ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC
 )
@@ -99,6 +120,12 @@ ORDER BY observed_at ASC, subject_key ASC
 LIMIT 1
 `
 
+type FindNameCitingAddressParams struct {
+	Address       string             `json:"address"`
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+}
+
 type FindNameCitingAddressRow struct {
 	SubjectKey string             `json:"subject_key"`
 	ObservedAt pgtype.Timestamptz `json:"observed_at"`
@@ -109,27 +136,57 @@ type FindNameCitingAddressRow struct {
 // lifecycle of its own, so its membership is grounded in evidence about ANOTHER
 // subject: the Name whose Resolved answer names it. Where a resolution stops
 // citing the Address this returns no row, which is exactly the `uncited` ground a
-// departure records. Best-effort: the longest-lived citing Name, one hop.
-func (q *Queries) FindNameCitingAddress(ctx context.Context, address string) (FindNameCitingAddressRow, error) {
-	row := q.db.QueryRow(ctx, findNameCitingAddress, address)
+// departure records. Best-effort: the longest-lived citing Name, one hop. Reads
+// through the live-tier gate (#237): the citing resolution must be one a
+// derivation may still read, so a Name held only by an evidential answer no longer
+// keeps an Address in the estate.
+func (q *Queries) FindNameCitingAddress(ctx context.Context, arg FindNameCitingAddressParams) (FindNameCitingAddressRow, error) {
+	row := q.db.QueryRow(ctx, findNameCitingAddress, arg.Address, arg.AsOf, arg.FloorCadences)
 	var i FindNameCitingAddressRow
 	err := row.Scan(&i.SubjectKey, &i.ObservedAt)
 	return i, err
 }
 
 const getEndpointSubject = `-- name: GetEndpointSubject :one
-WITH latest AS (
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($1::timestamptz - o.observed_at))
+          <= $2::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
         o.value       AS value,
         o.observed_at AS observed_at
-    FROM observation o
-    WHERE o.subject_kind = 'endpoint' AND o.facet = 'http-identity' AND o.subject_key = $1
+    FROM live o
+    WHERE o.subject_kind = 'endpoint' AND o.facet = 'http-identity' AND o.subject_key = $3
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
 SELECT subject_key, value, observed_at
 FROM latest
 `
+
+type GetEndpointSubjectParams struct {
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+	SubjectKey    string             `json:"subject_key"`
+}
 
 type GetEndpointSubjectRow struct {
 	SubjectKey string             `json:"subject_key"`
@@ -142,23 +199,51 @@ type GetEndpointSubjectRow struct {
 // estate, which is a population of no current member rather than a false "no
 // record" (ADR-0072). The caller reads the latest http-identity value to render
 // the current HTTP identity and split the key into its Name and Service legs.
-func (q *Queries) GetEndpointSubject(ctx context.Context, subjectKey string) (GetEndpointSubjectRow, error) {
-	row := q.db.QueryRow(ctx, getEndpointSubject, subjectKey)
+// Reads through the live-tier gate (#237).
+func (q *Queries) GetEndpointSubject(ctx context.Context, arg GetEndpointSubjectParams) (GetEndpointSubjectRow, error) {
+	row := q.db.QueryRow(ctx, getEndpointSubject, arg.AsOf, arg.FloorCadences, arg.SubjectKey)
 	var i GetEndpointSubjectRow
 	err := row.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt)
 	return i, err
 }
 
 const getNameCitation = `-- name: GetNameCitation :one
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($2::timestamptz - o.observed_at))
+          <= $3::bigint * c.tightest_cadence
+)
 SELECT o.id, o.observed_at, o.source, o.vantage_id, o.batch_id,
        b.scan_id, sc.kind AS scan_kind
-FROM observation o
+FROM live o
 JOIN batch b ON b.id = o.batch_id
 JOIN scan sc ON sc.id = b.scan_id
 WHERE o.subject_kind = 'name' AND o.facet = 'resolution' AND o.subject_key = $1
 ORDER BY o.observed_at ASC, o.id ASC
 LIMIT 1
 `
+
+type GetNameCitationParams struct {
+	SubjectKey    string             `json:"subject_key"`
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+}
 
 type GetNameCitationRow struct {
 	ID         int64              `json:"id"`
@@ -171,12 +256,15 @@ type GetNameCitationRow struct {
 }
 
 // The Citation chain's load-bearing hop: the observation that introduced a Name
-// — its earliest resolution observation — plus the Batch and Scan it rode in on
-// (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
-// measurement that first admitted the subject; the chain terminates one hop
-// further at the covering Seed (FindCoveringNameSeed).
-func (q *Queries) GetNameCitation(ctx context.Context, subjectKey string) (GetNameCitationRow, error) {
-	row := q.db.QueryRow(ctx, getNameCitation, subjectKey)
+// — its earliest LIVE resolution observation — plus the Batch and Scan it rode in
+// on (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
+// measurement that admitted the subject; the chain terminates one hop further at
+// the covering Seed (FindCoveringNameSeed). Reads through the live-tier gate
+// (#237): the introducing observation is the earliest one still within the live
+// tier, so the chain rests on a measurement a derivation may still read, not on an
+// evidential row.
+func (q *Queries) GetNameCitation(ctx context.Context, arg GetNameCitationParams) (GetNameCitationRow, error) {
+	row := q.db.QueryRow(ctx, getNameCitation, arg.SubjectKey, arg.AsOf, arg.FloorCadences)
 	var i GetNameCitationRow
 	err := row.Scan(
 		&i.ID,
@@ -191,18 +279,45 @@ func (q *Queries) GetNameCitation(ctx context.Context, subjectKey string) (GetNa
 }
 
 const getNameSubject = `-- name: GetNameSubject :one
-WITH latest AS (
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($1::timestamptz - o.observed_at))
+          <= $2::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
         o.value       AS value,
         o.observed_at AS observed_at
-    FROM observation o
-    WHERE o.subject_kind = 'name' AND o.facet = 'resolution' AND o.subject_key = $1
+    FROM live o
+    WHERE o.subject_kind = 'name' AND o.facet = 'resolution' AND o.subject_key = $3
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
 SELECT subject_key, value, observed_at
 FROM latest
 `
+
+type GetNameSubjectParams struct {
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+	SubjectKey    string             `json:"subject_key"`
+}
 
 type GetNameSubjectRow struct {
 	SubjectKey string             `json:"subject_key"`
@@ -214,27 +329,57 @@ type GetNameSubjectRow struct {
 // lookup and not a listing (ADR-0072 decision 3): the drill-down reaches a
 // measured-gone Name by its own key rather than manufacturing a false "no
 // record" at the URL. The caller reads the latest resolution value to decide
-// whether the subject names a population of no current member.
-func (q *Queries) GetNameSubject(ctx context.Context, subjectKey string) (GetNameSubjectRow, error) {
-	row := q.db.QueryRow(ctx, getNameSubject, subjectKey)
+// whether the subject names a population of no current member. Reads through the
+// live-tier gate (#237): a Name is measured-gone by VALUE (a NameError/Shadowed
+// latest), which is a live measurement — the gate removes only rows aged past
+// their own bound, so a currently-measured subject is always reachable here.
+func (q *Queries) GetNameSubject(ctx context.Context, arg GetNameSubjectParams) (GetNameSubjectRow, error) {
+	row := q.db.QueryRow(ctx, getNameSubject, arg.AsOf, arg.FloorCadences, arg.SubjectKey)
 	var i GetNameSubjectRow
 	err := row.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt)
 	return i, err
 }
 
 const getServiceSubject = `-- name: GetServiceSubject :one
-WITH latest AS (
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($1::timestamptz - o.observed_at))
+          <= $2::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
         o.value       AS value,
         o.observed_at AS observed_at
-    FROM observation o
-    WHERE o.subject_kind = 'service' AND o.facet = 'reachability' AND o.subject_key = $1
+    FROM live o
+    WHERE o.subject_kind = 'service' AND o.facet = 'reachability' AND o.subject_key = $3
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
 SELECT subject_key, value, observed_at
 FROM latest
 `
+
+type GetServiceSubjectParams struct {
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+	SubjectKey    string             `json:"subject_key"`
+}
 
 type GetServiceSubjectRow struct {
 	SubjectKey string             `json:"subject_key"`
@@ -246,21 +391,43 @@ type GetServiceSubjectRow struct {
 // reaches a subject by its own key — including one whose Address has left the
 // estate, which is not a false "no record" but a population of no current member
 // (ADR-0072). The caller reads the latest reachability value to render the
-// current verdict and the Address the triple sits on.
-func (q *Queries) GetServiceSubject(ctx context.Context, subjectKey string) (GetServiceSubjectRow, error) {
-	row := q.db.QueryRow(ctx, getServiceSubject, subjectKey)
+// current verdict and the Address the triple sits on. Reads through the live-tier
+// gate (#237).
+func (q *Queries) GetServiceSubject(ctx context.Context, arg GetServiceSubjectParams) (GetServiceSubjectRow, error) {
+	row := q.db.QueryRow(ctx, getServiceSubject, arg.AsOf, arg.FloorCadences, arg.SubjectKey)
 	var i GetServiceSubjectRow
 	err := row.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt)
 	return i, err
 }
 
 const listCurrentEndpointSubjects = `-- name: ListCurrentEndpointSubjects :many
-WITH latest AS (
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($2::timestamptz - o.observed_at))
+          <= $3::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
         o.value       AS value,
         o.observed_at AS observed_at
-    FROM observation o
+    FROM live o
     WHERE o.subject_kind = 'endpoint' AND o.facet = 'http-identity'
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
@@ -269,6 +436,12 @@ FROM latest
 WHERE ($1::text = '' OR subject_key ILIKE '%' || $1::text || '%')
 ORDER BY subject_key
 `
+
+type ListCurrentEndpointSubjectsParams struct {
+	Search        string             `json:"search"`
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+}
 
 type ListCurrentEndpointSubjectsRow struct {
 	SubjectKey string             `json:"subject_key"`
@@ -282,9 +455,10 @@ type ListCurrentEndpointSubjectsRow struct {
 // `Endpoint`). Its membership rides its Service's (the Address's membership
 // restated), so this is the thin "current Endpoints" read the drill-down lists.
 // Like the Name and Service listings it carries no denominator (ADR-0072). The
-// value shown is the latest http-identity the http-exchange leaf recorded.
-func (q *Queries) ListCurrentEndpointSubjects(ctx context.Context, search string) ([]ListCurrentEndpointSubjectsRow, error) {
-	rows, err := q.db.Query(ctx, listCurrentEndpointSubjects, search)
+// value shown is the latest http-identity the http-exchange leaf recorded. Reads
+// through the live-tier gate (#237).
+func (q *Queries) ListCurrentEndpointSubjects(ctx context.Context, arg ListCurrentEndpointSubjectsParams) ([]ListCurrentEndpointSubjectsRow, error) {
+	rows, err := q.db.Query(ctx, listCurrentEndpointSubjects, arg.Search, arg.AsOf, arg.FloorCadences)
 	if err != nil {
 		return nil, err
 	}
@@ -305,12 +479,33 @@ func (q *Queries) ListCurrentEndpointSubjects(ctx context.Context, search string
 
 const listCurrentNameSubjects = `-- name: ListCurrentNameSubjects :many
 
-WITH latest AS (
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($2::timestamptz - o.observed_at))
+          <= $3::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
         o.value       AS value,
         o.observed_at AS observed_at
-    FROM observation o
+    FROM live o
     WHERE o.subject_kind = 'name' AND o.facet = 'resolution'
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
@@ -320,6 +515,12 @@ WHERE value->>'outcome' NOT IN ('NameError', 'Shadowed')
   AND ($1::text = '' OR subject_key ILIKE '%' || $1::text || '%')
 ORDER BY subject_key
 `
+
+type ListCurrentNameSubjectsParams struct {
+	Search        string             `json:"search"`
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+}
 
 type ListCurrentNameSubjectsRow struct {
 	SubjectKey string             `json:"subject_key"`
@@ -335,6 +536,15 @@ type ListCurrentNameSubjectsRow struct {
 // membership (Shadowed suppression, #192; the cross-class withdrawal quorum,
 // ADR-0006/ADR-0080) narrows this predicate here rather than growing a second
 // computation elsewhere.
+//
+// Every derivation here reads the observation corpus through the live-tier gate
+// (#237, ADR-0041): the `cover`/`live` CTE pair below is the inlined twin of
+// ListLiveObservationsForDerivation (db/queries/retention.sql), evaluated against
+// the caller's read instant @as_of with k = @floor_cadences, so an evidential row
+// (past its own per-timeline bound, or on a timeline no enabled Scan covers) is
+// structurally unreadable here the instant it crosses that bound — never merely
+// absent after the Retirer's next sweep. The gate cannot be a parameterless VIEW
+// because it carries the read instant, so it is inlined at each read.
 // Every Name currently in the estate, with optional search. A Name is a member
 // while its latest resolution observation neither reads a measured Name Error nor
 // is Shadowed: resolution-walk's NameError (the name does not exist) and
@@ -342,9 +552,9 @@ type ListCurrentNameSubjectsRow struct {
 // a Name's membership as affirmatively as each other (#192; ADR-0006, ADR-0086).
 // No count is selected: the estate can carry no honest denominator (ADR-0072), so
 // there is nothing here to total. A suppressed Name is filtered out and reached
-// only by key (GetNameSubject).
-func (q *Queries) ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error) {
-	rows, err := q.db.Query(ctx, listCurrentNameSubjects, search)
+// only by key (GetNameSubject). Reads through the live-tier gate (#237).
+func (q *Queries) ListCurrentNameSubjects(ctx context.Context, arg ListCurrentNameSubjectsParams) ([]ListCurrentNameSubjectsRow, error) {
+	rows, err := q.db.Query(ctx, listCurrentNameSubjects, arg.Search, arg.AsOf, arg.FloorCadences)
 	if err != nil {
 		return nil, err
 	}
@@ -364,12 +574,33 @@ func (q *Queries) ListCurrentNameSubjects(ctx context.Context, search string) ([
 }
 
 const listCurrentServiceSubjects = `-- name: ListCurrentServiceSubjects :many
-WITH latest AS (
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($2::timestamptz - o.observed_at))
+          <= $3::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
         o.value       AS value,
         o.observed_at AS observed_at
-    FROM observation o
+    FROM live o
     WHERE o.subject_kind = 'service' AND o.facet = 'reachability'
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
@@ -378,6 +609,12 @@ FROM latest
 WHERE ($1::text = '' OR subject_key ILIKE '%' || $1::text || '%')
 ORDER BY subject_key
 `
+
+type ListCurrentServiceSubjectsParams struct {
+	Search        string             `json:"search"`
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+}
 
 type ListCurrentServiceSubjectsRow struct {
 	SubjectKey string             `json:"subject_key"`
@@ -392,9 +629,10 @@ type ListCurrentServiceSubjectsRow struct {
 // Services" read the drill-down lists. Like the Name listing it carries no
 // denominator (ADR-0072). A Service that has fallen out of the estate (its
 // Address de-cited) is reached only by its own key; the value shown is the latest
-// reachability verdict, reached or not-reached, both measured values.
-func (q *Queries) ListCurrentServiceSubjects(ctx context.Context, search string) ([]ListCurrentServiceSubjectsRow, error) {
-	rows, err := q.db.Query(ctx, listCurrentServiceSubjects, search)
+// reachability verdict, reached or not-reached, both measured values. Reads
+// through the live-tier gate (#237).
+func (q *Queries) ListCurrentServiceSubjects(ctx context.Context, arg ListCurrentServiceSubjectsParams) ([]ListCurrentServiceSubjectsRow, error) {
+	rows, err := q.db.Query(ctx, listCurrentServiceSubjects, arg.Search, arg.AsOf, arg.FloorCadences)
 	if err != nil {
 		return nil, err
 	}

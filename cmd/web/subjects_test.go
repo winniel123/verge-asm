@@ -34,7 +34,12 @@ func addNameSeed(t *testing.T, f *fakeStore, createdBy int64, domain string) {
 	}
 }
 
-var obsClock = time.Date(2026, 8, 10, 9, 0, 0, 0, time.UTC)
+// obsClock is the instant the Subjects/Signals fixtures seed their observations
+// at. It sits inside the live-tier window of the server's fixedClock (2026-08-15
+// 12:00): the derivation reads are gated against that clock (#237), and the daily
+// (86400s) fixture Scans give a k=2 live window of 2 days, so a fixture seeded
+// here — and its +24h/+48h successors — is read as live, not filtered as stale.
+var obsClock = time.Date(2026, 8, 14, 9, 0, 0, 0, time.UTC)
 
 func TestSubjectsListsCurrentNamesWithSearchAndNoDenominator(t *testing.T) {
 	f := newFakeStore()
@@ -337,6 +342,82 @@ func TestSubjectMissingReturns404(t *testing.T) {
 	got := getBody(t, ac, base+"/subjects/never.measured.example", http.StatusNotFound)
 	if !strings.Contains(got, "No such subject") {
 		t.Errorf("missing subject not reported as 404 page; body: %s", got)
+	}
+}
+
+// TestDerivationReadGatedAtLiveBoundaryWithoutDelete is the #237 acceptance
+// proof: a derivation read of the observation corpus is bounded by the live-tier
+// gate evaluated against the caller's read instant, so an evidential row is
+// structurally unreadable the instant it crosses its bound — independent of
+// whether the Retirer has swept. One Name is seeded with a single resolution
+// observation on a daily-cadence (86400s) dns Scan, so its live window is
+// FloorCadences (k=2) cadences = 2 days. The same fakeStore is read by two
+// servers whose only difference is the clock: one inside the window, one past it.
+// No delete runs between the reads — the observation row is still present after
+// the second read — proving the separation is enforced by the read gate, not by
+// retirement.
+func TestDerivationReadGatedAtLiveBoundaryWithoutDelete(t *testing.T) {
+	observedAt := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
+	readInside := observedAt.Add(24 * time.Hour) // 1 day old — inside the 2-day window
+	readPast := observedAt.Add(72 * time.Hour)   // 3 days old — past the window
+
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addResolution(t, 1, "api.example.com", "dns", observedAt,
+		`{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+
+	// Inside the window: the derivation lists the Name and reaches its drill-down.
+	baseInside := startAt(t, f, readInside)
+	acInside := login(t, baseInside, "admin", "hunter2hunter2")
+	page := getBody(t, acInside, baseInside+"/subjects", http.StatusOK)
+	if !strings.Contains(page, "api.example.com") {
+		t.Fatalf("live-tier Name not listed inside its window; body: %s", page)
+	}
+	getBody(t, acInside, baseInside+"/subjects/api.example.com", http.StatusOK)
+
+	// Past the window, with NO delete: the same row is now evidential, so the
+	// derivation neither lists the Name nor reaches it by key.
+	basePast := startAt(t, f, readPast)
+	acPast := login(t, basePast, "admin", "hunter2hunter2")
+	page = getBody(t, acPast, basePast+"/subjects", http.StatusOK)
+	if strings.Contains(page, "api.example.com") {
+		t.Errorf("evidential Name still listed past its bound; body: %s", page)
+	}
+	drill := getBody(t, acPast, basePast+"/subjects/api.example.com", http.StatusNotFound)
+	if !strings.Contains(drill, "No such subject") {
+		t.Errorf("evidential Name still reachable by key past its bound; body: %s", drill)
+	}
+
+	// The row was never deleted — the gate, not retirement, made it unreadable.
+	if len(f.observations) != 1 {
+		t.Fatalf("observation corpus changed: got %d rows, want 1 (no delete expected)", len(f.observations))
+	}
+}
+
+// TestDerivationReadRetainsTimelineWithNoEnabledScan proves the per-timeline
+// bound (#237 AC4): a timeline no enabled Scan covers has an undefined bound and
+// yields no live row, so its subject is retained as evidence but never derived.
+func TestDerivationReadRetainsTimelineWithNoEnabledScan(t *testing.T) {
+	observedAt := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	// Seed a resolution on a Scan kind, then disable every Scan so no enabled Scan
+	// covers the timeline: its bound is undefined and it must not derive, even read
+	// the instant after it was observed.
+	f.addResolution(t, 1, "api.example.com", "dns", observedAt,
+		`{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+	for i := range f.scans {
+		f.scans[i].Enabled = false
+	}
+
+	base := startAt(t, f, observedAt.Add(time.Minute))
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/subjects", http.StatusOK)
+	if strings.Contains(page, "api.example.com") {
+		t.Errorf("Name on an uncovered timeline was derived; body: %s", page)
+	}
+	if len(f.observations) != 1 {
+		t.Fatalf("observation corpus changed: got %d rows, want 1 (retained as evidence)", len(f.observations))
 	}
 }
 
