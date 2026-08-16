@@ -23,13 +23,34 @@ import (
 // operator dial's movement is none of the four causes (ADR-0016). There is no
 // author recorded on either act (ADR-0073).
 
+// normalizeSubjectKey folds a typed subject key to the form the census renders it
+// in, so an annotation keys on the thing denoted rather than the text that named it
+// (CONTEXT.md `Subject`). Census subject keys — Names, Addresses, Service and
+// Endpoint keys — are all rendered in lower case with no trailing dot, and none of
+// their parts is case-sensitive, so an ASCII-case fold and a trailing-dot trim
+// align a typed `Host.Example.COM` with the census's `host.example.com`. The fold
+// is ASCII-only (ADR-0055): the model never folds an octet the protocol does not.
+func normalizeSubjectKey(input string) string {
+	s := strings.TrimSuffix(strings.TrimSpace(input), ".")
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
 // declareAnnotation declares an Annotation on one `(subject, signal-name)` pair.
 // It carries the operator's reason and the instant declared, and nothing else —
 // no status, no expiry, no author. Re-declaring an existing pair is rejected as a
 // duplicate rather than editing it: an Annotation cannot be edited, so changing a
 // reason is a withdraw-then-declare (ADR-0093).
 func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	subject := strings.TrimSpace(r.FormValue("subject"))
+	subject := normalizeSubjectKey(r.FormValue("subject"))
 	sigName := strings.TrimSpace(r.FormValue("signal"))
 	reason := strings.TrimSpace(r.FormValue("reason"))
 
