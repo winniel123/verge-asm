@@ -54,7 +54,7 @@ shadow a name nor exempt one. Where no component is determinate, every name bene
 | Does `resolution`'s value space move? | **No.** `Shadowed` already exists and no member is added, so there is **no `Break`** |
 | Which value space *does* move | **`wildcard-synthesis`'s** — ADR-0062's deferred closed union is **three** members, not the two it guessed. Its remaining blocker is discharged |
 | Control-label count | **Untouched**, and still a parameter (ADR-0025). Determinacy reads the answers a count already fixed |
-| `wildcard-discrimination` | **Still one leaf**, still five leaves total |
+| `wildcard-discrimination` | **Still one leaf**, and this ruling adds none — the total is ~~five~~ **six** since [ADR-0104](./0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md) |
 | Cost of the ruling | **Zero.** Nothing has shipped and no `resolution` timeline exists |
 
 ## Rationale

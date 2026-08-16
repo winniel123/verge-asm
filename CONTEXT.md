@@ -943,6 +943,35 @@ membership — and it is the hop that ages, because it is an observation. See
 [ADR-0096](./docs/adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md).
 _Avoid_: provenance chain, lineage, discovery path
 
+**Blanket responder**:
+An `Address` that completes the TCP handshake on **every** port — a CDN, anycast front, or
+reverse-proxy edge that answers the connect before deciding what to do with it. It is the
+**reachability twin of a wildcard-synthesising zone**: where a wildcard makes `resolution` answer for
+names that do not exist, a blanket responder makes `reachability` answer for ports where nothing
+listens, so a `reached` witnesses no service and cannot be attributed to the origin. It is **measured,
+never read off a list** — `blanket-discrimination` sends a **control-port probe** (a batch-generated
+set of ports a well-behaved origin refuses, built to falsify port-independence exactly as a control
+**label** falsifies label-independence) and the address is a blanket responder where the control set
+answers. A published CDN prefix list is refused as the detector for the standing reason no list may
+shape probing ([ADR-0002](./docs/adr/0002-ownership-gates-probing.md),
+[ADR-0013](./docs/adr/0013-custody-is-control-and-extends-by-declaration.md),
+[ADR-0089](./docs/adr/0089-an-instrument-supplies-the-test-never-the-premise.md)): a list ages and
+false-negatives on a self-hosted proxy, while the signature measures the very behaviour the false
+reading rests on. **Its consequence is a `Gap`, not a value and not a withdrawal.** Unlike `Shadowed`
+— which is a *value* because it must **withdraw** the fictional `Address`es a synthesised answer would
+cite — a blanketed reach withdraws nothing: the address is real and cited on its own ground, so the
+reach case needs a `Gap`'s absence-of-value and none of `Shadowed`'s membership power, and
+`blanket-discrimination` is **not** in the membership vector. So the `reachability` value space stays
+the closed pair, `Exposure`'s 2×2 is untouched, and `sensitive-port-reached-from-internet` goes
+`not-evaluable` because its evidence is a `Gap` — damping at the measurement, never the model-layer
+damping a rule edit would be. The finding is **surfaced on `Coverage`** and never silently absorbed:
+*these addresses answer on all ports — a proxy edge, not your origin; declare your origin IPs to
+measure the real surface.* The modelled term is **blanket responder**; the surfacing prose may say
+*proxy edge*, but *edge* alone is reserved — `Exposure`'s `edge-only` is a different fact
+([#32](https://github.com/winniel123/verge-asm/issues/32)). See
+[ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md).
+_Avoid_: edge, CDN address, proxy (bare), edge-like, all-ports-open
+
 ### Derived
 
 **Custody**:
@@ -1075,7 +1104,16 @@ onto `not-reached`, and where no vantage of the class decided at all the leg hol
 why v1's transports are TCP alone, and why a UDP leg would open a third route to a `Gap`, *we looked
 and the exchange did not decide*
 ([ADR-0083](./docs/adr/0083-silence-decides-only-on-a-connection-oriented-transport.md)). A named `Derivation`
-leaf, so a rule may read one leg and compose that leaf alone. It is also the object **alerting**
+leaf, so a rule may read one leg and compose that leaf alone — and its vector composes a **second**
+leaf, `blanket-discrimination`, which discriminates a `reached` from a **blanket responder** (an
+address that completes the handshake on every port). Where the address is one, the `reached` cannot
+be attributed to a listener and the leg holds a `Gap` rather than a value — *an undiscriminated
+answer is never a value* — so the value space stays the closed pair and no third value is minted, the
+address is **not** withdrawn (it is cited on its own ground), and the sharpest reader of this leg,
+`sensitive-port-reached-from-internet`, goes `not-evaluable` at the measurement rather than by any
+rule edit
+([ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)).
+It is also the object **alerting**
 reads: the internet leg going `not-reached` → `reached` is the product's flagship message, fired
 whether or not the other leg exists — and it **carries the census** of what opened beneath the
 newly-reached `Service`, since `certificate`, `http-identity`, `tls-acceptance` and every rule over
@@ -1238,10 +1276,13 @@ _Avoid_: scope, filter, applicability, eligible set, in-scope subjects
 **Derivation**:
 The named, versioned procedure that produced a Derived value — or, inside the measurement
 binary, that **decided** an observed value rather than reporting it. Something is a derivation
-exactly where **its output can move while the world does not**, which is why five decision
+exactly where **its output can move while the world does not**, which is why ~~five~~ **six** decision
 procedures inside the one binary are named leaves (`connect-outcome`, `tls-handshake`,
-`http-exchange`, `resolution-walk`, `wildcard-discrimination`) while the binary itself is not:
-a leaf is named for what it decides, never for the artefact that ships it. Its version moves on an
+`http-exchange`, `resolution-walk`, `wildcard-discrimination`, and — since
+[ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)
+— **`blanket-discrimination`**, the reachability twin of `wildcard-discrimination`: it decides
+whether a `reached` can be trusted or is a **blanket responder**'s artefact) while the binary itself
+is not: a leaf is named for what it decides, never for the artefact that ships it. Its version moves on an
 **output-affecting change** and never because a release shipped — enforced by a golden corpus
 in CI rather than by discipline, since neither a hash of the code (bumps on a refactor) nor a
 hash of the parameters (silent on a behavioural fix) tracks what we care about. The gate runs
@@ -1453,8 +1494,11 @@ A `Span` holding no value — the period over which we could not say. Opened by 
 `Batch`'s empty scope, by a `Vantage` becoming `unavailable`, by evidence absent where a
 `Signal` would be `not-evaluable`, by an observation ageing past its currency bound, and by an
 answer we cannot read — a truncated RRset no fallback transport recovered, or a `resolution` we
-could not discriminate because the control probe under the name's parent did not complete. **A
-truncated answer is never a value and an undiscriminated answer is never a value**
+could not discriminate because the control probe under the name's parent did not complete, or a
+`reachability` we could not discriminate from a **blanket responder** — an address that answers TCP
+on every port, so a `reached` witnesses no listener and cannot be attributed to the origin
+([ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)).
+**A truncated answer is never a value and an undiscriminated answer is never a value**
 ([ADR-0025](./docs/adr/0025-an-offer-is-scope-only-where-the-value-enumerates-it.md),
 [ADR-0066](./docs/adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)). A gap
 never withdraws a subject: ceasing to measure is not measuring absence. It **records its
@@ -1470,7 +1514,14 @@ telling us* — the mover being our own instrument working as specified. The sec
 therefore no recorded cause, which is why `Coverage`'s aperture statement carries it instead
 ([ADR-0083](./docs/adr/0083-silence-decides-only-on-a-connection-oriented-transport.md),
 [ADR-0095](./docs/adr/0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)).
-v1 probes TCP alone, whose outcomes all project, so every gap in v1 is one of the five above.**
+v1 probes TCP alone, whose outcomes all project, so the connectionless route does not arise — but a
+**sixth** register does, and it is reachable in v1: ***it answers no matter what we ask***, where a
+**blanket responder** completes the handshake on every port so a `reached` witnesses no listener,
+`blanket-discrimination` cannot attribute it to the origin, and the leg holds a gap rather than a
+value ([ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)).
+Its mover is a **third party** — the CDN, anycast, or proxy edge in front — neither our instrument
+nor the operator, which is why it is the one register the operator answers by declaring their origin
+IPs as an address scope. So every gap in v1 is one of the ~~five~~ **six** above.**
 Nothing is compared across a gap and no `Transition` crosses one, but the
 values on either side **may be shown together, labelled as undatable**: unlike a `Break`, both
 are the same kind of thing under one derivation, and what is missing is *when* it moved, not

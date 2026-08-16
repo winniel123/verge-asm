@@ -74,7 +74,7 @@ and never in a leaf.**
 | What switching resolvers therefore costs | A **new `Vantage`**, so the timelines it feeds **open** — `revealed` — under ADR-0025's *a dimension in the key opens*. It is **not** a `Break`, and it may not be one: an operator changing their upstream DNS must not clamp the estate |
 | Does any **value space** move? | **No.** `resolution`, `dns-record` and `wildcard-synthesis`'s three-member per-component union are all untouched. Nothing is added and nothing is renamed |
 | Does the **aperture list** move? | **No. Seven.** No `Batch` scope dimension is added; the path is a leaf parameter and the resolver is a key component, and neither is scope |
-| `wildcard-discrimination` | **Still one leaf**, still five leaves total. Both it and `resolution-walk` gain one named parameter, which arrives **with a value** |
+| `wildcard-discrimination` | **Still one leaf**, and this ruling adds none — total ~~five~~ **six** since [ADR-0104](./0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md). Both it and `resolution-walk` gain one named parameter, which arrives **with a value** |
 | Cost of the ruling | **Zero.** Nothing has shipped, no control probe has run, no `resolution` timeline exists |
 
 ## Rationale
