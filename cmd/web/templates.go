@@ -53,7 +53,8 @@ button.secondary { background: var(--surface); color: var(--ink); border-color: 
 .notice { border: 1px solid var(--accent); padding: var(--space-3);
   margin-bottom: var(--space-4); font-size: 13px; }
 .badge { font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.06em; border: 1px solid var(--ink); padding: 1px 6px; }
+  letter-spacing: 0.06em; border: 1px solid var(--ink); padding: 1px 6px;
+  display: inline-block; white-space: nowrap; }
 .kv { display: flex; gap: var(--space-4); margin-bottom: var(--space-3); }
 .kv .k { color: var(--muted); width: 90px; }
 .secret { font-family: var(--mono); word-break: break-all; background: var(--paper);
@@ -104,15 +105,19 @@ table.records td { border-bottom: 1px solid var(--hairline); padding: 2px var(--
 table.records td.rrtype { width: 1%; white-space: nowrap; }
 .dial { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
 .dial label { margin-bottom: 0; min-width: 220px; }
-.dial .unit { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.dial input { width: 96px; }
+.dial .unit { display: inline; margin-left: 6px; color: var(--muted);
+  font-family: var(--mono); font-size: 11px; }
 .searchbar { display: flex; gap: var(--space-4); align-items: flex-end; margin-bottom: var(--space-5); }
 .searchbar label { margin-bottom: 0; }
 .searchbar .grow { flex: 1; }
 ol.chain { list-style: none; margin: var(--space-4) 0 0; padding: 0; }
-ol.chain li { position: relative; padding: 0 0 var(--space-4) var(--space-5);
-  border-left: 2px solid var(--ink); margin-left: 5px; }
-ol.chain li:last-child { padding-bottom: 0; border-left-color: transparent; }
-ol.chain li::before { content: ""; position: absolute; left: -6px; top: 3px;
+ol.chain li { position: relative; padding: 0 0 var(--space-4) var(--space-5); }
+ol.chain li:last-child { padding-bottom: 0; }
+ol.chain li::before { content: ""; position: absolute; left: 3px; top: 7px; bottom: -7px;
+  width: 2px; background: var(--ink); }
+ol.chain li:last-child::before { display: none; }
+ol.chain li::after { content: ""; position: absolute; left: 0; top: 3px;
   width: 8px; height: 8px; background: var(--ink); }
 ol.chain .chainval { margin: 2px 0; }
 .rulehead { display: flex; justify-content: space-between; align-items: baseline;
@@ -220,7 +225,34 @@ var tmpl = template.Must(template.New("").Parse(`
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · Verge ASM</title>{{if .Refresh}}<meta http-equiv="refresh" content="6">{{end}}<style>` + pageCSS + `</style></head><body>{{end}}
-{{define "foot"}}</body></html>{{end}}
+{{define "foot"}}<script>
+/* Preserve scroll position across the POST-redirect-GET every form action runs.
+   Each mutating handler answers 303 to the same page, so a naive reload lands at
+   the top — jarring on a long screen. On submit we stash scrollY keyed by the
+   current path; on the next load of that same path we restore it, but only within
+   a few seconds so a later fresh visit is unaffected. Native back/forward scroll
+   restoration is left alone. */
+(function () {
+  var FRESH_MS = 5000;                              // a redirect round-trip; older stashes are a stale later visit
+  var K = "verge:scroll:" + location.pathname;      // this app only full-page navigates, so the path is stable here
+  try {
+    var raw = sessionStorage.getItem(K);
+    if (raw) {
+      sessionStorage.removeItem(K);
+      var s = JSON.parse(raw);
+      if (s && typeof s.y === "number" && Date.now() - s.t < FRESH_MS) window.scrollTo(0, s.y);
+    }
+  } catch (e) {}
+  document.addEventListener("submit", function (ev) {
+    var f = ev.target;
+    if (f && (f.method || "").toLowerCase() === "post") {
+      try {
+        sessionStorage.setItem(K, JSON.stringify({ y: window.scrollY, t: Date.now() }));
+      } catch (e) {}
+    }
+  }, true);
+})();
+</script></body></html>{{end}}
 
 {{define "setup"}}{{template "head" .}}
 <div class="center"><div class="card">
