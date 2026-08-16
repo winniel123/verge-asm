@@ -175,15 +175,19 @@ func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
 		}
 	}
 
-	// Fired Service and Endpoint members drill to their subjects.
-	for _, subject := range []string{
-		"198.51.100.1:3389/tcp",                   // sensitive-port fired
-		"plain.example.com@198.51.100.5:80/tcp",   // plaintext-http fired
-		"redir.example.com@198.51.100.6:80/tcp",   // redirect rules fired
-		"secure.example.com@198.51.100.1:443/tcp", // certificate not-evaluable member
+	// Fired Service and Endpoint members drill to their subjects via the route
+	// their kind actually serves (#248): a Service or Endpoint key carries a `/`
+	// (an Endpoint also an `@`), so it rides the `?key=` page escaped, never the
+	// `/subjects/{key}` path that would 404 on the second segment.
+	for _, tc := range []struct{ kind, subject string }{
+		{"service", "198.51.100.1:3389/tcp"},                    // sensitive-port fired
+		{"endpoint", "plain.example.com@198.51.100.5:80/tcp"},   // plaintext-http fired
+		{"endpoint", "redir.example.com@198.51.100.6:80/tcp"},   // redirect rules fired
+		{"endpoint", "secure.example.com@198.51.100.1:443/tcp"}, // certificate not-evaluable member
 	} {
-		if !strings.Contains(page, `href="/subjects/`+subject+`"`) {
-			t.Errorf("census member %q not drillable to its subject", subject)
+		want := `href="` + subjectHref(tc.kind, tc.subject) + `"`
+		if !strings.Contains(page, want) {
+			t.Errorf("census member %q not drillable to its %s drill-down (want %s)", tc.subject, tc.kind, want)
 		}
 	}
 
