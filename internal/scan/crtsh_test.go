@@ -1,0 +1,149 @@
+package scan
+
+import (
+	"reflect"
+	"testing"
+)
+
+// AdmittedNames is the whole admission decision, and it enforces two rulings:
+// ADR-0060 (no asterisk-label value admits a Name) and ADR-0047 (the Seed decides
+// which names are inside). It also splits the newline-separated SAN list, folds in
+// the common name, normalises, and dedupes to a deterministic set.
+func TestAdmittedNamesFiltersAndDedupes(t *testing.T) {
+	rows := []CrtshRow{
+		// A leaf cert: SAN list with the apex, a subdomain, and its own CN.
+		{CommonName: "www.example.com", NameValue: "example.com\nwww.example.com"},
+		// A wildcard cert: the wildcard SAN admits nothing (ADR-0060), but the
+		// apex it also carries is admitted.
+		{CommonName: "*.example.com", NameValue: "*.example.com\nexample.com"},
+		// A partial wildcard: two denotations, refused (ADR-0060).
+		{CommonName: "", NameValue: "baz*.example.com"},
+		// A multi-SAN cert co-tenanting a foreign estate: the foreign name is
+		// outside the queried scope and admits nothing here (ADR-0047).
+		{CommonName: "shared.example.net", NameValue: "api.example.com\nshared.example.net"},
+		// Case and a trailing dot normalise to the same key as an earlier row.
+		{CommonName: "WWW.Example.com.", NameValue: ""},
+	}
+	got := AdmittedNames(rows, "example.com")
+	want := []string{"api.example.com", "example.com", "www.example.com"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("AdmittedNames = %v, want %v", got, want)
+	}
+}
+
+// A wildcard-only answer admits nothing — the concealment case (ADR-0060): a
+// wildcard hides the names behind it, so a query answered entirely by wildcard
+// SANs admits no Name rather than the wildcard or the names beneath it.
+func TestAdmittedNamesWildcardOnlyAdmitsNothing(t *testing.T) {
+	rows := []CrtshRow{
+		{CommonName: "*.example.com", NameValue: "*.example.com"},
+		{CommonName: "*.internal.example.com", NameValue: "*.internal.example.com"},
+	}
+	if got := AdmittedNames(rows, "example.com"); len(got) != 0 {
+		t.Errorf("AdmittedNames = %v, want empty (wildcards admit nothing)", got)
+	}
+}
+
+// The scope filter is label-wise: a name that merely shares a suffix string with
+// the domain is not under it (ADR-0047).
+func TestAdmittedNamesScopeIsLabelWise(t *testing.T) {
+	rows := []CrtshRow{
+		{NameValue: "notexample.com\nx.example.com\nexample.com.evil.test"},
+	}
+	got := AdmittedNames(rows, "example.com")
+	want := []string{"x.example.com"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("AdmittedNames = %v, want %v (notexample.com and example.com.evil.test are outside scope)", got, want)
+	}
+}
+
+// The apex itself is admitted when the cert carries it (ADR-0060's note: a cert
+// covering both apex and wildcard carries the apex as its own SAN).
+func TestAdmittedNamesAdmitsApex(t *testing.T) {
+	rows := []CrtshRow{{CommonName: "example.com", NameValue: "example.com\n*.example.com"}}
+	got := AdmittedNames(rows, "example.com")
+	want := []string{"example.com"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("AdmittedNames = %v, want %v", got, want)
+	}
+}
+
+func TestParseCrtshRows(t *testing.T) {
+	t.Run("valid array with surrounding whitespace", func(t *testing.T) {
+		body := []byte("  [{\"common_name\":\"a.example.com\",\"name_value\":\"a.example.com\"}]\n")
+		rows, err := ParseCrtshRows(body)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(rows) != 1 || rows[0].CommonName != "a.example.com" {
+			t.Errorf("rows = %+v", rows)
+		}
+	})
+	t.Run("empty array is valid and admits nothing", func(t *testing.T) {
+		rows, err := ParseCrtshRows([]byte("[]"))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(rows) != 0 {
+			t.Errorf("rows = %+v, want empty", rows)
+		}
+	})
+	// A malformed 200 is not evidence of anything (ADR-0027 §7): a parse error, so
+	// the caller treats it as transient rather than as "no certificates".
+	t.Run("non-array body is an error, never empty", func(t *testing.T) {
+		for _, body := range []string{"", "   ", "<html>404</html>", "not json"} {
+			if _, err := ParseCrtshRows([]byte(body)); err == nil {
+				t.Errorf("ParseCrtshRows(%q) = nil error, want a parse error", body)
+			}
+		}
+	})
+}
+
+// The URL is the wildcard-identity JSON query that includes subdomains
+// (passive-discovery §2.2): %25 is the URL-encoded LIKE wildcard.
+func TestCrtshURL(t *testing.T) {
+	got := CrtshURL("example.com")
+	want := "https://crt.sh/?q=%25.example.com&output=json"
+	if got != want {
+		t.Errorf("CrtshURL = %q, want %q", got, want)
+	}
+}
+
+// The job's scope round-trips through the wire and back, carrying the domain and
+// the Seed the admission chain terminates at (ADR-0027).
+func TestCTScopeRoundTrip(t *testing.T) {
+	j := CTJob{ScanID: 7, SeedID: 42, Domain: "example.com"}
+	spec, err := j.JobSpec("scan:7:seed:42")
+	if err != nil {
+		t.Fatalf("JobSpec: %v", err)
+	}
+	if spec.Kind != CTKind {
+		t.Errorf("kind = %q, want %q", spec.Kind, CTKind)
+	}
+	got, err := CTScopeFromSpec(spec.Scope)
+	if err != nil {
+		t.Fatalf("CTScopeFromSpec: %v", err)
+	}
+	if got.Domain != "example.com" || got.SeedID != 42 {
+		t.Errorf("round-trip = %+v, want {42 example.com}", got)
+	}
+}
+
+// The completed Batch records the domain it queried; a dead-lettered Batch records
+// an empty scope, never the domain — a failed fetch asserts no absence (ADR-0005).
+func TestCTAttemptedVsEmptyScope(t *testing.T) {
+	attempted, err := (CTJob{Domain: "example.com"}).AttemptedScope()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(attempted) != `{"domain":"example.com"}` {
+		t.Errorf("attempted scope = %s, want the queried domain", attempted)
+	}
+	empty, err := EmptyCTScope()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(empty) != `{}` {
+		t.Errorf("empty scope = %s, want {} (no domain — asserts no absence)", empty)
+	}
+}

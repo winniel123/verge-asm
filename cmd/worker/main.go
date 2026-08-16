@@ -52,7 +52,12 @@ func main() {
 	proberPath := env.OrDefault("VERGE_PROBER_PATH", "/app/prober")
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	dispatcher := queue.NewDispatcher(pool, time.Now, logger)
-	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger)
+	// The ct Scan's runner (ADR-0106): a throttled crt.sh fetcher and the
+	// instance-wide 5 req/min reservation throttle, wired onto the worker beside
+	// the prober. The User-Agent identifies this build, which the source operator
+	// asked for (passive-discovery §2.2).
+	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
+		WithCT(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev")), queue.NewCTThrottle(db.New(pool)))
 
 	// A manual run dispatches an existing Scan, drains it synchronously, and
 	// exits — the operator/CI path that produces Observation rows on demand.

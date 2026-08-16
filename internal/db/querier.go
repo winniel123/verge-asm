@@ -215,6 +215,11 @@ type Querier interface {
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
+	// One CT admission (ADR-0027, ADR-0106): a Name a crt.sh Batch admitted, carrying
+	// the Batch that admitted it (the Citation hop) and the covering name-scope Seed
+	// the chain terminates at. No observation, no facet, no timeline — admission is
+	// not membership (ADR-0096 §5).
+	InsertAdmittedName(ctx context.Context, arg InsertAdmittedNameParams) error
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
 	// Reads and writes behind Channel delivery (#207). A Delivery is the Operational
 	// record of one outbound POST of one Message to one Channel: it never becomes a
@@ -419,6 +424,11 @@ type Querier interface {
 	// live-tier gate (#237).
 	ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
+	// The name-scope Seeds the CT Scan queries — id and registrable domain, one
+	// crt.sh query per row (ADR-0106). Distinct from ListNameSeedDomains (domains
+	// only, for the dns Scan): a CT admission's Citation chain terminates at the Seed,
+	// so its id travels with the domain (ADR-0027).
+	ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
 	// Every open timeline a subject currently holds — what a withdrawal closes, all
 	// at once, with the ground it rests on.
 	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
@@ -551,6 +561,13 @@ type Querier interface {
 	// Endpoints sitting on them (their keys carry the address as a prefix).
 	PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExclusionWithdrawalParams) (PreviewExclusionWithdrawalRow, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
+	// Atomically claim the next free slot for one crt.sh fetch, instance-wide
+	// (ADR-0005: the 5 req/min throttle is per-source across the whole instance, in
+	// Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
+	// slot; next_free_at advances one interval past it, so concurrent workers each
+	// reserve a distinct, correctly-spaced slot. The caller waits until slot_at
+	// before going on the wire.
+	ReserveCTSlot(ctx context.Context, intervalSeconds float64) (pgtype.Timestamptz, error)
 	// A transient failure with attempts left: advance the attempt, push run_after out
 	// by the shared backoff, and record the error. The row returns to 'pending' and
 	// the claim index picks it up again once run_after passes.

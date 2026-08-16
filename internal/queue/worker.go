@@ -64,6 +64,13 @@ type Worker struct {
 	prober Prober
 	now    func() time.Time
 	log    *log.Logger
+
+	// The CT runner's seams (ADR-0106), wired via WithCT. Nil on a worker built
+	// without them: a `ct` job then refuses rather than silently admitting
+	// nothing. Separate from NewWorker so the measurement-only construction stays
+	// unchanged.
+	ctFetcher  CTFetcher
+	ctThrottle CTThrottle
 }
 
 // NewWorker builds a Worker over pool driving prober.
@@ -145,6 +152,13 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 	// observations are stamped at the operator's supply instant (v1 spec §3.4).
 	if spec.Kind == scan.ZoneKind {
 		return w.completeZone(ctx, job, spec)
+	}
+
+	// The ct Scan is worker-read too, but it fetches crt.sh (a network step, so it
+	// retries/dead-letters) and admits without observing — no observation, no span
+	// (ADR-0027, ADR-0106).
+	if spec.Kind == scan.CTKind {
+		return w.completeCT(ctx, job, spec)
 	}
 
 	obs, probeErr := w.prober.Probe(ctx, spec)

@@ -66,12 +66,14 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	}
 	for _, s := range scans {
 		switch s.Kind {
-		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind, scan.TLSAcceptanceKind:
+		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind, scan.TLSAcceptanceKind, scan.CTKind:
 			// The dns Scan (worker-probed, per Vantage), the zone Scan
 			// (worker-read, no Vantage), the hot Scan (Custody-gated, per Vantage),
 			// the cold Scan (Custody-gated, opt-in per Seed scope, full range) and
 			// the tls-acceptance Scan (weekly enumeration over the open Service
-			// population, no port list — ADR-0028) each fan out on their own cadence.
+			// population, no port list — ADR-0028) and the ct Scan (worker-read
+			// crt.sh poll that admits Names without observing, no port list, no
+			// vantage — ADR-0106) each fan out on their own cadence.
 			// The cold Scan reaches this switch only while at least one Seed scope has
 			// opted in — that is what flips it enabled and into ListEnabledScans
 			// (ADR-0044); shipped disabled, it is skipped here and never fires unasked.
@@ -149,6 +151,8 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 		enqueued, err = d.fanOutCold(ctx, qtx, s.ID, dispatchID)
 	case scan.TLSAcceptanceKind:
 		enqueued, err = d.fanOutTLSAcceptance(ctx, qtx, s.ID, dispatchID)
+	case scan.CTKind:
+		enqueued, err = d.fanOutCT(ctx, qtx, s.ID, dispatchID)
 	default:
 		enqueued, err = d.fanOutDNS(ctx, qtx, s.ID, dispatchID)
 	}
