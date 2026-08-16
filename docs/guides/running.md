@@ -147,16 +147,68 @@ several safely — none can drift to a different aperture from its siblings:
 docker compose up -d --scale worker=3
 ```
 
-### Running a scan on demand
+### On-demand scan triggers
 
-Scans normally fire on their own cadence (dns daily, port tiers daily, tls-acceptance
-weekly, zone monthly). To dispatch one immediately — the operator/CI path that
-produces observation rows on demand — trigger the worker by scan kind, which drains
-it synchronously and exits:
+Scans normally fire on their own cadence. To dispatch one immediately — the operator/CI
+path that produces observation rows on demand — trigger the worker by scan **kind**. The
+triggered worker enqueues that scan, **drains the queue synchronously, then exits**:
 
 ```sh
 docker compose run --rm worker -trigger dns
 ```
+
+#### The scan kinds
+
+Six kinds ship. Each is an accepted value for `-trigger`, and each has its own shipped
+cadence:
+
+| Kind | What it does | Cadence | Ships |
+| --- | --- | --- | --- |
+| `dns` | Resolves the name-scope seeds from every configured vantage (no port list). | daily | enabled |
+| `hot` | **Active** TCP connect scan of the `verge-core` "hot" port set, per vantage. | daily | enabled |
+| `cold` | **Active** TCP connect scan over the **full 1–65535** range, per opted-in scope. | monthly | **disabled** |
+| `tls-acceptance` | TLS-handshake enumeration over the open `Service` population (no port list). | weekly | enabled |
+| `zone` | Worker-read ingest of uploaded [zone files](zone-files.md) (no vantage, no prober). | monthly | enabled |
+| `ct` | Worker-read crt.sh certificate-transparency poll (no vantage, no prober). | daily | enabled |
+
+Three things to know before you trigger one:
+
+- **`hot` and `cold` are active port scans.** They open real TCP connections across the
+  target ports, so a `hot` scan can run for **minutes**, and a `cold` scan (all 65,535
+  ports) considerably longer. `dns`, `zone` and `ct` are cheap by comparison.
+- **`cold` ships disabled**, and a trigger **refuses a disabled scan** — it does not run
+  it once as a one-off:
+
+  ```
+  worker: trigger cold: queue: cold Scan is disabled — a manual run
+  dispatches an enabled Scan, never a one-off (ADR-0044)
+  ```
+
+  `cold` enables itself only once you opt a seed scope into it; then `-trigger cold`
+  dispatches normally. The same refusal applies to any kind an admin has disabled.
+- **A trigger is an *extra* fan-out, not a reschedule.** It enqueues the scan keyed to
+  "now" and does not reset the cadence schedule; the unique `(scan, scheduled_time)` key
+  keeps a manual run from colliding with the automatic one.
+
+#### `run` vs `exec`
+
+Use **`docker compose run`**, not `exec`:
+
+```sh
+docker compose run --rm worker -trigger dns      # correct
+```
+
+`run` starts a **fresh, throwaway worker container** (same image, env and volumes as the
+long-running `worker` service) that takes the trigger path, drains the queue, and exits —
+`--rm` removes it afterward. It does **not** start the dispatcher loop, retention, or
+delivery runners; those belong to the daemon.
+
+`docker compose exec worker …` runs a command **inside the already-running** worker
+container instead of spawning a new one — useful for `-healthcheck`, but the wrong tool
+for a trigger. If a long-running `worker` daemon is up, it shares the same Postgres queue,
+so it may claim and drain the jobs your trigger enqueued (each job is claimed by exactly
+one worker, never both) — the trigger still works, but the fresh `run` container is the
+clean, self-contained way to do it.
 
 ### Logs
 

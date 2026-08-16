@@ -104,9 +104,13 @@ Full walkthrough: **[docs/guides/using.md](docs/guides/using.md)**.
 
 | Guide | Covers |
 | --- | --- |
-| **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, scaling workers, manual scans, upgrades. |
+| **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, scaling workers, on-demand scan triggers, upgrades. |
 | **[Using](docs/guides/using.md)** | First-run setup, the four-step checklist, provisioning a prober, reading coverage/exposure/drift, notification channels. |
+| **[First run](docs/guides/first-run.md)** | The mental model behind the checklist: declared/observed/derived, why `Exposure` needs two legs, confirming a scan ran, and the CDN-fronted-domain caveat. |
 | **[Prober](docs/guides/prober.md)** | A worked `docker compose` example for a dedicated internet vantage on a second host — the [`deploy/prober/`](deploy/prober/) recipe, host-key pin, and key hardening. |
+| **[Zone files](docs/guides/zone-files.md)** | What a zone file is, why removal detection needs one, and how to export one from common DNS providers or your own name servers. |
+| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires; the no-severity, release-coupled philosophy. |
+| **[Sources](docs/guides/sources.md)** | Discovery sources and proposers: consent tiers, admin-only toggling, and the crt.sh and RIR-proposer caveats. |
 | **[Verifying](docs/guides/verifying.md)** | Building, testing, `sqlc` codegen, the golden corpus, and reproducing CI locally through Docker. |
 
 ---
