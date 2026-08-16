@@ -856,6 +856,67 @@ func fakeFacetVector(facet string) drift.Vector {
 	)
 }
 
+// ListAllOpenSpans folds every observation the fake holds into Span rows using
+// the real drift.Fold — exactly as ListSpansForSubject does per subject — and
+// returns the OPEN ones across the whole estate, ordered by (kind, key, facet,
+// discriminator) as the production query is. It is the Inventory axis read (#243):
+// each open span is the value a timeline currently holds.
+func (f *fakeStore) ListAllOpenSpans(_ context.Context) ([]db.ListAllOpenSpansRow, error) {
+	type tlkey struct{ kind, key, facet, discriminator, source string }
+	order := []tlkey{}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		k := tlkey{kind: o.SubjectKind, key: o.SubjectKey, facet: o.Facet, discriminator: o.Discriminator, source: o.Source}
+		if _, seen := byKey[k]; !seen {
+			order = append(order, k)
+		}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+
+	sort.Slice(order, func(i, j int) bool {
+		a, b := order[i], order[j]
+		if a.kind != b.kind {
+			return a.kind < b.kind
+		}
+		if a.key != b.key {
+			return a.key < b.key
+		}
+		if a.facet != b.facet {
+			return a.facet < b.facet
+		}
+		if a.discriminator != b.discriminator {
+			return a.discriminator < b.discriminator
+		}
+		return a.source < b.source
+	})
+
+	rows := []db.ListAllOpenSpansRow{}
+	var id int64
+	for _, k := range order {
+		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
+		key := drift.TimelineKey{
+			SubjectKind: k.kind, SubjectKey: k.key,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range drift.Fold(key, byKey[k]) {
+			if !s.Open() {
+				continue
+			}
+			id++
+			rows = append(rows, db.ListAllOpenSpansRow{
+				ID: id, SubjectKind: k.kind, SubjectKey: k.key,
+				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
+				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
+			})
+		}
+	}
+	return rows, nil
+}
+
 // ListSpansForSubject folds the fake's observations for one subject into Span
 // rows using the real drift.Fold, so the drill-down test exercises the same
 // open/close logic the worker's ingest does. It is facet-generic: a `service`

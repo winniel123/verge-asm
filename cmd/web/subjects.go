@@ -776,9 +776,12 @@ func timelineLabel(facet, discriminator string) string {
 	return facet
 }
 
-// valueLabel renders a span's value for the drill-down. A resolution value shows
-// its outcome tag; a dns-record value shows its record count; a Gap shows a Gap
-// marker, since a gap holds no value.
+// valueLabel renders a span's value as the collapsed one-line summary shared by
+// the drill-down timelines and the Inventory axis (#243, ADR-0105): a resolution's
+// outcome tag, a dns-record's record count, a reachability/certificate/tls-acceptance
+// outcome, an http-identity's status+Server line, and a Gap marker where the span
+// holds no value. It is the summary half; spanDetails is the expanded half, and the
+// two cover the same facets.
 func valueLabel(facet string, raw []byte, isGap bool) string {
 	if isGap {
 		return "Gap"
@@ -805,17 +808,50 @@ func valueLabel(facet string, raw []byte, isGap bool) string {
 			return l
 		}
 		return "—"
+	case "certificate":
+		if o := decodeCertificate(raw).Outcome; o != "" {
+			return o
+		}
+		return "—"
+	case "tls-acceptance":
+		if o := decodeTLSAcceptance(raw).Outcome; o != "" {
+			return o
+		}
+		return "—"
 	default:
 		return "—"
 	}
 }
 
-// spanDetails lists a span value's individual records for the drill-down's
-// expand-on-click affordance: one entry per RR (type + data) for a dns-record
-// span, one per address for a resolution span. Values come from the span's
-// already-read value JSON — the same bytes valueLabel summarises — so no new
-// query is introduced (#240). A Gap holds no value, and any other facet has no
-// per-item breakdown, so both expand to nothing and the row does not open.
+// tlsAcceptanceValue is the JSON payload of a tls-acceptance observation — the
+// closed union the tls-acceptance leaf emits (ADR-0011): the outcome tag
+// (`enumerated` │ `tls-refused` │ `no-tls`) and, only on an enumeration, the
+// accepted versions and (for TLS 1.0–1.2) the suites the listener selected. The
+// web layer reads only what it renders — the outcome for the summary, the versions
+// for the inventory expansion.
+type tlsAcceptanceValue struct {
+	Outcome  string `json:"outcome"`
+	Versions []struct {
+		Version string   `json:"version"`
+		Ciphers []string `json:"ciphers"`
+	} `json:"versions"`
+}
+
+func decodeTLSAcceptance(raw []byte) tlsAcceptanceValue {
+	var v tlsAcceptanceValue
+	_ = json.Unmarshal(raw, &v)
+	return v
+}
+
+// spanDetails lists a span value's individual records for the expand-on-click
+// affordance shared by the drill-down timelines and the Inventory axis: one entry
+// per RR (type + data) for a dns-record span, one per address for a resolution
+// span, one per admitted field for an http-identity span, and one per chain link
+// for a certificate span. Values come from the span's already-read value JSON —
+// the same bytes valueLabel summarises — so no new query is introduced (#240 for
+// the first two facets, #243/ADR-0105 for the rest). A Gap holds no value, and a
+// facet with no per-item breakdown (e.g. reachability, whose whole value is its
+// outcome) expands to nothing and the row does not open.
 func spanDetails(facet string, raw []byte, isGap bool) []spanDetail {
 	if isGap {
 		return nil
@@ -841,9 +877,72 @@ func spanDetails(facet string, raw []byte, isGap bool) []spanDetail {
 			details = append(details, spanDetail{Type: rr.Type, Data: rr.Data})
 		}
 		return details
+	case "http-identity":
+		return httpIdentityDetails(decodeHTTPIdentity(raw))
+	case "certificate":
+		chain := decodeCertificate(raw).Chain
+		if len(chain) == 0 {
+			return nil
+		}
+		details := make([]spanDetail, 0, len(chain))
+		for i, link := range chain {
+			label := "leaf"
+			if i > 0 {
+				label = "issuer"
+			}
+			details = append(details, spanDetail{Type: label, Data: link})
+		}
+		return details
+	case "tls-acceptance":
+		// One row per accepted version — its suites (in the listener's own
+		// preference order) as the data, or "—" for TLS 1.3 whose three suites are
+		// the library's choice, not a measured selection. A refusal or no-tls carries
+		// no versions, so its whole value is the outcome summary and it does not open.
+		versions := decodeTLSAcceptance(raw).Versions
+		if len(versions) == 0 {
+			return nil
+		}
+		details := make([]spanDetail, 0, len(versions))
+		for _, ver := range versions {
+			data := "—"
+			if len(ver.Ciphers) > 0 {
+				data = strings.Join(ver.Ciphers, ", ")
+			}
+			details = append(details, spanDetail{Type: ver.Version, Data: data})
+		}
+		return details
 	default:
 		return nil
 	}
+}
+
+// httpIdentityDetails lists the admitted closed set of an http-identity value as
+// expand rows (ADR-0011): the status, the Server header, the page <title>, the
+// WWW-Authenticate challenge, and the recorded redirect Location — each rendered
+// only where present. A no-http-response identity — reached but speaking no HTTP —
+// lists that outcome as its one row rather than expanding to nothing, so the
+// negative is itself inventory. An unmeasured (empty) value expands to nothing.
+func httpIdentityDetails(v httpIdentityValue) []spanDetail {
+	if v.Outcome == httpexchange.OutcomeNoHTTPResponse {
+		return []spanDetail{{Type: "outcome", Data: "no HTTP response"}}
+	}
+	var details []spanDetail
+	if v.Status != 0 {
+		details = append(details, spanDetail{Type: "status", Data: strconv.Itoa(v.Status)})
+	}
+	if v.Server != "" {
+		details = append(details, spanDetail{Type: "server", Data: v.Server})
+	}
+	if v.Title != "" {
+		details = append(details, spanDetail{Type: "title", Data: v.Title})
+	}
+	if v.WWWAuthenticate != "" {
+		details = append(details, spanDetail{Type: "www-authenticate", Data: v.WWWAuthenticate})
+	}
+	if v.RedirectLocation != "" {
+		details = append(details, spanDetail{Type: "location", Data: v.RedirectLocation})
+	}
+	return details
 }
 
 func decodeVector(raw []byte) drift.Vector {

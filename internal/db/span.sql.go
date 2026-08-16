@@ -115,6 +115,76 @@ func (q *Queries) GetOpenSpan(ctx context.Context, arg GetOpenSpanParams) (GetOp
 	return i, err
 }
 
+const listAllOpenSpans = `-- name: ListAllOpenSpans :many
+SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
+       value, is_gap, derivation, opened_at, closed_at, closure_reason
+FROM span
+WHERE closed_at IS NULL
+ORDER BY subject_kind, subject_key, facet, discriminator, vantage_id, source
+`
+
+type ListAllOpenSpansRow struct {
+	ID            int64              `json:"id"`
+	SubjectKind   string             `json:"subject_kind"`
+	SubjectKey    string             `json:"subject_key"`
+	Facet         string             `json:"facet"`
+	Discriminator string             `json:"discriminator"`
+	VantageID     pgtype.Int8        `json:"vantage_id"`
+	Source        string             `json:"source"`
+	Value         []byte             `json:"value"`
+	IsGap         bool               `json:"is_gap"`
+	Derivation    []byte             `json:"derivation"`
+	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
+	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
+	ClosureReason pgtype.Text        `json:"closure_reason"`
+}
+
+// Every open span across the whole estate — the Inventory axis read (#243,
+// ADR-0105). The span_open_timeline_idx guarantees at most one open span per
+// (subject, facet, discriminator, vantage, source) timeline, so each row IS the
+// value that timeline currently holds — the estate's inventory, read straight off
+// the derived corpus with no re-derivation. A withdrawal closes a timeline's span
+// (ADR-0082), so an open span is a current member by construction; there is no
+// membership re-derivation and no denominator here, exactly as the Subjects
+// listing states none (ADR-0072). Gaps are included: a Gap is a facet the system
+// currently cannot value, and inventory states that rather than hiding it. Like
+// the other span reads this is NOT live-tier gated — it reads the already-derived,
+// never-compacted `span` corpus (ADR-0041), not the observation tier. Ordered by
+// subject so the renderer groups a subject's facets in a single pass.
+func (q *Queries) ListAllOpenSpans(ctx context.Context) ([]ListAllOpenSpansRow, error) {
+	rows, err := q.db.Query(ctx, listAllOpenSpans)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllOpenSpansRow{}
+	for rows.Next() {
+		var i ListAllOpenSpansRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SubjectKind,
+			&i.SubjectKey,
+			&i.Facet,
+			&i.Discriminator,
+			&i.VantageID,
+			&i.Source,
+			&i.Value,
+			&i.IsGap,
+			&i.Derivation,
+			&i.OpenedAt,
+			&i.ClosedAt,
+			&i.ClosureReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenSpansForSubject = `-- name: ListOpenSpansForSubject :many
 SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
        value, is_gap, derivation, opened_at, closed_at, closure_reason
