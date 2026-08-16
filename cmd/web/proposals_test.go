@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -43,6 +46,17 @@ func startWithProposer(t *testing.T, f *fakeStore, p proposerRunner) string {
 func lookup(t *testing.T, c *http.Client, base, query string) *http.Response {
 	t.Helper()
 	return postForm(t, c, base+"/proposals", url.Values{"query": {query}})
+}
+
+// get issues a GET and fails the test on a transport error, leaving the caller
+// to read the body (with body()) and assert on status.
+func get(t *testing.T, c *http.Client, rawURL string) *http.Response {
+	t.Helper()
+	resp, err := c.Get(rawURL)
+	if err != nil {
+		t.Fatalf("GET %s: %v", rawURL, err)
+	}
+	return resp
 }
 
 // twoCandidates is a delegation plus a compelled reassignment — the two record
@@ -222,6 +236,106 @@ func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 	// The other keyless paths ship on and are still offered.
 	if !fp.lastEnabled[proposer.SlugAFRINIC] || !fp.lastEnabled[proposer.SlugAPNIC] {
 		t.Errorf("default-on keyless proposers not enabled: %v", fp.lastEnabled)
+	}
+}
+
+// captureLog redirects the standard logger to a buffer for the duration of a
+// test, so an assertion can prove a server-side failure was logged where a
+// maintainer would find it. These tests do not run in parallel, so the
+// process-global logger is safe to borrow.
+func captureLog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	prevOut, prevFlags := log.Writer(), log.Flags()
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(prevOut); log.SetFlags(prevFlags) })
+	return &buf
+}
+
+// TestLookupBackendFailureIsNotAMiss covers the #251 confusion: a lookup that
+// errors on the backend with no candidates must read as a backend failure, not
+// as "your org name matched nothing", must file nothing, and must log the
+// underlying error with enough context for a maintainer to find it.
+func TestLookupBackendFailureIsNotAMiss(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	// Every enabled path errored and none returned a candidate.
+	fp := &fakeProposer{err: errors.New("arin: registry unreachable")}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	logs := captureLog(t)
+	page := body(t, lookup(t, ac, base, "Example"))
+	if strings.Contains(page, "No candidate scopes matched that name.") {
+		t.Errorf("a backend failure was rendered as a no-match; body: %s", page)
+	}
+	if !strings.Contains(page, "could not be completed") {
+		t.Errorf("backend failure not surfaced to the operator; body: %s", page)
+	}
+	// A failed lookup admits nothing and files no Proposal.
+	if len(f.proposals) != 0 {
+		t.Errorf("a failed lookup filed %d proposals, want 0", len(f.proposals))
+	}
+	// The discarded perr is logged with the query so it is operator-findable.
+	if got := logs.String(); !strings.Contains(got, "registry unreachable") || !strings.Contains(got, "Example") {
+		t.Errorf("underlying perr not logged with the query; log: %q", got)
+	}
+}
+
+// TestLookupGenuineMissStillReadsAsAMiss keeps the honest no-match message when
+// the registries answered cleanly and simply held nothing.
+func TestLookupGenuineMissStillReadsAsAMiss(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	fp := &fakeProposer{} // no candidates, no error
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := body(t, lookup(t, ac, base, "Nonesuch"))
+	if !strings.Contains(page, "No candidate scopes matched that name.") {
+		t.Errorf("a genuine no-match lost its message; body: %s", page)
+	}
+	if len(f.proposals) != 0 {
+		t.Errorf("a no-match filed %d proposals, want 0", len(f.proposals))
+	}
+}
+
+// TestLookupPartialFailureFilesAndFlags covers the mixed case: some paths
+// errored while others returned candidates. The candidates that did come back
+// are filed, and the lookup still uses post-redirect-get (so a refresh cannot
+// re-file duplicates) but carries a flag that surfaces the incompleteness.
+func TestLookupPartialFailureFilesAndFlags(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	fp := &fakeProposer{candidates: twoCandidates(), err: errors.New("apnic-caida: timeout")}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := lookup(t, ac, base, "Example")
+	if len(f.proposals) != 2 {
+		resp.Body.Close()
+		t.Fatalf("partial lookup filed %d proposals, want 2 (the candidates that returned)", len(f.proposals))
+	}
+	// Post-redirect-get, exactly like a clean success — a partial lookup persists
+	// rows, so an inline render off the POST would re-file duplicates on refresh.
+	if resp.StatusCode != http.StatusSeeOther {
+		resp.Body.Close()
+		t.Fatalf("partial failure did not redirect (status=%d); a refresh would re-file duplicates", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	resp.Body.Close()
+	if !strings.Contains(loc, "notice=partial-proposals") {
+		t.Fatalf("partial-failure redirect %q carries no incompleteness flag", loc)
+	}
+
+	// Following the redirect, the Seeds page shows the caveat and the candidates
+	// that did come back.
+	page := body(t, get(t, ac, base+loc))
+	if !strings.Contains(page, "partial") {
+		t.Errorf("partial failure was not flagged to the operator; body: %s", page)
+	}
+	if !strings.Contains(page, "203.0.113.0/24") {
+		t.Errorf("filed candidates not rendered on the partial-failure page; body: %s", page)
 	}
 }
 

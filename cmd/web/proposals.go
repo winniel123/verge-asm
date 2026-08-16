@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"html/template"
+	"log"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -137,10 +138,20 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 
 	cands, perr := s.proposals().Propose(r.Context(), query, enabled)
+	if perr != nil {
+		// A proposer path errored. perr is a join of "<slug>: <err>" entries, so
+		// logging it with the query names both the failing paths and the search
+		// a maintainer needs to correlate against — the reason must not be
+		// silently thrown away (#251).
+		log.Printf("web: proposer lookup %q: %v", query, perr)
+	}
 	if len(cands) == 0 {
+		// Distinguish a backend failure from a genuine no-match: a non-nil perr
+		// means a path could not answer, so this is not "your name matched
+		// nothing" and must not read as one.
 		msg := "No candidate scopes matched that name."
 		if perr != nil {
-			msg = "The lookup could not be completed. Try again."
+			msg = "The lookup could not be completed — a registry path errored and no candidates were found. See the server log for details."
 		}
 		s.renderSeeds(w, r, acct, seedsForms{proposalQuery: query, proposalNotice: msg})
 		return
@@ -162,8 +173,27 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 			return
 		}
 	}
+	if perr != nil {
+		// Partial failure: some paths returned candidates (now filed) while
+		// another errored, so this list may be missing scopes. Redirect exactly
+		// like a clean success — the filed candidates persist, so a plain inline
+		// render would re-file duplicates on refresh — but carry a flag that has
+		// the Seeds page surface the incompleteness (see seedsPage).
+		http.Redirect(w, r, "/seeds?notice="+noticePartialProposals, http.StatusSeeOther)
+		return
+	}
 	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
 }
+
+// noticePartialProposals is the /seeds query flag a partial-failure lookup
+// redirects with, and partialProposalNotice is the message the Seeds page then
+// renders. Carrying the caveat through the redirect (rather than inline off the
+// POST) keeps the search idempotent on refresh while still surfacing that some
+// registry path errored (#251).
+const (
+	noticePartialProposals = "partial-proposals"
+	partialProposalNotice  = "Showing partial results — one or more registry paths errored, so this list may be incomplete. See the server log for details."
+)
 
 // confirmProposal confirms exactly one Proposal into exactly one Seed. It is
 // singular by construction — one id per request, no batch (ADR-0022) — and the

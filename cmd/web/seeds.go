@@ -72,7 +72,14 @@ func nameScopes(views []seedView) []seedView {
 }
 
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSeeds(w, r, acct, seedsForms{})
+	var f seedsForms
+	// A partial-failure lookup redirects here with a notice flag rather than
+	// rendering inline off its POST, so the caveat survives the redirect without
+	// making a refresh re-file the proposals (#251).
+	if r.URL.Query().Get("notice") == noticePartialProposals {
+		f.proposalNotice = partialProposalNotice
+	}
+	s.renderSeeds(w, r, acct, f)
 }
 
 // declareSeed handles a scope declaration. It is reached only through
