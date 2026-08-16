@@ -55,8 +55,10 @@ func (CryptoPorts) Ports() []uint16 {
 	for len(seen) < ControlPortCount {
 		n, err := rand.Int(rand.Reader, big.NewInt(span))
 		if err != nil {
-			// crypto/rand does not fail in practice; a draw we cannot make is our own
-			// blindness, and the caller reads a short set as an incomplete probe.
+			// crypto/rand does not fail in practice. If it ever did we would return a
+			// short (possibly empty) set; an empty set Decides NotBlanket — the connect
+			// value passes through — so a draw failure errs safe and never fabricates a
+			// Gap on a real origin.
 			break
 		}
 		seen[uint16(int64(portBandLow)+n.Int64())] = struct{}{}

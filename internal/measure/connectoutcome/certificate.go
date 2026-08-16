@@ -101,7 +101,7 @@ func RunExchange(ctx context.Context, c Connector, h Handshaker, gen blanketdisc
 			// undiscriminated, so the Service folds to a `Gap` with the sixth cause and
 			// no certificate handshake runs.
 			out = append(out, EmitServiceGap(batch, scope.Vantage, target,
-				blanketdiscrim.GapCause, blanketdiscrim.ReasonFor(v), ""))
+				blanketdiscrim.GapCause, blanketdiscrim.ReasonFor(v)))
 			continue
 		}
 		outcome, raw := Probe(ctx, c, scope.Profile, target)

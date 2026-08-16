@@ -298,14 +298,14 @@ func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 }
 
 // reachabilityValue is the JSON payload of a reachability observation — the
-// verdict and the raw connect result as evidence, plus (on a `Gap`) the sixth-cause
-// tag and the operator-facing reason a blanket responder's reach carries
-// (ADR-0104). The web layer reads the verdict and, where the reach is a Gap, the
-// reason it renders on the subject.
+// verdict and the raw connect result as evidence, plus (on a `Gap`) the
+// operator-facing reason a blanket responder's reach carries (ADR-0104). The web
+// layer reads the verdict and, where the reach is a Gap, the reason it renders on
+// the subject; the stored sixth-cause tag is not read here (the reason is the
+// operator-facing rendering), so it is not decoded.
 type reachabilityValue struct {
 	Outcome string `json:"outcome"`
 	Result  string `json:"result"`
-	Cause   string `json:"cause"`
 	Reason  string `json:"reason"`
 }
 

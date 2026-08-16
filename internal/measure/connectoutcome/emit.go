@@ -37,13 +37,14 @@ const GapOutcome = "gap"
 // gap marker, the sixth-cause tag, and the operator-facing reason. It carries no
 // `reached │ not-reached` value, because a blanketed connect witnesses no listener
 // we can attribute to the origin — the reach is undiscriminated, and an
-// undiscriminated reach is never a value (ADR-0104). The `result` is still carried
-// as evidence of what the connect itself did.
+// undiscriminated reach is never a value (ADR-0104). It carries no per-port connect
+// result either: a blanketed Service's own port is deliberately NOT probed (the
+// control probe already decided the verdict, and skipping the port connect saves
+// the budget the ADR prices), so there is no raw result to record.
 type reachabilityGapValue struct {
-	Outcome string     `json:"outcome"` // always GapOutcome
-	Cause   string     `json:"cause"`   // the sixth gap cause tag (blanketdiscrim.GapCause)
-	Reason  string     `json:"reason"`  // operator-facing prose (blanketdiscrim.ReasonFor)
-	Result  ConnResult `json:"result,omitempty"`
+	Outcome string `json:"outcome"` // always GapOutcome
+	Cause   string `json:"cause"`   // the sixth gap cause tag (blanketdiscrim.GapCause)
+	Reason  string `json:"reason"`  // operator-facing prose (blanketdiscrim.ReasonFor)
 }
 
 // EmitServiceGap renders one TCP `Service`'s reachability `Gap` at one Vantage into
@@ -52,10 +53,9 @@ type reachabilityGapValue struct {
 // Service's exactly as EmitService's are; the value is a `Gap`, not `reached` /
 // `not-reached`, so the span fold opens an `is_gap` span and every downstream
 // reader (the signal, inventory, Exposure) sees the leg as absent without a special
-// case (ADR-0104 Decision §3). `raw` is the connect's own result, carried as
-// evidence — a blanket responder's own port typically reads `open`, which is the
-// very reading the `Gap` refuses to trust.
-func EmitServiceGap(batch, vantage string, target netip.AddrPort, cause, reason string, raw ConnResult) wire.Observation {
+// case (ADR-0104 Decision §3). The Service's own port is not probed — the verdict is
+// the control probe's — so the value carries no connect result.
+func EmitServiceGap(batch, vantage string, target netip.AddrPort, cause, reason string) wire.Observation {
 	return wire.Observation{
 		Batch:   batch,
 		Kind:    Kind,
@@ -63,7 +63,7 @@ func EmitServiceGap(batch, vantage string, target netip.AddrPort, cause, reason 
 		Subject: ServiceKey(target, "tcp"),
 		Vantage: vantage,
 		Address: target.Addr().String(),
-		Data:    mustJSON(reachabilityGapValue{Outcome: GapOutcome, Cause: cause, Reason: reason, Result: raw}),
+		Data:    mustJSON(reachabilityGapValue{Outcome: GapOutcome, Cause: cause, Reason: reason}),
 	}
 }
 
