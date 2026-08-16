@@ -159,14 +159,26 @@ type Querier interface {
 	// The body carries exactly these fields (the headline byte-identical, the census
 	// as a count) and reaches no other table: no row behind a census count.
 	GetMessageForDelivery(ctx context.Context, id int64) (GetMessageForDeliveryRow, error)
-	// The Citation chain's load-bearing hop: the observation that introduced a Name
-	// — its earliest LIVE resolution observation — plus the Batch and Scan it rode in
-	// on (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
-	// measurement that admitted the subject; the chain terminates one hop further at
-	// the covering Seed (FindCoveringNameSeed). Reads through the live-tier gate
-	// (#237): the introducing observation is the earliest one still within the live
-	// tier, so the chain rests on a measurement a derivation may still read, not on an
-	// evidential row.
+	// The Citation chain's load-bearing hop: what introduced a Name (CONTEXT.md
+	// `Citation`; ADR-0027, ADR-0107). Answers "why is this here" and terminates one
+	// hop further at the covering Seed (FindCoveringNameSeed). It reconciles the two
+	// ways a Name enters, preferring the admission:
+	//
+	//   * `admission` — a source that admits without observing (certificate
+	//     transparency) named the Name; the hop is that CT Batch, held in the
+	//     `admitted_name` row (ADR-0027). This is what *introduced* the Name, so it
+	//     wins: we resolved it *because* CT admitted it. A Citation never ages, so this
+	//     hop is read straight from admitted_name with no live-tier clock (ADR-0096);
+	//     the newest admission per Name is current, an append-only source re-admitting
+	//     on every poll. Matches on the shared ASCII-lowercased key an admitted name
+	//     acquires when the resolver measures it (CanonicalName == normaliseName here).
+	//   * `observation` — the earliest LIVE resolution observation, for a Name no
+	//     source admitted (a Seed apex, a CNAME target). Reads through the live-tier
+	//     gate (#237) so the chain rests on a measurement a derivation may still read.
+	//
+	// The introducing resolution answers *is it here now* (membership is measured); the
+	// admission answers *why is it here*, and outlives the membership (ADR-0096 §5), so
+	// a withdrawn CT-admitted Name still shows the admission that introduced it.
 	GetNameCitation(ctx context.Context, arg GetNameCitationParams) (GetNameCitationRow, error)
 	// Resolve a Name key to at most one subject, withdrawn or not. Search is a
 	// lookup and not a listing (ADR-0072 decision 3): the drill-down reaches a
@@ -254,6 +266,14 @@ type Querier interface {
 	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
 	// address inside one derives operator directly (ADR-0013).
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	// The distinct CT-admitted names the dns Scan also resolves (ADR-0107, wave-1).
+	// A source that admits without observing leaves an admitted_name row per Name it
+	// named; unioned into the dns Scan's resolution set, each acquires a resolution
+	// timeline from our own resolver and becomes a measured member or leaves by Name
+	// Error (ADR-0027, ADR-0096 §1). DISTINCT because an append-only source re-admits
+	// the same names on every poll; unconditional of the source's current enablement,
+	// since resolution is the dns Scan's act and a Name leaves only by measurement.
+	ListAdmittedNames(ctx context.Context) ([]string, error)
 	// Every open span across the whole estate — the Inventory axis read (#243,
 	// ADR-0105). The span_open_timeline_idx guarantees at most one open span per
 	// (subject, facet, discriminator, vantage, source) timeline, so each row IS the

@@ -172,19 +172,29 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 	return enqueued, nil
 }
 
-// fanOutDNS enqueues one dns job per Vantage over the name-scope Seeds.
+// fanOutDNS enqueues one dns job per Vantage over the resolution set — the
+// name-scope Seed domains and, since ADR-0107 (wave-1), the CT-admitted names
+// beneath them. The union feeds each job's Names (so a discovered name acquires a
+// resolution timeline and becomes a measured member), while WithSeeds carries only
+// the Seed domains: the control-probe population widens with the resolved names,
+// but the probing gate stays bounded at the Seeds (ADR-0066).
 func (d *Dispatcher) fanOutDNS(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	names, err := nameSeedDomains(ctx, qtx)
+	seedDomains, err := nameSeedDomains(ctx, qtx)
 	if err != nil {
 		return 0, err
 	}
+	admitted, err := admittedNames(ctx, qtx)
+	if err != nil {
+		return 0, err
+	}
+	names := mergeResolutionNames(seedDomains, admitted)
 	vantages, err := vantageList(ctx, qtx)
 	if err != nil {
 		return 0, err
 	}
 	enqueued := 0
 	for _, j := range scan.BuildDNSJobs(scanID, names, vantages.scanVantages()) {
-		j = j.WithResolver(vantages.resolver(j.VantageID)).WithSeeds(names)
+		j = j.WithResolver(vantages.resolver(j.VantageID)).WithSeeds(seedDomains)
 		if err := enqueueJob(ctx, qtx, scanID, dispatchID, j); err != nil {
 			return 0, err
 		}

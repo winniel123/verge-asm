@@ -46,6 +46,10 @@ type fakeStore struct {
 
 	sourceStates map[string]db.SourceState
 
+	// admitted stands in for the admitted_name rows behind a CT-admitted Name's
+	// Citation (ADR-0107); the citation test seeds it directly.
+	admitted []db.AdmittedName
+
 	vantages      []db.Vantage
 	vantageNextID int64
 
@@ -702,6 +706,19 @@ func (f *fakeStore) addResolution(t *testing.T, createdBy int64, name, scanKind 
 		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
 	})
 	f.obsNextID++
+}
+
+// addAdmittedName records a CT admission for a Name in a fresh ct batch, mirroring
+// what the crt.sh runner writes (ADR-0027, ADR-0106). It is the seam a Citation
+// test uses to make a Name CT-admitted so its citation reconciles to the admission
+// (ADR-0107).
+func (f *fakeStore) addAdmittedName(t *testing.T, name string, at time.Time) {
+	t.Helper()
+	b := f.freshBatch("ct", "ct")
+	f.admitted = append(f.admitted, db.AdmittedName{
+		ID: int64(len(f.admitted) + 1), Name: name, Source: "crtsh", BatchID: b,
+		CreatedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
 }
 
 // liveObservations returns the live-tier subset of the observation corpus as of
@@ -1421,8 +1438,49 @@ func (f *fakeStore) GetNameSubject(_ context.Context, arg db.GetNameSubjectParam
 	return db.GetNameSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
 }
 
+// scanFor resolves a batch id to its (scan id, scan kind) — the batch→Scan hop
+// both GetNameCitation hops need to name the introducing Scan.
+func (f *fakeStore) scanFor(batchID int64) (int64, string) {
+	var scanID int64
+	for _, b := range f.batches {
+		if b.ID == batchID {
+			scanID = b.ScanID
+		}
+	}
+	var scanKind string
+	for _, sc := range f.scans {
+		if sc.ID == scanID {
+			scanKind = sc.Kind
+		}
+	}
+	return scanID, scanKind
+}
+
 func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error) {
 	key := arg.SubjectKey
+
+	// ADR-0107: the admission wins. The latest admitted_name for the key is what
+	// introduced the Name, so it is the citation whether or not a resolution has
+	// since measured it.
+	var admission *db.AdmittedName
+	for i := range f.admitted {
+		a := &f.admitted[i]
+		if a.Name != key {
+			continue
+		}
+		if admission == nil || a.ID > admission.ID {
+			admission = a
+		}
+	}
+	if admission != nil {
+		scanID, scanKind := f.scanFor(admission.BatchID)
+		return db.GetNameCitationRow{
+			ObservedAt: admission.CreatedAt, Source: admission.Source,
+			BatchID: admission.BatchID, ScanID: scanID, ScanKind: scanKind,
+			HopKind: hopKindAdmission,
+		}, nil
+	}
+
 	live := f.liveObservations(arg.AsOf.Time)
 	var best *db.Observation
 	for i := range live {
@@ -1438,21 +1496,11 @@ func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationPar
 	if best == nil {
 		return db.GetNameCitationRow{}, pgx.ErrNoRows
 	}
-	var scanID int64
-	for _, b := range f.batches {
-		if b.ID == best.BatchID {
-			scanID = b.ScanID
-		}
-	}
-	var scanKind string
-	for _, sc := range f.scans {
-		if sc.ID == scanID {
-			scanKind = sc.Kind
-		}
-	}
+	scanID, scanKind := f.scanFor(best.BatchID)
 	return db.GetNameCitationRow{
-		ID: best.ID, ObservedAt: best.ObservedAt, Source: best.Source,
+		ObservedAt: best.ObservedAt, Source: best.Source,
 		VantageID: best.VantageID, BatchID: best.BatchID, ScanID: scanID, ScanKind: scanKind,
+		HopKind: hopKindObservation,
 	}, nil
 }
 

@@ -159,11 +159,16 @@ registry-shaped it looks: it yields `Proposal`s, and only `consent` applies to i
 admits without observing, the admission is a durable **`admitted_name`** row — the `Name`, the
 covering `Seed`, and the `Batch` that admitted it (the `Citation` hop) — never an observation, and
 **admission is not membership**: the row records how a name entered, and the name becomes a current
-member only when our own resolver measures it (a `Citation` is necessary and not sufficient). See
+member only when our own resolver measures it (a `Citation` is necessary and not sufficient). Since
+[ADR-0107](./docs/adr/0107-the-dns-scan-resolves-the-names-ct-admitted-and-their-citation-stays-the-admission-that-introduced-them.md)
+the `admitted_name` rows **feed the `dns` `Scan`'s resolution set** (wave-1), so that measurement
+happens on the discovery cadence and the row is no longer inert provenance — the standing claim that
+*a CT-admitted name acquires a `resolution` timeline within one cadence* is now true in code. See
 [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md),
 [ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md),
-[ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md) and
-[ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md).
+[ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md),
+[ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md) and
+[ADR-0107](./docs/adr/0107-the-dns-scan-resolves-the-names-ct-admitted-and-their-citation-stays-the-admission-that-introduced-them.md).
 _Avoid_: provider, feed, integration
 
 **Proposal**:
@@ -346,7 +351,12 @@ independent of `Custody`, since **a query is not a connect** — which has **no 
 runs at **every configured `Vantage`**, a resolution's answer being a function of where it was
 asked from, and whose cadence is the operator's, shipped at **daily**. It covers `resolution`
 and **our own resolver's** `dns-record`; the zone file's `dns-record` timeline is `zone`'s, one
-timeline per source. Until [#142](https://github.com/winniel123/verge-asm/issues/142) those two
+timeline per source. Its resolution set is the name-scope `Seed` domains **and, since
+[ADR-0107](./docs/adr/0107-the-dns-scan-resolves-the-names-ct-admitted-and-their-citation-stays-the-admission-that-introduced-them.md),
+the CT-admitted names beneath them** (the `admitted_name` rows): a `Name` a source admitted without
+observing acquires a `resolution` timeline from our own resolver and becomes a measured member, or
+leaves by Name Error — the discovered names widen the population under the recorded aperture, never
+the aperture inputs themselves, and the probing gate stays bounded at the `Seed`. Until [#142](https://github.com/winniel123/verge-asm/issues/142) those two
 facets were covered by nothing, and an uncovered facet's currency bound is **undefined rather
 than loose** — so no `Gap` could open on either, and the `Address` entry's *in the estate
 exactly while a **current** resolution cites it* had no truth value at all
@@ -943,9 +953,16 @@ terminates at the `Seed` that scope was drawn from and a bad source is still ide
 traversing everything it introduced. That hop is stored as an **`admitted_name`** row —
 the `Name`, the covering `Seed`, and the admitting `Batch` — since the subject holds no
 observation to carry it; and holding it asserts nothing, membership being measured (a `Citation`
-is necessary and not sufficient). See
-[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md) and
-[ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md).
+is necessary and not sufficient). So when a CT-admitted `Name` has since been resolved and holds
+both an admission and a `resolution`, its displayed `Citation` is **the admission, not the
+introducing resolution** — the admission answers *why is this here* (we resolved it because CT
+admitted it), while the resolution answers only *is it here now*; and the admission outlives the
+membership, so a withdrawn CT-admitted `Name` still cites what introduced it
+([ADR-0107](./docs/adr/0107-the-dns-scan-resolves-the-names-ct-admitted-and-their-citation-stays-the-admission-that-introduced-them.md)).
+See
+[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md),
+[ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md) and
+[ADR-0107](./docs/adr/0107-the-dns-scan-resolves-the-names-ct-admitted-and-their-citation-stays-the-admission-that-introduced-them.md).
 **A `Citation` itself never ages**, and the sentence above is qualified here at the site
 that states it
 ([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):

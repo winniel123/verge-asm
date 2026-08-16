@@ -16,6 +16,18 @@ ORDER BY id;
 INSERT INTO admitted_name (name, source, seed_id, batch_id)
 VALUES ($1, $2, $3, $4);
 
+-- name: ListAdmittedNames :many
+-- The distinct CT-admitted names the dns Scan also resolves (ADR-0107, wave-1).
+-- A source that admits without observing leaves an admitted_name row per Name it
+-- named; unioned into the dns Scan's resolution set, each acquires a resolution
+-- timeline from our own resolver and becomes a measured member or leaves by Name
+-- Error (ADR-0027, ADR-0096 §1). DISTINCT because an append-only source re-admits
+-- the same names on every poll; unconditional of the source's current enablement,
+-- since resolution is the dns Scan's act and a Name leaves only by measurement.
+SELECT DISTINCT name
+FROM admitted_name
+ORDER BY name;
+
 -- name: ReserveCTSlot :one
 -- Atomically claim the next free slot for one crt.sh fetch, instance-wide
 -- (ADR-0005: the 5 req/min throttle is per-source across the whole instance, in

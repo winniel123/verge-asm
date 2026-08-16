@@ -103,9 +103,14 @@ func (j Job) AttemptedScope() ([]byte, error) {
 	})
 }
 
-// seedScopes is the Seed name-scope set bounding the control-probe population. In
-// v1 the resolution scope is the seed domains themselves, so an unset seeds slice
-// falls back to the Names it is drawn from.
+// seedScopes is the Seed name-scope set bounding the control-probe population.
+// Since ADR-0107 the resolution set (Names) is wider than the Seed scopes — it
+// also carries the CT-admitted names beneath the Seeds — so the dispatcher always
+// supplies the Seeds explicitly via WithSeeds, keeping the probing gate bounded at
+// the operator's apex even as the resolved population grows. The fallback to Names
+// remains only for the degenerate no-Seeds case, where Names is likewise empty (an
+// admitted name always has a covering name Seed, so a non-empty admitted set
+// implies a non-empty Seed set) and no job is built at all.
 func (j Job) seedScopes() []string {
 	if len(j.seeds) > 0 {
 		return j.seeds

@@ -104,14 +104,26 @@ SELECT subject_key, value, observed_at
 FROM latest;
 
 -- name: GetNameCitation :one
--- The Citation chain's load-bearing hop: the observation that introduced a Name
--- — its earliest LIVE resolution observation — plus the Batch and Scan it rode in
--- on (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
--- measurement that admitted the subject; the chain terminates one hop further at
--- the covering Seed (FindCoveringNameSeed). Reads through the live-tier gate
--- (#237): the introducing observation is the earliest one still within the live
--- tier, so the chain rests on a measurement a derivation may still read, not on an
--- evidential row.
+-- The Citation chain's load-bearing hop: what introduced a Name (CONTEXT.md
+-- `Citation`; ADR-0027, ADR-0107). Answers "why is this here" and terminates one
+-- hop further at the covering Seed (FindCoveringNameSeed). It reconciles the two
+-- ways a Name enters, preferring the admission:
+--
+--   * `admission` — a source that admits without observing (certificate
+--     transparency) named the Name; the hop is that CT Batch, held in the
+--     `admitted_name` row (ADR-0027). This is what *introduced* the Name, so it
+--     wins: we resolved it *because* CT admitted it. A Citation never ages, so this
+--     hop is read straight from admitted_name with no live-tier clock (ADR-0096);
+--     the newest admission per Name is current, an append-only source re-admitting
+--     on every poll. Matches on the shared ASCII-lowercased key an admitted name
+--     acquires when the resolver measures it (CanonicalName == normaliseName here).
+--   * `observation` — the earliest LIVE resolution observation, for a Name no
+--     source admitted (a Seed apex, a CNAME target). Reads through the live-tier
+--     gate (#237) so the chain rests on a measurement a derivation may still read.
+--
+-- The introducing resolution answers *is it here now* (membership is measured); the
+-- admission answers *why is it here*, and outlives the membership (ADR-0096 §5), so
+-- a withdrawn CT-admitted Name still shows the admission that introduced it.
 WITH cover AS (
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
            MIN(s.cadence_seconds) AS tightest_cadence
@@ -132,14 +144,38 @@ live AS (
         AND c.source        = o.source
     WHERE EXTRACT(EPOCH FROM (sqlc.arg(as_of)::timestamptz - o.observed_at))
           <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence
+),
+admission_hop AS (
+    SELECT an.created_at AS observed_at, an.source, NULL::bigint AS vantage_id,
+           an.batch_id, b.scan_id, sc.kind AS scan_kind,
+           'admission'::text AS hop_kind, 0 AS priority
+    FROM admitted_name an
+    JOIN batch b ON b.id = an.batch_id
+    JOIN scan  sc ON sc.id = b.scan_id
+    WHERE an.name = @subject_key
+    ORDER BY an.id DESC
+    LIMIT 1
+),
+observation_hop AS (
+    SELECT o.observed_at, o.source, o.vantage_id,
+           o.batch_id, b.scan_id, sc.kind AS scan_kind,
+           'observation'::text AS hop_kind, 1 AS priority
+    FROM live o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  sc ON sc.id = b.scan_id
+    WHERE o.subject_kind = 'name' AND o.facet = 'resolution' AND o.subject_key = @subject_key
+    ORDER BY o.observed_at ASC, o.id ASC
+    LIMIT 1
 )
-SELECT o.id, o.observed_at, o.source, o.vantage_id, o.batch_id,
-       b.scan_id, sc.kind AS scan_kind
-FROM live o
-JOIN batch b ON b.id = o.batch_id
-JOIN scan sc ON sc.id = b.scan_id
-WHERE o.subject_kind = 'name' AND o.facet = 'resolution' AND o.subject_key = @subject_key
-ORDER BY o.observed_at ASC, o.id ASC
+SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, hop_kind
+FROM (
+    SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, hop_kind, priority
+    FROM admission_hop
+    UNION ALL
+    SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, hop_kind, priority
+    FROM observation_hop
+) h
+ORDER BY priority
 LIMIT 1;
 
 -- name: ListCurrentServiceSubjects :many
