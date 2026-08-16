@@ -14,16 +14,15 @@
 -- free to move a label without stranding a row.
 --
 -- Like every Declared term the toggle carries no timeline: re-toggling is an
--- upsert of the one current value, not a new row, so there is no history to read
--- and the toggled_at is simply when the current state was last set. It is dated
--- by the act rather than left undated because a source toggle is one of the
--- Declared acts CONTEXT.md dates by what it moved (the Batch's recorded source
--- set); the instant is recorded here so a later measurement ticket can cite it.
+-- upsert of the one current value, not a new row, so there is no history to
+-- read. It also carries NO actor and NO instant of its own: ADR-0073 rules that
+-- no operator act is written down with an actor on it, and ADR-0093 that only an
+-- Annotation carries its own instant — every other Declared act, a source toggle
+-- among them, is dated by the Batch whose recorded source set it moved. So the
+-- row holds only the slug and the overridden state.
 CREATE TABLE source_state (
-    slug       TEXT PRIMARY KEY,
-    enabled    BOOLEAN NOT NULL,
-    toggled_by BIGINT NOT NULL REFERENCES account (id),
-    toggled_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    slug    TEXT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL
 );
 
 -- +goose Down

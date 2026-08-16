@@ -7,44 +7,26 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const listSourceStates = `-- name: ListSourceStates :many
-SELECT s.slug, s.enabled, s.toggled_by, s.toggled_at,
-       a.username AS toggled_by_username
-FROM source_state s
-JOIN account a ON a.id = s.toggled_by
+SELECT slug, enabled
+FROM source_state
 `
-
-type ListSourceStatesRow struct {
-	Slug              string             `json:"slug"`
-	Enabled           bool               `json:"enabled"`
-	ToggledBy         int64              `json:"toggled_by"`
-	ToggledAt         pgtype.Timestamptz `json:"toggled_at"`
-	ToggledByUsername string             `json:"toggled_by_username"`
-}
 
 // The operator's overrides of the authored ship defaults. The handler merges
 // these onto the in-binary catalogue: a source's effective state is its override
 // where one exists and its shipped default otherwise.
-func (q *Queries) ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error) {
+func (q *Queries) ListSourceStates(ctx context.Context) ([]SourceState, error) {
 	rows, err := q.db.Query(ctx, listSourceStates)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListSourceStatesRow{}
+	items := []SourceState{}
 	for rows.Next() {
-		var i ListSourceStatesRow
-		if err := rows.Scan(
-			&i.Slug,
-			&i.Enabled,
-			&i.ToggledBy,
-			&i.ToggledAt,
-			&i.ToggledByUsername,
-		); err != nil {
+		var i SourceState
+		if err := rows.Scan(&i.Slug, &i.Enabled); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -56,32 +38,25 @@ func (q *Queries) ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, 
 }
 
 const upsertSourceState = `-- name: UpsertSourceState :one
-INSERT INTO source_state (slug, enabled, toggled_by)
-VALUES ($1, $2, $3)
+INSERT INTO source_state (slug, enabled)
+VALUES ($1, $2)
 ON CONFLICT (slug) DO UPDATE
-    SET enabled = EXCLUDED.enabled,
-        toggled_by = EXCLUDED.toggled_by,
-        toggled_at = now()
-RETURNING slug, enabled, toggled_by, toggled_at
+    SET enabled = EXCLUDED.enabled
+RETURNING slug, enabled
 `
 
 type UpsertSourceStateParams struct {
-	Slug      string `json:"slug"`
-	Enabled   bool   `json:"enabled"`
-	ToggledBy int64  `json:"toggled_by"`
+	Slug    string `json:"slug"`
+	Enabled bool   `json:"enabled"`
 }
 
 // Record the operator's on/off choice for one source. A toggle is a Declared act
-// with no timeline, so re-toggling overwrites the single current value rather
-// than appending, and toggled_at re-stamps to when the current state was set.
+// with no timeline, no actor, and no instant of its own (ADR-0073, ADR-0093), so
+// re-toggling overwrites the single current value and the row holds only the
+// overridden state.
 func (q *Queries) UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error) {
-	row := q.db.QueryRow(ctx, upsertSourceState, arg.Slug, arg.Enabled, arg.ToggledBy)
+	row := q.db.QueryRow(ctx, upsertSourceState, arg.Slug, arg.Enabled)
 	var i SourceState
-	err := row.Scan(
-		&i.Slug,
-		&i.Enabled,
-		&i.ToggledBy,
-		&i.ToggledAt,
-	)
+	err := row.Scan(&i.Slug, &i.Enabled)
 	return i, err
 }

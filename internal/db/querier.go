@@ -364,7 +364,7 @@ type Querier interface {
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
-	ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error)
+	ListSourceStates(ctx context.Context) ([]SourceState, error)
 	// A subject's full Span history — current and closed — for the Subjects
 	// drill-down. Ordered by timeline, oldest first, so the renderer walks each
 	// timeline and derives its Breaks and Transitions on read. The closed corpus is
@@ -507,8 +507,9 @@ type Querier interface {
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
 	// Record the operator's on/off choice for one source. A toggle is a Declared act
-	// with no timeline, so re-toggling overwrites the single current value rather
-	// than appending, and toggled_at re-stamps to when the current state was set.
+	// with no timeline, no actor, and no instant of its own (ADR-0073, ADR-0093), so
+	// re-toggling overwrites the single current value and the row holds only the
+	// overridden state.
 	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
 	// verge-core frequency-half editing (v1 spec §3.5). Only the frequency half is
 	// operator-editable; these queries manage the delta rows the hot fan-out applies

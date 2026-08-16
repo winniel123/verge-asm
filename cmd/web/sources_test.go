@@ -6,9 +6,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
@@ -16,22 +13,16 @@ import (
 
 // --- fakeStore source-state methods ----------------------------------------
 
-func (f *fakeStore) ListSourceStates(context.Context) ([]db.ListSourceStatesRow, error) {
-	rows := make([]db.ListSourceStatesRow, 0, len(f.sourceStates))
+func (f *fakeStore) ListSourceStates(context.Context) ([]db.SourceState, error) {
+	rows := make([]db.SourceState, 0, len(f.sourceStates))
 	for _, st := range f.sourceStates {
-		rows = append(rows, db.ListSourceStatesRow{
-			Slug: st.Slug, Enabled: st.Enabled, ToggledBy: st.ToggledBy,
-			ToggledAt: st.ToggledAt, ToggledByUsername: f.accounts[st.ToggledBy].Username,
-		})
+		rows = append(rows, db.SourceState{Slug: st.Slug, Enabled: st.Enabled})
 	}
 	return rows, nil
 }
 
 func (f *fakeStore) UpsertSourceState(_ context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error) {
-	st := db.SourceState{
-		Slug: arg.Slug, Enabled: arg.Enabled, ToggledBy: arg.ToggledBy,
-		ToggledAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
+	st := db.SourceState{Slug: arg.Slug, Enabled: arg.Enabled}
 	f.sourceStates[arg.Slug] = st
 	return st, nil
 }
