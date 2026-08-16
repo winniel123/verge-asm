@@ -38,14 +38,17 @@ func Backoff(attempt int32) time.Duration { return backoff(attempt) }
 
 // backoff is the delay before a retried job's new Batch runs: exponential from a
 // base, capped, so five attempts span roughly an hour (v1 spec §4.5's retry
-// budget, shared machinery).
+// budget, shared machinery — one schedule for measurement jobs and Channel
+// deliveries alike, notification-channels.md §4.2). The waits before attempts
+// 2..5 are 4m, 8m, 16m, 32m and sum to 60m; a base of 30s summed to only ~15m
+// and missed the budget the doc has always claimed.
 func backoff(attempt int32) time.Duration {
-	base := 30 * time.Second
+	base := 2 * time.Minute
 	d := base
 	for i := int32(1); i < attempt; i++ {
 		d *= 2
-		if d >= 16*time.Minute {
-			return 16 * time.Minute
+		if d >= 32*time.Minute {
+			return 32 * time.Minute
 		}
 	}
 	return d
