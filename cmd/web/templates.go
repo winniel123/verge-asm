@@ -103,6 +103,13 @@ details.spanrecords[open] > summary::before { content: "\25be"; }
 table.records { width: auto; margin: var(--space-3) 0 0; }
 table.records td { border-bottom: 1px solid var(--hairline); padding: 2px var(--space-4) 2px 0; }
 table.records td.rrtype { width: 1%; white-space: nowrap; }
+.invsubject { padding: var(--space-4) 0; border-top: 1px solid var(--hairline); }
+.invsubject:first-of-type { border-top: 0; }
+.invsubject .invkey { display: inline-block; margin-bottom: var(--space-3); font-weight: 600; }
+table.invfacets { width: 100%; }
+table.invfacets td { border-bottom: 0; padding: 2px var(--space-4) 2px 0; vertical-align: top; }
+table.invfacets td.invfacet { width: 160px; white-space: nowrap; }
+table.invfacets td.invsince { text-align: right; white-space: nowrap; width: 1%; }
 .dial { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
 .dial label { margin-bottom: 0; min-width: 220px; }
 .dial input { width: 96px; }
@@ -313,7 +320,7 @@ Two-factor is not active until you confirm.</p>
 
 {{define "chrome"}}<div class="header">` + wordmark + `
 <div class="row">
-<nav class="nav"><a href="/">Home</a><a href="/exposure">Exposure</a><a href="/subjects">Subjects</a><a href="/signals">Signals</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/scans">Scans</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
+<nav class="nav"><a href="/">Home</a><a href="/exposure">Exposure</a><a href="/subjects">Subjects</a><a href="/inventory">Inventory</a><a href="/signals">Signals</a><a href="/seeds">Seeds</a><a href="/coverage">Coverage</a><a href="/scans">Scans</a><a href="/verge-core">verge-core</a>{{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}</nav>
 <a class="msgnav" href="/messages">Messages{{if .Unread}}<span class="count">{{.Unread}}</span>{{end}}</a>
 <form method="post" action="/logout"><button class="secondary" type="submit">Sign out</button></form>
 </div>
@@ -923,6 +930,47 @@ which only you know, so this screen states none.</p>
 <p>{{if .Search}}No current endpoint matches that search. An endpoint whose service left the estate is reached by its exact key, never by browsing.{{else}}No endpoint has been measured yet. An endpoint is a (name, service) pair the http-exchange leaf completed a GET / against; it appears once the hot Scan has reached a web service and exchanged with it.{{end}}</p>
 {{end}}
 </div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "inventory"}}{{template "head" .}}
+{{template "chrome" .}}
+<main>
+<div class="microlabel">Observed · inventory</div>
+<h1>Inventory</h1>
+<p>What your estate holds right now — the actual values behind the verdicts. Where the
+Subjects views answer <em>what changed</em>, this answers <em>what do I have</em>: the
+addresses a name resolves to, the records it carries, the certificate a service presents,
+the identity an endpoint returns. Each row is the value a facet's current span holds — click
+a value to expand it to its individual records. A withdrawn subject holds no current span and
+so is not here. As on Subjects there is no total: your estate's completeness is yours alone to
+state.</p>
+
+{{if .Groups}}
+{{range .Groups}}
+<div class="section">
+<div class="microlabel">{{.Label}}</div>
+{{range .Subjects}}
+<div class="invsubject">
+{{if .Link}}<a class="mono invkey" href="{{.Link}}">{{.Key}}</a>{{else}}<span class="mono invkey">{{.Key}}</span>{{end}}
+<table class="invfacets"><tbody>
+{{range .Facets}}<tr>
+<td class="invfacet"><span class="microlabel">{{.Label}}</span></td>
+<td>{{if .IsGap}}<span class="badge">Gap</span>{{else if .Details}}<details class="spanrecords"><summary><span class="badge">{{.Summary}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="badge">{{.Summary}}</span>{{end}}</td>
+<td class="mono muted invsince">since {{.Since}}</td>
+</tr>{{end}}
+</tbody></table>
+</div>
+{{end}}
+</div>
+{{end}}
+{{else}}
+<div class="section">
+<div class="microlabel">Nothing measured yet</div>
+<p>No subject holds an open span yet. Declare a scope on Seeds and let a Scan measure a value;
+the inventory fills as facets are folded.</p>
+</div>
+{{end}}
 </main>
 {{template "foot" .}}{{end}}
 

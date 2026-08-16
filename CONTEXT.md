@@ -1,7 +1,12 @@
 # verge-asm
 
 Self-hosted attack surface management for an operator's own estate. Its subject is not
-inventory but **change**: what is exposed to the internet, and what moved since last time.
+inventory but **change**: what is exposed to the internet, and what moved since last time. Change is
+the lens, and the only thing the comparison path reads — yet the **same measured corpus** answers the
+complementary *what do I have right now?* when each open `Span` is read **forward by subject** as
+**inventory** rather than diffed over time. That is a read, not a second thing to model
+([ADR-0105](./docs/adr/0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md)); see
+`Inventory`.
 
 The language divides into three layers, and the division is load-bearing:
 
@@ -1534,6 +1539,26 @@ What a `Transition` between two `Span`s *is*. It is the product's subject and de
 **not a modelled thing** — there is no `Drift` object, no drift table and nothing that
 accumulates state, or `Finding` returns under a new name.
 _Avoid_: change set, diff, delta, drift record
+
+**Inventory**:
+What a subject holds **right now** — the value of each facet's **open `Span`**, read forward by subject
+rather than diffed over time. Not a modelled thing and not a second corpus: the `span_open_timeline_idx`
+makes the open span the single current value per timeline, so *current* **is** that one row, and
+inventory is a projection of the same derived corpus `Drift` reads — never a new store, observation,
+`Derivation` leaf, or value. It is dated by the span's `opened_at` — *held since* — and claims no
+freshness beyond it, so a facet with **no currency bound** (a one-off measurement, or an uncovered
+`Scan`) shows its held value dated, never *as of now*
+([ADR-0044](./docs/adr/0044-a-one-off-measurement-has-no-currency.md),
+[ADR-0084](./docs/adr/0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)).
+A **withdrawn** subject has no open span (see `Span`) and therefore no inventory — it is on no inventory
+listing, reached only by its own key on its change drill-down, which still shows its closed history. A
+`Gap` **is** inventory: a facet the system currently cannot value renders **as a `Gap`**, neither hidden
+nor coerced to a value, so a **blanket responder**'s ports read as undiscriminated rather than open
+(`Gap`, [ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)).
+Like the `Subject` listing it states **no denominator**: an estate's completeness is the operator's to
+know ([ADR-0072](./docs/adr/0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md)).
+See [ADR-0105](./docs/adr/0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md).
+_Avoid_: asset inventory, snapshot, asset database, current-state store
 
 ### Operational
 

@@ -72,6 +72,11 @@ type store interface {
 	FindNameCitingAddress(ctx context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error)
 	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
 	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
+	// Inventory axis (#243, ADR-0105): every open span across the estate, read
+	// straight off the derived span corpus (not live-tier gated). Each open span is
+	// the value one timeline currently holds, so this is the estate's "what do I
+	// have right now" read, grouped by subject in the handler.
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
 	// Exposure landing view (#196): the two most recent reachability spans per
 	// (Service, vantage), joined to the prober endpoint. The class is re-verified
 	// per render from the presented address, so this read carries the host rather
@@ -235,6 +240,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /subjects/service", s.requireLogin(s.servicePage))
 	mux.HandleFunc("GET /subjects/endpoint", s.requireLogin(s.endpointPage))
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
+
+	mux.HandleFunc("GET /inventory", s.requireLogin(s.inventoryPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
 	mux.HandleFunc("POST /annotations", s.requireAdmin(s.declareAnnotation))

@@ -59,6 +59,25 @@ FROM span
 WHERE subject_kind = @subject_kind AND subject_key = @subject_key AND closed_at IS NULL
 ORDER BY facet, discriminator, vantage_id, source;
 
+-- name: ListAllOpenSpans :many
+-- Every open span across the whole estate — the Inventory axis read (#243,
+-- ADR-0105). The span_open_timeline_idx guarantees at most one open span per
+-- (subject, facet, discriminator, vantage, source) timeline, so each row IS the
+-- value that timeline currently holds — the estate's inventory, read straight off
+-- the derived corpus with no re-derivation. A withdrawal closes a timeline's span
+-- (ADR-0082), so an open span is a current member by construction; there is no
+-- membership re-derivation and no denominator here, exactly as the Subjects
+-- listing states none (ADR-0072). Gaps are included: a Gap is a facet the system
+-- currently cannot value, and inventory states that rather than hiding it. Like
+-- the other span reads this is NOT live-tier gated — it reads the already-derived,
+-- never-compacted `span` corpus (ADR-0041), not the observation tier. Ordered by
+-- subject so the renderer groups a subject's facets in a single pass.
+SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
+       value, is_gap, derivation, opened_at, closed_at, closure_reason
+FROM span
+WHERE closed_at IS NULL
+ORDER BY subject_kind, subject_key, facet, discriminator, vantage_id, source;
+
 -- name: ListSpansForSubject :many
 -- A subject's full Span history — current and closed — for the Subjects
 -- drill-down. Ordered by timeline, oldest first, so the renderer walks each

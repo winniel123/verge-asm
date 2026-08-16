@@ -241,6 +241,47 @@ func TestSpanDetailsListsRecordsAndAddresses(t *testing.T) {
 			raw:   `{"outcome":"reached"}`,
 			want:  nil,
 		},
+		{
+			// #243: http-identity expands to its admitted closed set (ADR-0011),
+			// each present field one row; the body is never stored so none appears.
+			name:  "http-identity lists its admitted fields",
+			facet: "http-identity",
+			raw:   `{"outcome":"responded","status":200,"server":"nginx","title":"Home","www_authenticate":"Basic realm=x","redirect_location":"https://x/"}`,
+			want: []spanDetail{
+				{Type: "status", Data: "200"},
+				{Type: "server", Data: "nginx"},
+				{Type: "title", Data: "Home"},
+				{Type: "www-authenticate", Data: "Basic realm=x"},
+				{Type: "location", Data: "https://x/"},
+			},
+		},
+		{
+			name:  "http-identity that spoke no HTTP lists that negative as its value",
+			facet: "http-identity",
+			raw:   `{"outcome":"no-http-response"}`,
+			want:  []spanDetail{{Type: "outcome", Data: "no HTTP response"}},
+		},
+		{
+			// #243: certificate expands to its presented chain, leaf first.
+			name:  "certificate lists its chain, leaf then issuer",
+			facet: "certificate",
+			raw:   `{"outcome":"valid","chain":["sha256:leaf","sha256:issuer"]}`,
+			want:  []spanDetail{{Type: "leaf", Data: "sha256:leaf"}, {Type: "issuer", Data: "sha256:issuer"}},
+		},
+		{
+			// #243: tls-acceptance expands to one row per accepted version — its
+			// suites as data, "—" for TLS 1.3 (library-chosen, not measured).
+			name:  "tls-acceptance lists accepted versions and their suites",
+			facet: "tls-acceptance",
+			raw:   `{"outcome":"enumerated","versions":[{"version":"TLS1.3"},{"version":"TLS1.2","ciphers":["ECDHE_RSA_AES_128_GCM","ECDHE_RSA_AES_256_GCM"]}]}`,
+			want:  []spanDetail{{Type: "TLS1.3", Data: "—"}, {Type: "TLS1.2", Data: "ECDHE_RSA_AES_128_GCM, ECDHE_RSA_AES_256_GCM"}},
+		},
+		{
+			name:  "tls-acceptance refusal carries no versions and does not expand",
+			facet: "tls-acceptance",
+			raw:   `{"outcome":"tls-refused"}`,
+			want:  nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
