@@ -73,6 +73,17 @@ Set these in `.env` (compose reads it automatically) or your orchestrator.
 `DATABASE_URL` is assembled from the `POSTGRES_*` values by `docker-compose.yml`; you
 only set it directly if you run the binaries outside compose.
 
+### The `local` vantage resolver
+
+The one product-side default you may need to change before the first scan is the
+recursive resolver the `dns` scan queries, carried on the shipped `local` vantage. It
+ships as `127.0.0.11:53` — Docker's embedded DNS — which works on this `docker compose`
+deployment out of the box. **Off compose** (bare-metal or a host-network install, where
+`127.0.0.11` is not routed) set it to your own recursive resolver before the first `dns`
+trigger, or the scan resolves nothing and commits a silent `Gap`. The `local` vantage is
+resolver-only and has no prober page; change it on the row directly — see
+[using.md → Run the first batch](using.md#4-run-the-first-batch) for the exact command.
+
 ### Where secrets live
 
 Ruled by [ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md).

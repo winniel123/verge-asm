@@ -3,10 +3,16 @@
 -- resolver-only Vantage a name-scope install needs so the dns Scan resolves at
 -- the dns cadence from the first run. It has no prober — every prober column is
 -- left NULL (ADR-0103) — and class ships `unverified`, the honest default until
--- a prober observes the instance's presented address (v1 spec §4.2). Its
--- resolver is operator-editable; the shipped value is a placeholder the operator
--- replaces with their own recursive resolver.
-INSERT INTO vantage (name, class, resolver) VALUES ('local', 'unverified', '127.0.0.1:53');
+-- a prober observes the instance's presented address (v1 spec §4.2).
+--
+-- The resolver is operator-editable, but the shipped value must work on the
+-- deployment the docs describe (ADR-0036: a shipped default is the configuration
+-- that takes effect). That deployment is `docker compose`, where the worker's
+-- recursive resolver is Docker's embedded DNS — the address the INSERT below
+-- ships. Off compose (bare-metal / host-network, where that address is not routed)
+-- the operator points it at their own recursive resolver; docs/guides/using.md
+-- "Run the first batch" and docs/guides/running.md Configuration cover that.
+INSERT INTO vantage (name, class, resolver) VALUES ('local', 'unverified', '127.0.0.11:53');
 
 -- +goose Down
 DELETE FROM vantage WHERE name = 'local';

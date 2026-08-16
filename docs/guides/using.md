@@ -117,6 +117,27 @@ not look at.
 
 ### 4. Run the first batch
 
+The `dns` scan resolves through the shipped **`local` vantage**, whose `resolver`
+column names the recursive resolver to query. On the `docker compose` deployment this
+ships as `127.0.0.11:53` — Docker's embedded DNS, reachable from the worker container —
+so **on compose you do not need to change it**.
+
+Off compose (bare-metal or a host-network install, where `127.0.0.11` is not routed)
+point it at your own recursive resolver *before* the first scan. The `local` vantage is
+resolver-only and has no prober page, so set its resolver directly on the row:
+
+```sh
+docker compose exec postgres \
+  psql -U verge -d verge \
+  -c "UPDATE vantage SET resolver = '203.0.113.53:53' WHERE name = 'local';"
+```
+
+Substitute your resolver's `host:port`. `-U verge -d verge` are the shipped defaults;
+if you set `POSTGRES_USER` / `POSTGRES_DB` in `.env`, pass those values instead. A
+resolver that nothing answers yields empty records and a `Gap` rather than real data —
+and the scan still commits as `completed`, so a wrong resolver fails silently. This is
+the one setting you may need to change before the first scan.
+
 Scans dispatch on their own cadence, but you can kick the first one immediately from
 the worker (see [running.md](running.md#running-a-scan-on-demand)):
 
