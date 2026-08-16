@@ -64,15 +64,16 @@ type catalogSource struct {
 // consent-bar ruling: the keyless RIR org→prefix paths (ARIN, AFRINIC, APNIC via
 // CAIDA) on; the operator-accepted registry paths (RIPEstat, RIPE Database, APNIC
 // registry, LACNIC registry) off; HackerTarget and unauthenticated Cert Spotter
-// excluded on terms. crt.sh is catalogued but ships with no runner (#241): §3.1
-// would have it on (throttled), but nothing queries certificate transparency yet,
-// so it is presented as not-yet-executing rather than counted as an active source.
+// excluded on terms. crt.sh ships on and executing (§3.1, throttled): its runner
+// is the ct Scan (ADR-0106), which polls certificate transparency and admits
+// Names, so it is a live source again — reversing the not-yet-executing state
+// #241 held it in until the runner landed.
 var sourceCatalog = []catalogSource{
 	{
 		Slug: "crtsh", Name: "crt.sh",
 		Authority: "inferred", Completeness: "corroborative", Consent: consentUnencumbered,
-		NoRunner: true,
-		ShipNote: "Certificate transparency logs. Catalogued, but no runner ships yet — nothing queries CT — so it observes nothing and cannot be enabled. Its throttle and admission path arrive with the runner.",
+		DefaultOn: true,
+		ShipNote:  "Certificate transparency logs. Admits the Names a certificate's SAN list carries — authority: inferred — never a wildcard, and observes nothing (ADR-0027). Queried on the ct Scan's daily cadence, throttled to 5 req/min; a failed fetch admits nothing and never an absence.",
 	},
 	{
 		Slug: "arin", Name: "ARIN (entities?fn=)", IsProposer: true, Consent: consentUnencumbered,

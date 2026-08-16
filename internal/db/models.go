@@ -20,6 +20,15 @@ type Account struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type AdmittedName struct {
+	ID        int64              `json:"id"`
+	Name      string             `json:"name"`
+	Source    string             `json:"source"`
+	SeedID    int64              `json:"seed_id"`
+	BatchID   int64              `json:"batch_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Annotation struct {
 	ID         int64              `json:"id"`
 	SubjectKey string             `json:"subject_key"`
@@ -58,6 +67,11 @@ type ColdScanScope struct {
 	SeedID    int64              `json:"seed_id"`
 	CreatedBy int64              `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type CrtshThrottle struct {
+	ID         int64              `json:"id"`
+	NextFreeAt pgtype.Timestamptz `json:"next_free_at"`
 }
 
 type Delivery struct {

@@ -119,19 +119,27 @@ func TestToggleSourcePersistsOverride(t *testing.T) {
 	if st, ok := f.sourceStates["arin"]; !ok || st.Enabled {
 		t.Fatalf("disable override not persisted: %+v", f.sourceStates["arin"])
 	}
+
+	// crt.sh ships on and now executes (ADR-0106, #250): its runner is the ct Scan,
+	// so it is a toggleable source again — disabling it persists and stops the poll.
+	toggleSourceReq(t, ac, base, "crtsh", "false").Body.Close()
+	if st, ok := f.sourceStates["crtsh"]; !ok || st.Enabled {
+		t.Fatalf("crtsh disable override not persisted: %+v", f.sourceStates["crtsh"])
+	}
 }
 
 // A source excluded on terms has no consent instrument the modal operator can
-// satisfy, and a catalogued source with no runner has nothing to enable, so
-// neither can be toggled; an unknown slug is refused too.
-func TestToggleRejectsBarredNoRunnerAndUnknown(t *testing.T) {
+// satisfy, so it cannot be toggled; an unknown slug is refused too. (crt.sh was
+// once here as a no-runner source; ADR-0106 gave it a runner, so it now toggles —
+// asserted in TestToggleSourcePersistsOverride.)
+func TestToggleRejectsBarredAndUnknown(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// hackertarget: excluded on terms. crtsh: catalogued, no runner. no-such-source: unknown.
-	for _, slug := range []string{"hackertarget", "crtsh", "no-such-source"} {
+	// hackertarget: excluded on terms. no-such-source: unknown.
+	for _, slug := range []string{"hackertarget", "no-such-source"} {
 		resp := toggleSourceReq(t, ac, base, slug, "true")
 		got := resp.StatusCode
 		resp.Body.Close()
@@ -191,10 +199,11 @@ func TestCoverageStubLinksToModal(t *testing.T) {
 	}
 }
 
-// crt.sh is catalogued but has no runner (#241): nothing queries certificate
-// transparency, so it is presented as not yet executing — rendered in its own
-// section, never as `on`, and with no toggle offered even to an admin.
-func TestNoRunnerSourceShownAsNotExecuting(t *testing.T) {
+// crt.sh has a runner again (ADR-0106, #250): the ct Scan queries certificate
+// transparency, so it presents as an executing, toggleable source — with a toggle
+// offered to an admin — and the not-yet-executing section (which had only crt.sh)
+// no longer renders, its bucket now empty.
+func TestCrtshShownAsExecuting(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -202,17 +211,16 @@ func TestNoRunnerSourceShownAsNotExecuting(t *testing.T) {
 
 	page := sourcesBody(t, ac, base)
 
-	// crt.sh still appears in the catalogue, in the not-yet-executing section.
 	if !strings.Contains(page, "crt.sh") {
 		t.Fatalf("crt.sh missing from the modal; body: %s", page)
 	}
-	if !strings.Contains(page, "not yet executing") {
-		t.Errorf("the not-yet-executing section did not render; body: %s", page)
+	// A toggle IS offered for crt.sh now, to an admin: it has an execution path.
+	if !strings.Contains(page, `value="crtsh"`) {
+		t.Errorf("no toggle control offered for crt.sh; body: %s", page)
 	}
-	// No toggle is offered for a source with no runner, even to an admin: there
-	// is nothing to enable.
-	if strings.Contains(page, `value="crtsh"`) {
-		t.Errorf("a toggle control was offered for a source with no runner; body: %s", page)
+	// The not-yet-executing section had only crt.sh, so it no longer renders.
+	if strings.Contains(page, "not yet executing") {
+		t.Errorf("the not-yet-executing section rendered with no no-runner source; body: %s", page)
 	}
 }
 
@@ -282,11 +290,12 @@ func TestCoverageHasNoProportionOfEstate(t *testing.T) {
 	}
 }
 
-// The "Enabled sources" aperture line counts only sources with an execution
-// path. crt.sh has no runner (#241), so it is neither a numerator nor a
-// denominator: the line reads "3 of 7", not the "4 of 8" that counted crt.sh as
-// an active discovery source when it produces nothing.
-func TestCoverageExcludesNoRunnerSourceFromCount(t *testing.T) {
+// The "Enabled sources" aperture line counts every source with an execution
+// path. crt.sh has a runner again (ADR-0106, #250), so it is both a numerator and
+// a denominator: the four ship-on sources (ARIN, AFRINIC, APNIC-CAIDA, crt.sh) of
+// the eight toggleable ones read "4 of 8", reversing the "3 of 7" that excluded
+// crt.sh while it produced nothing.
+func TestCoverageCountsCrtshAsExecuting(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -294,11 +303,11 @@ func TestCoverageExcludesNoRunnerSourceFromCount(t *testing.T) {
 
 	page := coverageBody(t, ac, base)
 
-	if !strings.Contains(page, "3 of 7 sources enabled") {
-		t.Errorf("enabled-sources line should read \"3 of 7 sources enabled\"; body: %s", page)
+	if !strings.Contains(page, "4 of 8 sources enabled") {
+		t.Errorf("enabled-sources line should read \"4 of 8 sources enabled\"; body: %s", page)
 	}
-	if strings.Contains(page, "4 of 8") {
-		t.Errorf("crt.sh is still counted as an active discovery source; body: %s", page)
+	if strings.Contains(page, "3 of 7") {
+		t.Errorf("crt.sh is still excluded from the active-source count; body: %s", page)
 	}
 }
 

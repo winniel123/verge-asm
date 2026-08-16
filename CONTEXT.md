@@ -155,10 +155,15 @@ which is a documented limit of certificate transparency rather than a hole, sinc
 certificate conceals an estate's names rather than disclosing them. Admitting on some of a
 batch's rows and nothing on others is what `corroborative` `completeness` already absorbs. A thing
 that admits **nothing at all** is not a source, however
-registry-shaped it looks: it yields `Proposal`s, and only `consent` applies to it. See
+registry-shaped it looks: it yields `Proposal`s, and only `consent` applies to it. Where a source
+admits without observing, the admission is a durable **`admitted_name`** row — the `Name`, the
+covering `Seed`, and the `Batch` that admitted it (the `Citation` hop) — never an observation, and
+**admission is not membership**: the row records how a name entered, and the name becomes a current
+member only when our own resolver measures it (a `Citation` is necessary and not sufficient). See
 [ADR-0012](./docs/adr/0012-a-proposer-is-not-a-source.md),
-[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md) and
-[ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md).
+[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md),
+[ADR-0060](./docs/adr/0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md) and
+[ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md).
 _Avoid_: provider, feed, integration
 
 **Proposal**:
@@ -332,7 +337,7 @@ what cadence, **and which ports only where its exchange is a connect**: the port
 two of the five carrying none. The configured thing, never the executed one. **Not every `Scan` is a port
 tier**: ~~two are, and the third is `tls-acceptance`'s weekly enumeration, whose scope is the
 open `Service` population and the TLS candidate set.~~ ~~there are four and only two are port
-tiers.~~ **there are five and only two are port
+tiers.~~ ~~there are five and only two are port tiers.~~ **there are six and only two are port
 tiers.** The third is `tls-acceptance`'s weekly enumeration, whose scope is the open `Service`
 population and the TLS candidate set; the fourth is **`zone`**, whose scope is the name scopes
 holding a supplied zone file and which has **no port list and no vantage choice at all**, the
@@ -358,11 +363,20 @@ often they will re-export, shipped at monthly. Its batches restate the file's ob
 operator's supply instant** rather than at our read, because re-reading unchanged bytes on a cadence
 produces a current observation of a stale fact, and it is that instant the bound runs from
 ([#48](https://github.com/winniel123/verge-asm/issues/48)'s fourth absence register, *you stopped
-telling us*). A `Scan`
+telling us*). The sixth is **`ct`**, the certificate-transparency poll (`crt.sh`) — worker-read
+like `zone`, with no port list and no vantage, one `Batch` per name scope. Its source **admits
+without observing**, so alone among the `Scan`s it carries **no currency bound and no withdrawal
+power**: the currency rule quantifies over observations and it produces none, so it schedules and
+gives `Coverage` a row and bounds nothing. Its cadence is the operator's, shipped at **daily**; a
+non-200 fetch admits nothing and never an absence. A `Scan`
 whose scope list is empty is a legible state; an aperture with nothing configured behind it is
-not. See [ADR-0005](./docs/adr/0005-scan-execution-model.md),
-[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) and
-[ADR-0044](./docs/adr/0044-a-one-off-measurement-has-no-currency.md).
+not — and the `ct` `Scan` fires over an empty scope while the `crtsh` source is toggled off, the
+schedule and the source's `consent` being two controls. See
+[ADR-0005](./docs/adr/0005-scan-execution-model.md),
+[ADR-0028](./docs/adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md),
+[ADR-0044](./docs/adr/0044-a-one-off-measurement-has-no-currency.md),
+[ADR-0096](./docs/adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md) and
+[ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md).
 _Avoid_: job, scan job
 
 **Annotation**:
@@ -926,8 +940,12 @@ Where a source **admits without
 observing** there is no observation to point at, and the hop is that source's `Batch` —
 which already records the source, the vantage, the time and the scope, so the chain still
 terminates at the `Seed` that scope was drawn from and a bad source is still identified by
-traversing everything it introduced. See
-[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md).
+traversing everything it introduced. That hop is stored as an **`admitted_name`** row —
+the `Name`, the covering `Seed`, and the admitting `Batch` — since the subject holds no
+observation to carry it; and holding it asserts nothing, membership being measured (a `Citation`
+is necessary and not sufficient). See
+[ADR-0027](./docs/adr/0027-a-source-may-admit-without-observing.md) and
+[ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md).
 **A `Citation` itself never ages**, and the sentence above is qualified here at the site
 that states it
 ([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
