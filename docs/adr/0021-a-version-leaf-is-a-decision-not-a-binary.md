@@ -153,6 +153,13 @@ wire library in its parameter set. That is not luck. ADR-0008 already singled th
 canonicaliser out as the *non*-churny counterexample because it "maps a small closed value space";
 the same smallness upstream means the kernel decides SYN-ACK, RST or silence and the three-way
 mapping is ours. So the flagship value is fed by the one leaf a dependency upgrade cannot move.
+*(**Qualified at the clause** per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+since [ADR-0104](./0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md):
+`reachability` is now fed by **two** leaves — `connect-outcome` and `blanket-discrimination` — so
+`blanket-discrimination` reaches the board too. The **property is unchanged**, which is the whole
+point: it is TCP connects to a control-port set and carries **no third-party wire library** either,
+so the flagship value is still fed only by leaves a dependency upgrade cannot move. `blanket-discrimination`
+can turn a leg into a `Gap` — no `Exposure` there — but it produces no `Exposure` value of its own.)*
 
 The closest call in drawing the table was merging `resolution-walk` and `wildcard-discrimination`.
 They break the same two facets, so the split buys nothing in blast radius. It is kept because a
