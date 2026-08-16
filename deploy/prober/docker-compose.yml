@@ -1,0 +1,45 @@
+# A dedicated verge-asm prober host: a minimal, hardened SSH *target* the verge
+# instance pushes to. Run this on a SECOND machine, not alongside the main stack
+# (probing your own public address from inside is the hairpinning trap that never
+# traverses the inbound policy — §4.2). See ./README.md for the full walkthrough.
+name: verge-prober
+
+services:
+  prober:
+    build:
+      context: .
+    image: verge-asm-prober:local
+    # Posture parity with the main stack (§2): non-root, all caps dropped, no new
+    # privileges. Deliberately NONE of privileged / cap_add / network_mode: host /
+    # sysctls — the prober needs no capability (probing is TCP connect, not SYN).
+    user: "65532:65532"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # The PUBLIC key verge rendered at provisioning. Paste it into .env as
+      # PROBER_PUBKEY (or bind-mount it below). Never a private key.
+      PROBER_PUBKEY: ${PROBER_PUBKEY:-}
+      # Optional: once verge shows your instance's egress address, set it here to
+      # additionally pin the key with from=<egress> (§3).
+      PROBER_FROM: ${PROBER_FROM:-}
+    ports:
+      # host_port:container_port. The instance connects to the host on the left
+      # value (default 22 — what you type into verge as the port); sshd listens
+      # unprivileged on 2222 inside.
+      - "${PROBER_SSH_PORT:-22}:2222"
+    volumes:
+      # Persist the SSH host key so the instance's host-key pin survives restarts
+      # (§3). Losing this volume is what forces a re-pin. The path is fixed and
+      # username-independent, so this mount is unaffected by PROBER_USER. Keep it a
+      # named volume: a bind-mounted host dir comes up root-owned and the non-root
+      # entrypoint cannot write the host key into it.
+      - prober-hostkeys:/hostkeys
+      # Alternative to PROBER_PUBKEY: drop the rendered public key in a file and
+      # bind-mount it read-only. Uncomment, and leave PROBER_PUBKEY empty.
+      # - ./authorized_keys.pub:/keys/authorized_keys:ro
+    restart: unless-stopped
+
+volumes:
+  prober-hostkeys:

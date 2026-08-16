@@ -106,6 +106,7 @@ Full walkthrough: **[docs/guides/using.md](docs/guides/using.md)**.
 | --- | --- |
 | **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, scaling workers, manual scans, upgrades. |
 | **[Using](docs/guides/using.md)** | First-run setup, the four-step checklist, provisioning a prober, reading coverage/exposure/drift, notification channels. |
+| **[Prober](docs/guides/prober.md)** | A worked `docker compose` example for a dedicated internet vantage on a second host — the [`deploy/prober/`](deploy/prober/) recipe, host-key pin, and key hardening. |
 | **[Verifying](docs/guides/verifying.md)** | Building, testing, `sqlc` codegen, the golden corpus, and reproducing CI locally through Docker. |
 
 ---
