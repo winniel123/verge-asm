@@ -14,8 +14,11 @@ import (
 // tested without a real sleep and without the network.
 
 // Stress is a signal that the limiter halves the rate on (§3.3). Each value is a
-// distinct cause; the limiter treats them uniformly (halve once), and records
-// which fired for the operator.
+// distinct cause; the limiter halves once for any cause the declared
+// BackoffPolicy enables, treating the enabled causes uniformly. It keeps no
+// per-signal record of its own — the recorded commitment is the declared
+// BackoffPolicy on the Batch (ADR-0025), not a log of which signals fired. This
+// closed set of causes is the value space those four policy flags range over.
 type Stress string
 
 const (
@@ -25,29 +28,56 @@ const (
 	Stress503      Stress = "503"       // an HTTP layer above returned Service Unavailable
 )
 
+// enabledIn reports whether the declared back-off policy halves on this cause.
+// It is the one place the runtime Stress value space and the recorded
+// BackoffPolicy are tied together, so a cause the operator's offers did not
+// enable does not silently halve, and every Stress value maps to exactly one
+// declared flag.
+func (s Stress) enabledIn(p BackoffPolicy) bool {
+	switch s {
+	case StressTimeout:
+		return p.HalveOnTimeout
+	case StressRSTSpike:
+		return p.HalveOnRSTSpike
+	case Stress429:
+		return p.HalveOn429
+	case Stress503:
+		return p.HalveOn503
+	default:
+		return false
+	}
+}
+
 // Backoff is the per-host adaptive back-off state. It halves the effective rate
 // on each stress signal, down to a floor of one connection per second, and
 // never touches the deadline — the deadline belongs to the connect attempt and
 // the rate belongs here (ADR-0021). It starts at the profile's per-host rate.
 type Backoff struct {
-	base     int // the profile's per-host conn/s ceiling
-	halvings int // how many times the rate has been halved
+	base     int           // the profile's per-host conn/s ceiling
+	halvings int           // how many times the rate has been halved
+	policy   BackoffPolicy // which stress causes the declared offers halve on
 }
 
-// NewBackoff starts a back-off at the profile's per-host rate.
+// NewBackoff starts a back-off at the profile's per-host rate, honouring the
+// profile's declared adaptive-back-off policy.
 func NewBackoff(profile SafetyProfile) *Backoff {
 	base := profile.PerHostConnPerSec
 	if base < 1 {
 		base = 1
 	}
-	return &Backoff{base: base}
+	return &Backoff{base: base, policy: profile.AdaptiveBackoff}
 }
 
-// Signal halves the rate in response to a stress cause. It is idempotent per
-// call — one signal, one halving — and saturates at the floor, so a host that
-// keeps shedding load is not driven below one connection per second. It never
-// reads or writes any deadline.
-func (b *Backoff) Signal(Stress) {
+// Signal halves the rate in response to a stress cause the declared policy
+// enables — a cause the offers did not enable is a no-op, so the runtime never
+// halves on a cause the recorded commitment did not declare. It is idempotent
+// per call — one enabled signal, one halving — and saturates at the floor, so a
+// host that keeps shedding load is not driven below one connection per second.
+// It never reads or writes any deadline.
+func (b *Backoff) Signal(cause Stress) {
+	if !cause.enabledIn(b.policy) {
+		return
+	}
 	if b.Rate() > 1 {
 		b.halvings++
 	}

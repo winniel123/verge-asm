@@ -111,7 +111,9 @@ func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, error) {
 // fanOut inserts a Dispatch for (scan, scheduledTime) under a per-scan advisory
 // lock and enqueues its jobs — per Vantage for the dns Scan, per supplied zone
 // file for the zone Scan. It returns 0 with no error when the tick was already
-// dispatched — skipped and recorded.
+// dispatched: the overlap is skipped (nothing runs, nothing is enqueued) and
+// recorded by the pre-existing fanned-out Dispatch that owns the tick — the
+// unique (scan, scheduled_time) key admits only one.
 func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {

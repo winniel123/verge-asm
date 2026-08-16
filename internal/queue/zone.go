@@ -28,10 +28,8 @@ import (
 func toZoneObservationParams(batchID int64, recs []scan.ZoneRecord) []db.InsertObservationParams {
 	out := make([]db.InsertObservationParams, 0, len(recs))
 	for _, r := range recs {
-		value := []byte(r.Data)
-		if len(value) == 0 {
-			value = []byte("null")
-		}
+		// r.Data is always a marshalled zoneValue (RestateZone skips a record it
+		// cannot marshal), so it is never empty — no empty-value guard is needed.
 		out = append(out, db.InsertObservationParams{
 			BatchID:       batchID,
 			Facet:         "dns-record",
@@ -40,7 +38,7 @@ func toZoneObservationParams(batchID int64, recs []scan.ZoneRecord) []db.InsertO
 			Discriminator: r.Qtype,
 			VantageID:     pgtype.Int8{}, // no vantage choice at all
 			Source:        scan.ZoneSource,
-			Value:         value,
+			Value:         []byte(r.Data),
 			ObservedAt:    tstz(r.ObservedAt.UTC()),
 		})
 	}
