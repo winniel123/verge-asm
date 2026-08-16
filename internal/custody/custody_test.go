@@ -127,6 +127,31 @@ func TestCaseAndTrailingDotFold(t *testing.T) {
 	}
 }
 
+// TestWithinAnyZone exercises the shared containment helper directly — it is now
+// the one label-wise suffix test four packages route through (custody extension,
+// cold-scan opt-in, signal InDeclaredZone, wildcard-discrimination population),
+// so its ASCII fold and label-wise (not string) matching are locked here.
+func TestWithinAnyZone(t *testing.T) {
+	zones := []string{"Example.COM", "corp.test"}
+	cases := map[string]bool{
+		"example.com":          true,  // apex, case-folded
+		"api.example.com.":     true,  // subtree, trailing dot
+		"corp.test":            true,  // second zone apex
+		"evilexample.com":      false, // string suffix, not a label suffix
+		"example.com.evil.net": false, // prefix, not suffix
+		"test":                 false, // parent of a zone, not within it
+		"":                     false,
+	}
+	for name, want := range cases {
+		if got := WithinAnyZone(name, zones); got != want {
+			t.Errorf("WithinAnyZone(%q) = %v, want %v", name, got, want)
+		}
+	}
+	if WithinAnyZone("example.com", nil) {
+		t.Error("no zones must contain nothing")
+	}
+}
+
 // TestNoRegistryExpansionInputReachesTheDerivation is the structural proof of
 // AC-1: the Estate accepts only confirmed Seeds. A registry-proposed address
 // scope the operator has not confirmed is simply not an input, so an address

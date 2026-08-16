@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/signal"
@@ -320,7 +321,7 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 			Resolution:     c.outcome,
 			Addresses:      c.addresses,
 			ZoneDeclared:   declared[name],
-			InDeclaredZone: coveredBy(name, zoneDomains),
+			InDeclaredZone: custody.WithinAnyZone(name, zoneDomains),
 		}
 		if target, ok := cnameTarget[name]; ok {
 			f.CNAMETarget = target
@@ -395,17 +396,6 @@ func composeResolution(classes map[string]resolutionValue, lame bool) composedRe
 	return out
 }
 
-// coveredBy reports whether a Name falls within any declared zone domain, by the
-// same label-wise suffix rule the estate uses everywhere (ADR-0055): the name is
-// the domain, or ends with "." + domain.
-func coveredBy(name string, domains []string) bool {
-	for _, d := range domains {
-		if name == d || strings.HasSuffix(name, "."+d) {
-			return true
-		}
-	}
-	return false
-}
 
 func sortedKeys(m map[string]struct{}) []string {
 	out := make([]string, 0, len(m))

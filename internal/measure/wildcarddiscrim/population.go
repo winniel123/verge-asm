@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	rw "github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
@@ -37,7 +38,10 @@ func ControlPopulation(names, seedScopes []string) []string {
 		if !ok {
 			continue
 		}
-		if !containedInAnySeed(p, seeds) {
+		// Subtree containment is the one label-wise suffix test the model owns
+		// (custody.WithinAnyZone) — parents and seeds are already CanonicalName'd,
+		// so this only single-sources the rule rather than re-deriving it.
+		if !custody.WithinAnyZone(p, seeds) {
 			continue
 		}
 		seen[p] = struct{}{}
@@ -58,19 +62,4 @@ func parent(name string) (string, bool) {
 		return "", false
 	}
 	return name[i+1:], true
-}
-
-// containedInAnySeed is CONTEXT.md's subtree containment: label-wise suffix
-// comparison. A parent sits inside a Seed scope when it equals the scope or is a
-// subdomain of it.
-func containedInAnySeed(name string, seeds []string) bool {
-	for _, s := range seeds {
-		if s == "" {
-			continue
-		}
-		if name == s || strings.HasSuffix(name, "."+s) {
-			return true
-		}
-	}
-	return false
 }

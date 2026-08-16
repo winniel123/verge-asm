@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
-	"strings"
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/custody"
@@ -71,31 +70,23 @@ func coldScope(ctx context.Context, q *db.Queries, resolutions []custody.Resolut
 			}
 		case "name":
 			if s.NameDomain.Valid {
-				domains = append(domains, strings.ToLower(strings.TrimSuffix(s.NameDomain.String, ".")))
+				// Raw zone key; custody.WithinAnyZone folds ASCII case and the
+				// trailing dot label-wise, so no string-level normalisation here.
+				domains = append(domains, s.NameDomain.String)
 			}
 		}
 	}
 
 	addrs := map[netip.Addr]bool{}
 	for _, r := range resolutions {
-		if ownerUnderAnyDomain(r.Owner, domains) {
+		// The one label-wise, ASCII-folded containment test the model owns: a raw
+		// strings.ToLower + HasSuffix here would fold Unicode octets the protocol
+		// does not and compare a name as a string (ADR-0055, CONTEXT.md `Name`).
+		if custody.WithinAnyZone(r.Owner, domains) {
 			addrs[r.Address.Unmap()] = true
 		}
 	}
 	return scan.ColdScope{AddressPrefixes: prefixes, Addresses: addrs}, nil
-}
-
-// ownerUnderAnyDomain reports whether a resolution owner (a name) falls under
-// one of the opted-in name-scope domains — the domain itself or a subdomain of
-// it. Matching is case-insensitive and ignores a trailing dot.
-func ownerUnderAnyDomain(owner string, domains []string) bool {
-	o := strings.ToLower(strings.TrimSuffix(owner, "."))
-	for _, d := range domains {
-		if o == d || strings.HasSuffix(o, "."+d) {
-			return true
-		}
-	}
-	return false
 }
 
 // enqueueColdJob enqueues one connect-outcome job for one Vantage across the full
