@@ -4,6 +4,11 @@ FROM scan
 WHERE enabled = TRUE
 ORDER BY id;
 
+-- name: ListScans :many
+SELECT id, kind, enabled, cadence_seconds, created_at
+FROM scan
+ORDER BY id;
+
 -- name: GetScanByKind :one
 SELECT id, kind, enabled, cadence_seconds, created_at
 FROM scan
