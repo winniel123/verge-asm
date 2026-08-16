@@ -77,6 +77,9 @@ The zone is covered by its own `zone` scan on the **re-supply interval** you set
 (shipped monthly). Let a zone age past two intervals and it ages into a `Gap` — the
 system tells you the source went stale instead of trusting old bytes.
 
+For what a zone file is, why removal detection needs one, and how to export one from
+common DNS providers or your own name servers, see **[zone-files.md](zone-files.md)**.
+
 ### 3. Add an internet vantage (provision a prober)
 
 **Exposure requires an outside observer, unconditionally.** A single all-in-one
@@ -139,7 +142,7 @@ and the scan still commits as `completed`, so a wrong resolver fails silently. T
 the one setting you may need to change before the first scan.
 
 Scans dispatch on their own cadence, but you can kick the first one immediately from
-the worker (see [running.md](running.md#running-a-scan-on-demand)):
+the worker (see [running.md → On-demand scan triggers](running.md#on-demand-scan-triggers)):
 
 ```sh
 docker compose run --rm worker -trigger dns
@@ -155,11 +158,11 @@ Once a batch commits, subjects, observations and spans appear across the pages b
 | --- | --- |
 | **Subjects** | The `Name`s, `Address`es, `Service`s and `Endpoint`s in your estate, each drilling into its facet timelines. |
 | **Exposure** | What is reachable from the internet — constructible only once you have both an internal and an internet vantage. |
-| **Signals** | The release-coupled rule firings (the v1 rule set), e.g. a sensitive port reached from the internet, a certificate expiring. |
+| **Signals** | The release-coupled rule firings (the v1 rule set), e.g. a sensitive port reached from the internet, a certificate expiring. Per-signal reference: [signals.md](signals.md). |
 | **Coverage** | What the system measured, what it did **not**, and why — `Gap`s, unread apertures, unevaluable rules. This is where *we cannot construct this claim* lives, and it is a feature, not an error. |
 | **Messages** | The change surface: what moved since last time. Mark read individually or all at once. |
 | **verge-core** | The default port aperture; admins can edit the *frequency* tier (the sensitive tier is not editable — a port you can hide is a signal you can silence). |
-| **Sources** | Enable/disable discovery sources; a toggle is a dated, audit-trailed act. |
+| **Sources** | Enable/disable discovery sources; a toggle is a dated, audit-trailed act. Consent tiers and caveats: [sources.md](sources.md). |
 
 ### Annotations
 
@@ -195,3 +198,7 @@ omitted rather than fabricated.
   than trusting to discipline.
 - When the answer is *we don't know yet*, the product says so in `Coverage` instead
   of inventing certainty. Reading Coverage is as much the job as reading Exposure.
+
+The *why* behind these — and the questions a first run tends to raise (why `Exposure`
+needs two vantages, how to tell a scan that ran from one that failed in silence) — is
+in **[first-run.md](first-run.md)**.
