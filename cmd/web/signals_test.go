@@ -150,12 +150,12 @@ func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
 
 	// A plaintext endpoint: HTTP responded (200) and the certificate is no-tls →
 	// plaintext-http-no-https FIRED, and unauthenticated-request-answered FIRED.
-	f.addHTTPIdentity(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"status":200}`)
+	f.addHTTPIdentity(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"responded","status":200}`)
 	f.addCertificate(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"no-tls"}`)
 
 	// A redirect that does not upgrade and points outside the estate → both redirect
 	// rules FIRED.
-	f.addHTTPIdentity(t, "redir.example.com@198.51.100.6:80/tcp", obsClock, `{"status":301,"redirect_location":"http://outside.test/x"}`)
+	f.addHTTPIdentity(t, "redir.example.com@198.51.100.6:80/tcp", obsClock, `{"outcome":"responded","status":301,"redirect_location":"http://outside.test/x"}`)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
@@ -188,7 +188,7 @@ func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
 	}
 
 	// The version vectors compose the leaves the rules read.
-	for _, ver := range []string{"tls-handshake/v1", "http-exchange/v1", "connect-outcome/v1", "tls-acceptance/v1"} {
+	for _, ver := range []string{"tls-handshake/v1", "http-exchange/v2", "connect-outcome/v1", "tls-acceptance/v1"} {
 		if !strings.Contains(page, ver) {
 			t.Errorf("version vector not rendered composing %q", ver)
 		}

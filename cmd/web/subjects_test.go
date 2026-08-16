@@ -252,7 +252,7 @@ func TestEndpointSubjectsListedAndDrilledDown(t *testing.T) {
 	addNameSeed(t, f, admin.ID, "example.com")
 	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
 	f.addHTTPIdentity(t, "api.example.com@198.51.100.1:443/tcp", obsClock,
-		`{"status":200,"server":"nginx","content_type":"text/html","body_sha256":"sha256:abc","body_bytes":15,"body_truncated":false}`)
+		`{"outcome":"responded","status":200,"server":"nginx","title":"Example API"}`)
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
@@ -285,7 +285,7 @@ func TestNamelessEndpointRendersAndRedirectRecorded(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	f.addHTTPIdentity(t, "@198.51.100.2:80/tcp", obsClock,
-		`{"status":301,"server":"nginx","redirect_location":"https://x.example/","body_sha256":"sha256:e3b0c4","body_bytes":0,"body_truncated":false}`)
+		`{"outcome":"responded","status":301,"server":"nginx","redirect_location":"https://x.example/"}`)
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 

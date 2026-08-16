@@ -108,7 +108,7 @@ func TestPlaintextHTTPNoHTTPS(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	const wantVer = "rule@v1|http-exchange/v1|tls-handshake/v1"
+	const wantVer = "rule@v1|http-exchange/v2|tls-handshake/v1"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}
@@ -162,7 +162,7 @@ func TestRedirectToHostOutsideEstate(t *testing.T) {
 	}
 	// The vector composes http-exchange and both resolution leaves (the estate
 	// membership is Derived from resolution).
-	const wantVer = "rule@v1|http-exchange/v1|resolution-walk/v1|wildcard-discrimination/v1"
+	const wantVer = "rule@v1|http-exchange/v2|resolution-walk/v1|wildcard-discrimination/v1"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}

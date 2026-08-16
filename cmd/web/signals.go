@@ -9,6 +9,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -531,10 +532,12 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 			f.CertOutcome = o
 		}
 		if id, ok := httpID[sub]; ok {
-			f.HTTPResponded = true
+			// Only a `responded` Endpoint is inside the HTTP rules' domain; a reached
+			// Service that returned no-http-response is a value, but outside them.
+			f.HTTPResponded = id.Outcome == httpexchange.OutcomeResponded
 			f.HTTPStatus = id.Status
 			f.RedirectLocation = id.RedirectLocation
-			if f.HTTPStatus >= 300 && f.HTTPStatus <= 399 && id.RedirectLocation != "" {
+			if f.HTTPResponded && f.HTTPStatus >= 300 && f.HTTPStatus <= 399 && id.RedirectLocation != "" {
 				_, host := signal.RedirectTarget(id.RedirectLocation)
 				f.RedirectHostInEstate = inEstate(host)
 			}

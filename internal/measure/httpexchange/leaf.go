@@ -31,7 +31,7 @@ import (
 // output-affecting change and only on one, gated bidirectionally by this leaf's
 // own golden corpus (§4.4), separately from the sibling leaves so a break names
 // its leaf.
-const Version = "http-exchange/v1"
+const Version = "http-exchange/v2"
 
 // Kind is the JobSpec.Kind that dispatches to this leaf. It is distinct from the
 // `hot` Scan's DB kind and from the `connect-outcome` leaf it rides: the Scan is

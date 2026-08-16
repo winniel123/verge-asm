@@ -1,8 +1,6 @@
 package corpus
 
 import (
-	"bytes"
-
 	he "github.com/winniel123/verge-asm/internal/measure/httpexchange"
 )
 
@@ -34,11 +32,14 @@ var AllCells = []string{
 	"H1/named-200", "H1/nameless-204",
 	// H2 — a redirect is recorded (its Location) and NOT followed.
 	"H2/redirect-not-followed",
-	// H3 — the body read is capped at 64 KB and the overrun is marked truncated.
-	"H3/body-capped",
-	// H4 — a failed exchange creates no Endpoint and emits no observation.
-	"H4/failure-no-endpoint",
-	// H5 — one batch of mixed targets: successes emit, failures are omitted.
+	// H3 — the admitted closed set: <title> lifted from the body and the 401
+	// WWW-Authenticate challenge, with NO body hash, length, or Content-Type.
+	"H3/admitted-set",
+	// H4 — a reached Service that speaks no HTTP records the no-http-response
+	// negative and still creates the Endpoint.
+	"H4/no-http-response",
+	// H5 — one batch of mixed targets: every reached target emits, the non-HTTP one
+	// as no-http-response.
 	"H5/mixed-batch",
 }
 
@@ -55,25 +56,20 @@ func scope(targets []he.Target) he.Scope {
 	}
 }
 
-// overCapBody is a body one byte longer than the 64 KB cap, so the row exercises
-// truncation. The emitted value carries only the digest and byte count, so the
-// golden file stays tiny regardless of the body's size.
-var overCapBody = bytes.Repeat([]byte("a"), he.DefaultParams().BodyCapBytes+1)
-
 // Rows is the checked-in corpus. Every cell in AllCells appears in some row's
 // Cells; the coverage test fails the build (naming the cell) if one does not.
 var Rows = []Row{
 	// ---- H1/named-200 ----
 	{
 		Cells:        []string{"H1/named-200"},
-		Claim:        "a completed GET / to a named (Name, Service) pair creates the Endpoint and records its http-identity — status, Server header, and a digest over the body",
+		Claim:        "a completed GET / to a named (Name, Service) pair creates the Endpoint and records its http-identity — outcome responded, status, Server header, and the page <title> lifted from the body (never the body itself)",
 		SpecVerified: true,
 		Params:       params(),
 		Step: Step{
 			Batch: "b1",
 			Scope: scope([]he.Target{{Name: "api.example.com", Address: "198.51.100.10", Port: 443, Scheme: "https"}}),
 			Exchange: newScript(map[string]he.ExchangeResult{
-				"api.example.com@198.51.100.10:443/tcp": {Status: 200, Server: "nginx", ContentType: "text/html", Body: []byte("<!doctype html>")},
+				"api.example.com@198.51.100.10:443/tcp": {Status: 200, Server: "nginx", Body: []byte("<!doctype html><html><head><title>Example API</title></head><body>ok</body></html>")},
 			}),
 		},
 		Golden: "http_named_200.ndjson",
@@ -111,26 +107,30 @@ var Rows = []Row{
 		Golden: "http_redirect_not_followed.ndjson",
 	},
 
-	// ---- H3/body-capped ----
+	// ---- H3/admitted-set ----
 	{
-		Cells:        []string{"H3/body-capped"},
-		Claim:        "a body longer than the 64 KB cap is truncated to the cap; body_bytes equals the cap, body_truncated is true, and the digest is over the capped body",
+		Cells:        []string{"H3/admitted-set"},
+		Claim:        "the admitted closed set only: a 401 records outcome responded, status, Server, the <title> lifted from the body, and the WWW-Authenticate challenge — and NO body hash, body length, or Content-Type",
 		SpecVerified: true,
 		Params:       params(),
 		Step: Step{
 			Batch: "b1",
-			Scope: scope([]he.Target{{Name: "big.example.com", Address: "198.51.100.13", Port: 443, Scheme: "https"}}),
+			Scope: scope([]he.Target{{Name: "auth.example.com", Address: "198.51.100.13", Port: 443, Scheme: "https"}}),
 			Exchange: newScript(map[string]he.ExchangeResult{
-				"big.example.com@198.51.100.13:443/tcp": {Status: 200, Server: "caddy", Body: overCapBody},
+				"auth.example.com@198.51.100.13:443/tcp": {
+					Status: 401, Server: "caddy",
+					WWWAuthenticate: `Basic realm="restricted"`,
+					Body:            []byte("<title>Sign in</title>"),
+				},
 			}),
 		},
-		Golden: "http_body_capped.ndjson",
+		Golden: "http_admitted_set.ndjson",
 	},
 
-	// ---- H4/failure-no-endpoint ----
+	// ---- H4/no-http-response ----
 	{
-		Cells:        []string{"H4/failure-no-endpoint"},
-		Claim:        "a transport failure is not an identity: no HTTP response completed, so no Endpoint is created and no observation is emitted at all",
+		Cells:        []string{"H4/no-http-response"},
+		Claim:        "a reached Service that returns no valid HTTP response records the no-http-response negative as a VALUE and still creates the Endpoint — never an absence",
 		SpecVerified: true,
 		Params:       params(),
 		Step: Step{
@@ -140,13 +140,13 @@ var Rows = []Row{
 				"down.example.com@198.51.100.14:443/tcp": {Failed: true, Err: "connection reset by peer"},
 			}),
 		},
-		Golden: "http_failure_no_endpoint.ndjson",
+		Golden: "http_no_http_response.ndjson",
 	},
 
 	// ---- H5/mixed-batch ----
 	{
 		Cells:        []string{"H5/mixed-batch"},
-		Claim:        "one batch of three targets — a 200, a failure, and a nameless 200 — emits an Endpoint for each successful exchange in target order and omits the failed one",
+		Claim:        "one batch of three reached targets — a 200, a non-HTTP one, and a nameless 200 — emits an Endpoint for each in target order, the non-HTTP one as no-http-response",
 		SpecVerified: true,
 		Params:       params(),
 		Step: Step{
@@ -157,8 +157,8 @@ var Rows = []Row{
 				{Name: "", Address: "198.51.100.22", Port: 8080, Scheme: "http"},
 			}),
 			Exchange: newScript(map[string]he.ExchangeResult{
-				"a.example.com@198.51.100.20:443/tcp": {Status: 200, Server: "nginx", Body: []byte("ok")},
-				// b.example.com fails — omitted from the output.
+				"a.example.com@198.51.100.20:443/tcp": {Status: 200, Server: "nginx", Body: []byte("<title>A</title>")},
+				// b.example.com is reached but speaks no HTTP — recorded no-http-response.
 				"b.example.com@198.51.100.21:443/tcp": {Failed: true, Err: "i/o timeout"},
 				"@198.51.100.22:8080/tcp":             {Status: 200, Server: "gunicorn", Body: []byte("{}")},
 			}),

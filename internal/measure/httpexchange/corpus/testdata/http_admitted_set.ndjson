@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"http-exchange","facet":"http-identity","subject":"auth.example.com@198.51.100.13:443/tcp","vantage":"v1","address":"198.51.100.13","data":{"outcome":"responded","status":401,"server":"caddy","title":"Sign in","www_authenticate":"Basic realm=\"restricted\""}}

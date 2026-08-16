@@ -53,9 +53,11 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 // RunWithExchanger executes the leaf against an arbitrary Exchanger. Separating
 // the exchanger from Run is what lets one code path be driven by the paced network
 // adapter in production and by a scripted exchanger in a hermetic test. It produces
-// one `http-identity` observation per target whose exchange COMPLETED — creating
-// the Endpoint subject for that `(Name, Service)` pair — and no observation for a
-// target whose exchange failed, which records no identity and creates no Endpoint.
+// exactly one `http-identity` observation per target — every target here rode a
+// `reached` TCP connect, so its Endpoint exists — recording `responded` where the
+// GET / returned an HTTP response and the `no-http-response` negative where the
+// reached Service returned none. A reached Service is an Endpoint whether or not it
+// speaks HTTP (ADR-0011); the negative is a value, never an omission.
 func RunWithExchanger(ctx context.Context, ex Exchanger, batch string, scope Scope, w io.Writer) error {
 	bodyCap := scope.Params.BodyCapBytes
 	if bodyCap <= 0 {
@@ -64,11 +66,7 @@ func RunWithExchanger(ctx context.Context, ex Exchanger, batch string, scope Sco
 	var out []wire.Observation
 	for _, target := range scope.Targets {
 		res := ex.Exchange(ctx, target)
-		id, ok := Identity(res, bodyCap)
-		if !ok {
-			// The exchange did not complete: no Endpoint, no observation.
-			continue
-		}
+		id := Identity(res, bodyCap)
 		out = append(out, EmitEndpoint(batch, scope.Vantage, target, id))
 	}
 	return writeNDJSON(w, out)

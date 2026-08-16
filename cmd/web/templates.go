@@ -1058,9 +1058,9 @@ which only you know, so this screen states none.</p>
 {{if .HasIdentity}}
 <div class="kv"><div class="k">Status</div><div><span class="badge">{{.Status}}</span></div></div>
 {{if .Server}}<div class="kv"><div class="k">Server</div><div class="mono">{{.Server}}</div></div>{{end}}
-{{if .ContentType}}<div class="kv"><div class="k">Content-Type</div><div class="mono">{{.ContentType}}</div></div>{{end}}
+{{if .Title}}<div class="kv"><div class="k">Title</div><div class="mono">{{.Title}}</div></div>{{end}}
+{{if .WWWAuthenticate}}<div class="kv"><div class="k">WWW-Authenticate</div><div class="mono">{{.WWWAuthenticate}}</div></div>{{end}}
 {{if .RedirectLocation}}<div class="kv"><div class="k">Redirect</div><div class="mono">{{.RedirectLocation}} <span class="muted">(recorded, not followed)</span></div></div>{{end}}
-{{if .BodySHA256}}<div class="kv"><div class="k">Body</div><div class="mono">{{.BodyBytes}} bytes{{if .BodyTruncated}} <span class="muted">(capped at 64 KB)</span>{{end}} · {{.BodySHA256}}</div></div>{{end}}
 {{else}}<p class="muted">No HTTP identity value recorded.</p>{{end}}
 </div>
 

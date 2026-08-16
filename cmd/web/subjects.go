@@ -14,6 +14,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 )
 
 // The Subjects screen (v1 spec §6.6, ADR-0072). At wave-0 only `Name` subjects
@@ -134,14 +135,15 @@ type endpointPageData struct {
 	// (ADR-0072). An Endpoint closes when either leg withdraws (CONTEXT.md
 	// `Endpoint`).
 	Withdrawn bool
-	// The current HTTP identity, decoded for display.
+	// The current HTTP identity, decoded for display — the admitted closed set
+	// (ADR-0011): outcome, status, Server, page <title>, WWW-Authenticate challenge,
+	// and the recorded redirect Location. No body hash, length, or Content-Type.
+	Outcome          string
 	Status           string
 	Server           string
-	ContentType      string
+	Title            string
+	WWWAuthenticate  string
 	RedirectLocation string
-	BodySHA256       string
-	BodyBytes        int
-	BodyTruncated    bool
 	HasIdentity      bool
 	// Citation is the "why is this here" chain: Endpoint → its Name leg → its
 	// Service leg → the Address → the Seed the chain terminates at.
@@ -271,16 +273,18 @@ func decodeReachability(raw []byte) reachabilityValue {
 }
 
 // httpIdentityValue is the JSON payload of an http-identity observation — the
-// shape the http-exchange leaf emits (#198). The web layer reads only the fields
-// it renders; the body itself is never stored, only its digest and length.
+// shape the http-exchange leaf emits (#198). It is a closed union of admitted
+// fields (ADR-0011): the outcome (`responded` | `no-http-response`), the status,
+// the Server header, the page <title>, the WWW-Authenticate challenge, and the
+// recorded redirect Location. The body itself is never stored — no hash, no
+// length, no Content-Type.
 type httpIdentityValue struct {
+	Outcome          string `json:"outcome"`
 	Status           int    `json:"status"`
 	Server           string `json:"server"`
-	ContentType      string `json:"content_type"`
+	Title            string `json:"title"`
+	WWWAuthenticate  string `json:"www_authenticate"`
 	RedirectLocation string `json:"redirect_location"`
-	BodySHA256       string `json:"body_sha256"`
-	BodyBytes        int    `json:"body_bytes"`
-	BodyTruncated    bool   `json:"body_truncated"`
 }
 
 func decodeHTTPIdentity(raw []byte) httpIdentityValue {
@@ -290,9 +294,13 @@ func decodeHTTPIdentity(raw []byte) httpIdentityValue {
 }
 
 // httpIdentityLabel renders a short one-line identity for the listing: the status
-// code and, where present, the Server header (e.g. `200 · nginx`). An empty status
-// renders nothing, which the row shows as an em dash.
+// code and, where present, the Server header (e.g. `200 · nginx`). A
+// no-http-response Endpoint — reached but speaking no HTTP — renders that negative
+// as a value rather than an em dash; an empty (unmeasured) value renders nothing.
 func httpIdentityLabel(v httpIdentityValue) string {
+	if v.Outcome == httpexchange.OutcomeNoHTTPResponse {
+		return "no HTTP response"
+	}
 	if v.Status == 0 {
 		return ""
 	}
@@ -352,14 +360,13 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		Service:          service,
 		Address:          addr,
 		Port:             port,
+		Outcome:          id.Outcome,
 		Status:           httpIdentityLabel(id),
 		Server:           id.Server,
-		ContentType:      id.ContentType,
+		Title:            id.Title,
+		WWWAuthenticate:  id.WWWAuthenticate,
 		RedirectLocation: id.RedirectLocation,
-		BodySHA256:       id.BodySHA256,
-		BodyBytes:        id.BodyBytes,
-		BodyTruncated:    id.BodyTruncated,
-		HasIdentity:      id.Status != 0,
+		HasIdentity:      id.Outcome != "",
 	}
 	data.Citation, data.CitationTerminated, data.Withdrawn = s.buildEndpointCitation(r, name, service, addr)
 	data.Timelines = s.buildTimelines(r, "endpoint", subject.SubjectKey)
