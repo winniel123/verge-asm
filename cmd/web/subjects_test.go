@@ -169,6 +169,43 @@ func TestSubjectDrilldownRendersCitationChainAndPlaceholders(t *testing.T) {
 	}
 }
 
+// ADR-0107 (#255): a CT-admitted Name that our resolver has since measured shows
+// the CT admission as its Citation, not the introducing resolution — the admission
+// is why the Name is here; the resolution is only that it is. So the "why is this
+// here" chain reads "Admitted by · certificate transparency" and terminates at the
+// covering Seed, while the current resolution value still renders.
+func TestSubjectDrilldownCitesCTAdmissionOverResolution(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	// The Name was admitted by CT, then resolved by our own resolver (wave-1).
+	f.addAdmittedName(t, "vpn.example.com", obsClock)
+	f.addResolution(t, admin.ID, "vpn.example.com", "dns", obsClock.Add(24*time.Hour), `{"outcome":"Resolved","addresses":["203.0.113.9"]}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	drill := getBody(t, ac, base+"/subjects/vpn.example.com", http.StatusOK)
+
+	// The citation is the admission, terminating at the covering Seed.
+	for _, want := range []string{
+		"Citation chain", "Admitted by", "certificate transparency", "ct",
+		"name scope example.com",
+	} {
+		if !strings.Contains(drill, want) {
+			t.Errorf("CT-admitted citation missing %q; body: %s", want, drill)
+		}
+	}
+	// It must NOT read as an introducing resolution — that is the wrong answer to
+	// "why is this here" for a CT-admitted Name (ADR-0107).
+	if strings.Contains(drill, "Introduced by · observation") {
+		t.Errorf("CT-admitted Name cited its resolution, not its admission; body: %s", drill)
+	}
+	// Membership is still measured: the current resolution value renders.
+	if !strings.Contains(drill, "Resolved") || !strings.Contains(drill, "203.0.113.9") {
+		t.Errorf("current resolution of a CT-admitted Name not rendered; body: %s", drill)
+	}
+}
+
 func TestSubjectDrilldownRendersCurrentAndClosedTimelines(t *testing.T) {
 	// AC6: re-running the dns Scan with a changed answer produces a new Span and
 	// closes the old; the drill-down renders current + closed timelines.

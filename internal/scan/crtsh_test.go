@@ -3,7 +3,31 @@ package scan
 import (
 	"reflect"
 	"testing"
+
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
+
+// TestAdmittedNameKeyMatchesResolverKey locks the load-bearing invariant behind
+// GetNameCitation's admission match (ADR-0107): admitted_name.name is stored via
+// normaliseName, but the citation query matches it against the resolution
+// subject_key — the ADR-0055 key the resolver assigns via CanonicalName. If those
+// two normalisations ever diverge, a CT-admitted Name's admission silently fails
+// to match and its citation wrongly falls back to the introducing resolution, the
+// exact answer ADR-0107 forbids. This guards that seam so a divergence breaks a
+// test rather than a citation.
+func TestAdmittedNameKeyMatchesResolverKey(t *testing.T) {
+	for _, in := range []string{
+		"example.com",
+		"VPN.Example.COM.",
+		"a.b.example.com",
+		"MiXeD.Case.Example.Com",
+		"trailing.dot.example.com.",
+	} {
+		if got, want := normaliseName(in), resolutionwalk.CanonicalName(in); got != want {
+			t.Errorf("normaliseName(%q)=%q but CanonicalName=%q — the admission-citation match (ADR-0107) would silently miss", in, got, want)
+		}
+	}
+}
 
 // AdmittedNames is the whole admission decision, and it enforces two rulings:
 // ADR-0060 (no asterisk-label value admits a Name) and ADR-0047 (the Seed decides

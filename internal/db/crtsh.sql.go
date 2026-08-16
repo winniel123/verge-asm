@@ -37,6 +37,39 @@ func (q *Queries) InsertAdmittedName(ctx context.Context, arg InsertAdmittedName
 	return err
 }
 
+const listAdmittedNames = `-- name: ListAdmittedNames :many
+SELECT DISTINCT name
+FROM admitted_name
+ORDER BY name
+`
+
+// The distinct CT-admitted names the dns Scan also resolves (ADR-0107, wave-1).
+// A source that admits without observing leaves an admitted_name row per Name it
+// named; unioned into the dns Scan's resolution set, each acquires a resolution
+// timeline from our own resolver and becomes a measured member or leaves by Name
+// Error (ADR-0027, ADR-0096 §1). DISTINCT because an append-only source re-admits
+// the same names on every poll; unconditional of the source's current enablement,
+// since resolution is the dns Scan's act and a Name leaves only by measurement.
+func (q *Queries) ListAdmittedNames(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listAdmittedNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNameSeeds = `-- name: ListNameSeeds :many
 SELECT id, name_domain
 FROM seed

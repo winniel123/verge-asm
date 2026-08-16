@@ -639,11 +639,49 @@ func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	})
 }
 
+// hopKindAdmission and hopKindObservation are the two ways a Name enters, as
+// GetNameCitation's reconciled `hop_kind` reports them (ADR-0107). Named here so
+// the Go side reads one contract with the SQL literals rather than repeating the
+// string at every comparison and fixture.
+const (
+	hopKindAdmission   = "admission"
+	hopKindObservation = "observation"
+)
+
+// nameCitationHop renders the introducing hop of a Name's Citation, reconciled
+// per ADR-0107: a CT `admission` hop reads as certificate transparency admitting
+// the Name (the CT Batch that introduced it, ADR-0027), while an `observation` hop
+// reads as the resolution that first measured it. Membership is measured either
+// way; the admission is why the Name is here, the observation is that it is.
+func nameCitationHop(cit db.GetNameCitationRow) citationHop {
+	batch := " Scan · batch #" + strconv.FormatInt(cit.BatchID, 10)
+	if cit.HopKind == hopKindAdmission {
+		detail := "source " + cit.Source
+		if cit.ObservedAt.Valid {
+			detail = "admitted " + cit.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + " · " + detail
+		}
+		return citationHop{
+			Label:  "Admitted by · certificate transparency",
+			Value:  "certificate transparency · " + cit.ScanKind + batch,
+			Detail: detail,
+		}
+	}
+	detail := "source " + cit.Source
+	if cit.ObservedAt.Valid {
+		detail = "first measured " + cit.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + " · " + detail
+	}
+	return citationHop{
+		Label:  "Introduced by · observation",
+		Value:  "resolution-walk · " + cit.ScanKind + batch,
+		Detail: detail,
+	}
+}
+
 // buildCitation assembles the "why is this here" chain for a Name: the subject
-// itself, the observation that introduced it, and the Seed the chain terminates
-// at. Every hop is best-effort — a missing hop degrades to a shorter chain
-// rather than a 500, since the card is diagnostic and a partial answer still
-// helps. It reports whether the chain reached a Seed.
+// itself, the hop that introduced it (a CT admission or a resolution, ADR-0107),
+// and the Seed the chain terminates at. Every hop is best-effort — a missing hop
+// degrades to a shorter chain rather than a 500, since the card is diagnostic and
+// a partial answer still helps. It reports whether the chain reached a Seed.
 func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool) {
 	hops := []citationHop{{
 		Label: "Subject · Name", Value: key,
@@ -654,15 +692,7 @@ func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err == nil {
-		detail := "source " + cit.Source
-		if cit.ObservedAt.Valid {
-			detail = "first measured " + cit.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + " · " + detail
-		}
-		hops = append(hops, citationHop{
-			Label:  "Introduced by · observation",
-			Value:  "resolution-walk · " + cit.ScanKind + " Scan · batch #" + strconv.FormatInt(cit.BatchID, 10),
-			Detail: detail,
-		})
+		hops = append(hops, nameCitationHop(cit))
 	}
 
 	seed, err := s.store.FindCoveringNameSeed(r.Context(), key)

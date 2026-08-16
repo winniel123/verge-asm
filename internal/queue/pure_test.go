@@ -37,6 +37,52 @@ func TestBackoffGrowsAndCaps(t *testing.T) {
 	}
 }
 
+// Wave-1 (ADR-0107): the dns Scan resolves the union of the name-scope Seed
+// domains and the CT-admitted names, deduplicated. The Seed domains lead and keep
+// their exact string (what the resolver already resolves them as); an admitted
+// name is appended only where it is not already a Seed domain, matched by the
+// lowercase/trailing-dot key both are stored under.
+func TestMergeResolutionNamesUnionsAdmittedNames(t *testing.T) {
+	seeds := []string{"example.com", "example.net"}
+	admitted := []string{"vpn.example.com", "a.b.example.com"}
+	got := mergeResolutionNames(seeds, admitted)
+	want := []string{"example.com", "example.net", "vpn.example.com", "a.b.example.com"}
+	if len(got) != len(want) {
+		t.Fatalf("merged = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("merged[%d] = %q, want %q (Seeds lead, admitted appended)", i, got[i], want[i])
+		}
+	}
+}
+
+func TestMergeResolutionNamesDedupesAgainstSeedsAndItself(t *testing.T) {
+	// An admitted name equal to a Seed domain (here differing only by case and a
+	// trailing dot) must not double the Seed; and admitted names repeated among
+	// themselves collapse to one. The Seed's original string is what survives.
+	seeds := []string{"example.com"}
+	admitted := []string{"Example.com.", "vpn.example.com", "vpn.example.com"}
+	got := mergeResolutionNames(seeds, admitted)
+	want := []string{"example.com", "vpn.example.com"}
+	if len(got) != len(want) {
+		t.Fatalf("merged = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("merged[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestMergeResolutionNamesEmptyAdmittedIsSeedsUnchanged(t *testing.T) {
+	seeds := []string{"example.com", "example.net"}
+	got := mergeResolutionNames(seeds, nil)
+	if len(got) != 2 || got[0] != "example.com" || got[1] != "example.net" {
+		t.Errorf("no admitted names must leave the Seed set unchanged, got %v", got)
+	}
+}
+
 // §4.5's retry budget: the waits before the five attempts span roughly an hour,
 // the budget both measurement jobs and Channel deliveries share. A base of 30s
 // summed to ~15m and quietly missed it.
