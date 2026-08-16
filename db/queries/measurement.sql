@@ -118,12 +118,38 @@ LIMIT $1;
 -- estate exactly while a current resolution cites it. Only a `Resolved` value
 -- cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
 -- so every `Address` held only by a superseded `Resolved` leaves the estate.
-WITH latest AS (
+-- Reads through the live-tier gate (#237, ADR-0041): the hot Scan's Custody
+-- derivation admits an Address only while a resolution a derivation may still read
+-- cites it, so the `cover`/`live` CTE pair below (the inlined twin of
+-- ListLiveObservationsForDerivation, evaluated at @as_of with k = @floor_cadences)
+-- keeps an Address held only by an evidential answer out of the probed estate.
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM (sqlc.arg(as_of)::timestamptz - o.observed_at))
+          <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key, o.vantage_id)
         o.subject_key AS subject_key,
         o.value->>'outcome' AS outcome,
         o.value AS value
-    FROM observation o
+    FROM live o
     WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
     ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC
 )

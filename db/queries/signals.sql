@@ -1,21 +1,50 @@
--- Reads behind the Signals screen (#202). All three are additive read queries
--- over the wave-0/1 corpus (observation / vantage / zone_file) — no new schema.
+-- Reads behind the Signals screen (#202). All three observation reads are additive
+-- read queries over the wave-0/1 corpus (observation / vantage) — no new schema.
 -- The web layer folds these into the per-Name Derived snapshot the `Signal`
 -- engine (internal/signal) evaluates: the five Name-only rules read `resolution`
 -- (which `resolution-walk` and `wildcard-discrimination` decide jointly), the
 -- `dns-record` CNAME target and NS delegation, and the operator's zone file.
+--
+-- Every observation read here reads through the live-tier gate (#237, ADR-0041):
+-- the `cover`/`live` CTE pair is the inlined twin of
+-- ListLiveObservationsForDerivation (db/queries/retention.sql), evaluated against
+-- the caller's read instant @as_of with k = @floor_cadences, so the Signal engine
+-- never folds an evidential row into a Derived snapshot. ListZoneDeclarations
+-- reads the operator's supplied zone file (input, not measured) and is not gated.
 
 -- name: ListNameResolutionsByClass :many
 -- The latest `resolution` observation per (Name, Vantage class). The engine folds
 -- these into a cross-class composed outcome (for the four cross-class rules) and
 -- keeps the internet-class view apart (for the one vantage-scoped rule, ADR-0071).
--- DISTINCT ON keeps the most recent value per (name, class).
-WITH latest AS (
+-- DISTINCT ON keeps the most recent value per (name, class). Reads through the
+-- live-tier gate (#237).
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM (sqlc.arg(as_of)::timestamptz - o.observed_at))
+          <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key, v.class)
         o.subject_key AS subject_key,
         v.class       AS class,
         o.value       AS value
-    FROM observation o
+    FROM live o
     JOIN vantage v ON v.id = o.vantage_id
     WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
     ORDER BY o.subject_key, v.class, o.observed_at DESC, o.id DESC
@@ -28,13 +57,35 @@ ORDER BY subject_key, class;
 -- The latest `dns-record` observation per (Name, qtype discriminator). The engine
 -- reads two of these: the CNAME discriminator carries the alias target (for
 -- cname-target-name-error) and the NS discriminator carries the delegation walk's
--- Lame verdict (folded into the composed resolution the rules read).
-WITH latest AS (
+-- Lame verdict (folded into the composed resolution the rules read). Reads through
+-- the live-tier gate (#237).
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM (sqlc.arg(as_of)::timestamptz - o.observed_at))
+          <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key, o.discriminator)
         o.subject_key   AS subject_key,
         o.discriminator AS discriminator,
         o.value         AS value
-    FROM observation o
+    FROM live o
     WHERE o.facet = 'dns-record' AND o.subject_kind = 'name'
     ORDER BY o.subject_key, o.discriminator, o.observed_at DESC, o.id DESC
 )
@@ -47,13 +98,35 @@ ORDER BY subject_key, discriminator;
 -- engine reads the internet-class leg for `sensitive-port-reached-from-internet`
 -- (ADR-0071: a class-scoped internet, existential composition — the internal twin
 -- is a different, refused rule). DISTINCT ON keeps the most recent value per
--- (service, class), mirroring the Name resolution read one facet over.
-WITH latest AS (
+-- (service, class), mirroring the Name resolution read one facet over. Reads
+-- through the live-tier gate (#237).
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM (sqlc.arg(as_of)::timestamptz - o.observed_at))
+          <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key, v.class)
         o.subject_key AS subject_key,
         v.class       AS class,
         o.value       AS value
-    FROM observation o
+    FROM live o
     JOIN vantage v ON v.id = o.vantage_id
     WHERE o.facet = 'reachability' AND o.subject_kind = 'service'
     ORDER BY o.subject_key, v.class, o.observed_at DESC, o.id DESC
@@ -69,12 +142,33 @@ ORDER BY subject_key, class;
 -- tag. The parsed leaf attributes the five certificate-detail rules need are not
 -- stored (only the fingerprint chain is), so those rules render a presented chain
 -- `not-evaluable` until a certificate-parsing leaf lands. DISTINCT ON keeps the
--- most recent value per Endpoint.
-WITH latest AS (
+-- most recent value per Endpoint. Reads through the live-tier gate (#237).
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM (sqlc.arg(as_of)::timestamptz - o.observed_at))
+          <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence
+),
+latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
         o.value       AS value
-    FROM observation o
+    FROM live o
     WHERE o.subject_kind = 'endpoint' AND o.facet = 'certificate'
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
@@ -86,7 +180,8 @@ ORDER BY subject_key;
 -- The latest supplied zone file per name-scope Seed, with its declared domain and
 -- content, so the web layer can extract the owner names the operator declares
 -- (signal.DeclaredNames) — the domain of the two zone rules. One row per Seed;
--- DISTINCT ON keeps the most recent supply.
+-- DISTINCT ON keeps the most recent supply. This reads the operator's supplied
+-- zone file — input, not a measurement — so it does not pass the live-tier gate.
 SELECT DISTINCT ON (z.seed_id)
     s.name_domain AS name_domain,
     z.content     AS content

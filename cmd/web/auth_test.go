@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -20,6 +21,17 @@ import (
 func start(t *testing.T, f *fakeStore, setupToken string) string {
 	t.Helper()
 	ts := httptest.NewServer(newServer(f, testKey, setupToken, fixedClock()).handler())
+	t.Cleanup(ts.Close)
+	return ts.URL
+}
+
+// startAt is start with the server clock pinned to now — the read instant every
+// derivation read of the observation corpus is gated against (#237). Two servers
+// over one fakeStore at different clocks read the same corpus across the live
+// boundary without any delete.
+func startAt(t *testing.T, f *fakeStore, now time.Time) string {
+	t.Helper()
+	ts := httptest.NewServer(newServer(f, testKey, "", func() time.Time { return now }).handler())
 	t.Cleanup(ts.Close)
 	return ts.URL
 }

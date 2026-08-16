@@ -134,8 +134,11 @@ type Querier interface {
 	// lifecycle of its own, so its membership is grounded in evidence about ANOTHER
 	// subject: the Name whose Resolved answer names it. Where a resolution stops
 	// citing the Address this returns no row, which is exactly the `uncited` ground a
-	// departure records. Best-effort: the longest-lived citing Name, one hop.
-	FindNameCitingAddress(ctx context.Context, address string) (FindNameCitingAddressRow, error)
+	// departure records. Best-effort: the longest-lived citing Name, one hop. Reads
+	// through the live-tier gate (#237): the citing resolution must be one a
+	// derivation may still read, so a Name held only by an evidential answer no longer
+	// keeps an Address in the estate.
+	FindNameCitingAddress(ctx context.Context, arg FindNameCitingAddressParams) (FindNameCitingAddressRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
@@ -150,29 +153,46 @@ type Querier interface {
 	// estate, which is a population of no current member rather than a false "no
 	// record" (ADR-0072). The caller reads the latest http-identity value to render
 	// the current HTTP identity and split the key into its Name and Service legs.
-	GetEndpointSubject(ctx context.Context, subjectKey string) (GetEndpointSubjectRow, error)
+	// Reads through the live-tier gate (#237).
+	GetEndpointSubject(ctx context.Context, arg GetEndpointSubjectParams) (GetEndpointSubjectRow, error)
 	// The frozen Message the body is built from — read verbatim, never recomputed.
 	// The body carries exactly these fields (the headline byte-identical, the census
 	// as a count) and reaches no other table: no row behind a census count.
 	GetMessageForDelivery(ctx context.Context, id int64) (GetMessageForDeliveryRow, error)
 	// The Citation chain's load-bearing hop: the observation that introduced a Name
-	// — its earliest resolution observation — plus the Batch and Scan it rode in on
-	// (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
-	// measurement that first admitted the subject; the chain terminates one hop
-	// further at the covering Seed (FindCoveringNameSeed).
-	GetNameCitation(ctx context.Context, subjectKey string) (GetNameCitationRow, error)
+	// — its earliest LIVE resolution observation — plus the Batch and Scan it rode in
+	// on (CONTEXT.md `Citation`; ADR-0027). Answers "why is this here" by naming the
+	// measurement that admitted the subject; the chain terminates one hop further at
+	// the covering Seed (FindCoveringNameSeed). Reads through the live-tier gate
+	// (#237): the introducing observation is the earliest one still within the live
+	// tier, so the chain rests on a measurement a derivation may still read, not on an
+	// evidential row.
+	GetNameCitation(ctx context.Context, arg GetNameCitationParams) (GetNameCitationRow, error)
 	// Resolve a Name key to at most one subject, withdrawn or not. Search is a
 	// lookup and not a listing (ADR-0072 decision 3): the drill-down reaches a
 	// measured-gone Name by its own key rather than manufacturing a false "no
 	// record" at the URL. The caller reads the latest resolution value to decide
-	// whether the subject names a population of no current member.
-	GetNameSubject(ctx context.Context, subjectKey string) (GetNameSubjectRow, error)
+	// whether the subject names a population of no current member. Reads through the
+	// live-tier gate (#237): a Name is measured-gone by VALUE (a NameError/Shadowed
+	// latest), which is a live measurement — the gate removes only rows aged past
+	// their own bound, so a currently-measured subject is always reachable here.
+	GetNameSubject(ctx context.Context, arg GetNameSubjectParams) (GetNameSubjectRow, error)
 	// The drift engine's Span reads and writes (#190). The fold is incremental — one
 	// completed Batch at a time (ADR-0007): for each observation's timeline it reads
 	// the open span, and where the value or the Derivation vector moved it closes
 	// that span and opens a new one. There is deliberately NO delete or compaction
 	// query here — the Span corpus is never compacted (ADR-0041). A Transition and a
 	// Break are derived on read from ListSpansForSubject's rows; neither is stored.
+	//
+	// These reads are NOT routed through the live-tier observation gate (#237). The
+	// gate makes the raw `observation` corpus structurally unreadable past a
+	// timeline's live bound; these queries read `FROM span`, the already-derived
+	// corpus the fold produced, which ADR-0041 keeps forever (never compacted). A Span
+	// read is therefore not a re-derivation from a stale observation — the very thing
+	// the gate exists to prevent — so applying an observation-tier `@as_of` bound here
+	// would wrongly hide settled history rather than protect a derivation. The fold
+	// (GetOpenSpan/OpenSpan/CloseSpan) consumes the just-completed Batch it is folding,
+	// which is live by construction, so it needs no gate either.
 	// The one open span on a timeline, or no row where the timeline is new. vantage
 	// and source are part of the key and vantage may be NULL (the shipped resolver
 	// position carries no vantage row yet), so they are matched with IS NOT DISTINCT
@@ -189,8 +209,9 @@ type Querier interface {
 	// reaches a subject by its own key — including one whose Address has left the
 	// estate, which is not a false "no record" but a population of no current member
 	// (ADR-0072). The caller reads the latest reachability value to render the
-	// current verdict and the Address the triple sits on.
-	GetServiceSubject(ctx context.Context, subjectKey string) (GetServiceSubjectRow, error)
+	// current verdict and the Address the triple sits on. Reads through the live-tier
+	// gate (#237).
+	GetServiceSubject(ctx context.Context, arg GetServiceSubjectParams) (GetServiceSubjectRow, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
@@ -250,8 +271,9 @@ type Querier interface {
 	// `Endpoint`). Its membership rides its Service's (the Address's membership
 	// restated), so this is the thin "current Endpoints" read the drill-down lists.
 	// Like the Name and Service listings it carries no denominator (ADR-0072). The
-	// value shown is the latest http-identity the http-exchange leaf recorded.
-	ListCurrentEndpointSubjects(ctx context.Context, search string) ([]ListCurrentEndpointSubjectsRow, error)
+	// value shown is the latest http-identity the http-exchange leaf recorded. Reads
+	// through the live-tier gate (#237).
+	ListCurrentEndpointSubjects(ctx context.Context, arg ListCurrentEndpointSubjectsParams) ([]ListCurrentEndpointSubjectsRow, error)
 	// Reads behind the Subjects screen (#189). All four are additive read queries
 	// over the wave-0 measurement corpus (observation / batch / scan) and the seed
 	// table — no new schema. `ListCurrentNameSubjects` is the thin "current Names"
@@ -260,6 +282,15 @@ type Querier interface {
 	// membership (Shadowed suppression, #192; the cross-class withdrawal quorum,
 	// ADR-0006/ADR-0080) narrows this predicate here rather than growing a second
 	// computation elsewhere.
+	//
+	// Every derivation here reads the observation corpus through the live-tier gate
+	// (#237, ADR-0041): the `cover`/`live` CTE pair below is the inlined twin of
+	// ListLiveObservationsForDerivation (db/queries/retention.sql), evaluated against
+	// the caller's read instant @as_of with k = @floor_cadences, so an evidential row
+	// (past its own per-timeline bound, or on a timeline no enabled Scan covers) is
+	// structurally unreadable here the instant it crosses that bound — never merely
+	// absent after the Retirer's next sweep. The gate cannot be a parameterless VIEW
+	// because it carries the read instant, so it is inlined at each read.
 	// Every Name currently in the estate, with optional search. A Name is a member
 	// while its latest resolution observation neither reads a measured Name Error nor
 	// is Shadowed: resolution-walk's NameError (the name does not exist) and
@@ -267,8 +298,8 @@ type Querier interface {
 	// a Name's membership as affirmatively as each other (#192; ADR-0006, ADR-0086).
 	// No count is selected: the estate can carry no honest denominator (ADR-0072), so
 	// there is nothing here to total. A suppressed Name is filtered out and reached
-	// only by key (GetNameSubject).
-	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
+	// only by key (GetNameSubject). Reads through the live-tier gate (#237).
+	ListCurrentNameSubjects(ctx context.Context, arg ListCurrentNameSubjectsParams) ([]ListCurrentNameSubjectsRow, error)
 	// Every Service currently in the estate, with optional search (#195). A Service
 	// is an (Address, port, transport) triple whose membership is its Address's
 	// membership restated — an Address is in the estate exactly while a current
@@ -276,8 +307,9 @@ type Querier interface {
 	// Services" read the drill-down lists. Like the Name listing it carries no
 	// denominator (ADR-0072). A Service that has fallen out of the estate (its
 	// Address de-cited) is reached only by its own key; the value shown is the latest
-	// reachability verdict, reached or not-reached, both measured values.
-	ListCurrentServiceSubjects(ctx context.Context, search string) ([]ListCurrentServiceSubjectsRow, error)
+	// reachability verdict, reached or not-reached, both measured values. Reads
+	// through the live-tier gate (#237).
+	ListCurrentServiceSubjects(ctx context.Context, arg ListCurrentServiceSubjectsParams) ([]ListCurrentServiceSubjectsRow, error)
 	// The delivery outcomes a Message renders in the store (notification-channels.md
 	// §8): to which channels it went and whether any is dead-lettered. Reads from the
 	// delivery table by join — the Message row carries no delivery state of its own.
@@ -289,8 +321,8 @@ type Querier interface {
 	// tag. The parsed leaf attributes the five certificate-detail rules need are not
 	// stored (only the fingerprint chain is), so those rules render a presented chain
 	// `not-evaluable` until a certificate-parsing leaf lands. DISTINCT ON keeps the
-	// most recent value per Endpoint.
-	ListEndpointCertificates(ctx context.Context) ([]ListEndpointCertificatesRow, error)
+	// most recent value per Endpoint. Reads through the live-tier gate (#237).
+	ListEndpointCertificates(ctx context.Context, arg ListEndpointCertificatesParams) ([]ListEndpointCertificatesRow, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	// The registrable domains of custody-extended name-scope Seeds, for the hot
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
@@ -299,14 +331,16 @@ type Querier interface {
 	// The read-side live-tier gate a derivation reads observations through (v1 spec
 	// §4.6, ADR-0041): it returns ONLY live-tier rows — those within k cadences of the
 	// tightest ENABLED Scan covering their timeline — so a derivation reading through
-	// it cannot re-derive history from a stale observation. NOTE: in v1 the
-	// live/evidential boundary is enforced by RETIREMENT (DeleteExpiredObservations
-	// below is the sole delete path and removes evidential rows on the Retirer's
-	// sweep); the existing derivation reads still query the observation table directly
-	// and see only live rows once a sweep has run. Routing each of those reads through
-	// this gate — threading @as_of into every derivation query — is the stronger,
-	// immediate separation and is the remaining integration. The bound is evaluated
-	// PER TIMELINE and never collapsed:
+	// it cannot re-derive history from a stale observation. Every production
+	// derivation read of the observation corpus inlines this gate's `cover` CTE and
+	// per-timeline age bound, evaluated against the caller's read instant (#237): the
+	// subjects, signals and Custody reads (db/queries/subjects.sql,
+	// db/queries/signals.sql, NameCitedAddresses in db/queries/measurement.sql) read
+	// through the gate, not the raw table, so an evidential row is structurally
+	// unreadable by a derivation the instant it crosses its bound — not merely absent
+	// after the Retirer's next sweep (which DeleteExpiredObservations below still runs
+	// to reclaim storage). This query is the shared, standalone form of that boundary.
+	// The bound is evaluated PER TIMELINE and never collapsed:
 	// `cover` groups by the full timeline key (subject, facet, discriminator, vantage,
 	// source) and takes the tightest covering cadence, so a zone-sourced row's live
 	// window is the zone cadence and a resolver-sourced row's is the resolver's. A
@@ -321,19 +355,28 @@ type Querier interface {
 	// The latest `dns-record` observation per (Name, qtype discriminator). The engine
 	// reads two of these: the CNAME discriminator carries the alias target (for
 	// cname-target-name-error) and the NS discriminator carries the delegation walk's
-	// Lame verdict (folded into the composed resolution the rules read).
-	ListNameDNSRecords(ctx context.Context) ([]ListNameDNSRecordsRow, error)
-	// Reads behind the Signals screen (#202). All three are additive read queries
-	// over the wave-0/1 corpus (observation / vantage / zone_file) — no new schema.
+	// Lame verdict (folded into the composed resolution the rules read). Reads through
+	// the live-tier gate (#237).
+	ListNameDNSRecords(ctx context.Context, arg ListNameDNSRecordsParams) ([]ListNameDNSRecordsRow, error)
+	// Reads behind the Signals screen (#202). All three observation reads are additive
+	// read queries over the wave-0/1 corpus (observation / vantage) — no new schema.
 	// The web layer folds these into the per-Name Derived snapshot the `Signal`
 	// engine (internal/signal) evaluates: the five Name-only rules read `resolution`
 	// (which `resolution-walk` and `wildcard-discrimination` decide jointly), the
 	// `dns-record` CNAME target and NS delegation, and the operator's zone file.
+	//
+	// Every observation read here reads through the live-tier gate (#237, ADR-0041):
+	// the `cover`/`live` CTE pair is the inlined twin of
+	// ListLiveObservationsForDerivation (db/queries/retention.sql), evaluated against
+	// the caller's read instant @as_of with k = @floor_cadences, so the Signal engine
+	// never folds an evidential row into a Derived snapshot. ListZoneDeclarations
+	// reads the operator's supplied zone file (input, not measured) and is not gated.
 	// The latest `resolution` observation per (Name, Vantage class). The engine folds
 	// these into a cross-class composed outcome (for the four cross-class rules) and
 	// keeps the internet-class view apart (for the one vantage-scoped rule, ADR-0071).
-	// DISTINCT ON keeps the most recent value per (name, class).
-	ListNameResolutionsByClass(ctx context.Context) ([]ListNameResolutionsByClassRow, error)
+	// DISTINCT ON keeps the most recent value per (name, class). Reads through the
+	// live-tier gate (#237).
+	ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	// Every open timeline a subject currently holds — what a withdrawal closes, all
 	// at once, with the ground it rests on.
@@ -367,8 +410,9 @@ type Querier interface {
 	// engine reads the internet-class leg for `sensitive-port-reached-from-internet`
 	// (ADR-0071: a class-scoped internet, existential composition — the internal twin
 	// is a different, refused rule). DISTINCT ON keeps the most recent value per
-	// (service, class), mirroring the Name resolution read one facet over.
-	ListServiceReachabilityByClass(ctx context.Context) ([]ListServiceReachabilityByClassRow, error)
+	// (service, class), mirroring the Name resolution read one facet over. Reads
+	// through the live-tier gate (#237).
+	ListServiceReachabilityByClass(ctx context.Context, arg ListServiceReachabilityByClassParams) ([]ListServiceReachabilityByClassRow, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
@@ -398,7 +442,8 @@ type Querier interface {
 	// The latest supplied zone file per name-scope Seed, with its declared domain and
 	// content, so the web layer can extract the owner names the operator declares
 	// (signal.DeclaredNames) — the domain of the two zone rules. One row per Seed;
-	// DISTINCT ON keeps the most recent supply.
+	// DISTINCT ON keeps the most recent supply. This reads the operator's supplied
+	// zone file — input, not a measurement — so it does not pass the live-tier gate.
 	ListZoneDeclarations(ctx context.Context) ([]ListZoneDeclarationsRow, error)
 	// The Seeds-screen view: the latest supplied file per name-scope Seed, without
 	// the content, so the operator sees which scopes hold a zone file, when it was
@@ -425,7 +470,12 @@ type Querier interface {
 	// estate exactly while a current resolution cites it. Only a `Resolved` value
 	// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
 	// so every `Address` held only by a superseded `Resolved` leaves the estate.
-	NameCitedAddresses(ctx context.Context) ([]NameCitedAddressesRow, error)
+	// Reads through the live-tier gate (#237, ADR-0041): the hot Scan's Custody
+	// derivation admits an Address only while a resolution a derivation may still read
+	// cites it, so the `cover`/`live` CTE pair below (the inlined twin of
+	// ListLiveObservationsForDerivation, evaluated at @as_of with k = @floor_cadences)
+	// keeps an Address held only by an evidential answer out of the probed estate.
+	NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error)
 	// Open a new span for a timeline. The caller passes the canonical value, the
 	// gap flag, and the Derivation vector as a JSON array of {leaf,version}.
 	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)

@@ -22,6 +22,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
+	"github.com/winniel123/verge-asm/internal/retention"
 )
 
 // fakeStore is an in-memory store used across the web handler tests, standing
@@ -648,28 +649,92 @@ func (f *fakeStore) ensureScan(kind string) int64 {
 	return sc.ID
 }
 
+// freshBatch appends a completed batch of the given scan kind (creating the Scan
+// once) and returns its id, so every seeded observation rides a real batch tied
+// to an enabled Scan. That batch→Scan link is what the live-tier gate reads to
+// find a timeline's covering cadence (#237): an observation with no such link has
+// an undefined bound and is never live, so fixtures must carry one exactly as the
+// measurement worker's observations do.
+func (f *fakeStore) freshBatch(scanKind, batchKind string) int64 {
+	scanID := f.ensureScan(scanKind)
+	b := db.Batch{ID: f.batchNextID, ScanID: scanID, Kind: batchKind, Outcome: "completed"}
+	f.batches = append(f.batches, b)
+	f.batchNextID++
+	return b.ID
+}
+
 // addResolution records a resolution observation for a Name in a fresh batch of
 // the given scan kind, mirroring what the measurement worker writes. It is the
 // only seam the Subjects tests need to populate the estate.
 func (f *fakeStore) addResolution(t *testing.T, createdBy int64, name, scanKind string, at time.Time, value string) {
 	t.Helper()
-	scanID := f.ensureScan(scanKind)
-	b := db.Batch{ID: f.batchNextID, ScanID: scanID, Kind: "resolution-walk", Outcome: "completed"}
-	f.batches = append(f.batches, b)
-	f.batchNextID++
+	b := f.freshBatch(scanKind, "resolution-walk")
 	f.observations = append(f.observations, db.Observation{
-		ID: f.obsNextID, BatchID: b.ID, Facet: "resolution", SubjectKind: "name",
+		ID: f.obsNextID, BatchID: b, Facet: "resolution", SubjectKind: "name",
 		SubjectKey: name, Source: "resolver", Value: []byte(value),
 		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
 	})
 	f.obsNextID++
 }
 
-// latestResolutionByName picks, per Name, its latest resolution observation —
-// max observed_at, then max id — mirroring the DISTINCT ON in the SQL.
-func (f *fakeStore) latestResolutionByName() map[string]db.Observation {
-	latest := map[string]db.Observation{}
+// liveObservations returns the live-tier subset of the observation corpus as of
+// asOf — the fake twin of ListLiveObservationsForDerivation and
+// retention.LiveOnly (#237, ADR-0041). It computes each timeline's tightest
+// covering ENABLED-Scan cadence from the batch→Scan link, then keeps only rows
+// whose age at asOf is within retention.FloorCadences of that bound. A timeline no
+// enabled Scan covers has an undefined bound and yields no live row, exactly as
+// the SQL `cover` JOIN drops it. Sharing retention.TierOf keeps this gate the same
+// boundary the production reads and the pure retention tests use.
+func (f *fakeStore) liveObservations(asOf time.Time) []db.Observation {
+	enabledCadence := map[int64]int64{} // scan id -> cadence, enabled scans only
+	for _, sc := range f.scans {
+		if sc.Enabled {
+			enabledCadence[sc.ID] = sc.CadenceSeconds
+		}
+	}
+	batchCadence := map[int64]int64{} // batch id -> covering enabled cadence
+	for _, b := range f.batches {
+		if c, ok := enabledCadence[b.ScanID]; ok {
+			batchCadence[b.ID] = c
+		}
+	}
+	type timeline struct {
+		subjectKey, facet, discriminator, source string
+		vantage                                  int64
+		vantageValid                             bool
+	}
+	keyOf := func(o db.Observation) timeline {
+		return timeline{o.SubjectKey, o.Facet, o.Discriminator, o.Source, o.VantageID.Int64, o.VantageID.Valid}
+	}
+	tightest := map[timeline]int64{} // MIN covering cadence over a timeline's rows
 	for _, o := range f.observations {
+		c, ok := batchCadence[o.BatchID]
+		if !ok {
+			continue
+		}
+		k := keyOf(o)
+		if cur, seen := tightest[k]; !seen || c < cur {
+			tightest[k] = c
+		}
+	}
+	out := make([]db.Observation, 0, len(f.observations))
+	for _, o := range f.observations {
+		bound, hasBound := retention.ObservationBoundSeconds(tightest[keyOf(o)])
+		age := int64(asOf.Sub(o.ObservedAt.Time).Seconds())
+		if retention.TierOf(age, bound, hasBound) == retention.Live {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// latestResolutionByName picks, per Name, its latest resolution observation —
+// max observed_at, then max id — mirroring the DISTINCT ON in the SQL. It reads
+// the caller-supplied observation slice (the live-tier subset), never f.observations
+// directly, so the gate applies before the DISTINCT ON.
+func (f *fakeStore) latestResolutionByName(obs []db.Observation) map[string]db.Observation {
+	latest := map[string]db.Observation{}
+	for _, o := range obs {
 		if o.SubjectKind != "name" || o.Facet != "resolution" {
 			continue
 		}
@@ -690,8 +755,9 @@ func fakeResolutionOutcome(value []byte) string {
 	return v.Outcome
 }
 
-func (f *fakeStore) ListCurrentNameSubjects(_ context.Context, search string) ([]db.ListCurrentNameSubjectsRow, error) {
-	latest := f.latestResolutionByName()
+func (f *fakeStore) ListCurrentNameSubjects(_ context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error) {
+	search := arg.Search
+	latest := f.latestResolutionByName(f.liveObservations(arg.AsOf.Time))
 	keys := make([]string, 0, len(latest))
 	for k := range latest {
 		keys = append(keys, k)
@@ -848,9 +914,9 @@ func (f *fakeStore) addReachability(t *testing.T, serviceKey string, at time.Tim
 	f.obsNextID++
 }
 
-func (f *fakeStore) latestReachabilityByService() map[string]db.Observation {
+func (f *fakeStore) latestReachabilityByService(obs []db.Observation) map[string]db.Observation {
 	latest := map[string]db.Observation{}
-	for _, o := range f.observations {
+	for _, o := range obs {
 		if o.SubjectKind != "service" || o.Facet != "reachability" {
 			continue
 		}
@@ -863,8 +929,9 @@ func (f *fakeStore) latestReachabilityByService() map[string]db.Observation {
 	return latest
 }
 
-func (f *fakeStore) ListCurrentServiceSubjects(_ context.Context, search string) ([]db.ListCurrentServiceSubjectsRow, error) {
-	latest := f.latestReachabilityByService()
+func (f *fakeStore) ListCurrentServiceSubjects(_ context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error) {
+	search := arg.Search
+	latest := f.latestReachabilityByService(f.liveObservations(arg.AsOf.Time))
 	keys := make([]string, 0, len(latest))
 	for k := range latest {
 		keys = append(keys, k)
@@ -883,8 +950,9 @@ func (f *fakeStore) ListCurrentServiceSubjects(_ context.Context, search string)
 	return rows, nil
 }
 
-func (f *fakeStore) GetServiceSubject(_ context.Context, key string) (db.GetServiceSubjectRow, error) {
-	o, ok := f.latestReachabilityByService()[key]
+func (f *fakeStore) GetServiceSubject(_ context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error) {
+	key := arg.SubjectKey
+	o, ok := f.latestReachabilityByService(f.liveObservations(arg.AsOf.Time))[key]
 	if !ok {
 		return db.GetServiceSubjectRow{}, pgx.ErrNoRows
 	}
@@ -908,9 +976,9 @@ func (f *fakeStore) addHTTPIdentity(t *testing.T, endpointKey string, at time.Ti
 	f.obsNextID++
 }
 
-func (f *fakeStore) latestHTTPIdentityByEndpoint() map[string]db.Observation {
+func (f *fakeStore) latestHTTPIdentityByEndpoint(obs []db.Observation) map[string]db.Observation {
 	latest := map[string]db.Observation{}
-	for _, o := range f.observations {
+	for _, o := range obs {
 		if o.SubjectKind != "endpoint" || o.Facet != "http-identity" {
 			continue
 		}
@@ -923,8 +991,9 @@ func (f *fakeStore) latestHTTPIdentityByEndpoint() map[string]db.Observation {
 	return latest
 }
 
-func (f *fakeStore) ListCurrentEndpointSubjects(_ context.Context, search string) ([]db.ListCurrentEndpointSubjectsRow, error) {
-	latest := f.latestHTTPIdentityByEndpoint()
+func (f *fakeStore) ListCurrentEndpointSubjects(_ context.Context, arg db.ListCurrentEndpointSubjectsParams) ([]db.ListCurrentEndpointSubjectsRow, error) {
+	search := arg.Search
+	latest := f.latestHTTPIdentityByEndpoint(f.liveObservations(arg.AsOf.Time))
 	keys := make([]string, 0, len(latest))
 	for k := range latest {
 		keys = append(keys, k)
@@ -943,8 +1012,9 @@ func (f *fakeStore) ListCurrentEndpointSubjects(_ context.Context, search string
 	return rows, nil
 }
 
-func (f *fakeStore) GetEndpointSubject(_ context.Context, key string) (db.GetEndpointSubjectRow, error) {
-	o, ok := f.latestHTTPIdentityByEndpoint()[key]
+func (f *fakeStore) GetEndpointSubject(_ context.Context, arg db.GetEndpointSubjectParams) (db.GetEndpointSubjectRow, error) {
+	key := arg.SubjectKey
+	o, ok := f.latestHTTPIdentityByEndpoint(f.liveObservations(arg.AsOf.Time))[key]
 	if !ok {
 		return db.GetEndpointSubjectRow{}, pgx.ErrNoRows
 	}
@@ -957,8 +1027,9 @@ func (f *fakeStore) GetEndpointSubject(_ context.Context, key string) (db.GetEnd
 func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string, at time.Time, value string) {
 	t.Helper()
 	vid := f.vantageForClass(class)
+	b := f.freshBatch("hot", "connect-outcome")
 	f.observations = append(f.observations, db.Observation{
-		ID: f.obsNextID, BatchID: 1, Facet: "reachability", SubjectKind: "service",
+		ID: f.obsNextID, BatchID: b, Facet: "reachability", SubjectKind: "service",
 		SubjectKey: serviceKey, VantageID: pgtype.Int8{Int64: vid, Valid: true},
 		Source: "prober", Value: []byte(value),
 		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
@@ -966,14 +1037,14 @@ func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string,
 	f.obsNextID++
 }
 
-func (f *fakeStore) ListServiceReachabilityByClass(context.Context) ([]db.ListServiceReachabilityByClassRow, error) {
+func (f *fakeStore) ListServiceReachabilityByClass(_ context.Context, arg db.ListServiceReachabilityByClassParams) ([]db.ListServiceReachabilityByClassRow, error) {
 	classOf := map[int64]string{}
 	for _, v := range f.vantages {
 		classOf[v.ID] = v.Class
 	}
 	type key struct{ svc, class string }
 	latest := map[key]db.Observation{}
-	for _, o := range f.observations {
+	for _, o := range f.liveObservations(arg.AsOf.Time) {
 		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
 			continue
 		}
@@ -1005,17 +1076,18 @@ func (f *fakeStore) ListServiceReachabilityByClass(context.Context) ([]db.ListSe
 // tls-handshake step's output (#197), the value the certificate rules read (#203).
 func (f *fakeStore) addCertificate(t *testing.T, endpointKey string, at time.Time, value string) {
 	t.Helper()
+	b := f.freshBatch("hot", "tls-handshake")
 	f.observations = append(f.observations, db.Observation{
-		ID: f.obsNextID, BatchID: 1, Facet: "certificate", SubjectKind: "endpoint",
+		ID: f.obsNextID, BatchID: b, Facet: "certificate", SubjectKind: "endpoint",
 		SubjectKey: endpointKey, Source: "prober", Value: []byte(value),
 		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
 	})
 	f.obsNextID++
 }
 
-func (f *fakeStore) ListEndpointCertificates(context.Context) ([]db.ListEndpointCertificatesRow, error) {
+func (f *fakeStore) ListEndpointCertificates(_ context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error) {
 	latest := map[string]db.Observation{}
-	for _, o := range f.observations {
+	for _, o := range f.liveObservations(arg.AsOf.Time) {
 		if o.SubjectKind != "endpoint" || o.Facet != "certificate" {
 			continue
 		}
@@ -1033,10 +1105,11 @@ func (f *fakeStore) ListEndpointCertificates(context.Context) ([]db.ListEndpoint
 	return rows, nil
 }
 
-func (f *fakeStore) FindNameCitingAddress(_ context.Context, address string) (db.FindNameCitingAddressRow, error) {
+func (f *fakeStore) FindNameCitingAddress(_ context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error) {
+	address := arg.Address
 	// The earliest current resolution whose Resolved answer names the address.
 	var best *db.FindNameCitingAddressRow
-	for name, o := range f.latestResolutionByName() {
+	for name, o := range f.latestResolutionByName(f.liveObservations(arg.AsOf.Time)) {
 		if fakeResolutionOutcome(o.Value) != "Resolved" {
 			continue
 		}
@@ -1098,8 +1171,9 @@ func (f *fakeStore) addVantageClass(class string) int64 {
 func (f *fakeStore) addClassResolution(t *testing.T, name, class string, at time.Time, value string) {
 	t.Helper()
 	vid := f.vantageForClass(class)
+	b := f.freshBatch("dns", "resolution-walk")
 	f.observations = append(f.observations, db.Observation{
-		ID: f.obsNextID, BatchID: 1, Facet: "resolution", SubjectKind: "name",
+		ID: f.obsNextID, BatchID: b, Facet: "resolution", SubjectKind: "name",
 		SubjectKey: name, VantageID: pgtype.Int8{Int64: vid, Valid: true},
 		Source: "resolver", Value: []byte(value),
 		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
@@ -1112,8 +1186,9 @@ func (f *fakeStore) addClassResolution(t *testing.T, name, class string, at time
 // read.
 func (f *fakeStore) addDNSRecord(t *testing.T, name, discriminator string, at time.Time, value string) {
 	t.Helper()
+	b := f.freshBatch("dns", "resolution-walk")
 	f.observations = append(f.observations, db.Observation{
-		ID: f.obsNextID, BatchID: 1, Facet: "dns-record", SubjectKind: "name",
+		ID: f.obsNextID, BatchID: b, Facet: "dns-record", SubjectKind: "name",
 		SubjectKey: name, Discriminator: discriminator, Source: "resolver",
 		Value: []byte(value), ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
 	})
@@ -1129,14 +1204,14 @@ func (f *fakeStore) vantageForClass(class string) int64 {
 	return f.addVantageClass(class)
 }
 
-func (f *fakeStore) ListNameResolutionsByClass(context.Context) ([]db.ListNameResolutionsByClassRow, error) {
+func (f *fakeStore) ListNameResolutionsByClass(_ context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error) {
 	classOf := map[int64]string{}
 	for _, v := range f.vantages {
 		classOf[v.ID] = v.Class
 	}
 	type key struct{ name, class string }
 	latest := map[key]db.Observation{}
-	for _, o := range f.observations {
+	for _, o := range f.liveObservations(arg.AsOf.Time) {
 		if o.SubjectKind != "name" || o.Facet != "resolution" || !o.VantageID.Valid {
 			continue
 		}
@@ -1164,10 +1239,10 @@ func (f *fakeStore) ListNameResolutionsByClass(context.Context) ([]db.ListNameRe
 	return rows, nil
 }
 
-func (f *fakeStore) ListNameDNSRecords(context.Context) ([]db.ListNameDNSRecordsRow, error) {
+func (f *fakeStore) ListNameDNSRecords(_ context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error) {
 	type key struct{ name, disc string }
 	latest := map[key]db.Observation{}
-	for _, o := range f.observations {
+	for _, o := range f.liveObservations(arg.AsOf.Time) {
 		if o.SubjectKind != "name" || o.Facet != "dns-record" {
 			continue
 		}
@@ -1213,18 +1288,21 @@ func (f *fakeStore) ListZoneDeclarations(context.Context) ([]db.ListZoneDeclarat
 	return rows, nil
 }
 
-func (f *fakeStore) GetNameSubject(_ context.Context, key string) (db.GetNameSubjectRow, error) {
-	o, ok := f.latestResolutionByName()[key]
+func (f *fakeStore) GetNameSubject(_ context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error) {
+	key := arg.SubjectKey
+	o, ok := f.latestResolutionByName(f.liveObservations(arg.AsOf.Time))[key]
 	if !ok {
 		return db.GetNameSubjectRow{}, pgx.ErrNoRows
 	}
 	return db.GetNameSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
 }
 
-func (f *fakeStore) GetNameCitation(_ context.Context, key string) (db.GetNameCitationRow, error) {
+func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error) {
+	key := arg.SubjectKey
+	live := f.liveObservations(arg.AsOf.Time)
 	var best *db.Observation
-	for i := range f.observations {
-		o := &f.observations[i]
+	for i := range live {
+		o := &live[i]
 		if o.SubjectKind != "name" || o.Facet != "resolution" || o.SubjectKey != key {
 			continue
 		}

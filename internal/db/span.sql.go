@@ -74,6 +74,16 @@ type GetOpenSpanRow struct {
 // that span and opens a new one. There is deliberately NO delete or compaction
 // query here — the Span corpus is never compacted (ADR-0041). A Transition and a
 // Break are derived on read from ListSpansForSubject's rows; neither is stored.
+//
+// These reads are NOT routed through the live-tier observation gate (#237). The
+// gate makes the raw `observation` corpus structurally unreadable past a
+// timeline's live bound; these queries read `FROM span`, the already-derived
+// corpus the fold produced, which ADR-0041 keeps forever (never compacted). A Span
+// read is therefore not a re-derivation from a stale observation — the very thing
+// the gate exists to prevent — so applying an observation-tier `@as_of` bound here
+// would wrongly hide settled history rather than protect a derivation. The fold
+// (GetOpenSpan/OpenSpan/CloseSpan) consumes the just-completed Batch it is folding,
+// which is live by construction, so it needs no gate either.
 // The one open span on a timeline, or no row where the timeline is new. vantage
 // and source are part of the key and vantage may be NULL (the shipped resolver
 // position carries no vantage row yet), so they are matched with IS NOT DISTINCT
