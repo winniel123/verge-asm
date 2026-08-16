@@ -116,15 +116,19 @@ jobs:
 
   compose:
     runs-on: ubuntu-latest
+    # Every compose invocation in this job interpolates POSTGRES_PASSWORD —
+    # build, up, the `docker compose ps` in the health loop below, and down.
+    # It must be set for all of them, so it lives at job level: setting it
+    # per-step once left the health loop's `ps` without it, and compose then
+    # refuses to parse the file at all ("required variable ... is missing a
+    # value"), so the loop never saw the running stack and the job always failed.
+    env:
+      POSTGRES_PASSWORD: ci-only-password
     steps:
       - uses: actions/checkout@v4
       - run: docker compose build
-        env:
-          POSTGRES_PASSWORD: ci-only-password
       - name: docker compose up
         run: docker compose up -d
-        env:
-          POSTGRES_PASSWORD: ci-only-password
       - name: wait for a healthy stack
         run: |
           for i in $(seq 1 30); do
@@ -143,5 +147,3 @@ jobs:
           exit 1
       - if: always()
         run: docker compose down -v
-        env:
-          POSTGRES_PASSWORD: ci-only-password
