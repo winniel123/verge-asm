@@ -94,6 +94,14 @@ details.edit { margin-top: var(--space-3); }
 details.edit summary { cursor: pointer; font-family: var(--mono); font-size: 11px;
   color: var(--accent); }
 details.edit .section { margin-top: var(--space-3); margin-bottom: 0; }
+details.spanrecords > summary { cursor: pointer; display: inline; list-style: none; }
+details.spanrecords > summary::-webkit-details-marker { display: none; }
+details.spanrecords > summary::before { content: "\25b8"; font-family: var(--mono);
+  color: var(--muted); margin-right: 6px; display: inline-block; }
+details.spanrecords[open] > summary::before { content: "\25be"; }
+table.records { width: auto; margin: var(--space-3) 0 0; }
+table.records td { border-bottom: 1px solid var(--hairline); padding: 2px var(--space-4) 2px 0; }
+table.records td.rrtype { width: 1%; white-space: nowrap; }
 .dial { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
 .dial label { margin-bottom: 0; min-width: 220px; }
 .dial .unit { color: var(--muted); font-family: var(--mono); font-size: 11px; }
@@ -869,6 +877,10 @@ which only you know, so this screen states none.</p>
 </main>
 {{template "foot" .}}{{end}}
 
+{{define "recordrows"}}<table class="records"><tbody>
+{{range .}}<tr>{{if .Type}}<td class="rrtype"><span class="badge">{{.Type}}</span></td>{{else}}<td class="rrtype"></td>{{end}}<td class="mono">{{.Data}}</td></tr>{{end}}
+</tbody></table>{{end}}
+
 {{define "subject"}}{{template "head" .}}
 {{template "chrome" .}}
 <main>
@@ -911,7 +923,7 @@ which only you know, so this screen states none.</p>
 <div class="timeline">
 <div class="microlabel">{{.Label}}</div>
 {{if .Current}}
-<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
+<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else if .Current.Details}}<details class="spanrecords"><summary><span class="badge">{{.Current.Value}}</span></summary>{{template "recordrows" .Current.Details}}</details>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
 {{else}}
 <div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
 {{end}}
@@ -923,7 +935,7 @@ which only you know, so this screen states none.</p>
 <thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
 <tbody>
 {{range .Closed}}<tr>
-<td>{{if .IsGap}}<span class="muted">Gap</span>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
+<td>{{if .IsGap}}<span class="muted">Gap</span>{{else if .Details}}<details class="spanrecords"><summary><span class="mono">{{.Value}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
 <td class="mono">{{.OpenedAt}}</td>
 <td class="mono">{{.ClosedAt}}</td>
 <td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
@@ -990,7 +1002,7 @@ which only you know, so this screen states none.</p>
 <div class="timeline">
 <div class="microlabel">{{.Label}}</div>
 {{if .Current}}
-<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
+<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else if .Current.Details}}<details class="spanrecords"><summary><span class="badge">{{.Current.Value}}</span></summary>{{template "recordrows" .Current.Details}}</details>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
 {{else}}
 <div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
 {{end}}
@@ -1002,7 +1014,7 @@ which only you know, so this screen states none.</p>
 <thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
 <tbody>
 {{range .Closed}}<tr>
-<td>{{if .IsGap}}<span class="muted">Gap</span>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
+<td>{{if .IsGap}}<span class="muted">Gap</span>{{else if .Details}}<details class="spanrecords"><summary><span class="mono">{{.Value}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
 <td class="mono">{{.OpenedAt}}</td>
 <td class="mono">{{.ClosedAt}}</td>
 <td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
@@ -1073,7 +1085,7 @@ which only you know, so this screen states none.</p>
 <div class="timeline">
 <div class="microlabel">{{.Label}}</div>
 {{if .Current}}
-<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
+<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else if .Current.Details}}<details class="spanrecords"><summary><span class="badge">{{.Current.Value}}</span></summary>{{template "recordrows" .Current.Details}}</details>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
 {{else}}
 <div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
 {{end}}
@@ -1085,7 +1097,7 @@ which only you know, so this screen states none.</p>
 <thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
 <tbody>
 {{range .Closed}}<tr>
-<td>{{if .IsGap}}<span class="muted">Gap</span>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
+<td>{{if .IsGap}}<span class="muted">Gap</span>{{else if .Details}}<details class="spanrecords"><summary><span class="mono">{{.Value}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
 <td class="mono">{{.OpenedAt}}</td>
 <td class="mono">{{.ClosedAt}}</td>
 <td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>

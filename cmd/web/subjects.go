@@ -58,6 +58,17 @@ func decodeResolution(raw []byte) resolutionValue {
 	return v
 }
 
+// decodeDNSRecord decodes a dns-record observation's value into the shared
+// dnsRecordValue shape (declared in signals.go). The Subjects drill-down reads
+// each RR's answered type and canonical data off it — the count for the collapsed
+// summary, the type+data rows on expand — mirroring decodeResolution so the
+// dns-record shape is parsed one way across the package.
+func decodeDNSRecord(raw []byte) dnsRecordValue {
+	var v dnsRecordValue
+	_ = json.Unmarshal(raw, &v)
+	return v
+}
+
 // subjectRow is one Name in the estate listing: its rendered key (also the link
 // target) and its current resolution value. No count and no membership badge —
 // a row's key is a link that carries no state (ADR-0072).
@@ -190,12 +201,26 @@ type timelineView struct {
 // spanned, and — where it is a withdrawal's closing side — the ground the closure
 // rests on.
 type spanView struct {
-	Value    string
-	IsGap    bool
-	Open     bool
+	Value string
+	IsGap bool
+	Open  bool
+	// Details are the span value's individual records, listed on expand: one row
+	// per RR (dns-record) or per address (resolution). The collapsed row keeps its
+	// change-first summary (`Value`); the drill-down expands to these so an operator
+	// reads a subject's actual records without DB access (#240). Empty for facets
+	// with no per-item breakdown, in which case the row does not expand.
+	Details  []spanDetail
 	OpenedAt string
 	ClosedAt string
 	Reason   string
+}
+
+// spanDetail is one row of a span value's expanded contents: an RR (its type and
+// data) for a dns-record span, or a single address (typeless) for a resolution
+// span.
+type spanDetail struct {
+	Type string // the answered RR type ("A", "TXT", …); empty for a resolution address
+	Data string // the record's canonical data, or the address, as stored
 }
 
 // breakView is one Break between two spans, naming the leaf that moved. Derived
@@ -698,6 +723,7 @@ func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow
 			Value:    valueLabel(facet, row.Value, row.IsGap),
 			IsGap:    row.IsGap,
 			Open:     !row.ClosedAt.Valid,
+			Details:  spanDetails(facet, row.Value, row.IsGap),
 			OpenedAt: row.OpenedAt.Time.UTC().Format(spanTimeFmt),
 			Reason:   row.ClosureReason.String,
 		}
@@ -741,14 +767,11 @@ func valueLabel(facet string, raw []byte, isGap bool) string {
 		}
 		return "—"
 	case "dns-record":
-		var v struct {
-			RRs []json.RawMessage `json:"rrs"`
-		}
-		_ = json.Unmarshal(raw, &v)
-		if len(v.RRs) == 1 {
+		rrs := decodeDNSRecord(raw).RRs
+		if len(rrs) == 1 {
 			return "1 record"
 		}
-		return strconv.Itoa(len(v.RRs)) + " records"
+		return strconv.Itoa(len(rrs)) + " records"
 	case "reachability":
 		if o := decodeReachability(raw).Outcome; o != "" {
 			return o
@@ -761,6 +784,42 @@ func valueLabel(facet string, raw []byte, isGap bool) string {
 		return "—"
 	default:
 		return "—"
+	}
+}
+
+// spanDetails lists a span value's individual records for the drill-down's
+// expand-on-click affordance: one entry per RR (type + data) for a dns-record
+// span, one per address for a resolution span. Values come from the span's
+// already-read value JSON — the same bytes valueLabel summarises — so no new
+// query is introduced (#240). A Gap holds no value, and any other facet has no
+// per-item breakdown, so both expand to nothing and the row does not open.
+func spanDetails(facet string, raw []byte, isGap bool) []spanDetail {
+	if isGap {
+		return nil
+	}
+	switch facet {
+	case "resolution":
+		addrs := decodeResolution(raw).Addresses
+		if len(addrs) == 0 {
+			return nil
+		}
+		details := make([]spanDetail, 0, len(addrs))
+		for _, a := range addrs {
+			details = append(details, spanDetail{Data: a})
+		}
+		return details
+	case "dns-record":
+		rrs := decodeDNSRecord(raw).RRs
+		if len(rrs) == 0 {
+			return nil
+		}
+		details := make([]spanDetail, 0, len(rrs))
+		for _, rr := range rrs {
+			details = append(details, spanDetail{Type: rr.Type, Data: rr.Data})
+		}
+		return details
+	default:
+		return nil
 	}
 }
 
