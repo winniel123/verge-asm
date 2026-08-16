@@ -25,12 +25,14 @@ func TestComposeNotShadowedCites(t *testing.T) {
 	}
 }
 
-func TestComposeShadowedSuppressesNameErrorWithdrawal(t *testing.T) {
-	// The W6 case: a name resolution-walk read as NameError (a withdrawal) is
-	// overwritten by Shadowed, so it does not withdraw.
+func TestComposeShadowedOverwritesNameError(t *testing.T) {
+	// The wildcard verdict wins the recorded value: a name resolution-walk read as
+	// NameError composes to Shadowed. Both outcomes suppress the Name's membership
+	// (WithdrawnCrossClass), so the composed value records what discriminated it —
+	// the wildcard — rather than a bare NameError.
 	got := Compose(OutcomeNameError, nil, wd.VerdictShadowed)
 	if got.Outcome != OutcomeShadowed {
-		t.Errorf("NameError under Shadowed = %+v, want Shadowed (no withdrawal)", got)
+		t.Errorf("NameError under Shadowed = %+v, want Shadowed", got)
 	}
 }
 
@@ -41,9 +43,11 @@ func TestComposeIncompleteProbeIsGap(t *testing.T) {
 	}
 }
 
-// Membership reads the composed value, so a Shadowed Name is suppressed: it stays
-// present (not withdrawn) yet cites no Address (AC #192).
-func TestMembershipShadowedNamePresentButUncited(t *testing.T) {
+// A Name read Shadowed at every available vantage is suppressed — Shadowed
+// decides membership as affirmatively as NameError (AC #192): the fictional name
+// leaves the estate and cites no Address, while the discriminated real name and
+// its address stay.
+func TestMembershipShadowedNameSuppressed(t *testing.T) {
 	shadowed := Compose(OutcomeResolved, []string{"203.0.113.1"}, wd.VerdictShadowed)
 	resolved := Compose(OutcomeResolved, []string{"198.51.100.9"}, wd.VerdictNotShadowed)
 	est := Membership([]Observation{
@@ -51,14 +55,32 @@ func TestMembershipShadowedNamePresentButUncited(t *testing.T) {
 		{Name: "real.example.com", Vantage: "v1", Resolution: resolved},
 	}, nil, nil)
 
-	if !contains(est.Names, "ghost.example.com") {
-		t.Error("a Shadowed Name must stay present (it does not withdraw)")
+	if contains(est.Names, "ghost.example.com") {
+		t.Error("a Name Shadowed at every vantage is suppressed, not present")
 	}
 	if contains(est.Addresses, "203.0.113.1") {
-		t.Error("a Shadowed Name cites no Address — 203.0.113.1 must leave the estate")
+		t.Error("a Shadowed answer cites no Address — 203.0.113.1 must leave the estate")
+	}
+	if !contains(est.Names, "real.example.com") || !contains(est.Addresses, "198.51.100.9") {
+		t.Error("the discriminated real Name and its cited address stay in the estate")
+	}
+}
+
+// Suppression is existential like presence: a Name Shadowed at one vantage but
+// still Resolved at another is admitted by that vantage and stays present.
+func TestMembershipShadowedSurvivesWhereAnotherVantageAdmits(t *testing.T) {
+	shadowed := Compose(OutcomeResolved, []string{"203.0.113.1"}, wd.VerdictShadowed)
+	resolved := Compose(OutcomeResolved, []string{"198.51.100.9"}, wd.VerdictNotShadowed)
+	est := Membership([]Observation{
+		{Name: "split.example.com", Vantage: "v1", Resolution: shadowed},
+		{Name: "split.example.com", Vantage: "v2", Resolution: resolved},
+	}, nil, nil)
+
+	if !contains(est.Names, "split.example.com") {
+		t.Error("a Name still Resolved at some vantage is present despite a Shadowed vantage")
 	}
 	if !contains(est.Addresses, "198.51.100.9") {
-		t.Error("the discriminated Name's cited address must be in the estate")
+		t.Error("the admitting vantage's cited address is in the estate")
 	}
 }
 

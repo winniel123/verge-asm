@@ -101,6 +101,31 @@ func TestWithdrawnNameNotListedButReachableByKey(t *testing.T) {
 	}
 }
 
+// A Shadowed Name (wildcard-discrimination's suppression outcome) is suppressed
+// from the estate as affirmatively as a NameError one (#192): it is not listed,
+// and its drill-down marks it a population of no current member.
+func TestShadowedNameSuppressedButReachableByKey(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addResolution(t, admin.ID, "real.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.9"]}`)
+	f.addResolution(t, admin.ID, "ghost.example.com", "dns", obsClock, `{"outcome":"Shadowed"}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/subjects", http.StatusOK)
+	if !strings.Contains(page, "real.example.com") {
+		t.Errorf("discriminated real name not listed; body: %s", page)
+	}
+	if strings.Contains(page, "ghost.example.com") {
+		t.Errorf("Shadowed name appears in listing; body: %s", page)
+	}
+
+	drill := getBody(t, ac, base+"/subjects/ghost.example.com", http.StatusOK)
+	if !strings.Contains(drill, "withdrawn") || !strings.Contains(drill, "no current member") {
+		t.Errorf("Shadowed drill-down not marked as no current member; body: %s", drill)
+	}
+}
+
 func TestSubjectDrilldownRendersCitationChainAndPlaceholders(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

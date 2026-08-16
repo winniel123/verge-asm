@@ -25,11 +25,23 @@ import (
 // no current member. Address/Service/Endpoint arrive with later measurement
 // tickets and have no surface here yet.
 
-// nameOutcomeNameError is the resolution outcome that withdraws a Name: our own
-// resolver measuring a Name Error is the one route a Name leaves the estate
-// (ADR-0006). It mirrors resolutionwalk.OutcomeNameError, kept as a local
-// constant so the web binary reads the stored value without importing the leaf.
-const nameOutcomeNameError = "NameError"
+// nameOutcomeNameError and nameOutcomeShadowed are the two resolution outcomes
+// that suppress a Name's membership: resolution-walk measuring a Name Error (the
+// name does not exist) and wildcard-discrimination reading Shadowed (a
+// wildcard-synthesised answer), which suppress a Name as affirmatively as each
+// other (#192; ADR-0006, ADR-0086). Kept as local constants so the web binary
+// reads the stored value without importing the leaves.
+const (
+	nameOutcomeNameError = "NameError"
+	nameOutcomeShadowed  = "Shadowed"
+)
+
+// suppressesNameMembership reports whether a latest resolution outcome takes a
+// Name out of the estate — the drill-down renders such a Name as a population of
+// no current member (ADR-0072).
+func suppressesNameMembership(outcome string) bool {
+	return outcome == nameOutcomeNameError || outcome == nameOutcomeShadowed
+}
 
 // resolutionValue is the JSON payload of a resolution observation, the shape the
 // resolution-walk leaf emits. The web layer reads only the fields it renders.
@@ -542,7 +554,7 @@ func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	res := decodeResolution(subject.Value)
 	data := subjectPageData{
 		Name:       subject.SubjectKey,
-		Withdrawn:  res.Outcome == nameOutcomeNameError,
+		Withdrawn:  suppressesNameMembership(res.Outcome),
 		Resolution: res.Outcome,
 		Addresses:  res.Addresses,
 	}

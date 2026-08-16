@@ -113,30 +113,6 @@ FROM observation o
 ORDER BY o.id DESC
 LIMIT $1;
 
--- name: NameMembership :many
--- Membership reads the `resolution` facet, which `resolution-walk` and
--- `wildcard-discrimination` decide jointly (ADR-0086): the recorded value is one
--- or the other, so this reads BOTH leaves' outputs off one timeline. A Name is
--- withdrawn only where every available vantage's latest resolution is NameError;
--- a `Shadowed` answer never withdraws a Name and cites no `Address`. This extends
--- #188's observation corpus additively so #189's Subjects listing can suppress a
--- Shadowed Name's addresses without forking a second membership path.
-WITH latest AS (
-    SELECT DISTINCT ON (o.subject_key, o.vantage_id)
-        o.subject_key AS subject_key,
-        o.value->>'outcome' AS outcome
-    FROM observation o
-    WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
-    ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC
-)
-SELECT
-    subject_key,
-    bool_and(outcome = 'NameError') AS withdrawn,
-    bool_or(outcome = 'Shadowed') AS shadowed
-FROM latest
-GROUP BY subject_key
-ORDER BY subject_key;
-
 -- name: NameCitedAddresses :many
 -- The Addresses a current resolution cites, per Name — an `Address` is in the
 -- estate exactly while a current resolution cites it. Only a `Resolved` value

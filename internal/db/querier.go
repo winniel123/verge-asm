@@ -261,11 +261,13 @@ type Querier interface {
 	// ADR-0006/ADR-0080) narrows this predicate here rather than growing a second
 	// computation elsewhere.
 	// Every Name currently in the estate, with optional search. A Name is a member
-	// while its latest resolution observation is not a measured Name Error — the
-	// only route a Name leaves is our resolver measuring NameError (ADR-0006). No
-	// count is selected: the estate can carry no honest denominator (ADR-0072), so
-	// there is nothing here to total. A withdrawn Name (latest resolution =
-	// NameError) is filtered out and reached only by key (GetNameSubject).
+	// while its latest resolution observation neither reads a measured Name Error nor
+	// is Shadowed: resolution-walk's NameError (the name does not exist) and
+	// wildcard-discrimination's Shadowed (a wildcard-synthesised answer) both suppress
+	// a Name's membership as affirmatively as each other (#192; ADR-0006, ADR-0086).
+	// No count is selected: the estate can carry no honest denominator (ADR-0072), so
+	// there is nothing here to total. A suppressed Name is filtered out and reached
+	// only by key (GetNameSubject).
 	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
 	// Every Service currently in the estate, with optional search (#195). A Service
 	// is an (Address, port, transport) triple whose membership is its Address's
@@ -418,14 +420,6 @@ type Querier interface {
 	// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
 	// so every `Address` held only by a superseded `Resolved` leaves the estate.
 	NameCitedAddresses(ctx context.Context) ([]NameCitedAddressesRow, error)
-	// Membership reads the `resolution` facet, which `resolution-walk` and
-	// `wildcard-discrimination` decide jointly (ADR-0086): the recorded value is one
-	// or the other, so this reads BOTH leaves' outputs off one timeline. A Name is
-	// withdrawn only where every available vantage's latest resolution is NameError;
-	// a `Shadowed` answer never withdraws a Name and cites no `Address`. This extends
-	// #188's observation corpus additively so #189's Subjects listing can suppress a
-	// Shadowed Name's addresses without forking a second membership path.
-	NameMembership(ctx context.Context) ([]NameMembershipRow, error)
 	// Open a new span for a timeline. The caller passes the canonical value, the
 	// gap flag, and the Derivation vector as a JSON array of {leaf,version}.
 	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
