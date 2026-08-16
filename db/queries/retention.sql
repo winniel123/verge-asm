@@ -35,11 +35,17 @@ FROM scan
 WHERE enabled = TRUE;
 
 -- name: ListLiveObservationsForDerivation :many
--- The gate every derivation reads observations through (v1 spec §4.6, ADR-0041):
--- it returns ONLY live-tier rows — those within k cadences of the tightest ENABLED
--- Scan covering their timeline — so an evidential row is structurally unreadable by
--- any derivation reading through it, and no derivation can re-derive history from a
--- stale observation. The bound is evaluated PER TIMELINE and never collapsed:
+-- The read-side live-tier gate a derivation reads observations through (v1 spec
+-- §4.6, ADR-0041): it returns ONLY live-tier rows — those within k cadences of the
+-- tightest ENABLED Scan covering their timeline — so a derivation reading through
+-- it cannot re-derive history from a stale observation. NOTE: in v1 the
+-- live/evidential boundary is enforced by RETIREMENT (DeleteExpiredObservations
+-- below is the sole delete path and removes evidential rows on the Retirer's
+-- sweep); the existing derivation reads still query the observation table directly
+-- and see only live rows once a sweep has run. Routing each of those reads through
+-- this gate — threading @as_of into every derivation query — is the stronger,
+-- immediate separation and is the remaining integration. The bound is evaluated
+-- PER TIMELINE and never collapsed:
 -- `cover` groups by the full timeline key (subject, facet, discriminator, vantage,
 -- source) and takes the tightest covering cadence, so a zone-sourced row's live
 -- window is the zone cadence and a resolver-sourced row's is the resolver's. A

@@ -121,8 +121,10 @@ func toMessageRow(m db.Message) messageRow {
 //   - drift and threshold link to an object's own page (the object that moved,
 //     or the object whose span the rule read);
 //   - declared-input links to the Source the rule reads;
-//   - aperture-widening links to the Seed whose scope moved — never to Coverage's
-//     standing aperture statement.
+//   - aperture-widening links to the Seed whose scope moved — the seed-scoped
+//     anchor on the Seeds list, never the bare list and never Coverage's standing
+//     aperture statement (which is constant and would lose which act the message
+//     was about).
 //
 // LinkText is the key the link points at.
 func messageLink(cause message.Cause, subjectKind, firedAt string) (href, text string) {
@@ -130,7 +132,9 @@ func messageLink(cause message.Cause, subjectKind, firedAt string) (href, text s
 	case message.LinkSource:
 		return "/sources", firedAt
 	case message.LinkSeed:
-		return "/seeds", firedAt
+		// firedAt is the Seed's scope key (subject_kind "seed"); anchor to its row
+		// so the operator lands on the exact Seed whose scope moved.
+		return "/seeds#seed-" + seedAnchor(firedAt), firedAt
 	default: // LinkObject
 		if h := subjectHref(subjectKind, firedAt); h != "" {
 			return h, firedAt

@@ -33,6 +33,22 @@ func TestBackoffEveryCauseHalves(t *testing.T) {
 	}
 }
 
+// A stress cause the declared policy does not enable is a no-op: the runtime
+// only halves on causes the recorded BackoffPolicy committed to.
+func TestBackoffHonoursDeclaredPolicy(t *testing.T) {
+	p := DefaultProfile()
+	p.AdaptiveBackoff = BackoffPolicy{HalveOnTimeout: true} // only timeout enabled
+	b := NewBackoff(p)
+	b.Signal(Stress429)
+	if b.Rate() != b.base {
+		t.Errorf("a disabled cause halved the rate: got %d, want %d", b.Rate(), b.base)
+	}
+	b.Signal(StressTimeout)
+	if b.Rate() != b.base/2 {
+		t.Errorf("the enabled cause did not halve: got %d, want %d", b.Rate(), b.base/2)
+	}
+}
+
 // The back-off changes the rate and NOTHING about a deadline — there is no
 // deadline on the type at all (ADR-0021). This is a structural assertion: the
 // interval grows, and the profile's connect timeout is read separately.
@@ -86,7 +102,13 @@ func TestPacerGlobalCeilingBindsAcrossHosts(t *testing.T) {
 
 // A stress signal on a host widens that host's spacing at the pacer.
 func TestPacerBacksOffSignalledHost(t *testing.T) {
-	p := SafetyProfile{PerHostConnPerSec: 10, GlobalPacketsPerSec: 1000}
+	p := SafetyProfile{
+		PerHostConnPerSec:   10,
+		GlobalPacketsPerSec: 1000,
+		// The declared policy the runtime halves on — real profiles set it via
+		// DefaultProfile; a Signal only halves for a cause the offers enabled.
+		AdaptiveBackoff: BackoffPolicy{HalveOnTimeout: true},
+	}
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)
 	h := netip.MustParseAddr("198.51.100.1")

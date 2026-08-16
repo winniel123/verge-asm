@@ -6,12 +6,13 @@
 // reads (ADR-0086), so membership is never decided by one leaf alone where both
 // apply — a bump of either leaf moves the value membership reads.
 //
-// `Shadowed` cites no `Address`, so the verdict decides whether an answer's
-// address set enters the estate: a `Shadowed` Name is not withdrawn (it stays,
-// admitted by its Citation rather than by this answer), but every `Address` held
-// only by that citation leaves the estate. This package extends the one
-// membership path additively so a `Shadowed` Name is suppressed; it does not fork
-// a second one.
+// `Shadowed` cites no `Address` and suppresses the affected `Name` "as
+// affirmatively as" `resolution-walk`'s own `NameError` (#192 AC): a Name read
+// `Shadowed` at every available vantage leaves the estate, and every `Address`
+// held only by that answer leaves with it. Suppression is existential like every
+// presence read — a Name still admitted by some vantage (Resolved / NoData /
+// Lame), by a Citation, or by a Seed stays. This package extends the one
+// membership path additively; it does not fork a second one.
 package estate
 
 import (
@@ -81,10 +82,11 @@ type Estate struct {
 // Vantage), the Seed-covered Names, and the Seed-covered Addresses (all Declared,
 // carrying no vector, so always present). A presence read is existential within
 // the witnesses (ADR-0080): a Name is present where **some** vantage's current
-// resolution does not withdraw it, and it withdraws only where **every** available
-// vantage reads `NameError`. A `Shadowed` answer never withdraws a Name and never
-// cites an Address, which is how a repointed wildcard's fictional names stay out
-// of the estate while the real one beneath it holds by its Citation.
+// resolution admits it, and it is suppressed only where **every** available
+// vantage reads `NameError` or `Shadowed` (WithdrawnCrossClass). A `Shadowed`
+// answer cites no Address and does not admit its Name, which is how a repointed
+// wildcard's fictional names stay out of the estate while a real one still
+// admitted by another vantage, a Citation, or a Seed holds.
 //
 // Address membership is the disjunction of its two limbs (AddressPresent): an
 // Address is in the estate exactly while a current resolution cites it OR a Seed's

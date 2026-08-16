@@ -261,11 +261,13 @@ type Querier interface {
 	// ADR-0006/ADR-0080) narrows this predicate here rather than growing a second
 	// computation elsewhere.
 	// Every Name currently in the estate, with optional search. A Name is a member
-	// while its latest resolution observation is not a measured Name Error — the
-	// only route a Name leaves is our resolver measuring NameError (ADR-0006). No
-	// count is selected: the estate can carry no honest denominator (ADR-0072), so
-	// there is nothing here to total. A withdrawn Name (latest resolution =
-	// NameError) is filtered out and reached only by key (GetNameSubject).
+	// while its latest resolution observation neither reads a measured Name Error nor
+	// is Shadowed: resolution-walk's NameError (the name does not exist) and
+	// wildcard-discrimination's Shadowed (a wildcard-synthesised answer) both suppress
+	// a Name's membership as affirmatively as each other (#192; ADR-0006, ADR-0086).
+	// No count is selected: the estate can carry no honest denominator (ADR-0072), so
+	// there is nothing here to total. A suppressed Name is filtered out and reached
+	// only by key (GetNameSubject).
 	ListCurrentNameSubjects(ctx context.Context, search string) ([]ListCurrentNameSubjectsRow, error)
 	// Every Service currently in the estate, with optional search (#195). A Service
 	// is an (Address, port, transport) triple whose membership is its Address's
@@ -294,11 +296,17 @@ type Querier interface {
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
 	// derives operator by extension (ADR-0013 §3).
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
-	// The gate every derivation reads observations through (v1 spec §4.6, ADR-0041):
-	// it returns ONLY live-tier rows — those within k cadences of the tightest ENABLED
-	// Scan covering their timeline — so an evidential row is structurally unreadable by
-	// any derivation reading through it, and no derivation can re-derive history from a
-	// stale observation. The bound is evaluated PER TIMELINE and never collapsed:
+	// The read-side live-tier gate a derivation reads observations through (v1 spec
+	// §4.6, ADR-0041): it returns ONLY live-tier rows — those within k cadences of the
+	// tightest ENABLED Scan covering their timeline — so a derivation reading through
+	// it cannot re-derive history from a stale observation. NOTE: in v1 the
+	// live/evidential boundary is enforced by RETIREMENT (DeleteExpiredObservations
+	// below is the sole delete path and removes evidential rows on the Retirer's
+	// sweep); the existing derivation reads still query the observation table directly
+	// and see only live rows once a sweep has run. Routing each of those reads through
+	// this gate — threading @as_of into every derivation query — is the stronger,
+	// immediate separation and is the remaining integration. The bound is evaluated
+	// PER TIMELINE and never collapsed:
 	// `cover` groups by the full timeline key (subject, facet, discriminator, vantage,
 	// source) and takes the tightest covering cadence, so a zone-sourced row's live
 	// window is the zone cadence and a resolver-sourced row's is the resolver's. A
@@ -364,7 +372,7 @@ type Querier interface {
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
-	ListSourceStates(ctx context.Context) ([]ListSourceStatesRow, error)
+	ListSourceStates(ctx context.Context) ([]SourceState, error)
 	// A subject's full Span history — current and closed — for the Subjects
 	// drill-down. Ordered by timeline, oldest first, so the renderer walks each
 	// timeline and derives its Breaks and Transitions on read. The closed corpus is
@@ -418,14 +426,6 @@ type Querier interface {
 	// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
 	// so every `Address` held only by a superseded `Resolved` leaves the estate.
 	NameCitedAddresses(ctx context.Context) ([]NameCitedAddressesRow, error)
-	// Membership reads the `resolution` facet, which `resolution-walk` and
-	// `wildcard-discrimination` decide jointly (ADR-0086): the recorded value is one
-	// or the other, so this reads BOTH leaves' outputs off one timeline. A Name is
-	// withdrawn only where every available vantage's latest resolution is NameError;
-	// a `Shadowed` answer never withdraws a Name and cites no `Address`. This extends
-	// #188's observation corpus additively so #189's Subjects listing can suppress a
-	// Shadowed Name's addresses without forking a second membership path.
-	NameMembership(ctx context.Context) ([]NameMembershipRow, error)
 	// Open a new span for a timeline. The caller passes the canonical value, the
 	// gap flag, and the Derivation vector as a JSON array of {leaf,version}.
 	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
@@ -507,8 +507,9 @@ type Querier interface {
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
 	// Record the operator's on/off choice for one source. A toggle is a Declared act
-	// with no timeline, so re-toggling overwrites the single current value rather
-	// than appending, and toggled_at re-stamps to when the current state was set.
+	// with no timeline, no actor, and no instant of its own (ADR-0073, ADR-0093), so
+	// re-toggling overwrites the single current value and the row holds only the
+	// overridden state.
 	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
 	// verge-core frequency-half editing (v1 spec §3.5). Only the frequency half is
 	// operator-editable; these queries manage the delta rows the hot fan-out applies

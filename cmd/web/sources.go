@@ -451,7 +451,7 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
-		Slug: slug, Enabled: enabled, ToggledBy: acct.ID,
+		Slug: slug, Enabled: enabled,
 	}); err != nil {
 		s.serverError(w, "upsert source state", err)
 		return

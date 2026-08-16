@@ -186,10 +186,8 @@ type Seed struct {
 }
 
 type SourceState struct {
-	Slug      string             `json:"slug"`
-	Enabled   bool               `json:"enabled"`
-	ToggledBy int64              `json:"toggled_by"`
-	ToggledAt pgtype.Timestamptz `json:"toggled_at"`
+	Slug    string `json:"slug"`
+	Enabled bool   `json:"enabled"`
 }
 
 type Span struct {

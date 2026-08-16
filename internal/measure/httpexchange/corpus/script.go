@@ -16,8 +16,8 @@ import (
 // scriptExchanger answers each Endpoint key from a fixed result and counts the
 // calls, so a row can assert that a 3xx is never followed with a second request.
 // An unscripted target reads as a failed exchange — a not-completed result, which
-// creates no Endpoint — so a row that forgets a target renders a legible absence
-// rather than panicking.
+// records the no-http-response negative — so a row that forgets a target renders a
+// legible value rather than panicking.
 type scriptExchanger struct {
 	byKey map[string]he.ExchangeResult
 	calls map[string]int

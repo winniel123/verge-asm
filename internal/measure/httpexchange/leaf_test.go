@@ -3,6 +3,7 @@ package httpexchange
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -59,44 +60,64 @@ func TestParamsDigestMovesWithADeclaredParameter(t *testing.T) {
 }
 
 func TestIdentityFoldsACompletedExchange(t *testing.T) {
-	id, ok := Identity(ExchangeResult{
-		Status: 200, Server: "nginx", ContentType: "text/html", Body: []byte("hello"),
+	id := Identity(ExchangeResult{
+		Status: 200, Server: "nginx",
+		Body: []byte("<html><head><title>Home Page</title></head></html>"),
 	}, DefaultParams().BodyCapBytes)
-	if !ok {
-		t.Fatal("a completed exchange must fold to an identity")
+	if id.Outcome != OutcomeResponded {
+		t.Errorf("a completed exchange folds to responded, got %q", id.Outcome)
 	}
-	if id.Status != 200 || id.Server != "nginx" || id.ContentType != "text/html" {
+	if id.Status != 200 || id.Server != "nginx" {
 		t.Errorf("identity did not carry status/headers: %+v", id)
 	}
-	if id.BodyBytes != 5 || id.BodyTruncated {
-		t.Errorf("a short body is not truncated: %+v", id)
-	}
-	if !strings.HasPrefix(id.BodySHA256, "sha256:") {
-		t.Errorf("body digest not rendered: %q", id.BodySHA256)
+	if id.Title != "Home Page" {
+		t.Errorf("title not lifted from the body: %q", id.Title)
 	}
 }
 
-func TestIdentityFailsForATransportFailure(t *testing.T) {
-	if _, ok := Identity(ExchangeResult{Failed: true, Err: "connection reset"}, 64); ok {
-		t.Error("a failed exchange must fold to no identity — no Endpoint is created")
+func TestIdentityFoldsANoHTTPResponse(t *testing.T) {
+	// A reached Service that returns no valid HTTP response folds to the
+	// no-http-response VALUE — never nothing (ADR-0011). Its Endpoint still exists.
+	id := Identity(ExchangeResult{Failed: true, Err: "connection reset"}, 64)
+	if id.Outcome != OutcomeNoHTTPResponse {
+		t.Errorf("a non-HTTP exchange folds to no-http-response, got %q", id.Outcome)
+	}
+	if id.Status != 0 || id.Server != "" || id.Title != "" {
+		t.Errorf("a no-http-response value carries only its outcome: %+v", id)
 	}
 }
 
-func TestBodyIsCappedAndMarkedTruncated(t *testing.T) {
-	cap := 64
-	body := bytes.Repeat([]byte("x"), cap+100)
-	id, ok := Identity(ExchangeResult{Status: 200, Body: body}, cap)
-	if !ok {
-		t.Fatal("completed")
+func TestIdentityRecordsAdmittedFieldsOnly(t *testing.T) {
+	// The admitted closed set: outcome, status, Server, title, WWW-Authenticate,
+	// redirect location. No body hash, length, or Content-Type reaches the value.
+	id := Identity(ExchangeResult{
+		Status: 401, Server: "caddy", WWWAuthenticate: `Basic realm="x"`,
+		Body: []byte("<title>Sign in</title>"),
+	}, DefaultParams().BodyCapBytes)
+	if id.WWWAuthenticate != `Basic realm="x"` || id.Title != "Sign in" {
+		t.Errorf("admitted fields not recorded: %+v", id)
 	}
-	if id.BodyBytes != cap || !id.BodyTruncated {
-		t.Errorf("over-cap body must truncate to the cap and mark truncated: bytes=%d trunc=%v", id.BodyBytes, id.BodyTruncated)
+	b, _ := json.Marshal(id)
+	for _, refused := range []string{"body_sha256", "body_bytes", "body_truncated", "content_type"} {
+		if strings.Contains(string(b), refused) {
+			t.Errorf("refused field %q present in the value: %s", refused, b)
+		}
 	}
-	// The digest is over the CAPPED body, so a longer body with the same first cap
-	// bytes yields the same digest — the value is bounded, not the response.
-	id2, _ := Identity(ExchangeResult{Status: 200, Body: bytes.Repeat([]byte("x"), cap+9999)}, cap)
-	if id.BodySHA256 != id2.BodySHA256 {
-		t.Error("the digest must be over the capped body, independent of overrun length")
+}
+
+func TestTitleExtraction(t *testing.T) {
+	cases := []struct{ body, want string }{
+		{"<title>Hello</title>", "Hello"},
+		{"<TITLE>Caps</TITLE>", "Caps"},
+		{`<title lang="en">Attr</title>`, "Attr"},
+		{"<title>  spaced\n  out </title>", "spaced out"},
+		{"no title here", ""},
+		{"<title>unterminated", ""},
+	}
+	for _, c := range cases {
+		if got := extractTitle([]byte(c.body)); got != c.want {
+			t.Errorf("extractTitle(%q) = %q, want %q", c.body, got, c.want)
+		}
 	}
 }
 
@@ -126,27 +147,28 @@ func TestRedirectIsRecordedButNotFollowed(t *testing.T) {
 	}
 }
 
-func TestEndpointCreatedPerSuccessfulExchangeNamedAndNameless(t *testing.T) {
+func TestEndpointCreatedPerReachedExchangeNamedAndNameless(t *testing.T) {
 	named := Target{Name: "api.example.com", Address: "198.51.100.1", Port: 443, Scheme: "https"}
 	nameless := Target{Name: "", Address: "198.51.100.2", Port: 443, Scheme: "https"}
-	failed := Target{Name: "down.example.com", Address: "198.51.100.3", Port: 443, Scheme: "https"}
+	noHTTP := Target{Name: "down.example.com", Address: "198.51.100.3", Port: 443, Scheme: "https"}
 	ex := newCounting(map[string]ExchangeResult{
-		named.EndpointKey():    {Status: 200, Server: "nginx", Body: []byte("ok")},
+		named.EndpointKey():    {Status: 200, Server: "nginx", Body: []byte("<title>ok</title>")},
 		nameless.EndpointKey(): {Status: 204, Body: nil},
-		failed.EndpointKey():   {Failed: true, Err: "timeout"},
+		noHTTP.EndpointKey():   {Failed: true, Err: "timeout"},
 	})
 	var buf bytes.Buffer
 	if err := RunWithExchanger(context.Background(), ex, "b1", Scope{
-		Vantage: "v1", Targets: []Target{named, nameless, failed}, Params: DefaultParams(),
+		Vantage: "v1", Targets: []Target{named, nameless, noHTTP}, Params: DefaultParams(),
 	}, &buf); err != nil {
 		t.Fatal(err)
 	}
 	obs := decodeAll(t, buf.Bytes())
-	if len(obs) != 2 {
-		t.Fatalf("an Endpoint per SUCCESSFUL exchange: got %d observations, want 2 (failed omitted)", len(obs))
+	if len(obs) != 3 {
+		t.Fatalf("an Endpoint per REACHED exchange: got %d observations, want 3 (no-http-response included)", len(obs))
 	}
 	// The named endpoint key is name@service; the nameless is @service — a
-	// distinguished variant, never an empty name.
+	// distinguished variant, never an empty name. The reached non-HTTP Service is
+	// an Endpoint too, carrying the no-http-response value.
 	keys := map[string]bool{}
 	for _, o := range obs {
 		if o.Facet != FacetHTTPIdentity {
@@ -160,8 +182,8 @@ func TestEndpointCreatedPerSuccessfulExchangeNamedAndNameless(t *testing.T) {
 	if !keys["@198.51.100.2:443/tcp"] {
 		t.Error("nameless endpoint key (@service) missing")
 	}
-	if keys["down.example.com@198.51.100.3:443/tcp"] {
-		t.Error("failed exchange must not create an Endpoint")
+	if !keys["down.example.com@198.51.100.3:443/tcp"] {
+		t.Error("a reached non-HTTP Service still creates an Endpoint (no-http-response)")
 	}
 }
 

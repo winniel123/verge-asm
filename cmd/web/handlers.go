@@ -35,7 +35,7 @@ type store interface {
 	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
 	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
 	DeleteExclusion(ctx context.Context, id int64) error
-	ListSourceStates(ctx context.Context) ([]db.ListSourceStatesRow, error)
+	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)

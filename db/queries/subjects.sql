@@ -9,11 +9,13 @@
 
 -- name: ListCurrentNameSubjects :many
 -- Every Name currently in the estate, with optional search. A Name is a member
--- while its latest resolution observation is not a measured Name Error — the
--- only route a Name leaves is our resolver measuring NameError (ADR-0006). No
--- count is selected: the estate can carry no honest denominator (ADR-0072), so
--- there is nothing here to total. A withdrawn Name (latest resolution =
--- NameError) is filtered out and reached only by key (GetNameSubject).
+-- while its latest resolution observation neither reads a measured Name Error nor
+-- is Shadowed: resolution-walk's NameError (the name does not exist) and
+-- wildcard-discrimination's Shadowed (a wildcard-synthesised answer) both suppress
+-- a Name's membership as affirmatively as each other (#192; ADR-0006, ADR-0086).
+-- No count is selected: the estate can carry no honest denominator (ADR-0072), so
+-- there is nothing here to total. A suppressed Name is filtered out and reached
+-- only by key (GetNameSubject).
 WITH latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
@@ -25,7 +27,7 @@ WITH latest AS (
 )
 SELECT subject_key, value, observed_at
 FROM latest
-WHERE value->>'outcome' <> 'NameError'
+WHERE value->>'outcome' NOT IN ('NameError', 'Shadowed')
   AND (@search::text = '' OR subject_key ILIKE '%' || @search::text || '%')
 ORDER BY subject_key;
 

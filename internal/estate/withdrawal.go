@@ -20,18 +20,31 @@ type ClassWitness struct {
 	Outcomes []string
 }
 
-// WithdrawnCrossClass reports whether a Name withdraws from the estate. A Name
-// leaves only on a Name Error from every available Vantage class, composed as a
+// suppresses reports whether a composed resolution outcome suppresses a Name's
+// membership — it neither admits the Name nor is a not-evaluable Gap. NameError
+// (the name does not exist) and Shadowed (a wildcard-synthesised answer,
+// indistinguishable from a fiction) both suppress the affected Name "as
+// affirmatively as" each other (#192 AC; ADR-0086 — membership composes every
+// leaf that decides the value it reads). Resolved / NoData / Lame admit the Name;
+// Gap is not-evaluable and blocks withdrawal.
+func suppresses(outcome string) bool {
+	return outcome == OutcomeNameError || outcome == OutcomeShadowed
+}
+
+// WithdrawnCrossClass reports whether a Name is absent from the estate. A Name
+// leaves only where every available Vantage class suppresses it, composed as a
 // cross-class Vantage composition (ADR-0080):
 //
 //   - Every class the install runs must hold a current value and they must agree
-//     on NameError. A class with no available vantage leaves the comparison
-//     unmade — a missing term, never a vacuous pass — so the Name does not
-//     withdraw (this is the guard against withdrawing every Name the night every
-//     vantage goes unavailable).
+//     that the Name is suppressed — every available vantage reads NameError or
+//     Shadowed. A class with no available vantage leaves the comparison unmade —
+//     a missing term, never a vacuous pass — so the Name does not withdraw (this
+//     is the guard against withdrawing every Name the night every vantage goes
+//     unavailable).
 //   - Within a class an absence is unanimous: every available vantage of the
-//     class must read NameError. One vantage of the class still resolving keeps
-//     the class present, because presence composes existentially.
+//     class must suppress. One vantage of the class still admitting the Name
+//     (Resolved / NoData / Lame) keeps the class present, because presence
+//     composes existentially; a Gap likewise blocks, being not-evaluable.
 //
 // Over an empty set of classes the Name does not withdraw — never survivor-only
 // over an empty set, and never a clock. A subject leaves by measurement or not
@@ -47,15 +60,15 @@ func WithdrawnCrossClass(classes []ClassWitness) bool {
 			return false
 		}
 		for _, o := range c.Outcomes {
-			if o != OutcomeNameError {
-				// Some available vantage of this class still resolves (or reads
-				// Shadowed / NoData / Lame / Gap — none of which withdraws): the class
-				// does not conclude absence, so neither does the composition.
+			if !suppresses(o) {
+				// Some available vantage of this class admits the Name (Resolved /
+				// NoData / Lame) or is not-evaluable (Gap): the class does not
+				// conclude absence, so neither does the composition.
 				return false
 			}
 		}
 	}
-	// Every class held a value and every one agreed on NameError.
+	// Every class held a value and every one concluded the Name is suppressed.
 	return true
 }
 

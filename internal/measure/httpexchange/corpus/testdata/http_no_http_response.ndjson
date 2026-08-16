@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"http-exchange","facet":"http-identity","subject":"down.example.com@198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"no-http-response"}}

@@ -149,8 +149,8 @@ func RetainObservation(ageSeconds, boundSeconds, dialSeconds int64, hasBound, wi
 }
 
 // AgedObservation is the minimum a tier decision needs about one row: its identity,
-// how old it is, and the bound of the timeline it sits on. A derivation folds these
-// through LiveOnly, which is why a derivation cannot reach an evidential row.
+// how old it is, and the bound of the timeline it sits on. A read that folds these
+// through LiveOnly cannot reach an evidential row.
 type AgedObservation struct {
 	ID           int64
 	AgeSeconds   int64
@@ -158,13 +158,20 @@ type AgedObservation struct {
 	HasBound     bool
 }
 
-// LiveOnly returns the live-tier subset of rows — the rows every derivation reads
-// and the only rows any derivation may read. An evidential row (age past its own
-// bound, or on a timeline no enabled Scan covers) is dropped here and is therefore
-// unreadable by any derivation that reads through this gate. Proving that drop is
-// the readability-separation AC (ADR-0041); the SQL half is
-// ListLiveObservationsForDerivation, which filters by each row's own bound in the
-// database.
+// LiveOnly returns the live-tier subset of rows: an evidential row (age past its
+// own bound, or on a timeline no enabled Scan covers) is dropped, so a read that
+// folds through this gate cannot reach one. It is the read-side half of the
+// live/evidential separation and the shared definition of the boundary; the SQL
+// twin is ListLiveObservationsForDerivation, which filters by each row's own bound
+// in the database.
+//
+// In v1 the boundary is ENFORCED by retirement, not by read-filtering every query:
+// the ObservationRetirer below is the sole delete path and removes evidential rows
+// on its sweep, so a derivation that reads the observation table directly sees only
+// live rows once the sweep has run. Routing each derivation read through this gate
+// (threading the read instant into every derivation query) is the stronger,
+// immediate form of the separation and remains to be wired; see the note on
+// ListLiveObservationsForDerivation.
 func LiveOnly(rows []AgedObservation) []AgedObservation {
 	out := make([]AgedObservation, 0, len(rows))
 	for _, r := range rows {

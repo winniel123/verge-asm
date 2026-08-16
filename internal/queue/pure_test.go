@@ -31,8 +31,21 @@ func TestBackoffGrowsAndCaps(t *testing.T) {
 	if backoff(2) <= backoff(1) {
 		t.Error("backoff should grow with attempt")
 	}
-	if backoff(20) != 16*time.Minute {
-		t.Errorf("backoff should cap at 16m, got %s", backoff(20))
+	if backoff(20) != 32*time.Minute {
+		t.Errorf("backoff should cap at 32m, got %s", backoff(20))
+	}
+}
+
+// §4.5's retry budget: the waits before the five attempts span roughly an hour,
+// the budget both measurement jobs and Channel deliveries share. A base of 30s
+// summed to ~15m and quietly missed it.
+func TestBackoffBudgetIsAboutAnHour(t *testing.T) {
+	var total time.Duration
+	for attempt := int32(2); attempt <= 5; attempt++ {
+		total += backoff(attempt)
+	}
+	if total != 60*time.Minute {
+		t.Errorf("five-attempt budget = %s, want ~1h", total)
 	}
 }
 

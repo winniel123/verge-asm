@@ -7,7 +7,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -320,7 +322,7 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 			Resolution:     c.outcome,
 			Addresses:      c.addresses,
 			ZoneDeclared:   declared[name],
-			InDeclaredZone: coveredBy(name, zoneDomains),
+			InDeclaredZone: custody.WithinAnyZone(name, zoneDomains),
 		}
 		if target, ok := cnameTarget[name]; ok {
 			f.CNAMETarget = target
@@ -395,17 +397,6 @@ func composeResolution(classes map[string]resolutionValue, lame bool) composedRe
 	return out
 }
 
-// coveredBy reports whether a Name falls within any declared zone domain, by the
-// same label-wise suffix rule the estate uses everywhere (ADR-0055): the name is
-// the domain, or ends with "." + domain.
-func coveredBy(name string, domains []string) bool {
-	for _, d := range domains {
-		if name == d || strings.HasSuffix(name, "."+d) {
-			return true
-		}
-	}
-	return false
-}
 
 func sortedKeys(m map[string]struct{}) []string {
 	out := make([]string, 0, len(m))
@@ -541,10 +532,12 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 			f.CertOutcome = o
 		}
 		if id, ok := httpID[sub]; ok {
-			f.HTTPResponded = true
+			// Only a `responded` Endpoint is inside the HTTP rules' domain; a reached
+			// Service that returned no-http-response is a value, but outside them.
+			f.HTTPResponded = id.Outcome == httpexchange.OutcomeResponded
 			f.HTTPStatus = id.Status
 			f.RedirectLocation = id.RedirectLocation
-			if f.HTTPStatus >= 300 && f.HTTPStatus <= 399 && id.RedirectLocation != "" {
+			if f.HTTPResponded && f.HTTPStatus >= 300 && f.HTTPStatus <= 399 && id.RedirectLocation != "" {
 				_, host := signal.RedirectTarget(id.RedirectLocation)
 				f.RedirectHostInEstate = inEstate(host)
 			}

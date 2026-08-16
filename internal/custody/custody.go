@@ -126,19 +126,32 @@ func (e Estate) coveredByExtension(addr netip.Addr) bool {
 // address-containment test and, like it, never compares a name as a string, so
 // evilexample.com does not read as inside example.com.
 func (e Estate) withinExtendedZone(name string) bool {
-	for _, zone := range e.ExtendedZones {
-		if labelSuffix(name, zone) {
+	return WithinAnyZone(name, e.ExtendedZones)
+}
+
+// WithinAnyZone reports whether name falls within any of zones — the subtree
+// containment CONTEXT.md defines, `name` being a zone's apex or a subdomain of
+// it. It is the ONE label-wise suffix test the model owns: every "a name is
+// under a declared domain" question (custody extension, cold-scan opt-in,
+// signal InDeclaredZone, wildcard-discrimination population) routes here rather
+// than re-deriving `name == d || strings.HasSuffix(name, "."+d)` on raw strings,
+// which folds Unicode and compares a name as a string — both of which CONTEXT.md
+// and ADR-0055 forbid.
+func WithinAnyZone(name string, zones []string) bool {
+	for _, zone := range zones {
+		if LabelSuffix(name, zone) {
 			return true
 		}
 	}
 	return false
 }
 
-// labelSuffix reports whether candidate's labels end with zone's labels. A
+// LabelSuffix reports whether candidate's labels end with zone's labels. A
 // name's own labels end with its own labels, so a zone covers its own apex as
 // well as everything beneath it. Comparison is over lower-cased ASCII labels,
-// matching the Name key's fold (ADR-0055).
-func labelSuffix(candidate, zone string) bool {
+// matching the Name key's fold (ADR-0055) — never a raw string HasSuffix, so
+// evilexample.com does not read as inside example.com.
+func LabelSuffix(candidate, zone string) bool {
 	cl := labels(candidate)
 	zl := labels(zone)
 	if len(zl) == 0 || len(cl) < len(zl) {

@@ -10,7 +10,7 @@ func TestMembershipFiresAtNameOrAddressRoot(t *testing.T) {
 		CensusEntry{Kind: "endpoint", Key: "example.com|203.0.113.5:443/tcp"},
 	)
 	for _, kind := range []string{"name", "address"} {
-		msg := Membership(EntryAppeared, kind, "root-key", census, t0)
+		msg := Membership(EntryAppeared, kind, "root-key", "", census, t0)
 		if msg == nil {
 			t.Fatalf("a %s root must fire a membership message", kind)
 		}
@@ -28,7 +28,7 @@ func TestEnteringServiceOrEndpointRidesCensusNotOwnMessage(t *testing.T) {
 		if RootFires(kind) {
 			t.Errorf("%s must never be a membership root", kind)
 		}
-		if got := Membership(EntryAppeared, kind, "203.0.113.5:443/tcp", NewCensus(), t0); got != nil {
+		if got := Membership(EntryAppeared, kind, "203.0.113.5:443/tcp", "", NewCensus(), t0); got != nil {
 			t.Errorf("a %s entering must not fire its own message, got %+v", kind, got)
 		}
 	}
@@ -38,7 +38,7 @@ func TestEnteringServiceOrEndpointRidesCensusNotOwnMessage(t *testing.T) {
 		CensusEntry{Kind: "service", Key: "203.0.113.5:443/tcp"},
 		CensusEntry{Kind: "endpoint", Key: "example.com|203.0.113.5:443/tcp"},
 	)
-	root := Membership(EntryAppeared, "name", "example.com", census, t0)
+	root := Membership(EntryAppeared, "name", "example.com", "", census, t0)
 	if root == nil || root.CensusLen() != 2 {
 		t.Fatal("the entering Service and Endpoint ride the root membership census")
 	}
@@ -63,7 +63,7 @@ func TestMembershipEntryDecidesClass(t *testing.T) {
 		EntryRevealed: {CauseAperture, ClassCoverage},
 	}
 	for entry, want := range cases {
-		msg := Membership(entry, "name", "example.com", NewCensus(), t0)
+		msg := Membership(entry, "name", "example.com", "198.51.100.0/24", NewCensus(), t0)
 		if msg == nil {
 			t.Fatalf("entry %q must fire", entry)
 		}
@@ -71,5 +71,27 @@ func TestMembershipEntryDecidesClass(t *testing.T) {
 			t.Errorf("entry %q => cause=%q class=%q, want %q/%q",
 				entry, msg.Cause, msg.Class, want.cause, want.class)
 		}
+	}
+}
+
+// A revealed (aperture) membership fires at the Seed whose scope moved, not the
+// entering subject: its row must link to that Seed (§5.3). The entering root
+// still names the headline and rides the census; the fired-at is the Seed.
+func TestRevealedMembershipFiresAtSeed(t *testing.T) {
+	const seedKey = "198.51.100.0/24"
+	msg := Membership(EntryRevealed, "name", "example.com", seedKey, NewCensus(), t0)
+	if msg == nil {
+		t.Fatal("a revealed membership must fire")
+	}
+	if msg.SubjectKind != "seed" || msg.FiredAt != seedKey {
+		t.Errorf("revealed membership fired at %q/%q, want seed/%q", msg.SubjectKind, msg.FiredAt, seedKey)
+	}
+	if msg.LinkKind() != LinkSeed {
+		t.Errorf("revealed membership links to %q, want %q", msg.LinkKind(), LinkSeed)
+	}
+	// appeared/returned still fire at the moved object itself.
+	drift := Membership(EntryAppeared, "name", "example.com", "", NewCensus(), t0)
+	if drift.SubjectKind != "name" || drift.FiredAt != "example.com" {
+		t.Errorf("appeared membership fired at %q/%q, want name/example.com", drift.SubjectKind, drift.FiredAt)
 	}
 }

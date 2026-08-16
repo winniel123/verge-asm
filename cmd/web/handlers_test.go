@@ -700,7 +700,7 @@ func (f *fakeStore) ListCurrentNameSubjects(_ context.Context, search string) ([
 	rows := []db.ListCurrentNameSubjectsRow{}
 	for _, k := range keys {
 		o := latest[k]
-		if fakeResolutionOutcome(o.Value) == "NameError" {
+		if suppressesNameMembership(fakeResolutionOutcome(o.Value)) {
 			continue
 		}
 		if search != "" && !strings.Contains(strings.ToLower(k), strings.ToLower(search)) {

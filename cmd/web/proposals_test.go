@@ -203,14 +203,14 @@ func TestDeclineIsBulkOverALookup(t *testing.T) {
 
 func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 	f := newFakeStore()
-	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	fp := &fakeProposer{candidates: twoCandidates()}
 	base := startWithProposer(t, f, fp)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	// Turn the ARIN keyless path off through the source-enablement state (#185).
 	if _, err := f.UpsertSourceState(context.Background(), db.UpsertSourceStateParams{
-		Slug: "arin", Enabled: false, ToggledBy: admin.ID,
+		Slug: "arin", Enabled: false,
 	}); err != nil {
 		t.Fatal(err)
 	}

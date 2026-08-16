@@ -2,13 +2,12 @@ package httpexchange
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"io"
 	"net"
 	"net/http"
 	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -58,13 +57,15 @@ func EndpointKey(name, serviceKey string) string {
 func (t Target) EndpointKey() string { return EndpointKey(t.Name, t.ServiceKey()) }
 
 // ExchangeResult is the raw outcome of one HTTP exchange the Exchanger reports,
-// before the identity fold. A Failed result means no HTTP response was obtained
-// (a transport error or a timeout): no exchange happened, so no Endpoint is
-// created and no observation is emitted. A completed result carries the status
-// line, the identity headers, the `Location` of a 3xx (recorded, never followed),
-// and the — already 64 KB-bounded — body.
+// before the identity fold. A Failed result means the reached Service returned no
+// valid HTTP response (a transport error, a timeout, or a non-HTTP protocol on the
+// port): a determinate NEGATIVE, not an absence — it folds to the `no-http-response`
+// value, never to nothing (ADR-0011, ADR-0015). A completed result carries the
+// status line, the admitted identity headers, and the `Location` of a 3xx
+// (recorded, never followed); the body is read only to lift the admitted `<title>`
+// from it and is never itself stored.
 type ExchangeResult struct {
-	// Failed is true where the exchange did not complete: no response was read.
+	// Failed is true where the exchange did not complete: no valid HTTP response.
 	Failed bool
 	// Err is the transport error text, carried on a Failed result for the operator.
 	Err string
@@ -72,61 +73,104 @@ type ExchangeResult struct {
 	Status int
 	// Server is the `Server` response header, empty where absent.
 	Server string
-	// ContentType is the `Content-Type` response header, empty where absent.
-	ContentType string
+	// WWWAuthenticate is the `WWW-Authenticate` response header (admitted on a 401),
+	// empty where absent.
+	WWWAuthenticate string
 	// Location is the `Location` header of a 3xx — recorded as identity because
 	// redirects are not followed, so the destination is a fact and not a next hop.
 	Location string
-	// Body is the response body. The production Exchanger bounds it at the cap on
-	// read; the identity fold applies the cap again so the value is deterministic
-	// regardless of the exchanger.
+	// Body is the response body, read only so the fold can lift the admitted
+	// `<title>` from it. It is bounded at the cap on read and never stored: ADR-0011
+	// refuses a body hash or content-length hardest, since their normalisation is an
+	// unbounded corpus that would diff the Endpoint on every run.
 	Body []byte
 }
 
+// Outcome is the closed union `http-identity` ranges over (ADR-0011, ADR-0015):
+// a reached Service whose `GET /` returned an HTTP response (`responded`), or one
+// reached over TCP that returned no valid HTTP response (`no-http-response`). The
+// negative is a VALUE about the Endpoint, never a Gap — modelling it as an absence
+// would make "the port does not speak HTTP" indistinguishable from "we did not
+// look".
+const (
+	OutcomeResponded      = "responded"
+	OutcomeNoHTTPResponse = "no-http-response"
+)
+
 // HTTPIdentity is the canonical `http-identity` value the leaf emits for an
-// Endpoint: the status of the single `GET /`, the identifying response headers,
-// the recorded (not followed) redirect destination, and a content digest over the
-// capped body. The differ compares these fields structurally; the body itself is
-// never stored — only its digest and length, so the value is small and stable.
+// Endpoint. It is a CLOSED SET of admitted fields (ADR-0011): the outcome, the
+// status of the single `GET /`, the `Server` header, the page `<title>`, the
+// `WWW-Authenticate` challenge, and the recorded (not followed) redirect
+// destination. It deliberately carries NO body hash, NO content-length, and NO
+// `Content-Type`: the body hash's normalisation is an unbounded corpus that would
+// diff the Endpoint on every run, and `Content-Type` is outside the closed
+// admitted set. A `no-http-response` value carries only its outcome.
 type HTTPIdentity struct {
-	Status           int    `json:"status"`
+	Outcome          string `json:"outcome"`
+	Status           int    `json:"status,omitempty"`
 	Server           string `json:"server,omitempty"`
-	ContentType      string `json:"content_type,omitempty"`
+	Title            string `json:"title,omitempty"`
+	WWWAuthenticate  string `json:"www_authenticate,omitempty"`
 	RedirectLocation string `json:"redirect_location,omitempty"`
-	BodySHA256       string `json:"body_sha256"`
-	BodyBytes        int    `json:"body_bytes"`
-	BodyTruncated    bool   `json:"body_truncated"`
 }
+
+// titleCap bounds the recorded `<title>`: a stable identifying snippet, never the
+// document. A longer title is truncated to this many bytes.
+const titleCap = 256
 
 // Identity folds a raw exchange result to the http-identity value. It is the pure
 // heart of the leaf and the thing the golden corpus pins. A Failed exchange folds
-// to no identity — the second return is false, and the caller emits nothing and
-// creates no Endpoint. A completed exchange records its status and headers, caps
-// the body at cap bytes (marking whether it was truncated), and digests the capped
-// body: the identity is the same whether the body arrived capped or whole.
-func Identity(r ExchangeResult, bodyCap int) (HTTPIdentity, bool) {
+// to the `no-http-response` VALUE — the reached Service returned no valid HTTP
+// response, a determinate negative the caller emits and whose Endpoint it creates,
+// never an absence. A completed exchange records its outcome, status, the admitted
+// headers, and the `<title>` lifted from the capped body; the body itself is never
+// stored.
+func Identity(r ExchangeResult, bodyCap int) HTTPIdentity {
 	if r.Failed {
-		return HTTPIdentity{}, false
+		return HTTPIdentity{Outcome: OutcomeNoHTTPResponse}
 	}
 	if bodyCap < 0 {
 		bodyCap = 0
 	}
 	body := r.Body
-	truncated := false
 	if len(body) > bodyCap {
 		body = body[:bodyCap]
-		truncated = true
 	}
-	sum := sha256.Sum256(body)
 	return HTTPIdentity{
+		Outcome:          OutcomeResponded,
 		Status:           r.Status,
 		Server:           r.Server,
-		ContentType:      r.ContentType,
+		Title:            extractTitle(body),
+		WWWAuthenticate:  r.WWWAuthenticate,
 		RedirectLocation: r.Location,
-		BodySHA256:       "sha256:" + hex.EncodeToString(sum[:]),
-		BodyBytes:        len(body),
-		BodyTruncated:    truncated,
-	}, true
+	}
+}
+
+// extractTitle lifts the text of the first `<title>...</title>` from the capped
+// body, case-insensitively, collapsing inner whitespace and truncating to
+// titleCap bytes. It is a small deterministic parse — never a full HTML parse —
+// so the golden corpus can pin it exactly; a body with no title yields "".
+func extractTitle(body []byte) string {
+	s := string(body)
+	lower := strings.ToLower(s)
+	open := strings.Index(lower, "<title")
+	if open < 0 {
+		return ""
+	}
+	gt := strings.IndexByte(s[open:], '>')
+	if gt < 0 {
+		return ""
+	}
+	start := open + gt + 1
+	end := strings.Index(lower[start:], "</title>")
+	if end < 0 {
+		return ""
+	}
+	title := strings.Join(strings.Fields(s[start:start+end]), " ")
+	if len(title) > titleCap {
+		title = title[:titleCap]
+	}
+	return title
 }
 
 // Exchanger performs one `GET /` against a target and reports its raw result. The
@@ -190,10 +234,10 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, int64(p.BodyCapBytes)+1))
 	return ExchangeResult{
-		Status:      resp.StatusCode,
-		Server:      resp.Header.Get("Server"),
-		ContentType: resp.Header.Get("Content-Type"),
-		Location:    resp.Header.Get("Location"),
-		Body:        body,
+		Status:          resp.StatusCode,
+		Server:          resp.Header.Get("Server"),
+		WWWAuthenticate: resp.Header.Get("WWW-Authenticate"),
+		Location:        resp.Header.Get("Location"),
+		Body:            body,
 	}
 }
