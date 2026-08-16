@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -189,6 +190,100 @@ func TestSubjectDrilldownRendersCurrentAndClosedTimelines(t *testing.T) {
 	// The resolution facet timeline is labelled and its closed span is present.
 	if !strings.Contains(drill, "resolution") {
 		t.Errorf("resolution timeline not labelled; body: %s", drill)
+	}
+}
+
+func TestSpanDetailsListsRecordsAndAddresses(t *testing.T) {
+	// #240 seam: the terminal extraction that turns a span's already-read value
+	// JSON into the rows the drill-down lists on expand — RR type+data for a
+	// dns-record span, the address list (typeless) for a resolution span.
+	tests := []struct {
+		name  string
+		facet string
+		raw   string
+		isGap bool
+		want  []spanDetail
+	}{
+		{
+			name:  "dns-record RRs list type and data, TXT data as its quoted strings",
+			facet: "dns-record",
+			raw:   `{"rrs":[{"name":"example.com","type":"A","data":"203.0.113.1"},{"name":"example.com","type":"TXT","data":"\"v=spf1 -all\""}]}`,
+			want:  []spanDetail{{Type: "A", Data: "203.0.113.1"}, {Type: "TXT", Data: `"v=spf1 -all"`}},
+		},
+		{
+			name:  "resolution addresses list with no type",
+			facet: "resolution",
+			raw:   `{"outcome":"Resolved","addresses":["203.0.113.1","203.0.113.2"]}`,
+			want:  []spanDetail{{Data: "203.0.113.1"}, {Data: "203.0.113.2"}},
+		},
+		{
+			name:  "resolution with no addresses does not expand",
+			facet: "resolution",
+			raw:   `{"outcome":"NoData"}`,
+			want:  nil,
+		},
+		{
+			name:  "dns-record with no RRs does not expand",
+			facet: "dns-record",
+			raw:   `{"rrs":[]}`,
+			want:  nil,
+		},
+		{
+			name:  "a gap holds no value and expands to nothing",
+			facet: "dns-record",
+			raw:   `{"rrs":[{"type":"A","data":"203.0.113.1"}]}`,
+			isGap: true,
+			want:  nil,
+		},
+		{
+			name:  "other facets have no per-item breakdown",
+			facet: "reachability",
+			raw:   `{"outcome":"reached"}`,
+			want:  nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := spanDetails(tt.facet, []byte(tt.raw), tt.isGap)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("spanDetails(%q) = %#v, want %#v", tt.facet, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSubjectDrilldownExpandsRecordContents(t *testing.T) {
+	// #240: the Name drill-down keeps the collapsed count/outcome summary but
+	// expands on click to the span's actual records — RR type+data for
+	// dns-record, the address list for resolution — sourced from the already-read
+	// span value, no new query. Applies to closed spans too.
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	// A resolution timeline that moves (a closed span then a current one), and a
+	// dns-record timeline whose contents appear nowhere else on the page.
+	f.addResolution(t, admin.ID, "example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.7"]}`)
+	f.addResolution(t, admin.ID, "example.com", "dns", obsClock.Add(24*time.Hour), `{"outcome":"Resolved","addresses":["203.0.113.8"]}`)
+	f.addDNSRecord(t, "example.com", "TXT", obsClock, `{"rrs":[{"name":"example.com","type":"TXT","data":"\"v=spf1 -all\""}]}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	drill := getBody(t, ac, base+"/subjects/example.com", http.StatusOK)
+
+	// Collapsed summary is unchanged: the dns-record count still renders.
+	if !strings.Contains(drill, "1 record") {
+		t.Errorf("collapsed dns-record count missing; body: %s", drill)
+	}
+	// The expand affordance wraps the summary in a disclosure.
+	if !strings.Contains(drill, `<details class="spanrecords"`) {
+		t.Errorf("expand-on-click affordance missing; body: %s", drill)
+	}
+	// Expanded contents: the TXT data (present nowhere else) and the current +
+	// closed resolution addresses all render.
+	for _, want := range []string{`v=spf1 -all`, "203.0.113.7", "203.0.113.8"} {
+		if !strings.Contains(drill, want) {
+			t.Errorf("expanded record content missing %q; body: %s", want, drill)
+		}
 	}
 }
 
