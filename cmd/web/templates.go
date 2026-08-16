@@ -1158,7 +1158,7 @@ is nothing to census. This is a legible state, not a clean bill of health.</p>
 <div class="mgroup-head"><span class="microlabel">{{.Label}}</span><span class="count">{{len .Members}}</span></div>
 {{if .Members}}
 <ul class="mgroup-list">
-{{range .Members}}<li><a class="mono" href="/subjects/{{.Subject}}">{{.Subject}}</a></li>{{end}}
+{{range .Members}}<li><a class="mono" href="{{.Href}}">{{.Subject}}</a></li>{{end}}
 </ul>
 {{else}}
 <div class="mgroup-empty">None.</div>
@@ -1197,7 +1197,7 @@ neither of them a message.</p>
 <tr><th>Subject</th><th>Signal</th><th>Reason</th><th>Declared</th>{{if .IsAdmin}}<th></th>{{end}}</tr>
 {{range .Annotations}}
 <tr>
-<td><a class="mono" href="/subjects/{{.Subject}}">{{.Subject}}</a>{{if .Orphan}}<span class="orphan">names no current member</span>{{end}}</td>
+<td><a class="mono" href="{{.Href}}">{{.Subject}}</a>{{if .Orphan}}<span class="orphan">names no current member</span>{{end}}</td>
 <td class="mono">{{.Signal}}</td>
 <td>{{.Reason}}</td>
 <td class="mono">{{.At}}</td>

@@ -33,6 +33,29 @@ func putMessage(t *testing.T, f *fakeStore, cause message.Cause, subjectKind, fi
 	return m
 }
 
+// Every subject kind resolves to a drill-down its route actually serves (#248):
+// a Name or Address is a single path segment; a Service or Endpoint key carries a
+// `/` (and an Endpoint an `@`), so it rides the `?key=` query page escaped rather
+// than a second path segment the `/subjects/{key}` route would 404 on.
+func TestSubjectHrefAllKinds(t *testing.T) {
+	cases := []struct {
+		kind string
+		key  string
+		want string
+	}{
+		{"name", "example.com", "/subjects/example.com"},
+		{"address", "198.51.100.1", "/subjects/198.51.100.1"},
+		{"service", "104.21.61.6:80/tcp", "/subjects/service?key=104.21.61.6%3A80%2Ftcp"},
+		{"endpoint", "@104.21.61.6:9100/tcp", "/subjects/endpoint?key=%40104.21.61.6%3A9100%2Ftcp"},
+		{"endpoint", "host.example.com@104.21.61.6:443/tcp", "/subjects/endpoint?key=host.example.com%40104.21.61.6%3A443%2Ftcp"},
+	}
+	for _, c := range cases {
+		if got := subjectHref(c.kind, c.key); got != c.want {
+			t.Errorf("subjectHref(%q, %q) = %q, want %q", c.kind, c.key, got, c.want)
+		}
+	}
+}
+
 // Each mover resolves to the right link (v1 spec §5.3): drift and threshold to an
 // object page, declared-input to the Source, aperture to the Seed.
 func TestMessageLinkPerMover(t *testing.T) {

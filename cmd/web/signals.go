@@ -42,11 +42,14 @@ type dnsRecordValue struct {
 	} `json:"delegation"`
 }
 
-// signalMember is one census member row: a subject key and nothing else. The
-// template links it to /subjects/{Subject} — the drill-down — and renders no
-// Citation and no per-row control.
+// signalMember is one census member row: a subject key and the drill-down link
+// its kind resolves to. Href is precomputed route-aware (a Service or Endpoint
+// key rides the `?key=` page, not a path segment the `/subjects/{key}` route
+// would 404 on — #248), never built from the raw key in the template. The row
+// renders no Citation and no per-row control.
 type signalMember struct {
 	Subject string
+	Href    string
 }
 
 // memberGroupView is one census member — a labelled list whose header count is
@@ -87,6 +90,7 @@ type signalCensusView struct {
 type annotationView struct {
 	ID      int64
 	Subject string
+	Href    string
 	Signal  string
 	Reason  string
 	At      string
@@ -152,7 +156,8 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 		population[c.Rule] = pop
 
-		fired := memberGroupView{Label: "Fired", Kind: "fired", Members: members(c.Fired)}
+		kind := signal.SubjectKindFor(c.Rule)
+		fired := memberGroupView{Label: "Fired", Kind: "fired", Members: members(c.Fired, kind)}
 		if firedAllAnnotated(c, annotated[c.Rule]) {
 			fired.Prose = "This rule is evaluating on its own cadence and its census is live — " +
 				"it is not off. Every subject counted under fired carries an annotation right " +
@@ -165,8 +170,8 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 			Empty:   c.Empty(),
 			Groups: []memberGroupView{
 				fired,
-				{Label: "Did not fire", Kind: "not-fired", Members: members(c.NotFired)},
-				{Label: "Not-evaluable", Kind: "not-evaluable", Members: members(c.NotEvaluable)},
+				{Label: "Did not fire", Kind: "not-fired", Members: members(c.NotFired, kind)},
+				{Label: "Not-evaluable", Kind: "not-evaluable", Members: members(c.NotEvaluable, kind)},
 			},
 		})
 	}
@@ -206,6 +211,7 @@ func annotationViews(annos []db.Annotation, population map[string]map[string]boo
 		v := annotationView{
 			ID:      a.ID,
 			Subject: a.SubjectKey,
+			Href:    subjectHref(signal.SubjectKindFor(a.SignalName), a.SubjectKey),
 			Signal:  a.SignalName,
 			Reason:  a.Reason,
 			Orphan:  !population[a.SignalName][a.SubjectKey],
@@ -218,10 +224,13 @@ func annotationViews(annos []db.Annotation, population map[string]map[string]boo
 	return out
 }
 
-func members(in []signal.Member) []signalMember {
+// members shapes a census's members for rendering, precomputing each row's
+// route-aware drill-down link from the census's subject kind (every member of one
+// census shares it — the engine reads exactly one kind per rule).
+func members(in []signal.Member, kind string) []signalMember {
 	out := make([]signalMember, 0, len(in))
 	for _, m := range in {
-		out = append(out, signalMember{Subject: m.Subject})
+		out = append(out, signalMember{Subject: m.Subject, Href: subjectHref(kind, m.Subject)})
 	}
 	return out
 }

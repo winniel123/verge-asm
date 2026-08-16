@@ -145,12 +145,16 @@ func messageLink(cause message.Cause, subjectKind, firedAt string) (href, text s
 
 // subjectHref builds the drill-down URL for a subject of the given kind, or ""
 // where the kind has no page (a facet or signal in a census). A Service key
-// carries a `/`, so it rides a query parameter; a Name or Address is a path
-// segment.
+// carries a `/` and an Endpoint key a `/` and an `@`, so each rides a query
+// parameter escaped; a Name or Address is a single path segment. Routing an
+// Endpoint through the path form yields a two-segment URL the `/subjects/{key}`
+// route does not match, falling through to the root 404 (#248).
 func subjectHref(kind, key string) string {
 	switch kind {
 	case "service":
 		return "/subjects/service?key=" + url.QueryEscape(key)
+	case "endpoint":
+		return "/subjects/endpoint?key=" + url.QueryEscape(key)
 	case "name", "address":
 		return "/subjects/" + url.PathEscape(key)
 	default:
