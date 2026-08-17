@@ -75,6 +75,37 @@ func TestMergeResolutionNamesDedupesAgainstSeedsAndItself(t *testing.T) {
 	}
 }
 
+// #256: the merge dedups on resolutionNameKey, which must be the resolver's own
+// CanonicalName key — not a parallel Unicode fold. Two names differing only by a
+// non-ASCII uppercase letter ("Ä" vs "ä") are DISTINCT subjects to the resolver,
+// since CanonicalName lowercases ASCII only and leaves the non-ASCII octet as-is.
+// An inline strings.ToLower (as resolutionNameKey once used) folds them together
+// and silently drops one from the resolution set, so the resolver never measures
+// it. Both must survive the merge, keyed exactly as the resolver keys observations.
+func TestMergeResolutionNamesKeysOnResolverCanonicalName(t *testing.T) {
+	// Precondition: the resolver keys the two spellings distinctly.
+	if got := resolutionwalk.CanonicalName("Ä.example.com"); got != "Ä.example.com" {
+		t.Fatalf("precondition: CanonicalName folded a non-ASCII uppercase letter: %q", got)
+	}
+	seeds := []string{"ä.example.com"}
+	admitted := []string{"Ä.example.com"}
+	got := mergeResolutionNames(seeds, admitted)
+	want := []string{"ä.example.com", "Ä.example.com"}
+	if len(got) != len(want) {
+		t.Fatalf("merged = %v, want %v — a non-ASCII-uppercase name must not fold onto its lowercase Seed", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("merged[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+	// The dedup key is exactly the resolver's subject key, so dedup, storage, and
+	// the citation match cannot disagree.
+	if resolutionNameKey("Ä.example.com") != resolutionwalk.CanonicalName("Ä.example.com") {
+		t.Errorf("resolutionNameKey diverged from the resolver's CanonicalName (#256)")
+	}
+}
+
 func TestMergeResolutionNamesEmptyAdmittedIsSeedsUnchanged(t *testing.T) {
 	seeds := []string{"example.com", "example.net"}
 	got := mergeResolutionNames(seeds, nil)

@@ -63,6 +63,10 @@ type store interface {
 	GetNameSubject(ctx context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error)
 	GetNameCitation(ctx context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error)
 	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
+	// FindNameSeedByID reads the terminating Seed of a CT admission's Citation chain
+	// by the id the admitted_name row carries, rather than re-deriving it by suffix
+	// (ADR-0027, #256).
+	FindNameSeedByID(ctx context.Context, seedID int64) (db.FindNameSeedByIDRow, error)
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
 	GetServiceSubject(ctx context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error)
 	// Endpoint subjects (#198): the (Name, Service) pair the http-exchange leaf's

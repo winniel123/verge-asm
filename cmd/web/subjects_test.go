@@ -26,13 +26,15 @@ func getBody(t *testing.T, c *http.Client, url string, wantStatus int) string {
 	return got
 }
 
-func addNameSeed(t *testing.T, f *fakeStore, createdBy int64, domain string) {
+func addNameSeed(t *testing.T, f *fakeStore, createdBy int64, domain string) int64 {
 	t.Helper()
-	if _, err := f.CreateNameSeed(t.Context(), db.CreateNameSeedParams{
+	seed, err := f.CreateNameSeed(t.Context(), db.CreateNameSeedParams{
 		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: createdBy,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
+	return seed.ID
 }
 
 // obsClock is the instant the Subjects/Signals fixtures seed their observations
@@ -203,6 +205,34 @@ func TestSubjectDrilldownCitesCTAdmissionOverResolution(t *testing.T) {
 	// Membership is still measured: the current resolution value renders.
 	if !strings.Contains(drill, "Resolved") || !strings.Contains(drill, "203.0.113.9") {
 		t.Errorf("current resolution of a CT-admitted Name not rendered; body: %s", drill)
+	}
+}
+
+// #256 / ADR-0107: a CT admission's Citation chain terminates at the Seed the
+// admitted_name row carries (its seed_id), not the longest-suffix cover. With
+// overlapping name scopes — "host.inner.example.com" admitted under the
+// "example.com" Seed while a narrower "inner.example.com" Seed also covers it by
+// suffix — the chain must terminate at example.com, the Seed the admission
+// provenance names, and never at inner.example.com, which longest-suffix would pick.
+func TestSubjectDrilldownCTAdmissionTerminatesAtAdmittedSeed(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	outer := addNameSeed(t, f, admin.ID, "example.com")
+	addNameSeed(t, f, admin.ID, "inner.example.com") // longer suffix: FindCoveringNameSeed would pick this
+	// Admitted under the OUTER Seed (as the crt.sh query for example.com would),
+	// then measured by our own resolver.
+	f.addAdmittedNameUnderSeed(t, "host.inner.example.com", outer, obsClock)
+	f.addResolution(t, admin.ID, "host.inner.example.com", "dns", obsClock.Add(24*time.Hour), `{"outcome":"Resolved","addresses":["203.0.113.9"]}`)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	drill := getBody(t, ac, base+"/subjects/host.inner.example.com", http.StatusOK)
+
+	if !strings.Contains(drill, "name scope example.com") {
+		t.Errorf("admission citation did not terminate at admitted_name.seed_id (example.com); body: %s", drill)
+	}
+	if strings.Contains(drill, "name scope inner.example.com") {
+		t.Errorf("admission citation terminated at the longest-suffix Seed, ignoring admitted_name.seed_id (#256); body: %s", drill)
 	}
 }
 

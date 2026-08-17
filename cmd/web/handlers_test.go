@@ -735,11 +735,42 @@ func (f *fakeStore) addResolution(t *testing.T, createdBy int64, name, scanKind 
 // (ADR-0107).
 func (f *fakeStore) addAdmittedName(t *testing.T, name string, at time.Time) {
 	t.Helper()
+	f.addAdmittedNameUnderSeed(t, name, f.coveringNameSeedID(name), at)
+}
+
+// addAdmittedNameUnderSeed admits a Name citing an explicit covering Seed id — the
+// seed_id the runner records on the admitted_name row (ADR-0027). The seed id is
+// what the Citation chain terminates at, so a test can admit a Name under one Seed
+// while a longer-suffix Seed also covers it (#256).
+func (f *fakeStore) addAdmittedNameUnderSeed(t *testing.T, name string, seedID int64, at time.Time) {
+	t.Helper()
 	b := f.freshBatch("ct", "ct")
 	f.admitted = append(f.admitted, db.AdmittedName{
-		ID: int64(len(f.admitted) + 1), Name: name, Source: "crtsh", BatchID: b,
+		ID: int64(len(f.admitted) + 1), Name: name, Source: "crtsh", SeedID: seedID, BatchID: b,
 		CreatedAt: pgtype.Timestamptz{Time: at, Valid: true},
 	})
+}
+
+// coveringNameSeedID mirrors the runner's admission: a Name is admitted under the
+// longest-suffix name Seed that covers it (ADR-0047).
+func (f *fakeStore) coveringNameSeedID(name string) int64 {
+	var best *db.Seed
+	for i := range f.seeds {
+		s := &f.seeds[i]
+		if s.Kind != "name" || !s.NameDomain.Valid {
+			continue
+		}
+		d := s.NameDomain.String
+		if name == d || strings.HasSuffix(name, "."+d) {
+			if best == nil || len(d) > len(best.NameDomain.String) {
+				best = s
+			}
+		}
+	}
+	if best == nil {
+		return 0
+	}
+	return best.ID
 }
 
 // liveObservations returns the live-tier subset of the observation corpus as of
@@ -1498,6 +1529,11 @@ func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationPar
 		return db.GetNameCitationRow{
 			ObservedAt: admission.CreatedAt, Source: admission.Source,
 			BatchID: admission.BatchID, ScanID: scanID, ScanKind: scanKind,
+			// admitted_name.seed_id is NOT NULL in the schema — a real FK on every
+			// admission. Mark the column NULL only for the degenerate fixture with no
+			// covering Seed (id 0), so the fake never claims a valid seed_id of 0, a
+			// state production forbids.
+			SeedID:  pgtype.Int8{Int64: admission.SeedID, Valid: admission.SeedID != 0},
 			HopKind: hopKindAdmission,
 		}, nil
 	}
@@ -1546,6 +1582,23 @@ func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.Fin
 		ID: best.ID, NameDomain: best.NameDomain, CreatedAt: best.CreatedAt,
 		CreatedByUsername: f.accounts[best.CreatedBy].Username,
 	}, nil
+}
+
+// FindNameSeedByID returns the name Seed with the given id (ADR-0027, #256) — the
+// terminating hop a CT admission's Citation chain reads straight from the
+// admitted_name row rather than re-deriving by suffix.
+func (f *fakeStore) FindNameSeedByID(_ context.Context, seedID int64) (db.FindNameSeedByIDRow, error) {
+	for i := range f.seeds {
+		s := &f.seeds[i]
+		if s.Kind != "name" || s.ID != seedID {
+			continue
+		}
+		return db.FindNameSeedByIDRow{
+			ID: s.ID, NameDomain: s.NameDomain, CreatedAt: s.CreatedAt,
+			CreatedByUsername: f.accounts[s.CreatedBy].Username,
+		}, nil
+	}
+	return db.FindNameSeedByIDRow{}, pgx.ErrNoRows
 }
 
 func (f *fakeStore) GetZoneCadenceSeconds(context.Context) (int64, error) {

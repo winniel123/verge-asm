@@ -13,18 +13,35 @@ import (
 // subject_key — the ADR-0055 key the resolver assigns via CanonicalName. If those
 // two normalisations ever diverge, a CT-admitted Name's admission silently fails
 // to match and its citation wrongly falls back to the introducing resolution, the
-// exact answer ADR-0107 forbids. This guards that seam so a divergence breaks a
-// test rather than a citation.
+// exact answer ADR-0107 forbids. normaliseName now routes through CanonicalName
+// (#256), so the two fold identically; this guards that they stay so, over the
+// non-ASCII spellings the old parallel Unicode fold got wrong, not only ASCII.
 func TestAdmittedNameKeyMatchesResolverKey(t *testing.T) {
+	// For any DNS-legal spelling — ASCII or not — the admitted key must equal the
+	// key the resolver assigns the same name. The non-ASCII rows are the seam #256
+	// found: the old Unicode fold lowercased "İ"/"Ä" while the resolver's ASCII-only
+	// fold leaves them, so an admission stored under the folded spelling could never
+	// match the resolver's subject_key. Both now fold ASCII-only and agree.
 	for _, in := range []string{
 		"example.com",
 		"VPN.Example.COM.",
 		"a.b.example.com",
 		"MiXeD.Case.Example.Com",
 		"trailing.dot.example.com.",
+		"İ.EXAMPLE.COM",             // non-ASCII uppercase: ASCII fold leaves it, Unicode fold did not
+		"Ä.example.com",             // ditto
+		"xn--mnchen-3ya.example.com", // punycode passes through unchanged
 	} {
 		if got, want := normaliseName(in), resolutionwalk.CanonicalName(in); got != want {
 			t.Errorf("normaliseName(%q)=%q but CanonicalName=%q — the admission-citation match (ADR-0107) would silently miss", in, got, want)
+		}
+	}
+	// A crt.sh SAN value may carry surrounding whitespace the resolver never sees.
+	// The admitter strips it and still lands on the resolver's key for the clean
+	// name, so a whitespace-bearing admission still matches its resolution (#256).
+	for _, ws := range []string{" x.example.com", "x.example.com\t", "  x.example.com  "} {
+		if got, want := normaliseName(ws), resolutionwalk.CanonicalName("x.example.com"); got != want {
+			t.Errorf("normaliseName(%q)=%q, want %q — surrounding whitespace must fold to the clean resolver key", ws, got, want)
 		}
 	}
 }
