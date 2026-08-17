@@ -360,6 +360,12 @@ type Querier interface {
 	// §8): to which channels it went and whether any is dead-lettered. Reads from the
 	// delivery table by join — the Message row carries no delivery state of its own.
 	ListDeliveriesForMessage(ctx context.Context, messageID int64) ([]ListDeliveriesForMessageRow, error)
+	// Every Delivery outcome joined to its Channel, for rendering each Message's own
+	// delivery outcomes on the panel in one pass (ADR-0081, ADR-0039) rather than a
+	// per-message read. A delivery failure is surfaced HERE, on the Message it
+	// carries — never on Coverage, which a delivery has no cause to touch (#244).
+	// Ordered by message then delivery so the caller groups them in a single walk.
+	ListDeliveryOutcomes(ctx context.Context) ([]ListDeliveryOutcomesRow, error)
 	// The recent Dispatches with their per-state job counts, newest first — the read
 	// behind the Scans monitor (#245). Dispatch, queue_job and batch are Operational:
 	// they record what the system did, never what is true of the estate, so this read
@@ -499,6 +505,12 @@ type Querier interface {
 	// timeline and derives its Breaks and Transitions on read. The closed corpus is
 	// never compacted, so a withdrawn Name's closed timelines render in full.
 	ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error)
+	// The Coverage register of positions we currently cannot observe from
+	// (ADR-0108). It includes the resolver-only `local` vantage — which ListVantages
+	// excludes for the prober list — because that is exactly the position whose
+	// resolver going unreachable this surface must make loud. Ordered by name so the
+	// rendering is stable.
+	ListUnavailableVantages(ctx context.Context) ([]ListUnavailableVantagesRow, error)
 	// The web prober list: only provisioned vantages (those carrying a prober
 	// endpoint). The resolver-only `local` vantage has no prober and is excluded.
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
@@ -540,6 +552,12 @@ type Querier interface {
 	// message leaves its first read instant in place, since read-state is a fact
 	// about the operator having seen it and does not move on a second view.
 	MarkMessageRead(ctx context.Context, arg MarkMessageReadParams) error
+	// A completed Batch at this vantage is proof the position can observe again, so
+	// Availability is derived back to 'available' from the terminal batch outcome
+	// (ADR-0108). A host-key-mismatched prober cannot complete a Batch — its SSH
+	// connection is refused before any measurement runs — so this can never silently
+	// clear the trust-on-first-use pin MarkVantageUnavailable set.
+	MarkVantageAvailable(ctx context.Context, id int64) error
 	// A pinned host key later mismatched, or the position went unreachable: the
 	// vantage is marked unavailable rather than silently re-trusting a new key.
 	MarkVantageUnavailable(ctx context.Context, id int64) error

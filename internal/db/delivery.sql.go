@@ -178,6 +178,54 @@ func (q *Queries) ListDeliveriesForMessage(ctx context.Context, messageID int64)
 	return items, nil
 }
 
+const listDeliveryOutcomes = `-- name: ListDeliveryOutcomes :many
+SELECT d.message_id, d.channel_id, c.url, d.state, d.attempt, d.last_error
+FROM delivery d
+JOIN channel c ON c.id = d.channel_id
+ORDER BY d.message_id, d.id
+`
+
+type ListDeliveryOutcomesRow struct {
+	MessageID int64       `json:"message_id"`
+	ChannelID int64       `json:"channel_id"`
+	Url       string      `json:"url"`
+	State     string      `json:"state"`
+	Attempt   int32       `json:"attempt"`
+	LastError pgtype.Text `json:"last_error"`
+}
+
+// Every Delivery outcome joined to its Channel, for rendering each Message's own
+// delivery outcomes on the panel in one pass (ADR-0081, ADR-0039) rather than a
+// per-message read. A delivery failure is surfaced HERE, on the Message it
+// carries — never on Coverage, which a delivery has no cause to touch (#244).
+// Ordered by message then delivery so the caller groups them in a single walk.
+func (q *Queries) ListDeliveryOutcomes(ctx context.Context) ([]ListDeliveryOutcomesRow, error) {
+	rows, err := q.db.Query(ctx, listDeliveryOutcomes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDeliveryOutcomesRow{}
+	for rows.Next() {
+		var i ListDeliveryOutcomesRow
+		if err := rows.Scan(
+			&i.MessageID,
+			&i.ChannelID,
+			&i.Url,
+			&i.State,
+			&i.Attempt,
+			&i.LastError,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markDeliveryDelivered = `-- name: MarkDeliveryDelivered :exec
 UPDATE delivery
 SET state = 'delivered', delivered_at = $2, last_error = NULL, updated_at = now()

@@ -11,6 +11,19 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
+// deliveryView is one Message's outcome to one Channel, rendered on the Message
+// panel — the model's designated surface for a delivery failure (ADR-0039,
+// ADR-0081): a delivery has no cause and never touches Coverage, so an
+// undelivered POST is legible HERE and joined to the Message it failed to carry,
+// never collapsed into silence (#244). Failed reports whether the state is
+// undelivered; LastError is the drill-down reason, never a top-level log (#22).
+type deliveryView struct {
+	ChannelHost string
+	State       string
+	Failed      bool
+	LastError   string
+}
+
 // messageRow is one message shaped for the panel: the rendered headline, the
 // per-mover link, the cause and class as read-only labels, the instant, the
 // read-state, and the census rows where the firing carries one.
@@ -27,6 +40,12 @@ type messageRow struct {
 	Instant  string
 	Read     bool
 	Census   []censusRowView
+	// Deliveries is this message's outcome to each routed Channel. A message with
+	// no channel configured carries none; an undelivered one carries a Failed row.
+	Deliveries []deliveryView
+	// AnyUndelivered is true where at least one delivery is undelivered, so the
+	// panel can flag the message without the operator opening every row.
+	AnyUndelivered bool
 }
 
 // censusRowView is one entry in a message's census — a thing that opened beneath
@@ -54,9 +73,28 @@ func (s *server) messagesPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "count unread", err)
 		return
 	}
+	// A delivery failure is surfaced on the Message it failed to carry (ADR-0039,
+	// ADR-0081), never on Coverage. Read every outcome in one pass and group by
+	// message so the panel renders each row's own deliveries without an N+1 walk.
+	// Best-effort: a read failure degrades to no delivery annotation rather than a
+	// 500 — the messages themselves must still render.
+	byMessage := map[int64][]deliveryView{}
+	if outcomes, derr := s.store.ListDeliveryOutcomes(r.Context()); derr == nil {
+		for _, o := range outcomes {
+			byMessage[o.MessageID] = append(byMessage[o.MessageID], toDeliveryView(o))
+		}
+	}
+
 	views := make([]messageRow, 0, len(rows))
 	for _, m := range rows {
-		views = append(views, toMessageRow(m))
+		row := toMessageRow(m)
+		row.Deliveries = byMessage[m.ID]
+		for _, d := range row.Deliveries {
+			if d.Failed {
+				row.AnyUndelivered = true
+			}
+		}
+		views = append(views, row)
 	}
 	s.render(w, "messages", map[string]any{
 		"Title": "Messages", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -114,6 +152,27 @@ func toMessageRow(m db.Message) messageRow {
 		}
 	}
 	return row
+}
+
+// toDeliveryView renders one delivery outcome for the panel. The channel is
+// shown by host only — never the full URL — so a token an operator embedded in a
+// webhook path is not printed on a viewer-visible surface. The last error is the
+// drill-down reason on a failed delivery, carried but not rendered as a top-level
+// log (#22).
+func toDeliveryView(o db.ListDeliveryOutcomesRow) deliveryView {
+	host := o.Url
+	if u, err := url.Parse(o.Url); err == nil && u.Host != "" {
+		host = u.Host
+	}
+	v := deliveryView{
+		ChannelHost: host,
+		State:       o.State,
+		Failed:      o.State == "undelivered",
+	}
+	if v.Failed && o.LastError.Valid {
+		v.LastError = o.LastError.String
+	}
+	return v
 }
 
 // messageLink resolves a message row's link target per §5.3's per-mover rule:

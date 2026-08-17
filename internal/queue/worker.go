@@ -182,11 +182,16 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 			DispatchID:    job.DispatchID,
 			VantageID:     job.VantageID,
 			Kind:          job.Kind,
-			Outcome:       "completed",
+			Outcome:       outcomeCompleted,
 			Offers:        job.Offers,
 			RecordedScope: job.AttemptedScope,
 		})
 		if err != nil {
+			return err
+		}
+		// A completed Batch is proof the vantage can observe: derive its
+		// Availability back to 'available' in the same transaction (ADR-0108).
+		if err := applyAvailability(ctx, qtx, job.VantageID, outcomeCompleted); err != nil {
 			return err
 		}
 		observedAt := w.now().UTC()
@@ -215,11 +220,17 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error
 			DispatchID:    job.DispatchID,
 			VantageID:     job.VantageID,
 			Kind:          job.Kind,
-			Outcome:       "dead-lettered",
+			Outcome:       outcomeDeadLettered,
 			Offers:        job.Offers,
 			RecordedScope: []byte(`{"names":[]}`),
 		})
 		if err != nil {
+			return err
+		}
+		// A dead-lettered Batch failed every attempt across the retry window:
+		// the vantage could not observe, so derive its Availability to
+		// 'unavailable', which opens a Gap on the Reach of its class (ADR-0108).
+		if err := applyAvailability(ctx, qtx, job.VantageID, outcomeDeadLettered); err != nil {
 			return err
 		}
 		return qtx.MarkJobDead(ctx, db.MarkJobDeadParams{ID: job.ID, BatchID: pgInt8(batchID)})

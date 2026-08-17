@@ -93,7 +93,8 @@ type fakeStore struct {
 	// messages mirrors the message table (#205): written once, never updated in
 	// content, read back newest-first. previewResult is the fixed narrowing-receipt
 	// count a test wants PreviewExclusionWithdrawal to return.
-	messages      []db.Message
+	messages         []db.Message
+	deliveryOutcomes []db.ListDeliveryOutcomesRow
 	msgNextID     int64
 	previewResult db.PreviewExclusionWithdrawalRow
 
@@ -443,6 +444,22 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 	return rows, nil
 }
 
+func (f *fakeStore) ListUnavailableVantages(context.Context) ([]db.ListUnavailableVantagesRow, error) {
+	// Mirrors the query: every vantage marked unavailable, including the
+	// resolver-only rows the prober list excludes, ordered by name.
+	rows := make([]db.ListUnavailableVantagesRow, 0)
+	for _, v := range f.vantages {
+		if v.Availability.String != "unavailable" {
+			continue
+		}
+		rows = append(rows, db.ListUnavailableVantagesRow{
+			ID: v.ID, Name: v.Name, Class: v.Class, Resolver: v.Resolver, Availability: v.Availability,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+	return rows, nil
+}
+
 func (f *fakeStore) ListReachabilitySpansForExposure(context.Context) ([]db.ListReachabilitySpansForExposureRow, error) {
 	return f.reachSpans, nil
 }
@@ -516,6 +533,10 @@ func (f *fakeStore) ListMessages(context.Context) ([]db.Message, error) {
 		out[len(f.messages)-1-i] = m
 	}
 	return out, nil
+}
+
+func (f *fakeStore) ListDeliveryOutcomes(context.Context) ([]db.ListDeliveryOutcomesRow, error) {
+	return f.deliveryOutcomes, nil
 }
 
 func (f *fakeStore) CountUnreadMessages(context.Context) (int64, error) {

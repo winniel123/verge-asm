@@ -72,3 +72,14 @@ FROM delivery d
 JOIN channel c ON c.id = d.channel_id
 WHERE d.message_id = $1
 ORDER BY d.id;
+
+-- name: ListDeliveryOutcomes :many
+-- Every Delivery outcome joined to its Channel, for rendering each Message's own
+-- delivery outcomes on the panel in one pass (ADR-0081, ADR-0039) rather than a
+-- per-message read. A delivery failure is surfaced HERE, on the Message it
+-- carries — never on Coverage, which a delivery has no cause to touch (#244).
+-- Ordered by message then delivery so the caller groups them in a single walk.
+SELECT d.message_id, d.channel_id, c.url, d.state, d.attempt, d.last_error
+FROM delivery d
+JOIN channel c ON c.id = d.channel_id
+ORDER BY d.message_id, d.id;
