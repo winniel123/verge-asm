@@ -1087,7 +1087,20 @@ outcomes over a fixed window rather than measured directly. A vantage that has f
 every attempt across the window is `unavailable`, which opens a `Gap` on the `Reach` of
 its class — so `Exposure` that would need it is absent rather than quietly computed from
 the class that still answers. Derived, though the `Vantage` it belongs to is Declared — we
-never measured the vantage, we inferred it from what failed.
+never measured the vantage, we inferred it from what failed. **The derivation is produced from
+terminal `Batch` outcomes** ([ADR-0108](./docs/adr/0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md)):
+a **completed** `Batch` restores it to `available` and a **dead-lettered** one opens it to
+`unavailable`, in the same transaction that writes the batch, and only where the batch carries a real
+`Vantage` — the worker-read `zone` and `ct` `Scan`s have none and move it nowhere. The *fixed window*
+is, in v1, the **retry sequence within one dispatch**: a dead-letter is already every attempt across
+that window failed, and a single completed batch is immediate proof of recovery, so the state follows
+the latest terminal outcome rather than a multi-cadence count — failing loud (a false `unavailable`
+opens a `Gap` and is investigated; a false `available` hides one). This is the same mark a
+trust-on-first-use host-key mismatch sets, and the two do not fight: a mismatched prober cannot
+complete a batch, so a completed batch never silently clears a security pin. A resolver our own
+instrument could not reach is *we could not look* — a **transport failure**, distinct from any answer
+the resolver gave, and never inferred from a batch of null values. The unavailable positions are
+surfaced on `Coverage` by name.
 _Avoid_: health, status, up, reachable
 
 **Vantage composition**:

@@ -93,6 +93,52 @@ func (q *Queries) GetVantage(ctx context.Context, id int64) (Vantage, error) {
 	return i, err
 }
 
+const listUnavailableVantages = `-- name: ListUnavailableVantages :many
+SELECT id, name, class, resolver, availability
+FROM vantage
+WHERE availability = 'unavailable'
+ORDER BY name
+`
+
+type ListUnavailableVantagesRow struct {
+	ID           int64       `json:"id"`
+	Name         string      `json:"name"`
+	Class        string      `json:"class"`
+	Resolver     string      `json:"resolver"`
+	Availability pgtype.Text `json:"availability"`
+}
+
+// The Coverage register of positions we currently cannot observe from
+// (ADR-0108). It includes the resolver-only `local` vantage — which ListVantages
+// excludes for the prober list — because that is exactly the position whose
+// resolver going unreachable this surface must make loud. Ordered by name so the
+// rendering is stable.
+func (q *Queries) ListUnavailableVantages(ctx context.Context) ([]ListUnavailableVantagesRow, error) {
+	rows, err := q.db.Query(ctx, listUnavailableVantages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUnavailableVantagesRow{}
+	for rows.Next() {
+		var i ListUnavailableVantagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Class,
+			&i.Resolver,
+			&i.Availability,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVantages = `-- name: ListVantages :many
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
@@ -197,6 +243,22 @@ func (q *Queries) ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
 		return nil, err
 	}
 	return items, nil
+}
+
+const markVantageAvailable = `-- name: MarkVantageAvailable :exec
+UPDATE vantage
+SET availability = 'available'
+WHERE id = $1
+`
+
+// A completed Batch at this vantage is proof the position can observe again, so
+// Availability is derived back to 'available' from the terminal batch outcome
+// (ADR-0108). A host-key-mismatched prober cannot complete a Batch — its SSH
+// connection is refused before any measurement runs — so this can never silently
+// clear the trust-on-first-use pin MarkVantageUnavailable set.
+func (q *Queries) MarkVantageAvailable(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, markVantageAvailable, id)
+	return err
 }
 
 const markVantageUnavailable = `-- name: MarkVantageUnavailable :exec

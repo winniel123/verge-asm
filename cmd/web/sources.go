@@ -176,6 +176,16 @@ type apertureLine struct {
 	Note    string // one honest clause; never a proportion of the estate
 }
 
+// unavailableVantageView is one position the Coverage register reports we
+// currently cannot observe from (ADR-0108) — its name, class, and the resolver
+// that could not be reached. Rendered so a resolver outage reads as *we could
+// not look from here*, never as an empty measurement.
+type unavailableVantageView struct {
+	Name     string
+	Class    string
+	Resolver string
+}
+
 // checkStep is one step of the day-one checklist (§6.3). The zero-coverage state
 // renders these as a rendering, not a wizard: each names a capability and, where
 // an act genuinely exists, points at the surface that performs it — adding no
@@ -281,6 +291,26 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		sort.Strings(blanketAddrs)
 	}
 
+	// Unavailable vantages (ADR-0108): positions we currently cannot observe from
+	// — a resolver that went unreachable, a prober that keeps failing. This is the
+	// loud surface #249 asks for: it names the position, so a failure reads as *we
+	// could not look from here* rather than as an empty measurement, and it is
+	// distinct from a subject that genuinely has no records. It includes the
+	// resolver-only `local` vantage, which the prober list excludes. Best-effort,
+	// like the blanket register: a read failure degrades to no statement.
+	var unavailableVantages []unavailableVantageView
+	if rows, uerr := s.store.ListUnavailableVantages(ctx); uerr == nil {
+		for _, v := range rows {
+			resolver := v.Resolver
+			if resolver == "" {
+				resolver = "—"
+			}
+			unavailableVantages = append(unavailableVantages, unavailableVantageView{
+				Name: v.Name, Class: v.Class, Resolver: resolver,
+			})
+		}
+	}
+
 	scopeState := "no scope declared"
 	if nameScopes+addrScopes > 0 {
 		scopeState = fmt.Sprintf("%d name · %d address", nameScopes, addrScopes)
@@ -363,7 +393,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"Lines": lines, "ZeroCoverage": zeroCoverage, "Steps": steps,
 		"DNSCadence": dnsCadence, "DNSOn": dnsOn,
-		"BlanketAddrs": blanketAddrs,
+		"BlanketAddrs": blanketAddrs, "UnavailableVantages": unavailableVantages,
 	})
 }
 
@@ -562,6 +592,30 @@ them. To measure the real surface, declare your origin IPs as an address scope.<
 {{range .BlanketAddrs}}<tr>
 <td class="mono">{{.}}</td>
 <td class="muted">proxy edge — answers on all ports, origin not visible from here</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{if .UnavailableVantages}}
+<div class="section">
+<div class="microlabel">Aperture · unavailable vantages</div>
+<h2>We cannot look from {{len .UnavailableVantages}} position{{if ne (len .UnavailableVantages) 1}}s{{end}}</h2>
+<p>A vantage is a network position we measure from, and its recursive resolver is part of it. These
+positions could not be reached — a resolver pointed at nothing, or a prober that kept failing — so
+their most recent batches failed and covered nothing. This is <em>we could not look from here</em>,
+not <em>we looked and there is nothing there</em>: no empty measurement is committed for them, and the
+Reach they would have measured is a Gap rather than a clean empty result. An internet-class position
+here means Exposure that needs it is absent, not quietly computed from the class that still answers.</p>
+<table>
+<thead><tr><th>Vantage</th><th>Class</th><th>Resolver</th><th>State</th></tr></thead>
+<tbody>
+{{range .UnavailableVantages}}<tr>
+<td class="mono">{{.Name}}</td>
+<td>{{.Class}}</td>
+<td class="mono">{{.Resolver}}</td>
+<td><span class="badge off">unavailable</span></td>
 </tr>{{end}}
 </tbody>
 </table>

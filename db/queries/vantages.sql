@@ -35,6 +35,17 @@ SELECT id, name, class, resolver, host, port, username, availability,
 FROM vantage
 WHERE id = $1;
 
+-- name: ListUnavailableVantages :many
+-- The Coverage register of positions we currently cannot observe from
+-- (ADR-0108). It includes the resolver-only `local` vantage — which ListVantages
+-- excludes for the prober list — because that is exactly the position whose
+-- resolver going unreachable this surface must make loud. Ordered by name so the
+-- rendering is stable.
+SELECT id, name, class, resolver, availability
+FROM vantage
+WHERE availability = 'unavailable'
+ORDER BY name;
+
 -- name: ListVantagesNeedingKey :many
 -- Rows the worker still has to generate a keypair for: a provisioned prober
 -- (host set) whose public half has not been published, so no key material has
@@ -65,4 +76,14 @@ WHERE id = $1 AND host_key IS NULL;
 -- vantage is marked unavailable rather than silently re-trusting a new key.
 UPDATE vantage
 SET availability = 'unavailable'
+WHERE id = $1;
+
+-- name: MarkVantageAvailable :exec
+-- A completed Batch at this vantage is proof the position can observe again, so
+-- Availability is derived back to 'available' from the terminal batch outcome
+-- (ADR-0108). A host-key-mismatched prober cannot complete a Batch — its SSH
+-- connection is refused before any measurement runs — so this can never silently
+-- clear the trust-on-first-use pin MarkVantageUnavailable set.
+UPDATE vantage
+SET availability = 'available'
 WHERE id = $1;

@@ -39,6 +39,7 @@ type store interface {
 	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
 	CountAdmins(ctx context.Context) (int64, error)
@@ -133,6 +134,7 @@ type store interface {
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 	ListMessages(ctx context.Context) ([]db.Message, error)
 	CountUnreadMessages(ctx context.Context) (int64, error)
+	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
 	MarkMessageRead(ctx context.Context, arg db.MarkMessageReadParams) error
 	MarkAllMessagesRead(ctx context.Context, readAt pgtype.Timestamptz) error
 	// PreviewExclusionWithdrawal counts the subjects a candidate exclusion would

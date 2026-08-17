@@ -200,6 +200,11 @@ table.annos td form { margin: 0; }
 .msgcensus li { padding: 2px 0; font-family: var(--mono); font-size: 12px; }
 .msgcensus li .k { color: var(--muted); text-transform: uppercase; font-size: 10px;
   letter-spacing: 0.06em; margin-right: 6px; }
+.msgdelivery { list-style: none; margin: var(--space-3) 0 0; padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--hairline); }
+.msgdelivery li { padding: 2px 0; font-size: 12px; color: var(--muted); }
+.msgdelivery li.delivery-failed { color: var(--ink); }
+.msgdelivery li .why { cursor: help; text-decoration: underline dotted; }
 .receipt { border: 1px solid var(--ink); background: var(--surface);
   padding: var(--space-4); margin-top: var(--space-4); box-shadow: 3px 3px 0 rgba(22,22,15,.1); }
 .receipt .microlabel { margin-bottom: var(--space-3); }
@@ -1466,6 +1471,14 @@ and run the first batch to begin measuring.</p>
 {{if .Census}}
 <ul class="msgcensus">
 {{range .Census}}<li><span class="k">{{.Kind}}</span>{{if .Href}}<a href="{{.Href}}">{{.Key}}</a>{{else}}{{.Key}}{{end}}</li>{{end}}
+</ul>
+{{end}}
+{{if .Deliveries}}
+<ul class="msgdelivery">
+{{range .Deliveries}}<li class="{{if .Failed}}delivery-failed{{end}}">
+{{if .Failed}}<span class="badge off">undelivered</span> to <span class="mono">{{.ChannelHost}}</span> — this message could not be delivered, not that nothing fired{{if .LastError}} <span class="muted why" title="{{.LastError}}">(reason)</span>{{end}}
+{{else}}<span class="muted">{{.State}} to <span class="mono">{{.ChannelHost}}</span></span>{{end}}
+</li>{{end}}
 </ul>
 {{end}}
 {{if not .Read}}

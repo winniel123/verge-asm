@@ -37,8 +37,10 @@ func (p NetPeer) exchangeTimeout() time.Duration {
 	return 3 * time.Second
 }
 
-// Exchange implements Peer against the network. A dial or read error is reported
-// as not-Reached (our own blindness), never as a resolution value.
+// Exchange implements Peer against the network. A dial or read error against the
+// server is reported as Unreachable — we could not look at all (ADR-0108) — which
+// aborts the batch on the declared path; it is never folded into a resolution
+// value. A build error, by contrast, is our own bug and stays a silent Msg{}.
 func (p NetPeer) Exchange(q Query) Msg {
 	server := q.Server
 	if q.Path == PathDeclared || server == "" {
@@ -61,7 +63,7 @@ func (p NetPeer) Exchange(q Query) Msg {
 		resp, err = exchangeUDP(ctx, server, msgBytes)
 	}
 	if err != nil {
-		return Msg{}
+		return Msg{Unreachable: true}
 	}
 	return parseResponse(resp)
 }

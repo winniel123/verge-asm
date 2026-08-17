@@ -120,6 +120,44 @@ func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 	}
 }
 
+// ADR-0108 / #244: an undelivered delivery is surfaced on the Message it failed
+// to carry — the model's designated surface (ADR-0039/ADR-0081), never Coverage.
+// A backend failure (the webhook was down) must read as *could not deliver*, not
+// as *nothing fired*, and the reason is carried as a drill-down (#22).
+func TestMessagePanelSurfacesUndeliveredDeliveries(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	m := putMessage(t, f, message.CauseDrift, "name", "a.example.com",
+		"a.example.com entered the estate · 1 timeline opened beneath it", nil)
+	f.deliveryOutcomes = []db.ListDeliveryOutcomesRow{{
+		MessageID: m.ID, ChannelID: 1, Url: "https://hooks.example.net/verge?token=secret",
+		State: "undelivered", Attempt: 5, LastError: pgtype.Text{String: "HTTP 503", Valid: true},
+	}}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/messages", http.StatusOK)
+
+	if !strings.Contains(page, "undelivered") {
+		t.Errorf("message panel does not surface the undelivered delivery; body: %s", page)
+	}
+	// The channel is shown by host only — the token in the URL path must not leak.
+	if !strings.Contains(page, "hooks.example.net") {
+		t.Errorf("undelivered channel host not shown; body: %s", page)
+	}
+	if strings.Contains(page, "token=secret") {
+		t.Errorf("the full channel URL (with its token) leaked onto the panel; body: %s", page)
+	}
+	// The failure reads as a delivery failure, distinct from an empty result.
+	if !strings.Contains(page, "could not be delivered") {
+		t.Errorf("the undelivered mark does not distinguish a delivery failure from nothing firing; body: %s", page)
+	}
+	// The reason is carried as a drill-down, not a top-level log line.
+	if !strings.Contains(page, "HTTP 503") {
+		t.Errorf("the delivery failure reason is not carried as a drill-down; body: %s", page)
+	}
+}
+
 // The global nav element carries the unread count on every screen, and marking a
 // message read drops the count.
 func TestUnreadCountAndMarkRead(t *testing.T) {

@@ -53,6 +53,14 @@ func RunWithPeer(peer Peer, batch string, scope Scope, w io.Writer) error {
 	var out []wire.Observation
 	for _, name := range scope.Names {
 		res := Resolve(peer, scope.Offers, name)
+		if res.Unreachable {
+			// The declared resolver could not be reached. A batch that failed
+			// outright covers nothing and licenses no absence (CONTEXT.md Batch),
+			// so we emit nothing and return an error: the worker routes this
+			// through retry → dead-letter, which records the empty scope, and the
+			// vantage's Availability is marked unavailable (ADR-0108).
+			return fmt.Errorf("resolutionwalk: declared resolver %q unreachable; batch covers nothing", scope.Resolver)
+		}
 		out = append(out, Emit(batch, scope.Vantage, res)...)
 	}
 	return WriteNDJSON(w, out)

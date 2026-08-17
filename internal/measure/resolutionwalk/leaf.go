@@ -63,11 +63,17 @@ type Query struct {
 
 // Msg is a decoded DNS response. Reached is false when nothing answered (the
 // silent authority of boundary M2.e), which is distinct from a REFUSED answer.
+// Unreachable is stronger still: the exchange failed at the socket — a dial or
+// read error — so we could not look at all, which is "we could not look" rather
+// than any value the resolver returned (ADR-0108). It aborts the batch only on
+// the declared path; a walk-path authority's silence stays the Gap/Lame
+// vocabulary.
 type Msg struct {
-	Reached   bool
-	Rcode     Rcode
-	Truncated bool
-	Answer    []RR
+	Reached     bool
+	Rcode       Rcode
+	Truncated   bool
+	Unreachable bool
+	Answer      []RR
 }
 
 // Peer answers the leaf's queries. The production adapter dials real
@@ -126,6 +132,13 @@ type Result struct {
 	Resolution Resolution `json:"resolution"`
 	Delegation Delegation `json:"delegation"`
 	Records    []Record   `json:"records"`
+
+	// Unreachable reports that the declared-path resolver could not be reached
+	// for this Name — a socket failure, not a value. It is a control signal read
+	// by RunWithPeer to abort the whole batch (the resolver is one position for
+	// every name), never an emitted observation, so it does not serialize and no
+	// golden corpus moves (ADR-0108).
+	Unreachable bool `json:"-"`
 }
 
 // Resolve runs the leaf for one Name against a Peer under the given Offers. It
@@ -144,7 +157,15 @@ func Resolve(peer Peer, offers Offers, name string) Result {
 	sawCNAME := false
 
 	for _, qt := range offers.Qtypes {
-		msg, ok := exchangeDeclared(peer, offers, key, qt)
+		msg, ok, unreachable := exchangeDeclared(peer, offers, key, qt)
+		if unreachable {
+			// The resolver itself could not be reached. It is one position for
+			// the whole batch, so there is nothing more to ask: mark the result
+			// so RunWithPeer aborts the batch rather than folding an all-Gap
+			// measurement (ADR-0108).
+			res.Unreachable = true
+			return res
+		}
 		rec := Record{Qtype: qt, RRs: normaliseRRs(msg.Answer)}
 		res.Records = append(res.Records, rec)
 
@@ -210,7 +231,10 @@ func decideResolution(addrs addrSet, nxAll, anyNoError, anyReached, sawCNAME boo
 // fallback policy: retry over TCP when the answer is truncated, and retry
 // without an OPT when an authority FORMERRs an EDNS query. The bool is false
 // when neither UDP, TCP fallback nor the EDNS-less retry produced an answer.
-func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (Msg, bool) {
+// The third bool reports that the resolver could not be reached at the socket
+// (ADR-0108) — distinct from the second (ok), which is false for a reached-but-
+// unusable answer (a Gap). Only the first governs whether the batch aborts.
+func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (msg Msg, ok, unreachable bool) {
 	q := Query{
 		Path:      PathDeclared,
 		Name:      name,
@@ -219,12 +243,18 @@ func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (Msg, boo
 		EDNS:      true,
 		Cookie:    offers.EDNS.Cookie,
 	}
-	msg := peer.Exchange(q)
+	msg = peer.Exchange(q)
+	if msg.Unreachable {
+		return Msg{}, false, true
+	}
 
 	// FORMERR to an OPT-carrying query: retry once without EDNS (M2.i).
 	if msg.Reached && msg.Rcode == FORMERR && q.EDNS && offers.Transport.EDNSlessRetry {
 		q.EDNS = false
 		msg = peer.Exchange(q)
+		if msg.Unreachable {
+			return Msg{}, false, true
+		}
 	}
 
 	// Truncation: a truncated answer is never a value. Retry over TCP (M2.d).
@@ -232,21 +262,24 @@ func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (Msg, boo
 		tq := q
 		tq.Transport = TCP
 		msg = peer.Exchange(tq)
+		if msg.Unreachable {
+			return Msg{}, false, true
+		}
 		if msg.Truncated {
 			// TCP could not recover the RRset: a Gap, not a partial fold.
-			return Msg{}, false
+			return Msg{}, false, false
 		}
 	}
 
 	if !msg.Reached {
-		return Msg{}, false
+		return Msg{}, false, false
 	}
 	// A transport-level failure is not a value; treat SERVFAIL with no answer as
 	// coverage we did not obtain rather than a resolution outcome.
 	if msg.Rcode == SERVFAIL && len(msg.Answer) == 0 {
-		return Msg{}, false
+		return Msg{}, false, false
 	}
-	return msg, true
+	return msg, true, false
 }
 
 // walk runs the delegation walk direct to the delegated authorities, deciding

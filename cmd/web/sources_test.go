@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
@@ -262,6 +264,53 @@ func TestCoverageRendersApertureStatement(t *testing.T) {
 	}
 	if !strings.Contains(page, "daily") {
 		t.Errorf("dns cadence (daily) not stated; body: %s", page)
+	}
+}
+
+// ADR-0108 / #249: an unavailable vantage is surfaced on Coverage by name, so a
+// resolver that went unreachable reads as "we could not look from here" rather
+// than as an empty measurement — visible without inspecting observation.value.
+// It includes the resolver-only `local` vantage, which the prober list excludes.
+func TestCoverageSurfacesUnavailableVantages(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	// The shipped resolver-only `local` vantage, marked unavailable — no host, so
+	// the prober list would never show it, but the outage must still be loud.
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "local", Class: "internet",
+		Resolver:     "127.0.0.11:53",
+		Availability: pgtype.Text{String: "unavailable", Valid: true},
+	})
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+
+	if !strings.Contains(page, "local") || !strings.Contains(page, "127.0.0.11:53") {
+		t.Errorf("unavailable `local` vantage not named on Coverage; body: %s", page)
+	}
+	if !strings.Contains(page, "unavailable") {
+		t.Errorf("Coverage does not render the unavailable state; body: %s", page)
+	}
+	// The signal is distinct from an empty result: the register says we could not
+	// look, never that nothing was found.
+	if !strings.Contains(page, "could not look") {
+		t.Errorf("the unavailable-vantage register does not distinguish blindness from emptiness; body: %s", page)
+	}
+}
+
+// With no unavailable vantage the register does not render — an empty install is
+// not told it cannot look from anywhere.
+func TestCoverageOmitsUnavailableRegisterWhenAllAvailable(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+
+	if strings.Contains(page, "unavailable vantages") {
+		t.Errorf("the unavailable-vantage register rendered with no unavailable vantage; body: %s", page)
 	}
 }
 
