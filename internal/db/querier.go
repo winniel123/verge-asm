@@ -139,6 +139,14 @@ type Querier interface {
 	// derivation may still read, so a Name held only by an evidential answer no longer
 	// keeps an Address in the estate.
 	FindNameCitingAddress(ctx context.Context, arg FindNameCitingAddressParams) (FindNameCitingAddressRow, error)
+	// The name-scope Seed a CT admission's Citation chain terminates at, read by the
+	// id the admitted_name row actually carries (ADR-0027: "the covering Seed the chain
+	// terminates at"). The display path prefers this over FindCoveringNameSeed's
+	// longest-suffix match for an admission hop: with overlapping name scopes, a Name
+	// admitted under Seed A but whose longest suffix is Seed B must cite A, the Seed the
+	// admission provenance names, not B (#256, ADR-0107). Same shape as
+	// FindCoveringNameSeed so the two are interchangeable at the terminating hop.
+	FindNameSeedByID(ctx context.Context, seedID int64) (FindNameSeedByIDRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
@@ -170,8 +178,12 @@ type Querier interface {
 	//     wins: we resolved it *because* CT admitted it. A Citation never ages, so this
 	//     hop is read straight from admitted_name with no live-tier clock (ADR-0096);
 	//     the newest admission per Name is current, an append-only source re-admitting
-	//     on every poll. Matches on the shared ASCII-lowercased key an admitted name
-	//     acquires when the resolver measures it (CanonicalName == normaliseName here).
+	//     on every poll. Matches on the shared ADR-0055 key: an admitted name is stored
+	//     via resolutionwalk.CanonicalName (#256), the same function the resolver keys
+	//     its subject_key with, so an.name is a fixpoint of the resolver's key and the
+	//     join holds for a non-ASCII-uppercase name, not only an ASCII one. The chain
+	//     terminates at the admitting row's own seed_id (ADR-0027), read below, not a
+	//     re-derived longest-suffix match.
 	//   * `observation` — the earliest LIVE resolution observation, for a Name no
 	//     source admitted (a Seed apex, a CNAME target). Reads through the live-tier
 	//     gate (#237) so the chain rests on a measurement a derivation may still read.

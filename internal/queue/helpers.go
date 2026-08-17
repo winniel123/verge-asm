@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
@@ -37,11 +38,13 @@ func admittedNames(ctx context.Context, q *db.Queries) ([]string, error) {
 // Seed domains, then the CT-admitted names not already among them. The Seeds lead
 // and keep their exact string — what the resolver already resolves them as — so
 // this only *adds* the discovered names the estate was written against since
-// ADR-0027. Dedup is by the lowercase/trailing-dot key both the Seed domains and
-// the admitted-name rows are stored under (internal/scan/crtsh.go normaliseName),
-// so a discovered name equal to a Seed domain does not double it. The result feeds
-// the job's Names, never its seeds: the control-probe population widens with the
-// resolution scope, but the probing gate stays bounded at the Seeds (ADR-0066).
+// ADR-0027. Dedup is by resolutionNameKey — the resolver's own CanonicalName key
+// (#256), not a parallel fold — so two names collapse here exactly when the resolver
+// would key them to one subject_key, and stay separate exactly when it would key
+// them to two. A discovered name equal to a Seed domain does not double it; a name
+// the resolver keys distinctly is not folded away and left unmeasured. The result
+// feeds the job's Names, never its seeds: the control-probe population widens with
+// the resolution scope, but the probing gate stays bounded at the Seeds (ADR-0066).
 func mergeResolutionNames(seedDomains, admitted []string) []string {
 	seen := make(map[string]struct{}, len(seedDomains)+len(admitted))
 	out := make([]string, 0, len(seedDomains)+len(admitted))
@@ -63,12 +66,19 @@ func mergeResolutionNames(seedDomains, admitted []string) []string {
 	return out
 }
 
-// resolutionNameKey is the dedup key for the resolution set — the same
-// lowercase/trailing-dot normalisation the Seed domains and admitted-name rows are
-// already stored under. It is a merge key only, not the ADR-0055 subject key the
-// resolver assigns when it measures the name.
+// resolutionNameKey is the dedup key for the resolution set. It is exactly the
+// subject_key the resolver assigns when it measures the name — resolutionwalk.
+// CanonicalName, the ADR-0055 key — so the merge dedups on the same identity the
+// resolver keys its observations under. Re-implementing the fold inline (as it once
+// did, with strings.ToLower) folded a non-ASCII-uppercase name onto a Seed the
+// resolver keys distinctly — CanonicalName lowercases ASCII only, so "Ä.example.com"
+// and "ä.example.com" are two subjects, not one — and silently DROPPED one from the
+// resolution set, so the resolver never measured it (#256). Routing through
+// CanonicalName keeps dedup, storage, and the citation match consistent. Whitespace
+// a crt.sh value may carry is trimmed first, matching how the admitted-name rows
+// were stored (internal/scan/crtsh.go normaliseName).
 func resolutionNameKey(name string) string {
-	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), ".")
+	return resolutionwalk.CanonicalName(strings.TrimSpace(name))
 }
 
 // vantages is the configured Vantage set, with a lookup from id to resolver.

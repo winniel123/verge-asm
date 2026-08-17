@@ -147,6 +147,39 @@ func (q *Queries) FindNameCitingAddress(ctx context.Context, arg FindNameCitingA
 	return i, err
 }
 
+const findNameSeedByID = `-- name: FindNameSeedByID :one
+SELECT s.id, s.name_domain, s.created_at, a.username AS created_by_username
+FROM seed s
+JOIN account a ON a.id = s.created_by
+WHERE s.kind = 'name' AND s.id = $1
+`
+
+type FindNameSeedByIDRow struct {
+	ID                int64              `json:"id"`
+	NameDomain        pgtype.Text        `json:"name_domain"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	CreatedByUsername string             `json:"created_by_username"`
+}
+
+// The name-scope Seed a CT admission's Citation chain terminates at, read by the
+// id the admitted_name row actually carries (ADR-0027: "the covering Seed the chain
+// terminates at"). The display path prefers this over FindCoveringNameSeed's
+// longest-suffix match for an admission hop: with overlapping name scopes, a Name
+// admitted under Seed A but whose longest suffix is Seed B must cite A, the Seed the
+// admission provenance names, not B (#256, ADR-0107). Same shape as
+// FindCoveringNameSeed so the two are interchangeable at the terminating hop.
+func (q *Queries) FindNameSeedByID(ctx context.Context, seedID int64) (FindNameSeedByIDRow, error) {
+	row := q.db.QueryRow(ctx, findNameSeedByID, seedID)
+	var i FindNameSeedByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.NameDomain,
+		&i.CreatedAt,
+		&i.CreatedByUsername,
+	)
+	return i, err
+}
+
 const getEndpointSubject = `-- name: GetEndpointSubject :one
 WITH cover AS (
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
@@ -231,7 +264,7 @@ live AS (
 ),
 admission_hop AS (
     SELECT an.created_at AS observed_at, an.source, NULL::bigint AS vantage_id,
-           an.batch_id, b.scan_id, sc.kind AS scan_kind,
+           an.batch_id, b.scan_id, sc.kind AS scan_kind, an.seed_id,
            'admission'::text AS hop_kind, 0 AS priority
     FROM admitted_name an
     JOIN batch b ON b.id = an.batch_id
@@ -242,7 +275,7 @@ admission_hop AS (
 ),
 observation_hop AS (
     SELECT o.observed_at, o.source, o.vantage_id,
-           o.batch_id, b.scan_id, sc.kind AS scan_kind,
+           o.batch_id, b.scan_id, sc.kind AS scan_kind, NULL::bigint AS seed_id,
            'observation'::text AS hop_kind, 1 AS priority
     FROM live o
     JOIN batch b ON b.id = o.batch_id
@@ -251,13 +284,16 @@ observation_hop AS (
     ORDER BY o.observed_at ASC, o.id ASC
     LIMIT 1
 )
-SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, hop_kind
+SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, seed_id, hop_kind
 FROM (
-    SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, hop_kind, priority
-    FROM admission_hop
-    UNION ALL
-    SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, hop_kind, priority
+    -- observation_hop leads the UNION so its NULL seed_id makes sqlc infer the
+    -- column nullable (an admission hop carries a seed_id, an observation hop does
+    -- not); ORDER BY priority, not UNION order, still selects the admission first.
+    SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, seed_id, hop_kind, priority
     FROM observation_hop
+    UNION ALL
+    SELECT observed_at, source, vantage_id, batch_id, scan_id, scan_kind, seed_id, hop_kind, priority
+    FROM admission_hop
 ) h
 ORDER BY priority
 LIMIT 1
@@ -276,6 +312,7 @@ type GetNameCitationRow struct {
 	BatchID    int64              `json:"batch_id"`
 	ScanID     int64              `json:"scan_id"`
 	ScanKind   string             `json:"scan_kind"`
+	SeedID     pgtype.Int8        `json:"seed_id"`
 	HopKind    string             `json:"hop_kind"`
 }
 
@@ -290,8 +327,12 @@ type GetNameCitationRow struct {
 //     wins: we resolved it *because* CT admitted it. A Citation never ages, so this
 //     hop is read straight from admitted_name with no live-tier clock (ADR-0096);
 //     the newest admission per Name is current, an append-only source re-admitting
-//     on every poll. Matches on the shared ASCII-lowercased key an admitted name
-//     acquires when the resolver measures it (CanonicalName == normaliseName here).
+//     on every poll. Matches on the shared ADR-0055 key: an admitted name is stored
+//     via resolutionwalk.CanonicalName (#256), the same function the resolver keys
+//     its subject_key with, so an.name is a fixpoint of the resolver's key and the
+//     join holds for a non-ASCII-uppercase name, not only an ASCII one. The chain
+//     terminates at the admitting row's own seed_id (ADR-0027), read below, not a
+//     re-derived longest-suffix match.
 //   - `observation` — the earliest LIVE resolution observation, for a Name no
 //     source admitted (a Seed apex, a CNAME target). Reads through the live-tier
 //     gate (#237) so the chain rests on a measurement a derivation may still read.
@@ -309,6 +350,7 @@ func (q *Queries) GetNameCitation(ctx context.Context, arg GetNameCitationParams
 		&i.BatchID,
 		&i.ScanID,
 		&i.ScanKind,
+		&i.SeedID,
 		&i.HopKind,
 	)
 	return i, err

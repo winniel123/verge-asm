@@ -677,6 +677,38 @@ func nameCitationHop(cit db.GetNameCitationRow) citationHop {
 	}
 }
 
+// nameSeedTerm is the Seed a Name's Citation chain terminates at, reduced to the
+// three fields the hop renders. It lets buildCitation treat the two ways the Seed
+// is found — by the admitted_name row's id, or by longest-suffix cover — through
+// one shape.
+type nameSeedTerm struct {
+	NameDomain        pgtype.Text
+	CreatedAt         pgtype.Timestamptz
+	CreatedByUsername string
+}
+
+// terminatingNameSeed picks the Seed a Name's Citation chain bottoms out at. A CT
+// admission terminates at the Seed the admitted_name row itself carries (ADR-0027,
+// #256) — read by id so an overlapping longer-suffix scope cannot displace the Seed
+// the admission provenance names. Every other Name — an observation hop, or one
+// with no citation at all — terminates at its covering Seed by the longest-suffix
+// match. Best-effort: a lookup failure degrades to no Seed hop rather than falling
+// back to the suffix match for an admission, which is the very mismatch #256 fixes.
+func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetNameCitationRow, citErr error) (nameSeedTerm, bool) {
+	if citErr == nil && cit.HopKind == hopKindAdmission && cit.SeedID.Valid {
+		seed, err := s.store.FindNameSeedByID(r.Context(), cit.SeedID.Int64)
+		if err != nil {
+			return nameSeedTerm{}, false
+		}
+		return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt, CreatedByUsername: seed.CreatedByUsername}, true
+	}
+	seed, err := s.store.FindCoveringNameSeed(r.Context(), key)
+	if err != nil {
+		return nameSeedTerm{}, false
+	}
+	return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt, CreatedByUsername: seed.CreatedByUsername}, true
+}
+
 // buildCitation assembles the "why is this here" chain for a Name: the subject
 // itself, the hop that introduced it (a CT admission or a resolution, ADR-0107),
 // and the Seed the chain terminates at. Every hop is best-effort — a missing hop
@@ -688,15 +720,14 @@ func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool
 	}}
 
 	terminated := false
-	cit, err := s.store.GetNameCitation(r.Context(), db.GetNameCitationParams{
+	cit, citErr := s.store.GetNameCitation(r.Context(), db.GetNameCitationParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
-	if err == nil {
+	if citErr == nil {
 		hops = append(hops, nameCitationHop(cit))
 	}
 
-	seed, err := s.store.FindCoveringNameSeed(r.Context(), key)
-	if err == nil {
+	if seed, ok := s.terminatingNameSeed(r, key, cit, citErr); ok {
 		detail := ""
 		if seed.CreatedByUsername != "" {
 			detail = "declared by " + seed.CreatedByUsername

@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -189,15 +190,18 @@ func AdmittedNames(rows []CrtshRow, domain string) []string {
 	return out
 }
 
-// normaliseName lowercases, trims surrounding whitespace, and strips a trailing
-// dot, so `Example.COM.` and `example.com` key alike. It does not attempt full
-// IDNA or the ADR-0055 label-sequence key — a name admitted here acquires its
-// canonical key when the resolver measures it (ADR-0027); this is a membership
-// candidate, not a subject key.
+// normaliseName renders a candidate Name's key the same way the resolver will
+// when it measures the Name: resolutionwalk.CanonicalName — the ADR-0055 key,
+// ASCII-only label lowercasing with the trailing dot stripped — after trimming
+// the surrounding whitespace a crt.sh SAN value may carry. Routing through
+// CanonicalName rather than a parallel Unicode fold is what makes admitted_name.
+// name a fixpoint of the resolver's subject_key, so GetNameCitation's admission
+// hop matches for a non-ASCII-uppercase name as well as an ASCII one — the exact
+// seam #256 found the old parallel fold breaking (ADR-0107). A name admitted here
+// is a membership candidate, not yet a subject; the measurement puts it in the
+// estate (ADR-0027).
 func normaliseName(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = strings.TrimSuffix(s, ".")
-	return s
+	return resolutionwalk.CanonicalName(strings.TrimSpace(s))
 }
 
 // withinScope reports whether name falls under the name-scope domain — equal to
