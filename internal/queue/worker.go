@@ -189,9 +189,11 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		if err != nil {
 			return err
 		}
-		// A completed Batch is proof the vantage can observe: derive its
-		// Availability back to 'available' in the same transaction (ADR-0108).
-		if err := applyAvailability(ctx, qtx, job.VantageID, outcomeCompleted); err != nil {
+		// A completed resolution-walk Batch is proof the vantage's resolver can
+		// observe: derive its Availability back to 'available' in the same
+		// transaction (ADR-0108). Scoped to the dns kind so a completing port
+		// probe never clobbers a resolver outage.
+		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeCompleted); err != nil {
 			return err
 		}
 		observedAt := w.now().UTC()
@@ -227,10 +229,12 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error
 		if err != nil {
 			return err
 		}
-		// A dead-lettered Batch failed every attempt across the retry window:
-		// the vantage could not observe, so derive its Availability to
-		// 'unavailable', which opens a Gap on the Reach of its class (ADR-0108).
-		if err := applyAvailability(ctx, qtx, job.VantageID, outcomeDeadLettered); err != nil {
+		// A dead-lettered resolution-walk Batch failed every attempt across the
+		// retry window: the vantage's resolver could not observe, so derive its
+		// Availability to 'unavailable' (ADR-0108). Scoped to the dns kind — a
+		// dead-lettered port probe is its own durable failure, not a resolver
+		// outage, and does not move this scalar.
+		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeDeadLettered); err != nil {
 			return err
 		}
 		return qtx.MarkJobDead(ctx, db.MarkJobDeadParams{ID: job.ID, BatchID: pgInt8(batchID)})

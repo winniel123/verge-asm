@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
 // availabilityAction is the Vantage Availability mutation a terminal Batch
@@ -25,14 +26,26 @@ const (
 )
 
 // availabilityAfterOutcome maps a terminal Batch outcome to the Availability it
-// implies. It derives nothing where the Batch carries no vantage (zone/ct), so
-// a null-vantage outcome never moves an availability that does not exist. The
-// window Availability is "concluded from recent batch outcomes over" is, in v1,
-// the retry sequence within one dispatch: a dead-letter already means every
+// implies. Two guards keep it honest:
+//
+//   - It derives nothing where the Batch carries no vantage (zone/ct), so a
+//     null-vantage outcome never moves an availability that does not exist.
+//   - It derives only from a **resolution-walk** (dns) Batch — the one that
+//     exercises the vantage's recursive resolver, and the only capability a
+//     resolver outage impairs. A completing port-probe (hot/cold/tls,
+//     `connect-outcome` / `tls-acceptance`) Batch at the same vantage says
+//     nothing about resolver health, so it must not re-mark the vantage
+//     `available` and clobber the `unavailable` a dead-lettered dns Batch set —
+//     which would silently re-mask the very resolver outage this exists to
+//     surface (ADR-0108). Availability is a single scalar per vantage, so the
+//     capability that may move it is scoped rather than shared.
+//
+// The window Availability is "concluded from recent batch outcomes over" is, in
+// v1, the retry sequence within one dispatch: a dead-letter already means every
 // attempt across that window failed, and a completed Batch is immediate proof of
-// recovery (ADR-0108).
-func availabilityAfterOutcome(vantageValid bool, outcome string) availabilityAction {
-	if !vantageValid {
+// recovery.
+func availabilityAfterOutcome(vantageValid bool, kind, outcome string) availabilityAction {
+	if !vantageValid || kind != resolutionwalk.Kind {
 		return availabilityUnchanged
 	}
 	switch outcome {
@@ -47,8 +60,8 @@ func availabilityAfterOutcome(vantageValid bool, outcome string) availabilityAct
 
 // applyAvailability derives and applies the vantage's Availability from a
 // terminal batch outcome, inside the same transaction that wrote the Batch.
-func applyAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, outcome string) error {
-	switch availabilityAfterOutcome(vantageID.Valid, outcome) {
+func applyAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, kind, outcome string) error {
+	switch availabilityAfterOutcome(vantageID.Valid, kind, outcome) {
 	case availabilityAvailable:
 		return qtx.MarkVantageAvailable(ctx, vantageID.Int64)
 	case availabilityUnavailable:

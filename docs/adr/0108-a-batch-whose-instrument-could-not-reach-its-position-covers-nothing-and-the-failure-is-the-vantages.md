@@ -67,15 +67,27 @@ Six limbs.
    the all-`Gap` rows are never committed. This is not new machinery; it is the batch finally taking
    the path `Batch` always specified for a failure.
 
-4. **A terminal batch outcome derives the vantage's `Availability`.** A **completed** batch marks its
-   vantage `available`; a **dead-lettered** batch marks it `unavailable`. The window `Availability`
-   is *"concluded from recent batch outcomes over"* is, in v1, the **retry sequence within one
-   dispatch**: a dead-letter already means every attempt across that window failed, and a single
-   completed batch is proof the position observes again, so recovery is immediate on the next success
-   rather than pending a multi-cadence count. The derivation runs only where the batch carries a real
-   `Vantage` — the worker-read `zone` and `ct` `Scan`s have none
-   ([`batch.vantage_id`](../../db/migrations/18803_measurement_batch.sql) is nullable) and never move
-   it.
+4. **A terminal `dns` (resolution-walk) batch outcome derives the vantage's `Availability`.** A
+   **completed** one marks its vantage `available`; a **dead-lettered** one marks it `unavailable`.
+   The window `Availability` is *"concluded from recent batch outcomes over"* is, in v1, the **retry
+   sequence within one dispatch**: a dead-letter already means every attempt across that window
+   failed, and a single completed batch is proof the position observes again, so recovery is immediate
+   on the next success rather than pending a multi-cadence count. Two scopings keep the derivation
+   honest, because **`Availability` is a single scalar per vantage** and a vantage runs several `Scan`
+   kinds:
+   - It runs only where the batch carries a real `Vantage` — the worker-read `zone` and `ct` `Scan`s
+     have none ([`batch.vantage_id`](../../db/migrations/18803_measurement_batch.sql) is nullable) and
+     never move it.
+   - It runs only for the **`resolution-walk`** batch — the one `Scan` that exercises the vantage's
+     recursive resolver, and the only capability a resolver outage impairs. A completing **port
+     probe** (`hot`/`cold`/`tls-acceptance`, whose batches carry `connect-outcome` / `tls-acceptance`)
+     at the same vantage says nothing about resolver health, so it must **not** re-mark the vantage
+     `available` and clobber the `unavailable` a dead-lettered `dns` batch set. Every vantage in
+     `ListVantagesForDispatch` receives all of these kinds, so without this scoping a single
+     port-probe completion would silently re-mask the resolver outage — the exact regression #249
+     removes. This is a deliberate coarseness of the single scalar: a **per-capability** availability
+     (resolution vs reachability) is a larger model change carried as future work, and v1 scopes the
+     scalar's one writer to the resolver capability rather than sharing it across kinds.
 
 5. **The operator-visible signal is the `Gap` on `Reach` the model already routes.** An `unavailable`
    vantage is excluded from its class's presence
@@ -154,12 +166,16 @@ false `available` **hides** one, so the responsive rule fails in the loud direct
 `Vantage class` verifies to `internet` on doubt because *"a false quiet reading is not investigated."*
 
 **On the host-key path.** `MarkVantageUnavailable` is also the trust-on-first-use response to a
-pinned host key later mismatching ([ADR-0103](./0103-a-vantage-is-one-position-and-the-prober-is-optional-provisioning-detail.md)).
-Limb 4 does not entangle it: a prober whose SSH host key mismatched cannot complete a measurement
-batch — the connection is refused before any measurement runs — so *completed → available* can never
-silently clear a security pin, and *dead-lettered → unavailable* agrees with the host-key path rather
-than fighting it. The `local` resolver-only vantage has no host key and no prober, and its
-availability is driven entirely and correctly by its batch outcomes.
+pinned host key later mismatching ([ADR-0103](./0103-a-vantage-is-one-position-and-the-prober-is-optional-provisioning-detail.md)),
+and the two writers share the one scalar. Today they do not collide: the TOFU mismatch path is not
+yet wired (SSH host-key enforcement is deferred, `cmd/worker/vantages.go`), and *dead-lettered →
+unavailable* agrees with it rather than fighting it. The `local` resolver-only vantage has no host key
+and no prober, and its availability is driven entirely and correctly by its `dns` batch outcomes.
+**Forward caveat:** when SSH enforcement lands, *completed → available* clears a security pin only if a
+host-key-mismatched **remote** prober cannot complete a `resolution-walk` batch — i.e. only if that
+vantage's `dns` measurement is itself gated behind the SSH connection rather than run from the worker
+against the resolver address directly. That invariant is the successor ticket's to hold; this ADR
+records the dependency rather than assuming it.
 
 ### Why one ADR for #249 and #244
 

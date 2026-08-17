@@ -160,7 +160,10 @@ func toMessageRow(m db.Message) messageRow {
 // drill-down reason on a failed delivery, carried but not rendered as a top-level
 // log (#22).
 func toDeliveryView(o db.ListDeliveryOutcomesRow) deliveryView {
-	host := o.Url
+	// Never echo the raw URL: an operator may have embedded a token in the path
+	// or query. Render the host alone, and a neutral placeholder if the URL does
+	// not parse to one — never the raw string, which is where a token would sit.
+	host := "(channel)"
 	if u, err := url.Parse(o.Url); err == nil && u.Host != "" {
 		host = u.Host
 	}
