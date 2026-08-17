@@ -1090,8 +1090,13 @@ the class that still answers. Derived, though the `Vantage` it belongs to is Dec
 never measured the vantage, we inferred it from what failed. **The derivation is produced from
 terminal `Batch` outcomes** ([ADR-0108](./docs/adr/0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md)):
 a **completed** `Batch` restores it to `available` and a **dead-lettered** one opens it to
-`unavailable`, in the same transaction that writes the batch, and only where the batch carries a real
-`Vantage` — the worker-read `zone` and `ct` `Scan`s have none and move it nowhere. The *fixed window*
+`unavailable`, in the same transaction that writes the batch. Two scopings keep the single per-vantage
+scalar honest: it moves only where the batch carries a real `Vantage` — the worker-read `zone` and
+`ct` `Scan`s have none and move it nowhere — and only from a **`resolution-walk` (`dns`) `Batch`**, the
+one `Scan` that exercises the resolver. A completing **port probe** (`hot`/`cold`/`tls-acceptance`) at
+the same vantage says nothing about resolver health, so it may not re-mark the vantage `available` and
+clobber a resolver outage; a **per-capability** availability (resolution vs reachability) is future
+work. The *fixed window*
 is, in v1, the **retry sequence within one dispatch**: a dead-letter is already every attempt across
 that window failed, and a single completed batch is immediate proof of recovery, so the state follows
 the latest terminal outcome rather than a multi-cadence count — failing loud (a false `unavailable`
