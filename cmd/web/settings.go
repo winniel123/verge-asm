@@ -12,12 +12,17 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
+	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
-// The Settings screen is the operator's dials (v1 spec §6.1): accounts, Channels
-// and the two retention dials. Every mutation it hosts is an authenticated admin
-// act (§4.3, notification-channels.md §2) — the whole destination is reached only
-// through requireAdmin, so viewing it and mutating from it are both admin-gated.
+// The Settings screen is the operator's dials (v1 spec §6.1): the tabbed console
+// destination ported from examples/console/Settings.jsx. It folds today's
+// settings (accounts, channels, retention), the scans monitor, the vantages the
+// worker measures from, the message panel, the verge-core port set, the delivery
+// record, and source enablement into seven query-param sub-tabs
+// (/settings?tab=<id>). Every mutation it hosts is an authenticated admin act
+// (§4.3), reached only through requireAdmin; the folded read surfaces (/scans,
+// /messages, /verge-core, /sources) render one section for a viewer.
 
 // channelView is a declared Channel shaped for rendering. It never carries the
 // secret, only whether one is set: the secret is write-only and the render path
@@ -53,12 +58,27 @@ type retentionView struct {
 	UpdatedAt               string
 }
 
+// vantageRow is one measurement position shaped for the vantages section. A
+// vantage is never a probe/scanner/agent (CONTEXT.md): the render carries only its
+// measurement name, verified class, availability, resolver and endpoint — never a
+// private key.
+type vantageRow struct {
+	Name         string
+	Class        string
+	Availability string
+	Resolver     string
+	Endpoint     string
+}
+
 // settingsForms carries the echo state of the Settings screen's forms so a
 // rejected submission on one section leaves its own error and typed values in
 // place without disturbing the others. section names the section that failed and
-// drives the response status.
+// drives the response status; tab forces the active sub-tab (a folded read
+// surface renders one section by name), and notice carries a success line.
 type settingsForms struct {
-	section string // "", "accounts", "channels" or "retention"
+	section string // "", "accounts", "channels", "retention" or "vergecore"
+	tab     string // explicit active tab; when "", derived from section (default scans)
+	notice  string // a success line, rendered above the active section
 
 	acctError    string
 	acctUsername string
@@ -74,10 +94,43 @@ type settingsForms struct {
 	retError    string
 	retObs      string
 	retDispatch string
+
+	vcError string
+	vcPort  string
+}
+
+// settingsTabs is the sub-tab order of the Settings screen, ported from
+// examples/console/Settings.jsx: the two Scanning sections, the delivery group,
+// then Access. Each is reached at /settings?tab=<id>.
+var settingsTabs = []string{"scans", "vantages", "channels", "messages", "delivery", "access", "integrations"}
+
+// validTab keeps the query param to a known section, defaulting to the first.
+func validTab(t string) string {
+	for _, x := range settingsTabs {
+		if x == t {
+			return t
+		}
+	}
+	return "scans"
+}
+
+// tabForSection maps a failing form's section to the tab that hosts it, so a
+// rejected submission re-renders with its own section active.
+func tabForSection(section string) string {
+	switch section {
+	case "accounts":
+		return "access"
+	case "channels":
+		return "channels"
+	case "retention", "vergecore":
+		return "delivery"
+	default:
+		return "scans"
+	}
 }
 
 func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSettings(w, r, acct, settingsForms{})
+	s.renderSettings(w, r, acct, settingsForms{tab: validTab(r.URL.Query().Get("tab"))})
 }
 
 // --- accounts --------------------------------------------------------------
@@ -107,7 +160,7 @@ func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		fail(createError(err))
 		return
 	}
-	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?tab=access", http.StatusSeeOther)
 }
 
 // setAccountRole reassigns an account's role. It refuses to demote the last
@@ -147,7 +200,7 @@ func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "update account role", err)
 		return
 	}
-	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?tab=access", http.StatusSeeOther)
 }
 
 // --- channels --------------------------------------------------------------
@@ -182,7 +235,7 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "create channel", err)
 		return
 	}
-	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?tab=channels", http.StatusSeeOther)
 }
 
 // updateChannel edits a channel's URL, routing classes and enabled state, and
@@ -232,7 +285,7 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 			return
 		}
 	}
-	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?tab=channels", http.StatusSeeOther)
 }
 
 // deleteChannel removes a channel. It is idempotent: deleting a row that is
@@ -247,7 +300,7 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "delete channel", err)
 		return
 	}
-	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?tab=channels", http.StatusSeeOther)
 }
 
 // --- retention -------------------------------------------------------------
@@ -303,50 +356,186 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "update retention", err)
 		return
 	}
-	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?tab=delivery", http.StatusSeeOther)
 }
 
 // --- render ----------------------------------------------------------------
 
+// renderSettings assembles the active sub-tab and renders the tabbed Settings
+// page. It gathers only the data the active section needs, so a folded read
+// surface pays for its own section alone. A failing form re-renders its own tab
+// with the echo state and a 400.
 func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.Account, f settingsForms) {
-	accounts, err := s.store.ListAccounts(r.Context())
-	if err != nil {
-		s.serverError(w, "list accounts", err)
-		return
-	}
-	channels, err := s.store.ListChannels(r.Context())
-	if err != nil {
-		s.serverError(w, "list channels", err)
-		return
-	}
-	ret, err := s.store.GetRetentionSettings(r.Context())
-	if err != nil {
-		s.serverError(w, "get retention", err)
-		return
+	active := f.tab
+	if active == "" {
+		active = tabForSection(f.section)
 	}
 
-	// The create-channel form defaults to all three classes; only a rejected
-	// create echoes the operator's own selection back.
-	chDrift, chCoverage, chClock := true, true, true
-	if f.section == "channels" {
-		chDrift, chCoverage, chClock = f.chanDrift, f.chanCoverage, f.chanClock
+	data := map[string]any{
+		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "settings", "Tab": active,
+	}
+	if f.notice != "" {
+		data["Notice"] = f.notice
+	}
+
+	var err error
+	switch active {
+	case "scans":
+		err = s.fillScansSection(r, acct, data)
+	case "vantages":
+		err = s.fillVantagesSection(r, data)
+	case "channels":
+		err = s.fillChannelsSection(r, f, data)
+	case "integrations":
+		err = s.fillIntegrationsSection(r, data)
+	case "messages":
+		err = s.fillMessagesSection(r, data)
+	case "delivery":
+		err = s.fillDeliverySection(r, f, data)
+	case "access":
+		err = s.fillAccessSection(r, acct, f, data)
+	}
+	if err != nil {
+		s.serverError(w, "settings section "+active, err)
+		return
 	}
 
 	status := http.StatusOK
 	if f.section != "" {
 		status = http.StatusBadRequest
 	}
-	s.renderStatus(w, status, "settings", map[string]any{
-		"Title": "Settings", "Account": acct, "IsAdmin": true,
-		"Accounts":  toAccountRows(accounts, acct.ID),
-		"Channels":  toChannelViews(channels),
-		"Retention": toRetentionView(ret, accounts),
-		"AcctError": f.acctError, "AcctUsername": f.acctUsername, "AcctRole": f.acctRole,
-		"RoleError": f.roleError,
-		"ChanError": f.chanError, "ChanURL": f.chanURL,
-		"ChanDrift": chDrift, "ChanCoverage": chCoverage, "ChanClock": chClock,
-		"RetError": f.retError, "RetObs": f.retObs, "RetDispatch": f.retDispatch,
-	})
+	s.renderStatus(w, status, "settings", data)
+}
+
+// fillVantagesSection lists the provisioned measurement positions (CONTEXT.md
+// "Vantage"). A read-only display: provisioning lives on Scope, and a vantage is
+// never a probe/scanner/agent here.
+func (s *server) fillVantagesSection(r *http.Request, data map[string]any) error {
+	rows, err := s.store.ListVantages(r.Context())
+	if err != nil {
+		return err
+	}
+	out := make([]vantageRow, 0, len(rows))
+	for _, v := range rows {
+		vr := vantageRow{
+			Name: v.Name, Class: v.Class, Availability: v.Availability.String,
+			Resolver: v.Resolver, Endpoint: endpointString(v.Host.String, v.Port.Int32),
+		}
+		if vr.Availability == "" {
+			vr.Availability = "pending"
+		}
+		if vr.Resolver == "" {
+			vr.Resolver = "—"
+		}
+		out = append(out, vr)
+	}
+	data["Vantages"] = out
+	return nil
+}
+
+// fillChannelsSection reads the declared channels and the create-form echo.
+func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[string]any) error {
+	channels, err := s.store.ListChannels(r.Context())
+	if err != nil {
+		return err
+	}
+	// The create-channel form defaults to all three classes; only a rejected
+	// create echoes the operator's own selection back.
+	chDrift, chCoverage, chClock := true, true, true
+	if f.section == "channels" {
+		chDrift, chCoverage, chClock = f.chanDrift, f.chanCoverage, f.chanClock
+	}
+	data["Channels"] = toChannelViews(channels)
+	data["ChanError"] = f.chanError
+	data["ChanURL"] = f.chanURL
+	data["ChanDrift"] = chDrift
+	data["ChanCoverage"] = chCoverage
+	data["ChanClock"] = chClock
+	return nil
+}
+
+// fillDeliverySection carries the operational-record group: the delivery outcomes
+// register (ADR-0039/ADR-0081), the two retention dials, and the verge-core hot
+// port set (§3.5). verge-core folds here as the delivery-oriented dial screen it
+// most resembles, keeping its frequency edit and read-only sensitive half intact.
+func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[string]any) error {
+	ctx := r.Context()
+
+	// Delivery outcomes register — real outcomes, host-only so no embedded token
+	// leaks (message.go's toDeliveryView). Best-effort: a read failure degrades to
+	// an empty register rather than 500ing the whole section.
+	var deliveries []deliveryView
+	if outcomes, derr := s.store.ListDeliveryOutcomes(ctx); derr == nil {
+		for _, o := range outcomes {
+			deliveries = append(deliveries, toDeliveryView(o))
+		}
+	}
+	data["Deliveries"] = deliveries
+
+	// Retention dials.
+	accounts, err := s.store.ListAccounts(ctx)
+	if err != nil {
+		return err
+	}
+	ret, err := s.store.GetRetentionSettings(ctx)
+	if err != nil {
+		return err
+	}
+	data["Retention"] = toRetentionView(ret, accounts)
+	data["RetError"] = f.retError
+	data["RetObs"] = f.retObs
+	data["RetDispatch"] = f.retDispatch
+
+	// verge-core composition.
+	editRows, err := s.store.ListVergeCoreFrequencyEditsWithAuthor(ctx)
+	if err != nil {
+		return err
+	}
+	editByPort := make(map[uint16]string, len(editRows))
+	edits := make([]vergecore.FrequencyEdit, 0, len(editRows))
+	for _, e := range editRows {
+		editByPort[uint16(e.Port)] = e.Action
+		edits = append(edits, vergecore.FrequencyEdit{Port: uint16(e.Port), Action: e.Action})
+	}
+	shipped := vergecore.Default()
+	effective := shipped.WithFrequencyEdits(edits)
+	freq := make([]freqRow, 0, len(effective.FrequencyPairs()))
+	for _, p := range effective.FrequencyPairs() {
+		action, edited := editByPort[p.Port]
+		freq = append(freq, freqRow{
+			Port: int(p.Port), AlsoSensitive: shipped.IsSensitive(p),
+			Edited: edited, EditAction: action,
+		})
+	}
+	sens := make([]sensRow, 0, len(shipped.SensitivePairs()))
+	for _, p := range shipped.SensitivePairs() {
+		sens = append(sens, sensRow{Port: int(p.Port), Transport: string(p.Transport)})
+	}
+	c := effective.Count()
+	data["Counts"] = c
+	data["UDPCount"] = c.UDP
+	data["Frequency"] = freq
+	data["Sensitive"] = sens
+	data["VCError"] = f.vcError
+	data["VCPort"] = f.vcPort
+	return nil
+}
+
+// fillAccessSection carries the account surface relocated from the temporary
+// /account home (#277): the account list, invite, role controls and TOTP status,
+// plus the SSO honest empty state. A viewer sees only their own account.
+func (s *server) fillAccessSection(r *http.Request, acct db.Account, f settingsForms, data map[string]any) error {
+	accounts, err := s.store.ListAccounts(r.Context())
+	if err != nil {
+		return err
+	}
+	data["Accounts"] = toAccountRows(accounts, acct.ID)
+	data["AcctError"] = f.acctError
+	data["AcctUsername"] = f.acctUsername
+	data["AcctRole"] = f.acctRole
+	data["RoleError"] = f.roleError
+	return nil
 }
 
 func toAccountRows(rows []db.ListAccountsRow, selfID int64) []accountRow {

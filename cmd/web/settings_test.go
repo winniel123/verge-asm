@@ -22,6 +22,20 @@ func settingsBody(t *testing.T, c *http.Client, base string) string {
 	return body(t, resp)
 }
 
+// settingsTabBody fetches one Settings sub-tab (#281): the seven sections are
+// query-param tabs, so a folded section renders at /settings?tab=<id>.
+func settingsTabBody(t *testing.T, c *http.Client, base, tab string) string {
+	t.Helper()
+	resp, err := c.Get(base + "/settings?tab=" + tab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /settings?tab=%s status = %d, want 200", tab, resp.StatusCode)
+	}
+	return body(t, resp)
+}
+
 func TestSettingsIsAdminOnly(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -49,13 +63,23 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 		t.Fatalf("anon GET /settings: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 
-	// An admin sees the three sections.
+	// An admin reaches all seven sub-tabs, and each folded section renders on its
+	// own tab.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := settingsBody(t, ac, base)
-	for _, want := range []string{"Accounts", "Channels", "Retention dials"} {
-		if !strings.Contains(page, want) {
-			t.Errorf("settings page missing %q section", want)
+	for _, tab := range []string{"tab=scans", "tab=vantages", "tab=channels", "tab=messages", "tab=delivery", "tab=access", "tab=integrations"} {
+		if !strings.Contains(page, tab) {
+			t.Errorf("settings tab bar missing %q", tab)
 		}
+	}
+	if !strings.Contains(settingsTabBody(t, ac, base, "access"), "Accounts") {
+		t.Error("access tab missing the accounts section")
+	}
+	if !strings.Contains(settingsTabBody(t, ac, base, "channels"), "Declare a channel") {
+		t.Error("channels tab missing the channel form")
+	}
+	if !strings.Contains(settingsTabBody(t, ac, base, "delivery"), "Retention dials") {
+		t.Error("delivery tab missing the retention dials")
 	}
 }
 
@@ -70,7 +94,7 @@ func TestChannelCreateListAndSecretWriteOnly(t *testing.T) {
 	resp := postForm(t, ac, base+"/settings/channels", url.Values{
 		"url": {"https://hooks.example.com/verge"}, "coverage": {"on"}, "secret": {"s3cr3t-signing-key"},
 	})
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=channels" {
 		t.Fatalf("create channel: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()
@@ -87,7 +111,7 @@ func TestChannelCreateListAndSecretWriteOnly(t *testing.T) {
 	}
 
 	// The secret is write-only: the page shows it is set, never the value.
-	page := settingsBody(t, ac, base)
+	page := settingsTabBody(t, ac, base, "channels")
 	if strings.Contains(page, "s3cr3t-signing-key") {
 		t.Errorf("secret value leaked into the rendered page")
 	}
@@ -232,7 +256,7 @@ func TestInviteAccountFromSettings(t *testing.T) {
 		t.Fatalf("account not created")
 	}
 
-	page := settingsBody(t, ac, base)
+	page := settingsTabBody(t, ac, base, "access")
 	if !strings.Contains(page, "reviewer") {
 		t.Errorf("new account not listed; body: %s", page)
 	}

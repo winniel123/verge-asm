@@ -362,13 +362,13 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 // --- account management -----------------------------------------------------
 
-// accountPage renders the account surface at its temporary `GET /account` home.
-// The account details + admin invite/TOTP form moved off `/` when the Dashboard
-// took the root route (#277); #281 folds this into Settings → access (T10), at
-// which point this handler, its route and the `account` block are removed and
-// `/account` redirects to Settings.
-func (s *server) accountPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.render(w, "account", homeData(acct, ""))
+// accountPage redirects the temporary `GET /account` home (#277) to its permanent
+// fold in Settings → access (#281). The account details + admin invite/TOTP form
+// now live in the Settings access sub-tab, so this route is a redirect and the
+// `account` block is gone. The merged SignIn's totp-enroll Cancel link (→/account)
+// lands here transparently.
+func (s *server) accountPage(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	http.Redirect(w, r, "/settings?tab=access", http.StatusSeeOther)
 }
 
 func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -377,20 +377,18 @@ func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.A
 	role := r.FormValue("role")
 
 	if role != roleAdmin && role != roleViewer {
-		s.renderFormError(w, acct, "Role must be admin or viewer.")
+		s.renderFormError(w, r, acct, "Role must be admin or viewer.")
 		return
 	}
 	if msg := validateCredentials(username, password); msg != "" {
-		s.renderFormError(w, acct, msg)
+		s.renderFormError(w, r, acct, msg)
 		return
 	}
 	if _, err := s.createAccountRow(r, username, role, password); err != nil {
-		s.renderFormError(w, acct, createError(err))
+		s.renderFormError(w, r, acct, createError(err))
 		return
 	}
-	data := homeData(acct, "")
-	data["Notice"] = "Account " + username + " created."
-	s.render(w, "account", data)
+	s.renderSettings(w, r, acct, settingsForms{tab: "access", notice: "Account " + username + " created."})
 }
 
 func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -437,9 +435,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	fresh.TotpEnabled = true
-	data := homeData(fresh, "")
-	data["Notice"] = "Two-factor is now enabled."
-	s.render(w, "account", data)
+	s.renderSettings(w, r, fresh, settingsForms{tab: "access", notice: "Two-factor is now enabled."})
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -486,18 +482,11 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &e) && e.SQLState() == "23505"
 }
 
-// homeData shapes the account view's data. It carries no NavActive, so the
-// account surface lights no nav pill (injectUnread defaults it to ""). Named for
-// history; it feeds the `account` block until #281 relocates the surface.
-func homeData(acct db.Account, formError string) map[string]any {
-	return map[string]any{
-		"Title": "Account", "Account": acct,
-		"IsAdmin": acct.Role == roleAdmin, "FormError": formError,
-	}
-}
-
-func (s *server) renderFormError(w http.ResponseWriter, acct db.Account, msg string) {
-	s.renderStatus(w, http.StatusBadRequest, "account", homeData(acct, msg))
+// renderFormError re-renders the Settings access sub-tab with the invite form's
+// error and a 400, so a rejected /accounts POST echoes its message where the form
+// now lives (#281).
+func (s *server) renderFormError(w http.ResponseWriter, r *http.Request, acct db.Account, msg string) {
+	s.renderSettings(w, r, acct, settingsForms{section: "accounts", acctError: msg})
 }
 
 func (s *server) render(w http.ResponseWriter, name string, data any) {

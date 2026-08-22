@@ -63,15 +63,21 @@ type censusRowView struct {
 // mover, and the census of a flagship or membership firing is enumerated in full
 // beneath it.
 func (s *server) messagesPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	s.renderSettings(w, r, acct, settingsForms{tab: "messages"})
+}
+
+// fillMessagesSection assembles the Settings messages sub-tab: every message
+// newest-first, each with its per-mover link and census, and the per-message
+// delivery outcomes joined in one pass. A delivery read failure degrades to no
+// annotation rather than dropping the messages themselves.
+func (s *server) fillMessagesSection(r *http.Request, data map[string]any) error {
 	rows, err := s.store.ListMessages(r.Context())
 	if err != nil {
-		s.serverError(w, "list messages", err)
-		return
+		return err
 	}
 	unread, err := s.store.CountUnreadMessages(r.Context())
 	if err != nil {
-		s.serverError(w, "count unread", err)
-		return
+		return err
 	}
 	// A delivery failure is surfaced on the Message it failed to carry (ADR-0039,
 	// ADR-0081), never on Coverage. Read every outcome in one pass and group by
@@ -96,10 +102,9 @@ func (s *server) messagesPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		}
 		views = append(views, row)
 	}
-	s.render(w, "messages", map[string]any{
-		"Title": "Messages", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Messages": views, "Unread": unread,
-	})
+	data["Messages"] = views
+	data["Unread"] = unread
+	return nil
 }
 
 // markMessageRead marks one message read at now and returns to the panel. Read

@@ -192,7 +192,9 @@ func TestScansPageViewerReads(t *testing.T) {
 	ac := login(t, base, "viewer", "hunter2hunter2")
 	page := getBody(t, ac, base+"/scans", http.StatusOK)
 
-	if !strings.Contains(page, `<h1>Scans</h1>`) {
+	// Post-#281 the scans monitor is the Settings scans sub-tab; the surface still
+	// resolves and renders its idle state for a viewer.
+	if !strings.Contains(page, "<h2>Scans</h2>") || !strings.Contains(page, "No scan running") {
 		t.Errorf("scans monitor did not render for a viewer; body: %s", page)
 	}
 }

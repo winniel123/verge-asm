@@ -204,15 +204,19 @@ func TestLoginAndSession(t *testing.T) {
 		t.Fatalf("dashboard not shown at /; status=%d body=%s", resp.StatusCode, dash)
 	}
 
-	// The account surface moved off `/` to its temporary /account home (#277):
-	// account details + the admin invite form, until #281 folds it into Settings.
+	// The account surface folded into Settings → access (#281): /account now
+	// redirects there, and the invite form lives on the Settings access sub-tab.
 	resp, err = c.Get(base + "/account")
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusOK || !strings.Contains(got, "admin") || !strings.Contains(got, "Invite an account") {
-		t.Fatalf("account page not shown for admin; status=%d body=%s", resp.StatusCode, got)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=access" {
+		t.Fatalf("/account should redirect to Settings access; status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	got := getBody(t, c, base+"/settings?tab=access", http.StatusOK)
+	if !strings.Contains(got, "admin") || !strings.Contains(got, "Invite an account") {
+		t.Fatalf("settings access tab missing the account surface; body=%s", got)
 	}
 }
 
