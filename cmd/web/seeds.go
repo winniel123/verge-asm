@@ -176,9 +176,16 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if intervalDays == "" {
 		intervalDays = strconv.FormatInt(cadence/86400, 10)
 	}
-	s.renderStatus(w, status, "seeds", map[string]any{
-		"Title": "Seeds", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+	s.renderStatus(w, status, "scope", map[string]any{
+		"Title": "Scope", "NavActive": "scope",
+		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"Seeds": seeds, "AddressCap": s.seedAddressCap,
+		// Coverage messages folded onto Scope (#278): the honest coverage-fact read
+		// this screen can make from data it already holds — a provisioned vantage we
+		// currently cannot look from is a silence, exactly what the design system's
+		// CoverageMessageList carries. The full aperture statement lives on /coverage
+		// (owned elsewhere); nothing here is fabricated.
+		"CoverageMsgs": coverageMessages(probers),
 		"FormError": f.seedError, "FormKind": f.seedKind, "FormScope": f.seedScope,
 		"Exclusions": toExclusionViews(excl),
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
@@ -206,6 +213,40 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// only where a withdrawal message would fire.
 		"ExclPreview": f.exclPreview,
 	})
+}
+
+// coverageMsgView is one coverage fact shaped for the Scope screen's coverage
+// card, after design-system CoverageMessageList: a badge, the subject it is about,
+// and the fact in the operator's words. It is never a severity — coverage is its
+// own language (gap / staleness / silence), and this screen only ever fills it
+// from real reads, never a fabricated example.
+type coverageMsgView struct {
+	Badge   string
+	Subject string
+	Text    string
+	When    string
+}
+
+// coverageMessages derives the coverage-message list from the provisioned
+// vantages the Scope render already reads. A vantage whose availability is
+// `unavailable` is a position we currently cannot look from — its batches covered
+// nothing, so the reach it would have measured is a Gap, not a clean empty result.
+// That is a silence in coverage terms, and the honest thing to surface here. When
+// every vantage is reporting, the list is empty and the card shows its empty state.
+func coverageMessages(vantages []db.ListVantagesRow) []coverageMsgView {
+	var out []coverageMsgView
+	for _, v := range vantages {
+		if v.Availability.String != "unavailable" {
+			continue
+		}
+		out = append(out, coverageMsgView{
+			Badge:   "silent",
+			Subject: v.Name,
+			Text: "Vantage is unreachable, so its most recent batches covered nothing. " +
+				"What it would have measured is recorded as a Gap, not a clean empty result.",
+		})
+	}
+	return out
 }
 
 func toSeedViews(rows []db.ListSeedsRow) []seedView {

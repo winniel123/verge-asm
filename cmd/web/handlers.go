@@ -235,6 +235,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /login/totp", s.loginTOTP)
 	mux.HandleFunc("POST /logout", s.logout)
 
+	mux.HandleFunc("GET /scope", s.requireLogin(s.seedsPage))
 	mux.HandleFunc("GET /seeds", s.requireLogin(s.seedsPage))
 	mux.HandleFunc("POST /seeds", s.requireAdmin(s.declareSeed))
 	mux.HandleFunc("POST /seeds/custody", s.requireAdmin(s.setCustody))

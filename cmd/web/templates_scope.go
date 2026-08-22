@@ -2,110 +2,260 @@ package main
 
 import "html/template"
 
-// Scope screen — canonical `/scope`. Folds today's seeds surface (seeds, custody,
-// zone files, cold tier, exclusions, probers). The screen ticket (T-Scope)
-// rewrites the body against examples/console/Scope.jsx (TagInput validation +
-// refusals, proposals, exclusions, custody, coverage). Ported verbatim for T0.
+// Scope screen — canonical `/scope` (#278, V2 console map #275). Composed after
+// design-system/examples/console/Scope.jsx (02-console.jpg): the seed TagInput
+// with validation + declaration-refusal states, registry proposals (confirm one,
+// decline many), the exclusion editor, the custody extension toggle, and the
+// coverage-message list. Section order follows the spec: seeds -> proposals ->
+// exclusions -> custody -> coverage. The operational configuration that has no
+// place in the JSX mock but carries live POST actions — supplied zone files, the
+// full-range (cold) tier opt-in, and provisioned probers — is kept verbatim below
+// the fold so every existing mutation and its tests stay green.
+//
+// The block is named "scope"; renderSeeds (seeds.go) renders it for both GET
+// /scope and the still-live GET /seeds (T10 owns the /seeds -> /scope redirect).
+// Every POST still answers 303 to /seeds, unchanged. The presentation is
+// template-local CSS translated from design-system/components/* within the
+// existing token vocabulary — restyling, not authoring (ADR-0109); no
+// design-system component is authored here and no shared pageCSS class is edited.
 var _ = template.Must(tmpl.Parse(scopeTemplates))
 
 const scopeTemplates = `
-{{define "seeds"}}{{template "head" .}}
+{{define "scope"}}{{template "head" .}}
+<style>
+.scope-header { display:flex; flex-direction:column; gap:2px; margin-bottom:var(--space-5); }
+.scope-header h1 { margin:0; font-size:21px; }
+.scope-header .sub { font-size:12.5px; color:var(--muted); }
+.tagfield { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:36px;
+  padding:6px 10px; background:var(--surface); border:1px solid var(--hairline); border-radius:var(--r-md); }
+.tagchip { display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 8px;
+  border-radius:var(--r-sm); background:var(--sunken); border:1px solid var(--hairline);
+  color:var(--body); font-family:var(--mono); font-size:11.5px; white-space:nowrap; }
+.tagchip .badge { font-size:9px; padding:0 5px; }
+.taghint { font-size:11.5px; color:var(--muted); margin:6px 0 0; }
+.refusal { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; background:var(--danger-soft);
+  border:1px solid var(--danger-border); border-radius:var(--r-md); margin-bottom:var(--space-4); }
+.refusal .rf-ic { color:var(--danger); flex:none; margin-top:1px; }
+.refusal .rf-ic svg { width:15px; height:15px; display:block; }
+.refusal .rf-title { font-weight:600; font-size:13px; color:var(--ink); }
+.refusal .rf-title .mono { font-size:12.5px; }
+.refusal .rf-reason { font-size:12.5px; color:var(--body); margin-top:4px; }
+.switchline { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.switchline form { margin:0; }
+.switch { display:inline-block; width:36px; height:20px; border-radius:var(--r-full); position:relative;
+  flex:none; border:1px solid var(--border-strong); background:var(--sunken); }
+.switch.on { background:var(--accent); border-color:var(--accent); }
+.switch .knob { position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:var(--r-full);
+  background:var(--surface); box-shadow:var(--shadow-xs); }
+.switch.on .knob { left:18px; background:#ffffff; }
+.switchlabel { font-size:13px; color:var(--body); }
+.exclrow { display:flex; align-items:center; gap:10px; padding:7px 10px; background:var(--sunken);
+  border-radius:10px; margin-bottom:6px; }
+.exclrow form { margin:0 0 0 auto; }
+.exclrow .exval { font-family:var(--mono); font-size:12.5px; color:var(--body); overflow-wrap:anywhere; }
+.covmsg { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:start;
+  padding:11px 0; border-top:1px solid var(--hairline); }
+.covmsg:first-child { border-top:none; }
+.covmsg .subj { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--ink); }
+.covmsg .txt { font-size:12.5px; color:var(--muted); line-height:1.5; }
+.covmsg .when { font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap; }
+.seed-meta { font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px; }
+.cardhead { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-4); }
+.cardhead .headings { display:flex; flex-direction:column; gap:3px; }
+.cardhead h2 { margin:0; font-size:15px; }
+.cardhead .count { margin-left:auto; font-family:var(--mono); font-size:10.5px; font-weight:500;
+  padding:1px 7px; border-radius:var(--r-full); background:var(--sunken); color:var(--body); }
+</style>
 {{template "chrome" .}}
-<main>
+<main style="display:flex;flex-direction:column;gap:var(--space-5)">
+
 {{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
-<div class="microlabel">Declared · seeds</div>
-<h1>Seeds</h1>
-<p>A seed is where you assert your estate ends: a name scope — a registrable domain — or an
-address scope — a CIDR block of up to {{.AddressCap}} addresses.</p>
 
-{{if .IsAdmin}}
-<div class="section">
-<h2>Declare a scope</h2>
-{{if .FormError}}<div class="error">{{.FormError}}</div>{{end}}
-<form method="post" action="/seeds" class="seedform">
-<label><span>Scope type</span><select name="kind">
-<option value="name"{{if ne .FormKind "address"}} selected{{end}}>name</option>
-<option value="address"{{if eq .FormKind "address"}} selected{{end}}>address</option>
-</select></label>
-<label class="scope"><span>Scope</span><input class="scope" name="scope" value="{{.FormScope}}" placeholder="example.com or 203.0.113.0/24" autocomplete="off" required></label>
-<button type="submit">Declare</button>
-</form>
-</div>
-{{end}}
+<header class="scope-header">
+  <h1>Scope</h1>
+  <span class="sub">What Verge is allowed to look at: seeds, proposals, exclusions, custody.</span>
+</header>
 
-<div class="section">
-<h2>Declared scopes</h2>
-{{if .Seeds}}
-<table>
-<thead><tr><th>Type</th><th>Scope</th><th>Declared by</th><th>Declared</th></tr></thead>
-<tbody>
-{{range .Seeds}}<tr id="seed-{{.Anchor}}">
-<td><span class="badge">{{if .IsAddress}}address{{else}}name{{end}}</span></td>
-<td class="mono">{{.Scope}}</td>
-<td class="mono">{{.By}}</td>
-<td class="mono">{{.At}}</td>
-</tr>{{end}}
-</tbody>
-</table>
-{{else}}
-<div class="microlabel">No scopes declared</div>
-<p>Nothing is declared yet. Declare a domain or a CIDR block to set where your estate begins.</p>
-{{end}}
-</div>
+<!-- Seeds ---------------------------------------------------------------->
+<section class="section" style="margin-bottom:0">
+  <div class="cardhead">
+    <div class="headings"><span class="microlabel">Seeds</span><h2>Declared scopes</h2></div>
+  </div>
+  <p>A seed is where you assert your estate ends: a name scope &#8212; a registrable domain &#8212; or an
+  address scope &#8212; a CIDR block of up to {{.AddressCap}} addresses.</p>
 
+  {{if .Seeds}}
+  <div class="tagfield" style="margin-bottom:var(--space-4)">
+    {{range .Seeds}}<span class="tagchip" id="seed-{{.Anchor}}"><span class="badge">{{if .IsAddress}}address{{else}}name{{end}}</span><span class="mono">{{.Scope}}</span></span>{{end}}
+  </div>
+  {{else}}
+  <div class="emptystate" style="margin-bottom:var(--space-4)">
+    <div class="microlabel">No scopes declared</div>
+    <h2>Nothing is declared yet</h2>
+    <p style="max-width:60ch;margin:var(--space-3) auto 0">Declare a domain or a CIDR block to set where your estate begins.</p>
+  </div>
+  {{end}}
+
+  {{if .IsAdmin}}
+  {{if .FormError}}
+  <div class="refusal">
+    <span class="rf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
+    <div>
+      <div class="rf-title">Declaration refused{{if .FormScope}}: <span class="mono">{{.FormScope}}</span>{{end}}</div>
+      <div class="rf-reason">{{.FormError}}</div>
+    </div>
+  </div>
+  {{end}}
+  <form method="post" action="/seeds" class="seedform">
+    <label><span>Scope type</span><select name="kind">
+      <option value="name"{{if ne .FormKind "address"}} selected{{end}}>name</option>
+      <option value="address"{{if eq .FormKind "address"}} selected{{end}}>address</option>
+    </select></label>
+    <label class="scope"><span>Scope</span><input class="scope" name="scope" value="{{.FormScope}}" placeholder="acmecorp.io or 203.0.113.0/24" autocomplete="off" required></label>
+    <button type="submit">Declare</button>
+  </form>
+  <p class="taghint">Names or address scopes &#183; a block wider than the {{.AddressCap}}-address cap is refused, never auto-corrected.</p>
+  {{end}}
+</section>
+
+<!-- Proposals ------------------------------------------------------------->
 {{template "proposals" .}}
 
-<div class="microlabel">Declared · custody extension</div>
-<p>A custody extension declares that the addresses your name scopes resolve to are yours, and so
-under your control. It is off by default and declared once per name scope — one act, never a queue
-of addresses to approve. Its coverage is recomputed from measured resolution, stopping where the
-chain leaves the declared zone, so there is no list to maintain.</p>
+<!-- Exclusions ------------------------------------------------------------>
+<section class="section" style="margin-bottom:0">
+  <div class="cardhead">
+    <div class="headings"><span class="microlabel">Exclusions</span><h2>Never scanned</h2></div>
+  </div>
+  <p>An exclusion draws the boundary inwards: an exact name, a name subtree, or an address scope
+  you declare is <em>not yours</em>. Excluding a name that still resolves is legal &#8212; <em>not
+  mine</em> is a different claim from <em>not there</em> &#8212; and an excluded name is no longer queried.</p>
 
-{{if .CustodyError}}<div class="error">{{.CustodyError}}</div>{{end}}
-{{if .CustodyScopes}}
-{{range .CustodyScopes}}
-<div class="section">
-<div class="custody-head">
-<div>
-<div class="microlabel">Name scope</div>
-<div class="mono scopename">{{.Scope}}</div>
-</div>
-<div class="row">
-{{if .CustodyExtension}}<span class="badge">extension on</span>{{else}}<span class="badge off">off</span>{{end}}
-{{if $.IsAdmin}}
-<form method="post" action="/seeds/custody">
-<input type="hidden" name="id" value="{{.ID}}">
-<input type="hidden" name="extend" value="{{if .CustodyExtension}}false{{else}}true{{end}}">
-<button class="secondary" type="submit">{{if .CustodyExtension}}Withdraw{{else}}Declare extension{{end}}</button>
-</form>
-{{end}}
-</div>
-</div>
-{{if .CustodyExtension}}
-<div class="census">
-<div class="microlabel">Covered addresses · census</div>
-<p>Display only. Once resolution measurement runs, this lists the addresses your names currently
-resolve into. There is no total to reach — how many addresses it ought to cover is completeness of
-your estate, which only you know — and nothing here to approve: the extension covers what it
-computes.</p>
-<div class="microlabel">No addresses measured yet</div>
-</div>
-{{end}}
-</div>
-{{end}}
-{{else}}
-<div class="section">
-<div class="microlabel">No name scopes</div>
-<p>A custody extension is a property of a name scope. Declare a name scope above, then extend
-custody to the addresses it resolves into.</p>
-</div>
-{{end}}
+  {{if .Exclusions}}
+  {{range .Exclusions}}
+  <div class="exclrow">
+    <span class="badge">{{.Kind}}</span>
+    <span class="exval">{{if eq .Kind "subtree"}}*.{{end}}{{.Value}}</span>
+    {{if $.IsAdmin}}<form method="post" action="/exclusions/delete"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Un-exclude</button></form>{{end}}
+  </div>
+  {{end}}
+  {{else}}
+  <div class="emptystate" style="margin-bottom:var(--space-4)">
+    <div class="microlabel">No exclusions declared</div>
+    <h2>Everything declared is in scope</h2>
+    <p style="max-width:60ch;margin:var(--space-3) auto 0">Nothing is excluded. Everything inside your declared scopes is yours.</p>
+  </div>
+  {{end}}
 
-<div class="microlabel">Declared · zone files</div>
+  {{if .IsAdmin}}
+  {{if .ExclError}}<div class="error">{{.ExclError}}</div>{{end}}
+  <form method="post" action="/exclusions" class="seedform" style="margin-top:var(--space-4)">
+    <label><span>Exclusion type</span><select name="kind">
+      <option value="name"{{if eq .ExclKind "name"}} selected{{end}}>name</option>
+      <option value="subtree"{{if eq .ExclKind "subtree"}} selected{{end}}>subtree</option>
+      <option value="address"{{if eq .ExclKind "address"}} selected{{end}}>address</option>
+    </select></label>
+    <label class="scope"><span>Value</span><input class="scope" name="value" value="{{.ExclValue}}" placeholder="old-blog.acmecorp.io or 203.0.113.128/25" autocomplete="off" required></label>
+    <button type="submit" formaction="/exclusions/preview" class="secondary">Preview</button>
+    <button type="submit">Exclude</button>
+  </form>
+  {{with .ExclPreview}}
+  {{if .Fires}}
+  <div class="receipt">
+    <div class="microlabel">What this exclusion would withdraw</div>
+    <p class="headline">{{.Headline}}</p>
+    <p class="loss">{{.Loss}}</p>
+  </div>
+  {{else}}
+  <div class="receipt">
+    <div class="microlabel">What this exclusion would withdraw</div>
+    <p class="loss">Nothing is withdrawn. No subject leaves the estate, so no message fires &#8212; an excluded name that still resolves survives, and its Gap carries it.</p>
+  </div>
+  {{end}}
+  {{end}}
+  {{end}}
+</section>
+
+<!-- Custody --------------------------------------------------------------->
+<section class="section" style="margin-bottom:0">
+  <div class="cardhead">
+    <div class="headings"><span class="microlabel">Custody</span><h2>Adjacent infrastructure</h2></div>
+  </div>
+  <p>A custody extension declares that the addresses your name scopes resolve to are yours, and so
+  under your control. It is off by default and declared once per name scope &#8212; one act, never a queue
+  of addresses to approve. Its coverage is recomputed from measured resolution, stopping where the
+  chain leaves the declared zone, so there is no list to maintain.</p>
+
+  {{if .CustodyError}}<div class="error">{{.CustodyError}}</div>{{end}}
+  {{if .CustodyScopes}}
+  {{range .CustodyScopes}}
+  <div class="exclrow" style="align-items:flex-start;flex-direction:column;gap:var(--space-3)">
+    <div class="switchline" style="width:100%">
+      <span class="switch{{if .CustodyExtension}} on{{end}}"><span class="knob"></span></span>
+      <span class="switchlabel">Extend custody to adjacent infrastructure &#8212; <span class="mono">{{.Scope}}</span></span>
+      {{if .CustodyExtension}}<span class="badge" style="margin-left:auto">extension on</span>{{else}}<span class="badge off" style="margin-left:auto">off</span>{{end}}
+      {{if $.IsAdmin}}
+      <form method="post" action="/seeds/custody">
+        <input type="hidden" name="id" value="{{.ID}}">
+        <input type="hidden" name="extend" value="{{if .CustodyExtension}}false{{else}}true{{end}}">
+        <button class="secondary" type="submit">{{if .CustodyExtension}}Withdraw{{else}}Declare extension{{end}}</button>
+      </form>
+      {{end}}
+    </div>
+    {{if .CustodyExtension}}
+    <div class="census" style="width:100%">
+      <div class="microlabel">Covered addresses &#183; census</div>
+      <p>Display only. Once resolution measurement runs, this lists the addresses your names currently
+      resolve into. There is no total to reach &#8212; how many addresses it ought to cover is completeness of
+      your estate, which only you know &#8212; and nothing here to approve: the extension covers what it
+      computes.</p>
+      <div class="microlabel">No addresses measured yet</div>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+  {{else}}
+  <div class="emptystate">
+    <div class="microlabel">No name scopes</div>
+    <h2>Nothing to extend custody over</h2>
+    <p style="max-width:60ch;margin:var(--space-3) auto 0">A custody extension is a property of a name scope. Declare a name scope above, then extend
+    custody to the addresses it resolves into.</p>
+  </div>
+  {{end}}
+</section>
+
+<!-- Coverage -------------------------------------------------------------->
+<section class="section" style="margin-bottom:0">
+  <div class="cardhead">
+    <div class="headings"><span class="microlabel">Coverage</span><h2>Coverage messages</h2></div>
+    <a class="btn ghost" href="/coverage">Aperture statement</a>
+  </div>
+  {{if .CoverageMsgs}}
+  <div>
+    {{range .CoverageMsgs}}
+    <div class="covmsg">
+      <span class="chip stale">{{.Badge}}</span>
+      <span><span class="subj">{{.Subject}}</span><br><span class="txt">{{.Text}}</span></span>
+      <span class="when">{{.When}}</span>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="emptystate">
+    <div class="microlabel">No coverage gaps</div>
+    <h2>No coverage message right now</h2>
+    <p style="max-width:60ch;margin:var(--space-3) auto 0">Every vantage is reporting and no gap, staleness or silence stands. The full aperture
+    statement &#8212; what each tier looks at, its cadence, and whether it is on &#8212; lives on Coverage.</p>
+    <a class="btn ghost" href="/coverage">Go to Coverage</a>
+  </div>
+  {{end}}
+</section>
+
+<!-- Configuration: zone files, cold tier, probers ------------------------->
+<div class="microlabel">Declared &#183; zone files</div>
 <p>Your own zone file is ground truth: the estate as you declare it, not as it resolves. Upload it
-here — it is stored so both services can read it, and it is evidence, not a secret. Uploading is the
+here &#8212; it is stored so both services can read it, and it is evidence, not a secret. Uploading is the
 supply act, so its instant is recorded now; the zone scan restates the file at that instant, never at
-whatever later time the worker reads it. Re-export on your own cadence and upload again — a new upload
+whatever later time the worker reads it. Re-export on your own cadence and upload again &#8212; a new upload
 is a new supply, shipped monthly by default.</p>
 
 {{if .IsAdmin}}
@@ -151,22 +301,22 @@ it to your real export cadence rather than a hope.</p>
 {{range .ZoneScopes}}<tr>
 <td class="mono">{{.Domain}}</td>
 <td class="mono">{{if .HasFile}}{{.SuppliedAt}}{{else}}<span class="muted">none supplied</span>{{end}}</td>
-<td class="mono">{{if .HasFile}}{{.By}}{{else}}<span class="muted">—</span>{{end}}</td>
-<td class="mono">{{if .HasFile}}{{.Bytes}} bytes{{else}}<span class="muted">—</span>{{end}}</td>
+<td class="mono">{{if .HasFile}}{{.By}}{{else}}<span class="muted">&#8212;</span>{{end}}</td>
+<td class="mono">{{if .HasFile}}{{.Bytes}} bytes{{else}}<span class="muted">&#8212;</span>{{end}}</td>
 </tr>{{end}}
 </tbody>
 </table>
 </div>
 {{end}}
 
-<div class="microlabel">Configured · full-range scan (cold tier)</div>
-<p>The cold scan connects to every TCP port, 1–65535, monthly. It ships <strong>disabled</strong>
-with no scopes: a full-range sweep runs only where you ask for it, per scope — never at onboarding,
+<div class="microlabel">Configured &#183; full-range scan (cold tier)</div>
+<p>The cold scan connects to every TCP port, 1&#8211;65535, monthly. It ships <strong>disabled</strong>
+with no scopes: a full-range sweep runs only where you ask for it, per scope &#8212; never at onboarding,
 never on save. Opting a scope in enables the tier for that scope and it begins on its own monthly
 cadence; opting the last scope out returns it to off. Only Custody-admitted addresses are ever
 probed, so opting in widens what is measured, never who.</p>
 
-{{if .ColdEnabled}}<span class="badge">tier on</span>{{else}}<span class="badge off">tier off — no scope opted in</span>{{end}}
+{{if .ColdEnabled}}<span class="badge">tier on</span>{{else}}<span class="badge off">tier off &#8212; no scope opted in</span>{{end}}
 
 {{if .ColdError}}<div class="error">{{.ColdError}}</div>{{end}}
 {{if .ColdScopes}}
@@ -198,67 +348,10 @@ into the cold scan here.</p>
 </div>
 {{end}}
 
-<div class="microlabel">Declared · exclusions</div>
-<p>An exclusion draws the boundary inwards: an exact name, a name subtree, or an address scope
-you declare is <em>not yours</em>. Excluding a name that still resolves is legal — <em>not
-mine</em> is a different claim from <em>not there</em> — and an excluded name is no longer queried.</p>
-
-{{if .IsAdmin}}
-<div class="section">
-<h2>Declare an exclusion</h2>
-{{if .ExclError}}<div class="error">{{.ExclError}}</div>{{end}}
-<form method="post" action="/exclusions" class="seedform">
-<label><span>Exclusion type</span><select name="kind">
-<option value="name"{{if eq .ExclKind "name"}} selected{{end}}>name</option>
-<option value="subtree"{{if eq .ExclKind "subtree"}} selected{{end}}>subtree</option>
-<option value="address"{{if eq .ExclKind "address"}} selected{{end}}>address</option>
-</select></label>
-<label class="scope"><span>Value</span><input class="scope" name="value" value="{{.ExclValue}}" placeholder="api.example.com or 203.0.113.5" autocomplete="off" required></label>
-<button type="submit" formaction="/exclusions/preview" class="secondary">Preview</button>
-<button type="submit">Exclude</button>
-</form>
-{{with .ExclPreview}}
-{{if .Fires}}
-<div class="receipt">
-<div class="microlabel">What this exclusion would withdraw</div>
-<p class="headline">{{.Headline}}</p>
-<p class="loss">{{.Loss}}</p>
-</div>
-{{else}}
-<div class="receipt">
-<div class="microlabel">What this exclusion would withdraw</div>
-<p class="loss">Nothing is withdrawn. No subject leaves the estate, so no message fires — an excluded name that still resolves survives, and its Gap carries it.</p>
-</div>
-{{end}}
-{{end}}
-</div>
-{{end}}
-
-<div class="section">
-<h2>Declared exclusions</h2>
-{{if .Exclusions}}
-<table>
-<thead><tr><th>Type</th><th>Value</th><th>Declared by</th><th>Declared</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
-<tbody>
-{{range .Exclusions}}<tr>
-<td><span class="badge">{{.Kind}}</span></td>
-<td class="mono">{{.Value}}</td>
-<td class="mono">{{.By}}</td>
-<td class="mono">{{.At}}</td>
-{{if $.IsAdmin}}<td><form method="post" action="/exclusions/delete"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Un-exclude</button></form></td>{{end}}
-</tr>{{end}}
-</tbody>
-</table>
-{{else}}
-<div class="microlabel">No exclusions declared</div>
-<p>Nothing is excluded. Everything inside your declared scopes is yours.</p>
-{{end}}
-</div>
-
-<div class="microlabel">Declared · probers</div>
+<div class="microlabel">Declared &#183; probers</div>
 <p>Provisioning a prober declares <em>this vantage is on the internet</em>. You supply the host, port,
 and a non-root username; the instance generates the SSH keypair on the worker volume and exposes only
-the public half — install it on the prober host. The private key never leaves the instance.</p>
+the public half &#8212; install it on the prober host. The private key never leaves the instance.</p>
 
 {{if .IsAdmin}}
 <div class="section">
@@ -291,9 +384,10 @@ the public half — install it on the prober host. The private key never leaves 
 </table>
 {{else}}
 <div class="microlabel">No probers provisioned</div>
-<p>No vantage is on the internet yet. Provision a prober to declare one — until then, exposure cannot be measured.</p>
+<p>No vantage is on the internet yet. Provision a prober to declare one &#8212; until then, exposure cannot be measured.</p>
 {{end}}
 </div>
+
 </main>
 {{template "foot" .}}{{end}}
 
