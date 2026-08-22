@@ -260,6 +260,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
 
 	mux.HandleFunc("GET /inventory", s.requireLogin(s.inventoryPage))
+	mux.HandleFunc("GET /drift", s.requireLogin(s.driftPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
 	mux.HandleFunc("POST /annotations", s.requireAdmin(s.declareAnnotation))
