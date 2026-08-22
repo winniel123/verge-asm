@@ -8,34 +8,54 @@ Invoke the **`verge-asm-design`** skill (`.claude/skills/verge-asm-design/SKILL.
 
 The system lives at **`design-system/`** in the repo root:
 
-- `styles.css` — the global entry. Link it, then use its custom properties.
-- `tokens/` — colours, typography, spacing, effects, fonts, base.
-- `components/` — `forms/` · `display/` · `feedback/` · `navigation/`. Every `.jsx` has a `.d.ts` contract and a `.prompt.md` usage note; read the `.prompt.md` before using a component.
-- `guidelines/` — foundation specimen cards.
-- `ui_kits/` — reference screens for the console, marketing site, and docs site.
-- `readme.md` — the full specification. Read it for anything non-trivial.
+- `styles.css` — the global entry. Link it once, then use its custom properties. It pulls the seven token files under `tokens/`.
+- `tokens/` — `colors.css`, `typography.css`, `spacing.css`, `radius.css`, `elevation.css`, `motion.css`, `base.css`. Treat these as the source of truth.
+- `components/` — five folders: `forms/` · `display/` · `feedback/` · `navigation/` · `media/`. Every component ships three files: `Name.jsx` (implementation), `Name.d.ts` (props contract), and `Name.prompt.md` (usage note + example). **Read the `.prompt.md` before using a component.** Imports between components are relative (`../media/Icon.jsx`) — keep the folder structure.
+- `examples/` — reference compositions, not IA decisions: `examples/console/` (the console screens + `ConsoleApp.jsx` shell + a screen README), plus `examples/Homepage.jsx` (marketing) and `examples/DocsPage.jsx` (docs). They show how components compose against realistic data; rebuild their structure against real routing and data rather than shipping them verbatim.
+- `docs/AGENT-GUIDE.md` — the compact, agent-facing usage guide (also a good human quick-start). Start here.
+- `docs/DESIGN-NOTES.md` — the full rationale: palette math, severity contrast tables, per-batch component history, production notes. Read it for anything non-trivial.
 
-**Never hardcode a value a token already names.** If you find yourself typing `#16160f`, you want `var(--ink)`.
+**Never hardcode a value a token already names.** If you find yourself typing `#231f19`, you want `var(--ink)`.
+
+The old "engineered paper" system is frozen to **`design-system-legacy/`** (styles.css + tokens/ + README only). It exists solely for the dated prototypes (see ADR-0075 below); do not use it for new work.
 
 ## What is canonical and what is not
 
-The system was authored from a product brief that predates this repo's domain model, so it is authoritative about **how things look and how copy sounds**, and not authoritative about **what the product is called or how it is organised**.
+The new system was built from the redesign brief and is **already domain-correct** in most places — it ships `signal` never finding, `seed/scope` never target, `channel` never webhook, `vantage` never probe, `annotation` never mute/triage, and it carries drift as a first-class surface (`ChangeBadge`, `TransitionMarker`, the drift palette) and the operator dial as `AnnotationControl`. So the canonical/not-canonical split is narrower than under the old kit, but it still holds: the system is authoritative about **how things look and how copy sounds**, not about **what the product is called or how it is organised** where the two ever diverge.
 
 **Canonical**: colour, type, spacing, geometry, elevation, motion, iconography, and voice.
 
-**Not canonical**: the kit's vocabulary and information architecture. Specifically —
+**Not canonical**: vocabulary and information architecture. The domain owns those. Guardrails, all of which the interface must honour:
 
-- The kit ships a **`Findings`** section and screen. [`CONTEXT.md`](../../CONTEXT.md) rejects `Finding` and uses **`Signal`**. Keep `SeverityBadge` and the severity ramp; keep the word out of the interface.
-- `Host` and `ScanRun` are likewise rejected. `Asset` is allowed as a UI collective noun only.
-- The kit's readme says the product **fingerprints** what it finds. It does not — technology fingerprinting is out of scope on drift-integrity grounds.
-- `ui_kits/app/` is a **reference look**, not an IA decision. It is Dashboard-first and findings-centric, and contains no drift screen at all — while drift is the thing this product exists to do.
+- **`signal`, never `finding`.** [`CONTEXT.md`](../../CONTEXT.md) rejects `Finding`. Keep `SeverityBadge` and the severity ramp; keep the word "finding" out of the interface.
+- **Domain nouns, not wire nouns.** Say `Name` / `Address` / `Service` / `Endpoint`, never `host` / `IP` / `port` / `URL`. `Host` and `ScanRun` are rejected; `asset` is allowed only as a UI collective noun.
+- **No fingerprinting.** The product does not fingerprint the technology it finds — technology fingerprinting is out of scope on drift-integrity grounds. Do not draw or imply it.
+- **Drift is the thesis.** Drift is the thing this product exists to do; it is never a secondary screen. `examples/` is a reference look, not an IA ruling — do not let a dashboard-first example demote drift.
+- **Severity is exactly `Critical / High / Medium / Low / Info`.** Five levels, those exact words. Use `SeverityBadge`; never rename, add, drop, or restyle a level. Critical is the ramp's only solid fill.
+- **Change is its own palette.** The change vocabulary (`appeared / revealed / withdrawn / descoped / returned / changed`) rides the drift tokens (`--drift-gain-*` violet · `--drift-change-*` magenta · `--drift-loss-*` slate) as rounded-rect chips. Severity stays the only pill and the only red; signals leave by being **withdrawn** by the world, never "resolved" by an operator.
 
 When a visual convention and a domain term collide, the domain term wins and the visual convention gets re-skinned around it.
+
+## Requesting a component (never build one here)
+
+> **Verge ASM does not author design-system components. All components are created in Claude Design and imported into `design-system/`. When a screen needs a component the system does not have, do not build it here: write a component-request markdown file from `design-system/COMPONENT-REQUEST.md`, and hand it to the user to give to Claude Design. Restyling within existing tokens/components is fine; creating a new component file in this repo is not.**
+
+This is [ADR-0109](../adr/0109-design-system-components-are-authored-in-claude-design-and-imported.md). Restyling an existing component or template class **within the existing token vocabulary** is ordinary in-repo work; importing a component back from Claude Design (dropping its `.jsx` + `.d.ts` + `.prompt.md` into `components/`) is the intended flow; **creating a new component file in this repo is not.** No repo-authored component is grandfathered — the migration added none, and this keeps it that way.
+
+**The handoff, end to end:**
+
+1. **Confirm the component truly does not exist.** Look across all five `design-system/components/` folders (`forms/`, `display/`, `feedback/`, `navigation/`, `media/`) — the system already ships ~110 components, so most needs are already met, possibly under a domain-correct name (`AnnotationControl`, `ChangeBadge`, `CoverageMeter`, `VantageCard`, …). Read the candidate's `.prompt.md` before concluding it is missing.
+2. **Write the request.** Copy `design-system/COMPONENT-REQUEST.md`, fill it in, and save it under `design-system/requests/<component-name>.md`.
+3. **Hand it to the user** to give to Claude Design. The component is authored there, comes back as `.jsx` + `.d.ts` + `.prompt.md`, and is imported into `design-system/components/`.
+
+Where the round-trip's wait is unacceptable, the correct move is still the request plus an explicit note of the blockage — never a repo-authored component.
 
 ## A prototype is a dated record of a reading, never of a rule
 
 [ADR-0075](../adr/0075-a-prototype-is-a-dated-record-of-a-reading-never-of-a-rule.md), from
-[#131](https://github.com/winniel123/verge-asm/issues/131).
+[#131](https://github.com/winniel123/verge-asm/issues/131). This guidance is unaffected by the redesign,
+with one path change: **prototypes link `design-system-legacy/styles.css`** (the frozen "engineered
+paper" system), since the dated prototypes were drawn against it and must not silently re-skin.
 
 **Writing one.** Carry a **dateline on the rendered surface** — ticket, date, and one clause pointing
 at the map's `THE CURRENT COMPOSED STATE` line as the only live absolutes. The `PROTOTYPE — throwaway`
@@ -111,8 +131,8 @@ one more hop: **mark the artefact you already opened.**
 
 ## Flag conflicts, don't silently resolve them
 
-If a design need genuinely cannot be met inside the system — a component that does not exist, a colour role with no token — say so explicitly rather than inventing a one-off:
+If a design need genuinely cannot be met inside the system — a colour role with no token, a token that fights a domain term — say so explicitly rather than inventing a one-off:
 
 > _The drift timeline needs a "changed" treatment distinct from the severity ramp; the system has no token for it. Proposing `--drift-changed`._
 
-Additions to the system are a decision, and get recorded like one.
+Additions to the token system are a decision, and get recorded like one. A **missing component** is not this case — that is a Claude Design request (see "Requesting a component" above), never an in-repo build.
