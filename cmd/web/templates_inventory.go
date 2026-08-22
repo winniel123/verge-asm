@@ -89,38 +89,80 @@ which only you know, so this screen states none.</p>
 {{define "inventory"}}{{template "head" .}}
 {{template "chrome" .}}
 <main>
+<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-4)">
+<div>
 <div class="microlabel">Observed · inventory</div>
-<h1>Inventory</h1>
-<p>What your estate holds right now — the actual values behind the verdicts. Where the
-Subjects views answer <em>what changed</em>, this answers <em>what do I have</em>: the
-addresses a name resolves to, the records it carries, the certificate a service presents,
-the identity an endpoint returns. Each row is the value a facet's current span holds — click
-a value to expand it to its individual records. A withdrawn subject holds no current span and
-so is not here. As on Subjects there is no total: your estate's completeness is yours alone to
-state.</p>
+<h1 style="margin-bottom:4px">Inventory</h1>
+<span class="muted">Everything you expose, watched for drift — the actual values behind the verdicts.</span>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+<button class="btn secondary" disabled title="Nothing to export until a value is folded">Export CSV</button>
+<a class="btn" href="/scope" style="text-decoration:none">Add seed</a>
+</div>
+</div>
+
+<p class="muted" style="max-width:82ch">What your estate holds right now — the addresses a name
+resolves to, the records it carries, the certificate a service presents, the identity an
+endpoint returns. Each row is a subject; expand a value to its individual records. A withdrawn
+subject holds no current span and so is not here. As on the change views there is no total:
+your estate's completeness is yours alone to state.</p>
+
+<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4)">
+<div style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">
+<span class="chip" style="background:var(--accent-soft);border-color:var(--accent-soft);color:var(--link)">All subjects</span>
+{{range .Groups}}<a class="chip" href="#{{.Kind}}" style="text-decoration:none">{{.Label}}</a>{{end}}
+</div>
+<span style="margin-left:auto;display:inline-flex;gap:12px;align-items:center">
+<span style="display:inline-flex;gap:6px;align-items:center">
+<span class="microlabel">Density</span>
+<span style="display:inline-flex;border:1px solid var(--hairline);border-radius:var(--r-full);overflow:hidden">
+<span class="chip" style="border:none;border-radius:0;background:var(--accent-soft);color:var(--link)">Compact</span>
+<span class="chip" style="border:none;border-radius:0;background:transparent;color:var(--muted)">Comfortable</span>
+</span>
+</span>
+<details style="position:relative">
+<summary class="iconbtn" style="list-style:none;cursor:pointer">Columns</summary>
+<div style="position:absolute;right:0;top:calc(100% + 6px);min-width:190px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-md);box-shadow:var(--shadow-md);padding:6px;z-index:35;display:flex;flex-direction:column;gap:2px">
+<label class="check" style="padding:6px 8px;margin:0"><input type="checkbox" checked disabled><span>Subject</span></label>
+<label class="check" style="padding:6px 8px;margin:0"><input type="checkbox" checked><span>Type</span></label>
+<label class="check" style="padding:6px 8px;margin:0"><input type="checkbox" checked><span>Holds</span></label>
+<label class="check" style="padding:6px 8px;margin:0"><input type="checkbox" checked><span>Since</span></label>
+</div>
+</details>
+</span>
+</div>
 
 {{if .Groups}}
 {{range .Groups}}
-<div class="section">
-<div class="microlabel">{{.Label}}</div>
-{{range .Subjects}}
-<div class="invsubject">
-{{if .Link}}<a class="mono invkey" href="{{.Link}}">{{.Key}}</a>{{else}}<span class="mono invkey">{{.Key}}</span>{{end}}
-<table class="invfacets"><tbody>
-{{range .Facets}}<tr>
-<td class="invfacet"><span class="microlabel">{{.Label}}</span></td>
-<td>{{if .IsGap}}<span class="badge">Gap</span>{{else if .Details}}<details class="spanrecords"><summary><span class="badge">{{.Summary}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="badge">{{.Summary}}</span>{{end}}</td>
-<td class="mono muted invsince">since {{.Since}}</td>
+<div class="section" id="{{.Kind}}">
+<div class="microlabel" style="margin-bottom:var(--space-3)">{{.Label}}</div>
+<table class="vg-table">
+<thead><tr>
+<th>Subject</th>
+<th style="width:110px">Type</th>
+<th>Holds</th>
+<th style="width:1%;white-space:nowrap;text-align:right">Since</th>
+</tr></thead>
+<tbody>
+{{range .Subjects}}<tr>
+<td>{{if .Link}}<a class="mono" href="{{.Link}}" title="{{range .Facets}}{{.Label}}: {{.Summary}}&#10;{{end}}">{{.Key}}</a>{{else}}<span class="mono">{{.Key}}</span>{{end}}</td>
+<td><span class="badge">{{.Type}}</span></td>
+<td>
+{{range .Facets}}<div style="display:flex;gap:8px;align-items:baseline;padding:2px 0">
+<span class="microlabel" style="min-width:150px;white-space:nowrap">{{.Label}}</span>
+<span>{{if .IsGap}}<span class="chip loss">Gap</span>{{else if .Details}}<details class="spanrecords" style="display:inline"><summary><span class="badge">{{.Summary}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="badge">{{.Summary}}</span>{{end}}</span>
+</div>{{end}}
+</td>
+<td class="mono muted" style="text-align:right;white-space:nowrap;vertical-align:top">{{with index .Facets 0}}{{.Since}}{{end}}</td>
 </tr>{{end}}
-</tbody></table>
-</div>
-{{end}}
+</tbody>
+</table>
 </div>
 {{end}}
 {{else}}
-<div class="section">
-<div class="microlabel">Nothing measured yet</div>
-<p>No subject holds an open span yet. Declare a scope on Seeds and let a Scan measure a value;
+<div class="emptystate">
+<h2>No population measured yet</h2>
+<p>No subject holds an open span yet. Declare a scope on Scope and let a Scan measure a value;
 the inventory fills as facets are folded.</p>
 </div>
 {{end}}
@@ -135,8 +177,16 @@ the inventory fills as facets are folded.</p>
 {{template "chrome" .}}
 <main>
 {{with .Subject}}
+<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-5)">
+<div>
 <div class="microlabel">Observed · Name</div>
-<h1 class="mono">{{.Name}}</h1>
+<h1 class="mono" style="margin-bottom:0">{{.Name}}</h1>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+<span class="badge">Name</span>
+<a class="btn secondary" href="/inventory" style="text-decoration:none">Back to inventory</a>
+</div>
+</div>
 {{if .Withdrawn}}
 <div class="notice">This name is withdrawn — it names a population of no current member. Its timelines are closed. It is reached by its own key and never appears in the listing.</div>
 {{end}}
@@ -213,8 +263,16 @@ the inventory fills as facets are folded.</p>
 {{template "chrome" .}}
 <main>
 {{with .Service}}
+<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-5)">
+<div>
 <div class="microlabel">Observed · Service</div>
-<h1 class="mono">{{.Key}}</h1>
+<h1 class="mono" style="margin-bottom:0">{{.Key}}</h1>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+<span class="badge">Service</span>
+<a class="btn secondary" href="/inventory" style="text-decoration:none">Back to inventory</a>
+</div>
+</div>
 {{if .Withdrawn}}
 <div class="notice">This service's address has left the estate — no current resolution cites it and no Seed covers it. It names a population of no current member; its timelines are closed and it is reached by its own key.</div>
 {{end}}
@@ -295,8 +353,16 @@ the inventory fills as facets are folded.</p>
 {{template "chrome" .}}
 <main>
 {{with .Endpoint}}
+<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-5)">
+<div>
 <div class="microlabel">Observed · Endpoint</div>
-<h1 class="mono">{{if .Nameless}}<span class="muted">(nameless)</span> {{end}}{{.Key}}</h1>
+<h1 class="mono" style="margin-bottom:0">{{if .Nameless}}<span class="muted">(nameless)</span> {{end}}{{.Key}}</h1>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+<span class="badge">Endpoint</span>
+<a class="btn secondary" href="/inventory" style="text-decoration:none">Back to inventory</a>
+</div>
+</div>
 {{if .Withdrawn}}
 <div class="notice">This endpoint's service has left the estate — no current resolution cites its address and no Seed covers it. It names a population of no current member; its timelines are closed and it is reached by its own key. An endpoint closes when either leg — its Name or its Service — withdraws.</div>
 {{end}}
