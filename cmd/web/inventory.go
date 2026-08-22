@@ -47,6 +47,10 @@ type inventoryFacet struct {
 type inventorySubject struct {
 	Kind   string
 	Key    string
+	// Type is the singular domain noun the row's Type cell carries — Name,
+	// Service, Endpoint, Address — the subject's kind said in the interface's
+	// vocabulary rather than the stored lower-case tag.
+	Type   string
 	Link   string
 	Facets []inventoryFacet
 }
@@ -72,6 +76,25 @@ func inventoryKindLabel(kind string) string {
 		return "Endpoints"
 	case "address":
 		return "Addresses"
+	default:
+		return kind
+	}
+}
+
+// inventoryTypeLabel renders a subject kind as the singular domain noun the
+// per-row Type cell carries — the four subjects said in the interface's
+// vocabulary (Name / Service / Endpoint / Address), never the stored tag. An
+// unknown kind falls back to the raw kind so a new facet still labels.
+func inventoryTypeLabel(kind string) string {
+	switch kind {
+	case "name":
+		return "Name"
+	case "service":
+		return "Service"
+	case "endpoint":
+		return "Endpoint"
+	case "address":
+		return "Address"
 	default:
 		return kind
 	}
@@ -105,6 +128,7 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 			groups[gi].Subjects = append(groups[gi].Subjects, inventorySubject{
 				Kind: row.SubjectKind,
 				Key:  row.SubjectKey,
+				Type: inventoryTypeLabel(row.SubjectKind),
 				Link: subjectHref(row.SubjectKind, row.SubjectKey),
 			})
 		}
@@ -178,6 +202,7 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 	groups := buildInventory(rows)
 	s.render(w, "inventory", map[string]any{
 		"Title": "Inventory", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Groups": groups,
+		"NavActive": "inventory",
+		"Groups":    groups,
 	})
 }

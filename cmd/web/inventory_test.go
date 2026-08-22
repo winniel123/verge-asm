@@ -142,13 +142,58 @@ func TestInventoryPageRendersEstateValues(t *testing.T) {
 			t.Errorf("inventory missing %q; body: %s", want, page)
 		}
 	}
-	// Drill-down links back to the change views.
+	// Row → detail: the subject key is a link to its drill-down (opening the detail
+	// as the example's row click does).
 	if !strings.Contains(page, `href="/subjects/api.example.com"`) {
 		t.Errorf("inventory missing name drill-down link; body: %s", page)
 	}
 	// No denominator: inventory states no total, exactly as the Subjects listing.
 	if !strings.Contains(page, "no total") {
 		t.Errorf("inventory does not refuse a denominator in copy; body: %s", page)
+	}
+
+	// The Inventory nav pill is the active one (keyed on NavActive, not Active).
+	if !strings.Contains(page, `class="navpill active" href="/inventory"`) {
+		t.Errorf("inventory nav pill not marked active; body: %s", page)
+	}
+
+	// Structural checklist vs 03-console.jpg: saved views, density control, column
+	// picker, a per-row Type in domain vocabulary, and the hover peek on the key.
+	for _, want := range []string{
+		"All subjects",              // saved-views cluster
+		"Density",                   // density control
+		"Columns",                   // column picker
+		`<span class="badge">Name`, // Type cell — the domain noun, not a wire tag
+		"resolution: Resolved",     // hover peek (title attr) summarising the facets
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("inventory structural element missing %q; body: %s", want, page)
+		}
+	}
+
+	// Vocabulary guardrail: the table speaks domain nouns, never wire nouns as
+	// column headers (no "IP" / "Open ports" / "URL" as modelled things).
+	for _, banned := range []string{">IP<", ">Open ports<", ">URL<"} {
+		if strings.Contains(page, banned) {
+			t.Errorf("inventory rendered a wire-noun column %q; body: %s", banned, page)
+		}
+	}
+}
+
+// The empty estate keeps a legible "No population" state rather than a blank
+// screen, and still refuses a denominator in its intro copy.
+func TestInventoryEmptyStatePreserved(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/inventory", http.StatusOK)
+	if !strings.Contains(page, "No population") {
+		t.Errorf("empty inventory lost its No-population state; body: %s", page)
+	}
+	if !strings.Contains(page, "no total") {
+		t.Errorf("empty inventory does not refuse a denominator; body: %s", page)
 	}
 }
 
