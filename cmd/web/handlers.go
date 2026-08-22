@@ -294,6 +294,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
 
 	mux.HandleFunc("GET /inventory", s.requireLogin(s.inventoryPage))
+	// The per-asset drill-in (#296, T1): the destination of an Inventory row-click.
+	// The route is stable so T15's Inventory can link straight to it. A Name key
+	// carries neither `/` nor `@`, so it rides a plain path segment.
+	mux.HandleFunc("GET /asset/{key}", s.requireLogin(s.assetPage))
 	mux.HandleFunc("GET /drift", s.requireLogin(s.driftPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
