@@ -1,6 +1,4 @@
-Status dot with mono label; `pulse` marks live activity.
-
+8px status dot; status="running" pulses (the system's one ambient animation).
 ```jsx
-<StatusDot tone="ok" pulse label="scan running" />
-<StatusDot tone="danger" label="scan failed" />
+<StatusDot status="running" label="Scan running" micro />
 ```

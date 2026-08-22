@@ -1,20 +1,17 @@
 import * as React from "react";
-/** Flat white panel; the container for every dashboard module.
- * @startingPoint section="Components" subtitle="Panel with eyebrow, title, action slot" viewport="700x260"
- */
+/** @startingPoint section="Components" subtitle="Surface card with micro-label header" viewport="700x240" */
 export interface CardProps {
-  /** Card heading, 14px semibold sentence case. */
-  title?: React.ReactNode;
-  /** Mono micro-label above the title. */
-  eyebrow?: React.ReactNode;
-  /** Right-aligned header slot (link, Button size="sm"). */
+  /** Mono uppercase eyebrow, e.g. "Open signals" */
+  microLabel?: string;
+  title?: string;
+  /** Right-aligned header actions */
   action?: React.ReactNode;
-  /** Ink outline instead of hairline — for the one panel that matters most. @default false */
-  emphasized?: boolean;
-  /** Set false when the body is a Table (flush edges). @default true */
-  pad?: boolean;
+  footer?: React.ReactNode;
+  /** Default 20 */
+  pad?: number;
+  /** Default: "visible" for padded cards, "hidden" when pad is 0 (flush tables need corner clipping) */
+  overflow?: "hidden" | "visible";
   style?: React.CSSProperties;
-  bodyStyle?: React.CSSProperties;
   children?: React.ReactNode;
 }
-export declare function Card(props: CardProps): React.ReactElement;
+export function Card(props: CardProps): JSX.Element;

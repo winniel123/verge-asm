@@ -1,0 +1,42 @@
+:root {
+  /* ── Paper & ink (neutrals) ─────────────────────────── */
+  --paper: #f7f7f4;          /* app/page background */
+  --surface: #ffffff;        /* cards, tables, panels */
+  --surface-sunken: #f2f2ee; /* wells, code blocks, hover fills */
+  --surface-ink: #16160f;    /* inverted panels (terminal, footer bands) */
+  --ink: #16160f;            /* strongest ink: headings, primary buttons */
+  --text: #1a1a16;           /* body text */
+  --text-muted: #6b6b62;     /* secondary text, labels */
+  --text-faint: #9a9a90;     /* timestamps, placeholders, disabled */
+  --text-on-ink: #f7f7f4;    /* text on ink surfaces */
+
+  /* ── Rules & borders ────────────────────────────────── */
+  --border-ink: #16160f;     /* structural: card outlines, header rules */
+  --border: #d8d8d0;         /* default hairline */
+  --border-soft: #ecece4;    /* row separators */
+
+  /* ── Accent (one blue, used sparingly) ──────────────── */
+  --accent: #2d4fd4;
+  --accent-hover: #2440ad;
+  --accent-soft: #e9edfb;    /* selected rows, active tab fills */
+
+  /* ── Semantic status ────────────────────────────────── */
+  --ok: #2f9e44;       --ok-soft: #e7f3e9;
+  --warn: #b08800;     --warn-soft: #faf3d9;
+  --danger: #c92a2a;   --danger-soft: #faeaea;
+
+  /* ── Severity scale (findings) ──────────────────────── */
+  --sev-critical: #c92a2a;
+  --sev-high: #e8590c;
+  --sev-medium: #ffd43b;     /* pairs with ink text, not white */
+  --sev-medium-text: #16160f;
+  --sev-low: #1971c2;
+  --sev-info: #868e96;
+
+  /* ── Semantic aliases ───────────────────────────────── */
+  --surface-card: var(--surface);
+  --surface-page: var(--paper);
+  --text-body: var(--text);
+  --text-link: var(--accent);
+  --scan-live: var(--ok);    /* the pulsing "scan running" dot */
+}

@@ -1,7 +1,4 @@
-Round radio button for exclusive choices.
-
-Radio group member; controlled via shared name/value.
-
+Radio option; group via name.
 ```jsx
-<Radio name="freq" value="daily" label="Daily" checked={f==="daily"} onChange={setF} />
+<Radio name="scope" label="All targets" checked onChange={pick} />
 ```

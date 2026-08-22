@@ -1,8 +1,4 @@
-KPI block: micro-label over a 26px mono numeral with a signed delta.
-
+KPI block — mono 28px numeral under a micro-label; deltas signed with a true minus (\u2212).
 ```jsx
-<Stat label="Assets" value="1,284" delta="+12 in 24h" deltaTone="ok" />
-<Stat label="Critical" value="4" delta="+1 new" tone="danger" deltaTone="danger" />
+<Stat label="Open signals" value="47" delta="+3" deltaTone="bad" caption="vs last scan" live />
 ```
-
-Compose in a hairline-divided grid row (see the app dashboard kit).

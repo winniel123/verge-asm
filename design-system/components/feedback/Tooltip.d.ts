@@ -1,10 +1,10 @@
 import * as React from "react";
-/** Hover tooltip: ink panel, mono 11px. For technical detail (absolute timestamps, full hashes). */
 export interface TooltipProps {
-  label: React.ReactNode;
-  /** @default "top" */
-  side?: "top" | "bottom";
+  content: React.ReactNode;
+  side?: "top" | "bottom" | "left" | "right";
+  /** Mono content — e.g. the ISO 8601 timestamp behind a relative time */
+  mono?: boolean;
   style?: React.CSSProperties;
   children?: React.ReactNode;
 }
-export declare function Tooltip(props: TooltipProps): React.ReactElement;
+export function Tooltip(props: TooltipProps): JSX.Element;

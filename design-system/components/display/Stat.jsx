@@ -1,12 +1,18 @@
 import React from "react";
+import { DeltaChip } from "./DeltaChip.jsx";
 
-export function Stat({ label, value, delta, deltaTone = "neutral", tone, style }) {
-  const deltaColor = { ok: "var(--ok)", danger: "var(--danger)", neutral: "var(--text-muted)" }[deltaTone];
+export function Stat({ label, value, delta, deltaTone = "neutral", caption, live, style }) {
   return (
-    <div style={{ padding: "16px 20px", ...style }}>
-      <div style={{ font: "600 10px/1 var(--font-mono)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>{label}</div>
-      <div style={{ font: "600 26px/1.15 var(--font-mono)", color: tone === "danger" ? "var(--danger)" : "var(--ink)" }}>{value}</div>
-      {delta != null && <div style={{ font: "500 11px/1.2 var(--font-mono)", color: deltaColor, marginTop: 4 }}>{delta}</div>}
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, ...style }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 8, font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+        {label}
+        {live && <span style={{ width: 7, height: 7, borderRadius: 999, background: "var(--accent)", animation: "vg-pulse 1.8s var(--ease-out) infinite" }} />}
+      </span>
+      <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ font: "600 28px var(--font-mono)", color: "var(--text-ink)", lineHeight: 1.1 }}>{value}</span>
+        {delta && <DeltaChip value={delta} tone={deltaTone} style={{ transform: "translateY(-2px)" }} />}
+      </span>
+      {caption && <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>{caption}</span>}
     </div>
   );
 }

@@ -1,9 +1,7 @@
-Modal dialog: ink border + 6px hard offset shadow, centered on a 32% ink overlay.
-
+Modal dialog — r24 panel, shadow-lg, vg-pop-in entrance, scrim without blur.
 ```jsx
-<Dialog open={open} title="Delete target?" onClose={close}
-  footer={<><Button variant="secondary" onClick={close}>Cancel</Button>
-          <Button variant="danger" onClick={del}>Delete</Button></>}>
-  Historical findings for acmecorp.io are kept.
+<Dialog open title="Add seed" description="Domain or CIDR range." onClose={close}
+  footer={<><Button variant="ghost" onClick={close}>Cancel</Button><Button>Add seed</Button></>}>
+  <Input label="Seed" mono placeholder="acmecorp.io" />
 </Dialog>
 ```

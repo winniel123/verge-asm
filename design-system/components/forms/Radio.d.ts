@@ -1,13 +1,12 @@
 import * as React from "react";
-/** 15px radio; the one round control (dots may be round). */
 export interface RadioProps {
-  label?: React.ReactNode;
+  label?: string;
   checked?: boolean;
-  /** Called with this radio's value when selected. */
-  onChange?: (value: string) => void;
+  /** Called when this option is picked */
+  onChange?: () => void;
+  /** Group name */
   name?: string;
-  value?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
 }
-export declare function Radio(props: RadioProps): React.ReactElement;
+export function Radio(props: RadioProps): JSX.Element;

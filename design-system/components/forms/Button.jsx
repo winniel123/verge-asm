@@ -1,38 +1,24 @@
 import React from "react";
 
-const H = { sm: 26, md: 32, lg: 40 };
-const PX = { sm: 10, md: 12, lg: 16 };
-const FS = { sm: 12, md: 13, lg: 14 };
+const SIZES = { sm: { h: 30, px: 12, fs: 12, r: 10, gap: 6 }, md: { h: 36, px: 16, fs: 13, r: 12, gap: 8 }, lg: { h: 44, px: 20, fs: 14, r: 12, gap: 8 } };
 
-export function Button({ variant = "primary", size = "md", icon, disabled, style, children, ...rest }) {
-  const [hover, setHover] = React.useState(false);
-  const [focus, setFocus] = React.useState(false);
-  const variants = {
-    primary: { background: hover && !disabled ? "#3a3a30" : "var(--ink)", color: "var(--text-on-ink)", border: "1px solid var(--ink)" },
-    secondary: { background: hover && !disabled ? "var(--surface-sunken)" : "var(--surface)", color: "var(--ink)", border: "1px solid var(--border-ink)" },
-    ghost: { background: hover && !disabled ? "var(--surface-sunken)" : "transparent", color: "var(--ink)", border: "1px solid transparent" },
-    danger: { background: hover && !disabled ? "#b02525" : "var(--danger)", color: "#ffffff", border: "1px solid var(--danger)" },
-  };
+export function Button({ children, variant = "primary", size = "md", icon, disabled, onClick, type = "button", style, ...rest }) {
+  const [hov, setHov] = React.useState(false);
+  const [act, setAct] = React.useState(false);
+  const [foc, setFoc] = React.useState(false);
+  const s = SIZES[size] || SIZES.md;
+  const v = {
+    primary: { background: act ? "var(--accent-active)" : hov ? "var(--accent-hover)" : "var(--accent)", color: "var(--on-accent)", border: "1px solid transparent" },
+    secondary: { background: hov ? "var(--surface-sunken)" : "var(--surface)", color: "var(--text-body)", border: "1px solid var(--border-strong)" },
+    ghost: { background: hov ? "var(--surface-sunken)" : "transparent", color: hov ? "var(--text-body)" : "var(--text-secondary)", border: "1px solid transparent" },
+    danger: { background: act ? "var(--danger-active)" : hov ? "var(--danger-hover)" : "var(--danger)", color: "var(--on-danger)", border: "1px solid transparent" },
+  }[variant] || {};
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onFocus={() => setFocus(true)}
-      onBlur={() => setFocus(false)}
-      style={{
-        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-        height: H[size], padding: `0 ${PX[size]}px`,
-        font: `500 ${FS[size]}px var(--font-sans)`,
-        borderRadius: 0, cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.45 : 1,
-        boxShadow: focus ? "var(--focus-ring)" : "none",
-        outline: "none", transition: "background var(--duration) var(--ease)",
-        ...variants[variant], ...style,
-      }}
-      {...rest}
-    >
+    <button {...rest} type={type} disabled={disabled} onClick={onClick}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => { setHov(false); setAct(false); }}
+      onMouseDown={() => setAct(true)} onMouseUp={() => setAct(false)}
+      onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
+      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: s.gap, height: s.h, padding: "0 " + s.px + "px", borderRadius: s.r, fontFamily: "var(--font-ui)", fontSize: s.fs, fontWeight: 600, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.45 : 1, transition: "background var(--dur-fast) var(--ease-out)", boxShadow: foc ? "0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring)" : "none", whiteSpace: "nowrap", ...v, ...style }}>
       {icon}{children}
     </button>
   );

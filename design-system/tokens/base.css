@@ -1,15 +1,31 @@
+/* Verge ASM — minimal base so specimens and consumers inherit the system. */
 body {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
-  line-height: var(--leading-body);
+  font-family: var(--font-ui);
   color: var(--text-body);
-  background: var(--surface-page);
+  background: var(--bg-page);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
 }
-a { color: var(--text-link); text-decoration: none; }
-a:hover { color: var(--accent-hover); text-decoration: underline; }
-code, kbd, pre, samp { font-family: var(--font-mono); }
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
 ::selection { background: var(--accent-soft); }
+code, kbd, samp { font-family: var(--font-mono); }
 
-@keyframes verge-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+/* slim tokened scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* reduced motion — durations collapse, loops stop after one pass */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; }
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

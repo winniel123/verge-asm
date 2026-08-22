@@ -1,26 +1,19 @@
+/* Verge ASM — spacing & density tokens. 4px grid. */
 :root {
-  /* 4px base grid */
-  --space-05: 2px;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px; --sp-16: 64px;
 
-  /* ── Component metrics ──────────────────────────────── */
-  --control-h: 32px;         /* buttons, inputs, selects */
-  --control-h-sm: 26px;      /* compact/table-inline controls */
-  --control-h-lg: 40px;      /* marketing CTAs */
-  --control-pad-x: 12px;
-  --table-row-pad-y: 9px;    /* dense-but-readable rows */
-  --table-cell-pad-x: 16px;
-  --card-pad: 16px;
-  --page-pad: 24px;
-  --page-max: 1440px;        /* app content max width */
-  --prose-max: 720px;        /* docs/marketing prose measure */
+  --control-h: 36px;      /* default inputs, buttons, selects */
+  --control-h-sm: 30px;   /* compact / table toolbars */
+  --control-h-lg: 44px;   /* marketing */
+
+  --card-pad: 20px;
+  --page-pad: 32px;
+  --section-gap: 24px;
+
+  --row-pad-y: 10px;      /* table rows (dense views keep 8px) */
+  --row-pad-x: 16px;
+
+  --content-max: 1440px;  /* console */
+  --prose-max: 760px;     /* docs & long-form */
 }

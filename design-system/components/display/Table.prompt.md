@@ -1,16 +1,4 @@
-The workhorse data table: mono micro-label heads over a 2px ink rule, 9px row padding, soft row separators.
-
+Data table — micro-label heads, hairline row separators, hover sunken, selected = fill + accent bar. Density is a feature: use dense on big lists. Columns holding DropdownMenu/Popover need clip:false. sortable (+sortValue) per column; maxHeight scrolls the body under a sticky header.
 ```jsx
-<Table
-  rowKey="id" onRowClick={open} selectedKey={sel}
-  columns={[
-    { key: "sev", label: "Severity", width: 96, render: r => <SeverityBadge severity={r.sev} /> },
-    { key: "title", label: "Finding" },
-    { key: "asset", label: "Asset", mono: true, muted: true, width: 220 },
-    { key: "age", label: "Age", mono: true, muted: true, align: "right", width: 70 },
-  ]}
-  rows={rows}
-/>
+<Table columns={[{key:"asset",label:"Asset",mono:true},{key:"sev",label:"Severity",render:(r)=><SeverityBadge level={r.sev} size="sm"/>}]} rows={rows} onRowClick={open} />
 ```
-
-Technical columns get `mono` (+ usually `muted`). Put it in a `Card pad={false}`.

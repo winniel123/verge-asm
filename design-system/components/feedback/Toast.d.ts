@@ -1,11 +1,13 @@
 import * as React from "react";
-/** Transient notice: white panel, ink border, hard-sm shadow, status dot. Consumer positions/stacks it. */
 export interface ToastProps {
-  /** @default "neutral" */
-  tone?: "ok" | "warn" | "danger" | "neutral" | "accent";
-  title: React.ReactNode;
-  detail?: React.ReactNode;
+  title: string;
+  description?: string;
+  tone?: "neutral" | "ok" | "warn" | "danger";
+  /** Optional action, e.g. a ghost Button "Undo" */
+  action?: React.ReactNode;
   onDismiss?: () => void;
+  /** Fixed bottom-right with slide-up entrance */
+  floating?: boolean;
   style?: React.CSSProperties;
 }
-export declare function Toast(props: ToastProps): React.ReactElement;
+export function Toast(props: ToastProps): JSX.Element;

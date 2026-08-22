@@ -1,8 +1,6 @@
-The severity chip. Solid fill, white text (ink on medium yellow), fixed 5-word vocabulary.
-
+The severity chip — Critical is the ramp's only solid fill; High→Info are tinted pills with a dot. All AA.
 ```jsx
-<SeverityBadge severity="critical" />
-<SeverityBadge severity="medium" />
+<SeverityBadge level="critical" />
+<SeverityBadge level="low" size="sm" />
 ```
-
-Never restyle, outline, or synonymize; it is the loudest element on screen by design.
+Levels: critical | high | medium | low | info — exact words, this order.

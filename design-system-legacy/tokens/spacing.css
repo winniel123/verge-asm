@@ -1,0 +1,26 @@
+:root {
+  /* 4px base grid */
+  --space-05: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Component metrics ──────────────────────────────── */
+  --control-h: 32px;         /* buttons, inputs, selects */
+  --control-h-sm: 26px;      /* compact/table-inline controls */
+  --control-h-lg: 40px;      /* marketing CTAs */
+  --control-pad-x: 12px;
+  --table-row-pad-y: 9px;    /* dense-but-readable rows */
+  --table-cell-pad-x: 16px;
+  --card-pad: 16px;
+  --page-pad: 24px;
+  --page-max: 1440px;        /* app content max width */
+  --prose-max: 720px;        /* docs/marketing prose measure */
+}

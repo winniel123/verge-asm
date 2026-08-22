@@ -1,7 +1,4 @@
-Square-cornered on/off toggle for settings.
-
-Square toggle for settings rows.
-
+On/off toggle for immediate-effect settings.
 ```jsx
-<Switch label="Passive discovery only" checked={v} onChange={setV} />
+<Switch checked onChange={set} label="Passive discovery" />
 ```

@@ -1,13 +1,15 @@
 import React from "react";
 
-const TONES = { ok: "var(--ok)", warn: "var(--warn)", danger: "var(--danger)", accent: "var(--accent)", neutral: "var(--text-faint)" };
+const COLORS = { ok: "var(--ok-solid)", warn: "var(--warn-solid)", danger: "var(--danger-solid)", neutral: "var(--neutral-400)", running: "var(--accent)" };
 
-export function StatusDot({ tone = "ok", pulse, label, size = 8, style }) {
-  const c = TONES[tone] || TONES.neutral;
+export function StatusDot({ status = "neutral", label, micro, style }) {
+  const pulse = status === "running";
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, ...style }}>
-      <span style={{ width: size, height: size, flex: "none", borderRadius: "50%", background: c, animation: pulse ? "verge-pulse 1.6s infinite" : "none" }} />
-      {label && <span style={{ font: "500 11px/1.2 var(--font-mono)", color: c === "var(--text-faint)" ? "var(--text-muted)" : c }}>{label}</span>}
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, ...style }}>
+      <span style={{ width: 8, height: 8, borderRadius: 999, flex: "none", background: COLORS[status] || COLORS.neutral, animation: pulse ? "vg-pulse 1.8s var(--ease-out) infinite" : "none" }} />
+      {label && (micro
+        ? <span style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: pulse ? "var(--accent)" : "var(--text-muted)" }}>{label}</span>
+        : <span style={{ font: "400 12.5px var(--font-ui)", color: "var(--text-secondary)" }}>{label}</span>)}
     </span>
   );
 }

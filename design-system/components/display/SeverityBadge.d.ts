@@ -1,8 +1,9 @@
 import * as React from "react";
-/** The finding severity chip — solid fill, fixed vocabulary, 52px min width. */
 export interface SeverityBadgeProps {
-  /** Exact scale; never synonymize. @default "info" */
-  severity: "critical" | "high" | "medium" | "low" | "info";
+  /** Exactly these five levels — never synonymize */
+  level: "critical" | "high" | "medium" | "low" | "info";
+  /** md 22px / sm 18px (dense tables) */
+  size?: "md" | "sm";
   style?: React.CSSProperties;
 }
-export declare function SeverityBadge(props: SeverityBadgeProps): React.ReactElement;
+export function SeverityBadge(props: SeverityBadgeProps): JSX.Element;

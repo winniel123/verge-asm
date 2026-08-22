@@ -1,14 +1,15 @@
 import * as React from "react";
-/** Primary action control. Sharp corners, ink fill.
- * @startingPoint section="Components" subtitle="Primary / secondary / ghost / danger actions" viewport="700x220"
- */
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Visual weight. primary=solid ink, secondary=ink outline, ghost=borderless, danger=solid red. @default "primary" */
+export interface ButtonProps {
+  /** primary = the one filled action on screen. Default "primary" */
   variant?: "primary" | "secondary" | "ghost" | "danger";
-  /** sm=26px (inline in tables), md=32px, lg=40px (marketing). @default "md" */
+  /** sm 30 / md 36 / lg 44 (marketing). Default "md" */
   size?: "sm" | "md" | "lg";
-  /** Optional leading icon node (16px Lucide SVG). */
+  /** Optional leading icon node, e.g. <Icon name="play" size={14}/> */
   icon?: React.ReactNode;
+  disabled?: boolean;
+  type?: "button" | "submit";
+  onClick?: () => void;
+  style?: React.CSSProperties;
   children?: React.ReactNode;
 }
-export declare function Button(props: ButtonProps): React.ReactElement;
+export function Button(props: ButtonProps): JSX.Element;

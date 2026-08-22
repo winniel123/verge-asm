@@ -1,35 +1,27 @@
+/* Verge ASM — typography tokens. Fonts served from Google Fonts (no binaries provided). */
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Geist+Mono:wght@400..700&display=swap");
+
 :root {
-  /* Two families only. Sans for prose/UI, mono for anything technical:
-     hostnames, IPs, ports, counts, CVE ids, timestamps, micro-labels. */
-  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 
-  /* ── Size scale ─────────────────────────────────────── */
-  --text-2xs: 10px;   /* mono micro-labels only */
-  --text-xs: 11px;    /* table meta, footers */
-  --text-sm: 12px;    /* dense table cells, captions */
-  --text-base: 13px;  /* app body */
-  --text-md: 14px;    /* section titles, emphasized rows */
-  --text-lg: 16px;    /* card titles, dialog titles */
-  --text-xl: 20px;    /* page titles */
-  --text-2xl: 26px;   /* KPI numerals (mono) */
-  --text-3xl: 34px;   /* marketing/doc headings */
-  --text-4xl: 48px;   /* marketing hero */
+  /* size scale */
+  --text-2xs: 11px;  --text-xs: 12px;   --text-sm: 13px;  --text-base: 14px;
+  --text-md: 15px;   --text-lg: 16px;   --text-xl: 18px;  --text-2xl: 21px;
+  --text-3xl: 26px;  --text-4xl: 32px;  --text-5xl: 40px; --text-6xl: 52px;
 
-  /* ── Weights ────────────────────────────────────────── */
-  --weight-regular: 400;
-  --weight-medium: 500;
-  --weight-semibold: 600;
-  --weight-bold: 700;
+  --leading-tight: 1.15; --leading-snug: 1.35; --leading-normal: 1.5; --leading-relaxed: 1.65;
 
-  /* ── Line heights ───────────────────────────────────── */
-  --leading-tight: 1.15;  /* numerals, headings */
-  --leading-snug: 1.35;   /* table cells, UI */
-  --leading-body: 1.55;   /* prose */
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600; --weight-bold: 700;
 
-  /* ── The micro-label (signature style) ──────────────
-     font: var(--weight-semibold) var(--text-2xs)/1 var(--font-mono);
-     text-transform: uppercase; letter-spacing: var(--tracking-label); */
-  --tracking-label: 0.06em;
-  --tracking-tight: -0.01em; /* large sans headings */
+  /* signature motif: the micro-label (mono, uppercase eyebrow) */
+  --micro-size: 11px;
+  --micro-weight: 500;
+  --micro-tracking: 0.07em;
+
+  /* KPI numerals */
+  --kpi-size: 28px;
+  --kpi-weight: 600;
+
+  --heading-tracking: -0.015em;
 }
