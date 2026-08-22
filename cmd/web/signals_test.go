@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -186,6 +188,129 @@ func TestSignalsRendersEveryRuleCensus(t *testing.T) {
 	}
 	if strings.Contains(low, "severity") {
 		t.Errorf("Signals page mentions severity; a Signal carries none")
+	}
+
+	// The Signals.jsx composition is ported: the Open / Annotated / Withdrawn tabs
+	// frame the screen, and the default lands on Open, which carries the census.
+	if !strings.Contains(page, `class="tabs"`) {
+		t.Errorf("Signals page renders no tabs (Signals.jsx port); body: %s", page)
+	}
+	for _, href := range []string{`href="/signals?tab=open"`, `href="/signals?tab=annotated"`, `href="/signals?tab=withdrawn"`} {
+		if !strings.Contains(page, href) {
+			t.Errorf("Signals tabs missing %q", href)
+		}
+	}
+	if !strings.Contains(page, "tab active") {
+		t.Errorf("no active tab on the default Signals view")
+	}
+}
+
+// The Withdrawn tab surfaces an accepted risk whose subject has left its rule's
+// population — an orphan on read, marked withdrawn by the world (never resolved by
+// an operator, ADR-0092) — carrying the WithdrawnMark. It does not appear on the
+// Annotated tab, which is accepted risks still in population.
+func TestSignalsWithdrawnTabSurfacesOrphanAnnotations(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// A pair whose subject the rule never censuses → orphan → withdrawn.
+	annotate(t, ac, base, "ghost.example.com", "lame-delegation", "kept for when it returns").Body.Close()
+
+	withdrawnPage := getBody(t, ac, base+"/signals?tab=withdrawn", http.StatusOK)
+	for _, want := range []string{"ghost.example.com", "kept for when it returns", "withdrawn"} {
+		if !strings.Contains(withdrawnPage, want) {
+			t.Errorf("Withdrawn tab missing %q; body: %s", want, withdrawnPage)
+		}
+	}
+
+	// The same orphan does not appear on the Annotated tab (accepted risks still in
+	// population). With only the orphan declared, Annotated is the empty state.
+	annotatedPage := getBody(t, ac, base+"/signals?tab=annotated", http.StatusOK)
+	if strings.Contains(annotatedPage, "ghost.example.com") {
+		t.Errorf("orphan annotation wrongly listed on the Annotated tab")
+	}
+	if !strings.Contains(annotatedPage, "No annotation is declared") {
+		t.Errorf("Annotated tab should show the empty state when only an orphan exists; body: %s", annotatedPage)
+	}
+}
+
+// The Annotated tab lists accepted risks still in population and carries the
+// operator dial (the AnnotationControl — accept risk + reason).
+func TestSignalsAnnotatedTabListsAcceptedRisk(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	lameName(t, f, "lame.example.com")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	annotate(t, ac, base, "lame.example.com", "lame-delegation", "accepted, being retired").Body.Close()
+
+	page := getBody(t, ac, base+"/signals?tab=annotated", http.StatusOK)
+	for _, want := range []string{"lame.example.com", "accepted, being retired", "Accept this risk", `action="/annotations"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("Annotated tab missing %q; body: %s", want, page)
+		}
+	}
+}
+
+// The row-detail Drawer opens server-side via ?view=, reading an annotation's
+// detail with its withdraw control.
+func TestSignalsDetailDrawerOpens(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	lameName(t, f, "lame.example.com")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	annotate(t, ac, base, "lame.example.com", "lame-delegation", "reviewed and accepted").Body.Close()
+	annos, _ := f.ListAnnotations(t.Context())
+	if len(annos) != 1 {
+		t.Fatalf("precondition: annotations = %d, want 1", len(annos))
+	}
+
+	page := getBody(t, ac, base+"/signals?tab=annotated&view="+strconv.FormatInt(annos[0].ID, 10), http.StatusOK)
+	for _, want := range []string{`class="drawer-panel"`, `role="dialog"`, "lame.example.com", "reviewed and accepted", "Withdraw annotation"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("detail drawer missing %q; body: %s", want, page)
+		}
+	}
+}
+
+// The typed-name descope ConfirmDialog is admin-only, uses the shared dialog/scrim
+// surface, and is wired to the real POST /exclusions act (kind=subtree) — the
+// "remove a name and its subjects from scope, recorded on Scope" act — so descoping
+// from Signals narrows measurement without adding a route here.
+func TestSignalsDescopeConfirmDialogWiredToExclusions(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+
+	ac := login(t, base, "admin", "hunter2hunter2")
+	dialog := getBody(t, ac, base+"/signals?descope=1", http.StatusOK)
+	for _, want := range []string{`class="dialog-panel"`, `class="scrim"`, "Descope seed", `action="/exclusions"`, `name="value"`, `value="subtree"`, "Type the exact name"} {
+		if !strings.Contains(dialog, want) {
+			t.Errorf("descope confirm dialog missing %q; body: %s", want, dialog)
+		}
+	}
+
+	// The dialog posts to the real exclusion act and records a name exclusion.
+	resp := postForm(t, ac, base+"/exclusions", url.Values{"kind": {"subtree"}, "value": {"old.example.com"}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("descope POST /exclusions: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	resp.Body.Close()
+	if excl, _ := f.ListExclusions(t.Context()); len(excl) != 1 {
+		t.Fatalf("descope did not record an exclusion; exclusions = %d, want 1", len(excl))
+	}
+
+	// A viewer never sees the descope affordance.
+	vc := login(t, base, "viewer", "hunter2hunter2")
+	vp := getBody(t, vc, base+"/signals", http.StatusOK)
+	if strings.Contains(vp, "Descope seed") {
+		t.Errorf("a viewer must not see the descope affordance")
 	}
 }
 
