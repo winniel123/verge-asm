@@ -669,12 +669,12 @@ means. Turning a source off is always safe; turning one on never adds to the est
 
 {{define "sources"}}{{template "head" .}}
 <style>
-.modal-backdrop { min-height: 100vh; background: rgba(22,22,15,.32);
+.modal-backdrop { min-height: 100vh; background: rgba(21,18,15,0.4);
   display: flex; align-items: flex-start; justify-content: center; padding: var(--space-6); }
-.modal { background: var(--surface); border: 1px solid var(--ink);
-  box-shadow: 6px 6px 0 rgba(22,22,15,.1); padding: var(--space-6); width: 100%; max-width: 760px; }
+.modal { background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: var(--space-6); width: 100%; max-width: 760px; }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start;
-  border-bottom: 2px solid var(--ink); padding-bottom: var(--space-4); margin-bottom: var(--space-5); }
+  border-bottom: 1px solid var(--hairline); padding-bottom: var(--space-4); margin-bottom: var(--space-5); }
 .modal-head h1 { margin: 0; }
 .modal-close { font-family: var(--mono); font-size: 16px; text-decoration: none; color: var(--ink); }
 .src-note { color: var(--muted); font-size: 12px; }
@@ -687,7 +687,7 @@ means. Turning a source off is always safe; turning one on never adds to the est
 .group li { margin-bottom: 6px; }
 .group .empty { color: var(--muted); margin: 4px 0 0; }
 .badge.off { color: var(--muted); border-color: var(--hairline); }
-.modal-foot { border-top: 2px solid var(--ink); padding-top: var(--space-4);
+.modal-foot { border-top: 1px solid var(--hairline); padding-top: var(--space-4);
   margin-top: var(--space-5); display: flex; justify-content: flex-end; }
 </style>
 <div class="modal-backdrop"><div class="modal">
