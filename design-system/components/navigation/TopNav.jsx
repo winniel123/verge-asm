@@ -27,10 +27,11 @@ function NavItem({ item, active, onClick }) {
   );
 }
 
-export function TopNav({ items = DEFAULT_ITEMS, active = "dashboard", onNavigate, orgName = "acmecorp", orgs, activeOrg, onOrgChange, version = "v0.9.2", user = "Ola Pérez", scanRunning, onToggleTheme, onOpenPalette, messages, onOpenAllMessages, dark, style }) {
+export function TopNav({ items = DEFAULT_ITEMS, active = "dashboard", onNavigate, orgName = "acmecorp", orgs, activeOrg, onOrgChange, version = "v0.9.2", user = "Ola Pérez", scanRunning, onToggleTheme, onOpenPalette, messages, onOpenAllMessages, onOpenMessage, onOpenProfile, dark, style }) {
   const [inboxOpen, setInboxOpen] = React.useState(false);
   const isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent);
   const userMenu = []
+    .concat(onOpenProfile ? [{ label: "Profile", icon: "user", onSelect: onOpenProfile }] : [])
     .concat(onNavigate ? [{ label: "Settings", icon: "settings", onSelect: () => onNavigate("settings") }] : [])
     .concat(onOpenPalette ? [{ label: "Command palette", icon: "search", shortcut: isMac ? "\u2318K" : "Ctrl+K", onSelect: onOpenPalette }] : []);
   const unread = messages && messages.some((m) => m.unread);
@@ -56,7 +57,7 @@ export function TopNav({ items = DEFAULT_ITEMS, active = "dashboard", onNavigate
               <div style={{ display: "flex", alignItems: "center", padding: "0 4px" }}>
                 <span style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }}>Messages</span>
               </div>
-              <MessageList messages={messages.slice(0, 4)} onOpen={() => { setInboxOpen(false); onOpenAllMessages && onOpenAllMessages(); }} />
+              <MessageList messages={messages.slice(0, 4)} onOpen={(m) => { setInboxOpen(false); if (onOpenMessage) onOpenMessage(m); else if (onOpenAllMessages) onOpenAllMessages(); }} />
               {onOpenAllMessages && (
                 <button type="button" onClick={() => { setInboxOpen(false); onOpenAllMessages(); }}
                   style={{ border: "none", borderTop: "1px solid var(--row-sep)", background: "transparent", padding: "9px 4px 3px", font: "500 12px var(--font-ui)", color: "var(--link)", cursor: "pointer", textAlign: "left" }}>

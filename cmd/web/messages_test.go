@@ -171,8 +171,8 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 
 	// The count rides a chrome page that never computed it itself.
 	seeds := getBody(t, ac, base+"/scope", http.StatusOK)
-	if !strings.Contains(seeds, `href="/messages"`) {
-		t.Error("the global nav is missing the Messages element")
+	if !strings.Contains(seeds, `href="/inbox"`) {
+		t.Error("the global nav is missing the Inbox bell")
 	}
 	if !strings.Contains(seeds, `class="count">2<`) {
 		t.Errorf("the nav should carry the unread count 2\nbody: %s", seeds)

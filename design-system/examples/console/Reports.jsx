@@ -55,7 +55,7 @@ function SevBars() {
 
 const t2m = (s) => { const m = /(\d+)([mhd])/.exec(s || ""); return m ? +m[1] * (m[2] === "m" ? 1 : m[2] === "h" ? 60 : 1440) : 9e9; };
 
-export function Reports() {
+export function Reports({ onOpenArtifact }) {
   const [range, setRange] = React.useState({ label: "Last 7d" });
   const [rows, setRows] = React.useState(SCHEDULED);
   const [wizOpen, setWizOpen] = React.useState(false);
@@ -115,6 +115,7 @@ export function Reports() {
             { key: "last", label: "Last sent", mono: true, align: "right", width: 90, sortable: true, sortValue: (r) => t2m(r.last) },
             { key: "actions", label: "", width: 58, align: "right", clip: false, render: () => (
               <DropdownMenu trigger={<IconButton icon="ellipsis" label="Actions" size="sm" />} items={[
+                { label: "View last delivery", icon: "eye", onSelect: onOpenArtifact },
                 { label: "Run now", icon: "play" },
                 { label: "Edit schedule", icon: "pencil" },
                 "-",

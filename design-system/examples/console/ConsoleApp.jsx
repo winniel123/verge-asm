@@ -17,6 +17,17 @@ import { Drift } from "./Drift.jsx";
 import { Scope } from "./Scope.jsx";
 import { Settings } from "./Settings.jsx";
 import { CommandPalette } from "../../components/feedback/CommandPalette.jsx";
+import { AssetDetail } from "./AssetDetail.jsx";
+import { RunDetail } from "./RunDetail.jsx";
+import { ReportArtifact } from "./ReportArtifact.jsx";
+import { Inbox } from "./Inbox.jsx";
+import { SearchResults } from "./SearchResults.jsx";
+import { Profile } from "./Profile.jsx";
+import { ErrorPage } from "./ErrorPage.jsx";
+import { Onboarding } from "./Onboarding.jsx";
+import { FirstRunChecklist } from "./FirstRun.jsx";
+import { Exposure } from "./Exposure.jsx";
+import { Coverage } from "./Coverage.jsx";
 
 export function ConsoleApp() {
   const [screen, setScreen] = React.useState("dashboard");
@@ -29,6 +40,11 @@ export function ConsoleApp() {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [org, setOrg] = React.useState("acme");
   const [settingsSection, setSettingsSection] = React.useState("scans");
+  const [assetId, setAssetId] = React.useState("edge-gw-03.acmecorp.io");
+  const [errKind, setErrKind] = React.useState("404");
+  const [onboardOpen, setOnboardOpen] = React.useState(false);
+  const [inboxMsgId, setInboxMsgId] = React.useState(null);
+  const [firstRun, setFirstRun] = React.useState(false);
   const MSGS = [
     { id: "m1", cls: "signals", text: "VNC exposed to internet · edge-gw-03.acmecorp.io", time: "4m", unread: true },
     { id: "m2", cls: "drift", text: "appeared · staging-5.acmecorp.io", time: "8m", unread: true },
@@ -62,24 +78,37 @@ export function ConsoleApp() {
     { id: "inventory", label: "Inventory" },
     { id: "drift", label: "Drift" },
     { id: "signals", label: "Signals", count: 47 },
+    { id: "exposure", label: "Exposure" },
+    { id: "coverage", label: "Coverage" },
     { id: "graph", label: "Graph" },
     { id: "reports", label: "Reports" },
   ];
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-page)" }}>
       <TopNav items={items} active={screen} onNavigate={setScreen} scanRunning={scanning} dark={dark} onToggleTheme={() => setDark(!dark)} onOpenPalette={() => setPaletteOpen(true)}
-        messages={MSGS} onOpenAllMessages={() => { setSettingsSection("messages"); setScreen("settings"); }}
+        messages={MSGS} onOpenAllMessages={() => { setInboxMsgId(null); setScreen("inbox"); }} onOpenMessage={(m) => { setInboxMsgId(m.id); setScreen("inbox"); }} onOpenProfile={() => setScreen("profile")}
         orgs={ORGS} activeOrg={org}
         onOrgChange={(id) => { setOrg(id); const o = ORGS.find((x) => x.id === id); setToast({ tone: "neutral", title: "Org switched", description: o.name + " \u00b7 " + o.assets.toLocaleString("en-US") + " assets" }); }} />
       <div style={{ flex: 1 }}>
-        {screen === "dashboard" && <Dashboard scanning={scanning} onRunScan={runScan} onAddTarget={() => setAddOpen(true)} onOpenSignals={() => setScreen("signals")} />}
-        {screen === "inventory" && <Inventory onToast={setToast} />}
+        {screen === "dashboard" && (firstRun
+          ? <FirstRunChecklist onOpenScope={() => setScreen("scope")} onOpenVantages={() => { setSettingsSection("vantages"); setScreen("settings"); }} onRunScan={() => { setFirstRun(false); runScan(); }} />
+          : <Dashboard scanning={scanning} onRunScan={runScan} onAddTarget={() => setAddOpen(true)} onOpenSignals={() => setScreen("signals")} />)}
+        {screen === "inventory" && <Inventory onToast={setToast} onOpenAsset={(a) => { setAssetId(a); setScreen("asset"); }} />}
         {screen === "scope" && <Scope onToast={setToast} />}
-        {screen === "drift" && <Drift />}
+        {screen === "drift" && <Drift onOpenRun={() => setScreen("run")} />}
         {screen === "graph" && <GraphView />}
-        {screen === "reports" && <Reports />}
+        {screen === "reports" && <Reports onOpenArtifact={() => setScreen("artifact")} />}
         {screen === "settings" && <Settings onToast={setToast} section={settingsSection} />}
         {screen === "signals" && <Signals onToast={setToast} onAnnotate={(s) => setToast({ tone: "neutral", title: "Annotation recorded", description: s.id + " \u00b7 accepted risk" })} />}
+        {screen === "asset" && <AssetDetail asset={assetId} onBack={() => setScreen("inventory")} onOpenSignals={() => setScreen("signals")} onToast={setToast} />}
+        {screen === "run" && <RunDetail onBack={() => setScreen("drift")} onOpenDrift={() => setScreen("drift")} />}
+        {screen === "artifact" && <ReportArtifact onBack={() => setScreen("reports")} />}
+        {screen === "inbox" && <Inbox key={inboxMsgId || "all"} initialId={inboxMsgId} onNavigate={setScreen} />}
+        {screen === "search" && <SearchResults onOpenAsset={(a) => { setAssetId(a); setScreen("asset"); }} onNavigate={setScreen} />}
+        {screen === "profile" && <Profile onToast={setToast} />}
+        {screen === "error" && <ErrorPage kind={errKind} onHome={() => setScreen("dashboard")} />}
+        {screen === "exposure" && <Exposure onOpenVantages={() => { setSettingsSection("vantages"); setScreen("settings"); }} />}
+        {screen === "coverage" && <Coverage onOpenScope={() => setScreen("scope")} />}
       </div>
       <Footer />
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
@@ -92,12 +121,20 @@ export function ConsoleApp() {
           { label: "Signals", icon: "shield-alert", hint: "47 open", onSelect: () => setScreen("signals") },
           { label: "Graph", icon: "network", onSelect: () => setScreen("graph") },
           { label: "Reports", icon: "file-text", onSelect: () => setScreen("reports") },
+          { label: "Inbox", icon: "inbox", hint: "2 unread", onSelect: () => setScreen("inbox") },
+          { label: "Profile", icon: "user", onSelect: () => setScreen("profile") },
+          { label: "Search everything", icon: "search", onSelect: () => setScreen("search") },
+          { label: "Exposure", icon: "eye", onSelect: () => setScreen("exposure") },
+          { label: "Coverage", icon: "gauge", onSelect: () => setScreen("coverage") },
+          { label: "Sources", icon: "database", onSelect: () => { setSettingsSection("sources"); setScreen("settings"); } },
+          { label: "Port aperture", icon: "layout-grid", onSelect: () => { setSettingsSection("aperture"); setScreen("settings"); } },
           { label: "Integrations", icon: "puzzle", onSelect: () => { setSettingsSection("integrations"); setScreen("settings"); } },
           { label: "Settings", icon: "settings", onSelect: () => setScreen("settings") },
         ] },
         { label: "Actions", items: [
           { label: "Run scan", icon: "play", onSelect: runScan },
           { label: "Add seed", icon: "plus", onSelect: () => setAddOpen(true) },
+          { label: "First-run onboarding", icon: "flag", onSelect: () => setOnboardOpen(true) },
           { label: "Toggle theme", icon: dark ? "sun" : "moon", onSelect: () => setDark(!dark) },
         ] },
         { label: "Assets", items: [
@@ -105,7 +142,16 @@ export function ConsoleApp() {
           { label: "api.acmecorp.io", icon: "globe", hint: "high", onSelect: () => setScreen("inventory") },
           { label: "acmecorp.io", icon: "globe", onSelect: () => setScreen("inventory") },
         ] },
+        { label: "Spec states", items: [
+          { label: "Preview: first-run home", icon: "flag", onSelect: () => { setFirstRun(true); setScreen("dashboard"); } },
+          { label: "Preview: standard home", icon: "layout-dashboard", onSelect: () => { setFirstRun(false); setScreen("dashboard"); } },
+          { label: "Preview: 404 not found", icon: "compass", onSelect: () => { setErrKind("404"); setScreen("error"); } },
+          { label: "Preview: 403 access denied", icon: "lock", onSelect: () => { setErrKind("403"); setScreen("error"); } },
+          { label: "Preview: 500 server error", icon: "server-crash", onSelect: () => { setErrKind("500"); setScreen("error"); } },
+        ] },
       ]} />
+      <Onboarding open={onboardOpen} onClose={() => setOnboardOpen(false)}
+        onFinish={(v) => { setOnboardOpen(false); setToast({ tone: "ok", title: "Workspace ready", description: v.seeds.length + (v.seeds.length === 1 ? " seed" : " seeds") + " · first scan queued." }); runScan(); }} />
       <Dialog open={addOpen} title="Add seed" description="Verge starts scanning within a minute." onClose={() => setAddOpen(false)}
         footer={<React.Fragment>
           <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>

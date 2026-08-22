@@ -295,6 +295,8 @@ button.danger, .btn.danger { background: var(--danger); border-color: var(--dang
   color: var(--body); background: transparent; border: none; cursor: pointer; text-decoration: none; }
 .acctmenu-panel a:hover, .acctmenu-panel .menuitem:hover { background: var(--sunken); text-decoration: none; }
 .acctmenu-panel form { margin: 0; }
+.acctmenu-panel .cmdk-hintitem { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.acctmenu-panel .menu-hint { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 /* Toast stack */
 .toaststack { position: fixed; right: 20px; bottom: 20px; z-index: 60;
   display: flex; flex-direction: column; gap: 10px; width: 340px; max-width: calc(100vw - 40px); }
@@ -640,12 +642,14 @@ var tmpl = template.Must(template.New("").Parse(`
 <div class="navactions">
 {{if .Scanning}}<span class="scan-status"><span class="dot live"></span>Scan running</span>{{end}}
 <button type="button" class="iconbtn cmdk-btn" data-cmdk-open aria-label="Command palette"><span class="mono">&#8984;K</span></button>
-<a class="msgnav" href="/messages" aria-label="Messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{{if .Unread}}<span class="count">{{.Unread}}</span>{{end}}</a>
+<a class="msgnav" href="/inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{{if .Unread}}<span class="count">{{.Unread}}</span>{{end}}</a>
 <button type="button" class="iconbtn" data-theme-toggle aria-label="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></button>
 <a class="ghlink" href="https://github.com/winniel123/verge-asm" rel="noreferrer">GitHub</a>
 <details class="acctmenu"><summary aria-label="Account menu"><span class="avatar">VA</span></summary>
 <div class="acctmenu-panel">
+<a href="/profile">Profile</a>
 {{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}
+<button type="button" class="menuitem cmdk-hintitem" data-cmdk-open>Command palette <span class="menu-hint">&#8984;K</span></button>
 <form method="post" action="/logout"><button class="menuitem" type="submit">Sign out</button></form>
 </div></details>
 </div>
