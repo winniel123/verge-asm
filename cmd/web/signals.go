@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/netip"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/winniel123/verge-asm/internal/custody"
@@ -176,15 +177,83 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		})
 	}
 
+	// Partition the operator's annotations into the two signal states the screen's
+	// tabs surface: an accepted risk on a subject still in its rule's population
+	// (Annotated), and one whose subject has left it (Withdrawn) — orphan on read,
+	// the world's act, never resolved by an operator (ADR-0092).
+	annoViews := annotationViews(annos, population)
+	annotatedRows := make([]annotationView, 0, len(annoViews))
+	withdrawnRows := make([]annotationView, 0)
+	for _, a := range annoViews {
+		if a.Orphan {
+			withdrawnRows = append(withdrawnRows, a)
+		} else {
+			annotatedRows = append(annotatedRows, a)
+		}
+	}
+
+	// The Open count is the number of fired members across every rule — the signals
+	// raised right now. An annotated pair is still counted under fired (annotation
+	// moves the message, never the number), so it is still open here.
+	openCount := 0
+	for _, c := range views {
+		if c.Empty {
+			continue
+		}
+		for _, g := range c.Groups {
+			if g.Kind == "fired" {
+				openCount += len(g.Members)
+			}
+		}
+	}
+
+	// Server-rendered tab / drawer / dialog state, threaded through the query string
+	// (the shell ships no client drawer/tab/dialog machinery, T0 seam). A rejected
+	// declaration re-renders on the tab that carries the form.
+	tab := r.URL.Query().Get("tab")
+	switch tab {
+	case "annotated", "withdrawn":
+	default:
+		tab = "open"
+	}
+	if forms.annoError != "" {
+		tab = "annotated"
+	}
+
+	var viewAnno *annotationView
+	var sel int64
+	if idStr := r.URL.Query().Get("view"); idStr != "" {
+		if id, err := strconv.ParseInt(idStr, 10, 64); err == nil {
+			for i := range annoViews {
+				if annoViews[i].ID == id {
+					viewAnno = &annoViews[i]
+					sel = id
+					break
+				}
+			}
+		}
+	}
+
 	s.render(w, "signals", map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Censuses":    views,
-		"Annotations": annotationViews(annos, population),
-		"RuleNames":   signal.RuleNames(),
-		"AnnoError":   forms.annoError,
-		"AnnoSubject": forms.annoSubject,
-		"AnnoSignal":  forms.annoSignal,
-		"AnnoReason":  forms.annoReason,
+		"NavActive":      "signals",
+		"SignalCount":    openCount,
+		"Tab":            tab,
+		"OpenCount":      openCount,
+		"AnnotatedCount": len(annotatedRows),
+		"WithdrawnCount": len(withdrawnRows),
+		"Censuses":       views,
+		"Annotations":    annoViews,
+		"Annotated":      annotatedRows,
+		"Withdrawn":      withdrawnRows,
+		"ViewAnno":       viewAnno,
+		"Sel":            sel,
+		"Descope":        r.URL.Query().Get("descope") != "",
+		"RuleNames":      signal.RuleNames(),
+		"AnnoError":      forms.annoError,
+		"AnnoSubject":    forms.annoSubject,
+		"AnnoSignal":     forms.annoSignal,
+		"AnnoReason":     forms.annoReason,
 	})
 }
 
