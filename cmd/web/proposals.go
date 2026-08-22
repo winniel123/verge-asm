@@ -179,17 +179,17 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		// like a clean success — the filed candidates persist, so a plain inline
 		// render would re-file duplicates on refresh — but carry a flag that has
 		// the Seeds page surface the incompleteness (see seedsPage).
-		http.Redirect(w, r, "/seeds?notice="+noticePartialProposals, http.StatusSeeOther)
+		http.Redirect(w, r, "/scope?notice="+noticePartialProposals, http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
-// noticePartialProposals is the /seeds query flag a partial-failure lookup
-// redirects with, and partialProposalNotice is the message the Seeds page then
-// renders. Carrying the caveat through the redirect (rather than inline off the
-// POST) keeps the search idempotent on refresh while still surfacing that some
-// registry path errored (#251).
+// noticePartialProposals is the /scope query flag a partial-failure lookup
+// redirects with (retargeted from /seeds → /scope in #286), and
+// partialProposalNotice is the message the Scope page then renders. Carrying the
+// caveat through the redirect (rather than inline off the POST) keeps the search
+// idempotent on refresh while still surfacing that some registry path errored (#251).
 const (
 	noticePartialProposals = "partial-proposals"
 	partialProposalNotice  = "Showing partial results — one or more registry paths errored, so this list may be incomplete. See the server log for details."
@@ -213,7 +213,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 	if err != nil {
 		// Already confirmed, declined, or never existed — a repeat submit opens
 		// no second gate. Return to the screen rather than erroring.
-		http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+		http.Redirect(w, r, "/scope", http.StatusSeeOther)
 		return
 	}
 
@@ -235,7 +235,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "confirm proposal", err)
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
 // declineLookup declines every still-pending Proposal under one lookup in a
@@ -251,7 +251,7 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "decline lookup", err)
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
 // enabledProposers returns the keyless proposer slugs the operator has left

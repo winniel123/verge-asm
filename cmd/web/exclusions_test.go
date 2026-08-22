@@ -31,7 +31,7 @@ func TestDeclareExclusions(t *testing.T) {
 		{"address", "198.51.100.7", "198.51.100.7/32"},  // a bare address carves one host
 	} {
 		resp := exclude(t, ac, base, tc.kind, tc.value)
-		if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/seeds" {
+		if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
 			t.Fatalf("exclude %s %q: status=%d location=%q", tc.kind, tc.value, resp.StatusCode, resp.Header.Get("Location"))
 		}
 		resp.Body.Close()

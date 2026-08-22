@@ -200,13 +200,16 @@ func messageLink(cause message.Cause, subjectKind, firedAt string) (href, text s
 		return "/sources", firedAt
 	case message.LinkSeed:
 		// firedAt is the Seed's scope key (subject_kind "seed"); anchor to its row
-		// so the operator lands on the exact Seed whose scope moved.
-		return "/seeds#seed-" + seedAnchor(firedAt), firedAt
+		// on the canonical Scope page (#286) so the operator lands on the exact
+		// Seed whose scope moved.
+		return "/scope#seed-" + seedAnchor(firedAt), firedAt
 	default: // LinkObject
 		if h := subjectHref(subjectKind, firedAt); h != "" {
 			return h, firedAt
 		}
-		return "/subjects", firedAt
+		// The subject list folded into Inventory (#286); a subject with no detail
+		// page lands there rather than on the retired /subjects list.
+		return "/inventory", firedAt
 	}
 }
 

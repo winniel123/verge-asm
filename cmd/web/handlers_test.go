@@ -1736,3 +1736,61 @@ func TestHealthzDBError(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
 }
+
+// TestDeprecatedRoutesReconciled is the #286 IA-reconciliation proof: each retired
+// GET answers the right redirect to its canonical home, while every viewer-readable
+// fold keeps resolving for a viewer — no 404, and no viewer bounced into an
+// admin-gated 403 (#281 caveat). The detail deep-links under /subjects/* are NOT
+// redirected: Inventory rows link straight to them and they are the detail pages.
+func TestDeprecatedRoutesReconciled(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+	vc := login(t, base, "viewer", "hunter2hunter2")
+
+	// Retired GETs redirect to their canonical home (301 permanent for pure moves).
+	for _, tc := range []struct {
+		path, want string
+	}{
+		{"/exposure", "/reports"},
+		{"/seeds", "/scope"},
+		{"/subjects", "/inventory"},
+	} {
+		resp, err := vc.Get(base + tc.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusMovedPermanently || resp.Header.Get("Location") != tc.want {
+			t.Errorf("GET %s: status=%d location=%q, want 301 -> %s",
+				tc.path, resp.StatusCode, resp.Header.Get("Location"), tc.want)
+		}
+	}
+
+	// The viewer-readable folds keep resolving for a viewer — never redirected into
+	// admin-gated Settings, never a 403. /coverage stays as the distinct aperture
+	// artifact; /messages is the shell bell's destination for all users.
+	for _, path := range []string{"/messages", "/scans", "/verge-core", "/sources", "/coverage"} {
+		resp, err := vc.Get(base + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("GET %s (viewer): status=%d, want 200 (kept viewer-readable)", path, resp.StatusCode)
+		}
+	}
+
+	// The subject detail deep-links are preserved (not redirected): a missing key
+	// renders the 404 detail page, proving the routes still resolve to the handler.
+	for _, path := range []string{"/subjects/never.measured.example", "/subjects/service?key=x%3A1%2Ftcp"} {
+		resp, err := vc.Get(base + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("GET %s: status=%d, want 404 (detail route still resolves)", path, resp.StatusCode)
+		}
+	}
+}

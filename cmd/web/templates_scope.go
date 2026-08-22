@@ -12,9 +12,10 @@ import "html/template"
 // full-range (cold) tier opt-in, and provisioned probers — is kept verbatim below
 // the fold so every existing mutation and its tests stay green.
 //
-// The block is named "scope"; renderSeeds (seeds.go) renders it for both GET
-// /scope and the still-live GET /seeds (T10 owns the /seeds -> /scope redirect).
-// Every POST still answers 303 to /seeds, unchanged. The presentation is
+// The block is named "scope"; renderSeeds (seeds.go) renders it for GET /scope,
+// the canonical home. GET /seeds now permanently redirects here (T10, #286). The
+// POST actions keep their /seeds* paths (only the GET presentation moved) and now
+// answer 303 to /scope, unchanged in every other respect. The presentation is
 // template-local CSS translated from design-system/components/* within the
 // existing token vocabulary — restyling, not authoring (ADR-0109); no
 // design-system component is authored here and no shared pageCSS class is edited.

@@ -54,7 +54,7 @@ func TestZoneUploadStoresAtSupplyInstantAndListsIt(t *testing.T) {
 	seedID := f.seeds[0].ID
 
 	resp := uploadZone(t, ac, base, seedID, testZone)
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/seeds" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
 		t.Fatalf("upload: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()

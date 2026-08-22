@@ -69,7 +69,7 @@ func TestMessageLinkPerMover(t *testing.T) {
 		{message.CauseDrift, "name", "example.com", "/subjects/example.com"},
 		{message.CauseThreshold, "name", "expiry.example.com", "/subjects/expiry.example.com"},
 		{message.CauseDeclaredInput, "source", "zone-file", "/sources"},
-		{message.CauseAperture, "seed", "198.51.100.0/24", "/seeds#seed-198-51-100-0-24"},
+		{message.CauseAperture, "seed", "198.51.100.0/24", "/scope#seed-198-51-100-0-24"},
 	}
 	for _, c := range cases {
 		href, text := messageLink(c.cause, c.subjectKind, c.firedAt)
@@ -170,7 +170,7 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	// The count rides a chrome page that never computed it itself.
-	seeds := getBody(t, ac, base+"/seeds", http.StatusOK)
+	seeds := getBody(t, ac, base+"/scope", http.StatusOK)
 	if !strings.Contains(seeds, `href="/messages"`) {
 		t.Error("the global nav is missing the Messages element")
 	}

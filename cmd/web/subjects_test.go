@@ -44,38 +44,36 @@ func addNameSeed(t *testing.T, f *fakeStore, createdBy int64, domain string) int
 // here — and its +24h/+48h successors — is read as live, not filtered as stale.
 var obsClock = time.Date(2026, 8, 14, 9, 0, 0, 0, time.UTC)
 
-func TestSubjectsListsCurrentNamesWithSearchAndNoDenominator(t *testing.T) {
+// The Subjects LIST folded into Inventory (#286, map #275): the bare /subjects
+// GET is now a permanent redirect to /inventory, carrying any query string so a
+// bookmarked search survives the move. The list-rendering behaviour (search
+// narrowing, no-denominator copy) belongs to Inventory now and is covered by
+// inventory_test.go; the drill-downs below stay on /subjects/* and are unchanged.
+func TestSubjectsListRedirectsToInventory(t *testing.T) {
 	f := newFakeStore()
-	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
-	f.addResolution(t, admin.ID, "www.example.net", "dns", obsClock, `{"outcome":"NoData"}`)
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	page := getBody(t, ac, base+"/subjects", http.StatusOK)
-	for _, name := range []string{"api.example.com", "www.example.net"} {
-		if !strings.Contains(page, name) {
-			t.Errorf("listing missing %q; body: %s", name, page)
-		}
-		if !strings.Contains(page, `href="/subjects/`+name+`"`) {
-			t.Errorf("listing missing drill-down link for %q; body: %s", name, page)
-		}
+	resp, err := ac.Get(base + "/subjects")
+	if err != nil {
+		t.Fatal(err)
 	}
-	// No denominator: the screen states it holds no total, and renders no count.
-	if !strings.Contains(page, "There is no total") {
-		t.Errorf("listing does not refuse a denominator in copy; body: %s", page)
-	}
-	// No rendered count of the listing anywhere on the screen.
-	for _, denom := range []string{"2 names", "2 subjects", "Showing 2", "of 2"} {
-		if strings.Contains(page, denom) {
-			t.Errorf("listing rendered a count/denominator %q; body: %s", denom, page)
-		}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusMovedPermanently || resp.Header.Get("Location") != "/inventory" {
+		t.Fatalf("GET /subjects: status=%d location=%q, want 301 -> /inventory",
+			resp.StatusCode, resp.Header.Get("Location"))
 	}
 
-	// Search narrows to the matching Name.
-	only := getBody(t, ac, base+"/subjects?q=example.com", http.StatusOK)
-	if !strings.Contains(only, "api.example.com") || strings.Contains(only, "www.example.net") {
-		t.Errorf("search did not narrow to example.com; body: %s", only)
+	// The query string rides along so a bookmarked search is not dropped.
+	resp, err = ac.Get(base + "/subjects?q=example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if got := resp.Header.Get("Location"); resp.StatusCode != http.StatusMovedPermanently || got != "/inventory?q=example.com" {
+		t.Fatalf("GET /subjects?q=example.com: status=%d location=%q, want 301 -> /inventory?q=example.com",
+			resp.StatusCode, got)
 	}
 }
 
@@ -89,20 +87,10 @@ func TestWithdrawnNameNotListedButReachableByKey(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	page := getBody(t, ac, base+"/subjects", http.StatusOK)
-	if !strings.Contains(page, "live.example.com") {
-		t.Errorf("live name not listed; body: %s", page)
-	}
-	if strings.Contains(page, "gone.example.com") {
-		t.Errorf("withdrawn name appears in listing; body: %s", page)
-	}
-	// Searching for it does not surface it in the listing either.
-	searched := getBody(t, ac, base+"/subjects?q=gone.example.com", http.StatusOK)
-	if strings.Contains(searched, `href="/subjects/gone.example.com"`) {
-		t.Errorf("withdrawn name surfaced by search listing; body: %s", searched)
-	}
-
-	// It is still reachable by its own key, marked as a population of no member.
+	// The Subjects list moved to /inventory (#286); the withdrawn-suppression view
+	// is Inventory's now. What stays on /subjects/* is the by-key drill-down: a
+	// withdrawn name is still reachable by its own key, marked a population of no
+	// current member.
 	drill := getBody(t, ac, base+"/subjects/gone.example.com", http.StatusOK)
 	if !strings.Contains(drill, "withdrawn") || !strings.Contains(drill, "no current member") {
 		t.Errorf("withdrawn drill-down not marked; body: %s", drill)
@@ -120,14 +108,8 @@ func TestShadowedNameSuppressedButReachableByKey(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	page := getBody(t, ac, base+"/subjects", http.StatusOK)
-	if !strings.Contains(page, "real.example.com") {
-		t.Errorf("discriminated real name not listed; body: %s", page)
-	}
-	if strings.Contains(page, "ghost.example.com") {
-		t.Errorf("Shadowed name appears in listing; body: %s", page)
-	}
-
+	// The list (which suppresses a Shadowed name) is Inventory's now (#286); the
+	// by-key drill-down stays on /subjects/* and still marks it no current member.
 	drill := getBody(t, ac, base+"/subjects/ghost.example.com", http.StatusOK)
 	if !strings.Contains(drill, "withdrawn") || !strings.Contains(drill, "no current member") {
 		t.Errorf("Shadowed drill-down not marked as no current member; body: %s", drill)
@@ -407,18 +389,9 @@ func TestServiceSubjectsListedAndDrilledDown(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The listing carries a Service subjects section with the triple and verdict.
-	page := getBody(t, ac, base+"/subjects", http.StatusOK)
-	for _, want := range []string{"Service subjects", "198.51.100.1:443/tcp", "reached"} {
-		if !strings.Contains(page, want) {
-			t.Errorf("subjects listing missing %q; body: %s", want, page)
-		}
-	}
-	if !strings.Contains(page, "/subjects/service?key=") {
-		t.Errorf("service drill-down link missing; body: %s", page)
-	}
-
-	// The drill-down: verdict, address split out, and citation to the Name and Seed.
+	// The Service subjects listing is Inventory's now (#286); the Service
+	// drill-down stays on /subjects/service and shows its verdict, address, and
+	// citation back to a Seed.
 	drill := getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A443%2Ftcp", http.StatusOK)
 	for _, want := range []string{
 		"Observed · Service", "198.51.100.1:443/tcp", "reached",
@@ -491,17 +464,9 @@ func TestEndpointSubjectsListedAndDrilledDown(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The listing carries an Endpoint subjects section with the pair and its identity.
-	page := getBody(t, ac, base+"/subjects", http.StatusOK)
-	for _, want := range []string{"Endpoint subjects", "api.example.com", "198.51.100.1:443/tcp", "200 · nginx"} {
-		if !strings.Contains(page, want) {
-			t.Errorf("subjects listing missing %q; body: %s", want, page)
-		}
-	}
-	if !strings.Contains(page, "/subjects/endpoint?key=") {
-		t.Errorf("endpoint drill-down link missing; body: %s", page)
-	}
-
+	// The Endpoint subjects listing is Inventory's now (#286); the Endpoint
+	// drill-down stays on /subjects/endpoint and shows its HTTP identity and
+	// citation back through its Service and Name legs to a Seed.
 	key := url.QueryEscape("api.example.com@198.51.100.1:443/tcp")
 	drill := getBody(t, ac, base+"/subjects/endpoint?key="+key, http.StatusOK)
 	for _, want := range []string{
@@ -524,11 +489,9 @@ func TestNamelessEndpointRendersAndRedirectRecorded(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	page := getBody(t, ac, base+"/subjects", http.StatusOK)
-	if !strings.Contains(page, "(nameless)") {
-		t.Errorf("nameless endpoint not marked in listing; body: %s", page)
-	}
-
+	// The listing (which marks a nameless endpoint) is Inventory's now (#286); the
+	// drill-down stays on /subjects/endpoint and records the redirect Location as
+	// identity without following it.
 	key := url.QueryEscape("@198.51.100.2:80/tcp")
 	drill := getBody(t, ac, base+"/subjects/endpoint?key="+key, http.StatusOK)
 	for _, want := range []string{"nameless endpoint", "301", "https://x.example/", "not followed"} {
@@ -596,23 +559,17 @@ func TestDerivationReadGatedAtLiveBoundaryWithoutDelete(t *testing.T) {
 	f.addResolution(t, 1, "api.example.com", "dns", observedAt,
 		`{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
 
-	// Inside the window: the derivation lists the Name and reaches its drill-down.
+	// Inside the window: the derivation reaches the Name's drill-down by key.
 	baseInside := startAt(t, f, readInside)
 	acInside := login(t, baseInside, "admin", "hunter2hunter2")
-	page := getBody(t, acInside, baseInside+"/subjects", http.StatusOK)
-	if !strings.Contains(page, "api.example.com") {
-		t.Fatalf("live-tier Name not listed inside its window; body: %s", page)
-	}
 	getBody(t, acInside, baseInside+"/subjects/api.example.com", http.StatusOK)
 
 	// Past the window, with NO delete: the same row is now evidential, so the
-	// derivation neither lists the Name nor reaches it by key.
+	// derivation no longer reaches it by key. (The Subjects list moved to
+	// /inventory in #286; the live-tier gate is proven here on the still-live
+	// by-key read path, which carries the same read instant + k bound.)
 	basePast := startAt(t, f, readPast)
 	acPast := login(t, basePast, "admin", "hunter2hunter2")
-	page = getBody(t, acPast, basePast+"/subjects", http.StatusOK)
-	if strings.Contains(page, "api.example.com") {
-		t.Errorf("evidential Name still listed past its bound; body: %s", page)
-	}
 	drill := getBody(t, acPast, basePast+"/subjects/api.example.com", http.StatusNotFound)
 	if !strings.Contains(drill, "No such subject") {
 		t.Errorf("evidential Name still reachable by key past its bound; body: %s", drill)
@@ -642,9 +599,12 @@ func TestDerivationReadRetainsTimelineWithNoEnabledScan(t *testing.T) {
 
 	base := startAt(t, f, observedAt.Add(time.Minute))
 	ac := login(t, base, "admin", "hunter2hunter2")
-	page := getBody(t, ac, base+"/subjects", http.StatusOK)
-	if strings.Contains(page, "api.example.com") {
-		t.Errorf("Name on an uncovered timeline was derived; body: %s", page)
+	// The Subjects list moved to /inventory (#286); the uncovered-timeline bound is
+	// proven on the still-live by-key read — the Name does not derive, so its
+	// drill-down is a 404 even one minute after it was observed.
+	drill := getBody(t, ac, base+"/subjects/api.example.com", http.StatusNotFound)
+	if !strings.Contains(drill, "No such subject") {
+		t.Errorf("Name on an uncovered timeline was derived (reachable by key); body: %s", drill)
 	}
 	if len(f.observations) != 1 {
 		t.Fatalf("observation corpus changed: got %d rows, want 1 (retained as evidence)", len(f.observations))

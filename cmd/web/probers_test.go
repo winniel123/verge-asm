@@ -26,7 +26,7 @@ func TestProvisionProber(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	resp := provision(t, ac, base, "prober.example.com", "2222", "scanner")
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/seeds" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
 		t.Fatalf("provision: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()

@@ -258,7 +258,7 @@ the result appears in flight above.</p>
 <td>
 {{if .Active}}<span class="muted">running</span>
 {{else if .Enabled}}<form method="post" action="/scans/trigger" style="display:inline"><input type="hidden" name="kind" value="{{.Kind}}"><button type="submit">Run now</button></form>
-{{else if .IsCold}}<span class="muted">disabled — opt a scope in on <a href="/seeds">Seeds</a></span>
+{{else if .IsCold}}<span class="muted">disabled — opt a scope in on <a href="/scope">Scope</a></span>
 {{else}}<span class="muted">disabled</span>{{end}}
 </td>
 </tr>{{end}}

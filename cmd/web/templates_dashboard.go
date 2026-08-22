@@ -38,7 +38,7 @@ const dashboardTemplates = `
     <span class="muted" style="font-size:12.5px">Signals, coverage and scan activity across your estate.</span>
   </div>
   <div style="margin-left:auto;display:flex;gap:var(--space-2)">
-    <a class="btn secondary" href="/seeds">Add seed</a>
+    <a class="btn secondary" href="/scope">Add seed</a>
     <a class="btn" href="/scans">Run scan</a>
   </div>
 </header>
@@ -113,7 +113,7 @@ const dashboardTemplates = `
         <div class="microlabel">None provisioned</div>
         <h2>No vantage yet</h2>
         <p style="max-width:60ch;margin:var(--space-3) auto">A vantage is a position you scan from. None is provisioned, so scans resolve from the shipped resolver only. Provision a prober on Scope to measure reachability from the internet.</p>
-        <a class="btn ghost" href="/seeds">Go to Scope</a>
+        <a class="btn ghost" href="/scope">Go to Scope</a>
       </div>
       {{end}}
     </section>

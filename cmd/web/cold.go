@@ -69,5 +69,5 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "sync cold scan enabled", err)
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
