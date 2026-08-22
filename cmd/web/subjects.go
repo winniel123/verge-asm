@@ -16,6 +16,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/retention"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 // The Subjects screen (v1 spec §6.6, ADR-0072). At wave-0 only `Name` subjects
@@ -911,6 +912,293 @@ func httpIdentityDetails(v httpIdentityValue) []spanDetail {
 		details = append(details, spanDetail{Type: "location", Data: v.RedirectLocation})
 	}
 	return details
+}
+
+// Asset detail (#296, T1) — the per-asset drill-in ported from
+// design-system/examples/console/AssetDetail.jsx (templates_asset.go), reached
+// from an Inventory row on the stable `/asset/{key}` route so T15's Inventory can
+// link straight here. The "asset" is a Name subject; each section is sourced from
+// a Name-scoped read where one honestly exists, and renders the design-system
+// empty-state where it does not. No section fabricates a value, none fingerprints
+// technology, and the drift trail rides the change palette (never severity).
+
+// assetPageData is the whole asset record, one place: the header identity plus the
+// six sections — ports census, DNS, TLS cert (empty-state; parsed cert identity is
+// not stored), provenance, signals-here, and the drift trail.
+type assetPageData struct {
+	Key          string
+	Type         string // the domain noun the header tag carries — always "Name"
+	Withdrawn    bool
+	Seen         string // the latest observation instant for this Name
+	InScopeSince string // the covering Seed's declaration date
+	Ports        []assetPort
+	DNS          []assetDNSRow
+	Provenance   []assetKV
+	Signals      []assetSignal
+	Drift        []assetDriftEvent
+}
+
+// assetPort is one open Service on this asset's addresses: its port and transport,
+// the reachability verdict rendered as an exposure state, and when it first
+// opened. It never carries a product/version — no technology fingerprinting.
+type assetPort struct {
+	Port      string
+	Transport string
+	Exposure  string
+	Since     string
+}
+
+// assetDNSRow is one resolved record: the RR type, its value, and when last seen.
+type assetDNSRow struct {
+	Type  string
+	Value string
+	Seen  string
+}
+
+// assetKV is one provenance fact ("how it got here"): a micro-label key and a mono
+// value.
+type assetKV struct {
+	K string
+	V string
+}
+
+// assetSignal is one signal firing on this asset — its rule and the subject it
+// fired on. It carries NO severity: the census is deliberately not a severity ramp
+// (signals.go / ADR-0024), so a level here would be fabricated.
+type assetSignal struct {
+	Rule    string
+	Subject string
+}
+
+// assetDriftEvent is one transition on this asset, in change's own language: the
+// change kind (carrying its drift family — the chip palette, never severity), the
+// facet timeline it moved, a terse detail, and the instant.
+type assetDriftEvent struct {
+	Change  string
+	Family  string
+	Subject string
+	Detail  string
+	Time    string
+}
+
+// assetPage renders the per-asset drill-in for one Name (#296). It reads the Name
+// subject, then assembles the six sections from Name-scoped reads — each best-effort
+// so a thin section falls to its empty-state rather than 500ing the page. The route
+// keys on the Name (no `/` or `@`), so a plain `/asset/{key}` path segment resolves.
+func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	key := r.PathValue("key")
+	subject, err := s.store.GetNameSubject(r.Context(), db.GetNameSubjectParams{
+		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
+			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+			"Name": key,
+		})
+		return
+	}
+	if err != nil {
+		s.serverError(w, "get name subject", err)
+		return
+	}
+
+	res := decodeResolution(subject.Value)
+	data := assetPageData{
+		Key:       subject.SubjectKey,
+		Type:      "Name",
+		Withdrawn: suppressesNameMembership(res.Outcome),
+	}
+	if subject.ObservedAt.Valid {
+		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
+	}
+	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
+	data.DNS = s.assetDNS(r, key, res)
+	data.Ports = s.assetPorts(r, res.Addresses)
+	data.Signals = s.assetSignals(r, key)
+	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
+
+	s.render(w, "asset", map[string]any{
+		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "inventory",
+		"Asset":     data,
+	})
+}
+
+// assetProvenance assembles the "how it got here" facts from the Name's Citation:
+// the covering Seed, the hop that introduced it (a CT admission or a resolution
+// observation, ADR-0107), the scan source, and when it was first seen. Every fact
+// is real — an unmeasured one is simply omitted, never invented — and the covering
+// Seed's declaration date doubles as the header's "in scope since".
+func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string) {
+	cit, citErr := s.store.GetNameCitation(r.Context(), db.GetNameCitationParams{
+		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
+	if seed, ok := s.terminatingNameSeed(r, key, cit, citErr); ok {
+		if seed.NameDomain.Valid {
+			items = append(items, assetKV{K: "Seed", V: seed.NameDomain.String})
+		}
+		if seed.CreatedAt.Valid {
+			inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
+		}
+	}
+	if citErr == nil {
+		via := "resolution-walk"
+		if cit.HopKind == hopKindAdmission {
+			via = "certificate transparency"
+		}
+		if cit.ScanKind != "" {
+			via += " · " + cit.ScanKind
+		}
+		items = append(items, assetKV{K: "Via", V: via})
+		if cit.Source != "" {
+			items = append(items, assetKV{K: "Source", V: cit.Source})
+		}
+		if cit.ObservedAt.Valid {
+			items = append(items, assetKV{K: "First seen", V: cit.ObservedAt.Time.UTC().Format("2006-01-02")})
+		}
+	}
+	return items, inScopeSince
+}
+
+// assetDNS lists the asset's resolved records: the A/AAAA addresses off the current
+// resolution, plus every other RR the dns-record facet carries (TXT, MX, CNAME,
+// NS). A/AAAA records from the dns-record facet are dropped as duplicates of the
+// resolution addresses. Best-effort — a dns-record read failure degrades to just
+// the resolution addresses.
+func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) []assetDNSRow {
+	var rows []assetDNSRow
+	for _, a := range res.Addresses {
+		t := "A"
+		if ip, err := netip.ParseAddr(a); err == nil && ip.Is6() {
+			t = "AAAA"
+		}
+		rows = append(rows, assetDNSRow{Type: t, Value: a})
+	}
+	dnsRows, err := s.store.ListNameDNSRecords(r.Context(), db.ListNameDNSRecordsParams{
+		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
+	if err == nil {
+		for _, row := range dnsRows {
+			if row.SubjectKey != key {
+				continue
+			}
+			for _, rr := range decodeDNSRecord(row.Value).RRs {
+				switch strings.ToUpper(rr.Type) {
+				case "A", "AAAA":
+					continue // already covered by the resolution addresses
+				}
+				rows = append(rows, assetDNSRow{Type: rr.Type, Value: rr.Data})
+			}
+		}
+	}
+	return rows
+}
+
+// assetPorts is the ports census: every open Service reachability span on the
+// asset's addresses, read straight off the open-span corpus (the same corpus
+// Inventory reads) and filtered by address. It carries the port and transport and
+// the reachability verdict as an exposure state — never a product or version, on
+// the no-fingerprinting guardrail. Best-effort: a read failure yields no census.
+func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
+	if len(addresses) == 0 {
+		return nil
+	}
+	addrSet := make(map[string]bool, len(addresses))
+	for _, a := range addresses {
+		addrSet[a] = true
+	}
+	rows, err := s.store.ListAllOpenSpans(r.Context())
+	if err != nil {
+		return nil
+	}
+	var ports []assetPort
+	for _, row := range rows {
+		if row.SubjectKind != "service" || row.Facet != "reachability" {
+			continue
+		}
+		addr, port, transport := splitServiceKey(row.SubjectKey)
+		if !addrSet[addr] {
+			continue
+		}
+		ports = append(ports, assetPort{
+			Port:      ":" + port,
+			Transport: transport,
+			Exposure:  assetExposure(decodeReachability(row.Value).Outcome, row.IsGap),
+			Since:     row.OpenedAt.Time.UTC().Format(spanTimeFmt),
+		})
+	}
+	return ports
+}
+
+// assetExposure maps a reachability verdict to the exposure state the census chip
+// carries. A Gap is undiscriminated reach (ADR-0104), so it reads as unverified —
+// never as exposed. A port that answered is exposed; one that did not is
+// not-reached (we cannot tell a firewall from silence, so we state the honest
+// negative rather than claim "firewalled").
+func assetExposure(outcome string, isGap bool) string {
+	if isGap {
+		return "unverified"
+	}
+	switch outcome {
+	case "reached":
+		return "exposed"
+	case "not-reached":
+		return "not-reached"
+	default:
+		return "unverified"
+	}
+}
+
+// assetSignals folds the full signal corpus and keeps the fired members whose
+// subject IS this asset (the Name-rule population is keyed by the Name). It carries
+// no severity — the census is deliberately not a severity ramp — so the section
+// lists the firing rules honestly rather than inventing a level. Best-effort: a
+// corpus-build failure yields no signals (the section empty-states).
+func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
+	corpus, err := s.buildSignalCorpus(r)
+	if err != nil {
+		return nil
+	}
+	var out []assetSignal
+	for _, c := range signal.EvaluateCorpus(corpus) {
+		for _, m := range c.Fired {
+			if m.Subject == key {
+				out = append(out, assetSignal{Rule: c.Rule, Subject: m.Subject})
+			}
+		}
+	}
+	return out
+}
+
+// assetDrift renders the drift trail from the asset's Span timelines, classified in
+// change's own language: a lone open span appeared, an open span with prior history
+// changed, and a timeline whose last span is closed with no successor was withdrawn
+// (by the world, never resolved). One event per facet timeline; the family is the
+// chip palette the change rides, never the severity ramp.
+func assetDrift(timelines []timelineView) []assetDriftEvent {
+	var out []assetDriftEvent
+	for _, tl := range timelines {
+		var change, when, detail string
+		switch {
+		case tl.Current != nil && len(tl.Closed) == 0:
+			change, when, detail = "appeared", tl.Current.OpenedAt, tl.Current.Value
+		case tl.Current != nil:
+			change, when, detail = "changed", tl.Current.OpenedAt, tl.Current.Value
+		case len(tl.Closed) > 0:
+			last := tl.Closed[len(tl.Closed)-1]
+			change, when, detail = "withdrawn", last.ClosedAt, last.Value
+		default:
+			continue
+		}
+		out = append(out, assetDriftEvent{
+			Change:  change,
+			Family:  driftFamily(change),
+			Subject: tl.Label,
+			Detail:  detail,
+			Time:    when,
+		})
+	}
+	return out
 }
 
 func decodeVector(raw []byte) drift.Vector {
