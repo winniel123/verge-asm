@@ -181,8 +181,9 @@ func TestScansPageHistory(t *testing.T) {
 	}
 }
 
-// The monitor is read-only: a viewer reads it, and the nav element it rides is on
-// every screen.
+// The monitor is read-only: a viewer reads it. (Post-T0 the scans monitor folds
+// under Settings, so it is no longer a top-level nav pill; the surface still
+// resolves and renders for a viewer.)
 func TestScansPageViewerReads(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
@@ -191,8 +192,8 @@ func TestScansPageViewerReads(t *testing.T) {
 	ac := login(t, base, "viewer", "hunter2hunter2")
 	page := getBody(t, ac, base+"/scans", http.StatusOK)
 
-	if !strings.Contains(page, `href="/scans"`) {
-		t.Errorf("scans nav link missing; body: %s", page)
+	if !strings.Contains(page, `<h1>Scans</h1>`) {
+		t.Errorf("scans monitor did not render for a viewer; body: %s", page)
 	}
 }
 
