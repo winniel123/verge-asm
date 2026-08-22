@@ -73,6 +73,6 @@ From Claude Design, for import into the correct `components/<folder>/`:
 
 - `Name.jsx` — the component
 - `Name.d.ts` — the typed prop contract
-- `Name.prompt.md` — usage guide (feeds `ui_kits/docs/reference.html`)
+- `Name.prompt.md` — usage guide (read before using the component)
 - Renders correctly in **light and dark** mode
 - All text/background pairs clear **WCAG AA** (≥ 4.5:1 normal text)
