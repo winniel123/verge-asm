@@ -1,0 +1,42 @@
+<!-- @dsCard group="Components" viewport="700x224" name="Navigation" subtitle="TopNav, Tabs, Footer" -->
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<script>Babel.registerPreset("react-classic",{presets:[[Babel.availablePresets.react,{runtime:"classic"}]]});</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>window.__loadBundle=fetch("../../_ds_bundle.js").then(function(r){if(!r.ok)return;return r.text().then(function(t){(new Function(t))();});}).catch(function(){});</script>
+<script src="../../assets/ds-fallback-loader.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;padding:14px;background:var(--bg-page)}</style>
+</head><body><div id="root"><div style="font:400 12px 'Geist Mono',monospace;color:#79746d;padding:20px">loading design system…</div></div>
+<script type="text/babel" data-presets="react-classic">
+function makeApp(NS){
+
+const { TopNav, Tabs, Footer } = NS;
+function App(){
+  const [tab,setTab]=React.useState("open");
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{width:1152,transform:"scale(0.5833)",transformOrigin:"top left",height:56*0.5833,borderRadius:12,overflow:"hidden",border:"1px solid var(--border-default)"}}>
+        <TopNav active="signals" scanRunning items={[
+          {id:"dashboard",label:"Dashboard"},{id:"inventory",label:"Inventory"},{id:"signals",label:"Signals",count:47},{id:"graph",label:"Graph"},{id:"reports",label:"Reports"}]}/>
+      </div>
+      <Tabs tabs={[{id:"open",label:"Open",count:47},{id:"resolved",label:"Resolved",count:312},{id:"muted",label:"Muted"}]} active={tab} onChange={setTab}/>
+      <div style={{border:"1px solid var(--border-default)",borderRadius:12,overflow:"hidden",background:"var(--surface)"}}>
+        <Footer/>
+      </div>
+    </div>
+  );
+}
+return App;}
+(async()=>{
+  if(window.__loadBundle){try{await window.__loadBundle;}catch(e){}}
+  let NS=null;
+  for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Button&&v.SeverityBadge){NS=v;break;}}catch(e){}}
+  if(!NS&&window.__dsFallback){try{NS=await window.__dsFallback("../../");}catch(e){console.warn(e);}}
+  const root=ReactDOM.createRoot(document.getElementById("root"));
+  if(NS&&NS.Button) root.render(React.createElement(makeApp(NS)));
+  else root.render(React.createElement("div",{style:{font:"400 12px var(--font-mono)",color:"var(--text-muted)",padding:20}},"design-system bundle unavailable"));
+})();
+</script></body></html>

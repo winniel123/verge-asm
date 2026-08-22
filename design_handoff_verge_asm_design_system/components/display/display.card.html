@@ -1,0 +1,68 @@
+<!-- @dsCard group="Components" viewport="700x398" name="Display" subtitle="Card, Badge, SeverityBadge, Tag, Stat, StatusDot, Table, Pagination, Progress, Skeleton" -->
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<script>Babel.registerPreset("react-classic",{presets:[[Babel.availablePresets.react,{runtime:"classic"}]]});</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>window.__loadBundle=fetch("../../_ds_bundle.js").then(function(r){if(!r.ok)return;return r.text().then(function(t){(new Function(t))();});}).catch(function(){});</script>
+<script src="../../assets/ds-fallback-loader.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;padding:14px;background:var(--bg-page)}</style>
+</head><body><div id="root"><div style="font:400 12px 'Geist Mono',monospace;color:#79746d;padding:20px">loading design system…</div></div>
+<script type="text/babel" data-presets="react-classic">
+function makeApp(NS){
+
+const { SeverityBadge, Badge, Tag, Stat, StatusDot, Table, Pagination, Progress, Skeleton } = NS;
+function App(){
+  const rows=[
+    {asset:"edge-gw-03.acmecorp.io",port:":5900",sev:"critical",seen:"4m"},
+    {asset:"api.acmecorp.io",port:":443",sev:"medium",seen:"1h"},
+  ];
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        {["critical","high","medium","low","info"].map(l=><SeverityBadge key={l} level={l}/>)}
+        <span style={{width:8}}/>
+        {["critical","low"].map(l=><SeverityBadge key={l} level={l} size="sm"/>)}
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <Badge tone="ok" dot>resolved</Badge><Badge tone="accent">new</Badge><Badge tone="warn" dot>drifted</Badge><Badge>muted</Badge>
+        <span style={{width:8}}/>
+        <Tag>nginx/1.25</Tag><Tag>tls1.3</Tag><Tag onRemove={()=>{}}>sev:high</Tag>
+      </div>
+      <div style={{display:"flex",gap:40,alignItems:"flex-start"}}>
+        <Stat label="Open signals" value="47" delta="+3" deltaTone="bad" caption="vs last scan" live/>
+        <Stat label="Assets watched" value="1,284" delta="+12"/>
+        <Stat label="Critical" value="3" delta="−1" deltaTone="good"/>
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginLeft:"auto"}}>
+          <StatusDot status="running" label="Scan running" micro/>
+          <StatusDot status="ok" label="Probe healthy"/>
+          <StatusDot status="danger" label="Probe unreachable"/>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"auto 1fr 120px",gap:20,alignItems:"center"}}>
+        <Pagination page={3} pageCount={18} pageSize={25} totalItems={432} onChange={()=>{}}/>
+        <Progress label="Scan" detail="142/214 subjects" value={66}/>
+        <Skeleton lines={2}/>
+      </div>
+      <Table dense columns={[
+        {key:"asset",label:"Asset",mono:true},
+        {key:"port",label:"Port",mono:true,width:70},
+        {key:"sev",label:"Severity",render:(r)=><SeverityBadge level={r.sev} size="sm"/>},
+        {key:"seen",label:"Seen",mono:true,align:"right",width:60},
+      ]} rows={rows} selectedIndex={0}/>
+    </div>
+  );
+}
+return App;}
+(async()=>{
+  if(window.__loadBundle){try{await window.__loadBundle;}catch(e){}}
+  let NS=null;
+  for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Button&&v.SeverityBadge){NS=v;break;}}catch(e){}}
+  if(!NS&&window.__dsFallback){try{NS=await window.__dsFallback("../../");}catch(e){console.warn(e);}}
+  const root=ReactDOM.createRoot(document.getElementById("root"));
+  if(NS&&NS.Button) root.render(React.createElement(makeApp(NS)));
+  else root.render(React.createElement("div",{style:{font:"400 12px var(--font-mono)",color:"var(--text-muted)",padding:20}},"design-system bundle unavailable"));
+})();
+</script></body></html>

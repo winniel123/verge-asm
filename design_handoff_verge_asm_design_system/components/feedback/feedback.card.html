@@ -1,0 +1,66 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Feedback" subtitle="Dialog, Toast, Tooltip, EmptyState, Banner, DropdownMenu, Popover" -->
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<script>Babel.registerPreset("react-classic",{presets:[[Babel.availablePresets.react,{runtime:"classic"}]]});</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>window.__loadBundle=fetch("../../_ds_bundle.js").then(function(r){if(!r.ok)return;return r.text().then(function(t){(new Function(t))();});}).catch(function(){});</script>
+<script src="../../assets/ds-fallback-loader.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;padding:14px;background:var(--bg-page)}</style>
+</head><body><div id="root"><div style="font:400 12px 'Geist Mono',monospace;color:#79746d;padding:20px">loading design system…</div></div>
+<script type="text/babel" data-presets="react-classic">
+function makeApp(NS){
+
+const { Dialog, Toast, Tooltip, EmptyState, Banner, DropdownMenu, Popover, Button, Input, Icon, IconButton, Switch } = NS;
+function App(){
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"340px 1fr",gap:14}}>
+      <div style={{position:"relative",transform:"translateZ(0)",height:372,borderRadius:16,overflow:"hidden",border:"1px solid var(--border-default)"}}>
+        <Dialog open title="Add seed" description="Verge starts scanning within a minute." width={300}
+          footer={<React.Fragment><Button variant="ghost" size="sm">Cancel</Button><Button size="sm">Add seed</Button></React.Fragment>}>
+          <Input label="Seed" mono placeholder="acmecorp.io or 203.0.113.0/24" hint="Domain or CIDR range"/>
+        </Dialog>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <Toast tone="ok" title="Scan complete" description="3 new signals raised." onDismiss={()=>{}}/>
+        <Banner tone="warn" title="Vantage unreachable" action={<Button size="sm" variant="secondary">Retry now</Button>} onDismiss={()=>{}}>ap-south-1 missed 2 checks. Scans continue from other vantages.</Banner>
+        <div style={{display:"flex",alignItems:"center",gap:8,font:"400 12.5px var(--font-ui)",color:"var(--text-secondary)"}}>
+          Last seen
+          <Tooltip content="2026-08-22T14:02:11Z" mono><span style={{font:"500 12.5px var(--font-mono)",color:"var(--text-body)",borderBottom:"1px dashed var(--border-strong)",cursor:"default"}}>4m</span></Tooltip>
+          <span style={{font:"400 11px var(--font-ui)",color:"var(--text-muted)"}}>(hover)</span>
+          <span style={{marginLeft:"auto",display:"inline-flex",gap:8,alignItems:"center"}}>
+            <Popover trigger={<Button size="sm" variant="secondary" icon={<Icon name="sliders-horizontal" size={13}/>}>Filters</Button>} width={220}>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <span style={{font:"500 11px var(--font-mono)",letterSpacing:"0.07em",textTransform:"uppercase",color:"var(--text-muted)"}}>Scan filters</span>
+                <Switch checked label="Only open signals"/>
+                <Switch label="Include annotated"/>
+              </div>
+            </Popover>
+            <DropdownMenu trigger={<IconButton icon="ellipsis" label="Actions"/>} items={[
+              {label:"Annotate — accept risk",icon:"pencil"},
+              {label:"Copy asset",icon:"copy"},
+              "-",
+              {label:"Descope seed",icon:"trash-2",tone:"danger"},
+            ]}/>
+          </span>
+        </div>
+        <div style={{border:"1px solid var(--border-default)",borderRadius:16,background:"var(--surface)"}}>
+          <EmptyState style={{padding:"18px 20px"}} message="No seeds yet." detail="Add a domain or CIDR range to start scanning." action={<Button size="sm" icon={<Icon name="plus" size={14}/>}>Add seed</Button>}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+return App;}
+(async()=>{
+  if(window.__loadBundle){try{await window.__loadBundle;}catch(e){}}
+  let NS=null;
+  for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Button&&v.SeverityBadge){NS=v;break;}}catch(e){}}
+  if(!NS&&window.__dsFallback){try{NS=await window.__dsFallback("../../");}catch(e){console.warn(e);}}
+  const root=ReactDOM.createRoot(document.getElementById("root"));
+  if(NS&&NS.Button) root.render(React.createElement(makeApp(NS)));
+  else root.render(React.createElement("div",{style:{font:"400 12px var(--font-mono)",color:"var(--text-muted)",padding:20}},"design-system bundle unavailable"));
+})();
+</script></body></html>
