@@ -1,8 +1,0 @@
-/* Verge ASM — radius tokens. Round by default; pills for chips. */
-:root {
-  --r-sm: 8px;    /* tags, code spans, thumbnails, menu items */
-  --r-md: 12px;   /* buttons, inputs, selects */
-  --r-lg: 16px;   /* cards, tables, panels */
-  --r-xl: 24px;   /* dialogs, marketing panels */
-  --r-full: 999px; /* badges, severity chips, status dots, switches */
-}

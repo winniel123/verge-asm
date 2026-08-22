@@ -64,6 +64,7 @@ func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 		if acct.Role != roleAdmin {
 			s.renderStatus(w, http.StatusForbidden, "forbidden", map[string]any{
 				"Title": "Not permitted", "Message": "You need an admin role to do that.",
+				"IsAdmin": false,
 			})
 			return
 		}
@@ -367,6 +368,15 @@ func (s *server) injectUnread(data any) {
 	}
 	if _, isChrome := m["IsAdmin"]; !isChrome {
 		return
+	}
+	// The shared chrome highlights the active nav pill via {{if eq .NavActive "id"}}.
+	// A missing map key would make `eq` error at render, so every chrome page gets
+	// a default here; a screen handler that passes its own "NavActive" nav id keeps
+	// it. (T0 seam: the nav id is the one field a screen ticket threads into the
+	// shell. The key is "NavActive", not "Active" — the scans view already owns
+	// "Active" for its in-flight list.)
+	if _, has := m["NavActive"]; !has {
+		m["NavActive"] = ""
 	}
 	if _, has := m["Unread"]; has {
 		return

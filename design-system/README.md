@@ -7,10 +7,10 @@ Complete design system for Verge ASM — a free, open-source (AGPL-3.0), self-ho
 Two kinds of material, and the distinction matters:
 
 1. **`tokens/`, `styles.css`, and `components/` are portable source, not just references.** Every component is plain React (function components + hooks) styled with CSS custom properties. No npm dependencies beyond React itself — sibling `import`s only. You can lift these files into the target codebase nearly as-is (see Integration), or treat them as the exact spec while re-implementing on your own primitives. Each component ships three files: `Name.jsx` (implementation), `Name.d.ts` (props contract), `Name.prompt.md` (usage note + example).
-2. **`examples/` are design references.** The console screens (`examples/console/*.jsx`), marketing homepage, and docs page show how the components compose into real screens, with realistic data inline. They were authored in a design workspace — recreate their structure in your app's routing/data layer rather than shipping them verbatim. (Their two HTML preview shells were workspace scaffolding and are not included.)
+2. **`examples/` are the screens themselves — the spec, not inspiration.** The console screens (`examples/console/*.jsx`), marketing homepage, and docs page ARE how the product must look. Port each screen's JSX composition verbatim — same components, same layout, spacing, hierarchy, and copy patterns — swapping only the inline sample data for real data behind the same shapes, and the local `screen` state for your router. Do not recompose or restyle them. `screenshots/` holds captures of every screen as visual ground truth. (Two HTML preview shells were workspace scaffolding and are not included.)
 
 ## Fidelity
-**High-fidelity.** Colors, type, spacing, radii, shadows, motion, and copy are final. Both themes are AA-checked (severity ramp ratios are documented in `docs/DESIGN-NOTES.md`). Recreate pixel-perfectly; where your stack forces a substitution, match the token values.
+**High-fidelity.** Colors, type, spacing, radii, shadows, motion, and copy are final. Both themes are AA-checked (severity ramp ratios are documented in `docs/DESIGN-NOTES.md`). Recreate pixel-perfectly — verify against `screenshots/`; where your stack forces a substitution, match the token values.
 
 ## Dependencies
 - **React 18+** (components use hooks; no class components, no portals required)
@@ -23,7 +23,7 @@ Two kinds of material, and the distinction matters:
 2. Copy `components/` (five folders: `forms/`, `display/`, `feedback/`, `navigation/`, `media/`). Keep the folder structure — imports are relative (`../media/Icon.jsx`). JSX compiles under any standard React build (Vite, Next, CRA); for TypeScript, rename to `.tsx` and fold in the adjacent `.d.ts` types.
 3. Swap `Icon.jsx` to `lucide-react` (step above) and self-host fonts.
 4. **Dark mode**: set `data-theme="dark"` on `<html>` (or any subtree root). No JS theme context needed — tokens flip.
-5. Rebuild screens from `examples/` against real routing and data. `examples/console/ConsoleApp.jsx` shows shell wiring: TopNav, org switcher, ⌘K palette, toast stack, theme toggle.
+5. Port the screens: copy each `examples/` screen file into the app, keep its JSX intact, and replace only (a) inline sample data with real data of the same shape, and (b) the `screen` switch in `ConsoleApp.jsx` with your router. `ConsoleApp.jsx` is the shell spec: TopNav, org switcher, ⌘K palette, toast stack, theme toggle. After each screen, compare against its capture in `screenshots/` — layout, spacing, and hierarchy should be indistinguishable.
 6. Replace the placeholder `Logo` (pulse glyph) when a real brand mark exists — it is explicitly placeholder-quality.
 
 ## Screens (examples/)
@@ -52,5 +52,6 @@ None bundled — by design. Icons come from Lucide (CDN or `lucide-react`); font
 - `components/forms|display|feedback|navigation|media/` — ~110 components × (`.jsx` + `.d.ts` + `.prompt.md`)
 - `examples/console/` — 11 screen compositions + shell (`ConsoleApp.jsx`) + screen README
 - `examples/Homepage.jsx`, `examples/DocsPage.jsx` — marketing and docs surfaces
+- `screenshots/` — captures of every screen (ground truth; see its README for the index)
 - `docs/DESIGN-NOTES.md` — full design rationale: palette math, severity contrast tables, per-batch component history, production notes
 - `docs/AGENT-GUIDE.md` — compact usage guide written for AI agents working in this system (also a good human quick-start)
