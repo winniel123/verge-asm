@@ -1752,7 +1752,6 @@ func TestDeprecatedRoutesReconciled(t *testing.T) {
 	for _, tc := range []struct {
 		path, want string
 	}{
-		{"/exposure", "/reports"},
 		{"/seeds", "/scope"},
 		{"/subjects", "/inventory"},
 	} {
@@ -1770,8 +1769,10 @@ func TestDeprecatedRoutesReconciled(t *testing.T) {
 	// The viewer-readable folds keep resolving for a viewer — never redirected into
 	// admin-gated Settings, never a 403. /coverage stays as the distinct aperture
 	// artifact; /messages stays viewer-readable as the messages fold (the V3 shell
-	// bell now targets /inbox, T4) for all users.
-	for _, path := range []string{"/messages", "/scans", "/verge-core", "/sources", "/coverage"} {
+	// bell now targets /inbox, T4) for all users. /exposure is now the first-class
+	// Exposure page (#300, repurposed from its #286 redirect); a viewer reads it (its
+	// WITHHELD/board states are covered in exposure_test.go).
+	for _, path := range []string{"/messages", "/scans", "/verge-core", "/sources", "/coverage", "/exposure"} {
 		resp, err := vc.Get(base + path)
 		if err != nil {
 			t.Fatal(err)

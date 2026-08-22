@@ -273,12 +273,12 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
 
-	// Exposure analytics folded into /reports (#286, #285): the exposure board is
-	// part of the canonical Reports period view, so the old landing GET is a
-	// permanent redirect there. (The reachability-span wiring behind the Reports
-	// exposure sections is a tracked #285 gap — see reports.go — but /reports is
-	// the canonical home regardless, so the route reconciliation points here.)
-	mux.HandleFunc("GET /exposure", s.requireLogin(s.redirectTo("/reports", http.StatusMovedPermanently)))
+	// The Exposure page (#300, T5, ADR-0110): `/exposure` is repurposed from the
+	// #286 redirect-to-/reports into the first-class Exposure screen — the both-legs
+	// table plus the WITHHELD state that names its cause when no internet vantage
+	// exists. Reports still folds the period analytics; this is the dedicated
+	// exposure board. Viewer-readable: a viewer reads the board, mutates nothing.
+	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
 	mux.HandleFunc("GET /reports", s.requireLogin(s.reportsPage))
 	// The delivered-report artifact (#298, T3): the stable view of an already-
 	// delivered report, reached from Reports' "view last delivery" (T17 links here,
