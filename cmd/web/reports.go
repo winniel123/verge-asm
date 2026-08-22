@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
@@ -173,4 +174,35 @@ func pluralScans(n int) string {
 		return "1 scan"
 	}
 	return strconv.Itoa(n) + " scans"
+}
+
+// reportDeliveryPage renders an already-delivered report artifact — the stable
+// `/reports/delivery` view Reports' "view last delivery" links to (T17). The
+// delivered document itself is rendered by internal/message's RenderArtifact, the
+// one canonical rendered form that doubles as the PDF / email spec; this handler
+// composes the console chrome around it.
+//
+// There is no report-scheduling or delivery backend yet (#285; #290/#291 populate
+// report content), so no delivered artifact exists to read. Rather than fabricate
+// a document, the handler renders an empty Artifact — RenderArtifact draws the
+// design-system empty-state inside the delivered-document frame — and the header
+// falls back to a generic heading. When #290/#291 land, this handler reads the
+// latest delivery for the account and fills the same Artifact struct with real
+// data of the same shape; the render path does not change.
+func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// No delivery backing store yet — the zero Artifact renders the empty-state.
+	art := message.Artifact{}
+
+	heading := art.Title
+	if heading == "" {
+		heading = "Report delivery"
+	}
+
+	s.render(w, "reportartifact", map[string]any{
+		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "reports",
+		"Heading":   heading,
+		"Period":    message.ArtifactPeriod(art),
+		"Body":      message.RenderArtifact(art),
+	})
 }

@@ -280,6 +280,12 @@ func (s *server) handler() http.Handler {
 	// the canonical home regardless, so the route reconciliation points here.)
 	mux.HandleFunc("GET /exposure", s.requireLogin(s.redirectTo("/reports", http.StatusMovedPermanently)))
 	mux.HandleFunc("GET /reports", s.requireLogin(s.reportsPage))
+	// The delivered-report artifact (#298, T3): the stable view of an already-
+	// delivered report, reached from Reports' "view last delivery" (T17 links here,
+	// so the route stays fixed). A viewer reads it — a delivered report is a record,
+	// not a mutation — and its document body is the canonical render that doubles as
+	// the PDF/email spec (internal/message.RenderArtifact).
+	mux.HandleFunc("GET /reports/delivery", s.requireLogin(s.reportDeliveryPage))
 
 	// The Subjects LIST folded into /inventory (#286): Inventory is the canonical
 	// "what do I have right now" screen and lists every Name/Service/Endpoint, so
