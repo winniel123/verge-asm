@@ -1,7 +1,4 @@
-Square checkbox with ink fill and ✓ glyph.
-
-Square ink checkbox.
-
+Checkbox with optional description line.
 ```jsx
-<Checkbox label="Include subdomains" checked={v} onChange={setV} />
+<Checkbox label="Watch for drift" description="Re-scan every 6h" checked onChange={set} />
 ```

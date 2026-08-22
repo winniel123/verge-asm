@@ -1,15 +1,15 @@
 import * as React from "react";
-/** Modal on hard-offset shadow; ink border; overlay click closes.
- * @startingPoint section="Components" subtitle="Modal with title, body, footer actions" viewport="700x320"
- */
 export interface DialogProps {
   open: boolean;
-  title?: React.ReactNode;
-  /** Footer action row (right-aligned Buttons: secondary then primary). */
+  title: string;
+  /** Secondary line under the title */
+  description?: string;
+  /** Right-aligned action row, e.g. <><Button variant="ghost">Cancel</Button><Button>Add seed</Button></> */
   footer?: React.ReactNode;
+  /** Scrim click, Escape, and the close control all call this */
   onClose?: () => void;
-  /** Panel width px. @default 440 */
+  /** Panel width in px. Default 480 */
   width?: number;
   children?: React.ReactNode;
 }
-export declare function Dialog(props: DialogProps): React.ReactElement | null;
+export function Dialog(props: DialogProps): JSX.Element | null;

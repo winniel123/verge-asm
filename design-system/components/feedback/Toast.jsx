@@ -1,18 +1,26 @@
 import React from "react";
+import { IconButton } from "../forms/IconButton.jsx";
 
-const TONES = { ok: "var(--ok)", warn: "var(--warn)", danger: "var(--danger)", neutral: "var(--text-faint)", accent: "var(--accent)" };
+const TONES = { neutral: "var(--neutral-400)", ok: "var(--ok-solid)", warn: "var(--warn-solid)", danger: "var(--danger-solid)" };
 
-export function Toast({ tone = "neutral", title, detail, onDismiss, style }) {
+export function Toast({ title, description, tone = "neutral", action, onDismiss, floating, style }) {
+  const [leaving, setLeaving] = React.useState(false);
+  const dismiss = () => {
+    if (leaving) return;
+    setLeaving(true);
+    setTimeout(() => onDismiss && onDismiss(), 240);
+  };
+  const anim = leaving ? "vg-toast-out var(--dur-base) var(--ease-out) forwards" : "vg-toast-in var(--dur-slow) var(--ease-out)";
+  const pos = floating ? { position: "fixed", right: 24, bottom: 24, zIndex: 110, animation: anim } : { animation: leaving ? anim : "none" };
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, width: 360, maxWidth: "100%", background: "var(--surface)", border: "1px solid var(--border-ink)", boxShadow: "var(--shadow-hard-sm)", padding: "11px 12px", boxSizing: "border-box", ...style }}>
-      <span style={{ width: 8, height: 8, borderRadius: "50%", background: TONES[tone], flex: "none", marginTop: 5 }} />
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ font: "600 13px/1.35 var(--font-sans)", color: "var(--ink)" }}>{title}</div>
-        {detail && <div style={{ font: "400 12px/1.45 var(--font-sans)", color: "var(--text-muted)", marginTop: 2 }}>{detail}</div>}
+    <div role="status" style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 300, maxWidth: 420, padding: "12px 14px", background: "var(--surface-raised)", border: "1px solid var(--border-default)", borderRadius: 16, boxShadow: "var(--shadow-md)", fontFamily: "var(--font-ui)", ...pos, ...style }}>
+      <span style={{ width: 8, height: 8, borderRadius: 999, background: TONES[tone] || TONES.neutral, flex: "none", marginTop: 5 }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+        <span style={{ font: "600 13px var(--font-ui)", color: "var(--text-ink)" }}>{title}</span>
+        {description && <span style={{ font: "400 12.5px/1.45 var(--font-ui)", color: "var(--text-secondary)" }}>{description}</span>}
+        {action && <span style={{ marginTop: 6 }}>{action}</span>}
       </div>
-      {onDismiss && (
-        <button onClick={onDismiss} aria-label="Dismiss" style={{ border: "none", background: "transparent", cursor: "pointer", font: "400 12px var(--font-mono)", color: "var(--text-muted)", padding: 2, flex: "none" }}>✕</button>
-      )}
+      {onDismiss && <IconButton icon="x" label="Dismiss" size="sm" onClick={dismiss} style={{ flex: "none", margin: "-2px -4px 0 0" }} />}
     </div>
   );
 }

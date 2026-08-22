@@ -1,0 +1,44 @@
+<!-- @dsCard group="Components" viewport="700x128" name="Icon & Logo" subtitle="Lucide icons + the pulse-glyph brand mark" -->
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<script>Babel.registerPreset("react-classic",{presets:[[Babel.availablePresets.react,{runtime:"classic"}]]});</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>window.__loadBundle=fetch("../../_ds_bundle.js").then(function(r){if(!r.ok)return;return r.text().then(function(t){(new Function(t))();});}).catch(function(){});</script>
+<script src="../../assets/ds-fallback-loader.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;padding:14px;background:var(--bg-page)}</style>
+</head><body><div id="root"><div style="font:400 12px 'Geist Mono',monospace;color:#79746d;padding:20px">loading design system…</div></div>
+<script type="text/babel" data-presets="react-classic">
+const NS=(()=>{for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Icon&&v.Button)return v;}catch(e){}}return {};})();
+
+const { Icon, Logo } = NS;
+function App(){
+  const vocab=[["radar","scans"],["globe","domains"],["server","services"],["shield-alert","signals"],["network","graph"],["file-text","reports"],["git-branch","drift"],["search","find"],["plus","add"],["settings","config"]];
+  return (
+    <div style={{display:"flex",gap:18,alignItems:"flex-start"}}>
+      <div style={{display:"flex",flexDirection:"column",gap:8,paddingRight:18,borderRight:"1px solid var(--row-sep)"}}>
+        <Logo size={18} wordmarkSize={16}/>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}><Logo withWordmark={false} tile size={17}/><Logo withWordmark={false} size={18}/></div>
+      </div>
+      {vocab.map(([n,l])=>(
+        <div key={n} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:7,color:"var(--text-body)"}}>
+          <Icon name={n} size={18}/>
+          <span style={{font:"400 10px var(--font-mono)",color:"var(--text-muted)"}}>{l}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+return App;}
+(async()=>{
+  if(window.__loadBundle){try{await window.__loadBundle;}catch(e){}}
+  let NS=null;
+  for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Icon&&v.Button){NS=v;break;}}catch(e){}}
+  if(!NS&&window.__dsFallback){try{NS=await window.__dsFallback("../../");}catch(e){console.warn(e);}}
+  const root=ReactDOM.createRoot(document.getElementById("root"));
+  if(NS&&NS.Icon) root.render(React.createElement(makeApp(NS)));
+  else root.render(React.createElement("div",{style:{font:"400 12px var(--font-mono)",color:"var(--text-muted)",padding:20}},"design-system bundle unavailable"));
+})();
+</script></body></html>

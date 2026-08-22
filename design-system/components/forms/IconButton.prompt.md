@@ -1,8 +1,5 @@
-Square icon-only button for toolbars and table row actions.
-
-Square icon-only button for toolbars and row actions. `label` is required (a11y + tooltip).
-
+Square icon-only button for toolbars and chrome; always pass a label.
 ```jsx
-<IconButton label="Download CSV"><DownloadIcon/></IconButton>
-<IconButton variant="secondary" label="Close" size="sm">✕</IconButton>
+<IconButton icon="settings" label="Settings" />
 ```
+Variants ghost | secondary | primary.

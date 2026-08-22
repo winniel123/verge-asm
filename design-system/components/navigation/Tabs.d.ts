@@ -1,11 +1,9 @@
 import * as React from "react";
-/** Underline tabs: 2px accent under the active item. */
+export interface TabItem { id: string; label: string; count?: number; }
 export interface TabsProps {
-  /** Tab labels, sentence case. */
-  items: string[];
-  /** Active label (controlled). */
-  value?: string;
-  onChange?: (label: string, index: number) => void;
+  tabs: TabItem[];
+  active?: string;
+  onChange?: (id: string) => void;
   style?: React.CSSProperties;
 }
-export declare function Tabs(props: TabsProps): React.ReactElement;
+export function Tabs(props: TabsProps): JSX.Element;

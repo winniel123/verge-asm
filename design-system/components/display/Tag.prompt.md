@@ -1,6 +1,4 @@
-Filter chip for facets (ports, techs, tags); toggle with `active`, remove with `onRemove`.
-
+Mono technical label chip (service names, tech fingerprint labels, filters).
 ```jsx
-<Tag active onClick={toggle}>port:443</Tag>
-<Tag onRemove={clear}>env:prod</Tag>
+<Tag>nginx/1.25</Tag> <Tag onRemove={fn}>sev:high</Tag>
 ```

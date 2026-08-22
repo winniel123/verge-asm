@@ -1,5 +1,4 @@
-Underline tabs for detail views.
-
+Underline tabs with optional mono counts.
 ```jsx
-<Tabs items={["Overview","Services","Findings","History"]} value={tab} onChange={setTab} />
+<Tabs tabs={[{id:"open",label:"Open",count:47},{id:"resolved",label:"Resolved"}]} active="open" onChange={set} />
 ```

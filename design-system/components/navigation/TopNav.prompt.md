@@ -1,8 +1,4 @@
-The app header: wordmark, section links (active = 2px accent underline), live status, right actions. Sits on a 2px ink rule.
-
+Console chrome — pulse-glyph wordmark, OrgSwitcher, pill nav, scan status, inbox popover (messages prop), version + GitHub; the Avatar opens the account menu where Settings lives (never a nav pill).
 ```jsx
-<TopNav
-  items={[{label:"Dashboard",active:true},{label:"Inventory"},{label:"Findings"},{label:"Graph"},{label:"Reports"}]}
-  status={<StatusDot pulse label="scan running" />}
-  right={<Button size="sm">+ New scan</Button>} />
+<TopNav active="signals" items={[...]} scanRunning onNavigate={go} onToggleTheme={toggle} dark={dark} />
 ```

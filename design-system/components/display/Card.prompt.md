@@ -1,9 +1,5 @@
-Flat white panel — the container for dashboard modules and detail sections.
-
+Surface card — white, 1px hairline, r16, soft shadow; header = micro-label + title + actions.
 ```jsx
-<Card eyebrow="Latest findings" action={<a href="#">View all →</a>} pad={false}>
-  <Table columns={cols} rows={rows} />
-</Card>
+<Card microLabel="Open signals" title="By severity" action={<IconButton icon="ellipsis" label="More" />}>…</Card>
 ```
-
-`emphasized` swaps the hairline for a 1px ink outline — at most one per screen. Set `pad={false}` for flush Tables.
+Set pad={0} for flush tables inside.

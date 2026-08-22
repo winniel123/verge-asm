@@ -1,27 +1,15 @@
 import React from "react";
 
-export function Tag({ active, onRemove, onClick, style, children }) {
-  const [hover, setHover] = React.useState(false);
+export function Tag({ children, onRemove, style }) {
+  const [hov, setHov] = React.useState(false);
   return (
-    <span
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 8px",
-        font: "500 12px/1.2 var(--font-sans)", whiteSpace: "nowrap",
-        border: `1px solid ${active ? "var(--border-ink)" : "var(--border)"}`,
-        background: active ? "var(--ink)" : hover && (onClick || onRemove) ? "var(--surface-sunken)" : "var(--surface)",
-        color: active ? "var(--text-on-ink)" : "var(--text)",
-        cursor: onClick ? "pointer" : "default",
-        transition: "background var(--duration) var(--ease)",
-        ...style,
-      }}
-    >
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 22, padding: "0 8px", borderRadius: 8, background: "var(--surface-sunken)", border: "1px solid var(--border-default)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 11.5, whiteSpace: "nowrap", ...style }}>
       {children}
       {onRemove && (
-        <span role="button" aria-label="Remove" onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          style={{ cursor: "pointer", font: "400 11px var(--font-mono)", color: active ? "var(--text-on-ink)" : "var(--text-muted)", lineHeight: 1 }}>✕</span>
+        <button type="button" aria-label="Remove" onClick={onRemove} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, border: "none", borderRadius: 999, background: hov ? "var(--border-strong)" : "transparent", color: "var(--text-muted)", cursor: "pointer", padding: 0 }}>
+          <svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path></svg>
+        </button>
       )}
     </span>
   );

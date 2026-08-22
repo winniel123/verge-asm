@@ -1,13 +1,16 @@
 import * as React from "react";
-/** Square icon-only button. */
-export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** ghost=borderless (default), secondary=ink outline. @default "ghost" */
-  variant?: "ghost" | "secondary";
-  /** Square side: sm=26, md=32, lg=40. @default "md" */
-  size?: "sm" | "md" | "lg";
-  /** Accessible name; also the title tooltip. Required. */
+export interface IconButtonProps {
+  /** Lucide icon name */
+  icon: string;
+  /** Accessible label (required — becomes aria-label + title) */
   label: string;
-  /** The icon (16px Lucide SVG or unicode glyph). */
-  children?: React.ReactNode;
+  variant?: "ghost" | "secondary" | "primary";
+  /** sm 26 / md 32 / lg 36. Default "md" */
+  size?: "sm" | "md" | "lg";
+  /** Keeps the hover treatment on (e.g. open menu) */
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+  style?: React.CSSProperties;
 }
-export declare function IconButton(props: IconButtonProps): React.ReactElement;
+export function IconButton(props: IconButtonProps): JSX.Element;

@@ -1,12 +1,13 @@
 import * as React from "react";
-/** Dashed-border empty state: fact + next action. */
 export interface EmptyStateProps {
+  /** Lucide name. Default "radar" */
+  icon?: string;
   /** The fact: "No targets yet." */
-  title: React.ReactNode;
-  /** The next action, plainly: "Add a domain or CIDR range to start scanning." */
-  detail?: React.ReactNode;
-  /** Usually one primary Button. */
+  message: string;
+  /** The next action, as prose: "Add a domain or CIDR range to start scanning." */
+  detail?: string;
+  /** Usually one primary or secondary Button */
   action?: React.ReactNode;
   style?: React.CSSProperties;
 }
-export declare function EmptyState(props: EmptyStateProps): React.ReactElement;
+export function EmptyState(props: EmptyStateProps): JSX.Element;

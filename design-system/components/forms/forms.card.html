@@ -1,48 +1,59 @@
-<!-- @dsCard group="Components" viewport="700x400" subtitle="Button, IconButton, Input, Select, Checkbox, Radio, Switch" name="Forms" -->
-<!DOCTYPE html><html><head>
+<!-- @dsCard group="Components" viewport="700x372" name="Forms" subtitle="Button, IconButton, Input, Select, Checkbox, Radio, Switch" -->
+<!DOCTYPE html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="../../styles.css">
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="../../components/dev-loader.js" data-base="../../"></script>
-<style>body{padding:16px 20px}.lab{font:600 10px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:16px 0 8px}.lab:first-child{margin-top:0}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}</style>
-</head><body><div id="root"></div>
-<script type="text/jsx-run">
-const NS=(()=>{for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Button&&v.Checkbox)return v}catch(e){}}return {}})();
-const {Button,IconButton,Input,Select,Checkbox,Radio,Switch}=NS;
-function Demo(){
-  const [ck,setCk]=React.useState(true);
-  const [r,setR]=React.useState("daily");
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<script>Babel.registerPreset("react-classic",{presets:[[Babel.availablePresets.react,{runtime:"classic"}]]});</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>window.__loadBundle=fetch("../../_ds_bundle.js").then(function(r){if(!r.ok)return;return r.text().then(function(t){(new Function(t))();});}).catch(function(){});</script>
+<script src="../../assets/ds-fallback-loader.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;padding:14px;background:var(--bg-page)}</style>
+</head><body><div id="root"><div style="font:400 12px 'Geist Mono',monospace;color:#79746d;padding:20px">loading design system…</div></div>
+<script type="text/babel" data-presets="react-classic">
+function makeApp(NS){
+
+const { Button, IconButton, Input, Select, Checkbox, Radio, Switch, Icon } = NS;
+function App(){
+  const [chk,setChk]=React.useState(true);
+  const [r,setR]=React.useState("all");
   const [sw,setSw]=React.useState(true);
-  return <div>
-    <div className="lab">Buttons</div>
-    <div className="row">
-      <Button>Run scan</Button>
-      <Button variant="secondary">Add target</Button>
-      <Button variant="ghost">Cancel</Button>
-      <Button variant="danger">Delete</Button>
-      <Button disabled>Run scan</Button>
-      <Button size="sm" variant="secondary">Export CSV</Button>
-      <IconButton label="Refresh" variant="secondary">⟳</IconButton>
-      <IconButton label="Download">↓</IconButton>
-      <IconButton label="Close" size="sm">✕</IconButton>
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <Button icon={<Icon name="play" size={14}/>}>Run scan</Button>
+        <Button variant="secondary">Export CSV</Button>
+        <Button variant="ghost">Cancel</Button>
+        <Button variant="danger">Descope seed</Button>
+        <Button disabled>Run scan</Button>
+        <Button size="sm" variant="secondary">Compact</Button>
+        <IconButton icon="settings" label="Settings"/>
+        <IconButton icon="refresh-cw" label="Refresh" variant="secondary"/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1.2fr 1.2fr 1fr",gap:12}}>
+        <Input label="Seed" mono placeholder="acmecorp.io or 203.0.113.0/24" hint="Domain or CIDR range" prefix={<Icon name="globe" size={14}/>}/>
+        <Input label="Channel URL" mono defaultValue="htp://ops.example" error="Enter a valid https URL"/>
+        <Select label="Severity" options={["All severities","Critical","High","Medium","Low","Info"]}/>
+      </div>
+      <div style={{display:"flex",gap:28,alignItems:"flex-start"}}>
+        <Checkbox label="Watch for drift" description="Re-scan every 6h" checked={chk} onChange={setChk}/>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <Radio name="scope" label="All seeds" checked={r==="all"} onChange={()=>setR("all")}/>
+          <Radio name="scope" label="This org only" checked={r==="org"} onChange={()=>setR("org")}/>
+        </div>
+        <Switch checked={sw} onChange={setSw} label="Passive discovery"/>
+      </div>
     </div>
-    <div className="lab">Text fields</div>
-    <div className="row" style={{alignItems:"flex-start"}}>
-      <Input label="Target" mono placeholder="acmecorp.io or 203.0.113.0/24" hint="Domain, IP, or CIDR range" style={{width:240}}/>
-      <Input label="Name" defaultValue="acme-prod" error="A target with this name exists" style={{width:190}}/>
-      <Select label="Severity" options={["All","Critical","High","Medium","Low","Info"]} style={{width:150}}/>
-    </div>
-    <div className="lab">Selection controls</div>
-    <div className="row" style={{gap:20}}>
-      <Checkbox label="Include subdomains" checked={ck} onChange={setCk}/>
-      <Checkbox label="Passive only" checked={false} onChange={()=>{}}/>
-      <Radio name="f" value="daily" label="Daily" checked={r==="daily"} onChange={setR}/>
-      <Radio name="f" value="weekly" label="Weekly" checked={r==="weekly"} onChange={setR}/>
-      <Switch label="Notify on critical" checked={sw} onChange={setSw}/>
-    </div>
-  </div>;
+  );
 }
-ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
-</script>
-<script>__runJsxTags();</script></body></html>
+return App;}
+(async()=>{
+  if(window.__loadBundle){try{await window.__loadBundle;}catch(e){}}
+  let NS=null;
+  for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Button&&v.SeverityBadge){NS=v;break;}}catch(e){}}
+  if(!NS&&window.__dsFallback){try{NS=await window.__dsFallback("../../");}catch(e){console.warn(e);}}
+  const root=ReactDOM.createRoot(document.getElementById("root"));
+  if(NS&&NS.Button) root.render(React.createElement(makeApp(NS)));
+  else root.render(React.createElement("div",{style:{font:"400 12px var(--font-mono)",color:"var(--text-muted)",padding:20}},"design-system bundle unavailable"));
+})();
+</script></body></html>

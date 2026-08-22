@@ -1,7 +1,4 @@
-Dashed-border empty state. Copy pattern: fact, then next action.
-
+Empty state = fact + next action, nothing breathless.
 ```jsx
-<EmptyState title="No targets yet."
-  detail="Add a domain or CIDR range to start scanning."
-  action={<Button>Add target</Button>} />
+<EmptyState message="No seeds yet." detail="Add a domain or CIDR range to start scanning." action={<Button icon={<Icon name="plus" size={14}/>}>Add seed</Button>} />
 ```

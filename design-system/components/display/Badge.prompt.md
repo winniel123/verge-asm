@@ -1,9 +1,5 @@
-Mono uppercase chip for statuses that aren't finding severities.
-
+General status pill (NOT for severity — use SeverityBadge).
 ```jsx
-<Badge tone="ok">Active</Badge>
-<Badge tone="warn">Expiring</Badge>
-<Badge solid>New</Badge>
+<Badge tone="ok" dot>resolved</Badge>
 ```
-
-For Critical/High/Medium/Low/Info always use SeverityBadge instead.
+Tones: neutral | accent | ok | warn | danger.

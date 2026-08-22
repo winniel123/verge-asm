@@ -1,32 +1,50 @@
 import * as React from "react";
-/** The workhorse: dense data table with mono head rule and row states.
- * @startingPoint section="Components" subtitle="Dense data table with severity rows" viewport="700x280"
- */
-export interface TableColumn<Row = any> {
+export interface TableColumn {
   key: string;
-  /** Header text (renders as mono micro-label). */
-  label?: React.ReactNode;
+  label: string;
   width?: number | string;
   align?: "left" | "right" | "center";
-  /** Mono 12px cells — hosts, IPs, timestamps. */
+  /** Geist Mono cell — REQUIRED for technical values */
   mono?: boolean;
-  /** Muted text color. */
-  muted?: boolean;
-  nowrap?: boolean;
-  /** Custom cell renderer; wins over row[key]. */
-  render?: (row: Row) => React.ReactNode;
+  /** Custom cell renderer */
+  render?: (row: any, index: number) => React.ReactNode;
+  /** false = no overflow clipping on this cell — required for floating children like DropdownMenu */
+  clip?: boolean;
+  /** Header click cycles asc \u2192 desc \u2192 off */
+  sortable?: boolean;
+  /** Custom sort accessor (e.g. severity rank, parsed relative time) */
+  sortValue?: (row: any) => any;
 }
-export interface TableProps<Row = any> {
-  columns: TableColumn<Row>[];
-  rows: Row[];
-  /** Field used as React key + selection identity. @default "id" */
-  rowKey?: string;
-  /** Makes rows hoverable/clickable. */
-  onRowClick?: (row: Row) => void;
-  /** Row key with accent-soft fill + inset accent bar. */
-  selectedKey?: string | number;
-  /** 6px row padding instead of 9. @default false */
+/** @startingPoint section="Components" subtitle="Dense data table with micro-label heads" viewport="700x260" */
+export interface TableProps {
+  columns: TableColumn[];
+  rows: any[];
+  /** Single-row highlight + accent bar (detail-open state) */
+  selectedIndex?: number;
+  /** Fired on row right-click (default prevented) — pair with a controlled ContextMenu */
+  onRowContextMenu?: (row: any, index: number, event: React.MouseEvent) => void;
+  onRowClick?: (row: any, index: number) => void;
+  /** 7px row padding instead of 10px */
+  /** Legacy alias for density="compact" */
   dense?: boolean;
+  /** Row density; "compact" tightens padding */
+  density?: "comfortable" | "compact";
+  /** Window rendering to visible rows (requires maxHeight + fixed rowHeight) */
+  virtual?: boolean;
+  /** Fixed row height px when virtual. Default 37 */
+  rowHeight?: number;
+  /** Wrap in card frame (default true) */
+  framed?: boolean;
+  /** Property to use as React key — required for selection */
+  rowKey?: string;
+  /** Checkbox column with header select-all; shift-click selects ranges */
+  selectable?: boolean;
+  selectedKeys?: string[];
+  onSelectionChange?: (keys: string[]) => void;
+  /** Initial sort, e.g. { key: "sev", dir: "asc" } */
+  initialSort?: { key: string; dir: "asc" | "desc" };
+  /** Scrollable body with sticky header */
+  maxHeight?: number | string;
   style?: React.CSSProperties;
 }
-export declare function Table(props: TableProps): React.ReactElement;
+export function Table(props: TableProps): JSX.Element;
