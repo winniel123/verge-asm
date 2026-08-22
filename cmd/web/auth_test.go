@@ -216,6 +216,32 @@ func TestLoginAndSession(t *testing.T) {
 	}
 }
 
+// The sign-in page renders the ported composition: the credentials card and the
+// SSO affordance. This build configures no identity provider, so the affordance
+// is the design-system disabled/empty state — never a fabricated provider.
+func TestSignInPageComposition(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+
+	resp, err := http.Get(base + "/login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := body(t, resp)
+	for _, want := range []string{"Sign in", "Single sign-on not configured", "verge users reset-password"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("login page missing %q; body: %s", want, got)
+		}
+	}
+	// No fabricated identity provider leaks onto the page.
+	for _, forbidden := range []string{"Okta", "Continue with"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("login page fabricated an IdP (%q); body: %s", forbidden, got)
+		}
+	}
+}
+
 func TestHomeRequiresLogin(t *testing.T) {
 	base := start(t, newFakeStore(), "")
 	c := newClient(t)
@@ -351,7 +377,7 @@ func TestTOTPEnableThenRequiredAtLogin(t *testing.T) {
 	// step and no session cookie.
 	c := newClient(t)
 	resp = postForm(t, c, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}})
-	if got := body(t, resp); !strings.Contains(got, "Enter your code") {
+	if got := body(t, resp); !strings.Contains(got, "Two-factor check") {
 		t.Fatalf("password login did not demand TOTP; body: %s", got)
 	}
 	if hasCookie(c, base, sessionCookie) {
