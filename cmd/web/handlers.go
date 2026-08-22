@@ -266,6 +266,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /annotations", s.requireAdmin(s.declareAnnotation))
 	mux.HandleFunc("POST /annotations/withdraw", s.requireAdmin(s.withdrawAnnotation))
 
+	mux.HandleFunc("GET /graph", s.requireLogin(s.graphPage))
+
 	// Registry proposer lookups and the confirm/decline of the Proposals they
 	// yield are admin acts (v1 spec §4.3): confirming opens the probing gate on
 	// address space, declining is a boundary claim. A viewer reads the pending
