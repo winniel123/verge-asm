@@ -6,42 +6,65 @@ user-invocable: true
 
 # Verge ASM design system
 
-The system lives at **`design-system/`** in the repo root, not in this skill directory. This file is the entry point; `design-system/readme.md` is the full specification. Read it before doing anything non-trivial.
+The system lives at **`design-system/`** in the repo root, not in this skill directory. This file is the entry point; `design-system/README.md` is the full handoff and `design-system/docs/AGENT-GUIDE.md` is the compact usage guide. Read those before doing anything non-trivial.
+
+The old "engineered paper" datasheet look has been retired to `design-system-legacy/` (frozen — styles + tokens only). Do **not** pull colours, type, or geometry from there; everything below is the current system.
 
 ## Design idea
 
-**Engineered paper.** An instrument, not a brochure: warm paper background, near-black ink, flat surfaces, 1px hairlines, sharp corners, one working blue. It should read like a well-set datasheet — dense, legible, completely unflashy. Severity colour is the loudest thing on any screen, on purpose.
+**A calm instrument.** Clean, friendly, modern security SaaS you can watch all day — rounder, softer, roomier, more colourful than the old datasheet, while keeping the terse engineer voice, always-mono technical values, and an unmistakable five-level severity scale. Soft warm-stone surfaces, one confident azure for action, layered soft elevation. Severity is the only loud voice in the room, on purpose.
 
 ## Key facts
 
-- **Colour**: warm paper `#f7f7f4`, near-black ink `#16160f`, white working surfaces, one accent blue `#2d4fd4`. Severity scale: critical `#c92a2a` / high `#e8590c` / medium `#ffd43b` (+ ink text) / low `#1971c2` / info `#868e96`.
-- **Type**: Helvetica stack for UI and prose; **IBM Plex Mono for every technical value** — hostnames, addresses, ports, fingerprints, versions, counts, timestamps. Base 13px/1.55. Signature motif is the **micro-label**: 10px mono semibold uppercase, 0.06em tracking.
-- **Geometry**: 4px grid, **0px radius everywhere** (only status dots are circles), hairline rules `#d8d8d0`, **2px ink rules** for structure (under the app header, under table header rows).
-- **Elevation**: no soft shadows. Floating layers get a **hard offset shadow** `6px 6px 0 rgba(22,22,15,.1)` (3px for small layers) plus a 1px ink border. Everything else is flat.
-- **No** gradients, textures, photos, blur, transparency effects, or bouncy motion. Motion is functional: 120ms background/opacity, 240ms dialog fade. The one ambient animation is `verge-pulse` on live status dots.
-- **Voice**: terse sentence case, imperative actions (`Run scan`, `Export CSV`), address the user as "you", never "we". **No emoji, no exclamation marks.** Empty states are fact + next action.
-- **Wordmark**: typed — `Verge` (sans, bold) + an `ASM` mono chip. There is **no drawn logo; never invent one.**
-- **Icons**: Lucide via CDN — a flagged substitution, not a shipped set. Unicode glyphs (`→ ★ ✓ ▾ ✕ ● ↑ ↓`) are idiomatic.
+- **Colour** — warm-stone neutrals (light page `#f9f7f5` / ink `#231f19`; dark page `#15120f`, surfaces `#1e1b17` / `#282520`). One action **azure `#037ac0`** (dark mode `#6bbeff` on `#063352`) with hover / active / soft steps. Semantic **ok / warn / danger** each have text, solid, soft, and border tokens. Backgrounds are flat colour — no gradients, textures, or imagery in the console.
+  - **Severity ramp** (its own five-level scale, AA in both modes). Light: Critical white on `#bf3631` · High `#a04400` on `#ffe9d6` · Medium `#8d5600` on `#ffeecc` · Low `#00728b` on `#d7f7ff` · Info `#536579` on `#ebf2f9`. Dark: Critical white on `#c44039` · High `#eba57b` on `#352414` · Medium `#d7b16a` on `#322713` · Low `#62c8df` on `#192c2e` · Info `#a9b3bf` on `#23272c`. Critical is the **only solid fill and the only pill-red**; High→Info are tinted pills with a solid dot, fading to stay ordinal. Use `SeverityBadge`.
+  - **Drift palette** (change is a separate language): `--drift-gain-*` violet · `--drift-change-*` magenta · `--drift-loss-*` slate — AA-tuned, both modes. Carries `appeared / revealed / withdrawn / descoped / returned / changed` as **rounded-rect** chips (`ChangeBadge`). Never the severity ramp.
+  - **Coverage + staleness**: `CoverageMeter` / `GapBadge` denominator + census reads; bronze `--stale-*` currency states (`StalenessBadge`). Chart series `--chart-1..4`. None of these reuse severity or drift colour.
+- **Type** — **Instrument Sans** for UI + prose (headings semibold, −0.015em tracking); **Geist Mono** for *every* technical value, KPI numerals (28px semibold), and the micro-label. Base UI **13px** / 1.5; docs prose 15–16px. Fonts load via `@import` at the top of `tokens/typography.css` (self-host woff2 for production). Signature motif is the **micro-label**: 11px mono, medium, uppercase, 0.07em tracking, `--text-muted` (`OPEN SIGNALS`).
+- **Geometry** — a real radius scale: **8** tags/code → **12** controls → **16** cards/tables → **24** dialogs → **pills** for chips. 4px spacing grid; 36px controls (30 compact, 44 marketing); cards pad 20px, pages 32px; tables dense (rows 10px/16px, 8px dense). Console maxes at 1440px, prose at 760px. Hairlines (`--border-default`) still do quiet work, but cards **lift with shadow instead of outlining with ink** — the old 2px structural ink rules are gone.
+- **Elevation** — four **soft layered shadows** (`xs` flat controls → `sm` cards → `md` menus/popovers → `lg` dialogs). No hard offset shadows anywhere. Cards: `--surface` fill, 1px `--border-default`, `--r-lg`, `--shadow-sm`, 20px pad; emphasis via the micro-label header row, not heavier borders.
+- **States & motion** — focus is a rounded 2px accent ring offset by 2px of surface (`box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring)`), `:focus-visible` only. Selected row: `--row-selected` fill + 3px rounded accent bar on the left. Motion is functional and quick: 120ms hovers, 180ms control states, 280ms floating layers (`vg-pop-in`, 6px rise + 0.985 scale); toasts `vg-toast-in`. The one ambient animation is the scan-running pulse (`vg-pulse`, 1.8s ring). Nothing bounces. `prefers-reduced-motion` collapses all durations to 1ms (already in `tokens/base.css`).
+- **No** gradients, textures, photos, or blur; the only transparency is the dialog scrim (`rgba(21,18,15,0.4)` light / `rgba(0,0,0,0.55)` dark, no blur). Surfaces are always opaque.
+- **Voice** — terse sentence case everywhere (headings, buttons, labels, nav — never Title Case), imperative actions (`Add seed`, `Run scan`, `Export CSV`), address the user as "you", never "we". **No emoji, no exclamation marks.** Relative timestamps (`4m`) with ISO 8601 on hover; deltas signed with a true minus (`−5`). Empty states are fact + next action.
+- **Icons** — **Lucide** via `components/media/Icon.jsx` (1.75px stroke at 16px, `currentColor`). The wrapper renders from the Lucide CDN UMD script; in a bundled app it's a **one-file swap to `lucide-react`** (same names) — every consumer goes through this one wrapper. Vocabulary: `radar` scans, `globe` domains, `server` IPs/services, `shield-alert` signals, `network` graph, `file-text` reports, `git-branch` drift. No emoji, no unicode glyphs as icons.
+- **Logo** — the pulse glyph (`components/media/Logo.jsx`): a signal dot inside two watch rings, accent azure only, rings never animate in chrome. Explicitly **placeholder-quality**; never invent a different mark.
+- **Dark mode** ships — set `data-theme="dark"` on `<html>` or any subtree root; tokens flip, no JS context needed. Warm graphite (not cool slate) keeps the brand temperature.
 
 ## Where things are
 
 | Path | What |
 | --- | --- |
-| `design-system/styles.css` | Global entry — link this, then use the custom properties. Imports all of `tokens/`. |
-| `design-system/tokens/` | `fonts` · `colors` · `typography` · `spacing` · `effects` · `base` |
-| `design-system/components/` | `forms/` · `display/` · `feedback/` · `navigation/` — each `.jsx` has a `.d.ts` contract and a `.prompt.md` usage note |
-| `design-system/guidelines/` | Foundation specimen cards |
-| `design-system/ui_kits/` | `app/` (console) · `website/` (homepage) · `docs/` (docs page) |
-| `design-system/Direction Explorations.dc.html` | The three original directions; `1c` was chosen |
+| `design-system/styles.css` | Global entry — import once at the root; pulls all seven token files. |
+| `design-system/tokens/` | `colors.css` · `typography.css` · `spacing.css` · `radius.css` · `elevation.css` · `motion.css` · `base.css` |
+| `design-system/components/` | `forms/` · `display/` · `feedback/` · `navigation/` · `media/` — each component ships `.jsx` + `.d.ts` contract + `.prompt.md` usage note |
+| `design-system/components/media/Icon.jsx` | The single Lucide wrapper every consumer routes through (one-file swap to `lucide-react`) |
+| `design-system/examples/` | Design references: `console/` (screens + `ConsoleApp.jsx` shell), `Homepage.jsx` (marketing), `DocsPage.jsx` (docs) — recreate their structure against real routing/data, don't ship verbatim |
+| `design-system/examples/console/` | Dashboard · Scope · Inventory · Drift · Signals · GraphView · Reports · Settings · SignIn · Integrations |
+| `design-system/docs/AGENT-GUIDE.md` | Compact usage guide for agents (good human quick-start) |
+| `design-system/docs/DESIGN-NOTES.md` | Full rationale: palette math, severity contrast tables, component history, production notes |
 
 Never hardcode a hex value that a token already names. Reach for `var(--…)`.
 
-## Guardrails specific to this repo
+## Never author a component here
 
-The design system was authored from a product brief written **before** the domain model was settled, so parts of it contradict decisions this repo has since made. The **visual layer is canonical**; the kit's vocabulary and information architecture are **not**.
+> Verge ASM does not author design-system components. All components are created in Claude Design and imported into `design-system/`. When a screen needs a component the system does not have, do not build it here: write a component-request markdown file from `design-system/COMPONENT-REQUEST.md`, and hand it to the user to give to Claude Design. Restyling within existing tokens/components is fine; creating a new component file in this repo is not.
 
-- **`Finding` is a rejected term.** [`CONTEXT.md`](../../../CONTEXT.md) rejects it and uses **`Signal`**. The kit ships a `Findings` nav section, a `Findings.jsx` screen, and a `SeverityBadge`. Keep the component and the severity ramp; **do not put the word "finding" in the interface.**
-- **`Host` and `ScanRun` are also rejected**; `Asset` survives only as a UI collective noun ("847 assets"), never as a modelled thing. The four subjects are `Name`, `Address`, `Service`, `Endpoint`.
-- **Technology fingerprinting is out of scope** — ruled out on drift-integrity grounds. The kit's readme describes the product as fingerprinting what it finds. It does not.
-- **The kit's IA is not a decision.** Its Dashboard-first, findings-centric layout predates the map's thesis that **drift** is the product. There is no drift screen in the kit at all. Treat `ui_kits/app/` as *reference look*, not as the answer to what the screens are or what the landing view is.
-- **`Signal` is derived and versioned, never diffed.** When the rule set changes, the interface must say *your rules changed*, never *your exposure changed* — a distinct visual treatment, not a footnote.
+This is the canonical rule of **ADR-0109** (`docs/adr/0109-design-system-components-are-authored-in-claude-design-and-imported.md`). The `design-system/` component set is governed by a single authoring authority precisely so the system keeps its coherence — one type scale, one severity ramp, one elevation model, light and dark in step. Three clarifications on the boundary:
+
+- **Restyling is not authoring.** Changing how an existing component or an existing template class renders — within the existing token vocabulary — stays in this repo.
+- **Importing is not authoring.** Dropping a component's `.jsx` + `.d.ts` + `.prompt.md` back from Claude Design into `design-system/components/` is the intended flow.
+- **A missing component is a request, not a build.** Fill in `design-system/COMPONENT-REQUEST.md`, hand it to the user for Claude Design, and note the blockage — never hand-roll a new component file here, even "just this once".
+
+## Domain guardrails (the domain term always wins over a visual convention)
+
+The vocabulary is load-bearing and enforced in copy, not just style. The new system already ships **domain-correct** components (`ChangeBadge`, `AnnotationControl`, the Drift and Signals screens) — keep it that way; never regress the interface to a rejected term.
+
+- **`signal`** never *finding*. Signals are **withdrawn by the world** (the world moved), never *resolved* by operators. `WithdrawnMark` / `AnnotationControl` model this; the one operator dial is an annotation (accepted risk + reason), never a mute/status/triage.
+- **`seed` / `scope`** never *target*.
+- **`Name` / `Address` / `Service` / `Endpoint`** are the four subjects — never *host / IP / port / URL* as modelled things. `asset` survives only as a UI collective noun ("847 assets").
+- **`channel`** never *webhook / integration*.
+- **`vantage`** never *probe / scanner / agent*.
+- **`annotation`** never *mute / status / triage*.
+- **No technology fingerprinting** — ruled out on drift-integrity grounds. The product discovers, watches for drift, and raises signals; it does not fingerprint what it finds.
+- **Change vocabulary is its own palette** — `appeared / revealed / withdrawn / descoped / returned / changed` render in the drift palette (violet / magenta / slate) as rounded-rect chips, **never** the severity ramp.
+- **Severity is exactly Critical / High / Medium / Low / Info** — five levels, those exact words, via `SeverityBadge`. Never restyle, rename, extend, or recolour the levels.
