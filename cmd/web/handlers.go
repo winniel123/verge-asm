@@ -364,6 +364,14 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /messages/read", s.requireLogin(s.markMessageRead))
 	mux.HandleFunc("POST /messages/read-all", s.requireLogin(s.markAllMessagesRead))
 
+	// The Inbox (#299, T4, ADR-0110): the V3 primary message surface the shell bell
+	// deep-links to (the /messages fold stays as the viewer-readable mirror). It reads
+	// the same unconditional Message store as /messages, and its read/unread and
+	// mark-all-read acts route through the shared POST /messages/read[-all] handlers
+	// above (each inbox form carries a `return=/inbox` field). A viewer reads it and
+	// may mark read — no admin surface, so nothing here is gated behind requireAdmin.
+	mux.HandleFunc("GET /inbox", s.requireLogin(s.inboxPage))
+
 	// verge-core: a viewer reads the composed set; editing the frequency half is
 	// an admin act (v1 spec §3.5, §4.3). The sensitive half is authored by the
 	// release and has no mutating endpoint at all.
