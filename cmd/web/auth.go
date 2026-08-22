@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/retention"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 const (
@@ -201,14 +204,171 @@ func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// --- home & account management ---------------------------------------------
+// --- home / Dashboard -------------------------------------------------------
 
 func (s *server) home(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
-	s.render(w, "home", homeData(acct, ""))
+	s.render(w, "home", s.dashboardData(r, acct))
+}
+
+// dashVantageView is one provisioned prober shaped for the vantage-health card:
+// its name, verified class and current availability.
+type dashVantageView struct {
+	Name  string
+	Class string
+	Avail string
+}
+
+// dashSignalRow is one rule's current firing census for the open-signal register:
+// the rule name, its subject kind and how many subjects it fires on right now. A
+// signal carries no severity (CONTEXT.md; signals.go), so this row carries none —
+// it is a current-state count, never a scored or timestamped finding.
+type dashSignalRow struct {
+	Rule  string
+	Kind  string
+	Fired int
+}
+
+// dashboardData assembles the Dashboard's real figures of the shape the example
+// composes (KPI band, vantage health, running-scan state, the open-signal
+// register). Every read is best-effort: a failure logs and degrades to an em dash
+// or an empty region rather than 500ing the landing page a viewer depends on, and
+// no figure is fabricated where its datum does not exist.
+func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any {
+	ctx := r.Context()
+
+	// Running-scan state — the existing #245 active-dispatch source: a kind is in
+	// flight when any recent Dispatch still has ready-or-running jobs.
+	active, err := s.activeDispatchKinds(ctx)
+	if err != nil {
+		log.Printf("web: dashboard: active dispatch kinds: %v", err)
+		active = map[string]bool{}
+	}
+
+	// Vantage health — the provisioned probers and their availability — plus the
+	// currently-unreachable set, which carries the "scans continue" banner.
+	var vantages []dashVantageView
+	if rows, verr := s.store.ListVantages(ctx); verr == nil {
+		for _, v := range rows {
+			vantages = append(vantages, dashVantageView{
+				Name: v.Name, Class: v.Class, Avail: v.Availability.String,
+			})
+		}
+	} else {
+		log.Printf("web: dashboard: list vantages: %v", verr)
+	}
+
+	var unavailable []string
+	if rows, uerr := s.store.ListUnavailableVantages(ctx); uerr == nil {
+		for _, v := range rows {
+			unavailable = append(unavailable, v.Name)
+		}
+	} else {
+		log.Printf("web: dashboard: list unavailable vantages: %v", uerr)
+	}
+
+	// Estate-size KPIs — current Name and Service subjects (live-tier gated) and the
+	// declared scopes. Each carries a Has flag so an unavailable read renders "—",
+	// never a fabricated zero.
+	names, hasNames := 0, false
+	if rows, nerr := s.store.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
+		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	}); nerr == nil {
+		names, hasNames = len(rows), true
+	} else {
+		log.Printf("web: dashboard: list name subjects: %v", nerr)
+	}
+
+	services, hasServices := 0, false
+	if rows, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	}); serr == nil {
+		services, hasServices = len(rows), true
+	} else {
+		log.Printf("web: dashboard: list service subjects: %v", serr)
+	}
+
+	nameScopes, addrScopes, hasScopes := 0, 0, false
+	if rows, serr := s.store.ListSeeds(ctx); serr == nil {
+		for _, sd := range rows {
+			if sd.Kind == "address" {
+				addrScopes++
+			} else {
+				nameScopes++
+			}
+		}
+		hasScopes = true
+	} else {
+		log.Printf("web: dashboard: list seeds: %v", serr)
+	}
+
+	// Open signals — the current count of firing signals and the per-rule firing
+	// census. A signal is a current-state census member, so this is the one honest
+	// signal figure: no severity to rank, no per-signal recency feed to list. On a
+	// corpus failure the signal regions degrade to unavailable rather than 500ing.
+	openSignals, hasOpenSignals := 0, false
+	var firing []dashSignalRow
+	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
+		for _, c := range signal.EvaluateCorpus(corpus) {
+			openSignals += len(c.Fired)
+			if len(c.Fired) > 0 {
+				firing = append(firing, dashSignalRow{
+					Rule: c.Rule, Kind: signal.SubjectKindFor(c.Rule), Fired: len(c.Fired),
+				})
+			}
+		}
+		hasOpenSignals = true
+		sort.Slice(firing, func(i, j int) bool {
+			if firing[i].Fired != firing[j].Fired {
+				return firing[i].Fired > firing[j].Fired
+			}
+			return firing[i].Rule < firing[j].Rule
+		})
+	} else {
+		log.Printf("web: dashboard: build signal corpus: %v", cerr)
+	}
+
+	data := map[string]any{
+		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "dashboard",
+		"Scanning":  len(active) > 0,
+
+		"Vantages":    vantages,
+		"Unavailable": unavailable,
+
+		"OpenSignals":    openSignals,
+		"HasOpenSignals": hasOpenSignals,
+		"Firing":         firing,
+
+		"Names":       names,
+		"HasNames":    hasNames,
+		"Services":    services,
+		"HasServices": hasServices,
+		"NameScopes":  nameScopes,
+		"AddrScopes":  addrScopes,
+		"Scopes":      nameScopes + addrScopes,
+		"HasScopes":   hasScopes,
+		"ActiveScans": len(active),
+	}
+	// Light the nav's Signals pill with the live firing count when there is one.
+	if hasOpenSignals && openSignals > 0 {
+		data["SignalCount"] = openSignals
+	}
+	return data
+}
+
+// --- account management -----------------------------------------------------
+
+// accountPage renders the account surface at its temporary `GET /account` home.
+// The account details + admin invite/TOTP form moved off `/` when the Dashboard
+// took the root route (#277); #281 folds this into Settings → access (T10), at
+// which point this handler, its route and the `account` block are removed and
+// `/account` redirects to Settings.
+func (s *server) accountPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	s.render(w, "account", homeData(acct, ""))
 }
 
 func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -230,7 +390,7 @@ func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 	data := homeData(acct, "")
 	data["Notice"] = "Account " + username + " created."
-	s.render(w, "home", data)
+	s.render(w, "account", data)
 }
 
 func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -279,7 +439,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 	fresh.TotpEnabled = true
 	data := homeData(fresh, "")
 	data["Notice"] = "Two-factor is now enabled."
-	s.render(w, "home", data)
+	s.render(w, "account", data)
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -326,15 +486,18 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &e) && e.SQLState() == "23505"
 }
 
+// homeData shapes the account view's data. It carries no NavActive, so the
+// account surface lights no nav pill (injectUnread defaults it to ""). Named for
+// history; it feeds the `account` block until #281 relocates the surface.
 func homeData(acct db.Account, formError string) map[string]any {
 	return map[string]any{
-		"Title": "Verge ASM", "Account": acct,
+		"Title": "Account", "Account": acct,
 		"IsAdmin": acct.Role == roleAdmin, "FormError": formError,
 	}
 }
 
 func (s *server) renderFormError(w http.ResponseWriter, acct db.Account, msg string) {
-	s.renderStatus(w, http.StatusBadRequest, "home", homeData(acct, msg))
+	s.renderStatus(w, http.StatusBadRequest, "account", homeData(acct, msg))
 }
 
 func (s *server) render(w http.ResponseWriter, name string, data any) {

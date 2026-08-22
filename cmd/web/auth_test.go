@@ -191,13 +191,28 @@ func TestLoginAndSession(t *testing.T) {
 		t.Fatal("no session cookie after login")
 	}
 
+	// `/` is now the Dashboard (V2 console map #275, #277): the KPI band and the
+	// open-signal register, with the Dashboard nav pill lit.
 	resp, err := c.Get(base + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dash := body(t, resp)
+	if resp.StatusCode != http.StatusOK ||
+		!strings.Contains(dash, "Open signals") ||
+		!strings.Contains(dash, `class="navpill active" href="/"`) {
+		t.Fatalf("dashboard not shown at /; status=%d body=%s", resp.StatusCode, dash)
+	}
+
+	// The account surface moved off `/` to its temporary /account home (#277):
+	// account details + the admin invite form, until #281 folds it into Settings.
+	resp, err = c.Get(base + "/account")
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := body(t, resp)
 	if resp.StatusCode != http.StatusOK || !strings.Contains(got, "admin") || !strings.Contains(got, "Invite an account") {
-		t.Fatalf("home not shown for admin; status=%d body=%s", resp.StatusCode, got)
+		t.Fatalf("account page not shown for admin; status=%d body=%s", resp.StatusCode, got)
 	}
 }
 
