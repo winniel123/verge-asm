@@ -2,12 +2,13 @@ package main
 
 import "html/template"
 
-// Settings screen — canonical `/settings` (account menu, admin). Folds today's
-// settings (accounts, channels, retention), verge-core, messages, and the scans
-// monitor, plus the shared `forbidden` page. The screen ticket (T-Settings)
-// rewrites the body against examples/console/Settings.jsx (tabbed: scans ·
-// vantages · channels · messages · delivery · access/SSO · integrations). Ported
-// verbatim for T0.
+// Settings screen — canonical `/settings`, ported from examples/console/Settings.jsx
+// as seven query-param sub-tabs (scans · vantages · channels · messages · delivery
+// · access · integrations). It folds today's settings (accounts, channels,
+// retention), the scans monitor, the vantages, the message panel, the verge-core
+// port set, the delivery record, and source enablement, plus the shared
+// `forbidden` page. Each section renders its real data; the shell/CSS are T0's, so
+// this reuses the shared pageCSS classes and adds no second stylesheet.
 var _ = template.Must(tmpl.Parse(settingsTemplates))
 
 const settingsTemplates = `
@@ -27,253 +28,30 @@ const settingsTemplates = `
 <main>
 <div class="microlabel">Operator · settings</div>
 <h1>Settings</h1>
-<p>Your dials: the accounts that may sign in, the channels a message is carried out
-over, and how long each corpus stays readable. Every change here is an admin act.</p>
-
-<div class="microlabel">Accounts</div>
-<div class="section">
-<h2>Accounts</h2>
-{{if .RoleError}}<div class="error">{{.RoleError}}</div>{{end}}
-<table>
-<thead><tr><th>Username</th><th>Role</th><th>Two-factor</th><th>Created</th><th>Role</th></tr></thead>
-<tbody>
-{{range .Accounts}}<tr>
-<td class="mono">{{.Username}}{{if .IsSelf}} <span class="muted">(you)</span>{{end}}</td>
-<td><span class="badge">{{.Role}}</span></td>
-<td>{{if .TotpEnabled}}<span class="badge">on</span>{{else}}<span class="muted">off</span>{{if .IsSelf}}
-<form method="post" action="/account/totp/enable" style="display:inline"><button class="secondary" type="submit">Enable</button></form>{{end}}{{end}}</td>
-<td class="mono">{{.At}}</td>
-<td>
-<form method="post" action="/settings/accounts/role" class="inlineform">
-<input type="hidden" name="id" value="{{.ID}}">
-<select name="role"><option value="admin"{{if eq .Role "admin"}} selected{{end}}>admin</option><option value="viewer"{{if eq .Role "viewer"}} selected{{end}}>viewer</option></select>
-<button class="secondary" type="submit">Save</button>
-</form>
-</td>
-</tr>{{end}}
-</tbody>
-</table>
+<div class="tabs">
+<a class="tab{{if eq .Tab "scans"}} active{{end}}" href="/settings?tab=scans">Scans</a>
+<a class="tab{{if eq .Tab "vantages"}} active{{end}}" href="/settings?tab=vantages">Vantages</a>
+<a class="tab{{if eq .Tab "channels"}} active{{end}}" href="/settings?tab=channels">Channels</a>
+<a class="tab{{if eq .Tab "messages"}} active{{end}}" href="/settings?tab=messages">Messages</a>
+<a class="tab{{if eq .Tab "delivery"}} active{{end}}" href="/settings?tab=delivery">Delivery</a>
+<a class="tab{{if eq .Tab "access"}} active{{end}}" href="/settings?tab=access">Access</a>
+<a class="tab{{if eq .Tab "integrations"}} active{{end}}" href="/settings?tab=integrations">Integrations</a>
 </div>
-
-<div class="section">
-<h2>Invite an account</h2>
-{{if .AcctError}}<div class="error">{{.AcctError}}</div>{{end}}
-<form method="post" action="/settings/accounts">
-<label><span>Username</span><input name="username" value="{{.AcctUsername}}" autocomplete="off" required></label>
-<label><span>Password</span><input name="password" type="password" autocomplete="new-password" required></label>
-<label><span>Role</span><select name="role"><option value="admin"{{if eq .AcctRole "admin"}} selected{{end}}>admin</option><option value="viewer"{{if eq .AcctRole "viewer"}} selected{{end}}>viewer</option></select></label>
-<button type="submit">Create account</button>
-</form>
-</div>
-
-<div class="microlabel">Channels</div>
-<div class="section">
-<h2>Channels</h2>
-<p>A channel is where messages go: an absolute <code>https</code> URL, an optional
-signing secret, and the subset of classes it carries. None ships configured, and a
-channel is one-way — it grants no read of anything. Delivery itself lands later; this
-persists the declaration.</p>
-{{if .ChanError}}<div class="error">{{.ChanError}}</div>{{end}}
-{{if .Channels}}
-<table>
-<thead><tr><th>URL</th><th>Classes</th><th>Secret</th><th>State</th><th>Declared by</th><th></th></tr></thead>
-<tbody>
-{{range .Channels}}<tr>
-<td class="mono">{{.URL}}</td>
-<td>{{if .Drift}}<span class="badge">drift</span> {{end}}{{if .Coverage}}<span class="badge">coverage</span> {{end}}{{if .Clock}}<span class="badge">clock</span>{{end}}</td>
-<td>{{if .HasSecret}}<span class="badge">set</span>{{else}}<span class="muted">not set</span>{{end}}</td>
-<td>{{if .Enabled}}<span class="badge">enabled</span>{{else}}<span class="muted">disabled</span>{{end}}</td>
-<td class="mono">{{.By}}<br><span class="muted">{{.At}}</span></td>
-<td>
-<details class="edit">
-<summary>Edit</summary>
-<div class="section">
-<form method="post" action="/settings/channels/update">
-<input type="hidden" name="id" value="{{.ID}}">
-<label><span>URL</span><input name="url" value="{{.URL}}" autocomplete="off" required></label>
-<div class="classes">
-<label class="check"><input type="checkbox" name="drift"{{if .Drift}} checked{{end}}><span>drift</span></label>
-<label class="check"><input type="checkbox" name="coverage"{{if .Coverage}} checked{{end}}><span>coverage</span></label>
-<label class="check"><input type="checkbox" name="clock"{{if .Clock}} checked{{end}}><span>clock</span></label>
-</div>
-<label class="check"><input type="checkbox" name="enabled"{{if .Enabled}} checked{{end}}><span>enabled</span></label>
-<label><span>Replace secret</span><input name="secret" type="password" autocomplete="off" placeholder="{{if .HasSecret}}set — leave blank to keep{{else}}not set — leave blank for none{{end}}"></label>
-{{if .HasSecret}}<label class="check"><input type="checkbox" name="clear_secret"><span>clear the secret</span></label>{{end}}
-<div class="row" style="margin-top:12px"><button type="submit">Save channel</button></div>
-</form>
-<form method="post" action="/settings/channels/delete" style="margin-top:12px"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Delete channel</button></form>
-</div>
-</details>
-</td>
-</tr>{{end}}
-</tbody>
-</table>
-{{else}}
-<div class="microlabel">No channels declared</div>
-<p>Nothing is configured, so every message is written and rendered in the store and
-carried nowhere else. Declare a channel to have messages POSTed out.</p>
-{{end}}
-</div>
-
-<div class="section">
-<h2>Declare a channel</h2>
-<form method="post" action="/settings/channels">
-<label><span>URL</span><input name="url" value="{{.ChanURL}}" placeholder="https://hooks.example.com/verge" autocomplete="off" required></label>
-<div class="classes">
-<label class="check"><input type="checkbox" name="drift"{{if .ChanDrift}} checked{{end}}><span>drift</span></label>
-<label class="check"><input type="checkbox" name="coverage"{{if .ChanCoverage}} checked{{end}}><span>coverage</span></label>
-<label class="check"><input type="checkbox" name="clock"{{if .ChanClock}} checked{{end}}><span>clock</span></label>
-</div>
-<label><span>Secret (optional)</span><input name="secret" type="password" autocomplete="off" placeholder="signs the body — never shown again"></label>
-<button type="submit">Declare channel</button>
-</form>
-</div>
-
-<div class="microlabel">Retention</div>
-<div class="section">
-<h2>Retention dials</h2>
-<p>Retention is what may still be read, never age. Dispatch retention is a multiple of the
-slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. The
-observation-currency floor lands with later work; for now zero means no operator floor.</p>
-{{if .RetError}}<div class="error">{{.RetError}}</div>{{end}}
-<form method="post" action="/settings/retention">
-<div class="dial">
-<label><span>Observation-currency floor</span><input name="observation_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetObs}}{{else}}{{.Retention.ObservationCurrencyDays}}{{end}}" required><span class="unit">days</span></label>
-<label><span>Dispatch retention</span><input name="dispatch_cadence_multiple" inputmode="numeric" value="{{if .RetError}}{{.RetDispatch}}{{else}}{{.Retention.DispatchCadenceMultiple}}{{end}}" required><span class="unit">× slowest scan cadence</span></label>
-<button type="submit">Save dials</button>
-</div>
-</form>
-{{if .Retention.UpdatedAt}}<p class="muted" style="margin-top:12px">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span class="mono">{{.Retention.UpdatedBy}}</span>{{end}}.</p>{{end}}
-</div>
-</main>
-{{template "foot" .}}{{end}}
-
-{{define "vergecore"}}{{template "head" .}}
-{{template "chrome" .}}
-<main>
-<div class="microlabel">Declared · verge-core</div>
-<h1>verge-core</h1>
-<p>The daily hot-tier port set: the union of a <em>frequency</em> half — the project's own
-open-frequency selection — and a <em>sensitive</em> half, the curated list of ports never
-legitimately internet-facing. Only the TCP pairs are probed; the {{.UDPCount}} UDP pairs are recorded
-in scope and never probed. You may edit the frequency half. The sensitive half is authored by the
-release — moving one of its pairs would move a version and break every timeline it touches — so it is
-read-only here.</p>
-
-<div class="section">
-<div class="microlabel">Composition</div>
-<div class="kv"><div class="k">Union</div><div class="mono">{{.Counts.Union}} pairs ({{.Counts.TCP}} TCP, {{.Counts.UDP}} UDP)</div></div>
-<div class="kv"><div class="k">Frequency</div><div class="mono">{{.Counts.Frequency}} pairs (TCP, editable)</div></div>
-<div class="kv"><div class="k">Sensitive</div><div class="mono">{{.Counts.Sensitive}} pairs (read-only)</div></div>
-</div>
-
-{{if .IsAdmin}}
-<div class="section">
-<h2>Add a frequency port</h2>
-<p>Add a TCP port to the frequency half. It joins the daily probe set from the next hot scan.</p>
-{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 {{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
-<form method="post" action="/verge-core/frequency" class="inlineform">
-<input type="hidden" name="action" value="add">
-<label><span>Port</span><input name="port" inputmode="numeric" value="{{.FormPort}}" placeholder="8443" autocomplete="off" required></label>
-<button type="submit">Add to frequency</button>
-</form>
-</div>
-{{else}}
-{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
-{{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
-{{end}}
 
-<div class="section">
-<h2>Frequency half</h2>
-<p class="muted">{{.Counts.Frequency}} TCP ports. A port also on the sensitive half stays probed even if you
-remove it here — the union keeps it — which is exactly why removing it cannot move the sensitive half.</p>
-<table>
-<thead><tr><th>Port</th><th>Also sensitive</th><th>Edit</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
-<tbody>
-{{range .Frequency}}<tr>
-<td class="mono">{{.Port}}/tcp</td>
-<td>{{if .AlsoSensitive}}<span class="badge">sensitive</span>{{else}}<span class="muted">—</span>{{end}}</td>
-<td>{{if .Edited}}<span class="badge">{{.EditAction}}</span>{{else}}<span class="muted">shipped</span>{{end}}</td>
-{{if $.IsAdmin}}<td class="row">
-<form method="post" action="/verge-core/frequency"><input type="hidden" name="action" value="remove"><input type="hidden" name="port" value="{{.Port}}"><button class="secondary" type="submit">Remove</button></form>
-{{if .Edited}}<form method="post" action="/verge-core/frequency"><input type="hidden" name="action" value="reset"><input type="hidden" name="port" value="{{.Port}}"><button class="secondary" type="submit">Reset</button></form>{{end}}
-</td>{{end}}
-</tr>{{end}}
-</tbody>
-</table>
-</div>
-
-<div class="section">
-<h2>Sensitive half · read-only</h2>
-<p class="muted">{{.Counts.Sensitive}} pairs, authored by the release. There is no control to move one — it
-would move a version without a golden-corpus row moving.</p>
-<table>
-<thead><tr><th>Port</th><th>Transport</th></tr></thead>
-<tbody>
-{{range .Sensitive}}<tr><td class="mono">{{.Port}}</td><td class="mono">{{.Transport}}</td></tr>{{end}}
-</tbody>
-</table>
-</div>
+{{if eq .Tab "scans"}}{{template "settings-scans" .}}{{end}}
+{{if eq .Tab "vantages"}}{{template "settings-vantages" .}}{{end}}
+{{if eq .Tab "channels"}}{{template "settings-channels" .}}{{end}}
+{{if eq .Tab "messages"}}{{template "settings-messages" .}}{{end}}
+{{if eq .Tab "delivery"}}{{template "settings-delivery" .}}{{end}}
+{{if eq .Tab "access"}}{{template "settings-access" .}}{{end}}
+{{if eq .Tab "integrations"}}{{template "integrations-body" .}}{{end}}
 </main>
 {{template "foot" .}}{{end}}
 
-{{define "messages"}}{{template "head" .}}
-{{template "chrome" .}}
-<main>
-<div class="rulehead">
-<div><div class="microlabel">Operational · messages</div>
-<h1>Messages</h1></div>
-{{if .Messages}}<form method="post" action="/messages/read-all"><button class="secondary" type="submit">Mark all read</button></form>{{end}}
-</div>
-<p>Every message that has fired, newest first. Each names what moved — the estate's
-own object, our own aperture, your declared input, or a threshold crossed — and
-links to what it fired at. The store carries the message and never the estate: the
-fact itself is in the timelines.</p>
-{{if not .Messages}}
-<div class="section">
-<p>No message has fired. Messages appear here as the estate moves — declare a seed
-and run the first batch to begin measuring.</p>
-</div>
-{{else}}
-<ul class="msglist">
-{{range .Messages}}
-<li class="msgitem{{if not .Read}} unread{{end}}">
-<div class="msgitem-head">
-<span class="cause">{{.Cause}}</span>
-<span class="microlabel">{{.Class}}</span>
-{{if .Instant}}<span class="when">{{.Instant}}</span>{{end}}
-</div>
-<p class="headline">{{.Headline}}</p>
-<div class="rowlink"><a href="{{.Href}}">{{.LinkText}}</a></div>
-{{if .Census}}
-<ul class="msgcensus">
-{{range .Census}}<li><span class="k">{{.Kind}}</span>{{if .Href}}<a href="{{.Href}}">{{.Key}}</a>{{else}}{{.Key}}{{end}}</li>{{end}}
-</ul>
-{{end}}
-{{if .Deliveries}}
-<ul class="msgdelivery">
-{{range .Deliveries}}<li class="{{if .Failed}}delivery-failed{{end}}">
-{{if .Failed}}<span class="badge off">undelivered</span> to <span class="mono">{{.ChannelHost}}</span> — this message could not be delivered, not that nothing fired{{if .LastError}} <span class="muted why" title="{{.LastError}}">(reason)</span>{{end}}
-{{else}}<span class="muted">{{.State}} to <span class="mono">{{.ChannelHost}}</span></span>{{end}}
-</li>{{end}}
-</ul>
-{{end}}
-{{if not .Read}}
-<div class="actions"><form method="post" action="/messages/read"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Mark read</button></form></div>
-{{end}}
-</li>
-{{end}}
-</ul>
-{{end}}
-</main>
-{{template "foot" .}}{{end}}
-
-{{define "scans"}}{{template "head" .}}
-{{template "chrome" .}}
-<main>
+{{define "settings-scans"}}
 <div class="microlabel">Operational · scans</div>
-<h1>Scans</h1>
+<h2>Scans</h2>
 <p>What the queue is doing right now. A scan runs as a fan-out of jobs — one per
 vantage, or per supplied zone file — and each job commits its own batch of
 observations. This is a read of the queue alone: it records what the system did,
@@ -343,6 +121,323 @@ own while a scan is in flight.</p>
 batch after onboarding — its completed dispatches are listed here.</p>
 </div>
 {{end}}
-</main>
-{{template "foot" .}}{{end}}
+{{end}}
+
+{{define "settings-vantages"}}
+<div class="microlabel">Scanning · vantages</div>
+<h2>Vantages</h2>
+<p>The network positions a scan measures from. A vantage carries a verified class —
+internet or internal — and the recursive resolver it looks through; the act of
+provisioning one on Scope declares it sits on the internet and opens the Reach and
+Exposure timelines. This is a read: provisioning lives on Scope.</p>
+{{if .Vantages}}
+<div class="section">
+<table>
+<thead><tr><th>Vantage</th><th>Class</th><th>Resolver</th><th>Endpoint</th><th>Availability</th></tr></thead>
+<tbody>
+{{range .Vantages}}<tr>
+<td class="mono">{{.Name}}</td>
+<td><span class="badge">{{.Class}}</span></td>
+<td class="mono">{{.Resolver}}</td>
+<td class="mono">{{if .Endpoint}}{{.Endpoint}}{{else}}<span class="muted">—</span>{{end}}</td>
+<td>{{if eq .Availability "available"}}<span class="badge">available</span>{{else if eq .Availability "unavailable"}}<span class="badge off">unavailable</span>{{else}}<span class="muted">{{.Availability}}</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<div class="emptystate">
+<h2>No vantage provisioned</h2>
+<p>Only the shipped resolver position exists, so the Reach and Exposure timelines
+have not opened. Provision a vantage on <a href="/scope">Scope</a> to measure from
+the internet.</p>
+</div>
+{{end}}
+{{end}}
+
+{{define "settings-channels"}}
+<div class="microlabel">Delivery · channels</div>
+<h2>Channels</h2>
+<p>A channel is where messages go: an absolute <code>https</code> URL, an optional
+signing secret, and the subset of classes it carries. None ships configured, and a
+channel is one-way — it grants no read of anything.</p>
+{{if .ChanError}}<div class="error">{{.ChanError}}</div>{{end}}
+{{if .Channels}}
+<div class="section">
+<table>
+<thead><tr><th>URL</th><th>Classes</th><th>Secret</th><th>State</th><th>Declared by</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+<tbody>
+{{range .Channels}}<tr>
+<td class="mono">{{.URL}}</td>
+<td>{{if .Drift}}<span class="badge">drift</span> {{end}}{{if .Coverage}}<span class="badge">coverage</span> {{end}}{{if .Clock}}<span class="badge">clock</span>{{end}}</td>
+<td>{{if .HasSecret}}<span class="badge">set</span>{{else}}<span class="muted">not set</span>{{end}}</td>
+<td>{{if .Enabled}}<span class="badge">enabled</span>{{else}}<span class="muted">disabled</span>{{end}}</td>
+<td class="mono">{{.By}}<br><span class="muted">{{.At}}</span></td>
+{{if $.IsAdmin}}<td>
+<details class="edit">
+<summary>Edit</summary>
+<div class="section">
+<form method="post" action="/settings/channels/update">
+<input type="hidden" name="id" value="{{.ID}}">
+<label><span>URL</span><input name="url" value="{{.URL}}" autocomplete="off" required></label>
+<div class="classes">
+<label class="check"><input type="checkbox" name="drift"{{if .Drift}} checked{{end}}><span>drift</span></label>
+<label class="check"><input type="checkbox" name="coverage"{{if .Coverage}} checked{{end}}><span>coverage</span></label>
+<label class="check"><input type="checkbox" name="clock"{{if .Clock}} checked{{end}}><span>clock</span></label>
+</div>
+<label class="check"><input type="checkbox" name="enabled"{{if .Enabled}} checked{{end}}><span>enabled</span></label>
+<label><span>Replace secret</span><input name="secret" type="password" autocomplete="off" placeholder="{{if .HasSecret}}set — leave blank to keep{{else}}not set — leave blank for none{{end}}"></label>
+{{if .HasSecret}}<label class="check"><input type="checkbox" name="clear_secret"><span>clear the secret</span></label>{{end}}
+<div class="row" style="margin-top:12px"><button type="submit">Save channel</button></div>
+</form>
+<form method="post" action="/settings/channels/delete" style="margin-top:12px"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Delete channel</button></form>
+</div>
+</details>
+</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<div class="emptystate">
+<h2>No channels declared</h2>
+<p>Nothing is configured, so every message is written and rendered in the store and
+carried nowhere else. Declare a channel to have messages POSTed out.</p>
+</div>
+{{end}}
+
+{{if .IsAdmin}}
+<div class="section">
+<h2>Declare a channel</h2>
+<form method="post" action="/settings/channels">
+<label><span>URL</span><input name="url" value="{{.ChanURL}}" placeholder="https://hooks.example.com/verge" autocomplete="off" required></label>
+<div class="classes">
+<label class="check"><input type="checkbox" name="drift"{{if .ChanDrift}} checked{{end}}><span>drift</span></label>
+<label class="check"><input type="checkbox" name="coverage"{{if .ChanCoverage}} checked{{end}}><span>coverage</span></label>
+<label class="check"><input type="checkbox" name="clock"{{if .ChanClock}} checked{{end}}><span>clock</span></label>
+</div>
+<label><span>Secret (optional)</span><input name="secret" type="password" autocomplete="off" placeholder="signs the body — never shown again"></label>
+<button type="submit">Declare channel</button>
+</form>
+</div>
+{{end}}
+{{end}}
+
+{{define "settings-messages"}}
+<div class="rulehead">
+<div><div class="microlabel">Delivery · messages</div>
+<h2>Messages</h2></div>
+{{if .Messages}}<form method="post" action="/messages/read-all"><button class="secondary" type="submit">Mark all read</button></form>{{end}}
+</div>
+<p>Every message that has fired, newest first. Each names what moved — the estate's
+own object, our own aperture, your declared input, or a threshold crossed — and
+links to what it fired at. The store carries the message and never the estate: the
+fact itself is in the timelines.</p>
+{{if not .Messages}}
+<div class="emptystate">
+<h2>No message has fired</h2>
+<p>Messages appear here as the estate moves — declare a seed and run the first batch
+to begin measuring.</p>
+</div>
+{{else}}
+<ul class="msglist">
+{{range .Messages}}
+<li class="msgitem{{if not .Read}} unread{{end}}">
+<div class="msgitem-head">
+<span class="cause">{{.Cause}}</span>
+<span class="microlabel">{{.Class}}</span>
+{{if .Instant}}<span class="when">{{.Instant}}</span>{{end}}
+</div>
+<p class="headline">{{.Headline}}</p>
+<div class="rowlink"><a href="{{.Href}}">{{.LinkText}}</a></div>
+{{if .Census}}
+<ul class="msgcensus">
+{{range .Census}}<li><span class="k">{{.Kind}}</span>{{if .Href}}<a href="{{.Href}}">{{.Key}}</a>{{else}}{{.Key}}{{end}}</li>{{end}}
+</ul>
+{{end}}
+{{if .Deliveries}}
+<ul class="msgdelivery">
+{{range .Deliveries}}<li class="{{if .Failed}}delivery-failed{{end}}">
+{{if .Failed}}<span class="badge off">undelivered</span> to <span class="mono">{{.ChannelHost}}</span> — this message could not be delivered, not that nothing fired{{if .LastError}} <span class="muted why" title="{{.LastError}}">(reason)</span>{{end}}
+{{else}}<span class="muted">{{.State}} to <span class="mono">{{.ChannelHost}}</span></span>{{end}}
+</li>{{end}}
+</ul>
+{{end}}
+{{if not .Read}}
+<div class="actions"><form method="post" action="/messages/read"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Mark read</button></form></div>
+{{end}}
+</li>
+{{end}}
+</ul>
+{{end}}
+{{end}}
+
+{{define "settings-delivery"}}
+<div class="microlabel">Delivery · operational record</div>
+<h2>Deliveries</h2>
+<p>The operational record: every message's outcome to each routed channel, the two
+retention dials that govern how long the record stays readable, and the verge-core
+port set the hot scan probes. A delivery has no cause and never touches Coverage — an
+undelivered POST is legible here, joined to the message it failed to carry.</p>
+
+<div class="section">
+<div class="microlabel">Operational record</div>
+<h2>Delivery outcomes</h2>
+{{if .Deliveries}}
+<table>
+<thead><tr><th>Channel</th><th>Outcome</th></tr></thead>
+<tbody>
+{{range .Deliveries}}<tr>
+<td class="mono">{{.ChannelHost}}</td>
+<td>{{if .Failed}}<span class="badge off">undelivered</span>{{else}}<span class="badge">{{.State}}</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<p class="muted">No delivery has been attempted yet. Once a channel is declared and a
+message fires, each outbound POST's outcome is recorded here.</p>
+{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Retention</div>
+<h2>Retention dials</h2>
+<p>Retention is what may still be read, never age. Dispatch retention is a multiple of the
+slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. The
+observation-currency floor lands with later work; for now zero means no operator floor.</p>
+{{if .RetError}}<div class="error">{{.RetError}}</div>{{end}}
+{{if .IsAdmin}}
+<form method="post" action="/settings/retention">
+<div class="dial">
+<label><span>Observation-currency floor</span><input name="observation_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetObs}}{{else}}{{.Retention.ObservationCurrencyDays}}{{end}}" required><span class="unit">days</span></label>
+<label><span>Dispatch retention</span><input name="dispatch_cadence_multiple" inputmode="numeric" value="{{if .RetError}}{{.RetDispatch}}{{else}}{{.Retention.DispatchCadenceMultiple}}{{end}}" required><span class="unit">× slowest scan cadence</span></label>
+<button type="submit">Save dials</button>
+</div>
+</form>
+{{else}}
+<div class="kv"><div class="k">Observation floor</div><div class="mono">{{.Retention.ObservationCurrencyDays}} days</div></div>
+<div class="kv"><div class="k">Dispatch retention</div><div class="mono">{{.Retention.DispatchCadenceMultiple}} × slowest scan cadence</div></div>
+{{end}}
+{{if .Retention.UpdatedAt}}<p class="muted" style="margin-top:12px">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span class="mono">{{.Retention.UpdatedBy}}</span>{{end}}.</p>{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">Declared · verge-core</div>
+<h2>verge-core port set</h2>
+<p>The daily hot-tier port set: the union of a <em>frequency</em> half — the project's own
+open-frequency selection — and a <em>sensitive</em> half, the curated list of ports never
+legitimately internet-facing. Only the TCP pairs are probed; the {{.UDPCount}} UDP pairs are recorded
+in scope and never probed. You may edit the frequency half. The sensitive half is authored by the
+release, so it is read-only here.</p>
+<div class="kv"><div class="k">Union</div><div class="mono">{{.Counts.Union}} pairs ({{.Counts.TCP}} TCP, {{.Counts.UDP}} UDP)</div></div>
+<div class="kv"><div class="k">Frequency</div><div class="mono">{{.Counts.Frequency}} pairs (TCP, editable)</div></div>
+<div class="kv"><div class="k">Sensitive</div><div class="mono">{{.Counts.Sensitive}} pairs (read-only)</div></div>
+{{if .VCError}}<div class="error">{{.VCError}}</div>{{end}}
+{{if .IsAdmin}}
+<form method="post" action="/verge-core/frequency" class="inlineform" style="margin-top:12px">
+<input type="hidden" name="action" value="add">
+<label><span>Add a frequency port</span><input name="port" inputmode="numeric" value="{{.VCPort}}" placeholder="8443" autocomplete="off" required></label>
+<button type="submit">Add to frequency</button>
+</form>
+{{end}}
+</div>
+
+<div class="section">
+<h2>Frequency half</h2>
+<p class="muted">{{.Counts.Frequency}} TCP ports. A port also on the sensitive half stays probed even if you
+remove it here — the union keeps it — which is exactly why removing it cannot move the sensitive half.</p>
+<table>
+<thead><tr><th>Port</th><th>Also sensitive</th><th>Edit</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+<tbody>
+{{range .Frequency}}<tr>
+<td class="mono">{{.Port}}/tcp</td>
+<td>{{if .AlsoSensitive}}<span class="badge">sensitive</span>{{else}}<span class="muted">—</span>{{end}}</td>
+<td>{{if .Edited}}<span class="badge">{{.EditAction}}</span>{{else}}<span class="muted">shipped</span>{{end}}</td>
+{{if $.IsAdmin}}<td class="row">
+<form method="post" action="/verge-core/frequency"><input type="hidden" name="action" value="remove"><input type="hidden" name="port" value="{{.Port}}"><button class="secondary" type="submit">Remove</button></form>
+{{if .Edited}}<form method="post" action="/verge-core/frequency"><input type="hidden" name="action" value="reset"><input type="hidden" name="port" value="{{.Port}}"><button class="secondary" type="submit">Reset</button></form>{{end}}
+</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<div class="section">
+<h2>Sensitive half · read-only</h2>
+<p class="muted">{{.Counts.Sensitive}} pairs, authored by the release. There is no control to move one — it
+would move a version without a golden-corpus row moving.</p>
+<table>
+<thead><tr><th>Port</th><th>Transport</th></tr></thead>
+<tbody>
+{{range .Sensitive}}<tr><td class="mono">{{.Port}}</td><td class="mono">{{.Transport}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{define "settings-access"}}
+<div class="microlabel">Access · single sign-on</div>
+<h2>Single sign-on</h2>
+<div class="section">
+<div class="microlabel">Signed in</div>
+<h2>Your account</h2>
+<div class="kv"><div class="k">Username</div><div class="mono">{{.Account.Username}}</div></div>
+<div class="kv"><div class="k">Role</div><div><span class="badge">{{.Account.Role}}</span></div></div>
+<div class="kv"><div class="k">Two-factor</div><div>{{if .Account.TotpEnabled}}<span class="badge">on</span>{{else}}off{{end}}</div></div>
+{{if not .Account.TotpEnabled}}
+<form method="post" action="/account/totp/enable"><button type="submit">Enable two-factor</button></form>
+{{end}}
+</div>
+
+<div class="section">
+<div class="microlabel">SAML 2.0</div>
+<h2>Identity provider</h2>
+<p>Single sign-on is not configured. This build ships no identity provider, so accounts
+sign in with a password and two-factor. Configure a SAML identity provider to require
+SSO for all sign-ins.</p>
+</div>
+
+{{if .IsAdmin}}
+<div class="section">
+<div class="microlabel">Admin · accounts</div>
+<h2>Accounts</h2>
+{{if .RoleError}}<div class="error">{{.RoleError}}</div>{{end}}
+<table>
+<thead><tr><th>Username</th><th>Role</th><th>Two-factor</th><th>Created</th><th>Role</th></tr></thead>
+<tbody>
+{{range .Accounts}}<tr>
+<td class="mono">{{.Username}}{{if .IsSelf}} <span class="muted">(you)</span>{{end}}</td>
+<td><span class="badge">{{.Role}}</span></td>
+<td>{{if .TotpEnabled}}<span class="badge">on</span>{{else}}<span class="muted">off</span>{{if .IsSelf}}
+<form method="post" action="/account/totp/enable" style="display:inline"><button class="secondary" type="submit">Enable</button></form>{{end}}{{end}}</td>
+<td class="mono">{{.At}}</td>
+<td>
+<form method="post" action="/settings/accounts/role" class="inlineform">
+<input type="hidden" name="id" value="{{.ID}}">
+<select name="role"><option value="admin"{{if eq .Role "admin"}} selected{{end}}>admin</option><option value="viewer"{{if eq .Role "viewer"}} selected{{end}}>viewer</option></select>
+<button class="secondary" type="submit">Save</button>
+</form>
+</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<div class="section">
+<h2>Invite an account</h2>
+{{if .AcctError}}<div class="error">{{.AcctError}}</div>{{end}}
+<form method="post" action="/settings/accounts">
+<label><span>Username</span><input name="username" value="{{.AcctUsername}}" autocomplete="off" required></label>
+<label><span>Password</span><input name="password" type="password" autocomplete="new-password" required></label>
+<label><span>Role</span><select name="role"><option value="admin"{{if eq .AcctRole "admin"}} selected{{end}}>admin</option><option value="viewer"{{if eq .AcctRole "viewer"}} selected{{end}}>viewer</option></select></label>
+<button type="submit">Create account</button>
+</form>
+</div>
+{{else}}
+<div class="section">
+<div class="microlabel">Viewer</div>
+<p>You have read access. Account management is admin-only.</p>
+</div>
+{{end}}
+{{end}}
 `

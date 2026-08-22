@@ -428,14 +428,20 @@ func onOff(on bool) string {
 	return "off"
 }
 
-// sourcesModal renders the source-enablement modal (§6.4): the catalogue split
-// by the state each source ships in, with the two marked consent groups on every
-// operator-accepted source. A viewer may read it; only an admin sees a toggle.
+// sourcesModal renders the source-enablement surface (§6.4) as the Settings
+// integrations sub-tab (#281): the catalogue split by the state each source ships
+// in, with the two marked consent groups on every operator-accepted source. A
+// viewer may read it; only an admin sees a toggle.
 func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	s.renderSettings(w, r, acct, settingsForms{tab: "integrations"})
+}
+
+// fillIntegrationsSection buckets the source catalogue by the state each source
+// ships in for the integrations sub-tab.
+func (s *server) fillIntegrationsSection(r *http.Request, data map[string]any) error {
 	views, err := s.sourceViews(r)
 	if err != nil {
-		s.serverError(w, "list source states", err)
-		return
+		return err
 	}
 
 	var shipOn, shipOff, notExecuting, barred []sourceView
@@ -455,10 +461,11 @@ func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Ac
 		}
 	}
 
-	s.render(w, "sources", map[string]any{
-		"Title": "Source enablement", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"ShipOn": shipOn, "ShipOff": shipOff, "NotExecuting": notExecuting, "Barred": barred,
-	})
+	data["ShipOn"] = shipOn
+	data["ShipOff"] = shipOff
+	data["NotExecuting"] = notExecuting
+	data["Barred"] = barred
+	return nil
 }
 
 // sourceViews merges the authored catalogue with the operator's overrides. A
@@ -533,25 +540,6 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 const sourceTemplates = `
 {{define "coverage"}}{{template "head" .}}
-<style>
-.aperture td { vertical-align: top; }
-.aperture .in { font-weight: 600; white-space: nowrap; }
-.aperture .tier { font-family: var(--mono); font-size: 12px; }
-.aperture .note { color: var(--muted); font-size: 12px; margin-top: 4px; }
-.aperture .cad { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
-.checklist { list-style: none; margin: 0; padding: 0; counter-reset: step; }
-.checklist > li { border: 1px solid var(--hairline); padding: var(--space-4); margin-bottom: var(--space-4);
-  display: flex; gap: var(--space-4); align-items: flex-start; }
-.checklist .num { counter-increment: step; font-family: var(--mono); font-weight: 600; font-size: 12px;
-  border: 1px solid var(--ink); width: 22px; height: 22px; flex: none;
-  display: flex; align-items: center; justify-content: center; }
-.checklist .num::before { content: counter(step); }
-.checklist .step-body { flex: 1; }
-.checklist h3 { font-size: 13px; margin: 0 0 4px; }
-.checklist p { margin: 0 0 var(--space-3); font-size: 12px; color: var(--muted); }
-.checklist .no-surface { font-family: var(--mono); font-size: 11px; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 0.06em; }
-</style>
 {{template "chrome" .}}
 <main>
 <div class="microlabel">Derived · coverage</div>
@@ -563,13 +551,13 @@ what ships so far: the dns Scan and source enablement.</p>
 <div class="section">
 <div class="microlabel">Aperture statement</div>
 <h2>Seven aperture inputs</h2>
-<table class="aperture">
+<table>
 <thead><tr><th>Input</th><th>Tier</th><th>Cadence</th><th>State</th></tr></thead>
 <tbody>
 {{range .Lines}}<tr>
-<td class="in">{{.Input}}</td>
-<td><div class="tier">{{.Tier}}</div><div class="note">{{.Note}}</div></td>
-<td class="cad">{{.Cadence}}</td>
+<td>{{.Input}}</td>
+<td><div class="mono">{{.Tier}}</div><div class="muted">{{.Note}}</div></td>
+<td class="mono muted">{{.Cadence}}</td>
 <td>{{if .On}}<span class="badge">{{.State}}</span>{{else}}<span class="badge off">{{.State}}</span>{{end}}</td>
 </tr>{{end}}
 </tbody>
@@ -628,14 +616,11 @@ here means Exposure that needs it is absent, not quietly computed from the class
 <h2>Nothing is covered yet</h2>
 <p>Nothing is declared to look at, so the aperture reads empty above. Four steps set the estate;
 each names a capability and, where an act exists, points at the surface that performs it.</p>
-<ol class="checklist">
-{{range .Steps}}<li>
-<div class="num"></div>
-<div class="step-body">
-<h3>{{.Title}}</h3>
-<p>{{.Body}}</p>
-{{if .Href}}<a class="btn" href="{{.Href}}" style="text-decoration:none">{{.CTA}}</a>{{else}}<div class="no-surface">Runs automatically at cadence</div>{{end}}
-</div>
+<ol>
+{{range .Steps}}<li style="margin-bottom:12px">
+<h3 style="font-size:13px;margin:0 0 4px">{{.Title}}</h3>
+<p class="muted">{{.Body}}</p>
+{{if .Href}}<a class="btn" href="{{.Href}}" style="text-decoration:none">{{.CTA}}</a>{{else}}<div class="microlabel">Runs automatically at cadence</div>{{end}}
 </li>{{end}}
 </ol>
 </div>
@@ -667,44 +652,20 @@ means. Turning a source off is always safe; turning one on never adds to the est
 <button class="{{if .Enabled}}secondary{{end}}" type="submit">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
 </form>{{end}}
 
-{{define "sources"}}{{template "head" .}}
-<style>
-.modal-backdrop { min-height: 100vh; background: rgba(21,18,15,0.4);
-  display: flex; align-items: flex-start; justify-content: center; padding: var(--space-6); }
-.modal { background: var(--surface); border: 1px solid var(--hairline);
-  border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: var(--space-6); width: 100%; max-width: 760px; }
-.modal-head { display: flex; justify-content: space-between; align-items: flex-start;
-  border-bottom: 1px solid var(--hairline); padding-bottom: var(--space-4); margin-bottom: var(--space-5); }
-.modal-head h1 { margin: 0; }
-.modal-close { font-family: var(--mono); font-size: 16px; text-decoration: none; color: var(--ink); }
-.src-note { color: var(--muted); font-size: 12px; }
-.src-block { border: 1px solid var(--hairline); padding: var(--space-4); margin-bottom: var(--space-4); }
-.src-block-head { display: flex; justify-content: space-between; align-items: flex-start;
-  gap: var(--space-4); margin-bottom: var(--space-4); }
-.groups { display: flex; gap: var(--space-5); flex-wrap: wrap; }
-.group { flex: 1; min-width: 220px; }
-.group ul { margin: 4px 0 0; padding-left: 18px; }
-.group li { margin-bottom: 6px; }
-.group .empty { color: var(--muted); margin: 4px 0 0; }
-.badge.off { color: var(--muted); border-color: var(--hairline); }
-.modal-foot { border-top: 1px solid var(--hairline); padding-top: var(--space-4);
-  margin-top: var(--space-5); display: flex; justify-content: flex-end; }
-</style>
-<div class="modal-backdrop"><div class="modal">
-<div class="modal-head">
-<div><div class="microlabel">Declared · sources</div><h1>Source enablement</h1></div>
-<a class="modal-close" href="/coverage" aria-label="Close">✕</a>
-</div>
-
+{{define "integrations-body"}}
+<div class="microlabel">Delivery · integrations</div>
+<h2>Integrations</h2>
 <p>Which discovery sources may run. Turning a source off never removes anything you already hold — a source's silence never asserted absence. Turning one on lets it run: a source begins observing, a proposer begins offering proposals you confirm into seeds, and neither adds to the estate on its own.</p>
+<div class="banner info">Channels need no integration — Settings → Channels delivers to any URL directly. Integrations add formatting and state mapping on top.</div>
 {{if not .IsAdmin}}<div class="notice">You have read access. Enabling or disabling a source is admin-only.</div>{{end}}
 
+<div class="section">
 <div class="microlabel">Ship on by default</div>
 <table>
 <thead><tr><th>Source</th><th>Kind</th><th>Consent</th><th>Authority</th><th>State</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
 <tbody>
 {{range .ShipOn}}<tr>
-<td><div class="mono">{{.Name}}</div><div class="src-note">{{.ShipNote}}</div></td>
+<td><div class="mono">{{.Name}}</div><div class="muted">{{.ShipNote}}</div></td>
 <td><span class="badge">{{.KindLabel}}</span></td>
 <td><span class="badge">{{.Consent}}</span></td>
 <td class="mono">{{if .Authority}}{{.Authority}} · {{.Completeness}}{{else}}—{{end}}</td>
@@ -713,8 +674,10 @@ means. Turning a source off is always safe; turning one on never adds to the est
 </tr>{{end}}
 </tbody>
 </table>
+</div>
 
 {{if .NotExecuting}}
+<div class="section">
 <div class="microlabel">Catalogued — not yet executing</div>
 <p>These sources are in the catalogue, but no runner ships for them yet — nothing queries them, so
 they observe nothing. There is nothing to enable until a runner exists; leaving one here never adds
@@ -723,40 +686,44 @@ to the estate and never asserts absence.</p>
 <thead><tr><th>Source</th><th>Kind</th><th>Authority</th><th>State</th></tr></thead>
 <tbody>
 {{range .NotExecuting}}<tr>
-<td><div class="mono">{{.Name}}</div><div class="src-note">{{.ShipNote}}</div></td>
+<td><div class="mono">{{.Name}}</div><div class="muted">{{.ShipNote}}</div></td>
 <td><span class="badge">{{.KindLabel}}</span></td>
 <td class="mono">{{if .Authority}}{{.Authority}} · {{.Completeness}}{{else}}—{{end}}</td>
 <td><span class="badge off">not yet executing</span></td>
 </tr>{{end}}
 </tbody>
 </table>
+</div>
 {{end}}
 
+<div class="section">
 <div class="microlabel">Ship off — accept the terms to enable</div>
 <p>Each of these ships off. Enabling it is you making a reading the project declined to make on your behalf, so here is what is unresolved, in two groups.</p>
 {{range .ShipOff}}
-<div class="src-block">
-<div class="src-block-head">
+<div class="section">
+<div class="custody-head">
 <div>
 <div class="mono">{{.Name}}</div>
-<div class="src-note">{{.ShipNote}}</div>
+<div class="muted">{{.ShipNote}}</div>
 <div style="margin-top:6px"><span class="badge">{{.KindLabel}}</span> <span class="badge">{{.Consent}}</span> {{if .Enabled}}<span class="badge">on</span>{{else}}<span class="badge off">off</span>{{end}}</div>
 </div>
 {{if $.IsAdmin}}<div>{{template "srctoggle" .}}</div>{{end}}
 </div>
-<div class="groups">
-<div class="group">
+<div class="classes" style="align-items:flex-start">
+<div style="flex:1;min-width:220px">
 <div class="microlabel">What you may be able to resolve</div>
-{{if .MayResolve}}<ul>{{range .MayResolve}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="empty">None — every open question here is one nobody has been able to answer.</p>{{end}}
+{{if .MayResolve}}<ul>{{range .MayResolve}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">None — every open question here is one nobody has been able to answer.</p>{{end}}
 </div>
-<div class="group">
+<div style="flex:1;min-width:220px">
 <div class="microlabel">What nobody has been able to resolve</div>
-{{if .Unresolvable}}<ul>{{range .Unresolvable}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="empty">None.</p>{{end}}
+{{if .Unresolvable}}<ul>{{range .Unresolvable}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
 </div>
 </div>
 </div>
 {{end}}
+</div>
 
+<div class="section">
 <div class="microlabel">Excluded on terms</div>
 <table>
 <thead><tr><th>Source</th><th>Kind</th><th>Why it stays off</th></tr></thead>
@@ -768,8 +735,6 @@ to the estate and never asserts absence.</p>
 </tr>{{end}}
 </tbody>
 </table>
-
-<div class="modal-foot"><a class="btn secondary" href="/coverage" style="text-decoration:none">Done</a></div>
-</div></div>
-{{template "foot" .}}{{end}}
+</div>
+{{end}}
 `

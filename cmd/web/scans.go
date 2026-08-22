@@ -60,19 +60,26 @@ type jobView struct {
 	Batch       string
 }
 
-// scansPage renders the queue monitor: the Scans currently in flight with their
-// per-job progress at the top, and recent completed Dispatches beneath as history.
-// With nothing dispatched it shows an idle state — a fact and the next action —
-// never an error or a blank. A viewer reads it; there is nothing to gate.
+// scansPage renders the queue monitor as the Settings scans sub-tab (#281): the
+// Scans currently in flight with their per-job progress, and recent completed
+// Dispatches beneath as history. With nothing dispatched it shows an idle state —
+// a fact and the next action — never an error or a blank. A viewer reads it.
 func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	ctx := r.Context()
+	s.renderSettings(w, r, acct, settingsForms{tab: "scans"})
+}
 
+// fillScansSection assembles the Settings scans sub-tab's read-side data: the
+// in-flight Dispatches with their per-job detail, the recent history, the
+// self-refresh flag while a scan is running, and — for an admin — the on-demand
+// trigger panel (#252), whose "in flight" markers reuse the active kinds computed
+// here. A failed panel build degrades to an absent panel rather than 500ing the
+// read-only monitor a viewer depends on.
+func (s *server) fillScansSection(r *http.Request, acct db.Account, data map[string]any) error {
+	ctx := r.Context()
 	rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit)
 	if err != nil {
-		s.serverError(w, "scans: list dispatch progress", err)
-		return
+		return err
 	}
-
 	var active, history []dispatchView
 	activeKinds := make(map[string]bool)
 	for _, row := range rows {
@@ -81,8 +88,7 @@ func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 			activeKinds[row.ScanKind] = true
 			jobs, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: row.DispatchID, Valid: true})
 			if err != nil {
-				s.serverError(w, "scans: list jobs for dispatch", err)
-				return
+				return err
 			}
 			for _, j := range jobs {
 				dv.Jobs = append(dv.Jobs, toJobView(j))
@@ -92,33 +98,21 @@ func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 			history = append(history, dv)
 		}
 	}
+	data["Active"] = active
+	data["History"] = history
+	// A meta refresh keeps the in-flight view current as jobs complete, since the
+	// page is server-rendered with no client runtime; it runs only while a scan is
+	// in flight, so the idle page does not spin.
+	data["Refresh"] = len(active) > 0
 
-	isAdmin := acct.Role == roleAdmin
-	data := map[string]any{
-		"Title": "Scans", "Account": acct, "IsAdmin": isAdmin,
-		"Active": active, "History": history,
-		// A meta refresh keeps the in-flight view current as jobs complete, since
-		// the page is server-rendered with no client runtime. It runs only while a
-		// scan is in flight, so the idle page does not spin.
-		"Refresh": len(active) > 0,
-	}
-
-	// The admin on-demand trigger panel (#252) rides the same page as the monitor,
-	// so pressing it and watching the result stay in one place. Its "in flight"
-	// markers reuse the active kinds computed above rather than re-reading the
-	// Dispatch corpus. It is built only for an admin — a viewer never sees the
-	// panel (the template gates it on IsAdmin) so a viewer never pays its read —
-	// and a failed build degrades to an absent panel rather than 500ing the whole
-	// read-only monitor a viewer depends on.
-	if isAdmin {
+	if acct.Role == roleAdmin {
 		if trigger, err := s.buildTriggerPanel(r, activeKinds); err != nil {
 			log.Printf("web: scans: build trigger panel: %v", err)
 		} else {
 			data["Trigger"] = trigger
 		}
 	}
-
-	s.render(w, "scans", data)
+	return nil
 }
 
 // toDispatchView folds one Dispatch's per-state job counts into progress. Live work
