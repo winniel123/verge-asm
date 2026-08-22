@@ -31,7 +31,7 @@ const ASSETS = [
   { asset: "203.0.113.0/24", type: "range", ip: "\u2014", ports: "62 IPs", sev: null, sigs: 0, seen: "38m" },
 ];
 
-export function Inventory({ onToast }) {
+export function Inventory({ onToast, onOpenAsset }) {
   const [filters, setFilters] = React.useState([]);
   const [sel, setSel] = React.useState([]);
   const [page, setPage] = React.useState(1);
@@ -114,7 +114,7 @@ export function Inventory({ onToast }) {
           style={{ width: 420 }} />
         <span style={{ marginLeft: "auto", font: "400 12px var(--font-mono)", color: "var(--text-muted)", paddingTop: 10 }}>{rows.length} of {ASSETS.length} shown</span>
       </div>
-      <Table density={dens} selectable rowKey="asset" selectedKeys={sel} onSelectionChange={setSel} columns={ALL_COLS.filter((c) => c.key === "asset" || visCols.indexOf(c.key) !== -1)} rows={rows} />
+      <Table density={dens} selectable onRowClick={onOpenAsset ? (r) => { if (r.type !== "range") onOpenAsset(r.asset); } : undefined} rowKey="asset" selectedKeys={sel} onSelectionChange={setSel} columns={ALL_COLS.filter((c) => c.key === "asset" || visCols.indexOf(c.key) !== -1)} rows={rows} />
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <Pagination page={page} pageCount={107} pageSize={12} totalItems={1284} onChange={setPage} />
       </div>

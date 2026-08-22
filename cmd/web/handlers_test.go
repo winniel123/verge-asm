@@ -1769,7 +1769,8 @@ func TestDeprecatedRoutesReconciled(t *testing.T) {
 
 	// The viewer-readable folds keep resolving for a viewer — never redirected into
 	// admin-gated Settings, never a 403. /coverage stays as the distinct aperture
-	// artifact; /messages is the shell bell's destination for all users.
+	// artifact; /messages stays viewer-readable as the messages fold (the V3 shell
+	// bell now targets /inbox, T4) for all users.
 	for _, path := range []string{"/messages", "/scans", "/verge-core", "/sources", "/coverage"} {
 		resp, err := vc.Get(base + path)
 		if err != nil {

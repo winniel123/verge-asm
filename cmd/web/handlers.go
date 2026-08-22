@@ -339,10 +339,11 @@ func (s *server) handler() http.Handler {
 	// read-state change, so a viewer may do it. The store is unconditional and has
 	// no admin surface — there is nothing here to gate behind requireAdmin.
 	//
-	// /messages KEPT RESOLVING (#286, #281 caveat): the shell messages bell links
-	// here for ALL users, so it must stay viewer-readable. The Settings messages tab
-	// is the admin mirror; this route is the bell's viewer destination and is NOT
-	// redirected into admin-gated /settings.
+	// /messages KEPT RESOLVING (#286, #281 caveat; #295 V3 shell): the messages fold
+	// stays viewer-readable for ALL users. The V3 shell bell now targets /inbox (the
+	// T4 Inbox page), but /messages remains the viewer-readable messages fold — reached
+	// directly and mirrored in the Settings messages tab — and is NOT redirected into
+	// admin-gated /settings. It keeps resolving until T4's Inbox subsumes it.
 	mux.HandleFunc("GET /messages", s.requireLogin(s.messagesPage))
 	mux.HandleFunc("POST /messages/read", s.requireLogin(s.markMessageRead))
 	mux.HandleFunc("POST /messages/read-all", s.requireLogin(s.markAllMessagesRead))

@@ -1,18 +1,11 @@
-# Screenshots — visual ground truth
+# Screenshots — visual ground truth (v3 sync, 2026-08-22)
 
-Captured from the design workspace at 100% zoom, light theme. Match these, not a reinterpretation.
+Captured at 1440px, light theme. Match these, not a reinterpretation. NOTE: the copies currently in the repo's design-system/screenshots/ are corrupted placeholders (13 identical 4 KB files) — replace them wholesale with this set.
 
-- `01-console.jpg` — Dashboard
-- `02-console.jpg` — Scope
-- `03-console.jpg` — Inventory
-- `04-console.jpg` — Drift
-- `05-console.jpg` — Signals
-- `06-console.jpg` — Graph
-- `07-console.jpg` — Reports
-- `08-console.jpg` — Settings
-- `09-console.jpg` — Settings → Integrations section
-- `signin.jpg` — Sign in (credentials step)
-- `marketing.jpg` — Marketing homepage
-- `docs.jpg` — Docs page
+- 01 Dashboard · 02 Scope (zone file + org-name search) · 03 Inventory · 04 Drift · 05 Signals
+- 06 Exposure · 07 Coverage · 08 Graph · 09 Reports · 10 Report artifact · 11 Run detail
+- 12 Asset detail · 13 Inbox · 14 Profile · 15 Settings→Team · 16 Settings→Sources
+- 17 Settings→Vantages (prober provisioning) · 18 Settings→Port aperture · 19 First-run checklist
+- 20 Search results · 21 Error 404 · signin.jpg · setup.jpg · marketing.jpg · docs.jpg
 
-JPEGs are compressed for size — treat them as layout/spacing/hierarchy truth; exact colors come from `tokens/*.css`.
+JPEGs are compressed — layout/spacing/hierarchy truth; exact colors come from tokens/*.css.

@@ -36,7 +36,7 @@ const GROUPS = [
   ] },
 ];
 
-export function Drift() {
+export function Drift({ onOpenRun }) {
   const [range, setRange] = React.useState({ label: "Last 7d" });
   const [active, setActive] = React.useState(KINDS);
   const toggle = (k) => setActive((a) => (a.indexOf(k) !== -1 ? (a.length === 1 ? KINDS : a.filter((x) => x !== k)) : a.concat(k)));
@@ -51,6 +51,7 @@ export function Drift() {
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <DateRangePicker value={range} onChange={setRange} />
           <Button variant="secondary" icon={<Icon name="download" size={14} />}>Export CSV</Button>
+          {onOpenRun && <Button variant="secondary" icon={<Icon name="file-search" size={14} />} onClick={onOpenRun}>Batch detail</Button>}
         </div>
       </header>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>

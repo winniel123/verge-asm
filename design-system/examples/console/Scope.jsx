@@ -7,6 +7,12 @@ import { CustodyToggle } from "../../components/forms/CustodyToggle.jsx";
 import { RefusalCallout } from "../../components/feedback/RefusalCallout.jsx";
 import { TreeView } from "../../components/display/TreeView.jsx";
 import { CoverageMessageList } from "../../components/display/CoverageMessageList.jsx";
+import { Card as _C } from "../../components/display/Card.jsx";
+import { FileDrop } from "../../components/forms/FileDrop.jsx";
+import { Badge } from "../../components/display/Badge.jsx";
+import { Input } from "../../components/forms/Input.jsx";
+import { Button } from "../../components/forms/Button.jsx";
+import { Icon } from "../../components/media/Icon.jsx";
 
 const DOMAIN = /^([a-z0-9-]+\.)+[a-z]{2,}$/i;
 const CIDR = /^(\d{1,3}\.){3}\d{1,3}\/(\d{1,2})$/;
@@ -24,6 +30,14 @@ export function Scope({ onToast }) {
     { kind: "address", value: "203.0.113.128/25" },
   ]);
   const [custody, setCustody] = React.useState(true);
+  const [org, setOrg] = React.useState("");
+  const [searched, setSearched] = React.useState(false);
+  const searchRegistries = () => {
+    if (!org.trim()) return;
+    setSearched(true);
+    setProposals((p) => p.concat({ id: "p" + Date.now(), value: "203.0.114.0/25", kind: "range", source: 'ARIN · org match "' + org.trim() + '"' }));
+    onToast && onToast({ tone: "neutral", title: "3 registries answered", description: '1 new proposal for "' + org.trim() + '" · RIPE paths are off until you accept their terms.' });
+  };
   const validate = (v) => {
     setRefusal(null);
     if (DOMAIN.test(v)) return null;
@@ -58,6 +72,17 @@ export function Scope({ onToast }) {
           <Card microLabel="Custody" title="Adjacent infrastructure">
             <CustodyToggle enabled={custody} onChange={setCustody} censusCount={62} unit="addresses" />
           </Card>
+          <Card microLabel="Removal detection" title="Zone file">
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ font: "500 12px var(--font-mono)", color: "var(--text-body)" }}>acmecorp.io.zone</span>
+                <span style={{ font: "400 11.5px var(--font-mono)", color: "var(--text-muted)" }}>uploaded 2026-07-30 · re-supply monthly</span>
+                <span style={{ marginLeft: "auto" }}><Badge tone="warn" dot>ages into a gap in 7d</Badge></span>
+              </div>
+              <FileDrop compact accept=".zone,.txt" label="Re-supply zone file" hint="Upload is a dated act — the upload instant is the observation instant. An apex outside acmecorp.io is refused, with the reason."
+                onFiles={() => onToast && onToast({ tone: "ok", title: "Zone accepted", description: "acmecorp.io · observation instant recorded · next re-supply due 2026-09-22." })} />
+            </div>
+          </Card>
           <Card microLabel="Names" title="Declared name tree">
             <TreeView defaultOpen={["acmecorp.io"]} nodes={[
               { id: "acmecorp.io", label: "acmecorp.io", count: 10, sev: "medium", children: [
@@ -81,6 +106,11 @@ export function Scope({ onToast }) {
             ]} />
           </Card>
           <Card microLabel="Proposals" title="From the registry" action={<span style={{ font: "500 10.5px var(--font-mono)", padding: "1px 7px", borderRadius: 999, background: "var(--surface-sunken)", color: "var(--text-secondary)" }}>{proposals.length}</span>}>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 14 }}>
+              <Input label="Org-name search" placeholder="Acme Corporation" value={org} onChange={(e) => setOrg(e.target.value)} style={{ flex: 1 }} />
+              <Button variant="secondary" icon={<Icon name="search" size={14} />} onClick={searchRegistries}>Search registries</Button>
+            </div>
+            <span style={{ display: "block", font: "400 11.5px/1.6 var(--font-ui)", color: "var(--text-muted)", marginBottom: 14 }}>Proposers answer an org-name search with address scopes — never subdomains. A proposal asserts nothing until confirmed into a seed; declines are recorded as exclusions.</span>
             {proposals.length ? (
               <ProposalReview proposals={proposals}
                 onConfirm={(p) => { setProposals(proposals.filter((x) => x.id !== p.id)); setSeeds(seeds.concat(p.value)); onToast && onToast({ tone: "ok", title: "Proposal confirmed", description: p.value + " added to scope." }); }}
