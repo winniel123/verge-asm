@@ -378,8 +378,8 @@ func TestCoverageZeroCoverageChecklist(t *testing.T) {
 			t.Errorf("checklist step %q missing in the zero-coverage state", step)
 		}
 	}
-	if !strings.Contains(page, `href="/seeds"`) {
-		t.Errorf("a checklist step does not link to the Seeds surface; body: %s", page)
+	if !strings.Contains(page, `href="/scope"`) {
+		t.Errorf("a checklist step does not link to the Scope surface; body: %s", page)
 	}
 	// Running the first batch is the worker's job at cadence, not a button.
 	if !strings.Contains(page, "Runs automatically at cadence") {

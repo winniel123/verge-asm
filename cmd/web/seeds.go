@@ -126,7 +126,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 		fail("Choose a scope type.")
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
 func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Account, f seedsForms) {
@@ -272,8 +272,8 @@ func toSeedViews(rows []db.ListSeedsRow) []seedView {
 // carries dots and (for a CIDR) a slash, so every run of non-alphanumeric octets
 // collapses to a single '-': "198.51.100.0/24" -> "198-51-100-0-24",
 // "example.com" -> "example-com". The message renderer builds the same slug from
-// an aperture message's fired-at Seed key, so its `/seeds#seed-<anchor>` link
-// resolves to the row this stamps. A withdrawn Seed leaves no row and the link
+// an aperture message's fired-at Seed key, so its `/scope#seed-<anchor>` link
+// (#286) resolves to the row this stamps. A withdrawn Seed leaves no row and the link
 // falls back to the list head, which is acceptable.
 func seedAnchor(scope string) string {
 	var b strings.Builder
@@ -390,7 +390,7 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "create zone file", err)
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
 // setZoneInterval moves the re-supply interval dial: the operator's promise
@@ -410,7 +410,7 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "set zone cadence", err)
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
 // isNameSeed reports whether id is a currently declared name-scope Seed.

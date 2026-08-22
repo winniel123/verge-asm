@@ -370,17 +370,17 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		{
 			Title: "Declare your domain",
 			Body:  "Name a registrable domain as a Seed. Its addresses arrive by measured resolution — a name scope enumerates nothing on its own.",
-			Href:  "/seeds", CTA: "Declare a scope →",
+			Href:  "/scope", CTA: "Declare a scope →",
 		},
 		{
 			Title: "Upload a zone file",
 			Body:  "Supply your zone as a Source. It proposes the names the resolver walk then measures, re-read on its own cadence.",
-			Href:  "/seeds", CTA: "Manage Seeds →",
+			Href:  "/scope", CTA: "Manage scope →",
 		},
 		{
 			Title: "Add an internet vantage",
 			Body:  "Provision a prober. The act itself declares the vantage sits on the internet and opens the Reach and Exposure timelines.",
-			Href:  "/seeds", CTA: "Provision a prober →",
+			Href:  "/scope", CTA: "Provision a prober →",
 		},
 		{
 			Title: "Run the first batch",

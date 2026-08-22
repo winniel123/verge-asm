@@ -72,7 +72,7 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 		fail("Choose an exclusion type.")
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
 // previewExclusion computes the narrowing receipt for a candidate exclusion and
@@ -146,7 +146,7 @@ func (s *server) unexclude(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.serverError(w, "delete exclusion", err)
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
 func toExclusionViews(rows []db.ListExclusionsRow) []exclusionView {

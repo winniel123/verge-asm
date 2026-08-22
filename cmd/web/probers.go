@@ -62,7 +62,7 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail("Could not provision the prober.")
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
 
 func toProberViews(rows []db.ListVantagesRow) []proberView {

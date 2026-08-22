@@ -48,7 +48,7 @@ func TestColdScanOptInEnablesPerScope(t *testing.T) {
 
 	// Opt the scope in: the tier enables, and no scan is fired by the save.
 	resp := setColdScope(t, ac, base, id, true)
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/seeds" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
 		t.Fatalf("opt in cold scope: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()

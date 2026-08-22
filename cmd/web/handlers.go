@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
@@ -219,6 +220,27 @@ func (s *server) obsAsOf() pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: s.now().UTC(), Valid: true}
 }
 
+// redirectTo answers a deprecated GET route with a redirect to its canonical
+// home (T10, IA reconciliation #286). It is an authedHandler so a deprecated
+// route keeps the login gate it carried before the move — an unauthenticated
+// hit still lands on /login rather than being bounced onward — and the account
+// is otherwise unread. The original query string rides along so a bookmarked
+// deep-link (e.g. /seeds?notice=…) survives the move. code is 301 for a pure
+// move and 302 for a nuanced one.
+func (s *server) redirectTo(target string, code int) authedHandler {
+	return func(w http.ResponseWriter, r *http.Request, _ db.Account) {
+		dst := target
+		if r.URL.RawQuery != "" {
+			sep := "?"
+			if strings.Contains(target, "?") {
+				sep = "&"
+			}
+			dst += sep + r.URL.RawQuery
+		}
+		http.Redirect(w, r, dst, code)
+	}
+}
+
 // handler wires every route. A permission check runs on every mutating
 // endpoint from this commit forward (v1 spec §4.3): the only mutation that
 // exists yet, POST /accounts, is gated behind requireAdmin.
@@ -236,7 +258,11 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /logout", s.logout)
 
 	mux.HandleFunc("GET /scope", s.requireLogin(s.seedsPage))
-	mux.HandleFunc("GET /seeds", s.requireLogin(s.seedsPage))
+	// /seeds moved to /scope (#286): the scope presentation is the canonical home
+	// for scope declaration, so the old GET is a permanent redirect. Every POST
+	// action below keeps its /seeds path (only the GET presentation moved) and now
+	// answers 303 to /scope.
+	mux.HandleFunc("GET /seeds", s.requireLogin(s.redirectTo("/scope", http.StatusMovedPermanently)))
 	mux.HandleFunc("POST /seeds", s.requireAdmin(s.declareSeed))
 	mux.HandleFunc("POST /seeds/custody", s.requireAdmin(s.setCustody))
 	mux.HandleFunc("POST /seeds/zone", s.requireAdmin(s.uploadZoneFile))
@@ -247,16 +273,22 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
 	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
 
-	// The Exposure landing view (v1 spec §6.2): the exposure board, a read-only
-	// projection over the reachability corpus. A dedicated nav destination; the
-	// board itself is a census and never an alert source (ADR-0029).
-	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
+	// Exposure analytics folded into /reports (#286, #285): the exposure board is
+	// part of the canonical Reports period view, so the old landing GET is a
+	// permanent redirect there. (The reachability-span wiring behind the Reports
+	// exposure sections is a tracked #285 gap — see reports.go — but /reports is
+	// the canonical home regardless, so the route reconciliation points here.)
+	mux.HandleFunc("GET /exposure", s.requireLogin(s.redirectTo("/reports", http.StatusMovedPermanently)))
 	mux.HandleFunc("GET /reports", s.requireLogin(s.reportsPage))
 
-	mux.HandleFunc("GET /subjects", s.requireLogin(s.subjectsPage))
-	// The Service and Endpoint drill-downs read their key from a query parameter
-	// because those keys carry `/` and `@`; their literal paths win over the {key}
-	// wildcard.
+	// The Subjects LIST folded into /inventory (#286): Inventory is the canonical
+	// "what do I have right now" screen and lists every Name/Service/Endpoint, so
+	// the old list GET is a permanent redirect. The detail drill-downs below are
+	// NOT redirected — Inventory rows deep-link straight to them and they are the
+	// subject detail pages, so they keep resolving. The Service and Endpoint
+	// drill-downs read their key from a query parameter because those keys carry
+	// `/` and `@`; their literal paths win over the {key} wildcard.
+	mux.HandleFunc("GET /subjects", s.requireLogin(s.redirectTo("/inventory", http.StatusMovedPermanently)))
 	mux.HandleFunc("GET /subjects/service", s.requireLogin(s.servicePage))
 	mux.HandleFunc("GET /subjects/endpoint", s.requireLogin(s.endpointPage))
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
@@ -273,11 +305,17 @@ func (s *server) handler() http.Handler {
 	// Registry proposer lookups and the confirm/decline of the Proposals they
 	// yield are admin acts (v1 spec §4.3): confirming opens the probing gate on
 	// address space, declining is a boundary claim. A viewer reads the pending
-	// list on /seeds but mutates nothing.
+	// list on /scope but mutates nothing.
 	mux.HandleFunc("POST /proposals", s.requireAdmin(s.runLookup))
 	mux.HandleFunc("POST /proposals/confirm", s.requireAdmin(s.confirmProposal))
 	mux.HandleFunc("POST /proposals/decline", s.requireAdmin(s.declineLookup))
 
+	// /coverage KEPT RESOLVING (#286 judgement call): the full aperture statement —
+	// one line per aperture input, its cadence, and whether it is on — is a distinct
+	// viewer-readable artifact reached from Scope's "Aperture statement" / "Go to
+	// Coverage" buttons. Scope surfaces coverage *messages* (gaps), not the aperture
+	// statement itself, so redirecting /coverage → /scope would lose the artifact and
+	// turn those Scope buttons into self-links. Viewer-readable; no downgrade.
 	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))
 
 	// The Scans monitor (#245, v1 spec §4.1): a read-only window onto the queue.
@@ -285,6 +323,14 @@ func (s *server) handler() http.Handler {
 	// The on-demand trigger (#252) is the one mutation on this page: dispatching a
 	// scan enqueues a fan-out, so it is an admin act gated behind requireAdmin,
 	// exactly as /sources toggling is. A viewer sees no trigger control.
+	//
+	// /scans KEPT RESOLVING (#286, #281 viewer-access caveat): this is the
+	// viewer-readable live monitor (in-flight Dispatches + per-job progress).
+	// Reports holds only the scans-per-day heatmap, not the live monitor, and the
+	// full monitor otherwise lives behind admin /settings?tab=scans — so redirecting
+	// /scans → /reports would silently downgrade a viewer's access to the live
+	// monitor, which #281 forbids. It stays a viewer route; the admin trigger is the
+	// {{if .IsAdmin}} panel here and mirrored at /settings?tab=scans.
 	mux.HandleFunc("GET /scans", s.requireLogin(s.scansPage))
 	mux.HandleFunc("POST /scans/trigger", s.requireAdmin(s.triggerScan))
 
@@ -292,6 +338,11 @@ func (s *server) handler() http.Handler {
 	// list and its unread count on every screen; marking read is a per-account
 	// read-state change, so a viewer may do it. The store is unconditional and has
 	// no admin surface — there is nothing here to gate behind requireAdmin.
+	//
+	// /messages KEPT RESOLVING (#286, #281 caveat): the shell messages bell links
+	// here for ALL users, so it must stay viewer-readable. The Settings messages tab
+	// is the admin mirror; this route is the bell's viewer destination and is NOT
+	// redirected into admin-gated /settings.
 	mux.HandleFunc("GET /messages", s.requireLogin(s.messagesPage))
 	mux.HandleFunc("POST /messages/read", s.requireLogin(s.markMessageRead))
 	mux.HandleFunc("POST /messages/read-all", s.requireLogin(s.markAllMessagesRead))
@@ -299,9 +350,19 @@ func (s *server) handler() http.Handler {
 	// verge-core: a viewer reads the composed set; editing the frequency half is
 	// an admin act (v1 spec §3.5, §4.3). The sensitive half is authored by the
 	// release and has no mutating endpoint at all.
+	//
+	// /verge-core KEPT RESOLVING (#286, #281 caveat): the composed sensitive-port
+	// set is viewer-readable (requireLogin); only frequency editing is admin, and
+	// that mirror lives at /settings?tab=integrations. Redirecting /verge-core into
+	// admin Settings would 403 viewers, downgrading their read — so it stays a
+	// viewer route.
 	mux.HandleFunc("GET /verge-core", s.requireLogin(s.vergeCorePage))
 	mux.HandleFunc("POST /verge-core/frequency", s.requireAdmin(s.editVergeCoreFrequency))
 
+	// /sources KEPT RESOLVING (#286, #281 caveat): the source-enablement modal is
+	// viewer-readable (requireLogin), reached from /coverage's "Manage source
+	// enablement" entry point; only toggling is admin. Redirecting it into admin
+	// Settings would 403 viewers, so it stays a viewer route.
 	mux.HandleFunc("GET /sources", s.requireLogin(s.sourcesModal))
 	mux.HandleFunc("POST /sources/toggle", s.requireAdmin(s.toggleSource))
 

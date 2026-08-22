@@ -36,5 +36,5 @@ func (s *server) setCustody(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.serverError(w, "set custody extension", err)
 		return
 	}
-	http.Redirect(w, r, "/seeds", http.StatusSeeOther)
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }

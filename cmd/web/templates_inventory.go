@@ -23,10 +23,10 @@ while a current resolution cites the address or a Seed covers it.
 There is no total: how many subjects your estate ought to hold is its completeness,
 which only you know, so this screen states none.</p>
 
-<form method="get" action="/subjects" class="searchbar">
+<form method="get" action="/inventory" class="searchbar">
 <label class="grow"><span>Search subjects</span><input name="q" value="{{.Search}}" placeholder="example.com or 198.51.100.1:443" autocomplete="off"></label>
 <button type="submit">Search</button>
-{{if .Search}}<a class="btn secondary" href="/subjects" style="text-decoration:none">Clear</a>{{end}}
+{{if .Search}}<a class="btn secondary" href="/inventory" style="text-decoration:none">Clear</a>{{end}}
 </form>
 
 <div class="section">
@@ -449,7 +449,7 @@ the inventory fills as facets are folded.</p>
 <p>No subject is keyed under that name. Nothing has ever measured it into the
 estate — this is not a withdrawn subject, which would still be reachable here by
 its own key.</p>
-<p><a href="/subjects">Back to subjects</a></p>
+<p><a href="/inventory">Back to inventory</a></p>
 </div>
 </main>
 {{template "foot" .}}{{end}}

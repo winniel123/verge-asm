@@ -40,7 +40,7 @@ func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 
 	// Declare it.
 	resp := setCustody(t, ac, base, id, true)
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/seeds" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
 		t.Fatalf("declare custody: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()

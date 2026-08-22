@@ -14,12 +14,14 @@ func declare(t *testing.T, c *http.Client, base, kind, scope string) *http.Respo
 
 func seedsBody(t *testing.T, c *http.Client, base string) string {
 	t.Helper()
-	resp, err := c.Get(base + "/seeds")
+	// The scope presentation is canonical (#286); GET /seeds now permanently
+	// redirects here, so the listing is read at /scope (identical seedsPage render).
+	resp, err := c.Get(base + "/scope")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET /seeds status = %d, want 200", resp.StatusCode)
+		t.Fatalf("GET /scope status = %d, want 200", resp.StatusCode)
 	}
 	return body(t, resp)
 }
@@ -32,7 +34,7 @@ func TestDeclareNameAndAddressSeeds(t *testing.T) {
 
 	// A name scope.
 	resp := declare(t, ac, base, "name", "Example.com")
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/seeds" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
 		t.Fatalf("declare name: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()
