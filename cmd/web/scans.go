@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -113,6 +115,290 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, data map[str
 		}
 	}
 	return nil
+}
+
+// Run detail (#297, T2) — the per-run drill-in ported from
+// design-system/examples/console/RunDetail.jsx. A "run" is one Dispatch (a fan-out
+// of one Scan); the screen reads the same Operational queue corpus the Scans
+// monitor does (ADR-0041 bars it from the comparison path, so it never reports
+// drift or signal counts). It is the destination of a Drift "Batch detail" entry —
+// the route `/run/{id}` is stable so T16 can link straight to it.
+
+// runStage is one step of the run's pipeline, folded from the dispatch's jobs
+// grouped by kind. Done renders a filled check, Current an accent ring; Num is the
+// 1-based position (shown only while not done), Last drops the trailing connector.
+type runStage struct {
+	Num     int
+	Title   string
+	Detail  string
+	Done    bool
+	Current bool
+	Last    bool
+}
+
+// runLogLine is one line of the batch log — one queue job's event: its id tag, an
+// optional level (a dead job is an error, a superseded or retrying attempt a warn),
+// and the terse text (kind · state · vantage · batch).
+type runLogLine struct {
+	Tag   string
+	Level string // "" | "warn" | "error"
+	Text  string
+}
+
+// runKV is one row of the run's "as configured" parameters.
+type runKV struct {
+	K, V string
+}
+
+// runVantage is one vantage's health in this run: the vantage that looked, a
+// latency (not stored, so "—"), and a status folded from its jobs (degraded if any
+// dead-lettered, else ok). It is a vantage, never a probe/scanner/agent.
+type runVantage struct {
+	Name    string
+	Latency string
+	Status  string // "ok" | "degraded"
+}
+
+// runView is one Dispatch shaped for the Run detail drill-in: the header identity
+// and batch status, the four sections' data, and the degraded-vantage name that
+// raises the outcome callout when one did not finish.
+type runView struct {
+	ID           int64
+	Title        string // the dispatched instant — the h1 and breadcrumb id
+	Status       string // "running" | "complete" | "failed" (BatchStatus)
+	Scope        string
+	Meta         string
+	Completed    int64
+	Dead         int64
+	Active       bool
+	Stages       []runStage
+	Log          []runLogLine
+	Params       []runKV
+	Vantages     []runVantage
+	Degraded     string
+}
+
+// runPage renders the per-run drill-in. The run id is a Dispatch id; the dispatch
+// is found in the same recent-history read the monitor uses (no new store method),
+// so a run that has aged out of history 404s to the run-missing page rather than
+// fabricating a record. A viewer reads it — like the Scans monitor, it is a
+// read-only window onto the Operational queue.
+func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	raw := r.PathValue("id")
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		s.renderStatus(w, http.StatusNotFound, "run-missing", map[string]any{
+			"Title": "No such run", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+			"NavActive": "drift", "Run": raw,
+		})
+		return
+	}
+
+	rows, err := s.store.ListDispatchProgress(r.Context(), scansHistoryLimit)
+	if err != nil {
+		s.serverError(w, "run detail: list dispatches", err)
+		return
+	}
+	var found *db.ListDispatchProgressRow
+	for i := range rows {
+		if rows[i].DispatchID == id {
+			found = &rows[i]
+			break
+		}
+	}
+	if found == nil {
+		s.renderStatus(w, http.StatusNotFound, "run-missing", map[string]any{
+			"Title": "No such run", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+			"NavActive": "drift", "Run": raw,
+		})
+		return
+	}
+
+	dv := toDispatchView(*found)
+	jobRows, err := s.store.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: id, Valid: true})
+	if err != nil {
+		s.serverError(w, "run detail: list jobs", err)
+		return
+	}
+
+	view := s.buildRunView(r, dv, jobRows)
+	s.render(w, "run", map[string]any{
+		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "drift",
+		"Run":       view,
+	})
+}
+
+// buildRunView shapes one Dispatch and its jobs into the Run detail view. Every
+// value is real: the batch status and job counts off the folded progress, the
+// stages / log / vantage health off the jobs, and the parameters off the dispatch
+// and its Scan. A superseded (retried) attempt is out of the stage and vantage
+// reads — a fresh job replaced it — but stays in the log, marked, as a real event.
+func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.ListJobsForDispatchRow) runView {
+	v := runView{
+		ID:        dv.ID,
+		Title:     dv.DispatchedAt,
+		Completed: dv.Completed,
+		Dead:      dv.Dead,
+		Active:    dv.Active,
+		Scope:     "all scopes",
+	}
+	switch {
+	case dv.Active:
+		v.Status = "running"
+	case dv.Dead > 0:
+		v.Status = "failed"
+	default:
+		v.Status = "complete"
+	}
+
+	jobs := make([]jobView, 0, len(jobRows))
+	for _, j := range jobRows {
+		jobs = append(jobs, toJobView(j))
+	}
+
+	v.Vantages = runVantages(jobs)
+	for _, vt := range v.Vantages {
+		if vt.Status == "degraded" {
+			v.Degraded = vt.Name
+			break
+		}
+	}
+	v.Stages = runStages(jobs)
+	v.Log = runLog(jobs)
+
+	nv := len(v.Vantages)
+	v.Meta = dv.ScanKind + " profile"
+	if nv > 0 {
+		v.Meta += fmt.Sprintf(" · %d %s", nv, plural(nv, "vantage", "vantages"))
+	}
+
+	v.Params = []runKV{{K: "Profile", V: dv.ScanKind}}
+	if sc, err := s.store.GetScanByKind(r.Context(), dv.ScanKind); err == nil {
+		v.Params = append(v.Params, runKV{K: "Cadence", V: cadenceLabel(sc.CadenceSeconds)})
+	}
+	if dv.DispatchedAt != "" {
+		v.Params = append(v.Params, runKV{K: "Dispatched", V: dv.DispatchedAt})
+	}
+	v.Params = append(v.Params, runKV{K: "Jobs", V: strconv.FormatInt(dv.Live, 10)})
+	if nv > 0 {
+		v.Params = append(v.Params, runKV{K: "Vantages", V: strconv.Itoa(nv)})
+	}
+	return v
+}
+
+// runStages folds the dispatch's jobs into pipeline steps, grouped by job kind in
+// first-seen order. A stage with no in-flight job is done (a filled check); one
+// still running or ready is current (an accent ring). Superseded attempts are
+// excluded — the fresh job that replaced them carries the count.
+func runStages(jobs []jobView) []runStage {
+	var order []string
+	idx := map[string]int{}
+	type agg struct{ total, done, dead, inflight int }
+	var aggs []agg
+	for _, j := range jobs {
+		if j.Superseded {
+			continue
+		}
+		i, ok := idx[j.Kind]
+		if !ok {
+			i = len(order)
+			idx[j.Kind] = i
+			order = append(order, j.Kind)
+			aggs = append(aggs, agg{})
+		}
+		aggs[i].total++
+		switch j.State {
+		case "done":
+			aggs[i].done++
+		case "dead":
+			aggs[i].dead++
+		case "ready", "running":
+			aggs[i].inflight++
+		}
+	}
+	stages := make([]runStage, 0, len(order))
+	for i, k := range order {
+		a := aggs[i]
+		detail := fmt.Sprintf("%d of %d done", a.done, a.total)
+		if a.dead > 0 {
+			detail += fmt.Sprintf(" · %d dead-lettered", a.dead)
+		}
+		stages = append(stages, runStage{
+			Num:     i + 1,
+			Title:   k,
+			Detail:  detail,
+			Done:    a.inflight == 0,
+			Current: a.inflight > 0,
+			Last:    i == len(order)-1,
+		})
+	}
+	return stages
+}
+
+// runLog turns the dispatch's jobs into the batch log — one line per job, the id
+// as its tag, a level from its state (a dead job errors, a superseded or retrying
+// attempt warns), and the terse kind · state · vantage · batch text. Every line is
+// a real queue event; nothing is invented.
+func runLog(jobs []jobView) []runLogLine {
+	out := make([]runLogLine, 0, len(jobs))
+	for _, j := range jobs {
+		level := ""
+		switch {
+		case j.State == "dead":
+			level = "error"
+		case j.Superseded || j.Retrying:
+			level = "warn"
+		}
+		text := j.Kind + " · " + j.State
+		if j.Vantage != "" {
+			text += " · " + j.Vantage
+		}
+		if j.Batch != "" {
+			text += " · " + j.Batch
+		}
+		out = append(out, runLogLine{Tag: "#" + strconv.FormatInt(j.ID, 10), Level: level, Text: text})
+	}
+	return out
+}
+
+// runVantages folds the jobs' vantages into per-vantage health, in first-seen
+// order. A vantage is degraded if any of its non-superseded jobs dead-lettered,
+// else ok. Latency is not stored, so it reads "—" (as the example's does). It is a
+// vantage that looked, never a probe/scanner/agent.
+func runVantages(jobs []jobView) []runVantage {
+	var order []string
+	seen := map[string]bool{}
+	dead := map[string]bool{}
+	for _, j := range jobs {
+		if j.Vantage == "" || j.Superseded {
+			continue
+		}
+		if !seen[j.Vantage] {
+			seen[j.Vantage] = true
+			order = append(order, j.Vantage)
+		}
+		if j.State == "dead" {
+			dead[j.Vantage] = true
+		}
+	}
+	out := make([]runVantage, 0, len(order))
+	for _, n := range order {
+		status := "ok"
+		if dead[n] {
+			status = "degraded"
+		}
+		out = append(out, runVantage{Name: n, Latency: "—", Status: status})
+	}
+	return out
+}
+
+// plural picks the singular or plural noun for a count.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 // toDispatchView folds one Dispatch's per-state job counts into progress. Live work

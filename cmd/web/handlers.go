@@ -299,6 +299,12 @@ func (s *server) handler() http.Handler {
 	// carries neither `/` nor `@`, so it rides a plain path segment.
 	mux.HandleFunc("GET /asset/{key}", s.requireLogin(s.assetPage))
 	mux.HandleFunc("GET /drift", s.requireLogin(s.driftPage))
+	// The per-run drill-in (#297, T2): the destination of a Drift "Batch detail"
+	// entry. A run is one Dispatch (a fan-out of one Scan); the route is stable so
+	// T16's Drift can link straight to it. A viewer reads it, like the Scans monitor
+	// — it is a read-only window onto the Operational queue corpus. A Dispatch id is
+	// an integer carrying neither `/` nor `@`, so it rides a plain path segment.
+	mux.HandleFunc("GET /run/{id}", s.requireLogin(s.runPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
 	mux.HandleFunc("POST /annotations", s.requireAdmin(s.declareAnnotation))
