@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -111,9 +113,10 @@ func (s *server) fillMessagesSection(r *http.Request, data map[string]any) error
 // state is a per-account fact; there is no un-read, since a message is read once
 // the operator has seen it.
 func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	dest := messageReturn(r)
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, "/messages", http.StatusSeeOther)
+		http.Redirect(w, r, dest, http.StatusSeeOther)
 		return
 	}
 	if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
@@ -122,7 +125,7 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, _ db.Ac
 		s.serverError(w, "mark message read", err)
 		return
 	}
-	http.Redirect(w, r, "/messages", http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
 // markAllMessagesRead clears the unread count in one act.
@@ -131,7 +134,165 @@ func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, _ d
 		s.serverError(w, "mark all messages read", err)
 		return
 	}
-	http.Redirect(w, r, "/messages", http.StatusSeeOther)
+	http.Redirect(w, r, messageReturn(r), http.StatusSeeOther)
+}
+
+// messageReturn is where a message-read POST returns to. The two read handlers are
+// shared by the viewer-readable /messages fold and the V3 /inbox surface (#299);
+// an /inbox form carries a `return` field so the redirect lands back on the Inbox,
+// while /messages posts (which carry none) keep their historical /messages home. The
+// value is admitted only when it names the Inbox, so the field is not an open
+// redirect into an arbitrary URL.
+func messageReturn(r *http.Request) string {
+	if ret := r.FormValue("return"); ret == "/inbox" || strings.HasPrefix(ret, "/inbox?") {
+		return ret
+	}
+	return "/messages"
+}
+
+// inboxView is one message shaped for the Inbox screen (#299): the shared
+// messageRow plus the relative instant the list and detail render, the jump-link
+// label, and whether this row is the one the operator has open.
+type inboxView struct {
+	messageRow
+	Rel       string // relative instant ("3h"), with the absolute Instant on hover
+	JumpLabel string // the detail card's per-mover jump-link label
+	Selected  bool
+}
+
+// inboxPage renders the Inbox (#299, ADR-0110), the V3 primary message surface the
+// shell bell deep-links to. It is the console port of
+// design-system/examples/console/Inbox.jsx: the read/unread list beside the
+// per-message detail, an all/unread filter, mark-all-read, and the per-mover jump
+// link. Selecting a message (an ?id link, the port's open()/initialId) marks it
+// read, so the unread count is read back after that act. Sample data is swapped for
+// real Message rows of the same shape — the class vocabulary is the store's own
+// (drift / coverage / clock), never the example's placeholder classes. Where there
+// are no messages, the design-system inbox-zero empty-state renders; nothing is
+// fabricated.
+func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// Opening a message marks it read (the port's open() and initialId both do), so
+	// resolve the selection first and mark before the counts are read back.
+	var selID int64
+	if v := r.URL.Query().Get("id"); v != "" {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			selID = id
+			if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
+				ID: selID, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+			}); err != nil {
+				s.serverError(w, "mark message read", err)
+				return
+			}
+		}
+	}
+	filter := "all"
+	if r.URL.Query().Get("filter") == "unread" {
+		filter = "unread"
+	}
+
+	rows, err := s.store.ListMessages(r.Context())
+	if err != nil {
+		s.serverError(w, "list messages", err)
+		return
+	}
+	unread, err := s.store.CountUnreadMessages(r.Context())
+	if err != nil {
+		s.serverError(w, "count unread messages", err)
+		return
+	}
+	// A delivery failure is surfaced on the Message it failed to carry (ADR-0039,
+	// ADR-0081), never on Coverage. Best-effort, as on the /messages fold: a read
+	// failure degrades to no delivery annotation rather than dropping the messages.
+	byMessage := map[int64][]deliveryView{}
+	if outcomes, derr := s.store.ListDeliveryOutcomes(r.Context()); derr == nil {
+		for _, o := range outcomes {
+			byMessage[o.MessageID] = append(byMessage[o.MessageID], toDeliveryView(o))
+		}
+	}
+
+	now := s.now()
+	shown := make([]inboxView, 0, len(rows))
+	var selected *inboxView
+	for _, m := range rows {
+		base := toMessageRow(m)
+		base.Deliveries = byMessage[m.ID]
+		for _, d := range base.Deliveries {
+			if d.Failed {
+				base.AnyUndelivered = true
+			}
+		}
+		v := inboxView{messageRow: base, JumpLabel: jumpLabel(message.Cause(m.Cause), m.SubjectKind)}
+		if m.Instant.Valid {
+			v.Rel = relTime(m.Instant.Time, now)
+		}
+		if m.ID == selID {
+			v.Selected = true
+			sel := v
+			selected = &sel // the open message is shown whatever the filter
+		}
+		if filter == "unread" && base.Read {
+			continue
+		}
+		shown = append(shown, v)
+	}
+
+	// The filter toggle preserves the open message, so its links carry the id.
+	allHref, unreadHref := "/inbox", "/inbox?filter=unread"
+	if selID != 0 {
+		idq := "id=" + strconv.FormatInt(selID, 10)
+		allHref, unreadHref = "/inbox?"+idq, "/inbox?filter=unread&"+idq
+	}
+
+	s.render(w, "inbox", map[string]any{
+		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive":  "inbox",
+		"Messages":   shown,
+		"Selected":   selected,
+		"Unread":     unread,
+		"Filter":     filter,
+		"AllHref":    allHref,
+		"UnreadHref": unreadHref,
+	})
+}
+
+// jumpLabel is the detail card's jump-link label, keyed on the message's mover so
+// the button names where it lands — the Source, the Seed's scope, or the subject
+// that moved — mirroring the per-mover link messageLink resolves.
+func jumpLabel(cause message.Cause, subjectKind string) string {
+	switch message.LinkKindForCause(cause) {
+	case message.LinkSource:
+		return "Open source"
+	case message.LinkSeed:
+		return "Open scope"
+	default:
+		switch subjectKind {
+		case "service", "endpoint", "name", "address":
+			return "Open subject"
+		}
+		return "Open inventory"
+	}
+}
+
+// relTime renders an instant as a terse relative age ("now", "3h", "2d"), the
+// design system's relative-timestamp convention; the absolute instant rides the
+// element's title for the exact reading.
+func relTime(t, now time.Time) string {
+	d := now.Sub(t)
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d < time.Minute:
+		return "now"
+	case d < time.Hour:
+		return strconv.Itoa(int(d/time.Minute)) + "m"
+	case d < 24*time.Hour:
+		return strconv.Itoa(int(d/time.Hour)) + "h"
+	case d < 7*24*time.Hour:
+		return strconv.Itoa(int(d/(24*time.Hour))) + "d"
+	default:
+		return strconv.Itoa(int(d/(7*24*time.Hour))) + "w"
+	}
 }
 
 // toMessageRow renders one stored message for the panel, resolving its link per
