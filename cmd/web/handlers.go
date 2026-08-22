@@ -250,6 +250,7 @@ func (s *server) handler() http.Handler {
 	// projection over the reachability corpus. A dedicated nav destination; the
 	// board itself is a census and never an alert source (ADR-0029).
 	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
+	mux.HandleFunc("GET /reports", s.requireLogin(s.reportsPage))
 
 	mux.HandleFunc("GET /subjects", s.requireLogin(s.subjectsPage))
 	// The Service and Endpoint drill-downs read their key from a query parameter
