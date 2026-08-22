@@ -304,6 +304,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /sources", s.requireLogin(s.sourcesModal))
 	mux.HandleFunc("POST /sources/toggle", s.requireAdmin(s.toggleSource))
 
+	// The account surface temporarily lives at GET /account (#277): it moved off `/`
+	// when the Dashboard took the root route. #281 folds it into Settings → access
+	// and redirects /account → /settings (T10); this route is removed then.
+	mux.HandleFunc("GET /account", s.requireLogin(s.accountPage))
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
 	mux.HandleFunc("POST /account/totp/enable", s.requireLogin(s.totpEnable))
 	mux.HandleFunc("POST /account/totp/confirm", s.requireLogin(s.totpConfirm))
