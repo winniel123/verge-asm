@@ -48,7 +48,7 @@ const scopeTemplates = `
 .switch.on { background:var(--accent); border-color:var(--accent); }
 .switch .knob { position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:var(--r-full);
   background:var(--surface); box-shadow:var(--shadow-xs); }
-.switch.on .knob { left:18px; background:#ffffff; }
+.switch.on .knob { left:18px; background:var(--on-accent); }
 .switchlabel { font-size:13px; color:var(--body); }
 .exclrow { display:flex; align-items:center; gap:10px; padding:7px 10px; background:var(--sunken);
   border-radius:10px; margin-bottom:6px; }

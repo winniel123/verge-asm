@@ -226,7 +226,7 @@ Scope and let a scan measure a subject into the estate to populate it.</p>
         var cv = document.createElement("canvas");
         cv.width = VW; cv.height = VH;
         var ctx = cv.getContext("2d");
-        ctx.fillStyle = getComputedStyle(document.body).backgroundColor || "#ffffff";
+        ctx.fillStyle = getComputedStyle(document.body).backgroundColor || getComputedStyle(document.documentElement).getPropertyValue("--paper").trim();
         ctx.fillRect(0, 0, VW, VH);
         ctx.drawImage(img, 0, 0, VW, VH);
         var a = document.createElement("a");

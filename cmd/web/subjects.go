@@ -69,39 +69,6 @@ func decodeDNSRecord(raw []byte) dnsRecordValue {
 	return v
 }
 
-// subjectRow is one Name in the estate listing: its rendered key (also the link
-// target) and its current resolution value. No count and no membership badge —
-// a row's key is a link that carries no state (ADR-0072).
-type subjectRow struct {
-	Name       string
-	Resolution string
-}
-
-// serviceRow is one Service in the estate listing: its (Address, port,
-// transport) key and its current reachability verdict. A Service exists open or
-// closed, which is what gives `unreachable` a subject to be a verdict about, so
-// both `reached` and `not-reached` are values a row may carry (CONTEXT.md
-// `Service`). The key carries a `/` (the transport separator), so the drill-down
-// link is a query parameter rather than a path segment.
-type serviceRow struct {
-	Key   string
-	Reach string
-}
-
-// endpointRow is one Endpoint in the estate listing: its `name@service` key
-// split into its Name and Service legs (Nameless where the Name is absent — the
-// distinguished nameless variant), and a short label for its current HTTP
-// identity. An Endpoint exists for every (Name, Service) pair with a successful
-// HTTP exchange (CONTEXT.md `Endpoint`). The key carries a `/` and an `@`, so the
-// drill-down link is a query parameter rather than a path segment.
-type endpointRow struct {
-	Key      string
-	Name     string
-	Nameless bool
-	Service  string
-	Identity string
-}
-
 // citationHop is one link in a subject's "why is this here" chain, rendered
 // top-to-bottom from the subject down to the Seed the chain terminates at.
 type citationHop struct {
@@ -235,66 +202,6 @@ type spanDetail struct {
 type breakView struct {
 	MovedLeaves string
 	At          string
-}
-
-func (s *server) subjectsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	search := strings.TrimSpace(r.FormValue("q"))
-	rows, err := s.store.ListCurrentNameSubjects(r.Context(), db.ListCurrentNameSubjectsParams{
-		Search: search, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	})
-	if err != nil {
-		s.serverError(w, "list current name subjects", err)
-		return
-	}
-	views := make([]subjectRow, 0, len(rows))
-	for _, row := range rows {
-		views = append(views, subjectRow{
-			Name:       row.SubjectKey,
-			Resolution: decodeResolution(row.Value).Outcome,
-		})
-	}
-
-	// Service subjects share the listing (#195): they arrive from the
-	// connect-outcome leaf's `reachability` facet on the hot Scan. A best-effort
-	// read — a failure degrades to the Name listing rather than a 500.
-	var svcViews []serviceRow
-	if svcRows, serr := s.store.ListCurrentServiceSubjects(r.Context(), db.ListCurrentServiceSubjectsParams{
-		Search: search, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	}); serr == nil {
-		svcViews = make([]serviceRow, 0, len(svcRows))
-		for _, row := range svcRows {
-			svcViews = append(svcViews, serviceRow{
-				Key:   row.SubjectKey,
-				Reach: decodeReachability(row.Value).Outcome,
-			})
-		}
-	}
-
-	// Endpoint subjects share the listing (#198): they arrive from the
-	// http-exchange leaf's `http-identity` facet on the (Name, Service) pair. A
-	// best-effort read — a failure degrades to the rest of the listing rather than
-	// a 500.
-	var epViews []endpointRow
-	if epRows, eerr := s.store.ListCurrentEndpointSubjects(r.Context(), db.ListCurrentEndpointSubjectsParams{
-		Search: search, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	}); eerr == nil {
-		epViews = make([]endpointRow, 0, len(epRows))
-		for _, row := range epRows {
-			name, svc := splitEndpointKey(row.SubjectKey)
-			epViews = append(epViews, endpointRow{
-				Key:      row.SubjectKey,
-				Name:     name,
-				Nameless: name == "",
-				Service:  svc,
-				Identity: httpIdentityLabel(decodeHTTPIdentity(row.Value)),
-			})
-		}
-	}
-
-	s.render(w, "subjects", map[string]any{
-		"Title": "Subjects", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Subjects": views, "Services": svcViews, "Endpoints": epViews, "Search": search,
-	})
 }
 
 // reachabilityValue is the JSON payload of a reachability observation — the

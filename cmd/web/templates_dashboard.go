@@ -75,7 +75,7 @@ const dashboardTemplates = `
       <div class="emptystate">
         <div class="microlabel">No severity ramp</div>
         <h2>Signals carry no severity</h2>
-        <p style="max-width:60ch;margin:var(--space-3) auto">A signal is a census member, not a scored finding &#8212; the register set is deliberately not a severity ramp, so there is nothing to rank here. See each rule's fired, did-not-fire and not-evaluable members on Signals.</p>
+        <p style="max-width:60ch;margin:var(--space-3) auto">A signal is a census member, not a scored one &#8212; the register set is deliberately not a severity ramp, so there is nothing to rank here. See each rule's fired, did-not-fire and not-evaluable members on Signals.</p>
         <a class="btn ghost" href="/signals">Go to Signals</a>
       </div>
     </section>

@@ -309,9 +309,16 @@ button.danger, .btn.danger { background: var(--danger); border-color: var(--dang
   box-shadow: var(--shadow-lg); padding: var(--space-4); }
 .cmdk-input { width: 100%; font-family: var(--sans); font-size: 14px; margin-bottom: var(--space-3); }
 .cmdk-group { display: flex; flex-direction: column; gap: 2px; margin-top: var(--space-3); }
-.cmdk-item { display: block; padding: 7px 10px; border-radius: var(--r-sm); font-size: 13px;
+.cmdk-group[hidden] { display: none; }
+.cmdk-item { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3);
+  width: 100%; text-align: left; padding: 7px 10px; border: 0; background: transparent; cursor: pointer;
+  border-radius: var(--r-sm); font-family: var(--sans); font-size: 13px;
   color: var(--body); text-decoration: none; }
-.cmdk-item:hover { background: var(--sunken); text-decoration: none; }
+.cmdk-item[hidden] { display: none; }
+.cmdk-item:hover, .cmdk-item.active { background: var(--sunken); text-decoration: none; }
+.cmdk-item .cmdk-hint { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.cmdk-empty { padding: 7px 10px; font-size: 13px; color: var(--muted); }
+.cmdk-empty[hidden] { display: none; }
 
 /* ---- legacy page classes (page bodies still in flight; kept intact) ---- */
 .kv { display: flex; gap: var(--space-4); margin-bottom: var(--space-3); }
@@ -530,7 +537,49 @@ var tmpl = template.Must(template.New("").Parse(`
    pages. Screen tickets fill the toast stack and palette results; T0 wires the shell. */
 (function () {
   function cmdk() { return document.getElementById("cmdk"); }
-  function openPalette(open) { var p = cmdk(); if (!p) return; if (open) p.removeAttribute("hidden"); else p.setAttribute("hidden", ""); }
+  function input() { var p = cmdk(); return p ? p.querySelector(".cmdk-input") : null; }
+  function items() { var p = cmdk(); return p ? Array.prototype.slice.call(p.querySelectorAll(".cmdk-item")) : []; }
+  function visible() { return items().filter(function (el) { return !el.hasAttribute("hidden"); }); }
+  function isOpen() { var p = cmdk(); return !!p && !p.hasAttribute("hidden"); }
+
+  function setActive(i) {
+    var vis = visible();
+    items().forEach(function (el) { el.classList.remove("active"); });
+    if (!vis.length) return;
+    if (i < 0) i = 0; if (i >= vis.length) i = vis.length - 1;
+    vis[i].classList.add("active");
+  }
+  function activeIndex() {
+    var vis = visible();
+    for (var i = 0; i < vis.length; i++) { if (vis[i].classList.contains("active")) return i; }
+    return -1;
+  }
+  function filter(q) {
+    var p = cmdk(); if (!p) return;
+    q = (q || "").trim().toLowerCase();
+    var any = false;
+    items().forEach(function (el) {
+      var match = !q || el.textContent.toLowerCase().indexOf(q) !== -1;
+      if (match) { el.removeAttribute("hidden"); any = true; } else { el.setAttribute("hidden", ""); }
+    });
+    Array.prototype.forEach.call(p.querySelectorAll("[data-cmdk-group]"), function (g) {
+      if (g.querySelector(".cmdk-item:not([hidden])")) g.removeAttribute("hidden"); else g.setAttribute("hidden", "");
+    });
+    var empty = p.querySelector("[data-cmdk-empty]");
+    if (empty) { if (any) empty.setAttribute("hidden", ""); else empty.removeAttribute("hidden"); }
+    setActive(0);
+  }
+  function openPalette(open) {
+    var p = cmdk(); if (!p) return;
+    if (open) {
+      p.removeAttribute("hidden");
+      var inp = input();
+      if (inp) { inp.value = ""; filter(""); inp.focus(); }
+    } else {
+      p.setAttribute("hidden", "");
+    }
+  }
+
   document.addEventListener("click", function (e) {
     var toggle = e.target.closest("[data-theme-toggle]");
     if (toggle) {
@@ -543,12 +592,35 @@ var tmpl = template.Must(template.New("").Parse(`
     if (e.target.closest("[data-cmdk-open]")) { openPalette(true); return; }
     if (e.target.closest("[data-cmdk-close]")) { openPalette(false); return; }
   });
+  document.addEventListener("input", function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains("cmdk-input")) filter(e.target.value);
+  });
   document.addEventListener("keydown", function (e) {
     if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
       e.preventDefault();
-      var p = cmdk();
-      openPalette(!p || p.hasAttribute("hidden"));
-    } else if (e.key === "Escape") { openPalette(false); }
+      openPalette(!isOpen());
+      return;
+    }
+    if (!isOpen()) return;
+    if (e.key === "Escape") { e.preventDefault(); openPalette(false); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive(activeIndex() + 1); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); setActive(activeIndex() - 1); return; }
+    if (e.key === "Enter") {
+      var vis = visible(); var idx = activeIndex(); if (idx < 0) idx = 0;
+      if (vis[idx]) { e.preventDefault(); vis[idx].click(); }
+      return;
+    }
+    if (e.key === "Tab") {
+      // Focus trap: cycle focus among the input and the visible items only.
+      var focusables = [input()].concat(visible()).filter(Boolean);
+      if (!focusables.length) return;
+      var ci = focusables.indexOf(document.activeElement);
+      var ni = e.shiftKey ? ci - 1 : ci + 1;
+      if (ni < 0) ni = focusables.length - 1;
+      if (ni >= focusables.length) ni = 0;
+      e.preventDefault();
+      focusables[ni].focus();
+    }
   });
 })();
 </script></body></html>{{end}}
@@ -581,15 +653,23 @@ var tmpl = template.Must(template.New("").Parse(`
 <div class="cmdk" id="cmdk" hidden><div class="cmdk-scrim" data-cmdk-close></div>
 <div class="cmdk-panel" role="dialog" aria-label="Command palette" aria-modal="true">
 <input class="cmdk-input" type="text" placeholder="Search screens and actions…" aria-label="Command">
-<div class="cmdk-group"><div class="microlabel">Screens</div>
+<div class="cmdk-group" data-cmdk-group><div class="microlabel">Screens</div>
 <a class="cmdk-item" href="/">Dashboard</a>
 <a class="cmdk-item" href="/scope">Scope</a>
 <a class="cmdk-item" href="/inventory">Inventory</a>
 <a class="cmdk-item" href="/drift">Drift</a>
-<a class="cmdk-item" href="/signals">Signals</a>
+<a class="cmdk-item" href="/signals">Signals{{if .SignalCount}}<span class="cmdk-hint">{{.SignalCount}} open</span>{{end}}</a>
 <a class="cmdk-item" href="/graph">Graph</a>
 <a class="cmdk-item" href="/reports">Reports</a>
-<a class="cmdk-item" href="/settings">Settings</a>
-</div></div></div>
+{{if .IsAdmin}}<a class="cmdk-item" href="/settings?tab=integrations">Integrations</a>
+<a class="cmdk-item" href="/settings">Settings</a>{{end}}
+</div>
+<div class="cmdk-group" data-cmdk-group><div class="microlabel">Actions</div>
+<a class="cmdk-item" href="/scans">Run scan</a>
+<a class="cmdk-item" href="/scope">Add seed</a>
+<button type="button" class="cmdk-item" data-theme-toggle>Toggle theme</button>
+</div>
+<div class="cmdk-empty" data-cmdk-empty hidden>No matching screen or action</div>
+</div></div>
 <div class="toaststack" id="toasts" aria-live="polite" aria-atomic="false"></div>{{end}}
 `))

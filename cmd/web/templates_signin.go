@@ -115,7 +115,7 @@ Single sign-on not configured
 <form method="post" action="/account/totp/confirm">
 <label style="margin-bottom:6px"><span>Current code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" required style="text-align:center;letter-spacing:0.5em;font-size:19px;font-weight:600;height:48px"></label>
 <div class="row"><button type="submit" style="flex:1;text-align:center">Confirm and enable</button>
-<a class="btn ghost" href="/account" style="text-decoration:none">Cancel</a></div>
+<a class="btn ghost" href="/" style="text-decoration:none">Cancel</a></div>
 </form>
 </div>
 {{template "authfoot" .}}
