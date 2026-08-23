@@ -14,7 +14,7 @@
  */
 import DocsLayout from "../../layouts/DocsLayout.astro";
 import Article from "../../pipeline/render.jsx";
-import { resolveSources, listVersions } from "../../pipeline/source-resolution";
+import { resolveSources, listVersions, canonicalPath } from "../../pipeline/source-resolution";
 import { extractToc } from "../../pipeline/slug";
 import { buildNav } from "../../pipeline/nav-build";
 
@@ -38,6 +38,8 @@ const { source, sources, versions } = Astro.props;
 const toc = extractToc(source.rawMarkdown);
 const sections = buildNav(sources, source.slug);
 const pageTitle = `${source.frontmatter.title ?? source.slug} · Verge ASM docs`;
+// Canonical URL points every version of a page at the `latest` alias (#351 point 4).
+const canonical = canonicalPath(source.slug);
 ---
 <DocsLayout
   title={pageTitle}
@@ -46,6 +48,7 @@ const pageTitle = `${source.frontmatter.title ?? source.slug} · Verge ASM docs`
   toc={toc}
   versions={versions}
   version={source.version}
+  canonical={canonical}
 >
   <Article client:load markdown={source.rawMarkdown} />
 </DocsLayout>
