@@ -20,8 +20,21 @@ const reportsTemplates = `
     <span class="muted" style="font-size:12.5px">Operational activity and scheduled exports for the selected period.</span>
   </div>
   <div style="margin-left:auto;display:flex;gap:var(--space-2);align-items:center">
-    <span class="badge" title="Range selection is not wired yet">Last 12 weeks</span>
-    <button type="button" class="secondary" disabled title="Export is not wired yet" style="opacity:0.6;cursor:default">Export CSV</button>
+    <form method="get" action="/reports" style="margin:0">
+      <label class="microlabel" for="reports-range" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Range</label>
+      <select id="reports-range" name="weeks" onchange="this.form.submit()" aria-label="Reporting period" style="margin:0">
+        {{range .RangeOptions}}<option value="{{.Weeks}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+      </select>
+      <noscript><button type="submit" class="secondary" style="margin-left:var(--space-2)">Apply</button></noscript>
+    </form>
+    <details style="position:relative">
+      <summary class="btn secondary" style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px">Export
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></summary>
+      <div role="menu" style="position:absolute;right:0;top:calc(100% + 6px);min-width:170px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-md);box-shadow:var(--shadow-md);padding:6px;z-index:35;display:flex;flex-direction:column;gap:2px">
+        <a role="menuitem" href="/reports/export?format=csv&amp;weeks={{.RangeWeeks}}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);text-decoration:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>Export CSV</a>
+        <a role="menuitem" href="/reports/export?format=json&amp;weeks={{.RangeWeeks}}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);text-decoration:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>Export JSON</a>
+      </div>
+    </details>
   </div>
 </header>
 
@@ -37,7 +50,7 @@ const reportsTemplates = `
   <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:var(--space-3);min-width:0">
     <div style="display:flex;align-items:baseline;gap:10px">
       <span class="microlabel">Scans run</span>
-      <span class="mono muted" style="margin-left:auto;font-size:11px">last 12 weeks</span>
+      <span class="mono muted" style="margin-left:auto;font-size:11px">{{.RangeLabel}}</span>
     </div>
     <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{.ScansWindow}}</span>
     <span class="muted" style="font-size:11.5px">scans dispatched in the period</span>
@@ -88,11 +101,11 @@ const reportsTemplates = `
       </div>
       {{if .HasHeat}}
       <div style="display:inline-flex;flex-direction:column;gap:var(--space-2)">
-        <div role="img" aria-label="Scans per day, last 12 weeks" style="display:grid;grid-template-rows:repeat(7,12px);grid-auto-flow:column;grid-auto-columns:12px;gap:3px">
+        <div role="img" aria-label="Scans per day, {{.RangeLabel}}" style="display:grid;grid-template-rows:repeat(7,12px);grid-auto-flow:column;grid-auto-columns:12px;gap:3px">
           {{range .Heat}}<span title="{{.Title}}" style="width:12px;height:12px;border-radius:3px;box-sizing:border-box;background:{{.Bg}};border:1px solid {{.Border}}"></span>{{end}}
         </div>
         <div style="display:flex;align-items:center;gap:6px">
-          <span class="mono muted" style="font-size:10.5px">12 weeks ago</span>
+          <span class="mono muted" style="font-size:10.5px">{{.RangeWeeks}} weeks ago</span>
           <span class="mono muted" style="margin-left:auto;font-size:10.5px">less</span>
           <span style="width:10px;height:10px;border-radius:3px;box-sizing:border-box;background:var(--sunken);border:1px solid var(--hairline)"></span>
           <span style="width:10px;height:10px;border-radius:3px;box-sizing:border-box;background:color-mix(in srgb, var(--chart-1) 28%, var(--surface))"></span>
@@ -106,7 +119,7 @@ const reportsTemplates = `
       {{else}}
       <div class="emptystate">
         <div class="microlabel">Nothing dispatched</div>
-        <h2>No scans in the last 12 weeks</h2>
+        <h2>No scans in the {{.RangeLabel}}</h2>
         <p style="max-width:60ch;margin:var(--space-3) auto">Scan activity shows here once dispatches land. Declare a scope on Scope and trigger a scan, or wait for the next cadence.</p>
         <a class="btn ghost" href="/scans">Go to Scans</a>
       </div>

@@ -352,6 +352,10 @@ func (s *server) handler() http.Handler {
 	// exposure board. Viewer-readable: a viewer reads the board, mutates nothing.
 	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
 	mux.HandleFunc("GET /reports", s.requireLogin(s.reportsPage))
+	// The Reports export (#291): the KPI band + scans-per-day series for the active
+	// ?weeks= range as a downloadable csv/json file. A viewer reads it — an export is
+	// a read of the same operational figures the page shows, never a mutation.
+	mux.HandleFunc("GET /reports/export", s.requireLogin(s.reportsExport))
 	// The delivered-report artifact (#298, T3): the stable view of an already-
 	// delivered report, reached from Reports' "view last delivery" (T17 links here,
 	// so the route stays fixed). A viewer reads it — a delivered report is a record,
