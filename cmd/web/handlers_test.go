@@ -1108,6 +1108,112 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 	return rows, nil
 }
 
+// fakeBatchByID returns the batch with the given id, or a zero batch where none is
+// held (an observation always cites a batch the fake created, so this resolves).
+func (f *fakeStore) fakeBatchByID(id int64) db.Batch {
+	for _, b := range f.batches {
+		if b.ID == id {
+			return b
+		}
+	}
+	return db.Batch{}
+}
+
+// ListRecentDriftEvents folds every observation into Span timelines with the real
+// drift.Fold — the same open/close logic the worker's ingest runs — and emits one
+// 'opened' event per span, attributing it to the batch of the observation at the
+// span's opened instant (the fake's observations carry their batch id, exactly as the
+// production span carries opened_batch_id after ADR-0111). Each opened event carries
+// its predecessor span so the handler classifies appeared vs changed and builds the
+// diff. A reasoned close would emit a 'closed' event too, but the fold sets no reason
+// (withdrawal persistence is unwired), so none arise here — matching production.
+// Rows are ordered newest batch first, then by timeline, as the production query is.
+func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error) {
+	since := arg.Since
+	type tlkey struct{ kind, key, facet, discriminator, source string }
+	order := []tlkey{}
+	byKey := map[tlkey][]drift.Reading{}
+	obsBatch := map[tlkey]map[int64]int64{} // per timeline: observedAt UnixNano -> batch id
+	for _, o := range f.observations {
+		k := tlkey{kind: o.SubjectKind, key: o.SubjectKey, facet: o.Facet, discriminator: o.Discriminator, source: o.Source}
+		if _, seen := byKey[k]; !seen {
+			order = append(order, k)
+			obsBatch[k] = map[int64]int64{}
+		}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+		obsBatch[k][o.ObservedAt.Time.UnixNano()] = o.BatchID
+	}
+
+	rows := []db.ListRecentDriftEventsRow{}
+	for _, k := range order {
+		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
+		key := drift.TimelineKey{
+			SubjectKind: k.kind, SubjectKey: k.key,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		spans := drift.Fold(key, byKey[k])
+		for i, s := range spans {
+			if !since.Time.IsZero() && s.OpenedAt.Before(since.Time) {
+				continue
+			}
+			bID := obsBatch[k][s.OpenedAt.UnixNano()]
+			b := f.fakeBatchByID(bID)
+			row := db.ListRecentDriftEventsRow{
+				Role:          "opened",
+				BatchID:       bID,
+				BatchKind:     b.Kind,
+				BatchAt:       pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
+				RecordedScope: []byte(`{}`),
+				SubjectKind:   k.kind, SubjectKey: k.key, Facet: k.facet, Discriminator: k.discriminator,
+				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
+				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
+			}
+			if !s.Open() {
+				row.ClosedAt = pgtype.Timestamptz{Time: s.ClosedAt, Valid: true}
+			}
+			if i > 0 {
+				prev := spans[i-1]
+				row.PrevValue = []byte(prev.Value)
+				row.PrevDerivation = derivation
+				if !prev.ClosedAt.IsZero() {
+					row.PrevClosedAt = pgtype.Timestamptz{Time: prev.ClosedAt, Valid: true}
+				}
+				if prev.Reason != "" {
+					row.PrevClosureReason = pgtype.Text{String: string(prev.Reason), Valid: true}
+				}
+			}
+			rows = append(rows, row)
+		}
+	}
+
+	// Newest batch first, then by timeline — same order as the production query, so a
+	// run of consecutive rows sharing a batch id is one group for buildDriftFeed.
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := rows[i], rows[j]
+		if !a.BatchAt.Time.Equal(b.BatchAt.Time) {
+			return a.BatchAt.Time.After(b.BatchAt.Time)
+		}
+		if a.BatchID != b.BatchID {
+			return a.BatchID > b.BatchID
+		}
+		if a.SubjectKind != b.SubjectKind {
+			return a.SubjectKind < b.SubjectKind
+		}
+		if a.SubjectKey != b.SubjectKey {
+			return a.SubjectKey < b.SubjectKey
+		}
+		return a.Facet < b.Facet
+	})
+	// Honor the feed cap: the newest events survive (rows are already newest-first).
+	if arg.MaxEvents > 0 && int32(len(rows)) > arg.MaxEvents {
+		rows = rows[:arg.MaxEvents]
+	}
+	return rows, nil
+}
+
 // addReachability records a reachability observation for a Service in a fresh
 // batch — the connect-outcome leaf's output the hot Scan writes. It is the seam
 // the Service drill-down tests populate.

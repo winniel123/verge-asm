@@ -32,19 +32,19 @@ import (
 // subject-level cross-class composition (internal/estate), and closing its
 // timelines with a `measured-absent`/`uncited`/`descoped` ground is that path's
 // job. This fold only tracks per-timeline value movement.
-func foldObservationsIntoSpans(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation) error {
+func foldObservationsIntoSpans(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation) error {
 	for _, o := range obs {
 		if o.Facet == "" {
 			continue
 		}
-		if err := foldOne(ctx, qtx, vantageID, observedAt, o); err != nil {
+		if err := foldOne(ctx, qtx, batchID, vantageID, observedAt, o); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func foldOne(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation) error {
+func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation) error {
 	source := sourceFor(o.Facet)
 	key := drift.TimelineKey{
 		SubjectKind:   subjectKindFor(o.Facet),
@@ -89,9 +89,11 @@ func foldOne(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observ
 		return nil
 	}
 	if open != nil && !closeAt.IsZero() {
-		// An ordinary value move or a version change: close with no reason. A
-		// withdrawal's reason is applied by the membership path, not here.
-		if err := qtx.CloseSpan(ctx, db.CloseSpanParams{ClosedAt: tstz(closeAt), ID: openID}); err != nil {
+		// An ordinary value move or a version change: close with no reason, citing the
+		// batch whose fold closed it (ADR-0111) so the estate-wide feed can pair this
+		// close with the open below into one `changed` transition. A withdrawal's reason
+		// is applied by the membership path, not here.
+		if err := qtx.CloseSpan(ctx, db.CloseSpanParams{ClosedAt: tstz(closeAt), ClosedBatchID: pgInt8(batchID), ID: openID}); err != nil {
 			return err
 		}
 	}
@@ -106,6 +108,7 @@ func foldOne(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, observ
 		IsGap:         opened.IsGap,
 		Derivation:    mustVectorJSON(opened.Vector),
 		OpenedAt:      tstz(observedAt),
+		OpenedBatchID: pgInt8(batchID),
 	})
 	return err
 }

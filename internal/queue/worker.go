@@ -205,7 +205,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		// Fold the completed batch's observations into the Span corpus in the same
 		// transaction — the outcome, its observations and the drift they move all
 		// commit together (ADR-0007).
-		if err := foldObservationsIntoSpans(ctx, qtx, job.VantageID, observedAt, obs); err != nil {
+		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs); err != nil {
 			return err
 		}
 		return qtx.MarkJobDone(ctx, db.MarkJobDoneParams{ID: job.ID, BatchID: pgInt8(batchID)})

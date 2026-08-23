@@ -22,7 +22,9 @@ type Querier interface {
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
 	// Close an open span at closed_at, recording a closure reason only where the
 	// close is a withdrawal (reason is NULL for an ordinary value move or a version
-	// change). A span is closed once and never rewritten.
+	// change) and the id of the Batch whose fold closed it (ADR-0111) — nullable, since
+	// a withdrawal closure is not a batch fold and cites none. A span is closed once and
+	// never rewritten.
 	CloseSpan(ctx context.Context, arg CloseSpanParams) error
 	// Marks a single Proposal confirmed and retains the Seed it became as provenance.
 	// Guarded on status = 'pending' so a concurrent or repeated confirm is a no-op
@@ -574,6 +576,25 @@ type Querier interface {
 	// key and may be NULL (the shipped position carries no vantage row), carried through
 	// so the fan-out partitions per vantage exactly as reachability does.
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
+	// The estate-wide, batch-grouped drift feed (#288, ADR-0111). Every span open/close
+	// EVENT a Batch caused within the period, joined to that Batch for the group meta, so
+	// the handler derives each event's change kind on read (ADR-0007) and groups the
+	// transitions by batch. Two event roles are unioned:
+	//
+	//   'opened' — a span opened by the batch (opened_batch_id): the anchor for
+	//   appeared / returned / revealed / changed. Its predecessor span on the same
+	//   timeline (the most recent span opened before it) rides along so the handler can
+	//   classify the opening and build a `changed` transition's before/after diff.
+	//
+	//   'closed' — a span closed by the batch WITH a closure reason (closed_batch_id +
+	//   closure_reason): the anchor for withdrawn / descoped. An ordinary value-move
+	//   close carries no reason and is already represented by its successor's 'opened'
+	//   row, so it is excluded here to avoid counting the same transition twice.
+	//
+	// Reads span and batch only — never dispatch — honoring the comparison-path
+	// separation (ADR-0041). Ordered newest batch first, then by timeline for a stable
+	// per-batch render.
+	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	// Every declared schedule, newest-first, unbounded — the "Recurring reports" table
 	// renders each row and resolves its "last delivery" from the Message corpus, since
@@ -673,7 +694,9 @@ type Querier interface {
 	// keeps an Address held only by an evidential answer out of the probed estate.
 	NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error)
 	// Open a new span for a timeline. The caller passes the canonical value, the
-	// gap flag, and the Derivation vector as a JSON array of {leaf,version}.
+	// gap flag, the Derivation vector as a JSON array of {leaf,version}, and the id of
+	// the Batch whose fold opened it (ADR-0111) — nullable, since a span opened outside
+	// a batch fold cites none.
 	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
 	// Opts one `Seed` scope into the cold tier. Idempotent on seed_id: opting an
 	// already-opted-in scope in again is a no-op, never a duplicate.

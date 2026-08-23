@@ -13,21 +13,31 @@ import (
 
 const closeSpan = `-- name: CloseSpan :exec
 UPDATE span
-SET closed_at = $1, closure_reason = $2
-WHERE id = $3 AND closed_at IS NULL
+SET closed_at = $1,
+    closure_reason = $2,
+    closed_batch_id = $3::bigint
+WHERE id = $4 AND closed_at IS NULL
 `
 
 type CloseSpanParams struct {
 	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
 	ClosureReason pgtype.Text        `json:"closure_reason"`
+	ClosedBatchID pgtype.Int8        `json:"closed_batch_id"`
 	ID            int64              `json:"id"`
 }
 
 // Close an open span at closed_at, recording a closure reason only where the
 // close is a withdrawal (reason is NULL for an ordinary value move or a version
-// change). A span is closed once and never rewritten.
+// change) and the id of the Batch whose fold closed it (ADR-0111) — nullable, since
+// a withdrawal closure is not a batch fold and cites none. A span is closed once and
+// never rewritten.
 func (q *Queries) CloseSpan(ctx context.Context, arg CloseSpanParams) error {
-	_, err := q.db.Exec(ctx, closeSpan, arg.ClosedAt, arg.ClosureReason, arg.ID)
+	_, err := q.db.Exec(ctx, closeSpan,
+		arg.ClosedAt,
+		arg.ClosureReason,
+		arg.ClosedBatchID,
+		arg.ID,
+	)
 	return err
 }
 
@@ -371,6 +381,146 @@ func (q *Queries) ListReachedServices(ctx context.Context) ([]ListReachedService
 	return items, nil
 }
 
+const listRecentDriftEvents = `-- name: ListRecentDriftEvents :many
+SELECT
+    'opened'::text   AS role,
+    b.id             AS batch_id,
+    b.kind           AS batch_kind,
+    b.created_at     AS batch_at,
+    b.recorded_scope AS recorded_scope,
+    sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
+    sp.value, sp.is_gap, sp.derivation,
+    sp.opened_at, sp.closed_at, sp.closure_reason,
+    pred.value          AS prev_value,
+    pred.derivation     AS prev_derivation,
+    pred.closed_at      AS prev_closed_at,
+    pred.closure_reason AS prev_closure_reason
+FROM span sp
+JOIN batch b ON b.id = sp.opened_batch_id
+LEFT JOIN LATERAL (
+    SELECT p.value, p.derivation, p.closed_at, p.closure_reason
+    FROM span p
+    WHERE p.subject_kind = sp.subject_kind
+      AND p.subject_key = sp.subject_key
+      AND p.facet = sp.facet
+      AND p.discriminator = sp.discriminator
+      AND p.vantage_id IS NOT DISTINCT FROM sp.vantage_id
+      AND p.source = sp.source
+      AND p.opened_at < sp.opened_at
+    ORDER BY p.opened_at DESC, p.id DESC
+    LIMIT 1
+) pred ON true
+WHERE b.created_at >= $2
+
+UNION ALL
+
+SELECT
+    'closed'::text   AS role,
+    b.id             AS batch_id,
+    b.kind           AS batch_kind,
+    b.created_at     AS batch_at,
+    b.recorded_scope AS recorded_scope,
+    sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
+    sp.value, sp.is_gap, sp.derivation,
+    sp.opened_at, sp.closed_at, sp.closure_reason,
+    NULL::jsonb        AS prev_value,
+    NULL::jsonb        AS prev_derivation,
+    NULL::timestamptz  AS prev_closed_at,
+    NULL::text         AS prev_closure_reason
+FROM span sp
+JOIN batch b ON b.id = sp.closed_batch_id
+WHERE b.created_at >= $2
+  AND sp.closure_reason IS NOT NULL
+
+ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at
+LIMIT $1
+`
+
+type ListRecentDriftEventsParams struct {
+	MaxEvents int32              `json:"max_events"`
+	Since     pgtype.Timestamptz `json:"since"`
+}
+
+type ListRecentDriftEventsRow struct {
+	Role              string             `json:"role"`
+	BatchID           int64              `json:"batch_id"`
+	BatchKind         string             `json:"batch_kind"`
+	BatchAt           pgtype.Timestamptz `json:"batch_at"`
+	RecordedScope     []byte             `json:"recorded_scope"`
+	SubjectKind       string             `json:"subject_kind"`
+	SubjectKey        string             `json:"subject_key"`
+	Facet             string             `json:"facet"`
+	Discriminator     string             `json:"discriminator"`
+	Value             []byte             `json:"value"`
+	IsGap             bool               `json:"is_gap"`
+	Derivation        []byte             `json:"derivation"`
+	OpenedAt          pgtype.Timestamptz `json:"opened_at"`
+	ClosedAt          pgtype.Timestamptz `json:"closed_at"`
+	ClosureReason     pgtype.Text        `json:"closure_reason"`
+	PrevValue         []byte             `json:"prev_value"`
+	PrevDerivation    []byte             `json:"prev_derivation"`
+	PrevClosedAt      pgtype.Timestamptz `json:"prev_closed_at"`
+	PrevClosureReason pgtype.Text        `json:"prev_closure_reason"`
+}
+
+// The estate-wide, batch-grouped drift feed (#288, ADR-0111). Every span open/close
+// EVENT a Batch caused within the period, joined to that Batch for the group meta, so
+// the handler derives each event's change kind on read (ADR-0007) and groups the
+// transitions by batch. Two event roles are unioned:
+//
+//	'opened' — a span opened by the batch (opened_batch_id): the anchor for
+//	appeared / returned / revealed / changed. Its predecessor span on the same
+//	timeline (the most recent span opened before it) rides along so the handler can
+//	classify the opening and build a `changed` transition's before/after diff.
+//
+//	'closed' — a span closed by the batch WITH a closure reason (closed_batch_id +
+//	closure_reason): the anchor for withdrawn / descoped. An ordinary value-move
+//	close carries no reason and is already represented by its successor's 'opened'
+//	row, so it is excluded here to avoid counting the same transition twice.
+//
+// Reads span and batch only — never dispatch — honoring the comparison-path
+// separation (ADR-0041). Ordered newest batch first, then by timeline for a stable
+// per-batch render.
+func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error) {
+	rows, err := q.db.Query(ctx, listRecentDriftEvents, arg.MaxEvents, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentDriftEventsRow{}
+	for rows.Next() {
+		var i ListRecentDriftEventsRow
+		if err := rows.Scan(
+			&i.Role,
+			&i.BatchID,
+			&i.BatchKind,
+			&i.BatchAt,
+			&i.RecordedScope,
+			&i.SubjectKind,
+			&i.SubjectKey,
+			&i.Facet,
+			&i.Discriminator,
+			&i.Value,
+			&i.IsGap,
+			&i.Derivation,
+			&i.OpenedAt,
+			&i.ClosedAt,
+			&i.ClosureReason,
+			&i.PrevValue,
+			&i.PrevDerivation,
+			&i.PrevClosedAt,
+			&i.PrevClosureReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpansForSubject = `-- name: ListSpansForSubject :many
 SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
        value, is_gap, derivation, opened_at, closed_at, closure_reason
@@ -441,10 +591,10 @@ func (q *Queries) ListSpansForSubject(ctx context.Context, arg ListSpansForSubje
 const openSpan = `-- name: OpenSpan :one
 INSERT INTO span (
     subject_kind, subject_key, facet, discriminator, vantage_id, source,
-    value, is_gap, derivation, opened_at
+    value, is_gap, derivation, opened_at, opened_batch_id
 ) VALUES (
     $1, $2, $3, $4, $5::bigint,
-    $6, $7, $8, $9, $10
+    $6, $7, $8, $9, $10, $11::bigint
 )
 RETURNING id
 `
@@ -460,10 +610,13 @@ type OpenSpanParams struct {
 	IsGap         bool               `json:"is_gap"`
 	Derivation    []byte             `json:"derivation"`
 	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
+	OpenedBatchID pgtype.Int8        `json:"opened_batch_id"`
 }
 
 // Open a new span for a timeline. The caller passes the canonical value, the
-// gap flag, and the Derivation vector as a JSON array of {leaf,version}.
+// gap flag, the Derivation vector as a JSON array of {leaf,version}, and the id of
+// the Batch whose fold opened it (ADR-0111) — nullable, since a span opened outside
+// a batch fold cites none.
 func (q *Queries) OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error) {
 	row := q.db.QueryRow(ctx, openSpan,
 		arg.SubjectKind,
@@ -476,6 +629,7 @@ func (q *Queries) OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, erro
 		arg.IsGap,
 		arg.Derivation,
 		arg.OpenedAt,
+		arg.OpenedBatchID,
 	)
 	var id int64
 	err := row.Scan(&id)

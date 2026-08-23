@@ -9,3 +9,8 @@
 
 # Local troubleshooting artifacts — screenshots, dumps, scratch
 temp/
+
+# built binaries (go build ./cmd/web etc.)
+/web
+/worker
+/prober
