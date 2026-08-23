@@ -1,0 +1,120 @@
+name: docs-site
+
+# Docs website lane (Wayfinder #355 / map #348). Separate from the Go app lane in
+# ci.yml — it never touches Go, and the Go lane never touches this. It builds the
+# multi-version Astro site in docs-site/, runs the broken-link + screenshot gates as
+# REQUIRED blocking checks, and (on push, not PR) deploys the static site to GitHub
+# Pages with a `/` -> /latest/ redirect.
+#
+# TRIGGERS
+#   • push to main .......... rebuild + deploy (site follows the moving `dev` version)
+#   • push tag `v*` ......... rebuild + deploy — a new release ref lights up as a
+#                             selectable version automatically (source-resolution
+#                             enumerates git tags; see docs-site/PIPELINE.md).
+#   • pull_request .......... run the gates only (build + links + screenshot). Path-
+#                             filtered so a Go-only PR does not spin up the Node lane.
+#
+# Why the PUSH trigger is deliberately NOT path-filtered: GitHub applies a push
+# `paths:` filter to tag refs as well, which can silently skip a release tag whose
+# commit didn't happen to touch docs/ — defeating "a new version appears
+# automatically". So push builds on every main commit and every v* tag; the build is
+# ~1 min and the practical trigger set (guides or design-system changes) is a subset.
+# Path-filtering is applied where it is safe and useful: the PR gate.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "docs/guides/**"
+      - "design-system/**"
+      - "docs-site/**"
+      - ".github/workflows/docs-site.yml"
+  workflow_dispatch:
+
+# Least-privilege default (matches ci.yml / #329). The deploy job elevates on itself.
+permissions:
+  contents: read
+
+# One deploy at a time; never cancel an in-flight Pages deploy mid-publish.
+concurrency:
+  group: docs-site-pages
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: docs-site
+
+jobs:
+  # Build + gates. Runs on every trigger (PRs included). Every step here is
+  # blocking: a non-zero exit fails the job, so both gates are required checks.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 is LOAD-BEARING. source-resolution.ts enumerates versions
+      # from git refs/tags; a shallow clone has no tags, so the build would silently
+      # emit a single-version site. Full history + tags is required.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Build every version (main + each v* tag) into docs-site/dist.
+      - name: Build site
+        run: npm run build
+
+      # REQUIRED GATE 1 — broken internal links/anchors. Exits non-zero with
+      # `file:line -> target` on any dead link; fails the job.
+      - name: Broken-link gate
+        run: npm run check:links
+
+      # Screenshot gate needs a browser. --with-deps pulls the OS libraries chromium
+      # needs on the runner. Cached across runs by Playwright version.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('docs-site/package-lock.json') }}
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      # REQUIRED GATE 2 — design-drift screenshot check. Renders a built docs page in
+      # chromium and pixel-diffs it against the committed baseline; fails on layout/
+      # spacing/hierarchy drift beyond threshold.
+      - name: Screenshot gate
+        run: npm run check:screenshot
+
+      # Upload the built site for the deploy job — only when we will actually deploy
+      # (push to main or a v* tag), never on PRs.
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/dist
+
+  # Deploy to GitHub Pages. Push events only (main + v* tags); never on PRs. Depends
+  # on the gated build, so a broken link or design drift blocks the deploy.
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

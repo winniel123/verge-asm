@@ -168,3 +168,12 @@ is never read as a heading.
 - **Slugger:** `github-slugger`, shared by the renderer and `extractToc`, so T2's
   link rewriter has one documented, deterministic anchor algorithm to match.
 - **No new ADR** was authored (avoids parallel ADR-number collisions in this wave).
+- **Deploy target (T5 / #355 — resolves map Fog):** GitHub Pages
+  (`upload-pages-artifact` + `deploy-pages`), gated behind the build so a broken link
+  or design drift blocks the publish. CI checks out with `fetch-depth: 0` (tags →
+  versions). `/` → `/latest/<first-guide>` via a generated `dist/index.html`
+  (meta-refresh + `location.replace` + `<link rel=canonical>`); Tv's `/latest/*` alias
+  tree is kept, not swapped for host rules. **Serving constraint:** the site's links
+  are root-absolute, so it must be served at the domain root (custom domain or an
+  `<owner>.github.io` repo), and Pages Settings → Source must be set to "GitHub
+  Actions" once. Full write-up + handoff: `docs-site/DEPLOY.md`.
