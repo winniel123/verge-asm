@@ -66,10 +66,7 @@ func (s *server) requireLogin(h authedHandler) http.HandlerFunc {
 func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
 		if acct.Role != roleAdmin {
-			s.renderStatus(w, http.StatusForbidden, "forbidden", map[string]any{
-				"Title": "Not permitted", "Message": "You need an admin role to do that.",
-				"IsAdmin": false,
-			})
+			s.forbidden(w, r)
 			return
 		}
 		h(w, r, acct)
@@ -209,7 +206,7 @@ func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64)
 
 func (s *server) home(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
 	s.render(w, "home", s.dashboardData(r, acct))
