@@ -240,11 +240,15 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 	// it never matched (RFC 6238 §5.2) — the single-use discipline recovery codes
 	// already hold.
 	// #337: the stored secret is ciphertext; decrypt to the cleartext base32 the
-	// verifier consumes. A decryption failure (e.g. a pre-#337 cleartext row) yields an
-	// empty secret that matches no code, so it collapses to a verification failure
-	// rather than a crash — the attacker learns nothing and the account simply cannot
-	// pass TOTP until it re-enrols.
-	secret, _ := auth.DecryptTOTPSecret(s.totpKey, acct.TotpSecret.String)
+	// verifier consumes. A correctly-enrolled account holds valid ciphertext, so a
+	// decryption failure — a legacy pre-#337 cleartext row, corruption, or a mis-derived
+	// key — is a hard fault, not a wrong code. Fail closed and loudly rather than
+	// tolerating it as a verification miss; the account cannot pass TOTP until re-enrolled.
+	secret, derr := auth.DecryptTOTPSecret(s.totpKey, acct.TotpSecret.String)
+	if derr != nil {
+		s.serverError(w, "decrypt totp secret", derr)
+		return
+	}
 	step, totpOK := auth.VerifyTOTPStep(secret, code, s.now())
 	// #339: the single-use guarantee is the atomic spend, not an in-memory snapshot
 	// compare. A matched code is accepted only when the conditional UPDATE advances the
@@ -694,11 +698,16 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	// #337: the stored secret is ciphertext; decrypt to the cleartext base32 the
-	// verifier and the re-render's QR/manual-entry fallback need. A decryption failure
-	// (e.g. a pre-#337 cleartext row) is treated as a verification failure rather than
-	// a crash, so enrollment simply cannot be confirmed against an unreadable secret.
+	// verifier and the re-render's QR/manual-entry fallback need. Enrollment just wrote
+	// valid ciphertext, so a decryption failure here is a hard fault — a legacy cleartext
+	// row, corruption, or a mis-derived key — surfaced loudly rather than tolerated as a
+	// wrong code.
 	secret, derr := auth.DecryptTOTPSecret(s.totpKey, fresh.TotpSecret.String)
-	if derr != nil || !auth.VerifyTOTP(secret, r.FormValue("code"), s.now()) {
+	if derr != nil {
+		s.serverError(w, "decrypt totp secret", derr)
+		return
+	}
+	if !auth.VerifyTOTP(secret, r.FormValue("code"), s.now()) {
 		s.render(w, "totp-enroll", totpEnrollData(acct.Username, secret,
 			"Incorrect code. Two-factor is not enabled."))
 		return

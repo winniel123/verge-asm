@@ -56,9 +56,11 @@ func EncryptTOTPSecret(key []byte, secret string) (string, error) {
 // DecryptTOTPSecret reverses EncryptTOTPSecret, recovering the cleartext base32
 // secret from the stored base64(nonce||ciphertext) (#337). An empty stored value
 // yields an empty secret. Every malformed, wrong-key, or tampered input returns an
-// error rather than a partial result, so the caller can treat a decryption failure
-// as a plain verification failure — a pre-#337 cleartext row (never valid base64 of
-// a sealed message) simply fails to verify rather than crashing the login path.
+// error rather than a partial result. A correctly-migrated store holds only valid
+// ciphertext, so callers MUST treat a decryption error as a hard fault — fail closed
+// and loudly — never as an ordinary verification miss. A legacy pre-#337 cleartext
+// row is exactly such a fault: it is surfaced as a server error, not silently
+// tolerated or masked as a wrong code.
 func DecryptTOTPSecret(key []byte, stored string) (string, error) {
 	if stored == "" {
 		return "", nil
