@@ -14,8 +14,8 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
 	payload := []byte(`{"slug":"okta","state":"abc","nonce":"xyz"}`)
 
-	tok := Sign(key, payload)
-	got, err := Verify(key, tok)
+	tok := Sign(key, "sso-tx", payload)
+	got, err := Verify(key, "sso-tx", tok)
 	if err != nil {
 		t.Fatalf("Verify of a freshly signed token: %v", err)
 	}
@@ -24,15 +24,20 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 	}
 
 	// A tampered payload half no longer matches the tag.
-	if _, err := Verify(key, "tampered."+tok[strings_IndexByte(tok, '.')+1:]); err == nil {
+	if _, err := Verify(key, "sso-tx", "tampered."+tok[strings_IndexByte(tok, '.')+1:]); err == nil {
 		t.Errorf("Verify accepted a tampered payload")
 	}
 	// The wrong key rejects a validly-formed token.
-	if _, err := Verify([]byte("wrongwrongwrongwrongwrongwrongwr"), tok); err == nil {
+	if _, err := Verify([]byte("wrongwrongwrongwrongwrongwrongwr"), "sso-tx", tok); err == nil {
 		t.Errorf("Verify accepted a token under the wrong key")
 	}
+	// The wrong domain rejects a validly-signed token — the type tag keeps one signed
+	// value from verifying as another under the same key.
+	if _, err := Verify(key, "other", tok); err == nil {
+		t.Errorf("Verify accepted a token under the wrong domain")
+	}
 	// A token with no separator is malformed.
-	if _, err := Verify(key, "no-dot-here"); err == nil {
+	if _, err := Verify(key, "sso-tx", "no-dot-here"); err == nil {
 		t.Errorf("Verify accepted a malformed token")
 	}
 }

@@ -103,9 +103,9 @@ type settingsForms struct {
 
 	// sso (#293). ssoError is an inline error on the single-sign-on surface; the
 	// remaining fields echo a rejected add-provider form back so the operator does not
-	// retype it. ssoOpen re-opens the add-provider dialog on a rejected mint.
+	// retype it (the add form renders unconditionally, so no open/closed flag is
+	// needed).
 	ssoError    string
-	ssoOpen     bool
 	ssoSlug     string
 	ssoName     string
 	ssoIssuer   string

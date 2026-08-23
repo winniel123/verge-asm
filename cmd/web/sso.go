@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -39,6 +41,10 @@ import (
 const (
 	ssoTxCookie = "verge_sso_tx"
 	ssoTxTTL    = 10 * time.Minute
+	// ssoTxDomain is the type tag mixed into the transaction cookie's signature, so a
+	// session cookie can never verify as an ssoTx (or vice-versa) even under the same
+	// signing key — the signed-value analogue of the session cookie's Kind.
+	ssoTxDomain = "sso-tx"
 )
 
 // ssoConfig is the resolved provider config the flow needs, free of DB types so the
@@ -67,13 +73,41 @@ type ssoFlow interface {
 
 // oidcFlow is the production ssoFlow: OpenID Connect discovery + authorization-code
 // exchange with PKCE, all token verification delegated to the vetted go-oidc/oauth2
-// libraries rather than hand-rolled (ADR-0112).
+// libraries rather than hand-rolled (ADR-0112). A discovered *oidc.Provider is built
+// once per issuer and cached — it is meant to be reused, and go-oidc's verifier caches
+// the JWKS behind it — so a login is not two discovery/JWKS round-trips.
 type oidcFlow struct {
 	httpClient *http.Client
+
+	mu    sync.Mutex
+	byIss map[string]*oidc.Provider
+}
+
+// newOIDCFlow builds the production flow with an initialised provider cache.
+func newOIDCFlow(client *http.Client) *oidcFlow {
+	return &oidcFlow{httpClient: client, byIss: map[string]*oidc.Provider{}}
+}
+
+// provider returns the cached provider for an issuer, discovering it once on first use.
+func (f *oidcFlow) provider(ctx context.Context, issuer string) (*oidc.Provider, error) {
+	f.mu.Lock()
+	prov, ok := f.byIss[issuer]
+	f.mu.Unlock()
+	if ok {
+		return prov, nil
+	}
+	prov, err := oidc.NewProvider(oidc.ClientContext(ctx, f.httpClient), issuer)
+	if err != nil {
+		return nil, fmt.Errorf("oidc discovery: %w", err)
+	}
+	f.mu.Lock()
+	f.byIss[issuer] = prov
+	f.mu.Unlock()
+	return prov, nil
 }
 
 // oauth2Config builds the oauth2 config for a provider over its discovered endpoints.
-func (f oidcFlow) oauth2Config(cfg ssoConfig, prov *oidc.Provider) oauth2.Config {
+func (f *oidcFlow) oauth2Config(cfg ssoConfig, prov *oidc.Provider) oauth2.Config {
 	return oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
@@ -83,10 +117,10 @@ func (f oidcFlow) oauth2Config(cfg ssoConfig, prov *oidc.Provider) oauth2.Config
 	}
 }
 
-func (f oidcFlow) AuthCodeURL(ctx context.Context, cfg ssoConfig, state, nonce, pkceVerifier string) (string, error) {
-	prov, err := oidc.NewProvider(oidc.ClientContext(ctx, f.httpClient), cfg.Issuer)
+func (f *oidcFlow) AuthCodeURL(ctx context.Context, cfg ssoConfig, state, nonce, pkceVerifier string) (string, error) {
+	prov, err := f.provider(ctx, cfg.Issuer)
 	if err != nil {
-		return "", fmt.Errorf("oidc discovery: %w", err)
+		return "", err
 	}
 	oc := f.oauth2Config(cfg, prov)
 	// state defeats CSRF, nonce binds the id_token to this login, S256 PKCE binds the
@@ -94,11 +128,11 @@ func (f oidcFlow) AuthCodeURL(ctx context.Context, cfg ssoConfig, state, nonce, 
 	return oc.AuthCodeURL(state, oidc.Nonce(nonce), oauth2.S256ChallengeOption(pkceVerifier)), nil
 }
 
-func (f oidcFlow) Exchange(ctx context.Context, cfg ssoConfig, code, pkceVerifier, nonce string) (string, error) {
+func (f *oidcFlow) Exchange(ctx context.Context, cfg ssoConfig, code, pkceVerifier, nonce string) (string, error) {
 	ctx = oidc.ClientContext(ctx, f.httpClient)
-	prov, err := oidc.NewProvider(ctx, cfg.Issuer)
+	prov, err := f.provider(ctx, cfg.Issuer)
 	if err != nil {
-		return "", fmt.Errorf("oidc discovery: %w", err)
+		return "", err
 	}
 	oc := f.oauth2Config(cfg, prov)
 	tok, err := oc.Exchange(ctx, code, oauth2.VerifierOption(pkceVerifier))
@@ -138,16 +172,23 @@ type ssoTx struct {
 	Expires  time.Time `json:"exp"`
 }
 
-// ssoRedirectURL is the absolute callback URL the IdP returns to, derived from the
-// request so a deployment behind any hostname works without extra config. It is https
-// when the request arrived over TLS or the deployment is fronted by a TLS-terminating
-// proxy (the same signal the Secure cookie flag uses).
+// ssoRedirectURL is the absolute callback URL the IdP returns to. It is taken from the
+// configured external base URL (VERGE_EXTERNAL_URL) when set — the trusted origin the
+// deployment is reached at — so the redirect_uri handed to the IdP never derives from
+// the attacker-influenceable Host header. Where none is configured it falls back to the
+// request host (https when the request arrived over TLS or a TLS-terminating proxy
+// fronts it, the same signal the Secure cookie flag uses); the OIDC redirect_uri must
+// still match the value registered at the IdP, which bounds that fallback.
 func (s *server) ssoRedirectURL(r *http.Request, slug string) string {
+	path := "/login/sso/" + slug + "/callback"
+	if s.externalURL != "" {
+		return strings.TrimRight(s.externalURL, "/") + path
+	}
 	scheme := "http"
 	if r.TLS != nil || s.secureCookies {
 		scheme = "https"
 	}
-	return scheme + "://" + r.Host + "/login/sso/" + slug + "/callback"
+	return scheme + "://" + r.Host + path
 }
 
 // ssoStart begins the OIDC flow for the provider named in the path. It is
@@ -205,8 +246,9 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// state is the CSRF guard: the value the IdP echoes back must equal the one minted
-	// into the signed cookie at the start of this transaction.
-	if st := r.URL.Query().Get("state"); st == "" || st != tx.State {
+	// into the signed cookie at the start of this transaction. Compared in constant
+	// time, like the rest of the auth surface.
+	if st := r.URL.Query().Get("state"); st == "" || !subtleConstantEqual(st, tx.State) {
 		s.render(w, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
 		return
 	}
@@ -241,9 +283,17 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "login", s.loginData(r.Context(), "No account here matches that identity. Ask an admin for an invite."))
 		return
 	}
-	// The IdP is the authentication authority for this route, so a successful,
-	// nonce-verified assertion completes the login (the local TOTP second factor gates
-	// the password route, not this one).
+	// SSO proves the IdP identity, but it must never DOWNGRADE a local second factor:
+	// an account that enrolled TOTP still owes its code, exactly as the password path
+	// requires. So a TOTP-enrolled account lands on the same TOTP step (a KindPending
+	// cookie), and only an account without TOTP completes the login outright.
+	if acct.TotpEnabled {
+		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, s.pendingTTL) {
+			return
+		}
+		s.render(w, "totp", map[string]any{"Title": "Two-factor"})
+		return
+	}
 	s.completeLogin(w, r, acct.ID)
 }
 
@@ -278,7 +328,7 @@ func (s *server) setSSOTxCookie(w http.ResponseWriter, r *http.Request, tx ssoTx
 		return false
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: ssoTxCookie, Value: auth.Sign(s.key, payload), Path: "/", HttpOnly: true,
+		Name: ssoTxCookie, Value: auth.Sign(s.key, ssoTxDomain, payload), Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteLaxMode, Secure: s.secureCookies || r.TLS != nil, MaxAge: int(ssoTxTTL.Seconds()),
 	})
 	return true
@@ -292,7 +342,7 @@ func (s *server) readSSOTxCookie(r *http.Request) (ssoTx, bool) {
 	if err != nil {
 		return ssoTx{}, false
 	}
-	payload, err := auth.Verify(s.key, c.Value)
+	payload, err := auth.Verify(s.key, ssoTxDomain, c.Value)
 	if err != nil {
 		return ssoTx{}, false
 	}

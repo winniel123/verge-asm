@@ -184,6 +184,43 @@ func TestSSOCallbackSignsInExistingAccount(t *testing.T) {
 	}
 }
 
+// SSO must not downgrade a local second factor: an account that enrolled TOTP still
+// lands on the two-factor step after a verified SSO assertion, rather than being logged
+// straight in (#293 review).
+func TestSSOCallbackStillRequiresTOTP(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	alice := seedAccount(t, f, "alice", roleViewer, "unused-password-x")
+	// Enrol TOTP on the account SSO will map to.
+	a := f.accounts[alice.ID]
+	a.TotpEnabled = true
+	f.accounts[alice.ID] = a
+
+	addSSOProvider(f, 1, "okta", "Okta")
+	base := startWithSSO(t, f, &fakeSSOFlow{username: "alice"})
+
+	c := newClient(t)
+	r1, _ := c.Get(base + "/login/sso/okta")
+	r1.Body.Close()
+	state := stateFromRedirect(t, r1.Header.Get("Location"))
+
+	r2, err := c.Get(base + "/login/sso/okta/callback?state=" + url.QueryEscape(state) + "&code=abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := body(t, r2)
+	if !strings.Contains(page, "Two-factor check") {
+		t.Errorf("a TOTP-enrolled account should land on the two-factor step after SSO; body: %s", page)
+	}
+	// Not yet fully signed in: a gated request still bounces to /login (the pending
+	// cookie is not a session).
+	r3, _ := c.Get(base + "/")
+	r3.Body.Close()
+	if r3.StatusCode != http.StatusSeeOther || r3.Header.Get("Location") != "/login" {
+		t.Errorf("SSO completed the login without the second factor: status=%d loc=%q", r3.StatusCode, r3.Header.Get("Location"))
+	}
+}
+
 // A verified identity with no matching local account is refused, not provisioned
 // (ADR-0112: SSO authenticates existing accounts, never creates them).
 func TestSSOCallbackRefusesUnknownIdentity(t *testing.T) {

@@ -1967,14 +1967,14 @@ func (f *fakeStore) GetSSOProviderForAuth(_ context.Context, slug string) (db.Ge
 	return db.GetSSOProviderForAuthRow{}, pgx.ErrNoRows
 }
 
-func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProviderParams) error {
+func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProviderParams) (int64, error) {
 	for i := range f.ssoProviders {
 		if f.ssoProviders[i].id != arg.ID {
 			continue
 		}
 		for _, p := range f.ssoProviders {
 			if p.id != arg.ID && p.slug == arg.Slug {
-				return &pgconn.PgError{Code: "23505", Message: "duplicate sso slug"}
+				return 0, &pgconn.PgError{Code: "23505", Message: "duplicate sso slug"}
 			}
 		}
 		f.ssoProviders[i].slug = arg.Slug
@@ -1983,9 +1983,9 @@ func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProvide
 		f.ssoProviders[i].clientID = arg.ClientID
 		f.ssoProviders[i].claim = arg.UsernameClaim
 		f.ssoProviders[i].enabled = arg.Enabled
-		return nil
+		return 1, nil
 	}
-	return nil
+	return 0, nil // no such id: zero rows affected, mirroring the real UPDATE
 }
 
 func (f *fakeStore) SetSSOProviderSecret(_ context.Context, arg db.SetSSOProviderSecretParams) error {

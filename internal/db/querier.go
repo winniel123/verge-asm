@@ -823,7 +823,9 @@ type Querier interface {
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
 	// Updates everything but the secret; the secret has its own write path, so an edit
 	// that leaves it blank keeps the existing one untouched (exactly the channel pattern).
-	UpdateSSOProvider(ctx context.Context, arg UpdateSSOProviderParams) error
+	// Returns the rows affected so the handler can tell a stale edit (an id deleted in
+	// another tab) from a real update, rather than reporting a phantom success.
+	UpdateSSOProvider(ctx context.Context, arg UpdateSSOProviderParams) (int64, error)
 	// Record the operator's install choice for one integration. An install is a
 	// Declared act with no timeline, no actor, and no instant of its own (ADR-0073,
 	// ADR-0093), so re-installing overwrites the single current state and the row

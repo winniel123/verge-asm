@@ -55,7 +55,6 @@ func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[strin
 	}
 	data["SSOProviders"] = out
 	data["SSOError"] = f.ssoError
-	data["SSOOpen"] = f.ssoOpen || f.ssoError != ""
 	// Echo a rejected add form so the operator does not retype it; defaults otherwise.
 	data["SSOSlug"] = f.ssoSlug
 	data["SSOName"] = f.ssoName
@@ -117,7 +116,7 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 	v := readSSOForm(r)
 	fail := func(msg string) {
 		s.renderSettings(w, r, acct, settingsForms{
-			section: "sso", ssoError: msg, ssoOpen: true,
+			section: "sso", ssoError: msg,
 			ssoSlug: v.slug, ssoName: v.name, ssoIssuer: v.issuer, ssoClientID: v.clientID, ssoClaim: v.claim,
 		})
 	}
@@ -158,15 +157,22 @@ func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 		fail(msg)
 		return
 	}
-	if err := s.store.UpdateSSOProvider(r.Context(), db.UpdateSSOProviderParams{
+	rows, err := s.store.UpdateSSOProvider(r.Context(), db.UpdateSSOProviderParams{
 		ID: id, Slug: v.slug, Name: v.name, Issuer: v.issuer, ClientID: v.clientID,
 		UsernameClaim: v.claim, Enabled: r.FormValue("enabled") != "",
-	}); err != nil {
+	})
+	if err != nil {
 		if isUniqueViolation(err) {
 			fail("A provider with that slug already exists. Choose another slug.")
 			return
 		}
 		s.serverError(w, "update sso provider", err)
+		return
+	}
+	if rows == 0 {
+		// The id parsed but matched nothing (deleted in another tab): say so rather than
+		// redirecting as if the edit applied.
+		fail("That provider could not be found.")
 		return
 	}
 	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)

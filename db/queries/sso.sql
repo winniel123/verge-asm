@@ -49,9 +49,11 @@ SELECT id, slug, name, issuer, client_id, client_secret, username_claim
 FROM sso_provider
 WHERE slug = $1 AND enabled = TRUE;
 
--- name: UpdateSSOProvider :exec
+-- name: UpdateSSOProvider :execrows
 -- Updates everything but the secret; the secret has its own write path, so an edit
 -- that leaves it blank keeps the existing one untouched (exactly the channel pattern).
+-- Returns the rows affected so the handler can tell a stale edit (an id deleted in
+-- another tab) from a real update, rather than reporting a phantom success.
 UPDATE sso_provider
 SET slug = $2, name = $3, issuer = $4, client_id = $5, username_claim = $6,
     enabled = $7, updated_at = now()

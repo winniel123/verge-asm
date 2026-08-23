@@ -222,7 +222,7 @@ type store interface {
 	ListEnabledSSOProviders(ctx context.Context) ([]db.ListEnabledSSOProvidersRow, error)
 	GetSSOProvider(ctx context.Context, id int64) (db.GetSSOProviderRow, error)
 	GetSSOProviderForAuth(ctx context.Context, slug string) (db.GetSSOProviderForAuthRow, error)
-	UpdateSSOProvider(ctx context.Context, arg db.UpdateSSOProviderParams) error
+	UpdateSSOProvider(ctx context.Context, arg db.UpdateSSOProviderParams) (int64, error)
 	SetSSOProviderSecret(ctx context.Context, arg db.SetSSOProviderSecretParams) error
 	DeleteSSOProvider(ctx context.Context, id int64) error
 }
@@ -272,6 +272,11 @@ type server struct {
 	// request did not itself arrive over TLS — set it when web is fronted by a
 	// TLS-terminating proxy (VERGE_SECURE_COOKIES).
 	secureCookies bool
+	// externalURL is the trusted origin the deployment is reached at
+	// (VERGE_EXTERNAL_URL, e.g. https://verge.example.com). When set it is the base
+	// for the OIDC callback redirect_uri (#293), so that value never derives from the
+	// attacker-influenceable Host header; empty falls back to the request host.
+	externalURL string
 	// setupMu serialises the first-boot setup so a concurrent pair of valid
 	// POST /setup requests cannot both pass the no-accounts check and each
 	// create an admin, which would break the token's single-use guarantee.
@@ -290,7 +295,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		resetTTL:       30 * time.Minute,
 		seedAddressCap: seed.DefaultAddressCap,
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
-		sso:            oidcFlow{httpClient: &http.Client{Timeout: 30 * time.Second}},
+		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
 	}
 }
 
