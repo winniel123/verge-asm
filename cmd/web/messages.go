@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -391,4 +392,53 @@ func subjectHref(kind, key string) string {
 	default:
 		return ""
 	}
+}
+
+// reportDeliveryHref is the stable route the Reports screen's "View last delivery"
+// row-menu item opens — the delivered report artifact built in T3 (#298). It is a
+// constant because the artifact view resolves the account's latest delivery
+// itself; the menu item only decides whether a delivery exists to open.
+const reportDeliveryHref = "/reports/delivery"
+
+// reportScheduleRow is one recurring report shaped for the Reports screen's
+// "Recurring reports" table (T17, after design-system/examples/console/Reports.jsx).
+// Name / Cadence / Format / LastSent are the schedule's facts; the row-action menu
+// carries "View last delivery", which opens the delivered artifact when this report
+// has a delivery and is disabled where it has none (no fabrication).
+type reportScheduleRow struct {
+	Name     string
+	Cadence  string
+	Format   string
+	LastSent string
+	// HasDelivery is true where a last delivery exists for this report; DeliveryHref
+	// is the artifact route the menu item opens (reportDeliveryHref when a delivery
+	// exists, empty otherwise so the item renders disabled).
+	HasDelivery  bool
+	DeliveryHref string
+}
+
+// lastReportDelivery resolves the "View last delivery" target for one report from
+// its deliveries. Deliveries are messages (ADR-0039, ADR-0081): a report whose run
+// was actually delivered — at least one outcome that is not undelivered — opens the
+// delivered artifact at the stable /reports/delivery route (T3). A report with no
+// delivery yet returns no link, so the menu item renders disabled rather than
+// fabricating one; a menu never destroys and never invents (ADR-0110).
+func lastReportDelivery(deliveries []deliveryView) (href string, has bool) {
+	for _, d := range deliveries {
+		if !d.Failed {
+			return reportDeliveryHref, true
+		}
+	}
+	return "", false
+}
+
+// reportScheduleRows assembles the "Recurring reports" table for the Reports screen
+// (T17). Report scheduling has no backend yet (#285; #290/#291 populate scheduling
+// and analytics), so there are no recurring reports to list and this returns none —
+// the table renders the design-system empty-state rather than fabricating schedules
+// (ADR-0110). When #290/#291 land, each schedule's row resolves its last delivery
+// via lastReportDelivery from the Message store (deliveries are messages) and the
+// same row-menu markup lights up; the render path does not change.
+func (s *server) reportScheduleRows(_ context.Context) []reportScheduleRow {
+	return nil
 }

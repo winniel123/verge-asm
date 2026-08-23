@@ -169,11 +169,49 @@ const reportsTemplates = `
         </div>
       </details>
     </div>
+    {{if .Schedules}}
+    <table class="vg-table">
+      <thead><tr>
+        <th>Report</th>
+        <th style="width:170px">Cadence</th>
+        <th style="width:90px">Format</th>
+        <th style="width:90px;text-align:right">Last sent</th>
+        <th style="width:58px" aria-label="Actions"></th>
+      </tr></thead>
+      <tbody>
+      {{range .Schedules}}
+        <tr>
+          <td><span style="font:500 13px var(--sans);color:var(--ink)">{{.Name}}</span></td>
+          <td class="mono">{{.Cadence}}</td>
+          <td><span class="badge">{{.Format}}</span></td>
+          <td class="mono" style="text-align:right">{{.LastSent}}</td>
+          <td style="text-align:right;overflow:visible">
+            <details style="position:relative;display:inline-block">
+              <summary class="iconbtn" aria-label="Actions" style="list-style:none;cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg></summary>
+              <div role="menu" style="position:absolute;right:0;top:calc(100% + 6px);min-width:190px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-md);box-shadow:var(--shadow-md);padding:6px;z-index:35;display:flex;flex-direction:column;gap:2px">
+                {{if .HasDelivery}}
+                <a role="menuitem" href="{{.DeliveryHref}}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);text-decoration:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>View last delivery</a>
+                {{else}}
+                <span role="menuitem" aria-disabled="true" title="No delivery yet" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);opacity:0.5;cursor:default"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>View last delivery</span>
+                {{end}}
+                <span role="menuitem" aria-disabled="true" title="Report scheduling is not wired yet" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);opacity:0.5;cursor:default"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>Run now</span>
+                <span role="menuitem" aria-disabled="true" title="Report scheduling is not wired yet" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);opacity:0.5;cursor:default"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Edit schedule</span>
+                <span style="height:1px;background:var(--hairline);margin:4px 6px"></span>
+                <span role="menuitem" aria-disabled="true" title="Report scheduling is not wired yet" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--danger);opacity:0.5;cursor:default"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>Delete schedule</span>
+              </div>
+            </details>
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    {{else}}
     <div class="emptystate">
       <div class="microlabel">None yet</div>
       <h2>No recurring reports</h2>
       <p style="max-width:60ch;margin:var(--space-3) auto">Report scheduling is not yet available. When it lands, recurring exports declared here run on their cadence and their last delivery shows in this table.</p>
     </div>
+    {{end}}
   </section>
 </div>
 
