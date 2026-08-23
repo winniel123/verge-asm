@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 // The Drift screen renders the change vocabulary (the legend) on the drift palette
@@ -78,6 +81,56 @@ func TestDriftRequiresLogin(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("unauthenticated /drift: status=%d location=%q, want redirect to /login",
 			resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
+// T16 delta (#311): with a real batch dispatched, the Drift header offers a "Batch
+// detail" entry into the Run detail screen at GET /run/{id} — id being the most
+// recent Dispatch id. The entry is real data (a dispatch exists), never a fabricated
+// change event, and it stands even while the transition timeline is still the
+// empty-state (change and batches are distinct feeds).
+func TestDriftBatchDetailLinksToRun(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	// Two dispatches; the header links the most recent (id DESC → 88), not 87.
+	older := time.Date(2026, 8, 22, 8, 0, 0, 0, time.UTC)
+	newer := time.Date(2026, 8, 22, 14, 0, 0, 0, time.UTC)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(88, "hot", newer, 2, 0, 0, 2, 0, 0),
+		progressRow(87, "hot", older, 2, 0, 0, 2, 0, 0),
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/drift", http.StatusOK)
+
+	if !strings.Contains(page, "Batch detail") {
+		t.Errorf("drift page missing the Batch detail entry; body: %s", page)
+	}
+	if !strings.Contains(page, `href="/run/88"`) {
+		t.Errorf("Batch detail should link to the most recent batch /run/88; body: %s", page)
+	}
+	if strings.Contains(page, `href="/run/87"`) {
+		t.Errorf("Batch detail linked an older batch /run/87, not the latest; body: %s", page)
+	}
+	// The timeline is still the empty-state — the entry does not fabricate change.
+	if !strings.Contains(page, "No change to show yet") {
+		t.Errorf("Batch detail must not fabricate a transition feed; body: %s", page)
+	}
+}
+
+// With no scan yet dispatched there is no batch to open, so the header offers no
+// Batch detail entry rather than fabricate a run id — no /run/ link is rendered.
+func TestDriftBatchDetailOmittedWithoutBatch(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/drift", http.StatusOK)
+
+	if strings.Contains(page, "Batch detail") || strings.Contains(page, `href="/run/`) {
+		t.Errorf("drift page offered a Batch detail entry with no batch dispatched; body: %s", page)
 	}
 }
 

@@ -13,6 +13,13 @@ import "html/template"
 // and the timeline renders the design-system empty-state. The legend is the change
 // vocabulary itself — definitional, not data — so it always renders. Never fabricate
 // change events; the missing data plumbing is a follow-on on #283.
+//
+// T16 delta (#311): the header carries a "Batch detail" entry opening the Run detail
+// screen (T2, GET /run/{id}; id is a Dispatch id) for the most recent batch. It is
+// offered only when a real dispatch exists (BatchID non-zero) and omitted otherwise —
+// mirroring the ported example's `onOpenRun && <Button>Batch detail</Button>`; no id
+// is ever fabricated. A batch is Operational, a distinct feed from change, so the
+// entry stands even while the transition timeline is still the empty-state.
 var _ = template.Must(tmpl.Parse(driftTemplates))
 
 const driftTemplates = `
@@ -36,6 +43,7 @@ const driftTemplates = `
 <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
 <span class="badge">Last 7d</span>
 <button class="btn secondary" disabled title="Nothing to export until a transition is folded">Export CSV</button>
+{{if .BatchID}}<a class="btn secondary" href="/run/{{.BatchID}}" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none" title="Open the most recent batch{{if .BatchLabel}} · {{.BatchLabel}}{{end}} in Run detail"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M4 7V4a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2h-3.5"></path><circle cx="7.5" cy="15.5" r="2.5"></circle><path d="m11 19-1.7-1.7"></path></svg>Batch detail</a>{{end}}
 </div>
 </div>
 
