@@ -169,6 +169,7 @@ type Querier interface {
 	// re-enrolling) two-factor replaces the old codes wholesale rather than
 	// accumulating stale sets that would each still redeem.
 	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
+	DeleteSSOProvider(ctx context.Context, id int64) error
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
@@ -292,6 +293,15 @@ type Querier interface {
 	GetPendingProposal(ctx context.Context, id int64) (Proposal, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
+	// One provider for the Settings edit form. Omits the secret; a caller reads presence,
+	// never the value.
+	GetSSOProvider(ctx context.Context, id int64) (GetSSOProviderRow, error)
+	// The ONE read path that selects the secret: the server-side OIDC flow needs the
+	// issuer, client id and client secret to complete the confidential-client token
+	// exchange, plus the username claim to map the verified identity to a local account.
+	// Keyed by slug (the flow route) and gated on enabled, so a disabled provider's flow
+	// resolves no row and is refused.
+	GetSSOProviderForAuth(ctx context.Context, slug string) (GetSSOProviderForAuthRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
 	// Resolve a Service key to at most one subject (#195). A Service drill-down
 	// reaches a subject by its own key — including one whose Address has left the
@@ -342,6 +352,14 @@ type Querier interface {
 	// attributes it to the admin who submitted it. sections defaults to an empty array
 	// at the column, so a schedule with no sections chosen still inserts.
 	InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error)
+	// Reads and writes behind the OIDC single-sign-on config (#293, ADR-0112): the
+	// SignIn buttons, the Settings → single-sign-on tab, and the server-side flow. The
+	// client secret is write-only at the interface, mirroring the channel secret
+	// (ADR-0053): the list/get reads expose only whether one is set, and exactly one
+	// read path (GetSSOProviderForAuth) hands the secret to the token exchange.
+	// Declare one OIDC provider. Returns the id only; the secret is write-only and no
+	// read query hands it back. A public (PKCE-only) client passes a NULL secret.
+	InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error)
 	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
 	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
 	// the most recent supply per Seed.
@@ -467,6 +485,10 @@ type Querier interface {
 	// this scan start" means to an operator; scheduled_time is the cadence tick the
 	// Dispatch is idempotent on, not a wall-clock start, so it is not read here.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
+	// The enabled providers the SignIn screen renders a button for, newest-first. No
+	// secret, and no created-by join — SignIn is pre-auth and needs only what a button
+	// carries: the slug (its route) and the display name.
+	ListEnabledSSOProviders(ctx context.Context) ([]ListEnabledSSOProvidersRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	// The latest `certificate` observation per Endpoint (#203) — the value the six
 	// certificate rules and `plaintext-http-no-https` read. The value is the closed
@@ -600,6 +622,9 @@ type Querier interface {
 	// renders each row and resolves its "last delivery" from the Message corpus, since
 	// deliveries are messages (ADR-0039, ADR-0081) and this table holds only intent.
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
+	// Every configured provider, newest-first, for the Settings tab. Never selects the
+	// secret: it exposes only whether one is set, so the render path cannot leak it.
+	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)
 	ListScans(ctx context.Context) ([]Scan, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The CURRENT `reachability` span per (Service, Vantage class) (#254, ADR-0104).
@@ -749,6 +774,9 @@ type Querier interface {
 	// custody extension. The flag has no timeline, so a withdrawal is the same UPDATE
 	// with false rather than a dated state change.
 	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
+	// Set, replace or clear the secret. A NULL clears it (a public PKCE-only client); the
+	// value is written and never read back through any interface query.
+	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.
@@ -793,6 +821,9 @@ type Querier interface {
 	// second factor in force.
 	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
+	// Updates everything but the secret; the secret has its own write path, so an edit
+	// that leaves it blank keeps the existing one untouched (exactly the channel pattern).
+	UpdateSSOProvider(ctx context.Context, arg UpdateSSOProviderParams) error
 	// Record the operator's install choice for one integration. An install is a
 	// Declared act with no timeline, no actor, and no instant of its own (ADR-0073,
 	// ADR-0093), so re-installing overwrites the single current state and the row

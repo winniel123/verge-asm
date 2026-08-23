@@ -146,7 +146,7 @@ func (s *server) loginForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	data := map[string]any{"Title": "Sign in"}
+	data := map[string]any{"Title": "Sign in", "SSOProviders": s.enabledSSOProviders(r.Context())}
 	// A freshly accepted invite lands here (invite acceptance creates the account
 	// but grants no session — the new operator signs in with the credentials they
 	// just set), so surface a notice rather than a bare form.
@@ -163,11 +163,11 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	acct, err := s.store.GetAccountByUsername(r.Context(), username)
 	if err != nil {
 		auth.CheckPassword(dummyHash, password) // equalise timing with the found path
-		s.render(w, "login", map[string]any{"Title": "Sign in", "Error": "Invalid username or password."})
+		s.render(w, "login", s.loginData(r.Context(), "Invalid username or password."))
 		return
 	}
 	if !auth.CheckPassword(acct.PasswordHash, password) {
-		s.render(w, "login", map[string]any{"Title": "Sign in", "Error": "Invalid username or password."})
+		s.render(w, "login", s.loginData(r.Context(), "Invalid username or password."))
 		return
 	}
 	if acct.TotpEnabled {

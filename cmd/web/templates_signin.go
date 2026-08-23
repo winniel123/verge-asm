@@ -12,9 +12,11 @@ import "html/template"
 //
 // Two honest deviations from the example, each a data reality of this
 // self-hosted build, not a restyle:
-//   - SSO/IdP: the example wires an Okta IdPButton, but this build configures no
-//     identity provider (no SSO backend exists), so the affordance renders in the
-//     design-system empty/disabled state rather than fabricating a provider.
+//   - SSO/IdP (#293, ADR-0112): the example wires an Okta IdPButton; this build now
+//     backs it with real OpenID Connect. Each enabled provider renders a "Continue
+//     with <name>" button linking to /login/sso/<slug>; where none is configured the
+//     affordance stays the design-system not-configured state rather than fabricating
+//     a provider. SSO authenticates an existing account, never creates one.
 //   - Accounts are usernames, not emails, and there is no trust-this-device model;
 //     the field stays "Username" and the device checkbox is omitted rather than
 //     imply a capability the server does not have.
@@ -34,8 +36,9 @@ import "html/template"
 //
 // Honest deviations carried over from the #282 port: accounts are usernames, not
 // emails (the forgot/invite fields collect a username); reset-done does not claim a
-// global sign-out this build's stateless-cookie sessions cannot perform; and SSO
-// stays the not-configured state above (no #293 backend to fabricate a provider for).
+// global sign-out this build's stateless-cookie sessions cannot perform. SSO is now
+// real (OIDC, #293/ADR-0112): the affordance renders a button per configured provider
+// and only falls to the not-configured state when none is set.
 //
 // Restyling within the existing token vocabulary and shared classes (ADR-0109);
 // no design-system component is authored here. The centered-card CSS (.center,
@@ -68,11 +71,18 @@ const signinTemplates = `
 <span class="microlabel" style="font-size:10.5px">or</span>
 <span style="flex:1;height:1px;background:var(--hairline)"></span>
 </div>
+{{if .SSOProviders}}
+{{range .SSOProviders}}<a class="btn secondary" href="/login/sso/{{.Slug}}" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;margin-bottom:8px">
+<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--sunken);border:1px solid var(--hairline);color:var(--muted)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg></span>
+Continue with {{.Name}}
+</a>{{end}}
+{{else}}
 <button type="button" class="btn secondary" disabled style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;opacity:0.6;cursor:not-allowed">
 <span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:var(--sunken);border:1px solid var(--hairline);font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--muted)">SA</span>
 Single sign-on not configured
 </button>
-<span class="muted" style="display:block;font-size:11.5px;line-height:1.6;margin-top:6px">Configure an identity provider on the host to enable SSO.</span>
+<span class="muted" style="display:block;font-size:11.5px;line-height:1.6;margin-top:6px">An admin can add an OpenID Connect identity provider in Settings to enable SSO.</span>
+{{end}}
 <span class="muted" style="display:block;font-size:11.5px;line-height:1.6;margin-top:var(--space-3)">Locked out? Reset on the host: <code style="background:var(--sunken);border:1px solid var(--hairline);border-radius:6px;padding:1px 5px;font-size:0.92em">verge users reset-password</code></span>
 </div>
 {{template "authfoot" .}}
