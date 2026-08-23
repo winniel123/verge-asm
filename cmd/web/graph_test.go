@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 // buildGraph folds the estate's open spans into a real Name/Address/Service
@@ -48,10 +49,11 @@ func TestBuildGraphTopologyFromOpenSpans(t *testing.T) {
 	if svc.Label != ":443 tcp" {
 		t.Errorf("service label = %q, want :443 tcp", svc.Label)
 	}
-	// No severity is fabricated — per-node signal status is not joined to the graph.
+	// buildGraph alone joins no signals — the topology invents no signal state, no
+	// severity, no count (the join is a separate fold, joinSignals).
 	for _, n := range g.Nodes {
-		if n.Sev != "" {
-			t.Errorf("node %q carries fabricated severity %q; want none", n.ID, n.Sev)
+		if len(n.OpenSignals) != 0 {
+			t.Errorf("node %q carries %d fabricated signals; buildGraph must invent none", n.ID, len(n.OpenSignals))
 		}
 	}
 
@@ -68,6 +70,100 @@ func TestBuildGraphTopologyFromOpenSpans(t *testing.T) {
 	}
 	if !sawToService {
 		t.Errorf("no address->service edge marked ToService; edges %#v", g.Edges)
+	}
+}
+
+// joinSignals folds the Signal engine's fired census onto the graph's nodes by the
+// honest subject→node mapping: a Name firing lights its Name node, a Service firing
+// lights its Service node, and an Endpoint firing lights the Name node it names
+// (falling back to its Service node when nameless). Addresses carry none. No
+// severity, level or gradient is invented — a node carries a presence list only.
+func TestJoinSignalsToGraph(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
+		openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
+	}
+	g := buildGraph(rows)
+
+	// A fired census on each subject kind, plus one firing that matches no node.
+	censuses := []signal.Census{
+		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "api.example.com"}}},                                        // name -> name node
+		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "203.0.113.5:443/tcp"}}},               // service -> service node
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}},            // endpoint -> its Name node
+		{Rule: "redirect-does-not-upgrade-to-tls", Fired: []signal.Member{{Subject: "@203.0.113.5:443/tcp"}}},                  // nameless endpoint -> its Service node
+		{Rule: "cname-target-name-error", Fired: []signal.Member{{Subject: "ghost.example.com"}}},                              // matches no node -> dropped
+	}
+
+	g = joinSignals(g, censuses)
+	byID := map[string]graphNode{}
+	for _, n := range g.Nodes {
+		byID[n.ID] = n
+	}
+
+	// The Name node carries its own name firing AND the endpoint firing named on it.
+	name := byID["api.example.com"]
+	if len(name.OpenSignals) != 2 {
+		t.Fatalf("name node open signals = %d, want 2 (lame-delegation + the endpoint's plaintext-http); %#v", len(name.OpenSignals), name.OpenSignals)
+	}
+	var sawEndpoint bool
+	for _, s := range name.OpenSignals {
+		if s.Rule == "plaintext-http-no-https" {
+			sawEndpoint = true
+			if s.Subject != "api.example.com@203.0.113.5:443/tcp" {
+				t.Errorf("endpoint firing subject = %q, want the endpoint key (the firing's real subject, not the node)", s.Subject)
+			}
+		}
+	}
+	if !sawEndpoint {
+		t.Errorf("name node missing the endpoint firing attached to its Name leg; %#v", name.OpenSignals)
+	}
+
+	// The Service node carries its own service firing AND the nameless endpoint's.
+	svc := byID["203.0.113.5:443/tcp"]
+	if len(svc.OpenSignals) != 2 {
+		t.Fatalf("service node open signals = %d, want 2 (service rule + the nameless endpoint); %#v", len(svc.OpenSignals), svc.OpenSignals)
+	}
+
+	// The Address node carries none — no rule censuses an Address, and a Service's
+	// firing is not silently rolled up to the Address it rides.
+	if addr := byID["203.0.113.5"]; len(addr.OpenSignals) != 0 {
+		t.Errorf("address node open signals = %d, want 0 (addresses carry no signals); %#v", len(addr.OpenSignals), addr.OpenSignals)
+	}
+
+	// A firing whose subject names no built node is dropped, never invented as a node.
+	if _, ok := byID["ghost.example.com"]; ok {
+		t.Errorf("a firing on an absent subject invented a node; nodes must come only from the topology")
+	}
+}
+
+// The Graph page joins real open signals onto its nodes: a fired rule reaches the
+// selected node's drawer, its node draws a presence halo, and the filter re-skins
+// to the honest presence axis — never a severity scale.
+func TestGraphPageJoinsOpenSignals(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	// An internal address leaking into a public answer fires
+	// non-globally-reachable-address-resolved-from-internet on the Name.
+	f.addClassResolution(t, "leak.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["10.0.0.5"]}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/graph", http.StatusOK)
+
+	for _, want := range []string{
+		"non-globally-reachable-address-resolved-from-internet", // the fired rule reaches the drawer
+		`data-for="leak.example.com"`,                           // the per-node drawer signal block
+		`class="gnode-halo"`,                                    // a presence halo is drawn
+		`value="with"`,                                          // the honest presence filter option
+		"No open signals",                                       // the honest empty state for unlit nodes
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("graph page missing %q; body: %s", want, page)
+		}
+	}
+	// The severity scale must not reappear — signals carry no severity.
+	if strings.Contains(page, "All severities") {
+		t.Errorf("graph page still renders a severity filter; signals have no severity")
 	}
 }
 
