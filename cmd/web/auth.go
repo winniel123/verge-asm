@@ -239,9 +239,30 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 	// replay of an already-spent code within its ~90s window, and is refused as if
 	// it never matched (RFC 6238 §5.2) — the single-use discipline recovery codes
 	// already hold.
-	step, totpOK := auth.VerifyTOTPStep(acct.TotpSecret.String, code, s.now())
-	if totpOK && acct.TotpLastStep.Valid && step <= acct.TotpLastStep.Int64 {
-		totpOK = false
+	// #337: the stored secret is ciphertext; decrypt to the cleartext base32 the
+	// verifier consumes. A decryption failure (e.g. a pre-#337 cleartext row) yields an
+	// empty secret that matches no code, so it collapses to a verification failure
+	// rather than a crash — the attacker learns nothing and the account simply cannot
+	// pass TOTP until it re-enrols.
+	secret, _ := auth.DecryptTOTPSecret(s.totpKey, acct.TotpSecret.String)
+	step, totpOK := auth.VerifyTOTPStep(secret, code, s.now())
+	// #339: the single-use guarantee is the atomic spend, not an in-memory snapshot
+	// compare. A matched code is accepted only when the conditional UPDATE advances the
+	// stored watermark for exactly this request — so two concurrent logins carrying the
+	// SAME code cannot both win: one affects a row, the other affects zero and is
+	// refused as a replay (RFC 6238 §5.2). A recovery code (totpOK == false) skips the
+	// spend; it is single-used by its own store on redeem.
+	if totpOK {
+		n, serr := s.store.SetTOTPLastStep(r.Context(), db.SetTOTPLastStepParams{
+			ID: acct.ID, TotpLastStep: pgtype.Int8{Int64: step, Valid: true},
+		})
+		if serr != nil {
+			s.serverError(w, "advance totp step", serr)
+			return
+		}
+		if n != 1 {
+			totpOK = false
+		}
 	}
 	if !totpOK && !s.redeemRecoveryCode(r, acct.ID, code) {
 		// A wrong code counts against the lockout; once it trips the threshold the
@@ -253,18 +274,6 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": "Incorrect code."})
 		return
-	}
-	// A genuine authenticator match advances the replay watermark to the accepted
-	// step in the same completion path, so the code cannot redeem again. A recovery
-	// code (totpOK == false but redeem succeeded) is already spent by its own store,
-	// so it needs no step write.
-	if totpOK {
-		if err := s.store.SetTOTPLastStep(r.Context(), db.SetTOTPLastStepParams{
-			ID: acct.ID, TotpLastStep: pgtype.Int8{Int64: step, Valid: true},
-		}); err != nil {
-			s.serverError(w, "advance totp step", err)
-			return
-		}
 	}
 	s.loginLimiter.reset(acctKey, ipKey)
 	s.clearCookie(w, pendingCookie)
@@ -306,9 +315,12 @@ func (s *server) redeemRecoveryCode(r *http.Request, accountID int64, presented 
 		log.Printf("web: login: list recovery codes: %v", err)
 		return false
 	}
-	want := hashToken(presented)
 	for _, row := range rows {
-		if subtleConstantEqual(row.CodeHash, want) {
+		// #338: recovery codes are kept as per-code bcrypt hashes (salted, slow), so a
+		// leaked dump is not offline-crackable the way a bare SHA-256 of a low-entropy
+		// code was. bcrypt's compare is constant-time over the candidate, so a near-miss
+		// leaks no timing, and the code is far under bcrypt's 72-byte input cap.
+		if auth.CheckPassword(row.CodeHash, presented) {
 			if err := s.store.ConsumeRecoveryCode(r.Context(), db.ConsumeRecoveryCodeParams{
 				ID: row.ID, UsedAt: s.obsAsOf(),
 			}); err != nil {
@@ -637,8 +649,17 @@ func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.serverError(w, "generate totp secret", err)
 		return
 	}
+	// #337: the secret is a bearer authenticator seed, so it is encrypted at rest with
+	// the file-backed AEAD sub-key before it touches Postgres (ADR-0053). The cleartext
+	// base32 stays in this handler only, to drive the enrollment QR and manual-entry
+	// fallback below; the column holds ciphertext.
+	enc, err := auth.EncryptTOTPSecret(s.totpKey, secret)
+	if err != nil {
+		s.serverError(w, "encrypt totp secret", err)
+		return
+	}
 	if err := s.store.SetTOTPSecret(r.Context(), db.SetTOTPSecretParams{
-		ID: acct.ID, TotpSecret: pgtype.Text{String: secret, Valid: true},
+		ID: acct.ID, TotpSecret: pgtype.Text{String: enc, Valid: true},
 	}); err != nil {
 		s.serverError(w, "store totp secret", err)
 		return
@@ -672,8 +693,13 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	if !auth.VerifyTOTP(fresh.TotpSecret.String, r.FormValue("code"), s.now()) {
-		s.render(w, "totp-enroll", totpEnrollData(acct.Username, fresh.TotpSecret.String,
+	// #337: the stored secret is ciphertext; decrypt to the cleartext base32 the
+	// verifier and the re-render's QR/manual-entry fallback need. A decryption failure
+	// (e.g. a pre-#337 cleartext row) is treated as a verification failure rather than
+	// a crash, so enrollment simply cannot be confirmed against an unreadable secret.
+	secret, derr := auth.DecryptTOTPSecret(s.totpKey, fresh.TotpSecret.String)
+	if derr != nil || !auth.VerifyTOTP(secret, r.FormValue("code"), s.now()) {
+		s.render(w, "totp-enroll", totpEnrollData(acct.Username, secret,
 			"Incorrect code. Two-factor is not enabled."))
 		return
 	}
@@ -908,10 +934,21 @@ func (s *server) lookupInvite(r *http.Request, token string) (db.Invite, bool) {
 // matching the SignIn.jsx enrollment screen.
 const recoveryCodeCount = 8
 
-// recoveryAlphabet is the character set recovery codes draw from: lowercase letters
-// and digits with the visually ambiguous ones (0/o, 1/l/i) removed, so a code read
-// off a screen and typed back is hard to mistranscribe.
+// recoveryAlphabet is the 31-character set recovery codes draw from: lowercase
+// letters and digits with the visually ambiguous ones (0/o, 1/l/i) removed, so a code
+// read off a screen and typed back is hard to mistranscribe.
 const recoveryAlphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+
+// recoveryCodeChars is the number of alphabet characters (dashes excluded) in each
+// recovery code. At log2(31) ≈ 4.954 bits per uniform character, 28 characters carry
+// ~138.7 bits — comfortably past the 128-bit bar a single-use fallback credential must
+// clear so it is not the weak link once the authenticator is bypassed (#338). The
+// pre-#338 code was 8 characters (~39.6 bits) with a modulo-biased draw.
+const recoveryCodeChars = 28
+
+// recoveryGroupSize dashes each code into readable groups; it affects legibility only,
+// never entropy.
+const recoveryGroupSize = 4
 
 // newOpaqueToken returns a fresh URL-safe token to hand out once and the SHA-256
 // hash to store in its place. The plaintext is high-entropy random (256 bits), so a
@@ -935,29 +972,54 @@ func hashToken(plaintext string) string {
 }
 
 // newRecoveryCodes returns n fresh recovery codes to reveal once and their hashes to
-// store. Each code is two groups of four characters (e.g. k4mq-9d2x), the shape the
-// SignIn enrollment screen shows. The modulo bias over a 31-character alphabet is
-// negligible for a single-use fallback credential.
+// store. Each code carries ≥128 bits over recoveryAlphabet (#338), grouped by dashes
+// for transcription (e.g. k4mq-9d2x-…). Unlike the high-entropy opaque tokens, a
+// recovery code is stored under a per-code bcrypt hash — salted and slow — so a leaked
+// database is not offline-crackable, the weakness a bare SHA-256 of a short code had.
 func newRecoveryCodes(n int) (plain, hashes []string, err error) {
 	plain = make([]string, 0, n)
 	hashes = make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		buf := make([]byte, 8)
-		if _, err = rand.Read(buf); err != nil {
-			return nil, nil, err
+		code, cerr := newRecoveryCode()
+		if cerr != nil {
+			return nil, nil, cerr
 		}
-		var sb strings.Builder
-		for j, b := range buf {
-			if j == 4 {
-				sb.WriteByte('-')
-			}
-			sb.WriteByte(recoveryAlphabet[int(b)%len(recoveryAlphabet)])
+		h, herr := auth.HashPassword(code)
+		if herr != nil {
+			return nil, nil, herr
 		}
-		code := sb.String()
 		plain = append(plain, code)
-		hashes = append(hashes, hashToken(code))
+		hashes = append(hashes, h)
 	}
 	return plain, hashes, nil
+}
+
+// newRecoveryCode draws recoveryCodeChars characters uniformly from recoveryAlphabet
+// via crypto/rand with rejection sampling, then groups them with dashes. Rejection
+// sampling discards the biased tail of each random byte (values at or above the
+// largest multiple of the alphabet length), so every character is equally likely —
+// eliminating the modulo bias the pre-#338 `b % len(alphabet)` draw carried.
+func newRecoveryCode() (string, error) {
+	// max is the largest byte value below which byte % len(alphabet) is unbiased: the
+	// alphabet length divides evenly into [0, max).
+	const max = 256 - (256 % len(recoveryAlphabet))
+	var sb strings.Builder
+	buf := make([]byte, 1)
+	for i := 0; i < recoveryCodeChars; i++ {
+		if i > 0 && i%recoveryGroupSize == 0 {
+			sb.WriteByte('-')
+		}
+		for {
+			if _, err := rand.Read(buf); err != nil {
+				return "", err
+			}
+			if int(buf[0]) < max {
+				sb.WriteByte(recoveryAlphabet[int(buf[0])%len(recoveryAlphabet)])
+				break
+			}
+		}
+	}
+	return sb.String(), nil
 }
 
 // normalizeRecoveryCode canonicalises a presented recovery code for comparison:
@@ -967,8 +1029,10 @@ func normalizeRecoveryCode(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
 }
 
-// subtleConstantEqual compares two hex digests in constant time, so a recovery-code
-// redeem does not leak how far a near-miss matched through timing.
+// subtleConstantEqual compares two hex digests in constant time, so a hash-equality
+// check (SSO subject binding, opaque-token lookups) does not leak how far a near-miss
+// matched through timing. Recovery codes moved to a bcrypt compare (#338), which is
+// constant-time on its own; this stays for the remaining hex-digest comparisons.
 func subtleConstantEqual(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }

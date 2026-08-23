@@ -454,6 +454,11 @@ func TestTOTPReEnableBlockedWhenEnabled(t *testing.T) {
 	code, _ := auth.TOTPCode(secret, now)
 	postForm(t, ac, base+"/account/totp/confirm", url.Values{"code": {code}}).Body.Close()
 
+	// Capture the stored (encrypted, #337) secret right after enrolment; a re-enable
+	// must leave this exact ciphertext untouched — comparing the stored value to the
+	// cleartext base32 would always differ now, so compare stored-to-stored instead.
+	before, _ := f.GetAccountByID(t.Context(), acct.ID)
+
 	// A second enable must not re-roll the secret or drop the enabled flag.
 	resp := postForm(t, ac, base+"/account/totp/enable", nil)
 	resp.Body.Close()
@@ -461,8 +466,8 @@ func TestTOTPReEnableBlockedWhenEnabled(t *testing.T) {
 		t.Fatalf("re-enable on enrolled account: status=%d, want 303 (no re-roll)", resp.StatusCode)
 	}
 	got, _ := f.GetAccountByID(t.Context(), acct.ID)
-	if !got.TotpEnabled || got.TotpSecret.String != secret {
-		t.Fatalf("TOTP was downgraded: enabled=%v secretChanged=%v", got.TotpEnabled, got.TotpSecret.String != secret)
+	if !got.TotpEnabled || got.TotpSecret.String != before.TotpSecret.String {
+		t.Fatalf("TOTP was downgraded: enabled=%v secretChanged=%v", got.TotpEnabled, got.TotpSecret.String != before.TotpSecret.String)
 	}
 }
 

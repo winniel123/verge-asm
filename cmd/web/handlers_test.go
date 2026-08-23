@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,6 +32,11 @@ type fakeStore struct {
 	hb    db.Heartbeat
 	hbErr error
 
+	// acctMu guards the account map so the #339 concurrency test can fire two
+	// /login/totp requests at one account without tripping the runtime's concurrent
+	// map access detector; a live Postgres serialises the equivalent conditional
+	// UPDATE itself.
+	acctMu   sync.Mutex
 	accounts map[int64]db.Account
 	byName   map[string]int64
 	nextID   int64
@@ -333,6 +339,8 @@ func (f *fakeStore) CreateAccount(_ context.Context, arg db.CreateAccountParams)
 }
 
 func (f *fakeStore) GetAccountByUsername(_ context.Context, username string) (db.Account, error) {
+	f.acctMu.Lock()
+	defer f.acctMu.Unlock()
 	id, ok := f.byName[username]
 	if !ok {
 		return db.Account{}, pgx.ErrNoRows
@@ -341,6 +349,8 @@ func (f *fakeStore) GetAccountByUsername(_ context.Context, username string) (db
 }
 
 func (f *fakeStore) GetAccountByID(_ context.Context, id int64) (db.Account, error) {
+	f.acctMu.Lock()
+	defer f.acctMu.Unlock()
 	acct, ok := f.accounts[id]
 	if !ok {
 		return db.Account{}, pgx.ErrNoRows
@@ -369,14 +379,22 @@ func (f *fakeStore) ConfirmTOTP(_ context.Context, id int64) error {
 	return nil
 }
 
-func (f *fakeStore) SetTOTPLastStep(_ context.Context, arg db.SetTOTPLastStepParams) error {
+func (f *fakeStore) SetTOTPLastStep(_ context.Context, arg db.SetTOTPLastStepParams) (int64, error) {
+	f.acctMu.Lock()
+	defer f.acctMu.Unlock()
 	acct, ok := f.accounts[arg.ID]
 	if !ok {
-		return pgx.ErrNoRows
+		return 0, pgx.ErrNoRows
+	}
+	// Mirror the conditional UPDATE (#339): the write lands only when the stored step
+	// is still NULL or strictly below the presented one, so a concurrent replay of the
+	// same step affects zero rows and its login is refused.
+	if acct.TotpLastStep.Valid && acct.TotpLastStep.Int64 >= arg.TotpLastStep.Int64 {
+		return 0, nil
 	}
 	acct.TotpLastStep = arg.TotpLastStep
 	f.accounts[arg.ID] = acct
-	return nil
+	return 1, nil
 }
 
 func (f *fakeStore) DeleteAccount(_ context.Context, id int64) error {

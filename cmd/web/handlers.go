@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/proposer"
 	"github.com/winniel123/verge-asm/internal/seed"
@@ -28,10 +29,12 @@ type store interface {
 	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
 	SetTOTPSecret(ctx context.Context, arg db.SetTOTPSecretParams) error
 	ConfirmTOTP(ctx context.Context, id int64) error
-	// SetTOTPLastStep advances an account's TOTP replay watermark to the step just
-	// accepted at login (#323), so a captured code cannot redeem twice within its
-	// validity window — the single-use discipline RFC 6238 §5.2 requires.
-	SetTOTPLastStep(ctx context.Context, arg db.SetTOTPLastStepParams) error
+	// SetTOTPLastStep atomically advances an account's TOTP replay watermark to the
+	// step just accepted at login (#323, #339). It updates only when the stored step is
+	// still below the presented one and reports the rows affected, so of two concurrent
+	// requests carrying the same code exactly one spends it — the single-use discipline
+	// RFC 6238 §5.2 requires, without a read-then-write race.
+	SetTOTPLastStep(ctx context.Context, arg db.SetTOTPLastStepParams) (int64, error)
 	// Personal profile (#304, T9): an account's own credential and token surface.
 	// UpdatePassword is the self-service password change; the personal-token trio is
 	// the reveal-once API-token store — the plaintext is minted and shown once, only
@@ -248,8 +251,13 @@ type store interface {
 // key (read from the web-only volume, never Postgres), the active single-use
 // setup token (empty once an admin exists), and an injectable clock.
 type server struct {
-	store      store
-	key        []byte
+	store store
+	key   []byte
+	// totpKey is the AEAD sub-key that encrypts account.totp_secret at rest (#337).
+	// It is HKDF-derived from the file-backed session key with a domain-separation
+	// label, so a database dump discloses no usable TOTP secret and the raw signing
+	// key is never reused for two purposes (ADR-0053). Derived once in newServer.
+	totpKey    []byte
 	setupToken string
 	now        func() time.Time
 	// startedAt is the instant this process came up, read off the injectable clock
@@ -308,9 +316,14 @@ type server struct {
 }
 
 func newServer(s store, key []byte, setupToken string, now func() time.Time) *server {
+	// Derive the TOTP-secret AEAD sub-key from the session key (#337). HKDF over a
+	// present key of a sane length does not fail; a nil result would only fail-closed
+	// on the encrypt path, never silently store cleartext.
+	totpKey, _ := auth.DeriveTOTPKey(key)
 	return &server{
 		store:          s,
 		key:            key,
+		totpKey:        totpKey,
 		setupToken:     setupToken,
 		now:            now,
 		startedAt:      now(),

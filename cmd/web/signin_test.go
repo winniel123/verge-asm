@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -259,8 +260,9 @@ func TestResetDoneDoesNotClaimGlobalSignOut(t *testing.T) {
 // --- TOTP enrollment + recovery codes ---------------------------------------
 
 // recoveryCodeRE matches a recovery code only inside its reveal span, so it counts
-// the shown codes rather than any incidental hex or class text elsewhere on the page.
-var recoveryCodeRE = regexp.MustCompile(`class="mono cvcode"[^>]*>([a-z2-9]{4}-[a-z2-9]{4})<`)
+// the shown codes rather than any incidental text elsewhere on the page. Post-#338 a
+// code is seven dash-separated groups of four alphabet characters (~138.7 bits).
+var recoveryCodeRE = regexp.MustCompile(`class="mono cvcode"[^>]*>([a-z2-9]{4}(?:-[a-z2-9]{4}){6})<`)
 
 // Confirming TOTP enrollment reveals the recovery codes once, stores only their
 // hashes, and one of them redeems the login two-factor step exactly once.
@@ -289,15 +291,21 @@ func TestTOTPEnrollmentRevealsRecoveryCodesOnce(t *testing.T) {
 	if len(f.recoveryCodes) != recoveryCodeCount {
 		t.Fatalf("stored %d recovery codes, want %d", len(f.recoveryCodes), recoveryCodeCount)
 	}
-	// Reveal-once: only hashes are kept — no stored row equals a shown plaintext.
+	// Reveal-once: only hashes are kept — no stored row equals a shown plaintext. And
+	// (#338) the digest is a salted, slow bcrypt hash, not a bare SHA-256 of the code:
+	// a bcrypt hash carries the "$2" prefix and is 60 characters, never the 64-hex-char
+	// SHA-256 the pre-#338 store used.
 	for _, rc := range f.recoveryCodes {
 		for _, shown := range codes {
 			if rc.CodeHash == shown {
 				t.Fatal("recovery code stored in plaintext (reveal-once violated)")
 			}
+			if rc.CodeHash == hashToken(shown) {
+				t.Fatalf("recovery code stored as a bare SHA-256 digest (offline-crackable): %q", rc.CodeHash)
+			}
 		}
-		if len(rc.CodeHash) != 64 {
-			t.Fatalf("recovery code hash is not a sha-256 hex digest: %q", rc.CodeHash)
+		if !strings.HasPrefix(rc.CodeHash, "$2") {
+			t.Fatalf("recovery code hash is not a bcrypt digest: %q", rc.CodeHash)
 		}
 	}
 
@@ -317,6 +325,44 @@ func TestTOTPEnrollmentRevealsRecoveryCodesOnce(t *testing.T) {
 	postForm(t, c2, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}}).Body.Close()
 	if got := body(t, postForm(t, c2, base+"/login/totp", url.Values{"code": {codes[0]}})); !strings.Contains(got, "Incorrect code") {
 		t.Fatalf("spent recovery code was accepted a second time; body: %s", got)
+	}
+}
+
+// TestRecoveryCodesEntropyAndHashing is the #338 unit guarantee: each generated code
+// clears the 128-bit entropy bar over the uniform alphabet draw, and its stored digest
+// is a salted, slow bcrypt hash — not the bare, offline-crackable SHA-256 the pre-#338
+// store kept.
+func TestRecoveryCodesEntropyAndHashing(t *testing.T) {
+	plain, hashes, err := newRecoveryCodes(recoveryCodeCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plain) != recoveryCodeCount || len(hashes) != recoveryCodeCount {
+		t.Fatalf("generated %d codes / %d hashes, want %d each", len(plain), len(hashes), recoveryCodeCount)
+	}
+	bitsPerChar := math.Log2(float64(len(recoveryAlphabet)))
+	for i, code := range plain {
+		// Entropy: count alphabet characters (dashes are formatting, not entropy).
+		nchars := 0
+		for _, r := range code {
+			if r != '-' {
+				nchars++
+			}
+		}
+		if bits := float64(nchars) * bitsPerChar; bits < 128 {
+			t.Fatalf("recovery code %q carries %.1f bits (%d chars), want >=128", code, bits, nchars)
+		}
+		// Hashing: bcrypt ("$2" prefix, 60 chars), never a bare SHA-256 hex digest.
+		if !strings.HasPrefix(hashes[i], "$2") {
+			t.Fatalf("recovery code hash is not bcrypt: %q", hashes[i])
+		}
+		if hashes[i] == hashToken(code) {
+			t.Fatalf("recovery code stored as a bare SHA-256 digest (offline-crackable)")
+		}
+		// Round-trip: the bcrypt hash verifies its own code, and only its own.
+		if !auth.CheckPassword(hashes[i], code) {
+			t.Fatalf("bcrypt hash does not verify its recovery code %q", code)
+		}
 	}
 }
 

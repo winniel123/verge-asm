@@ -190,8 +190,9 @@ func (q *Queries) ResetAccountTOTP(ctx context.Context, id int64) error {
 	return err
 }
 
-const setTOTPLastStep = `-- name: SetTOTPLastStep :exec
-UPDATE account SET totp_last_step = $2 WHERE id = $1
+const setTOTPLastStep = `-- name: SetTOTPLastStep :execrows
+UPDATE account SET totp_last_step = $2
+WHERE id = $1 AND (totp_last_step IS NULL OR totp_last_step < $2)
 `
 
 type SetTOTPLastStepParams struct {
@@ -199,13 +200,18 @@ type SetTOTPLastStepParams struct {
 	TotpLastStep pgtype.Int8 `json:"totp_last_step"`
 }
 
-// Advance the account's TOTP replay watermark to the step just accepted at login
-// (#323). The handler only ever writes a strictly greater step than the stored one,
-// so a captured code — whose step is <= this — is refused on re-presentation within
-// its validity window, the single-use discipline RFC 6238 §5.2 requires.
-func (q *Queries) SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) error {
-	_, err := q.db.Exec(ctx, setTOTPLastStep, arg.ID, arg.TotpLastStep)
-	return err
+// Atomically spend the TOTP step just accepted at login (#323, #339). The predicate
+// makes the advance the single serialisation point: the write lands only when the
+// account's stored watermark is still NULL or strictly below the presented step, so
+// of two concurrent requests carrying the SAME valid code exactly one updates a row
+// and the other affects zero — the loser is refused as a replay. A read-then-write in
+// the handler could let both pass; this conditional UPDATE cannot (RFC 6238 §5.2).
+func (q *Queries) SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setTOTPLastStep, arg.ID, arg.TotpLastStep)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setTOTPSecret = `-- name: SetTOTPSecret :exec
