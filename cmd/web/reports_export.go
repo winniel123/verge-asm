@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
-	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 // Reports export — `GET /reports/export` (#291). It serves the operational Reports
@@ -63,39 +62,49 @@ func (s *server) reportsExport(w http.ResponseWriter, r *http.Request, acct db.A
 	days := weeks * 7
 
 	// Scans-per-day series + the two activity KPIs — the same read reportsPage does.
-	// A Dispatch read failure degrades to an all-zero series rather than failing the
-	// download; the file still carries the honest KPI band that did read.
+	// A Dispatch read failure marks the activity block unavailable (empty / null KPIs
+	// and no per-day rows) rather than exporting a fabricated all-zero series that a
+	// reader could not tell from a real zero.
 	counts := make([]int, days)
-	window, active := 0, 0
-	if rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit); err != nil {
+	window, active, hasActivity := 0, 0, false
+	if rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
 		log.Printf("web: reports export: list dispatch progress: %v", err)
 	} else {
 		counts, window, active = s.bucketScanActivity(rows, days)
+		hasActivity = true
 	}
 
 	// The headline KPI — the current count of firing signals, a current-state census
-	// (reportsPage's one honest signal figure). On a corpus read failure it exports as
-	// unavailable (empty / null), never a fabricated zero.
-	openSignals, hasOpenSignals := 0, false
-	if corpus, err := s.buildSignalCorpus(r); err != nil {
-		log.Printf("web: reports export: build signal corpus: %v", err)
-	} else {
-		for _, c := range signal.EvaluateCorpus(corpus) {
-			openSignals += len(c.Fired)
-		}
-		hasOpenSignals = true
-	}
+	// (reportsPage's one honest signal figure, shared via openSignalsCount). On a
+	// corpus read failure it exports as unavailable (empty / null), never a zero.
+	openSignals, hasOpenSignals := s.openSignalsCount(r)
 
 	const day = 24 * time.Hour
 	to := s.now().UTC().Truncate(day)
 	rng := reportsExportRange{Weeks: weeks, Days: days, From: to.AddDate(0, 0, -(days - 1)), To: to}
 
+	fig := reportsExportFigures{
+		counts: counts, window: window, active: active, hasActivity: hasActivity,
+		openSignals: openSignals, hasOpenSignals: hasOpenSignals,
+	}
 	switch format {
 	case "json":
-		s.writeReportsExportJSON(w, rng, counts, window, active, openSignals, hasOpenSignals)
+		s.writeReportsExportJSON(w, rng, fig)
 	default:
-		s.writeReportsExportCSV(w, rng, counts, window, active, openSignals, hasOpenSignals)
+		s.writeReportsExportCSV(w, rng, fig)
 	}
+}
+
+// reportsExportFigures bundles the resolved figures for the export writers: the
+// per-day scan series and activity KPIs (valid only when hasActivity), and the
+// open-signals census total (valid only when hasOpenSignals). The two availability
+// flags keep an unavailable read exporting as empty/null, never a fabricated zero.
+type reportsExportFigures struct {
+	counts         []int
+	window, active int
+	hasActivity    bool
+	openSignals    int
+	hasOpenSignals bool
 }
 
 // reportsExportFilename is the download name: reports-<from>-to-<to>.<ext>, ISO dates
@@ -112,7 +121,7 @@ func (rng reportsExportRange) dayDate(i int) time.Time {
 // writeReportsExportCSV emits the figures as one uniform section,label,value table —
 // the summary band first, then one row per day of the scans-per-day series. An
 // unavailable signal count writes an empty value cell, never a zero.
-func (s *server) writeReportsExportCSV(w http.ResponseWriter, rng reportsExportRange, counts []int, window, active, openSignals int, hasOpenSignals bool) {
+func (s *server) writeReportsExportCSV(w http.ResponseWriter, rng reportsExportRange, fig reportsExportFigures) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+reportsExportFilename(rng, "csv")+`"`)
 
@@ -121,19 +130,28 @@ func (s *server) writeReportsExportCSV(w http.ResponseWriter, rng reportsExportR
 
 	_ = cw.Write([]string{"section", "label", "value"})
 
-	openVal := ""
-	if hasOpenSignals {
-		openVal = strconv.Itoa(openSignals)
+	// An unavailable read writes an empty value cell, never a zero standing in for a
+	// real count.
+	intCell := func(v int, ok bool) string {
+		if !ok {
+			return ""
+		}
+		return strconv.Itoa(v)
 	}
 	_ = cw.Write([]string{"summary", "range_weeks", strconv.Itoa(rng.Weeks)})
 	_ = cw.Write([]string{"summary", "period_start", rng.From.Format("2006-01-02")})
 	_ = cw.Write([]string{"summary", "period_end", rng.To.Format("2006-01-02")})
-	_ = cw.Write([]string{"summary", "open_signals", openVal})
-	_ = cw.Write([]string{"summary", "scans_run", strconv.Itoa(window)})
-	_ = cw.Write([]string{"summary", "in_flight", strconv.Itoa(active)})
+	_ = cw.Write([]string{"summary", "open_signals", intCell(fig.openSignals, fig.hasOpenSignals)})
+	_ = cw.Write([]string{"summary", "scans_run", intCell(fig.window, fig.hasActivity)})
+	_ = cw.Write([]string{"summary", "in_flight", intCell(fig.active, fig.hasActivity)})
 
-	for i, c := range counts {
-		_ = cw.Write([]string{"scans_per_day", rng.dayDate(i).Format("2006-01-02"), strconv.Itoa(c)})
+	// The per-day series is written only when the activity read succeeded — an
+	// unavailable read emits no scans_per_day rows rather than a run of fabricated
+	// zero-scan days.
+	if fig.hasActivity {
+		for i, c := range fig.counts {
+			_ = cw.Write([]string{"scans_per_day", rng.dayDate(i).Format("2006-01-02"), strconv.Itoa(c)})
+		}
 	}
 }
 
@@ -154,11 +172,12 @@ type reportsExportDocRange struct {
 }
 
 type reportsExportDocKPIs struct {
-	// OpenSignals is null where the signal census could not be read — never a
-	// fabricated zero standing in for a real count.
+	// Each KPI is null where its underlying read could not be completed — never a
+	// fabricated zero standing in for a real count. OpenSignals tracks the signal
+	// census read; ScansRun / InFlight track the Dispatch read.
 	OpenSignals *int `json:"open_signals"`
-	ScansRun    int  `json:"scans_run"`
-	InFlight    int  `json:"in_flight"`
+	ScansRun    *int `json:"scans_run"`
+	InFlight    *int `json:"in_flight"`
 }
 
 type reportsExportDocDay struct {
@@ -168,22 +187,30 @@ type reportsExportDocDay struct {
 
 // writeReportsExportJSON emits the figures as a structured document. open_signals is
 // null where the census was unavailable.
-func (s *server) writeReportsExportJSON(w http.ResponseWriter, rng reportsExportRange, counts []int, window, active, openSignals int, hasOpenSignals bool) {
+func (s *server) writeReportsExportJSON(w http.ResponseWriter, rng reportsExportRange, fig reportsExportFigures) {
 	doc := reportsExportDoc{
-		GeneratedAt: rng.To.Format(time.RFC3339),
+		// The actual instant the export was produced, not the range end — so two
+		// pulls the same day are distinguishable and a freshness check reads true.
+		GeneratedAt: s.now().UTC().Format(time.RFC3339),
 		Range: reportsExportDocRange{
 			Weeks: rng.Weeks, Days: rng.Days,
 			From: rng.From.Format("2006-01-02"), To: rng.To.Format("2006-01-02"),
 		},
-		KPIs:        reportsExportDocKPIs{ScansRun: window, InFlight: active},
-		ScansPerDay: make([]reportsExportDocDay, len(counts)),
+		ScansPerDay: []reportsExportDocDay{},
 	}
-	if hasOpenSignals {
-		n := openSignals
+	if fig.hasOpenSignals {
+		n := fig.openSignals
 		doc.KPIs.OpenSignals = &n
 	}
-	for i, c := range counts {
-		doc.ScansPerDay[i] = reportsExportDocDay{Date: rng.dayDate(i).Format("2006-01-02"), Scans: c}
+	// Activity KPIs and the per-day series are null / empty where the Dispatch read
+	// failed, never a fabricated zero.
+	if fig.hasActivity {
+		window, active := fig.window, fig.active
+		doc.KPIs.ScansRun, doc.KPIs.InFlight = &window, &active
+		doc.ScansPerDay = make([]reportsExportDocDay, len(fig.counts))
+		for i, c := range fig.counts {
+			doc.ScansPerDay[i] = reportsExportDocDay{Date: rng.dayDate(i).Format("2006-01-02"), Scans: c}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

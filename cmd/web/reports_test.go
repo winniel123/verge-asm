@@ -545,11 +545,11 @@ func TestReportsExportJSON(t *testing.T) {
 	if len(doc.ScansPerDay) != 26*7 {
 		t.Errorf("scans_per_day len = %d, want %d", len(doc.ScansPerDay), 26*7)
 	}
-	if doc.KPIs.ScansRun != 2 {
-		t.Errorf("kpis.scans_run = %d, want 2", doc.KPIs.ScansRun)
+	if doc.KPIs.ScansRun == nil || *doc.KPIs.ScansRun != 2 {
+		t.Errorf("kpis.scans_run = %v, want 2", doc.KPIs.ScansRun)
 	}
-	if doc.KPIs.InFlight != 1 {
-		t.Errorf("kpis.in_flight = %d, want 1", doc.KPIs.InFlight)
+	if doc.KPIs.InFlight == nil || *doc.KPIs.InFlight != 1 {
+		t.Errorf("kpis.in_flight = %v, want 1", doc.KPIs.InFlight)
 	}
 	// open_signals is present (empty estate -> a real zero census, not null).
 	if doc.KPIs.OpenSignals == nil {

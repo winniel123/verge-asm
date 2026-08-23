@@ -242,8 +242,9 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 //     node of that key;
 //   - an Endpoint-rule firing (subject = `name@address:port/transport`) lights the
 //     Name node named before the `@` — the endpoint's own DNS identity — falling
-//     back to its Service node (after the `@`) for a nameless endpoint, so each
-//     firing lands on exactly one node and is never double-counted.
+//     back to its Service node (after the `@`) when the endpoint is nameless OR its
+//     Name node is not in the topology (only the service span is open), so each
+//     firing lands on exactly one node it can reach and is never double-counted.
 //
 // Address nodes gain nothing: no rule censuses an Address subject, and a Service's
 // firing is the Service's, not silently aggregated onto the Address it rides
@@ -255,10 +256,12 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 	for i, n := range g.Nodes {
 		idx[n.ID] = i
 	}
-	attach := func(nodeID string, sig graphSignal) {
+	attach := func(nodeID string, sig graphSignal) bool {
 		if i, ok := idx[nodeID]; ok {
 			g.Nodes[i].OpenSignals = append(g.Nodes[i].OpenSignals, sig)
+			return true
 		}
+		return false
 	}
 	for _, c := range censuses {
 		kind := signal.SubjectKindFor(c.Rule)
@@ -269,10 +272,10 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 				attach(m.Subject, sig)
 			case "endpoint":
 				// name@service — light the Name leg (the endpoint's DNS identity),
-				// or the Service leg for a nameless endpoint.
-				if name, service := splitEndpointName(m.Subject); name != "" {
-					attach(name, sig)
-				} else {
+				// falling back to the Service leg for a nameless endpoint or when the
+				// Name node is not in the topology (so a real firing never vanishes).
+				name, service := splitEndpointName(m.Subject)
+				if name == "" || !attach(name, sig) {
 					attach(service, sig)
 				}
 			}

@@ -40,11 +40,16 @@ import (
 // issue #285. This handler reads exposure/scans/signals data sources read-only;
 // it owns no mutation and adds no store method.
 
-// reportsDispatchLimit bounds the Dispatch read behind the scans-per-day heatmap.
-// The heatmap spans up to a year (the widest range option below), and a Dispatch is
-// one fan-out of one Scan, so a generous cap covers that window without paging while
-// staying a bounded read.
-const reportsDispatchLimit = 2000
+// reportsDispatchPerWeek budgets the Dispatch read behind the scans-per-day series
+// PER WEEK of the selected range, so a wider window reads proportionally more rows
+// instead of silently truncating the oldest days at a fixed cap (the read is
+// newest-first by id, so a too-small cap drops the early columns of a long range). A
+// Dispatch is one fan-out of one Scan; this budget is generous for a busy estate.
+const reportsDispatchPerWeek = 250
+
+// reportsDispatchLimit is the bounded Dispatch read size for a given range in weeks,
+// scaled off reportsDispatchPerWeek. int32 to match ListDispatchProgress.
+func reportsDispatchLimit(weeks int) int32 { return int32(weeks * reportsDispatchPerWeek) }
 
 // reportsHeatWeeks / reportsHeatDays are the heatmap's DEFAULT span: twelve weeks of
 // one column per week, seven rows per column, oldest-first. The span is now
@@ -108,6 +113,23 @@ func reportsRangeLabel(weeks int) string {
 	return "last " + strconv.Itoa(weeks) + " weeks"
 }
 
+// openSignalsCount is the one honest signal figure the Reports screen and its export
+// both show: the current count of firing signals across every rule, a current-state
+// census total (never a trend). Building the corpus is the heavier read; on failure
+// it returns ok=false so the caller renders the KPI as unavailable rather than a
+// fabricated zero. Shared so the page and the export never drift apart.
+func (s *server) openSignalsCount(r *http.Request) (count int, ok bool) {
+	corpus, err := s.buildSignalCorpus(r)
+	if err != nil {
+		log.Printf("web: reports: build signal corpus: %v", err)
+		return 0, false
+	}
+	for _, c := range signal.EvaluateCorpus(corpus) {
+		count += len(c.Fired)
+	}
+	return count, true
+}
+
 // heatCell is one day in the scans-per-day heatmap: the pre-computed inline
 // background (an intensity step on --chart-1, or the sunken step at zero), a
 // border, and a hover title. Intensity is folded in the handler so the template
@@ -133,7 +155,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// A Dispatch read failure degrades to an empty heatmap rather than failing the
 	// whole analytics page a viewer depends on.
 	cells, heatTotal, scansWindow, activeScans := []heatCell{}, 0, 0, 0
-	rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit)
+	rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks))
 	if err != nil {
 		log.Printf("web: reports: list dispatch progress: %v", err)
 	} else {
@@ -144,15 +166,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// census total (not a trend), so it is the one honest signal figure. Building
 	// the corpus is the heavier read; on failure the KPI degrades to unavailable
 	// rather than 500ing the page.
-	openSignals, hasOpenSignals := 0, false
-	if corpus, err := s.buildSignalCorpus(r); err != nil {
-		log.Printf("web: reports: build signal corpus: %v", err)
-	} else {
-		for _, c := range signal.EvaluateCorpus(corpus) {
-			openSignals += len(c.Fired)
-		}
-		hasOpenSignals = true
-	}
+	openSignals, hasOpenSignals := s.openSignalsCount(r)
 
 	s.render(w, "reports", map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,

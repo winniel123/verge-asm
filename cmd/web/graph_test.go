@@ -136,6 +136,33 @@ func TestJoinSignalsToGraph(t *testing.T) {
 	}
 }
 
+// A named endpoint firing whose Name node is NOT in the topology (only the service
+// span is open, so no name node was placed) falls back to its Service node rather
+// than vanishing — a real open signal must always light the one node it can reach.
+func TestJoinSignalsEndpointFallsBackToServiceWhenNameAbsent(t *testing.T) {
+	// A service-only estate: the Service node and its Address exist, but there is no
+	// open name span, so no Name node for www.example.com is placed.
+	g := buildGraph([]db.ListAllOpenSpansRow{
+		openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
+	})
+	censuses := []signal.Census{
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "www.example.com@203.0.113.5:443/tcp"}}},
+	}
+	g = joinSignals(g, censuses)
+
+	byID := map[string]graphNode{}
+	for _, n := range g.Nodes {
+		byID[n.ID] = n
+	}
+	if _, ok := byID["www.example.com"]; ok {
+		t.Fatalf("no Name node should exist for a service-only estate")
+	}
+	svc := byID["203.0.113.5:443/tcp"]
+	if len(svc.OpenSignals) != 1 || svc.OpenSignals[0].Rule != "plaintext-http-no-https" {
+		t.Errorf("named endpoint firing with an absent Name node did not fall back to its Service node; svc signals = %#v", svc.OpenSignals)
+	}
+}
+
 // The Graph page joins real open signals onto its nodes: a fired rule reaches the
 // selected node's drawer, its node draws a presence halo, and the filter re-skins
 // to the honest presence axis — never a severity scale.
