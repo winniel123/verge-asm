@@ -536,7 +536,14 @@ var tmpl = template.Must(template.New("").Parse(`
 /* Shell affordances: the light/dark data-theme toggle (prefers-color-scheme is the
    default; this is the explicit override, persisted), and the command-palette
    scaffold (Cmd/Ctrl-K). Both are guarded so they no-op on the chrome-less auth
-   pages. Screen tickets fill the toast stack and palette results; T0 wires the shell. */
+   pages. Screen tickets fill the toast stack and palette results; T0 wires the shell.
+   #315 wires the palette's overflow: the "Search everything" item (marked
+   data-cmdk-search, matching design-system/examples/console/ConsoleApp.jsx's
+   CommandPalette entry of the same label — SearchResults.jsx: "where ⌘K's 'see
+   everything' lands") stays visible no matter what the query filters out, and its
+   href tracks the typed query so Enter or a click hands off to
+   /search?q=<query> — an empty query lands on /search with no q, which the
+   handler already browses unfiltered. */
 (function () {
   function cmdk() { return document.getElementById("cmdk"); }
   function input() { var p = cmdk(); return p ? p.querySelector(".cmdk-input") : null; }
@@ -558,12 +565,16 @@ var tmpl = template.Must(template.New("").Parse(`
   }
   function filter(q) {
     var p = cmdk(); if (!p) return;
-    q = (q || "").trim().toLowerCase();
+    var raw = (q || "").trim();          // kept in original case for the /search handoff
+    var ql = raw.toLowerCase();
     var any = false;
     items().forEach(function (el) {
-      var match = !q || el.textContent.toLowerCase().indexOf(q) !== -1;
+      if (el.hasAttribute("data-cmdk-search")) { el.removeAttribute("hidden"); return; } // overflow item: never filtered out
+      var match = !ql || el.textContent.toLowerCase().indexOf(ql) !== -1;
       if (match) { el.removeAttribute("hidden"); any = true; } else { el.setAttribute("hidden", ""); }
     });
+    var search = p.querySelector("[data-cmdk-search]");
+    if (search) search.setAttribute("href", raw ? "/search?q=" + encodeURIComponent(raw) : "/search");
     Array.prototype.forEach.call(p.querySelectorAll("[data-cmdk-group]"), function (g) {
       if (g.querySelector(".cmdk-item:not([hidden])")) g.removeAttribute("hidden"); else g.setAttribute("hidden", "");
     });
@@ -674,6 +685,7 @@ var tmpl = template.Must(template.New("").Parse(`
 <button type="button" class="cmdk-item" data-theme-toggle>Toggle theme</button>
 </div>
 <div class="cmdk-empty" data-cmdk-empty hidden>No matching screen or action</div>
+<div class="cmdk-group"><a class="cmdk-item" href="/search" data-cmdk-search>Search everything</a></div>
 </div></div>
 <div class="toaststack" id="toasts" aria-live="polite" aria-atomic="false"></div>{{end}}
 `))
