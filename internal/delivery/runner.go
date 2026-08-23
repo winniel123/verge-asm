@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"net/netip"
+	"net/url"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/queue"
@@ -28,13 +33,47 @@ type Doer interface {
 // NewHTTPDoer builds the production doer: an https client that REFUSES redirects
 // (a 3xx is a failure, never followed — it would move our attack surface to a
 // host the operator never declared, §4) and bounds every attempt with a timeout.
+//
+// Its dialer carries a Control hook that inspects the ACTUAL resolved address of
+// every connection and refuses to open the socket when it lands in a
+// non-globally-reachable range (#325). This is the rebinding-proof backstop to
+// the runner's resolve-and-check: Control runs after DNS resolution, on the very
+// address the kernel is about to connect to, so a name that flips from a public
+// to a private answer between the pre-flight check and the dial is still barred.
 func NewHTTPDoer() *http.Client {
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		Control: func(_, address string, _ syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return err
+			}
+			ip, err := netip.ParseAddr(host)
+			if err != nil {
+				return err
+			}
+			if custody.IsNonGloballyReachable(ip.Unmap()) {
+				return fmt.Errorf("delivery: refusing to dial non-globally-reachable address %s", host)
+			}
+			return nil
+		},
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = dialer.DialContext
 	return &http.Client{
-		Timeout: 15 * time.Second,
+		Timeout:   15 * time.Second,
+		Transport: transport,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
+}
+
+// resolver resolves a host to its IP addresses. *net.Resolver satisfies it; a
+// test supplies a fake to place a host in a private range without real DNS.
+type resolver interface {
+	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
 // Runner is the worker-side loop that drains routed deliveries off the queue and
@@ -42,12 +81,13 @@ func NewHTTPDoer() *http.Client {
 // retry/backoff/dead-letter curve (queue.Backoff) rather than minting a second
 // schedule beside it.
 type Runner struct {
-	pool    *pgxpool.Pool
-	q       *db.Queries
-	doer    Doer
-	now     func() time.Time
-	baseURL string
-	log     *log.Logger
+	pool     *pgxpool.Pool
+	q        *db.Queries
+	doer     Doer
+	now      func() time.Time
+	baseURL  string
+	log      *log.Logger
+	resolver resolver
 }
 
 // NewRunner builds a Runner over pool driving doer. baseURL is the absolute URL
@@ -60,7 +100,7 @@ func NewRunner(pool *pgxpool.Pool, doer Doer, now func() time.Time, baseURL stri
 	if doer == nil {
 		doer = NewHTTPDoer()
 	}
-	return &Runner{pool: pool, q: db.New(pool), doer: doer, now: now, baseURL: baseURL, log: logger}
+	return &Runner{pool: pool, q: db.New(pool), doer: doer, now: now, baseURL: baseURL, log: logger, resolver: net.DefaultResolver}
 }
 
 // EnqueueForMessage routes a freshly-written Message to its Channels by class
@@ -194,6 +234,9 @@ func (r *Runner) post(ctx context.Context, claim db.ClaimDeliveryRow) error {
 // The response body is drained and closed so the connection is reusable; its
 // contents are never read into a Message.
 func (r *Runner) send(ctx context.Context, targetURL string, body, secret []byte) (int, error) {
+	if err := r.guardTarget(ctx, targetURL); err != nil {
+		return 0, err
+	}
 	req, err := NewRequest(ctx, targetURL, body, secret, r.now().UTC())
 	if err != nil {
 		return 0, err
@@ -205,6 +248,41 @@ func (r *Runner) send(ctx context.Context, targetURL string, body, secret []byte
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body)
 	return resp.StatusCode, nil
+}
+
+// guardTarget refuses a delivery whose target host resolves into a
+// non-globally-reachable range (#325). The settings validator bars internal IP
+// LITERALS at configuration time; this is the delivery-time complement that
+// resolves the host, closing the two gaps a literal-only config check leaves
+// open: a hostname that points at an internal service, and DNS rebinding of a
+// host that was public when the channel was saved. An IP-literal host resolves
+// to itself, so a literal that slipped past an older config is re-barred here.
+// A refusal returns a transport-style error, so the delivery fails and rides the
+// same retry/dead-letter curve as any other send failure — the body is never
+// POSTed. The dialer's Control hook (NewHTTPDoer) is the socket-level backstop
+// for the residual TOCTOU between this resolution and the actual connect.
+func (r *Runner) guardTarget(ctx context.Context, targetURL string) error {
+	u, err := url.Parse(targetURL)
+	if err != nil {
+		return fmt.Errorf("parse target url: %w", err)
+	}
+	host := u.Hostname()
+	if ip, err := netip.ParseAddr(host); err == nil {
+		if custody.IsNonGloballyReachable(ip.Unmap()) {
+			return fmt.Errorf("refusing delivery to non-globally-reachable host %s", host)
+		}
+		return nil
+	}
+	addrs, err := r.resolver.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return fmt.Errorf("resolve %q: %w", host, err)
+	}
+	for _, a := range addrs {
+		if custody.IsNonGloballyReachable(a.Unmap()) {
+			return fmt.Errorf("refusing delivery to %q: resolves to non-globally-reachable address %s", host, a)
+		}
+	}
+	return nil
 }
 
 func firingFromRow(m db.GetMessageForDeliveryRow) Firing {

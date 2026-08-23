@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"testing"
@@ -278,14 +279,66 @@ func TestPostedBodyIsTheSignedBody(t *testing.T) {
 // captureDoer is the fake HTTP surface: it reads the request body and headers and
 // returns a 200 without ever touching the network.
 type captureDoer struct {
-	body []byte
-	sig  string
+	body   []byte
+	sig    string
+	called bool
 }
 
 func (d *captureDoer) Do(req *http.Request) (*http.Response, error) {
+	d.called = true
 	if req.Body != nil {
 		d.body, _ = io.ReadAll(req.Body)
 	}
 	d.sig = req.Header.Get(HeaderSignature)
 	return &http.Response{StatusCode: 200, Body: http.NoBody}, nil
+}
+
+// fakeResolver places a host in whatever range the test needs without real DNS.
+type fakeResolver map[string][]netip.Addr
+
+func (f fakeResolver) LookupNetIP(_ context.Context, _, host string) ([]netip.Addr, error) {
+	if a, ok := f[host]; ok {
+		return a, nil
+	}
+	return nil, errors.New("no such host: " + host)
+}
+
+// The delivery-time SSRF guard (#325): a channel whose host resolves into a
+// non-globally-reachable range is refused and its body is NEVER POSTed, while a
+// host resolving to public space still posts. This defends against a hostname
+// target and DNS rebinding that the config-time literal check cannot see.
+func TestDeliveryRefusesPrivateResolvedTarget(t *testing.T) {
+	fake := &captureDoer{}
+	r := &Runner{
+		doer: fake,
+		now:  func() time.Time { return causeAt },
+		resolver: fakeResolver{
+			"internal.example": {netip.MustParseAddr("10.0.0.5")},
+			"hooks.example":    {netip.MustParseAddr("93.184.216.34")},
+		},
+	}
+	body := []byte("{}")
+
+	if _, err := r.send(context.Background(), "https://internal.example/hook", body, nil); err == nil {
+		t.Fatal("send to a private-resolving host returned nil; want refusal")
+	}
+	if fake.called {
+		t.Fatal("doer.Do was called for a private-resolving host — body was POSTed")
+	}
+
+	// An internal IP literal is refused before the resolver is even consulted.
+	if _, err := r.send(context.Background(), "https://169.254.169.254/", body, nil); err == nil {
+		t.Fatal("send to the metadata literal returned nil; want refusal")
+	}
+	if fake.called {
+		t.Fatal("doer.Do was called for the metadata literal")
+	}
+
+	// A public-resolving host still posts.
+	if _, err := r.send(context.Background(), "https://hooks.example/hook", body, nil); err != nil {
+		t.Fatalf("send to a public-resolving host errored: %v", err)
+	}
+	if !fake.called {
+		t.Fatal("doer.Do was not called for a public-resolving host")
+	}
 }
