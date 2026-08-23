@@ -47,5 +47,5 @@ const pageTitle = `${source.frontmatter.title ?? source.slug} · Verge ASM docs`
   versions={versions}
   version={source.version}
 >
-  <Article client:load markdown={source.rawMarkdown} />
+  <Article client:load markdown={source.rawMarkdown} version={source.version} slug={source.slug} />
 </DocsLayout>

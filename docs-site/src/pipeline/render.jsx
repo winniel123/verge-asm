@@ -46,6 +46,39 @@ function InlineCode({ children }) {
   );
 }
 
+/**
+ * T2 link/anchor rewrite. Turns an author's relative markdown href into the in-site
+ * route for the SAME version, so cross-links survive the source→route mapping and
+ * anchor fragments resolve to the heading ids the renderer emits.
+ *
+ *   using.md                      -> /<version>/using
+ *   ./running.md#environment-vars -> /<version>/running#environment-vars
+ *   #severity-levels              -> /<version>/<currentSlug>#severity-levels (in-page)
+ *   https://example.com           -> unchanged (external)
+ *   ../adr/0017-....md, ../../deploy/, *.go, dirs -> unchanged (repo cross-refs,
+ *                                    not rendered guide routes — see PIPELINE.md)
+ *
+ * Fragments are passed through verbatim: guide authors write already-slugified
+ * anchors (`#2-upload-a-zone-file`), and check-links.mjs is the gate that proves
+ * each fragment matches a real heading id — via the same github-slugger algorithm.
+ * The regexes here mirror check-links.mjs so renderer and gate agree on what counts
+ * as an intra-guide link.
+ */
+const INTRA_GUIDE = /^\.?\/?([a-z0-9][a-z0-9-]*)\.md(?:#(.+))?$/i;
+function rewriteHref(href, version, currentSlug) {
+  if (!href) return { href, intraSite: false };
+  if (href.startsWith("#")) {
+    return { href: `/${version}/${currentSlug}${href}`, intraSite: true };
+  }
+  if (/^https?:\/\//i.test(href)) return { href, intraSite: false, external: true };
+  const m = INTRA_GUIDE.exec(href);
+  if (m) {
+    const frag = m[2] ? `#${m[2]}` : "";
+    return { href: `/${version}/${m[1]}${frag}`, intraSite: true };
+  }
+  return { href, intraSite: false }; // mailto:, ../adr/..., ../../deploy/, *.go, dirs
+}
+
 /** Flatten a react-markdown children tree to its plain-text content (for slugging). */
 function toText(node) {
   if (node == null || node === false) return "";
@@ -60,7 +93,7 @@ function toText(node) {
  * the string is passed as a prop from the .astro page so this hydrates client-side,
  * which the DS CodeBlock needs for its copy control.
  */
-export default function Article({ markdown = "" }) {
+export default function Article({ markdown = "", version = "main", slug = "" }) {
   // One slugger per render, closed over by the heading renderers. react-markdown
   // visits headings in source order, so its de-dup counter stays in step with
   // extractToc() in slug.ts (which slugs every heading in the same order).
@@ -88,12 +121,13 @@ export default function Article({ markdown = "" }) {
     strong: ({ children }) => <strong style={{ fontWeight: 600, color: "var(--text-ink)" }}>{children}</strong>,
     em: ({ children }) => <em>{children}</em>,
 
-    // T2 SEAM: relative cross-links (`running.md#anchor`) pass through untouched
-    // today; T2 rewrites them here into `/<version>/running#anchor`.
+    // T2 SEAM: relative guide cross-links (`running.md#anchor`) are rewritten into
+    // in-site `/<version>/running#anchor` routes for the current version; external
+    // http(s) links open in a new tab; everything else passes through untouched.
     a: ({ href, children }) => {
-      const external = /^https?:\/\//.test(href || "");
+      const { href: nextHref, external } = rewriteHref(href, version, slug);
       return (
-        <a href={href} style={S.a} {...(external ? { target: "_blank", rel: "noreferrer noopener" } : {})}>
+        <a href={nextHref} style={S.a} {...(external ? { target: "_blank", rel: "noreferrer noopener" } : {})}>
           {children}
         </a>
       );
