@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"net"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/qr"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
@@ -563,10 +565,27 @@ func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.serverError(w, "store totp secret", err)
 		return
 	}
-	s.render(w, "totp-enroll", map[string]any{
-		"Title": "Two-factor", "Secret": secret,
-		"OtpauthURI": auth.OtpauthURI(secret, acct.Username, issuer),
-	})
+	s.render(w, "totp-enroll", totpEnrollData(acct.Username, secret, ""))
+}
+
+// totpEnrollData assembles the template data for the enrollment screen: the
+// secret and its otpauth:// URI (always, as the manual-entry fallback) and a
+// scannable QR of that URI, rendered in-process. The QR is generated here, not
+// by any third-party service, so the secret never leaves the origin (ADR-0053).
+// A payload that will not fit a QR (an unusually long username) simply omits the
+// image; the secret text carries the enrollment on its own.
+func totpEnrollData(username, secret, errMsg string) map[string]any {
+	uri := auth.OtpauthURI(secret, username, issuer)
+	data := map[string]any{
+		"Title": "Two-factor", "Secret": secret, "OtpauthURI": uri,
+	}
+	if errMsg != "" {
+		data["Error"] = errMsg
+	}
+	if svg, err := qr.SVG([]byte(uri), "Two-factor enrollment QR code for "+username); err == nil {
+		data["OtpauthQR"] = template.HTML(svg) //nolint:gosec // SVG is built by our own encoder, not user input
+	}
+	return data
 }
 
 func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -576,11 +595,8 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	if !auth.VerifyTOTP(fresh.TotpSecret.String, r.FormValue("code"), s.now()) {
-		s.render(w, "totp-enroll", map[string]any{
-			"Title": "Two-factor", "Secret": fresh.TotpSecret.String,
-			"OtpauthURI": auth.OtpauthURI(fresh.TotpSecret.String, acct.Username, issuer),
-			"Error":      "Incorrect code. Two-factor is not enabled.",
-		})
+		s.render(w, "totp-enroll", totpEnrollData(acct.Username, fresh.TotpSecret.String,
+			"Incorrect code. Two-factor is not enabled."))
 		return
 	}
 	if err := s.store.ConfirmTOTP(r.Context(), acct.ID); err != nil {

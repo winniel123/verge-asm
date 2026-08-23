@@ -349,6 +349,36 @@ func TestCreateAccountDuplicateUsername(t *testing.T) {
 
 var secretRE = regexp.MustCompile(`<div class="secret">([A-Z2-7]+)</div>`)
 
+// TestTOTPEnrollShowsQR covers #317: the enrollment page renders a scannable QR
+// of the otpauth:// URI (generated in-process, so the secret never leaves the
+// origin) while keeping the secret text as the manual-entry fallback, and the QR
+// reappears on the incorrect-code re-render.
+func TestTOTPEnrollShowsQR(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := body(t, postForm(t, ac, base+"/account/totp/enable", nil))
+	if !strings.Contains(page, "<svg") || !strings.Contains(page, `aria-label="Two-factor enrollment QR code`) {
+		t.Fatalf("enroll page has no QR image; body: %s", page)
+	}
+	if secretRE.FindStringSubmatch(page) == nil {
+		t.Fatalf("enroll page dropped the secret text fallback; body: %s", page)
+	}
+	// The QR must be self-contained: no reference to any external host (an
+	// external QR service would leak the secret — ADR-0053).
+	if strings.Contains(page, "//api.qrserver") || strings.Contains(page, "chart.googleapis") {
+		t.Fatalf("enroll page references an external QR service; body: %s", page)
+	}
+
+	// The incorrect-code re-render keeps the QR and reports the error.
+	reRender := body(t, postForm(t, ac, base+"/account/totp/confirm", url.Values{"code": {"000000"}}))
+	if !strings.Contains(reRender, "<svg") || !strings.Contains(reRender, "Incorrect code") {
+		t.Fatalf("incorrect-code re-render missing QR or error; body: %s", reRender)
+	}
+}
+
 func TestTOTPEnableThenRequiredAtLogin(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

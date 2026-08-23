@@ -117,8 +117,12 @@ Single sign-on not configured
 <div class="microlabel">Two-factor &#183; enrol</div>
 <div style="display:flex;flex-direction:column;gap:4px;margin:6px 0 var(--space-4)">
 <h1 style="margin:0">Enable two-factor</h1>
-<span class="muted" style="font-size:12.5px">Add this secret to your authenticator, then confirm with the current code. Two-factor is not active until you confirm.</span>
+<span class="muted" style="font-size:12.5px">Scan this code with your authenticator, or enter the secret by hand, then confirm with the current code. Two-factor is not active until you confirm.</span>
 </div>
+{{if .OtpauthQR}}<p class="microlabel" style="margin-bottom:6px">Scan</p>
+<div style="display:flex;justify-content:center;margin-bottom:var(--space-4)">
+<div style="width:180px;height:180px;padding:12px;background:#ffffff;border:1px solid var(--hairline);border-radius:var(--r-md)">{{.OtpauthQR}}</div>
+</div>{{end}}
 <p class="microlabel" style="margin-bottom:6px">Secret</p>
 <div class="secret">{{.Secret}}</div>
 <p class="microlabel" style="margin-bottom:6px">otpauth URI</p>
