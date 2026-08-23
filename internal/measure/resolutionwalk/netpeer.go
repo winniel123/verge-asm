@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/netip"
 	"strconv"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -31,6 +33,13 @@ type NetPeer struct {
 	// Timeout bounds one exchange. Zero uses a conservative default.
 	Timeout time.Duration
 }
+
+// netResolver backs both the pre-flight custody vetting (walkServerReachable)
+// and the dialer's own resolution (custodyDialer). In production both are the
+// system resolver, so the dialer re-resolves the NS name independently of the
+// vet — exactly the TOCTOU the Control hook exists to close. Tests substitute it
+// to force a vetting/dial disagreement (DNS rebinding) deterministically.
+var netResolver = net.DefaultResolver
 
 func (p NetPeer) exchangeTimeout() time.Duration {
 	if p.Timeout > 0 {
@@ -108,7 +117,7 @@ func walkServerReachable(ctx context.Context, server string) bool {
 	if addr, err := netip.ParseAddr(host); err == nil {
 		return !custody.IsNonGloballyReachable(addr)
 	}
-	addrs, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	addrs, err := netResolver.LookupNetIP(ctx, "ip", host)
 	if err != nil {
 		return true
 	}
@@ -160,8 +169,39 @@ func buildQuery(q Query) ([]byte, error) {
 	return b.Finish()
 }
 
+// custodyDialer returns a net.Dialer whose Control hook inspects the ACTUAL
+// resolved socket address of every connection and refuses to open the socket
+// when it lands in a non-globally-reachable range (#335). walkServerReachable
+// vets the NS hostname's addresses before the dial, but the dialer re-resolves
+// the name independently, so a name that flips from a public to a private answer
+// between the pre-flight check and the dial (DNS rebinding, a TOCTOU) would
+// otherwise slip a packet to an internal address. Control runs after DNS
+// resolution, on the very address the kernel is about to connect to, so the
+// vetted address is the one dialed — the rebinding-proof backstop, mirroring the
+// delivery runner's hook (NewHTTPDoer, #325). An IP-literal target resolves to
+// itself, so the safe literal branch is re-affirmed here rather than regressed.
+func custodyDialer() net.Dialer {
+	return net.Dialer{
+		Resolver: netResolver,
+		Control: func(_, address string, _ syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return err
+			}
+			ip, err := netip.ParseAddr(host)
+			if err != nil {
+				return err
+			}
+			if custody.IsNonGloballyReachable(ip.Unmap()) {
+				return fmt.Errorf("resolutionwalk: refusing to dial non-globally-reachable address %s", host)
+			}
+			return nil
+		},
+	}
+}
+
 func exchangeUDP(ctx context.Context, server string, msg []byte) ([]byte, error) {
-	var d net.Dialer
+	d := custodyDialer()
 	conn, err := d.DialContext(ctx, "udp", server)
 	if err != nil {
 		return nil, err
@@ -182,7 +222,7 @@ func exchangeUDP(ctx context.Context, server string, msg []byte) ([]byte, error)
 }
 
 func exchangeTCP(ctx context.Context, server string, msg []byte) ([]byte, error) {
-	var d net.Dialer
+	d := custodyDialer()
 	conn, err := d.DialContext(ctx, "tcp", server)
 	if err != nil {
 		return nil, err
