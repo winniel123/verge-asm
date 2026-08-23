@@ -57,6 +57,17 @@ type fakeStore struct {
 	personalTokens []db.PersonalToken
 	tokenNextID    int64
 
+	// SignIn delta (#314): the pre-auth token stores behind forgot/reset, TOTP
+	// recovery codes, and invite acceptance. Each keeps only a hash; expiry and
+	// single-use are checked against the injected clock, so a fixed-clock test can
+	// seed a live or a stale grant deliberately.
+	passwordResets []db.PasswordReset
+	resetNextID    int64
+	recoveryCodes  []db.RecoveryCode
+	recoveryNextID int64
+	invites        []db.Invite
+	inviteNextID   int64
+
 	// admitted stands in for the admitted_name rows behind a CT-admitted Name's
 	// Citation (ADR-0107); the citation test seeds it directly.
 	admitted []db.AdmittedName
@@ -147,6 +158,7 @@ func newFakeStore() *fakeStore {
 			{ID: 3, Kind: "cold", Enabled: false, CadenceSeconds: 2592000},
 		},
 		obsNextID: 1, batchNextID: 1, scanNextID: 1, tokenNextID: 1,
+		resetNextID: 1, recoveryNextID: 1, inviteNextID: 1,
 		freqEdits:  map[int32]fakeFreqEdit{},
 		coldScopes: map[int64]bool{},
 	}

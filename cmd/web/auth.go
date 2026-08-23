@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -144,7 +146,14 @@ func (s *server) loginForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	s.render(w, "login", map[string]any{"Title": "Sign in"})
+	data := map[string]any{"Title": "Sign in"}
+	// A freshly accepted invite lands here (invite acceptance creates the account
+	// but grants no session — the new operator signs in with the credentials they
+	// just set), so surface a notice rather than a bare form.
+	if r.URL.Query().Get("invited") != "" {
+		data["Notice"] = "Account created. Sign in with your new credentials."
+	}
+	s.render(w, "login", data)
 }
 
 func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
@@ -187,12 +196,49 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	if !auth.VerifyTOTP(acct.TotpSecret.String, r.FormValue("code"), s.now()) {
+	code := r.FormValue("code")
+	// The authenticator code is the primary path; a recovery code is the fallback
+	// when the authenticator is lost (SignIn delta #314). Both land in the one
+	// field, so a failed TOTP falls through to a single-use recovery-code redeem
+	// before the login is refused. A 6-digit TOTP never matches a recovery hash and
+	// vice versa, so the two never collide.
+	if !auth.VerifyTOTP(acct.TotpSecret.String, code, s.now()) && !s.redeemRecoveryCode(r, acct.ID, code) {
 		s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": "Incorrect code."})
 		return
 	}
 	s.clearCookie(w, pendingCookie)
 	s.completeLogin(w, r, acct.ID)
+}
+
+// redeemRecoveryCode spends a single-use recovery code for the account, reporting
+// whether the presented value matched an unused one. It reads the account's still-
+// redeemable code hashes and compares the hash of the normalised input; on a match
+// it stamps used_at so the code never redeems twice. It never returns which code
+// matched, and an empty or non-matching input is simply false — no error path lets
+// a comparison failure read as success.
+func (s *server) redeemRecoveryCode(r *http.Request, accountID int64, presented string) bool {
+	presented = normalizeRecoveryCode(presented)
+	if presented == "" {
+		return false
+	}
+	rows, err := s.store.ListUnusedRecoveryCodeHashes(r.Context(), accountID)
+	if err != nil {
+		log.Printf("web: login: list recovery codes: %v", err)
+		return false
+	}
+	want := hashToken(presented)
+	for _, row := range rows {
+		if subtleConstantEqual(row.CodeHash, want) {
+			if err := s.store.ConsumeRecoveryCode(r.Context(), db.ConsumeRecoveryCodeParams{
+				ID: row.ID, UsedAt: s.obsAsOf(),
+			}); err != nil {
+				log.Printf("web: login: consume recovery code: %v", err)
+				return false
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func (s *server) logout(w http.ResponseWriter, r *http.Request) {
@@ -542,7 +588,287 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	fresh.TotpEnabled = true
-	s.renderSettings(w, r, fresh, settingsForms{tab: "access", notice: "Two-factor is now enabled."})
+
+	// Two-factor is now on; issue the recovery codes the SignIn delta's enrollment
+	// screen reveals once (#314). They are generated, their hashes stored (the
+	// plaintext is never persisted), and the plaintext handed back in THIS response
+	// only — the finish action is a plain navigation, so a refresh cannot re-show
+	// them. Re-issuing clears any prior set so only this set redeems. A failure to
+	// store the codes must not leave two-factor on with no recovery path, so it is a
+	// hard error rather than a silent skip.
+	plain, hashes, err := newRecoveryCodes(recoveryCodeCount)
+	if err != nil {
+		s.serverError(w, "generate recovery codes", err)
+		return
+	}
+	if err := s.store.DeleteRecoveryCodesForAccount(r.Context(), acct.ID); err != nil {
+		s.serverError(w, "clear recovery codes", err)
+		return
+	}
+	for _, h := range hashes {
+		if err := s.store.CreateRecoveryCode(r.Context(), db.CreateRecoveryCodeParams{
+			AccountID: acct.ID, CodeHash: h,
+		}); err != nil {
+			s.serverError(w, "store recovery code", err)
+			return
+		}
+	}
+	s.render(w, "totp-recovery", map[string]any{"Title": "Two-factor", "Codes": plain})
+}
+
+// --- forgot / reset password (#314, T19) ------------------------------------
+
+// forgotForm renders the "enter your account name" step of the reset flow. It is
+// pre-auth: a caller who has lost their password has no session to gate on.
+func (s *server) forgotForm(w http.ResponseWriter, r *http.Request) {
+	s.render(w, "forgot", map[string]any{"Title": "Reset password"})
+}
+
+// forgotSubmit mints a single-use reset link for the named account, then always
+// renders the same "if that account exists, a link is on its way" done state — the
+// response is identical whether or not the username exists, so the endpoint reveals
+// nothing about which accounts do. There is no mail on a self-hosted host, so the
+// link is delivered out of band: it is written to the web logs, exactly as the
+// first-boot setup token is, and the operator can also reset directly on the host.
+func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
+	username := strings.TrimSpace(r.FormValue("username"))
+	if acct, err := s.store.GetAccountByUsername(r.Context(), username); err == nil {
+		if plaintext, hash, terr := newOpaqueToken(); terr != nil {
+			log.Printf("web: forgot: mint reset token: %v", terr)
+		} else if _, cerr := s.store.CreatePasswordReset(r.Context(), db.CreatePasswordResetParams{
+			AccountID: acct.ID, TokenHash: hash,
+			ExpiresAt: pgtype.Timestamptz{Time: s.now().Add(s.resetTTL), Valid: true},
+		}); cerr != nil {
+			log.Printf("web: forgot: create reset: %v", cerr)
+		} else {
+			// The one delivery this self-hosted build honestly has: the operator's
+			// own logs. Never mailed, never shown in the browser response.
+			log.Printf("web: password reset requested for %q; set a new password at /reset?token=%s (expires in %s)",
+				username, plaintext, s.resetTTL)
+		}
+	}
+	s.render(w, "forgot-sent", map[string]any{"Title": "Reset password"})
+}
+
+// resetForm renders the set-a-new-password step for a valid, unspent, unexpired
+// reset token, or the honest invalid state when the token is missing, spent, or
+// stale — never a form that would fail on submit.
+func (s *server) resetForm(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if _, ok := s.lookupReset(r, token); !ok {
+		s.render(w, "reset-invalid", map[string]any{"Title": "Reset password"})
+		return
+	}
+	s.render(w, "reset", map[string]any{"Title": "Set a new password", "Token": token})
+}
+
+// resetSubmit sets the account's password from a valid reset token and spends the
+// token so the link is single-use. It does not claim to sign other sessions out:
+// this build's sessions are stateless signed cookies with no registry, so a session
+// elsewhere lapses when it expires rather than being revoked here — the done copy
+// says so plainly rather than implying a global sign-out.
+func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
+	token := r.FormValue("token")
+	pr, ok := s.lookupReset(r, token)
+	if !ok {
+		s.render(w, "reset-invalid", map[string]any{"Title": "Reset password"})
+		return
+	}
+	pw := r.FormValue("password")
+	confirm := r.FormValue("confirm")
+	fail := func(msg string) {
+		s.renderStatus(w, http.StatusBadRequest, "reset", map[string]any{"Title": "Set a new password", "Token": token, "Error": msg})
+	}
+	if msg := validatePassword(pw); msg != "" {
+		fail(msg)
+		return
+	}
+	if pw != confirm {
+		fail("Passwords do not match.")
+		return
+	}
+	hash, err := auth.HashPassword(pw)
+	if err != nil {
+		s.serverError(w, "reset: hash password", err)
+		return
+	}
+	if err := s.store.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: pr.AccountID, PasswordHash: hash}); err != nil {
+		s.serverError(w, "reset: update password", err)
+		return
+	}
+	if err := s.store.ConsumePasswordReset(r.Context(), db.ConsumePasswordResetParams{ID: pr.ID, ConsumedAt: s.obsAsOf()}); err != nil {
+		log.Printf("web: reset: consume token: %v", err)
+	}
+	s.render(w, "reset-done", map[string]any{"Title": "Password updated"})
+}
+
+// lookupReset resolves a presented reset token to its row and reports whether it is
+// spendable: it must exist, be unconsumed, and be unexpired against the server
+// clock. The clock check lives here, not in SQL, so a fixed-clock test and
+// production agree on the boundary.
+func (s *server) lookupReset(r *http.Request, token string) (db.PasswordReset, bool) {
+	if token == "" {
+		return db.PasswordReset{}, false
+	}
+	pr, err := s.store.GetPasswordResetByHash(r.Context(), hashToken(token))
+	if err != nil {
+		return db.PasswordReset{}, false
+	}
+	if pr.ConsumedAt.Valid {
+		return db.PasswordReset{}, false
+	}
+	if pr.ExpiresAt.Valid && !pr.ExpiresAt.Time.After(s.now()) {
+		return db.PasswordReset{}, false
+	}
+	return pr, true
+}
+
+// --- invite acceptance (#314, T19) ------------------------------------------
+
+// inviteForm renders the set-credentials step for a valid invite token, showing the
+// role the new account will hold, or the honest invalid state when the token is
+// missing, spent, or expired. Pre-auth by construction: an invitee holds only the
+// token, no session. The invite CREATION side (minting a token at a role) lands in
+// T18 under Settings -> Team; this is the acceptance half.
+func (s *server) inviteForm(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	inv, ok := s.lookupInvite(r, token)
+	if !ok {
+		s.render(w, "invite-invalid", map[string]any{"Title": "Invitation"})
+		return
+	}
+	s.render(w, "invite", map[string]any{"Title": "Accept invitation", "Token": token, "Role": inv.Role})
+}
+
+// inviteAccept creates the account the invite grants — the acceptor's chosen
+// username and password at the invite's role — then spends the invite so the token
+// is single-use. It grants no session: the new operator signs in with the
+// credentials they just set (landing on /login with a notice), and enrols two-factor
+// after first sign-in, so no privileged state is minted straight from a token.
+func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
+	token := r.FormValue("token")
+	inv, ok := s.lookupInvite(r, token)
+	if !ok {
+		s.render(w, "invite-invalid", map[string]any{"Title": "Invitation"})
+		return
+	}
+	username := strings.TrimSpace(r.FormValue("username"))
+	password := r.FormValue("password")
+	fail := func(msg string) {
+		s.renderStatus(w, http.StatusBadRequest, "invite", map[string]any{
+			"Title": "Accept invitation", "Token": token, "Role": inv.Role,
+			"Error": msg, "Username": username,
+		})
+	}
+	if msg := validateCredentials(username, password); msg != "" {
+		fail(msg)
+		return
+	}
+	acct, err := s.createAccountRow(r, username, inv.Role, password)
+	if err != nil {
+		fail(createError(err))
+		return
+	}
+	if err := s.store.ConsumeInvite(r.Context(), db.ConsumeInviteParams{
+		ID: inv.ID, ConsumedAt: s.obsAsOf(), AcceptedAccountID: pgtype.Int8{Int64: acct.ID, Valid: true},
+	}); err != nil {
+		log.Printf("web: invite: consume token: %v", err)
+	}
+	http.Redirect(w, r, "/login?invited=1", http.StatusSeeOther)
+}
+
+// lookupInvite resolves a presented invite token to its row and reports whether it
+// is spendable: it must exist, be unconsumed, and be unexpired against the server
+// clock — the same discipline lookupReset holds.
+func (s *server) lookupInvite(r *http.Request, token string) (db.Invite, bool) {
+	if token == "" {
+		return db.Invite{}, false
+	}
+	inv, err := s.store.GetInviteByTokenHash(r.Context(), hashToken(token))
+	if err != nil {
+		return db.Invite{}, false
+	}
+	if inv.ConsumedAt.Valid {
+		return db.Invite{}, false
+	}
+	if inv.ExpiresAt.Valid && !inv.ExpiresAt.Time.After(s.now()) {
+		return db.Invite{}, false
+	}
+	if inv.Role != roleAdmin && inv.Role != roleViewer {
+		return db.Invite{}, false
+	}
+	return inv, true
+}
+
+// --- pre-auth token helpers (#314, T19) -------------------------------------
+
+// recoveryCodeCount is the number of recovery codes issued at TOTP enrollment,
+// matching the SignIn.jsx enrollment screen.
+const recoveryCodeCount = 8
+
+// recoveryAlphabet is the character set recovery codes draw from: lowercase letters
+// and digits with the visually ambiguous ones (0/o, 1/l/i) removed, so a code read
+// off a screen and typed back is hard to mistranscribe.
+const recoveryAlphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+
+// newOpaqueToken returns a fresh URL-safe token to hand out once and the SHA-256
+// hash to store in its place. The plaintext is high-entropy random (256 bits), so a
+// digest is the right keeper — unlike a low-entropy password it needs no slow KDF,
+// exactly as the personal-token mint reasons.
+func newOpaqueToken() (plaintext, hash string, err error) {
+	b := make([]byte, 32)
+	if _, err = rand.Read(b); err != nil {
+		return "", "", err
+	}
+	plaintext = base64.RawURLEncoding.EncodeToString(b)
+	return plaintext, hashToken(plaintext), nil
+}
+
+// hashToken is the one keeper for every pre-auth secret this file mints: the SHA-256
+// hex digest of the plaintext. High-entropy tokens and recovery codes are stored
+// only as this digest, so a leaked database yields nothing presentable.
+func hashToken(plaintext string) string {
+	sum := sha256.Sum256([]byte(plaintext))
+	return hex.EncodeToString(sum[:])
+}
+
+// newRecoveryCodes returns n fresh recovery codes to reveal once and their hashes to
+// store. Each code is two groups of four characters (e.g. k4mq-9d2x), the shape the
+// SignIn enrollment screen shows. The modulo bias over a 31-character alphabet is
+// negligible for a single-use fallback credential.
+func newRecoveryCodes(n int) (plain, hashes []string, err error) {
+	plain = make([]string, 0, n)
+	hashes = make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		buf := make([]byte, 8)
+		if _, err = rand.Read(buf); err != nil {
+			return nil, nil, err
+		}
+		var sb strings.Builder
+		for j, b := range buf {
+			if j == 4 {
+				sb.WriteByte('-')
+			}
+			sb.WriteByte(recoveryAlphabet[int(b)%len(recoveryAlphabet)])
+		}
+		code := sb.String()
+		plain = append(plain, code)
+		hashes = append(hashes, hashToken(code))
+	}
+	return plain, hashes, nil
+}
+
+// normalizeRecoveryCode canonicalises a presented recovery code for comparison:
+// trimmed and lower-cased, so a code typed with stray whitespace or in upper case
+// still redeems. The dash is kept, since the stored hash is of the dashed form.
+func normalizeRecoveryCode(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+// subtleConstantEqual compares two hex digests in constant time, so a recovery-code
+// redeem does not leak how far a near-miss matched through timing.
+func subtleConstantEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
 
 // --- profile (#304, T9) -----------------------------------------------------

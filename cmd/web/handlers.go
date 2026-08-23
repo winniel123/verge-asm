@@ -36,6 +36,23 @@ type store interface {
 	CreatePersonalToken(ctx context.Context, arg db.CreatePersonalTokenParams) (db.PersonalToken, error)
 	ListPersonalTokens(ctx context.Context, accountID int64) ([]db.ListPersonalTokensRow, error)
 	DeletePersonalToken(ctx context.Context, arg db.DeletePersonalTokenParams) error
+	// SignIn delta (#314, T19): the pre-auth token stores behind forgot/reset,
+	// TOTP recovery codes, and invite acceptance. Each keeps only a hash of its
+	// secret — the plaintext is shown or handed out once and never persisted — and
+	// each is single-use, spent by stamping the consumed/used instant the handler
+	// threads from the server clock. Recovery codes are re-issued wholesale (delete
+	// then insert) so a fresh enrollment never leaves a stale set redeemable. The
+	// invite CREATION side lands in T18 (Settings -> Team); these are the reads and
+	// spends the acceptance screen needs.
+	CreatePasswordReset(ctx context.Context, arg db.CreatePasswordResetParams) (db.PasswordReset, error)
+	GetPasswordResetByHash(ctx context.Context, tokenHash string) (db.PasswordReset, error)
+	ConsumePasswordReset(ctx context.Context, arg db.ConsumePasswordResetParams) error
+	CreateRecoveryCode(ctx context.Context, arg db.CreateRecoveryCodeParams) error
+	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
+	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]db.ListUnusedRecoveryCodeHashesRow, error)
+	ConsumeRecoveryCode(ctx context.Context, arg db.ConsumeRecoveryCodeParams) error
+	GetInviteByTokenHash(ctx context.Context, tokenHash string) (db.Invite, error)
+	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) error
 	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
@@ -181,6 +198,10 @@ type server struct {
 	now        func() time.Time
 	sessionTTL time.Duration
 	pendingTTL time.Duration
+	// resetTTL bounds a password-reset link's life (SignIn delta #314). A link
+	// older than this is refused at /reset rather than setting a password, so a
+	// leaked-then-stale link is inert. Kept short by default.
+	resetTTL time.Duration
 	// seedAddressCap is the ceiling on addresses an address-scope Seed may
 	// cover. It defaults to seed.DefaultAddressCap; the Settings screen (#206)
 	// will make it operator-configurable.
@@ -216,6 +237,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		now:            now,
 		sessionTTL:     12 * time.Hour,
 		pendingTTL:     5 * time.Minute,
+		resetTTL:       30 * time.Minute,
 		seedAddressCap: seed.DefaultAddressCap,
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
 	}
@@ -267,6 +289,21 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("POST /login/totp", s.loginTOTP)
 	mux.HandleFunc("POST /logout", s.logout)
+
+	// SignIn delta (#314, T19): the pre-auth self-service surfaces ported from
+	// SignIn.jsx — forgot/reset password and invite acceptance. Like /login and
+	// /setup these are chrome-less and unauthenticated by construction: a caller
+	// who has lost their password or holds only an invite token has no session to
+	// gate on. Each proves possession of a single-use, hashed, time-boxed token
+	// (delivered out of band; on a host with no mail the reset link is written to
+	// the web logs, as the setup token is). No account is enumerable: /forgot
+	// answers the same way whether or not the username exists.
+	mux.HandleFunc("GET /forgot", s.forgotForm)
+	mux.HandleFunc("POST /forgot", s.forgotSubmit)
+	mux.HandleFunc("GET /reset", s.resetForm)
+	mux.HandleFunc("POST /reset", s.resetSubmit)
+	mux.HandleFunc("GET /invite", s.inviteForm)
+	mux.HandleFunc("POST /invite", s.inviteAccept)
 
 	// The onboarding wizard (#307, T12): first-run seeds -> cadence -> channel ->
 	// review. Stepping is a viewer-safe re-render; completion enqueues the first

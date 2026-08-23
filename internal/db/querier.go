@@ -29,6 +29,18 @@ type Querier interface {
 	// rather than a second Seed: confirmation is singular (ADR-0022).
 	ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
+	// Spend an invite: stamp consumed_at with the instant the caller passes and record
+	// which account the acceptance created, which makes it single-use. A second present
+	// of the same token then reads a non-NULL consumed_at and is refused.
+	ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) error
+	// Spend a reset grant: stamp consumed_at with the instant the caller passes, which
+	// makes it single-use. A second present of the same token then reads a non-NULL
+	// consumed_at and is refused.
+	ConsumePasswordReset(ctx context.Context, arg ConsumePasswordResetParams) error
+	// Spend one recovery code: stamp used_at with the instant the caller passes. A
+	// second present of the same code then reads a non-NULL used_at and is no longer
+	// listed as redeemable.
+	ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCodeParams) error
 	CountAccounts(ctx context.Context) (int64, error)
 	// Guards the last-admin invariant: a role change that would drop this to zero is
 	// refused so an operator cannot lock every admin out.
@@ -54,6 +66,11 @@ type Querier interface {
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
+	// Mint a single-use password-reset grant for one account. Only the token hash is
+	// stored; the plaintext rides one URL handed to the operator out of band. The
+	// caller sets expires_at from the server clock, so the window is bounded by the
+	// same injectable clock every other auth read uses.
+	CreatePasswordReset(ctx context.Context, arg CreatePasswordResetParams) (PasswordReset, error)
 	// Mint a personal API token for one account. Only the hash and the non-secret
 	// prefix are stored; the plaintext is shown once at the call site and never
 	// persisted. A duplicate (account_id, name) is a unique violation, surfaced to the
@@ -65,6 +82,9 @@ type Querier interface {
 	// Records one operator act — an org-name search — under which a batch of
 	// candidate scopes is filed. It is the unit a bulk decline operates over.
 	CreateProposerLookup(ctx context.Context, arg CreateProposerLookupParams) (ProposerLookup, error)
+	// Store one recovery code's hash for an account. The plaintext is shown once at the
+	// call site and never persisted; only the hash is kept, so it cannot be shown again.
+	CreateRecoveryCode(ctx context.Context, arg CreateRecoveryCodeParams) error
 	// Provisioning a prober creates a Vantage with connection detail. Its
 	// measurement identity is still mandatory: the caller derives `name` from the
 	// endpoint (username@host:port) so it is unique per provisioned endpoint, class
@@ -126,6 +146,10 @@ type Querier interface {
 	// can only revoke their own tokens, never another account's by guessing an id.
 	// Revocation is a hard delete — a revoked token holds no history worth reading.
 	DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) error
+	// Clear an account's recovery codes before re-issuing a set, so enrolling (or
+	// re-enrolling) two-factor replaces the old codes wholesale rather than
+	// accumulating stale sets that would each still redeem.
+	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
@@ -176,6 +200,10 @@ type Querier interface {
 	// the current HTTP identity and split the key into its Name and Service legs.
 	// Reads through the live-tier gate (#237).
 	GetEndpointSubject(ctx context.Context, arg GetEndpointSubjectParams) (GetEndpointSubjectRow, error)
+	// Resolve a presented invite token to its row by hash. Validity (unconsumed,
+	// unexpired) is checked in the handler against the server clock rather than SQL
+	// now(), matching every other auth read's use of the injectable clock.
+	GetInviteByTokenHash(ctx context.Context, tokenHash string) (Invite, error)
 	// The frozen Message the body is built from — read verbatim, never recomputed.
 	// The body carries exactly these fields (the headline byte-identical, the census
 	// as a count) and reaches no other table: no row behind a census count.
@@ -235,6 +263,10 @@ type Querier interface {
 	// position carries no vantage row yet), so they are matched with IS NOT DISTINCT
 	// FROM rather than =.
 	GetOpenSpan(ctx context.Context, arg GetOpenSpanParams) (GetOpenSpanRow, error)
+	// Resolve a presented reset token to its row by hash. Validity (unconsumed,
+	// unexpired) is checked in the handler against the server clock rather than SQL
+	// now(), so a fixed-clock test and production agree on the same boundary.
+	GetPasswordResetByHash(ctx context.Context, tokenHash string) (PasswordReset, error)
 	// One pending Proposal, read at the moment of confirmation so the confirm act
 	// can copy its scope into a Seed. A Proposal already confirmed or declined does
 	// not come back, so a double submit cannot open the gate twice.
@@ -544,6 +576,10 @@ type Querier interface {
 	// resolver going unreachable this surface must make loud. Ordered by name so the
 	// rendering is stable.
 	ListUnavailableVantages(ctx context.Context) ([]ListUnavailableVantagesRow, error)
+	// The account's still-redeemable codes, by id and hash, for the login fallback: the
+	// handler hashes the presented code and matches it here. Used codes are excluded so
+	// each redeems exactly once.
+	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]ListUnusedRecoveryCodeHashesRow, error)
 	// The web prober list: only provisioned vantages (those carrying a prober
 	// endpoint). The resolver-only `local` vantage has no prober and is excluded.
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
