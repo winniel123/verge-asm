@@ -81,14 +81,28 @@ is kept as-is; this is the single `/` hop on top of it.
 ## Refreshing the screenshot baseline
 
 The screenshot gate (`npm run check:screenshot`) diffs a built docs page against
-`docs-site/tests/baseline/docs.png`. When a design change intentionally alters layout,
-regenerate and commit the baseline:
+`docs-site/tests/baseline/docs.png`. CI runs this gate **inside a pinned Playwright
+container** (`mcr.microsoft.com/playwright:v1.49.1-noble`, see the `build` job in
+`.github/workflows/docs-site.yml`) so the render is reproducible. Font metrics differ
+across operating systems, so a baseline captured on a host OS (e.g. Windows) drifts by
+tens of pixels against CI's Linux render and fails the gate on every run.
+
+**Therefore: always regenerate the baseline in that same container, never on the host.**
+When a design change intentionally alters layout, run (from the repo root):
 
 ```
-cd docs-site
-npm run build
-npm run screenshot:update   # rewrites tests/baseline/docs.png
+docker run --rm -v "$PWD":/w -v /w/docs-site/node_modules -w /w/docs-site \
+  mcr.microsoft.com/playwright:v1.49.1-noble \
+  sh -c "git config --global --add safe.directory /w && npm ci && npm run build && npm run screenshot:update"
 ```
 
-Commit the updated PNG (it is tracked; `*.png binary` in `.gitattributes` keeps it from
-line-ending churn). Diffs from a failed run land in `docs-site/tests/diff/` (gitignored).
+- The `-v /w/docs-site/node_modules` anonymous volume keeps the container's Linux
+  `node_modules` from clobbering a host install.
+- Keep the image tag in lockstep with the `playwright` version in `package.json`.
+- Commit the updated `tests/baseline/docs.png` (tracked; `*.png binary` in
+  `.gitattributes` avoids line-ending churn). Diffs from a failed run land in
+  `docs-site/tests/diff/` (gitignored).
+
+`npm run screenshot:update` still works directly for a quick *local* preview, but a
+baseline generated outside the container will fail CI — only the container-generated
+PNG is authoritative.
