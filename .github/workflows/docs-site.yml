@@ -60,13 +60,13 @@ jobs:
     #
     # REGENERATE the baseline in this SAME image so it matches CI byte-for-byte:
     #   docker run --rm -v "$PWD":/w -w /w/docs-site \
-    #     mcr.microsoft.com/playwright:v1.49.1-noble \
+    #     mcr.microsoft.com/playwright:v1.62.1-noble \
     #     sh -c "git config --global --add safe.directory /w \
     #            && npm ci && npm run build && npm run screenshot:update"
     #   then commit docs-site/tests/baseline/docs.png
     # Keep this tag in lockstep with the `playwright` version in docs-site/package.json.
     container:
-      image: mcr.microsoft.com/playwright:v1.49.1-noble
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       # fetch-depth: 0 is LOAD-BEARING. source-resolution.ts enumerates versions
       # from git refs/tags; a shallow clone has no tags, so the build would silently
