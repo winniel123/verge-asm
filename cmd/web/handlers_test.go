@@ -369,6 +369,16 @@ func (f *fakeStore) ConfirmTOTP(_ context.Context, id int64) error {
 	return nil
 }
 
+func (f *fakeStore) SetTOTPLastStep(_ context.Context, arg db.SetTOTPLastStepParams) error {
+	acct, ok := f.accounts[arg.ID]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	acct.TotpLastStep = arg.TotpLastStep
+	f.accounts[arg.ID] = acct
+	return nil
+}
+
 func (f *fakeStore) DeleteAccount(_ context.Context, id int64) error {
 	if _, ok := f.accounts[id]; !ok {
 		return pgx.ErrNoRows

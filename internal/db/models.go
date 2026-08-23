@@ -18,6 +18,7 @@ type Account struct {
 	TotpSecret   pgtype.Text        `json:"totp_secret"`
 	TotpEnabled  bool               `json:"totp_enabled"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	TotpLastStep pgtype.Int8        `json:"totp_last_step"`
 }
 
 type AdmittedName struct {

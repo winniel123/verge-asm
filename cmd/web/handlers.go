@@ -28,6 +28,10 @@ type store interface {
 	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
 	SetTOTPSecret(ctx context.Context, arg db.SetTOTPSecretParams) error
 	ConfirmTOTP(ctx context.Context, id int64) error
+	// SetTOTPLastStep advances an account's TOTP replay watermark to the step just
+	// accepted at login (#323), so a captured code cannot redeem twice within its
+	// validity window — the single-use discipline RFC 6238 §5.2 requires.
+	SetTOTPLastStep(ctx context.Context, arg db.SetTOTPLastStepParams) error
 	// Personal profile (#304, T9): an account's own credential and token surface.
 	// UpdatePassword is the self-service password change; the personal-token trio is
 	// the reveal-once API-token store — the plaintext is minted and shown once, only
@@ -294,6 +298,13 @@ type server struct {
 	// POST /setup requests cannot both pass the no-accounts check and each
 	// create an admin, which would break the token's single-use guarantee.
 	setupMu sync.Mutex
+
+	// loginLimiter throttles failed credential attempts on /login and /login/totp
+	// (#322): per-account and per-IP failed-attempt tracking with a temporary,
+	// exponential lockout, so a 6-digit TOTP is no longer brute-forceable and an
+	// online password guess has a bounded budget. It is in-process and clock-driven
+	// (no DB, no new dependency), reset on a successful auth.
+	loginLimiter *loginLimiter
 }
 
 func newServer(s store, key []byte, setupToken string, now func() time.Time) *server {
@@ -309,6 +320,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		seedAddressCap: seed.DefaultAddressCap,
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
 		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
+		loginLimiter:   newLoginLimiter(now),
 	}
 }
 
