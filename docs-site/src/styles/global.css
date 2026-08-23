@@ -1,0 +1,19 @@
+/*
+ * Global stylesheet for the docs site.
+ *
+ * We consume the design system's tokens directly (ADR-0109) — this file is the
+ * docs-site analogue of design-system/styles.css, with two production swaps:
+ *   1. fonts.css is self-hosted @font-face instead of the Google Fonts CDN.
+ *   2. tokens/typography.css is replaced by ./typography.css (same token values,
+ *      minus the CDN @import).
+ * Everything else is imported straight from the design system, unmodified.
+ */
+
+@import "./fonts.css";
+@import "@ds/tokens/colors.css";
+@import "./typography.css";
+@import "@ds/tokens/spacing.css";
+@import "@ds/tokens/radius.css";
+@import "@ds/tokens/elevation.css";
+@import "@ds/tokens/motion.css";
+@import "@ds/tokens/base.css";

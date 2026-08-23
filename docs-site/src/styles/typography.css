@@ -1,0 +1,32 @@
+/*
+ * Typography TOKENS — mirror of design-system/tokens/typography.css, minus the CDN
+ * @import. The stock DS file begins with an @import to fonts.googleapis.com; the
+ * production docs build self-hosts instead (see fonts.css), so we redefine the same
+ * custom properties here without pulling the CDN. Only the @import line differs from
+ * the DS source — every token value below is identical and MUST stay in step with it.
+ */
+
+:root {
+  --font-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* size scale */
+  --text-2xs: 11px;  --text-xs: 12px;   --text-sm: 13px;  --text-base: 14px;
+  --text-md: 15px;   --text-lg: 16px;   --text-xl: 18px;  --text-2xl: 21px;
+  --text-3xl: 26px;  --text-4xl: 32px;  --text-5xl: 40px; --text-6xl: 52px;
+
+  --leading-tight: 1.15; --leading-snug: 1.35; --leading-normal: 1.5; --leading-relaxed: 1.65;
+
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600; --weight-bold: 700;
+
+  /* signature motif: the micro-label (mono, uppercase eyebrow) */
+  --micro-size: 11px;
+  --micro-weight: 500;
+  --micro-tracking: 0.07em;
+
+  /* KPI numerals */
+  --kpi-size: 28px;
+  --kpi-weight: 600;
+
+  --heading-tracking: -0.015em;
+}

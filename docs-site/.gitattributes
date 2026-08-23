@@ -1,0 +1,13 @@
+# Normalize line endings so the Windows checkout doesn't churn CRLF into text sources.
+# Text files commit and check out as LF everywhere.
+* text=auto eol=lf
+
+# Lockfiles are generated text — keep them LF and out of diffs' way.
+package-lock.json text eol=lf linguist-generated=true
+
+# Binary assets — never touch line endings.
+*.woff2 binary
+*.woff binary
+*.png binary
+*.jpg binary
+*.ico binary
