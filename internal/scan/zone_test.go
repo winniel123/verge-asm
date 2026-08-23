@@ -121,6 +121,61 @@ func TestZoneJobSpecRoundTripsThroughWire(t *testing.T) {
 	}
 }
 
+func TestZoneAgingCurrentFileCountsDownToTheGap(t *testing.T) {
+	supply := time.Date(2026, 7, 30, 0, 0, 0, 0, time.UTC)
+	interval := 30 * 24 * time.Hour // monthly
+	// 23 days after supply: still current, seven days from ageing into a gap.
+	now := supply.Add(23 * 24 * time.Hour)
+
+	a := ZoneAgingAt(supply, now, interval)
+	if !a.Supplied {
+		t.Fatal("a dated supply should report Supplied")
+	}
+	if a.Stale {
+		t.Fatalf("a file 23d into a 30d interval is not stale yet: %+v", a)
+	}
+	if a.Days != 7 {
+		t.Errorf("Days = %d, want 7 (ages into a gap in 7d)", a.Days)
+	}
+}
+
+func TestZoneAgingPastTheIntervalIsAGap(t *testing.T) {
+	supply := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	interval := 30 * 24 * time.Hour
+	// Five days past the interval: the file has aged into a coverage gap.
+	now := supply.Add(35 * 24 * time.Hour)
+
+	a := ZoneAgingAt(supply, now, interval)
+	if !a.Stale {
+		t.Fatalf("a file 35d into a 30d interval must be stale (a gap): %+v", a)
+	}
+	if a.Days != 5 {
+		t.Errorf("Days = %d, want 5 (aged into a gap 5d ago)", a.Days)
+	}
+}
+
+func TestZoneAgingBoundaryAndNoSupply(t *testing.T) {
+	supply := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	interval := 30 * 24 * time.Hour
+	// Exactly at the gap instant: stale, zero days in.
+	if a := ZoneAgingAt(supply, supply.Add(interval), interval); !a.Stale || a.Days != 0 {
+		t.Errorf("at the gap instant, want stale with 0 days; got %+v", a)
+	}
+	// A current file just under a day from the gap rounds up to 1d, never 0d.
+	almost := supply.Add(interval - 12*time.Hour)
+	if a := ZoneAgingAt(supply, almost, interval); a.Stale || a.Days != 1 {
+		t.Errorf("half a day from the gap should read 1d and current; got %+v", a)
+	}
+	// No supply: nothing to stale.
+	if a := ZoneAgingAt(time.Time{}, supply, interval); a.Supplied || a.Stale {
+		t.Errorf("an unsupplied scope has nothing to age; got %+v", a)
+	}
+	// No cadence: current, no countdown.
+	if a := ZoneAgingAt(supply, supply.Add(1000*24*time.Hour), 0); !a.Supplied || a.Stale {
+		t.Errorf("with no interval a file cannot age into a gap; got %+v", a)
+	}
+}
+
 func keys(m map[string]ZoneRecord) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

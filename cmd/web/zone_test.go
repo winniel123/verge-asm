@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testZone = `$ORIGIN example.com.
@@ -75,6 +76,51 @@ func TestZoneUploadStoresAtSupplyInstantAndListsIt(t *testing.T) {
 	page := seedsBody(t, ac, base)
 	if !strings.Contains(page, "Supplied zone files") || !strings.Contains(page, "example.com") {
 		t.Errorf("supplied zone file not shown on the seeds screen; body: %s", page)
+	}
+}
+
+func TestZoneFileCardSurfacesStalenessGap(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// A current file, supplied at the fixed clock, counts down to the gap under
+	// the shipped 30-day cadence.
+	declare(t, ac, base, "name", "example.com").Body.Close()
+	freshID := f.seeds[0].ID
+	uploadZone(t, ac, base, freshID, testZone).Body.Close()
+
+	page := seedsBody(t, ac, base)
+	if !strings.Contains(page, "example.com.zone") {
+		t.Errorf("zone-file card does not name the supplied file; body: %s", page)
+	}
+	if !strings.Contains(page, "ages into a gap in 30d") {
+		t.Errorf("current file did not surface its countdown to a gap; body: %s", page)
+	}
+
+	// A second scope whose file was supplied 45 days ago has aged past the
+	// 30-day cadence into a coverage gap.
+	declare(t, ac, base, "name", "staleco.net").Body.Close()
+	var staleID int64
+	for _, s := range f.seeds {
+		if s.NameDomain.String == "staleco.net" {
+			staleID = s.ID
+		}
+	}
+	if staleID == 0 {
+		t.Fatalf("second name scope was not declared; seeds: %+v", f.seeds)
+	}
+	f.zoneFiles = append(f.zoneFiles, fakeZoneFile{
+		seedID:     staleID,
+		suppliedAt: fixedClock()().Add(-45 * 24 * time.Hour),
+		content:    testZone,
+		uploadedBy: f.zoneFiles[0].uploadedBy,
+	})
+
+	page = seedsBody(t, ac, base)
+	if !strings.Contains(page, "aged into a gap") {
+		t.Errorf("stale file did not surface the resulting gap; body: %s", page)
 	}
 }
 
