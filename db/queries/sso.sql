@@ -79,7 +79,7 @@ VALUES ($1, $2, $3, $4);
 -- The SSO login match: resolve the local account a verified (provider, sub) is bound to.
 -- Keyed on the stable, non-reassignable subject — never a username. No row is an honest
 -- refusal (the identity is unlinked), never a provision.
-SELECT a.id, a.username, a.role, a.password_hash, a.totp_secret, a.totp_enabled, a.created_at
+SELECT a.id, a.username, a.role, a.password_hash, a.totp_secret, a.totp_enabled, a.created_at, a.totp_last_step
 FROM sso_identity i
 JOIN account a ON a.id = i.account_id
 WHERE i.provider_id = $1 AND i.sub = $2;

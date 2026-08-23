@@ -60,20 +60,43 @@ func TOTPCode(secret string, t time.Time) (string, error) {
 // VerifyTOTP reports whether code is valid for secret at time t, accepting the
 // immediately-adjacent steps as well to tolerate clock skew and a code typed
 // as its window closes. The comparison is constant-time. The secret is decoded
-// once, not once per window.
+// once, not once per window. It is the stateless check the enrollment-confirm
+// path uses; the replay-guarded login path uses VerifyTOTPStep to learn and
+// persist which step matched.
 func VerifyTOTP(secret, code string, t time.Time) bool {
+	_, ok := VerifyTOTPStep(secret, code, t)
+	return ok
+}
+
+// VerifyTOTPStep reports whether code is valid for secret at time t and, when it
+// is, the counter step it matched — the RFC 6238 time-step (unix / period) of the
+// accepted window. The step is a monotonic single-use handle: the login path
+// records the last step it accepted per account and refuses any code whose step is
+// not strictly greater, so a captured valid code cannot be replayed within its
+// ~90s validity window (#323, RFC 6238 §5.2). Like VerifyTOTP it accepts the
+// immediately-adjacent steps for clock skew and compares in constant time. On a
+// non-match the returned step is 0 and must be ignored.
+func VerifyTOTPStep(secret, code string, t time.Time) (step int64, ok bool) {
 	key, err := decodeSecret(secret)
 	if err != nil {
-		return false
+		return 0, false
 	}
 	code = strings.TrimSpace(code)
 	for _, skew := range []time.Duration{-totpPeriod, 0, totpPeriod} {
-		want := codeFromKey(key, t.Add(skew))
+		at := t.Add(skew)
+		want := codeFromKey(key, at)
 		if subtle.ConstantTimeCompare([]byte(want), []byte(code)) == 1 {
-			return true
+			return stepFor(at), true
 		}
 	}
-	return false
+	return 0, false
+}
+
+// stepFor is the RFC 6238 time-step covering t: the counter codeFromKey derives
+// its HOTP value from. It is exposed to the login path as the per-account replay
+// watermark, so it must stay the exact expression codeFromKey uses.
+func stepFor(t time.Time) int64 {
+	return int64(uint64(t.Unix()) / uint64(totpPeriod.Seconds()))
 }
 
 func decodeSecret(secret string) ([]byte, error) {
@@ -87,7 +110,7 @@ func decodeSecret(secret string) ([]byte, error) {
 // codeFromKey computes the HOTP value for the decoded key at the step covering
 // t (RFC 4226 dynamic truncation, §5.3).
 func codeFromKey(key []byte, t time.Time) string {
-	counter := uint64(t.Unix()) / uint64(totpPeriod.Seconds())
+	counter := uint64(stepFor(t))
 
 	var msg [8]byte
 	binary.BigEndian.PutUint64(msg[:], counter)

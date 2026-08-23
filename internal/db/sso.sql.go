@@ -51,7 +51,7 @@ func (q *Queries) DeleteSSOProvider(ctx context.Context, id int64) error {
 }
 
 const getAccountBySSOIdentity = `-- name: GetAccountBySSOIdentity :one
-SELECT a.id, a.username, a.role, a.password_hash, a.totp_secret, a.totp_enabled, a.created_at
+SELECT a.id, a.username, a.role, a.password_hash, a.totp_secret, a.totp_enabled, a.created_at, a.totp_last_step
 FROM sso_identity i
 JOIN account a ON a.id = i.account_id
 WHERE i.provider_id = $1 AND i.sub = $2
@@ -76,6 +76,7 @@ func (q *Queries) GetAccountBySSOIdentity(ctx context.Context, arg GetAccountByS
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.CreatedAt,
+		&i.TotpLastStep,
 	)
 	return i, err
 }

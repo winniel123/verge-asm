@@ -4,15 +4,15 @@ SELECT count(*) FROM account;
 -- name: CreateAccount :one
 INSERT INTO account (username, role, password_hash)
 VALUES ($1, $2, $3)
-RETURNING id, username, role, password_hash, totp_secret, totp_enabled, created_at;
+RETURNING id, username, role, password_hash, totp_secret, totp_enabled, created_at, totp_last_step;
 
 -- name: GetAccountByUsername :one
-SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at
+SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at, totp_last_step
 FROM account
 WHERE username = $1;
 
 -- name: GetAccountByID :one
-SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at
+SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at, totp_last_step
 FROM account
 WHERE id = $1;
 
@@ -44,6 +44,13 @@ UPDATE account SET totp_secret = $2, totp_enabled = false WHERE id = $1;
 
 -- name: ConfirmTOTP :exec
 UPDATE account SET totp_enabled = true WHERE id = $1 AND totp_secret IS NOT NULL;
+
+-- name: SetTOTPLastStep :exec
+-- Advance the account's TOTP replay watermark to the step just accepted at login
+-- (#323). The handler only ever writes a strictly greater step than the stored one,
+-- so a captured code — whose step is <= this — is refused on re-presentation within
+-- its validity window, the single-use discipline RFC 6238 §5.2 requires.
+UPDATE account SET totp_last_step = $2 WHERE id = $1;
 
 -- name: DeleteAccount :exec
 -- Remove a member (Settings -> Team, T18). The handler gates this behind a typed-

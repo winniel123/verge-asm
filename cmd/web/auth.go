@@ -22,6 +22,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/qr"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
@@ -162,16 +163,32 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 
+	// #322: refuse before any password work when this account or this source IP has
+	// tripped the failed-attempt lockout, so an online password guess has a bounded
+	// budget. The keys are the named account and the request's source host (never a
+	// proxy header).
+	acctKey, ipKey := loginAccountKey(username), loginIPKey(r)
+	if s.loginLimiter.locked(acctKey, ipKey) {
+		s.render(w, "login", s.loginData(r.Context(), lockoutMessage))
+		return
+	}
+
 	acct, err := s.store.GetAccountByUsername(r.Context(), username)
 	if err != nil {
 		auth.CheckPassword(dummyHash, password) // equalise timing with the found path
+		s.loginLimiter.fail(acctKey, ipKey)
 		s.render(w, "login", s.loginData(r.Context(), "Invalid username or password."))
 		return
 	}
 	if !auth.CheckPassword(acct.PasswordHash, password) {
+		s.loginLimiter.fail(acctKey, ipKey)
 		s.render(w, "login", s.loginData(r.Context(), "Invalid username or password."))
 		return
 	}
+	// The password is correct: clear the failed-attempt count so a few mistypes
+	// before a good sign-in never carry toward a lockout. A TOTP-enabled account
+	// still faces the second factor, which the loginTOTP path throttles on its own.
+	s.loginLimiter.reset(acctKey, ipKey)
 	if acct.TotpEnabled {
 		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, s.pendingTTL) {
 			return
@@ -198,18 +215,79 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
+
+	// #322: a 6-digit TOTP is brute-forceable without a cap, so throttle the second
+	// factor per-account and per-IP exactly as the password step is. A locked key is
+	// refused before any verification runs, and its pending cookie is cleared so it
+	// cannot keep re-presenting against the same grant.
+	acctKey, ipKey := loginAccountKey(acct.Username), loginIPKey(r)
+	if s.loginLimiter.locked(acctKey, ipKey) {
+		s.clearCookie(w, pendingCookie)
+		s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": lockoutMessage})
+		return
+	}
+
 	code := r.FormValue("code")
 	// The authenticator code is the primary path; a recovery code is the fallback
 	// when the authenticator is lost (SignIn delta #314). Both land in the one
 	// field, so a failed TOTP falls through to a single-use recovery-code redeem
 	// before the login is refused. A 6-digit TOTP never matches a recovery hash and
 	// vice versa, so the two never collide.
-	if !auth.VerifyTOTP(acct.TotpSecret.String, code, s.now()) && !s.redeemRecoveryCode(r, acct.ID, code) {
+	//
+	// #323: VerifyTOTPStep reports which counter step matched. A code whose step is
+	// not strictly greater than the last one this account authenticated with is a
+	// replay of an already-spent code within its ~90s window, and is refused as if
+	// it never matched (RFC 6238 §5.2) — the single-use discipline recovery codes
+	// already hold.
+	step, totpOK := auth.VerifyTOTPStep(acct.TotpSecret.String, code, s.now())
+	if totpOK && acct.TotpLastStep.Valid && step <= acct.TotpLastStep.Int64 {
+		totpOK = false
+	}
+	if !totpOK && !s.redeemRecoveryCode(r, acct.ID, code) {
+		// A wrong code counts against the lockout; once it trips the threshold the
+		// pending cookie is invalidated so the attacker must start from the password.
+		if nowLocked := s.loginLimiter.fail(acctKey, ipKey); nowLocked {
+			s.clearCookie(w, pendingCookie)
+			s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": lockoutMessage})
+			return
+		}
 		s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": "Incorrect code."})
 		return
 	}
+	// A genuine authenticator match advances the replay watermark to the accepted
+	// step in the same completion path, so the code cannot redeem again. A recovery
+	// code (totpOK == false but redeem succeeded) is already spent by its own store,
+	// so it needs no step write.
+	if totpOK {
+		if err := s.store.SetTOTPLastStep(r.Context(), db.SetTOTPLastStepParams{
+			ID: acct.ID, TotpLastStep: pgtype.Int8{Int64: step, Valid: true},
+		}); err != nil {
+			s.serverError(w, "advance totp step", err)
+			return
+		}
+	}
+	s.loginLimiter.reset(acctKey, ipKey)
 	s.clearCookie(w, pendingCookie)
 	s.completeLogin(w, r, acct.ID)
+}
+
+// lockoutMessage is the refusal shown when a credential endpoint is throttled
+// (#322). It is deliberately vague about which key tripped and for how long, so it
+// leaks nothing an attacker can tune against.
+const lockoutMessage = "Too many attempts. Try again in a few minutes."
+
+// loginAccountKey and loginIPKey are the two throttle keys a credential attempt is
+// counted against (#322): the named account and the request's source host. The IP
+// is read from RemoteAddr only — never a proxy-supplied forwarding header — the
+// same rule the rest of the auth path holds (v1 spec §4.3, §7).
+func loginAccountKey(username string) string { return "acct:" + strings.ToLower(username) }
+
+func loginIPKey(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	return "ip:" + host
 }
 
 // redeemRecoveryCode spends a single-use recovery code for the account, reporting
@@ -651,16 +729,24 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 	if acct, err := s.store.GetAccountByUsername(r.Context(), username); err == nil {
 		if plaintext, hash, terr := newOpaqueToken(); terr != nil {
 			log.Printf("web: forgot: mint reset token: %v", terr)
-		} else if _, cerr := s.store.CreatePasswordReset(r.Context(), db.CreatePasswordResetParams{
+		} else if pr, cerr := s.store.CreatePasswordReset(r.Context(), db.CreatePasswordResetParams{
 			AccountID: acct.ID, TokenHash: hash,
 			ExpiresAt: pgtype.Timestamptz{Time: s.now().Add(s.resetTTL), Valid: true},
 		}); cerr != nil {
 			log.Printf("web: forgot: create reset: %v", cerr)
 		} else {
-			// The one delivery this self-hosted build honestly has: the operator's
-			// own logs. Never mailed, never shown in the browser response.
-			log.Printf("web: password reset requested for %q; set a new password at /reset?token=%s (expires in %s)",
-				username, plaintext, s.resetTTL)
+			// The plaintext token is a bearer credential: whoever reads it can reset
+			// this account's password. It must NOT land in the logs by default (CWE-532,
+			// #328) — only the account and the reset-record id are logged, which name the
+			// request without leaking the secret. An operator resets on the host directly.
+			log.Printf("web: password reset requested for %q (reset id %d, expires in %s)",
+				username, pr.ID, s.resetTTL)
+			// A mail-less host may still need the link out of band; it is gated behind an
+			// explicit opt-in (default off) so the plaintext is emitted only when the
+			// operator has knowingly turned it on for their own logs.
+			if env.OrDefault("VERGE_LOG_RESET_LINKS", "") != "" {
+				log.Printf("web: password reset link for %q: /reset?token=%s", username, plaintext)
+			}
 		}
 	}
 	s.render(w, "forgot-sent", map[string]any{"Title": "Reset password"})

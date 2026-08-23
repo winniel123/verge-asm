@@ -47,7 +47,7 @@ func (q *Queries) CountAdmins(ctx context.Context) (int64, error) {
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO account (username, role, password_hash)
 VALUES ($1, $2, $3)
-RETURNING id, username, role, password_hash, totp_secret, totp_enabled, created_at
+RETURNING id, username, role, password_hash, totp_secret, totp_enabled, created_at, totp_last_step
 `
 
 type CreateAccountParams struct {
@@ -67,6 +67,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.CreatedAt,
+		&i.TotpLastStep,
 	)
 	return i, err
 }
@@ -89,7 +90,7 @@ func (q *Queries) DeleteAccount(ctx context.Context, id int64) error {
 }
 
 const getAccountByID = `-- name: GetAccountByID :one
-SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at
+SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at, totp_last_step
 FROM account
 WHERE id = $1
 `
@@ -105,12 +106,13 @@ func (q *Queries) GetAccountByID(ctx context.Context, id int64) (Account, error)
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.CreatedAt,
+		&i.TotpLastStep,
 	)
 	return i, err
 }
 
 const getAccountByUsername = `-- name: GetAccountByUsername :one
-SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at
+SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at, totp_last_step
 FROM account
 WHERE username = $1
 `
@@ -126,6 +128,7 @@ func (q *Queries) GetAccountByUsername(ctx context.Context, username string) (Ac
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.CreatedAt,
+		&i.TotpLastStep,
 	)
 	return i, err
 }
@@ -184,6 +187,24 @@ UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1
 // SetTOTPSecret, which arms a fresh secret; this disarms the factor entirely.
 func (q *Queries) ResetAccountTOTP(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, resetAccountTOTP, id)
+	return err
+}
+
+const setTOTPLastStep = `-- name: SetTOTPLastStep :exec
+UPDATE account SET totp_last_step = $2 WHERE id = $1
+`
+
+type SetTOTPLastStepParams struct {
+	ID           int64       `json:"id"`
+	TotpLastStep pgtype.Int8 `json:"totp_last_step"`
+}
+
+// Advance the account's TOTP replay watermark to the step just accepted at login
+// (#323). The handler only ever writes a strictly greater step than the stored one,
+// so a captured code — whose step is <= this — is refused on re-presentation within
+// its validity window, the single-use discipline RFC 6238 §5.2 requires.
+func (q *Queries) SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) error {
+	_, err := q.db.Exec(ctx, setTOTPLastStep, arg.ID, arg.TotpLastStep)
 	return err
 }
 

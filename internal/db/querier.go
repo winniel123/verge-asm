@@ -804,6 +804,11 @@ type Querier interface {
 	// Set, replace or clear the secret. A NULL clears it (a public PKCE-only client); the
 	// value is written and never read back through any interface query.
 	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error
+	// Advance the account's TOTP replay watermark to the step just accepted at login
+	// (#323). The handler only ever writes a strictly greater step than the stored one,
+	// so a captured code — whose step is <= this — is refused on re-presentation within
+	// its validity window, the single-use discipline RFC 6238 §5.2 requires.
+	SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) error
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.
