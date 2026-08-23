@@ -1,5 +1,7 @@
 # build output
 dist/
+# screenshot-gate scratch output (baseline PNG under tests/baseline/ IS committed)
+tests/diff/
 # astro generated types + cache
 .astro/
 # deps

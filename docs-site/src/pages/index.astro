@@ -1,13 +1,43 @@
 ---
 /*
- * Placeholder docs page — proves the ported DocsPage shell frames real prose in both
- * themes. The centre column is the sample article island; the nav rail, on-page TOC,
- * version picker, and search are the layout's PLACEHOLDER slots (see DocsLayout.astro).
- * T1 replaces this page's body with docs/guides/*.md rendered through the same slot.
+ * Root redirect — `/` → `/latest/<first-guide>`  (T5 / #355).
+ *
+ * There is no bare `/<version>/` route (the pipeline emits `/<version>/<slug>`
+ * only), so `/` cannot point at a version root — it redirects to the LATEST
+ * alias's first guide, chosen from the built nav so it always lands on the
+ * first section's first entry (getting-started before reference), never a
+ * random slug. Tv builds the real `/latest/*` alias tree; this page is the
+ * `/` → latest hop the deploy layer needs (task #355 point 5).
+ *
+ * Emitted as a static `dist/index.html` with a 0-second meta-refresh, a JS
+ * `location.replace` fallback, a visible `<a>` for no-JS clients, and a
+ * `<link rel="canonical">` at the latest target so crawlers index the guide,
+ * not the redirect stub. Root-relative like the rest of the site (every route
+ * this project emits assumes root-domain serving — see docs-site/DEPLOY.md).
  */
-import DocsLayout from "../layouts/DocsLayout.astro";
-import Article from "../components/Article.jsx";
+import { resolveSources, LATEST_VERSION } from "../pipeline/source-resolution";
+import { buildNav } from "../pipeline/nav-build";
+
+const sources = await resolveSources(LATEST_VERSION);
+const nav = buildNav(sources);
+// First section's first item = the ordered landing guide; fall back to the
+// first slug, then to a hard default, so `/` is never a dead link.
+const target =
+  nav[0]?.items[0]?.href ??
+  (sources[0] ? `/${LATEST_VERSION}/${sources[0].slug}` : `/${LATEST_VERSION}/using`);
 ---
-<DocsLayout title="Quick start · Verge ASM docs">
-  <Article client:load />
-</DocsLayout>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verge ASM docs</title>
+    <meta http-equiv="refresh" content={`0; url=${target}`} />
+    <link rel="canonical" href={target} />
+    <meta name="robots" content="noindex, follow" />
+  </head>
+  <body>
+    <p>Redirecting to the <a href={target}>latest Verge ASM documentation</a>…</p>
+    <script is:inline set:html={`location.replace(${JSON.stringify(target)});`}></script>
+  </body>
+</html>
