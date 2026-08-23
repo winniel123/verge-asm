@@ -1,12 +1,14 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 // The Graph screen (#284, canonical `/graph`, ported from
@@ -16,19 +18,35 @@ import (
 // Inventory screen already reads (ListAllOpenSpans, ADR-0105) — no fabricated
 // topology. Where the corpus holds nothing, the design-system empty-state shows.
 //
-// The composition is faithful to the example (pannable/zoomable canvas, minimap,
-// zoom controls, node drawer, legend), but two of the example's per-node reads are
-// NOT wired here because no console read exposes them yet, and neither is faked:
-//   - severity halos / the drawer's per-node open-signal list — a node's open
-//     signals would need the Signal engine's per-subject verdict joined to the
-//     graph; not plumbed (documented as a follow-on on #284). Nodes therefore
-//     carry no severity and the drawer states signal status is not yet joined.
-//   - a "domain" apex node — the example hand-classifies a registrable apex; the
-//     corpus does not, and deriving one by suffix would be a heuristic guess, so
-//     every Name renders as a subdomain-style node rather than inventing a root.
+// Open signals ARE now joined onto the nodes (#289), off the same Signal engine
+// the Reports and Signals screens read (buildSignalCorpus → signal.EvaluateCorpus).
+// The example draws severity halos over a scored model — but signals in this product
+// have NO severity (internal/signal: a rule "has no lifecycle of its own and no
+// severity"; the census "is deliberately not a severity ramp"). So the example's
+// severity affordances are re-skinned to honest signal-PRESENCE, exactly as
+// reports.go re-skins its mock severity regions under ADR-0024/ADR-0110 — never a
+// fabricated level, badge or gradient:
+//   - each node carries the list of rules that FIRED for it (OpenSignals), joined
+//     by exact subject-key match: a Name firing lights its Name node, a Service
+//     firing lights its Service node, and an Endpoint firing (subject
+//     `name@address:port/transport`) lights the Name node it names — falling back
+//     to its Service node when the endpoint is nameless — so each firing lands on
+//     exactly one node, never double-counted (see joinSignals). Addresses carry no
+//     signals: no rule censuses an Address, and a Service's firing is the Service's,
+//     not silently rolled up onto the Address it rides.
+//   - the halo and minimap dot mark PRESENCE (≥1 open signal), a single --warn
+//     token, not a five-level ramp; the drawer lists the fired rules (or an honest
+//     "No open signals"); the filter is the presence axis (all / with / without),
+//     not the inert severity Select.
+//
+// One example read is still NOT wired, and is not faked: a "domain" apex node — the
+// example hand-classifies a registrable apex; the corpus does not, and deriving one
+// by suffix would be a heuristic guess, so every Name renders as a subdomain-style
+// node rather than inventing a root.
 //
 // Every field that IS shown is real: the node keys, the resolution and service
-// edges, an Address's open ports, and each node's earliest open-span instant.
+// edges, an Address's open ports, each node's earliest open-span instant, and each
+// fired rule's own name and subject.
 
 const (
 	graphViewW   = 1200
@@ -42,21 +60,34 @@ const (
 	graphMiniH   = 59
 )
 
+// graphSignal is one open (fired) signal joined to a node: the rule that fired and
+// the exact subject it fired on. Subject may be more specific than the node it
+// lights — an Endpoint firing attached to its Name node names the endpoint — so the
+// drawer can show the finer subject where it differs. It carries NO severity or
+// level: a signal in this product has none (see file header).
+type graphSignal struct {
+	Rule    string
+	Subject string
+}
+
 // graphNode is one placed node: its key (the drawer's identity), display label,
 // tier type (subdomain | ip | service), canvas and minimap coordinates, the
-// label's x-offset (past the node's own radius), the Address's open ports where it
-// has them, and the earliest instant an open span placed it. Sev is always empty
-// — per-node severity is not yet joined to the graph (see file header).
+// label's x-offset (past the node's own radius), the presence-halo radius, the
+// Address's open ports where it has them, the earliest instant an open span placed
+// it, and the open signals joined to it. OpenSignals is a signal-PRESENCE list, not
+// a severity — a node with ≥1 entry is marked, one with none is unmarked; there is
+// no level, gradient or count-driven ramp (see file header).
 type graphNode struct {
-	ID      string
-	Label   string
-	Type    string
-	X, Y    int
-	LabelDX int
-	Mx, My  int
-	Ports   string
-	First   string
-	Sev     string
+	ID          string
+	Label       string
+	Type        string
+	X, Y        int
+	LabelDX     int
+	HaloR       int
+	Mx, My      int
+	Ports       string
+	First       string
+	OpenSignals []graphSignal
 }
 
 // graphEdge is one edge with its endpoints pre-resolved to canvas coordinates, so
@@ -165,6 +196,7 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 		n := graphNode{
 			ID: id, Label: label, Type: typ, X: x, Y: y,
 			LabelDX: graphRadius(typ) + 9,
+			HaloR:   graphRadius(typ) + 6,
 			Mx:      x * graphMiniW / graphViewW,
 			My:      y * graphMiniH / graphViewH,
 			Ports:   ports,
@@ -201,6 +233,54 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 	}
 }
 
+// joinSignals lights each graph node with the open (fired) signals whose subject
+// resolves to it, folding a Census set from the Signal engine onto the built
+// topology WITHOUT inventing severity — a node gains a presence list, never a level.
+// The subject→node mapping is exact and honest:
+//   - a Name-rule firing (subject = the Name) lights the Name node of that key;
+//   - a Service-rule firing (subject = `address:port/transport`) lights the Service
+//     node of that key;
+//   - an Endpoint-rule firing (subject = `name@address:port/transport`) lights the
+//     Name node named before the `@` — the endpoint's own DNS identity — falling
+//     back to its Service node (after the `@`) for a nameless endpoint, so each
+//     firing lands on exactly one node and is never double-counted.
+//
+// Address nodes gain nothing: no rule censuses an Address subject, and a Service's
+// firing is the Service's, not silently aggregated onto the Address it rides
+// (rolling it up would assert a signal on a subject the engine never censused). A
+// firing whose subject names no built node is dropped — the graph lights only nodes
+// the topology already holds, never inventing one from a verdict.
+func joinSignals(g graphView, censuses []signal.Census) graphView {
+	idx := make(map[string]int, len(g.Nodes))
+	for i, n := range g.Nodes {
+		idx[n.ID] = i
+	}
+	attach := func(nodeID string, sig graphSignal) {
+		if i, ok := idx[nodeID]; ok {
+			g.Nodes[i].OpenSignals = append(g.Nodes[i].OpenSignals, sig)
+		}
+	}
+	for _, c := range censuses {
+		kind := signal.SubjectKindFor(c.Rule)
+		for _, m := range c.Fired {
+			sig := graphSignal{Rule: c.Rule, Subject: m.Subject}
+			switch kind {
+			case "name", "service":
+				attach(m.Subject, sig)
+			case "endpoint":
+				// name@service — light the Name leg (the endpoint's DNS identity),
+				// or the Service leg for a nameless endpoint.
+				if name, service := splitEndpointName(m.Subject); name != "" {
+					attach(name, sig)
+				} else {
+					attach(service, sig)
+				}
+			}
+		}
+	}
+	return g
+}
+
 // sortedSet returns a string set's members in ascending order, for a deterministic
 // layout.
 func sortedSet(m map[string]struct{}) []string {
@@ -232,16 +312,32 @@ func joinPorts(set map[string]struct{}) string {
 
 // graphPage renders the Graph screen (#284). It reads the estate's open spans once
 // — the same corpus the Inventory screen reads — and folds them into the graph's
-// real Name/Address/Service topology; an empty corpus renders the empty-state.
+// real Name/Address/Service topology, then joins the Signal engine's fired census
+// onto the nodes (#289). An empty corpus renders the empty-state.
+//
+// The topology read is the page's spine; the signal-corpus read is heavier
+// (buildSignalCorpus fans out over resolution / reachability / certificate /
+// http-identity), so its failure DEGRADES — the graph renders without signal state
+// rather than 500ing the topology a viewer depends on, exactly as reports.go
+// degrades its KPI on a failed read.
 func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	rows, err := s.store.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
 		return
 	}
+	g := buildGraph(rows)
+	if !g.Empty {
+		corpus, err := s.buildSignalCorpus(r)
+		if err != nil {
+			log.Printf("web: graph: build signal corpus: %v", err)
+		} else {
+			g = joinSignals(g, signal.EvaluateCorpus(corpus))
+		}
+	}
 	s.render(w, "graph", map[string]any{
 		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "graph",
-		"Graph":     buildGraph(rows),
+		"Graph":     g,
 	})
 }
