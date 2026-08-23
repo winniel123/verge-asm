@@ -102,6 +102,33 @@ func TestSearchNoResults(t *testing.T) {
 	}
 }
 
+// The ⌘K command palette (templates_shell.go's "chrome" block) hands off to this
+// screen (#315): every chrome page carries a persistent "Search everything" item
+// marked data-cmdk-search, matching design-system/examples/console/ConsoleApp.jsx's
+// CommandPalette entry of the same label. Its static href (used when JS hasn't run,
+// or as the empty-query default) points at bare /search — the handler already
+// browses everything unfiltered on an empty q — and the shell's filter() script
+// rewrites the href to /search?q=<query> as the operator types, so it always stays
+// visible instead of being filtered out like the quick-nav items.
+func TestSearchCommandPaletteHandoff(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/reports", http.StatusOK)
+
+	for _, want := range []string{
+		`data-cmdk-search`,
+		`class="cmdk-item" href="/search" data-cmdk-search`,
+		`>Search everything<`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("chrome missing palette search-handoff %q; body: %s", want, page)
+		}
+	}
+}
+
 // The Search route is behind requireLogin: an unauthenticated request redirects to
 // the login form rather than rendering the screen.
 func TestSearchRequiresLogin(t *testing.T) {
