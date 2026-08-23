@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -92,10 +93,40 @@ type driftBatch struct {
 // change events.
 func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	var groups []driftBatch // no estate-wide transition feed yet (#283 follow-on)
+
+	// Batch detail entry (#311, T16) — opens the Run detail screen (T2, GET /run/{id};
+	// id is a Dispatch id) for the most recent batch. Change and batches are distinct
+	// feeds: a batch exists as soon as a scan has been dispatched, well before two
+	// batches have folded a transition, so the entry is offered whenever a real
+	// dispatch exists and omitted otherwise — never a fabricated id. This mirrors the
+	// ported example's `onOpenRun && <Button>Batch detail</Button>`.
+	batchID, batchLabel := s.latestBatch(r)
+
 	s.render(w, "drift", map[string]any{
 		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "drift",
-		"Kinds":     driftKinds(),
-		"Groups":    groups,
+		"NavActive":  "drift",
+		"Kinds":      driftKinds(),
+		"Groups":     groups,
+		"BatchID":    batchID,
+		"BatchLabel": batchLabel,
 	})
+}
+
+// latestBatch reads the most recent Dispatch (a batch) so Drift can offer a "Batch
+// detail" entry into the Run detail screen. Dispatch is Operational — the read
+// records what the system did and never touches the comparison path (ADR-0041). It
+// returns a zero id when no scan has been dispatched yet, so the caller offers no
+// entry rather than fabricate one; a read error degrades to no entry, never a 500
+// on the thesis screen. The list is ordered id DESC, so rows[0] is the latest batch.
+func (s *server) latestBatch(r *http.Request) (int64, string) {
+	rows, err := s.store.ListDispatchProgress(r.Context(), scansHistoryLimit)
+	if err != nil {
+		log.Printf("web: drift: latest batch: %v", err)
+		return 0, ""
+	}
+	if len(rows) == 0 {
+		return 0, ""
+	}
+	dv := toDispatchView(rows[0])
+	return dv.ID, dv.DispatchedAt
 }
