@@ -123,6 +123,13 @@ func resolveDriftPeriod(token string) driftPeriod {
 	return driftPeriods()[0]
 }
 
+// driftFeedLimit caps how many span events the feed reads and renders in one page,
+// so `period=all` on a mature estate cannot load and render an unbounded corpus (the
+// thesis screen must never 500 or balloon). The most recent events win — the query
+// orders newest-batch-first — and the page states plainly when the cap truncated the
+// view rather than dropping rows silently.
+const driftFeedLimit int32 = 500
+
 // driftSince turns a period into the @since bound the feed query filters on. `all`
 // (zero window) reads from the zero instant, so no batch is excluded by age.
 func (s *server) driftSince(p driftPeriod) pgtype.Timestamptz {
@@ -142,9 +149,15 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	var groups []driftBatch
 	movement := driftMovement{}
-	if rows, err := s.store.ListRecentDriftEvents(r.Context(), s.driftSince(period)); err != nil {
+	truncated := false
+	if rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
+		Since: s.driftSince(period), MaxEvents: driftFeedLimit,
+	}); err != nil {
 		log.Printf("web: drift: list recent drift events: %v", err)
 	} else {
+		// The cap keeps the newest events (query orders newest-first); a full page is
+		// stated as truncated rather than silently dropping the older tail.
+		truncated = int32(len(rows)) >= driftFeedLimit
 		groups, movement = buildDriftFeed(rows, s.now())
 	}
 
@@ -165,6 +178,8 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		"Periods":    driftPeriods(),
 		"Period":     period.Token,
 		"HasEvents":  len(groups) > 0,
+		"Truncated":  truncated,
+		"FeedLimit":  driftFeedLimit,
 		"BatchID":    batchID,
 		"BatchLabel": batchLabel,
 	})
@@ -176,6 +191,9 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 // page renders for the same ?period=, so the file mirrors the screen. A viewer reads
 // it — an export is a read of the change the page already shows, never a mutation. It
 // fabricates nothing: an empty feed produces a header-only file, never invented rows.
+// It reads under the same cap the page uses (driftFeedLimit), so an unbounded corpus
+// cannot stream an unbounded file; a truncated export is noted in the logs and carries
+// a trailing marker row rather than dropping the older tail silently.
 func (s *server) driftExport(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	format := r.URL.Query().Get("format")
 	if format == "" {
@@ -187,10 +205,15 @@ func (s *server) driftExport(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 
 	period := resolveDriftPeriod(r.URL.Query().Get("period"))
-	rows, err := s.store.ListRecentDriftEvents(r.Context(), s.driftSince(period))
+	rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
+		Since: s.driftSince(period), MaxEvents: driftFeedLimit,
+	})
 	if err != nil {
 		s.serverError(w, "drift export: list recent drift events", err)
 		return
+	}
+	if int32(len(rows)) >= driftFeedLimit {
+		log.Printf("web: drift export: feed capped at %d events for period=%s; older tail omitted", driftFeedLimit, period.Token)
 	}
 	s.writeDriftExportCSV(w, period, rows)
 }

@@ -164,7 +164,8 @@ JOIN batch b ON b.id = sp.closed_batch_id
 WHERE b.created_at >= @since
   AND sp.closure_reason IS NOT NULL
 
-ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at;
+ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at
+LIMIT @max_events;
 
 -- name: ListReachedServices :many
 -- The open `Service` population the weekly `tls-acceptance` Scan enumerates over

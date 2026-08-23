@@ -410,7 +410,7 @@ LEFT JOIN LATERAL (
     ORDER BY p.opened_at DESC, p.id DESC
     LIMIT 1
 ) pred ON true
-WHERE b.created_at >= $1
+WHERE b.created_at >= $2
 
 UNION ALL
 
@@ -429,11 +429,17 @@ SELECT
     NULL::text         AS prev_closure_reason
 FROM span sp
 JOIN batch b ON b.id = sp.closed_batch_id
-WHERE b.created_at >= $1
+WHERE b.created_at >= $2
   AND sp.closure_reason IS NOT NULL
 
 ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at
+LIMIT $1
 `
+
+type ListRecentDriftEventsParams struct {
+	MaxEvents int32              `json:"max_events"`
+	Since     pgtype.Timestamptz `json:"since"`
+}
 
 type ListRecentDriftEventsRow struct {
 	Role              string             `json:"role"`
@@ -475,8 +481,8 @@ type ListRecentDriftEventsRow struct {
 // Reads span and batch only — never dispatch — honoring the comparison-path
 // separation (ADR-0041). Ordered newest batch first, then by timeline for a stable
 // per-batch render.
-func (q *Queries) ListRecentDriftEvents(ctx context.Context, since pgtype.Timestamptz) ([]ListRecentDriftEventsRow, error) {
-	rows, err := q.db.Query(ctx, listRecentDriftEvents, since)
+func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error) {
+	rows, err := q.db.Query(ctx, listRecentDriftEvents, arg.MaxEvents, arg.Since)
 	if err != nil {
 		return nil, err
 	}

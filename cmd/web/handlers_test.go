@@ -1128,7 +1128,8 @@ func (f *fakeStore) fakeBatchByID(id int64) db.Batch {
 // diff. A reasoned close would emit a 'closed' event too, but the fold sets no reason
 // (withdrawal persistence is unwired), so none arise here — matching production.
 // Rows are ordered newest batch first, then by timeline, as the production query is.
-func (f *fakeStore) ListRecentDriftEvents(_ context.Context, since pgtype.Timestamptz) ([]db.ListRecentDriftEventsRow, error) {
+func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error) {
+	since := arg.Since
 	type tlkey struct{ kind, key, facet, discriminator, source string }
 	order := []tlkey{}
 	byKey := map[tlkey][]drift.Reading{}
@@ -1206,6 +1207,10 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, since pgtype.Timest
 		}
 		return a.Facet < b.Facet
 	})
+	// Honor the feed cap: the newest events survive (rows are already newest-first).
+	if arg.MaxEvents > 0 && int32(len(rows)) > arg.MaxEvents {
+		rows = rows[:arg.MaxEvents]
+	}
 	return rows, nil
 }
 

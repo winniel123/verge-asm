@@ -127,7 +127,7 @@ type store interface {
 	// group meta, so the handler classifies each into one of the six change kinds on
 	// read (ADR-0007) and groups the transitions by batch. Reads span and batch only —
 	// never dispatch — honoring the comparison-path separation (ADR-0041).
-	ListRecentDriftEvents(ctx context.Context, since pgtype.Timestamptz) ([]db.ListRecentDriftEventsRow, error)
+	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
 	// Exposure landing view (#196): the two most recent reachability spans per
 	// (Service, vantage), joined to the prober endpoint. The class is re-verified
 	// per render from the presented address, so this read carries the host rather

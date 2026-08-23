@@ -594,7 +594,7 @@ type Querier interface {
 	// Reads span and batch only — never dispatch — honoring the comparison-path
 	// separation (ADR-0041). Ordered newest batch first, then by timeline for a stable
 	// per-batch render.
-	ListRecentDriftEvents(ctx context.Context, since pgtype.Timestamptz) ([]ListRecentDriftEventsRow, error)
+	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	// Every declared schedule, newest-first, unbounded — the "Recurring reports" table
 	// renders each row and resolves its "last delivery" from the Message corpus, since

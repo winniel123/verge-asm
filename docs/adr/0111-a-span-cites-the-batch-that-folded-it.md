@@ -65,8 +65,11 @@ move, into `CloseSpan` (as `closed_batch_id`). No new instant, no new decision: 
 the one the batch already has.
 
 The estate-wide feed (`ListRecentDriftEvents`) then reads spans opened or closed by a
-batch within a period, joins each to its `batch` row for the group label
-(`kind · N vantages`, from `recorded_scope`), and classifies each event into the six
+batch within a period (capped at a bounded number of most-recent events so an
+`all`-time read on a mature estate cannot load an unbounded corpus), joins each to its
+`batch` row for the group header — the batch kind and how long ago it folded
+(`<kind> scan · <relative> ago`), with a scope sub-label read from `recorded_scope`
+(`N names` / `N addresses` / `N services`) — and classifies each event into the six
 change kinds on read using the existing `internal/drift` grammar — `appeared`/`returned`
 via `MembershipReturn`, `changed` as an ordinary value move with a before/after diff,
 `withdrawn`/`descoped` from a close's `closure_reason`. Nothing is stored; the batch

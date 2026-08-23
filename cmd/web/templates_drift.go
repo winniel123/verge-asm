@@ -59,6 +59,7 @@ const driftTemplates = `
 <div style="display:flex;gap:6px;flex-wrap:wrap;padding-bottom:var(--space-4);margin-bottom:var(--space-2);border-bottom:1px solid var(--hairline)">
 {{range .Kinds}}<span class="chip {{.Family}}">{{template "changeglyph" .Change}}{{.Change}}</span>{{end}}
 </div>
+{{if .Truncated}}<div class="banner warn" style="margin-bottom:var(--space-3)">Showing the most recent {{.FeedLimit}} transitions for this period. Narrow the period to see older change.</div>{{end}}
 {{if .Groups}}
 {{range .Groups}}
 <div class="timeline">
@@ -108,7 +109,7 @@ change kind will tally here once a second batch measures a value that moved.</p>
 {{range .Kinds}}
 <div style="display:flex;align-items:center;gap:10px">
 <span class="chip {{.Family}}">{{template "changeglyph" .Change}}{{.Change}}</span>
-<span class="mono muted" style="margin-left:auto">{{index $.Movement .Change}}</span>
+<span class="mono muted" style="margin-left:auto">{{$c := index $.Movement .Change}}{{if $c}}{{$c}}{{else}}&#8212;{{end}}</span>
 </div>
 {{end}}
 </div>

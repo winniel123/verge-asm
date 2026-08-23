@@ -10,6 +10,8 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
 // The estate-wide drift feed (#288, ADR-0111). A transition is not stored — it is
@@ -164,8 +166,9 @@ func driftDiff(row db.ListRecentDriftEventsRow) []driftDiffLine {
 }
 
 // spanValueIsGap recomputes whether a value is a Gap from the value alone, mirroring
-// the fold's isGapValue (internal/queue/spanfold.go): a resolution "Gap" outcome or a
-// reachability "gap" outcome. Used for a predecessor value, whose is_gap flag the feed
+// the fold's isGapValue (internal/queue/spanfold.go) via the same leaf constants so
+// the two definitions cannot silently diverge: a resolution OutcomeGap or a
+// reachability GapOutcome. Used for a predecessor value, whose is_gap flag the feed
 // query does not carry (a LEFT JOIN LATERAL column sqlc cannot type as nullable).
 func spanValueIsGap(facet string, raw []byte) bool {
 	if len(raw) == 0 {
@@ -178,10 +181,10 @@ func spanValueIsGap(facet string, raw []byte) bool {
 		return false
 	}
 	switch facet {
-	case "resolution":
-		return v.Outcome == "Gap"
-	case "reachability":
-		return v.Outcome == "gap"
+	case resolutionwalk.FacetResolution:
+		return v.Outcome == string(resolutionwalk.OutcomeGap)
+	case connectoutcome.FacetReachability:
+		return v.Outcome == connectoutcome.GapOutcome
 	default:
 		return false
 	}
@@ -214,17 +217,40 @@ func (s *server) writeDriftExportCSV(w http.ResponseWriter, period driftPeriod, 
 			when = row.ClosedAt.Time
 		}
 		_ = cw.Write([]string{
-			driftBatchLabel(row, now),
-			driftBatchMeta(row),
+			csvSafe(driftBatchLabel(row, now)),
+			csvSafe(driftBatchMeta(row)),
 			ev.Change,
-			ev.Subject,
-			timelineLabel(row.Facet, row.Discriminator),
+			csvSafe(ev.Subject),
+			csvSafe(timelineLabel(row.Facet, row.Discriminator)),
 			when.UTC().Format(time.RFC3339),
 			ev.Reason,
-			before,
-			after,
+			csvSafe(before),
+			csvSafe(after),
 		})
 	}
+
+	// The feed is capped (driftFeedLimit); a full result set is stated in a trailing
+	// marker row rather than dropping the older tail silently.
+	if int32(len(rows)) >= driftFeedLimit {
+		_ = cw.Write([]string{"feed capped at " + strconv.Itoa(int(driftFeedLimit)) + " most-recent events; older transitions omitted", "", "", "", "", "", "", "", ""})
+	}
+}
+
+// csvSafe neutralises spreadsheet formula injection: a cell whose first character is
+// one an interpreter may treat as a formula (= + - @) or a control character (tab,
+// CR) is prefixed with a single quote, so a subject or measured value ingested from CT
+// logs — attacker-influenced free text — cannot execute when the file is opened in
+// Excel or Sheets. The prefix is the widely-used mitigation; it leaves the value
+// legible and is applied only to the free-text columns.
+func csvSafe(s string) string {
+	if s == "" {
+		return s
+	}
+	switch s[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + s
+	}
+	return s
 }
 
 // driftExportValues resolves the before/after value cells for an export row from the
@@ -262,7 +288,18 @@ func driftBatchLabel(row db.ListRecentDriftEventsRow, now time.Time) string {
 	if kind == "" {
 		kind = "scan"
 	}
-	return kind + " scan · " + relTime(row.BatchAt.Time, now) + " ago"
+	return kind + " scan · " + agoLabel(row.BatchAt.Time, now)
+}
+
+// agoLabel renders a relative instant as a phrase. relTime returns bare tokens
+// (now / 5m / 3h / 2d / 1w); this suffixes " ago" for the past and reads the
+// sub-minute case as "just now" rather than the ungrammatical "now ago".
+func agoLabel(t, now time.Time) string {
+	rel := relTime(t, now)
+	if rel == "now" {
+		return "just now"
+	}
+	return rel + " ago"
 }
 
 // driftBatchMeta summarises the batch's recorded scope for the group sub-label. The
@@ -273,7 +310,7 @@ func driftBatchMeta(row db.ListRecentDriftEventsRow) string {
 	if err := json.Unmarshal(row.RecordedScope, &scope); err != nil || len(scope) == 0 {
 		return ""
 	}
-	for _, key := range []string{"names", "addresses", "cidrs", "services"} {
+	for _, key := range []string{"names", "addresses", "services"} {
 		raw, ok := scope[key]
 		if !ok {
 			continue
