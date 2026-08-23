@@ -318,6 +318,13 @@ func (s *server) handler() http.Handler {
 
 	mux.HandleFunc("GET /graph", s.requireLogin(s.graphPage))
 
+	// Search results (#303, T8, ADR-0110): the full-page search the shell's command
+	// palette ("see everything") lands on. It reads only data a viewer already reads
+	// elsewhere — current Name subjects, the fired signal corpus, recent Dispatches —
+	// and every row links to that item's existing route (/asset/{key}, /signals,
+	// /run/{id}). Viewer-readable, requireLogin: a search reads, it mutates nothing.
+	mux.HandleFunc("GET /search", s.requireLogin(s.searchPage))
+
 	// Registry proposer lookups and the confirm/decline of the Proposals they
 	// yield are admin acts (v1 spec §4.3): confirming opens the probing gate on
 	// address space, declining is a boundary claim. A viewer reads the pending
