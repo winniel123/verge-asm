@@ -5,7 +5,7 @@ Generated 2026-08-22T22:13:00Z against winniel123/verge-asm@main. Baseline: the 
 Orchestrator guidance: every console screen renders through cmd/web/templates.go. Give each work item its own worktree for handler + partial logic, but serialize templates.go registrations through ONE integration tree (or land W0 first and rebase). Items marked ∥ touch disjoint handlers and are parallel-safe.
 
 ## W0 — mechanical, land first (single tree)
-- W0.1 Replace design-system/ in the repo with this package's tokens/, components/, docs/, examples/, screenshots/ (1:1 copy). Fixes the corrupted screenshots (13 identical 4 KB files) and picks up the component deltas: VideoPlayer.jsx (new), TopNav.jsx (new props: onOpenProfile, onOpenMessage deep-link), Select.jsx listbox notes.
+- W0.1 Replace design-system/ in the repo with this package's tokens/, components/, docs/, examples/, screenshots/ (1:1 copy). Picks up the component deltas: VideoPlayer.jsx (new), TopNav.jsx (new props: onOpenProfile, onOpenMessage deep-link), Select.jsx listbox notes.
 - W0.2 Two-role model: admin + viewer everywhere. The design dropped "operator". Check accounts/roles enums and copy.
 
 ## W1 — changed screens (implement the delta) 

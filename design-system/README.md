@@ -46,7 +46,7 @@ Sentence case everywhere; imperative verbs on actions (`Add seed`, `Run scan`); 
 None bundled — by design. Icons come from Lucide (CDN or `lucide-react`); fonts from Google Fonts; the logo is a code-drawn placeholder (`components/media/Logo.jsx`); marketing "imagery" is composed product UI, not photos. Nothing else to license or migrate.
 
 ## What changed in v3 (this sync)
-Since the v2 package the repo imported: 12 operational views (asset/run/report drill-ins, inbox, search, profile, error pages, onboarding, auth flows), 10 repo-parity pages (sources catalogue, setup, first-run checklist, prober provisioning, port aperture, zone upload, exposure, coverage, org-name search, mark-all-read), the two-role model (admin + viewer — "operator" is gone), Carousel + VideoPlayer components, and TopNav deep-link props. `WORK-CHART.md` is the executable list; your repo's screenshots folder is corrupted (13 identical files) and should be replaced by this one.
+Since the v2 package the repo imported: 12 operational views (asset/run/report drill-ins, inbox, search, profile, error pages, onboarding, auth flows), 10 repo-parity pages (sources catalogue, setup, first-run checklist, prober provisioning, port aperture, zone upload, exposure, coverage, org-name search, mark-all-read), the two-role model (admin + viewer — "operator" is gone), Carousel + VideoPlayer components, and TopNav deep-link props. `WORK-CHART.md` is the executable list.
 
 ## Files
 - `README.md` — this document
