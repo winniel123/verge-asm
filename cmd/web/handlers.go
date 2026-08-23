@@ -257,6 +257,14 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /login/totp", s.loginTOTP)
 	mux.HandleFunc("POST /logout", s.logout)
 
+	// The onboarding wizard (#307, T12): first-run seeds -> cadence -> channel ->
+	// review. Stepping is a viewer-safe re-render; completion enqueues the first
+	// scan through the existing admin-only trigger (triggerScan), so /onboarding/finish
+	// carries the same requireAdmin gate POST /scans/trigger uses.
+	mux.HandleFunc("GET /onboarding", s.requireLogin(s.onboarding))
+	mux.HandleFunc("POST /onboarding", s.requireLogin(s.onboardingStep))
+	mux.HandleFunc("POST /onboarding/finish", s.requireAdmin(s.triggerScan))
+
 	mux.HandleFunc("GET /scope", s.requireLogin(s.seedsPage))
 	// /seeds moved to /scope (#286): the scope presentation is the canonical home
 	// for scope declaration, so the old GET is a permanent redirect. Every POST
