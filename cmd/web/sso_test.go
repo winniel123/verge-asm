@@ -454,6 +454,29 @@ func TestSSOSelfLinkIdempotent(t *testing.T) {
 	}
 }
 
+// An account holds at most one identity per provider (ADR-0113). Linking a second,
+// different subject for a provider already linked is refused — even via the direct link
+// URL that bypasses the hidden button — and records no second binding.
+func TestSSOSelfLinkOnePerProvider(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	alice := seedAccount(t, f, "alice", roleViewer, "unused-password-x")
+	addSSOProvider(f, 1, "okta", "Okta")
+	addSSOIdentity(f, 1, "okta-sub-alice", alice.ID, "alice@corp") // already linked
+	// The IdP now returns a DIFFERENT subject for the same provider.
+	base := startWithSSO(t, f, &fakeSSOFlow{sub: "okta-sub-alice-2", display: "alice.alt@corp"})
+	ac := login(t, base, "alice", "unused-password-x")
+
+	r := ssoLinkFlow(t, ac, base, "okta")
+	r.Body.Close()
+	if r.Header.Get("Location") != "/profile?linkerr=provider" {
+		t.Fatalf("second link for a provider loc=%q, want /profile?linkerr=provider", r.Header.Get("Location"))
+	}
+	if len(f.ssoIdentities) != 1 {
+		t.Errorf("a second identity was bound for an already-linked provider: %d rows", len(f.ssoIdentities))
+	}
+}
+
 // The self-link routes are authenticated: an anonymous caller is bounced to /login.
 func TestSSOLinkRequiresLogin(t *testing.T) {
 	f := newFakeStore()

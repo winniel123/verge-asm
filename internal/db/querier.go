@@ -366,9 +366,11 @@ type Querier interface {
 	// at the column, so a schedule with no sections chosen still inserts.
 	InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error)
 	// Record a verified (provider, sub) → account binding, established by an authenticated
-	// Profile self-link (ADR-0113). The UNIQUE(provider_id, sub) guards a second account
-	// from claiming an identity already bound; the caller checks for an existing binding
-	// first so it can distinguish "already yours" from "bound elsewhere".
+	// Profile self-link (ADR-0113). UNIQUE(provider_id, sub) guards a second account from
+	// claiming an identity already bound; UNIQUE(provider_id, account_id) keeps an account to
+	// one identity per provider. The caller resolves any existing (provider, sub) first so it
+	// can distinguish "already yours" from "bound elsewhere"; a residual conflict here is the
+	// per-provider constraint.
 	InsertSSOIdentity(ctx context.Context, arg InsertSSOIdentityParams) error
 	// Reads and writes behind the OIDC single-sign-on config (#293, ADR-0112) and the
 	// verified-identity bindings that authentication keys on (#319, ADR-0113). The client

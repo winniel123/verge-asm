@@ -193,9 +193,11 @@ type InsertSSOIdentityParams struct {
 }
 
 // Record a verified (provider, sub) → account binding, established by an authenticated
-// Profile self-link (ADR-0113). The UNIQUE(provider_id, sub) guards a second account
-// from claiming an identity already bound; the caller checks for an existing binding
-// first so it can distinguish "already yours" from "bound elsewhere".
+// Profile self-link (ADR-0113). UNIQUE(provider_id, sub) guards a second account from
+// claiming an identity already bound; UNIQUE(provider_id, account_id) keeps an account to
+// one identity per provider. The caller resolves any existing (provider, sub) first so it
+// can distinguish "already yours" from "bound elsewhere"; a residual conflict here is the
+// per-provider constraint.
 func (q *Queries) InsertSSOIdentity(ctx context.Context, arg InsertSSOIdentityParams) error {
 	_, err := q.db.Exec(ctx, insertSSOIdentity,
 		arg.ProviderID,

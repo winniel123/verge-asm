@@ -915,7 +915,7 @@ type profileState struct {
 	mintedName string
 	revokeID   int64 // token-revoke ConfirmDialog target; 0 = closed
 	revokeErr  string
-	endSession bool // end-session ConfirmDialog open
+	endSession bool   // end-session ConfirmDialog open
 	ssoNotice  string // SSO link/unlink outcome (a success or benign message)
 	ssoError   string // SSO link failure (a refusal)
 }
@@ -954,6 +954,8 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		st.ssoNotice = "Identity unlinked. It can no longer sign in to this account."
 	}
 	switch q.Get("linkerr") {
+	case "provider":
+		st.ssoError = "You already have an identity linked for that provider. Unlink it first to link a different one."
 	case "elsewhere":
 		st.ssoError = "That identity is already linked to another account."
 	case "cancelled":
@@ -994,9 +996,14 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 
 	// SSO (#319, ADR-0113): the account's own linked identities, and the enabled
 	// providers not yet linked (each offers a "Link" button). A read failure degrades to
-	// an empty surface rather than failing the whole Profile.
-	linked, linkedProviders := s.profileSSOIdentities(r, acct.ID)
-	available := s.profileLinkableProviders(r, linkedProviders)
+	// an empty surface rather than failing the whole Profile; when the linked list could
+	// not be read, the link offer is suppressed too, so a blip never invites re-linking an
+	// already-linked provider.
+	linked, linkedProviders, ok := s.profileSSOIdentities(r, acct.ID)
+	var available []profileLinkView
+	if ok {
+		available = s.profileLinkableProviders(r, linkedProviders)
+	}
 
 	// The revoke ConfirmDialog names its target; resolve it from the read so a stale
 	// or foreign id simply renders no dialog rather than a gate with no subject.
@@ -1066,13 +1073,15 @@ type profileLinkView struct {
 }
 
 // profileSSOIdentities reads the account's linked identities for its Profile, returning
-// the display views and the set of provider ids already linked (so the linkable list can
-// exclude them). A read failure degrades to empty rather than failing the page.
-func (s *server) profileSSOIdentities(r *http.Request, accountID int64) ([]profileIdentityView, map[int64]bool) {
+// the display views, the set of provider ids already linked (so the linkable list can
+// exclude them), and ok=false on a read failure. A failure degrades to an empty surface
+// rather than failing the page — and the caller then suppresses the link offer too, so a
+// blip never invites re-linking a provider the account has already linked.
+func (s *server) profileSSOIdentities(r *http.Request, accountID int64) ([]profileIdentityView, map[int64]bool, bool) {
 	rows, err := s.store.ListSSOIdentitiesForAccount(r.Context(), accountID)
 	if err != nil {
 		log.Printf("web: profile: list sso identities: %v", err)
-		return nil, map[int64]bool{}
+		return nil, map[int64]bool{}, false
 	}
 	linkedProviders := make(map[int64]bool, len(rows))
 	out := make([]profileIdentityView, 0, len(rows))
@@ -1083,7 +1092,7 @@ func (s *server) profileSSOIdentities(r *http.Request, accountID int64) ([]profi
 			LinkedAt: isoDate(row.CreatedAt),
 		})
 	}
-	return out, linkedProviders
+	return out, linkedProviders, true
 }
 
 // profileLinkableProviders lists the enabled providers the account has not yet linked.

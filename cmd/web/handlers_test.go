@@ -2033,8 +2033,13 @@ func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
 
 func (f *fakeStore) InsertSSOIdentity(_ context.Context, arg db.InsertSSOIdentityParams) error {
 	for _, i := range f.ssoIdentities {
+		// UNIQUE(provider_id, sub): one external identity binds to one account.
 		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
 			return &pgconn.PgError{Code: "23505", Message: "duplicate sso identity"}
+		}
+		// UNIQUE(provider_id, account_id): one identity per provider per account.
+		if i.providerID == arg.ProviderID && i.accountID == arg.AccountID {
+			return &pgconn.PgError{Code: "23505", Message: "duplicate provider link for account"}
 		}
 	}
 	f.ssoIdentNextID++

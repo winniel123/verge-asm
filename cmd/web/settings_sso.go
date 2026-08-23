@@ -40,11 +40,11 @@ type ssoProviderView struct {
 // external identity (via which provider) authenticates as, so an admin can remove it on
 // offboarding or a seat reassignment (ADR-0113).
 type ssoBindingView struct {
-	ID          int64
+	ID           int64
 	ProviderName string
-	Account     string
-	DisplayName string
-	LinkedAt    string
+	Account      string
+	DisplayName  string
+	LinkedAt     string
 }
 
 // fillSSOSection reads the configured providers, the current identity bindings, and the
@@ -142,7 +142,7 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 	if _, err := s.store.InsertSSOProvider(r.Context(), db.InsertSSOProviderParams{
 		Slug: v.slug, Name: v.name, Issuer: v.issuer, ClientID: v.clientID,
 		ClientSecret: optionalSecret(r.FormValue("client_secret")),
-		Enabled: true, CreatedBy: acct.ID,
+		Enabled:      true, CreatedBy: acct.ID,
 	}); err != nil {
 		// A duplicate slug is the one expected user error the DB refuses (unique); tell
 		// the operator plainly rather than 500ing.

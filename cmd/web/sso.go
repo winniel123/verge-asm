@@ -320,12 +320,19 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	acct, err := s.store.GetAccountBySSOIdentity(r.Context(), db.GetAccountBySSOIdentityParams{
 		ProviderID: prov.ID, Sub: ident.Sub,
 	})
-	if err != nil {
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
 		// A verified identity with no binding: refuse honestly. The subject is not linked
 		// to any local account, and SSO never provisions or falls back to a username
 		// (ADR-0113). The user signs in with a password and links this identity on Profile.
 		log.Printf("web: sso: no binding for verified identity via %q", slug)
 		s.render(w, "login", s.loginData(r.Context(), "That identity is not linked to an account here. Sign in with your password, then link it on your Profile."))
+		return
+	case err != nil:
+		// A transient read failure is NOT an unlinked identity: don't misdirect a
+		// legitimately-linked user to re-link during a DB blip. Fail generically.
+		log.Printf("web: sso: look up binding via %q: %v", slug, err)
+		s.render(w, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
 		return
 	}
 	// SSO proves the IdP identity, but it must never DOWNGRADE a local second factor:
@@ -438,10 +445,11 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 	if err := s.store.InsertSSOIdentity(r.Context(), db.InsertSSOIdentityParams{
 		ProviderID: prov.ID, AccountID: acct.ID, Sub: ident.Sub, DisplayName: ident.Display,
 	}); err != nil {
-		// A race could still lose the UNIQUE bet between the check and the insert; report
-		// the collision honestly rather than 500ing.
+		// The exact (provider, sub) was just confirmed free, so a UNIQUE violation here is
+		// the (provider, account) constraint: this account already holds an identity for
+		// this provider (the model allows one). Report that honestly rather than 500ing.
 		if isUniqueViolation(err) {
-			http.Redirect(w, r, "/profile?linkerr=elsewhere", http.StatusSeeOther)
+			http.Redirect(w, r, "/profile?linkerr=provider", http.StatusSeeOther)
 			return
 		}
 		s.serverError(w, "insert sso identity", err)

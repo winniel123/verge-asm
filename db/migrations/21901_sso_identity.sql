@@ -31,8 +31,12 @@ CREATE TABLE sso_identity (
     display_name TEXT NOT NULL DEFAULT '',
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- One external identity binds to AT MOST ONE account: (provider, sub) is unique. An
-    -- account may still hold many identities (one per provider).
-    UNIQUE (provider_id, sub)
+    -- account may still hold many identities, but at most ONE per provider — the model
+    -- offers a single link per provider (ADR-0113), so (provider, account) is unique too.
+    -- This enforces the invariant in the schema, not just the UI, closing the direct-link
+    -- route as a way to bind a second subject for a provider already linked.
+    UNIQUE (provider_id, sub),
+    UNIQUE (provider_id, account_id)
 );
 
 -- The Profile page lists an account's own linked identities; index the lookup key.
