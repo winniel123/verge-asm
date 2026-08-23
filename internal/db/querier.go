@@ -169,6 +169,12 @@ type Querier interface {
 	// re-enrolling) two-factor replaces the old codes wholesale rather than
 	// accumulating stale sets that would each still redeem.
 	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
+	// An admin removes any binding by id (offboarding / seat reassignment). Idempotent:
+	// removing a row already gone satisfies the intent either way.
+	DeleteSSOIdentity(ctx context.Context, id int64) error
+	// A user unlinks their OWN identity (Profile). Scoped to the account so one user can
+	// never unlink another's; returns rows so a stale or foreign id no-ops honestly.
+	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
@@ -205,6 +211,10 @@ type Querier interface {
 	// FindCoveringNameSeed so the two are interchangeable at the terminating hop.
 	FindNameSeedByID(ctx context.Context, seedID int64) (FindNameSeedByIDRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
+	// The SSO login match: resolve the local account a verified (provider, sub) is bound to.
+	// Keyed on the stable, non-reassignable subject — never a username. No row is an honest
+	// refusal (the identity is unlinked), never a provision.
+	GetAccountBySSOIdentity(ctx context.Context, arg GetAccountBySSOIdentityParams) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
@@ -293,14 +303,17 @@ type Querier interface {
 	GetPendingProposal(ctx context.Context, id int64) (Proposal, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
+	// Whether a (provider, sub) is already bound, and to whom — so the self-link flow can
+	// no-op an identity already linked to the caller and refuse one linked elsewhere,
+	// rather than surfacing a raw unique-violation.
+	GetSSOIdentityBySub(ctx context.Context, arg GetSSOIdentityBySubParams) (GetSSOIdentityBySubRow, error)
 	// One provider for the Settings edit form. Omits the secret; a caller reads presence,
 	// never the value.
 	GetSSOProvider(ctx context.Context, id int64) (GetSSOProviderRow, error)
-	// The ONE read path that selects the secret: the server-side OIDC flow needs the
-	// issuer, client id and client secret to complete the confidential-client token
-	// exchange, plus the username claim to map the verified identity to a local account.
-	// Keyed by slug (the flow route) and gated on enabled, so a disabled provider's flow
-	// resolves no row and is refused.
+	// The ONE read path that selects the secret: the server-side OIDC flow (both a login
+	// match and a Profile self-link) needs the issuer, client id and client secret to
+	// complete the confidential-client token exchange. Keyed by slug (the flow route) and
+	// gated on enabled, so a disabled provider's flow resolves no row and is refused.
 	GetSSOProviderForAuth(ctx context.Context, slug string) (GetSSOProviderForAuthRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
 	// Resolve a Service key to at most one subject (#195). A Service drill-down
@@ -352,11 +365,18 @@ type Querier interface {
 	// attributes it to the admin who submitted it. sections defaults to an empty array
 	// at the column, so a schedule with no sections chosen still inserts.
 	InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error)
-	// Reads and writes behind the OIDC single-sign-on config (#293, ADR-0112): the
-	// SignIn buttons, the Settings → single-sign-on tab, and the server-side flow. The
-	// client secret is write-only at the interface, mirroring the channel secret
-	// (ADR-0053): the list/get reads expose only whether one is set, and exactly one
-	// read path (GetSSOProviderForAuth) hands the secret to the token exchange.
+	// Record a verified (provider, sub) → account binding, established by an authenticated
+	// Profile self-link (ADR-0113). UNIQUE(provider_id, sub) guards a second account from
+	// claiming an identity already bound; UNIQUE(provider_id, account_id) keeps an account to
+	// one identity per provider. The caller resolves any existing (provider, sub) first so it
+	// can distinguish "already yours" from "bound elsewhere"; a residual conflict here is the
+	// per-provider constraint.
+	InsertSSOIdentity(ctx context.Context, arg InsertSSOIdentityParams) error
+	// Reads and writes behind the OIDC single-sign-on config (#293, ADR-0112) and the
+	// verified-identity bindings that authentication keys on (#319, ADR-0113). The client
+	// secret is write-only at the interface, mirroring the channel secret (ADR-0053): the
+	// list/get reads expose only whether one is set, and exactly one read path
+	// (GetSSOProviderForAuth) hands the secret to the token exchange.
 	// Declare one OIDC provider. Returns the id only; the secret is write-only and no
 	// read query hands it back. A public (PKCE-only) client passes a NULL secret.
 	InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error)
@@ -622,6 +642,13 @@ type Querier interface {
 	// renders each row and resolves its "last delivery" from the Message corpus, since
 	// deliveries are messages (ADR-0039, ADR-0081) and this table holds only intent.
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
+	// Every binding for the admin SSO settings — the offboarding / seat-reassignment view.
+	// Joined to provider and account so the admin sees which identity maps to whom, newest
+	// first.
+	ListSSOBindings(ctx context.Context) ([]ListSSOBindingsRow, error)
+	// An account's own linked identities for its Profile, newest-first. Joined to the
+	// provider for the display name/slug; sub is not surfaced (opaque, of no use to a human).
+	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]ListSSOIdentitiesForAccountRow, error)
 	// Every configured provider, newest-first, for the Settings tab. Never selects the
 	// secret: it exposes only whether one is set, so the render path cannot leak it.
 	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)

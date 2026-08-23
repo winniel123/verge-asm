@@ -375,21 +375,22 @@ const settingsSectionTemplates = `
 <div class="microlabel">Access · single sign-on</div>
 <h2>Single sign-on</h2>
 <p>Sign-on via <strong>OpenID Connect</strong> (#293). A provider authenticates an
-existing account by its username claim — it never creates accounts, and header-trust
-reverse-proxy auth stays refused. Each enabled provider renders a button on the
-sign-in screen; accounts can still sign in with a password and two-factor.</p>
-<p class="muted">Your own credentials and two-factor live on your <a href="/profile">Profile</a>.</p>
+existing account by a linked, verified identity — bound to the provider's stable subject,
+never a mutable username (ADR-0113) — and never creates accounts; header-trust
+reverse-proxy auth stays refused. A user links a provider from their own Profile; each
+enabled provider renders a button on the sign-in screen, and accounts can still sign in
+with a password and two-factor.</p>
+<p class="muted">Your own credentials, two-factor and identity links live on your <a href="/profile">Profile</a>.</p>
 {{if .SSOError}}<div class="error">{{.SSOError}}</div>{{end}}
 {{if .SSOProviders}}
 <div class="section">
 <table>
-<thead><tr><th>Provider</th><th>Issuer</th><th>Client</th><th>Claim</th><th>Secret</th><th>State</th><th>Declared by</th><th></th></tr></thead>
+<thead><tr><th>Provider</th><th>Issuer</th><th>Client</th><th>Secret</th><th>State</th><th>Declared by</th><th></th></tr></thead>
 <tbody>
 {{range .SSOProviders}}<tr>
 <td>{{.Name}} <span class="muted mono">/{{.Slug}}</span></td>
 <td class="mono">{{.Issuer}}</td>
 <td class="mono">{{.ClientID}}</td>
-<td class="mono">{{.UsernameClaim}}</td>
 <td>{{if .HasSecret}}<span class="badge">set</span>{{else}}<span class="muted">none</span>{{end}}</td>
 <td>{{if .Enabled}}<span class="badge">enabled</span>{{else}}<span class="muted">disabled</span>{{end}}</td>
 <td class="mono">{{.CreatedBy}}<br><span class="muted">{{.CreatedAt}}</span></td>
@@ -403,7 +404,6 @@ sign-in screen; accounts can still sign in with a password and two-factor.</p>
 <label><span>Slug</span><input name="slug" value="{{.Slug}}" required></label>
 <label><span>Issuer URL</span><input name="issuer" value="{{.Issuer}}" required></label>
 <label><span>Client ID</span><input name="client_id" value="{{.ClientID}}" autocomplete="off" required></label>
-<label><span>Username claim</span><input name="username_claim" value="{{.UsernameClaim}}"></label>
 <label class="check"><input type="checkbox" name="enabled"{{if .Enabled}} checked{{end}}><span>enabled</span></label>
 <div class="row" style="margin-top:12px"><button type="submit">Save provider</button></div>
 </form>
@@ -438,9 +438,29 @@ to enable SSO.</p>
 <label><span>Issuer URL</span><input name="issuer" value="{{.SSOIssuer}}" placeholder="https://example.okta.com" autocomplete="off" required></label>
 <label><span>Client ID</span><input name="client_id" value="{{.SSOClientID}}" autocomplete="off" required></label>
 <label><span>Client secret (optional)</span><input name="client_secret" type="password" autocomplete="off" placeholder="confidential clients only — never shown again"></label>
-<label><span>Username claim</span><input name="username_claim" value="{{.SSOClaim}}" placeholder="preferred_username"></label>
 <button type="submit">Add provider</button>
 </form>
+</div>
+
+<div class="section">
+<h2>Linked identities</h2>
+<p class="muted" style="margin:0 0 var(--space-4)">Every verified identity bound to a local account. Users link their own from their Profile; remove one here to offboard a departed user or reclaim a reassigned seat &#8212; the identity can no longer sign in as that account.</p>
+{{if .SSOBindings}}
+<table>
+<thead><tr><th>Provider</th><th>Account</th><th>Identity</th><th>Linked</th><th></th></tr></thead>
+<tbody>
+{{range .SSOBindings}}<tr>
+<td>{{.ProviderName}}</td>
+<td class="mono">{{.Account}}</td>
+<td class="mono">{{if .DisplayName}}{{.DisplayName}}{{else}}<span class="muted">&#8212;</span>{{end}}</td>
+<td class="mono">{{.LinkedAt}}</td>
+<td style="text-align:right"><form method="post" action="/settings/sso/identity/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Remove</button></form></td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<p class="muted">No identities are linked yet. A user links one from their Profile once a provider is enabled.</p>
+{{end}}
 </div>
 {{end}}
 

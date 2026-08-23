@@ -354,8 +354,10 @@ Local accounts are the identity store. Single sign-on is supported as cryptograp
 **OIDC** (#293, ADR-0112): the app redirects to an identity provider and verifies the signed
 `id_token` (signature, issuer, and a per-login nonce) via the vetted `go-oidc`/`oauth2` libraries,
 so a forged or replayed assertion is rejected by construction. SSO authenticates an *existing* local
-account (matched by a configured username claim) and never creates one, and a session's role is
-still read from the local account row on every request. **Reverse-proxy forward-auth (header-trust)
+account matched by a stored binding of the verified, non-reassignable subject `(issuer, sub)` — never
+a mutable username claim (ADR-0113) — where the binding is established only by an already-authenticated
+user linking their own identity from their Profile; it never creates an account, and a session's role
+is still read from the local account row on every request. **Reverse-proxy forward-auth (header-trust)
 remains refused** — trusting an upstream identity header is a whole bypass class the moment the proxy
 is misconfigured, and unlike OIDC there is no cryptographic check the app can make (see §7). Two
 roles, admin/viewer. The first admin is bootstrapped by a single-use setup token written to
