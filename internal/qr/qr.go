@@ -21,15 +21,20 @@
 //     image.
 //
 // The encoder follows the standard construction (Reed-Solomon over GF(256),
-// the eight data masks with penalty-scored selection, BCH format/version bits);
-// qr_test.go pins it to the ISO/IEC 18004 reference symbol and to independent
-// Reed-Solomon and BCH known vectors, the same known-vector discipline the
-// sibling auth package holds its TOTP code to.
+// the eight data masks with penalty-scored selection, BCH format/version bits).
+// qr_test.go pins it to independent Reed-Solomon and BCH known vectors and to a
+// full-matrix golden, the same known-vector discipline the sibling auth package
+// holds its TOTP code to. Its output was additionally cross-checked during
+// development by decoding it with a ZXing-derived reader across versions 1-10 —
+// that round-trip is what caught the alignment-placement bug the golden now
+// guards, and is documented here rather than committed so the package keeps no
+// third-party test dependency.
 package qr
 
 import (
 	"errors"
 	"fmt"
+	"html"
 	"strings"
 )
 
@@ -115,10 +120,17 @@ func rsGenerator(n int) []byte {
 	return g
 }
 
-// rsEncode returns the n Reed-Solomon EC codewords for data: the remainder of
-// data*x^n divided by the degree-n generator, over GF(256).
+// rsEncode returns the n Reed-Solomon EC codewords for data over GF(256).
 func rsEncode(data []byte, n int) []byte {
-	gen := rsGenerator(n)
+	return rsRemainder(data, rsGenerator(n))
+}
+
+// rsRemainder returns the EC codewords for data given a precomputed generator
+// polynomial: the remainder of data*x^deg divided by gen. Taking the generator
+// as an argument lets interleave build it once per version rather than once per
+// block.
+func rsRemainder(data, gen []byte) []byte {
+	n := len(gen) - 1
 	res := make([]byte, len(data)+n)
 	copy(res, data)
 	for i := 0; i < len(data); i++ {
@@ -208,12 +220,13 @@ func encodeData(data []byte, version int, ec ecBlocks) []byte {
 func interleave(dataCW []byte, ec ecBlocks) []byte {
 	type block struct{ data, ecc []byte }
 	var blocks []block
+	gen := rsGenerator(ec.ecPerBlock) // identical for every block of this version
 	pos := 0
 	take := func(count, size int) {
 		for i := 0; i < count; i++ {
 			d := dataCW[pos : pos+size]
 			pos += size
-			blocks = append(blocks, block{d, rsEncode(d, ec.ecPerBlock)})
+			blocks = append(blocks, block{d, rsRemainder(d, gen)})
 		}
 	}
 	take(ec.group1Blocks, ec.group1DataCW)
@@ -655,28 +668,32 @@ func SVG(data []byte, altText string) (string, error) {
 	const quiet = 4
 	dim := m.Size + 2*quiet
 
+	// One subpath per horizontal run of dark modules (not per module), which
+	// keeps the inline path compact.
 	var path strings.Builder
 	for y := 0; y < m.Size; y++ {
-		for x := 0; x < m.Size; x++ {
-			if m.module[y][x] {
-				fmt.Fprintf(&path, "M%d %dh1v1h-1z", x+quiet, y+quiet)
+		for x := 0; x < m.Size; {
+			if !m.module[y][x] {
+				x++
+				continue
 			}
+			run := 1
+			for x+run < m.Size && m.module[y][x+run] {
+				run++
+			}
+			fmt.Fprintf(&path, "M%d %dh%dv1h-%dz", x+quiet, y+quiet, run, run)
+			x += run
 		}
 	}
 
 	var b strings.Builder
 	fmt.Fprintf(&b,
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="100%%" height="100%%" shape-rendering="crispEdges" role="img" aria-label="%s">`,
-		dim, dim, escapeAttr(altText))
+		dim, dim, html.EscapeString(altText))
 	fmt.Fprintf(&b, `<rect width="%d" height="%d" fill="#ffffff"/>`, dim, dim)
 	fmt.Fprintf(&b, `<path fill="#000000" d="%s"/>`, path.String())
 	b.WriteString(`</svg>`)
 	return b.String(), nil
-}
-
-func escapeAttr(s string) string {
-	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
-	return r.Replace(s)
 }
 
 func abs(n int) int {
