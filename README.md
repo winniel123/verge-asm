@@ -115,6 +115,18 @@ Full walkthrough: **[docs/guides/using.md](docs/guides/using.md)**.
 
 ---
 
+## Built with AI
+
+In the interest of full transparency: verge-asm was built with substantial help from
+AI. Anthropic's Claude wrote or assisted with the large majority of the code,
+documentation, and design in this repository — from the domain model and migrations to
+this README. Every change still passes through human review, testing, and the CI gates
+described in [`docs/guides/verifying.md`](docs/guides/verifying.md), but you should know
+that AI was a primary author of this tool. Weigh that as you see fit before you run it
+against your own estate.
+
+---
+
 ## License
 
 AGPL-3.0. See [`LICENSE`](LICENSE). Because it is AGPL, running a modified copy as a
