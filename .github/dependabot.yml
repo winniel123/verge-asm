@@ -1,0 +1,53 @@
+# Dependabot version updates.
+# Complements the Dependabot *security* alerts/updates enabled in the repo
+# settings. This file adds scheduled *version* updates so dependencies — and the
+# SHA-pinned actions in .github/workflows — don't silently rot.
+#
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  # Go modules — the main application (cmd/, internal/, db/).
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      go-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # npm — the Astro documentation site.
+  - package-ecosystem: npm
+    directory: "/docs-site"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions — keeps the SHA-pinned actions across .github/workflows fresh.
+  # Dependabot updates the pinned commit SHA and refreshes the trailing version
+  # comment, so pinning stays intact.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    groups:
+      github-actions-all:
+        patterns:
+          - "*"
