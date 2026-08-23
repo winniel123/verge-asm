@@ -128,43 +128,54 @@ const reportsTemplates = `
           <div class="dialog-panel" style="width:560px;max-width:calc(100vw - 32px);pointer-events:auto;max-height:calc(100vh - 48px);overflow-y:auto">
             <div class="microlabel">Scheduled export</div>
             <h2 style="margin:4px 0 6px;font-size:16px">New report schedule</h2>
-            <p class="muted" style="margin-bottom:var(--space-4)">A recurring export, delivered on cadence. Report scheduling is not yet wired; this preview shows the fields a schedule will capture.</p>
+            {{if .IsAdmin}}
+            <p class="muted" style="margin-bottom:var(--space-4)">A recurring export, delivered on cadence. Choose the sections, a cadence and a format, then create the schedule — it appears in the table below.</p>
 
-            <div style="display:flex;flex-direction:column;gap:var(--space-2)">
-              <span class="microlabel">Step 1 &#183; Scope</span>
-              <label style="margin-bottom:0"><span>Report name</span>
-                <input type="text" placeholder="Weekly exposure summary" disabled></label>
-              <span class="microlabel">Sections</span>
-              <label class="check"><input type="checkbox" checked disabled><span>Summary KPIs</span></label>
-              <label class="check"><input type="checkbox" checked disabled><span>New assets</span></label>
-              <label class="check"><input type="checkbox" checked disabled><span>Signal changes</span></label>
-              <label class="check"><input type="checkbox" disabled><span>Coverage gaps</span></label>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-4)">
-              <span class="microlabel">Step 2 &#183; Cadence</span>
-              <label style="margin-bottom:0"><span>Cadence</span>
-                <select disabled>
-                  <option>Every 6h</option>
-                  <option>Daily &#183; 08:00</option>
-                  <option selected>Weekly &#183; mon 09:00</option>
-                  <option>Monthly &#183; 1st</option>
-                  <option>Custom&#8230;</option>
-                </select></label>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-4)">
-              <span class="microlabel">Step 3 &#183; Review</span>
-              <div class="census" style="margin-top:0">
-                <div class="kv"><span class="k">Sections</span><span class="mono">Summary KPIs, New assets, Signal changes</span></div>
-                <div class="kv"><span class="k">Cadence</span><span class="mono">weekly &#183; mon 09:00</span></div>
-                <div class="kv"><span class="k">Format</span><span class="mono">pdf</span></div>
+            <form method="post" action="/reports/schedule">
+              <div style="display:flex;flex-direction:column;gap:var(--space-2)">
+                <span class="microlabel">Step 1 &#183; Scope</span>
+                <label style="margin-bottom:0"><span>Report name</span>
+                  <input type="text" name="name" placeholder="Weekly exposure summary" autocomplete="off" required></label>
+                <span class="microlabel">Sections</span>
+                <label class="check"><input type="checkbox" name="sections" value="summary-kpis" checked><span>Summary KPIs</span></label>
+                <label class="check"><input type="checkbox" name="sections" value="new-assets" checked><span>New assets</span></label>
+                <label class="check"><input type="checkbox" name="sections" value="signal-changes" checked><span>Signal changes</span></label>
+                <label class="check"><input type="checkbox" name="sections" value="coverage-gaps"><span>Coverage gaps</span></label>
               </div>
-            </div>
 
+              <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-4)">
+                <span class="microlabel">Step 2 &#183; Cadence</span>
+                <label style="margin-bottom:0"><span>Cadence</span>
+                  <select name="cadence">
+                    <option value="6h">Every 6h</option>
+                    <option value="daily">Daily &#183; 08:00</option>
+                    <option value="weekly" selected>Weekly &#183; mon 09:00</option>
+                    <option value="monthly">Monthly &#183; 1st</option>
+                    <option value="custom">Custom&#8230;</option>
+                  </select></label>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-4)">
+                <span class="microlabel">Step 3 &#183; Delivery</span>
+                <label style="margin-bottom:0"><span>Format</span>
+                  <select name="format">
+                    <option value="pdf" selected>pdf</option>
+                    <option value="csv">csv</option>
+                  </select></label>
+                <label style="margin-bottom:0"><span>Deliver to <span class="muted">(optional)</span></span>
+                  <input type="text" name="target" placeholder="Download only" autocomplete="off"></label>
+              </div>
+
+              <div class="dialog-actions">
+                <button type="submit">Create schedule</button>
+              </div>
+            </form>
+            {{else}}
+            <p class="muted" style="margin-bottom:var(--space-4)">A recurring export, delivered on cadence. Declaring a schedule is an admin act — ask an administrator to set one up.</p>
             <div class="dialog-actions">
-              <span class="muted" style="font-size:12px">Close with the New schedule toggle — creating a schedule needs a backend (see #285).</span>
+              <span class="muted" style="font-size:12px">Close with the New schedule toggle.</span>
             </div>
+            {{end}}
           </div>
         </div>
       </details>

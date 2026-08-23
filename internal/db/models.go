@@ -216,6 +216,17 @@ type RecoveryCode struct {
 	UsedAt    pgtype.Timestamptz `json:"used_at"`
 }
 
+type ReportSchedule struct {
+	ID             int64              `json:"id"`
+	Name           string             `json:"name"`
+	Sections       []byte             `json:"sections"`
+	Cadence        string             `json:"cadence"`
+	Format         string             `json:"format"`
+	DeliveryTarget string             `json:"delivery_target"`
+	CreatedBy      int64              `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
 type RetentionSetting struct {
 	ID                      bool               `json:"id"`
 	ObservationCurrencyDays int64              `json:"observation_currency_days"`

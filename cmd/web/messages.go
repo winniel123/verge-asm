@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -433,12 +434,35 @@ func lastReportDelivery(deliveries []deliveryView) (href string, has bool) {
 }
 
 // reportScheduleRows assembles the "Recurring reports" table for the Reports screen
-// (T17). Report scheduling has no backend yet (#285; #290/#291 populate scheduling
-// and analytics), so there are no recurring reports to list and this returns none —
-// the table renders the design-system empty-state rather than fabricating schedules
-// (ADR-0110). When #290/#291 land, each schedule's row resolves its last delivery
-// via lastReportDelivery from the Message store (deliveries are messages) and the
-// same row-menu markup lights up; the render path does not change.
-func (s *server) reportScheduleRows(_ context.Context) []reportScheduleRow {
-	return nil
+// (T17, wired in #290). It lists the declared schedules newest-first and maps each
+// to a render row. A schedule's "View last delivery" resolves via lastReportDelivery
+// from the Message corpus, since deliveries are messages (ADR-0039, ADR-0081) and the
+// report_schedule table holds only the declared intent — there is no per-schedule
+// delivery backing store yet (#291/T3), so no schedule has a delivery to open and the
+// menu item renders disabled rather than fabricating one (ADR-0110). Where there are
+// no schedules the table renders the design-system empty-state. A read failure
+// degrades to the empty-state rather than 500ing the analytics page a viewer depends
+// on, matching the other best-effort reads on this screen.
+func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
+	schedules, err := s.store.ListReportSchedules(ctx)
+	if err != nil {
+		log.Printf("web: reports: list report schedules: %v", err)
+		return nil
+	}
+	rows := make([]reportScheduleRow, 0, len(schedules))
+	for _, sc := range schedules {
+		// No per-schedule delivery corpus exists yet, so a schedule carries no
+		// deliveries: lastReportDelivery(nil) leaves the menu item disabled and the
+		// last-sent cell an em dash rather than inventing a delivery (#291/T3 wires it).
+		href, has := lastReportDelivery(nil)
+		rows = append(rows, reportScheduleRow{
+			Name:         sc.Name,
+			Cadence:      sc.Cadence,
+			Format:       sc.Format,
+			LastSent:     "—",
+			HasDelivery:  has,
+			DeliveryHref: href,
+		})
+	}
+	return rows
 }

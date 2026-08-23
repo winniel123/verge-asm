@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -180,9 +181,20 @@ func TestReportScheduleRowMenu(t *testing.T) {
 		t.Errorf("row menu missing the ported 'Delete schedule' item; body: %s", page)
 	}
 	// The menu never destroys directly — the delete item is a disabled span, carrying
-	// no destructive form or POST action of its own.
-	if strings.Contains(page, `action="/reports/schedule`) {
-		t.Errorf("row menu must not carry a destructive action; body: %s", page)
+	// no destructive form or POST action of its own. The wizard's own create form posts
+	// to /reports/schedule (that is expected); what must NOT exist is a per-row mutation
+	// route (delete / run-now / edit) firing off a menu click.
+	if !strings.Contains(page, `aria-disabled="true" title="Report scheduling is not wired yet"`) {
+		t.Errorf("row menu 'Delete schedule' should render as an inert disabled span; body: %s", page)
+	}
+	for _, dead := range []string{
+		`action="/reports/schedule/delete"`,
+		`action="/reports/schedule/run"`,
+		`action="/reports/schedule/edit"`,
+	} {
+		if strings.Contains(page, dead) {
+			t.Errorf("row menu must not carry a destructive per-row action (%s); body: %s", dead, page)
+		}
 	}
 
 	// The rows themselves render — the table, not the empty-state.
@@ -191,6 +203,135 @@ func TestReportScheduleRowMenu(t *testing.T) {
 	}
 	if !strings.Contains(page, "Weekly exposure summary") || !strings.Contains(page, "Monthly asset inventory") {
 		t.Errorf("schedule rows missing; body: %s", page)
+	}
+}
+
+// Posting the schedule wizard persists one report_schedule and it then lists in the
+// "Recurring reports" table — the empty-state gives way to a real row carrying the
+// declared name, cadence and format. The chosen sections are stored as a canonical
+// JSON array (only the checked, admitted keys, in wizard order), and the schedule is
+// attributed to the admin who declared it.
+func TestReportScheduleWizardPersistsAndLists(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// A distinctive name — not the wizard's own placeholder ("Weekly exposure
+	// summary"), which is always in the admin page and would give a false positive.
+	resp := postForm(t, ac, base+"/reports/schedule", url.Values{
+		"name":     {"Q3 exposure digest"},
+		"sections": {"summary-kpis", "signal-changes"},
+		"cadence":  {"weekly"},
+		"format":   {"pdf"},
+		"target":   {"ops@example.com"},
+	})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/reports" {
+		t.Fatalf("wizard POST: status=%d location=%q, want 303 -> /reports (body: %s)",
+			resp.StatusCode, resp.Header.Get("Location"), body(t, resp))
+	}
+	resp.Body.Close()
+
+	// Exactly one schedule was filed, with the declared facts and the admin's id.
+	if len(f.reportSchedules) != 1 {
+		t.Fatalf("reportSchedules = %d, want 1", len(f.reportSchedules))
+	}
+	got := f.reportSchedules[0]
+	if got.Name != "Q3 exposure digest" || got.Cadence != "weekly" || got.Format != "pdf" {
+		t.Errorf("stored schedule = %+v, want name/cadence/format Q3.../weekly/pdf", got)
+	}
+	if got.DeliveryTarget != "ops@example.com" {
+		t.Errorf("delivery target = %q, want ops@example.com", got.DeliveryTarget)
+	}
+	if got.CreatedBy != admin.ID {
+		t.Errorf("created_by = %d, want %d (the declaring admin)", got.CreatedBy, admin.ID)
+	}
+	// Sections are stored as a canonical JSON array — only the two checked keys, in
+	// wizard order (coverage-gaps was unchecked, so it is absent; no unknowns).
+	if string(got.Sections) != `["summary-kpis","signal-changes"]` {
+		t.Errorf("stored sections = %s, want [\"summary-kpis\",\"signal-changes\"]", got.Sections)
+	}
+
+	// The table now renders the row, not the empty-state.
+	page := getBody(t, ac, base+"/reports", http.StatusOK)
+	if strings.Contains(page, "No recurring reports") {
+		t.Errorf("recurring table should list the schedule, not empty-state; body: %s", page)
+	}
+	for _, want := range []string{"Q3 exposure digest", ">weekly<"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("reports table missing %q after persist; body: %s", want, page)
+		}
+	}
+}
+
+// An unnamed submission files nothing — a schedule needs a name (the input also
+// carries `required`). The handler returns to /reports rather than persisting an
+// unnamed row, and unknown section keys or bad cadence/format values never reach
+// the store: they are dropped or defaulted at the closed sets.
+func TestReportScheduleWizardValidates(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// Empty name: nothing filed, redirect back.
+	resp := postForm(t, ac, base+"/reports/schedule", url.Values{"name": {"   "}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("empty-name POST: status=%d, want 303", resp.StatusCode)
+	}
+	resp.Body.Close()
+	if len(f.reportSchedules) != 0 {
+		t.Fatalf("empty name filed a schedule: %d", len(f.reportSchedules))
+	}
+
+	// Unknown section and bogus cadence/format are sanitised at the closed sets.
+	resp = postForm(t, ac, base+"/reports/schedule", url.Values{
+		"name":     {"Sane name"},
+		"sections": {"summary-kpis", "not-a-section"},
+		"cadence":  {"hourly-ish"},
+		"format":   {"exe"},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("sanitise POST: status=%d, want 303", resp.StatusCode)
+	}
+	resp.Body.Close()
+	if len(f.reportSchedules) != 1 {
+		t.Fatalf("reportSchedules = %d, want 1", len(f.reportSchedules))
+	}
+	got := f.reportSchedules[0]
+	if string(got.Sections) != `["summary-kpis"]` {
+		t.Errorf("unknown section leaked: sections = %s, want [\"summary-kpis\"]", got.Sections)
+	}
+	if got.Cadence != defaultReportCadence || got.Format != defaultReportFormat {
+		t.Errorf("bogus cadence/format not defaulted: %q/%q, want %q/%q",
+			got.Cadence, got.Format, defaultReportCadence, defaultReportFormat)
+	}
+}
+
+// Declaring a schedule is an admin act: a viewer's POST is refused with 403 and
+// files nothing, and a viewer never sees the wizard form (it renders admin-only).
+func TestReportScheduleRequiresAdmin(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+	vc := login(t, base, "viewer", "hunter2hunter2")
+
+	resp := postForm(t, vc, base+"/reports/schedule", url.Values{
+		"name": {"Sneaky schedule"}, "cadence": {"weekly"}, "format": {"pdf"},
+	})
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer wizard POST: status=%d, want 403", resp.StatusCode)
+	}
+	resp.Body.Close()
+	if len(f.reportSchedules) != 0 {
+		t.Fatalf("viewer's denied act still filed a schedule: %d", len(f.reportSchedules))
+	}
+
+	// The viewer's Reports page carries no create form (the wizard is admin-only).
+	page := getBody(t, vc, base+"/reports", http.StatusOK)
+	if strings.Contains(page, `action="/reports/schedule"`) {
+		t.Errorf("wizard create form shown to a viewer; body: %s", page)
 	}
 }
 
