@@ -1,0 +1,72 @@
+name: CodeQL
+
+# Static analysis (GitHub CodeQL) across the two languages this repo ships: Go
+# (the services) and JavaScript/TypeScript (docs-site, previously unscanned).
+# Complements the existing gosec SAST job in ci.yml — CodeQL's dataflow engine
+# catches a different, broader class of issue.
+#
+# This is CodeQL "advanced setup" (an in-repo workflow) rather than GitHub's
+# "default setup", so the action stays SHA-pinned and least-privilege like the
+# rest of .github/workflows. The two are mutually exclusive — do NOT also enable
+# default setup in the repo's code-scanning settings or the runs will conflict.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly re-scan so newly-published advisories surface against already-merged
+    # code without waiting for a push. Monday 04:17 UTC (off the hour).
+    - cron: "17 4 * * 1"
+
+# Least-privilege default for GITHUB_TOKEN, mirroring ci.yml (#329). The analyze
+# job scopes up to what CodeQL needs.
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload the CodeQL SARIF to code scanning
+      actions: read # read workflow-run metadata (recommended by CodeQL)
+      packages: read # pull the CodeQL query packs
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: go
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Go's extractor compiles the code (build-mode: autobuild); give it the
+      # same toolchain CI uses so the build matches. JS/TS needs no build step.
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      # Reuses the exact github/codeql-action SHA the gosec SARIF upload already
+      # pins in ci.yml, so the repo carries a single CodeQL action version.
+      # Dependabot's github-actions ecosystem (#368) will propose bumps.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # With build-mode set on init, analyze runs autobuild itself — no separate
+      # autobuild step is needed.
+      - name: Analyze
+        uses: github/codeql-action/analyze@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+        with:
+          category: "/language:${{ matrix.language }}"
