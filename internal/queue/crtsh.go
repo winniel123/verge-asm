@@ -56,7 +56,16 @@ type HTTPCTFetcher struct {
 // build in the User-Agent, per the operator's request for an identifiable client.
 func NewHTTPCTFetcher(version string) *HTTPCTFetcher {
 	return &HTTPCTFetcher{
-		client:    &http.Client{Timeout: 90 * time.Second},
+		client: &http.Client{
+			Timeout: 90 * time.Second,
+			// Redirects are not followed: a 3xx returns its own response unfollowed,
+			// so a compromised or MITM'd crt.sh cannot bounce the fetch to an
+			// arbitrary internal host (blind SSRF — IMDS at 169.254.169.254 or an
+			// RFC-1918 address). The caller treats any non-200 as transient failure
+			// and admits nothing, so an unfollowed 3xx is handled like any other
+			// non-200 (ADR-0027 §7). Same idiom as httpexchange.NetExchanger.
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		},
 		userAgent: "verge-asm/" + version + " (+https://github.com/winniel123/verge-asm)",
 	}
 }

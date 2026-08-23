@@ -55,6 +55,45 @@ func TestHTTPCTFetcher(t *testing.T) {
 	}
 }
 
+// A 3xx from crt.sh is NOT followed: the fetcher returns the redirect's own
+// status and never issues the next hop, so a compromised or MITM'd crt.sh cannot
+// bounce the fetch to an internal host (blind SSRF). The redirect target is a
+// second httptest server whose handler flips a flag if it is ever reached; the
+// fetch must leave that flag unset and surface the 302 as a non-200 the caller
+// classifies as transient (ADR-0027 §7).
+func TestHTTPCTFetcherDoesNotFollowRedirect(t *testing.T) {
+	var hopReached bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// A link-local IMDS or RFC-1918 host in production; a loopback stand-in
+		// here. Reaching this at all is the SSRF the fix prevents.
+		hopReached = true
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`[{"name_value":"pwned.example.com"}]`))
+	}))
+	defer target.Close()
+
+	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/latest/meta-data/", http.StatusFound)
+	}))
+	defer redirector.Close()
+
+	f := NewHTTPCTFetcher("9.9.9")
+
+	status, body, err := f.Fetch(context.Background(), redirector.URL+"/redirect")
+	if err != nil {
+		t.Fatalf("Fetch(redirect) errored on the transport, want the unfollowed 302: %v", err)
+	}
+	if hopReached {
+		t.Fatal("fetcher followed the redirect and reached the next hop: blind SSRF")
+	}
+	if status != http.StatusFound {
+		t.Errorf("status = %d, want 302 (the unfollowed redirect surfaced as-is)", status)
+	}
+	if strings.Contains(string(body), "pwned.example.com") {
+		t.Errorf("body carries the redirect target's response, meaning the hop was followed: %s", body)
+	}
+}
+
 // sleepUntil returns immediately when the reserved slot is already in the past
 // (the common case once the throttle has spaced requests out), and honours ctx
 // cancellation when the slot is in the future.
