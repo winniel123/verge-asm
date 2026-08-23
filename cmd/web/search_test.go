@@ -78,6 +78,34 @@ func TestSearchBrowsesAcrossKinds(t *testing.T) {
 	}
 }
 
+// The example's fourth group, Documentation, was dropped (#316): there is no docs
+// content store or /docs route to search over and none is planned, so the group is
+// removed rather than left as permanently-empty markup. Even with results in every
+// other kind, no Documentation card renders and the placeholder no longer advertises
+// docs.
+func TestSearchHasNoDocumentationGroup(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved"}`)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(7, "hot", obsClock, 2, 0, 0, 2, 0, 0),
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/search", http.StatusOK)
+
+	for _, absent := range []string{
+		`<h3>Documentation</h3>`,          // the removed group card title
+		`Assets, signals, batches, docs`,  // the old input placeholder advertising docs
+	} {
+		if strings.Contains(page, absent) {
+			t.Errorf("search page still carries removed docs surface %q; body: %s", absent, page)
+		}
+	}
+}
+
 // With no data (and a query that matches nothing), the design-system empty-state
 // renders — fact plus next action — and no group card appears.
 func TestSearchNoResults(t *testing.T) {

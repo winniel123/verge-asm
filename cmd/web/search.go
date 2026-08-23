@@ -44,11 +44,14 @@ import (
 //     renders here; the five-level ramp is never invented.
 //   - Signals are withdrawn by the world, never "resolved" by an operator; the copy
 //     holds that (the count is "N open", never "N resolved").
-//   - The Documentation group has no content store and no /docs route in the
-//     console yet, so its result slice is always empty and the section never renders
-//     — the same posture as the Drift screen's empty transition feed. The markup is
-//     ported so a later docs store wires in without a re-skin. No doc entry is
-//     fabricated to fill it. Tracked as a follow-on on #303.
+//
+// The example's fourth group, Documentation, was dropped (#316). It had no content
+// store and no /docs route to search over, and none is planned — the first-run docs
+// gaps (#242) are closed and the marketing DocsPage is explicitly out of console
+// scope (#294) — so the group could never light up. Rather than carry permanently-
+// empty dead markup that implies a store waiting to be filled, the group is removed;
+// /search now carries only kinds it can actually answer. If an in-console docs
+// surface is ever added, the group is re-added deliberately alongside its store.
 
 // searchAsset is one Name subject in the Assets group: its key (the highlighted
 // mono label), the singular domain type noun, and the /asset drill-in it links to.
@@ -74,14 +77,6 @@ type searchBatch struct {
 	Status string
 	Label  template.HTML
 	Href   string
-}
-
-// searchDoc is one documentation hit. There is no doc store yet, so this slice is
-// always empty; the shape is kept so a later store wires in unchanged.
-type searchDoc struct {
-	Title template.HTML
-	Snip  template.HTML
-	Href  string
 }
 
 // searchMatch reports whether text contains the query, case-insensitively. An empty
@@ -186,11 +181,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 		}
 	}
 
-	// Documentation — no content store yet (a follow-on on #303), so this is always
-	// empty and the section never renders. No doc entry is fabricated.
-	var docs []searchDoc
-
-	total := len(assets) + len(signals) + len(batches) + len(docs)
+	total := len(assets) + len(signals) + len(batches)
 
 	data := map[string]any{
 		"Title": "Search results", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -200,7 +191,6 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 		"Assets":    assets,
 		"Signals":   signals,
 		"Batches":   batches,
-		"Docs":      docs,
 	}
 	if openSignals > 0 {
 		data["SignalCount"] = openSignals
