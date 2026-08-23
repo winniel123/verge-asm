@@ -215,6 +215,43 @@ func TestDeclineIsBulkOverALookup(t *testing.T) {
 	}
 }
 
+func TestDeclineRecordsEachScopeAsAnExclusion(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	fp := &fakeProposer{candidates: twoCandidates()}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	lookupID := f.proposals[0].LookupID
+	resp := postForm(t, ac, base+"/proposals/decline", url.Values{"lookup_id": {itoa(lookupID)}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("decline status=%d, want 303", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// A decline is a boundary claim: each proposed scope becomes an address
+	// exclusion so the same range is not silently re-admitted.
+	want := map[string]bool{"203.0.113.0/24": false, "198.51.100.8/29": false}
+	for _, e := range f.exclusions {
+		if e.Kind == "address" && e.AddressCidr != nil {
+			if _, ok := want[e.AddressCidr.String()]; ok {
+				want[e.AddressCidr.String()] = true
+			}
+		}
+	}
+	for scope, seen := range want {
+		if !seen {
+			t.Errorf("declined scope %s was not recorded as an exclusion; exclusions: %+v", scope, f.exclusions)
+		}
+	}
+
+	// The declined scope now shows on the Scope screen as an exclusion.
+	if page := seedsBody(t, ac, base); !strings.Contains(page, "203.0.113.0/24") {
+		t.Errorf("declined scope not shown among exclusions; body: %s", page)
+	}
+}
+
 func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

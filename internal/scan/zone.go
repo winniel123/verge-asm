@@ -40,6 +40,53 @@ type ZoneFile struct {
 	Content    string
 }
 
+// ZoneAging describes how a supplied zone file ages against the operator's
+// declared re-supply interval. A zone file is dated at its supply instant, and
+// the operator promises to re-export on a cadence; past that cadence the file is
+// stale, and its restated observations carry a supply instant older than the
+// interval promises. A stale zone file widens a coverage gap — the estate as the
+// operator declares it is older than the scan cadence, so what the zone would
+// otherwise cover is no longer current and is recorded as a Gap rather than a
+// clean current fact (v1 spec §3.4). Before the cadence the file is current, and
+// Days counts down to the instant it ages into that gap.
+type ZoneAging struct {
+	// Supplied reports whether there is a dated supply to age at all. A name
+	// scope with no zone file has nothing to stale.
+	Supplied bool
+	// Stale reports whether the file has passed its re-supply interval and so has
+	// aged into a coverage gap.
+	Stale bool
+	// Days is the whole days until the file ages into a gap (while current) or,
+	// once Stale, the whole days it has been in the gap. Zero and current means
+	// it ages into the gap today; zero and stale means it aged in today.
+	Days int
+}
+
+// ZoneAgingAt computes how a zone file supplied at suppliedAt ages, measured at
+// now against interval — the operator's declared re-supply cadence. A zero
+// supply instant means nothing was supplied (nothing to stale); a zero or
+// negative interval means there is no cadence to age against, so the file is
+// treated as current with no countdown. The gap instant is suppliedAt+interval:
+// at or past it the file is stale and Days counts how long it has been in the
+// gap; before it the file is current and Days counts up (ceiling) to the gap so
+// a still-current file never reads "in 0d".
+func ZoneAgingAt(suppliedAt, now time.Time, interval time.Duration) ZoneAging {
+	if suppliedAt.IsZero() {
+		return ZoneAging{}
+	}
+	if interval <= 0 {
+		return ZoneAging{Supplied: true}
+	}
+	const day = 24 * time.Hour
+	gapAt := suppliedAt.Add(interval)
+	if !now.Before(gapAt) {
+		return ZoneAging{Supplied: true, Stale: true, Days: int(now.Sub(gapAt) / day)}
+	}
+	remaining := gapAt.Sub(now)
+	days := int((remaining + day - time.Nanosecond) / day) // ceiling
+	return ZoneAging{Supplied: true, Days: days}
+}
+
 // ZoneJob is one queue job the zone Scan produces: one supplied zone file, to be
 // read and restated by the worker. It carries no Vantage — a zone file's facts
 // are not a function of where they are read from — and no offers.

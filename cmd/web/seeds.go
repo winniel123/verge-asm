@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
+	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
@@ -198,7 +200,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// The zone-file section: the upload dropdown lists name scopes, the
 		// status rows show which hold a supplied file, and the interval dial is
 		// the operator's declared re-supply cadence.
-		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus), "NameScopes": nameSeeds,
+		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus, cadence, s.now().UTC()), "NameScopes": nameSeeds,
 		"ZoneError": f.zoneError, "ZoneIntervalError": f.zoneIntervalError,
 		"ZoneIntervalDays": intervalDays,
 		// The cold Scan opt-in (#200): every declared scope with its full-range
@@ -315,29 +317,85 @@ type zoneView struct {
 	SuppliedAt string
 	By         string
 	Bytes      int64
+	// AgingStale reports that the supplied file has aged past the re-supply
+	// interval into a coverage gap; AgingLabel is the warn-tone badge's copy
+	// ("ages into a gap in 7d" while current, "aged into a gap 5d ago" once
+	// stale). AgingLabel is empty when there is nothing to surface — no file, or
+	// no cadence to age against.
+	AgingStale bool
+	AgingLabel string
+	// IntervalLabel renders the operator's declared re-supply cadence for the
+	// file line ("monthly", "weekly", or "every N days").
+	IntervalLabel string
 }
 
 // toZoneViews decorates each name scope with its latest supplied zone file, if
-// any. A scope with no file is shown too, as an empty state inviting an upload.
-func toZoneViews(nameSeeds []seedView, status []db.ListZoneFileStatusRow) []zoneView {
+// any, and computes the file's staleness → gap read against the operator's
+// re-supply cadence. A scope with no file is shown too, as an empty state
+// inviting an upload. now is the render instant, threaded from s.now().
+func toZoneViews(nameSeeds []seedView, status []db.ListZoneFileStatusRow, cadenceSeconds int64, now time.Time) []zoneView {
+	interval := time.Duration(cadenceSeconds) * time.Second
+	intervalLabel := zoneIntervalLabel(cadenceSeconds)
 	bySeed := make(map[int64]db.ListZoneFileStatusRow, len(status))
 	for _, st := range status {
 		bySeed[st.SeedID] = st
 	}
 	out := make([]zoneView, 0, len(nameSeeds))
 	for _, s := range nameSeeds {
-		v := zoneView{SeedID: s.ID, Domain: s.Scope}
+		v := zoneView{SeedID: s.ID, Domain: s.Scope, IntervalLabel: intervalLabel}
 		if st, ok := bySeed[s.ID]; ok {
 			v.HasFile = true
 			v.By = st.UploadedByUsername
 			v.Bytes = st.ContentBytes
 			if st.SuppliedAt.Valid {
 				v.SuppliedAt = st.SuppliedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+				if interval > 0 {
+					a := scan.ZoneAgingAt(st.SuppliedAt.Time, now, interval)
+					v.AgingStale = a.Stale
+					v.AgingLabel = zoneAgingLabel(a)
+				}
 			}
 		}
 		out = append(out, v)
 	}
 	return out
+}
+
+// zoneAgingLabel renders a supplied file's staleness → gap read in the
+// operator's words. A current file counts down to the gap; a stale file names
+// the gap it has aged into. It never fabricates: the read is derived from the
+// dated supply and the declared cadence alone.
+func zoneAgingLabel(a scan.ZoneAging) string {
+	if !a.Supplied {
+		return ""
+	}
+	if !a.Stale {
+		if a.Days == 0 {
+			return "ages into a gap today"
+		}
+		return fmt.Sprintf("ages into a gap in %dd", a.Days)
+	}
+	if a.Days == 0 {
+		return "aged into a gap today"
+	}
+	return fmt.Sprintf("aged into a gap %dd ago", a.Days)
+}
+
+// zoneIntervalLabel renders the re-supply cadence for the file line: the common
+// cadences by name, anything else as "every N days".
+func zoneIntervalLabel(cadenceSeconds int64) string {
+	switch days := cadenceSeconds / 86400; days {
+	case 0:
+		return ""
+	case 1:
+		return "daily"
+	case 7:
+		return "weekly"
+	case 30:
+		return "monthly"
+	default:
+		return fmt.Sprintf("every %d days", days)
+	}
 }
 
 // uploadZoneFile stores an operator's zone file for a name scope. The upload is

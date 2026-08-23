@@ -241,15 +241,39 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 // declineLookup declines every still-pending Proposal under one lookup in a
 // single act (ADR-0022). Declining is safe to batch: a pending Proposal is read
 // by nothing, so declining and never answering have the same effect on the gate.
+//
+// A decline is a boundary claim — the operator says these proposed scopes are
+// not theirs — so each declined scope is recorded as an address exclusion
+// (Scope.jsx: "declines are recorded as exclusions"). Recording the exclusion
+// makes the decline durable: the same range does not silently re-enter the
+// estate. The pending rows are read first, while they are still pending, so their
+// scopes survive the decline; an already-excluded scope is left as-is.
 func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	lookupID, err := strconv.ParseInt(r.FormValue("lookup_id"), 10, 64)
 	if err != nil {
 		http.Error(w, "bad lookup id", http.StatusBadRequest)
 		return
 	}
+	pending, err := s.store.ListPendingProposals(r.Context())
+	if err != nil {
+		s.serverError(w, "list proposals to decline", err)
+		return
+	}
 	if _, err := s.store.DeclineLookup(r.Context(), lookupID); err != nil {
 		s.serverError(w, "decline lookup", err)
 		return
+	}
+	for _, p := range pending {
+		if p.LookupID != lookupID {
+			continue
+		}
+		cidr := p.AddressCidr
+		if _, err := s.store.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
+			AddressCidr: &cidr, CreatedBy: acct.ID,
+		}); err != nil && !isUniqueViolation(err) {
+			s.serverError(w, "record declined proposal as exclusion", err)
+			return
+		}
 	}
 	http.Redirect(w, r, "/scope", http.StatusSeeOther)
 }
@@ -282,10 +306,10 @@ func (s *server) proposals() proposerRunner {
 const proposalTemplates = `
 {{define "proposals"}}
 <div class="microlabel">Declared · proposals</div>
-<p>A proposer is a registry lookup, not a source: it admits nothing and observes nothing.
-It offers candidate address scopes it believes you hold. A proposal is read by nothing —
-it never gates probing and never enters your estate — until you confirm it into a seed.
-Proposals appear only when you search, never on a schedule.</p>
+<p>Proposers answer an org-name search with address scopes — never subdomains. A proposer is a
+registry lookup, not a source: it admits nothing and observes nothing. A proposal is read by nothing —
+it never gates probing and never enters your estate. A proposal asserts nothing until confirmed into a
+seed; declines are recorded as exclusions. Proposals appear only when you search, never on a schedule.</p>
 
 {{if .IsAdmin}}
 <div class="section">

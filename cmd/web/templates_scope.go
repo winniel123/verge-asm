@@ -61,6 +61,16 @@ const scopeTemplates = `
 .covmsg .txt { font-size:12.5px; color:var(--muted); line-height:1.5; }
 .covmsg .when { font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap; }
 .seed-meta { font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px; }
+.zfile { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 0;
+  border-top:1px solid var(--hairline); }
+.zfile:first-child { border-top:none; }
+.zfile .zname { font-family:var(--mono); font-size:12px; font-weight:500; color:var(--body); overflow-wrap:anywhere; }
+.zfile .zmeta { font-family:var(--mono); font-size:11.5px; color:var(--muted); }
+.zfile .zgap { margin-left:auto; }
+.zbadge { display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px;
+  font-weight:500; border-radius:var(--r-full); padding:2px 9px; white-space:nowrap;
+  background:var(--warn-soft); border:1px solid var(--warn-border); color:var(--warn); }
+.zbadge .zdot { width:6px; height:6px; border-radius:50%; background:var(--warn); flex:none; }
 .cardhead { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-4); }
 .cardhead .headings { display:flex; flex-direction:column; gap:3px; }
 .cardhead h2 { margin:0; font-size:15px; }
@@ -251,33 +261,60 @@ const scopeTemplates = `
   {{end}}
 </section>
 
+<!-- Zone file (removal detection) — staleness -> gap -------------------->
+<section class="section" style="margin-bottom:0">
+  <div class="cardhead">
+    <div class="headings"><span class="microlabel">Removal detection</span><h2>Zone file</h2></div>
+  </div>
+  <p>Your own zone file is ground truth: the estate as you declare it, not as it resolves. Upload is a
+  dated act &#8212; the upload instant is the observation instant. A supply older than your re-supply
+  interval ages into a coverage gap, so each file below carries how long until, or since, it does.</p>
+
+  {{if .ZoneScopes}}
+  <div style="margin-bottom:var(--space-4)">
+    {{range .ZoneScopes}}
+    <div class="zfile">
+      {{if .HasFile}}
+      <span class="zname">{{.Domain}}.zone</span>
+      <span class="zmeta">uploaded {{.SuppliedAt}}{{if .IntervalLabel}} &#183; re-supply {{.IntervalLabel}}{{end}}</span>
+      {{if .AgingLabel}}<span class="zgap"><span class="zbadge"><span class="zdot"></span>{{.AgingLabel}}</span></span>{{end}}
+      {{else}}
+      <span class="zname">{{.Domain}}</span>
+      <span class="zmeta">no zone file supplied</span>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+
+  {{if .IsAdmin}}
+  {{if .ZoneError}}<div class="error">{{.ZoneError}}</div>{{end}}
+  <form method="post" action="/seeds/zone" enctype="multipart/form-data" class="seedform">
+    <label><span>Name scope</span><select name="seed_id">
+    {{range .NameScopes}}<option value="{{.ID}}">{{.Scope}}</option>{{end}}
+    </select></label>
+    <label class="scope"><span>Re-supply zone file</span><input class="scope" type="file" name="zonefile" accept=".zone,.txt" required></label>
+    <button type="submit">Upload</button>
+  </form>
+  <p class="taghint">Upload is a dated act &#8212; the upload instant is the observation instant. An apex outside the chosen scope is refused, with the reason.</p>
+  {{end}}
+  {{else}}
+  <div class="emptystate">
+    <div class="microlabel">No name scopes</div>
+    <h2>Nothing to supply a zone file for</h2>
+    <p style="max-width:60ch;margin:var(--space-3) auto 0">A zone file is attached to a name scope. Declare a name scope above, then upload its zone file to
+    detect removals against your own ground truth.</p>
+  </div>
+  {{end}}
+</section>
+
 <!-- Configuration: zone files, cold tier, probers ------------------------->
 <div class="microlabel">Declared &#183; zone files</div>
-<p>Your own zone file is ground truth: the estate as you declare it, not as it resolves. Upload it
-here &#8212; it is stored so both services can read it, and it is evidence, not a secret. Uploading is the
-supply act, so its instant is recorded now; the zone scan restates the file at that instant, never at
-whatever later time the worker reads it. Re-export on your own cadence and upload again &#8212; a new upload
-is a new supply, shipped monthly by default.</p>
+<p>Your own zone file is stored so both services can read it, and it is evidence, not a secret.
+Uploading is the supply act, so its instant is recorded then; the zone scan restates the file at that
+instant, never at whatever later time the worker reads it. Re-export on your own cadence and re-supply
+above &#8212; a new upload is a new supply, shipped monthly by default.</p>
 
 {{if .IsAdmin}}
-{{if .NameScopes}}
-<div class="section">
-<h2>Upload a zone file</h2>
-{{if .ZoneError}}<div class="error">{{.ZoneError}}</div>{{end}}
-<form method="post" action="/seeds/zone" enctype="multipart/form-data" class="seedform">
-<label><span>Name scope</span><select name="seed_id">
-{{range .NameScopes}}<option value="{{.ID}}">{{.Scope}}</option>{{end}}
-</select></label>
-<label class="scope"><span>Zone file</span><input class="scope" type="file" name="zonefile" required></label>
-<button type="submit">Upload</button>
-</form>
-</div>
-{{else}}
-<div class="section">
-<div class="microlabel">No name scopes</div>
-<p>A zone file is attached to a name scope. Declare a name scope above, then upload its zone file.</p>
-</div>
-{{end}}
 
 <div class="section">
 <h2>Re-supply interval</h2>
