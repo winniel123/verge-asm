@@ -147,6 +147,9 @@ func TestChannelURLValidation(t *testing.T) {
 		{"plain http", url.Values{"url": {"http://example.com/h"}, "drift": {"on"}}, false, "loopback"},
 		{"loopback http", url.Values{"url": {"http://127.0.0.1:9000/h"}, "drift": {"on"}}, true, ""},
 		{"https ok", url.Values{"url": {"https://ok.example.com"}, "drift": {"on"}}, true, ""},
+		{"https metadata literal", url.Values{"url": {"https://169.254.169.254/"}, "drift": {"on"}}, false, "internal address"},
+		{"https rfc1918 literal", url.Values{"url": {"https://10.0.0.5/"}, "drift": {"on"}}, false, "internal address"},
+		{"https loopback literal", url.Values{"url": {"https://127.0.0.1:9200/"}, "drift": {"on"}}, false, "internal address"},
 		{"no class", url.Values{"url": {"https://ok.example.com"}}, false, "at least one routing class"},
 	}
 	for _, tc := range cases {

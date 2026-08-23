@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -870,6 +871,15 @@ func optionalSecret(v string) pgtype.Text {
 // delivery-time work that lands with ticket 27; until then only an unambiguous
 // loopback literal earns the plaintext exemption. It returns the normalised URL
 // and an empty message on success, or "" and a user-facing message.
+//
+// An https URL whose host is an IP LITERAL in a non-globally-reachable range —
+// loopback, link-local (incl. the 169.254.169.254 cloud-metadata address),
+// RFC1918/ULA private space, and the rest of the special-purpose registry — is
+// refused here too (#325): the transport encrypts the hop but does nothing to
+// stop a settings admin pointing a channel at an internal service and having the
+// worker POST the signed body to it (config SSRF). A host given as a NAME is not
+// resolved here — that is delivery-time work (the runner re-checks the resolved
+// address before every POST), so this layer bars only the unambiguous literal.
 func validateChannelURL(raw string) (string, string) {
 	u, err := url.Parse(raw)
 	if err != nil || !u.IsAbs() || u.Host == "" {
@@ -877,6 +887,9 @@ func validateChannelURL(raw string) (string, string) {
 	}
 	switch u.Scheme {
 	case "https":
+		if ip, err := netip.ParseAddr(u.Hostname()); err == nil && custody.IsNonGloballyReachable(ip) {
+			return "", "That host is an internal address; a channel must point at a public https endpoint."
+		}
 		return u.String(), ""
 	case "http":
 		if ip, err := netip.ParseAddr(u.Hostname()); err == nil && ip.IsLoopback() {
