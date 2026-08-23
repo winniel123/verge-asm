@@ -38,6 +38,9 @@ type store interface {
 	DeleteExclusion(ctx context.Context, id int64) error
 	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
+	ListIntegrationStates(ctx context.Context) ([]db.IntegrationState, error)
+	UpsertIntegrationState(ctx context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error)
+	DeleteIntegrationState(ctx context.Context, slug string) error
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
@@ -393,7 +396,7 @@ func (s *server) handler() http.Handler {
 	//
 	// /verge-core KEPT RESOLVING (#286, #281 caveat): the composed sensitive-port
 	// set is viewer-readable (requireLogin); only frequency editing is admin, and
-	// that mirror lives at /settings?tab=integrations. Redirecting /verge-core into
+	// that mirror lives at /settings?tab=delivery. Redirecting /verge-core into
 	// admin Settings would 403 viewers, downgrading their read — so it stays a
 	// viewer route.
 	mux.HandleFunc("GET /verge-core", s.requireLogin(s.vergeCorePage))
@@ -425,6 +428,16 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
 	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
+
+	// Integrations (#308): a third-party install tile is a Declared act. Installing
+	// one records consent to the grants it would receive; disconnecting passes
+	// through a confirm step (never fired on the tile click). Both mutations are
+	// admin acts, and the Integrations tab itself is reached only through the
+	// admin-gated /settings — an integration is distinct from a delivery channel
+	// and from a discovery source, and keeps its own routes.
+	mux.HandleFunc("POST /settings/integrations/install", s.requireAdmin(s.installIntegration))
+	mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.disconnectIntegration))
+
 	// Recovered panics render the 500 error page with a real, logged incident id
 	// (T11, #306). Wrapped once here at the mux-construction boundary; the render
 	// and incident-id helpers live in errors.go.

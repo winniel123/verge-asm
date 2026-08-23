@@ -199,6 +199,11 @@ type Seed struct {
 	CustodyExtension bool               `json:"custody_extension"`
 }
 
+type IntegrationState struct {
+	Slug  string `json:"slug"`
+	State string `json:"state"`
+}
+
 type SourceState struct {
 	Slug    string `json:"slug"`
 	Enabled bool   `json:"enabled"`

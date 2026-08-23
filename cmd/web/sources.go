@@ -184,16 +184,20 @@ func cadenceLabel(seconds int64) string {
 }
 
 // sourcesModal renders the source-enablement surface (§6.4) as the Settings
-// integrations sub-tab (#281): the catalogue split by the state each source ships
-// in, with the two marked consent groups on every operator-accepted source. A
-// viewer may read it; only an admin sees a toggle.
+// sources sub-tab: the discovery-source catalogue split by the state each source
+// ships in, with the two marked consent groups on every operator-accepted source.
+// A viewer may read it; only an admin sees a toggle. A source is a discovery
+// source — distinct from an Integration (a third-party install tile, on its own
+// sub-tab, #308): #281 originally parked this catalogue under the "integrations"
+// tab as a stopgap before the real Integrations screen existed; #308 gave
+// integrations their own tab and returned this catalogue to its own "sources" tab.
 func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSettings(w, r, acct, settingsForms{tab: "integrations"})
+	s.renderSettings(w, r, acct, settingsForms{tab: "sources"})
 }
 
-// fillIntegrationsSection buckets the source catalogue by the state each source
-// ships in for the integrations sub-tab.
-func (s *server) fillIntegrationsSection(r *http.Request, data map[string]any) error {
+// fillSourcesSection buckets the discovery-source catalogue by the state each
+// source ships in for the sources sub-tab.
+func (s *server) fillSourcesSection(r *http.Request, data map[string]any) error {
 	views, err := s.sourceViews(r)
 	if err != nil {
 		return err
@@ -300,11 +304,10 @@ const sourceTemplates = `
 <button class="{{if .Enabled}}secondary{{end}}" type="submit">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
 </form>{{end}}
 
-{{define "integrations-body"}}
-<div class="microlabel">Delivery · integrations</div>
-<h2>Integrations</h2>
+{{define "settings-sources"}}
+<div class="microlabel">Discovery · sources</div>
+<h2>Sources</h2>
 <p>Which discovery sources may run. Turning a source off never removes anything you already hold — a source's silence never asserted absence. Turning one on lets it run: a source begins observing, a proposer begins offering proposals you confirm into seeds, and neither adds to the estate on its own.</p>
-<div class="banner info">Channels need no integration — Settings → Channels delivers to any URL directly. Integrations add formatting and state mapping on top.</div>
 {{if not .IsAdmin}}<div class="notice">You have read access. Enabling or disabling a source is admin-only.</div>{{end}}
 
 <div class="section">
