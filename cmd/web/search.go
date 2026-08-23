@@ -93,16 +93,26 @@ func searchHighlight(text, q string) template.HTML {
 	if q == "" {
 		return template.HTML(html.EscapeString(text))
 	}
+	// The match is found in the lowered text, so the span length must come from
+	// the lowered query — not len(q). strings.ToLower can change a value's byte
+	// length (e.g. U+212A KELVIN SIGN → "k", U+023A → U+2C65), so len(q) would
+	// slice out of range and panic (#340). The clamp is a belt-and-braces guard:
+	// when the lowered forms shift the trailing offsets past the original text,
+	// fall back to the plain escaped original rather than slice out of bounds.
 	i := strings.Index(strings.ToLower(text), strings.ToLower(q))
 	if i < 0 {
+		return template.HTML(html.EscapeString(text))
+	}
+	end := i + len(strings.ToLower(q))
+	if i > len(text) || end > len(text) {
 		return template.HTML(html.EscapeString(text))
 	}
 	var b strings.Builder
 	b.WriteString(html.EscapeString(text[:i]))
 	b.WriteString(`<span style="color:var(--link);font-weight:600">`)
-	b.WriteString(html.EscapeString(text[i : i+len(q)]))
+	b.WriteString(html.EscapeString(text[i:end]))
 	b.WriteString(`</span>`)
-	b.WriteString(html.EscapeString(text[i+len(q):]))
+	b.WriteString(html.EscapeString(text[end:]))
 	return template.HTML(b.String())
 }
 

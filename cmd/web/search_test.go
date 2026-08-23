@@ -8,6 +8,65 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+// searchHighlight finds its match in the lowered text, so the wrapped span's byte
+// length must come from the lowered query, never len(q): strings.ToLower can change
+// a value's byte length (U+212A KELVIN SIGN → "k"; U+023A → the longer U+2C65), and
+// mixing the two offset spaces once sliced the original out of range and panicked
+// the whole /search page (#340). These cases must not panic and must stay escaped,
+// well-formed HTML; a plain ASCII match must still wrap exactly the matched run.
+func TestSearchHighlight(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		text string
+		q    string
+		want string // full expected output
+	}{
+		{
+			name: "ascii wraps the matched run",
+			text: "foobar",
+			q:    "bar",
+			want: `foo<span style="color:var(--link);font-weight:600">bar</span>`,
+		},
+		{
+			name: "ascii highlight preserves original case",
+			text: "FooBar",
+			q:    "bar",
+			want: `Foo<span style="color:var(--link);font-weight:600">Bar</span>`,
+		},
+		{
+			// U+212A ToLower→"k": the lowered query is 1 byte where q is 3, so the
+			// span length must track the lowered form to slice "k" in range.
+			name: "kelvin-sign query does not panic",
+			text: "k",
+			q:    "K",
+			want: `<span style="color:var(--link);font-weight:600">k</span>`,
+		},
+		{
+			// U+023A ToLower→U+2C65 grows the lowered text past the original; the
+			// clamp falls back to the plain escaped original rather than panicking.
+			name: "growing-lowercase text does not panic",
+			text: "Ⱥk",
+			q:    "k",
+			want: "Ⱥk",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got string
+			func() {
+				defer func() {
+					if p := recover(); p != nil {
+						t.Fatalf("searchHighlight(%q, %q) panicked: %v", tc.text, tc.q, p)
+					}
+				}()
+				got = string(searchHighlight(tc.text, tc.q))
+			}()
+			if got != tc.want {
+				t.Errorf("searchHighlight(%q, %q) = %q, want %q", tc.text, tc.q, got, tc.want)
+			}
+		})
+	}
+}
+
 // The Search screen (#303, T8) groups results by kind and highlights the matched
 // term in each row, linking every hit to its existing route. A query narrows the
 // groups; an empty query browses everything (where the palette's "see everything"
