@@ -35,7 +35,7 @@ const profileTemplates = `
 <span aria-hidden="true" class="avatar" style="width:44px;height:44px;font-size:16px">{{.Initials}}</span>
 <div style="display:flex;flex-direction:column;gap:2px">
 <h1 style="margin:0;font-size:21px">Profile</h1>
-<span class="muted" style="font-size:12.5px">Your account on this deployment. Org-wide access lives in <a href="/settings?tab=access">Settings &#8594; Access</a>.</span>
+<span class="muted" style="font-size:12.5px">Your account on this deployment. Org-wide access lives in <a href="/settings?tab=team">Settings &#8594; Team</a>.</span>
 </div>
 </header>
 

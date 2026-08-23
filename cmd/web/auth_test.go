@@ -208,19 +208,19 @@ func TestLoginAndSession(t *testing.T) {
 		t.Fatalf("dashboard not shown at /; status=%d body=%s", resp.StatusCode, dash)
 	}
 
-	// The account surface folded into Settings → access (#281): /account now
-	// redirects there, and the invite form lives on the Settings access sub-tab.
+	// The account surface folded into Settings → Team (#281, retargeted #313): /account
+	// now redirects there, and member management lives on the Settings Team sub-tab.
 	resp, err = c.Get(base + "/account")
 	if err != nil {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=access" {
-		t.Fatalf("/account should redirect to Settings access; status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=team" {
+		t.Fatalf("/account should redirect to Settings team; status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
-	got := getBody(t, c, base+"/settings?tab=access", http.StatusOK)
-	if !strings.Contains(got, "admin") || !strings.Contains(got, "Invite an account") {
-		t.Fatalf("settings access tab missing the account surface; body=%s", got)
+	got := getBody(t, c, base+"/settings?tab=team", http.StatusOK)
+	if !strings.Contains(got, "admin") || !strings.Contains(got, "Who can sign in") {
+		t.Fatalf("settings team tab missing the member surface; body=%s", got)
 	}
 }
 

@@ -102,6 +102,19 @@ func (f *fakeStore) GetInviteByTokenHash(_ context.Context, tokenHash string) (d
 	return db.Invite{}, pgx.ErrNoRows
 }
 
+// CreateInvite mints an invite row, mirroring the SQL INSERT ... RETURNING: the
+// creation side T18's Team invite dialog exercises against the same table the
+// acceptance tests seed with addInvite.
+func (f *fakeStore) CreateInvite(_ context.Context, arg db.CreateInviteParams) (db.Invite, error) {
+	inv := db.Invite{
+		ID: f.inviteNextID, TokenHash: arg.TokenHash, Role: arg.Role, InvitedBy: arg.InvitedBy,
+		CreatedAt: pgtype.Timestamptz{Time: serverClock, Valid: true}, ExpiresAt: arg.ExpiresAt,
+	}
+	f.invites = append(f.invites, inv)
+	f.inviteNextID++
+	return inv, nil
+}
+
 func (f *fakeStore) ConsumeInvite(_ context.Context, arg db.ConsumeInviteParams) error {
 	for i := range f.invites {
 		if f.invites[i].ID == arg.ID {

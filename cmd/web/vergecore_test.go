@@ -30,9 +30,11 @@ func TestVergeCorePageShowsComposition(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	page := vergeCoreBody(t, ac, base)
-	for _, want := range []string{"136 pairs", "131 TCP", "5 UDP", "Sensitive half", "read-only"} {
+	// verge-core now renders as the Port aperture tab (#313): sensitive tier locked,
+	// frequency tier editable. The composition counts still read from real data.
+	for _, want := range []string{"136 pairs", "131 TCP", "5 UDP", "Sensitive tier", "locked", "Not editable"} {
 		if !strings.Contains(page, want) {
-			t.Errorf("verge-core page missing %q; body length %d", want, len(page))
+			t.Errorf("aperture page missing %q; body length %d", want, len(page))
 		}
 	}
 	// The sensitive half is offered no edit control — only the frequency half is.

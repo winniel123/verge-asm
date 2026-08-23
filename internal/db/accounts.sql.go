@@ -71,6 +71,23 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 	return i, err
 }
 
+const deleteAccount = `-- name: DeleteAccount :exec
+DELETE FROM account WHERE id = $1
+`
+
+// Remove a member (Settings -> Team, T18). The handler gates this behind a typed-
+// name confirmation and refuses to remove yourself or the last admin. Attributed
+// work keeps the account's id: the created_by references on seeds, channels,
+// exclusions and the rest are NOT NULL with no cascade, so this deletes only an
+// account that authored none of them — the FK violation surfaces as a clear refusal
+// rather than a silent orphaning. The single-use pre-auth grants (personal tokens,
+// password resets, recovery codes) cascade; an invite the account issued or accepted
+// keeps its record with the reference nulled (ON DELETE SET NULL).
+func (q *Queries) DeleteAccount(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteAccount, id)
+	return err
+}
+
 const getAccountByID = `-- name: GetAccountByID :one
 SELECT id, username, role, password_hash, totp_secret, totp_enabled, created_at
 FROM account
@@ -154,6 +171,20 @@ func (q *Queries) ListAccounts(ctx context.Context) ([]ListAccountsRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const resetAccountTOTP = `-- name: ResetAccountTOTP :exec
+UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1
+`
+
+// Require re-enrollment (Settings -> Team, T18): clear an account's second factor so
+// their current authenticator stops working at once and the next sign-in walks them
+// through TOTP setup again. It touches neither the password nor any session — a
+// signed-in account stays signed in until its cookie lapses. Symmetric to
+// SetTOTPSecret, which arms a fresh secret; this disarms the factor entirely.
+func (q *Queries) ResetAccountTOTP(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, resetAccountTOTP, id)
+	return err
 }
 
 const setTOTPSecret = `-- name: SetTOTPSecret :exec

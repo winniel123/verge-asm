@@ -521,7 +521,7 @@ func firstRunChecklist(scopes int, zoneUploaded, internetVantage, scanDispatched
 // `account` block is gone. The merged SignIn's totp-enroll Cancel link (→/account)
 // lands here transparently.
 func (s *server) accountPage(w http.ResponseWriter, r *http.Request, _ db.Account) {
-	http.Redirect(w, r, "/settings?tab=access", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
 }
 
 func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -541,7 +541,7 @@ func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		s.renderFormError(w, r, acct, createError(err))
 		return
 	}
-	s.renderSettings(w, r, acct, settingsForms{tab: "access", notice: "Account " + username + " created."})
+	s.renderSettings(w, r, acct, settingsForms{tab: "team", notice: "Account " + username + " created."})
 }
 
 func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -1264,11 +1264,20 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &e) && e.SQLState() == "23505"
 }
 
-// renderFormError re-renders the Settings access sub-tab with the invite form's
-// error and a 400, so a rejected /accounts POST echoes its message where the form
-// now lives (#281).
+// isForeignKeyViolation reports a 23503 — a referencing row still points at this
+// one. Removing a member hits it when the account authored attributed acts (a
+// NOT NULL created_by), so the handler turns it into a clear refusal rather than a
+// 500.
+func isForeignKeyViolation(err error) bool {
+	var e interface{ SQLState() string }
+	return errors.As(err, &e) && e.SQLState() == "23503"
+}
+
+// renderFormError re-renders the Settings Team sub-tab with the form's error and a
+// 400, so a rejected /accounts POST echoes its message where account management now
+// lives (#281, retargeted to Team in #313).
 func (s *server) renderFormError(w http.ResponseWriter, r *http.Request, acct db.Account, msg string) {
-	s.renderSettings(w, r, acct, settingsForms{section: "accounts", acctError: msg})
+	s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: msg})
 }
 
 func (s *server) render(w http.ResponseWriter, name string, data any) {

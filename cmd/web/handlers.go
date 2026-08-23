@@ -53,6 +53,17 @@ type store interface {
 	ConsumeRecoveryCode(ctx context.Context, arg db.ConsumeRecoveryCodeParams) error
 	GetInviteByTokenHash(ctx context.Context, tokenHash string) (db.Invite, error)
 	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) error
+	// CreateInvite is the invite CREATION side (Settings -> Team, T18): it mints a
+	// single-use, time-boxed invite at a role against the same invite table T19's
+	// acceptance screen spends. ResetAccountTOTP is Team's "require re-enrollment" —
+	// it disarms an account's second factor so the next sign-in re-enrols it.
+	CreateInvite(ctx context.Context, arg db.CreateInviteParams) (db.Invite, error)
+	ResetAccountTOTP(ctx context.Context, id int64) error
+	// DeleteAccount removes a member (Settings -> Team). It is gated behind a typed-
+	// name confirmation and the not-self / last-admin guards; an account that authored
+	// attributed acts (a NOT NULL created_by reference) is refused by the FK rather
+	// than orphaning its work.
+	DeleteAccount(ctx context.Context, id int64) error
 	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
@@ -196,6 +207,10 @@ type server struct {
 	key        []byte
 	setupToken string
 	now        func() time.Time
+	// startedAt is the instant this process came up, read off the injectable clock
+	// so the instance-health tab (#313) shows a real uptime rather than a fabricated
+	// one. A fixed-clock test reads ~0, which humanizes honestly.
+	startedAt  time.Time
 	sessionTTL time.Duration
 	pendingTTL time.Duration
 	// resetTTL bounds a password-reset link's life (SignIn delta #314). A link
@@ -235,6 +250,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		key:            key,
 		setupToken:     setupToken,
 		now:            now,
+		startedAt:      now(),
 		sessionTTL:     12 * time.Hour,
 		pendingTTL:     5 * time.Minute,
 		resetTTL:       30 * time.Minute,
@@ -483,6 +499,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /settings", s.requireAdmin(s.settingsPage))
 	mux.HandleFunc("POST /settings/accounts", s.requireAdmin(s.inviteAccount))
 	mux.HandleFunc("POST /settings/accounts/role", s.requireAdmin(s.setAccountRole))
+	// Team (#313, T18): re-enrollment resets a member's second factor; remove passes
+	// through a typed-name ConfirmDialog. Both are admin acts and mutate one account.
+	mux.HandleFunc("POST /settings/accounts/reenroll", s.requireAdmin(s.reenrollAccount))
+	mux.HandleFunc("POST /settings/accounts/remove", s.requireAdmin(s.removeAccount))
 	mux.HandleFunc("POST /settings/channels", s.requireAdmin(s.createChannel))
 	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
