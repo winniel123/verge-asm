@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -76,14 +78,22 @@ type vantageRow struct {
 // drives the response status; tab forces the active sub-tab (a folded read
 // surface renders one section by name), and notice carries a success line.
 type settingsForms struct {
-	section string // "", "accounts", "channels", "retention" or "vergecore"
+	section string // "", "team", "channels", "retention" or "vergecore"
 	tab     string // explicit active tab; when "", derived from section (default scans)
 	notice  string // a success line, rendered above the active section
 
-	acctError    string
-	acctUsername string
-	acctRole     string
-	roleError    string
+	// team (T18). teamError is an inline error on the members surface; roleError is
+	// the change-role guard's message. inviteLink is a freshly minted join URL,
+	// revealed once by createInvite; inviteOpen re-opens the invite dialog on a
+	// rejected mint and inviteRole echoes its role. removeID/removeError re-open the
+	// remove ConfirmDialog on a typed-name mismatch or a guard refusal.
+	teamError   string
+	roleError   string
+	inviteRole  string
+	inviteLink  string
+	inviteOpen  bool
+	removeID    int64
+	removeError string
 
 	chanError    string
 	chanURL      string
@@ -100,12 +110,26 @@ type settingsForms struct {
 }
 
 // settingsTabs is the sub-tab order of the Settings screen, ported from
-// examples/console/Settings.jsx: the two Scanning sections, the delivery group,
-// then Access. Each is reached at /settings?tab=<id>.
-var settingsTabs = []string{"scans", "vantages", "sources", "channels", "messages", "delivery", "access", "integrations"}
+// examples/console/Settings.jsx's SettingsNav groups: Scanning (scans, vantages),
+// Access (single sign-on, team, audit log), Discovery (sources, port aperture),
+// Instance (health), then Delivery (channels, integrations, messages, delivery
+// record). Each is reached at /settings?tab=<id>.
+var settingsTabs = []string{
+	"scans", "vantages",
+	"sso", "team", "audit",
+	"sources", "aperture",
+	"instance",
+	"channels", "integrations", "messages", "delivery",
+}
 
 // validTab keeps the query param to a known section, defaulting to the first.
+// The pre-V3 "access" tab split into "sso" and "team" (T18); a lingering
+// tab=access link (a bookmark, or the /account redirect before it was retargeted)
+// lands on Team, where account management now lives, rather than 404-ing.
 func validTab(t string) string {
+	if t == "access" {
+		return "team"
+	}
 	for _, x := range settingsTabs {
 		if x == t {
 			return t
@@ -118,12 +142,14 @@ func validTab(t string) string {
 // rejected submission re-renders with its own section active.
 func tabForSection(section string) string {
 	switch section {
-	case "accounts":
-		return "access"
+	case "team":
+		return "team"
 	case "channels":
 		return "channels"
-	case "retention", "vergecore":
+	case "retention":
 		return "delivery"
+	case "vergecore":
+		return "aperture"
 	default:
 		return "scans"
 	}
@@ -133,42 +159,70 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	s.renderSettings(w, r, acct, settingsForms{tab: validTab(r.URL.Query().Get("tab"))})
 }
 
-// --- accounts --------------------------------------------------------------
+// --- team ------------------------------------------------------------------
 
-// inviteAccount creates an account from the Settings screen, reusing ticket 2's
-// account machinery (createAccountRow, validateCredentials, createError) rather
-// than a second create path.
+// inviteTTL bounds a Team invite's life, matching the Settings.jsx invite dialog's
+// "expires in 7 days". A join link older than this is refused at /invite (T19's
+// lookupInvite), so a leaked-then-stale link is inert.
+const inviteTTL = 7 * 24 * time.Hour
+
+// inviteAccount mints a single-use invite from the Settings → Team dialog and
+// reveals the join link once (T18). It is the CREATION side of the invite table
+// T19 shipped for acceptance: unlike the pre-V3 path it never creates an account
+// directly — the invitee chooses their own username and password at /invite, and
+// the role applies on acceptance. Accounts on this build are usernames with no
+// identity provider, so the invite binds a role, not an address: the dialog asks
+// only the role and the plaintext token rides one URL handed out of band (also
+// written to the web logs, exactly as the setup and reset tokens are).
 func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	username := strings.TrimSpace(r.FormValue("username"))
-	password := r.FormValue("password")
 	role := r.FormValue("role")
 	fail := func(msg string) {
 		s.renderSettings(w, r, acct, settingsForms{
-			section: "accounts", acctError: msg, acctUsername: username, acctRole: role,
+			section: "team", teamError: msg, inviteOpen: true, inviteRole: role,
 		})
 	}
-
 	if role != roleAdmin && role != roleViewer {
 		fail("Role must be admin or viewer.")
 		return
 	}
-	if msg := validateCredentials(username, password); msg != "" {
-		fail(msg)
+	plaintext, hash, err := newOpaqueToken()
+	if err != nil {
+		s.serverError(w, "mint invite token", err)
 		return
 	}
-	if _, err := s.createAccountRow(r, username, role, password); err != nil {
-		fail(createError(err))
+	if _, err := s.store.CreateInvite(r.Context(), db.CreateInviteParams{
+		TokenHash: hash, Role: role,
+		InvitedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+		ExpiresAt: pgtype.Timestamptz{Time: s.now().Add(inviteTTL), Valid: true},
+	}); err != nil {
+		s.serverError(w, "create invite", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=access", http.StatusSeeOther)
+	link := s.inviteLink(r, plaintext)
+	// The one delivery this self-hosted build honestly has: the operator's own logs.
+	log.Printf("web: invite minted at role %q; accept it at %s (expires in %s)", role, link, inviteTTL)
+	s.renderSettings(w, r, acct, settingsForms{tab: "team", inviteLink: link})
+}
+
+// inviteLink builds the absolute join URL an invitee presents at /invite. It reads
+// the request host (never a proxy-forwarding header) and infers the scheme from the
+// TLS state or the secure-cookie flag, so the copied link works behind a TLS proxy.
+func (s *server) inviteLink(r *http.Request, token string) string {
+	scheme := "http"
+	if r.TLS != nil || s.secureCookies {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host + "/invite?token=" + token
 }
 
 // setAccountRole reassigns an account's role. It refuses to demote the last
 // admin: an operator must never be able to strip the final admin and lock every
-// remaining account out of every mutation.
+// remaining account out of every mutation. The Save control is disabled until the
+// selected role differs (Settings.jsx), so a no-op save never reaches here in the
+// UI; the guards still hold on the raw POST.
 func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	fail := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{section: "accounts", roleError: msg})
+		s.renderSettings(w, r, acct, settingsForms{section: "team", roleError: msg})
 	}
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -200,7 +254,76 @@ func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "update account role", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=access", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
+}
+
+// reenrollAccount clears a member's second factor (Settings.jsx "Require
+// re-enrollment"): their current authenticator stops working at once and the next
+// sign-in walks them through TOTP setup again. It never touches a password or a
+// session, and it is a no-op guard against a missing row rather than a 500.
+func (s *server) reenrollAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: "That account could not be found."})
+		return
+	}
+	if err := s.store.ResetAccountTOTP(r.Context(), id); err != nil {
+		s.serverError(w, "reset account totp", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
+}
+
+// removeAccount removes a member through a typed-name gate — the worst destructive
+// act on the Team surface, so the operator must type the member's exact username to
+// confirm, and it is reached only through the remove ConfirmDialog (a POST), never a
+// menu click. It refuses to remove yourself or the last admin. An account that
+// authored attributed acts (a NOT NULL created_by) is refused by the FK with a clear
+// message rather than a 500, so its work is never orphaned.
+func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: "That account could not be found."})
+		return
+	}
+	reopen := func(msg string) {
+		s.renderSettings(w, r, acct, settingsForms{section: "team", removeID: id, removeError: msg})
+	}
+	if id == acct.ID {
+		// Self has no remove dialog (a member never acts on their own row), so the
+		// refusal shows inline rather than in a dialog that would not render.
+		s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: "You cannot remove your own account."})
+		return
+	}
+	target, err := s.store.GetAccountByID(r.Context(), id)
+	if err != nil {
+		s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: "That account could not be found."})
+		return
+	}
+	if strings.TrimSpace(r.FormValue("confirm_name")) != target.Username {
+		reopen("That did not match. Type " + target.Username + " exactly to remove.")
+		return
+	}
+	if target.Role == roleAdmin {
+		n, err := s.store.CountAdmins(r.Context())
+		if err != nil {
+			s.serverError(w, "count admins", err)
+			return
+		}
+		if n <= 1 {
+			reopen("You cannot remove the last admin — promote another account first.")
+			return
+		}
+	}
+	if err := s.store.DeleteAccount(r.Context(), id); err != nil {
+		if isForeignKeyViolation(err) {
+			reopen(target.Username + " has declared scopes, channels, or other attributed acts and cannot be removed — reassign or keep the account.")
+			return
+		}
+		s.serverError(w, "delete account", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
 }
 
 // --- channels --------------------------------------------------------------
@@ -385,8 +508,19 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		err = s.fillScansSection(r, acct, data)
 	case "vantages":
 		err = s.fillVantagesSection(r, data)
+	case "sso":
+		// The single sign-on section is the honest not-configured state (#293 is
+		// backlog); it reads nothing.
+	case "team":
+		err = s.fillTeamSection(r, acct, f, data)
+	case "audit":
+		err = s.fillAuditSection(r, data)
 	case "sources":
 		err = s.fillSourcesSection(r, data)
+	case "aperture":
+		err = s.fillApertureSection(r, f, data)
+	case "instance":
+		err = s.fillInstanceSection(r, data)
 	case "channels":
 		err = s.fillChannelsSection(r, f, data)
 	case "integrations":
@@ -395,8 +529,6 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		err = s.fillMessagesSection(r, data)
 	case "delivery":
 		err = s.fillDeliverySection(r, f, data)
-	case "access":
-		err = s.fillAccessSection(r, acct, f, data)
 	}
 	if err != nil {
 		s.serverError(w, "settings section "+active, err)
@@ -433,6 +565,11 @@ func (s *server) fillVantagesSection(r *http.Request, data map[string]any) error
 		out = append(out, vr)
 	}
 	data["Vantages"] = out
+	// The prober-provisioning read (Settings.jsx ProberProvision): each provisioned
+	// vantage's published PUBLIC key (reveal-once at first render, never a private
+	// key), its host-key pin status (the value never reaches web), and its egress. The
+	// provisioning ACT lives on Scope (POST /probers); this tab renders the read.
+	data["Probers"] = toProberViews(rows)
 	return nil
 }
 
@@ -458,9 +595,9 @@ func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[
 }
 
 // fillDeliverySection carries the operational-record group: the delivery outcomes
-// register (ADR-0039/ADR-0081), the two retention dials, and the verge-core hot
-// port set (§3.5). verge-core folds here as the delivery-oriented dial screen it
-// most resembles, keeping its frequency edit and read-only sensitive half intact.
+// register (ADR-0039/ADR-0081) and the two retention dials. The verge-core hot port
+// set moved to its own Port-aperture tab under Discovery (T18, matching
+// Settings.jsx's SettingsNav) — see fillApertureSection.
 func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
 
@@ -488,8 +625,17 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	data["RetError"] = f.retError
 	data["RetObs"] = f.retObs
 	data["RetDispatch"] = f.retDispatch
+	return nil
+}
 
-	// verge-core composition.
+// fillApertureSection carries the verge-core hot port set (§3.5, Settings.jsx's
+// ApertureSection): the release-authored sensitive tier rendered read-only, and the
+// operator-editable frequency tier. A frequency edit is stored as a delta over the
+// shipped default and applied at hot fan-out, so the sensitive tier is unreachable
+// from every write path by construction — a port you can hide is a signal you can
+// silence.
+func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[string]any) error {
+	ctx := r.Context()
 	editRows, err := s.store.ListVergeCoreFrequencyEditsWithAuthor(ctx)
 	if err != nil {
 		return err
@@ -524,20 +670,119 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	return nil
 }
 
-// fillAccessSection carries the account surface relocated from the temporary
-// /account home (#277): the account list, invite, role controls and TOTP status,
-// plus the SSO honest empty state. A viewer sees only their own account.
-func (s *server) fillAccessSection(r *http.Request, acct db.Account, f settingsForms, data map[string]any) error {
+// fillTeamSection carries the Team surface (Settings.jsx TeamSection): the members
+// list, the two-role explainer, and the change-role / require-re-enrollment / remove
+// / invite dialogs. Each dialog is opened by a query param so the destructive ones
+// are a navigation, never a menu click that fires the act; a rejected POST re-opens
+// its own dialog through settingsForms. The two roles are admin and viewer only —
+// there is no operator role.
+func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsForms, data map[string]any) error {
 	accounts, err := s.store.ListAccounts(r.Context())
 	if err != nil {
 		return err
 	}
-	data["Accounts"] = toAccountRows(accounts, acct.ID)
-	data["AcctError"] = f.acctError
-	data["AcctUsername"] = f.acctUsername
-	data["AcctRole"] = f.acctRole
+	members := toAccountRows(accounts, acct.ID)
+	data["Members"] = members
+	data["TeamError"] = f.teamError
 	data["RoleError"] = f.roleError
+
+	find := func(id int64) *accountRow {
+		if id == 0 {
+			return nil
+		}
+		for i := range members {
+			if members[i].ID == id {
+				return &members[i]
+			}
+		}
+		return nil
+	}
+	q := r.URL.Query()
+	qid := func(key string) int64 {
+		if v := q.Get(key); v != "" {
+			if id, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+				return id
+			}
+		}
+		return 0
+	}
+
+	// Change-role dialog: opened by ?role=<id>. A member can never act on their own
+	// row, so a role param naming self renders no dialog.
+	if m := find(qid("role")); m != nil && !m.IsSelf {
+		data["RoleTarget"] = m
+	}
+	// Require-re-enrollment dialog: opened by ?reenroll=<id>.
+	if m := find(qid("reenroll")); m != nil && !m.IsSelf {
+		data["ReenrollTarget"] = m
+	}
+	// Remove ConfirmDialog: opened by ?remove=<id> (GET) or re-opened by a rejected
+	// POST through f.removeID, which also carries the typed-name mismatch message.
+	removeID := f.removeID
+	if removeID == 0 {
+		removeID = qid("remove")
+	}
+	if m := find(removeID); m != nil && !m.IsSelf {
+		data["RemoveTarget"] = m
+		data["RemoveError"] = f.removeError
+	}
+	// Invite dialog: opened by ?invite=1 (GET), re-opened on a rejected mint, or shown
+	// with the freshly minted join link on success (revealed once).
+	data["InviteOpen"] = f.inviteOpen || q.Get("invite") != "" || f.inviteLink != ""
+	data["InviteLink"] = f.inviteLink
+	data["InviteRole"] = f.inviteRole
 	return nil
+}
+
+// fillAuditSection renders the audit-log tab. This build keeps no queryable log of
+// admin acts — source enablement, for one, "keeps no log line of its own" and is
+// dated only by the batch it moves — so the honest state is empty rather than a
+// fabricated feed. The delivery record (Delivery tab) and the message store are the
+// operational records that do exist; this names them.
+func (s *server) fillAuditSection(_ *http.Request, data map[string]any) error {
+	data["AuditRows"] = nil
+	return nil
+}
+
+// fillInstanceSection carries the instance-health tab (Settings.jsx InstanceSection)
+// as real reads only — no fabricated version string, uptime figure, or queue depth
+// where the datum does not exist. What is real: the licence/build stance (AGPL-3.0,
+// self-hosted), the process uptime since start, that Postgres answered this render,
+// and the provisioned vantage fleet with each vantage's availability.
+func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error {
+	data["Licence"] = "AGPL-3.0 · self-hosted"
+	data["Uptime"] = humanizeDuration(s.now().Sub(s.startedAt))
+
+	var fleet []vantageRow
+	if rows, err := s.store.ListVantages(r.Context()); err == nil {
+		for _, v := range rows {
+			avail := v.Availability.String
+			if avail == "" {
+				avail = "pending"
+			}
+			fleet = append(fleet, vantageRow{Name: v.Name, Class: v.Class, Availability: avail})
+		}
+	} else {
+		log.Printf("web: instance: list vantages: %v", err)
+	}
+	data["Fleet"] = fleet
+	return nil
+}
+
+// humanizeDuration renders a process uptime as a terse figure (e.g. 41d, 6h, 12m,
+// 8s), the shape Settings.jsx's uptime stat shows. Anything under a minute reads in
+// seconds so a freshly started instance never renders a bare 0.
+func humanizeDuration(d time.Duration) string {
+	switch {
+	case d >= 24*time.Hour:
+		return strconv.Itoa(int(d/(24*time.Hour))) + "d"
+	case d >= time.Hour:
+		return strconv.Itoa(int(d/time.Hour)) + "h"
+	case d >= time.Minute:
+		return strconv.Itoa(int(d/time.Minute)) + "m"
+	default:
+		return strconv.Itoa(int(d/time.Second)) + "s"
+	}
 }
 
 func toAccountRows(rows []db.ListAccountsRow, selfID int64) []accountRow {

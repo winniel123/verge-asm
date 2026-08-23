@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
@@ -67,19 +69,25 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 	// own tab.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := settingsBody(t, ac, base)
-	for _, tab := range []string{"tab=scans", "tab=vantages", "tab=channels", "tab=messages", "tab=delivery", "tab=access", "tab=integrations"} {
+	for _, tab := range []string{"tab=scans", "tab=vantages", "tab=sso", "tab=team", "tab=audit", "tab=sources", "tab=aperture", "tab=instance", "tab=channels", "tab=integrations", "tab=messages", "tab=delivery"} {
 		if !strings.Contains(page, tab) {
 			t.Errorf("settings tab bar missing %q", tab)
 		}
 	}
-	if !strings.Contains(settingsTabBody(t, ac, base, "access"), "Accounts") {
-		t.Error("access tab missing the accounts section")
+	if !strings.Contains(settingsTabBody(t, ac, base, "team"), "Who can sign in") {
+		t.Error("team tab missing the members section")
+	}
+	if !strings.Contains(settingsTabBody(t, ac, base, "sso"), "Single sign-on not configured") {
+		t.Error("sso tab missing the not-configured state")
 	}
 	if !strings.Contains(settingsTabBody(t, ac, base, "channels"), "Declare a channel") {
 		t.Error("channels tab missing the channel form")
 	}
 	if !strings.Contains(settingsTabBody(t, ac, base, "delivery"), "Retention dials") {
 		t.Error("delivery tab missing the retention dials")
+	}
+	if !strings.Contains(settingsTabBody(t, ac, base, "aperture"), "Sensitive tier") {
+		t.Error("aperture tab missing the port aperture")
 	}
 }
 
@@ -239,26 +247,164 @@ func TestRoleAssignmentAndLastAdminGuard(t *testing.T) {
 	}
 }
 
-func TestInviteAccountFromSettings(t *testing.T) {
+// The Team invite dialog mints an invite against T19's invite table (#313) — it no
+// longer creates an account directly. A minted invite carries the chosen role and a
+// hashed token, and the plaintext join link is revealed once in the response.
+func TestInviteMintsAgainstInviteTable(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	adminID := f.byName["admin"]
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := body(t, postForm(t, ac, base+"/settings/accounts", url.Values{"role": {roleViewer}}))
+
+	if len(f.invites) != 1 {
+		t.Fatalf("invites minted = %d, want 1", len(f.invites))
+	}
+	inv := f.invites[0]
+	if inv.Role != roleViewer {
+		t.Errorf("invite role = %q, want viewer", inv.Role)
+	}
+	if inv.TokenHash == "" {
+		t.Errorf("invite stored no token hash")
+	}
+	if !inv.InvitedBy.Valid || inv.InvitedBy.Int64 != adminID {
+		t.Errorf("invite not attributed to the issuing admin: %+v", inv.InvitedBy)
+	}
+	// No account is created directly — the invitee accepts the link and chooses their
+	// own credentials.
+	if len(f.accounts) != 1 {
+		t.Fatalf("invite created an account directly; accounts=%d", len(f.accounts))
+	}
+	// The join link is revealed once, and only its hash is stored (the plaintext
+	// never appears in the store).
+	if !strings.Contains(page, "/invite?token=") {
+		t.Errorf("join link not revealed; body: %s", page)
+	}
+	if strings.Contains(page, inv.TokenHash) {
+		t.Errorf("the stored hash leaked into the page")
+	}
+}
+
+// An invite at an unknown role is refused, minting nothing.
+func TestInviteRejectsUnknownRole(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/settings/accounts", url.Values{
-		"username": {"reviewer"}, "password": {"hunter2hunter2"}, "role": {roleViewer},
-	})
+	resp := postForm(t, ac, base+"/settings/accounts", url.Values{"role": {"operator"}})
+	got := body(t, resp)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "admin or viewer") {
+		t.Fatalf("bad-role invite not refused: status=%d body=%s", resp.StatusCode, got)
+	}
+	if len(f.invites) != 0 {
+		t.Fatalf("a rejected invite minted a row: %d", len(f.invites))
+	}
+}
+
+// The change-role dialog's Save is disabled until the selected role differs from the
+// current one (Settings.jsx): opened on a viewer, the Save button renders disabled
+// and the select carries the current role as its baseline.
+func TestChangeRoleSaveDisabledUntilDiffers(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	viewer := seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/settings?tab=team&role="+itoa(viewer.ID), http.StatusOK)
+	if !strings.Contains(page, `id="rolesave"`) || !strings.Contains(page, "disabled>Save role") {
+		t.Errorf("change-role Save not disabled by default; body: %s", page)
+	}
+	if !strings.Contains(page, `data-current="viewer"`) {
+		t.Errorf("change-role select missing the current-role baseline; body: %s", page)
+	}
+}
+
+// Require re-enrollment clears the member's second factor; the next sign-in re-enrols.
+func TestRequireReenrollmentResetsTOTP(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	member := seedAccount(t, f, "member", roleViewer, "hunter2hunter2")
+	// Arm the member's second factor so the reset has something to clear.
+	m := f.accounts[member.ID]
+	m.TotpEnabled = true
+	m.TotpSecret = pgtype.Text{String: "SECRET", Valid: true}
+	f.accounts[member.ID] = m
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := postForm(t, ac, base+"/settings/accounts/reenroll", url.Values{"id": {itoa(member.ID)}})
 	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("invite: status=%d (%s)", resp.StatusCode, body(t, resp))
+		t.Fatalf("reenroll: status=%d (%s)", resp.StatusCode, body(t, resp))
 	}
 	resp.Body.Close()
-	if _, ok := f.byName["reviewer"]; !ok {
-		t.Fatalf("account not created")
+	if got := f.accounts[member.ID]; got.TotpEnabled || got.TotpSecret.Valid {
+		t.Fatalf("second factor not cleared: %+v", got)
+	}
+}
+
+// Remove passes a typed-name gate, refuses self and the last admin, and removes on a
+// correct confirmation.
+func TestRemoveMemberTypedNameGate(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	member := seedAccount(t, f, "member", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// A wrong typed name re-opens the dialog with an error and removes nothing.
+	resp := postForm(t, ac, base+"/settings/accounts/remove", url.Values{
+		"id": {itoa(member.ID)}, "confirm_name": {"wrong"},
+	})
+	got := body(t, resp)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "did not match") {
+		t.Fatalf("typed-name mismatch not caught: status=%d body=%s", resp.StatusCode, got)
+	}
+	if _, ok := f.accounts[member.ID]; !ok {
+		t.Fatalf("member removed despite a wrong confirmation")
 	}
 
-	page := settingsTabBody(t, ac, base, "access")
-	if !strings.Contains(page, "reviewer") {
-		t.Errorf("new account not listed; body: %s", page)
+	// You cannot remove yourself.
+	resp = postForm(t, ac, base+"/settings/accounts/remove", url.Values{
+		"id": {itoa(admin.ID)}, "confirm_name": {"admin"},
+	})
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(body(t, resp), "your own account") {
+		t.Fatalf("self-removal not refused")
+	}
+
+	// The exact username removes the member.
+	resp = postForm(t, ac, base+"/settings/accounts/remove", url.Values{
+		"id": {itoa(member.ID)}, "confirm_name": {"member"},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("remove: status=%d (%s)", resp.StatusCode, body(t, resp))
+	}
+	resp.Body.Close()
+	if _, ok := f.accounts[member.ID]; ok {
+		t.Fatalf("member not removed on a correct confirmation")
+	}
+}
+
+// The two-role copy names admin and viewer only — never an operator role.
+func TestTeamRolesCopyHasNoOperatorRole(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := settingsTabBody(t, ac, base, "team")
+	for _, want := range []string{"admin", "viewer", "What each role can do"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("roles card missing %q", want)
+		}
+	}
+	// The invite dialog and roles card must never offer an "operator" role.
+	invite := getBody(t, ac, base+"/settings?tab=team&invite=1", http.StatusOK)
+	if strings.Contains(invite, ">operator<") || strings.Contains(invite, "value=\"operator\"") {
+		t.Errorf("an operator role appeared in the Team surface")
 	}
 }
 

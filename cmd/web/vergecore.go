@@ -32,7 +32,7 @@ type sensRow struct {
 }
 
 func (s *server) vergeCorePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSettings(w, r, acct, settingsForms{tab: "delivery"})
+	s.renderSettings(w, r, acct, settingsForms{tab: "aperture"})
 }
 
 // editVergeCoreFrequency applies one add/remove/reset to the frequency half. It

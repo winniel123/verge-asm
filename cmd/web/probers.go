@@ -20,8 +20,13 @@ type proberView struct {
 	Availability string
 	KeySet       bool
 	PublicKey    string
-	By           string
-	At           string
+	// HostKeyPinned reports whether the worker has pinned this vantage's host key on
+	// first connection. The host key VALUE never reaches the web surface — a later
+	// change is a hard failure, never a prompt — so this is only the pinned/awaiting
+	// status, exactly as PublicKey exposes the public half but never the private one.
+	HostKeyPinned bool
+	By            string
+	At            string
 }
 
 // provisionProber declares a prober: the operator supplies host, port and a
@@ -69,12 +74,13 @@ func toProberViews(rows []db.ListVantagesRow) []proberView {
 	out := make([]proberView, 0, len(rows))
 	for _, row := range rows {
 		v := proberView{
-			Endpoint:     endpointString(row.Host.String, row.Port.Int32),
-			Username:     row.Username.String,
-			Availability: row.Availability.String,
-			KeySet:       row.PublicKey.Valid && row.PublicKey.String != "",
-			PublicKey:    row.PublicKey.String,
-			By:           row.CreatedByUsername,
+			Endpoint:      endpointString(row.Host.String, row.Port.Int32),
+			Username:      row.Username.String,
+			Availability:  row.Availability.String,
+			KeySet:        row.PublicKey.Valid && row.PublicKey.String != "",
+			PublicKey:     row.PublicKey.String,
+			HostKeyPinned: row.HostKey.Valid && row.HostKey.String != "",
+			By:            row.CreatedByUsername,
 		}
 		if row.CreatedAt.Valid {
 			v.At = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")

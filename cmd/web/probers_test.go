@@ -138,6 +138,44 @@ func TestPublicKeyShownAndPrivateNeverIs(t *testing.T) {
 	}
 }
 
+// The Settings → Vantages tab renders each provisioned prober's published PUBLIC
+// key (reveal-once, for installing in authorized_keys) and its host-key pin status,
+// but never a private key nor the host-key value (#313, ADR-0110).
+func TestVantagesTabRevealsPublicKeyNotHostKey(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	adminID := f.byName["admin"]
+	pub := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITESTPUBLICKEYVALUE example"
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "scanner@prober.example.com:22", Class: "unverified",
+		Host:         pgtype.Text{String: "prober.example.com", Valid: true},
+		Port:         pgtype.Int4{Int32: 22, Valid: true},
+		Username:     pgtype.Text{String: "scanner", Valid: true},
+		Availability: pgtype.Text{String: "available", Valid: true},
+		PublicKey:    pgtype.Text{String: pub, Valid: true},
+		HostKey:      pgtype.Text{String: "ssh-ed25519 AAAAHOSTKEY", Valid: true},
+		CreatedBy:    pgtype.Int8{Int64: adminID, Valid: true},
+		CreatedAt:    pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	})
+	f.vantageNextID = 2
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/settings?tab=vantages", http.StatusOK)
+
+	if !strings.Contains(page, pub) {
+		t.Errorf("public key not revealed on the vantages tab; body: %s", page)
+	}
+	if !strings.Contains(page, "pinned") {
+		t.Errorf("host-key pin status not shown; body: %s", page)
+	}
+	for _, marker := range []string{"PRIVATE KEY", "AAAAHOSTKEY", "host_key"} {
+		if strings.Contains(page, marker) {
+			t.Errorf("vantages tab leaked private/host material %q", marker)
+		}
+	}
+}
+
 func TestViewerCannotProvisionButCanView(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

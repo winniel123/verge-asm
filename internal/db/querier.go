@@ -63,6 +63,14 @@ type Querier interface {
 	CreateAnnotation(ctx context.Context, arg CreateAnnotationParams) (Annotation, error)
 	// Returns the id only: the secret is write-only and no query hands it back.
 	CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error)
+	// Mint a single-use, time-boxed invite at a role (Settings -> Team, T18). This is
+	// the creation side of the invite table T19 shipped for acceptance: web keeps only
+	// a hash of the token, and the plaintext rides one join URL handed out of band.
+	// invited_by attributes the issuing admin so the invite outlives them as a record
+	// (ON DELETE SET NULL); expires_at bounds the window. The row starts unconsumed —
+	// consumed_at and accepted_account_id stay NULL until the acceptance screen spends
+	// it (ConsumeInvite).
+	CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error)
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
@@ -101,6 +109,15 @@ type Querier interface {
 	// batch because a pending Proposal is read by nothing, so 'declined' and 'never
 	// answered' have the same effect on the gate.
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
+	// Remove a member (Settings -> Team, T18). The handler gates this behind a typed-
+	// name confirmation and refuses to remove yourself or the last admin. Attributed
+	// work keeps the account's id: the created_by references on seeds, channels,
+	// exclusions and the rest are NOT NULL with no cascade, so this deletes only an
+	// account that authored none of them — the FK violation surfaces as a clear refusal
+	// rather than a silent orphaning. The single-use pre-auth grants (personal tokens,
+	// password resets, recovery codes) cascade; an invite the account issued or accepted
+	// keeps its record with the reference nulled (ON DELETE SET NULL).
+	DeleteAccount(ctx context.Context, id int64) error
 	// Withdraw an acceptance. Withdrawing is a plain state change that produces no
 	// `Message` — its carrier is the message it releases, the pair's own next firing.
 	// Deleting a row that is already gone is not an error: the operator's intent, that
@@ -675,6 +692,12 @@ type Querier interface {
 	// reserve a distinct, correctly-spaced slot. The caller waits until slot_at
 	// before going on the wire.
 	ReserveCTSlot(ctx context.Context, intervalSeconds float64) (pgtype.Timestamptz, error)
+	// Require re-enrollment (Settings -> Team, T18): clear an account's second factor so
+	// their current authenticator stops working at once and the next sign-in walks them
+	// through TOTP setup again. It touches neither the password nor any session — a
+	// signed-in account stays signed in until its cookie lapses. Symmetric to
+	// SetTOTPSecret, which arms a fresh secret; this disarms the factor entirely.
+	ResetAccountTOTP(ctx context.Context, id int64) error
 	// A transient failure with attempts left: advance the attempt, push run_after out
 	// by the shared backoff, and record the error. The row returns to 'pending' and
 	// the claim index picks it up again once run_after passes.

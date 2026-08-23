@@ -106,8 +106,12 @@ func TestToggleSourcePersistsOverride(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// RIPEstat ships off; enable it.
-	resp := toggleSourceReq(t, ac, base, "ripestat", "true")
+	// RIPEstat ships off and is operator-accepted, so enabling it is gated on
+	// accepting its terms (#313): the acceptance rides an `agreed` field the terms
+	// dialog sets. With it, the enable persists.
+	resp := postForm(t, ac, base+"/sources/toggle", url.Values{
+		"slug": {"ripestat"}, "enabled": {"true"}, "agreed": {"on"},
+	})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/sources" {
 		t.Fatalf("toggle: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
@@ -127,6 +131,38 @@ func TestToggleSourcePersistsOverride(t *testing.T) {
 	toggleSourceReq(t, ac, base, "crtsh", "false").Body.Close()
 	if st, ok := f.sourceStates["crtsh"]; !ok || st.Enabled {
 		t.Fatalf("crtsh disable override not persisted: %+v", f.sourceStates["crtsh"])
+	}
+}
+
+// Enabling an operator-accepted source is gated on accepting its terms (#313): the
+// Enable affordance opens a terms dialog, and an enable POST without the acceptance
+// field bounces back to that dialog rather than enabling. Accepting (agreed) enables.
+func TestSourcesTermsGateEnabling(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// The Enable control links to the terms dialog, not a direct toggle.
+	page := getBody(t, ac, base+"/sources", http.StatusOK)
+	if !strings.Contains(page, "/sources?terms=ripestat") {
+		t.Errorf("operator-accepted source has no terms-gated enable; body: %s", page)
+	}
+	// Opening the dialog renders the acceptance gate.
+	dlg := getBody(t, ac, base+"/sources?terms=ripestat", http.StatusOK)
+	for _, want := range []string{"I accept these terms", "Accept and enable", `id="termsaccept"`} {
+		if !strings.Contains(dlg, want) {
+			t.Errorf("terms dialog missing %q", want)
+		}
+	}
+	// An enable without acceptance bounces back to the dialog and persists nothing.
+	resp := postForm(t, ac, base+"/sources/toggle", url.Values{"slug": {"ripestat"}, "enabled": {"true"}})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/sources?terms=ripestat" {
+		t.Fatalf("ungated enable not bounced: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+	if st, ok := f.sourceStates["ripestat"]; ok && st.Enabled {
+		t.Fatalf("source enabled without accepting terms: %+v", st)
 	}
 }
 

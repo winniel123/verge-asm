@@ -31,23 +31,31 @@ const settingsTemplates = `
 <div class="tabs">
 <a class="tab{{if eq .Tab "scans"}} active{{end}}" href="/settings?tab=scans">Scans</a>
 <a class="tab{{if eq .Tab "vantages"}} active{{end}}" href="/settings?tab=vantages">Vantages</a>
+<a class="tab{{if eq .Tab "sso"}} active{{end}}" href="/settings?tab=sso">Single sign-on</a>
+<a class="tab{{if eq .Tab "team"}} active{{end}}" href="/settings?tab=team">Team</a>
+<a class="tab{{if eq .Tab "audit"}} active{{end}}" href="/settings?tab=audit">Audit log</a>
 <a class="tab{{if eq .Tab "sources"}} active{{end}}" href="/settings?tab=sources">Sources</a>
+<a class="tab{{if eq .Tab "aperture"}} active{{end}}" href="/settings?tab=aperture">Port aperture</a>
+<a class="tab{{if eq .Tab "instance"}} active{{end}}" href="/settings?tab=instance">Health</a>
 <a class="tab{{if eq .Tab "channels"}} active{{end}}" href="/settings?tab=channels">Channels</a>
+<a class="tab{{if eq .Tab "integrations"}} active{{end}}" href="/settings?tab=integrations">Integrations</a>
 <a class="tab{{if eq .Tab "messages"}} active{{end}}" href="/settings?tab=messages">Messages</a>
 <a class="tab{{if eq .Tab "delivery"}} active{{end}}" href="/settings?tab=delivery">Delivery</a>
-<a class="tab{{if eq .Tab "access"}} active{{end}}" href="/settings?tab=access">Access</a>
-<a class="tab{{if eq .Tab "integrations"}} active{{end}}" href="/settings?tab=integrations">Integrations</a>
 </div>
 {{if .Notice}}<div class="notice">{{.Notice}}</div>{{end}}
 
 {{if eq .Tab "scans"}}{{template "settings-scans" .}}{{end}}
 {{if eq .Tab "vantages"}}{{template "settings-vantages" .}}{{end}}
+{{if eq .Tab "sso"}}{{template "settings-sso" .}}{{end}}
+{{if eq .Tab "team"}}{{template "settings-team" .}}{{end}}
+{{if eq .Tab "audit"}}{{template "settings-audit" .}}{{end}}
 {{if eq .Tab "sources"}}{{template "settings-sources" .}}{{end}}
+{{if eq .Tab "aperture"}}{{template "settings-aperture" .}}{{end}}
+{{if eq .Tab "instance"}}{{template "settings-instance" .}}{{end}}
 {{if eq .Tab "channels"}}{{template "settings-channels" .}}{{end}}
+{{if eq .Tab "integrations"}}{{template "settings-integrations" .}}{{end}}
 {{if eq .Tab "messages"}}{{template "settings-messages" .}}{{end}}
 {{if eq .Tab "delivery"}}{{template "settings-delivery" .}}{{end}}
-{{if eq .Tab "access"}}{{template "settings-access" .}}{{end}}
-{{if eq .Tab "integrations"}}{{template "settings-integrations" .}}{{end}}
 </main>
 {{template "foot" .}}{{end}}
 
@@ -153,6 +161,32 @@ Exposure timelines. This is a read: provisioning lives on Scope.</p>
 <p>Only the shipped resolver position exists, so the Reach and Exposure timelines
 have not opened. Provision a vantage on <a href="/scope">Scope</a> to measure from
 the internet.</p>
+</div>
+{{end}}
+
+{{if .Probers}}
+<div class="section">
+<div class="microlabel">Probers</div>
+<h2>Provisioned internet vantages</h2>
+<p class="muted">The worker owns the keypair and generates it out of band; only the public half is published here — the private half never leaves the instance. A host key is pinned on first connection, and a later change is a hard failure, never a prompt.</p>
+{{range .Probers}}
+<div class="section">
+<div class="custody-head">
+<div><div class="mono">{{.Endpoint}}</div><div class="muted">username <span class="mono">{{.Username}}</span></div></div>
+<div>{{if eq .Availability "available"}}<span class="badge">available</span>{{else}}<span class="muted">{{.Availability}}</span>{{end}}</div>
+</div>
+<div class="kv"><div class="k">Host key</div><div>{{if .HostKeyPinned}}<span class="badge">pinned</span>{{else}}<span class="muted">awaiting first connection</span>{{end}}</div></div>
+<div class="kv"><div class="k">Public key</div><div>{{if .KeySet}}<span class="badge">set</span>{{else}}<span class="muted">not set — the worker has not published one yet</span>{{end}}</div></div>
+{{if .KeySet}}
+<p class="muted" style="margin:8px 0 4px">Install the public half in <span class="mono">{{.Username}}@{{.Endpoint}}</span>'s authorized_keys:</p>
+<div style="display:flex;align-items:center;gap:8px">
+<code class="mono cvval" style="flex:1;min-width:0;word-break:break-all;background:var(--sunken);border:1px solid var(--hairline);border-radius:var(--r-sm);padding:var(--space-3)">{{.PublicKey}}</code>
+<button type="button" class="btn secondary" style="flex:none" onclick="var v=this.parentNode.querySelector('.cvval').textContent;if(navigator.clipboard){navigator.clipboard.writeText(v);this.textContent='Copied';}">Copy</button>
+</div>
+{{end}}
+</div>
+{{end}}
+<p class="muted">Declare the vantage's observed egress as an address scope from <a href="/scope">Scope</a> so the estate knows its own outbound address.</p>
 </div>
 {{end}}
 {{end}}
@@ -277,10 +311,10 @@ to begin measuring.</p>
 {{define "settings-delivery"}}
 <div class="microlabel">Delivery · operational record</div>
 <h2>Deliveries</h2>
-<p>The operational record: every message's outcome to each routed channel, the two
-retention dials that govern how long the record stays readable, and the verge-core
-port set the hot scan probes. A delivery has no cause and never touches Coverage — an
-undelivered POST is legible here, joined to the message it failed to carry.</p>
+<p>The operational record: every message's outcome to each routed channel, and the
+two retention dials that govern how long the record stays readable. A delivery has no
+cause and never touches Coverage — an undelivered POST is legible here, joined to the
+message it failed to carry. The hot-tier port set moved to its own Port aperture tab.</p>
 
 <div class="section">
 <div class="microlabel">Operational record</div>
@@ -323,31 +357,211 @@ observation-currency floor lands with later work; for now zero means no operator
 {{if .Retention.UpdatedAt}}<p class="muted" style="margin-top:12px">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span class="mono">{{.Retention.UpdatedBy}}</span>{{end}}.</p>{{end}}
 </div>
 
+{{end}}
+`
+
+// settingsSectionTemplates carries the V3 section deltas ported from
+// examples/console/Settings.jsx (T18, #313, ADR-0110): the single-sign-on
+// not-configured state, the Team surface (members, roles, and the change-role /
+// require-re-enrollment / remove / invite dialogs), the audit-log honest empty
+// state, the Port-aperture tab (release-authored sensitive tier read-only, editable
+// frequency tier), and instance health. Parsed into the same shared template set;
+// no design-system component is authored here (ADR-0109) — only the existing token
+// vocabulary and pageCSS classes are used.
+var _ = template.Must(tmpl.Parse(settingsSectionTemplates))
+
+const settingsSectionTemplates = `
+{{define "settings-sso"}}
+<div class="microlabel">Access · single sign-on</div>
+<h2>Single sign-on</h2>
 <div class="section">
-<div class="microlabel">Declared · verge-core</div>
-<h2>verge-core port set</h2>
-<p>The daily hot-tier port set: the union of a <em>frequency</em> half — the project's own
-open-frequency selection — and a <em>sensitive</em> half, the curated list of ports never
-legitimately internet-facing. Only the TCP pairs are probed; the {{.UDPCount}} UDP pairs are recorded
-in scope and never probed. You may edit the frequency half. The sensitive half is authored by the
-release, so it is read-only here.</p>
-<div class="kv"><div class="k">Union</div><div class="mono">{{.Counts.Union}} pairs ({{.Counts.TCP}} TCP, {{.Counts.UDP}} UDP)</div></div>
-<div class="kv"><div class="k">Frequency</div><div class="mono">{{.Counts.Frequency}} pairs (TCP, editable)</div></div>
-<div class="kv"><div class="k">Sensitive</div><div class="mono">{{.Counts.Sensitive}} pairs (read-only)</div></div>
+<div class="microlabel">SAML 2.0</div>
+<h2>Identity provider</h2>
+<p>Single sign-on not configured. This build ships no identity provider, so accounts
+sign in with a password and two-factor. Configure a SAML identity provider to require
+SSO for all sign-ins.</p>
+<p class="muted">Your own credentials and two-factor live on your <a href="/profile">Profile</a>.</p>
+</div>
+{{end}}
+
+{{define "settings-team"}}
+<div class="microlabel">Access · team</div>
+<div class="rulehead">
+<div><h2 style="margin:0">Who can sign in</h2></div>
+<a class="btn" href="/settings?tab=team&amp;invite=1">Invite</a>
+</div>
+{{if .TeamError}}<div class="error">{{.TeamError}}</div>{{end}}
+{{if .RoleError}}<div class="error">{{.RoleError}}</div>{{end}}
+<div class="section">
+<table>
+<thead><tr><th>Member</th><th>Role</th><th>Two-factor</th><th>Member since</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+<tbody>
+{{range .Members}}<tr>
+<td class="mono">{{.Username}}{{if .IsSelf}} <span class="muted">(you)</span>{{end}}</td>
+<td><span class="badge">{{.Role}}</span></td>
+<td>{{if .TotpEnabled}}<span class="badge">enrolled</span>{{else}}<span class="badge off">not enrolled</span>{{end}}</td>
+<td class="mono">{{if .At}}{{.At}}{{else}}<span class="muted">—</span>{{end}}</td>
+{{if $.IsAdmin}}<td>{{if .IsSelf}}<span class="muted">—</span>{{else}}
+<details class="edit">
+<summary>Actions</summary>
+<div class="section">
+<div class="rowlink"><a href="/settings?tab=team&amp;role={{.ID}}">Change role</a></div>
+<div class="rowlink"><a href="/settings?tab=team&amp;reenroll={{.ID}}">Require re-enrollment</a></div>
+<div class="rowlink"><a href="/settings?tab=team&amp;remove={{.ID}}">Remove member</a></div>
+</div>
+</details>
+{{end}}</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<div class="section">
+<div class="microlabel">Roles</div>
+<h2>What each role can do</h2>
+<div class="kv"><div class="k"><span class="badge">admin</span></div><div>performs declared acts — seeds, scans, channels, annotations, team, instance</div></div>
+<div class="kv"><div class="k"><span class="badge">viewer</span></div><div>reads everything, changes nothing — including the sources catalogue</div></div>
+</div>
+
+{{if .RoleTarget}}{{with .RoleTarget}}
+<a class="scrim" href="/settings?tab=team" aria-label="Cancel"></a>
+<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Change role" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);z-index:42">
+<div class="microlabel" style="margin-bottom:8px">Change role</div>
+<h2 style="margin:0 0 4px">Change role</h2>
+<p class="muted" style="margin:0 0 var(--space-4)">{{.Username}}</p>
+<form method="post" action="/settings/accounts/role">
+<input type="hidden" name="id" value="{{.ID}}">
+<label><span>Role</span>
+<select name="role" data-current="{{.Role}}" onchange="document.getElementById('rolesave').disabled=(this.value===this.getAttribute('data-current'))">
+<option value="admin"{{if eq .Role "admin"}} selected{{end}}>admin</option>
+<option value="viewer"{{if eq .Role "viewer"}} selected{{end}}>viewer</option>
+</select></label>
+<div class="dialog-actions">
+<a class="btn ghost" href="/settings?tab=team">Cancel</a>
+<button id="rolesave" type="submit" disabled>Save role</button>
+</div>
+</form>
+</div>
+{{end}}{{end}}
+
+{{if .ReenrollTarget}}{{with .ReenrollTarget}}
+<a class="scrim" href="/settings?tab=team" aria-label="Cancel"></a>
+<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Require re-enrollment" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);z-index:42">
+<div class="microlabel" style="margin-bottom:8px">Require re-enrollment</div>
+<h2 style="margin:0 0 8px">Require re-enrollment</h2>
+<p style="margin:0 0 4px">{{.Username}}'s current authenticator stops working immediately; the next sign-in walks them through two-factor setup again.</p>
+<p class="muted" style="margin:0 0 var(--space-4)">Active sessions stay signed in.</p>
+<div class="dialog-actions">
+<a class="btn ghost" href="/settings?tab=team">Cancel</a>
+<form method="post" action="/settings/accounts/reenroll" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Require re-enrollment</button></form>
+</div>
+</div>
+{{end}}{{end}}
+
+{{if .RemoveTarget}}{{with .RemoveTarget}}
+<a class="scrim" href="/settings?tab=team" aria-label="Cancel"></a>
+<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Remove member" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);z-index:42">
+<div class="microlabel" style="margin-bottom:8px">Remove member</div>
+<h2 style="margin:0 0 8px">Remove {{.Username}}</h2>
+<p style="margin:0 0 4px">{{.Username}} loses access to this deployment.</p>
+<p class="muted" style="margin:0 0 var(--space-4)">Their annotations and audit history stay attributed. Personal API tokens are revoked.</p>
+{{if $.RemoveError}}<div class="error">{{$.RemoveError}}</div>{{end}}
+<form method="post" action="/settings/accounts/remove">
+<input type="hidden" name="id" value="{{.ID}}">
+<label><span>Type <span class="mono">{{.Username}}</span> to confirm</span><input name="confirm_name" autocomplete="off" spellcheck="false" autofocus required></label>
+<div class="dialog-actions">
+<a class="btn ghost" href="/settings?tab=team">Cancel</a>
+<button class="danger" type="submit">Remove member</button>
+</div>
+</form>
+</div>
+{{end}}{{end}}
+
+{{if .InviteOpen}}
+<a class="scrim" href="/settings?tab=team" aria-label="Close"></a>
+<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Invite a member" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);z-index:42">
+<div class="microlabel" style="margin-bottom:8px">Invite a member</div>
+{{if .InviteLink}}
+<h2 style="margin:0 0 12px">Copy the join link now</h2>
+<div class="banner warn" style="margin:0 0 var(--space-4)">Shown once — hand it to the invitee out of band. Verge keeps only a hash, so it cannot be shown again.</div>
+<div style="display:flex;align-items:center;gap:8px">
+<code class="mono cvval" style="flex:1;min-width:0;word-break:break-all;background:var(--sunken);border:1px solid var(--hairline);border-radius:var(--r-sm);padding:var(--space-3)">{{.InviteLink}}</code>
+<button type="button" class="btn secondary" style="flex:none" onclick="var v=this.parentNode.querySelector('.cvval').textContent;if(navigator.clipboard){navigator.clipboard.writeText(v);this.textContent='Copied';}">Copy</button>
+</div>
+<p class="muted" style="margin:var(--space-3) 0 0;font-size:12px">The role applies on acceptance; the link expires in 7 days.</p>
+<div class="dialog-actions"><a class="btn" href="/settings?tab=team">Done</a></div>
+{{else}}
+<h2 style="margin:0 0 4px">Invite a member</h2>
+<p class="muted" style="margin:0 0 var(--space-4);font-size:12.5px">They get a join link; the role applies on acceptance. This build has no mail, so you hand the link over out of band.</p>
+{{if .TeamError}}<div class="error">{{.TeamError}}</div>{{end}}
+<form method="post" action="/settings/accounts">
+<label><span>Role</span><select name="role"><option value="viewer"{{if eq .InviteRole "viewer"}} selected{{end}}>viewer</option><option value="admin"{{if eq .InviteRole "admin"}} selected{{end}}>admin</option></select></label>
+<div class="dialog-actions">
+<a class="btn ghost" href="/settings?tab=team">Cancel</a>
+<button type="submit">Create invite</button>
+</div>
+</form>
+{{end}}
+</div>
+{{end}}
+{{end}}
+
+{{define "settings-audit"}}
+<div class="microlabel">Access · operational record</div>
+<h2>Audit log</h2>
+<p>Who did what, when. This build keeps no separate queryable log of admin acts —
+source enablement, for one, keeps no log line of its own and is dated by the batch
+whose recorded source set it moved — so there is nothing to page through here yet.</p>
+{{if .AuditRows}}
+<div class="section">
+<table>
+<thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Subject</th></tr></thead>
+<tbody>
+{{range .AuditRows}}<tr>
+<td class="mono">{{.When}}</td><td class="mono">{{.Actor}}</td><td class="mono">{{.Action}}</td><td class="mono">{{.Subject}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<div class="emptystate">
+<h2>No audit log</h2>
+<p>The operational records this build does keep are the <a href="/settings?tab=delivery">delivery record</a> and the <a href="/messages">message store</a> — each fact is legible where it fired.</p>
+</div>
+{{end}}
+{{end}}
+
+{{define "settings-aperture"}}
+<div class="microlabel">Discovery · port aperture</div>
+<h2>Port aperture</h2>
+<p>The daily hot-tier port set the census walks: the union of a release-authored
+<em>sensitive</em> tier and an operator-editable <em>frequency</em> tier, plus any
+port previously seen on the subject. Only the TCP pairs are probed; the {{.UDPCount}}
+UDP pairs are recorded in scope and never probed.</p>
+
+<div class="section">
+<div class="rulehead">
+<div><div class="microlabel">verge-core</div><h2 style="margin:0">Sensitive tier</h2></div>
+<span class="badge">locked</span>
+</div>
+<div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:12px">
+{{range .Sensitive}}<span class="badge"><svg aria-hidden="true" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.75" style="vertical-align:-1px;margin-right:4px"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>{{.Port}}/{{.Transport}}</span>{{end}}
+</div>
+<div class="notice">Not editable, on purpose. A port you can hide is a signal you can silence. The sensitive tier is release-authored and moves only with the release — {{.Counts.Sensitive}} pairs, and there is no control to move one.</div>
+</div>
+
+<div class="section">
+<div class="microlabel">verge-core</div>
+<h2>Frequency tier</h2>
+<p class="muted">{{.Counts.Frequency}} TCP ports. Admins may widen or narrow this tier. A port also on the sensitive tier stays probed even if you remove it here — the union keeps it — which is why removing it cannot move the sensitive tier. Union: {{.Counts.Union}} pairs ({{.Counts.TCP}} TCP, {{.Counts.UDP}} UDP).</p>
 {{if .VCError}}<div class="error">{{.VCError}}</div>{{end}}
 {{if .IsAdmin}}
-<form method="post" action="/verge-core/frequency" class="inlineform" style="margin-top:12px">
+<form method="post" action="/verge-core/frequency" class="inlineform" style="margin-bottom:12px">
 <input type="hidden" name="action" value="add">
 <label><span>Add a frequency port</span><input name="port" inputmode="numeric" value="{{.VCPort}}" placeholder="8443" autocomplete="off" required></label>
 <button type="submit">Add to frequency</button>
 </form>
 {{end}}
-</div>
-
-<div class="section">
-<h2>Frequency half</h2>
-<p class="muted">{{.Counts.Frequency}} TCP ports. A port also on the sensitive half stays probed even if you
-remove it here — the union keeps it — which is exactly why removing it cannot move the sensitive half.</p>
 <table>
 <thead><tr><th>Port</th><th>Also sensitive</th><th>Edit</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
 <tbody>
@@ -363,83 +577,36 @@ remove it here — the union keeps it — which is exactly why removing it canno
 </tbody>
 </table>
 </div>
-
-<div class="section">
-<h2>Sensitive half · read-only</h2>
-<p class="muted">{{.Counts.Sensitive}} pairs, authored by the release. There is no control to move one — it
-would move a version without a golden-corpus row moving.</p>
-<table>
-<thead><tr><th>Port</th><th>Transport</th></tr></thead>
-<tbody>
-{{range .Sensitive}}<tr><td class="mono">{{.Port}}</td><td class="mono">{{.Transport}}</td></tr>{{end}}
-</tbody>
-</table>
-</div>
 {{end}}
 
-{{define "settings-access"}}
-<div class="microlabel">Access · single sign-on</div>
-<h2>Single sign-on</h2>
+{{define "settings-instance"}}
+<div class="microlabel">Instance · health</div>
+<h2>Health</h2>
+<p>What this deployment is and how it is doing right now — real reads only, no
+version string or queue figure fabricated where the datum does not exist.</p>
 <div class="section">
-<div class="microlabel">Signed in</div>
-<h2>Your account</h2>
-<div class="kv"><div class="k">Username</div><div class="mono">{{.Account.Username}}</div></div>
-<div class="kv"><div class="k">Role</div><div><span class="badge">{{.Account.Role}}</span></div></div>
-<div class="kv"><div class="k">Two-factor</div><div>{{if .Account.TotpEnabled}}<span class="badge">on</span>{{else}}off{{end}}</div></div>
-{{if not .Account.TotpEnabled}}
-<form method="post" action="/account/totp/enable"><button type="submit">Enable two-factor</button></form>
-{{end}}
+<div class="microlabel">Instance</div>
+<div class="kv"><div class="k">Build</div><div class="mono">{{.Licence}}</div></div>
+<div class="kv"><div class="k">Uptime</div><div class="mono">{{.Uptime}} <span class="muted">since last restart</span></div></div>
+<div class="kv"><div class="k">Database</div><div><span class="badge">postgres · reachable</span></div></div>
 </div>
-
 <div class="section">
-<div class="microlabel">SAML 2.0</div>
-<h2>Identity provider</h2>
-<p>Single sign-on is not configured. This build ships no identity provider, so accounts
-sign in with a password and two-factor. Configure a SAML identity provider to require
-SSO for all sign-ins.</p>
-</div>
-
-{{if .IsAdmin}}
-<div class="section">
-<div class="microlabel">Admin · accounts</div>
-<h2>Accounts</h2>
-{{if .RoleError}}<div class="error">{{.RoleError}}</div>{{end}}
+<div class="microlabel">Fleet</div>
+<h2>Vantages</h2>
+{{if .Fleet}}
 <table>
-<thead><tr><th>Username</th><th>Role</th><th>Two-factor</th><th>Created</th><th>Role</th></tr></thead>
+<thead><tr><th>Vantage</th><th>Class</th><th>Availability</th></tr></thead>
 <tbody>
-{{range .Accounts}}<tr>
-<td class="mono">{{.Username}}{{if .IsSelf}} <span class="muted">(you)</span>{{end}}</td>
-<td><span class="badge">{{.Role}}</span></td>
-<td>{{if .TotpEnabled}}<span class="badge">on</span>{{else}}<span class="muted">off</span>{{if .IsSelf}}
-<form method="post" action="/account/totp/enable" style="display:inline"><button class="secondary" type="submit">Enable</button></form>{{end}}{{end}}</td>
-<td class="mono">{{.At}}</td>
-<td>
-<form method="post" action="/settings/accounts/role" class="inlineform">
-<input type="hidden" name="id" value="{{.ID}}">
-<select name="role"><option value="admin"{{if eq .Role "admin"}} selected{{end}}>admin</option><option value="viewer"{{if eq .Role "viewer"}} selected{{end}}>viewer</option></select>
-<button class="secondary" type="submit">Save</button>
-</form>
-</td>
+{{range .Fleet}}<tr>
+<td class="mono">{{.Name}}</td>
+<td><span class="badge">{{.Class}}</span></td>
+<td>{{if eq .Availability "available"}}<span class="badge">available</span>{{else}}<span class="muted">{{.Availability}}</span>{{end}}</td>
 </tr>{{end}}
 </tbody>
 </table>
-</div>
-
-<div class="section">
-<h2>Invite an account</h2>
-{{if .AcctError}}<div class="error">{{.AcctError}}</div>{{end}}
-<form method="post" action="/settings/accounts">
-<label><span>Username</span><input name="username" value="{{.AcctUsername}}" autocomplete="off" required></label>
-<label><span>Password</span><input name="password" type="password" autocomplete="new-password" required></label>
-<label><span>Role</span><select name="role"><option value="admin"{{if eq .AcctRole "admin"}} selected{{end}}>admin</option><option value="viewer"{{if eq .AcctRole "viewer"}} selected{{end}}>viewer</option></select></label>
-<button type="submit">Create account</button>
-</form>
-</div>
 {{else}}
-<div class="section">
-<div class="microlabel">Viewer</div>
-<p>You have read access. Account management is admin-only.</p>
-</div>
+<p class="muted">No vantage is provisioned, so only the shipped resolver position exists. Provision one on <a href="/scope">Scope</a>.</p>
 {{end}}
+</div>
 {{end}}
 `

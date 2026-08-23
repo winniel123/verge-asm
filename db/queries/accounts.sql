@@ -44,3 +44,22 @@ UPDATE account SET totp_secret = $2, totp_enabled = false WHERE id = $1;
 
 -- name: ConfirmTOTP :exec
 UPDATE account SET totp_enabled = true WHERE id = $1 AND totp_secret IS NOT NULL;
+
+-- name: DeleteAccount :exec
+-- Remove a member (Settings -> Team, T18). The handler gates this behind a typed-
+-- name confirmation and refuses to remove yourself or the last admin. Attributed
+-- work keeps the account's id: the created_by references on seeds, channels,
+-- exclusions and the rest are NOT NULL with no cascade, so this deletes only an
+-- account that authored none of them — the FK violation surfaces as a clear refusal
+-- rather than a silent orphaning. The single-use pre-auth grants (personal tokens,
+-- password resets, recovery codes) cascade; an invite the account issued or accepted
+-- keeps its record with the reference nulled (ON DELETE SET NULL).
+DELETE FROM account WHERE id = $1;
+
+-- name: ResetAccountTOTP :exec
+-- Require re-enrollment (Settings -> Team, T18): clear an account's second factor so
+-- their current authenticator stops working at once and the next sign-in walks them
+-- through TOTP setup again. It touches neither the password nor any session — a
+-- signed-in account stays signed in until its cookie lapses. Symmetric to
+-- SetTOTPSecret, which arms a fresh secret; this disarms the factor entirely.
+UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1;

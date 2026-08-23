@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -224,6 +225,20 @@ func (s *server) fillSourcesSection(r *http.Request, data map[string]any) error 
 	data["ShipOff"] = shipOff
 	data["NotExecuting"] = notExecuting
 	data["Barred"] = barred
+
+	// The terms dialog that gates enabling an operator-accepted source (Sources.jsx):
+	// opened by ?terms=<slug>, it renders that source's two consent groups and the
+	// acceptance checkbox. It renders only for a source that is operator-accepted,
+	// toggleable, and currently off — nothing gates disabling or an unencumbered
+	// source, and a stray param on either simply opens no dialog.
+	if slug := r.URL.Query().Get("terms"); slug != "" {
+		for i := range shipOff {
+			if shipOff[i].Slug == slug {
+				data["TermsSource"] = shipOff[i]
+				break
+			}
+		}
+	}
 	return nil
 }
 
@@ -286,6 +301,15 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 	enabled, err := strconv.ParseBool(r.FormValue("enabled"))
 	if err != nil {
 		http.Error(w, "bad state", http.StatusBadRequest)
+		return
+	}
+	// Enabling an operator-accepted source is gated on accepting its terms: the
+	// project could not clear them on your behalf, so the enable act must carry your
+	// acceptance. Without it, bounce back to the terms dialog rather than enabling —
+	// a real gate, not only a UI affordance. Disabling and unencumbered sources are
+	// never gated.
+	if enabled && c.Consent == consentAccepted && r.FormValue("agreed") == "" {
+		http.Redirect(w, r, "/sources?terms="+url.QueryEscape(slug), http.StatusSeeOther)
 		return
 	}
 	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
@@ -358,7 +382,7 @@ to the estate and never asserts absence.</p>
 <div class="muted">{{.ShipNote}}</div>
 <div style="margin-top:6px"><span class="badge">{{.KindLabel}}</span> <span class="badge">{{.Consent}}</span> {{if .Enabled}}<span class="badge">on</span>{{else}}<span class="badge off">off</span>{{end}}</div>
 </div>
-{{if $.IsAdmin}}<div>{{template "srctoggle" .}}</div>{{end}}
+{{if $.IsAdmin}}<div>{{if .Enabled}}{{template "srctoggle" .}}{{else}}<a class="btn" href="/sources?terms={{.Slug}}">Enable</a>{{end}}</div>{{end}}
 </div>
 <div class="classes" style="align-items:flex-start">
 <div style="flex:1;min-width:220px">
@@ -387,5 +411,33 @@ to the estate and never asserts absence.</p>
 </tbody>
 </table>
 </div>
+
+{{if .TermsSource}}{{with .TermsSource}}
+<a class="scrim" href="/sources" aria-label="Cancel"></a>
+<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Enable {{.Name}}" style="position:fixed;top:12vh;left:50%;transform:translateX(-50%);z-index:42">
+<div class="microlabel" style="margin-bottom:8px">Enable {{.Name}}</div>
+<h2 style="margin:0 0 4px">Enable {{.Name}}</h2>
+<p class="muted" style="margin:0 0 var(--space-4)">The project could not clear these terms on your behalf. Your acceptance, your reading.</p>
+<div class="classes" style="align-items:flex-start;margin-bottom:12px">
+<div style="flex:1;min-width:200px">
+<div class="microlabel">What you may be able to resolve</div>
+{{if .MayResolve}}<ul>{{range .MayResolve}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">None — every open question here is one nobody has been able to answer.</p>{{end}}
+</div>
+<div style="flex:1;min-width:200px">
+<div class="microlabel">What nobody has been able to resolve</div>
+{{if .Unresolvable}}<ul>{{range .Unresolvable}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
+</div>
+</div>
+<form method="post" action="/sources/toggle">
+<input type="hidden" name="slug" value="{{.Slug}}">
+<input type="hidden" name="enabled" value="true">
+<label class="check"><input type="checkbox" name="agreed" onchange="document.getElementById('termsaccept').disabled=!this.checked"><span>I accept these terms</span></label>
+<div class="dialog-actions">
+<a class="btn ghost" href="/sources">Cancel</a>
+<button id="termsaccept" type="submit" disabled>Accept and enable</button>
+</div>
+</form>
+</div>
+{{end}}{{end}}
 {{end}}
 `

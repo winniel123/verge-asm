@@ -323,6 +323,30 @@ func (f *fakeStore) ConfirmTOTP(_ context.Context, id int64) error {
 	return nil
 }
 
+func (f *fakeStore) DeleteAccount(_ context.Context, id int64) error {
+	if _, ok := f.accounts[id]; !ok {
+		return pgx.ErrNoRows
+	}
+	delete(f.accounts, id)
+	for name, nid := range f.byName {
+		if nid == id {
+			delete(f.byName, name)
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) ResetAccountTOTP(_ context.Context, id int64) error {
+	acct, ok := f.accounts[id]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	acct.TotpSecret = pgtype.Text{}
+	acct.TotpEnabled = false
+	f.accounts[id] = acct
+	return nil
+}
+
 func (f *fakeStore) CreateNameSeed(_ context.Context, arg db.CreateNameSeedParams) (db.Seed, error) {
 	for _, s := range f.seeds {
 		if s.Kind == "name" && s.NameDomain.String == arg.NameDomain.String {
