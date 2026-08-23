@@ -781,32 +781,37 @@ the 1,418,684 figure is an upper bound and the 291,682 repeated strings are most
 search 500ing, and #38 asked *"whether another exists"*. **Two do.** All are `operator-accepted`
 (RIPE Database, #19/#23 unanswered).
 
-Worked end to end against *****REMOVED*****, selected mechanically from the dump as an
-`ASSIGNED PA` /28 (`***REMOVED***.48 - ***REMOVED***.63`, `mnt-by: TELIANET-LIR`) — a small commercial
+> The worked examples below used real RIPE records; the organisation names, `ORG-*`/netname
+> handles, and IP ranges have been replaced with anonymized placeholders (RFC 5737 documentation
+> ranges) so this note does not single out uninvolved third parties. The HTTP status codes and
+> response sizes are retained as originally observed.
+
+Worked end to end against **Example Operator AB**, selected mechanically from the dump as an
+`ASSIGNED PA` /28 (`203.0.113.48 - 203.0.113.63`, `mnt-by: TELIANET-LIR`) — a small commercial
 organisation renting PA space from Telia with no ASN, i.e. precisely the case #26 assumed unreachable:
 
 ```sh
 # A. name -> org handle. HTTP 200, 2,445 B. #20 tried this with type-filter=inetnum.
-curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***%20AB&type-filter=organisation&flags=r'
-#    -> <object type="organisation"> ***REMOVED***
+curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=Example%20Operator%20AB&type-filter=organisation&flags=r'
+#    -> <object type="organisation"> ORG-EXA1-RIPE
 
 # B. org handle -> prefixes, inverse lookup. HTTP 200, 2,360 B.
-curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***&inverse-attribute=org&type-filter=inetnum&flags=r'
-#    -> inetnum ***REMOVED***.48 - ***REMOVED***.63 | netname SE-***REMOVED*** | status ASSIGNED PA
+curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=ORG-EXA1-RIPE&inverse-attribute=org&type-filter=inetnum&flags=r'
+#    -> inetnum 203.0.113.48 - 203.0.113.63 | netname SE-EXAMPLE-A | status ASSIGNED PA
 
 # C. #20's route, reproduced exactly. HTTP 400, 416 B, "invalid search key".
-curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***%20AB&type-filter=inetnum&flags=r'
+curl -A "$UA" 'https://rest.db.ripe.net/search?query-string=Example%20Operator%20AB&type-filter=inetnum&flags=r'
 ```
 
 **The one-request route is full-text search, and it is the one that matters**, because it reads
 `descr:` and therefore reaches the 89 % rather than the 4 %. Worked against
-*****REMOVED*** Eiland Tholen W Brons** — a Dutch veterinary practice on a **/29**
-(`***REMOVED***.56 - ***REMOVED***.63`), `ASSIGNED PA`, **carrying no `org:` attribute at all**:
+**Example Veterinary Practice** — a Dutch veterinary practice on a **/29**
+(`198.51.100.56 - 198.51.100.63`), `ASSIGNED PA`, **carrying no `org:` attribute at all**:
 
 ```sh
 # F. HTTP 200, 1,953 B, numFound=2.
-curl -A "$UA" 'https://rest.db.ripe.net/fulltextsearch/select?q=%22***REMOVED***+Eiland+Tholen%22&wt=xml&rows=5'
-#    -> object-type inetnum | ***REMOVED***.56 - ***REMOVED***.63 | descr "***REMOVED*** Eiland Tholen W Brons"
+curl -A "$UA" 'https://rest.db.ripe.net/fulltextsearch/select?q=%22Example+Veterinary+Practice%22&wt=xml&rows=5'
+#    -> object-type inetnum | 198.51.100.56 - 198.51.100.63 | descr "Example Veterinary Practice"
 #       | status ASSIGNED PA
 ```
 
@@ -818,10 +823,10 @@ its own, no ASN, and no `org:` record, found by name and yielding its CIDR.
 
 | Request | Result |
 |---|---|
-| `rdap.db.ripe.net/entities?fn=***REMOVED***%20AB` (exact) | **HTTP 200**, 4,213 B, returns `***REMOVED***` |
-| `rdap.db.ripe.net/entities?fn=***REMOVED****` (wildcard) | **HTTP 500**, 703 B |
+| `rdap.db.ripe.net/entities?fn=Example%20Operator%20AB` (exact) | **HTTP 200**, 4,213 B, returns `ORG-EXA1-RIPE` |
+| `rdap.db.ripe.net/entities?fn=Example%20Operator*` (wildcard) | **HTTP 500**, 703 B |
 | `rdap.db.ripe.net/entities?fn=Hauraton%20GmbH%26CoKG` (exact, control) | **HTTP 200**, 4,908 B |
-| `rdap.db.ripe.net/entities?fn=***REMOVED****` (wildcard, control) | **HTTP 500**, 703 B |
+| `rdap.db.ripe.net/entities?fn=Example-Vet*` (wildcard, control) | **HTTP 500**, 703 B |
 
 So RIPE RDAP entity search **works on exact names and 500s on wildcards** — the opposite convention to
 ARIN, where §7.1's whole method is `fn=Acme*`. A client written against ARIN's wildcard idiom gets a
@@ -1068,7 +1073,7 @@ own, and in APNIC and AFRINIC it honestly does not.
 5. **Only IPv4 was measured.** All five policies quoted in §13.2 carry IPv6 clauses with their own
    floors (APNIC's `/48`, for instance). Nothing here measures IPv6 assignment registration or its
    searchability.
-6. **The worked chains are three, not a sample.** ***REMOVED***, ***REMOVED*** Eiland Tholen
+6. **The worked chains are three, not a sample.** Example Operator AB, Example Veterinary Practice
    W Brons and Typack S.A. were each drawn mechanically from a bulk file or a whois walk, and each
    demonstrates that the path *can* resolve. As §12.7 already says of §6's four, they do not measure
    how often the registered string matches what an operator would type — and §13.6's LACNIC
@@ -1117,12 +1122,12 @@ gzip -dc apnic.db.inetnum.gz | awk -v WANT="ASSIGNED NON-PORTABLE" -f descr1.awk
 gzip -dc afrinic.db.gz       | awk -v WANT="ASSIGNED PA"            -f descr1.awk | sort -u | wc -l
 
 # --- live paths, throttled 3-6 s between requests ---
-curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***%20AB&type-filter=organisation&flags=r'
-curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***&inverse-attribute=org&type-filter=inetnum&flags=r'
-curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=***REMOVED***%20AB&type-filter=inetnum&flags=r'
-curl -sS -A "$UA" 'https://rest.db.ripe.net/fulltextsearch/select?q=%22***REMOVED***+Eiland+Tholen%22&wt=xml&rows=5'
-curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.db.ripe.net/entities?fn=***REMOVED***%20AB'
-curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.db.ripe.net/entities?fn=***REMOVED****'
+curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=Example%20Operator%20AB&type-filter=organisation&flags=r'
+curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=ORG-EXA1-RIPE&inverse-attribute=org&type-filter=inetnum&flags=r'
+curl -sS -A "$UA" 'https://rest.db.ripe.net/search?query-string=Example%20Operator%20AB&type-filter=inetnum&flags=r'
+curl -sS -A "$UA" 'https://rest.db.ripe.net/fulltextsearch/select?q=%22Example+Veterinary+Practice%22&wt=xml&rows=5'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.db.ripe.net/entities?fn=Example%20Operator%20AB'
+curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.db.ripe.net/entities?fn=Example%20Operator*'
 curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.apnic.net/entities?fn=Ebisu%20Servers*'
 curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.apnic.net/entities?fn=Ebisu%20Servers%20Pte%20Ltd'
 curl -sS -A "$UA" -H 'Accept: application/rdap+json' 'https://rdap.lacnic.net/rdap/entities?fn=Typack*'

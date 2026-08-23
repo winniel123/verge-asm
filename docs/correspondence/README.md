@@ -76,11 +76,11 @@ as body text; the four domains as `To:`, `From:` and `Cc:` headers; the registry
 `"permitted use"`, `hostmaster`; and the drafts folder on its own.
 
 **Result:** **nothing.** Every registry-scoped query returned zero threads. The one query that
-returned anything returned five threads — GitHub CVE notifications, ***REMOVED*** and a
-***REMOVED*** — matching on the bare word `whois` and nothing else.
+returned anything returned a handful of unrelated threads — matching on the bare word `whois`
+and nothing else.
 
-**The search ran.** A control query over sent mail alone returned ~201 threads spanning
-2024-05-10 to 2026-07-21, so the empty results are the mailbox's answer and not a broken query.
+**The search ran.** A control query over sent mail alone returned a large, non-empty result
+set, so the empty results are the mailbox's answer and not a broken query.
 
 ### What it settles, and the two things it does not
 
@@ -91,8 +91,8 @@ weaker true sentence.
 It does **not** establish that nothing was sent, and no surface may say so. Two limits, both of
 which are the reason this section states its extent:
 
-1. **One mailbox of at least three.** The dev's sent mail shows `***REMOVED***` and
-   `***REMOVED***` as correspondents; neither was searched, and neither is reachable
+1. **One mailbox of at least three.** The dev's sent mail shows at least two further sender
+   addresses as correspondents; neither was searched, and neither is reachable
    from here.
 2. **An empty mailbox is not an empty world.** Mail can be sent from an account that keeps no
    copy, or deleted past recovery.
