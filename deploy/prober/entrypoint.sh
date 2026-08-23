@@ -66,6 +66,21 @@ rm -f "$SSH_DIR/.keycheck"
 # and the key is additionally pinned to that source with from= (§3, §4.2).
 OPTS="restrict"
 if [ -n "${PROBER_FROM:-}" ]; then
+    # PROBER_FROM is embedded verbatim inside from="...". Validate it BEFORE
+    # embedding: reject anything outside a sane from-pattern charset (letters,
+    # digits, dots, colons for IPv6, slashes for CIDR, commas, and the ? * !
+    # pattern operators). This fails closed on a double-quote (which would close
+    # the from="..." early and let an attacker append options like
+    # command="/bin/sh"), on whitespace or a newline (which would start a whole
+    # new authorized_keys line/key), and on a backslash — defeating `restrict`.
+    case "$PROBER_FROM" in
+        *[!A-Za-z0-9.:/,*?!-]*)
+            echo "prober: PROBER_FROM contains a disallowed character. Use only a" >&2
+            echo "        from= pattern (hosts, IPs, CIDRs, commas, ? * ! wildcards)," >&2
+            echo "        e.g. '203.0.113.5' or '10.0.0.0/8,192.168.0.0/16'." >&2
+            exit 1
+            ;;
+    esac
     OPTS="restrict,from=\"$PROBER_FROM\""
 fi
 
