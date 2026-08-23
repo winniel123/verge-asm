@@ -114,7 +114,7 @@ func TestSetupCreatesFirstAdminThenCloses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := body(t, resp); !strings.Contains(got, "Create the first admin") {
+	if got := body(t, resp); !strings.Contains(got, "Create the admin account") {
 		t.Fatalf("setup form missing; body: %s", got)
 	}
 

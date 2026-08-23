@@ -2,8 +2,10 @@ package main
 
 import "html/template"
 
-// SignIn screen — the chrome-less auth surfaces (setup, login, TOTP verify,
-// TOTP enrol). Canonical screen: SignIn. Ported from examples/console/SignIn.jsx
+// SignIn screen — the chrome-less auth surfaces (login, TOTP verify, TOTP
+// enrol). The sibling first-run bootstrap (setup) lives in templates_setup.go
+// (T10, #305) and reuses the authbrand/authfoot partials defined here.
+// Canonical screen: SignIn. Ported from examples/console/SignIn.jsx
 // (T6, #282): the centered-card shell — brand lockup, a single card, and a mono
 // footer note — with the credentials step, the TOTP verify step, and the SSO
 // affordance the example composes.
@@ -26,27 +28,6 @@ const signinTemplates = `
 {{define "authbrand"}}<div style="display:inline-flex;align-items:center;gap:8px"><span class="brand-glyph" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1.4" fill="currentColor" stroke="none"/></svg></span><span class="wordmark">Verge<span class="chip">ASM</span></span></div>{{end}}
 
 {{define "authfoot"}}<div class="mono" style="font-size:11px;color:var(--muted);display:inline-flex;gap:10px;align-items:center"><span>AGPL-3.0</span><span aria-hidden="true">&#183;</span><a href="https://github.com/winniel123/verge-asm" rel="noreferrer" style="color:var(--muted)">GitHub</a></div>{{end}}
-
-{{define "setup"}}{{template "head" .}}
-<div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-5);width:400px;max-width:100%">
-{{template "authbrand" .}}
-<div class="card" style="width:100%">
-<div class="microlabel">First-run setup</div>
-<div style="display:flex;flex-direction:column;gap:4px;margin:6px 0 var(--space-4)">
-<h1 style="margin:0">Create the first admin</h1>
-<span class="muted" style="font-size:12.5px">This creates the only account that exists.</span>
-</div>
-<p style="font-size:12.5px;line-height:1.6">The setup token was written to the <code style="background:var(--sunken);border:1px solid var(--hairline);border-radius:6px;padding:1px 5px;font-size:0.92em">web</code> container logs on first boot.</p>
-{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
-<form method="post" action="/setup">
-<label><span>Setup token</span><input name="token" value="{{.Token}}" autocomplete="off" required></label>
-<label><span>Username</span><input name="username" autocomplete="username" required></label>
-<label><span>Password</span><input name="password" type="password" autocomplete="new-password" required></label>
-<button type="submit" style="width:100%">Create admin</button>
-</form>
-</div>
-{{template "authfoot" .}}
-</div></div>{{template "foot" .}}{{end}}
 
 {{define "login"}}{{template "head" .}}
 <div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-5);width:400px;max-width:100%">
