@@ -43,6 +43,22 @@ Both **confidential clients** (client id *and* secret) and **public, PKCE-only c
 (client id, no secret) are supported. PKCE (S256) is used on every login regardless; the
 secret is what distinguishes the two client types.
 
+### Setting up a specific provider
+
+The mechanics below are the same for every provider; the fiddly part is finding the right
+values in each IdP's own console. These worked examples map a provider's admin console to
+the five fields and two callback URLs this guide describes:
+
+| Provider | Guide |
+| --- | --- |
+| Microsoft Entra ID (formerly Azure AD) | [sso-entra-id.md](sso-entra-id.md) |
+| Google Workspace | [sso-google.md](sso-google.md) |
+| Okta | [sso-okta.md](sso-okta.md) |
+| Keycloak | [sso-keycloak.md](sso-keycloak.md) |
+
+Any other standards-compliant OIDC provider works through the same generic path — declare
+it by its issuer URL and register the two callback URLs.
+
 ---
 
 ## Configure a provider — Settings → SSO
