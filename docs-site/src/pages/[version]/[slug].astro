@@ -1,0 +1,51 @@
+---
+/*
+ * Guide route — /<version>/<slug>  (e.g. /main/using).
+ *
+ * This page is the ONLY place the three pipeline stages are wired together; each
+ * stage is imported, never redefined (see docs-site/PIPELINE.md):
+ *   1. source-resolution -> which guides exist at which version   (Tv / #351)
+ *   2. render+transform  -> the article island + heading anchors  (T2 / #352)
+ *   3. nav-build         -> the left-rail section model            (T3 / #353)
+ * The on-page TOC comes from slug.ts (shares the render's slug algorithm).
+ *
+ * The <version> segment is already in the path today (only value: "main") so Tv
+ * varies versions by changing source-resolution alone — this route is untouched.
+ */
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import Article from "../../pipeline/render.jsx";
+import { resolveSources, listVersions } from "../../pipeline/source-resolution";
+import { extractToc } from "../../pipeline/slug";
+import { buildNav } from "../../pipeline/nav-build";
+
+export async function getStaticPaths() {
+  const versions = listVersions();
+  const paths = [];
+  for (const v of versions) {
+    const sources = await resolveSources(v.value);
+    for (const source of sources) {
+      paths.push({
+        params: { version: v.value, slug: source.slug },
+        props: { source, sources, versions },
+      });
+    }
+  }
+  return paths;
+}
+
+const { source, sources, versions } = Astro.props;
+
+const toc = extractToc(source.rawMarkdown);
+const sections = buildNav(sources, source.slug);
+const pageTitle = `${source.frontmatter.title ?? source.slug} · Verge ASM docs`;
+---
+<DocsLayout
+  title={pageTitle}
+  description={source.frontmatter.description}
+  sections={sections}
+  toc={toc}
+  versions={versions}
+  version={source.version}
+>
+  <Article client:load markdown={source.rawMarkdown} />
+</DocsLayout>
