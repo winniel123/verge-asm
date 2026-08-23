@@ -2,6 +2,7 @@
   "name": "verge-asm-docs-site",
   "version": "0.0.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Verge ASM documentation site. Renders docs/guides/*.md inside the design-system DocsPage shell. Node/Astro build lane; no coupling to the Go app.",
   "scripts": {
