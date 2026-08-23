@@ -32,6 +32,13 @@ SELECT count(*) FROM account WHERE role = 'admin';
 -- name: UpdateAccountRole :exec
 UPDATE account SET role = $2 WHERE id = $1;
 
+-- name: UpdatePassword :exec
+-- Change one account's own password (Profile → Credentials). The handler verifies
+-- the current password and the new-password rules before this runs, so this is the
+-- bare write; it never touches the TOTP secret, so a password change leaves the
+-- second factor in force.
+UPDATE account SET password_hash = $2 WHERE id = $1;
+
 -- name: SetTOTPSecret :exec
 UPDATE account SET totp_secret = $2, totp_enabled = false WHERE id = $1;
 

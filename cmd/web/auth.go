@@ -2,11 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -538,6 +543,355 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	fresh.TotpEnabled = true
 	s.renderSettings(w, r, fresh, settingsForms{tab: "access", notice: "Two-factor is now enabled."})
+}
+
+// --- profile (#304, T9) -----------------------------------------------------
+
+// profileTokenView is one personal API token shaped for the tokens table: its id
+// (for the revoke link), the operator's label, the non-secret prefix, and the two
+// timestamps. Last is an em dash for a token never yet presented — the honest read
+// of last_used_at IS NULL, never a fabricated recency.
+type profileTokenView struct {
+	ID      int64
+	Name    string
+	Prefix  string
+	Created string
+	Last    string
+}
+
+// profileState carries the transient, per-request Profile surface: which dialog is
+// open, a freshly minted token to reveal once, and any inline errors. It never
+// holds persisted data — that is read fresh in renderProfile — so a plain page load
+// passes the zero value.
+type profileState struct {
+	notice     string
+	pwError    string
+	createOpen bool
+	tokError   string
+	tokName    string
+	minted     string // freshly minted plaintext — shown once, never stored
+	mintedName string
+	revokeID   int64 // token-revoke ConfirmDialog target; 0 = closed
+	revokeErr  string
+	endSession bool // end-session ConfirmDialog open
+}
+
+// profilePage renders the account's own Profile (#304): identity, credentials with
+// the 2FA status, the current session, and the personal API tokens. It is
+// viewer-readable — a Profile is personal, so any signed-in account manages its own
+// credentials and tokens. The create/revoke/end-session dialogs are opened by query
+// param so the destructive ones are a navigation, never a click that fires the act.
+func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	st := profileState{}
+	q := r.URL.Query()
+	if q.Get("new") != "" {
+		st.createOpen = true
+	}
+	if v := q.Get("revoke"); v != "" {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			st.revokeID = id
+		}
+	}
+	if q.Get("endsession") != "" {
+		st.endSession = true
+	}
+	if q.Get("saved") != "" {
+		st.notice = "Password changed. Other sessions keep working until they expire."
+	}
+	s.renderProfile(w, r, acct, st)
+}
+
+// renderProfile assembles the Profile page's real data of the shape Profile.jsx
+// composes and renders it with the transient state. Every figure is a real read of
+// this account: username and role from the row, the 2FA status from totp_enabled,
+// the current session from the live request, and the tokens from the store. No
+// sample datum survives.
+func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.Account, st profileState) {
+	// Read the account fresh so the 2FA status reflects an enrolment completed in
+	// this same session (the shared totp flow mutates the row, not this acct copy).
+	if fresh, err := s.store.GetAccountByID(r.Context(), acct.ID); err == nil {
+		acct = fresh
+	}
+
+	var tokens []profileTokenView
+	if rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID); err == nil {
+		for _, t := range rows {
+			tokens = append(tokens, profileTokenView{
+				ID: t.ID, Name: t.Name, Prefix: t.Prefix,
+				Created: isoDate(t.CreatedAt), Last: lastUsed(t.LastUsedAt),
+			})
+		}
+	} else {
+		log.Printf("web: profile: list personal tokens: %v", err)
+	}
+
+	// The revoke ConfirmDialog names its target; resolve it from the read so a stale
+	// or foreign id simply renders no dialog rather than a gate with no subject.
+	revokeName := ""
+	if st.revokeID != 0 {
+		for _, t := range tokens {
+			if t.ID == st.revokeID {
+				revokeName = t.Name
+				break
+			}
+		}
+		if revokeName == "" {
+			st.revokeID = 0
+		}
+	}
+
+	data := map[string]any{
+		"Title": "Profile", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "",
+
+		"Initials":    initials(acct.Username),
+		"Username":    acct.Username,
+		"Role":        acct.Role,
+		"CreatedISO":  isoDate(acct.CreatedAt),
+		"TotpEnabled": acct.TotpEnabled,
+
+		"SessionDevice": sessionDevice(r),
+		"SessionIP":     sessionIP(r),
+
+		"Tokens": tokens,
+
+		"Notice":     st.notice,
+		"PwError":    st.pwError,
+		"CreateOpen": st.createOpen,
+		"TokError":   st.tokError,
+		"TokName":    st.tokName,
+		"Minted":     st.minted,
+		"MintedName": st.mintedName,
+		"RevokeID":   st.revokeID,
+		"RevokeName": revokeName,
+		"RevokeErr":  st.revokeErr,
+		"EndSession": st.endSession,
+	}
+	s.render(w, "profile", data)
+}
+
+// changePassword is the self-service password change (Profile → Credentials). It
+// verifies the current password against a fresh read, enforces the same length
+// bounds as every other credential path, and never touches the TOTP secret — a
+// password change leaves the second factor in force. Other sessions are not
+// invalidated (this build's sessions are stateless signed cookies), which the
+// success notice states plainly rather than implying a global sign-out.
+func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	current := r.FormValue("current_password")
+	next := r.FormValue("new_password")
+
+	fresh, err := s.store.GetAccountByID(r.Context(), acct.ID)
+	if err != nil {
+		s.serverError(w, "profile: read account", err)
+		return
+	}
+	if !auth.CheckPassword(fresh.PasswordHash, current) {
+		s.renderProfile(w, r, acct, profileState{pwError: "Current password is incorrect."})
+		return
+	}
+	if msg := validatePassword(next); msg != "" {
+		s.renderProfile(w, r, acct, profileState{pwError: msg})
+		return
+	}
+	hash, err := auth.HashPassword(next)
+	if err != nil {
+		s.serverError(w, "profile: hash password", err)
+		return
+	}
+	if err := s.store.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: acct.ID, PasswordHash: hash}); err != nil {
+		s.serverError(w, "profile: update password", err)
+		return
+	}
+	http.Redirect(w, r, "/profile?saved=1", http.StatusSeeOther)
+}
+
+// createPersonalToken mints a personal API token and reveals it once. The plaintext
+// is generated, its hash stored, and the plaintext handed back in THIS response
+// only — the page is rendered directly (not redirected) so the value can be shown a
+// single time; a refresh re-GETs /profile without it. Verge keeps only the hash.
+func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	name := strings.TrimSpace(r.FormValue("name"))
+	switch {
+	case name == "":
+		s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "Give the token a name.", tokName: name})
+		return
+	case len(name) > 64:
+		s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "Name must be 64 characters or fewer.", tokName: name})
+		return
+	}
+	plaintext, prefix, hash, err := mintPersonalToken()
+	if err != nil {
+		s.serverError(w, "profile: mint token", err)
+		return
+	}
+	if _, err := s.store.CreatePersonalToken(r.Context(), db.CreatePersonalTokenParams{
+		AccountID: acct.ID, Name: name, Prefix: prefix, TokenHash: hash,
+	}); err != nil {
+		if isUniqueViolation(err) {
+			s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "You already have a token named that.", tokName: name})
+			return
+		}
+		s.serverError(w, "profile: create token", err)
+		return
+	}
+	s.renderProfile(w, r, acct, profileState{minted: plaintext, mintedName: name})
+}
+
+// revokePersonalToken revokes a token through the typed-name gate: the operator must
+// type the token's exact name to confirm, guarding the worst destructive act on the
+// page — a revoke is irreversible and silently breaks whatever automation held the
+// token. It is reached only through the ConfirmDialog (a POST), never a menu click,
+// and the delete is scoped to the owner so no account can revoke another's token.
+func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, _ := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	typed := strings.TrimSpace(r.FormValue("confirm_name"))
+
+	rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID)
+	if err != nil {
+		s.serverError(w, "profile: list tokens", err)
+		return
+	}
+	name := ""
+	for _, t := range rows {
+		if t.ID == id {
+			name = t.Name
+			break
+		}
+	}
+	if name == "" {
+		// Already gone (or never this account's) — nothing to revoke.
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	if typed != name {
+		s.renderProfile(w, r, acct, profileState{
+			revokeID:  id,
+			revokeErr: "That did not match. Type " + name + " exactly to revoke.",
+		})
+		return
+	}
+	if err := s.store.DeletePersonalToken(r.Context(), db.DeletePersonalTokenParams{ID: id, AccountID: acct.ID}); err != nil {
+		s.serverError(w, "profile: revoke token", err)
+		return
+	}
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// revokeSession ends the current session. This build's sessions are stateless signed
+// cookies with no server-side registry, so the one session honestly revocable is the
+// one making the request: revoking it clears the cookie and lands on /login, exactly
+// as sign-out does. It is reached only through the end-session ConfirmDialog.
+func (s *server) revokeSession(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	s.clearCookie(w, sessionCookie)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// mintPersonalToken generates a personal token, returning the plaintext to reveal
+// once, the non-secret prefix to store for display, and the hash to store in place
+// of the secret. The token is high-entropy random, so a SHA-256 digest is the right
+// keeper — unlike a low-entropy password, it needs no slow KDF.
+func mintPersonalToken() (plaintext, prefix, hash string, err error) {
+	b := make([]byte, 24)
+	if _, err = rand.Read(b); err != nil {
+		return "", "", "", err
+	}
+	plaintext = "vg_pat_" + hex.EncodeToString(b)
+	sum := sha256.Sum256([]byte(plaintext))
+	hash = hex.EncodeToString(sum[:])
+	prefix = plaintext[:11] + "…" // vg_pat_ + 4 hex chars + ellipsis
+	return plaintext, prefix, hash, nil
+}
+
+// validatePassword bounds a new password to the same range every credential path
+// enforces: at least 8 characters, and at most 72 (bcrypt hashes no more).
+func validatePassword(pw string) string {
+	switch {
+	case len(pw) < 8:
+		return "Password must be at least 8 characters."
+	case len(pw) > 72:
+		return "Password must be 72 characters or fewer."
+	default:
+		return ""
+	}
+}
+
+// isoDate formats a timestamp as an ISO 8601 date, or an em dash when absent.
+func isoDate(ts pgtype.Timestamptz) string {
+	if !ts.Valid {
+		return "—"
+	}
+	return ts.Time.Format("2006-01-02")
+}
+
+// lastUsed renders a token's last-used instant, or an em dash when it has never been
+// presented — the honest read of a NULL last_used_at, not a fabricated recency.
+func lastUsed(ts pgtype.Timestamptz) string {
+	if !ts.Valid {
+		return "—"
+	}
+	return ts.Time.Format("2006-01-02")
+}
+
+// initials derives a two-letter avatar label from the username, upper-cased.
+func initials(username string) string {
+	u := strings.TrimSpace(username)
+	if u == "" {
+		return "?"
+	}
+	r := []rune(strings.ToUpper(u))
+	if len(r) == 1 {
+		return string(r[0])
+	}
+	return string(r[0]) + string(r[1])
+}
+
+// sessionDevice describes the current session from the request's User-Agent — a real
+// derivation of what the client sent, never a fabricated device. An unrecognised or
+// absent agent degrades to a plain label rather than a guess.
+func sessionDevice(r *http.Request) string {
+	ua := r.UserAgent()
+	if ua == "" {
+		return "This session"
+	}
+	browser := "Browser"
+	switch {
+	case strings.Contains(ua, "Firefox"):
+		browser = "Firefox"
+	case strings.Contains(ua, "Edg"):
+		browser = "Edge"
+	case strings.Contains(ua, "Chrome"), strings.Contains(ua, "Chromium"):
+		browser = "Chrome"
+	case strings.Contains(ua, "Safari"):
+		browser = "Safari"
+	}
+	os := ""
+	switch {
+	case strings.Contains(ua, "Mac OS X"), strings.Contains(ua, "Macintosh"):
+		os = "macOS"
+	case strings.Contains(ua, "Windows"):
+		os = "Windows"
+	case strings.Contains(ua, "iPhone"), strings.Contains(ua, "iPad"):
+		os = "iOS"
+	case strings.Contains(ua, "Android"):
+		os = "Android"
+	case strings.Contains(ua, "Linux"):
+		os = "Linux"
+	}
+	if os != "" {
+		return browser + " · " + os
+	}
+	return browser
+}
+
+// sessionIP is the address this request arrived from. It reads RemoteAddr, never a
+// proxy-supplied forwarding header — the same rule the auth path holds: a header is
+// never trusted, here not even for display.
+func sessionIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
 
 // --- helpers ---------------------------------------------------------------
