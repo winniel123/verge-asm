@@ -83,7 +83,18 @@ func main() {
 	// so web only needs to insert the Dispatch and its jobs, which the Dispatcher
 	// over this pool does.
 	web.dispatcher = queue.NewDispatcher(pool, time.Now, log.New(os.Stderr, "", log.LstdFlags))
-	srv := &http.Server{Addr: listenAddr, Handler: web.handler()}
+	// Explicit timeouts guard the only internet-facing listener against
+	// Slowloris-style slow-request DoS (gosec G112). The operator UI serves
+	// bounded request/response bodies with no long-lived streaming or SSE, so
+	// finite write/idle deadlines are safe.
+	srv := &http.Server{
+		Addr:              listenAddr,
+		Handler:           web.handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 
 	go func() {
 		<-ctx.Done()
