@@ -44,6 +44,14 @@ jobs:
           # Publish to the public dashboard so the repo earns a Scorecard badge
           # and API entry. Requires the repo to be public (it is) + id-token.
           publish_results: true
+          # The Branch-Protection check needs read access to branch protection /
+          # rulesets, which the default GITHUB_TOKEN can't fully provide — it is
+          # only *partially* scored without a token that carries repo
+          # Administration:read. Set an optional fine-grained PAT in the
+          # SCORECARD_TOKEN secret to score it fully; the `|| github.token`
+          # fallback keeps the run working (partial scoring) when it is unset,
+          # so this needs no follow-up edit once the secret is added.
+          repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
 
       # Keep the raw SARIF as a build artifact for debugging a score drop.
       - name: Upload artifact
