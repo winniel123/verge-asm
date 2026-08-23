@@ -22,20 +22,48 @@ SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read
 FROM message
 ORDER BY id DESC;
 
+-- name: ListReadMessageIDs :many
+-- The ids of every message the caller has read (#327). The panel and Inbox render
+-- a per-row read badge and an unread filter; both are per-account facts, so the
+-- read path resolves them from this account's own read-marks rather than the
+-- retired global message.read_at column. Returned as a set the handler indexes by
+-- id while shaping each row.
+SELECT message_id FROM message_read WHERE account_id = sqlc.arg(account_id);
+
 -- name: CountUnreadMessages :one
--- The unread count the global nav element carries on every screen. Reads the
--- partial index over unread rows.
-SELECT count(*) FROM message WHERE read_at IS NULL;
+-- The unread count the caller's nav element carries on every screen (#327).
+-- Read-state is a per-account fact: a message is unread for THIS account until
+-- THIS account has a message_read row for it. Counts messages the caller has not
+-- yet marked read — never a global count, so one account's mark-all cannot clear
+-- another account's badge.
+SELECT count(*) FROM message m
+WHERE NOT EXISTS (
+    SELECT 1 FROM message_read mr
+    WHERE mr.message_id = m.id AND mr.account_id = sqlc.arg(account_id)
+);
 
 -- name: MarkMessageRead :exec
--- Mark one message read at the given instant. Idempotent: marking an already-read
--- message leaves its first read instant in place, since read-state is a fact
--- about the operator having seen it and does not move on a second view.
-UPDATE message SET read_at = $2 WHERE id = $1 AND read_at IS NULL;
+-- Mark one message read by the caller at the given instant (#327). Writes a
+-- per-account read-mark, never the global message.read_at. Idempotent: a second
+-- mark leaves the account's first read instant in place (ON CONFLICT DO NOTHING),
+-- since read-state is a fact about having seen it and does not move on a re-read.
+INSERT INTO message_read (account_id, message_id, read_at)
+VALUES (sqlc.arg(account_id), sqlc.arg(message_id), sqlc.arg(read_at))
+ON CONFLICT (account_id, message_id) DO NOTHING;
 
 -- name: MarkAllMessagesRead :exec
--- Mark every unread message read — the panel's "mark all read" affordance.
-UPDATE message SET read_at = $1 WHERE read_at IS NULL;
+-- Mark every message the caller has not yet read as read by the caller (#327) —
+-- the panel's "mark all read" affordance, now scoped to the caller. Inserts one
+-- read-mark per still-unread message for this account only; other accounts' badges
+-- are untouched. ON CONFLICT DO NOTHING guards against a concurrent single-mark.
+INSERT INTO message_read (account_id, message_id, read_at)
+SELECT sqlc.arg(account_id), m.id, sqlc.arg(read_at)
+FROM message m
+WHERE NOT EXISTS (
+    SELECT 1 FROM message_read mr
+    WHERE mr.message_id = m.id AND mr.account_id = sqlc.arg(account_id)
+)
+ON CONFLICT (account_id, message_id) DO NOTHING;
 
 -- name: PreviewExclusionWithdrawal :one
 -- The honestly-computable narrowing receipt (#205 AC8, ADR-0074): count the

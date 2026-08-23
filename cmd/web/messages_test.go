@@ -162,7 +162,7 @@ func TestMessagePanelSurfacesUndeliveredDeliveries(t *testing.T) {
 // message read drops the count.
 func TestUnreadCountAndMarkRead(t *testing.T) {
 	f := newFakeStore()
-	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	m1 := putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate · 1 timeline opened beneath it", nil)
 	putMessage(t, f, message.CauseDrift, "name", "b.example.com", "b.example.com entered the estate · 1 timeline opened beneath it", nil)
 
@@ -184,8 +184,37 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 		t.Fatalf("mark read: status = %d", resp.StatusCode)
 	}
 	resp.Body.Close()
-	if n, _ := f.CountUnreadMessages(t.Context()); n != 1 {
+	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 1 {
 		t.Errorf("unread after mark read = %d, want 1", n)
+	}
+}
+
+// #327: read-state is per-account, not global. A low-priv viewer marking all read
+// clears only the viewer's own unread badge; the admin's unread count is untouched,
+// so a viewer cannot suppress the security notifications an admin has not yet seen.
+func TestMarkAllReadIsPerAccount(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	viewer := seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate", nil)
+
+	base := start(t, f, "")
+	vc := login(t, base, "viewer", "hunter2hunter2")
+
+	// The viewer marks everything read.
+	resp := postForm(t, vc, base+"/messages/read-all", url.Values{})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("viewer mark all read: status = %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// The viewer's own badge clears...
+	if n, _ := f.CountUnreadMessages(t.Context(), viewer.ID); n != 0 {
+		t.Errorf("viewer unread after mark all read = %d, want 0", n)
+	}
+	// ...but the admin's unread count is untouched — the notification survives.
+	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 1 {
+		t.Errorf("admin unread after viewer mark all read = %d, want 1 (a viewer must not clear an admin's badge)", n)
 	}
 }
 

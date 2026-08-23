@@ -183,10 +183,11 @@ type store interface {
 	// is computed once at the cause and read back verbatim.
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 	ListMessages(ctx context.Context) ([]db.Message, error)
-	CountUnreadMessages(ctx context.Context) (int64, error)
+	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
+	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
 	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
 	MarkMessageRead(ctx context.Context, arg db.MarkMessageReadParams) error
-	MarkAllMessagesRead(ctx context.Context, readAt pgtype.Timestamptz) error
+	MarkAllMessagesRead(ctx context.Context, arg db.MarkAllMessagesReadParams) error
 	// PreviewExclusionWithdrawal counts the subjects a candidate exclusion would
 	// withdraw and the timelines they hold — the honestly-computable narrowing
 	// receipt (#205 AC8, ADR-0074). It reads only ground nothing else cites, so a

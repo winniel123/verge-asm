@@ -538,7 +538,7 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	case "integrations":
 		err = s.fillIntegrationsSection(r, data)
 	case "messages":
-		err = s.fillMessagesSection(r, data)
+		err = s.fillMessagesSection(r, acct, data)
 	case "delivery":
 		err = s.fillDeliverySection(r, f, data)
 	}

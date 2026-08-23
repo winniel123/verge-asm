@@ -1442,7 +1442,16 @@ func (s *server) injectUnread(data any) {
 	if _, has := m["Unread"]; has {
 		return
 	}
-	n, err := s.store.CountUnreadMessages(context.Background())
+	// Read-state is per-account (#327), so the badge count is the CALLER's unread
+	// count. Every chrome page carries the account under "Account"; without it there
+	// is no account to scope to, so leave the count at zero rather than reading a
+	// global (which no longer exists) or another account's.
+	acct, ok := m["Account"].(db.Account)
+	if !ok {
+		m["Unread"] = int64(0)
+		return
+	}
+	n, err := s.store.CountUnreadMessages(context.Background(), acct.ID)
 	if err != nil {
 		log.Printf("web: unread count: %v", err)
 	}

@@ -139,6 +139,12 @@ type Message struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
+type MessageRead struct {
+	AccountID int64              `json:"account_id"`
+	MessageID int64              `json:"message_id"`
+	ReadAt    pgtype.Timestamptz `json:"read_at"`
+}
+
 type Observation struct {
 	ID            int64              `json:"id"`
 	BatchID       int64              `json:"batch_id"`

@@ -53,7 +53,7 @@ func TestInboxRendersReadUnread(t *testing.T) {
 // rows stay (the All filter shows read messages too), now without the unread dot.
 func TestInboxMarkAllRead(t *testing.T) {
 	f := newFakeStore()
-	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate", nil)
 	putMessage(t, f, message.CauseDrift, "name", "b.example.com", "b.example.com entered the estate", nil)
 
@@ -65,7 +65,7 @@ func TestInboxMarkAllRead(t *testing.T) {
 		t.Fatalf("mark all read: status=%d location=%q, want 303 to /inbox", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()
-	if n, _ := f.CountUnreadMessages(t.Context()); n != 0 {
+	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 0 {
 		t.Errorf("unread after mark all read = %d, want 0", n)
 	}
 
@@ -89,7 +89,7 @@ func TestInboxMarkAllRead(t *testing.T) {
 // renders the per-class detail — the class micro-label and the per-mover jump link.
 func TestInboxSelectMarksReadAndShowsDetail(t *testing.T) {
 	f := newFakeStore()
-	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	m := putMessage(t, f, message.CauseDrift, "service", "198.51.100.1:443/tcp",
 		"198.51.100.1:443/tcp reached from the internet · 2 facets opened beneath it", nil)
 
@@ -111,7 +111,7 @@ func TestInboxSelectMarksReadAndShowsDetail(t *testing.T) {
 		t.Errorf("a message is open, so the no-selection empty-state must not show\nbody: %s", page)
 	}
 	// Opening marked it read: the count drops to zero.
-	if n, _ := f.CountUnreadMessages(t.Context()); n != 0 {
+	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 0 {
 		t.Errorf("unread after opening the only message = %d, want 0", n)
 	}
 }

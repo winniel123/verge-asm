@@ -13,13 +13,20 @@ import (
 )
 
 const countUnreadMessages = `-- name: CountUnreadMessages :one
-SELECT count(*) FROM message WHERE read_at IS NULL
+SELECT count(*) FROM message m
+WHERE NOT EXISTS (
+    SELECT 1 FROM message_read mr
+    WHERE mr.message_id = m.id AND mr.account_id = $1
+)
 `
 
-// The unread count the global nav element carries on every screen. Reads the
-// partial index over unread rows.
-func (q *Queries) CountUnreadMessages(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countUnreadMessages)
+// The unread count the caller's nav element carries on every screen (#327).
+// Read-state is a per-account fact: a message is unread for THIS account until
+// THIS account has a message_read row for it. Counts messages the caller has not
+// yet marked read — never a global count, so one account's mark-all cannot clear
+// another account's badge.
+func (q *Queries) CountUnreadMessages(ctx context.Context, accountID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countUnreadMessages, accountID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -118,30 +125,78 @@ func (q *Queries) ListMessages(ctx context.Context) ([]Message, error) {
 	return items, nil
 }
 
-const markAllMessagesRead = `-- name: MarkAllMessagesRead :exec
-UPDATE message SET read_at = $1 WHERE read_at IS NULL
+const listReadMessageIDs = `-- name: ListReadMessageIDs :many
+SELECT message_id FROM message_read WHERE account_id = $1
 `
 
-// Mark every unread message read — the panel's "mark all read" affordance.
-func (q *Queries) MarkAllMessagesRead(ctx context.Context, readAt pgtype.Timestamptz) error {
-	_, err := q.db.Exec(ctx, markAllMessagesRead, readAt)
+// The ids of every message the caller has read (#327). The panel and Inbox render
+// a per-row read badge and an unread filter; both are per-account facts, so the
+// read path resolves them from this account's own read-marks rather than the
+// retired global message.read_at column. Returned as a set the handler indexes by
+// id while shaping each row.
+func (q *Queries) ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listReadMessageIDs, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var message_id int64
+		if err := rows.Scan(&message_id); err != nil {
+			return nil, err
+		}
+		items = append(items, message_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markAllMessagesRead = `-- name: MarkAllMessagesRead :exec
+INSERT INTO message_read (account_id, message_id, read_at)
+SELECT $1, m.id, $2
+FROM message m
+WHERE NOT EXISTS (
+    SELECT 1 FROM message_read mr
+    WHERE mr.message_id = m.id AND mr.account_id = $1
+)
+ON CONFLICT (account_id, message_id) DO NOTHING
+`
+
+type MarkAllMessagesReadParams struct {
+	AccountID int64              `json:"account_id"`
+	ReadAt    pgtype.Timestamptz `json:"read_at"`
+}
+
+// Mark every message the caller has not yet read as read by the caller (#327) —
+// the panel's "mark all read" affordance, now scoped to the caller. Inserts one
+// read-mark per still-unread message for this account only; other accounts' badges
+// are untouched. ON CONFLICT DO NOTHING guards against a concurrent single-mark.
+func (q *Queries) MarkAllMessagesRead(ctx context.Context, arg MarkAllMessagesReadParams) error {
+	_, err := q.db.Exec(ctx, markAllMessagesRead, arg.AccountID, arg.ReadAt)
 	return err
 }
 
 const markMessageRead = `-- name: MarkMessageRead :exec
-UPDATE message SET read_at = $2 WHERE id = $1 AND read_at IS NULL
+INSERT INTO message_read (account_id, message_id, read_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (account_id, message_id) DO NOTHING
 `
 
 type MarkMessageReadParams struct {
-	ID     int64              `json:"id"`
-	ReadAt pgtype.Timestamptz `json:"read_at"`
+	AccountID int64              `json:"account_id"`
+	MessageID int64              `json:"message_id"`
+	ReadAt    pgtype.Timestamptz `json:"read_at"`
 }
 
-// Mark one message read at the given instant. Idempotent: marking an already-read
-// message leaves its first read instant in place, since read-state is a fact
-// about the operator having seen it and does not move on a second view.
+// Mark one message read by the caller at the given instant (#327). Writes a
+// per-account read-mark, never the global message.read_at. Idempotent: a second
+// mark leaves the account's first read instant in place (ON CONFLICT DO NOTHING),
+// since read-state is a fact about having seen it and does not move on a re-read.
 func (q *Queries) MarkMessageRead(ctx context.Context, arg MarkMessageReadParams) error {
-	_, err := q.db.Exec(ctx, markMessageRead, arg.ID, arg.ReadAt)
+	_, err := q.db.Exec(ctx, markMessageRead, arg.AccountID, arg.MessageID, arg.ReadAt)
 	return err
 }
 

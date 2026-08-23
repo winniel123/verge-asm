@@ -117,6 +117,10 @@ type fakeStore struct {
 	// count a test wants PreviewExclusionWithdrawal to return.
 	messages         []db.Message
 	deliveryOutcomes []db.ListDeliveryOutcomesRow
+	// messageRead mirrors the message_read join table (#327): per-account read-state,
+	// keyed account_id -> set of read message ids. Read-state is a per-account fact,
+	// so one account marking read never touches another's.
+	messageRead   map[int64]map[int64]bool
 	msgNextID     int64
 	previewResult db.PreviewExclusionWithdrawalRow
 
@@ -629,10 +633,32 @@ func (f *fakeStore) ListDeliveryOutcomes(context.Context) ([]db.ListDeliveryOutc
 	return f.deliveryOutcomes, nil
 }
 
-func (f *fakeStore) CountUnreadMessages(context.Context) (int64, error) {
+func (f *fakeStore) readMarks(accountID int64) map[int64]bool {
+	if f.messageRead == nil {
+		f.messageRead = map[int64]map[int64]bool{}
+	}
+	set := f.messageRead[accountID]
+	if set == nil {
+		set = map[int64]bool{}
+		f.messageRead[accountID] = set
+	}
+	return set
+}
+
+func (f *fakeStore) ListReadMessageIDs(_ context.Context, accountID int64) ([]int64, error) {
+	set := f.readMarks(accountID)
+	out := make([]int64, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+func (f *fakeStore) CountUnreadMessages(_ context.Context, accountID int64) (int64, error) {
+	set := f.readMarks(accountID)
 	var n int64
 	for _, m := range f.messages {
-		if !m.ReadAt.Valid {
+		if !set[m.ID] {
 			n++
 		}
 	}
@@ -640,18 +666,19 @@ func (f *fakeStore) CountUnreadMessages(context.Context) (int64, error) {
 }
 
 func (f *fakeStore) MarkMessageRead(_ context.Context, arg db.MarkMessageReadParams) error {
-	for i := range f.messages {
-		if f.messages[i].ID == arg.ID && !f.messages[i].ReadAt.Valid {
-			f.messages[i].ReadAt = arg.ReadAt
-		}
+	// Idempotent per account: a first mark stands (ON CONFLICT DO NOTHING).
+	set := f.readMarks(arg.AccountID)
+	if !set[arg.MessageID] {
+		set[arg.MessageID] = true
 	}
 	return nil
 }
 
-func (f *fakeStore) MarkAllMessagesRead(_ context.Context, readAt pgtype.Timestamptz) error {
-	for i := range f.messages {
-		if !f.messages[i].ReadAt.Valid {
-			f.messages[i].ReadAt = readAt
+func (f *fakeStore) MarkAllMessagesRead(_ context.Context, arg db.MarkAllMessagesReadParams) error {
+	set := f.readMarks(arg.AccountID)
+	for _, m := range f.messages {
+		if !set[m.ID] {
+			set[m.ID] = true
 		}
 	}
 	return nil
