@@ -10,6 +10,10 @@ name: Scorecard
 # publishing needs `id-token: write` and that must not be granted to PR runs.
 
 on:
+  # On-demand run (e.g. to re-score after changing the main ruleset — note the
+  # branch_protection_rule event fires for classic branch protection, not for
+  # repository rulesets, which is what this repo uses).
+  workflow_dispatch:
   # Re-score whenever a branch-protection rule changes (a scored signal).
   branch_protection_rule:
   schedule:
