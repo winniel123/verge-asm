@@ -31,8 +31,28 @@ function titleFromSlug(slug: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/** Guides without a `section` land here — this is also the whole rail for a
+ *  frontmatter-LESS version, where it degrades to one flat, filename-titled list. */
+const FALLBACK_SECTION = "Guides";
+
+/** Undefined `order` sorts last, in the source's incoming (slug) order. */
+const UNORDERED = Number.POSITIVE_INFINITY;
+
 /**
- * Build the left-rail section model for one version.
+ * Build the left-rail section model for one version, grouped and ordered from that
+ * version's own guide frontmatter.
+ *
+ * - Guides group by `frontmatter.section`; any guide missing one falls into a
+ *   `"Guides"` catch-all. A version whose guides carry NO frontmatter therefore
+ *   collapses to a single flat `"Guides"` section (filename-derived titles) — a sane
+ *   fallback, never a blank rail.
+ * - Within a section, guides sort by `frontmatter.order` ascending; ties and
+ *   order-less guides keep the incoming slug order (resolveSources sorts by slug).
+ * - Sections themselves order by their smallest `order`, then by first appearance —
+ *   `order` is a within-section field (per the schema), so this is the only stable,
+ *   frontmatter-derived way to rank the groups without a new required field.
+ *
+ * Consumes only `Source`; returns only `NavSection[]`. No edits to stages 1 or 2.
  *
  * @param sources    every guide at the active version (from resolveSources)
  * @param activeSlug the slug of the page currently being rendered (gets active:true)
@@ -41,12 +61,45 @@ export function buildNav(
   sources: Source[],
   activeSlug?: string,
 ): NavSection[] {
-  const items: NavItem[] = sources.map((s) => ({
-    label: s.frontmatter.title ?? titleFromSlug(s.slug),
-    href: `/${s.version}/${s.slug}`,
-    active: s.slug === activeSlug,
-  }));
+  interface Group {
+    title: string;
+    firstSeen: number;
+    minOrder: number;
+    rows: { item: NavItem; order: number; seq: number }[];
+  }
 
-  // Flat, single-section fallback. T3 replaces this with frontmatter-driven grouping.
-  return [{ title: "Guides", items }];
+  const groups = new Map<string, Group>();
+
+  sources.forEach((s, seq) => {
+    const sectionTitle = s.frontmatter.section ?? FALLBACK_SECTION;
+    const order = s.frontmatter.order ?? UNORDERED;
+
+    let group = groups.get(sectionTitle);
+    if (!group) {
+      group = { title: sectionTitle, firstSeen: seq, minOrder: order, rows: [] };
+      groups.set(sectionTitle, group);
+    }
+    group.minOrder = Math.min(group.minOrder, order);
+
+    group.rows.push({
+      item: {
+        label: s.frontmatter.title ?? titleFromSlug(s.slug),
+        href: `/${s.version}/${s.slug}`,
+        active: s.slug === activeSlug,
+      },
+      order,
+      seq,
+    });
+  });
+
+  return [...groups.values()]
+    // Rank sections by smallest order, then by first appearance (stable).
+    .sort((a, b) => a.minOrder - b.minOrder || a.firstSeen - b.firstSeen)
+    .map((group) => ({
+      title: group.title,
+      // Rank items within a section by order, then by incoming (slug) sequence.
+      items: group.rows
+        .sort((a, b) => a.order - b.order || a.seq - b.seq)
+        .map((row) => row.item),
+    }));
 }

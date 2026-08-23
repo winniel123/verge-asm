@@ -1,3 +1,10 @@
+---
+title: First-run mental model
+section: Getting started
+order: 2
+description: The mental model behind a first run — the three layers, why Exposure needs a second host, and how to tell a real scan from a silent failure.
+---
+
 # First-run mental model
 
 The questions a first-time operator actually asks — answered in one place. Read this

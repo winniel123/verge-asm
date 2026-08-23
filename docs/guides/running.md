@@ -1,3 +1,10 @@
+---
+title: Running verge-asm
+section: Operating
+order: 1
+description: Deploy, configure, and operate the verge-asm stack with Docker Compose.
+---
+
 # Running verge-asm
 
 How to deploy, configure and operate the stack. For what to *do* once it is up, see

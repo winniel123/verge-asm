@@ -1,3 +1,10 @@
+---
+title: Zone files
+section: Getting started
+order: 3
+description: What a zone file is, why verge-asm wants one for removal detection, and how to export one from your DNS provider.
+---
+
 # Zone files
 
 Uploading a zone file for a name scope enables **removal detection**. This guide

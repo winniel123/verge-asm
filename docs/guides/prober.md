@@ -1,3 +1,10 @@
+---
+title: Provisioning a prober
+section: Operating
+order: 3
+description: A worked Docker example for standing up the dedicated prober host that lets verge measure your exposure from the outside.
+---
+
 # Provisioning a prober — a worked Docker example
 
 Standing up a **dedicated prober host**: the internet `Vantage` that lets verge see
