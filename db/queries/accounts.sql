@@ -45,12 +45,15 @@ UPDATE account SET totp_secret = $2, totp_enabled = false WHERE id = $1;
 -- name: ConfirmTOTP :exec
 UPDATE account SET totp_enabled = true WHERE id = $1 AND totp_secret IS NOT NULL;
 
--- name: SetTOTPLastStep :exec
--- Advance the account's TOTP replay watermark to the step just accepted at login
--- (#323). The handler only ever writes a strictly greater step than the stored one,
--- so a captured code — whose step is <= this — is refused on re-presentation within
--- its validity window, the single-use discipline RFC 6238 §5.2 requires.
-UPDATE account SET totp_last_step = $2 WHERE id = $1;
+-- name: SetTOTPLastStep :execrows
+-- Atomically spend the TOTP step just accepted at login (#323, #339). The predicate
+-- makes the advance the single serialisation point: the write lands only when the
+-- account's stored watermark is still NULL or strictly below the presented step, so
+-- of two concurrent requests carrying the SAME valid code exactly one updates a row
+-- and the other affects zero — the loser is refused as a replay. A read-then-write in
+-- the handler could let both pass; this conditional UPDATE cannot (RFC 6238 §5.2).
+UPDATE account SET totp_last_step = $2
+WHERE id = $1 AND (totp_last_step IS NULL OR totp_last_step < $2);
 
 -- name: DeleteAccount :exec
 -- Remove a member (Settings -> Team, T18). The handler gates this behind a typed-
