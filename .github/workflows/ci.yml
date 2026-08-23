@@ -199,8 +199,18 @@ jobs:
 
   # Secret scan over the full git history. A detected secret fails the build
   # by design — a committed credential is a hard stop, not an advisory.
+  #
+  # On a pull_request event, gitleaks-action lists the PR's commits via the
+  # GitHub API (GET /pulls/{n}/commits), which needs `pull-requests: read`.
+  # The top-level default is `contents: read` only, so without this scoped
+  # grant the call 403s ("Resource not accessible by integration") and the
+  # action crashes. Scope it here, mirroring the gosec job; the top-level
+  # default stays read-only.
   gitleaks:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
