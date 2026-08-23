@@ -9,12 +9,13 @@ import "html/template"
 // the delivered document itself.
 //
 // The document body is NOT built here — it is rendered by internal/message's
-// RenderArtifact, the one canonical rendered form that also serves as the
-// PDF / email spec (the same markup is the delivered document). This page wraps
-// that document in the console chrome. The header controls are inert: there is no
-// report-scheduling or export backend yet (#285, #290/#291), so they render
-// disabled rather than fabricating an action, and a schedule that has never
-// delivered renders the design-system empty-state inside the document — never
+// RenderArtifact, the on-screen render form. This page wraps that document in the
+// console chrome. "Download PDF" links to /reports/delivery/pdf, the print form of
+// the same artifact rendered by internal/message.RenderArtifactPDF (#345). "Edit
+// schedule" stays inert — there is no report-scheduling backend yet (#285, #290),
+// so it renders disabled rather than fabricating an action. A schedule that has
+// never delivered renders the design-system empty-state inside the document (and
+// so the PDF is the empty-state document until a delivery lands) — never
 // fabricated data (ADR-0110).
 var _ = template.Must(tmpl.Parse(reportArtifactTemplates))
 
@@ -35,7 +36,7 @@ const reportArtifactTemplates = `
 {{if .Period}}<span class="mono muted" style="font-size:12px">{{.Period}}</span>{{end}}
 </div>
 <div style="margin-left:auto;display:flex;gap:8px">
-<button type="button" class="secondary" disabled title="Export is not wired yet" style="opacity:0.6;cursor:default">Download PDF</button>
+<a href="/reports/delivery/pdf" class="btn secondary" style="text-decoration:none">Download PDF</a>
 <button type="button" class="btn ghost" disabled title="Report scheduling is not wired yet" style="opacity:0.6;cursor:default">Edit schedule</button>
 </div>
 </header>
