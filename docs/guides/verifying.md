@@ -1,3 +1,10 @@
+---
+title: Verifying verge-asm
+section: Contributing
+order: 1
+description: Build, test, regenerate code, and reproduce CI locally through Docker before you ship.
+---
+
 # Verifying verge-asm
 
 How to build, test, regenerate code, and reproduce CI locally — i.e. how to *confirm*

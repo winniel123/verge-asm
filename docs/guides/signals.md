@@ -1,3 +1,10 @@
+---
+title: Signals reference
+section: Operating
+order: 4
+description: The per-signal reference for the v1 rule set — what each signal means, its subject, and when it fires.
+---
+
 # Signals reference
 
 A **signal** is a named fact with evidence — a release-coupled rule that reads what

@@ -1,3 +1,10 @@
+---
+title: Using verge-asm
+section: Getting started
+order: 1
+description: A tour of the operator workflow, from first login to reading drift.
+---
+
 # Using verge-asm
 
 A tour of the operator workflow, from first login to reading drift. Assumes the stack
