@@ -66,7 +66,7 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 		"Open signals", "Scans run", "In flight", // KPI band
 		"Open signals over time",                     // time-series card title
 		"Scans per day", "Scans per day, last 12 weeks", // heatmap card + grid aria-label
-		"Recurring reports", "New report schedule", // recurring card + wizard preview
+		"Recurring reports", "New schedule", // recurring card + the (disabled) schedule control
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("reports page missing %q; body: %s", want, page)
@@ -208,19 +208,17 @@ func TestReportScheduleRowMenu(t *testing.T) {
 	}
 }
 
-// Posting the schedule wizard persists one report_schedule and it then lists in the
-// "Recurring reports" table — the empty-state gives way to a real row carrying the
-// declared name, cadence and format. The chosen sections are stored as a canonical
-// JSON array (only the checked, admitted keys, in wizard order), and the schedule is
-// attributed to the admin who declared it.
-func TestReportScheduleWizardPersistsAndLists(t *testing.T) {
+// Report scheduling has no dispatch or delivery backend (#344), so the create path
+// must not persist a report_schedule row that would silently never run. An admin's
+// POST — the one role that could reach the handler — is refused (501) and files
+// nothing, so a hand-crafted request cannot re-introduce the inert row the wizard used
+// to leak.
+func TestReportScheduleCreateRefused(t *testing.T) {
 	f := newFakeStore()
-	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// A distinctive name — not the wizard's own placeholder ("Weekly exposure
-	// summary"), which is always in the admin page and would give a false positive.
 	resp := postForm(t, ac, base+"/reports/schedule", url.Values{
 		"name":     {"Q3 exposure digest"},
 		"sections": {"summary-kpis", "signal-changes"},
@@ -228,91 +226,19 @@ func TestReportScheduleWizardPersistsAndLists(t *testing.T) {
 		"format":   {"pdf"},
 		"target":   {"ops@example.com"},
 	})
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/reports" {
-		t.Fatalf("wizard POST: status=%d location=%q, want 303 -> /reports (body: %s)",
-			resp.StatusCode, resp.Header.Get("Location"), body(t, resp))
-	}
-	resp.Body.Close()
-
-	// Exactly one schedule was filed, with the declared facts and the admin's id.
-	if len(f.reportSchedules) != 1 {
-		t.Fatalf("reportSchedules = %d, want 1", len(f.reportSchedules))
-	}
-	got := f.reportSchedules[0]
-	if got.Name != "Q3 exposure digest" || got.Cadence != "weekly" || got.Format != "pdf" {
-		t.Errorf("stored schedule = %+v, want name/cadence/format Q3.../weekly/pdf", got)
-	}
-	if got.DeliveryTarget != "ops@example.com" {
-		t.Errorf("delivery target = %q, want ops@example.com", got.DeliveryTarget)
-	}
-	if got.CreatedBy != admin.ID {
-		t.Errorf("created_by = %d, want %d (the declaring admin)", got.CreatedBy, admin.ID)
-	}
-	// Sections are stored as a canonical JSON array — only the two checked keys, in
-	// wizard order (coverage-gaps was unchecked, so it is absent; no unknowns).
-	if string(got.Sections) != `["summary-kpis","signal-changes"]` {
-		t.Errorf("stored sections = %s, want [\"summary-kpis\",\"signal-changes\"]", got.Sections)
-	}
-
-	// The table now renders the row, not the empty-state.
-	page := getBody(t, ac, base+"/reports", http.StatusOK)
-	if strings.Contains(page, "No recurring reports") {
-		t.Errorf("recurring table should list the schedule, not empty-state; body: %s", page)
-	}
-	for _, want := range []string{"Q3 exposure digest", ">weekly<"} {
-		if !strings.Contains(page, want) {
-			t.Errorf("reports table missing %q after persist; body: %s", want, page)
-		}
-	}
-}
-
-// An unnamed submission files nothing — a schedule needs a name (the input also
-// carries `required`). The handler returns to /reports rather than persisting an
-// unnamed row, and unknown section keys or bad cadence/format values never reach
-// the store: they are dropped or defaulted at the closed sets.
-func TestReportScheduleWizardValidates(t *testing.T) {
-	f := newFakeStore()
-	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	base := start(t, f, "")
-	ac := login(t, base, "admin", "hunter2hunter2")
-
-	// Empty name: nothing filed, redirect back.
-	resp := postForm(t, ac, base+"/reports/schedule", url.Values{"name": {"   "}})
-	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("empty-name POST: status=%d, want 303", resp.StatusCode)
+	if resp.StatusCode != http.StatusNotImplemented {
+		t.Fatalf("admin schedule POST: status=%d, want 501 (scheduling unavailable); body: %s",
+			resp.StatusCode, body(t, resp))
 	}
 	resp.Body.Close()
 	if len(f.reportSchedules) != 0 {
-		t.Fatalf("empty name filed a schedule: %d", len(f.reportSchedules))
-	}
-
-	// Unknown section and bogus cadence/format are sanitised at the closed sets.
-	resp = postForm(t, ac, base+"/reports/schedule", url.Values{
-		"name":     {"Sane name"},
-		"sections": {"summary-kpis", "not-a-section"},
-		"cadence":  {"hourly-ish"},
-		"format":   {"exe"},
-	})
-	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("sanitise POST: status=%d, want 303", resp.StatusCode)
-	}
-	resp.Body.Close()
-	if len(f.reportSchedules) != 1 {
-		t.Fatalf("reportSchedules = %d, want 1", len(f.reportSchedules))
-	}
-	got := f.reportSchedules[0]
-	if string(got.Sections) != `["summary-kpis"]` {
-		t.Errorf("unknown section leaked: sections = %s, want [\"summary-kpis\"]", got.Sections)
-	}
-	if got.Cadence != defaultReportCadence || got.Format != defaultReportFormat {
-		t.Errorf("bogus cadence/format not defaulted: %q/%q, want %q/%q",
-			got.Cadence, got.Format, defaultReportCadence, defaultReportFormat)
+		t.Fatalf("a refused create still filed a schedule: %d", len(f.reportSchedules))
 	}
 }
 
-// Declaring a schedule is an admin act: a viewer's POST is refused with 403 and
-// files nothing, and a viewer never sees the wizard form (it renders admin-only).
-func TestReportScheduleRequiresAdmin(t *testing.T) {
+// A viewer's POST is refused before the handler by requireAdmin (403), still filing
+// nothing — the create path is defended at both the auth wrapper and the handler.
+func TestReportScheduleCreateRefusesViewer(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
@@ -323,17 +249,35 @@ func TestReportScheduleRequiresAdmin(t *testing.T) {
 		"name": {"Sneaky schedule"}, "cadence": {"weekly"}, "format": {"pdf"},
 	})
 	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("viewer wizard POST: status=%d, want 403", resp.StatusCode)
+		t.Fatalf("viewer schedule POST: status=%d, want 403", resp.StatusCode)
 	}
 	resp.Body.Close()
 	if len(f.reportSchedules) != 0 {
 		t.Fatalf("viewer's denied act still filed a schedule: %d", len(f.reportSchedules))
 	}
+}
 
-	// The viewer's Reports page carries no create form (the wizard is admin-only).
-	page := getBody(t, vc, base+"/reports", http.StatusOK)
+// The Reports surface no longer offers an enabled control that can create a schedule:
+// the "New schedule" wizard is gone and its entry point renders disabled, alongside
+// its already-disabled sibling controls, presenting scheduling consistently as not
+// available yet (#344).
+func TestReportScheduleWizardDisabled(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/reports", http.StatusOK)
+
+	// No live create form — not even for an admin, who used to see the wizard.
 	if strings.Contains(page, `action="/reports/schedule"`) {
-		t.Errorf("wizard create form shown to a viewer; body: %s", page)
+		t.Errorf("Reports still renders a live schedule-create form; body: %s", page)
+	}
+	// The New schedule control is present but disabled, reading as not-yet-available.
+	if !strings.Contains(page, "New schedule") {
+		t.Errorf("Reports missing the New schedule control; body: %s", page)
+	}
+	if !strings.Contains(page, "Report scheduling is not available yet") {
+		t.Errorf("New schedule control not marked unavailable; body: %s", page)
 	}
 }
 

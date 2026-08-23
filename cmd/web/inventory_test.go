@@ -243,6 +243,68 @@ func TestBuildInventoryDisambiguatesCollidingTimelines(t *testing.T) {
 	}
 }
 
+// GET /inventory/export streams a text/csv attachment of the folded inventory: a
+// header row plus one row per facet a subject currently holds, mirroring the screen.
+// A Gap facet exports as the literal "Gap", never a blank standing in for a real read.
+func TestInventoryExportCSV(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+	f.addResolution(t, admin.ID, "gap.example.com", "dns", obsClock, `{"outcome":"Gap"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp, err := ac.Get(base + "/inventory/export")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := body(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("inventory export status = %d, want 200 (body: %s)", resp.StatusCode, got)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
+		t.Errorf("inventory export Content-Type = %q, want text/csv", ct)
+	}
+	if cd := resp.Header.Get("Content-Disposition"); !strings.Contains(cd, "attachment; filename=") || !strings.Contains(cd, ".csv") {
+		t.Errorf("inventory export Content-Disposition = %q, want an attachment .csv filename", cd)
+	}
+	for _, want := range []string{
+		"type,subject,facet,value,since", // header row
+		"Name,api.example.com,resolution,Resolved,",
+		"Name,gap.example.com,resolution,Gap,", // a Gap exports as "Gap", never blank
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("inventory export CSV missing %q; body:\n%s", want, got)
+		}
+	}
+}
+
+// The Export CSV button is gated on data presence exactly as Drift's is: a live link
+// to the export once a value is folded, and the disabled button on an empty estate.
+func TestInventoryExportButtonGated(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// Empty estate: the button is disabled, no export link.
+	empty := getBody(t, ac, base+"/inventory", http.StatusOK)
+	if strings.Contains(empty, `href="/inventory/export"`) {
+		t.Errorf("empty inventory should not offer an export link; body: %s", empty)
+	}
+	if !strings.Contains(empty, "Nothing to export until a value is folded") {
+		t.Errorf("empty inventory lost its disabled-export button; body: %s", empty)
+	}
+
+	// With a folded value the button becomes a live link.
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+	full := getBody(t, ac, base+"/inventory", http.StatusOK)
+	if !strings.Contains(full, `href="/inventory/export"`) {
+		t.Errorf("inventory with data did not enable the export link; body: %s", full)
+	}
+}
+
 func TestInventoryRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "")

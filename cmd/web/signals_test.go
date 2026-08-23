@@ -407,6 +407,68 @@ func TestSignalsEmptyEstateRendersNoPopulation(t *testing.T) {
 	}
 }
 
+// GET /signals/export streams a text/csv attachment of the census set: a header row
+// plus one row per census member, each labelled with the register the engine placed it
+// in. A lame delegation fires lame-delegation, so its subject exports under the fired
+// state; the file mirrors the screen it is exported from.
+func TestSignalsExportCSV(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	// A lame delegation → composed Lame → lame-delegation FIRES on this subject.
+	f.addClassResolution(t, "lame.example.com", "internet", obsClock, `{"outcome":"Gap"}`)
+	f.addDNSRecord(t, "lame.example.com", "NS", obsClock, `{"rrs":[],"delegation":{"lame":true}}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp, err := ac.Get(base + "/signals/export")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := body(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("signals export status = %d, want 200 (body: %s)", resp.StatusCode, got)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
+		t.Errorf("signals export Content-Type = %q, want text/csv", ct)
+	}
+	if cd := resp.Header.Get("Content-Disposition"); !strings.Contains(cd, "attachment; filename=") || !strings.Contains(cd, ".csv") {
+		t.Errorf("signals export Content-Disposition = %q, want an attachment .csv filename", cd)
+	}
+	for _, want := range []string{
+		"rule,version,state,subject",     // header row
+		"lame-delegation,",               // the fired rule appears
+		",fired,lame.example.com",        // the subject under the fired register
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("signals export CSV missing %q; body:\n%s", want, got)
+		}
+	}
+}
+
+// The Export CSV button is gated on data presence as Drift's is: disabled on an estate
+// with no population to census, a live link once a rule has a population.
+func TestSignalsExportButtonGated(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// Empty estate: every census is a no-population panel, so the button is disabled.
+	empty := getBody(t, ac, base+"/signals", http.StatusOK)
+	if strings.Contains(empty, `href="/signals/export"`) {
+		t.Errorf("empty estate should not offer a signals export link; body: %s", empty)
+	}
+
+	// A lame delegation gives lame-delegation a population, enabling the export.
+	f.addClassResolution(t, "lame.example.com", "internet", obsClock, `{"outcome":"Gap"}`)
+	f.addDNSRecord(t, "lame.example.com", "NS", obsClock, `{"rrs":[],"delegation":{"lame":true}}`)
+	full := getBody(t, ac, base+"/signals", http.StatusOK)
+	if !strings.Contains(full, `href="/signals/export"`) {
+		t.Errorf("populated Signals did not enable the export link; body: %s", full)
+	}
+}
+
 func TestSignalsRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "")

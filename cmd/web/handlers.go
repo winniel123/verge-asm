@@ -453,8 +453,11 @@ func (s *server) handler() http.Handler {
 	// pure-Go render, no external engine — it runs inside the distroless-static web
 	// image). A viewer reads it — a delivered report is a record, not a mutation.
 	mux.HandleFunc("GET /reports/delivery/pdf", s.requireLogin(s.reportDeliveryPDF))
-	// The Reports schedule wizard persists here (#290): declaring a recurring report
-	// is an admin config act, gated like /settings/channels and /seeds declaration.
+	// The Reports schedule create path (#344): report scheduling has no dispatch or
+	// delivery backend, so a persisted schedule would silently never run. The wizard is
+	// disabled in the UI and this handler refuses (501) so no report_schedule row is
+	// filed from normal use or a crafted POST. Still behind requireAdmin — declaring a
+	// schedule was an admin config act — so a viewer is refused before the handler.
 	mux.HandleFunc("POST /reports/schedule", s.requireAdmin(s.createReportSchedule))
 
 	// The Subjects LIST folded into /inventory (#286): Inventory is the canonical
@@ -470,6 +473,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /subjects/{key}", s.requireLogin(s.subjectPage))
 
 	mux.HandleFunc("GET /inventory", s.requireLogin(s.inventoryPage))
+	// The Inventory CSV export (#347): the folded open-span corpus the page shows, as
+	// a downloadable file. A viewer reads it — an export is a read of the current
+	// values the page already renders, never a mutation — mirroring the Drift export.
+	mux.HandleFunc("GET /inventory/export", s.requireLogin(s.inventoryExport))
 	// The per-asset drill-in (#296, T1): the destination of an Inventory row-click.
 	// The route is stable so T15's Inventory can link straight to it. A Name key
 	// carries neither `/` nor `@`, so it rides a plain path segment.
@@ -487,6 +494,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /run/{id}", s.requireLogin(s.runPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
+	// The Signals CSV export (#346): the current census set the page evaluates, as a
+	// downloadable file. A viewer reads it — an export is a read of the same signal
+	// facts the page already shows, never a mutation — mirroring the Drift export.
+	mux.HandleFunc("GET /signals/export", s.requireLogin(s.signalsExport))
 	mux.HandleFunc("POST /annotations", s.requireAdmin(s.declareAnnotation))
 	mux.HandleFunc("POST /annotations/withdraw", s.requireAdmin(s.withdrawAnnotation))
 

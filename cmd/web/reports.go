@@ -35,10 +35,12 @@ import (
 //
 // The one legitimate series is operational: scans-per-day is activity volume, not
 // a signal, so the heatmap is wired from real Dispatch history. Report scheduling
-// (the recurring table + wizard) has no backend yet — the table empty-states and
-// the wizard renders as an inert preview. Every gap is tracked in a comment on
-// issue #285. This handler reads exposure/scans/signals data sources read-only;
-// it owns no mutation and adds no store method.
+// (the recurring table + wizard) has no dispatch or delivery backend, so the UI must
+// not accept a schedule it cannot honour (#344): the table empty-states and the "New
+// schedule" wizard is rendered disabled alongside its already-disabled sibling
+// controls. Every gap is tracked in a comment on issue #285. This handler reads
+// exposure/scans/signals data sources read-only; it owns no mutation and adds no
+// store method.
 
 // reportsDispatchPerWeek budgets the Dispatch read behind the scans-per-day series
 // PER WEEK of the selected range, so a wider window reads proportionally more rows

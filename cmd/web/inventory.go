@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -219,5 +220,67 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 		"Title": "Inventory", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "inventory",
 		"Groups":    groups,
+		// Gate the Export CSV button on data presence, exactly as Drift's {{if
+		// .HasEvents}} does (#347): an enabled link when a value has been folded, the
+		// disabled button otherwise. An estate with no open span has nothing to export.
+		"HasData": len(groups) > 0,
 	})
+}
+
+// inventoryExport serves the folded inventory — every open span, grouped by subject —
+// as a downloadable CSV (#347), the same reason the Drift and Reports exports exist:
+// pull the current values into a sheet or a pipeline without screenshotting. It reads
+// the same open-span corpus the Inventory page renders (read-only, ADR-0007), so the
+// file mirrors the screen; it owns no mutation and adds no store method. It fabricates
+// nothing: an empty estate produces a header-only file, never invented rows, and a
+// facet the system currently cannot value is exported as a Gap rather than a zero.
+func (s *server) inventoryExport(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "csv"
+	}
+	if format != "csv" {
+		http.Error(w, "unsupported export format: "+format+" (want csv)", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := s.store.ListAllOpenSpans(r.Context())
+	if err != nil {
+		s.serverError(w, "inventory export: list all open spans", err)
+		return
+	}
+	s.writeInventoryExportCSV(w, buildInventory(rows))
+}
+
+// writeInventoryExportCSV emits the inventory as one uniform table — one row per facet
+// a subject currently holds, in the same (kind, key, facet) order the screen renders.
+// The `type` cell carries the singular domain noun the screen's Type column shows
+// (Name / Service / Endpoint / Address), so the file reads in the interface's own
+// vocabulary. A Gap facet — a value the system currently cannot state — carries the
+// literal "Gap" (f.Summary is already "Gap" for a gap, valueLabel's isGap branch),
+// never a blank standing in for a real read. The free-text cells (subject, facet,
+// value) are passed through csvSafe so a value ingested from an attacker-influenced
+// source cannot execute as a spreadsheet formula.
+func (s *server) writeInventoryExportCSV(w http.ResponseWriter, groups []inventoryGroup) {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="inventory-`+s.now().UTC().Format("2006-01-02")+`.csv"`)
+
+	cw := csv.NewWriter(w)
+	defer cw.Flush()
+
+	_ = cw.Write([]string{"type", "subject", "facet", "value", "since"})
+
+	for _, g := range groups {
+		for _, sub := range g.Subjects {
+			for _, f := range sub.Facets {
+				_ = cw.Write([]string{
+					csvSafe(sub.Type),
+					csvSafe(sub.Key),
+					csvSafe(f.Label),
+					csvSafe(f.Summary),
+					f.Since,
+				})
+			}
+		}
+	}
 }
