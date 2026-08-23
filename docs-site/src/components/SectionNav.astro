@@ -1,0 +1,49 @@
+---
+/*
+ * Left section-nav rail — ported verbatim from design-system/examples/DocsPage.jsx.
+ *
+ * SEAM (T3): the section tree arrives entirely as the `sections` prop, with a
+ * PLACEHOLDER default that mirrors the sample NAV in DocsPage.jsx. T3 (nav generation)
+ * feeds the real tree built from docs/guides/*.md — it swaps DATA, not this markup.
+ * Slot shape:
+ *   sections: [{ title: string, items: [{ label: string, href: string, active?: bool }] }]
+ */
+const PLACEHOLDER_SECTIONS = [
+  { title: "Getting started", items: [
+    { label: "Install", href: "#" },
+    { label: "Quick start", href: "#", active: true },
+    { label: "Configuration", href: "#" },
+  ] },
+  { title: "Scanning", items: [
+    { label: "Seeds", href: "#" },
+    { label: "Vantages", href: "#" },
+    { label: "Schedules", href: "#" },
+  ] },
+  { title: "Signals", items: [
+    { label: "Severity levels", href: "#" },
+    { label: "Annotations", href: "#" },
+    { label: "Channels", href: "#" },
+  ] },
+  { title: "Reference", items: [
+    { label: "Components", href: "#" },
+    { label: "API", href: "#" },
+    { label: "CLI", href: "#" },
+    { label: "Self-hosting", href: "#" },
+  ] },
+];
+
+const { sections = PLACEHOLDER_SECTIONS } = Astro.props;
+---
+<aside style="display:flex; flex-direction:column; gap:24px; position:sticky; top:40px; align-self:start;">
+  {sections.map((section) => (
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <span style="font:500 11px var(--font-mono); letter-spacing:0.07em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">{section.title}</span>
+      {section.items.map((item) => (
+        <a
+          href={item.href}
+          style={`font:${item.active ? "600" : "400"} 13px var(--font-ui); color:${item.active ? "var(--link)" : "var(--text-secondary)"}; text-decoration:none; padding:5px 10px; border-radius:8px; background:${item.active ? "var(--accent-soft)" : "transparent"};`}
+        >{item.label}</a>
+      ))}
+    </div>
+  ))}
+</aside>

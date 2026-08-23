@@ -1,0 +1,13 @@
+---
+/*
+ * Placeholder docs page — proves the ported DocsPage shell frames real prose in both
+ * themes. The centre column is the sample article island; the nav rail, on-page TOC,
+ * version picker, and search are the layout's PLACEHOLDER slots (see DocsLayout.astro).
+ * T1 replaces this page's body with docs/guides/*.md rendered through the same slot.
+ */
+import DocsLayout from "../layouts/DocsLayout.astro";
+import Article from "../components/Article.jsx";
+---
+<DocsLayout title="Quick start · Verge ASM docs">
+  <Article client:load />
+</DocsLayout>

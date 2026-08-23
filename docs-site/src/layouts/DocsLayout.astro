@@ -1,0 +1,66 @@
+---
+/*
+ * DocsLayout — the ported DocsPage shell (design-system/examples/DocsPage.jsx).
+ *
+ * This is the frame every later ticket fills. The four shell slots are prop/slot driven
+ * with PLACEHOLDER data so later tickets swap DATA, not markup:
+ *   - TopNav island .......... search box + ⌘K + VersionSelect  (T4)  -> `versions`/`version`
+ *   - SectionNav (left rail) .. section tree                    (T3)  -> `sections`
+ *   - <slot /> (centre) ....... article prose, max 760px        (T1)  -> page markdown
+ *   - OnPageToc (right) ....... on-page headings                (T1)  -> `toc`
+ *
+ * Layout geometry, colours, and spacing are ported verbatim from DocsPage.jsx.
+ */
+import "../styles/global.css";
+import TopNav from "../components/TopNav.jsx";
+import SectionNav from "../components/SectionNav.astro";
+import OnPageToc from "../components/OnPageToc.astro";
+
+const {
+  title = "Verge ASM docs",
+  description = "Documentation for Verge ASM — free, open-source, self-hostable attack surface management.",
+  sections,
+  toc,
+  versions,
+  version,
+} = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <script is:inline>
+      // No-flash theme: tokens flip on data-theme="dark". Honour an explicit override
+      // (?theme=dark|light or a stored choice), else the OS preference.
+      (function () {
+        try {
+          var url = new URL(window.location.href);
+          var forced = url.searchParams.get("theme");
+          if (forced === "dark" || forced === "light") {
+            localStorage.setItem("theme", forced);
+          }
+          var stored = localStorage.getItem("theme");
+          var dark = stored
+            ? stored === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.setAttribute("data-theme", "dark");
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div style="background:var(--bg-page); min-height:100vh; font-family:var(--font-ui);">
+      <TopNav client:load versions={versions} version={version} />
+      <div style="max-width:1240px; margin:0 auto; display:grid; grid-template-columns:220px minmax(0, 1fr) 180px; gap:48px; padding:40px 32px 80px;">
+        <SectionNav sections={sections} />
+        <article style="max-width:760px; min-width:0;">
+          <slot />
+        </article>
+        <OnPageToc toc={toc} />
+      </div>
+    </div>
+  </body>
+</html>

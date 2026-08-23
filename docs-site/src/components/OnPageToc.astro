@@ -1,0 +1,28 @@
+---
+/*
+ * Right on-page table of contents — ported verbatim from
+ * design-system/examples/DocsPage.jsx.
+ *
+ * SEAM (T1): the `toc` prop is the on-page heading list, PLACEHOLDER by default. T1
+ * (markdown rendering) derives this from the rendered article's h2/h3 headings and
+ * feeds it in — swapping DATA, not this markup. Slot shape:
+ *   toc: [{ label: string, href: string, active?: bool }]
+ */
+const PLACEHOLDER_TOC = [
+  { label: "Run the container", href: "#", active: true },
+  { label: "Add your first seed", href: "#" },
+  { label: "Severity levels", href: "#" },
+  { label: "Common questions", href: "#" },
+];
+
+const { toc = PLACEHOLDER_TOC } = Astro.props;
+---
+<aside style="position:sticky; top:40px; align-self:start; display:flex; flex-direction:column; gap:8px;">
+  <span style="font:500 11px var(--font-mono); letter-spacing:0.07em; text-transform:uppercase; color:var(--text-muted);">On this page</span>
+  {toc.map((item) => (
+    <a
+      href={item.href}
+      style={`font:400 12.5px var(--font-ui); color:${item.active ? "var(--link)" : "var(--text-secondary)"}; text-decoration:none;`}
+    >{item.label}</a>
+  ))}
+</aside>
