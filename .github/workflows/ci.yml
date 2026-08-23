@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Least-privilege default for GITHUB_TOKEN (#329). No job here needs write
+# access to repo contents; the only exception is the gosec job, which scopes
+# `security-events: write` on itself to upload its SARIF (see below).
+permissions:
+  contents: read
+
 env:
   GO_VERSION: "1.25"
 
@@ -12,8 +18,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: ${{ env.GO_VERSION }}
       - run: go vet ./...
@@ -34,8 +40,8 @@ jobs:
       GOAMD64: v1
       GOARM64: v8.0
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: ${{ env.GO_VERSION }}
       - run: go build -o /dev/null ./cmd/web
@@ -45,8 +51,8 @@ jobs:
   sqlc:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: sqlc-dev/setup-sqlc@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: sqlc-dev/setup-sqlc@bac53b7fb28c039a6c7f5736fd1e89744021bdd6 # v5
         with:
           sqlc-version: "1.31.1"
       - run: sqlc generate
@@ -74,8 +80,8 @@ jobs:
       GOAMD64: ${{ matrix.goamd64 }}
       GOARM64: ${{ matrix.goarm64 }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: ${{ env.GO_VERSION }}
       - run: go test ./internal/measure/...
@@ -88,7 +94,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: refuse an unjustified leaf-version bump
@@ -125,7 +131,7 @@ jobs:
     env:
       POSTGRES_PASSWORD: ci-only-password
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: docker compose build
       - name: docker compose up
         run: docker compose up -d
@@ -147,3 +153,53 @@ jobs:
           exit 1
       - if: always()
         run: docker compose down -v
+
+  # --- Supply-chain / SAST / secret scanning (#331) ---
+
+  # Dependency vulnerability scan against the Go vulnerability database.
+  # Informational: reports known-vulnerable symbols reachable from our code
+  # without blocking the build on pre-existing advisories (`continue-on-error`).
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: govulncheck ./...
+        continue-on-error: true
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  # Static application security testing. Runs gosec with `-no-fail` so a
+  # pre-existing finding does not break the build; results are surfaced as
+  # SARIF in the repository's code-scanning (Security) tab. Only this job is
+  # granted `security-events: write`; the top-level default stays read-only.
+  gosec:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Run gosec
+        uses: securego/gosec@9e75c0576c9878035d4221392108d458abe10fc3 # v2.28.0
+        with:
+          args: "-no-fail -fmt sarif -out results.sarif ./..."
+      - name: Upload gosec SARIF
+        uses: github/codeql-action/upload-sarif@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+        with:
+          sarif_file: results.sarif
+
+  # Secret scan over the full git history. A detected secret fails the build
+  # by design — a committed credential is a hard stop, not an advisory.
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
