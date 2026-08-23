@@ -40,7 +40,8 @@ const inventoryTemplates = `
 <span class="muted">Everything you expose, watched for drift — the actual values behind the verdicts.</span>
 </div>
 <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-<button class="btn secondary" disabled title="Nothing to export until a value is folded">Export CSV</button>
+{{if .HasData}}<a class="btn secondary" href="/inventory/export" style="text-decoration:none" title="Download the folded inventory as CSV">Export CSV</a>
+{{else}}<button class="btn secondary" disabled title="Nothing to export until a value is folded">Export CSV</button>{{end}}
 <a class="btn" href="/scope" style="text-decoration:none">Add seed</a>
 </div>
 </div>

@@ -134,64 +134,7 @@ const reportsTemplates = `
         <span class="microlabel">Scheduled</span>
         <h2 style="margin:0;font-size:15px">Recurring reports</h2>
       </div>
-      <details style="margin-left:auto;position:relative">
-        <summary class="btn ghost" style="list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px">New schedule</summary>
-        <div class="scrim"></div>
-        <div style="position:fixed;inset:0;z-index:41;display:flex;align-items:center;justify-content:center;pointer-events:none;padding:var(--space-5)">
-          <div class="dialog-panel" style="width:560px;max-width:calc(100vw - 32px);pointer-events:auto;max-height:calc(100vh - 48px);overflow-y:auto">
-            <div class="microlabel">Scheduled export</div>
-            <h2 style="margin:4px 0 6px;font-size:16px">New report schedule</h2>
-            {{if .IsAdmin}}
-            <p class="muted" style="margin-bottom:var(--space-4)">A recurring export, delivered on cadence. Choose the sections, a cadence and a format, then create the schedule — it appears in the table below.</p>
-
-            <form method="post" action="/reports/schedule">
-              <div style="display:flex;flex-direction:column;gap:var(--space-2)">
-                <span class="microlabel">Step 1 &#183; Scope</span>
-                <label style="margin-bottom:0"><span>Report name</span>
-                  <input type="text" name="name" placeholder="Weekly exposure summary" autocomplete="off" required></label>
-                <span class="microlabel">Sections</span>
-                <label class="check"><input type="checkbox" name="sections" value="summary-kpis" checked><span>Summary KPIs</span></label>
-                <label class="check"><input type="checkbox" name="sections" value="new-assets" checked><span>New assets</span></label>
-                <label class="check"><input type="checkbox" name="sections" value="signal-changes" checked><span>Signal changes</span></label>
-                <label class="check"><input type="checkbox" name="sections" value="coverage-gaps"><span>Coverage gaps</span></label>
-              </div>
-
-              <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-4)">
-                <span class="microlabel">Step 2 &#183; Cadence</span>
-                <label style="margin-bottom:0"><span>Cadence</span>
-                  <select name="cadence">
-                    <option value="6h">Every 6h</option>
-                    <option value="daily">Daily &#183; 08:00</option>
-                    <option value="weekly" selected>Weekly &#183; mon 09:00</option>
-                    <option value="monthly">Monthly &#183; 1st</option>
-                    <option value="custom">Custom&#8230;</option>
-                  </select></label>
-              </div>
-
-              <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-4)">
-                <span class="microlabel">Step 3 &#183; Delivery</span>
-                <label style="margin-bottom:0"><span>Format</span>
-                  <select name="format">
-                    <option value="pdf" selected>pdf</option>
-                    <option value="csv">csv</option>
-                  </select></label>
-                <label style="margin-bottom:0"><span>Deliver to <span class="muted">(optional)</span></span>
-                  <input type="text" name="target" placeholder="Download only" autocomplete="off"></label>
-              </div>
-
-              <div class="dialog-actions">
-                <button type="submit">Create schedule</button>
-              </div>
-            </form>
-            {{else}}
-            <p class="muted" style="margin-bottom:var(--space-4)">A recurring export, delivered on cadence. Declaring a schedule is an admin act — ask an administrator to set one up.</p>
-            <div class="dialog-actions">
-              <span class="muted" style="font-size:12px">Close with the New schedule toggle.</span>
-            </div>
-            {{end}}
-          </div>
-        </div>
-      </details>
+      <button type="button" class="btn ghost" disabled aria-disabled="true" title="Report scheduling is not available yet" style="margin-left:auto;opacity:0.5;cursor:default;display:inline-flex;align-items:center;gap:6px">New schedule</button>
     </div>
     {{if .Schedules}}
     <table class="vg-table">

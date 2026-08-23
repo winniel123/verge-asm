@@ -57,7 +57,8 @@ const signalsTemplates = `
 </div>
 <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
 {{if .IsAdmin}}<a class="btn secondary" href="/signals?tab={{.Tab}}&amp;descope=1">Descope seed</a>{{end}}
-<button class="btn secondary" disabled title="Signal export lands with the reporting pipeline">Export CSV</button>
+{{if .HasData}}<a class="btn secondary" href="/signals/export" style="text-decoration:none" title="Download the current signal set as CSV">Export CSV</a>
+{{else}}<button class="btn secondary" disabled title="Nothing to export until a rule has a population to census">Export CSV</button>{{end}}
 </div>
 </div>
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
 	"net/netip"
@@ -110,6 +111,67 @@ type signalsForms struct {
 
 func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	s.renderSignals(w, r, acct, signalsForms{})
+}
+
+// signalsExport serves the current signal set as a downloadable CSV (#346) — the same
+// reason the Drift and Reports exports exist: pull the census into a sheet or a
+// pipeline without screenshotting. It reads the same Derived corpus the Signals page
+// evaluates and emits one row per census member (rule, version, state, subject) — the
+// full census set the Open tab renders. There is no filtered subset to honour: the
+// Annotated / Withdrawn tabs partition the annotation ledger, not the census, and the
+// census itself always shows every rule over its whole population. It owns no mutation
+// and adds no store method. It fabricates nothing: an estate with no population
+// produces a header-only file, and a subject's state is exactly the register the engine
+// placed it in — never invented.
+func (s *server) signalsExport(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "csv"
+	}
+	if format != "csv" {
+		http.Error(w, "unsupported export format: "+format+" (want csv)", http.StatusBadRequest)
+		return
+	}
+
+	corpus, err := s.buildSignalCorpus(r)
+	if err != nil {
+		s.serverError(w, "signals export: build signal corpus", err)
+		return
+	}
+	s.writeSignalsExportCSV(w, signal.EvaluateCorpus(corpus))
+}
+
+// writeSignalsExportCSV emits the census set as one uniform table — one row per member
+// of every rule's census, labelled with the register (fired / did-not-fire /
+// not-evaluable) the engine placed it in. The rule, version and state cells are
+// controlled tokens; the subject cell is attacker-influenceable free text (a name
+// ingested from CT logs), so it is passed through csvSafe. A rule with no population is
+// carried as a single row so a directory of exports records the no-population fact
+// rather than dropping the rule silently.
+func (s *server) writeSignalsExportCSV(w http.ResponseWriter, censuses []signal.Census) {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="signals-`+s.now().UTC().Format("2006-01-02")+`.csv"`)
+
+	cw := csv.NewWriter(w)
+	defer cw.Flush()
+
+	_ = cw.Write([]string{"rule", "version", "state", "subject"})
+
+	for _, c := range censuses {
+		ver := c.Version.String()
+		if c.Empty() {
+			_ = cw.Write([]string{c.Rule, ver, "no-population", ""})
+			continue
+		}
+		writeMembers := func(state string, members []signal.Member) {
+			for _, m := range members {
+				_ = cw.Write([]string{c.Rule, ver, state, csvSafe(m.Subject)})
+			}
+		}
+		writeMembers("fired", c.Fired)
+		writeMembers("did-not-fire", c.NotFired)
+		writeMembers("not-evaluable", c.NotEvaluable)
+	}
 }
 
 // renderSignals folds the Derived corpus into the per-rule censuses, folds the
@@ -234,9 +296,22 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 
+	// Gate the Export CSV button on data presence, as Drift's {{if .HasEvents}} does
+	// (#346): the census set is worth exporting once any rule has a population to
+	// census. Every rule renders even with no population, so "has data" is "at least
+	// one non-empty census", never "the page rendered".
+	hasData := false
+	for _, c := range views {
+		if !c.Empty {
+			hasData = true
+			break
+		}
+	}
+
 	s.render(w, "signals", map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive":      "signals",
+		"HasData":        hasData,
 		"SignalCount":    openCount,
 		"Tab":            tab,
 		"OpenCount":      openCount,
