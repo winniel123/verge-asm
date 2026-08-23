@@ -448,6 +448,11 @@ func (s *server) handler() http.Handler {
 	// not a mutation — and its document body is the canonical render that doubles as
 	// the PDF/email spec (internal/message.RenderArtifact).
 	mux.HandleFunc("GET /reports/delivery", s.requireLogin(s.reportDeliveryPage))
+	// The delivered-report PDF download (#345): the print form of the same artifact
+	// /reports/delivery renders, produced by internal/message.RenderArtifactPDF (a
+	// pure-Go render, no external engine — it runs inside the distroless-static web
+	// image). A viewer reads it — a delivered report is a record, not a mutation.
+	mux.HandleFunc("GET /reports/delivery/pdf", s.requireLogin(s.reportDeliveryPDF))
 	// The Reports schedule wizard persists here (#290): declaring a recurring report
 	// is an admin config act, gated like /settings/channels and /seeds declaration.
 	mux.HandleFunc("POST /reports/schedule", s.requireAdmin(s.createReportSchedule))

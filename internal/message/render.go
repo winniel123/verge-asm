@@ -240,6 +240,21 @@ const artifactTokens = `<style>
 // signature motif, reused for every h2 in the artifact document.
 const microLabelStyle = `margin:0;font:500 11px var(--mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)`
 
+// The delivered document's fixed copy — the section titles, the empty-section
+// notes stating that nothing moved, and the empty-state block. Both render forms
+// read these constants (RenderArtifact draws them as HTML, RenderArtifactPDF as
+// print) so the two layouts cannot drift in WHAT the document says, only in how it
+// looks (ADR-0114: one canonical content model, two layout forms).
+const (
+	artifactAppearedTitle  = "New this week"
+	artifactWithdrawnTitle = "Withdrawn by the world"
+	artifactAppearedEmpty  = "Nothing entered view in this period."
+	artifactWithdrawnEmpty = "The world withdrew nothing in this period."
+	artifactEmptyEyebrow   = "Nothing delivered"
+	artifactEmptyHeadline  = "No report has been delivered yet"
+	artifactEmptyBody      = "A delivered report is rendered here once report scheduling lands and a schedule runs. Until then there is no delivery to view."
+)
+
 // RenderArtifact renders one delivered report as the document itself — the card
 // design-system/examples/console/ReportArtifact.jsx fixes — as self-contained,
 // inline-styled HTML that stands alone as a PDF / email body and re-embeds in the
@@ -266,10 +281,8 @@ func RenderArtifact(a Artifact) template.HTML {
 		b.WriteString(artifactEmptyState())
 	} else {
 		b.WriteString(artifactStatBand(a.Stats))
-		b.WriteString(artifactChangeSection("New this week", a.Appeared,
-			"Nothing entered view in this period."))
-		b.WriteString(artifactChangeSection("Withdrawn by the world", a.Withdrawn,
-			"The world withdrew nothing in this period."))
+		b.WriteString(artifactChangeSection(artifactAppearedTitle, a.Appeared, artifactAppearedEmpty))
+		b.WriteString(artifactChangeSection(artifactWithdrawnTitle, a.Withdrawn, artifactWithdrawnEmpty))
 	}
 
 	// Delivery receipt — the host only, never the raw URL.
@@ -335,9 +348,9 @@ func artifactChangeSection(title string, changes []ArtifactChange, emptyNote str
 // never delivered: the fact, why, and the next action. No document is fabricated.
 func artifactEmptyState() string {
 	return `<div style="border:1px dashed var(--border-strong);background:var(--sunken);border-radius:var(--r-md);padding:32px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center">` +
-		`<span style="` + microLabelStyle + `">Nothing delivered</span>` +
-		`<h2 style="margin:0;font:600 15px var(--sans);color:var(--ink)">No report has been delivered yet</h2>` +
-		`<p style="margin:0;max-width:60ch;font:400 12.5px var(--sans);color:var(--muted)">A delivered report is rendered here once report scheduling lands and a schedule runs. Until then there is no delivery to view.</p>` +
+		`<span style="` + microLabelStyle + `">` + esc(artifactEmptyEyebrow) + `</span>` +
+		`<h2 style="margin:0;font:600 15px var(--sans);color:var(--ink)">` + esc(artifactEmptyHeadline) + `</h2>` +
+		`<p style="margin:0;max-width:60ch;font:400 12.5px var(--sans);color:var(--muted)">` + esc(artifactEmptyBody) + `</p>` +
 		`</div>`
 }
 

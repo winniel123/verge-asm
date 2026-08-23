@@ -306,3 +306,35 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 		"Body":      message.RenderArtifact(art),
 	})
 }
+
+// reportDeliveryPDF serves the delivered report as a PDF download (#345) — the
+// print form of the same Artifact reportDeliveryPage renders on screen, produced
+// by internal/message.RenderArtifactPDF (a pure-Go render that runs inside the
+// distroless-static web image, no external renderer). It reads the same Artifact
+// this handler pair shares, so the download always mirrors what the page shows;
+// with no delivery backend yet (#285; #290/#291) that is the empty-state document,
+// and when a delivery store lands both handlers fill the same struct with real
+// data and the download follows for free. A viewer reads it — a delivered report
+// is a record, not a mutation.
+func (s *server) reportDeliveryPDF(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// No delivery backing store yet — the zero Artifact renders the empty-state,
+	// exactly as the on-screen view does. Never fabricate a document.
+	art := message.Artifact{}
+
+	pdf, err := message.RenderArtifactPDF(art)
+	if err != nil {
+		log.Printf("web: report delivery pdf: render: %v", err)
+		http.Error(w, "could not render report PDF", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	// With no delivery backend the document names no delivery window, so the
+	// download is the generic report-delivery.pdf. A period-dated name (as the
+	// csv/json exports carry) belongs with the delivery backend that gives the
+	// Artifact a window to name (#285; #290/#291), not ahead of it.
+	w.Header().Set("Content-Disposition", `attachment; filename="report-delivery.pdf"`)
+	if _, err := w.Write(pdf); err != nil {
+		log.Printf("web: report delivery pdf: write: %v", err)
+	}
+}

@@ -23,12 +23,12 @@ import (
 // (section,label,value) carrying both the summary and the per-day series, so a
 // spreadsheet opens it without a schema; json is the same figures as a structured
 // object with an explicit null where the signal count was unavailable. PDF is
-// deliberately NOT offered here: internal/message.RenderArtifact renders the
-// *delivered report* document — a drift narrative (appeared / withdrawn changes)
-// backed by the delivery store this handler must not depend on — not the operational
-// activity series, and there is no HTML-to-PDF machinery in the tree. Wiring PDF
-// through it would mean either fabricating a delivery or standing up a renderer, so
-// it is scoped out as a follow-on; csv + json satisfy the pull-the-numbers need.
+// deliberately NOT offered here, and this is unchanged by #345: PDF is the
+// *delivered report* document — a drift narrative (appeared / withdrawn changes),
+// not the operational activity series — so it is served from /reports/delivery/pdf
+// by internal/message.RenderArtifactPDF (ADR-0114), a surface this handler must not
+// depend on. This operational export stays csv + json by design; the two are
+// different reads and must not be conflated.
 //
 // This handler reads exposure/scans/signals data sources read-only; it owns no
 // mutation and adds no store method. It fabricates nothing: an unavailable signal
