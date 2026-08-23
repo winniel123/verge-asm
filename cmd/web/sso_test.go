@@ -327,6 +327,77 @@ func TestSettingsSSOCreateSecretWriteOnly(t *testing.T) {
 	}
 }
 
+// seedSSOProviderWithSecret seeds an enabled provider that already stores a client
+// secret, so the update-secret write path can be exercised against a real starting
+// state.
+func seedSSOProviderWithSecret(f *fakeStore, id int64, slug, secret string, createdBy int64) {
+	f.ssoNextID = id
+	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
+		id: id, slug: slug, name: "Okta", issuer: "https://idp.example", clientID: "cid",
+		secret: secret, hasSecret: true, claim: "preferred_username",
+		enabled: true, createdBy: createdBy, createdAt: obsClock,
+	})
+}
+
+// A blank secret field with the clear box unchecked must KEEP the stored secret — the
+// form promises "set — leave blank to keep". Submitting it wiped the secret before the
+// #318 fix; now it no-ops (mirroring the channel-secret form).
+func TestSettingsSSOSecretBlankKeepsStored(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedSSOProviderWithSecret(f, 1, "okta", "stored-secret", admin.ID)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := postForm(t, ac, base+"/settings/sso/secret", url.Values{
+		"id": {"1"}, "client_secret": {""}, // no clear_secret, blank field
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("update secret status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	resp.Body.Close()
+
+	if !f.ssoProviders[0].hasSecret || f.ssoProviders[0].secret != "stored-secret" {
+		t.Errorf("a blank update-secret submission wiped the stored secret: hasSecret=%v secret=%q",
+			f.ssoProviders[0].hasSecret, f.ssoProviders[0].secret)
+	}
+}
+
+// The explicit clear box removes a stored secret (the only way to, now).
+func TestSettingsSSOSecretClearBoxRemoves(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedSSOProviderWithSecret(f, 1, "okta", "stored-secret", admin.ID)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := postForm(t, ac, base+"/settings/sso/secret", url.Values{
+		"id": {"1"}, "clear_secret": {"on"},
+	})
+	resp.Body.Close()
+	if f.ssoProviders[0].hasSecret {
+		t.Errorf("the clear box did not remove the stored secret")
+	}
+}
+
+// A non-blank secret field replaces the stored secret.
+func TestSettingsSSOSecretValueReplaces(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedSSOProviderWithSecret(f, 1, "okta", "stored-secret", admin.ID)
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := postForm(t, ac, base+"/settings/sso/secret", url.Values{
+		"id": {"1"}, "client_secret": {"rotated-secret"},
+	})
+	resp.Body.Close()
+	if !f.ssoProviders[0].hasSecret || f.ssoProviders[0].secret != "rotated-secret" {
+		t.Errorf("a typed secret did not replace the stored one: hasSecret=%v secret=%q",
+			f.ssoProviders[0].hasSecret, f.ssoProviders[0].secret)
+	}
+}
+
 // The SSO config mutations are admin acts: a viewer is refused.
 func TestSettingsSSORequiresAdmin(t *testing.T) {
 	f := newFakeStore()

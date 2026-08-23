@@ -179,21 +179,29 @@ func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 }
 
 // setSSOProviderSecret writes, replaces or clears a provider's client secret through
-// its own path, so a general edit never has to carry the secret. The clear box wins
-// over any typed value.
+// its own path, so a general edit never has to carry the secret. A blank field with
+// the clear box unchecked is a no-op — the stored secret is kept, honouring the form's
+// "leave blank to keep" — exactly the channel-secret pattern (settings.go). Clearing a
+// stored secret requires the explicit clear box, which wins over any typed value.
 func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.renderSettings(w, r, acct, settingsForms{section: "sso", ssoError: "That provider could not be found."})
 		return
 	}
-	arg := db.SetSSOProviderSecretParams{ID: id}
-	if r.FormValue("clear_secret") == "" {
-		arg.ClientSecret = optionalSecret(r.FormValue("client_secret"))
-	}
-	if err := s.store.SetSSOProviderSecret(r.Context(), arg); err != nil {
-		s.serverError(w, "set sso provider secret", err)
-		return
+	switch {
+	case r.FormValue("clear_secret") != "":
+		if err := s.store.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{ID: id}); err != nil {
+			s.serverError(w, "clear sso provider secret", err)
+			return
+		}
+	case strings.TrimSpace(r.FormValue("client_secret")) != "":
+		if err := s.store.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{
+			ID: id, ClientSecret: optionalSecret(r.FormValue("client_secret")),
+		}); err != nil {
+			s.serverError(w, "set sso provider secret", err)
+			return
+		}
 	}
 	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)
 }
