@@ -281,6 +281,55 @@ func TestTOTPSecretEncryptedAtRest(t *testing.T) {
 	}
 }
 
+// TestTOTPLegacyCleartextSecretFailsLoud is the #337 rework: the login path must NOT
+// tolerate a legacy pre-#337 cleartext totp_secret. An account whose stored secret is
+// raw base32 (never valid ciphertext) cannot be decrypted, and that is a hard fault —
+// surfaced as a 500 with no session granted, never silently masked as an "Incorrect
+// code." verification miss.
+func TestTOTPLegacyCleartextSecretFailsLoud(t *testing.T) {
+	f := newFakeStore()
+	acct := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	// A legacy row: the cleartext base32 secret stored directly, as a pre-#337 enrolment
+	// would have — NOT run through EncryptTOTPSecret.
+	secret, err := auth.NewTOTPSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.acctMu.Lock()
+	a := f.accounts[acct.ID]
+	a.TotpSecret = pgtype.Text{String: secret, Valid: true}
+	a.TotpEnabled = true
+	f.accounts[acct.ID] = a
+	f.acctMu.Unlock()
+
+	base := start(t, f, "")
+
+	// serverError logs the fault; capture the log so the expected line does not noise up
+	// the test output, and so we can assert the cleartext secret itself is never logged.
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	c := newClient(t)
+	postForm(t, c, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}}).Body.Close()
+
+	resp := postForm(t, c, base+"/login/totp", url.Values{"code": {"000000"}})
+	got := body(t, resp)
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("legacy cleartext secret was tolerated: status=%d, want 500; body: %s", resp.StatusCode, got)
+	}
+	if strings.Contains(got, "Incorrect code") {
+		t.Fatalf("decrypt failure was masked as a verification miss; body: %s", got)
+	}
+	if hasCookie(c, base, sessionCookie) {
+		t.Fatal("session granted despite an undecryptable secret")
+	}
+	if strings.Contains(buf.String(), secret) {
+		t.Fatalf("cleartext secret leaked into the log: %s", buf.String())
+	}
+}
+
 // --- #328: password-reset plaintext token is not logged by default ----------
 
 // TestForgotDoesNotLogPlaintextToken covers #328 (CWE-532): a reset request logs
