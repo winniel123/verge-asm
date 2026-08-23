@@ -115,6 +115,17 @@ type IntegrationState struct {
 	State string `json:"state"`
 }
 
+type Invite struct {
+	ID                int64              `json:"id"`
+	TokenHash         string             `json:"token_hash"`
+	Role              string             `json:"role"`
+	InvitedBy         pgtype.Int8        `json:"invited_by"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
+	ConsumedAt        pgtype.Timestamptz `json:"consumed_at"`
+	AcceptedAccountID pgtype.Int8        `json:"accepted_account_id"`
+}
+
 type Message struct {
 	ID          int64              `json:"id"`
 	Cause       string             `json:"cause"`
@@ -140,6 +151,15 @@ type Observation struct {
 	Value         []byte             `json:"value"`
 	ObservedAt    pgtype.Timestamptz `json:"observed_at"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+type PasswordReset struct {
+	ID         int64              `json:"id"`
+	AccountID  int64              `json:"account_id"`
+	TokenHash  string             `json:"token_hash"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	ConsumedAt pgtype.Timestamptz `json:"consumed_at"`
 }
 
 type PersonalToken struct {
@@ -186,6 +206,14 @@ type QueueJob struct {
 	BatchID        pgtype.Int8        `json:"batch_id"`
 	RunAfter       pgtype.Timestamptz `json:"run_after"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type RecoveryCode struct {
+	ID        int64              `json:"id"`
+	AccountID int64              `json:"account_id"`
+	CodeHash  string             `json:"code_hash"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UsedAt    pgtype.Timestamptz `json:"used_at"`
 }
 
 type RetentionSetting struct {
