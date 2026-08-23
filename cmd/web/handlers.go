@@ -417,7 +417,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
 	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
-	return mux
+	// Recovered panics render the 500 error page with a real, logged incident id
+	// (T11, #306). Wrapped once here at the mux-construction boundary; the render
+	// and incident-id helpers live in errors.go.
+	return s.recoverPanics(mux)
 }
 
 func (s *server) healthz(w http.ResponseWriter, r *http.Request) {

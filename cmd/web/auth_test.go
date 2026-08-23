@@ -301,11 +301,12 @@ func TestViewerDeniedMutation(t *testing.T) {
 		t.Fatalf("viewer mutation: status=%d, want 403", resp.StatusCode)
 	}
 	// The error page must carry a Content-Type, or the browser renders the
-	// markup as plain text — and it must actually tell the viewer why.
+	// markup as plain text — and it must actually tell the viewer why (the ported
+	// ErrorPage 403 frame: "Access denied", with how an admin widens it).
 	if !strings.HasPrefix(ct, "text/html") {
 		t.Fatalf("403 Content-Type = %q, want text/html", ct)
 	}
-	if !strings.Contains(page403, "admin role") {
+	if !strings.Contains(page403, "Access denied") || !strings.Contains(page403, "widen") {
 		t.Fatalf("403 page does not explain the denial: %s", page403)
 	}
 	if n, _ := f.CountAccounts(t.Context()); n != 2 {
