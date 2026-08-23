@@ -260,18 +260,6 @@ type Seed struct {
 	CustodyExtension bool               `json:"custody_extension"`
 }
 
-type Session struct {
-	ID         int64              `json:"id"`
-	AccountID  int64              `json:"account_id"`
-	TokenHash  string             `json:"token_hash"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	LastSeenAt pgtype.Timestamptz `json:"last_seen_at"`
-	UserAgent  string             `json:"user_agent"`
-	Ip         string             `json:"ip"`
-	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
-	RevokedAt  pgtype.Timestamptz `json:"revoked_at"`
-}
-
 type SourceState struct {
 	Slug    string `json:"slug"`
 	Enabled bool   `json:"enabled"`
