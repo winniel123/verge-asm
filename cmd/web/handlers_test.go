@@ -124,6 +124,12 @@ type fakeStore struct {
 	// Scans monitor (#245); the scans test seeds them directly.
 	dispatchProgress []db.ListDispatchProgressRow
 	jobsByDispatch   map[int64][]db.ListJobsForDispatchRow
+
+	// reportSchedules mirrors the report_schedule table (#290): the recurring reports
+	// the Reports wizard declares, filed once and listed newest-first. No content
+	// update and no delete exists, matching the store.
+	reportSchedules []db.ReportSchedule
+	rsNextID        int64
 }
 
 // fakeFreqEdit mirrors a verge-core frequency edit row.
@@ -1739,6 +1745,29 @@ func (f *fakeStore) DeclineLookup(_ context.Context, lookupID int64) (int64, err
 		}
 	}
 	return n, nil
+}
+
+func (f *fakeStore) InsertReportSchedule(_ context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error) {
+	if f.rsNextID == 0 {
+		f.rsNextID = 1
+	}
+	rs := db.ReportSchedule{
+		ID: f.rsNextID, Name: arg.Name, Sections: arg.Sections,
+		Cadence: arg.Cadence, Format: arg.Format,
+		DeliveryTarget: arg.DeliveryTarget, CreatedBy: arg.CreatedBy,
+	}
+	f.rsNextID++
+	f.reportSchedules = append(f.reportSchedules, rs)
+	return rs, nil
+}
+
+func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, error) {
+	out := make([]db.ReportSchedule, len(f.reportSchedules))
+	// Newest-first, mirroring ORDER BY id DESC.
+	for i, rs := range f.reportSchedules {
+		out[len(f.reportSchedules)-1-i] = rs
+	}
+	return out, nil
 }
 
 // testKey is a fixed 32-byte session signing key for tests.

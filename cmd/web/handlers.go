@@ -197,6 +197,15 @@ type store interface {
 	// than vanishing, and GetScanByKind re-reads the live enabled flag at the
 	// instant of a trigger (cold turns enabled once a scope opts in, ADR-0044).
 	ListScans(ctx context.Context) ([]db.Scan, error)
+
+	// Report scheduling (#290): the Reports screen's "New schedule" wizard declares a
+	// recurring report and the "Recurring reports" table lists them. A schedule is
+	// Declared — a plain insert and an unbounded newest-first list, no content update
+	// and no delete (the row-menu's edit/delete stay out of scope). There is no
+	// per-schedule delivery backing store yet (#291/T3), so a row resolves its "last
+	// delivery" from the Message corpus rather than a stamp on the schedule itself.
+	InsertReportSchedule(ctx context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error)
+	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -358,6 +367,9 @@ func (s *server) handler() http.Handler {
 	// not a mutation — and its document body is the canonical render that doubles as
 	// the PDF/email spec (internal/message.RenderArtifact).
 	mux.HandleFunc("GET /reports/delivery", s.requireLogin(s.reportDeliveryPage))
+	// The Reports schedule wizard persists here (#290): declaring a recurring report
+	// is an admin config act, gated like /settings/channels and /seeds declaration.
+	mux.HandleFunc("POST /reports/schedule", s.requireAdmin(s.createReportSchedule))
 
 	// The Subjects LIST folded into /inventory (#286): Inventory is the canonical
 	// "what do I have right now" screen and lists every Name/Service/Endpoint, so

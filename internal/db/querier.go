@@ -329,6 +329,17 @@ type Querier interface {
 	// them. census is NULL where the firing carries a count rather than rows.
 	InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error)
 	InsertObservation(ctx context.Context, arg InsertObservationParams) error
+	// Reads and writes behind the Reports screen's recurring-reports table and its
+	// "New schedule" wizard (#290). A report_schedule is Declared and carries no
+	// timeline: there is a plain insert and an unbounded newest-first list, no
+	// content update and no delete (the row-menu's edit/delete stay out of scope until
+	// the scheduling dispatcher lands). The estate is single-tenant, so the list is
+	// unscoped; created_by attributes the admin who declared each schedule.
+	// Declare one recurring report. The caller has parsed the wizard form — name, the
+	// chosen sections (a JSON array), cadence, format, and the delivery target — and
+	// attributes it to the admin who submitted it. sections defaults to an empty array
+	// at the column, so a schedule with no sections chosen still inserts.
+	InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error)
 	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
 	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
 	// the most recent supply per Seed.
@@ -564,6 +575,10 @@ type Querier interface {
 	// so the fan-out partitions per vantage exactly as reachability does.
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
+	// Every declared schedule, newest-first, unbounded — the "Recurring reports" table
+	// renders each row and resolves its "last delivery" from the Message corpus, since
+	// deliveries are messages (ADR-0039, ADR-0081) and this table holds only intent.
+	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
 	ListScans(ctx context.Context) ([]Scan, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The CURRENT `reachability` span per (Service, Vantage class) (#254, ADR-0104).
