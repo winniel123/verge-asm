@@ -50,5 +50,5 @@ const canonical = canonicalPath(source.slug);
   version={source.version}
   canonical={canonical}
 >
-  <Article client:load markdown={source.rawMarkdown} />
+  <Article client:load markdown={source.rawMarkdown} version={source.version} slug={source.slug} />
 </DocsLayout>
