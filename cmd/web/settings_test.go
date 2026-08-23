@@ -77,8 +77,8 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 	if !strings.Contains(settingsTabBody(t, ac, base, "team"), "Who can sign in") {
 		t.Error("team tab missing the members section")
 	}
-	if !strings.Contains(settingsTabBody(t, ac, base, "sso"), "Single sign-on not configured") {
-		t.Error("sso tab missing the not-configured state")
+	if !strings.Contains(settingsTabBody(t, ac, base, "sso"), "Add an OpenID Connect provider") {
+		t.Error("sso tab missing the add-provider form")
 	}
 	if !strings.Contains(settingsTabBody(t, ac, base, "channels"), "Declare a channel") {
 		t.Error("channels tab missing the channel form")

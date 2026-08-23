@@ -7,6 +7,51 @@ import (
 	"time"
 )
 
+// Sign/Verify round-trips an arbitrary payload under the key, and a tampered payload,
+// a tampered tag, or the wrong key all collapse to ErrInvalidSession (the OIDC login
+// transaction rides this signer).
+func TestSignVerifyRoundTrip(t *testing.T) {
+	key := []byte("0123456789abcdef0123456789abcdef")
+	payload := []byte(`{"slug":"okta","state":"abc","nonce":"xyz"}`)
+
+	tok := Sign(key, "sso-tx", payload)
+	got, err := Verify(key, "sso-tx", tok)
+	if err != nil {
+		t.Fatalf("Verify of a freshly signed token: %v", err)
+	}
+	if string(got) != string(payload) {
+		t.Errorf("round-trip payload = %q, want %q", got, payload)
+	}
+
+	// A tampered payload half no longer matches the tag.
+	if _, err := Verify(key, "sso-tx", "tampered."+tok[strings_IndexByte(tok, '.')+1:]); err == nil {
+		t.Errorf("Verify accepted a tampered payload")
+	}
+	// The wrong key rejects a validly-formed token.
+	if _, err := Verify([]byte("wrongwrongwrongwrongwrongwrongwr"), "sso-tx", tok); err == nil {
+		t.Errorf("Verify accepted a token under the wrong key")
+	}
+	// The wrong domain rejects a validly-signed token — the type tag keeps one signed
+	// value from verifying as another under the same key.
+	if _, err := Verify(key, "other", tok); err == nil {
+		t.Errorf("Verify accepted a token under the wrong domain")
+	}
+	// A token with no separator is malformed.
+	if _, err := Verify(key, "sso-tx", "no-dot-here"); err == nil {
+		t.Errorf("Verify accepted a malformed token")
+	}
+}
+
+// strings_IndexByte avoids importing strings just for the tamper case above.
+func strings_IndexByte(s string, b byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == b {
+			return i
+		}
+	}
+	return -1
+}
+
 func TestPasswordRoundTrip(t *testing.T) {
 	hash, err := HashPassword("correct horse battery staple")
 	if err != nil {

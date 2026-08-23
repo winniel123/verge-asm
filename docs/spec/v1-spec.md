@@ -350,10 +350,17 @@ prober's SSH host key is pinned at provisioning; a change is a hard failure (the
 
 ### 4.3 Auth & access
 
-Local accounts only — no SSO/OIDC/reverse-proxy forward-auth (a misconfigured trusting proxy is a
-whole bypass class, and it is refused rather than risked; see §7). Two roles, admin/viewer. The
-first admin is bootstrapped by a single-use setup token written to container logs. TOTP is
-optional per account. A permission check runs on every mutating endpoint from the first commit.
+Local accounts are the identity store. Single sign-on is supported as cryptographically-verified
+**OIDC** (#293, ADR-0112): the app redirects to an identity provider and verifies the signed
+`id_token` (signature, issuer, and a per-login nonce) via the vetted `go-oidc`/`oauth2` libraries,
+so a forged or replayed assertion is rejected by construction. SSO authenticates an *existing* local
+account (matched by a configured username claim) and never creates one, and a session's role is
+still read from the local account row on every request. **Reverse-proxy forward-auth (header-trust)
+remains refused** — trusting an upstream identity header is a whole bypass class the moment the proxy
+is misconfigured, and unlike OIDC there is no cryptographic check the app can make (see §7). Two
+roles, admin/viewer. The first admin is bootstrapped by a single-use setup token written to
+container logs. TOTP is optional per account (a password login still owes its second factor; the
+OIDC route is verified by the provider). A permission check runs on every mutating endpoint from the first commit.
 Every Declared act (a `Seed`, an exclusion, a `Scan` config change, a `Channel`) is an
 authenticated admin act, audit-relevant by construction — which is also why configuration lives
 in the database and not in a mounted file: *if a change to it should appear in the audit trail, it
@@ -677,9 +684,11 @@ assets the operator does not own — both outside the map's destination outright
 
 **Access & integration.** A JSON API and API tokens — a bearer token bypasses the TOTP auth flow
 over the operator's complete attack surface; the integration need is push, not pull
-([#6](https://github.com/winniel123/verge-asm/issues/6)). SSO/OIDC/reverse-proxy forward-auth —
-header-trust auth is a bypass class of bug the moment the proxy is misconfigured
-([#11](https://github.com/winniel123/verge-asm/issues/11)). A pull notification surface (RSS/Atom/
+([#6](https://github.com/winniel123/verge-asm/issues/6)). Reverse-proxy forward-auth (header-trust) —
+still refused: trusting an upstream identity header is a bypass class of bug the moment the proxy is
+misconfigured ([#11](https://github.com/winniel123/verge-asm/issues/11)). *SSO/OIDC itself is no
+longer a non-goal — it is supported as cryptographically-verified OIDC (#293, ADR-0112), which is
+not the header-trust mechanism this bypass class names; see §4.3.* A pull notification surface (RSS/Atom/
 polling) — the one channel option the no-JSON-API constraint genuinely kills. Vendor notification
 integrations (Slack/Discord/Telegram/Teams/Matrix/PagerDuty) and per-vendor body shapes — a body
 format with no owner and no watch; *reopens if the curated-table watch (§3.5) acquires an owner for

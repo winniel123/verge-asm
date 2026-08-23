@@ -212,6 +212,19 @@ type store interface {
 	// delivery" from the Message corpus rather than a stamp on the schedule itself.
 	InsertReportSchedule(ctx context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error)
 	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
+
+	// SSO / OIDC providers (#293, ADR-0112): the config behind the SignIn buttons and
+	// the Settings single-sign-on tab. The client secret is write-only — only
+	// GetSSOProviderForAuth (the server-side token exchange) selects it; every other
+	// read exposes has_secret alone, mirroring the channel secret (ADR-0053).
+	InsertSSOProvider(ctx context.Context, arg db.InsertSSOProviderParams) (int64, error)
+	ListSSOProviders(ctx context.Context) ([]db.ListSSOProvidersRow, error)
+	ListEnabledSSOProviders(ctx context.Context) ([]db.ListEnabledSSOProvidersRow, error)
+	GetSSOProvider(ctx context.Context, id int64) (db.GetSSOProviderRow, error)
+	GetSSOProviderForAuth(ctx context.Context, slug string) (db.GetSSOProviderForAuthRow, error)
+	UpdateSSOProvider(ctx context.Context, arg db.UpdateSSOProviderParams) (int64, error)
+	SetSSOProviderSecret(ctx context.Context, arg db.SetSSOProviderSecretParams) error
+	DeleteSSOProvider(ctx context.Context, id int64) error
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -242,6 +255,12 @@ type server struct {
 	// client; tests inject a fake so no lookup touches the network.
 	proposer proposerRunner
 
+	// sso is the OIDC single-sign-on seam (#293, ADR-0112). main.go wires the real
+	// go-oidc/oauth2 flow over an HTTP client; tests inject a fake so a login flow
+	// asserts its state/nonce/cookie handling and account mapping without a live
+	// identity provider. newServer defaults it to the real flow.
+	sso ssoFlow
+
 	// dispatcher is the on-demand scan-trigger seam (#252). main.go wires the real
 	// queue Dispatcher over the pool; it enqueues the same fan-out the CLI -trigger
 	// path uses and pg_notifies the running worker. Tests inject a fake so a trigger
@@ -253,6 +272,11 @@ type server struct {
 	// request did not itself arrive over TLS — set it when web is fronted by a
 	// TLS-terminating proxy (VERGE_SECURE_COOKIES).
 	secureCookies bool
+	// externalURL is the trusted origin the deployment is reached at
+	// (VERGE_EXTERNAL_URL, e.g. https://verge.example.com). When set it is the base
+	// for the OIDC callback redirect_uri (#293), so that value never derives from the
+	// attacker-influenceable Host header; empty falls back to the request host.
+	externalURL string
 	// setupMu serialises the first-boot setup so a concurrent pair of valid
 	// POST /setup requests cannot both pass the no-accounts check and each
 	// create an admin, which would break the token's single-use guarantee.
@@ -271,6 +295,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		resetTTL:       30 * time.Minute,
 		seedAddressCap: seed.DefaultAddressCap,
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
+		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
 	}
 }
 
@@ -320,6 +345,14 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("POST /login/totp", s.loginTOTP)
 	mux.HandleFunc("POST /logout", s.logout)
+
+	// Single sign-on (#293, ADR-0112): the OIDC authorization-code flow. Both hops are
+	// unauthenticated by construction — a caller signing in has no session — so they
+	// sit beside /login, not behind requireLogin. The state/nonce/PKCE ride a signed
+	// short-lived cookie between them. Identity comes only from the verified id_token,
+	// never a proxy header (§4.3, §7).
+	mux.HandleFunc("GET /login/sso/{slug}", s.ssoStart)
+	mux.HandleFunc("GET /login/sso/{slug}/callback", s.ssoCallback)
 
 	// SignIn delta (#314, T19): the pre-auth self-service surfaces ported from
 	// SignIn.jsx — forgot/reset password and invite acceptance. Like /login and
@@ -533,6 +566,15 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
 	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
+
+	// Single sign-on config (#293, ADR-0112): declaring, editing, re-keying and
+	// removing an OIDC provider are admin config acts, gated like channel and seed
+	// declaration. The secret has its own write path so an edit that leaves it blank
+	// keeps the existing one (the channel-secret pattern).
+	mux.HandleFunc("POST /settings/sso", s.requireAdmin(s.createSSOProvider))
+	mux.HandleFunc("POST /settings/sso/update", s.requireAdmin(s.updateSSOProvider))
+	mux.HandleFunc("POST /settings/sso/secret", s.requireAdmin(s.setSSOProviderSecret))
+	mux.HandleFunc("POST /settings/sso/delete", s.requireAdmin(s.deleteSSOProvider))
 
 	// Integrations (#308): a third-party install tile is a Declared act. Installing
 	// one records consent to the grants it would receive; disconnecting passes

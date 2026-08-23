@@ -130,6 +130,27 @@ type fakeStore struct {
 	// update and no delete exists, matching the store.
 	reportSchedules []db.ReportSchedule
 	rsNextID        int64
+
+	// ssoProviders mirrors the sso_provider table (#293): OIDC providers, secret
+	// included, so tests can assert the secret is stored but never surfaced through the
+	// list/get render paths (only GetSSOProviderForAuth returns it).
+	ssoProviders []fakeSSOProvider
+	ssoNextID    int64
+}
+
+// fakeSSOProvider mirrors an sso_provider row, client secret included.
+type fakeSSOProvider struct {
+	id           int64
+	slug         string
+	name         string
+	issuer       string
+	clientID     string
+	secret       string
+	hasSecret    bool
+	claim        string
+	enabled      bool
+	createdBy    int64
+	createdAt    time.Time
 }
 
 // fakeFreqEdit mirrors a verge-core frequency edit row.
@@ -1874,6 +1895,125 @@ func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, e
 		out[len(f.reportSchedules)-1-i] = rs
 	}
 	return out, nil
+}
+
+// --- SSO providers (#293) ---------------------------------------------------
+
+func (f *fakeStore) InsertSSOProvider(_ context.Context, arg db.InsertSSOProviderParams) (int64, error) {
+	for _, p := range f.ssoProviders {
+		if p.slug == arg.Slug {
+			return 0, &pgconn.PgError{Code: "23505", Message: "duplicate sso slug"}
+		}
+	}
+	f.ssoNextID++
+	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
+		id: f.ssoNextID, slug: arg.Slug, name: arg.Name, issuer: arg.Issuer,
+		clientID: arg.ClientID, secret: arg.ClientSecret.String, hasSecret: arg.ClientSecret.Valid,
+		claim: arg.UsernameClaim, enabled: arg.Enabled, createdBy: arg.CreatedBy,
+		createdAt: obsClock,
+	})
+	return f.ssoNextID, nil
+}
+
+func (f *fakeStore) ListSSOProviders(context.Context) ([]db.ListSSOProvidersRow, error) {
+	out := []db.ListSSOProvidersRow{}
+	// Newest-first, mirroring ORDER BY id DESC. The secret is never exposed — only
+	// has_secret — exactly as the query omits it.
+	for i := len(f.ssoProviders) - 1; i >= 0; i-- {
+		p := f.ssoProviders[i]
+		out = append(out, db.ListSSOProvidersRow{
+			ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
+			UsernameClaim: p.claim, Enabled: p.enabled, HasSecret: p.hasSecret,
+			CreatedBy: p.createdBy, CreatedAt: pgtype.Timestamptz{Time: p.createdAt, Valid: true},
+			CreatedByUsername: f.usernameForID(p.createdBy),
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListEnabledSSOProviders(context.Context) ([]db.ListEnabledSSOProvidersRow, error) {
+	out := []db.ListEnabledSSOProvidersRow{}
+	for i := len(f.ssoProviders) - 1; i >= 0; i-- {
+		if p := f.ssoProviders[i]; p.enabled {
+			out = append(out, db.ListEnabledSSOProvidersRow{ID: p.id, Slug: p.slug, Name: p.name})
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) GetSSOProvider(_ context.Context, id int64) (db.GetSSOProviderRow, error) {
+	for _, p := range f.ssoProviders {
+		if p.id == id {
+			return db.GetSSOProviderRow{
+				ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
+				UsernameClaim: p.claim, Enabled: p.enabled, HasSecret: p.hasSecret,
+				CreatedBy: p.createdBy, CreatedAt: pgtype.Timestamptz{Time: p.createdAt, Valid: true},
+			}, nil
+		}
+	}
+	return db.GetSSOProviderRow{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) GetSSOProviderForAuth(_ context.Context, slug string) (db.GetSSOProviderForAuthRow, error) {
+	for _, p := range f.ssoProviders {
+		if p.slug == slug && p.enabled {
+			return db.GetSSOProviderForAuthRow{
+				ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
+				ClientSecret:  pgtype.Text{String: p.secret, Valid: p.hasSecret},
+				UsernameClaim: p.claim,
+			}, nil
+		}
+	}
+	return db.GetSSOProviderForAuthRow{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProviderParams) (int64, error) {
+	for i := range f.ssoProviders {
+		if f.ssoProviders[i].id != arg.ID {
+			continue
+		}
+		for _, p := range f.ssoProviders {
+			if p.id != arg.ID && p.slug == arg.Slug {
+				return 0, &pgconn.PgError{Code: "23505", Message: "duplicate sso slug"}
+			}
+		}
+		f.ssoProviders[i].slug = arg.Slug
+		f.ssoProviders[i].name = arg.Name
+		f.ssoProviders[i].issuer = arg.Issuer
+		f.ssoProviders[i].clientID = arg.ClientID
+		f.ssoProviders[i].claim = arg.UsernameClaim
+		f.ssoProviders[i].enabled = arg.Enabled
+		return 1, nil
+	}
+	return 0, nil // no such id: zero rows affected, mirroring the real UPDATE
+}
+
+func (f *fakeStore) SetSSOProviderSecret(_ context.Context, arg db.SetSSOProviderSecretParams) error {
+	for i := range f.ssoProviders {
+		if f.ssoProviders[i].id == arg.ID {
+			f.ssoProviders[i].secret = arg.ClientSecret.String
+			f.ssoProviders[i].hasSecret = arg.ClientSecret.Valid
+			return nil
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
+	kept := f.ssoProviders[:0]
+	for _, p := range f.ssoProviders {
+		if p.id != id {
+			kept = append(kept, p)
+		}
+	}
+	f.ssoProviders = kept
+	return nil
+}
+
+// usernameForID resolves an account id to its username for the created-by join the
+// SSO list query performs; an unknown id renders empty (a test rarely asserts it).
+func (f *fakeStore) usernameForID(id int64) string {
+	return f.accounts[id].Username
 }
 
 // testKey is a fixed 32-byte session signing key for tests.

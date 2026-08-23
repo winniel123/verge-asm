@@ -101,6 +101,17 @@ type settingsForms struct {
 	chanCoverage bool
 	chanClock    bool
 
+	// sso (#293). ssoError is an inline error on the single-sign-on surface; the
+	// remaining fields echo a rejected add-provider form back so the operator does not
+	// retype it (the add form renders unconditionally, so no open/closed flag is
+	// needed).
+	ssoError    string
+	ssoSlug     string
+	ssoName     string
+	ssoIssuer   string
+	ssoClientID string
+	ssoClaim    string
+
 	retError    string
 	retObs      string
 	retDispatch string
@@ -142,6 +153,8 @@ func validTab(t string) string {
 // rejected submission re-renders with its own section active.
 func tabForSection(section string) string {
 	switch section {
+	case "sso":
+		return "sso"
 	case "team":
 		return "team"
 	case "channels":
@@ -509,8 +522,7 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	case "vantages":
 		err = s.fillVantagesSection(r, data)
 	case "sso":
-		// The single sign-on section is the honest not-configured state (#293 is
-		// backlog); it reads nothing.
+		err = s.fillSSOSection(r, f, data)
 	case "team":
 		err = s.fillTeamSection(r, acct, f, data)
 	case "audit":

@@ -74,6 +74,9 @@ func main() {
 
 	web := newServer(queries, key, setupToken, time.Now)
 	web.secureCookies = isTruthy(env.OrDefault("VERGE_SECURE_COOKIES", ""))
+	// The trusted origin for the OIDC callback redirect_uri (#293); empty falls back to
+	// the request host.
+	web.externalURL = env.OrDefault("VERGE_EXTERNAL_URL", "")
 	// The on-demand scan trigger (#252) enqueues through the same queue Dispatcher
 	// the worker's CLI -trigger path uses. Web has no listener of its own — the
 	// running worker claims the enqueued jobs off the pg_notify the fan-out sends —
