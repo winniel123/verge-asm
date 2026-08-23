@@ -105,6 +105,11 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// Scans-per-day heatmap.
 		"Heat":    cells,
 		"HasHeat": heatTotal > 0,
+
+		// Recurring reports. Scheduling has no backend yet (#290/#291), so this is
+		// empty and the table renders the empty-state; the row-menu "View last
+		// delivery" shape is ported now and lights up per report when it lands.
+		"Schedules": s.reportScheduleRows(ctx),
 	})
 }
 

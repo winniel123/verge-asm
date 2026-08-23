@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"strings"
 	"testing"
@@ -121,6 +122,75 @@ func TestReportsEmptyStates(t *testing.T) {
 	if strings.Contains(page, "color-mix(in srgb, var(--chart-1)") &&
 		!strings.Contains(page, "28%, var(--surface)") {
 		t.Errorf("empty heatmap should not draw wired cells; body: %s", page)
+	}
+}
+
+// lastReportDelivery lights the "View last delivery" menu item only where a report
+// actually delivered: a non-failed delivery yields the stable /reports/delivery
+// artifact route (T3), while no deliveries — or only undelivered ones — yields no
+// link, so the item renders disabled rather than fabricating a document.
+func TestLastReportDelivery(t *testing.T) {
+	// A report with a delivered outcome opens the artifact.
+	if href, has := lastReportDelivery([]deliveryView{{State: "delivered"}}); !has || href != "/reports/delivery" {
+		t.Errorf("delivered report: got (%q, %v), want (/reports/delivery, true)", href, has)
+	}
+	// No deliveries at all — the item is disabled, no link.
+	if href, has := lastReportDelivery(nil); has || href != "" {
+		t.Errorf("no delivery: got (%q, %v), want (\"\", false)", href, has)
+	}
+	// An undelivered (failed) outcome is not a delivery to view.
+	if href, has := lastReportDelivery([]deliveryView{{State: "undelivered", Failed: true}}); has || href != "" {
+		t.Errorf("undelivered only: got (%q, %v), want (\"\", false)", href, has)
+	}
+}
+
+// The recurring-reports row menu ports Reports.jsx's per-row DropdownMenu: its
+// "View last delivery" item opens T3's /reports/delivery artifact where a report
+// has delivered, and renders disabled where none has — no fabrication. The menu
+// only opens or confirms; it never fires destruction directly, so its "Delete
+// schedule" item is inert (no form, no POST) on click.
+func TestReportScheduleRowMenu(t *testing.T) {
+	var buf bytes.Buffer
+	data := map[string]any{
+		"Title": "Reports", "NavActive": "reports", "IsAdmin": true,
+		"Account": db.Account{},
+		"Schedules": []reportScheduleRow{
+			{Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", LastSent: "3d", HasDelivery: true, DeliveryHref: "/reports/delivery"},
+			{Name: "Monthly asset inventory", Cadence: "monthly · 1st", Format: "csv", LastSent: "—", HasDelivery: false},
+		},
+	}
+	if err := tmpl.ExecuteTemplate(&buf, "reports", data); err != nil {
+		t.Fatalf("execute reports template: %v", err)
+	}
+	page := buf.String()
+
+	// The delivered report's menu item opens the artifact at the stable T3 route.
+	if !strings.Contains(page, `href="/reports/delivery"`) {
+		t.Errorf("delivered row menu should link to /reports/delivery; body: %s", page)
+	}
+	if !strings.Contains(page, "View last delivery") {
+		t.Errorf("row menu missing the ported 'View last delivery' item; body: %s", page)
+	}
+	// The undelivered report's item is disabled — no link fabricated.
+	if !strings.Contains(page, `aria-disabled="true" title="No delivery yet"`) {
+		t.Errorf("undelivered row should render a disabled 'View last delivery'; body: %s", page)
+	}
+	// The menu never destroys directly: "Delete schedule" is inert, not a POST form.
+	if !strings.Contains(page, "Delete schedule") {
+		t.Errorf("row menu missing the ported 'Delete schedule' item; body: %s", page)
+	}
+	// The menu never destroys directly — the delete item is a disabled span, carrying
+	// no destructive form or POST action of its own.
+	if strings.Contains(page, `action="/reports/schedule`) {
+		t.Errorf("row menu must not carry a destructive action; body: %s", page)
+	}
+
+	// The rows themselves render — the table, not the empty-state.
+	if strings.Contains(page, "No recurring reports") {
+		t.Errorf("with schedules present the table should render, not the empty-state; body: %s", page)
+	}
+	if !strings.Contains(page, "Weekly exposure summary") || !strings.Contains(page, "Monthly asset inventory") {
+		t.Errorf("schedule rows missing; body: %s", page)
 	}
 }
 
