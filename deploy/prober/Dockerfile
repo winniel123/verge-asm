@@ -10,7 +10,8 @@
 # hardened SSH endpoint that runs an ordinary unprivileged login. The pushed
 # prober is CGO_ENABLED=0 static (§1.4), so it needs no runtime from this image
 # — musl vs glibc does not matter to it.
-FROM alpine:3.20
+# tag alpine:3.20 pinned by manifest-list digest (#333)
+FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
 
 # The single non-root login account. Its name is what the operator types into
 # the verge Probers form as the username (§4.5); to use a different one, rebuild

@@ -3,7 +3,8 @@
 # web, worker and prober share one build stage and one Go module
 # (ADR-0001): a schema mismatch across the wire contract cannot arise from
 # building the three binaries differently.
-FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS builder
+# tag golang:1.25-bookworm pinned by manifest-list digest (#333)
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm@sha256:3b4a11519ad929d1e1d261a12cff056f0c85b735253d7d861346b9c6f8b36437 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -27,7 +28,8 @@ RUN go build -o /out/web ./cmd/web \
 # copies its ownership into the named volume the first time it is mounted.
 RUN mkdir -p /state && chown 65532:65532 /state
 
-FROM gcr.io/distroless/static-debian12:nonroot AS web
+# tag gcr.io/distroless/static-debian12:nonroot pinned by manifest-list digest (#333)
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab AS web
 COPY --from=builder /out/web /app/web
 COPY --from=builder --chown=65532:65532 /state /app/state
 EXPOSE 8080
@@ -35,7 +37,8 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
     CMD ["/app/web", "-healthcheck"]
 ENTRYPOINT ["/app/web"]
 
-FROM gcr.io/distroless/static-debian12:nonroot AS worker
+# tag gcr.io/distroless/static-debian12:nonroot pinned by manifest-list digest (#333)
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab AS worker
 COPY --from=builder /out/worker /app/worker
 COPY --from=builder /out/prober /app/prober
 COPY --from=builder --chown=65532:65532 /state /app/state
