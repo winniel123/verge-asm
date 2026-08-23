@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
+
+	"github.com/winniel123/verge-asm/internal/custody"
 )
 
 // NetPeer is the production Peer: it puts the leaf's offers on the wire against
@@ -56,6 +58,19 @@ func (p NetPeer) Exchange(q Query) Msg {
 	ctx, cancel := context.WithTimeout(context.Background(), p.exchangeTimeout())
 	defer cancel()
 
+	// SSRF gate (#324). The delegation walk dials authorities named verbatim in
+	// attacker-controlled NS RDATA (leaf.go walk() sets Query.Server = rr.Data).
+	// A DNS query is exempt from the custody probing gate — "a query is not a
+	// connect" (custody/gate.go) — so nothing else stops an in-scope delegation
+	// from pointing its NS RDATA at 169.254.169.254, 127.0.0.1, an RFC1918/ULA
+	// host or an internal name and having us send packets there. Refuse to dial
+	// a walk-path target that is, or resolves to, a non-globally-reachable
+	// address, and report it unreached exactly as a dial failure would — the
+	// walk then records the authority as a silent (unreached) one, never a value.
+	if q.Path == PathWalk && !walkServerReachable(ctx, server) {
+		return Msg{Unreachable: true}
+	}
+
 	var resp []byte
 	if q.Transport == TCP {
 		resp, err = exchangeTCP(ctx, server, msgBytes)
@@ -73,6 +88,36 @@ func withDefaultPort(server string) string {
 		return server
 	}
 	return net.JoinHostPort(server, "53")
+}
+
+// walkServerReachable reports whether a delegation-walk authority (host:port)
+// may be dialed: its dial target must be globally reachable (#324). An IP
+// literal is classified directly against the special-purpose registries; a
+// hostname is resolved and barred if ANY address it would dial is non-globally-
+// reachable — a conservative reading, since the dialer, not us, picks which of
+// a name's addresses to connect to, so a name mixing public and private
+// addresses is refused rather than gambled on. A name that does not resolve is
+// left to the dial to fail on its own: it cannot reach an internal address, so
+// it is not an SSRF concern. custody.IsNonGloballyReachable is the sole IP-range
+// authority (it Unmaps, so an IPv4-mapped literal is caught in IPv4 space).
+func walkServerReachable(ctx context.Context, server string) bool {
+	host, _, err := net.SplitHostPort(server)
+	if err != nil {
+		host = server
+	}
+	if addr, err := netip.ParseAddr(host); err == nil {
+		return !custody.IsNonGloballyReachable(addr)
+	}
+	addrs, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return true
+	}
+	for _, a := range addrs {
+		if custody.IsNonGloballyReachable(a) {
+			return false
+		}
+	}
+	return true
 }
 
 func buildQuery(q Query) ([]byte, error) {
