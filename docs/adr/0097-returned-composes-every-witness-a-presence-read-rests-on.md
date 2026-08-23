@@ -108,7 +108,7 @@ class's witness concurring; a class that was already reading non-`NameError` bef
 caught up is not a bystander to the conclusion, it is one of the terms the conclusion is **made
 of**, exactly as much as the witness that changed last. Treating it as inert because its value did
 not move on this particular fold conflates *the value that changed* with *the fact that grounds the
-conclusion* — the same distinction [ADR-0032](./0032-a-rule-reads-a-leg-never-a-state.md) draws
+conclusion* — the same distinction [ADR-0010](./0010-exposure-composes-two-reaches.md) draws
 between a leg and a projection. A rule reads a leg, never a state; a composed presence read
 composes its witnesses, not its deltas.
 
