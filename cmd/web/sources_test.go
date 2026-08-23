@@ -181,8 +181,9 @@ func TestViewerCannotToggleButCanView(t *testing.T) {
 	}
 }
 
-// Coverage is the source-enablement modal's entry point and links to it.
-func TestCoverageStubLinksToModal(t *testing.T) {
+// The V3 Coverage screen (#301, ADR-0110) renders its four regions: the aperture
+// meters, the coverage messages, the gaps register, and the unevaluable rules.
+func TestCoverageRendersRegions(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -196,8 +197,13 @@ func TestCoverageStubLinksToModal(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /coverage status=%d, want 200", resp.StatusCode)
 	}
-	if !strings.Contains(got, `href="/sources"`) {
-		t.Errorf("Coverage stub does not link to the source modal; body: %s", got)
+	for _, region := range []string{
+		"What the last batch walked", "Coverage messages",
+		"Expected, not observed", "Unevaluable this batch",
+	} {
+		if !strings.Contains(got, region) {
+			t.Errorf("Coverage region %q missing; body: %s", region, got)
+		}
 	}
 }
 
@@ -238,32 +244,28 @@ func coverageBody(t *testing.T, c *http.Client, base string) string {
 	return body(t, resp)
 }
 
-// The aperture statement renders one line per aperture input (§3.2, §6.3): the
-// seven inputs, the qtype set spelled out, and the dns cadence.
-func TestCoverageRendersApertureStatement(t *testing.T) {
+// The aperture meters render one CoverageMeter per declared scope in the census
+// state — an address scope counting the addresses it enumerates, a name scope
+// counting the owner names its zone declares. A census never claims a
+// denominator, so the meter reads "census · …" and no percentage appears.
+func TestCoverageApertureMeters(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
+	declare(t, ac, base, "name", "example.com").Body.Close()
+	declare(t, ac, base, "address", "203.0.113.0/24").Body.Close()
+
 	page := coverageBody(t, ac, base)
 
-	for _, input := range []string{
-		"Enabled sources", "Port sets", "Vantages", "TLS candidate set",
-		"Qtype set", "Control-probe population", "Queried address scope",
+	// Both scopes surface as census meters, labelled by their scope key.
+	for _, want := range []string{
+		"example.com", "203.0.113.0/24", "census", "addresses", "declared names",
 	} {
-		if !strings.Contains(page, input) {
-			t.Errorf("aperture input %q missing from the statement", input)
+		if !strings.Contains(page, want) {
+			t.Errorf("aperture meter is missing %q; body: %s", want, page)
 		}
-	}
-	// The qtype set is spelled out, not summarised, and the dns cadence is stated.
-	for _, q := range dnsQtypeSet {
-		if !strings.Contains(page, q) {
-			t.Errorf("qtype %q missing from the aperture statement", q)
-		}
-	}
-	if !strings.Contains(page, "daily") {
-		t.Errorf("dns cadence (daily) not stated; body: %s", page)
 	}
 }
 
@@ -289,13 +291,13 @@ func TestCoverageSurfacesUnavailableVantages(t *testing.T) {
 	if !strings.Contains(page, "local") || !strings.Contains(page, "127.0.0.11:53") {
 		t.Errorf("unavailable `local` vantage not named on Coverage; body: %s", page)
 	}
-	if !strings.Contains(page, "unavailable") {
-		t.Errorf("Coverage does not render the unavailable state; body: %s", page)
+	if !strings.Contains(page, "unreachable") {
+		t.Errorf("Coverage does not render the silent-vantage state; body: %s", page)
 	}
-	// The signal is distinct from an empty result: the register says we could not
+	// The signal is distinct from an empty result: the message says we could not
 	// look, never that nothing was found.
 	if !strings.Contains(page, "could not look") {
-		t.Errorf("the unavailable-vantage register does not distinguish blindness from emptiness; body: %s", page)
+		t.Errorf("the unavailable-vantage message does not distinguish blindness from emptiness; body: %s", page)
 	}
 }
 
@@ -326,9 +328,10 @@ func TestCoverageHasNoProportionOfEstate(t *testing.T) {
 	page := coverageBody(t, ac, base)
 
 	// Scope the check to the rendered body — the shared stylesheet legitimately
-	// carries "100%" in its layout rules, which is not a coverage figure.
+	// carries "100%" in its layout rules, which is not a coverage figure. The V3
+	// main carries attributes, so anchor on the opening tag prefix.
 	main := page
-	if i := strings.Index(page, "<main>"); i >= 0 {
+	if i := strings.Index(page, "<main"); i >= 0 {
 		main = page[i:]
 	}
 	// No percentage figure, and no estate-completeness score phrasing, in the body.
@@ -339,90 +342,33 @@ func TestCoverageHasNoProportionOfEstate(t *testing.T) {
 	}
 }
 
-// The "Enabled sources" aperture line counts every source with an execution
-// path. crt.sh has a runner again (ADR-0106, #250), so it is both a numerator and
-// a denominator: the four ship-on sources (ARIN, AFRINIC, APNIC-CAIDA, crt.sh) of
-// the eight toggleable ones read "4 of 8", reversing the "3 of 7" that excluded
-// crt.sh while it produced nothing.
-func TestCoverageCountsCrtshAsExecuting(t *testing.T) {
+// On a fresh install every region falls to its design-system empty-state — no
+// scope to walk, no coverage messages, no gaps, and every rule able to evaluate.
+// No fabricated data stands in for a read that has nothing to report.
+func TestCoverageEmptyStates(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	page := coverageBody(t, ac, base)
-
-	if !strings.Contains(page, "4 of 8 sources enabled") {
-		t.Errorf("enabled-sources line should read \"4 of 8 sources enabled\"; body: %s", page)
-	}
-	if strings.Contains(page, "3 of 7") {
-		t.Errorf("crt.sh is still excluded from the active-source count; body: %s", page)
-	}
-}
-
-// The zero-coverage state renders the four-step day-one checklist. Each of the
-// first three steps links to the surface that performs it (Seeds); running the
-// first batch has no surface yet, so it names the capability without a link.
-func TestCoverageZeroCoverageChecklist(t *testing.T) {
-	f := newFakeStore()
-	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	base := start(t, f, "")
-	ac := login(t, base, "admin", "hunter2hunter2")
-
-	page := coverageBody(t, ac, base)
-
-	for _, step := range []string{
-		"Declare your domain", "Upload a zone file", "Add an internet vantage", "Run the first batch",
+	for _, want := range []string{
+		"No scope to walk yet", "No coverage messages", "No gaps this batch", "Every rule could evaluate",
 	} {
-		if !strings.Contains(page, step) {
-			t.Errorf("checklist step %q missing in the zero-coverage state", step)
+		if !strings.Contains(page, want) {
+			t.Errorf("Coverage empty-state %q missing; body: %s", want, page)
 		}
 	}
+	// The aperture empty-state points at the next action — declaring a scope.
 	if !strings.Contains(page, `href="/scope"`) {
-		t.Errorf("a checklist step does not link to the Scope surface; body: %s", page)
-	}
-	// Running the first batch is the worker's job at cadence, not a button.
-	if !strings.Contains(page, "Runs automatically at cadence") {
-		t.Errorf("run-the-first-batch step should name the capability without a link; body: %s", page)
-	}
-}
-
-// Once a scope is declared the estate is no longer at zero coverage: the
-// checklist retires and the queried-scope line states the declared counts.
-func TestCoverageChecklistRetiresWhenScopeDeclared(t *testing.T) {
-	f := newFakeStore()
-	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	base := start(t, f, "")
-	ac := login(t, base, "admin", "hunter2hunter2")
-
-	declare(t, ac, base, "name", "example.com").Body.Close()
-
-	page := coverageBody(t, ac, base)
-	if strings.Contains(page, "Declare your domain") {
-		t.Errorf("the day-one checklist should retire once a scope is declared; body: %s", page)
-	}
-	if !strings.Contains(page, "1 name") {
-		t.Errorf("queried-scope line should state the declared scope count; body: %s", page)
-	}
-}
-
-// The retention section exists as a stub (real dials are #26/#28/#29).
-func TestCoverageRetentionStub(t *testing.T) {
-	f := newFakeStore()
-	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	base := start(t, f, "")
-	ac := login(t, base, "admin", "hunter2hunter2")
-
-	page := coverageBody(t, ac, base)
-	if !strings.Contains(page, "Retention") {
-		t.Errorf("retention stub section missing; body: %s", page)
+		t.Errorf("the aperture empty-state does not point at Scope; body: %s", page)
 	}
 }
 
 // Coverage surfaces blanket responders (ADR-0104 §4): when an address answers on
-// every port its reach is a Gap, and Coverage states the proxy-edge finding in
-// prose with the address, and points at declaring an address scope. Absent any
-// blanket responder the section does not render.
+// every port its reach is a Gap. It surfaces both as a "no origin" gap row keyed
+// on the address and as a currency message naming the proxy edge and pointing at
+// declaring an address scope. Absent any blanket responder neither renders.
 func TestCoverageSurfacesBlanketResponders(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -433,16 +379,16 @@ func TestCoverageSurfacesBlanketResponders(t *testing.T) {
 
 	page := coverageBody(t, ac, base)
 	for _, want := range []string{
-		"answer TCP on all ports", "104.21.61.6", "proxy edge", "address scope",
+		"TCP on all ports", "104.21.61.6", "proxy edge", "address scope", "no origin",
 	} {
 		if !strings.Contains(page, want) {
-			t.Errorf("Coverage blanket-responder statement missing %q; body: %s", want, page)
+			t.Errorf("Coverage blanket-responder gap missing %q; body: %s", want, page)
 		}
 	}
 }
 
-// With no blanket responder, the Coverage blanket-responder section does not
-// render — it is a standing statement only when there is something to state.
+// With no blanket responder, no gap or proxy-edge message renders — the gaps
+// register is a statement only when there is something to state.
 func TestCoverageOmitsBlanketSectionWhenNone(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -451,7 +397,7 @@ func TestCoverageOmitsBlanketSectionWhenNone(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	page := coverageBody(t, ac, base)
-	if strings.Contains(page, "answer TCP on all ports") {
+	if strings.Contains(page, "proxy edge") {
 		t.Errorf("Coverage rendered a blanket-responder statement with no blanket responder; body: %s", page)
 	}
 }
