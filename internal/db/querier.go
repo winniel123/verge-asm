@@ -48,9 +48,12 @@ type Querier interface {
 	// refused so an operator cannot lock every admin out.
 	CountAdmins(ctx context.Context) (int64, error)
 	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
-	// The unread count the global nav element carries on every screen. Reads the
-	// partial index over unread rows.
-	CountUnreadMessages(ctx context.Context) (int64, error)
+	// The unread count the caller's nav element carries on every screen (#327).
+	// Read-state is a per-account fact: a message is unread for THIS account until
+	// THIS account has a message_read row for it. Counts messages the caller has not
+	// yet marked read — never a global count, so one account's mark-all cannot clear
+	// another account's badge.
+	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
@@ -618,6 +621,12 @@ type Querier interface {
 	// key and may be NULL (the shipped position carries no vantage row), carried through
 	// so the fan-out partitions per vantage exactly as reachability does.
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
+	// The ids of every message the caller has read (#327). The panel and Inbox render
+	// a per-row read badge and an unread filter; both are per-account facts, so the
+	// read path resolves them from this account's own read-marks rather than the
+	// retired global message.read_at column. Returned as a set the handler indexes by
+	// id while shaping each row.
+	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
 	// The estate-wide, batch-grouped drift feed (#288, ADR-0111). Every span open/close
 	// EVENT a Batch caused within the period, joined to that Batch for the group meta, so
 	// the handler derives each event's change kind on read (ADR-0007) and groups the
@@ -712,8 +721,11 @@ type Querier interface {
 	// the content, so the operator sees which scopes hold a zone file, when it was
 	// supplied and by whom.
 	ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error)
-	// Mark every unread message read — the panel's "mark all read" affordance.
-	MarkAllMessagesRead(ctx context.Context, readAt pgtype.Timestamptz) error
+	// Mark every message the caller has not yet read as read by the caller (#327) —
+	// the panel's "mark all read" affordance, now scoped to the caller. Inserts one
+	// read-mark per still-unread message for this account only; other accounts' badges
+	// are untouched. ON CONFLICT DO NOTHING guards against a concurrent single-mark.
+	MarkAllMessagesRead(ctx context.Context, arg MarkAllMessagesReadParams) error
 	// A 2xx: the delivery is complete. Clears the last error and stamps the instant.
 	MarkDeliveryDelivered(ctx context.Context, arg MarkDeliveryDeliveredParams) error
 	// The attempt budget is spent: dead-letter. The row is marked 'undelivered' — the
@@ -722,9 +734,10 @@ type Querier interface {
 	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error
 	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error
 	MarkJobRetried(ctx context.Context, id int64) error
-	// Mark one message read at the given instant. Idempotent: marking an already-read
-	// message leaves its first read instant in place, since read-state is a fact
-	// about the operator having seen it and does not move on a second view.
+	// Mark one message read by the caller at the given instant (#327). Writes a
+	// per-account read-mark, never the global message.read_at. Idempotent: a second
+	// mark leaves the account's first read instant in place (ON CONFLICT DO NOTHING),
+	// since read-state is a fact about having seen it and does not move on a re-read.
 	MarkMessageRead(ctx context.Context, arg MarkMessageReadParams) error
 	// A completed Batch at this vantage is proof the position can observe again, so
 	// Availability is derived back to 'available' from the terminal batch outcome

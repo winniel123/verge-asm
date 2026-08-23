@@ -74,12 +74,16 @@ func (s *server) messagesPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 // newest-first, each with its per-mover link and census, and the per-message
 // delivery outcomes joined in one pass. A delivery read failure degrades to no
 // annotation rather than dropping the messages themselves.
-func (s *server) fillMessagesSection(r *http.Request, data map[string]any) error {
+func (s *server) fillMessagesSection(r *http.Request, acct db.Account, data map[string]any) error {
 	rows, err := s.store.ListMessages(r.Context())
 	if err != nil {
 		return err
 	}
-	unread, err := s.store.CountUnreadMessages(r.Context())
+	unread, err := s.store.CountUnreadMessages(r.Context(), acct.ID)
+	if err != nil {
+		return err
+	}
+	read, err := s.readSet(r.Context(), acct.ID)
 	if err != nil {
 		return err
 	}
@@ -97,7 +101,7 @@ func (s *server) fillMessagesSection(r *http.Request, data map[string]any) error
 
 	views := make([]messageRow, 0, len(rows))
 	for _, m := range rows {
-		row := toMessageRow(m)
+		row := toMessageRow(m, read[m.ID])
 		row.Deliveries = byMessage[m.ID]
 		for _, d := range row.Deliveries {
 			if d.Failed {
@@ -114,7 +118,7 @@ func (s *server) fillMessagesSection(r *http.Request, data map[string]any) error
 // markMessageRead marks one message read at now and returns to the panel. Read
 // state is a per-account fact; there is no un-read, since a message is read once
 // the operator has seen it.
-func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	dest := messageReturn(r)
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -122,7 +126,7 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, _ db.Ac
 		return
 	}
 	if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
-		ID: id, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+		AccountID: acct.ID, MessageID: id, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err != nil {
 		s.serverError(w, "mark message read", err)
 		return
@@ -130,9 +134,13 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, _ db.Ac
 	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
-// markAllMessagesRead clears the unread count in one act.
-func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, _ db.Account) {
-	if err := s.store.MarkAllMessagesRead(r.Context(), pgtype.Timestamptz{Time: s.now(), Valid: true}); err != nil {
+// markAllMessagesRead clears the caller's own unread count in one act. Read-state
+// is per-account (#327): this marks read only for the calling account, so it can
+// never clear another operator's — or an admin's — unread badge.
+func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	if err := s.store.MarkAllMessagesRead(r.Context(), db.MarkAllMessagesReadParams{
+		AccountID: acct.ID, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
 		s.serverError(w, "mark all messages read", err)
 		return
 	}
@@ -180,7 +188,7 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
 			selID = id
 			if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
-				ID: selID, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+				AccountID: acct.ID, MessageID: selID, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 			}); err != nil {
 				s.serverError(w, "mark message read", err)
 				return
@@ -197,9 +205,14 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.serverError(w, "list messages", err)
 		return
 	}
-	unread, err := s.store.CountUnreadMessages(r.Context())
+	unread, err := s.store.CountUnreadMessages(r.Context(), acct.ID)
 	if err != nil {
 		s.serverError(w, "count unread messages", err)
+		return
+	}
+	read, err := s.readSet(r.Context(), acct.ID)
+	if err != nil {
+		s.serverError(w, "list read messages", err)
 		return
 	}
 	// A delivery failure is surfaced on the Message it failed to carry (ADR-0039,
@@ -216,7 +229,7 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	shown := make([]inboxView, 0, len(rows))
 	var selected *inboxView
 	for _, m := range rows {
-		base := toMessageRow(m)
+		base := toMessageRow(m, read[m.ID])
 		base.Deliveries = byMessage[m.ID]
 		for _, d := range base.Deliveries {
 			if d.Failed {
@@ -297,15 +310,34 @@ func relTime(t, now time.Time) string {
 	}
 }
 
+// readSet resolves the set of message ids the account has read (#327), keyed for
+// O(1) per-row lookup while shaping the panel and Inbox. Read-state is a
+// per-account fact held in message_read; this is the read-side companion to the
+// per-account CountUnreadMessages and mark handlers.
+func (s *server) readSet(ctx context.Context, accountID int64) (map[int64]bool, error) {
+	ids, err := s.store.ListReadMessageIDs(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		set[id] = true
+	}
+	return set, nil
+}
+
 // toMessageRow renders one stored message for the panel, resolving its link per
-// its mover and unpacking its census.
-func toMessageRow(m db.Message) messageRow {
+// its mover and unpacking its census. read is the CALLER's read-state for this
+// message (#327) — a per-account fact resolved from message_read, never the
+// retired global message.read_at column — so the badge and unread filter reflect
+// whether THIS operator has seen the message.
+func toMessageRow(m db.Message, read bool) messageRow {
 	row := messageRow{
 		ID:       m.ID,
 		Cause:    m.Cause,
 		Class:    m.Class,
 		Headline: m.Headline,
-		Read:     m.ReadAt.Valid,
+		Read:     read,
 	}
 	if m.Instant.Valid {
 		row.Instant = m.Instant.Time.UTC().Format("2006-01-02 15:04 UTC")
