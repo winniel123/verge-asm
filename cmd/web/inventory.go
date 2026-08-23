@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -42,8 +43,9 @@ type inventoryFacet struct {
 }
 
 // inventorySubject is one subject and every facet it currently holds. Link is the
-// drill-down href where one exists; it is empty for a kind with no surface yet,
-// which then renders as plain text.
+// row-click destination — a Name opens the Asset detail (`/asset/{key}`, T1), every
+// other kind its own subject drill-down (inventoryRowHref); it is empty for a kind
+// with no surface yet, which then renders as plain, non-navigable text.
 type inventorySubject struct {
 	Kind   string
 	Key    string
@@ -100,6 +102,19 @@ func inventoryTypeLabel(kind string) string {
 	}
 }
 
+// inventoryRowHref is the row-click destination for one inventory subject. A Name
+// row opens the Asset detail (#296, T1) on the stable `/asset/{key}` route — the
+// per-asset drill-in the Inventory row links to (T15). Every other kind keeps its
+// own subject drill-down (subjectHref): Service and Endpoint carry a `/`/`@` and
+// arrive as `?key=`, an Address routes to `/subjects/{key}`. The Name key holds no
+// `/` or `@`, so a plain `/asset/{key}` path segment resolves.
+func inventoryRowHref(kind, key string) string {
+	if kind == "name" {
+		return "/asset/" + url.PathEscape(key)
+	}
+	return subjectHref(kind, key)
+}
+
 // buildInventory groups the estate's open spans into per-subject inventory,
 // preserving the read's (kind, key, facet, discriminator) order so a subject's
 // facets list deterministically and the kind groups appear in a stable order. The
@@ -129,7 +144,7 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 				Kind: row.SubjectKind,
 				Key:  row.SubjectKey,
 				Type: inventoryTypeLabel(row.SubjectKind),
-				Link: subjectHref(row.SubjectKind, row.SubjectKey),
+				Link: inventoryRowHref(row.SubjectKind, row.SubjectKey),
 			})
 		}
 

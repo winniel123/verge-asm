@@ -44,8 +44,10 @@ func TestBuildInventoryGroupsOpenSpansBySubject(t *testing.T) {
 	}
 
 	a := groups[0].Subjects[0]
-	if a.Key != "a.example.com" || a.Link != "/subjects/a.example.com" {
-		t.Fatalf("subject a = %q link %q, want a.example.com and /subjects/a.example.com", a.Key, a.Link)
+	// A Name row opens the Asset detail (T1's /asset/{key}), not the subject
+	// drill-down — the row-click destination T15 wires (#310).
+	if a.Key != "a.example.com" || a.Link != "/asset/a.example.com" {
+		t.Fatalf("subject a = %q link %q, want a.example.com and /asset/a.example.com", a.Key, a.Link)
 	}
 	if len(a.Facets) != 2 {
 		t.Fatalf("subject a facets = %d, want 2 (resolution, dns-record)", len(a.Facets))
@@ -142,10 +144,19 @@ func TestInventoryPageRendersEstateValues(t *testing.T) {
 			t.Errorf("inventory missing %q; body: %s", want, page)
 		}
 	}
-	// Row → detail: the subject key is a link to its drill-down (opening the detail
-	// as the example's row click does).
-	if !strings.Contains(page, `href="/subjects/api.example.com"`) {
-		t.Errorf("inventory missing name drill-down link; body: %s", page)
+	// Row → Asset detail (#310, T15): each Name row opens T1's /asset/{key}, wired
+	// both as the anchor href and as the whole-row navigable data-href, and the row
+	// carries the roving-focus affordances (a focusable, link-role row).
+	for _, want := range []string{
+		`href="/asset/api.example.com"`,      // the Subject-cell anchor
+		`data-href="/asset/api.example.com"`, // whole-row click / Enter destination
+		`class="invrow"`,                     // navigable row
+		`tabindex="0"`,                       // roving keyboard focus
+		"j/k or arrows to move · enter opens", // keyboard-nav affordance/hint
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("inventory missing row→asset / keyboard affordance %q; body: %s", want, page)
+		}
 	}
 	// No denominator: inventory states no total, exactly as the Subjects listing.
 	if !strings.Contains(page, "no total") {
