@@ -84,7 +84,10 @@ function serveDist() {
 }
 
 async function capture(url) {
-  const browser = await chromium.launch({ headless: true });
+  // --no-sandbox: the gate runs inside the pinned Playwright container (CI and local
+  // baseline generation alike), where chromium launches as root and the sandbox is
+  // unavailable. It does not affect rendering, so the baseline stays reproducible.
+  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   try {
     const context = await browser.newContext({
       viewport: VIEWPORT,

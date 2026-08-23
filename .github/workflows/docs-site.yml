@@ -51,6 +51,22 @@ jobs:
   # blocking: a non-zero exit fails the job, so both gates are required checks.
   build:
     runs-on: ubuntu-latest
+    # Run inside the pinned Playwright image so the screenshot gate renders in the
+    # EXACT environment its committed baseline was generated in. A baseline captured
+    # on a different OS/renderer drifts by tens of pixels (Linux vs Windows font
+    # metrics — height 4818 vs 4843), which made the gate fail on every run. Pinning
+    # the container makes the render reproducible; the image also ships chromium +
+    # its OS deps + Node, so no browser-install/cache step is needed.
+    #
+    # REGENERATE the baseline in this SAME image so it matches CI byte-for-byte:
+    #   docker run --rm -v "$PWD":/w -w /w/docs-site \
+    #     mcr.microsoft.com/playwright:v1.49.1-noble \
+    #     sh -c "git config --global --add safe.directory /w \
+    #            && npm ci && npm run build && npm run screenshot:update"
+    #   then commit docs-site/tests/baseline/docs.png
+    # Keep this tag in lockstep with the `playwright` version in docs-site/package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.49.1-noble
     steps:
       # fetch-depth: 0 is LOAD-BEARING. source-resolution.ts enumerates versions
       # from git refs/tags; a shallow clone has no tags, so the build would silently
@@ -58,12 +74,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: docs-site/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -77,19 +87,9 @@ jobs:
       - name: Broken-link gate
         run: npm run check:links
 
-      # Screenshot gate needs a browser. --with-deps pulls the OS libraries chromium
-      # needs on the runner. Cached across runs by Playwright version.
-      - name: Cache Playwright browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('docs-site/package-lock.json') }}
-      - name: Install Playwright chromium
-        run: npx playwright install --with-deps chromium
-
       # REQUIRED GATE 2 — design-drift screenshot check. Renders a built docs page in
-      # chromium and pixel-diffs it against the committed baseline; fails on layout/
-      # spacing/hierarchy drift beyond threshold.
+      # the image's chromium and pixel-diffs it against the committed baseline; fails
+      # on layout/spacing/hierarchy drift beyond threshold.
       - name: Screenshot gate
         run: npm run check:screenshot
 
