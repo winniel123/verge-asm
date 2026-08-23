@@ -1,8 +1,9 @@
 # ADR-0112: single sign-on is admitted as cryptographically-verified OIDC, never header-trust
 
-- **Status:** Accepted
+- **Status:** Accepted (identity-mapping clause superseded in part by [ADR-0113](./0113-sso-binds-a-verified-issuer-sub-not-a-mutable-username.md))
 - **Date:** 2026-08-23
 - **Ticket:** [#293 Auth: SSO / IdP backend](https://github.com/winniel123/verge-asm/issues/293)
+- **Superseded in part by:** [ADR-0113](./0113-sso-binds-a-verified-issuer-sub-not-a-mutable-username.md) — the clause below that matches a verified identity to an account **by username claim** is replaced by binding a verified `(issuer, sub)` established through authenticated self-link (#319). Every other decision here stands.
 - **Origin:** #282 (SignIn) and #281 (Settings → access), V2 console migration (map #275)
 - **Amends:** the v1 spec §4.3 "Auth & access" and §7 non-goal that refused SSO/OIDC — and only the OIDC clause of it.
 
