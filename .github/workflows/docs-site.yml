@@ -37,10 +37,12 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time; never cancel an in-flight Pages deploy mid-publish.
-concurrency:
-  group: docs-site-pages
-  cancel-in-progress: false
+# Concurrency is set PER JOB below, not workflow-wide. A single workflow-level group
+# shared by every ref serialised all PR gate runs against each other: with several
+# docs PRs open at once they cancelled/starved one another, so the gate reported no
+# result. The build job now groups per ref (PRs run in parallel; a superseded run of
+# the SAME ref is cancelled), while deploy keeps the global singleton so only one
+# Pages publish runs at a time.
 
 defaults:
   run:
@@ -51,6 +53,11 @@ jobs:
   # blocking: a non-zero exit fails the job, so both gates are required checks.
   build:
     runs-on: ubuntu-latest
+    # Per-ref group so concurrent PRs don't starve each other; a newer push to the
+    # SAME ref cancels the superseded run.
+    concurrency:
+      group: docs-site-build-${{ github.ref }}
+      cancel-in-progress: true
     # Run inside the pinned Playwright image so the screenshot gate renders in the
     # EXACT environment its committed baseline was generated in. A baseline captured
     # on a different OS/renderer drifts by tens of pixels (Linux vs Windows font
@@ -107,6 +114,11 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    # Global singleton: only one Pages publish at a time, and never cancel one
+    # mid-flight.
+    concurrency:
+      group: docs-site-pages
+      cancel-in-progress: false
     permissions:
       contents: read
       pages: write
