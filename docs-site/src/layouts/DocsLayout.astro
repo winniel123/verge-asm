@@ -23,6 +23,9 @@ const {
   toc,
   versions,
   version,
+  // Optional canonical URL (Tv/#351): points every version of a page at the
+  // `latest` alias. Additive — renders nothing when absent.
+  canonical,
 } = Astro.props;
 ---
 <!doctype html>
@@ -31,6 +34,7 @@ const {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    {canonical && <link rel="canonical" href={canonical} />}
     <title>{title}</title>
     <script is:inline>
       // No-flash theme: tokens flip on data-theme="dark". Honour an explicit override
