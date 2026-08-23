@@ -39,7 +39,7 @@ Okta onto them.
   `redirect_uri` was not registered verbatim. Pin it before you register anything.
 - A decision on **which Okta issuer** verge will trust — the org authorization server or a
   custom one. This is the one choice that most often trips a first configuration; see
-  [Choose the issuer](#choose-the-issuer-the-one-that-trips-people) below.
+  [Choose the issuer](#choose-the-issuer) below.
 
 Pick the **slug** now too (e.g. `okta`): it is URL-safe (lowercase letters, digits, internal
 hyphens) and rides both callback paths, so you need it to register the redirect URIs.
@@ -127,9 +127,9 @@ database dump carries it.
 
 ---
 
-## Choose the issuer — the one that trips people
+## Choose the issuer
 
-This is the field to get exactly right. Okta can present **two different issuers**, and
+This is the one field that trips people up, and the one to get exactly right. Okta can present **two different issuers**, and
 verge's **Issuer URL must match, character for character, the `iss` claim that Okta actually
 stamps into the `id_token`** — because verge verifies the token's issuer against the value
 you configure. Point verge at the wrong one and every login fails token verification even
@@ -172,7 +172,7 @@ In verge, open **Settings → Single sign-on** (`/settings?tab=sso`, admin-only)
 | --- | --- |
 | **Display name** | The label on the sign-in button and Settings row, e.g. `Okta`. |
 | **Slug** | The URL-safe id you chose (e.g. `okta`) — must match the slug in the redirect URIs. |
-| **Issuer URL** | The issuer from [Choose the issuer](#choose-the-issuer-the-one-that-trips-people), matching Okta's `iss` exactly. |
+| **Issuer URL** | The issuer from [Choose the issuer](#choose-the-issuer), matching Okta's `iss` exactly. |
 | **Client ID** | The Okta app's **Client ID**. |
 | **Client secret** | The Okta app's **Client secret** for a confidential client; **blank** for a public PKCE-only client. |
 
