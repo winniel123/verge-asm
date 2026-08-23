@@ -110,6 +110,11 @@ type Heartbeat struct {
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
 }
 
+type IntegrationState struct {
+	Slug  string `json:"slug"`
+	State string `json:"state"`
+}
+
 type Message struct {
 	ID          int64              `json:"id"`
 	Cause       string             `json:"cause"`
@@ -135,6 +140,16 @@ type Observation struct {
 	Value         []byte             `json:"value"`
 	ObservedAt    pgtype.Timestamptz `json:"observed_at"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+type PersonalToken struct {
+	ID         int64              `json:"id"`
+	AccountID  int64              `json:"account_id"`
+	Name       string             `json:"name"`
+	Prefix     string             `json:"prefix"`
+	TokenHash  string             `json:"token_hash"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 }
 
 type Proposal struct {
@@ -197,11 +212,6 @@ type Seed struct {
 	CreatedBy        int64              `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	CustodyExtension bool               `json:"custody_extension"`
-}
-
-type IntegrationState struct {
-	Slug  string `json:"slug"`
-	State string `json:"state"`
 }
 
 type SourceState struct {

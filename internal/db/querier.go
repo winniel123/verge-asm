@@ -54,6 +54,11 @@ type Querier interface {
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
+	// Mint a personal API token for one account. Only the hash and the non-secret
+	// prefix are stored; the plaintext is shown once at the call site and never
+	// persisted. A duplicate (account_id, name) is a unique violation, surfaced to the
+	// operator as a name-already-taken message rather than a second silent row.
+	CreatePersonalToken(ctx context.Context, arg CreatePersonalTokenParams) (PersonalToken, error)
 	// Files one candidate scope a proposer offered. It enters as 'pending' and is
 	// read by nothing until it is confirmed into a Seed.
 	CreateProposal(ctx context.Context, arg CreateProposalParams) (Proposal, error)
@@ -113,6 +118,14 @@ type Querier interface {
 	// v1 default — the caller does not run the sweep then); @floor_cadences is k; @as_of
 	// is the sweep instant, injected so a sweep is reproducible.
 	DeleteExpiredObservations(ctx context.Context, arg DeleteExpiredObservationsParams) (int64, error)
+	// Disconnect an integration, returning it to available (not installed). Absence of
+	// a row is the available state, so a disconnect removes the row rather than storing
+	// a sentinel.
+	DeleteIntegrationState(ctx context.Context, slug string) error
+	// Revoke a token, scoped to its owner: the account_id predicate means an operator
+	// can only revoke their own tokens, never another account's by guessing an id.
+	// Revocation is a hard delete — a revoked token holds no history worth reading.
+	DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) error
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
@@ -406,6 +419,10 @@ type Querier interface {
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
 	// derives operator by extension (ADR-0013 §3).
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
+	// The operator's install states, merged by the handler onto the in-binary
+	// integration catalogue: an integration's effective state is its stored state
+	// where a row exists and available (not installed) otherwise.
+	ListIntegrationStates(ctx context.Context) ([]IntegrationState, error)
 	// The per-job detail for one Dispatch — the progress drill-down (#245). Ordered by
 	// id so a retried attempt reads immediately before the fresh job that replaced it.
 	// A job's Batch outcome is NULL until the job reaches a terminal state, since a
@@ -474,6 +491,10 @@ type Querier interface {
 	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
 	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
+	// One account's tokens, newest first. token_hash is omitted from the read: listing
+	// tokens never needs it, so the secret material stays out of the render path — only
+	// the label, the non-secret prefix, and the timestamps are surfaced.
+	ListPersonalTokens(ctx context.Context, accountID int64) ([]ListPersonalTokensRow, error)
 	// The two most recent `reachability` spans per (Service, vantage), joined to the
 	// vantage's prober endpoint — the Exposure landing view's read (#196). rn = 1 is
 	// the current span (the leg's value) and rn = 2 is its immediate predecessor
@@ -508,10 +529,6 @@ type Querier interface {
 	// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
 	// (service, class), mirroring the observation read one facet over.
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
-	// The operator's install states, merged by the handler onto the in-binary
-	// integration catalogue: an integration's effective state is its stored state
-	// where a row exists and available (not installed) otherwise.
-	ListIntegrationStates(ctx context.Context) ([]IntegrationState, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
@@ -673,11 +690,12 @@ type Querier interface {
 	// Updates everything but the secret; the secret has its own write path so an
 	// edit that leaves it blank keeps the existing one untouched.
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
+	// Change one account's own password (Profile → Credentials). The handler verifies
+	// the current password and the new-password rules before this runs, so this is the
+	// bare write; it never touches the TOTP secret, so a password change leaves the
+	// second factor in force.
+	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
-	// Disconnect an integration, returning it to available (not installed). Absence
-	// of a row is the available state, so a disconnect removes the row rather than
-	// storing a sentinel.
-	DeleteIntegrationState(ctx context.Context, slug string) error
 	// Record the operator's install choice for one integration. An install is a
 	// Declared act with no timeline, no actor, and no instant of its own (ADR-0073,
 	// ADR-0093), so re-installing overwrites the single current state and the row

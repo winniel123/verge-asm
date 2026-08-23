@@ -183,3 +183,21 @@ func (q *Queries) UpdateAccountRole(ctx context.Context, arg UpdateAccountRolePa
 	_, err := q.db.Exec(ctx, updateAccountRole, arg.ID, arg.Role)
 	return err
 }
+
+const updatePassword = `-- name: UpdatePassword :exec
+UPDATE account SET password_hash = $2 WHERE id = $1
+`
+
+type UpdatePasswordParams struct {
+	ID           int64  `json:"id"`
+	PasswordHash string `json:"password_hash"`
+}
+
+// Change one account's own password (Profile → Credentials). The handler verifies
+// the current password and the new-password rules before this runs, so this is the
+// bare write; it never touches the TOTP secret, so a password change leaves the
+// second factor in force.
+func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
+	_, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
+	return err
+}

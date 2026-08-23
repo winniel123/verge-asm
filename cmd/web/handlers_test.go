@@ -51,6 +51,12 @@ type fakeStore struct {
 	// installed) state, so a disconnect deletes the row.
 	integrationStates map[string]db.IntegrationState
 
+	// personalTokens mirrors the personal_token table (#304): an account's own API
+	// tokens. Only the hash is stored, the (account_id, name) pair is unique, and a
+	// revoke is a hard delete scoped to the owner.
+	personalTokens []db.PersonalToken
+	tokenNextID    int64
+
 	// admitted stands in for the admitted_name rows behind a CT-admitted Name's
 	// Citation (ADR-0107); the citation test seeds it directly.
 	admitted []db.AdmittedName
@@ -140,7 +146,7 @@ func newFakeStore() *fakeStore {
 			// The cold Scan ships disabled with an empty scope list (ADR-0044).
 			{ID: 3, Kind: "cold", Enabled: false, CadenceSeconds: 2592000},
 		},
-		obsNextID: 1, batchNextID: 1, scanNextID: 1,
+		obsNextID: 1, batchNextID: 1, scanNextID: 1, tokenNextID: 1,
 		freqEdits:  map[int32]fakeFreqEdit{},
 		coldScopes: map[int64]bool{},
 	}

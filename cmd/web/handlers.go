@@ -28,6 +28,14 @@ type store interface {
 	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
 	SetTOTPSecret(ctx context.Context, arg db.SetTOTPSecretParams) error
 	ConfirmTOTP(ctx context.Context, id int64) error
+	// Personal profile (#304, T9): an account's own credential and token surface.
+	// UpdatePassword is the self-service password change; the personal-token trio is
+	// the reveal-once API-token store — the plaintext is minted and shown once, only
+	// its hash is kept, and a revoke is a hard delete scoped to the owner.
+	UpdatePassword(ctx context.Context, arg db.UpdatePasswordParams) error
+	CreatePersonalToken(ctx context.Context, arg db.CreatePersonalTokenParams) (db.PersonalToken, error)
+	ListPersonalTokens(ctx context.Context, accountID int64) ([]db.ListPersonalTokensRow, error)
+	DeletePersonalToken(ctx context.Context, arg db.DeletePersonalTokenParams) error
 	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
@@ -413,6 +421,20 @@ func (s *server) handler() http.Handler {
 	// redirects there (accountPage), so the merged SignIn's totp-enroll Cancel link
 	// still lands somewhere real. The POST endpoints keep their paths and render the
 	// Settings access sub-tab.
+	// Profile (#304, T9, ADR-0110): the account's own page — identity, credentials
+	// (password + 2FA status linking the existing TOTP flow), the current session,
+	// and personal API tokens. Every route is viewer-readable (requireLogin): a
+	// Profile is personal, so an account manages its own credentials and tokens
+	// regardless of role — org-wide access stays admin-gated in Settings. The
+	// destructive acts (revoke token, end session) are reached through a
+	// ConfirmDialog rendered from a query param, never fired on a menu click, and
+	// the token revoke carries a typed-name gate.
+	mux.HandleFunc("GET /profile", s.requireLogin(s.profilePage))
+	mux.HandleFunc("POST /profile/password", s.requireLogin(s.changePassword))
+	mux.HandleFunc("POST /profile/tokens", s.requireLogin(s.createPersonalToken))
+	mux.HandleFunc("POST /profile/tokens/revoke", s.requireLogin(s.revokePersonalToken))
+	mux.HandleFunc("POST /profile/session/revoke", s.requireLogin(s.revokeSession))
+
 	mux.HandleFunc("GET /account", s.requireLogin(s.accountPage))
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
 	mux.HandleFunc("POST /account/totp/enable", s.requireLogin(s.totpEnable))
