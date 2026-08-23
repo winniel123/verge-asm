@@ -183,7 +183,11 @@ func TestSetupRejectsShortPassword(t *testing.T) {
 
 func TestLoginAndSession(t *testing.T) {
 	f := newFakeStore()
-	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	// A non-empty estate — one observed Name — so `/` renders the Dashboard rather
+	// than the empty-estate first-run checklist (#302).
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
 	base := start(t, f, "")
 
 	c := login(t, base, "admin", "hunter2hunter2")

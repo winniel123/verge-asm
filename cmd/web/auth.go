@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -232,6 +233,22 @@ type dashSignalRow struct {
 	Fired int
 }
 
+// firstRunStep is one step of the empty-estate first-run checklist (#302), shaped
+// after FirstRun.jsx's steps array: a number, whether the real read shows it done,
+// its title and detail, an optional action (label + href) shown only while the step
+// is open, and a Gated flag. Gated step 4 renders a disabled action naming the gate
+// rather than a live one — its precondition is a real internet vantage, never a
+// fabricated "done".
+type firstRunStep struct {
+	N           int
+	Done        bool
+	Title       string
+	Detail      string
+	ActionLabel string
+	ActionHref  string
+	Gated       bool
+}
+
 // dashboardData assembles the Dashboard's real figures of the shape the example
 // composes (KPI band, vantage health, running-scan state, the open-signal
 // register). Every read is best-effort: a failure logs and degrades to an em dash
@@ -331,10 +348,55 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		log.Printf("web: dashboard: build signal corpus: %v", cerr)
 	}
 
+	// First-run state — the home renders the four-step checklist instead of the
+	// Dashboard while the estate is empty (#302). "Empty" is the honest read: both
+	// the Name and Service censuses resolved and returned nothing, so there is no
+	// observed inventory to land on. A failed read does not qualify — the Dashboard
+	// then degrades to em dashes rather than mislabelling the estate as first-run.
+	emptyEstate := hasNames && hasServices && names == 0 && services == 0
+
+	// Each step is a real read: a scope is declared, a zone file supplied, an
+	// internet vantage provisioned, a batch dispatched. Step 4 is gated on the
+	// internet vantage (the same signal exposure.go withholds on).
+	internetVantage := false
+	for _, v := range vantages {
+		if v.Class == "internet" {
+			internetVantage = true
+			break
+		}
+	}
+	zoneUploaded := false
+	if rows, zerr := s.store.ListZoneFileStatus(ctx); zerr == nil {
+		zoneUploaded = len(rows) > 0
+	} else {
+		log.Printf("web: dashboard: list zone file status: %v", zerr)
+	}
+	scanDispatched := false
+	if rows, derr := s.store.ListDispatchProgress(ctx, scansHistoryLimit); derr == nil {
+		scanDispatched = len(rows) > 0
+	} else {
+		log.Printf("web: dashboard: list dispatch progress: %v", derr)
+	}
+
+	var steps []firstRunStep
+	if emptyEstate {
+		steps = firstRunChecklist(nameScopes+addrScopes, zoneUploaded, internetVantage, scanDispatched)
+	}
+	firstRunDone := 0
+	for _, st := range steps {
+		if st.Done {
+			firstRunDone++
+		}
+	}
+
 	data := map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "dashboard",
 		"Scanning":  len(active) > 0,
+
+		"EmptyEstate":   emptyEstate,
+		"FirstRunSteps": steps,
+		"FirstRunDone":  firstRunDone,
 
 		"Vantages":    vantages,
 		"Unavailable": unavailable,
@@ -358,6 +420,49 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		data["SignalCount"] = openSignals
 	}
 	return data
+}
+
+// firstRunChecklist builds the four setup steps for the empty-estate home (#302),
+// ported from FirstRun.jsx's steps array with the sample data swapped for the real
+// reads passed in. Each step's Done is the honest read — never a fabricated done —
+// and its action is offered only while the step is open. Step 4 is gated on the
+// internet vantage: without one its action is disabled and names the gate, matching
+// the withheld/gating pattern exposure.go uses for the same signal.
+func firstRunChecklist(scopes int, zoneUploaded, internetVantage, scanDispatched bool) []firstRunStep {
+	scopeDetail := "A seed is a boundary, not a starting gun"
+	if scopes > 0 {
+		unit := "scopes"
+		if scopes == 1 {
+			unit = "scope"
+		}
+		scopeDetail = fmt.Sprintf("%d %s declared · a seed is a boundary, not a starting gun", scopes, unit)
+	}
+	return []firstRunStep{
+		{
+			N: 1, Done: scopes > 0,
+			Title: "Declare your domain", Detail: scopeDetail,
+			ActionLabel: "Declare scope", ActionHref: "/scope",
+		},
+		{
+			N: 2, Done: zoneUploaded,
+			Title:       "Upload a zone file",
+			Detail:      "Enables removal detection — you stopped telling us becomes detectable",
+			ActionLabel: "Upload zone", ActionHref: "/scope",
+		},
+		{
+			N: 3, Done: internetVantage,
+			Title:       "Add an internet vantage",
+			Detail:      "Exposure needs an outside observer, unconditionally",
+			ActionLabel: "Provision prober", ActionHref: "/scope",
+		},
+		{
+			N: 4, Done: scanDispatched,
+			Title:       "Run the first batch",
+			Detail:      "Scans dispatch on cadence; kick the first one now",
+			ActionLabel: "Run first batch", ActionHref: "/scans",
+			Gated: !internetVantage,
+		},
+	}
 }
 
 // --- account management -----------------------------------------------------
