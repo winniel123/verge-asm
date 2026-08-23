@@ -102,15 +102,38 @@ Full walkthrough: **[docs/guides/using.md](docs/guides/using.md)**.
 
 ## Guides
 
+Grouped as they appear in the docs-site nav.
+
+### Getting started
+
+| Guide | Covers |
+| --- | --- |
+| **[Using](docs/guides/using.md)** | First-run setup, the four-step checklist, provisioning a prober, reading coverage/exposure/drift, notification channels. |
+| **[First run](docs/guides/first-run.md)** | The mental model behind the checklist: declared/observed/derived, why `Exposure` needs two legs, confirming a scan ran, and the CDN-fronted-domain caveat. |
+| **[Zone files](docs/guides/zone-files.md)** | What a zone file is, why removal detection needs one, and how to export one from common DNS providers or your own name servers. |
+| **[Reading your attack surface](docs/guides/reading-the-estate.md)** | Where to look for each answer — coverage, exposure, drift, inventory, graph, search — and how to read a single scan run. |
+
+### Operating
+
 | Guide | Covers |
 | --- | --- |
 | **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, scaling workers, on-demand scan triggers, upgrades. |
-| **[Using](docs/guides/using.md)** | First-run setup, the four-step checklist, provisioning a prober, reading coverage/exposure/drift, notification channels. |
-| **[First run](docs/guides/first-run.md)** | The mental model behind the checklist: declared/observed/derived, why `Exposure` needs two legs, confirming a scan ran, and the CDN-fronted-domain caveat. |
-| **[Prober](docs/guides/prober.md)** | A worked `docker compose` example for a dedicated internet vantage on a second host — the [`deploy/prober/`](deploy/prober/) recipe, host-key pin, and key hardening. |
-| **[Zone files](docs/guides/zone-files.md)** | What a zone file is, why removal detection needs one, and how to export one from common DNS providers or your own name servers. |
-| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires; the no-severity, release-coupled philosophy. |
 | **[Sources](docs/guides/sources.md)** | Discovery sources and proposers: consent tiers, admin-only toggling, and the crt.sh and RIR-proposer caveats. |
+| **[Prober](docs/guides/prober.md)** | A worked `docker compose` example for a dedicated internet vantage on a second host — the [`deploy/prober/`](deploy/prober/) recipe, host-key pin, and key hardening. |
+| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires; the no-severity, release-coupled philosophy. |
+| **[Notification channels](docs/guides/notification-channels.md)** | The outbound HTTPS endpoints the worker POSTs each message to — declaring them, what fires, and why a `Delivery` is a record and never a message. |
+| **[Reports](docs/guides/reports.md)** | Scheduled digests of the estate — how a report differs from a notification, the schedule shape, and the delivered-report artifact and its PDF. |
+| **[Accounts, invites & roles](docs/guides/accounts.md)** | The admin/viewer model, inviting operators and the invite lifecycle, changing a role, re-enrolling a lost second factor, and removing an account. |
+| **[Authentication](docs/guides/authentication.md)** | Your own account security — TOTP enrollment and the login challenge, API tokens, active sessions, and the password change and reset flows. |
+| **[Single sign-on (SSO)](docs/guides/sso.md)** | Configuring OpenID Connect single sign-on — declaring a provider, registering the callback URL, and linking an identity to a local account. |
+| **[Integrations](docs/guides/integrations.md)** | Third-party install tiles whose install is a Declared act — the tile states, install and disconnect, and why an integration is never a delivery channel. |
+| **[Backup & restore](docs/guides/backup-and-restore.md)** | Taking and restoring a consistent `pgdata` dump, protecting the two state volumes, and tuning the retention dials. |
+| **[Troubleshooting](docs/guides/troubleshooting.md)** | Confirming silent failures — a scan that ran vs. one that failed quietly, empty exposure, undelivered notifications, boot migrations, and the `Gap` cases. |
+
+### Contributing
+
+| Guide | Covers |
+| --- | --- |
 | **[Verifying](docs/guides/verifying.md)** | Building, testing, `sqlc` codegen, the golden corpus, and reproducing CI locally through Docker. |
 
 ---

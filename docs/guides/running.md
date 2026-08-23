@@ -119,6 +119,10 @@ private key: they live on the per-service state volumes, not in Postgres.
 | `web-state` | session signing key | all sessions invalidated; a new key is regenerated |
 | `worker-state` | prober SSH private key | provisioned vantages must re-install the new public key |
 
+For the restore side this section omits — taking and restoring a consistent `pgdata`
+dump, what each state volume regenerates when lost, retention tuning, and a
+back-up/test-restore checklist — see **[backup-and-restore.md](backup-and-restore.md)**.
+
 ---
 
 ## Networking and security posture
