@@ -98,10 +98,6 @@ type Querier interface {
 	// Store one recovery code's hash for an account. The plaintext is shown once at the
 	// call site and never persisted; only the hash is kept, so it cannot be shown again.
 	CreateRecoveryCode(ctx context.Context, arg CreateRecoveryCodeParams) error
-	// Open a session at login. Only the token's hash is stored; the opaque plaintext
-	// lives solely in the cookie on the client (ADR-0117). Returns the row so the
-	// caller holds the id it just minted.
-	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	// Provisioning a prober creates a Vantage with connection detail. Its
 	// measurement identity is still mandatory: the caller derives `name` from the
 	// endpoint (username@host:port) so it is unique per provisioned endpoint, class
@@ -330,12 +326,6 @@ type Querier interface {
 	// current verdict and the Address the triple sits on. Reads through the live-tier
 	// gate (#237).
 	GetServiceSubject(ctx context.Context, arg GetServiceSubjectParams) (GetServiceSubjectRow, error)
-	// The per-request validation lookup: resolve a presented session token (by its
-	// hash) to a live row. A session is live only when it is unrevoked and unexpired,
-	// so both gates are in SQL and a dead session simply returns no row — the handler
-	// then treats it exactly as an absent cookie. The clock bound is passed in ($2) so
-	// a fixed-clock test and production agree on the boundary.
-	GetSessionByTokenHash(ctx context.Context, arg GetSessionByTokenHashParams) (Session, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
@@ -412,10 +402,6 @@ type Querier interface {
 	// the same names on every poll; unconditional of the source's current enablement,
 	// since resolution is the dns Scan's act and a Name leaves only by measurement.
 	ListAdmittedNames(ctx context.Context) ([]string, error)
-	// Every account's live sessions for the admin surface, joined to the account so the
-	// view can show whose session it is and at what role. Ordered by account then
-	// recency. token_hash is never selected here either.
-	ListAllActiveSessions(ctx context.Context, expiresAt pgtype.Timestamptz) ([]ListAllActiveSessionsRow, error)
 	// Every open span across the whole estate — the Inventory axis read (#243,
 	// ADR-0105). The span_open_timeline_idx guarantees at most one open span per
 	// (subject, facet, discriminator, vantage, source) timeline, so each row IS the
@@ -689,10 +675,6 @@ type Querier interface {
 	// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
 	// (service, class), mirroring the observation read one facet over.
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
-	// One account's live sessions, newest activity first — the Profile's personal
-	// sessions list. token_hash is omitted from the read: listing never needs it, so
-	// the secret material stays out of the render path.
-	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
@@ -823,22 +805,6 @@ type Querier interface {
 	// by the shared backoff, and record the error. The row returns to 'pending' and
 	// the claim index picks it up again once run_after passes.
 	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error
-	// Revoke every live session for an account with no exception — the password-reset
-	// path (no current session to keep) and the admin offboarding action. Idempotent.
-	RevokeAllSessionsForAccount(ctx context.Context, arg RevokeAllSessionsForAccountParams) error
-	// "Sign out other devices" and password-change invalidation: revoke every live
-	// session for the account EXCEPT the one making the request ($2, the current
-	// session id). The current session survives so the acting user is not signed out
-	// of the tab they are working in.
-	RevokeOtherSessionsForAccount(ctx context.Context, arg RevokeOtherSessionsForAccountParams) error
-	// Revoke one session, scoped to its owner: the account_id predicate means an
-	// account can only revoke its own sessions, never another's by guessing an id —
-	// the same owner-scoping personal-token revocation uses. Idempotent: a
-	// revoked/absent row is unaffected.
-	RevokeSession(ctx context.Context, arg RevokeSessionParams) error
-	// Admin revocation of any single session by id, not owner-scoped — gated by
-	// requireAdmin at the handler, never reachable by a viewer. Idempotent.
-	RevokeSessionByIDForAdmin(ctx context.Context, arg RevokeSessionByIDForAdminParams) error
 	// Set, replace or clear the secret. A NULL clears it; the value is written and
 	// never read back.
 	SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error
@@ -888,9 +854,6 @@ type Querier interface {
 	// nothing to floor against and the dial is unconstrained. Reads only the scan
 	// table, never the measured corpora.
 	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
-	// Refresh last_seen_at for the "last active" column. Called at most once per minute
-	// per session (the handler throttles) so a busy session does not amplify writes.
-	TouchSession(ctx context.Context, arg TouchSessionParams) error
 	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.
