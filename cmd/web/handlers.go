@@ -122,6 +122,12 @@ type store interface {
 	// the value one timeline currently holds, so this is the estate's "what do I
 	// have right now" read, grouped by subject in the handler.
 	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	// The estate-wide, batch-grouped drift feed (#288, ADR-0111): every span
+	// open/close event a Batch caused within the period, joined to that Batch for the
+	// group meta, so the handler classifies each into one of the six change kinds on
+	// read (ADR-0007) and groups the transitions by batch. Reads span and batch only —
+	// never dispatch — honoring the comparison-path separation (ADR-0041).
+	ListRecentDriftEvents(ctx context.Context, since pgtype.Timestamptz) ([]db.ListRecentDriftEventsRow, error)
 	// Exposure landing view (#196): the two most recent reachability spans per
 	// (Service, vantage), joined to the prober endpoint. The class is re-verified
 	// per render from the presented address, so this read carries the host rather
@@ -393,6 +399,10 @@ func (s *server) handler() http.Handler {
 	// carries neither `/` nor `@`, so it rides a plain path segment.
 	mux.HandleFunc("GET /asset/{key}", s.requireLogin(s.assetPage))
 	mux.HandleFunc("GET /drift", s.requireLogin(s.driftPage))
+	// The Drift CSV export (#288): the transition feed for the active ?period= as a
+	// downloadable file. A viewer reads it — an export is a read of the change the page
+	// already shows, never a mutation — mirroring the Reports export.
+	mux.HandleFunc("GET /drift/export", s.requireLogin(s.driftExport))
 	// The per-run drill-in (#297, T2): the destination of a Drift "Batch detail"
 	// entry. A run is one Dispatch (a fan-out of one Scan); the route is stable so
 	// T16's Drift can link straight to it. A viewer reads it, like the Scans monitor

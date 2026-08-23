@@ -273,6 +273,8 @@ type Span struct {
 	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
 	ClosureReason pgtype.Text        `json:"closure_reason"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	OpenedBatchID pgtype.Int8        `json:"opened_batch_id"`
+	ClosedBatchID pgtype.Int8        `json:"closed_batch_id"`
 }
 
 type Vantage struct {
