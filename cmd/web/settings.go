@@ -110,7 +110,6 @@ type settingsForms struct {
 	ssoName     string
 	ssoIssuer   string
 	ssoClientID string
-	ssoClaim    string
 
 	retError    string
 	retObs      string

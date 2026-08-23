@@ -95,6 +95,35 @@ const profileTemplates = `
 </div>
 
 <div class="section">
+<div class="microlabel">Access · single sign-on</div>
+<h2>Linked identities</h2>
+<p class="muted" style="margin:0 0 var(--space-4);font-size:12.5px">Link an identity provider to sign in with it. A link binds your verified provider account to this one; sign-in matches on that binding, never on a username. An admin configures providers in <a href="/settings?tab=sso">Settings &#8594; Single sign-on</a>.</p>
+{{if .SSOError}}<div class="error">{{.SSOError}}</div>{{end}}
+{{if .SSONotice}}<div class="notice">{{.SSONotice}}</div>{{end}}
+{{if .SSOIdentities}}
+<table>
+<thead><tr><th>Provider</th><th>Identity</th><th>Linked</th><th></th></tr></thead>
+<tbody>
+{{range .SSOIdentities}}<tr>
+<td><span style="font-weight:500;color:var(--ink)">{{.Provider}}</span></td>
+<td class="mono">{{if .DisplayName}}{{.DisplayName}}{{else}}<span class="muted">&#8212;</span>{{end}}</td>
+<td class="mono">{{.LinkedAt}}</td>
+<td style="text-align:right"><form method="post" action="/profile/sso/unlink" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary" type="submit">Unlink</button></form></td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<p class="muted" style="font-size:12.5px">No identities linked yet.</p>
+{{end}}
+{{if .SSOProviders}}
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:var(--space-4);margin-top:var(--space-4);border-top:1px solid var(--hairline)">
+<span class="muted" style="font-size:12px">Link an identity:</span>
+{{range .SSOProviders}}<a class="btn secondary" href="/profile/sso/{{.Slug}}/link">{{.Name}}</a>{{end}}
+</div>
+{{end}}
+</div>
+
+<div class="section">
 <div class="rulehead">
 <div><div class="microlabel">Automation</div><h2 style="margin:0">Personal API tokens</h2></div>
 <a class="btn" href="/profile?new=1">New token</a>

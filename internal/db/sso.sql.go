@@ -11,6 +11,36 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteSSOIdentity = `-- name: DeleteSSOIdentity :exec
+DELETE FROM sso_identity WHERE id = $1
+`
+
+// An admin removes any binding by id (offboarding / seat reassignment). Idempotent:
+// removing a row already gone satisfies the intent either way.
+func (q *Queries) DeleteSSOIdentity(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteSSOIdentity, id)
+	return err
+}
+
+const deleteSSOIdentityForAccount = `-- name: DeleteSSOIdentityForAccount :execrows
+DELETE FROM sso_identity WHERE id = $1 AND account_id = $2
+`
+
+type DeleteSSOIdentityForAccountParams struct {
+	ID        int64 `json:"id"`
+	AccountID int64 `json:"account_id"`
+}
+
+// A user unlinks their OWN identity (Profile). Scoped to the account so one user can
+// never unlink another's; returns rows so a stale or foreign id no-ops honestly.
+func (q *Queries) DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSSOIdentityForAccount, arg.ID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteSSOProvider = `-- name: DeleteSSOProvider :exec
 DELETE FROM sso_provider WHERE id = $1
 `
@@ -20,25 +50,81 @@ func (q *Queries) DeleteSSOProvider(ctx context.Context, id int64) error {
 	return err
 }
 
+const getAccountBySSOIdentity = `-- name: GetAccountBySSOIdentity :one
+SELECT a.id, a.username, a.role, a.password_hash, a.totp_secret, a.totp_enabled, a.created_at
+FROM sso_identity i
+JOIN account a ON a.id = i.account_id
+WHERE i.provider_id = $1 AND i.sub = $2
+`
+
+type GetAccountBySSOIdentityParams struct {
+	ProviderID int64  `json:"provider_id"`
+	Sub        string `json:"sub"`
+}
+
+// The SSO login match: resolve the local account a verified (provider, sub) is bound to.
+// Keyed on the stable, non-reassignable subject — never a username. No row is an honest
+// refusal (the identity is unlinked), never a provision.
+func (q *Queries) GetAccountBySSOIdentity(ctx context.Context, arg GetAccountBySSOIdentityParams) (Account, error) {
+	row := q.db.QueryRow(ctx, getAccountBySSOIdentity, arg.ProviderID, arg.Sub)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Role,
+		&i.PasswordHash,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getSSOIdentityBySub = `-- name: GetSSOIdentityBySub :one
+SELECT id, account_id, display_name
+FROM sso_identity
+WHERE provider_id = $1 AND sub = $2
+`
+
+type GetSSOIdentityBySubParams struct {
+	ProviderID int64  `json:"provider_id"`
+	Sub        string `json:"sub"`
+}
+
+type GetSSOIdentityBySubRow struct {
+	ID          int64  `json:"id"`
+	AccountID   int64  `json:"account_id"`
+	DisplayName string `json:"display_name"`
+}
+
+// Whether a (provider, sub) is already bound, and to whom — so the self-link flow can
+// no-op an identity already linked to the caller and refuse one linked elsewhere,
+// rather than surfacing a raw unique-violation.
+func (q *Queries) GetSSOIdentityBySub(ctx context.Context, arg GetSSOIdentityBySubParams) (GetSSOIdentityBySubRow, error) {
+	row := q.db.QueryRow(ctx, getSSOIdentityBySub, arg.ProviderID, arg.Sub)
+	var i GetSSOIdentityBySubRow
+	err := row.Scan(&i.ID, &i.AccountID, &i.DisplayName)
+	return i, err
+}
+
 const getSSOProvider = `-- name: GetSSOProvider :one
-SELECT id, slug, name, issuer, client_id, username_claim, enabled,
+SELECT id, slug, name, issuer, client_id, enabled,
        (client_secret IS NOT NULL)::boolean AS has_secret, created_by, created_at, updated_at
 FROM sso_provider
 WHERE id = $1
 `
 
 type GetSSOProviderRow struct {
-	ID            int64              `json:"id"`
-	Slug          string             `json:"slug"`
-	Name          string             `json:"name"`
-	Issuer        string             `json:"issuer"`
-	ClientID      string             `json:"client_id"`
-	UsernameClaim string             `json:"username_claim"`
-	Enabled       bool               `json:"enabled"`
-	HasSecret     bool               `json:"has_secret"`
-	CreatedBy     int64              `json:"created_by"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ID        int64              `json:"id"`
+	Slug      string             `json:"slug"`
+	Name      string             `json:"name"`
+	Issuer    string             `json:"issuer"`
+	ClientID  string             `json:"client_id"`
+	Enabled   bool               `json:"enabled"`
+	HasSecret bool               `json:"has_secret"`
+	CreatedBy int64              `json:"created_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 // One provider for the Settings edit form. Omits the secret; a caller reads presence,
@@ -52,7 +138,6 @@ func (q *Queries) GetSSOProvider(ctx context.Context, id int64) (GetSSOProviderR
 		&i.Name,
 		&i.Issuer,
 		&i.ClientID,
-		&i.UsernameClaim,
 		&i.Enabled,
 		&i.HasSecret,
 		&i.CreatedBy,
@@ -63,26 +148,24 @@ func (q *Queries) GetSSOProvider(ctx context.Context, id int64) (GetSSOProviderR
 }
 
 const getSSOProviderForAuth = `-- name: GetSSOProviderForAuth :one
-SELECT id, slug, name, issuer, client_id, client_secret, username_claim
+SELECT id, slug, name, issuer, client_id, client_secret
 FROM sso_provider
 WHERE slug = $1 AND enabled = TRUE
 `
 
 type GetSSOProviderForAuthRow struct {
-	ID            int64       `json:"id"`
-	Slug          string      `json:"slug"`
-	Name          string      `json:"name"`
-	Issuer        string      `json:"issuer"`
-	ClientID      string      `json:"client_id"`
-	ClientSecret  pgtype.Text `json:"client_secret"`
-	UsernameClaim string      `json:"username_claim"`
+	ID           int64       `json:"id"`
+	Slug         string      `json:"slug"`
+	Name         string      `json:"name"`
+	Issuer       string      `json:"issuer"`
+	ClientID     string      `json:"client_id"`
+	ClientSecret pgtype.Text `json:"client_secret"`
 }
 
-// The ONE read path that selects the secret: the server-side OIDC flow needs the
-// issuer, client id and client secret to complete the confidential-client token
-// exchange, plus the username claim to map the verified identity to a local account.
-// Keyed by slug (the flow route) and gated on enabled, so a disabled provider's flow
-// resolves no row and is refused.
+// The ONE read path that selects the secret: the server-side OIDC flow (both a login
+// match and a Profile self-link) needs the issuer, client id and client secret to
+// complete the confidential-client token exchange. Keyed by slug (the flow route) and
+// gated on enabled, so a disabled provider's flow resolves no row and is refused.
 func (q *Queries) GetSSOProviderForAuth(ctx context.Context, slug string) (GetSSOProviderForAuthRow, error) {
 	row := q.db.QueryRow(ctx, getSSOProviderForAuth, slug)
 	var i GetSSOProviderForAuthRow
@@ -93,34 +176,58 @@ func (q *Queries) GetSSOProviderForAuth(ctx context.Context, slug string) (GetSS
 		&i.Issuer,
 		&i.ClientID,
 		&i.ClientSecret,
-		&i.UsernameClaim,
 	)
 	return i, err
 }
 
+const insertSSOIdentity = `-- name: InsertSSOIdentity :exec
+INSERT INTO sso_identity (provider_id, account_id, sub, display_name)
+VALUES ($1, $2, $3, $4)
+`
+
+type InsertSSOIdentityParams struct {
+	ProviderID  int64  `json:"provider_id"`
+	AccountID   int64  `json:"account_id"`
+	Sub         string `json:"sub"`
+	DisplayName string `json:"display_name"`
+}
+
+// Record a verified (provider, sub) → account binding, established by an authenticated
+// Profile self-link (ADR-0113). The UNIQUE(provider_id, sub) guards a second account
+// from claiming an identity already bound; the caller checks for an existing binding
+// first so it can distinguish "already yours" from "bound elsewhere".
+func (q *Queries) InsertSSOIdentity(ctx context.Context, arg InsertSSOIdentityParams) error {
+	_, err := q.db.Exec(ctx, insertSSOIdentity,
+		arg.ProviderID,
+		arg.AccountID,
+		arg.Sub,
+		arg.DisplayName,
+	)
+	return err
+}
+
 const insertSSOProvider = `-- name: InsertSSOProvider :one
 
-INSERT INTO sso_provider (slug, name, issuer, client_id, client_secret, username_claim, enabled, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO sso_provider (slug, name, issuer, client_id, client_secret, enabled, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id
 `
 
 type InsertSSOProviderParams struct {
-	Slug          string      `json:"slug"`
-	Name          string      `json:"name"`
-	Issuer        string      `json:"issuer"`
-	ClientID      string      `json:"client_id"`
-	ClientSecret  pgtype.Text `json:"client_secret"`
-	UsernameClaim string      `json:"username_claim"`
-	Enabled       bool        `json:"enabled"`
-	CreatedBy     int64       `json:"created_by"`
+	Slug         string      `json:"slug"`
+	Name         string      `json:"name"`
+	Issuer       string      `json:"issuer"`
+	ClientID     string      `json:"client_id"`
+	ClientSecret pgtype.Text `json:"client_secret"`
+	Enabled      bool        `json:"enabled"`
+	CreatedBy    int64       `json:"created_by"`
 }
 
-// Reads and writes behind the OIDC single-sign-on config (#293, ADR-0112): the
-// SignIn buttons, the Settings → single-sign-on tab, and the server-side flow. The
-// client secret is write-only at the interface, mirroring the channel secret
-// (ADR-0053): the list/get reads expose only whether one is set, and exactly one
-// read path (GetSSOProviderForAuth) hands the secret to the token exchange.
+// Reads and writes behind the OIDC single-sign-on config (#293, ADR-0112) and the
+// verified-identity bindings that authentication keys on (#319, ADR-0113). The client
+// secret is write-only at the interface, mirroring the channel secret (ADR-0053): the
+// list/get reads expose only whether one is set, and exactly one read path
+// (GetSSOProviderForAuth) hands the secret to the token exchange.
 // Declare one OIDC provider. Returns the id only; the secret is write-only and no
 // read query hands it back. A public (PKCE-only) client passes a NULL secret.
 func (q *Queries) InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error) {
@@ -130,7 +237,6 @@ func (q *Queries) InsertSSOProvider(ctx context.Context, arg InsertSSOProviderPa
 		arg.Issuer,
 		arg.ClientID,
 		arg.ClientSecret,
-		arg.UsernameClaim,
 		arg.Enabled,
 		arg.CreatedBy,
 	)
@@ -175,8 +281,107 @@ func (q *Queries) ListEnabledSSOProviders(ctx context.Context) ([]ListEnabledSSO
 	return items, nil
 }
 
+const listSSOBindings = `-- name: ListSSOBindings :many
+SELECT i.id, i.provider_id, p.slug AS provider_slug, p.name AS provider_name,
+       i.account_id, a.username AS account_username, i.display_name, i.created_at
+FROM sso_identity i
+JOIN sso_provider p ON p.id = i.provider_id
+JOIN account a ON a.id = i.account_id
+ORDER BY i.id DESC
+`
+
+type ListSSOBindingsRow struct {
+	ID              int64              `json:"id"`
+	ProviderID      int64              `json:"provider_id"`
+	ProviderSlug    string             `json:"provider_slug"`
+	ProviderName    string             `json:"provider_name"`
+	AccountID       int64              `json:"account_id"`
+	AccountUsername string             `json:"account_username"`
+	DisplayName     string             `json:"display_name"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+// Every binding for the admin SSO settings — the offboarding / seat-reassignment view.
+// Joined to provider and account so the admin sees which identity maps to whom, newest
+// first.
+func (q *Queries) ListSSOBindings(ctx context.Context) ([]ListSSOBindingsRow, error) {
+	rows, err := q.db.Query(ctx, listSSOBindings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSSOBindingsRow{}
+	for rows.Next() {
+		var i ListSSOBindingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProviderID,
+			&i.ProviderSlug,
+			&i.ProviderName,
+			&i.AccountID,
+			&i.AccountUsername,
+			&i.DisplayName,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSSOIdentitiesForAccount = `-- name: ListSSOIdentitiesForAccount :many
+SELECT i.id, i.provider_id, p.slug AS provider_slug, p.name AS provider_name,
+       i.display_name, i.created_at
+FROM sso_identity i
+JOIN sso_provider p ON p.id = i.provider_id
+WHERE i.account_id = $1
+ORDER BY i.id DESC
+`
+
+type ListSSOIdentitiesForAccountRow struct {
+	ID           int64              `json:"id"`
+	ProviderID   int64              `json:"provider_id"`
+	ProviderSlug string             `json:"provider_slug"`
+	ProviderName string             `json:"provider_name"`
+	DisplayName  string             `json:"display_name"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+// An account's own linked identities for its Profile, newest-first. Joined to the
+// provider for the display name/slug; sub is not surfaced (opaque, of no use to a human).
+func (q *Queries) ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]ListSSOIdentitiesForAccountRow, error) {
+	rows, err := q.db.Query(ctx, listSSOIdentitiesForAccount, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSSOIdentitiesForAccountRow{}
+	for rows.Next() {
+		var i ListSSOIdentitiesForAccountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProviderID,
+			&i.ProviderSlug,
+			&i.ProviderName,
+			&i.DisplayName,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSSOProviders = `-- name: ListSSOProviders :many
-SELECT p.id, p.slug, p.name, p.issuer, p.client_id, p.username_claim, p.enabled,
+SELECT p.id, p.slug, p.name, p.issuer, p.client_id, p.enabled,
        (p.client_secret IS NOT NULL)::boolean AS has_secret,
        p.created_by, p.created_at, p.updated_at,
        a.username AS created_by_username
@@ -191,7 +396,6 @@ type ListSSOProvidersRow struct {
 	Name              string             `json:"name"`
 	Issuer            string             `json:"issuer"`
 	ClientID          string             `json:"client_id"`
-	UsernameClaim     string             `json:"username_claim"`
 	Enabled           bool               `json:"enabled"`
 	HasSecret         bool               `json:"has_secret"`
 	CreatedBy         int64              `json:"created_by"`
@@ -217,7 +421,6 @@ func (q *Queries) ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, 
 			&i.Name,
 			&i.Issuer,
 			&i.ClientID,
-			&i.UsernameClaim,
 			&i.Enabled,
 			&i.HasSecret,
 			&i.CreatedBy,
@@ -253,19 +456,17 @@ func (q *Queries) SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSe
 
 const updateSSOProvider = `-- name: UpdateSSOProvider :execrows
 UPDATE sso_provider
-SET slug = $2, name = $3, issuer = $4, client_id = $5, username_claim = $6,
-    enabled = $7, updated_at = now()
+SET slug = $2, name = $3, issuer = $4, client_id = $5, enabled = $6, updated_at = now()
 WHERE id = $1
 `
 
 type UpdateSSOProviderParams struct {
-	ID            int64  `json:"id"`
-	Slug          string `json:"slug"`
-	Name          string `json:"name"`
-	Issuer        string `json:"issuer"`
-	ClientID      string `json:"client_id"`
-	UsernameClaim string `json:"username_claim"`
-	Enabled       bool   `json:"enabled"`
+	ID       int64  `json:"id"`
+	Slug     string `json:"slug"`
+	Name     string `json:"name"`
+	Issuer   string `json:"issuer"`
+	ClientID string `json:"client_id"`
+	Enabled  bool   `json:"enabled"`
 }
 
 // Updates everything but the secret; the secret has its own write path, so an edit
@@ -279,7 +480,6 @@ func (q *Queries) UpdateSSOProvider(ctx context.Context, arg UpdateSSOProviderPa
 		arg.Name,
 		arg.Issuer,
 		arg.ClientID,
-		arg.UsernameClaim,
 		arg.Enabled,
 	)
 	if err != nil {

@@ -225,6 +225,18 @@ type store interface {
 	UpdateSSOProvider(ctx context.Context, arg db.UpdateSSOProviderParams) (int64, error)
 	SetSSOProviderSecret(ctx context.Context, arg db.SetSSOProviderSecretParams) error
 	DeleteSSOProvider(ctx context.Context, id int64) error
+
+	// SSO identity bindings (#319, ADR-0113): authentication keys on a stored
+	// (provider, sub) → account binding, established by an authenticated Profile
+	// self-link. The login match is GetAccountBySSOIdentity; GetSSOIdentityBySub gates
+	// the link against an existing binding; the rest drive the Profile and admin lists.
+	InsertSSOIdentity(ctx context.Context, arg db.InsertSSOIdentityParams) error
+	GetAccountBySSOIdentity(ctx context.Context, arg db.GetAccountBySSOIdentityParams) (db.Account, error)
+	GetSSOIdentityBySub(ctx context.Context, arg db.GetSSOIdentityBySubParams) (db.GetSSOIdentityBySubRow, error)
+	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]db.ListSSOIdentitiesForAccountRow, error)
+	DeleteSSOIdentityForAccount(ctx context.Context, arg db.DeleteSSOIdentityForAccountParams) (int64, error)
+	ListSSOBindings(ctx context.Context) ([]db.ListSSOBindingsRow, error)
+	DeleteSSOIdentity(ctx context.Context, id int64) error
 }
 
 // server holds everything the handlers need: the database, the session signing
@@ -546,6 +558,13 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /profile/tokens", s.requireLogin(s.createPersonalToken))
 	mux.HandleFunc("POST /profile/tokens/revoke", s.requireLogin(s.revokePersonalToken))
 	mux.HandleFunc("POST /profile/session/revoke", s.requireLogin(s.revokeSession))
+	// SSO self-link (#319, ADR-0113): an authenticated user links their own verified
+	// identity so it can sign them in, and unlinks it. The link runs the OIDC round-trip
+	// inside the caller's session (requireLogin) and binds (provider, sub) → their
+	// account — the same per-user security surface that hosts TOTP enrollment.
+	mux.HandleFunc("GET /profile/sso/{slug}/link", s.requireLogin(s.ssoLinkStart))
+	mux.HandleFunc("GET /profile/sso/{slug}/link/callback", s.requireLogin(s.ssoLinkCallback))
+	mux.HandleFunc("POST /profile/sso/unlink", s.requireLogin(s.ssoUnlink))
 
 	mux.HandleFunc("GET /account", s.requireLogin(s.accountPage))
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
@@ -570,11 +589,13 @@ func (s *server) handler() http.Handler {
 	// Single sign-on config (#293, ADR-0112): declaring, editing, re-keying and
 	// removing an OIDC provider are admin config acts, gated like channel and seed
 	// declaration. The secret has its own write path so an edit that leaves it blank
-	// keeps the existing one (the channel-secret pattern).
+	// keeps the existing one (the channel-secret pattern). Removing an identity binding
+	// (#319, ADR-0113) is the admin offboarding / seat-reassignment act.
 	mux.HandleFunc("POST /settings/sso", s.requireAdmin(s.createSSOProvider))
 	mux.HandleFunc("POST /settings/sso/update", s.requireAdmin(s.updateSSOProvider))
 	mux.HandleFunc("POST /settings/sso/secret", s.requireAdmin(s.setSSOProviderSecret))
 	mux.HandleFunc("POST /settings/sso/delete", s.requireAdmin(s.deleteSSOProvider))
+	mux.HandleFunc("POST /settings/sso/identity/remove", s.requireAdmin(s.removeSSOBinding))
 
 	// Integrations (#308): a third-party install tile is a Declared act. Installing
 	// one records consent to the grants it would receive; disconnecting passes

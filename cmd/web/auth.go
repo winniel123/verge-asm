@@ -916,6 +916,8 @@ type profileState struct {
 	revokeID   int64 // token-revoke ConfirmDialog target; 0 = closed
 	revokeErr  string
 	endSession bool // end-session ConfirmDialog open
+	ssoNotice  string // SSO link/unlink outcome (a success or benign message)
+	ssoError   string // SSO link failure (a refusal)
 }
 
 // profilePage renders the account's own Profile (#304): identity, credentials with
@@ -939,6 +941,29 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	if q.Get("saved") != "" {
 		st.notice = "Password changed. Other sessions keep working until they expire."
+	}
+	// SSO self-link outcomes ride back as fixed query codes (never reflected free text),
+	// each mapped here to an honest message.
+	switch q.Get("linked") {
+	case "1":
+		st.ssoNotice = "Identity linked. You can now sign in with it."
+	case "exists":
+		st.ssoNotice = "That identity is already linked to your account."
+	}
+	if q.Get("unlinked") != "" {
+		st.ssoNotice = "Identity unlinked. It can no longer sign in to this account."
+	}
+	switch q.Get("linkerr") {
+	case "elsewhere":
+		st.ssoError = "That identity is already linked to another account."
+	case "cancelled":
+		st.ssoError = "Linking was cancelled or refused."
+	case "expired":
+		st.ssoError = "That link attempt expired. Try again."
+	case "unavailable":
+		st.ssoError = "That identity provider could not be reached. Try again."
+	case "failed":
+		st.ssoError = "Linking could not be completed. Try again."
 	}
 	s.renderProfile(w, r, acct, st)
 }
@@ -966,6 +991,12 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	} else {
 		log.Printf("web: profile: list personal tokens: %v", err)
 	}
+
+	// SSO (#319, ADR-0113): the account's own linked identities, and the enabled
+	// providers not yet linked (each offers a "Link" button). A read failure degrades to
+	// an empty surface rather than failing the whole Profile.
+	linked, linkedProviders := s.profileSSOIdentities(r, acct.ID)
+	available := s.profileLinkableProviders(r, linkedProviders)
 
 	// The revoke ConfirmDialog names its target; resolve it from the read so a stale
 	// or foreign id simply renders no dialog rather than a gate with no subject.
@@ -997,6 +1028,11 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 
 		"Tokens": tokens,
 
+		"SSOIdentities": linked,
+		"SSOProviders":  available,
+		"SSONotice":     st.ssoNotice,
+		"SSOError":      st.ssoError,
+
 		"Notice":     st.notice,
 		"PwError":    st.pwError,
 		"CreateOpen": st.createOpen,
@@ -1010,6 +1046,63 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"EndSession": st.endSession,
 	}
 	s.render(w, "profile", data)
+}
+
+// profileIdentityView is one linked SSO identity shown on the Profile: the binding id
+// (for the unlink form), the provider it came through, and the display label captured at
+// link time. The subject is never surfaced — it is opaque and of no use to a human.
+type profileIdentityView struct {
+	ID          int64
+	Provider    string
+	DisplayName string
+	LinkedAt    string
+}
+
+// profileLinkView is an enabled provider the account has not yet linked — the Profile
+// renders a "Link" button per entry.
+type profileLinkView struct {
+	Slug string
+	Name string
+}
+
+// profileSSOIdentities reads the account's linked identities for its Profile, returning
+// the display views and the set of provider ids already linked (so the linkable list can
+// exclude them). A read failure degrades to empty rather than failing the page.
+func (s *server) profileSSOIdentities(r *http.Request, accountID int64) ([]profileIdentityView, map[int64]bool) {
+	rows, err := s.store.ListSSOIdentitiesForAccount(r.Context(), accountID)
+	if err != nil {
+		log.Printf("web: profile: list sso identities: %v", err)
+		return nil, map[int64]bool{}
+	}
+	linkedProviders := make(map[int64]bool, len(rows))
+	out := make([]profileIdentityView, 0, len(rows))
+	for _, row := range rows {
+		linkedProviders[row.ProviderID] = true
+		out = append(out, profileIdentityView{
+			ID: row.ID, Provider: row.ProviderName, DisplayName: row.DisplayName,
+			LinkedAt: isoDate(row.CreatedAt),
+		})
+	}
+	return out, linkedProviders
+}
+
+// profileLinkableProviders lists the enabled providers the account has not yet linked.
+// An account holds at most one identity per provider, so a provider already linked drops
+// out of the offer.
+func (s *server) profileLinkableProviders(r *http.Request, linked map[int64]bool) []profileLinkView {
+	rows, err := s.store.ListEnabledSSOProviders(r.Context())
+	if err != nil {
+		log.Printf("web: profile: list enabled sso providers: %v", err)
+		return nil
+	}
+	out := make([]profileLinkView, 0, len(rows))
+	for _, p := range rows {
+		if linked[p.ID] {
+			continue
+		}
+		out = append(out, profileLinkView{Slug: p.Slug, Name: p.Name})
+	}
+	return out
 }
 
 // changePassword is the self-service password change (Profile → Credentials). It

@@ -277,18 +277,26 @@ type Span struct {
 	ClosedBatchID pgtype.Int8        `json:"closed_batch_id"`
 }
 
+type SsoIdentity struct {
+	ID          int64              `json:"id"`
+	ProviderID  int64              `json:"provider_id"`
+	AccountID   int64              `json:"account_id"`
+	Sub         string             `json:"sub"`
+	DisplayName string             `json:"display_name"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type SsoProvider struct {
-	ID            int64              `json:"id"`
-	Slug          string             `json:"slug"`
-	Name          string             `json:"name"`
-	Issuer        string             `json:"issuer"`
-	ClientID      string             `json:"client_id"`
-	ClientSecret  pgtype.Text        `json:"client_secret"`
-	UsernameClaim string             `json:"username_claim"`
-	Enabled       bool               `json:"enabled"`
-	CreatedBy     int64              `json:"created_by"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ID           int64              `json:"id"`
+	Slug         string             `json:"slug"`
+	Name         string             `json:"name"`
+	Issuer       string             `json:"issuer"`
+	ClientID     string             `json:"client_id"`
+	ClientSecret pgtype.Text        `json:"client_secret"`
+	Enabled      bool               `json:"enabled"`
+	CreatedBy    int64              `json:"created_by"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Vantage struct {

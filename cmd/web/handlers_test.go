@@ -136,21 +136,36 @@ type fakeStore struct {
 	// list/get render paths (only GetSSOProviderForAuth returns it).
 	ssoProviders []fakeSSOProvider
 	ssoNextID    int64
+
+	// ssoIdentities mirrors the sso_identity table (#319, ADR-0113): the verified
+	// (provider, sub) → account bindings authentication keys on.
+	ssoIdentities  []fakeSSOIdentity
+	ssoIdentNextID int64
 }
 
 // fakeSSOProvider mirrors an sso_provider row, client secret included.
 type fakeSSOProvider struct {
-	id           int64
-	slug         string
-	name         string
-	issuer       string
-	clientID     string
-	secret       string
-	hasSecret    bool
-	claim        string
-	enabled      bool
-	createdBy    int64
-	createdAt    time.Time
+	id        int64
+	slug      string
+	name      string
+	issuer    string
+	clientID  string
+	secret    string
+	hasSecret bool
+	enabled   bool
+	createdBy int64
+	createdAt time.Time
+}
+
+// fakeSSOIdentity mirrors an sso_identity row: a verified subject bound to an account
+// through a provider (#319, ADR-0113).
+type fakeSSOIdentity struct {
+	id          int64
+	providerID  int64
+	accountID   int64
+	sub         string
+	displayName string
+	createdAt   time.Time
 }
 
 // fakeFreqEdit mirrors a verge-core frequency edit row.
@@ -1909,7 +1924,7 @@ func (f *fakeStore) InsertSSOProvider(_ context.Context, arg db.InsertSSOProvide
 	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
 		id: f.ssoNextID, slug: arg.Slug, name: arg.Name, issuer: arg.Issuer,
 		clientID: arg.ClientID, secret: arg.ClientSecret.String, hasSecret: arg.ClientSecret.Valid,
-		claim: arg.UsernameClaim, enabled: arg.Enabled, createdBy: arg.CreatedBy,
+		enabled: arg.Enabled, createdBy: arg.CreatedBy,
 		createdAt: obsClock,
 	})
 	return f.ssoNextID, nil
@@ -1923,7 +1938,7 @@ func (f *fakeStore) ListSSOProviders(context.Context) ([]db.ListSSOProvidersRow,
 		p := f.ssoProviders[i]
 		out = append(out, db.ListSSOProvidersRow{
 			ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
-			UsernameClaim: p.claim, Enabled: p.enabled, HasSecret: p.hasSecret,
+			Enabled: p.enabled, HasSecret: p.hasSecret,
 			CreatedBy: p.createdBy, CreatedAt: pgtype.Timestamptz{Time: p.createdAt, Valid: true},
 			CreatedByUsername: f.usernameForID(p.createdBy),
 		})
@@ -1946,7 +1961,7 @@ func (f *fakeStore) GetSSOProvider(_ context.Context, id int64) (db.GetSSOProvid
 		if p.id == id {
 			return db.GetSSOProviderRow{
 				ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
-				UsernameClaim: p.claim, Enabled: p.enabled, HasSecret: p.hasSecret,
+				Enabled: p.enabled, HasSecret: p.hasSecret,
 				CreatedBy: p.createdBy, CreatedAt: pgtype.Timestamptz{Time: p.createdAt, Valid: true},
 			}, nil
 		}
@@ -1959,8 +1974,7 @@ func (f *fakeStore) GetSSOProviderForAuth(_ context.Context, slug string) (db.Ge
 		if p.slug == slug && p.enabled {
 			return db.GetSSOProviderForAuthRow{
 				ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
-				ClientSecret:  pgtype.Text{String: p.secret, Valid: p.hasSecret},
-				UsernameClaim: p.claim,
+				ClientSecret: pgtype.Text{String: p.secret, Valid: p.hasSecret},
 			}, nil
 		}
 	}
@@ -1981,7 +1995,6 @@ func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProvide
 		f.ssoProviders[i].name = arg.Name
 		f.ssoProviders[i].issuer = arg.Issuer
 		f.ssoProviders[i].clientID = arg.ClientID
-		f.ssoProviders[i].claim = arg.UsernameClaim
 		f.ssoProviders[i].enabled = arg.Enabled
 		return 1, nil
 	}
@@ -2007,7 +2020,125 @@ func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
 		}
 	}
 	f.ssoProviders = kept
+	// ON DELETE CASCADE: a provider's bindings go with it.
+	var keptIdents []fakeSSOIdentity
+	for _, i := range f.ssoIdentities {
+		if i.providerID != id {
+			keptIdents = append(keptIdents, i)
+		}
+	}
+	f.ssoIdentities = keptIdents
 	return nil
+}
+
+func (f *fakeStore) InsertSSOIdentity(_ context.Context, arg db.InsertSSOIdentityParams) error {
+	for _, i := range f.ssoIdentities {
+		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
+			return &pgconn.PgError{Code: "23505", Message: "duplicate sso identity"}
+		}
+	}
+	f.ssoIdentNextID++
+	f.ssoIdentities = append(f.ssoIdentities, fakeSSOIdentity{
+		id: f.ssoIdentNextID, providerID: arg.ProviderID, accountID: arg.AccountID,
+		sub: arg.Sub, displayName: arg.DisplayName, createdAt: obsClock,
+	})
+	return nil
+}
+
+func (f *fakeStore) GetAccountBySSOIdentity(_ context.Context, arg db.GetAccountBySSOIdentityParams) (db.Account, error) {
+	for _, i := range f.ssoIdentities {
+		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
+			if a, ok := f.accounts[i.accountID]; ok {
+				return a, nil
+			}
+		}
+	}
+	return db.Account{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) GetSSOIdentityBySub(_ context.Context, arg db.GetSSOIdentityBySubParams) (db.GetSSOIdentityBySubRow, error) {
+	for _, i := range f.ssoIdentities {
+		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
+			return db.GetSSOIdentityBySubRow{ID: i.id, AccountID: i.accountID, DisplayName: i.displayName}, nil
+		}
+	}
+	return db.GetSSOIdentityBySubRow{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) ListSSOIdentitiesForAccount(_ context.Context, accountID int64) ([]db.ListSSOIdentitiesForAccountRow, error) {
+	out := []db.ListSSOIdentitiesForAccountRow{}
+	// Newest-first, mirroring ORDER BY i.id DESC.
+	for k := len(f.ssoIdentities) - 1; k >= 0; k-- {
+		i := f.ssoIdentities[k]
+		if i.accountID != accountID {
+			continue
+		}
+		out = append(out, db.ListSSOIdentitiesForAccountRow{
+			ID: i.id, ProviderID: i.providerID,
+			ProviderSlug: f.ssoSlugForID(i.providerID), ProviderName: f.ssoNameForID(i.providerID),
+			DisplayName: i.displayName, CreatedAt: pgtype.Timestamptz{Time: i.createdAt, Valid: true},
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) DeleteSSOIdentityForAccount(_ context.Context, arg db.DeleteSSOIdentityForAccountParams) (int64, error) {
+	var kept []fakeSSOIdentity
+	var removed int64
+	for _, i := range f.ssoIdentities {
+		if i.id == arg.ID && i.accountID == arg.AccountID {
+			removed++
+			continue
+		}
+		kept = append(kept, i)
+	}
+	f.ssoIdentities = kept
+	return removed, nil
+}
+
+func (f *fakeStore) ListSSOBindings(_ context.Context) ([]db.ListSSOBindingsRow, error) {
+	out := []db.ListSSOBindingsRow{}
+	for k := len(f.ssoIdentities) - 1; k >= 0; k-- {
+		i := f.ssoIdentities[k]
+		out = append(out, db.ListSSOBindingsRow{
+			ID: i.id, ProviderID: i.providerID,
+			ProviderSlug: f.ssoSlugForID(i.providerID), ProviderName: f.ssoNameForID(i.providerID),
+			AccountID: i.accountID, AccountUsername: f.usernameForID(i.accountID),
+			DisplayName: i.displayName, CreatedAt: pgtype.Timestamptz{Time: i.createdAt, Valid: true},
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) DeleteSSOIdentity(_ context.Context, id int64) error {
+	var kept []fakeSSOIdentity
+	for _, i := range f.ssoIdentities {
+		if i.id != id {
+			kept = append(kept, i)
+		}
+	}
+	f.ssoIdentities = kept
+	return nil
+}
+
+// ssoSlugForID / ssoNameForID resolve a provider id to its slug/name for the identity
+// join queries; an unknown id renders empty.
+func (f *fakeStore) ssoSlugForID(id int64) string {
+	for _, p := range f.ssoProviders {
+		if p.id == id {
+			return p.slug
+		}
+	}
+	return ""
+}
+
+func (f *fakeStore) ssoNameForID(id int64) string {
+	for _, p := range f.ssoProviders {
+		if p.id == id {
+			return p.name
+		}
+	}
+	return ""
 }
 
 // usernameForID resolves an account id to its username for the created-by join the

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -10,13 +11,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// Settings → single sign-on (#293, ADR-0112): declare, edit, re-key and remove the
-// OIDC providers the SignIn screen offers. Every act here is admin-gated (the routes
-// carry requireAdmin), and the client secret is write-only — an edit that leaves the
-// secret field blank keeps the stored one, a value replaces it, the clear box removes
-// it — exactly the channel-secret pattern.
-
-const defaultUsernameClaim = "preferred_username"
+// Settings → single sign-on (#293, ADR-0112, ADR-0113): declare, edit, re-key and remove
+// the OIDC providers the SignIn screen offers, and manage the verified-identity bindings
+// authentication keys on. Every act here is admin-gated (the routes carry requireAdmin),
+// and the client secret is write-only — an edit that leaves the secret field blank keeps
+// the stored one, a value replaces it, the clear box removes it — exactly the
+// channel-secret pattern.
 
 // ssoSlugPattern keeps a provider slug URL-safe: it rides the flow routes
 // (/login/sso/<slug>), so it is lowercase alphanumeric with internal hyphens.
@@ -25,21 +25,32 @@ var ssoSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 // ssoProviderView is one configured provider shaped for the Settings table: its
 // display fields, whether a secret is set (never the value), and who declared it.
 type ssoProviderView struct {
-	ID            int64
-	Slug          string
-	Name          string
-	Issuer        string
-	ClientID      string
-	UsernameClaim string
-	Enabled       bool
-	HasSecret     bool
-	CreatedBy     string
-	CreatedAt     string
+	ID        int64
+	Slug      string
+	Name      string
+	Issuer    string
+	ClientID  string
+	Enabled   bool
+	HasSecret bool
+	CreatedBy string
+	CreatedAt string
 }
 
-// fillSSOSection reads the configured providers and the add-form echo. The section is
-// the honest empty-state when none are configured (the SignIn "not configured" state
-// mirrors it); once a provider exists, SignIn renders a button for it.
+// ssoBindingView is one verified-identity binding for the admin table: which account an
+// external identity (via which provider) authenticates as, so an admin can remove it on
+// offboarding or a seat reassignment (ADR-0113).
+type ssoBindingView struct {
+	ID          int64
+	ProviderName string
+	Account     string
+	DisplayName string
+	LinkedAt    string
+}
+
+// fillSSOSection reads the configured providers, the current identity bindings, and the
+// add-form echo. The section is the honest empty-state when none are configured (the
+// SignIn "not configured" state mirrors it); once a provider exists, SignIn renders a
+// button for it.
 func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[string]any) error {
 	rows, err := s.store.ListSSOProviders(r.Context())
 	if err != nil {
@@ -49,41 +60,45 @@ func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[strin
 	for _, p := range rows {
 		out = append(out, ssoProviderView{
 			ID: p.ID, Slug: p.Slug, Name: p.Name, Issuer: p.Issuer, ClientID: p.ClientID,
-			UsernameClaim: p.UsernameClaim, Enabled: p.Enabled, HasSecret: p.HasSecret,
+			Enabled: p.Enabled, HasSecret: p.HasSecret,
 			CreatedBy: p.CreatedByUsername, CreatedAt: p.CreatedAt.Time.UTC().Format(spanTimeFmt),
 		})
 	}
 	data["SSOProviders"] = out
+
+	bindings, err := s.store.ListSSOBindings(r.Context())
+	if err != nil {
+		return err
+	}
+	bviews := make([]ssoBindingView, 0, len(bindings))
+	for _, b := range bindings {
+		bviews = append(bviews, ssoBindingView{
+			ID: b.ID, ProviderName: b.ProviderName, Account: b.AccountUsername,
+			DisplayName: b.DisplayName, LinkedAt: b.CreatedAt.Time.UTC().Format(spanTimeFmt),
+		})
+	}
+	data["SSOBindings"] = bviews
+
 	data["SSOError"] = f.ssoError
 	// Echo a rejected add form so the operator does not retype it; defaults otherwise.
 	data["SSOSlug"] = f.ssoSlug
 	data["SSOName"] = f.ssoName
 	data["SSOIssuer"] = f.ssoIssuer
 	data["SSOClientID"] = f.ssoClientID
-	claim := f.ssoClaim
-	if claim == "" {
-		claim = defaultUsernameClaim
-	}
-	data["SSOClaim"] = claim
 	return nil
 }
 
 // ssoFormValues pulls and trims the shared provider fields from a submission.
 type ssoFormValues struct {
-	slug, name, issuer, clientID, claim string
+	slug, name, issuer, clientID string
 }
 
 func readSSOForm(r *http.Request) ssoFormValues {
-	claim := strings.TrimSpace(r.FormValue("username_claim"))
-	if claim == "" {
-		claim = defaultUsernameClaim
-	}
 	return ssoFormValues{
 		slug:     strings.TrimSpace(r.FormValue("slug")),
 		name:     strings.TrimSpace(r.FormValue("name")),
 		issuer:   strings.TrimSpace(r.FormValue("issuer")),
 		clientID: strings.TrimSpace(r.FormValue("client_id")),
-		claim:    claim,
 	}
 }
 
@@ -117,7 +132,7 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 	fail := func(msg string) {
 		s.renderSettings(w, r, acct, settingsForms{
 			section: "sso", ssoError: msg,
-			ssoSlug: v.slug, ssoName: v.name, ssoIssuer: v.issuer, ssoClientID: v.clientID, ssoClaim: v.claim,
+			ssoSlug: v.slug, ssoName: v.name, ssoIssuer: v.issuer, ssoClientID: v.clientID,
 		})
 	}
 	if msg := validateSSOForm(v); msg != "" {
@@ -127,7 +142,7 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 	if _, err := s.store.InsertSSOProvider(r.Context(), db.InsertSSOProviderParams{
 		Slug: v.slug, Name: v.name, Issuer: v.issuer, ClientID: v.clientID,
 		ClientSecret: optionalSecret(r.FormValue("client_secret")),
-		UsernameClaim: v.claim, Enabled: true, CreatedBy: acct.ID,
+		Enabled: true, CreatedBy: acct.ID,
 	}); err != nil {
 		// A duplicate slug is the one expected user error the DB refuses (unique); tell
 		// the operator plainly rather than 500ing.
@@ -159,7 +174,7 @@ func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 	}
 	rows, err := s.store.UpdateSSOProvider(r.Context(), db.UpdateSSOProviderParams{
 		ID: id, Slug: v.slug, Name: v.name, Issuer: v.issuer, ClientID: v.clientID,
-		UsernameClaim: v.claim, Enabled: r.FormValue("enabled") != "",
+		Enabled: r.FormValue("enabled") != "",
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -218,5 +233,23 @@ func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "delete sso provider", err)
 		return
 	}
+	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)
+}
+
+// removeSSOBinding lets an admin revoke any verified-identity binding — the offboarding
+// / seat-reassignment case ADR-0113 is about, where a departed user's linked identity
+// (or a recycled one) must stop authenticating as an account. Idempotent: removing a row
+// already gone satisfies the intent either way.
+func (s *server) removeSSOBinding(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		s.renderSettings(w, r, acct, settingsForms{section: "sso", ssoError: "That identity could not be found."})
+		return
+	}
+	if err := s.store.DeleteSSOIdentity(r.Context(), id); err != nil {
+		s.serverError(w, "remove sso binding", err)
+		return
+	}
+	log.Printf("web: sso: admin %d removed identity binding %d", acct.ID, id)
 	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)
 }
