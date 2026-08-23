@@ -1,0 +1,9 @@
+# gitleaks false-positive allowlist (fingerprints: commit:file:rule:startline)
+# Reviewed and confirmed non-secret during the 2026-08-23 security audit (map #320).
+#
+# A `token:` demo value in a static design-system documentation page. design-system/
+# is static design assets, not a production request path (declared out of scope on
+# map #320), and the value was adversarially confirmed as a content-hash/demo fixture,
+# not a live credential. Suppressed by exact fingerprint so any *new* secret — even in
+# the same file — still trips the scan.
+bf98bb9040a89da4efaf7020ee2156edd12f4556:design-system/ui_kits/docs/index.html:generic-api-key:79
