@@ -30,6 +30,10 @@ var _ = template.Must(tmpl.Parse(dashboardTemplates))
 const dashboardTemplates = `
 {{define "home"}}{{template "head" .}}
 {{template "chrome" .}}
+{{if .EmptyEstate}}{{template "firstrun" .}}{{else}}{{template "dashboard" .}}{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "dashboard"}}
 <main style="display:flex;flex-direction:column;gap:var(--space-5)">
 
 <header style="display:flex;align-items:center;gap:var(--space-4)">
@@ -158,5 +162,5 @@ const dashboardTemplates = `
 </div>
 
 </main>
-{{template "foot" .}}{{end}}
+{{end}}
 `
