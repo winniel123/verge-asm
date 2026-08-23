@@ -196,6 +196,10 @@ Exposure findings — what of yours is reachable from the internet — now appea
 | Connection refused from the instance | The host port isn't reachable, or `PROBER_SSH_PORT` doesn't match the port you entered in verge. Check the map and any firewall. |
 | Want a different username | Rebuild with `docker compose build --build-arg PROBER_USER=<name>` and enter that name in verge. |
 
+For failures beyond the prober host itself — a withheld `Exposure`, undelivered
+notifications, a scan you cannot confirm ran — see the instance-wide
+**[troubleshooting.md](troubleshooting.md)**.
+
 ---
 
 ## What lives where

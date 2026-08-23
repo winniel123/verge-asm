@@ -152,3 +152,9 @@ scope** naming your origin over a custody extension on a CDN-fronted name.
 
 > This is the cheapest interim mitigation for CDN-fronted domains; the deeper fix is
 > tracked in [#247](https://github.com/winniel123/verge-asm/issues/247).
+
+---
+
+When a first run comes up short — an empty `Exposure`, nothing delivered, a scan you
+cannot confirm ran, a `Gap` you did not expect — the symptom-to-fix walkthrough is in
+**[troubleshooting.md](troubleshooting.md)**.

@@ -34,7 +34,9 @@ docker compose logs web | grep /setup
 
 You can later invite more accounts and set roles under **Settings**, and enable TOTP
 on your own account. Two roles exist: **admin** (can perform declared acts — seeds,
-scans, channels) and a read-only viewer.
+scans, channels) and a read-only viewer. Inviting, re-enrolling and removing accounts
+is covered in **[accounts.md](accounts.md)**; enrolling TOTP, minting API tokens and
+revoking sessions in **[authentication.md](authentication.md)**.
 
 ---
 
@@ -161,6 +163,10 @@ Once a batch commits, subjects, observations and spans appear across the pages b
 
 ## Reading what it found
 
+For the full tour of every read surface — coverage, exposure, drift, inventory, the
+graph and search, and how to read a single scan run — see
+**[reading-the-estate.md](reading-the-estate.md)**. The quick reference:
+
 | Page | Shows |
 | --- | --- |
 | **Subjects** | The `Name`s, `Address`es, `Service`s and `Endpoint`s in your estate, each drilling into its facet timelines. |
@@ -183,17 +189,13 @@ Withdraw it to restore the default message.
 ## Notification channels
 
 By default **nothing is routed anywhere** — no channel ships configured, so the
-delivery loop is a no-op until an admin declares one.
+delivery loop is a no-op until an admin declares one under **Settings → Channels**. A
+channel *carries the message, never the estate*.
 
-Under **Settings → Channels**, create a channel (an HTTP endpoint the worker `POST`s
-to). Deliveries ride the same retry/back-off/dead-letter curve as the measurement
-queue. A channel *carries the message, never the estate* — the body is a
-notification, and a `Delivery` is an operational record of the attempt.
-
-To include a working link back to the instance in each notification body, set
-`VERGE_PUBLIC_URL` on the `worker` service to your public base URL (see
-[running.md](running.md#environment-variables)). Left empty, the link is simply
-omitted rather than fabricated.
+The full treatment — creating and editing channels, what fires and what a message body
+carries, the `Delivery` attempt record, and setting `VERGE_PUBLIC_URL` so notification
+bodies link back to the instance — is in
+**[notification-channels.md](notification-channels.md)**.
 
 ---
 
