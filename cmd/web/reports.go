@@ -41,16 +41,72 @@ import (
 // it owns no mutation and adds no store method.
 
 // reportsDispatchLimit bounds the Dispatch read behind the scans-per-day heatmap.
-// The heatmap spans twelve weeks, and a Dispatch is one fan-out of one Scan, so a
-// generous cap covers that window without paging while staying a bounded read.
+// The heatmap spans up to a year (the widest range option below), and a Dispatch is
+// one fan-out of one Scan, so a generous cap covers that window without paging while
+// staying a bounded read.
 const reportsDispatchLimit = 2000
 
-// reportsHeatWeeks / reportsHeatDays are the heatmap's span: twelve weeks of one
-// column per week, seven rows per column, oldest-first.
+// reportsHeatWeeks / reportsHeatDays are the heatmap's DEFAULT span: twelve weeks of
+// one column per week, seven rows per column, oldest-first. The span is now
+// selectable (reportsRangeWeeks); twelve stays the default so an un-parameterised
+// request renders exactly as before.
 const (
 	reportsHeatWeeks = 12
 	reportsHeatDays  = reportsHeatWeeks * 7
 )
+
+// reportsRangeWeeks is the fixed set of spans the /reports range control offers, in
+// weeks. A small honest set — a quarter, the default twelve, a half-year, a year —
+// rather than a free from/to pair: the underlying series is whole-day scan volume,
+// so a coarse week-granular window is the faithful control. reportsHeatWeeks (12) is
+// the default and MUST appear in the set.
+var reportsRangeWeeks = []int{4, 12, 26, 52}
+
+// resolveReportsWeeks reads the ?weeks= range param and clamps it to the offered set
+// (reportsRangeWeeks), defaulting to reportsHeatWeeks when the param is absent,
+// unparseable, or not one of the offered spans. Threading it through reportsPage and
+// the export keeps the heatmap span, the "Scans run" window KPI, and the export all
+// reading the same range.
+func resolveReportsWeeks(r *http.Request) int {
+	raw := r.URL.Query().Get("weeks")
+	if raw == "" {
+		return reportsHeatWeeks
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return reportsHeatWeeks
+	}
+	for _, w := range reportsRangeWeeks {
+		if w == n {
+			return n
+		}
+	}
+	return reportsHeatWeeks
+}
+
+// reportsRangeOption is one entry in the range-select control: its weeks value, the
+// human label ("last 12 weeks"), and whether it is the active selection.
+type reportsRangeOption struct {
+	Weeks    int
+	Label    string
+	Selected bool
+}
+
+// reportsRangeOptions builds the select entries for the header range control,
+// marking the active span selected.
+func reportsRangeOptions(active int) []reportsRangeOption {
+	opts := make([]reportsRangeOption, 0, len(reportsRangeWeeks))
+	for _, w := range reportsRangeWeeks {
+		opts = append(opts, reportsRangeOption{Weeks: w, Label: reportsRangeLabel(w), Selected: w == active})
+	}
+	return opts
+}
+
+// reportsRangeLabel is the terse sentence-case span label used on the KPI caption,
+// the heatmap aria-label/legend, and the range-select options ("last 12 weeks").
+func reportsRangeLabel(weeks int) string {
+	return "last " + strconv.Itoa(weeks) + " weeks"
+}
 
 // heatCell is one day in the scans-per-day heatmap: the pre-computed inline
 // background (an intensity step on --chart-1, or the sunken step at zero), a
@@ -67,6 +123,12 @@ type heatCell struct {
 func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
 
+	// The selected range — a week span from the offered set, defaulting to twelve.
+	// It sets the heatmap span AND the "Scans run" window KPI so both read the same
+	// window; an un-parameterised request stays exactly the twelve-week default.
+	weeks := resolveReportsWeeks(r)
+	days := weeks * 7
+
 	// Operational activity — the scans-per-day heatmap and the two activity KPIs.
 	// A Dispatch read failure degrades to an empty heatmap rather than failing the
 	// whole analytics page a viewer depends on.
@@ -75,7 +137,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if err != nil {
 		log.Printf("web: reports: list dispatch progress: %v", err)
 	} else {
-		cells, heatTotal, scansWindow, activeScans = s.foldScanActivity(rows)
+		cells, heatTotal, scansWindow, activeScans = s.foldScanActivity(rows, days)
 	}
 
 	// The headline KPI — the current count of firing signals. It is a current-state
@@ -106,6 +168,13 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"Heat":    cells,
 		"HasHeat": heatTotal > 0,
 
+		// Range control + range-aware labels. RangeWeeks drives the export link's
+		// carried param; RangeLabel re-skins the twelve-week captions to the active
+		// span; RangeOptions renders the header select.
+		"RangeWeeks":   weeks,
+		"RangeLabel":   reportsRangeLabel(weeks),
+		"RangeOptions": reportsRangeOptions(weeks),
+
 		// Recurring reports. Scheduling has no backend yet (#290/#291), so this is
 		// empty and the table renders the empty-state; the row-menu "View last
 		// delivery" shape is ported now and lights up per report when it lands.
@@ -113,15 +182,16 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	})
 }
 
-// foldScanActivity buckets recent Dispatches into the twelve-week scans-per-day
-// heatmap and the two activity KPIs. Each Dispatch is placed by the whole-day
-// offset of its creation from today (UTC), oldest-first; the window KPI counts the
-// Dispatches inside the span, and the active KPI those with jobs still ready or
-// running. Intensity ramps on --chart-1 in four steps, matching HeatmapCalendar.
-func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow) (cells []heatCell, total, window, active int) {
+// bucketScanActivity is the shared core behind both the heatmap fold and the export:
+// it buckets Dispatches into per-day counts over the given span (oldest-first, index
+// 0 = the oldest day, last = today, UTC whole-day offsets) and derives the window
+// and in-flight totals. The window counts Dispatches dated inside the span; active
+// counts those with jobs still ready or running, regardless of date. days is the
+// span in whole days (weeks * 7).
+func (s *server) bucketScanActivity(rows []db.ListDispatchProgressRow, days int) (counts []int, window, active int) {
 	const day = 24 * time.Hour
 	today := s.now().UTC().Truncate(day)
-	counts := make([]int, reportsHeatDays)
+	counts = make([]int, days)
 	for _, row := range rows {
 		if row.Ready+row.Running > 0 {
 			active++
@@ -131,12 +201,23 @@ func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow) (cells []he
 		}
 		created := row.CreatedAt.Time.UTC().Truncate(day)
 		offset := int(today.Sub(created).Hours() / 24)
-		if offset < 0 || offset >= reportsHeatDays {
+		if offset < 0 || offset >= days {
 			continue
 		}
-		counts[reportsHeatDays-1-offset]++ // index 0 = oldest, last = today
+		counts[days-1-offset]++ // index 0 = oldest, last = today
 		window++
 	}
+	return counts, window, active
+}
+
+// foldScanActivity buckets recent Dispatches into the scans-per-day heatmap and the
+// two activity KPIs over the selected span (days = weeks * 7). Each Dispatch is
+// placed by the whole-day offset of its creation from today (UTC), oldest-first; the
+// window KPI counts the Dispatches inside the span, and the active KPI those with
+// jobs still ready or running. Intensity ramps on --chart-1 in four steps, matching
+// HeatmapCalendar. Passing reportsHeatDays reproduces the original twelve-week fold.
+func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow, days int) (cells []heatCell, total, window, active int) {
+	counts, window, active := s.bucketScanActivity(rows, days)
 
 	max := 1
 	for _, c := range counts {
@@ -149,7 +230,7 @@ func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow) (cells []he
 	// Intensity steps mirror HeatmapCalendar.jsx: 0/28/48/72/100% of --chart-1
 	// mixed into --surface, with the sunken step at zero.
 	pct := []int{0, 28, 48, 72, 100}
-	cells = make([]heatCell, reportsHeatDays)
+	cells = make([]heatCell, days)
 	for i, c := range counts {
 		level := 0
 		if c > 0 {

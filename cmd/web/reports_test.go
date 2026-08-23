@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -348,7 +350,7 @@ func TestFoldScanActivity(t *testing.T) {
 	// An undated row still contributes to the in-flight count but not the grid.
 	rows = append(rows, db.ListDispatchProgressRow{DispatchID: 4, Ready: 1})
 
-	cells, total, window, active := s.foldScanActivity(rows)
+	cells, total, window, active := s.foldScanActivity(rows, reportsHeatDays)
 	if len(cells) != reportsHeatDays {
 		t.Fatalf("cells = %d, want %d", len(cells), reportsHeatDays)
 	}
@@ -372,5 +374,227 @@ func TestFoldScanActivity(t *testing.T) {
 	// A day with no dispatch stays at the sunken step.
 	if string(cells[0].Bg) != "var(--sunken)" {
 		t.Errorf("the oldest, empty day should be sunken, got %q", cells[0].Bg)
+	}
+}
+
+// resolveReportsWeeks parses ?weeks= and clamps to the offered set, defaulting to
+// twelve when the param is absent, unparseable, or not one of the offered spans.
+func TestResolveReportsWeeks(t *testing.T) {
+	cases := []struct {
+		query string
+		want  int
+	}{
+		{"", reportsHeatWeeks},           // absent -> default
+		{"weeks=26", 26},                 // offered
+		{"weeks=4", 4},                   // offered
+		{"weeks=52", 52},                 // offered
+		{"weeks=12", 12},                 // offered (the default, explicitly)
+		{"weeks=9", reportsHeatWeeks},    // not offered -> default
+		{"weeks=0", reportsHeatWeeks},    // not offered -> default
+		{"weeks=-8", reportsHeatWeeks},   // not offered -> default
+		{"weeks=abc", reportsHeatWeeks},  // unparseable -> default
+		{"weeks=99999", reportsHeatWeeks}, // out of set -> default
+	}
+	for _, c := range cases {
+		r := httptest.NewRequest(http.MethodGet, "/reports?"+c.query, nil)
+		if got := resolveReportsWeeks(r); got != c.want {
+			t.Errorf("resolveReportsWeeks(%q) = %d, want %d", c.query, got, c.want)
+		}
+	}
+}
+
+// The range param changes the fold window: a Dispatch dated 100 days before today is
+// outside the twelve-week (84-day) default window but inside a 26-week (182-day) one,
+// so the window KPI counts it only for the wider range. The heatmap grid also grows
+// to match the selected span.
+func TestFoldScanActivityRangeWindow(t *testing.T) {
+	s := &server{now: func() time.Time { return reportsClock }}
+	rows := []db.ListDispatchProgressRow{
+		progressRow(1, "dns", reportsClock.AddDate(0, 0, -100), 1, 0, 0, 1, 0, 0), // 100 days old
+	}
+
+	// Twelve weeks (84 days): the 100-day-old row is out of window.
+	cells12, _, window12, _ := s.foldScanActivity(rows, reportsHeatWeeks*7)
+	if len(cells12) != reportsHeatWeeks*7 {
+		t.Fatalf("12wk cells = %d, want %d", len(cells12), reportsHeatWeeks*7)
+	}
+	if window12 != 0 {
+		t.Errorf("12wk window = %d, want 0 (100-day-old row is out of the 84-day window)", window12)
+	}
+
+	// Twenty-six weeks (182 days): the same row now falls inside the window.
+	cells26, _, window26, _ := s.foldScanActivity(rows, 26*7)
+	if len(cells26) != 26*7 {
+		t.Fatalf("26wk cells = %d, want %d", len(cells26), 26*7)
+	}
+	if window26 != 1 {
+		t.Errorf("26wk window = %d, want 1 (100-day-old row is inside the 182-day window)", window26)
+	}
+}
+
+// The header range control renders the offered spans, marks the active one selected,
+// re-skins the range-aware captions, and carries the active span into the export
+// links. The default (no param) stays exactly "last 12 weeks".
+func TestReportsRangeControlRenders(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// Default: twelve weeks, and the export links carry weeks=12.
+	def := getBody(t, ac, base+"/reports", http.StatusOK)
+	if !strings.Contains(def, `<option value="12" selected>last 12 weeks</option>`) {
+		t.Errorf("default range control should mark 12 weeks selected; body: %s", def)
+	}
+	if !strings.Contains(def, "/reports/export?format=csv&amp;weeks=12") {
+		t.Errorf("default export link should carry weeks=12; body: %s", def)
+	}
+
+	// A selected range re-skins the caption, the heatmap aria-label, and the export
+	// links to the chosen span.
+	wide := getBody(t, ac, base+"/reports?weeks=26", http.StatusOK)
+	if !strings.Contains(wide, `<option value="26" selected>last 26 weeks</option>`) {
+		t.Errorf("range=26 should mark 26 weeks selected; body: %s", wide)
+	}
+	if !strings.Contains(wide, "last 26 weeks") {
+		t.Errorf("range=26 should re-skin captions to 'last 26 weeks'; body: %s", wide)
+	}
+	if !strings.Contains(wide, "/reports/export?format=json&amp;weeks=26") {
+		t.Errorf("range=26 JSON export link should carry weeks=26; body: %s", wide)
+	}
+}
+
+// GET /reports/export?format=csv streams a text/csv attachment with the summary band
+// and one scans_per_day row per day of the active range.
+func TestReportsExportCSV(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	day := reportsClock.AddDate(0, 0, -1)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(1, "hot", day, 3, 1, 1, 1, 0, 0), // in flight
+		progressRow(2, "dns", day, 2, 0, 0, 2, 0, 0), // complete
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp, err := ac.Get(base + "/reports/export?format=csv&weeks=12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := body(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("export csv status = %d, want 200 (body: %s)", resp.StatusCode, got)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
+		t.Errorf("export csv Content-Type = %q, want text/csv", ct)
+	}
+	if cd := resp.Header.Get("Content-Disposition"); !strings.Contains(cd, "attachment; filename=") || !strings.Contains(cd, ".csv") {
+		t.Errorf("export csv Content-Disposition = %q, want an attachment .csv filename", cd)
+	}
+	// Header row + the summary band, with the two-in-window scans-run figure.
+	for _, want := range []string{"section,label,value", "summary,scans_run,2", "summary,in_flight,1", "scans_per_day,"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("export csv missing %q; body:\n%s", want, got)
+		}
+	}
+	// One scans_per_day row per day of the twelve-week (84-day) window.
+	if n := strings.Count(got, "scans_per_day,"); n != reportsHeatWeeks*7 {
+		t.Errorf("export csv scans_per_day rows = %d, want %d", n, reportsHeatWeeks*7)
+	}
+}
+
+// GET /reports/export?format=json streams an application/json attachment whose range,
+// KPI band, and per-day series reflect the active range.
+func TestReportsExportJSON(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	day := reportsClock.AddDate(0, 0, -1)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(1, "hot", day, 3, 1, 1, 1, 0, 0), // in flight
+		progressRow(2, "dns", day, 2, 0, 0, 2, 0, 0), // complete
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp, err := ac.Get(base + "/reports/export?format=json&weeks=26")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := body(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("export json status = %d, want 200 (body: %s)", resp.StatusCode, raw)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("export json Content-Type = %q, want application/json", ct)
+	}
+	if cd := resp.Header.Get("Content-Disposition"); !strings.Contains(cd, "attachment; filename=") || !strings.Contains(cd, ".json") {
+		t.Errorf("export json Content-Disposition = %q, want an attachment .json filename", cd)
+	}
+
+	var doc reportsExportDoc
+	if err := json.Unmarshal([]byte(raw), &doc); err != nil {
+		t.Fatalf("export json does not parse: %v\nbody: %s", err, raw)
+	}
+	if doc.Range.Weeks != 26 || doc.Range.Days != 26*7 {
+		t.Errorf("range = %dw/%dd, want 26w/%dd", doc.Range.Weeks, doc.Range.Days, 26*7)
+	}
+	if len(doc.ScansPerDay) != 26*7 {
+		t.Errorf("scans_per_day len = %d, want %d", len(doc.ScansPerDay), 26*7)
+	}
+	if doc.KPIs.ScansRun != 2 {
+		t.Errorf("kpis.scans_run = %d, want 2", doc.KPIs.ScansRun)
+	}
+	if doc.KPIs.InFlight != 1 {
+		t.Errorf("kpis.in_flight = %d, want 1", doc.KPIs.InFlight)
+	}
+	// open_signals is present (empty estate -> a real zero census, not null).
+	if doc.KPIs.OpenSignals == nil {
+		t.Errorf("kpis.open_signals should be a real count, got null")
+	}
+	// The last day of the series is today.
+	if last := doc.ScansPerDay[len(doc.ScansPerDay)-1].Date; last != reportsClock.Format("2006-01-02") {
+		t.Errorf("last series day = %q, want today %q", last, reportsClock.Format("2006-01-02"))
+	}
+}
+
+// An unrecognised export format is a 400 — the handler serves only csv and json.
+func TestReportsExportBadFormat(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp, err := ac.Get(base + "/reports/export?format=xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body(t, resp)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("export bad format status = %d, want 400", resp.StatusCode)
+	}
+}
+
+// The export is behind requireLogin — an anonymous GET is bounced to sign-in, never
+// served the figures.
+func TestReportsExportRequiresLogin(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+
+	c := newClient(t) // does not follow redirects
+	resp, err := c.Get(base + "/reports/export?format=csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("anonymous export status = %d, want 303", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/login" {
+		t.Fatalf("anonymous export location = %q, want /login", loc)
 	}
 }
