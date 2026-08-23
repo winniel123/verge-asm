@@ -46,6 +46,11 @@ type fakeStore struct {
 
 	sourceStates map[string]db.SourceState
 
+	// integrationStates mirrors the integration_state table (#308): the operator's
+	// per-integration install state, keyed by slug. Absence is the available (not
+	// installed) state, so a disconnect deletes the row.
+	integrationStates map[string]db.IntegrationState
+
 	// admitted stands in for the admitted_name rows behind a CT-admitted Name's
 	// Citation (ADR-0107); the citation test seeds it directly.
 	admitted []db.AdmittedName
@@ -127,7 +132,8 @@ func newFakeStore() *fakeStore {
 		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
 		seedNextID: 1, exclNextID: 1, annoNextID: 1, vantageNextID: 1, chanNextID: 1,
 		lookupNextID: 1, proposalNext: 1,
-		sourceStates: map[string]db.SourceState{},
+		sourceStates:      map[string]db.SourceState{},
+		integrationStates: map[string]db.IntegrationState{},
 		scans: []db.Scan{
 			{ID: 1, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
 			{ID: 2, Kind: "hot", Enabled: true, CadenceSeconds: 86400},

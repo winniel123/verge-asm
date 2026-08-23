@@ -508,6 +508,10 @@ type Querier interface {
 	// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
 	// (service, class), mirroring the observation read one facet over.
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
+	// The operator's install states, merged by the handler onto the in-binary
+	// integration catalogue: an integration's effective state is its stored state
+	// where a row exists and available (not installed) otherwise.
+	ListIntegrationStates(ctx context.Context) ([]IntegrationState, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
@@ -670,6 +674,15 @@ type Querier interface {
 	// edit that leaves it blank keeps the existing one untouched.
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
+	// Disconnect an integration, returning it to available (not installed). Absence
+	// of a row is the available state, so a disconnect removes the row rather than
+	// storing a sentinel.
+	DeleteIntegrationState(ctx context.Context, slug string) error
+	// Record the operator's install choice for one integration. An install is a
+	// Declared act with no timeline, no actor, and no instant of its own (ADR-0073,
+	// ADR-0093), so re-installing overwrites the single current state and the row
+	// holds only the current install state.
+	UpsertIntegrationState(ctx context.Context, arg UpsertIntegrationStateParams) (IntegrationState, error)
 	// Record the operator's on/off choice for one source. A toggle is a Declared act
 	// with no timeline, no actor, and no instant of its own (ADR-0073, ADR-0093), so
 	// re-toggling overwrites the single current value and the row holds only the

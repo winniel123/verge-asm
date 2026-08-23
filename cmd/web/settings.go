@@ -102,7 +102,7 @@ type settingsForms struct {
 // settingsTabs is the sub-tab order of the Settings screen, ported from
 // examples/console/Settings.jsx: the two Scanning sections, the delivery group,
 // then Access. Each is reached at /settings?tab=<id>.
-var settingsTabs = []string{"scans", "vantages", "channels", "messages", "delivery", "access", "integrations"}
+var settingsTabs = []string{"scans", "vantages", "sources", "channels", "messages", "delivery", "access", "integrations"}
 
 // validTab keeps the query param to a known section, defaulting to the first.
 func validTab(t string) string {
@@ -385,6 +385,8 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		err = s.fillScansSection(r, acct, data)
 	case "vantages":
 		err = s.fillVantagesSection(r, data)
+	case "sources":
+		err = s.fillSourcesSection(r, data)
 	case "channels":
 		err = s.fillChannelsSection(r, f, data)
 	case "integrations":

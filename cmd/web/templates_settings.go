@@ -31,6 +31,7 @@ const settingsTemplates = `
 <div class="tabs">
 <a class="tab{{if eq .Tab "scans"}} active{{end}}" href="/settings?tab=scans">Scans</a>
 <a class="tab{{if eq .Tab "vantages"}} active{{end}}" href="/settings?tab=vantages">Vantages</a>
+<a class="tab{{if eq .Tab "sources"}} active{{end}}" href="/settings?tab=sources">Sources</a>
 <a class="tab{{if eq .Tab "channels"}} active{{end}}" href="/settings?tab=channels">Channels</a>
 <a class="tab{{if eq .Tab "messages"}} active{{end}}" href="/settings?tab=messages">Messages</a>
 <a class="tab{{if eq .Tab "delivery"}} active{{end}}" href="/settings?tab=delivery">Delivery</a>
@@ -41,11 +42,12 @@ const settingsTemplates = `
 
 {{if eq .Tab "scans"}}{{template "settings-scans" .}}{{end}}
 {{if eq .Tab "vantages"}}{{template "settings-vantages" .}}{{end}}
+{{if eq .Tab "sources"}}{{template "settings-sources" .}}{{end}}
 {{if eq .Tab "channels"}}{{template "settings-channels" .}}{{end}}
 {{if eq .Tab "messages"}}{{template "settings-messages" .}}{{end}}
 {{if eq .Tab "delivery"}}{{template "settings-delivery" .}}{{end}}
 {{if eq .Tab "access"}}{{template "settings-access" .}}{{end}}
-{{if eq .Tab "integrations"}}{{template "integrations-body" .}}{{end}}
+{{if eq .Tab "integrations"}}{{template "settings-integrations" .}}{{end}}
 </main>
 {{template "foot" .}}{{end}}
 
