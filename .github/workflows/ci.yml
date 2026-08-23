@@ -174,8 +174,12 @@ jobs:
 
   # Static application security testing. Runs gosec with `-no-fail` so a
   # pre-existing finding does not break the build; results are surfaced as
-  # SARIF in the repository's code-scanning (Security) tab. Only this job is
-  # granted `security-events: write`; the top-level default stays read-only.
+  # SARIF in the repository's code-scanning (Security) tab where code scanning
+  # is available. The upload is best-effort (`continue-on-error`): on a repo
+  # without GitHub code scanning / Advanced Security the code-scanning API is
+  # not accessible and the upload would otherwise fail an informational job.
+  # Only this job is granted `security-events: write`; the top-level default
+  # stays read-only.
   gosec:
     runs-on: ubuntu-latest
     permissions:
@@ -188,6 +192,7 @@ jobs:
         with:
           args: "-no-fail -fmt sarif -out results.sarif ./..."
       - name: Upload gosec SARIF
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
         with:
           sarif_file: results.sarif
