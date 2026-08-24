@@ -411,6 +411,32 @@ func (s *server) revokeCurrentSession(r *http.Request) {
 	}
 }
 
+// currentSessionID resolves the request cookie to the id of the live session row making
+// this request (#406) — the same three steps currentAccount takes (verify the signed
+// cookie, then look the session up by the hash of the opaque token it carries), returning
+// only the row id. It backs the Profile sessions surface: the "this device" badge marks
+// the row whose id this returns, and the revoke-one / sign-out-others handlers use it to
+// tell the current session apart from the rest. ok=false for a missing, unverifiable, or
+// pre-registry cookie, in which case no row is treated as current.
+func (s *server) currentSessionID(r *http.Request) (int64, bool) {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return 0, false
+	}
+	sess, err := auth.VerifySession(s.key, c.Value, auth.KindSession, s.now())
+	if err != nil {
+		return 0, false
+	}
+	row, err := s.store.GetSessionByTokenHash(r.Context(), db.GetSessionByTokenHashParams{
+		TokenHash: hashToken(sess.Token),
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	})
+	if err != nil {
+		return 0, false
+	}
+	return row.ID, true
+}
+
 func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64) {
 	// #405 (ADR-0117): open a server-side session row at login. Mint an opaque token —
 	// the plaintext rides in the signed cookie, only its SHA-256 hash is stored, so a
@@ -1150,23 +1176,36 @@ type profileTokenView struct {
 	Last    string
 }
 
+// profileSessionView is one of the account's own live sessions shaped for the sessions
+// table (#406): its id (for the revoke-one form), the device derived from the stored
+// user_agent, the source IP, a relative "last active", and whether it is the session
+// making this request (which wears the "this device" badge and shows no revoke control).
+type profileSessionView struct {
+	ID         int64
+	Device     string
+	IP         string
+	LastActive string
+	Current    bool
+}
+
 // profileState carries the transient, per-request Profile surface: which dialog is
 // open, a freshly minted token to reveal once, and any inline errors. It never
 // holds persisted data — that is read fresh in renderProfile — so a plain page load
 // passes the zero value.
 type profileState struct {
-	notice     string
-	pwError    string
-	createOpen bool
-	tokError   string
-	tokName    string
-	minted     string // freshly minted plaintext — shown once, never stored
-	mintedName string
-	revokeID   int64 // token-revoke ConfirmDialog target; 0 = closed
-	revokeErr  string
-	endSession bool   // end-session ConfirmDialog open
-	ssoNotice  string // SSO link/unlink outcome (a success or benign message)
-	ssoError   string // SSO link failure (a refusal)
+	notice        string
+	pwError       string
+	createOpen    bool
+	tokError      string
+	tokName       string
+	minted        string // freshly minted plaintext — shown once, never stored
+	mintedName    string
+	revokeID      int64 // token-revoke ConfirmDialog target; 0 = closed
+	revokeErr     string
+	endSession    bool   // end-session ConfirmDialog open
+	signOutOthers bool   // sign-out-other-sessions ConfirmDialog open (#406)
+	ssoNotice     string // SSO link/unlink outcome (a success or benign message)
+	ssoError      string // SSO link failure (a refusal)
 }
 
 // profilePage renders the account's own Profile (#304): identity, credentials with
@@ -1188,8 +1227,19 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if q.Get("endsession") != "" {
 		st.endSession = true
 	}
+	if q.Get("signoutothers") != "" {
+		st.signOutOthers = true
+	}
 	if q.Get("saved") != "" {
 		st.notice = "Password changed. Other sessions keep working until they expire."
+	}
+	// Session-management outcomes (#406) ride back as fixed query codes, each mapped to an
+	// honest notice — never reflected free text.
+	if q.Get("sessionrevoked") != "" {
+		st.notice = "That session was signed out."
+	}
+	if q.Get("othersout") != "" {
+		st.notice = "Your other sessions were signed out. This one keeps working."
 	}
 	// SSO self-link outcomes ride back as fixed query codes (never reflected free text),
 	// each mapped here to an honest message.
@@ -1254,6 +1304,31 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		available = s.profileLinkableProviders(r, linkedProviders)
 	}
 
+	// Sessions (#406): this account's own live sessions, newest activity first, with the
+	// row making this request marked so it wears the "this device" badge and shows no
+	// revoke control. Every figure is a real read — the device is derived from the stored
+	// user_agent, the IP is the stored source, and "last active" is the last_seen_at the
+	// per-request touch keeps current. A read failure degrades to an empty listing rather
+	// than failing the whole Profile.
+	curSessionID, haveCurSession := s.currentSessionID(r)
+	var sessions []profileSessionView
+	if rows, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+		AccountID: acct.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err == nil {
+		for _, row := range rows {
+			sessions = append(sessions, profileSessionView{
+				ID:         row.ID,
+				Device:     sessionDeviceFromUA(row.UserAgent),
+				IP:         row.Ip,
+				LastActive: agoLabel(row.LastSeenAt.Time, s.now()),
+				Current:    haveCurSession && row.ID == curSessionID,
+			})
+		}
+	} else {
+		log.Printf("web: profile: list sessions: %v", err)
+	}
+
 	// The revoke ConfirmDialog names its target; resolve it from the read so a stale
 	// or foreign id simply renders no dialog rather than a gate with no subject.
 	revokeName := ""
@@ -1279,8 +1354,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"CreatedISO":  isoDate(acct.CreatedAt),
 		"TotpEnabled": acct.TotpEnabled,
 
-		"SessionDevice": sessionDevice(r),
-		"SessionIP":     sessionIP(r),
+		"Sessions": sessions,
 
 		"Tokens": tokens,
 
@@ -1298,8 +1372,9 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"MintedName": st.mintedName,
 		"RevokeID":   st.revokeID,
 		"RevokeName": revokeName,
-		"RevokeErr":  st.revokeErr,
-		"EndSession": st.endSession,
+		"RevokeErr":     st.revokeErr,
+		"EndSession":    st.endSession,
+		"SignOutOthers": st.signOutOthers,
 	}
 	s.render(w, "profile", data)
 }
@@ -1483,6 +1558,60 @@ func (s *server) revokeSession(w http.ResponseWriter, r *http.Request, _ db.Acco
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
+// revokeOneSession revokes a single one of the account's own live sessions by id (#406) —
+// the per-row control in the Profile sessions card. The revoke is owner-scoped in SQL (the
+// account_id predicate), so a posted id that is not this account's is a harmless no-op
+// rather than a way to end another account's session; a foreign or absent id therefore
+// falls through to a plain return to /profile. When the id names the session making the
+// request, the caller has just ended its own session, so the cookie is cleared and it is
+// sent to /login (that cookie resolves no live row on its next request anyway); otherwise
+// it returns to the Profile with a notice.
+func (s *server) revokeOneSession(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	curID, haveCur := s.currentSessionID(r)
+	if err := s.store.RevokeSession(r.Context(), db.RevokeSessionParams{
+		ID:        id,
+		AccountID: acct.ID,
+		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		s.serverError(w, "profile: revoke session", err)
+		return
+	}
+	if haveCur && id == curID {
+		s.clearCookie(w, sessionCookie)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/profile?sessionrevoked=1", http.StatusSeeOther)
+}
+
+// signOutOtherSessions revokes every live session for the account EXCEPT the one making
+// the request (#406) — the "Sign out others" card action, reached only through its
+// ConfirmDialog. The current session id is resolved from the request and passed as the
+// exception, so the acting tab keeps working while every other device is ended on its next
+// request. If no current session resolves (a missing or pre-registry cookie), there is no
+// session to keep, so it does nothing rather than sign the caller out of the tab in hand.
+func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	curID, ok := s.currentSessionID(r)
+	if !ok {
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
+		AccountID: acct.ID,
+		ID:        curID,
+		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		s.serverError(w, "profile: sign out other sessions", err)
+		return
+	}
+	http.Redirect(w, r, "/profile?othersout=1", http.StatusSeeOther)
+}
+
 // mintPersonalToken generates a personal token, returning the plaintext to reveal
 // once, the non-secret prefix to store for display, and the hash to store in place
 // of the secret. The token is high-entropy random, so a SHA-256 digest is the right
@@ -1540,44 +1669,6 @@ func initials(username string) string {
 		return string(r[0])
 	}
 	return string(r[0]) + string(r[1])
-}
-
-// sessionDevice describes the current session from the request's User-Agent — a real
-// derivation of what the client sent, never a fabricated device. An unrecognised or
-// absent agent degrades to a plain label rather than a guess.
-func sessionDevice(r *http.Request) string {
-	ua := r.UserAgent()
-	if ua == "" {
-		return "This session"
-	}
-	browser := "Browser"
-	switch {
-	case strings.Contains(ua, "Firefox"):
-		browser = "Firefox"
-	case strings.Contains(ua, "Edg"):
-		browser = "Edge"
-	case strings.Contains(ua, "Chrome"), strings.Contains(ua, "Chromium"):
-		browser = "Chrome"
-	case strings.Contains(ua, "Safari"):
-		browser = "Safari"
-	}
-	os := ""
-	switch {
-	case strings.Contains(ua, "Mac OS X"), strings.Contains(ua, "Macintosh"):
-		os = "macOS"
-	case strings.Contains(ua, "Windows"):
-		os = "Windows"
-	case strings.Contains(ua, "iPhone"), strings.Contains(ua, "iPad"):
-		os = "iOS"
-	case strings.Contains(ua, "Android"):
-		os = "Android"
-	case strings.Contains(ua, "Linux"):
-		os = "Linux"
-	}
-	if os != "" {
-		return browser + " · " + os
-	}
-	return browser
 }
 
 // sessionIP is the address this request arrived from. It reads RemoteAddr, never a

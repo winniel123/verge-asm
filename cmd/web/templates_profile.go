@@ -15,10 +15,12 @@ import "html/template"
 //     username changed by an admin (there is no IdP and no separate profile name),
 //     so the Identity card reads the account facts read-only rather than offering an
 //     editable display name / email the server does not model.
-//   - Sessions are stateless signed cookies with no server-side registry, so only
-//     the current session is knowable. The card renders it honestly and the one
-//     revocable session — the current one — ends through the ConfirmDialog; there is
-//     no fabricated list of other devices to "sign out".
+//   - Sessions are backed by the server-side registry (#405/#406, ADR-0117): the card
+//     lists this account's own live sessions read from the registry, marks the current
+//     one with a "this device" badge, and offers a per-row revoke plus a "Sign out
+//     others" action (behind a ConfirmDialog). Ending the current session stays its own
+//     control. Every row is a real session — device from the stored user_agent, IP and
+//     last-active from the row — never a fabricated device.
 //   - A token inherits the account's role (no partial scopes are enforced), so the
 //     New-token dialog states that rather than offering a Scope select that would
 //     bind nothing. Recovery-code rotation is not a feature of this build, so the
@@ -79,19 +81,23 @@ const profileTemplates = `
 <div class="section" style="margin-top:var(--space-5)">
 <div class="rulehead">
 <div><div class="microlabel">Sessions</div><h2 style="margin:0">Signed in right now</h2></div>
+<div style="display:flex;align-items:center;gap:8px">
+{{if gt (len .Sessions) 1}}<a class="btn secondary" href="/profile?signoutothers=1">Sign out others</a>{{end}}
 <a class="btn secondary" href="/profile?endsession=1">End this session</a>
 </div>
+</div>
 <table>
-<thead><tr><th>Device</th><th>IP</th><th>Last active</th></tr></thead>
+<thead><tr><th>Device</th><th>IP</th><th>Last active</th><th></th></tr></thead>
 <tbody>
-<tr>
-<td><span style="display:inline-flex;align-items:center;gap:8px"><span style="font-weight:500;color:var(--ink)">{{.SessionDevice}}</span> <span class="badge" style="color:var(--link);border-color:var(--accent-soft);background:var(--accent-soft)">this device</span></span></td>
-<td class="mono">{{.SessionIP}}</td>
-<td class="mono">now</td>
-</tr>
+{{range .Sessions}}<tr>
+<td><span style="display:inline-flex;align-items:center;gap:8px"><span style="font-weight:500;color:var(--ink)">{{.Device}}</span>{{if .Current}} <span class="badge" style="color:var(--link);border-color:var(--accent-soft);background:var(--accent-soft)">this device</span>{{end}}</span></td>
+<td class="mono">{{.IP}}</td>
+<td class="mono">{{.LastActive}}</td>
+<td style="text-align:right">{{if not .Current}}<form method="post" action="/profile/sessions/revoke" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button class="iconbtn" type="submit" aria-label="Revoke this session" title="Revoke this session"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button></form>{{end}}</td>
+</tr>{{end}}
 </tbody>
 </table>
-<p class="muted" style="margin:var(--space-3) 0 0;font-size:12px">Sessions on this deployment are stateless signed cookies with no central registry, so other devices are not individually listed. Ending this session signs you out here; a session elsewhere lapses when it expires.</p>
+<p class="muted" style="margin:var(--space-3) 0 0;font-size:12px">Each row is a live session for your account. Revoking one signs that device out on its next request; ending this session signs you out here. A session also lapses on its own when it expires.</p>
 </div>
 
 <div class="section">
@@ -206,6 +212,20 @@ const profileTemplates = `
 <div class="dialog-actions">
 <a class="btn ghost" href="/profile">Cancel</a>
 <form method="post" action="/profile/session/revoke" style="margin:0"><button class="danger" type="submit">End session</button></form>
+</div>
+</div>
+{{end}}
+
+{{if .SignOutOthers}}
+<a class="scrim" href="/profile" aria-label="Cancel"></a>
+<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Sign out other sessions" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);z-index:42">
+<div class="microlabel" style="margin-bottom:8px">Sign out others</div>
+<h2 style="margin:0 0 8px">Sign out your other sessions</h2>
+<p style="margin:0 0 4px">Every other signed-in device is signed out on its next request. This session &#8212; the one you are using now &#8212; keeps working.</p>
+<p class="muted" style="margin:0 0 var(--space-4)">Use this if you signed in somewhere you no longer trust.</p>
+<div class="dialog-actions">
+<a class="btn ghost" href="/profile">Cancel</a>
+<form method="post" action="/profile/sessions/revoke-others" style="margin:0"><button class="danger" type="submit">Sign out others</button></form>
 </div>
 </div>
 {{end}}

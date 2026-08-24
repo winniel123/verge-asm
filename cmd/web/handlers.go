@@ -623,6 +623,11 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /profile/tokens", s.requireLogin(s.createPersonalToken))
 	mux.HandleFunc("POST /profile/tokens/revoke", s.requireLogin(s.revokePersonalToken))
 	mux.HandleFunc("POST /profile/session/revoke", s.requireLogin(s.revokeSession))
+	// Personal sessions surface (#406, ADR-0117): an account revokes one of its own live
+	// sessions or signs out all but the current one. Both are owner-scoped in SQL, so a
+	// posted id can never reach another account's session.
+	mux.HandleFunc("POST /profile/sessions/revoke", s.requireLogin(s.revokeOneSession))
+	mux.HandleFunc("POST /profile/sessions/revoke-others", s.requireLogin(s.signOutOtherSessions))
 	// SSO self-link (#319, ADR-0113): an authenticated user links their own verified
 	// identity so it can sign them in, and unlinks it. The link runs the OIDC round-trip
 	// inside the caller's session (requireLogin) and binds (provider, sub) → their
