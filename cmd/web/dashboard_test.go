@@ -12,22 +12,36 @@ import (
 
 // The Dashboard renders full parity with Dashboard.jsx (P2.1, #447): the framed
 // five-cell stat band, the by-severity bars, the census Coverage card, the Vantages
-// card with the latency Skeleton placeholder, and the most-recent Signals register —
-// and neither of the two re-skinned empty-state holds this ticket deletes.
+// card with its per-vantage latency reading (P0.5, #485), and the most-recent
+// Signals register — and neither of the two re-skinned empty-state holds this
+// ticket deletes.
 func TestDashboardParityRegions(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	// A non-empty estate so `/` renders the Dashboard, not the first-run checklist.
 	addNameSeed(t, f, admin.ID, "example.com")
 	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
-	// A provisioned vantage so the Vantages card renders a row (and its latency
-	// Skeleton), rather than the no-vantage empty state.
+	// A provisioned vantage with a measured connect latency (P0.5) so the Vantages
+	// card renders a row with the spec's mono "34ms" reading, not the no-vantage
+	// empty state and not a fabricated number.
 	f.vantages = append(f.vantages, db.Vantage{
 		ID: f.vantageNextID, Name: "eu-west-1", Class: "internet",
 		Host:         pgtype.Text{String: "prober.example.com", Valid: true},
 		Port:         pgtype.Int4{Int32: 22, Valid: true},
 		Username:     pgtype.Text{String: "verge", Valid: true},
 		Availability: pgtype.Text{String: "available", Valid: true},
+		LatencyMs:    pgtype.Int4{Int32: 34, Valid: true},
+		CreatedBy:    pgtype.Int8{Int64: admin.ID, Valid: true},
+	})
+	f.vantageNextID++
+	// A second provisioned vantage whose prober has not been reached yet: latency
+	// is still NULL, so its reading is the spec's pending em dash, never a number.
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: f.vantageNextID, Name: "us-east-2", Class: "internet",
+		Host:         pgtype.Text{String: "prober2.example.com", Valid: true},
+		Port:         pgtype.Int4{Int32: 22, Valid: true},
+		Username:     pgtype.Text{String: "verge", Valid: true},
+		Availability: pgtype.Text{String: "pending", Valid: true},
 		CreatedBy:    pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	f.vantageNextID++
@@ -47,13 +61,24 @@ func TestDashboardParityRegions(t *testing.T) {
 		"Certs expiring ≤30d",
 		"By severity",         // the real severity bars
 		"Scan infrastructure", // the Vantages card
-		"dash-skel",           // per-vantage latency renders the Skeleton placeholder
 		"eu-west-1",           // the provisioned vantage
+		"34ms",                // its measured connect latency renders the real value
+		"us-east-2",           // the unmeasured vantage
 		"Most recent",         // the most-recent Signals register
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("dashboard missing parity region %q", want)
 		}
+	}
+
+	// The unmeasured vantage renders the spec's pending em dash, and the retired
+	// latency Skeleton placeholder is gone — a real value or a dash, never a
+	// fabricated number and never the old skeleton.
+	if !strings.Contains(page, "&#8212;") {
+		t.Error("dashboard did not render the pending em dash for the unmeasured vantage latency")
+	}
+	if strings.Contains(page, "dash-skel") {
+		t.Error("dashboard still renders the retired latency Skeleton placeholder")
 	}
 
 	// The two re-skinned empty-state holds this ticket deletes are gone, along with

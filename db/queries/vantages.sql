@@ -16,14 +16,16 @@ VALUES (
     sqlc.arg(created_by)::bigint
 )
 RETURNING id, name, class, resolver, host, port, username, availability,
-          public_key, host_key, created_by, created_at;
+          public_key, host_key, created_by, created_at, latency_ms;
 
 -- name: ListVantages :many
 -- The web prober list: only provisioned vantages (those carrying a prober
 -- endpoint). The resolver-only `local` vantage has no prober and is excluded.
+-- latency_ms is the per-vantage connect round-trip the Dashboard renders (P0.5),
+-- NULL until the prober connect that pins the host key lands a first measurement.
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
-       a.username AS created_by_username
+       v.latency_ms, a.username AS created_by_username
 FROM vantage v
 JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
@@ -31,7 +33,7 @@ ORDER BY v.created_at DESC, v.id DESC;
 
 -- name: GetVantage :one
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at
+       public_key, host_key, created_by, created_at, latency_ms
 FROM vantage
 WHERE id = $1;
 
@@ -51,10 +53,31 @@ ORDER BY name;
 -- (host set) whose public half has not been published, so no key material has
 -- ever left the worker volume for them.
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at
+       public_key, host_key, created_by, created_at, latency_ms
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NULL
 ORDER BY id;
+
+-- name: ListVantagesNeedingLatency :many
+-- Rows the worker still has to measure a connect latency for (P0.5): a
+-- provisioned prober (host set) whose keypair has been published (public_key set,
+-- so a private half exists on the worker volume to dial with) but whose latency
+-- has never been measured. The connect the worker makes here is the same one that
+-- pins the host key trust-on-first-use, so measuring on it needs no extra dial.
+SELECT id, name, class, resolver, host, port, username, availability,
+       public_key, host_key, created_by, created_at, latency_ms
+FROM vantage
+WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
+ORDER BY id;
+
+-- name: SetVantageLatency :exec
+-- The worker records the round-trip time of the prober connect that pinned the
+-- host key (P0.5, SPEC-CHANGE.md collision #7). Stored in whole milliseconds — the
+-- unit the Dashboard renders — and set only from a real measurement, never a
+-- fabricated value.
+UPDATE vantage
+SET latency_ms = $2
+WHERE id = $1;
 
 -- name: SetVantagePublicKey :exec
 -- The worker publishes only the public half of the pair it generated on its own

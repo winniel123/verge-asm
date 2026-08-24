@@ -338,6 +338,7 @@ type Vantage struct {
 	HostKey      pgtype.Text        `json:"host_key"`
 	CreatedBy    pgtype.Int8        `json:"created_by"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	LatencyMs    pgtype.Int4        `json:"latency_ms"`
 }
 
 type VergeCoreFrequencyEdit struct {
