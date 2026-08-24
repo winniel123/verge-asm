@@ -588,6 +588,26 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 	// :root variable. It is design-authored CSS from the embedded package, no user
 	// input, so template.CSS keeps html/template from escaping it.
 	"designTokens": func() template.CSS { return template.CSS(designTokensCSS) },
+	// A design-served page (.DesignTokens) also gets a small shell reset, emitted in
+	// the head block, that isolates the frozen design tmpl from the legacy pageCSS
+	// cascade it is served inside. Two parts:
+	//   - `body{display:block}` — the legacy shell makes body a flex column with
+	//     `body > main {flex:1 0 auto}`; against the design tmpl's own `main {
+	//     max-width; margin:0 auto }`, the flex context shrink-wraps main to its
+	//     content width and stretches short states to the viewport height, so the app
+	//     rendered /inventory narrower and taller than the frozen design. Block flow
+	//     lets the tmpl size as authored (full width to its max, content height).
+	//   - `main td{border-bottom:0}` + `main label{margin-bottom:0}` + `main label
+	//     span{margin-bottom:0}` — pageCSS's GENERIC element selectors (a `td`
+	//     border-bottom, a `label`/`label span` margin) bleed into the design tmpl's
+	//     own <table>/<label> where its `.inv-*` classes don't restate them, adding a
+	//     px per row and a few to the toolbar versus the isolated design. Scoped to
+	//     `main` so the chrome (which legitimately uses those pageCSS rules) is
+	//     untouched. These are the exact bleeds a computed-style diff localized on
+	//     this screen; the pixel gate (G2) confirms the isolation is complete.
+	// All of it is repo shell glue wiring the frozen tmpl into the app — not screen
+	// styling — and is removed wholesale when the chrome converts to the design shell
+	// (P4.4, WORKFLOW.md).
 	// signDelta formats a vs-last-batch stat delta (drift.Delta.Change, P0.2 #443) as
 	// the design's signed chip label: "+N" for a rise, "−N" (a true minus, the
 	// voice's signed-delta rule — design-system README) for a fall, and "0" for no
@@ -610,7 +630,7 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var t=localStorage.getItem("verge-theme");if(t){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
-<title>{{.Title}} · Verge ASM</title>{{if .Refresh}}<meta http-equiv="refresh" content="6">{{end}}<style>` + pageCSS + `</style>{{if .DesignTokens}}<style data-design-tokens>{{designTokens}}</style>{{end}}</head><body>{{end}}
+<title>{{.Title}} · Verge ASM</title>{{if .Refresh}}<meta http-equiv="refresh" content="6">{{end}}<style>` + pageCSS + `</style>{{if .DesignTokens}}<style data-design-tokens>{{designTokens}}</style><style data-design-shell>body{display:block}main td{border-bottom:0}main label{margin-bottom:0}main label span{margin-bottom:0}</style>{{end}}</head><body>{{end}}
 {{define "foot"}}{{if .Chrome}}<footer class="appfooter"><span class="foot-note">verge asm · self-hosted · AGPL-3.0</span><span class="foot-links"><a href="https://github.com/winniel123/verge-asm/tree/main/docs" rel="noreferrer">Docs</a><a href="https://github.com/winniel123/verge-asm" rel="noreferrer">GitHub</a></span></footer>{{end}}<script>
 /* Preserve scroll position across the POST-redirect-GET every form action runs.
    Each mutating handler answers 303 to the same page, so a naive reload lands at
