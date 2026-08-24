@@ -1,7 +1,7 @@
 ---
 title: Provisioning a prober
-section: Operating
-order: 3
+section: Scanning
+order: 2
 description: A worked Docker example for standing up the dedicated prober host that lets verge measure your exposure from the outside.
 ---
 

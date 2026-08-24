@@ -1,7 +1,7 @@
 ---
 title: Discovery sources
-section: Operating
-order: 2
+section: Scanning
+order: 1
 description: Discovery sources widen what verge-asm knows about your estate before it measures — the catalogue, consent tiers, and the crt.sh and RIR caveats.
 ---
 

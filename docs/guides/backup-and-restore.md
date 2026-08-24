@@ -1,7 +1,7 @@
 ---
 title: Backup & restore
 section: Operating
-order: 11
+order: 2
 description: Take a consistent pgdata dump and restore it, protect the two state volumes, and tune the retention dials that decide what the estate keeps.
 ---
 

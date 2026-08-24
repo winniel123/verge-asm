@@ -1,7 +1,7 @@
 ---
 title: Reports
-section: Operating
-order: 6
+section: Signals & delivery
+order: 3
 description: Reports are scheduled digests of the whole estate — how a report differs from a notification, the recurring-schedule shape, and the delivered-report artifact and its PDF.
 ---
 

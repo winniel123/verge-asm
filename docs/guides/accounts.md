@@ -1,7 +1,7 @@
 ---
 title: Accounts, invites & roles
-section: Operating
-order: 7
+section: Access
+order: 1
 description: The two-role model, inviting operators and the invite lifecycle, changing a role, re-enrolling a lost second factor, and removing an account — all admin-gated, and how it meets the /setup admin and SSO.
 ---
 
