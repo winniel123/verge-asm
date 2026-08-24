@@ -224,14 +224,15 @@ type RecoveryCode struct {
 }
 
 type ReportDelivery struct {
-	ID          int64              `json:"id"`
-	ScheduleID  int64              `json:"schedule_id"`
-	PeriodStart pgtype.Timestamptz `json:"period_start"`
-	PeriodEnd   pgtype.Timestamptz `json:"period_end"`
-	DeliveryNo  int32              `json:"delivery_no"`
-	GeneratedAt pgtype.Timestamptz `json:"generated_at"`
-	DeliveredAt pgtype.Timestamptz `json:"delivered_at"`
-	State       string             `json:"state"`
+	ID            int64              `json:"id"`
+	ScheduleID    int64              `json:"schedule_id"`
+	PeriodStart   pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd     pgtype.Timestamptz `json:"period_end"`
+	DeliveryNo    int32              `json:"delivery_no"`
+	GeneratedAt   pgtype.Timestamptz `json:"generated_at"`
+	DeliveredAt   pgtype.Timestamptz `json:"delivered_at"`
+	State         string             `json:"state"`
+	ScheduledTick pgtype.Timestamptz `json:"scheduled_tick"`
 }
 
 type ReportSchedule struct {

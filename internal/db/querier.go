@@ -1031,6 +1031,13 @@ type Querier interface {
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.
 	TryFanOut(ctx context.Context, arg TryFanOutParams) (int64, error)
+	// Claim one on-cadence run of a schedule for a tick, idempotently: the partial
+	// unique (schedule_id, scheduled_tick) admits only the first poll in a window; a
+	// later poll conflicts and returns no row (a recorded skip, not a double-run),
+	// mirroring the queue dispatcher's TryFanOut. delivery_no is the caller's
+	// NextReportDeliveryNo read; state is 'generated' and delivered_at NULL — an
+	// in-instance run generates without leaving (off-instance send is T7/#508, blocked).
+	TryInsertScheduledDelivery(ctx context.Context, arg TryInsertScheduledDeliveryParams) (TryInsertScheduledDeliveryRow, error)
 	UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error
 	// Updates everything but the secret; the secret has its own write path so an
 	// edit that leaves it blank keeps the existing one untouched.
