@@ -24,8 +24,12 @@ import "html/template"
 // (no product/version — a guardrail on drift-integrity grounds). Severity is no
 // longer a hold — it is a real per-rule datum (internal/signal SeverityFor, P0.1
 // #442; SPEC-CHANGE.md collision #1 superseded), so signals-here paints each firing
-// rule's SeverityBadge exactly as the spec renders it (AssetDetail.jsx), the same
-// ramp Signals, Graph and Search read. Change rides its own palette (the drift chips
+// rule's SeverityBadge exactly as the spec renders it (AssetDetail.jsx), and the
+// header identity carries the aggregate SeverityBadge (the most urgent firing
+// severity) and ExposureBadge (the worst reachability across the open ports) the spec
+// shows (AssetDetail.jsx:35-36) — the same ramp Signals, Graph and Search read. Both
+// header badges omit when the asset has no firing signal / no measured port, the
+// spec's own conditional-omit pattern. Change rides its own palette (the drift chips
 // and the shared `changeglyph`), never the severity ramp; signals are withdrawn
 // by the world, never "resolved".
 var _ = template.Must(tmpl.Parse(assetTemplates))
@@ -67,6 +71,8 @@ const assetTemplates = `
 <h1 class="mono" style="margin:0;font-size:21px;letter-spacing:-0.01em;color:var(--ink)">{{.Key}}</h1>
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="chip">{{.Type}}</span>
+{{if .Severity}}<span class="sev sev-{{.Severity}}">{{if ne .Severity "critical"}}<span class="sev-dot"></span>{{end}}{{.Severity}}</span>{{end}}
+{{if .Exposure}}{{template "assetexposure" .Exposure}}{{end}}
 {{if or .Seen .InScopeSince}}<span class="mono muted" style="font-size:12px">{{if .Seen}}seen {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
 </div>
 </div>

@@ -28,12 +28,12 @@ func TestAssetDetailRendersSections(t *testing.T) {
 
 	// All six sections render, in the example's vocabulary.
 	for _, want := range []string{
-		"Open ports",       // ports census
-		"DNS records",      // resolution
-		"TLS certificate",  // cert
-		"How it got here",  // provenance
-		"Signals here",     // signals
-		"Drift trail",      // history
+		"Open ports",      // ports census
+		"DNS records",     // resolution
+		"TLS certificate", // cert
+		"How it got here", // provenance
+		"Signals here",    // signals
+		"Drift trail",     // history
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("asset detail missing section %q; body: %s", want, page)
@@ -101,6 +101,63 @@ func TestAssetDetailSignalsHereCarrySeverity(t *testing.T) {
 	if !strings.Contains(page, `class="sev sev-medium"`) {
 		t.Errorf("Signals here row missing its medium SeverityBadge; body: %s", page)
 	}
+}
+
+// The header identity carries the aggregate SeverityBadge (the most urgent firing
+// severity) and ExposureBadge (the worst reachability across the open ports) the
+// spec shows (AssetDetail.jsx:35-36). Both are rolled up from the datums the rows
+// already carry — nothing is fabricated — and each omits when its datum is absent.
+func TestAssetDetailHeaderAggregateBadges(t *testing.T) {
+	// assetHeader slices the identity header off the page (its h1 carries the
+	// distinctive 21px style) so the badge assertions can't collide with the census
+	// or signals-here rows further down.
+	assetHeader := func(page string) string {
+		from := strings.Index(page, "font-size:21px")
+		if from < 0 {
+			return ""
+		}
+		hdr := page[from:]
+		if end := strings.Index(hdr, "</header>"); end >= 0 {
+			hdr = hdr[:end]
+		}
+		return hdr
+	}
+
+	// SeverityBadge: a Name holding a lame delegation fires lame-delegation (medium),
+	// so the header rolls it up as the aggregate SeverityBadge.
+	t.Run("severity", func(t *testing.T) {
+		f := newFakeStore()
+		seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+		lameName(t, f, "lame.example.com")
+
+		base := start(t, f, "")
+		ac := login(t, base, "admin", "hunter2hunter2")
+		page := getBody(t, ac, base+"/asset/lame.example.com", http.StatusOK)
+
+		hdr := assetHeader(page)
+		if !strings.Contains(hdr, `class="sev sev-`) {
+			t.Errorf("header missing aggregate SeverityBadge; header: %s", hdr)
+		}
+	})
+
+	// ExposureBadge: a Name with an exposed open port rolls up to an "exposed"
+	// aggregate ExposureBadge in the header.
+	t.Run("exposure", func(t *testing.T) {
+		f := newFakeStore()
+		admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+		addNameSeed(t, f, admin.ID, "example.com")
+		f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+		f.addReachability(t, "198.51.100.1:443/tcp", obsClock, `{"outcome":"reached","result":"open"}`)
+
+		base := start(t, f, "")
+		ac := login(t, base, "admin", "hunter2hunter2")
+		page := getBody(t, ac, base+"/asset/api.example.com", http.StatusOK)
+
+		hdr := assetHeader(page)
+		if !strings.Contains(hdr, `class="exp exposed"`) {
+			t.Errorf("header missing aggregate ExposureBadge; header: %s", hdr)
+		}
+	})
 }
 
 // A Name measured gone renders the withdrawn notice — it is reached by its own key
