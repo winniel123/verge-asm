@@ -9,23 +9,27 @@ import "html/template"
 // open-span corpus and joins the Signal engine's fired census onto the nodes (#289);
 // where the estate holds nothing, the design-system empty-state shows.
 //
-// The example's severity affordances are re-skinned to honest signal-PRESENCE —
-// signals in this product have no severity (ADR-0024/ADR-0110, as reports.go):
-//   - a node with ≥1 open signal draws a --warn presence halo (class gnode-halo)
-//     and a --warn minimap dot; a node with none draws neither. This is presence,
-//     not a five-level ramp, so a single token carries every marked node.
-//   - the drawer lists the rules that fired for the selected node (mono rule name,
-//     the same slug the Signals screen renders, plus the finer subject where an
-//     endpoint firing rides a Name node), or an honest "No open signals" state.
-//   - the header Select is the presence axis (all / with / without), not a severity
-//     scale; the filter hides whole nodes client-side off each node's data-signals
-//     count.
+// The example's severity affordances are drawn for real — every rule carries a
+// five-level severity (P0.1), so the presence-only re-skin is retired (P2.3, the
+// design is normative for look AND functionality, ADR-0116):
+//   - a node with open signals draws a halo (class gnode-halo) and a minimap dot
+//     tinted to its worst severity (the --sev-<level>-dot token); a service node
+//     fills to that token. A node with none draws neither.
+//   - the drawer lists the rules that fired for the selected node, each with its own
+//     SeverityBadge (the shared .sev pill), the mono rule slug the Signals screen
+//     renders, and the finer subject where an endpoint firing rides a Name node — or
+//     an honest "No open signals" state.
+//   - the header Select is the five-level severity filter (All severities /
+//     Critical / High / Medium / Low / Info) the spec renders; picking a level lights
+//     only the halos + minimap dots of nodes at that level, client-side off each
+//     node's data-sev, matching GraphView.jsx (all nodes stay drawn).
 //
 // The example's inline styles are translated into the T0 pageCSS token vocabulary
 // (--text-ink -> --ink, --text-secondary -> --body, --border-default -> --hairline,
 // --focus-ring -> --focus, --surface-raised -> --surface, --neutral-* -> the
-// hairline/strong neutrals); the presence halo/dot use the semantic --warn token. No
-// second stylesheet and no design-system component is authored here (ADR-0109).
+// hairline/strong neutrals); halos/dots and the drawer badge use the --sev-* ramp
+// tokens and the shared .sev pill class. No second stylesheet and no design-system
+// component is authored here (ADR-0109).
 var _ = template.Must(tmpl.Parse(graphTemplates))
 
 const graphTemplates = `
@@ -39,8 +43,8 @@ const graphTemplates = `
 </div>
 {{if not .Graph.Empty}}
 <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-<select id="graph-filter" aria-label="Signal filter" style="width:190px">
-<option value="all">All nodes</option><option value="with">With open signals</option><option value="without">No open signals</option>
+<select id="graph-filter" aria-label="Severity filter" style="width:190px">
+<option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="info">Info</option>
 </select>
 <button type="button" class="secondary" id="graph-export">Export PNG</button>
 </div>
@@ -60,10 +64,10 @@ Scope and let a scan measure a subject into the estate to populate it.</p>
 <g id="graph-viewport" transform="translate(0,0) scale(1)">
 {{range .Graph.Edges}}<line x1="{{.X1}}" y1="{{.Y1}}" x2="{{.X2}}" y2="{{.Y2}}" stroke="{{if .ToService}}var(--hairline){{else}}var(--border-strong){{end}}" stroke-width="1.25"></line>
 {{end}}
-{{range .Graph.Nodes}}<g class="gnode" data-id="{{.ID}}" data-type="{{.Type}}" data-ports="{{.Ports}}" data-first="{{.First}}" data-signals="{{len .OpenSignals}}" transform="translate({{.X}},{{.Y}})" style="cursor:pointer">
-{{if .OpenSignals}}<circle class="gnode-halo" r="{{.HaloR}}" fill="var(--warn)" opacity="0.14"></circle><circle class="gnode-halo" r="{{.HaloR}}" fill="none" stroke="var(--warn)" stroke-width="2" opacity="0.6"></circle>
+{{range .Graph.Nodes}}<g class="gnode" data-id="{{.ID}}" data-type="{{.Type}}" data-ports="{{.Ports}}" data-first="{{.First}}" data-signals="{{len .OpenSignals}}" data-sev="{{.Sev}}" transform="translate({{.X}},{{.Y}})" style="cursor:pointer">
+{{if .Sev}}<circle class="gnode-halo" r="{{.HaloR}}" fill="var(--sev-{{.Sev}}-dot)" opacity="0.12"></circle><circle class="gnode-halo" r="{{.HaloR}}" fill="none" stroke="var(--sev-{{.Sev}}-dot)" stroke-width="2" opacity="0.65"></circle>
 {{end}}{{if eq .Type "ip"}}<rect x="-9" y="-9" width="18" height="18" rx="5" fill="var(--surface)" stroke="var(--body)" stroke-width="1.5"></rect>
-{{else if eq .Type "service"}}<circle r="6" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"></circle>
+{{else if eq .Type "service"}}<circle r="6" fill="{{if .Sev}}var(--sev-{{.Sev}}-dot){{else}}var(--surface){{end}}" stroke="{{if .Sev}}var(--surface){{else}}var(--border-strong){{end}}" stroke-width="1.5"></circle>
 {{else}}<circle r="10" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"></circle>
 {{end}}<text x="{{.LabelDX}}" y="4" style="font:400 11px var(--mono);fill:var(--body);user-select:none">{{.Label}}</text>
 </g>
@@ -72,7 +76,7 @@ Scope and let a scan measure a subject into the estate to populate it.</p>
 </svg>
 <div id="graph-minimap" style="position:absolute;left:14px;bottom:14px;background:var(--surface);border:1px solid var(--hairline);border-radius:10px;box-shadow:var(--shadow-md);padding:6px;line-height:0">
 <svg width="{{.Graph.MiniW}}" height="{{.Graph.MiniH}}">
-{{range .Graph.Nodes}}<circle cx="{{.Mx}}" cy="{{.My}}" r="1.5" fill="{{if .OpenSignals}}var(--warn){{else}}var(--muted){{end}}"></circle>{{end}}
+{{range .Graph.Nodes}}<circle data-id="{{.ID}}" data-sev="{{.Sev}}" cx="{{.Mx}}" cy="{{.My}}" r="1.5" fill="{{if .Sev}}var(--sev-{{.Sev}}-dot){{else}}var(--muted){{end}}"></circle>{{end}}
 <rect id="graph-mini-rect" data-mw="{{.Graph.MiniW}}" data-mh="{{.Graph.MiniH}}" x="0" y="0" width="{{.Graph.MiniW}}" height="{{.Graph.MiniH}}" rx="3" fill="none" stroke="var(--accent)" stroke-width="1.5"></rect>
 </svg>
 </div>
@@ -86,7 +90,7 @@ Scope and let a scan measure a subject into the estate to populate it.</p>
 <span style="display:inline-flex;align-items:center;gap:7px"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"></circle></svg><span style="font:400 11px var(--mono);color:var(--body)">name</span></span>
 <span style="display:inline-flex;align-items:center;gap:7px"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="3.5" fill="var(--surface)" stroke="var(--body)" stroke-width="1.5"></rect></svg><span style="font:400 11px var(--mono);color:var(--body)">address</span></span>
 <span style="display:inline-flex;align-items:center;gap:7px"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"></circle></svg><span style="font:400 11px var(--mono);color:var(--body)">service</span></span>
-<span style="display:inline-flex;align-items:center;gap:7px"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" fill="var(--warn)" opacity="0.14"></circle><circle cx="9" cy="9" r="6" fill="none" stroke="var(--warn)" stroke-width="2" opacity="0.6"></circle><circle cx="9" cy="9" r="3" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"></circle></svg><span style="font:400 11px var(--mono);color:var(--body)">open signal</span></span>
+<span style="display:inline-flex;align-items:center;gap:7px"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" fill="var(--sev-critical-dot)" opacity="0.15"></circle><circle cx="9" cy="9" r="6" fill="none" stroke="var(--sev-critical-dot)" stroke-width="2" opacity="0.7"></circle><circle cx="9" cy="9" r="3" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"></circle></svg><span style="font:400 11px var(--mono);color:var(--body)">open signal halo</span></span>
 </div>
 </div>
 
@@ -115,9 +119,12 @@ Scope and let a scan measure a subject into the estate to populate it.</p>
 </div>
 
 <div id="graph-signal-data" hidden>
-{{range $n := .Graph.Nodes}}<div data-for="{{$n.ID}}">{{range $n.OpenSignals}}<div style="display:flex;flex-direction:column;gap:2px">
+{{range $n := .Graph.Nodes}}<div data-for="{{$n.ID}}">{{range $n.OpenSignals}}<div style="display:flex;align-items:flex-start;gap:10px">
+<span class="sev sev-{{.Sev}}" style="flex:none"><span class="sev-dot"></span>{{.Sev}}</span>
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0">
 <span style="font:500 12.5px var(--mono);color:var(--ink);word-break:break-all">{{.Rule}}</span>
 {{if ne .Subject $n.ID}}<span style="font:400 11px var(--mono);color:var(--muted);word-break:break-all">{{.Subject}}</span>{{end}}
+</div>
 </div>{{end}}</div>{{end}}
 </div>
 {{end}}
@@ -210,7 +217,7 @@ Scope and let a scan measure a subject into the estate to populate it.</p>
     /* The fired-rule list for this node is pre-rendered server-side in
        #graph-signal-data (a subject key holds no double-quote, so it is a safe
        attribute-selector value); clone it in, or fall back to the honest empty
-       state. Presence, never severity. */
+       state. Each row carries its rule's SeverityBadge (P2.3). */
     var box = document.getElementById("gd-signals");
     var empty = document.getElementById("gd-signals-empty");
     var src = document.querySelector('#graph-signal-data [data-for="' + id + '"]');
@@ -239,16 +246,23 @@ Scope and let a scan measure a subject into the estate to populate it.</p>
   for (var c = 0; c < closers.length; c++) closers[c].addEventListener("click", closeDrawer);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeDrawer(); });
 
-  /* The presence filter — the honest axis (signals carry no severity). It hides
-     whole nodes off each node's open-signal count, never dims a fabricated level. */
+  /* The severity filter (GraphView.jsx): picking a level lights only the halos and
+     minimap dots of nodes whose worst severity is that level; every node stays
+     drawn. "All severities" restores each node's own severity tint. */
   var filter = document.getElementById("graph-filter");
+  function litFor(sev, mode) { return !!sev && (mode === "all" || mode === sev); }
   if (filter) filter.addEventListener("change", function () {
     var mode = filter.value;
     var ns = document.querySelectorAll(".gnode");
     for (var k = 0; k < ns.length; k++) {
-      var has = (+ns[k].getAttribute("data-signals")) > 0;
-      var show = mode === "all" || (mode === "with" && has) || (mode === "without" && !has);
-      ns[k].style.display = show ? "" : "none";
+      var lit = litFor(ns[k].getAttribute("data-sev"), mode);
+      var halos = ns[k].querySelectorAll(".gnode-halo");
+      for (var h = 0; h < halos.length; h++) halos[h].style.display = lit ? "" : "none";
+    }
+    var dots = document.querySelectorAll("#graph-minimap circle[data-id]");
+    for (var d = 0; d < dots.length; d++) {
+      var s = dots[d].getAttribute("data-sev");
+      dots[d].setAttribute("fill", litFor(s, mode) ? "var(--sev-" + s + "-dot)" : "var(--muted)");
     }
   });
 
