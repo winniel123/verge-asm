@@ -162,11 +162,11 @@ func (s *server) dashboardDeltas(ctx context.Context, fired []firedSignal) statD
 
 // countCertsExpiring counts the endpoint certificate spans whose leaf expires within
 // certExpiryWindow of the reference instant — not already expired at `ref`, and
-// expiring on or before ref+window. The expiry instant is read from an optional
-// `not_after` on the certificate value; the shipped value carries only outcome and
-// fingerprint chain (internal/measure/connectoutcome/certificate.go), so until a
-// certificate-parsing leaf stores not_after (#445) this is honestly zero — the tile
-// shows no expiring certs because none are measured, never a fabricated count.
+// expiring on or before ref+window. The expiry instant is read from the `not_after`
+// key the presented certificate value now carries: the v2 leaf stores the parsed
+// leaf's NotAfter (internal/measure/connectoutcome/tls.go, P0.4b #464, SPEC-CHANGE.md
+// collision #8). A value with no `not_after` — a negative outcome, or a pre-v2 span —
+// simply does not contribute; the count is a real read, never a fabricated instant.
 func countCertsExpiring(open []drift.Span, ref time.Time) int {
 	horizon := ref.Add(certExpiryWindow)
 	n := 0

@@ -78,6 +78,31 @@ func TestAssetDetailRendersSections(t *testing.T) {
 	}
 }
 
+// A rule firing on the Name lights its "Signals here" row with the rule's
+// SeverityBadge. Severity is a real per-rule datum (internal/signal SeverityFor,
+// P0.1 #442), the same ramp Signals, Graph and Search read, so the spec's badge
+// (AssetDetail.jsx) renders rather than being held back as "would be fabricated"
+// (the P2.7 empty-state-while-datum-exists fix). lame-delegation is rated medium.
+func TestAssetDetailSignalsHereCarrySeverity(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	lameName(t, f, "lame.example.com")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/asset/lame.example.com", http.StatusOK)
+
+	// The firing rule is listed in "Signals here" (a rule slug never leaks into the
+	// shell palette, so a page-wide match is unambiguous here).
+	if !strings.Contains(page, "lame-delegation") {
+		t.Errorf("Signals here did not list the firing rule; body: %s", page)
+	}
+	// It leads with the rule's SeverityBadge — the medium ramp, read never fabricated.
+	if !strings.Contains(page, `class="sev sev-medium"`) {
+		t.Errorf("Signals here row missing its medium SeverityBadge; body: %s", page)
+	}
+}
+
 // A Name measured gone renders the withdrawn notice — it is reached by its own key
 // and named as a population of no current member, never a false absence.
 func TestAssetDetailWithdrawn(t *testing.T) {

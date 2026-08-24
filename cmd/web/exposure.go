@@ -16,8 +16,9 @@ import (
 // state, never an error — the WITHHELD state that names its cause when no internet
 // vantage exists.
 //
-// Two honest holds against the mock, on the reports.go precedent (fabricated mock
-// data is re-skinned to real current-state facts, never invented):
+// The screen renders real current-state facts rather than the mock's sample data;
+// the design is normative for look AND functionality (ADR-0116). Two deviations from
+// the mock, each now backed by real state (no re-skin, nothing invented):
 //
 //   - The example's "Spec state" SegmentedControl (With vantage / Withheld) is a
 //     design-review affordance to preview both states. Here the state is real:

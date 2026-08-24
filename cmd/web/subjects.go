@@ -962,12 +962,15 @@ type assetKV struct {
 	V string
 }
 
-// assetSignal is one signal firing on this asset — its rule and the subject it
-// fired on. It carries NO severity: the census is deliberately not a severity ramp
-// (signals.go / ADR-0024), so a level here would be fabricated.
+// assetSignal is one signal firing on this asset — its rule, the subject it fired
+// on, and the rule's severity. Severity is a real per-rule datum (internal/signal
+// SeverityFor, P0.1 #442), so the "Signals here" row carries its SeverityBadge
+// exactly as the spec renders it (AssetDetail.jsx) — the same ramp Signals, Graph
+// and Search read, never fabricated.
 type assetSignal struct {
-	Rule    string
-	Subject string
+	Rule     string
+	Subject  string
+	Severity string // the rule's severity token: critical | high | medium | low | info
 }
 
 // assetDriftEvent is one transition on this asset, in change's own language: the
@@ -1150,10 +1153,10 @@ func assetExposure(outcome string, isGap bool) string {
 }
 
 // assetSignals folds the full signal corpus and keeps the fired members whose
-// subject IS this asset (the Name-rule population is keyed by the Name). It carries
-// no severity — the census is deliberately not a severity ramp — so the section
-// lists the firing rules honestly rather than inventing a level. Best-effort: a
-// corpus-build failure yields no signals (the section empty-states).
+// subject IS this asset (the Name-rule population is keyed by the Name), each row
+// carrying its rule's severity (internal/signal SeverityFor, P0.1) for the
+// SeverityBadge the spec renders. Best-effort: a corpus-build failure yields no
+// signals (the section empty-states).
 func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
 	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
@@ -1163,7 +1166,8 @@ func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
 	for _, c := range signal.EvaluateCorpus(corpus) {
 		for _, m := range c.Fired {
 			if m.Subject == key {
-				out = append(out, assetSignal{Rule: c.Rule, Subject: m.Subject})
+				sev, _ := signal.SeverityFor(c.Rule)
+				out = append(out, assetSignal{Rule: c.Rule, Subject: m.Subject, Severity: sev.String()})
 			}
 		}
 	}
