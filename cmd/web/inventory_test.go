@@ -146,13 +146,16 @@ func TestInventoryPageRendersEstateValues(t *testing.T) {
 	}
 	// Row → Asset detail (#310, T15): each Name row opens T1's /asset/{key}, wired
 	// both as the anchor href and as the whole-row navigable data-href, and the row
-	// carries the roving-focus affordances (a focusable, link-role row).
+	// carries the roving-focus affordances (a focusable, link-role row). The frozen
+	// design tmpl marks the navigable row with role="link" + aria-label rather than a
+	// class, and the j/k keyboard nav lives in the tmpl's script.
 	for _, want := range []string{
-		`href="/asset/api.example.com"`,      // the Subject-cell anchor
+		`href="/asset/api.example.com"`,     // the Subject-cell anchor
 		`data-href="/asset/api.example.com"`, // whole-row click / Enter destination
-		`class="invrow"`,                     // navigable row
-		`tabindex="0"`,                       // roving keyboard focus
-		"j/k or arrows to move · enter opens", // keyboard-nav affordance/hint
+		`role="link"`,                       // navigable row (design tmpl markup)
+		`aria-label="Open api.example.com"`, // the row's accessible open affordance
+		`tabindex="0"`,                      // roving keyboard focus
+		`e.key === "j"`,                     // j/k keyboard nav, present in the tmpl's script
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("inventory missing row→asset / keyboard affordance %q; body: %s", want, page)
@@ -168,14 +171,16 @@ func TestInventoryPageRendersEstateValues(t *testing.T) {
 		t.Errorf("inventory nav pill not marked active; body: %s", page)
 	}
 
-	// Structural checklist vs 03-console.jpg: saved views, density control, column
-	// picker, a per-row Type in domain vocabulary, and the hover peek on the key.
+	// Structural checklist vs 03-console.jpg: the Kind cluster, density control, column
+	// picker, a per-row Type in domain vocabulary, and the facet label + value in the
+	// Holds cell. (The old title-attr hover peek is not in the frozen design tmpl.)
 	for _, want := range []string{
-		"All subjects",              // saved-views cluster
-		"Density",                   // density control
-		"Columns",                   // column picker
-		`<span class="badge">Name`, // Type cell — the domain noun, not a wire tag
-		"resolution: Resolved",     // hover peek (title attr) summarising the facets
+		"All subjects",                      // Kind segmented control
+		`aria-label="Row density"`,          // density control
+		"Columns",                           // column picker
+		`<span class="inv-tag">Name`,        // Type cell — the domain noun, not a wire tag
+		`class="inv-facetlabel">resolution`, // the facet label rendered in the Holds cell
+		"Resolved",                          // its current value
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("inventory structural element missing %q; body: %s", want, page)
@@ -320,15 +325,14 @@ func TestInventoryScopeControls(t *testing.T) {
 	page := getBody(t, ac, base+"/inventory", http.StatusOK)
 
 	for _, want := range []string{
-		`data-invkind`,     // Kind segmented control
-		`data-kind="name"`, // one Kind option (and section) per rendered group
-		`data-invgaps`,     // Gaps-only switch
+		`id="inv-kind"`,                // Kind segmented control (design tmpl markup)
+		`data-kind="name"`,             // one Kind option (and section) per rendered group
+		`id="inv-gaps"`,                // Gaps-only switch
 		"Gaps only",
-		`data-invfilter`,  // subject filter
-		`data-invnomatch`, // no-match empty state
-		`data-invclear`,   // its Clear-filters reset
-		`data-invsub`,     // each row is scopable
-		`data-has-gap=`,   // the Gaps-only datum, per row
+		`id="inv-q"`,                   // subject filter
+		"No subjects match this scope", // no-match empty state
+		`id="inv-clear"`,               // its Clear-filters reset
+		`data-key="api.example.com"`,   // each row is scopable by its subject key
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("inventory scope control missing %q; body: %s", want, page)

@@ -168,7 +168,12 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 			Summary: valueLabel(row.Facet, row.Value, row.IsGap),
 			IsGap:   row.IsGap,
 			Details: spanDetails(row.Facet, row.Value, row.IsGap),
-			Since:   row.OpenedAt.Time.UTC().Format(spanTimeFmt),
+			// Inventory renders the Since column (and the CSV export) date-only
+			// (#524) — the day a subject's currently-held span opened, without the
+			// wall-clock time the change/drill-down views carry. spanTimeFmt stays the
+			// shared datetime format those other screens depend on; only the inventory
+			// facet's Since is the shorter form.
+			Since:   row.OpenedAt.Time.UTC().Format("2006-01-02"),
 			src:     row.Source,
 			van:     row.VantageID,
 		})
@@ -233,6 +238,11 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 		"Title": "Inventory", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "inventory",
 		"Groups":    groups,
+		// The frozen design tmpl styles against the design-owned CSS-token vocabulary
+		// (design-system/tokens/*.css). Opt this page into loading those tokens (the
+		// "head" block gates on this datum); no other screen sets it, so their styling
+		// is untouched.
+		"DesignTokens": true,
 		// Gate the Export CSV button on data presence, exactly as Drift's {{if
 		// .HasEvents}} does (#347): an enabled link when a value has been folded, the
 		// disabled button otherwise. An estate with no open span has nothing to export.

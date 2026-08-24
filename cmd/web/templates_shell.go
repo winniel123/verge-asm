@@ -579,6 +579,15 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 	// the hidden Integrations surface without threading a data field through every
 	// handler that renders the shell. It is false while the surface is hidden.
 	"integrationsEnabled": func() bool { return integrationsEnabled },
+	// designTokens returns the design-owned CSS-token vocabulary (design-system/
+	// tokens/*.css, loaded by loadDesignTokens in templates_inventory.go) as trusted
+	// CSS. The "head" block inlines it in a <style data-design-tokens> block gated to
+	// the pages that opt in via a truthy .DesignTokens datum — currently only the
+	// Inventory screen, whose frozen design tmpl styles against these token names.
+	// Placed after pageCSS so the design tokens win the cascade for any overlapping
+	// :root variable. It is design-authored CSS from the embedded package, no user
+	// input, so template.CSS keeps html/template from escaping it.
+	"designTokens": func() template.CSS { return template.CSS(designTokensCSS) },
 	// signDelta formats a vs-last-batch stat delta (drift.Delta.Change, P0.2 #443) as
 	// the design's signed chip label: "+N" for a rise, "−N" (a true minus, the
 	// voice's signed-delta rule — design-system README) for a fall, and "0" for no
@@ -601,7 +610,7 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var t=localStorage.getItem("verge-theme");if(t){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
-<title>{{.Title}} · Verge ASM</title>{{if .Refresh}}<meta http-equiv="refresh" content="6">{{end}}<style>` + pageCSS + `</style></head><body>{{end}}
+<title>{{.Title}} · Verge ASM</title>{{if .Refresh}}<meta http-equiv="refresh" content="6">{{end}}<style>` + pageCSS + `</style>{{if .DesignTokens}}<style data-design-tokens>{{designTokens}}</style>{{end}}</head><body>{{end}}
 {{define "foot"}}{{if .Chrome}}<footer class="appfooter"><span class="foot-note">verge asm · self-hosted · AGPL-3.0</span><span class="foot-links"><a href="https://github.com/winniel123/verge-asm/tree/main/docs" rel="noreferrer">Docs</a><a href="https://github.com/winniel123/verge-asm" rel="noreferrer">GitHub</a></span></footer>{{end}}<script>
 /* Preserve scroll position across the POST-redirect-GET every form action runs.
    Each mutating handler answers 303 to the same page, so a naive reload lands at
