@@ -251,6 +251,10 @@ type store interface {
 	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
 	MarkMessageRead(ctx context.Context, arg db.MarkMessageReadParams) error
 	MarkAllMessagesRead(ctx context.Context, arg db.MarkAllMessagesReadParams) error
+	// MarkMessageUnread returns one message to unread for the caller (#473,
+	// ADR-0116) by clearing this account's read-mark — the inverse of
+	// MarkMessageRead, backing the Inbox "Mark unread" affordance (Inbox.jsx:59).
+	MarkMessageUnread(ctx context.Context, arg db.MarkMessageUnreadParams) error
 	// PreviewExclusionWithdrawal counts the subjects a candidate exclusion would
 	// withdraw and the timelines they hold — the honestly-computable narrowing
 	// receipt (#205 AC8, ADR-0074). It reads only ground nothing else cites, so a
@@ -611,6 +615,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /messages", s.requireLogin(s.messagesPage))
 	mux.HandleFunc("POST /messages/read", s.requireLogin(s.markMessageRead))
 	mux.HandleFunc("POST /messages/read-all", s.requireLogin(s.markAllMessagesRead))
+	// Mark-unread returns a message to unread (#473, ADR-0116): the Inbox detail
+	// renders a "Mark unread" ghost button (Inbox.jsx:59), so read is reversible.
+	// It carries the same `return=/inbox` field as the read acts above.
+	mux.HandleFunc("POST /messages/unread", s.requireLogin(s.markMessageUnread))
 
 	// The Inbox (#299, T4, ADR-0110): the V3 primary message surface the shell bell
 	// deep-links to (the /messages fold stays as the viewer-readable mirror). It reads
