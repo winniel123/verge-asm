@@ -139,7 +139,7 @@ const reportsTemplates = `
         <div style="display:flex;align-items:center;gap:12px">
           <span class="mono" style="width:72px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted)">{{.Label}}</span>
           <span style="flex:1;height:8px;border-radius:999px;background:var(--sunken);overflow:hidden">
-            <span style="display:block;height:100%;width:{{.Pct}}%;border-radius:999px;background:{{.DotVar}}"></span>
+            <span style="display:block;height:100%;width:{{.Pct}}%;border-radius:999px;background:{{if eq .Sev "critical"}}var(--sev-critical-dot){{else if eq .Sev "high"}}var(--sev-high-dot){{else if eq .Sev "medium"}}var(--sev-medium-dot){{else if eq .Sev "low"}}var(--sev-low-dot){{else}}var(--sev-info-dot){{end}}"></span>
           </span>
           <span class="mono" style="width:26px;text-align:right;font-size:12.5px;color:var(--body)">{{.Count}}</span>
         </div>

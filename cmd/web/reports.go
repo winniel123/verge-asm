@@ -217,16 +217,15 @@ type heatCell struct {
 
 // reportsSevCount is one severity's open-signal tally for the by-severity bars —
 // the SevBars region of Reports.jsx, now a real read off the census (P0.1). Label
-// is the microlabel form (CRITICAL … INFO), Sev the token key, Pct the bar width as
-// a share of the busiest level, and DotVar the severity ramp colour the bar fills
-// with — pre-resolved to template.CSS so the style sanitiser emits its var() verbatim
-// rather than blanking a mid-token interpolation to ZgotmplZ.
+// is the microlabel form (CRITICAL … INFO), Sev the token key the template branches
+// on to pick the severity ramp fill (a literal var() per level, so the style
+// sanitiser sees static CSS rather than a blanked mid-token interpolation), and Pct
+// the bar width as a share of the busiest level.
 type reportsSevCount struct {
-	Label  string
-	Sev    string
-	Count  int
-	Pct    int
-	DotVar template.CSS
+	Label string
+	Sev   string
+	Count int
+	Pct   int
 }
 
 // reportsSignalCensus evaluates the signal corpus ONCE and returns the three signal
@@ -261,11 +260,10 @@ func (s *server) reportsSignalCensus(r *http.Request) (open int, bySeverity []re
 	for _, sev := range signal.SevOrder {
 		n := counts[sev]
 		bySeverity = append(bySeverity, reportsSevCount{
-			Label:  strings.ToUpper(string(sev)),
-			Sev:    string(sev),
-			Count:  n,
-			Pct:    n * 100 / max,
-			DotVar: template.CSS("var(--sev-" + string(sev) + "-dot)"),
+			Label: strings.ToUpper(string(sev)),
+			Sev:   string(sev),
+			Count: n,
+			Pct:   n * 100 / max,
 		})
 	}
 	return open, bySeverity, fired, true
