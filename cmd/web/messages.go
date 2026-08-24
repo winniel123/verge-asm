@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -512,34 +514,56 @@ func lastReportDelivery(deliveries []deliveryView) (href string, has bool) {
 
 // reportScheduleRows assembles the "Recurring reports" table for the Reports screen
 // (T17, wired in #290). It lists the declared schedules newest-first and maps each
-// to a render row. A schedule's "View last delivery" resolves via lastReportDelivery
-// from the Message corpus, since deliveries are messages (ADR-0039, ADR-0081) and the
-// report_schedule table holds only the declared intent — there is no per-schedule
-// delivery backing store yet (#291/T3), so no schedule has a delivery to open and the
-// menu item renders disabled rather than fabricating one (ADR-0110). Where there are
-// no schedules the table renders the design-system empty-state. A read failure
-// degrades to the empty-state rather than 500ing the analytics page a viewer depends
-// on, matching the other best-effort reads on this screen.
+// to a render row. A schedule's "last sent" and "View last delivery" now resolve
+// from the report_delivery receipts store (#291/T2): GetLatestReportDelivery returns
+// the newest non-failed run, whose instant fills the last-sent cell and lights the
+// menu item at the stable /reports/delivery route. A schedule that has never run (or
+// only failed) has no row to read, so the cell stays an em dash and the item renders
+// disabled rather than fabricating a delivery (ADR-0110). Where there are no
+// schedules the table renders the design-system empty-state. A read failure — of the
+// schedule list or a per-schedule delivery — degrades rather than 500ing the
+// analytics page a viewer depends on, matching the other best-effort reads here.
 func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 	schedules, err := s.store.ListReportSchedules(ctx)
 	if err != nil {
 		log.Printf("web: reports: list report schedules: %v", err)
 		return nil
 	}
+	now := s.now()
 	rows := make([]reportScheduleRow, 0, len(schedules))
 	for _, sc := range schedules {
-		// No per-schedule delivery corpus exists yet, so a schedule carries no
-		// deliveries: lastReportDelivery(nil) leaves the menu item disabled and the
-		// last-sent cell an em dash rather than inventing a delivery (#291/T3 wires it).
-		href, has := lastReportDelivery(nil)
+		// The latest non-failed run backs both the last-sent cell and the menu item.
+		// No such run (pgx.ErrNoRows) is the genuine empty-state — an em dash and a
+		// disabled item, never an invented delivery. Any other read error degrades the
+		// row to that same empty-state rather than failing the whole page.
+		lastSent, href, has := "—", "", false
+		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
+		switch {
+		case err == nil:
+			lastSent = relTime(reportDeliveryInstant(del), now)
+			href, has = reportDeliveryHref, true
+		case !errors.Is(err, pgx.ErrNoRows):
+			log.Printf("web: reports: latest delivery for schedule %d: %v", sc.ID, err)
+		}
 		rows = append(rows, reportScheduleRow{
 			Name:         sc.Name,
 			Cadence:      sc.Cadence,
 			Format:       sc.Format,
-			LastSent:     "—",
+			LastSent:     lastSent,
 			HasDelivery:  has,
 			DeliveryHref: href,
 		})
 	}
 	return rows
+}
+
+// reportDeliveryInstant is the instant a receipt reads as "last sent": the delivery
+// stamp where the run left (delivered_at), else the instant the artifact was cut
+// (generated_at) for a run that generated without delivering. Both are present on a
+// non-failed run, so the caller always has an instant to render.
+func reportDeliveryInstant(d db.ReportDelivery) time.Time {
+	if d.DeliveredAt.Valid {
+		return d.DeliveredAt.Time
+	}
+	return d.GeneratedAt.Time
 }

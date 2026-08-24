@@ -161,6 +161,12 @@ type fakeStore struct {
 	reportSchedules []db.ReportSchedule
 	rsNextID        int64
 
+	// reportDeliveries mirrors the report_delivery receipts table (#291/T2): the
+	// operational record of each run of a schedule. Filed by insert, read latest
+	// (non-failed) per schedule and listed newest-first, matching the store.
+	reportDeliveries []db.ReportDelivery
+	rdNextID         int64
+
 	// ssoProviders mirrors the sso_provider table (#293): OIDC providers, secret
 	// included, so tests can assert the secret is stored but never surfaced through the
 	// list/get render paths (only GetSSOProviderForAuth returns it).
@@ -2264,6 +2270,63 @@ func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, e
 	// Newest-first, mirroring ORDER BY id DESC.
 	for i, rs := range f.reportSchedules {
 		out[len(f.reportSchedules)-1-i] = rs
+	}
+	return out, nil
+}
+
+func (f *fakeStore) NextReportDeliveryNo(_ context.Context, scheduleID int64) (int32, error) {
+	var max int32
+	for _, d := range f.reportDeliveries {
+		if d.ScheduleID == scheduleID && d.DeliveryNo > max {
+			max = d.DeliveryNo
+		}
+	}
+	return max + 1, nil
+}
+
+func (f *fakeStore) InsertReportDelivery(_ context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error) {
+	f.rdNextID++
+	d := db.ReportDelivery{
+		ID:          f.rdNextID,
+		ScheduleID:  arg.ScheduleID,
+		PeriodStart: arg.PeriodStart,
+		PeriodEnd:   arg.PeriodEnd,
+		DeliveryNo:  arg.DeliveryNo,
+		// generated_at defaults to now() at the column; the fake stamps it so the
+		// last-sent read has an instant when delivered_at is absent.
+		GeneratedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		DeliveredAt: arg.DeliveredAt,
+		State:       arg.State,
+	}
+	f.reportDeliveries = append(f.reportDeliveries, d)
+	return d, nil
+}
+
+func (f *fakeStore) GetLatestReportDelivery(_ context.Context, scheduleID int64) (db.ReportDelivery, error) {
+	// Newest non-failed run, mirroring WHERE state <> 'failed' ORDER BY id DESC LIMIT 1.
+	var latest db.ReportDelivery
+	found := false
+	for _, d := range f.reportDeliveries {
+		if d.ScheduleID != scheduleID || d.State == "failed" {
+			continue
+		}
+		if !found || d.ID > latest.ID {
+			latest, found = d, true
+		}
+	}
+	if !found {
+		return db.ReportDelivery{}, pgx.ErrNoRows
+	}
+	return latest, nil
+}
+
+func (f *fakeStore) ListReportDeliveries(_ context.Context, scheduleID int64) ([]db.ReportDelivery, error) {
+	out := []db.ReportDelivery{}
+	// Newest-first, mirroring ORDER BY id DESC.
+	for i := len(f.reportDeliveries) - 1; i >= 0; i-- {
+		if f.reportDeliveries[i].ScheduleID == scheduleID {
+			out = append(out, f.reportDeliveries[i])
+		}
 	}
 	return out, nil
 }

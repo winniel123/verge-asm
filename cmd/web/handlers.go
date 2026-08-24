@@ -281,6 +281,16 @@ type store interface {
 	InsertReportSchedule(ctx context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error)
 	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
 
+	// Report-delivery receipts (#291/T2): the operational record of each run of a
+	// schedule. GetLatestReportDelivery returns the newest non-failed run, backing the
+	// "Recurring reports" table's "last sent" cell and the delivered-artifact view;
+	// pgx.ErrNoRows is the genuine empty-state (never run, or only failed). The insert
+	// and list paths round out the store the run path (T5) writes and reads.
+	InsertReportDelivery(ctx context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error)
+	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
+	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (db.ReportDelivery, error)
+	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]db.ReportDelivery, error)
+
 	// SSO / OIDC providers (#293, ADR-0112): the config behind the SignIn buttons and
 	// the Settings single-sign-on tab. The client secret is write-only — only
 	// GetSSOProviderForAuth (the server-side token exchange) selects it; every other
