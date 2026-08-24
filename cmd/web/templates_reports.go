@@ -252,7 +252,7 @@ const reportsTemplates = `
     <div class="emptystate">
       <div class="microlabel">None yet</div>
       <h2>No recurring reports</h2>
-      <p style="max-width:60ch;margin:var(--space-3) auto">Report scheduling is not yet available. When it lands, recurring exports declared here run on their cadence and their last delivery shows in this table.</p>
+      <p style="max-width:60ch;margin:var(--space-3) auto">No recurring reports yet. Create one with New schedule — it runs on its cadence and its last delivery shows in this table.</p>
     </div>
     {{end}}
   </section>
