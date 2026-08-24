@@ -23,12 +23,12 @@ func openSpanRow(kind, key, facet, disc, value string, isGap bool) db.ListAllOpe
 // same value+details the change views summarise, but shown rather than counted.
 func TestBuildInventoryGroupsOpenSpansBySubject(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
-		openSpanRow("name", "a.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.1","203.0.113.2"]}`, false),
+		openSpanRow("name", "a.example.com", "resolution", "", `{"rrtype":"A","addresses":["203.0.113.1","203.0.113.2"]}`, false),
 		openSpanRow("name", "a.example.com", "dns-record", "", `{"rrs":[{"type":"A","data":"203.0.113.1"},{"type":"MX","data":"10 mail.example.com"}]}`, false),
 		openSpanRow("name", "b.example.com", "resolution", "", `{}`, true),
-		openSpanRow("service", "203.0.113.1:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
-		openSpanRow("service", "203.0.113.1:443/tcp", "tls-acceptance", "", `{"outcome":"enumerated","versions":[{"version":"TLS1.3"},{"version":"TLS1.2","ciphers":["ECDHE_RSA_AES_128_GCM"]}]}`, false),
-		openSpanRow("endpoint", "@203.0.113.1:443/tcp", "http-identity", "", `{"outcome":"responded","status":200,"server":"nginx"}`, false),
+		openSpanRow("service", "203.0.113.1:443/tcp", "reachability", "", `{"outcome":"answers","ports":["443/tcp"]}`, false),
+		openSpanRow("service", "203.0.113.1:443/tcp", "tls-acceptance", "", `{"outcome":"enumerated","versions":["1.2","1.3"]}`, false),
+		openSpanRow("endpoint", "@203.0.113.1:443/tcp", "http-identity", "", `{"server":"nginx","status":200}`, false),
 	}
 
 	groups := buildInventory(rows)
@@ -52,26 +52,31 @@ func TestBuildInventoryGroupsOpenSpansBySubject(t *testing.T) {
 	if len(a.Facets) != 2 {
 		t.Fatalf("subject a facets = %d, want 2 (resolution, dns-record)", len(a.Facets))
 	}
+	// The inventory resolution summary is `rrtype · <n> addresses` (the pilot shows
+	// the shaped value, not the outcome tag), and expands one typed row per address.
 	res := a.Facets[0]
-	if res.Label != "resolution" || res.Summary != "Resolved" {
-		t.Errorf("resolution facet = %q/%q, want resolution/Resolved", res.Label, res.Summary)
+	if res.Label != "resolution" || res.Summary != "A · 2 addresses" {
+		t.Errorf("resolution facet = %q/%q, want resolution/\"A · 2 addresses\"", res.Label, res.Summary)
 	}
-	if len(res.Details) != 2 || res.Details[0].Data != "203.0.113.1" || res.Details[1].Data != "203.0.113.2" {
-		t.Errorf("resolution details = %#v, want the two addresses", res.Details)
+	if len(res.Details) != 2 || res.Details[0].Type != "A" || res.Details[0].Data != "203.0.113.1" || res.Details[1].Data != "203.0.113.2" {
+		t.Errorf("resolution details = %#v, want the two typed addresses", res.Details)
 	}
+	// dns-record summarises the ordered-distinct RR types, and the facet label is the
+	// plural "dns-records".
 	dns := a.Facets[1]
-	if dns.Summary != "2 records" || len(dns.Details) != 2 || dns.Details[0].Type != "A" {
-		t.Errorf("dns-record facet = %q details %#v, want a count summary and typed rows", dns.Summary, dns.Details)
+	if dns.Label != "dns-records" || dns.Summary != "A · MX" || len(dns.Details) != 2 || dns.Details[0].Type != "A" {
+		t.Errorf("dns-record facet = %q/%q details %#v, want the distinct-types summary and typed rows", dns.Label, dns.Summary, dns.Details)
 	}
 
 	// A Gap is carried as a Gap facet — a value the system currently cannot state —
-	// not hidden and not expandable.
+	// not hidden and not expandable; its summary is empty (the template renders the
+	// Gap marker off IsGap).
 	b := groups[0].Subjects[1]
 	if b.Key != "b.example.com" || len(b.Facets) != 1 || !b.Facets[0].IsGap {
 		t.Fatalf("subject b = %#v, want one Gap facet", b)
 	}
-	if b.Facets[0].Details != nil {
-		t.Errorf("gap facet expanded to %#v, want no details", b.Facets[0].Details)
+	if b.Facets[0].Summary != "" || b.Facets[0].Details != nil {
+		t.Errorf("gap facet = %q / %#v, want an empty summary and no details", b.Facets[0].Summary, b.Facets[0].Details)
 	}
 
 	// The Service's link goes through subjectHref, so its key's `:` and `/` are
@@ -87,31 +92,27 @@ func TestBuildInventoryGroupsOpenSpansBySubject(t *testing.T) {
 			tls = &svc.Facets[i]
 		}
 	}
-	if tls == nil || tls.Summary != "enumerated" {
-		t.Fatalf("service tls-acceptance facet = %#v, want an 'enumerated' summary", tls)
+	// tls-acceptance renders `TLS <versions>` in the inventory pilot and does not
+	// expand — its whole value is the summary line.
+	if tls == nil || tls.Summary != "TLS 1.2 · 1.3" {
+		t.Fatalf("service tls-acceptance facet = %#v, want a \"TLS 1.2 · 1.3\" summary", tls)
 	}
-	if len(tls.Details) != 2 || tls.Details[0].Type != "TLS1.3" || tls.Details[0].Data != "—" ||
-		tls.Details[1].Type != "TLS1.2" || tls.Details[1].Data != "ECDHE_RSA_AES_128_GCM" {
-		t.Errorf("tls-acceptance details = %#v, want a version row each with suites (— for 1.3)", tls.Details)
+	if len(tls.Details) != 0 {
+		t.Errorf("tls-acceptance details = %#v, want none in the inventory pilot", tls.Details)
 	}
 
 	ep := groups[2].Subjects[0]
 	if ep.Link != "/subjects/endpoint?key=%40203.0.113.1%3A443%2Ftcp" {
 		t.Errorf("endpoint link = %q, want escaped ?key= link", ep.Link)
 	}
+	// http-identity renders `server · status[ · “title”][ → redirect]` and does not
+	// expand in the inventory pilot.
 	id := ep.Facets[0]
-	if id.Summary != "200 · nginx" {
-		t.Errorf("http-identity summary = %q, want 200 · nginx", id.Summary)
+	if id.Summary != "nginx · 200" {
+		t.Errorf("http-identity summary = %q, want \"nginx · 200\"", id.Summary)
 	}
-	// The identity expands to its admitted closed set — the actual observed values.
-	var sawServer bool
-	for _, d := range id.Details {
-		if d.Type == "server" && d.Data == "nginx" {
-			sawServer = true
-		}
-	}
-	if !sawServer {
-		t.Errorf("http-identity details = %#v, want a server=nginx row", id.Details)
+	if len(id.Details) != 0 {
+		t.Errorf("http-identity details = %#v, want none in the inventory pilot", id.Details)
 	}
 }
 
@@ -121,23 +122,24 @@ func TestBuildInventoryGroupsOpenSpansBySubject(t *testing.T) {
 func TestInventoryPageRendersEstateValues(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"rrtype":"A","addresses":["203.0.113.5"]}`)
 	f.addDNSRecord(t, "api.example.com", "", obsClock, `{"rrs":[{"name":"api.example.com","type":"TXT","data":"\"v=spf1 -all\""}]}`)
-	f.addReachability(t, "203.0.113.5:443/tcp", obsClock, `{"outcome":"reached"}`)
-	f.addHTTPIdentity(t, "api.example.com@203.0.113.5:443/tcp", obsClock, `{"outcome":"responded","status":200,"server":"nginx"}`)
-	f.addCertificate(t, "api.example.com@203.0.113.5:443/tcp", obsClock, `{"outcome":"valid","chain":["sha256:leaf","sha256:issuer"]}`)
+	f.addReachability(t, "203.0.113.5:443/tcp", obsClock, `{"outcome":"answers","ports":["443/tcp"]}`)
+	f.addHTTPIdentity(t, "api.example.com@203.0.113.5:443/tcp", obsClock, `{"server":"nginx","status":200}`)
+	f.addCertificate(t, "api.example.com@203.0.113.5:443/tcp", obsClock, `{"chain":[{"cn":"api.example.com","not_after":"2026-11-02"},{"cn":"R11","issuer_org":"Let’s Encrypt"}]}`)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/inventory", http.StatusOK)
 
-	// The actual observed values — not just counts/verdicts — are on the screen.
+	// The actual observed values — not just counts/verdicts — are on the screen, in
+	// the Inventory pilot's shaped vocabulary.
 	for _, want := range []string{
-		"203.0.113.5",       // resolved address
-		"v=spf1 -all",       // the TXT record contents
+		"203.0.113.5",       // resolved address (in the resolution summary)
+		"v=spf1 -all",       // the TXT record contents (a dns-record detail)
 		"nginx",             // the HTTP Server header
-		"valid",             // the certificate outcome
-		"sha256:leaf",       // a certificate chain link
+		"leaf api.example.com", // the certificate-chain summary's leaf CN
+		"not_after 2026-11-02", // a certificate-chain detail row
 		"Names", "Services", "Endpoints", // grouped by kind
 	} {
 		if !strings.Contains(page, want) {
@@ -180,7 +182,7 @@ func TestInventoryPageRendersEstateValues(t *testing.T) {
 		"Columns",                           // column picker
 		`<span class="inv-tag">Name`,        // Type cell — the domain noun, not a wire tag
 		`class="inv-facetlabel">resolution`, // the facet label rendered in the Holds cell
-		"Resolved",                          // its current value
+		"A · 203.0.113.5",                   // its current value, in the pilot's shaped vocabulary
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("inventory structural element missing %q; body: %s", want, page)
@@ -213,38 +215,26 @@ func TestInventoryEmptyStatePreserved(t *testing.T) {
 	}
 }
 
-// Two open spans of the same facet and discriminator on one subject — the same
-// Name resolved from two vantages — must render as distinguishable rows, not two
-// identically-labelled ones. ADR-0105's unit of currency is
-// (facet, discriminator, vantage, source); the label carries the vantage/source
-// exactly where a collision would otherwise erase it.
-func TestBuildInventoryDisambiguatesCollidingTimelines(t *testing.T) {
+// Two open reachability timelines on one Address — the same facet reached from two
+// vantages — must render as distinguishable rows. In the Inventory pilot the span's
+// discriminator carries the vantage qualifier ("vantage 1", "vantage 3"), so the
+// facet label ("reachability · vantage 1") is unique by construction and the pilot
+// runs no source/vantage disambiguation pass over it.
+func TestBuildInventoryDistinguishesTimelinesByDiscriminator(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
-		{
-			SubjectKind: "name", SubjectKey: "multi.example.com", Facet: "resolution", Source: "resolver",
-			VantageID: pgtype.Int8{Int64: 1, Valid: true},
-			Value:     []byte(`{"outcome":"Resolved","addresses":["203.0.113.1"]}`),
-			OpenedAt:  pgtype.Timestamptz{Time: obsClock, Valid: true},
-		},
-		{
-			SubjectKind: "name", SubjectKey: "multi.example.com", Facet: "resolution", Source: "resolver",
-			VantageID: pgtype.Int8{Int64: 2, Valid: true},
-			Value:     []byte(`{"outcome":"NoData"}`),
-			OpenedAt:  pgtype.Timestamptz{Time: obsClock, Valid: true},
-		},
+		openSpanRow("address", "198.51.100.7", "reachability", "vantage 1", `{"outcome":"answers","ports":["443/tcp"]}`, false),
+		openSpanRow("address", "198.51.100.7", "reachability", "vantage 3", `{"outcome":"answers","ports":["443/tcp","8443/tcp"]}`, false),
 	}
 
 	facets := buildInventory(rows)[0].Subjects[0].Facets
 	if len(facets) != 2 {
-		t.Fatalf("want 2 resolution facets, got %d", len(facets))
+		t.Fatalf("want 2 reachability facets, got %d", len(facets))
 	}
 	if facets[0].Label == facets[1].Label {
-		t.Fatalf("colliding timelines share label %q — not disambiguated", facets[0].Label)
+		t.Fatalf("timelines share label %q — the discriminator did not distinguish them", facets[0].Label)
 	}
-	for _, f := range facets {
-		if !strings.Contains(f.Label, "vantage ") {
-			t.Errorf("label %q missing its vantage disambiguator", f.Label)
-		}
+	if facets[0].Label != "reachability · vantage 1" || facets[1].Label != "reachability · vantage 3" {
+		t.Errorf("labels = %q / %q, want \"reachability · vantage 1\" / \"reachability · vantage 3\"", facets[0].Label, facets[1].Label)
 	}
 }
 
@@ -254,7 +244,7 @@ func TestBuildInventoryDisambiguatesCollidingTimelines(t *testing.T) {
 func TestInventoryExportCSV(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"rrtype":"A","addresses":["203.0.113.5"]}`)
 	f.addResolution(t, admin.ID, "gap.example.com", "dns", obsClock, `{"outcome":"Gap"}`)
 
 	base := start(t, f, "")
@@ -276,7 +266,7 @@ func TestInventoryExportCSV(t *testing.T) {
 	}
 	for _, want := range []string{
 		"type,subject,facet,value,since", // header row
-		"Name,api.example.com,resolution,Resolved,",
+		"Name,api.example.com,resolution,A · 203.0.113.5,",
 		"Name,gap.example.com,resolution,Gap,", // a Gap exports as "Gap", never blank
 	} {
 		if !strings.Contains(got, want) {

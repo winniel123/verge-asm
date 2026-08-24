@@ -29,6 +29,7 @@ import (
 
 func main() {
 	healthcheck := flag.Bool("healthcheck", false, "check that the running instance is healthy, then exit")
+	seedFixtures := flag.String("seed-fixtures", "", "dev-only: reseed the open-span corpus from the given design fixtures file, then exit (requires VERGE_DEV)")
 	flag.Parse()
 
 	listenAddr := env.OrDefault("VERGE_LISTEN_ADDR", ":8080")
@@ -38,6 +39,13 @@ func main() {
 			log.Fatalf("web: healthcheck: %v", err)
 		}
 		return
+	}
+
+	// The fixture loader is a dev-only escape hatch (#525): it wipes and reseeds the
+	// span corpus so the pixel-parity harness has a deterministic instance. Refuse it
+	// outside an explicit VERGE_DEV build so it can never fire against a real estate.
+	if *seedFixtures != "" && !isTruthy(env.OrDefault("VERGE_DEV", "")) {
+		log.Fatalf("web: -seed-fixtures is dev-only; set VERGE_DEV=1 to allow it")
 	}
 
 	databaseURL, err := env.Require("DATABASE_URL")
@@ -57,6 +65,17 @@ func main() {
 		log.Fatalf("web: connect: %v", err)
 	}
 	defer pool.Close()
+
+	if *seedFixtures != "" {
+		if err := seedInventoryFixtures(ctx, pool, *seedFixtures); err != nil {
+			log.Fatalf("web: seed-fixtures: %v", err)
+		}
+		if err := seedDevOperator(ctx, pool); err != nil {
+			log.Fatalf("web: seed-fixtures: %v", err)
+		}
+		log.Printf("web: seeded inventory fixtures from %s (%d open spans); dev operator %q ready", *seedFixtures, len(inventoryFixtureSpans), devSeedUsername)
+		return
+	}
 
 	queries := db.New(pool)
 
