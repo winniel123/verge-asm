@@ -1,7 +1,7 @@
 ---
 title: Integrations
-section: Operating
-order: 10
+section: Signals & delivery
+order: 4
 description: Integrations are third-party install tiles whose install is a Declared act — the tile states, install and disconnect, and why an integration is never a delivery channel.
 ---
 

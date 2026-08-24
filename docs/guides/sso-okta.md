@@ -1,7 +1,7 @@
 ---
-title: Single sign-on with Okta
-section: Operating
-order: 9
+title: SSO with Okta
+section: Access
+order: 4
 description: Wire Okta to verge-asm's generic OIDC connector — register an app integration, point verge at the right issuer, and let an existing account link its verified Okta identity.
 ---
 
