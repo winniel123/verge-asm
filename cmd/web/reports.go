@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"html/template"
 	"log"
 	"math"
 	"net/http"
+	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
@@ -855,22 +859,20 @@ func pluralScans(n int) string {
 	return strconv.Itoa(n) + " scans"
 }
 
-// reportDeliveryPage renders an already-delivered report artifact — the stable
-// `/reports/delivery` view Reports' "view last delivery" links to (T17). The
+// reportDeliveryPage renders the account's latest delivered report artifact — the
+// stable `/reports/delivery` view Reports' "view last delivery" links to (T17). The
 // delivered document itself is rendered by internal/message's RenderArtifact, the
 // one canonical rendered form that doubles as the PDF / email spec; this handler
 // composes the console chrome around it.
 //
-// There is no report-scheduling or delivery backend yet (#285; #290/#291 populate
-// report content), so no delivered artifact exists to read. Rather than fabricate
-// a document, the handler renders an empty Artifact — RenderArtifact draws the
-// design-system empty-state inside the delivered-document frame — and the header
-// falls back to a generic heading. When #290/#291 land, this handler reads the
-// latest delivery for the account and fills the same Artifact struct with real
-// data of the same shape; the render path does not change.
+// With the report_delivery receipts store in place (#291/T2) the handler reads the
+// most-recent non-failed delivery and recomputes its contents from the run's period
+// bounds (T1 ruling: the receipt snapshots nothing). Where no schedule has ever
+// delivered, the zero Artifact renders the design-system empty-state inside the
+// delivered-document frame (ADR-0110) and the header falls back to a generic
+// heading — nothing is fabricated.
 func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// No delivery backing store yet — the zero Artifact renders the empty-state.
-	art := message.Artifact{}
+	art := s.reportDeliveryArtifact(r.Context())
 
 	heading := art.Title
 	if heading == "" {
@@ -890,15 +892,11 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 // print form of the same Artifact reportDeliveryPage renders on screen, produced
 // by internal/message.RenderArtifactPDF (a pure-Go render that runs inside the
 // distroless-static web image, no external renderer). It reads the same Artifact
-// this handler pair shares, so the download always mirrors what the page shows;
-// with no delivery backend yet (#285; #290/#291) that is the empty-state document,
-// and when a delivery store lands both handlers fill the same struct with real
-// data and the download follows for free. A viewer reads it — a delivered report
-// is a record, not a mutation.
+// this handler pair shares (reportDeliveryArtifact), so the download always mirrors
+// what the page shows; where no schedule has delivered that is the empty-state
+// document. A viewer reads it — a delivered report is a record, not a mutation.
 func (s *server) reportDeliveryPDF(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// No delivery backing store yet — the zero Artifact renders the empty-state,
-	// exactly as the on-screen view does. Never fabricate a document.
-	art := message.Artifact{}
+	art := s.reportDeliveryArtifact(r.Context())
 
 	pdf, err := message.RenderArtifactPDF(art)
 	if err != nil {
@@ -908,12 +906,183 @@ func (s *server) reportDeliveryPDF(w http.ResponseWriter, r *http.Request, acct 
 	}
 
 	w.Header().Set("Content-Type", "application/pdf")
-	// With no delivery backend the document names no delivery window, so the
-	// download is the generic report-delivery.pdf. A period-dated name (as the
-	// csv/json exports carry) belongs with the delivery backend that gives the
-	// Artifact a window to name (#285; #290/#291), not ahead of it.
-	w.Header().Set("Content-Disposition", `attachment; filename="report-delivery.pdf"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+reportDeliveryPDFName(art)+`"`)
 	if _, err := w.Write(pdf); err != nil {
 		log.Printf("web: report delivery pdf: write: %v", err)
 	}
+}
+
+// reportDeliveryPDFName is the PDF download name: a period-dated
+// report-<start>-to-<end>.pdf where the delivery names a window (mirroring the
+// operational export's ISO-dated filename, reportsExportFilename), else the generic
+// report-delivery.pdf for the empty-state document that names no window.
+func reportDeliveryPDFName(a message.Artifact) string {
+	if a.PeriodStart != "" && a.PeriodEnd != "" {
+		return "report-" + a.PeriodStart + "-to-" + a.PeriodEnd + ".pdf"
+	}
+	return "report-delivery.pdf"
+}
+
+// reportDeliveryArtifact resolves the account's latest delivered report and builds
+// the delivered Artifact for its period bounds. The stable /reports/delivery route
+// names no schedule (reportDeliveryHref is a constant), so the view opens the single
+// most-recent non-failed delivery across every schedule — the receipt the "View last
+// delivery" affordance points at. Where no schedule has delivered, the zero Artifact
+// renders the design-system empty-state (ADR-0110); nothing is fabricated.
+//
+// The receipt snapshots no content (T2): the artifact recomputes its signals,
+// severity breakdown and withdrawals from the run's [period_start, period_end] bounds
+// at render time (T1 ruling), reading the never-deleted first-seen and withdrawal
+// ledgers. A list/read failure degrades to the empty-state or an empty section rather
+// than 500ing the view a viewer depends on.
+func (s *server) reportDeliveryArtifact(ctx context.Context) message.Artifact {
+	schedules, err := s.store.ListReportSchedules(ctx)
+	if err != nil {
+		log.Printf("web: report delivery: list schedules: %v", err)
+		return message.Artifact{}
+	}
+	var (
+		best  db.ReportDelivery
+		sched db.ReportSchedule
+		found bool
+	)
+	for _, sc := range schedules {
+		// The newest non-failed run of each schedule; pgx.ErrNoRows is the genuine
+		// never-delivered state and contributes no candidate. Any other read error
+		// skips this schedule rather than failing the whole view.
+		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
+		switch {
+		case err == nil:
+			if !found || del.ID > best.ID {
+				best, sched, found = del, sc, true
+			}
+		case !errors.Is(err, pgx.ErrNoRows):
+			log.Printf("web: report delivery: latest for schedule %d: %v", sc.ID, err)
+		}
+	}
+	if !found {
+		return message.Artifact{}
+	}
+	return s.buildReportDeliveryArtifact(ctx, sched, best)
+}
+
+// buildReportDeliveryArtifact fills the delivered Artifact for one run: its identity
+// (the schedule name and delivered format), its period window and delivery number,
+// the receipt footer (the delivery instant and destination HOST only — never the raw
+// delivery-target URL where a token an operator embedded would sit, ADR-0081), and
+// the period's recomputed signals / severity breakdown / withdrawals (T1 ruling).
+func (s *server) buildReportDeliveryArtifact(ctx context.Context, sc db.ReportSchedule, del db.ReportDelivery) message.Artifact {
+	art := message.Artifact{
+		Title:      sc.Name,
+		Format:     sc.Format,
+		DeliveryNo: int(del.DeliveryNo),
+	}
+	if del.PeriodStart.Valid {
+		art.PeriodStart = del.PeriodStart.Time.UTC().Format("2006-01-02")
+	}
+	if del.PeriodEnd.Valid {
+		art.PeriodEnd = del.PeriodEnd.Time.UTC().Format("2006-01-02")
+	}
+	if del.GeneratedAt.Valid {
+		art.GeneratedAt = del.GeneratedAt.Time.UTC().Format(time.RFC3339)
+	}
+	// The receipt footer: the delivery instant and the destination host only. A run
+	// that generated without leaving (delivered_at NULL) names no channel, so the
+	// footer reads "not delivered" (artifactReceipt).
+	if del.DeliveredAt.Valid {
+		art.Delivered = del.DeliveredAt.Time.UTC().Format(time.RFC3339)
+		art.ChannelHost = deliveryTargetHost(sc.DeliveryTarget)
+	}
+	// Recompute the period's contents from its bounds — the receipt stores none.
+	if del.PeriodStart.Valid && del.PeriodEnd.Valid {
+		start, end := del.PeriodStart.Time.UTC(), del.PeriodEnd.Time.UTC()
+		art.Signals, art.SeverityCounts = s.reportDeliverySignals(ctx, start, end)
+		art.Withdrawn = s.reportDeliveryWithdrawals(ctx, start, end)
+	}
+	return art
+}
+
+// reportDeliverySignals recomputes the delivery period's "new this week" signals
+// table and its "open signals by severity" breakdown from the never-deleted
+// first-seen ledger (signal_instance): every signal instance whose first-seen falls
+// in [start, end], carrying its rule's severity (P0.1, internal/signal). The table is
+// ordered most-urgent first, the ramp order (SevOrder); the breakdown carries one
+// entry per severity level present. A ledger read failure degrades both to empty
+// rather than failing the view.
+func (s *server) reportDeliverySignals(ctx context.Context, start, end time.Time) ([]message.ArtifactSignal, []message.ArtifactSeverityCount) {
+	rows, err := s.store.ListSignalInstances(ctx)
+	if err != nil {
+		log.Printf("web: report delivery: list signal instances: %v", err)
+		return nil, nil
+	}
+	counts := map[signal.Severity]int{}
+	var sigs []message.ArtifactSignal
+	for _, row := range rows {
+		if !row.FirstSeen.Valid {
+			continue
+		}
+		at := row.FirstSeen.Time.UTC()
+		if at.Before(start) || at.After(end) {
+			continue
+		}
+		// A signal's severity is exactly its rule's severity; an unknown rule folds to
+		// the calmest level (SeverityFor), never manufacturing urgency.
+		sev, _ := signal.SeverityFor(row.SignalName)
+		counts[sev]++
+		sigs = append(sigs, message.ArtifactSignal{
+			Severity: string(sev),
+			Signal:   signalTitle(row.SignalName),
+			Asset:    row.SubjectKey,
+			Raised:   strings.ToLower(at.Format("Jan 2")),
+		})
+	}
+	sort.SliceStable(sigs, func(i, j int) bool {
+		return signal.Severity(sigs[i].Severity).Rank() < signal.Severity(sigs[j].Severity).Rank()
+	})
+	var bySeverity []message.ArtifactSeverityCount
+	for _, sev := range signal.SevOrder {
+		if n := counts[sev]; n > 0 {
+			bySeverity = append(bySeverity, message.ArtifactSeverityCount{Level: string(sev), Count: n})
+		}
+	}
+	return sigs, bySeverity
+}
+
+// reportDeliveryWithdrawals recomputes the period's "withdrawn by the world" section
+// from the subject-withdrawal ledger: every subject whose withdrawal instant falls in
+// [start, end]. Withdrawal rides the drift vocabulary (never the severity ramp). A
+// read failure degrades to an empty section rather than failing the view.
+func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.Time) []message.ArtifactChange {
+	rows, err := s.store.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: start, Valid: true})
+	if err != nil {
+		log.Printf("web: report delivery: list withdrawal lifespans: %v", err)
+		return nil
+	}
+	var out []message.ArtifactChange
+	for _, row := range rows {
+		if !row.WithdrawnAt.Valid {
+			continue
+		}
+		at := row.WithdrawnAt.Time.UTC()
+		if at.Before(start) || at.After(end) {
+			continue
+		}
+		out = append(out, message.ArtifactChange{
+			Change:  "withdrawn",
+			Subject: row.SubjectKey,
+			Detail:  strings.ToLower(at.Format("Jan 2")),
+		})
+	}
+	return out
+}
+
+// deliveryTargetHost renders a schedule's delivery target as its destination host
+// only — never the raw URL, where a token an operator embedded in the path or query
+// would sit (mirrors the message panel's host-only rule, ADR-0081). A target that
+// does not parse to a host names no channel, so the receipt shows the instant alone.
+func deliveryTargetHost(target string) string {
+	if u, err := url.Parse(target); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return ""
 }
