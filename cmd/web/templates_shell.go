@@ -586,14 +586,16 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 	// output is digits and a sign only — safe to mark trusted so html/template keeps
 	// the literal "+" rather than escaping it to an entity.
 	"signDelta": func(n int) template.HTML {
+		var s string
 		switch {
 		case n > 0:
-			return template.HTML("+" + strconv.Itoa(n))
+			s = "+" + strconv.Itoa(n)
 		case n < 0:
-			return template.HTML("−" + strconv.Itoa(-n))
+			s = "−" + strconv.Itoa(-n)
 		default:
-			return template.HTML("0")
+			s = "0"
 		}
+		return template.HTML(s) //nolint:gosec // a sign and digits only, from an int; no user input
 	},
 }).Parse(`
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
