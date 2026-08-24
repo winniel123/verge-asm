@@ -138,14 +138,14 @@ func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, _ db.Accoun
 		return
 	}
 	// The act fires a toast across the post-redirect-get (PARITY-CHART P1.7, the
-	// "Scan started" toast ConsoleApp fires on runScan); the /scans monitor also
-	// renders the fuller receipt sentence the notice query carries.
+	// "Scan started" toast ConsoleApp fires on runScan); the /scans monitor still
+	// renders the fuller receipt sentence the same notice query carries.
 	jobs := "1 job"
 	if n != 1 {
 		jobs = strconv.Itoa(n) + " jobs"
 	}
-	s.flashToast(w, "neutral", "Scan started", "A "+kind+" scan dispatched — "+jobs+" enqueued.")
-	s.redirectTrigger(w, r, noticeTriggered, kind, n)
+	q := url.Values{"notice": {noticeTriggered}, "kind": {kind}, "jobs": {strconv.Itoa(n)}}
+	s.toastRedirect(w, r, "/scans?"+q.Encode(), "neutral", "Scan started", "A "+kind+" scan dispatched; "+jobs+" enqueued.")
 }
 
 // redirectTrigger sends the post-redirect-get back to the monitor, naming the

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -118,28 +119,24 @@ func accountInitials(name string) string {
 	return b.String()
 }
 
-// flashToast queues a toast to fire on the next page the caller redirects to, the
-// post-redirect-get toast the PARITY-CHART accepts for the shell's acts (P1.7,
-// ConsoleApp.jsx fires the same toasts on scan/save/switch). It sets a short-lived
-// cookie the shell drains into the toast stack on load and clears; it is display
-// text only (rendered as textContent, never HTML) so it cannot inject. The cookie
-// is not HttpOnly precisely because the shell's own script reads and clears it.
-// tone is one of neutral / ok / warn / danger (Toast.jsx).
-func (s *server) flashToast(w http.ResponseWriter, tone, title, description string) {
+// toastRedirect issues the post-redirect-get for an act and carries a toast for the
+// destination page to fire (PARITY-CHART P1.7; ConsoleApp.jsx fires the same toasts
+// on scan/save). The toast rides the redirect URL's `toast` query — a base64url
+// JSON blob — rather than a cookie: the shell's script reads it on load, fires the
+// toast, and strips it from the address bar (history.replaceState) so a refresh does
+// not re-toast. Carrying it in the URL (not a cookie) keeps every cookie this server
+// sets HttpOnly, and the text is rendered as textContent (never HTML) so it cannot
+// inject. tone is one of neutral / ok / warn / danger (Toast.jsx). On any encoding
+// failure the redirect still lands, just without the toast.
+func (s *server) toastRedirect(w http.ResponseWriter, r *http.Request, dest, tone, title, description string) {
 	payload, err := json.Marshal(map[string]string{"tone": tone, "title": title, "description": description})
 	if err != nil {
+		http.Redirect(w, r, dest, http.StatusSeeOther)
 		return
 	}
-	// Encode so the shell's decodeURIComponent reverses it exactly: url.QueryEscape
-	// emits "+" for a space (form-encoding), which decodeURIComponent would leave as
-	// a literal "+", so promote those to "%20". Every other byte is already %XX or an
-	// unreserved cookie octet.
-	value := strings.ReplaceAll(url.QueryEscape(string(payload)), "+", "%20")
-	http.SetCookie(w, &http.Cookie{
-		Name:     "verge_toast",
-		Value:    value,
-		Path:     "/",
-		MaxAge:   30,
-		SameSite: http.SameSiteLaxMode,
-	})
+	sep := "?"
+	if strings.Contains(dest, "?") {
+		sep = "&"
+	}
+	http.Redirect(w, r, dest+sep+"toast="+base64.RawURLEncoding.EncodeToString(payload), http.StatusSeeOther)
 }

@@ -711,24 +711,29 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
     }
   });
 })();
-/* Toasts — an act posts a short-lived verge_toast cookie across the
-   post-redirect-get (ConsoleApp fires the same toasts client-side). On load we
-   drain the cookie into the toast stack, then clear it so a refresh does not
-   re-toast. Look and dismiss behaviour follow ToastStack.jsx / Toast.jsx; titles
-   and descriptions are set as textContent, never HTML, so a toast cannot inject. */
+/* Toasts — an act carries a toast across the post-redirect-get in the URL's
+   "toast" query (a base64url JSON blob; ConsoleApp fires the same toasts client-
+   side). On load we read it, fire it into the toast stack, then strip it from the
+   address bar so a refresh does not re-toast. Look and dismiss behaviour follow
+   ToastStack.jsx / Toast.jsx; titles and descriptions are set as textContent,
+   never HTML, so a toast cannot inject. */
 (function () {
   var stack = document.getElementById("toasts");
   if (!stack) return;
-  function readCookie(name) {
-    var parts = ("; " + document.cookie).split("; " + name + "=");
-    if (parts.length === 2) return parts.pop().split(";").shift();
-    return "";
-  }
-  var raw = readCookie("verge_toast");
+  var params;
+  try { params = new URLSearchParams(location.search); } catch (e) { return; }
+  var raw = params.get("toast");
   if (!raw) return;
-  document.cookie = "verge_toast=; Path=/; Max-Age=0";
+  // Strip the param so a reload or a shared link does not re-fire the toast.
+  params.delete("toast");
+  var qs = params.toString();
+  try { history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash); } catch (e) {}
   var list;
-  try { list = JSON.parse(decodeURIComponent(raw)); } catch (e) { return; }
+  try {
+    var b = raw.replace(/-/g, "+").replace(/_/g, "/");
+    for (var pad = (4 - (b.length & 3)) & 3; pad > 0; pad--) b += "=";
+    list = JSON.parse(decodeURIComponent(escape(atob(b))));
+  } catch (e) { return; }
   if (!list) return;
   if (!Array.isArray(list)) list = [list];
   function dismiss(el) {
