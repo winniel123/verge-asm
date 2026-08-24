@@ -6,9 +6,9 @@ import (
 )
 
 // A populated artifact renders the delivered document: the identity row, the KPI
-// band, the two change sections with drift-palette chips, and the delivery
-// receipt. The fixture is a test-local sample (as the reference JSX carries inline
-// sample data); it is never shipped by a handler.
+// band, the by-severity bars, the signals table with its SeverityBadge column, the
+// withdrawn drift section, and the delivery receipt. The fixture is a test-local
+// sample (as the reference JSX carries inline sample data); it is never shipped.
 func TestRenderArtifactPopulated(t *testing.T) {
 	a := Artifact{
 		Title:       "Weekly exposure summary",
@@ -24,9 +24,17 @@ func TestRenderArtifactPopulated(t *testing.T) {
 			{Label: "New assets", Value: "12", Delta: "+8", DeltaTone: "neutral", Caption: "8 names · 4 addresses"},
 			{Label: "Scans run", Value: "128", Caption: "this period"},
 		},
-		Appeared: []ArtifactChange{
-			{Change: "appeared", Subject: "edge-gw-03.acmecorp.io", Detail: "entered the estate aug 22"},
-			{Change: "revealed", Subject: "api.acmecorp.io", Detail: "came into view aug 22"},
+		SeverityCounts: []ArtifactSeverityCount{
+			{Level: "critical", Count: 3},
+			{Level: "high", Count: 11},
+			{Level: "medium", Count: 18},
+			{Level: "low", Count: 9},
+			{Level: "info", Count: 6},
+		},
+		Signals: []ArtifactSignal{
+			{Severity: "critical", Signal: "Service answering without transport encryption", Asset: "edge-gw-03.acmecorp.io", Raised: "aug 22"},
+			{Severity: "high", Signal: "Endpoint reachable from the internet", Asset: "api.acmecorp.io", Raised: "aug 22"},
+			{Severity: "medium", Signal: "Certificate expires in 23 days", Asset: "idp-signing-2026", Raised: "aug 20"},
 		},
 		Withdrawn: []ArtifactChange{
 			{Change: "withdrawn", Subject: "staging-4.acmecorp.io:8080", Detail: "closed since batch 14:00Z"},
@@ -42,7 +50,9 @@ func TestRenderArtifactPopulated(t *testing.T) {
 		"verge v0.9.2",
 		"Open signals", "47", "vs previous week", // KPI band
 		"Scans run", "128",
-		"New this week", "edge-gw-03.acmecorp.io", // appeared section
+		"Open signals by severity",                // severity bar breakdown header
+		"New this week", "edge-gw-03.acmecorp.io", // signals table
+		"Endpoint reachable from the internet",                 // a signal headline
 		"Withdrawn by the world", "staging-4.acmecorp.io:8080", // withdrawn section
 		"delivered 2026-08-22T09:00Z · ops.acmecorp.io", // receipt, host only
 		"vg-artifact", // self-contained token scope for PDF/email
@@ -52,12 +62,23 @@ func TestRenderArtifactPopulated(t *testing.T) {
 		}
 	}
 
-	// Change rides the drift palette, never the severity ramp.
-	if !strings.Contains(out, "var(--drift-gain-fg)") || !strings.Contains(out, "var(--drift-loss-fg)") {
-		t.Error("change rows must use the drift palette")
+	// The severity ramp is present (P2.10): the by-severity bars take the
+	// severity-dot tokens, and the signals table carries SeverityBadges keyed on the
+	// five exact levels. Critical is the only solid fill; the dot levels tint.
+	for _, want := range []string{
+		"var(--sev-critical-dot)",  // a bar fill
+		"var(--sev-critical-fill)", // the critical badge, the only solid fill
+		"var(--sev-high-bg)",       // a tinted badge
+		`data-sev="critical"`,      // the ramp is marked for the valence exemption
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("populated artifact missing severity ramp %q", want)
+		}
 	}
-	if strings.Contains(out, "--sev-") || strings.Contains(out, "SeverityBadge") {
-		t.Error("the artifact must carry no severity ramp — a signal is not scored")
+
+	// Change still rides the drift palette, never the severity ramp.
+	if !strings.Contains(out, "var(--drift-loss-fg)") {
+		t.Error("change rows must use the drift palette")
 	}
 	// The delivered document must be self-contained (its own token styles) and
 	// theme-aware in both directions, so it renders as a standalone PDF/email body.
@@ -114,9 +135,55 @@ func TestArtifactPeriod(t *testing.T) {
 // human-visible text.
 func assertNoValence(t *testing.T, htmlOut string) {
 	t.Helper()
-	text := stripTags(stripStyle(htmlOut))
+	text := stripTags(stripSev(stripStyle(htmlOut)))
 	if ContainsValence(text) {
 		t.Errorf("rendered artifact copy carries a valence word; text: %q", text)
+	}
+}
+
+// stripSev removes every severity ramp element whole — the by-severity section
+// title, the "Severity" column header, the badge labels, and the bar labels. That
+// language is the severity scale, the one loud voice the system exempts from the
+// valence rule, exactly as stripStyle exempts the token stylesheet. Ramp elements
+// are marked data-sev on their opening tag; the removal reads the element's tag
+// name from the opener and matches nested tags of the same name to its close (a
+// badge wraps one nested dot <span>).
+func stripSev(s string) string {
+	isAlpha := func(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') }
+	for {
+		m := strings.Index(s, "data-sev")
+		if m < 0 {
+			return s
+		}
+		open := strings.LastIndex(s[:m], "<")
+		if open < 0 {
+			return s
+		}
+		j := open + 1
+		for j < len(s) && isAlpha(s[j]) {
+			j++
+		}
+		openTok, closeTok := "<"+s[open+1:j], "</"+s[open+1:j]+">"
+		depth, i, end := 0, open, -1
+		for i < len(s) && end < 0 {
+			switch {
+			case strings.HasPrefix(s[i:], openTok):
+				depth++
+				i += len(openTok)
+			case strings.HasPrefix(s[i:], closeTok):
+				depth--
+				i += len(closeTok)
+				if depth == 0 {
+					end = i
+				}
+			default:
+				i++
+			}
+		}
+		if end < 0 {
+			return s[:open]
+		}
+		s = s[:open] + s[end:]
 	}
 }
 
