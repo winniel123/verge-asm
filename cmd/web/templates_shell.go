@@ -595,7 +595,7 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 		default:
 			s = "0"
 		}
-		return template.HTML(s) //nolint:gosec // a sign and digits only, from an int; no user input
+		return template.HTML(s) // #nosec G203 -- a sign and digits only, from an int; no user input
 	},
 }).Parse(`
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
