@@ -51,7 +51,7 @@ trap cleanup EXIT
 
 echo "== 1. render-goldens -> static HTML =="
 docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
-  sh -c "go run ./design-system/verify/harness/render-goldens -out design-system/goldens/inventory.html"
+  sh -c "go run -buildvcs=false ./design-system/verify/harness/render-goldens -out design-system/goldens/inventory.html"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
 docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_IMAGE" \
@@ -72,7 +72,7 @@ for i in $(seq 1 60); do docker exec "$PG" pg_isready -U verge >/dev/null 2>&1 &
 
 echo "== 3b. build web binary =="
 docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" -v "${BIN_VOL}:/out" "$GO_IMAGE" \
-  sh -c "go build -o /out/web ./cmd/web"
+  sh -c "go build -buildvcs=false -o /out/web ./cmd/web"
 
 echo "== 3c. migrate + seed fixtures (dev operator) =="
 docker run --rm --network "$NET" -v "$REPO":/src -w /src -v "${BIN_VOL}:/out" \
