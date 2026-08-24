@@ -649,6 +649,12 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	if emptyEstate {
 		steps = firstRunChecklist(nameScopes+addrScopes, zoneUploaded, internetVantage, scanDispatched)
 	}
+
+	// The header sub-line's "last full scan Xm ago · next in Yh Zm" instants (P0.4,
+	// #445): real reads over the scheduler's Dispatch and Scan corpora, assembled in
+	// scans.go. Exposed here so the home handler carries them; the sub-line markup
+	// that consumes ScanSchedule is P2.1's.
+	schedule := s.scanSchedule(ctx)
 	firstRunDone := 0
 	for _, st := range steps {
 		if st.Done {
@@ -681,6 +687,8 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		"Scopes":      nameScopes + addrScopes,
 		"HasScopes":   hasScopes,
 		"ActiveScans": len(active),
+
+		"ScanSchedule": schedule,
 	}
 	// Light the nav's Signals pill with the live firing count when there is one.
 	if hasOpenSignals && openSignals > 0 {
