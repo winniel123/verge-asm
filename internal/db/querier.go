@@ -756,6 +756,8 @@ type Querier interface {
 	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]ListUnusedRecoveryCodeHashesRow, error)
 	// The web prober list: only provisioned vantages (those carrying a prober
 	// endpoint). The resolver-only `local` vantage has no prober and is excluded.
+	// latency_ms is the per-vantage connect round-trip the Dashboard renders (P0.5),
+	// NULL until the prober connect that pins the host key lands a first measurement.
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
 	// The dns Scan dispatches over every configured Vantage, reading only its
 	// measurement identity (name, class, resolver). Distinct from the web prober
@@ -765,6 +767,12 @@ type Querier interface {
 	// (host set) whose public half has not been published, so no key material has
 	// ever left the worker volume for them.
 	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
+	// Rows the worker still has to measure a connect latency for (P0.5): a
+	// provisioned prober (host set) whose keypair has been published (public_key set,
+	// so a private half exists on the worker volume to dial with) but whose latency
+	// has never been measured. The connect the worker makes here is the same one that
+	// pins the host key trust-on-first-use, so measuring on it needs no extra dial.
+	ListVantagesNeedingLatency(ctx context.Context) ([]Vantage, error)
 	// The operator's edits to verge-core's frequency half (v1 spec §3.5). Only the
 	// frequency half is operator-editable; these deltas are applied over the shipped
 	// default at hot fan-out.
@@ -946,6 +954,11 @@ type Querier interface {
 	// the handler could let both pass; this conditional UPDATE cannot (RFC 6238 §5.2).
 	SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) (int64, error)
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
+	// The worker records the round-trip time of the prober connect that pinned the
+	// host key (P0.5, SPEC-CHANGE.md collision #7). Stored in whole milliseconds — the
+	// unit the Dashboard renders — and set only from a real measurement, never a
+	// fabricated value.
+	SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error

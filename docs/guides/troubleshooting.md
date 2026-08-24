@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting
 section: Operating
-order: 12
+order: 3
 description: Confirming silent failures on a first run — a scan that ran vs. one that failed quietly, empty exposure, undelivered notifications, boot migrations, and the Gap cases.
 ---
 

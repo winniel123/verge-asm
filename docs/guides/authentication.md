@@ -1,7 +1,7 @@
 ---
 title: Authentication
-section: Operating
-order: 8
+section: Access
+order: 2
 description: Manage your own account security — two-factor enrollment and the login challenge, recovery and re-enrollment, API tokens, active sessions, and the password change and reset flows.
 ---
 

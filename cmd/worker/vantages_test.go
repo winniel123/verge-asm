@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/vantage"
@@ -108,5 +112,94 @@ func TestProvisionVantageKeysIsIdempotent(t *testing.T) {
 	}
 	if store2.published[3] != first {
 		t.Errorf("re-published key %q differs from first %q", store2.published[3], first)
+	}
+}
+
+// fakeLatencyStore is an in-memory vantageLatencyStore for the worker latency loop.
+type fakeLatencyStore struct {
+	needing []db.Vantage
+	pinned  map[int64]string
+	latency map[int64]int32
+}
+
+func (f *fakeLatencyStore) ListVantagesNeedingLatency(context.Context) ([]db.Vantage, error) {
+	return f.needing, nil
+}
+
+func (f *fakeLatencyStore) PinVantageHostKey(_ context.Context, arg db.PinVantageHostKeyParams) error {
+	if f.pinned == nil {
+		f.pinned = map[int64]string{}
+	}
+	f.pinned[arg.ID] = arg.HostKey.String
+	return nil
+}
+
+func (f *fakeLatencyStore) SetVantageLatency(_ context.Context, arg db.SetVantageLatencyParams) error {
+	if f.latency == nil {
+		f.latency = map[int64]int32{}
+	}
+	f.latency[arg.ID] = arg.LatencyMs.Int32
+	return nil
+}
+
+// fakeProber stands in for the SSH dial so the orchestration is exercised without
+// a live server: it pins the given host key via onFirstUse and returns a fixed
+// round-trip, or an error to model an unreachable prober.
+type fakeProber struct {
+	rtt     time.Duration
+	encoded string
+	err     error
+}
+
+func (p fakeProber) Connect(_ context.Context, _ db.Vantage, _ string, onFirstUse func(string) error) (time.Duration, error) {
+	if p.err != nil {
+		return 0, p.err
+	}
+	if onFirstUse != nil {
+		if err := onFirstUse(p.encoded); err != nil {
+			return 0, err
+		}
+	}
+	return p.rtt, nil
+}
+
+func provisionedVantage(id int64) db.Vantage {
+	return db.Vantage{
+		ID:       id,
+		Host:     pgtype.Text{String: "prober.example.com", Valid: true},
+		Port:     pgtype.Int4{Int32: 22, Valid: true},
+		Username: pgtype.Text{String: "verge", Valid: true},
+	}
+}
+
+// A successful connect pins the presented host key trust-on-first-use and records
+// the round-trip in whole milliseconds — the unit the Dashboard renders.
+func TestMeasureVantageLatenciesPinsAndRecords(t *testing.T) {
+	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(5)}}
+	prober := fakeProber{rtt: 34 * time.Millisecond, encoded: "ssh-ed25519 AAAAhostkey"}
+
+	measureVantageLatencies(context.Background(), store, prober, t.TempDir())
+
+	if got := store.pinned[5]; got != "ssh-ed25519 AAAAhostkey" {
+		t.Errorf("vantage 5: host key pinned = %q, want the presented key", got)
+	}
+	if got := store.latency[5]; got != 34 {
+		t.Errorf("vantage 5: latency recorded = %dms, want 34ms", got)
+	}
+}
+
+// An unreachable prober records nothing: its latency stays NULL and the Dashboard
+// keeps rendering the pending em dash — never a fabricated value.
+func TestMeasureVantageLatenciesSkipsUnreachable(t *testing.T) {
+	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(8)}}
+	prober := fakeProber{err: errors.New("dial: connection refused")}
+
+	measureVantageLatencies(context.Background(), store, prober, t.TempDir())
+
+	if _, ok := store.latency[8]; ok {
+		t.Error("vantage 8: latency recorded for an unreachable prober")
+	}
+	if _, ok := store.pinned[8]; ok {
+		t.Error("vantage 8: host key pinned despite the connect failing")
 	}
 }
