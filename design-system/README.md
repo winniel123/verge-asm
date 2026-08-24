@@ -10,7 +10,7 @@ Two kinds of material, and the distinction matters:
 2. **`examples/` are the screens themselves — the spec, not inspiration.** The console screens (`examples/console/*.jsx`), marketing homepage, and docs page ARE how the product must look. Port each screen's JSX composition verbatim — same components, same layout, spacing, hierarchy, and copy patterns — swapping only the inline sample data for real data behind the same shapes, and the local `screen` state for your router. Do not recompose or restyle them. `screenshots/` holds captures of every screen as visual ground truth. (Two HTML preview shells were workspace scaffolding and are not included.)
 
 ## Fidelity
-**High-fidelity.** Colors, type, spacing, radii, shadows, motion, and copy are final. Both themes are AA-checked (severity ramp ratios are documented in `docs/DESIGN-NOTES.md`). Recreate pixel-perfectly — verify against `screenshots/`; where your stack forces a substitution, match the token values.
+**High-fidelity.** Colors, type, spacing, radii, shadows, motion, and copy are final. Both themes are AA-checked (severity ramp ratios are documented in `docs/DESIGN-NOTES.md`). Recreate pixel-perfectly — verify against `screenshots/`; where your stack forces a substitution, match the token values. **The spec is normative for functionality too: when the domain seems to lack a datum a spec region renders, file it in `SPEC-CHANGE.md` and wait for a ruling — never re-skin, empty-state, drop, or add a region port-side.**
 
 ## Dependencies
 - **React 18+** (components use hooks; no class components, no portals required)
@@ -46,7 +46,7 @@ Sentence case everywhere; imperative verbs on actions (`Add seed`, `Run scan`); 
 None bundled — by design. Icons come from Lucide (CDN or `lucide-react`); fonts from Google Fonts; the logo is a code-drawn placeholder (`components/media/Logo.jsx`); marketing "imagery" is composed product UI, not photos. Nothing else to license or migrate.
 
 ## What changed in v3 (this sync)
-Since the v2 package the repo imported: 12 operational views (asset/run/report drill-ins, inbox, search, profile, error pages, onboarding, auth flows), 10 repo-parity pages (sources catalogue, setup, first-run checklist, prober provisioning, port aperture, zone upload, exposure, coverage, org-name search, mark-all-read), the two-role model (admin + viewer — "operator" is gone), Carousel + VideoPlayer components, and TopNav deep-link props. `WORK-CHART.md` is the executable list.
+Since the v2 package the repo imported: 12 operational views (asset/run/report drill-ins, inbox, search, profile, error pages, onboarding, auth flows), 10 repo-parity pages (sources catalogue, setup, first-run checklist, prober provisioning, port aperture, zone upload, exposure, coverage, org-name search, mark-all-read), the two-role model (admin + viewer — "operator" is gone), Carousel + VideoPlayer components, and TopNav deep-link props. `WORK-CHART.md` is the executable list; your repo's screenshots folder is corrupted (13 identical files) and should be replaced by this one.
 
 ## Files
 - `README.md` — this document
@@ -54,7 +54,9 @@ Since the v2 package the repo imported: 12 operational views (asset/run/report d
 - `tokens/` — colors, typography, spacing, radius, elevation, motion, base (7 files)
 - `components/forms|display|feedback|navigation|media/` — ~112 components × (`.jsx` + `.d.ts` + `.prompt.md`)
 - `examples/console/` — 26 screen/flow compositions + shell (`ConsoleApp.jsx`) + screen README
-- `WORK-CHART.md` — the v3 implementation chart: work items, repo targets, parallelism notes, acceptance
+- `WORK-CHART.md` — the v3 implementation chart: work items, repo targets, parallelism notes, acceptance (executed)
+- `PARITY-CHART.md` — the v3.1 corrective chart: the exact-parity ruling and the work items that bring the executed port back to the design, look and functionality both
+- `SPEC-CHANGE.md` — the collision protocol: how domain–spec conflicts get ruled on by design instead of resolved port-side, plus the running collision log
 - `examples/Homepage.jsx`, `examples/DocsPage.jsx` — marketing and docs surfaces
 - `screenshots/` — captures of every screen (ground truth; see its README for the index)
 - `docs/DESIGN-NOTES.md` — full design rationale: palette math, severity contrast tables, per-batch component history, production notes

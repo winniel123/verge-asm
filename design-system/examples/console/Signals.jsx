@@ -80,7 +80,7 @@ export function Signals({ onAnnotate, onToast }) {
           <span style={{ font: "400 12.5px var(--font-ui)", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Raised when your attack surface drifts. Severity is Critical → Info.</span>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <Button variant="secondary" icon={<Icon name="download" size={14} />}>Export CSV</Button>
+          <Button variant="secondary" icon={<Icon name="download" size={14} />} onClick={() => onToast && onToast({ tone: "neutral", title: "Export started", description: "signals-" + tab + ".csv \u00b7 current filters applied" })}>Export CSV</Button>
         </div>
       </header>
       <Tabs active={tab} onChange={(t) => { setTab(t); setSel(null); setPage(1); }} tabs={[
