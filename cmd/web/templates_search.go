@@ -6,15 +6,15 @@ import "html/template"
 // design-system/examples/console/SearchResults.jsx (20-console.jpg). The layout is
 // the example's: a centred 900px column, a query header (heading + mono input +
 // mono result count), the design-system empty-state when nothing matches, then one
-// Card per kind — Assets, Signals, Batches — each a micro-label + title header over
-// rows that link to an existing route with the matched term highlighted. The
-// example's fourth card, Documentation, was dropped (#316): it had no store to
-// search over and none is planned, so the group is removed rather than left as
-// permanently-empty markup. The example's Card / Tag / BatchStatus / EmptyState /
-// Input / Icon are translated to template-local CSS within the existing token
-// vocabulary (restyling, not authoring — ADR-0109); no design-system component is
-// authored here. See search.go for the real-data reads and the domain holds (no
-// severity ramp on assets/signals).
+// Card per kind — Assets, Signals, Batches, Documentation — each a micro-label +
+// title header over rows with the matched term highlighted. Signal rows lead with a
+// SeverityBadge (the shared .sev pill; severity is P0.1's per-rule datum). The
+// Documentation card is indexed over the embedded operator guides (docs/guides/);
+// its rows are non-navigating, as the spec's doc rows carry no onClick. The
+// example's Card / Tag / SeverityBadge / BatchStatus / EmptyState / Input / Icon are
+// translated to template-local CSS within the existing token vocabulary (restyling,
+// not authoring — ADR-0109); no design-system component is authored here. See
+// search.go for the real-data reads and the P2.5 parity restorations.
 var _ = template.Must(tmpl.Parse(searchTemplates))
 
 const searchTemplates = `
@@ -43,6 +43,11 @@ const searchTemplates = `
 .srow .stext{font:500 12.5px var(--sans);color:var(--ink);min-width:0}
 .srow .sasset{margin-left:auto;font:400 11.5px var(--mono);color:var(--muted)}
 .srow .schev{margin-left:auto;color:var(--muted);flex:none}
+/* Documentation row — a two-line title + snippet column beside the file glyph */
+.srow.sdocrow{cursor:default}
+.srow .sdoc{display:flex;flex-direction:column;gap:2px;min-width:0}
+.srow .sdoctitle{font:500 12.5px var(--sans);color:var(--ink)}
+.srow .sdocsnip{font:400 11.5px var(--sans);color:var(--muted)}
 /* Tag (translated from Tag.jsx) */
 .stag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--r-sm);background:var(--sunken);border:1px solid var(--hairline);color:var(--muted);font:400 11.5px var(--mono);white-space:nowrap}
 /* BatchStatus chip (translated from BatchStatus.jsx) */
@@ -62,7 +67,7 @@ const searchTemplates = `
 <main style="max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
 <header class="searchhead">
 <h1>Search</h1>
-<form class="searchform" method="get" action="/search"><span class="searchq"><svg class="sic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><input type="text" name="q" value="{{.Query}}" placeholder="Assets, signals, batches" autofocus spellcheck="false" aria-label="Search"></span></form>
+<form class="searchform" method="get" action="/search"><span class="searchq"><svg class="sic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><input type="text" name="q" value="{{.Query}}" placeholder="Assets, signals, batches, docs" autofocus spellcheck="false" aria-label="Search"></span></form>
 <span class="searchcount">{{.Total}} results{{if .Query}} for &ldquo;{{.Query}}&rdquo;{{end}}</span>
 </header>
 
@@ -93,7 +98,7 @@ const searchTemplates = `
 <header><div class="microlabel">{{len .Signals}} open</div><h3>Signals</h3></header>
 <div class="scard-body">
 {{range .Signals}}<a class="srow" href="{{.Href}}">
-<svg class="sic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+<span class="sev sev-{{.Severity}}">{{if ne .Severity "critical"}}<span class="sev-dot"></span>{{end}}{{.Severity}}</span>
 <span class="stext">{{.Rule}}</span>
 <span class="sasset">{{.Subject}}</span>
 </a>{{end}}
@@ -109,6 +114,18 @@ const searchTemplates = `
 <span class="sbatch {{.Status}}"><span class="bdot"></span>{{.Status}}<span class="bscope">· {{.Label}}</span></span>
 <svg class="schev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
 </a>{{end}}
+</div>
+</section>
+{{end}}
+
+{{if .Docs}}
+<section class="scard">
+<header><div class="microlabel">Docs</div><h3>Documentation</h3></header>
+<div class="scard-body">
+{{range .Docs}}<div class="srow sdocrow">
+<svg class="sic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+<span class="sdoc"><span class="sdoctitle">{{.Title}}</span><span class="sdocsnip">{{.Snip}}</span></span>
+</div>{{end}}
 </div>
 </section>
 {{end}}

@@ -79,7 +79,10 @@ func TestSearchGroupsAndHighlights(t *testing.T) {
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
-	page := getBody(t, ac, base+"/search?q=api", http.StatusOK)
+	// A query specific enough to hit only the asset (no guide, signal, or batch
+	// mentions "api.example"), so the total-count assertion stays deterministic now
+	// that the Documentation group indexes docs/guides/.
+	page := getBody(t, ac, base+"/search?q=api.example", http.StatusOK)
 
 	// The Assets group renders (grouped by kind) with its micro-label count and the
 	// asset row links to the asset's existing route.
@@ -97,15 +100,45 @@ func TestSearchGroupsAndHighlights(t *testing.T) {
 
 	// The matched term is highlighted on the accent — an escaped span wrapping just
 	// the matched run.
-	if !strings.Contains(page, `<span style="color:var(--link);font-weight:600">api</span>`) {
+	if !strings.Contains(page, `<span style="color:var(--link);font-weight:600">api.example</span>`) {
 		t.Errorf("search page did not highlight the matched term; body: %s", page)
 	}
 
-	// Assets carry no severity (ADR-0024): the row leads with the subject glyph, never
-	// a fabricated severity pill.
+	// Assets carry no severity: a Name subject has no rule, so its row leads with the
+	// subject glyph, never a severity pill — exactly as the spec's mail row (sev:null)
+	// renders none. (Signals, which DO carry the rule's severity, are covered by
+	// TestSearchSignalsCarrySeverity.) This seed fires no signal, so no pill appears.
 	for _, pill := range []string{`class="sev sev-critical"`, `class="sev sev-high"`, `class="sev sev-medium"`} {
 		if strings.Contains(page, pill) {
-			t.Errorf("search page rendered a severity pill %q — assets/signals are not a ramp", pill)
+			t.Errorf("search page rendered a severity pill %q on an assets-only result — a Name is not a ramp", pill)
+		}
+	}
+}
+
+// A fired signal carries its rule's severity (P0.1): the Signals group's row leads
+// with the SeverityBadge for the rule, the same five-level ramp the Signals screen
+// shows — read from internal/signal, never fabricated. A lame delegation fires
+// lame-delegation, a medium rule, so its row renders the medium pill.
+func TestSearchSignalsCarrySeverity(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedZone(t, f, admin, "example.com", "$ORIGIN example.com.\n@ IN SOA ns1 admin 1 2 3 4 5\n")
+
+	// An all-refusing delegation composes to Lame → lame-delegation FIRES (medium).
+	f.addClassResolution(t, "lame.example.com", "internet", obsClock, `{"outcome":"Gap"}`)
+	f.addDNSRecord(t, "lame.example.com", "NS", obsClock, `{"rrs":[],"delegation":{"lame":true}}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/search?q=lame", http.StatusOK)
+
+	for _, want := range []string{
+		`<h3>Signals</h3>`,          // the Signals group renders
+		`class="sev sev-medium"`,    // the row leads with the rule's SeverityBadge
+		`>lame</span>-delegation`,   // the firing rule, its query match highlighted
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("search signal row missing %q; body: %s", want, page)
 		}
 	}
 }
@@ -137,31 +170,47 @@ func TestSearchBrowsesAcrossKinds(t *testing.T) {
 	}
 }
 
-// The example's fourth group, Documentation, was dropped (#316): there is no docs
-// content store or /docs route to search over and none is planned, so the group is
-// removed rather than left as permanently-empty markup. Even with results in every
-// other kind, no Documentation card renders and the placeholder no longer advertises
-// docs.
-func TestSearchHasNoDocumentationGroup(t *testing.T) {
+// The example's fourth group, Documentation, is restored (P2.5, #451): the operator
+// guides under docs/guides/ ARE the content store its original drop (#316) said was
+// missing. The group indexes each guide's front-matter title + description, so a
+// query matching a guide's title lights it up, and the input placeholder advertises
+// docs again.
+func TestSearchHasDocumentationGroup(t *testing.T) {
 	f := newFakeStore()
-	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	addNameSeed(t, f, admin.ID, "example.com")
-	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved"}`)
-	f.dispatchProgress = []db.ListDispatchProgressRow{
-		progressRow(7, "hot", obsClock, 2, 0, 0, 2, 0, 0),
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	// "signals" matches the Signals reference guide's title/description.
+	page := getBody(t, ac, base+"/search?q=signals", http.StatusOK)
+
+	for _, want := range []string{
+		`<h3>Documentation</h3>`,          // the restored group card title
+		`Assets, signals, batches, docs`,  // the input placeholder advertises docs again
+		`>Signals</span> reference`,       // a guide's front-matter title, indexed + highlighted
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("search page missing restored docs surface %q; body: %s", want, page)
+		}
 	}
+}
+
+// An empty query browses every guide (the "see everything" landing): with the guides
+// embedded, the Documentation group renders unfiltered — the group is real data now,
+// not permanently-empty markup.
+func TestSearchBrowsesDocumentation(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/search", http.StatusOK)
 
-	for _, absent := range []string{
-		`<h3>Documentation</h3>`,          // the removed group card title
-		`Assets, signals, batches, docs`,  // the old input placeholder advertising docs
-	} {
-		if strings.Contains(page, absent) {
-			t.Errorf("search page still carries removed docs surface %q; body: %s", absent, page)
-		}
+	if !strings.Contains(page, `<h3>Documentation</h3>`) {
+		t.Errorf("empty-query browse missing the Documentation group; body: %s", page)
+	}
+	if len(guideIndex) == 0 {
+		t.Fatalf("guide index is empty — docs/guides/ did not embed")
 	}
 }
 
