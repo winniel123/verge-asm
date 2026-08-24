@@ -15,7 +15,7 @@
 import DocsLayout from "../../layouts/DocsLayout.astro";
 import Article from "../../pipeline/render.jsx";
 import { Breadcrumb } from "@ds/components/navigation/Breadcrumb.jsx";
-import { resolveSources, listVersions, canonicalPath } from "../../pipeline/source-resolution";
+import { resolveSources, listVersions, canonicalPath, refForVersion } from "../../pipeline/source-resolution";
 import { extractToc } from "../../pipeline/slug";
 import { buildNav } from "../../pipeline/nav-build";
 
@@ -41,6 +41,9 @@ const sections = buildNav(sources, source.slug);
 const pageTitle = `${source.frontmatter.title ?? source.slug} · Verge ASM docs`;
 // Canonical URL points every version of a page at the `latest` alias (#351 point 4).
 const canonical = canonicalPath(source.slug);
+// The git ref this version was built from — Article blob-links ADR cross-refs at it
+// (#428). Resolved server-side because the island cannot run git to learn the tag.
+const adrRef = refForVersion(source.version);
 
 // Breadcrumb is driven from the SAME nav model as the rail: find the section that
 // owns the active guide, and read its label straight off the built model so the trail
@@ -65,5 +68,5 @@ const crumbs = [
   canonical={canonical}
 >
   <Breadcrumb items={crumbs} style={{ marginBottom: "24px" }} />
-  <Article client:load markdown={source.rawMarkdown} version={source.version} slug={source.slug} />
+  <Article client:load markdown={source.rawMarkdown} version={source.version} slug={source.slug} adrRef={adrRef} />
 </DocsLayout>

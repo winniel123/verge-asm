@@ -20,6 +20,7 @@ import remarkGfm from "remark-gfm";
 import GithubSlugger from "github-slugger";
 import { CodeBlock } from "@ds/components/display/CodeBlock.jsx";
 import { Callout } from "@ds/components/feedback/Callout.jsx";
+import { refForDocsVersion, repoBlobUrl } from "../repo.ts";
 
 /* ---- prose styles: ported from the DocsPage sample article (Article.jsx) ---- */
 const S = {
@@ -55,8 +56,20 @@ function InlineCode({ children }) {
  *   ./running.md#environment-vars -> /<version>/running#environment-vars
  *   #severity-levels              -> /<version>/<currentSlug>#severity-levels (in-page)
  *   https://example.com           -> unchanged (external)
- *   ../adr/0017-....md, ../../deploy/, *.go, dirs -> unchanged (repo cross-refs,
- *                                    not rendered guide routes — see PIPELINE.md)
+ *   ../adr/0017-....md#frag        -> https://github.com/…/blob/<ref>/docs/adr/… (external)
+ *   ../../deploy/, *.go, dirs      -> unchanged (repo cross-refs with no home on the
+ *                                    docs site — see PIPELINE.md)
+ *
+ * ADRs are NOT part of the published page set (only docs/guides/ is ingested — see
+ * source-resolution.ts), so a guide's `../adr/<file>.md` reference cannot resolve to
+ * a docs route; left relative it 404s against the docs server. We rewrite it to the
+ * ADR's GitHub blob URL at `adrRef` — the git ref the guide route resolved for this
+ * version (refForVersion), so a `latest`/tag page links its ADRs at the matching ref
+ * rather than always at `main` (#428).
+ *
+ * `../adr/<file>.md` deliberately matches a FLAT filename only (no nested path): ADRs
+ * are flat files, and forbidding a `/` keeps this in lockstep with check-links.mjs,
+ * which validates the same targets against a set of flat ADR basenames.
  *
  * Fragments are passed through verbatim: guide authors write already-slugified
  * anchors (`#2-upload-a-zone-file`), and check-links.mjs is the gate that proves
@@ -65,7 +78,8 @@ function InlineCode({ children }) {
  * as an intra-guide link.
  */
 const INTRA_GUIDE = /^\.?\/?([a-z0-9][a-z0-9-]*)\.md(?:#(.+))?$/i;
-function rewriteHref(href, version, currentSlug) {
+const ADR_XREF = /^\.\.\/adr\/([^#?/]+\.md)(?:#(.+))?$/i;
+function rewriteHref(href, version, currentSlug, adrRef) {
   if (!href) return { href, intraSite: false };
   if (href.startsWith("#")) {
     return { href: `/${version}/${currentSlug}${href}`, intraSite: true };
@@ -76,7 +90,13 @@ function rewriteHref(href, version, currentSlug) {
     const frag = m[2] ? `#${m[2]}` : "";
     return { href: `/${version}/${m[1]}${frag}`, intraSite: true };
   }
-  return { href, intraSite: false }; // mailto:, ../adr/..., ../../deploy/, *.go, dirs
+  const adr = ADR_XREF.exec(href);
+  if (adr) {
+    const frag = adr[2] ? `#${adr[2]}` : "";
+    const blob = repoBlobUrl(adrRef, `docs/adr/${adr[1]}`);
+    return { href: `${blob}${frag}`, intraSite: false, external: true };
+  }
+  return { href, intraSite: false }; // mailto:, ../../deploy/, *.go, dirs
 }
 
 /** Flatten a react-markdown children tree to its plain-text content (for slugging). */
@@ -93,7 +113,10 @@ function toText(node) {
  * the string is passed as a prop from the .astro page so this hydrates client-side,
  * which the DS CodeBlock needs for its copy control.
  */
-export default function Article({ markdown = "", version = "main", slug = "" }) {
+export default function Article({ markdown = "", version = "main", slug = "", adrRef }) {
+  // The guide route resolves the exact git ref (refForVersion) and passes it in;
+  // refForDocsVersion is the client-safe fallback if a caller omits the prop.
+  const ref = adrRef ?? refForDocsVersion(version);
   // One slugger per render, closed over by the heading renderers. react-markdown
   // visits headings in source order, so its de-dup counter stays in step with
   // extractToc() in slug.ts (which slugs every heading in the same order).
@@ -125,7 +148,7 @@ export default function Article({ markdown = "", version = "main", slug = "" }) 
     // in-site `/<version>/running#anchor` routes for the current version; external
     // http(s) links open in a new tab; everything else passes through untouched.
     a: ({ href, children }) => {
-      const { href: nextHref, external } = rewriteHref(href, version, slug);
+      const { href: nextHref, external } = rewriteHref(href, version, slug, ref);
       return (
         <a href={nextHref} style={S.a} {...(external ? { target: "_blank", rel: "noreferrer noopener" } : {})}>
           {children}
