@@ -189,10 +189,7 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	raw := r.PathValue("id")
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
-		s.renderStatus(w, http.StatusNotFound, "run-missing", map[string]any{
-			"Title": "No such run", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"NavActive": "drift", "Run": raw,
-		})
+		s.renderMissingRun(w, acct, raw)
 		return
 	}
 
@@ -209,10 +206,7 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		}
 	}
 	if found == nil {
-		s.renderStatus(w, http.StatusNotFound, "run-missing", map[string]any{
-			"Title": "No such run", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"NavActive": "drift", "Run": raw,
-		})
+		s.renderMissingRun(w, acct, raw)
 		return
 	}
 

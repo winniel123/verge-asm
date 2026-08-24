@@ -685,7 +685,7 @@ func (s *server) handler() http.Handler {
 	// The Settings destination and every mutation it hosts are admin acts
 	// (v1 spec §4.3, §6.1): viewing the operator's dials and moving them are
 	// both gated behind requireAdmin.
-	mux.HandleFunc("GET /settings", s.requireAdmin(s.settingsPage))
+	mux.HandleFunc("GET /settings", s.requireSettingsAdmin(s.settingsPage))
 	mux.HandleFunc("POST /settings/accounts", s.requireAdmin(s.inviteAccount))
 	mux.HandleFunc("POST /settings/accounts/role", s.requireAdmin(s.setAccountRole))
 	// Team (#313, T18): re-enrollment resets a member's second factor; remove passes

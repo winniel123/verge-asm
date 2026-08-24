@@ -323,20 +323,14 @@ func splitEndpointKey(key string) (name, service string) {
 func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := strings.TrimSpace(r.FormValue("key"))
 	if key == "" {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	subject, err := s.store.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	if err != nil {
@@ -436,20 +430,14 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := strings.TrimSpace(r.FormValue("key"))
 	if key == "" {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	subject, err := s.store.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	if err != nil {
@@ -1146,10 +1134,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	if err != nil {

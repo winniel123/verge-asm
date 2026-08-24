@@ -162,7 +162,9 @@ func TestRunDetailEmptyState(t *testing.T) {
 }
 
 // A run id that is not in recent history — aged out or never dispatched — 404s to
-// the run-missing page rather than manufacturing a record. A non-numeric id does too.
+// the missing-run ErrorPage (U3, #480) rather than manufacturing a record: the id
+// big-mono as `run #<id>`, the "no dispatch is keyed under that id" copy, and the way
+// back to Drift. A non-numeric id 404s the same way.
 func TestRunDetailUnknownRun(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -170,7 +172,12 @@ func TestRunDetailUnknownRun(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	getBody(t, ac, base+"/run/999", http.StatusNotFound)
+	page := getBody(t, ac, base+"/run/999", http.StatusNotFound)
+	for _, want := range []string{"No such run", "No dispatch is keyed under that id", "run #999", "Back to drift"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("missing-run page missing %q; body: %s", want, page)
+		}
+	}
 	getBody(t, ac, base+"/run/not-a-number", http.StatusNotFound)
 }
 

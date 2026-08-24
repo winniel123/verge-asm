@@ -112,6 +112,22 @@ func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 	})
 }
 
+// requireSettingsAdmin gates the Settings destination like requireAdmin, but a
+// refused viewer sees the richer settings-forbidden ErrorPage (U4, #481) — the
+// "admin only, Settings is where declared acts live" copy that names how a role is
+// widened — instead of the plain 403 every other admin route renders. Status stays
+// 403. Only the GET /settings view uses this; the Settings mutations keep the plain
+// requireAdmin gate, so this is the one surface that swaps the copy.
+func (s *server) requireSettingsAdmin(h authedHandler) http.HandlerFunc {
+	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
+		if acct.Role != roleAdmin {
+			s.settingsForbidden(w, acct)
+			return
+		}
+		h(w, r, acct)
+	})
+}
+
 const (
 	roleAdmin  = "admin"
 	roleViewer = "viewer"

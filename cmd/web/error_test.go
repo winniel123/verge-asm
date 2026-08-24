@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -33,8 +34,11 @@ func TestUnknownPathRendersNotFound(t *testing.T) {
 	}
 }
 
-// TestForbiddenRendersAccessDenied proves a viewer who reaches an admin-only GET
-// gets the ported 403 error page, explaining the denial.
+// TestForbiddenRendersAccessDenied proves a viewer who reaches a plain admin-gated
+// route (every admin act but Settings, which renders the richer settings-forbidden
+// copy — see TestSettingsIsAdminOnly) gets the ported 403 error page explaining the
+// denial. POST /scans/trigger is such a route: requireAdmin refuses the viewer before
+// the handler runs.
 func TestForbiddenRendersAccessDenied(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -42,7 +46,11 @@ func TestForbiddenRendersAccessDenied(t *testing.T) {
 	base := start(t, f, "")
 	vc := login(t, base, "viewer", "hunter2hunter2")
 
-	got := getBody(t, vc, base+"/settings", http.StatusForbidden)
+	resp := postForm(t, vc, base+"/scans/trigger", url.Values{})
+	got := body(t, resp)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer POST /scans/trigger: status=%d, want 403 (body: %s)", resp.StatusCode, got)
+	}
 	if !strings.Contains(got, "Access denied") || !strings.Contains(got, "widen") {
 		t.Fatalf("403 page does not explain the denial: %s", got)
 	}
