@@ -58,6 +58,19 @@ type inventorySubject struct {
 	Facets []inventoryFacet
 }
 
+// HasGap reports whether the subject currently holds at least one Gap facet — a
+// timeline whose value the system cannot state. The Inventory "Gaps only"
+// client-side scope (SPEC-CHANGE #13, package v3.2.4) reads it off each rendered
+// row to hide subjects that hold no Gap, without a server round-trip.
+func (s inventorySubject) HasGap() bool {
+	for _, f := range s.Facets {
+		if f.IsGap {
+			return true
+		}
+	}
+	return false
+}
+
 // inventoryGroup buckets subjects of one kind under a plural heading, in the
 // order the kinds first appear in the (kind, key)-ordered read.
 type inventoryGroup struct {
