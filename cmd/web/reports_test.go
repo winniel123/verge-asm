@@ -64,7 +64,7 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 		t.Errorf("reports nav pill not marked active; body: %s", page)
 	}
 	for _, want := range []string{
-		"Open signals", "Scans run", "In flight", // KPI band
+		"Open signals", "Assets watched", "Mean time to withdrawal", // KPI band — the three trend cards
 		"Open signals over time",                     // time-series card title
 		"Scans per day", "Scans per day, last 12 weeks", // heatmap card + grid aria-label
 		"Recurring reports", "New schedule", // recurring card + the (disabled) schedule control
@@ -74,16 +74,10 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 		}
 	}
 
-	// The two activity KPIs reflect the seeded Dispatches: two in the window, one in
-	// flight.
-	if !strings.Contains(page, ">2<") {
-		t.Errorf("scans-run KPI should be 2; body: %s", page)
-	}
-	if !strings.Contains(page, ">1<") {
-		t.Errorf("in-flight KPI should be 1; body: %s", page)
-	}
-
-	// The heatmap is wired (not the empty-state), so its intensity fill renders.
+	// The operational scans-run / in-flight scalars moved off the band (the spec's
+	// band is three trend cards, not operational counters) and now live only in the
+	// export — see TestReportsExportCSV/JSON. The heatmap still reflects the seeded
+	// Dispatches: two dated in the window, so its intensity fill renders.
 	if !strings.Contains(page, "color-mix(in srgb, var(--chart-1)") {
 		t.Errorf("heatmap intensity fill missing; body: %s", page)
 	}
@@ -113,10 +107,10 @@ func TestReportsEmptyStates(t *testing.T) {
 	page := getBody(t, ac, base+"/reports", http.StatusOK)
 
 	for _, want := range []string{
-		"Signals are a current-state census",   // time-series region, domain fact
-		"Signals carry no severity",            // by-severity region, domain fact
-		"No scans in the last 12 weeks",        // heatmap empty-state
-		"No recurring reports",                 // recurring table empty-state
+		"No signal history",             // time-series region — no raises yet
+		"No signals firing",             // by-severity region — nothing firing
+		"No scans in the last 12 weeks", // heatmap empty-state
+		"No recurring reports",          // recurring table empty-state
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("reports empty-state missing %q; body: %s", want, page)
