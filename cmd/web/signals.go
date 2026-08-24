@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -204,9 +207,11 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		m[a.SubjectKey] = true
 	}
 
+	censuses := signal.EvaluateCorpus(corpus)
+
 	population := map[string]map[string]bool{}
 	views := make([]signalCensusView, 0)
-	for _, c := range signal.EvaluateCorpus(corpus) {
+	for _, c := range censuses {
 		pop := map[string]bool{}
 		for _, m := range c.Fired {
 			pop[m.Subject] = true
@@ -308,6 +313,17 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 
+	// The flat per-instance signal datum (P0.1, #442): one row per currently-fired
+	// (rule, subject) pair, carrying the rule's severity, a stable minted SIG-####
+	// id and its first-seen / last-seen instants. This is the shape SignalData.jsx
+	// renders; the Signals SCREEN that draws it is a separate ticket (P2.2), so it is
+	// exposed here as data the template can read but does not yet paint.
+	instances, err := s.deriveSignalInstances(r.Context(), censuses)
+	if err != nil {
+		s.serverError(w, "derive signal instances", err)
+		return
+	}
+
 	s.render(w, "signals", map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive":      "signals",
@@ -318,6 +334,8 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		"AnnotatedCount": len(annotatedRows),
 		"WithdrawnCount": len(withdrawnRows),
 		"Censuses":       views,
+		"Instances":      instances,
+		"SevOrder":       signal.SevOrder,
 		"Annotations":    annoViews,
 		"Annotated":      annotatedRows,
 		"Withdrawn":      withdrawnRows,
@@ -775,4 +793,162 @@ func estateNameSet(names []signal.NameFacts) map[string]bool {
 		}
 	}
 	return set
+}
+
+// signalInstanceView is one currently-fired signal instance — a (rule, subject)
+// pair the engine placed under `fired` right now — shaped for the flat per-instance
+// table SignalData.jsx renders (P0.1, #442). It is the datum, not the screen: the
+// Signals template (P2.2) reads this to draw the SeverityBadge / SIG-id / severity
+// filter / sort; this ticket derives and exposes it, and never paints it.
+//
+// Every field is real, none fabricated. SigID and First are read from the persisted
+// signal_instance identity; Severity/SevRank come from the rule (assigned per rule
+// in internal/signal); Last is this derivation instant (the pair is confirmed
+// firing now, so last-seen is now); Asset/IP/Port fall out of the subject key.
+// CVE, tags and the long remediation description SignalData.jsx also carries are
+// genuinely not derivable from the current corpus and are left off rather than
+// invented — the spec marks them optional.
+type signalInstanceView struct {
+	SigID    string // "SIG-####", formatted from the stable minted identity
+	Signal   string // the rule name — the named fact (never "finding"/"fingerprint")
+	Title    string // the rule name rendered for a human
+	Severity string // the rule's severity: critical | high | medium | low | info
+	SevRank  int    // index in signal.SevOrder — 0 = critical, the severity sort key
+	Asset    string // the subject key (Name, Service or Endpoint)
+	IP       string // the subject's address, where the key carries one ("" for a Name)
+	Port     string // the subject's port as ":NNNN", where the key carries one
+	First    string // first-seen instant, RFC3339 (persisted; "" if never minted)
+	Last     string // last-seen instant, RFC3339 — the current derivation instant
+	Seen     string // last-seen rendered relative to now ("4m", "now")
+	Href     string // route-aware drill-down to the subject
+}
+
+// deriveSignalInstances folds the live censuses into the flat per-instance signal
+// datum (P0.1, #442): one row per currently-fired (rule, subject) pair. It mints a
+// stable identity for every fired pair (idempotent — an already-firing pair keeps
+// its id and first-seen), reads the identities back, and shapes each into a
+// signalInstanceView with its rule's severity and its instants. Ordered by the
+// severity ramp, then subject, then rule, so the exposed table is deterministic and
+// already in the design's critical→info order.
+func (s *server) deriveSignalInstances(ctx context.Context, censuses []signal.Census) ([]signalInstanceView, error) {
+	type pair struct{ rule, subject string }
+
+	var fired []pair
+	var names, subjects []string
+	for _, c := range censuses {
+		for _, m := range c.Fired {
+			fired = append(fired, pair{c.Rule, m.Subject})
+			names = append(names, c.Rule)
+			subjects = append(subjects, m.Subject)
+		}
+	}
+
+	// Mint identity for the whole current fired set in one idempotent write. Nothing
+	// fires → nothing to mint, and the list below returns the historical rows (none
+	// of which match, so no instance renders).
+	if len(fired) > 0 {
+		if err := s.store.MintSignalInstances(ctx, db.MintSignalInstancesParams{
+			SignalNames: names,
+			SubjectKeys: subjects,
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	rows, err := s.store.ListSignalInstances(ctx)
+	if err != nil {
+		return nil, err
+	}
+	type identity struct {
+		id      int64
+		first   time.Time
+		firstOK bool
+	}
+	byPair := make(map[pair]identity, len(rows))
+	for _, row := range rows {
+		byPair[pair{row.SignalName, row.SubjectKey}] = identity{
+			id: row.ID, first: row.FirstSeen.Time, firstOK: row.FirstSeen.Valid,
+		}
+	}
+
+	now := s.now().UTC()
+	out := make([]signalInstanceView, 0, len(fired))
+	for _, p := range fired {
+		id := byPair[p]
+		sev, _ := signal.SeverityFor(p.rule)
+		ip, port := subjectAddrPort(p.subject)
+		v := signalInstanceView{
+			SigID:    formatSigID(id.id),
+			Signal:   p.rule,
+			Title:    signalTitle(p.rule),
+			Severity: sev.String(),
+			SevRank:  sev.Rank(),
+			Asset:    p.subject,
+			IP:       ip,
+			Port:     port,
+			Last:     now.Format(time.RFC3339),
+			Seen:     relTime(now, now),
+			Href:     subjectHref(signal.SubjectKindFor(p.rule), p.subject),
+		}
+		if id.firstOK {
+			v.First = id.first.UTC().Format(time.RFC3339)
+		}
+		out = append(out, v)
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].SevRank != out[j].SevRank {
+			return out[i].SevRank < out[j].SevRank
+		}
+		if out[i].Asset != out[j].Asset {
+			return out[i].Asset < out[j].Asset
+		}
+		return out[i].Signal < out[j].Signal
+	})
+	return out, nil
+}
+
+// formatSigID renders the stable minted identity as the console's `SIG-####`
+// display id (SignalData.jsx). A zero id (a pair with no identity row — not
+// expected after a mint) renders empty rather than "SIG-0000".
+func formatSigID(id int64) string {
+	if id == 0 {
+		return ""
+	}
+	return fmt.Sprintf("SIG-%04d", id)
+}
+
+// subjectAddrPort pulls the address and port out of a subject key for the
+// per-instance table's IP / Port columns. A Service key is `address:port/transport`
+// and an Endpoint key is `name@address:port/transport`; a bare Name carries
+// neither, so both come back empty. It reuses the same parse the engine's fold
+// uses, so the columns agree with the census's own reading of the key.
+func subjectAddrPort(subject string) (ip, port string) {
+	_, svc := splitEndpointName(subject)
+	if p, addr, ok := parseServicePair(svc); ok {
+		return addr, ":" + strconv.Itoa(int(p.Port))
+	}
+	return "", ""
+}
+
+// signalTitle renders a rule name as the human title the per-instance row shows
+// (SignalData.jsx `title`). The rule name is the source of truth (never
+// "finding"/"fingerprint"); this only presents it — hyphens become spaces, known
+// acronyms are upper-cased, and the first word is capitalised.
+func signalTitle(ruleName string) string {
+	acronyms := map[string]string{
+		"cname": "CNAME", "dns": "DNS", "ns": "NS", "tls": "TLS",
+		"http": "HTTP", "https": "HTTPS", "san": "SAN", "ip": "IP", "url": "URL",
+	}
+	words := strings.Split(ruleName, "-")
+	for i, w := range words {
+		if a, ok := acronyms[w]; ok {
+			words[i] = a
+			continue
+		}
+		if i == 0 && w != "" {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+	}
+	return strings.Join(words, " ")
 }

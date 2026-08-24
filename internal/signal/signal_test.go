@@ -9,8 +9,9 @@ type stubRule struct {
 	out  map[string]Outcome
 }
 
-func (s stubRule) Name() string     { return s.name }
-func (s stubRule) Version() Version { return Version{Rule: "vtest", Composes: []string{"a", "b"}} }
+func (s stubRule) Name() string       { return s.name }
+func (s stubRule) Version() Version   { return Version{Rule: "vtest", Composes: []string{"a", "b"}} }
+func (s stubRule) Severity() Severity { return SevInfo }
 func (s stubRule) Eval(f NameFacts) Outcome {
 	if o, ok := s.out[f.Name]; ok {
 		return o

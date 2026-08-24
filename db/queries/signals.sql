@@ -187,3 +187,34 @@ FROM zone_file z
 JOIN seed s ON s.id = z.seed_id
 WHERE s.kind = 'name' AND s.name_domain IS NOT NULL
 ORDER BY z.seed_id, z.supplied_at DESC, z.id DESC;
+
+-- Per-instance signal identity (#442, P0.1). A signal_instance is the persistent
+-- id + first-seen instant of one `(signal-name, subject)` pair the engine placed
+-- under `fired`. The census is re-derived live and never stored; these two queries
+-- add only the mintable `SIG-####` id (formatted from the identity) and the
+-- first-seen instant that a pure re-derivation cannot reconstruct. Everything else
+-- the SignalData.jsx row shows is derived on read (severity from the rule,
+-- last-seen = the current derivation instant, asset/ip/port from the subject key).
+
+-- name: MintSignalInstances :exec
+-- Mint an identity for every currently-fired pair, idempotently. Called on the
+-- Signals read path with the whole current fired set unnested into two parallel
+-- arrays; ON CONFLICT DO NOTHING means a pair already firing keeps its original id
+-- and first_seen (so "first seen" is when it was first raised, not last rendered),
+-- while a newly-fired pair is minted with first_seen defaulting to now(). It writes
+-- identity only — never a severity, never a last-seen — so the row carries exactly
+-- what must persist.
+INSERT INTO signal_instance (signal_name, subject_key)
+SELECT unnest(sqlc.arg(signal_names)::text[]), unnest(sqlc.arg(subject_keys)::text[])
+ON CONFLICT (signal_name, subject_key) DO NOTHING;
+
+-- name: ListSignalInstances :many
+-- Every minted instance identity, ordered by signal then subject — the same
+-- deterministic order the annotation ledger uses. The web layer folds these
+-- against the live census by `(signal_name, subject_key)` to attach each currently
+-- -fired member its stable id and first-seen instant; a stored row whose pair is no
+-- longer firing simply matches nothing this render and contributes no per-instance
+-- row (the pair is not currently open).
+SELECT id, signal_name, subject_key, first_seen
+FROM signal_instance
+ORDER BY signal_name, subject_key;

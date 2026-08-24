@@ -336,6 +336,43 @@ func (q *Queries) ListServiceReachabilitySpansByClass(ctx context.Context) ([]Li
 	return items, nil
 }
 
+const listSignalInstances = `-- name: ListSignalInstances :many
+SELECT id, signal_name, subject_key, first_seen
+FROM signal_instance
+ORDER BY signal_name, subject_key
+`
+
+// Every minted instance identity, ordered by signal then subject — the same
+// deterministic order the annotation ledger uses. The web layer folds these
+// against the live census by `(signal_name, subject_key)` to attach each currently
+// -fired member its stable id and first-seen instant; a stored row whose pair is no
+// longer firing simply matches nothing this render and contributes no per-instance
+// row (the pair is not currently open).
+func (q *Queries) ListSignalInstances(ctx context.Context) ([]SignalInstance, error) {
+	rows, err := q.db.Query(ctx, listSignalInstances)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SignalInstance{}
+	for rows.Next() {
+		var i SignalInstance
+		if err := rows.Scan(
+			&i.ID,
+			&i.SignalName,
+			&i.SubjectKey,
+			&i.FirstSeen,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listZoneDeclarations = `-- name: ListZoneDeclarations :many
 SELECT DISTINCT ON (z.seed_id)
     s.name_domain AS name_domain,
@@ -374,4 +411,35 @@ func (q *Queries) ListZoneDeclarations(ctx context.Context) ([]ListZoneDeclarati
 		return nil, err
 	}
 	return items, nil
+}
+
+const mintSignalInstances = `-- name: MintSignalInstances :exec
+
+INSERT INTO signal_instance (signal_name, subject_key)
+SELECT unnest($1::text[]), unnest($2::text[])
+ON CONFLICT (signal_name, subject_key) DO NOTHING
+`
+
+type MintSignalInstancesParams struct {
+	SignalNames []string `json:"signal_names"`
+	SubjectKeys []string `json:"subject_keys"`
+}
+
+// Per-instance signal identity (#442, P0.1). A signal_instance is the persistent
+// id + first-seen instant of one `(signal-name, subject)` pair the engine placed
+// under `fired`. The census is re-derived live and never stored; these two queries
+// add only the mintable `SIG-####` id (formatted from the identity) and the
+// first-seen instant that a pure re-derivation cannot reconstruct. Everything else
+// the SignalData.jsx row shows is derived on read (severity from the rule,
+// last-seen = the current derivation instant, asset/ip/port from the subject key).
+// Mint an identity for every currently-fired pair, idempotently. Called on the
+// Signals read path with the whole current fired set unnested into two parallel
+// arrays; ON CONFLICT DO NOTHING means a pair already firing keeps its original id
+// and first_seen (so "first seen" is when it was first raised, not last rendered),
+// while a newly-fired pair is minted with first_seen defaulting to now(). It writes
+// identity only — never a severity, never a last-seen — so the row carries exactly
+// what must persist.
+func (q *Queries) MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error {
+	_, err := q.db.Exec(ctx, mintSignalInstances, arg.SignalNames, arg.SubjectKeys)
+	return err
 }

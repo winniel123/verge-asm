@@ -207,6 +207,14 @@ type store interface {
 	CreateAnnotation(ctx context.Context, arg db.CreateAnnotationParams) (db.Annotation, error)
 	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
 	DeleteAnnotation(ctx context.Context, id int64) error
+	// Per-instance signal identity (#442, P0.1): the mintable `SIG-####` id and
+	// first-seen instant of each currently-fired (rule, subject) pair. MintSignalInstances
+	// is the idempotent upsert on the Signals read path (a firing pair keeps its id and
+	// first-seen); ListSignalInstances reads the identities back so the web layer attaches
+	// each fired census member its stable id + first-seen. Severity and last-seen are
+	// derived, not stored.
+	MintSignalInstances(ctx context.Context, arg db.MintSignalInstancesParams) error
+	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
 	// The global message panel (#205): the Message store is unconditional — every
 	// message is written and rendered, and the nav element carries the unread
 	// count on every screen. There is no delete and no content update; a message
