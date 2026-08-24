@@ -13,18 +13,19 @@ import "html/template"
 //
 // The "asset" is a Name subject. Real data is wired where a Name-scoped read
 // exists (subjects.go): DNS records (resolution + dns-record), provenance (the
-// citation chain), signals-here (the fired census filtered to this subject), the
-// drift trail (the subject's Span timelines), and the ports census (the open
-// Service reachability spans on the Name's addresses). Where no honest source
-// exists — the TLS certificate's parsed identity (issuer/algorithm/validity) is
-// not stored (signals.go) — the section renders the design-system empty-state
-// rather than fabricate a value.
+// citation chain), signals-here (the fired census filtered to this subject, each
+// row carrying its rule's SeverityBadge), the drift trail (the subject's Span
+// timelines), and the ports census (the open Service reachability spans on the
+// Name's addresses). Where no honest source exists — the TLS certificate's parsed
+// identity (issuer and signature algorithm) is not stored (signals.go) — the
+// section renders the design-system empty-state rather than fabricate a value.
 //
-// Two domain holds against the mock: the census carries NO technology
-// fingerprint (no product/version — a guardrail on drift-integrity grounds), and
-// signals carry NO severity (the census "is deliberately not a severity ramp",
-// signals.go / ADR-0024), so signals-here lists the honest firing rules without a
-// fabricated SeverityBadge level. Change rides its own palette (the drift chips
+// One domain hold against the mock: the census carries NO technology fingerprint
+// (no product/version — a guardrail on drift-integrity grounds). Severity is no
+// longer a hold — it is a real per-rule datum (internal/signal SeverityFor, P0.1
+// #442; SPEC-CHANGE.md collision #1 superseded), so signals-here paints each firing
+// rule's SeverityBadge exactly as the spec renders it (AssetDetail.jsx), the same
+// ramp Signals, Graph and Search read. Change rides its own palette (the drift chips
 // and the shared `changeglyph`), never the severity ramp; signals are withdrawn
 // by the world, never "resolved".
 var _ = template.Must(tmpl.Parse(assetTemplates))
@@ -154,6 +155,7 @@ const assetTemplates = `
 {{if .Signals}}
 <div style="display:flex;flex-direction:column">
 {{range .Signals}}<a class="sighere" href="/signals">
+<span class="sev sev-{{.Severity}}">{{if ne .Severity "critical"}}<span class="sev-dot"></span>{{end}}{{.Severity}}</span>
 <span class="txt">
 <span style="font-weight:500;font-size:12.5px;color:var(--ink)">{{.Rule}}</span>
 <span class="mono muted" style="font-size:11px">{{.Subject}} · raised</span>
