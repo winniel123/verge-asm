@@ -1671,50 +1671,6 @@ func initials(username string) string {
 	return string(r[0]) + string(r[1])
 }
 
-// sessionDevice describes the current session from the request's User-Agent — a real
-// derivation of what the client sent, never a fabricated device. An unrecognised or
-// absent agent degrades to a plain label rather than a guess.
-func sessionDevice(r *http.Request) string {
-	return sessionDeviceFromUA(r.UserAgent())
-}
-
-// sessionDeviceFromUA formats a stored User-Agent string into the same short device
-// label sessionDevice derives from a live request — used by the sessions listing (#406),
-// which reads each session's persisted user_agent rather than the request in hand.
-func sessionDeviceFromUA(ua string) string {
-	if ua == "" {
-		return "This session"
-	}
-	browser := "Browser"
-	switch {
-	case strings.Contains(ua, "Firefox"):
-		browser = "Firefox"
-	case strings.Contains(ua, "Edg"):
-		browser = "Edge"
-	case strings.Contains(ua, "Chrome"), strings.Contains(ua, "Chromium"):
-		browser = "Chrome"
-	case strings.Contains(ua, "Safari"):
-		browser = "Safari"
-	}
-	os := ""
-	switch {
-	case strings.Contains(ua, "Mac OS X"), strings.Contains(ua, "Macintosh"):
-		os = "macOS"
-	case strings.Contains(ua, "Windows"):
-		os = "Windows"
-	case strings.Contains(ua, "iPhone"), strings.Contains(ua, "iPad"):
-		os = "iOS"
-	case strings.Contains(ua, "Android"):
-		os = "Android"
-	case strings.Contains(ua, "Linux"):
-		os = "Linux"
-	}
-	if os != "" {
-		return browser + " · " + os
-	}
-	return browser
-}
-
 // sessionIP is the address this request arrived from. It reads RemoteAddr, never a
 // proxy-supplied forwarding header — the same rule the auth path holds: a header is
 // never trusted, here not even for display.
