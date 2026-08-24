@@ -21,7 +21,12 @@ import (
 // is a distinct leaf with its own version, so a change to how the chain is read
 // Breaks `certificate` timelines without touching `reachability` ones. It is gated
 // by its own golden corpus (certcorpus), separately from the connect verdict.
-const CertVersion = "tls-handshake/v1"
+//
+// v2 adds the leaf certificate's `not_after` (RFC3339) to the presented value — a
+// value-shape change that Breaks the old `certificate` timelines by design
+// (ADR-0082): the datum the Dashboard "Certs expiring ≤30d" stat reads was never
+// captured under v1 (SPEC-CHANGE.md collision #8, #464).
+const CertVersion = "tls-handshake/v2"
 
 // TLSOutcome is the closed union the `certificate` facet's value space is built
 // on (CONTEXT.md `Certificate`). Every value space is a closed union, never a
@@ -95,9 +100,15 @@ func (p HandshakeParams) Digest() string {
 // leaf folds it to a certificate observation. A Chain is carried iff the outcome
 // is TLSPresented, and it is the ordered list of fingerprints, leaf first, since
 // order is on the wire.
+//
+// NotAfter is the leaf certificate's (chain[0]) expiry, carried iff the outcome is
+// TLSPresented — the two negatives leave it zero. The leaf folds it to `not_after`
+// (RFC3339) on the presented value; a zero NotAfter renders no key (CONTEXT.md
+// `Certificate`, SPEC-CHANGE.md collision #8).
 type HandshakeResult struct {
-	Outcome TLSOutcome
-	Chain   []string
+	Outcome  TLSOutcome
+	Chain    []string
+	NotAfter time.Time
 }
 
 // Handshaker performs one TLS handshake against a Service that the connect
@@ -180,7 +191,10 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		// nothing we can hold — a refusal, not a plaintext port.
 		return HandshakeResult{Outcome: TLSRefused}
 	}
-	return HandshakeResult{Outcome: TLSPresented, Chain: chain}
+	// The leaf (chain[0]) is already in hand for fingerprinting; read its NotAfter
+	// here so the presented value can carry the expiry the certs-expiring stat reads
+	// (SPEC-CHANGE.md collision #8). InsecureSkipVerify does not withhold the chain.
+	return HandshakeResult{Outcome: TLSPresented, Chain: chain, NotAfter: state.PeerCertificates[0].NotAfter}
 }
 
 // classifyTLSError splits a failed handshake dial into its two negatives. A TLS

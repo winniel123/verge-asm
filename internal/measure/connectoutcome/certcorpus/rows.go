@@ -1,6 +1,8 @@
 package certcorpus
 
 import (
+	"time"
+
 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
 
@@ -32,6 +34,8 @@ var AllCells = []string{
 	"T1/presented", "T1/tls-refused", "T1/no-tls",
 	// T2 — the chain is the ordered fingerprints, leaf first
 	"T2/chain-leaf-first",
+	// T2 — the presented value carries the leaf's not_after (RFC3339); negatives omit it
+	"T2/leaf-not-after",
 	// T3 — SNI is the Endpoint's name; the nameless endpoint sends none
 	"T3/named-sni", "T3/nameless-no-sni",
 	// T4 — the handshake rides a REACHED Service only; not-reached emits no cert
@@ -58,8 +62,8 @@ func scope(addrs []string, tcp []uint16, names []string) co.Scope {
 var Rows = []Row{
 	// ---- T1/presented + T2/chain-leaf-first + T3/named-sni + T4/rides-reached ----
 	{
-		Cells: []string{"T1/presented", "T2/chain-leaf-first", "T3/named-sni", "T4/rides-reached"},
-		Claim: "a reached Service whose Endpoint completes a TLS handshake records the presented chain as ordered fingerprints, leaf first, under the (Name, Service) key, with SNI equal to the name; the certificate line rides the same exchange as the reachability line",
+		Cells: []string{"T1/presented", "T2/chain-leaf-first", "T2/leaf-not-after", "T3/named-sni", "T4/rides-reached"},
+		Claim: "a reached Service whose Endpoint completes a TLS handshake records the presented chain as ordered fingerprints, leaf first, under the (Name, Service) key, with SNI equal to the name, and carries the leaf's not_after (RFC3339); the certificate line rides the same exchange as the reachability line",
 		SpecVerified: true,
 		Profile:      profile(),
 		Step: Step{
@@ -70,8 +74,9 @@ var Rows = []Row{
 			}),
 			Handshake: newHandshaker(map[string]co.HandshakeResult{
 				"api.example.com@198.51.100.10:443/tcp": {
-					Outcome: co.TLSPresented,
-					Chain:   []string{"sha256:leaf01", "sha256:intermediate01", "sha256:root01"},
+					Outcome:  co.TLSPresented,
+					Chain:    []string{"sha256:leaf01", "sha256:intermediate01", "sha256:root01"},
+					NotAfter: time.Date(2027, 3, 1, 12, 0, 0, 0, time.UTC),
 				},
 			}),
 		},
@@ -148,8 +153,8 @@ var Rows = []Row{
 				"198.51.100.14:443": {co.ConnOpen},
 			}),
 			Handshake: newHandshaker(map[string]co.HandshakeResult{
-				"a.example.com@198.51.100.14:443/tcp": {Outcome: co.TLSPresented, Chain: []string{"sha256:leafA"}},
-				"b.example.com@198.51.100.14:443/tcp": {Outcome: co.TLSPresented, Chain: []string{"sha256:leafB"}},
+				"a.example.com@198.51.100.14:443/tcp": {Outcome: co.TLSPresented, Chain: []string{"sha256:leafA"}, NotAfter: time.Date(2027, 6, 15, 0, 0, 0, 0, time.UTC)},
+				"b.example.com@198.51.100.14:443/tcp": {Outcome: co.TLSPresented, Chain: []string{"sha256:leafB"}, NotAfter: time.Date(2026, 9, 30, 23, 59, 59, 0, time.UTC)},
 			}),
 		},
 		Golden: "cert_one_per_endpoint.ndjson",
