@@ -1791,7 +1791,7 @@ func (s *server) render(w http.ResponseWriter, name string, data any) {
 // be set before WriteHeader commits the header block, or it is silently
 // dropped and the browser renders the markup as plain text.
 func (s *server) renderStatus(w http.ResponseWriter, status int, name string, data any) {
-	s.injectUnread(data)
+	s.injectChrome(data)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
@@ -1799,15 +1799,18 @@ func (s *server) renderStatus(w http.ResponseWriter, status int, name string, da
 	}
 }
 
-// injectUnread supplies the chrome's global message element with the unread
-// count on every authenticated screen, so no per-page handler has to thread it
-// through (v1 spec §6.1: the count rides every screen). It is a single central
-// touchpoint: a chrome page is any render whose data carries an "IsAdmin" key —
-// the auth pages (login/setup/totp) have no chrome and no such key, so they are
-// left alone. A page that already computed its own "Unread" (the panel itself)
-// keeps it. The count is a lightweight read; on error it defaults to zero rather
-// than failing the page.
-func (s *server) injectUnread(data any) {
+// injectChrome supplies the shared console chrome (templates_shell.go) with the
+// global data every screen renders but no per-page handler should have to thread:
+// the unread badge count, the bell's recent messages (P1.3), the org switcher's
+// identity and asset count (P1.4), the palette's Assets group (P1.5), the avatar's
+// initials (P1.8), and the footer/chrome marker (P1.6). It is a single central
+// touchpoint: a chrome page is any render whose data carries an "IsAdmin" key — the
+// chrome-less auth pages (login/setup/totp) have no such key, so they are left
+// alone. Each read is best-effort — a page that computed a value itself keeps it,
+// and a failed read degrades the affordance to its empty form (the spec's own
+// pattern) rather than failing the page. The reads mirror the ones the Dashboard,
+// Search, and Inbox already run on their own.
+func (s *server) injectChrome(data any) {
 	m, ok := data.(map[string]any)
 	if !ok {
 		return
@@ -1815,32 +1818,55 @@ func (s *server) injectUnread(data any) {
 	if _, isChrome := m["IsAdmin"]; !isChrome {
 		return
 	}
-	// The shared chrome highlights the active nav pill via {{if eq .NavActive "id"}}.
-	// A missing map key would make `eq` error at render, so every chrome page gets
-	// a default here; a screen handler that passes its own "NavActive" nav id keeps
-	// it. (T0 seam: the nav id is the one field a screen ticket threads into the
-	// shell. The key is "NavActive", not "Active" — the scans view already owns
-	// "Active" for its in-flight list.)
+	// A chrome page: mark it (the footer renders only on chrome pages, {{if .Chrome}})
+	// and default the nav pill key. The shared chrome highlights the active pill via
+	// {{if eq .NavActive "id"}}; a missing map key would make `eq` error at render, so
+	// every chrome page gets a default here. A screen that passed its own nav id keeps
+	// it. (The key is "NavActive", not "Active" — the scans view owns "Active".)
+	m["Chrome"] = true
 	if _, has := m["NavActive"]; !has {
 		m["NavActive"] = ""
 	}
-	if _, has := m["Unread"]; has {
-		return
+	// Self-hosted is single-org (ADR-0073): the switcher's one org is the deployment.
+	m["OrgName"] = "self-hosted"
+
+	ctx := context.Background()
+	acct, hasAcct := m["Account"].(db.Account)
+
+	// Avatar initials (P1.8) — from the signed-in account, replacing the "VA" literal.
+	if _, has := m["Initials"]; !has {
+		if hasAcct {
+			m["Initials"] = accountInitials(acct.Username)
+		} else {
+			m["Initials"] = "?"
+		}
 	}
-	// Read-state is per-account (#327), so the badge count is the CALLER's unread
-	// count. Every chrome page carries the account under "Account"; without it there
-	// is no account to scope to, so leave the count at zero rather than reading a
-	// global (which no longer exists) or another account's.
-	acct, ok := m["Account"].(db.Account)
-	if !ok {
-		m["Unread"] = int64(0)
-		return
+
+	// Unread badge count — the caller's own count (#327, read-state is per-account),
+	// read once per chrome page unless the page (the Inbox / message panel) set it.
+	if _, has := m["Unread"]; !has {
+		if hasAcct {
+			n, err := s.store.CountUnreadMessages(ctx, acct.ID)
+			if err != nil {
+				log.Printf("web: unread count: %v", err)
+			}
+			m["Unread"] = n
+		} else {
+			m["Unread"] = int64(0)
+		}
 	}
-	n, err := s.store.CountUnreadMessages(context.Background(), acct.ID)
-	if err != nil {
-		log.Printf("web: unread count: %v", err)
+
+	// Bell menu (P1.3) — the recent messages, each deep-linking into the Inbox.
+	if _, has := m["RecentMessages"]; !has && hasAcct {
+		m["RecentMessages"] = s.bellMessages(ctx, acct.ID, 4)
 	}
-	m["Unread"] = n
+
+	// Org switcher asset count (P1.4) + palette Assets group (P1.5), from one census.
+	if _, has := m["PaletteAssets"]; !has {
+		top, count := s.currentAssets(ctx, 5)
+		m["PaletteAssets"] = top
+		m["AssetCount"] = count
+	}
 }
 
 func (s *server) serverError(w http.ResponseWriter, what string, err error) {

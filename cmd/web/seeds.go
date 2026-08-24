@@ -128,7 +128,8 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 		fail("Choose a scope type.")
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	// A save fires a toast across the post-redirect-get (PARITY-CHART P1.7).
+	s.toastRedirect(w, r, "/scope", "neutral", "Seed added", value+" enters scope; it is scanned on cadence.")
 }
 
 func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Account, f seedsForms) {
