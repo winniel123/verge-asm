@@ -129,14 +129,20 @@ func plural(n int, one, many string) string {
 // PDF / email render spec, so it carries its own self-contained token styles
 // (both light and dark) rather than leaning on the console stylesheet.
 //
-// Two domain holds against the reference mock (ADR-0110's "the domain term always
-// wins"): the artifact carries NO severity ramp — a signal is a census member,
-// not a scored one (ADR-0024) — so the mock's "open signals by severity" bars and
-// its severity-scored "new this week" table become domain-honest KPI scalars and
-// change rows; and change rides its own drift vocabulary and palette
-// (appeared / revealed / withdrawn), never the severity ramp. Signals are
-// withdrawn by the world, never resolved by an operator, so the mock's
-// mean-time-to-resolve KPI is not modelled.
+// Per-signal severity rides the artifact (P2.10, SPEC-CHANGE.md collision #11):
+// the reference mock's "open signals by severity" bars and its severity-scored
+// "new this week" table are the spec, and the domain now carries the datum — a
+// signal's severity is its rule's severity (P0.1, internal/signal.Severity),
+// which reconciles the old "a signal carries no severity" reading of ADR-0024
+// (the design is normative for look AND functionality; where the domain lacked
+// the datum the fix is to build it). When severity-carrying signals are present
+// the artifact draws the by-severity bar breakdown and a SeverityBadge column,
+// using the five exact levels and mirroring the on-screen ramp. Two holds still
+// stand: change rides its OWN drift vocabulary and palette (appeared / revealed
+// / withdrawn), never the severity ramp; and signals are withdrawn by the world,
+// never resolved by an operator, so the mock's mean-time-to-resolve KPI is not
+// modelled. With no delivery backend the artifact is genuinely Empty and the
+// design-system empty-state stands — nothing is fabricated.
 type Artifact struct {
 	// Title is the report's name (e.g. "Weekly exposure summary"); Org is the
 	// account the delivery was cut for.
@@ -155,9 +161,15 @@ type Artifact struct {
 	// Stats is the KPI band — honest current-state / period scalars. No resolve
 	// metric appears: signals are withdrawn by the world, never resolved.
 	Stats []ArtifactStat
-	// Appeared is what entered view this period ("new this week"); Withdrawn is
-	// what the world withdrew. Both ride the drift vocabulary, never severity.
-	Appeared  []ArtifactChange
+	// SeverityCounts is the "open signals by severity" bar breakdown — one entry
+	// per severity level present, ordered most urgent first (SevOrder). Each Level
+	// is one of the five exact tokens; the bars draw only what is supplied.
+	SeverityCounts []ArtifactSeverityCount
+	// Signals is the "new this week" table — the signals raised in the period, each
+	// carrying its rule's severity (P0.1) drawn as a SeverityBadge column.
+	Signals []ArtifactSignal
+	// Withdrawn is what the world withdrew this period ("withdrawn by the world"),
+	// riding the drift vocabulary and palette, never the severity ramp.
 	Withdrawn []ArtifactChange
 	// Delivered is the delivery instant (ISO), empty where nothing was delivered;
 	// ChannelHost is the destination host only — never the raw URL, where a token
@@ -187,12 +199,34 @@ type ArtifactChange struct {
 	Detail  string
 }
 
-// Empty reports whether the artifact carries no delivered content — no KPI band
-// and no change rows. A view of a schedule that has never delivered renders the
-// design-system empty-state rather than a fabricated document (ADR-0110: a screen
-// with no backing data ships an empty-state, never invented data).
+// ArtifactSeverityCount is one bar in the "open signals by severity" breakdown: a
+// severity level and the count of open signals carrying it. Level is one of the
+// five exact tokens (critical / high / medium / low / info); any other value folds
+// to info rather than manufacturing urgency (mirrors signal.SeverityFor).
+type ArtifactSeverityCount struct {
+	Level string
+	Count int
+}
+
+// ArtifactSignal is one row of the "new this week" table — a signal raised in the
+// period, carrying its rule's severity (P0.1). Severity is one of the five exact
+// tokens and selects a SeverityBadge; Signal is the signal's headline, Asset the
+// subject it was raised on (a UI collective noun), Raised the date it surfaced.
+type ArtifactSignal struct {
+	Severity string
+	Signal   string
+	Asset    string
+	Raised   string
+}
+
+// Empty reports whether the artifact carries no delivered content — no KPI band,
+// no severity breakdown, no signals, and no change rows. A view of a schedule that
+// has never delivered renders the design-system empty-state rather than a
+// fabricated document (ADR-0110: a screen with no backing data ships an
+// empty-state, never invented data).
 func (a Artifact) Empty() bool {
-	return len(a.Stats) == 0 && len(a.Appeared) == 0 && len(a.Withdrawn) == 0
+	return len(a.Stats) == 0 && len(a.SeverityCounts) == 0 &&
+		len(a.Signals) == 0 && len(a.Withdrawn) == 0
 }
 
 // artifactTokens is the self-contained slice of the design system the rendered
@@ -203,9 +237,14 @@ func (a Artifact) Empty() bool {
 const artifactTokens = `<style>
 .vg-artifact{
   --surface:#ffffff; --sunken:#f2f0ec; --hairline:#e2dfdb; --border-strong:#c7c3be;
-  --ink:#231f19; --body:#37322c; --muted:#79746d;
+  --ink:#231f19; --body:#37322c; --muted:#79746d; --secondary:#67625c;
   --ok:#05773b; --ok-soft:#e1fae7; --ok-border:#bfebc9;
   --danger:#ac312c;
+  --sev-critical-fill:#bf3631; --sev-critical-text:#ffffff; --sev-critical-dot:#bf3631;
+  --sev-high-bg:#ffe9d6; --sev-high-border:#ffcdae; --sev-high-fg:#a04400; --sev-high-dot:#e26c00;
+  --sev-medium-bg:#ffeecc; --sev-medium-border:#f4d59d; --sev-medium-fg:#8d5600; --sev-medium-dot:#e0a200;
+  --sev-low-bg:#d7f7ff; --sev-low-border:#afe3f0; --sev-low-fg:#00728b; --sev-low-dot:#009aba;
+  --sev-info-bg:#ebf2f9; --sev-info-border:#d0dae6; --sev-info-fg:#536579; --sev-info-dot:#798898;
   --drift-gain-bg:#f5ebff; --drift-gain-border:#e1d1ff; --drift-gain-fg:#6f4fa1;
   --drift-change-bg:#ffe6f7; --drift-change-border:#fec9e5; --drift-change-fg:#954074;
   --drift-loss-bg:#ecf1fa; --drift-loss-border:#d3dbe9; --drift-loss-fg:#56647a;
@@ -216,9 +255,14 @@ const artifactTokens = `<style>
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .vg-artifact{
   --surface:#1e1b17; --sunken:#191613; --hairline:#383530; --border-strong:#514c46;
-  --ink:#eae7e4; --body:#d9d5d1; --muted:#898581;
+  --ink:#eae7e4; --body:#d9d5d1; --muted:#898581; --secondary:#b1ada8;
   --ok:#57c07f; --ok-soft:#17281c; --ok-border:#1f4029;
   --danger:#f08c82;
+  --sev-critical-fill:#c44039; --sev-critical-text:#ffffff; --sev-critical-dot:#e0564e;
+  --sev-high-bg:#352414; --sev-high-border:#512f10; --sev-high-fg:#eba57b; --sev-high-dot:#df7a32;
+  --sev-medium-bg:#322713; --sev-medium-border:#49360f; --sev-medium-fg:#d7b16a; --sev-medium-dot:#c68d00;
+  --sev-low-bg:#192c2e; --sev-low-border:#144048; --sev-low-fg:#62c8df; --sev-low-dot:#00aed1;
+  --sev-info-bg:#23272c; --sev-info-border:#3a4149; --sev-info-fg:#a9b3bf; --sev-info-dot:#8b98a6;
   --drift-gain-bg:#241b33; --drift-gain-border:#423658; --drift-gain-fg:#c0abe9;
   --drift-change-bg:#2f1725; --drift-change-border:#533044; --drift-change-fg:#e2a0c5;
   --drift-loss-bg:#1d2127; --drift-loss-border:#383d47; --drift-loss-fg:#aeb8c9;
@@ -226,9 +270,14 @@ const artifactTokens = `<style>
 }}
 :root[data-theme="dark"] .vg-artifact{
   --surface:#1e1b17; --sunken:#191613; --hairline:#383530; --border-strong:#514c46;
-  --ink:#eae7e4; --body:#d9d5d1; --muted:#898581;
+  --ink:#eae7e4; --body:#d9d5d1; --muted:#898581; --secondary:#b1ada8;
   --ok:#57c07f; --ok-soft:#17281c; --ok-border:#1f4029;
   --danger:#f08c82;
+  --sev-critical-fill:#c44039; --sev-critical-text:#ffffff; --sev-critical-dot:#e0564e;
+  --sev-high-bg:#352414; --sev-high-border:#512f10; --sev-high-fg:#eba57b; --sev-high-dot:#df7a32;
+  --sev-medium-bg:#322713; --sev-medium-border:#49360f; --sev-medium-fg:#d7b16a; --sev-medium-dot:#c68d00;
+  --sev-low-bg:#192c2e; --sev-low-border:#144048; --sev-low-fg:#62c8df; --sev-low-dot:#00aed1;
+  --sev-info-bg:#23272c; --sev-info-border:#3a4149; --sev-info-fg:#a9b3bf; --sev-info-dot:#8b98a6;
   --drift-gain-bg:#241b33; --drift-gain-border:#423658; --drift-gain-fg:#c0abe9;
   --drift-change-bg:#2f1725; --drift-change-border:#533044; --drift-change-fg:#e2a0c5;
   --drift-loss-bg:#1d2127; --drift-loss-border:#383d47; --drift-loss-fg:#aeb8c9;
@@ -246,9 +295,9 @@ const microLabelStyle = `margin:0;font:500 11px var(--mono);letter-spacing:0.07e
 // print) so the two layouts cannot drift in WHAT the document says, only in how it
 // looks (ADR-0114: one canonical content model, two layout forms).
 const (
-	artifactAppearedTitle  = "New this week"
+	artifactSeverityTitle  = "Open signals by severity"
+	artifactSignalsTitle   = "New this week"
 	artifactWithdrawnTitle = "Withdrawn by the world"
-	artifactAppearedEmpty  = "Nothing entered view in this period."
 	artifactWithdrawnEmpty = "The world withdrew nothing in this period."
 	artifactEmptyEyebrow   = "Nothing delivered"
 	artifactEmptyHeadline  = "No report has been delivered yet"
@@ -281,7 +330,12 @@ func RenderArtifact(a Artifact) template.HTML {
 		b.WriteString(artifactEmptyState())
 	} else {
 		b.WriteString(artifactStatBand(a.Stats))
-		b.WriteString(artifactChangeSection(artifactAppearedTitle, a.Appeared, artifactAppearedEmpty))
+		if len(a.SeverityCounts) > 0 {
+			b.WriteString(artifactSeverityBars(a.SeverityCounts))
+		}
+		if len(a.Signals) > 0 {
+			b.WriteString(artifactSignalsTable(a.Signals))
+		}
 		b.WriteString(artifactChangeSection(artifactWithdrawnTitle, a.Withdrawn, artifactWithdrawnEmpty))
 	}
 
@@ -342,6 +396,107 @@ func artifactChangeSection(title string, changes []ArtifactChange, emptyNote str
 	}
 	b.WriteString(`</div>`)
 	return b.String()
+}
+
+// artifactSevLevels is the five exact severity tokens, in the ramp order the
+// on-screen scale uses (SignalData.jsx SEV_ORDER / internal/signal.SevOrder).
+var artifactSevLevels = []string{"critical", "high", "medium", "low", "info"}
+
+// normSev folds an unknown severity token to info rather than manufacturing
+// urgency (mirrors signal.SeverityFor's calm fold and SeverityBadge's default),
+// so a stale level never collides with critical.
+func normSev(level string) string {
+	for _, l := range artifactSevLevels {
+		if l == level {
+			return l
+		}
+	}
+	return "info"
+}
+
+// sevTitle renders a severity token as its title-cased label — the exact word the
+// severity ramp uses (Critical / High / Medium / Low / Info).
+func sevTitle(level string) string {
+	l := normSev(level)
+	return strings.ToUpper(l[:1]) + l[1:]
+}
+
+// artifactSeverityBars renders the "open signals by severity" breakdown — one bar
+// per supplied level, the ramp label, a track whose fill scales to the busiest
+// level, and the count. Mirrors ReportArtifact.jsx's bar block; the fill takes the
+// level's severity-dot token, never a graded colour.
+func artifactSeverityBars(counts []ArtifactSeverityCount) string {
+	max := 0
+	for _, c := range counts {
+		if c.Count > max {
+			max = c.Count
+		}
+	}
+	var b strings.Builder
+	b.WriteString(`<div style="display:flex;flex-direction:column;gap:12px">`)
+	b.WriteString(`<h2 data-sev="title" style="` + microLabelStyle + `">` + esc(artifactSeverityTitle) + `</h2>`)
+	for _, c := range counts {
+		l := normSev(c.Level)
+		w := "0"
+		if max > 0 {
+			w = strconv.FormatFloat(float64(c.Count)/float64(max)*100, 'f', -1, 64)
+		}
+		b.WriteString(`<div style="display:flex;align-items:center;gap:12px">`)
+		b.WriteString(`<span data-sev="` + l + `" style="width:72px;font:500 11px var(--mono);letter-spacing:0.06em;text-transform:uppercase;color:var(--secondary)">` + esc(sevTitle(l)) + `</span>`)
+		b.WriteString(`<span style="flex:1;height:8px;border-radius:999px;background:var(--sunken);overflow:hidden">`)
+		b.WriteString(`<span style="display:block;height:100%;width:` + w + `%;border-radius:999px;background:var(--sev-` + l + `-dot)"></span>`)
+		b.WriteString(`</span>`)
+		b.WriteString(`<span style="width:26px;text-align:right;font:500 12.5px var(--mono);color:var(--body)">` + strconv.Itoa(c.Count) + `</span>`)
+		b.WriteString(`</div>`)
+	}
+	b.WriteString(`</div>`)
+	return b.String()
+}
+
+// artifactSignalsTable renders the "new this week" signals table — a Severity
+// column of SeverityBadges, then the signal, the asset (mono), and the raised
+// date (mono, right). Mirrors ReportArtifact.jsx's dense table; the delivered
+// document is self-contained so the table is inline-styled.
+func artifactSignalsTable(sigs []ArtifactSignal) string {
+	var b strings.Builder
+	b.WriteString(`<div style="display:flex;flex-direction:column;gap:10px">`)
+	b.WriteString(`<h2 style="` + microLabelStyle + `">` + esc(artifactSignalsTitle) + `</h2>`)
+	b.WriteString(`<table style="width:100%;border-collapse:collapse">`)
+	th := `text-align:left;font:600 10px var(--mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);padding:0 12px 8px 0`
+	b.WriteString(`<thead><tr>`)
+	b.WriteString(`<th data-sev="header" style="` + th + `;width:110px">Severity</th>`)
+	b.WriteString(`<th style="` + th + `">Signal</th>`)
+	b.WriteString(`<th style="` + th + `;width:220px">Asset</th>`)
+	b.WriteString(`<th style="` + th + `;text-align:right;width:70px">Raised</th>`)
+	b.WriteString(`</tr></thead><tbody>`)
+	td := `padding:8px 12px 8px 0;border-top:1px solid var(--hairline);vertical-align:middle`
+	for _, s := range sigs {
+		b.WriteString(`<tr>`)
+		b.WriteString(`<td style="` + td + `">` + artifactSeverityBadge(s.Severity) + `</td>`)
+		b.WriteString(`<td style="` + td + `;font:400 12.5px var(--sans);color:var(--ink)">` + esc(s.Signal) + `</td>`)
+		b.WriteString(`<td style="` + td + `;font:400 12px var(--mono);color:var(--body)">` + esc(orDash(s.Asset)) + `</td>`)
+		b.WriteString(`<td style="` + td + `;text-align:right;font:400 12px var(--mono);color:var(--muted)">` + esc(orDash(s.Raised)) + `</td>`)
+		b.WriteString(`</tr>`)
+	}
+	b.WriteString(`</tbody></table>`)
+	b.WriteString(`</div>`)
+	return b.String()
+}
+
+// artifactSeverityBadge renders one severity token as a SeverityBadge (sm) —
+// mirroring design-system SeverityBadge.jsx and the on-screen sevbadge: Critical
+// is the only solid fill and the only pill-red and carries no dot; High → Info are
+// tinted pills with a solid dot, fading to stay ordinal. Marked data-sev so the
+// valence guard exempts the ramp label (the one loud voice) as it does the token
+// stylesheet.
+func artifactSeverityBadge(level string) string {
+	l := normSev(level)
+	base := `display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 8px;border-radius:999px;font:600 10px var(--mono);letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap`
+	if l == "critical" {
+		return `<span data-sev="critical" style="` + base + `;background:var(--sev-critical-fill);color:var(--sev-critical-text)">` + esc(sevTitle(l)) + `</span>`
+	}
+	return `<span data-sev="` + l + `" style="` + base + `;background:var(--sev-` + l + `-bg);border:1px solid var(--sev-` + l + `-border);color:var(--sev-` + l + `-fg)">` +
+		`<span style="width:5px;height:5px;border-radius:999px;background:var(--sev-` + l + `-dot);flex:none"></span>` + esc(sevTitle(l)) + `</span>`
 }
 
 // artifactEmptyState is the design-system empty-state for a schedule that has

@@ -14,6 +14,7 @@
  */
 import DocsLayout from "../../layouts/DocsLayout.astro";
 import Article from "../../pipeline/render.jsx";
+import PrevNext from "../../components/PrevNext.astro";
 import { Breadcrumb } from "@ds/components/navigation/Breadcrumb.jsx";
 import { resolveSources, listVersions, canonicalPath, refForVersion } from "../../pipeline/source-resolution";
 import { extractToc } from "../../pipeline/slug";
@@ -69,4 +70,5 @@ const crumbs = [
 >
   <Breadcrumb items={crumbs} style={{ marginBottom: "24px" }} />
   <Article client:load markdown={source.rawMarkdown} version={source.version} slug={source.slug} adrRef={adrRef} />
+  <PrevNext sections={sections} />
 </DocsLayout>
