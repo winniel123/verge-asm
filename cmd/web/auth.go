@@ -55,9 +55,39 @@ func (s *server) currentAccount(r *http.Request) (db.Account, bool) {
 	if err != nil {
 		return db.Account{}, false
 	}
-	acct, err := s.store.GetAccountByID(r.Context(), sess.AccountID)
+	// #405 (ADR-0117): the signed cookie is necessary but no longer sufficient — the
+	// session must also resolve to a LIVE row in the session registry, looked up by the
+	// hash of the opaque token the cookie carries. A revoked or expired session yields
+	// no row, and so does an old cookie minted before the registry (its token is empty),
+	// so both are treated exactly as an absent cookie and the caller redirects to
+	// /login. This is what makes a revocation take effect on the very next request while
+	// staying backward-safe for pre-registry cookies.
+	ctx := r.Context()
+	row, err := s.store.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
+		TokenHash: hashToken(sess.Token),
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	})
 	if err != nil {
 		return db.Account{}, false
+	}
+	// Load the account by the ROW's account id, so the role is read live from the
+	// account row on every request (a role change or deletion takes effect at once),
+	// exactly as before the registry.
+	acct, err := s.store.GetAccountByID(ctx, row.AccountID)
+	if err != nil {
+		return db.Account{}, false
+	}
+	// Throttled touch: refresh last_seen_at at most once per minute per session, so a
+	// busy session keeps its "last active" current without amplifying a write onto every
+	// request. The touch is best-effort — a failure is logged and never fails the
+	// request, since it is only for the display column, not the auth decision.
+	if s.now().Sub(row.LastSeenAt.Time) > time.Minute {
+		if err := s.store.TouchSession(ctx, db.TouchSessionParams{
+			ID:         row.ID,
+			LastSeenAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+		}); err != nil {
+			log.Printf("web: touch session: %v", err)
+		}
 	}
 	return acct, true
 }
@@ -190,7 +220,7 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	// still faces the second factor, which the loginTOTP path throttles on its own.
 	s.loginLimiter.reset(acctKey, ipKey)
 	if acct.TotpEnabled {
-		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, s.pendingTTL) {
+		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return
 		}
 		s.render(w, "totp", map[string]any{"Title": "Two-factor"})
@@ -338,12 +368,72 @@ func (s *server) redeemRecoveryCode(r *http.Request, accountID int64, presented 
 }
 
 func (s *server) logout(w http.ResponseWriter, r *http.Request) {
+	// Sign-out revokes the server-side session row too (#405, ADR-0117), not just the
+	// cookie — the cookie is cleared here anyway, but revoking the row invalidates the
+	// session even if a copy of the cookie is presented again. logout has no resolved
+	// account, so the owner is read from the row itself inside the helper.
+	s.revokeCurrentSession(r)
 	s.clearCookie(w, sessionCookie)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
+// revokeCurrentSession marks the caller's own session row revoked (#405, ADR-0117), so
+// a sign-out or an explicit end-session actually invalidates the server-side session
+// rather than only clearing the cookie. It reads the session cookie, verifies it,
+// resolves the live row by the hash of the opaque token the cookie carries, and revokes
+// that one row scoped to its owner (the account_id predicate means no account can revoke
+// another's by guessing an id). Every step is best-effort: a missing cookie, an old
+// pre-registry cookie, or an already-dead session is simply nothing to revoke, and the
+// caller clears the cookie and redirects regardless.
+func (s *server) revokeCurrentSession(r *http.Request) {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return
+	}
+	sess, err := auth.VerifySession(s.key, c.Value, auth.KindSession, s.now())
+	if err != nil {
+		return
+	}
+	ctx := r.Context()
+	row, err := s.store.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
+		TokenHash: hashToken(sess.Token),
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	})
+	if err != nil {
+		return
+	}
+	if err := s.store.RevokeSession(ctx, db.RevokeSessionParams{
+		ID:        row.ID,
+		AccountID: row.AccountID,
+		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		log.Printf("web: revoke session: %v", err)
+	}
+}
+
 func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64) {
-	if !s.setSignedCookie(w, r, sessionCookie, auth.KindSession, id, s.sessionTTL) {
+	// #405 (ADR-0117): open a server-side session row at login. Mint an opaque token —
+	// the plaintext rides in the signed cookie, only its SHA-256 hash is stored, so a
+	// leaked table yields nothing presentable. Store the raw User-Agent (the Profile UI
+	// formats it) and the request's source IP (RemoteAddr only, never a proxy header).
+	plaintext, hash, err := newOpaqueToken()
+	if err != nil {
+		s.serverError(w, "mint session token", err)
+		return
+	}
+	if _, err := s.store.CreateSession(r.Context(), db.CreateSessionParams{
+		AccountID: id,
+		TokenHash: hash,
+		UserAgent: r.UserAgent(),
+		Ip:        sessionIP(r),
+		ExpiresAt: pgtype.Timestamptz{Time: s.now().Add(s.sessionTTL), Valid: true},
+	}); err != nil {
+		// Treat a registry-insert failure like a signing failure: fail closed with a 500
+		// rather than handing out a cookie whose session has no row to validate against.
+		s.serverError(w, "create session", err)
+		return
+	}
+	if !s.setSignedCookie(w, r, sessionCookie, auth.KindSession, id, plaintext, s.sessionTTL) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -1380,11 +1470,15 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }
 
-// revokeSession ends the current session. This build's sessions are stateless signed
-// cookies with no server-side registry, so the one session honestly revocable is the
-// one making the request: revoking it clears the cookie and lands on /login, exactly
-// as sign-out does. It is reached only through the end-session ConfirmDialog.
+// revokeSession ends the current session for real (#405, ADR-0117). Sessions now have
+// a server-side registry, so the session making the request is a row: this marks that
+// row revoked, and the very next request carrying the same cookie resolves no live
+// session and is bounced to /login. It then clears the cookie and redirects, exactly as
+// sign-out does. It is reached only through the end-session ConfirmDialog. (Signing
+// OTHER devices out is a separate Profile action landing downstream; this ends the one
+// session in hand.)
 func (s *server) revokeSession(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	s.revokeCurrentSession(r)
 	s.clearCookie(w, sessionCookie)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
@@ -1626,10 +1720,13 @@ func (s *server) serverError(w http.ResponseWriter, what string, err error) {
 // is HttpOnly and SameSite=Lax (which blocks cross-site POSTs, the CSRF vector
 // for the mutating endpoints), and Secure when the request arrived over TLS.
 // It reports success: on a signing failure it has already written a 500, and
-// the caller must return rather than write a second response.
-func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name string, kind auth.Kind, id int64, ttl time.Duration) bool {
+// the caller must return rather than write a second response. sessionToken is the
+// opaque server-side session token to carry inside the signed payload (#405): the
+// completed-login caller passes the freshly minted token, and the pending/TOTP caller
+// passes "" (that cookie has no session row).
+func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name string, kind auth.Kind, id int64, sessionToken string, ttl time.Duration) bool {
 	token, err := auth.SignSession(s.key, auth.Session{
-		AccountID: id, Kind: kind, ExpiresAt: s.now().Add(ttl),
+		AccountID: id, Kind: kind, ExpiresAt: s.now().Add(ttl), Token: sessionToken,
 	})
 	if err != nil {
 		s.serverError(w, "sign session", err)

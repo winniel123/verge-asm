@@ -33,6 +33,13 @@ type Session struct {
 	AccountID int64     `json:"aid"`
 	Kind      Kind      `json:"knd"`
 	ExpiresAt time.Time `json:"exp"`
+	// Token is the opaque server-side session token (#405, ADR-0117): the cookie
+	// carries the plaintext, whose SHA-256 hash is a row in the session registry the
+	// handler validates every request. It rides inside the already-signed,
+	// HMAC-tamper-evident payload, so no extra protection is owed it here. It is
+	// omitempty so an old cookie minted before the registry (or the pending/TOTP
+	// cookie, which has no session row) simply carries an empty token.
+	Token string `json:"tok,omitempty"`
 }
 
 // ErrInvalidSession is returned by VerifySession for any token that is

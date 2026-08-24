@@ -76,6 +76,62 @@ func (f *fakeStore) DeletePersonalToken(_ context.Context, arg db.DeletePersonal
 	return nil
 }
 
+// --- session registry fakes (#405, ADR-0117) -------------------------------
+
+// CreateSession opens a session row: a monotonic id, now-stamped created_at and
+// last_seen_at, and the caller's token hash / user-agent / ip / expiry.
+func (f *fakeStore) CreateSession(_ context.Context, arg db.CreateSessionParams) (db.Session, error) {
+	if f.sessionNextID == 0 {
+		f.sessionNextID = 1
+	}
+	now := time.Now()
+	sess := db.Session{
+		ID: f.sessionNextID, AccountID: arg.AccountID, TokenHash: arg.TokenHash,
+		CreatedAt:  pgtype.Timestamptz{Time: now, Valid: true},
+		LastSeenAt: pgtype.Timestamptz{Time: now, Valid: true},
+		UserAgent:  arg.UserAgent, Ip: arg.Ip, ExpiresAt: arg.ExpiresAt,
+	}
+	f.sessions = append(f.sessions, sess)
+	f.sessionNextID++
+	return sess, nil
+}
+
+// GetSessionByTokenHash mirrors the validation query: the row whose token_hash matches
+// AND is unrevoked AND is unexpired against the passed clock bound (expires_at > arg).
+// A dead session simply returns no row, exactly as the SQL does.
+func (f *fakeStore) GetSessionByTokenHash(_ context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error) {
+	for _, sess := range f.sessions {
+		if sess.TokenHash == arg.TokenHash && !sess.RevokedAt.Valid && sess.ExpiresAt.Time.After(arg.ExpiresAt.Time) {
+			return sess, nil
+		}
+	}
+	return db.Session{}, pgx.ErrNoRows
+}
+
+// TouchSession refreshes last_seen_at; a missing row is a no-op, matching the SQL.
+func (f *fakeStore) TouchSession(_ context.Context, arg db.TouchSessionParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].ID == arg.ID {
+			f.sessions[i].LastSeenAt = arg.LastSeenAt
+			return nil
+		}
+	}
+	return nil
+}
+
+// RevokeSession stamps revoked_at on the row scoped to its owner (id AND account_id),
+// only while it is still live. Idempotent: an already-revoked or foreign row is
+// untouched, mirroring the owner-scoped SQL.
+func (f *fakeStore) RevokeSession(_ context.Context, arg db.RevokeSessionParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].ID == arg.ID && f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
+			f.sessions[i].RevokedAt = arg.RevokedAt
+			return nil
+		}
+	}
+	return nil
+}
+
 // --- tests -----------------------------------------------------------------
 
 func profileBase(t *testing.T) (*fakeStore, string, db.Account) {

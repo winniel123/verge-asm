@@ -340,7 +340,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	// requires. So a TOTP-enrolled account lands on the same TOTP step (a KindPending
 	// cookie), and only an account without TOTP completes the login outright.
 	if acct.TotpEnabled {
-		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, s.pendingTTL) {
+		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return
 		}
 		s.render(w, "totp", map[string]any{"Title": "Two-factor"})
