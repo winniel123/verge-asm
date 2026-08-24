@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/winniel123/verge-asm/internal/db"
 )
@@ -179,6 +182,127 @@ func TestLastReportDelivery(t *testing.T) {
 	// An undelivered (failed) outcome is not a delivery to view.
 	if href, has := lastReportDelivery([]deliveryView{{State: "undelivered", Failed: true}}); has || href != "" {
 		t.Errorf("undelivered only: got (%q, %v), want (\"\", false)", href, has)
+	}
+}
+
+// The report_delivery receipts store's read semantics (#291/T2): NextReportDeliveryNo
+// hands out a dense 1-based per-schedule sequence, GetLatestReportDelivery returns the
+// newest NON-failed run (a later failed run does not shadow an earlier delivery) and
+// signals pgx.ErrNoRows where a schedule has never run, and ListReportDeliveries lists
+// every run newest-first.
+func TestReportDeliveryStore(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	ctx := context.Background()
+	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
+		Name: "Weekly", Cadence: "weekly", Format: "pdf", CreatedBy: admin.ID,
+	})
+	if err != nil {
+		t.Fatalf("insert schedule: %v", err)
+	}
+
+	// No run yet: the first sequence number is 1, and the latest read is empty.
+	if no, _ := f.NextReportDeliveryNo(ctx, sched.ID); no != 1 {
+		t.Fatalf("first next-no = %d, want 1", no)
+	}
+	if _, err := f.GetLatestReportDelivery(ctx, sched.ID); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("latest with no runs = %v, want pgx.ErrNoRows", err)
+	}
+
+	mk := func(no int32, state string, at time.Time) db.InsertReportDeliveryParams {
+		return db.InsertReportDeliveryParams{
+			ScheduleID:  sched.ID,
+			PeriodStart: pgtype.Timestamptz{Time: at.AddDate(0, 0, -7), Valid: true},
+			PeriodEnd:   pgtype.Timestamptz{Time: at, Valid: true},
+			DeliveryNo:  no,
+			State:       state,
+			DeliveredAt: pgtype.Timestamptz{Time: at, Valid: state == "delivered"},
+		}
+	}
+
+	// Run 1 delivered, run 2 failed. The sequence advances to 2, and the latest
+	// non-failed read must still surface run 1 — a failed run is not a delivery.
+	n1, _ := f.NextReportDeliveryNo(ctx, sched.ID)
+	d1, err := f.InsertReportDelivery(ctx, mk(n1, "delivered", reportsClock.AddDate(0, 0, -2)))
+	if err != nil {
+		t.Fatalf("insert delivered run: %v", err)
+	}
+	n2, _ := f.NextReportDeliveryNo(ctx, sched.ID)
+	if n2 != 2 {
+		t.Fatalf("second next-no = %d, want 2", n2)
+	}
+	if _, err := f.InsertReportDelivery(ctx, mk(n2, "failed", reportsClock.AddDate(0, 0, -1))); err != nil {
+		t.Fatalf("insert failed run: %v", err)
+	}
+
+	latest, err := f.GetLatestReportDelivery(ctx, sched.ID)
+	if err != nil {
+		t.Fatalf("get latest: %v", err)
+	}
+	if latest.ID != d1.ID || latest.State != "delivered" {
+		t.Errorf("latest = %+v, want the delivered run %d (a later failed run does not shadow it)", latest, d1.ID)
+	}
+
+	all, err := f.ListReportDeliveries(ctx, sched.ID)
+	if err != nil {
+		t.Fatalf("list deliveries: %v", err)
+	}
+	if len(all) != 2 || all[0].DeliveryNo != 2 || all[1].DeliveryNo != 1 {
+		t.Errorf("list should be newest-first [2,1]; got %+v", all)
+	}
+}
+
+// reportScheduleRows now sources "last sent" and "View last delivery" from the
+// report_delivery store (#291/T2): a schedule with a non-failed run reads its instant
+// as a relative age and lights the menu item at the stable route, while a schedule that
+// has never run keeps the em-dash empty-state and a disabled item — no fabrication
+// (ADR-0110). The two schedules are listed newest-first (id DESC).
+func TestReportScheduleRowsLastSent(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	ctx := context.Background()
+
+	// Schedule A delivered three days before the fixed render clock; schedule B has
+	// never run. B is filed last, so it sorts first (id DESC).
+	schedA, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
+		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: admin.ID,
+	})
+	if err != nil {
+		t.Fatalf("insert schedule A: %v", err)
+	}
+	if _, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
+		Name: "Monthly asset inventory", Cadence: "monthly", Format: "csv", CreatedBy: admin.ID,
+	}); err != nil {
+		t.Fatalf("insert schedule B: %v", err)
+	}
+	delivered := reportsClock.AddDate(0, 0, -3)
+	no, _ := f.NextReportDeliveryNo(ctx, schedA.ID)
+	if _, err := f.InsertReportDelivery(ctx, db.InsertReportDeliveryParams{
+		ScheduleID:  schedA.ID,
+		PeriodStart: pgtype.Timestamptz{Time: delivered.AddDate(0, 0, -7), Valid: true},
+		PeriodEnd:   pgtype.Timestamptz{Time: delivered, Valid: true},
+		DeliveryNo:  no,
+		State:       "delivered",
+		DeliveredAt: pgtype.Timestamptz{Time: delivered, Valid: true},
+	}); err != nil {
+		t.Fatalf("insert delivery: %v", err)
+	}
+
+	srv := newServer(f, testKey, "", fixedClock())
+	rows := srv.reportScheduleRows(ctx)
+	if len(rows) != 2 {
+		t.Fatalf("rows = %d, want 2", len(rows))
+	}
+	// B (never run) sorts first: the genuine empty-state — em dash, disabled item.
+	if rows[0].Name != "Monthly asset inventory" {
+		t.Fatalf("row[0] = %q, want newest-first Monthly asset inventory", rows[0].Name)
+	}
+	if rows[0].HasDelivery || rows[0].LastSent != "—" || rows[0].DeliveryHref != "" {
+		t.Errorf("un-run schedule should be empty-stated; got %+v", rows[0])
+	}
+	// A read its delivered run: three days ago, menu lit at the stable route.
+	if !rows[1].HasDelivery || rows[1].LastSent != "3d" || rows[1].DeliveryHref != reportDeliveryHref {
+		t.Errorf("delivered schedule should read its receipt (3d, lit); got %+v", rows[1])
 	}
 }
 

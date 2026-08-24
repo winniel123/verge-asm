@@ -241,6 +241,12 @@ type Querier interface {
 	// unexpired) is checked in the handler against the server clock rather than SQL
 	// now(), matching every other auth read's use of the injectable clock.
 	GetInviteByTokenHash(ctx context.Context, tokenHash string) (Invite, error)
+	// The newest non-failed run of a schedule — the receipt the "Recurring reports"
+	// table reads for its "last sent" cell and the artifact view opens. A failed run
+	// is not a delivery to view, so it is excluded; where a schedule has never run (or
+	// only failed) this returns no row and the caller renders the em-dash empty-state
+	// rather than fabricating a delivery (ADR-0110).
+	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (ReportDelivery, error)
 	// The frozen Message the body is built from — read verbatim, never recomputed.
 	// The body carries exactly these fields (the headline byte-identical, the census
 	// as a count) and reaches no other table: no row behind a census count.
@@ -367,6 +373,11 @@ type Querier interface {
 	// them. census is NULL where the firing carries a count rather than rows.
 	InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error)
 	InsertObservation(ctx context.Context, arg InsertObservationParams) error
+	// Record one run of a schedule for a bounded period. delivery_no is the caller's
+	// next-sequence read (NextReportDeliveryNo); state is one of generated / delivered
+	// / failed; delivered_at is NULL where the run generated without leaving (a
+	// download-only schedule) and the stamp otherwise. generated_at defaults to now().
+	InsertReportDelivery(ctx context.Context, arg InsertReportDeliveryParams) (ReportDelivery, error)
 	// Reads and writes behind the Reports screen's recurring-reports table and its
 	// "New schedule" wizard (#290). A report_schedule is Declared and carries no
 	// timeline: there is a plain insert and an unbounded newest-first list, no
@@ -661,6 +672,9 @@ type Querier interface {
 	// per-batch render.
 	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
+	// Every run of one schedule, newest-first — the delivery history behind a
+	// schedule, including failed runs so the record is complete.
+	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]ReportDelivery, error)
 	// Every declared schedule, newest-first, unbounded — the "Recurring reports" table
 	// renders each row and resolves its "last delivery" from the Message corpus, since
 	// deliveries are messages (ADR-0039, ADR-0081) and this table holds only intent.
@@ -862,6 +876,16 @@ type Querier interface {
 	// ListLiveObservationsForDerivation, evaluated at @as_of with k = @floor_cadences)
 	// keeps an Address held only by an evidential answer out of the probed estate.
 	NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error)
+	// Reads and writes behind the report_delivery receipts store (#291/T2). A
+	// report_delivery is the Operational record of one run of a report_schedule: it
+	// has no cause and never becomes a Message (ADR-0039, ADR-0081). It backs the
+	// "Recurring reports" table's "last sent" cell and the delivered-artifact view.
+	// The receipt stores only the run's period bounds and outcome — the artifact
+	// recomputes its contents from those bounds at render time, snapshotting nothing.
+	// The next 1-based per-schedule sequence number for a run: max+1, or 1 for the
+	// first. The caller passes it to InsertReportDelivery; the unique (schedule_id,
+	// delivery_no) key keeps the sequence dense under a single writer.
+	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
 	// Open a new span for a timeline. The caller passes the canonical value, the
 	// gap flag, the Derivation vector as a JSON array of {leaf,version}, and the id of
 	// the Batch whose fold opened it (ADR-0111) — nullable, since a span opened outside

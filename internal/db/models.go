@@ -223,6 +223,17 @@ type RecoveryCode struct {
 	UsedAt    pgtype.Timestamptz `json:"used_at"`
 }
 
+type ReportDelivery struct {
+	ID          int64              `json:"id"`
+	ScheduleID  int64              `json:"schedule_id"`
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd   pgtype.Timestamptz `json:"period_end"`
+	DeliveryNo  int32              `json:"delivery_no"`
+	GeneratedAt pgtype.Timestamptz `json:"generated_at"`
+	DeliveredAt pgtype.Timestamptz `json:"delivered_at"`
+	State       string             `json:"state"`
+}
+
 type ReportSchedule struct {
 	ID             int64              `json:"id"`
 	Name           string             `json:"name"`
