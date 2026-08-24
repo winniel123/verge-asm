@@ -729,6 +729,21 @@ type Querier interface {
 	// is NOT live-tier gated — it reads the already-derived `span` corpus (ADR-0041),
 	// not the observation tier. Ordered by subject so a per-subject fold is one pass.
 	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]ListSpansOpenSinceRow, error)
+	// Every Name/Service subject whose FIRST appearance is at or after @since, paired
+	// with that first-appearance instant — the corpus the Reports "New assets
+	// discovered" card folds into a per-period count and a daily-discovery series
+	// (P2.4b, #468). A subject's appearance is the earliest opened_at across ALL its
+	// spans (the `appeared` drift classification): GROUP BY collapses a subject's many
+	// facet timelines to that one instant, and HAVING keeps only subjects that first
+	// appeared in the window, so a subject long-present before @since is not miscounted
+	// as newly discovered. Only Name and Service subjects are counted — the same
+	// watched population the assets-watched census reads (internal/drift.DistinctSubjects)
+	// — so an Endpoint or Address facet moving is not itself a new asset. Reads FROM
+	// span only — the already-derived, never-compacted corpus (ADR-0041) — so it is NOT
+	// live-tier gated; an @as_of bound would wrongly hide settled history rather than
+	// protect a re-derivation. Ordered by the appearance instant for a stable,
+	// oldest-first fold.
+	ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]ListSubjectFirstAppearancesRow, error)
 	// The Coverage register of positions we currently cannot observe from
 	// (ADR-0108). It includes the resolver-only `local` vantage — which ListVantages
 	// excludes for the prober list — because that is exactly the position whose

@@ -2,14 +2,25 @@ package main
 
 import "html/template"
 
-// Reports screen — canonical `/reports` (new). Folds today's exposure board; the
-// screen ticket (T-Reports) rewrites the body against examples/console/Reports.jsx
-// (time-series chart, heatmap calendar, schedule wizard) plus scans analytics,
-// shipping design-system empty-states where no data exists yet. Ported verbatim
-// for T0.
+// Reports screen — canonical `/reports`. Restored to design-system parity against
+// examples/console/Reports.jsx (shots 09→10) under ADR-0116 (design normative for
+// look AND functionality; PARITY-CHART.md P2.4): three trend KPI cards with
+// vs-last-batch deltas, the "Open signals over time" chart, a by-severity bar
+// region, the scans-per-day heatmap, and the recurring-reports table with its row
+// menu. Every data region is painted from a real derivation (P0.1/P0.2/P0.3) and
+// degrades to a design-system empty/skeleton pattern only where a read is
+// unavailable — never a fabricated figure. These classes are template-local CSS
+// translated from design-system/components/* within the token vocabulary; this is
+// restyling, not authoring (ADR-0109).
 var _ = template.Must(tmpl.Parse(reportsTemplates))
 
 const reportsTemplates = `
+{{define "deltachip"}}<span style="display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:var(--r-full);font:600 11px var(--mono);line-height:1;white-space:nowrap;transform:translateY(-2px);{{if eq .Tone "good"}}background:var(--ok-soft);border:1px solid var(--ok-border);color:var(--ok){{else if eq .Tone "bad"}}background:var(--danger-soft);border:1px solid var(--danger-border);color:var(--danger){{else}}background:var(--sunken);border:1px solid var(--hairline);color:var(--body){{end}}">{{if .Dir}}<svg viewBox="0 0 10 10" width="8" height="8" aria-hidden="true"{{if eq .Dir "down"}} style="transform:rotate(180deg)"{{end}}><path d="M5 8.5V1.5M1.8 4.7L5 1.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{end}}{{.Text}}</span>{{end}}
+
+{{define "spark"}}<svg width="100%" height="{{.H}}" viewBox="0 0 {{.W}} {{.H}}" preserveAspectRatio="none" style="display:block;width:100%;overflow:visible" aria-hidden="true"><path d="{{.Area}}" fill="{{.Color}}" opacity="0.1"></path><polyline points="{{.Line}}" fill="none" stroke="{{.Color}}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="{{.DotX}}" cy="{{.DotY}}" r="2.5" fill="{{.Color}}"></circle></svg>{{end}}
+
+{{define "barchart"}}<div style="display:flex;flex-direction:column;gap:6px" aria-hidden="true"><div style="display:flex;align-items:flex-end;gap:4px;height:44px;border-bottom:1px solid var(--chart-grid);padding-bottom:1px">{{range .Bars}}<span title="{{.Title}}" style="flex:1;min-width:3px;height:{{.HeightPct}}%;min-height:2px;border-radius:3px 3px 0 0;background:var(--chart-1);opacity:{{if .Last}}1{{else}}0.45{{end}}"></span>{{end}}</div><div style="display:flex;justify-content:space-between;gap:8px"><span class="mono muted" style="font-size:9.5px">{{.LeftLabel}}</span><span class="mono muted" style="font-size:9.5px">{{.RightLabel}}</span></div></div>{{end}}
+
 {{define "reports"}}{{template "head" .}}
 {{template "chrome" .}}
 <main style="display:flex;flex-direction:column;gap:var(--space-5)">
@@ -17,7 +28,7 @@ const reportsTemplates = `
 <header style="display:flex;align-items:center;gap:var(--space-4)">
   <div style="display:flex;flex-direction:column;gap:2px">
     <h1 style="margin:0;font-size:21px">Reports</h1>
-    <span class="muted" style="font-size:12.5px">Operational activity and scheduled exports for the selected period.</span>
+    <span class="muted" style="font-size:12.5px">Trends and scheduled exports for the selected period.</span>
   </div>
   <div style="margin-left:auto;display:flex;gap:var(--space-2);align-items:center">
     <form method="get" action="/reports" style="margin:0">
@@ -39,30 +50,52 @@ const reportsTemplates = `
 </header>
 
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-5)">
-  <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:var(--space-3);min-width:0">
+
+  <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:14px;min-width:0">
     <div style="display:flex;align-items:baseline;gap:10px">
       <span class="microlabel">Open signals</span>
-      <span class="mono muted" style="margin-left:auto;font-size:11px">now</span>
-    </div>
-    <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{if .HasOpenSignals}}{{.OpenSignals}}{{else}}&#8212;{{end}}</span>
-    <span class="muted" style="font-size:11.5px">signals firing right now, across every rule</span>
-  </section>
-  <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:var(--space-3);min-width:0">
-    <div style="display:flex;align-items:baseline;gap:10px">
-      <span class="microlabel">Scans run</span>
       <span class="mono muted" style="margin-left:auto;font-size:11px">{{.RangeLabel}}</span>
     </div>
-    <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{.ScansWindow}}</span>
-    <span class="muted" style="font-size:11.5px">scans dispatched in the period</span>
-  </section>
-  <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:var(--space-3);min-width:0">
-    <div style="display:flex;align-items:baseline;gap:10px">
-      <span class="microlabel">In flight</span>
-      <span class="mono muted" style="margin-left:auto;font-size:11px">now</span>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <span style="display:flex;align-items:baseline;gap:8px">
+        <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{if .HasOpenSignals}}{{.OpenSignals}}{{else}}&#8212;{{end}}</span>
+        {{if .OpenDelta.Has}}{{template "deltachip" .OpenDelta}}{{end}}
+      </span>
+      <span class="muted" style="font-size:11.5px">vs previous batch</span>
     </div>
-    <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{.ActiveScans}}</span>
-    <span class="muted" style="font-size:11.5px">scans still running</span>
+    {{if .HasOpenSpark}}<div style="margin-top:auto">{{template "spark" .OpenSpark}}</div>{{end}}
   </section>
+
+  <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:14px;min-width:0">
+    <div style="display:flex;align-items:baseline;gap:10px">
+      <span class="microlabel">New assets discovered</span>
+      <span class="mono muted" style="margin-left:auto;font-size:11px">{{.RangeLabel}}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <span style="display:flex;align-items:baseline;gap:8px">
+        <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{if .HasDiscovery}}{{.DiscoveryCount}}{{else}}&#8212;{{end}}</span>
+        {{if .DiscoveryDelta.Has}}{{template "deltachip" .DiscoveryDelta}}{{end}}
+      </span>
+      <span class="muted" style="font-size:11.5px">{{if .HasDiscovery}}{{.DiscoveryNames}} names &#183; {{.DiscoveryServices}} services{{else}}first appearances over the period{{end}}</span>
+    </div>
+    {{if .HasDiscovery}}<div style="margin-top:auto">{{template "barchart" .DiscoveryBars}}</div>{{end}}
+  </section>
+
+  <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:14px;min-width:0">
+    <div style="display:flex;align-items:baseline;gap:10px">
+      <span class="microlabel">Mean time to withdrawal</span>
+      <span class="mono muted" style="margin-left:auto;font-size:11px">{{.RangeLabel}}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <span style="display:flex;align-items:baseline;gap:8px">
+        <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{if .HasMTTW}}{{.MTTW}}{{else}}&#8212;{{end}}</span>
+        {{if .MTTWDelta.Has}}{{template "deltachip" .MTTWDelta}}{{end}}
+      </span>
+      <span class="muted" style="font-size:11.5px">from appearance to withdrawal</span>
+    </div>
+    {{if .HasMTTWSpark}}<div style="margin-top:auto">{{template "spark" .MTTWSpark}}</div>{{end}}
+  </section>
+
 </div>
 
 <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5)">
@@ -70,12 +103,29 @@ const reportsTemplates = `
     <span class="microlabel">Trend</span>
     <h2 style="margin:0;font-size:15px">Open signals over time</h2>
   </div>
+  {{if .HasSignalSeries}}
+  {{with .SignalSeries}}
+  <div style="width:100%">
+    <svg width="100%" height="{{.H}}" viewBox="0 0 {{.W}} {{.H}}" role="img" aria-label="Open signals over time" style="display:block;overflow:visible;max-width:100%">
+      {{range .Grid}}<line x1="{{.X1}}" x2="{{.X2}}" y1="{{.Y}}" y2="{{.Y}}" stroke="{{.Stroke}}" stroke-width="1"></line><text x="{{.LabelX}}" y="{{.Y}}" dy="3" text-anchor="end" style="font:400 10.5px var(--mono);fill:var(--muted)">{{.Label}}</text>{{end}}
+      <polyline points="{{.AllOpen}}" fill="none" stroke="var(--chart-1)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></polyline>
+      <polyline points="{{.CritHigh}}" fill="none" stroke="var(--chart-2)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></polyline>
+      {{range .XLabels}}<text x="{{.X}}" y="{{.Y}}" text-anchor="middle" style="font:400 10.5px var(--mono);fill:var(--muted)">{{.Text}}</text>{{end}}
+    </svg>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;padding-left:40px;margin-top:8px">
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:var(--chart-1)"></span><span style="font-size:12px;color:var(--body)">All open</span></span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:var(--chart-2)"></span><span style="font-size:12px;color:var(--body)">Critical + high</span></span>
+    </div>
+  </div>
+  {{end}}
+  {{else}}
   <div class="emptystate">
-    <div class="microlabel">No series</div>
-    <h2>Signals are a current-state census</h2>
-    <p style="max-width:70ch;margin:var(--space-3) auto">A signal census is never a delta, trend or series — subtracting two censuses conflates a moved population with a moved rule. The current count is on the band above; open Signals for the live census.</p>
+    <div class="microlabel">No history yet</div>
+    <h2>No signal history</h2>
+    <p style="max-width:60ch;margin:var(--space-3) auto">Open-signal history builds here as signals are first raised over the period. Declare a scope on Scope and run a scan to start the series.</p>
     <a class="btn ghost" href="/signals">Go to Signals</a>
   </div>
+  {{end}}
 </section>
 
 <div style="display:grid;grid-template-columns:380px 1fr;gap:var(--space-5);align-items:start">
@@ -86,12 +136,26 @@ const reportsTemplates = `
         <span class="microlabel">Open signals</span>
         <h2 style="margin:0;font-size:15px">By severity</h2>
       </div>
+      {{if .HasSeverity}}
+      <div style="display:flex;flex-direction:column;gap:12px">
+        {{range .BySeverity}}
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="mono" style="width:72px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted)">{{.Label}}</span>
+          <span style="flex:1;height:8px;border-radius:999px;background:var(--sunken);overflow:hidden">
+            <span style="display:block;height:100%;width:{{.Pct}}%;border-radius:999px;background:{{if eq .Sev "critical"}}var(--sev-critical-dot){{else if eq .Sev "high"}}var(--sev-high-dot){{else if eq .Sev "medium"}}var(--sev-medium-dot){{else if eq .Sev "low"}}var(--sev-low-dot){{else}}var(--sev-info-dot){{end}}"></span>
+          </span>
+          <span class="mono" style="width:26px;text-align:right;font-size:12.5px;color:var(--body)">{{.Count}}</span>
+        </div>
+        {{end}}
+      </div>
+      {{else}}
       <div class="emptystate">
-        <div class="microlabel">No severity ramp</div>
-        <h2>Signals carry no severity</h2>
-        <p style="max-width:60ch;margin:var(--space-3) auto">A signal is a census member, not a scored one — the register set is deliberately not a severity ramp, so there is nothing to rank here. See each rule's fired, did-not-fire and not-evaluable members on Signals.</p>
+        <div class="microlabel">All quiet</div>
+        <h2>No signals firing</h2>
+        <p style="max-width:60ch;margin:var(--space-3) auto">Nothing is firing across the rule set right now. When a rule raises a signal it appears here, ranked by severity.</p>
         <a class="btn ghost" href="/signals">Go to Signals</a>
       </div>
+      {{end}}
     </section>
 
     <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5)">

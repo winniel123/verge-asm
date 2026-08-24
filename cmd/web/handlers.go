@@ -166,6 +166,12 @@ type store interface {
 	// Reads FROM span only — the never-compacted derived corpus (ADR-0041) — not the
 	// live-tier observation gate.
 	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error)
+	// New assets discovered (#468, P2.4b): every Name/Service subject whose FIRST
+	// appearance (MIN(opened_at), the `appeared` classification) is at or after a
+	// read instant, so the Reports "New assets discovered" card folds a per-period
+	// count, its vs-previous-period delta, and the daily-discovery bar series. Reads
+	// FROM span only — the never-compacted derived corpus (ADR-0041).
+	ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error)
 	// Exposure landing view (#196): the two most recent reachability spans per
 	// (Service, vantage), joined to the prober endpoint. The class is re-verified
 	// per render from the presented address, so this read carries the host rather

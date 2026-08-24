@@ -1674,6 +1674,64 @@ func (f *fakeStore) ListSpansOpenSince(_ context.Context, since pgtype.Timestamp
 	return rows, nil
 }
 
+// ListSubjectFirstAppearances folds every observation into Span timelines with the
+// real drift.Fold and returns, per Name/Service subject whose earliest opened_at is
+// at or after `since`, that first-appearance instant (#468, P2.4b) — the same
+// per-subject MIN(opened_at) and window the production GROUP BY … HAVING computes.
+func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error) {
+	type tlkey struct{ kind, key, facet, discriminator, source string }
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "name" && o.SubjectKind != "service" {
+			continue
+		}
+		k := tlkey{o.SubjectKind, o.SubjectKey, o.Facet, o.Discriminator, o.Source}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		if o.Facet == "reachability" {
+			gap = reachOutcomeIsGap(o.Value)
+		}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+	// The earliest span opened_at across ALL of a subject's timelines is its
+	// appearance — the SQL's MIN(opened_at) over the subject's GROUP.
+	type subj struct{ kind, key string }
+	first := map[subj]time.Time{}
+	for k, readings := range byKey {
+		key := drift.TimelineKey{
+			SubjectKind: k.kind, SubjectKey: k.key,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range drift.Fold(key, readings) {
+			sk := subj{k.kind, k.key}
+			if cur, ok := first[sk]; !ok || s.OpenedAt.Before(cur) {
+				first[sk] = s.OpenedAt
+			}
+		}
+	}
+	rows := []db.ListSubjectFirstAppearancesRow{}
+	for sk, at := range first {
+		if since.Valid && at.Before(since.Time) { // the HAVING MIN(opened_at) >= @since filter
+			continue
+		}
+		rows = append(rows, db.ListSubjectFirstAppearancesRow{
+			SubjectKind: sk.kind, SubjectKey: sk.key,
+			FirstOpened: pgtype.Timestamptz{Time: at, Valid: true},
+		})
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if !rows[i].FirstOpened.Time.Equal(rows[j].FirstOpened.Time) {
+			return rows[i].FirstOpened.Time.Before(rows[j].FirstOpened.Time)
+		}
+		if rows[i].SubjectKind != rows[j].SubjectKind {
+			return rows[i].SubjectKind < rows[j].SubjectKind
+		}
+		return rows[i].SubjectKey < rows[j].SubjectKey
+	})
+	return rows, nil
+}
+
 // ListServiceReachabilitySpansByClassAt is the as-of-@at twin of
 // ListServiceReachabilitySpansByClass (#443): the reachability span per (Service,
 // class) that was OPEN at @at, folded with the real drift.Fold from the same
