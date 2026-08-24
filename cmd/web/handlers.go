@@ -158,6 +158,14 @@ type store interface {
 	// read (ADR-0007) and groups the transitions by batch. Reads span and batch only —
 	// never dispatch — honoring the comparison-path separation (ADR-0041).
 	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
+	// Mean-time-to-withdrawal trend (#444, P0.3): every subject withdrawal since a
+	// read instant, paired with the subject's first appearance, so the Reports trend
+	// derives time-to-withdrawal (withdrawn_at − first_opened) per departure. A
+	// withdrawal closes every open timeline a subject held at one instant (ADR-0082),
+	// so the per-facet closures collapse to one departure per (subject, closed_at).
+	// Reads FROM span only — the never-compacted derived corpus (ADR-0041) — not the
+	// live-tier observation gate.
+	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error)
 	// Exposure landing view (#196): the two most recent reachability spans per
 	// (Service, vantage), joined to the prober endpoint. The class is re-verified
 	// per render from the presented address, so this read carries the host rather
