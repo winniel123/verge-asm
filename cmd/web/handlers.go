@@ -60,6 +60,18 @@ type store interface {
 	ConsumeRecoveryCode(ctx context.Context, arg db.ConsumeRecoveryCodeParams) error
 	GetInviteByTokenHash(ctx context.Context, tokenHash string) (db.Invite, error)
 	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) error
+	// Server-side session registry (#405, ADR-0117): every login opens a session row
+	// keyed by the hash of an opaque token the signed cookie carries, and every request
+	// re-validates that row so a revocation takes effect on the next request rather than
+	// at cookie expiry. CreateSession opens it; GetSessionByTokenHash is the per-request
+	// validation lookup (live = unrevoked and unexpired); TouchSession refreshes
+	// last_seen_at (throttled by the handler); RevokeSession ends one session scoped to
+	// its owner (sign-out and the end-session action). The admin/other-device revocation
+	// and listing queries land with their downstream tickets (#406-#408).
+	CreateSession(ctx context.Context, arg db.CreateSessionParams) (db.Session, error)
+	GetSessionByTokenHash(ctx context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error)
+	TouchSession(ctx context.Context, arg db.TouchSessionParams) error
+	RevokeSession(ctx context.Context, arg db.RevokeSessionParams) error
 	// CreateInvite is the invite CREATION side (Settings -> Team, T18): it mints a
 	// single-use, time-boxed invite at a role against the same invite table T19's
 	// acceptance screen spends. ResetAccountTOTP is Team's "require re-enrollment" —

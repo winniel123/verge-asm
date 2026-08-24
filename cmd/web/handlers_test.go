@@ -63,6 +63,13 @@ type fakeStore struct {
 	personalTokens []db.PersonalToken
 	tokenNextID    int64
 
+	// sessions mirrors the session table (#405, ADR-0117): the server-side session
+	// registry. Only the token hash is stored; a live session is one that is unrevoked
+	// and unexpired, and a revoke stamps revoked_at scoped to the owner (the same
+	// owner-scoping the personal-token methods hold).
+	sessions      []db.Session
+	sessionNextID int64
+
 	// SignIn delta (#314): the pre-auth token stores behind forgot/reset, TOTP
 	// recovery codes, and invite acceptance. Each keeps only a hash; expiry and
 	// single-use are checked against the injected clock, so a fixed-clock test can
@@ -210,7 +217,7 @@ func newFakeStore() *fakeStore {
 			{ID: 3, Kind: "cold", Enabled: false, CadenceSeconds: 2592000},
 		},
 		obsNextID: 1, batchNextID: 1, scanNextID: 1, tokenNextID: 1,
-		resetNextID: 1, recoveryNextID: 1, inviteNextID: 1,
+		resetNextID: 1, recoveryNextID: 1, inviteNextID: 1, sessionNextID: 1,
 		freqEdits:  map[int32]fakeFreqEdit{},
 		coldScopes: map[int64]bool{},
 	}
