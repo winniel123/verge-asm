@@ -1,0 +1,37 @@
+name: verify (design parity)
+
+# The WORKFLOW.md v4 gates for the design-owned view layer (P4.0 pilot, #527):
+#   G1 (verbatim) — the frozen templates/tokens/fixtures/verify/goldens are
+#     byte-identical to their committed manifest.
+#   G2 (pixel) — the fixture-seeded /inventory, captured in the PINNED container,
+#     diffs <= config.json's threshold (3.0%) against the committed goldens for
+#     every state x theme. Only this canonical-container run is a binding verdict;
+#     local Windows/macOS runs are advisory.
+on:
+  push:
+    branches: [main, p4.0-inventory-pilot]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  g1-verbatim:
+    name: G1 — design artifacts verbatim
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: G1 — design-owned artifacts byte-identical to the manifest
+        run: bash design-system/verify/harness/g1-manifest.sh --check
+
+  g2-pixel:
+    name: G2 — pixel parity (pinned container, gate 3%)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # run.sh drives the whole loop through the pinned-by-digest Playwright,
+      # Postgres, and golang images (docker is preinstalled on ubuntu-latest).
+      # ADVISORY=0 makes capture exit non-zero when any state-theme is over the
+      # threshold, so this job IS the binding G2 gate.
+      - name: G2 — capture the seeded /inventory and diff against goldens
+        run: ADVISORY=0 bash design-system/verify/harness/run.sh

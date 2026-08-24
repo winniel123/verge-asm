@@ -85,8 +85,14 @@ docker run -d --name "$WEB" --network "$NET" -v "$REPO":/src -w /src -v "${BIN_V
   -e VERGE_DEV=1 -e "DATABASE_URL=${DBURL}" -e VERGE_STATE_DIR=/tmp/verge-state "$GO_IMAGE" /out/web >/dev/null
 for i in $(seq 1 30); do docker exec "$WEB" /out/web -healthcheck >/dev/null 2>&1 && break; sleep 1; done
 
-echo "== 4. capture --mode candidate --advisory =="
+# ADVISORY=1 (default) prints diffs and always exits 0 — the local Windows/macOS
+# posture, where pixel output is not the canonical verdict. CI sets ADVISORY=0 so
+# capture exits non-zero when any state-theme is over config.json's threshold — the
+# binding G2 gate, which only ever runs in this pinned container.
+ADV_FLAG=""
+if [ "${ADVISORY:-1}" = "1" ]; then ADV_FLAG="--advisory"; fi
+echo "== 4. capture --mode candidate ${ADV_FLAG} =="
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate --advisory --base "http://${WEB}:8080"
+  node capture.mjs --mode candidate $ADV_FLAG --base "http://${WEB}:8080"
 
-echo "== done (advisory) =="
+echo "== done (ADVISORY=${ADVISORY:-1}) =="
