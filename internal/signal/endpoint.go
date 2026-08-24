@@ -84,6 +84,7 @@ type EndpointFacts struct {
 type EndpointRule interface {
 	Name() string
 	Version() Version
+	Severity() Severity
 	Eval(f EndpointFacts) Outcome
 }
 
@@ -152,11 +153,13 @@ func presentedCert(f EndpointFacts) bool {
 
 type certDetailRule struct {
 	name string
+	sev  Severity
 	pick func(CertDetails) bool
 }
 
-func (r certDetailRule) Name() string     { return r.name }
-func (r certDetailRule) Version() Version { return certVersion() }
+func (r certDetailRule) Name() string       { return r.name }
+func (r certDetailRule) Version() Version   { return certVersion() }
+func (r certDetailRule) Severity() Severity { return r.sev }
 func (r certDetailRule) Eval(f EndpointFacts) Outcome {
 	if !presentedCert(f) {
 		return OutsideDomain
@@ -173,12 +176,15 @@ func (r certDetailRule) Eval(f EndpointFacts) Outcome {
 // The five shipped certificate-detail rules, in ADR-0024 table order. Each names
 // the one parsed-leaf boolean it reads; the domain, not-evaluable, and
 // fired/not-fired control flow live once, in certDetailRule.Eval above.
+// Severities, per rule: an expired or not-yet-valid leaf breaks TLS for clients
+// today (critical / high); a weak key or signature is a high-value forgery risk;
+// a self-signed leaf and an approaching expiry are medium warnings.
 var (
-	certificateExpired            = certDetailRule{"certificate-expired", func(d CertDetails) bool { return d.Expired }}
-	certificateNotYetValid        = certDetailRule{"certificate-not-yet-valid", func(d CertDetails) bool { return d.NotYetValid }}
-	certificateExpiring           = certDetailRule{"certificate-expiring", func(d CertDetails) bool { return d.Expiring }}
-	certificateSelfSigned         = certDetailRule{"certificate-self-signed", func(d CertDetails) bool { return d.SelfSigned }}
-	certificateWeakKeyOrSignature = certDetailRule{"certificate-weak-key-or-signature", func(d CertDetails) bool { return d.WeakKeyOrSignature }}
+	certificateExpired            = certDetailRule{"certificate-expired", SevCritical, func(d CertDetails) bool { return d.Expired }}
+	certificateNotYetValid        = certDetailRule{"certificate-not-yet-valid", SevHigh, func(d CertDetails) bool { return d.NotYetValid }}
+	certificateExpiring           = certDetailRule{"certificate-expiring", SevMedium, func(d CertDetails) bool { return d.Expiring }}
+	certificateSelfSigned         = certDetailRule{"certificate-self-signed", SevMedium, func(d CertDetails) bool { return d.SelfSigned }}
+	certificateWeakKeyOrSignature = certDetailRule{"certificate-weak-key-or-signature", SevHigh, func(d CertDetails) bool { return d.WeakKeyOrSignature }}
 )
 
 // --- certificate-hostname-san-mismatch ------------------------------------
@@ -192,6 +198,10 @@ type certificateHostnameSANMismatch struct{}
 
 func (certificateHostnameSANMismatch) Name() string     { return "certificate-hostname-san-mismatch" }
 func (certificateHostnameSANMismatch) Version() Version { return certVersion() }
+
+// Severity: high — a chain whose SANs do not cover the endpoint's name fails
+// verification and is indistinguishable from a misissued or wrong certificate.
+func (certificateHostnameSANMismatch) Severity() Severity { return SevHigh }
 func (certificateHostnameSANMismatch) Eval(f EndpointFacts) Outcome {
 	if !presentedCert(f) || !f.HasName {
 		return OutsideDomain
@@ -221,6 +231,10 @@ func (plaintextHTTPNoHTTPS) Name() string { return "plaintext-http-no-https" }
 func (plaintextHTTPNoHTTPS) Version() Version {
 	return Version{Rule: "v1", Composes: sortedStrings(hx.Version, co.CertVersion)}
 }
+
+// Severity: medium — an HTTP app answering with no TLS exposes traffic to
+// interception, but is a hardening gap rather than an immediate compromise.
+func (plaintextHTTPNoHTTPS) Severity() Severity { return SevMedium }
 func (plaintextHTTPNoHTTPS) Eval(f EndpointFacts) Outcome {
 	if !f.HTTPResponded {
 		return OutsideDomain
@@ -267,6 +281,10 @@ func (redirectDoesNotUpgradeToTLS) Name() string { return "redirect-does-not-upg
 func (redirectDoesNotUpgradeToTLS) Version() Version {
 	return Version{Rule: "v1", Composes: []string{hx.Version}}
 }
+
+// Severity: low — a redirect that does not upgrade to TLS is a best-practice miss;
+// the plaintext-http-no-https rule carries the underlying exposure.
+func (redirectDoesNotUpgradeToTLS) Severity() Severity { return SevLow }
 func (redirectDoesNotUpgradeToTLS) Eval(f EndpointFacts) Outcome {
 	if !is3xxWithLocation(f) {
 		return OutsideDomain
@@ -292,6 +310,10 @@ func (redirectToHostOutsideEstate) Name() string { return "redirect-to-host-outs
 func (redirectToHostOutsideEstate) Version() Version {
 	return Version{Rule: "v1", Composes: sortedStrings(append([]string{hx.Version}, leafVersions...)...)}
 }
+
+// Severity: medium — a redirect leaving the estate can hand a session or a click
+// to an unowned host, a phishing / open-redirect risk.
+func (redirectToHostOutsideEstate) Severity() Severity { return SevMedium }
 func (redirectToHostOutsideEstate) Eval(f EndpointFacts) Outcome {
 	if !is3xxWithLocation(f) {
 		return OutsideDomain
@@ -322,6 +344,10 @@ func (unauthenticatedRequestAnswered) Name() string { return "unauthenticated-re
 func (unauthenticatedRequestAnswered) Version() Version {
 	return Version{Rule: "v1", Composes: []string{hx.Version}}
 }
+
+// Severity: high — an endpoint answering an unauthenticated request 2xx is an
+// exposed surface (an admin panel or API reachable without a challenge).
+func (unauthenticatedRequestAnswered) Severity() Severity { return SevHigh }
 func (unauthenticatedRequestAnswered) Eval(f EndpointFacts) Outcome {
 	if !f.HTTPResponded {
 		return OutsideDomain

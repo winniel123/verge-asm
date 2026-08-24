@@ -50,6 +50,12 @@ type fakeStore struct {
 	annotations []db.Annotation
 	annoNextID  int64
 
+	// signalInstances mirrors the signal_instance table (#442): the persisted id +
+	// first-seen of each fired (signal_name, subject_key) pair. The mint is idempotent
+	// on the pair, and the id starts at 1000 so a minted instance reads SIG-1000+.
+	signalInstances  []db.SignalInstance
+	signalInstNextID int64
+
 	sourceStates map[string]db.SourceState
 
 	// integrationStates mirrors the integration_state table (#308): the operator's
@@ -207,7 +213,7 @@ func newFakeStore() *fakeStore {
 	return &fakeStore{
 		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
 		seedNextID: 1, exclNextID: 1, annoNextID: 1, vantageNextID: 1, chanNextID: 1,
-		lookupNextID: 1, proposalNext: 1,
+		lookupNextID: 1, proposalNext: 1, signalInstNextID: 1000,
 		sourceStates:      map[string]db.SourceState{},
 		integrationStates: map[string]db.IntegrationState{},
 		scans: []db.Scan{
@@ -639,6 +645,45 @@ func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) error {
 		}
 	}
 	return nil // idempotent: a missing row is not an error
+}
+
+// MintSignalInstances mirrors the ON CONFLICT DO NOTHING upsert (#442): a pair
+// already present keeps its id and first_seen; a new pair is minted with first_seen
+// = now. The two array args arrive parallel (unnest), as the SQL zips them.
+func (f *fakeStore) MintSignalInstances(_ context.Context, arg db.MintSignalInstancesParams) error {
+	if f.signalInstNextID == 0 {
+		f.signalInstNextID = 1000
+	}
+	have := map[[2]string]bool{}
+	for _, si := range f.signalInstances {
+		have[[2]string{si.SignalName, si.SubjectKey}] = true
+	}
+	for i := range arg.SignalNames {
+		key := [2]string{arg.SignalNames[i], arg.SubjectKeys[i]}
+		if have[key] {
+			continue
+		}
+		have[key] = true
+		f.signalInstances = append(f.signalInstances, db.SignalInstance{
+			ID: f.signalInstNextID, SignalName: key[0], SubjectKey: key[1],
+			FirstSeen: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		})
+		f.signalInstNextID++
+	}
+	return nil
+}
+
+// ListSignalInstances returns the minted identities ordered by signal then subject,
+// as the query's ORDER BY does.
+func (f *fakeStore) ListSignalInstances(context.Context) ([]db.SignalInstance, error) {
+	rows := append([]db.SignalInstance(nil), f.signalInstances...)
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SignalName != rows[j].SignalName {
+			return rows[i].SignalName < rows[j].SignalName
+		}
+		return rows[i].SubjectKey < rows[j].SubjectKey
+	})
+	return rows, nil
 }
 
 func (f *fakeStore) InsertMessage(_ context.Context, arg db.InsertMessageParams) (db.Message, error) {

@@ -272,6 +272,13 @@ type Session struct {
 	RevokedAt  pgtype.Timestamptz `json:"revoked_at"`
 }
 
+type SignalInstance struct {
+	ID         int64              `json:"id"`
+	SignalName string             `json:"signal_name"`
+	SubjectKey string             `json:"subject_key"`
+	FirstSeen  pgtype.Timestamptz `json:"first_seen"`
+}
+
 type SourceState struct {
 	Slug    string `json:"slug"`
 	Enabled bool   `json:"enabled"`

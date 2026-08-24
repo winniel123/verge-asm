@@ -693,6 +693,13 @@ type Querier interface {
 	// sessions list. token_hash is omitted from the read: listing never needs it, so
 	// the secret material stays out of the render path.
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
+	// Every minted instance identity, ordered by signal then subject — the same
+	// deterministic order the annotation ledger uses. The web layer folds these
+	// against the live census by `(signal_name, subject_key)` to attach each currently
+	// -fired member its stable id and first-seen instant; a stored row whose pair is no
+	// longer firing simply matches nothing this render and contributes no per-instance
+	// row (the pair is not currently open).
+	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
@@ -766,6 +773,21 @@ type Querier interface {
 	// A pinned host key later mismatched, or the position went unreachable: the
 	// vantage is marked unavailable rather than silently re-trusting a new key.
 	MarkVantageUnavailable(ctx context.Context, id int64) error
+	// Per-instance signal identity (#442, P0.1). A signal_instance is the persistent
+	// id + first-seen instant of one `(signal-name, subject)` pair the engine placed
+	// under `fired`. The census is re-derived live and never stored; these two queries
+	// add only the mintable `SIG-####` id (formatted from the identity) and the
+	// first-seen instant that a pure re-derivation cannot reconstruct. Everything else
+	// the SignalData.jsx row shows is derived on read (severity from the rule,
+	// last-seen = the current derivation instant, asset/ip/port from the subject key).
+	// Mint an identity for every currently-fired pair, idempotently. Called on the
+	// Signals read path with the whole current fired set unnested into two parallel
+	// arrays; ON CONFLICT DO NOTHING means a pair already firing keeps its original id
+	// and first_seen (so "first seen" is when it was first raised, not last rendered),
+	// while a newly-fired pair is minted with first_seen defaulting to now(). It writes
+	// identity only — never a severity, never a last-seen — so the row carries exactly
+	// what must persist.
+	MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error
 	// The Addresses a current resolution cites, per Name — an `Address` is in the
 	// estate exactly while a current resolution cites it. Only a `Resolved` value
 	// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
