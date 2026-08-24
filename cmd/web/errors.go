@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strconv"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 // The error pages (T11, #306): the three full-screen states share one render path
@@ -35,9 +37,62 @@ func (s *server) notFound(w http.ResponseWriter, _ *http.Request) {
 
 // forbidden answers an unauthorized request with the 403 error page. It is the one
 // render behind requireAdmin: a viewer who reaches an admin act sees why, and how
-// an admin widens it.
+// an admin widens it. The Settings destination renders the richer settingsForbidden
+// instead (U4, #481); every other admin route keeps this plain 403.
 func (s *server) forbidden(w http.ResponseWriter, _ *http.Request) {
 	s.renderError(w, http.StatusForbidden, "403", "Access denied", "")
+}
+
+// renderMissingSubject renders the missing-subject ErrorPage kind (U3, #480) at 404,
+// inside the console chrome (screenshot 26): the scan-search badge, the subject key
+// the caller keyed but nothing ever measured shown big-mono, and the way back to
+// Inventory. It is distinct from a withdrawn subject, which is still reachable by its
+// own key — this state is only for a key that matched no subject at all. subject is
+// the unmatched key the operator asked for.
+func (s *server) renderMissingSubject(w http.ResponseWriter, acct db.Account, subject string) {
+	s.renderStatus(w, http.StatusNotFound, "error-page", map[string]any{
+		"Title":       "No such subject",
+		"Kind":        "missing-subject",
+		"Subject":     subject,
+		"ActionLabel": "Back to inventory",
+		"ActionHref":  "/inventory",
+		"Account":     acct,
+		"IsAdmin":     acct.Role == roleAdmin,
+	})
+}
+
+// renderMissingRun renders the missing-run ErrorPage kind (U3, #480) at 404, inside
+// the console chrome: the history badge, the run id shown big-mono as `run #<id>`,
+// and the way back to Drift. It stands where a run id matched no Dispatch in recent
+// history. run is the raw id the operator asked for.
+func (s *server) renderMissingRun(w http.ResponseWriter, acct db.Account, run string) {
+	s.renderStatus(w, http.StatusNotFound, "error-page", map[string]any{
+		"Title":       "No such run",
+		"Kind":        "missing-run",
+		"Subject":     "run #" + run,
+		"ActionLabel": "Back to drift",
+		"ActionHref":  "/drift",
+		"NavActive":   "drift",
+		"Account":     acct,
+		"IsAdmin":     acct.Role == roleAdmin,
+	})
+}
+
+// settingsForbidden renders the settings-forbidden ErrorPage kind (U4, #481) at 403,
+// inside the console chrome (screenshot 27): the lock badge, the 403 code, and the
+// "admin only — Settings is where declared acts live" copy that names how an admin
+// widens a viewer's role. It is the ONE admin surface that renders this richer copy;
+// requireAdmin's plain 403 (forbidden) still stands behind every other admin route.
+func (s *server) settingsForbidden(w http.ResponseWriter, acct db.Account) {
+	s.renderStatus(w, http.StatusForbidden, "error-page", map[string]any{
+		"Title":       "Admin only",
+		"Kind":        "settings-forbidden",
+		"Code":        "403",
+		"ActionLabel": "Back to dashboard",
+		"ActionHref":  "/",
+		"Account":     acct,
+		"IsAdmin":     acct.Role == roleAdmin,
+	})
 }
 
 // newIncidentID mints the id the 500 page shows and the host log records. It is a

@@ -44,19 +44,19 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
 
-	// A viewer is refused the whole destination.
+	// A viewer is refused the whole destination — and Settings renders the richer
+	// settings-forbidden ErrorPage (U4, #481), not the plain 403: it names why
+	// (Settings is where declared acts live) and how a role is widened, at status 403.
 	vc := login(t, base, "viewer", "hunter2hunter2")
-	resp, err := vc.Get(base + "/settings")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("viewer GET /settings: status=%d, want 403", resp.StatusCode)
+	refused := getBody(t, vc, base+"/settings", http.StatusForbidden)
+	for _, want := range []string{"Admin only", "declared acts live", "Back to dashboard"} {
+		if !strings.Contains(refused, want) {
+			t.Errorf("settings-forbidden page missing %q; body: %s", want, refused)
+		}
 	}
 
 	// An anonymous request is bounced to login.
-	resp, err = newClient(t).Get(base + "/settings")
+	resp, err := newClient(t).Get(base + "/settings")
 	if err != nil {
 		t.Fatal(err)
 	}
