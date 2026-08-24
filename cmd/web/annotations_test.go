@@ -163,7 +163,10 @@ func TestPartiallyAnnotatedSignalsBothStayOpen(t *testing.T) {
 
 	annotate(t, ac, base, "one.example.com", "lame-delegation", "accepted").Body.Close()
 
-	open := getBody(t, ac, base+"/signals", http.StatusOK)
+	// Scope assertions to the screen's <main> region: the shell's command
+	// palette lists current Names (P1.5), so a page-wide substring check would
+	// match a name in the palette chrome, not the signals table.
+	open := signalsMain(getBody(t, ac, base+"/signals", http.StatusOK))
 	for _, name := range []string{"one.example.com", "two.example.com"} {
 		if !strings.Contains(open, name) {
 			t.Errorf("Open tab dropped fired signal %q; body: %s", name, open)
@@ -173,13 +176,25 @@ func TestPartiallyAnnotatedSignalsBothStayOpen(t *testing.T) {
 		t.Errorf("census prose rendered on a partially-annotated set")
 	}
 
-	annotatedPage := getBody(t, ac, base+"/signals?tab=annotated", http.StatusOK)
+	annotatedPage := signalsMain(getBody(t, ac, base+"/signals?tab=annotated", http.StatusOK))
 	if !strings.Contains(annotatedPage, "one.example.com") {
 		t.Errorf("Annotated tab missing the accepted signal; body: %s", annotatedPage)
 	}
 	if strings.Contains(annotatedPage, "two.example.com") {
 		t.Errorf("Annotated tab wrongly lists the un-accepted signal")
 	}
+}
+
+// signalsMain returns the screen's <main> region, excluding shell chrome (nav,
+// command palette, footer). The palette lists current Names (P1.5), so a
+// page-wide substring match would find a name outside the signals table.
+func signalsMain(body string) string {
+	i := strings.Index(body, "<main>")
+	j := strings.LastIndex(body, "</main>")
+	if i < 0 || j < 0 || j < i {
+		return body
+	}
+	return body[i:j]
 }
 
 // A declaration naming a subject that is in no current population of the rule is an
