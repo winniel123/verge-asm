@@ -161,10 +161,22 @@ func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, acc
 // delete is idempotent, so re-marking an already-unread message is harmless. The
 // unread count and the shell bell reflect the flip on the next read.
 func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	dest := messageReturn(r)
+	// The unread control posts return="/inbox" (a constant); resolve the target to
+	// a bool here and redirect to a string LITERAL at each call site below, so no
+	// request-derived value ever reaches http.Redirect. This satisfies gosec's
+	// G107 open-redirect taint analyzer by construction (a #nosec its taint pass
+	// ignores would not), and preserves markMessageRead's /inbox-or-/messages home.
+	toInbox := false
+	if ret := r.FormValue("return"); ret == "/inbox" || strings.HasPrefix(ret, "/inbox") {
+		toInbox = true
+	}
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G107 -- dest is messageReturn's whitelist (/inbox|/inbox?…|/messages), never an attacker URL
+		if toInbox {
+			http.Redirect(w, r, "/inbox", http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/messages", http.StatusSeeOther)
+		}
 		return
 	}
 	if err := s.store.MarkMessageUnread(r.Context(), db.MarkMessageUnreadParams{
@@ -173,7 +185,11 @@ func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "mark message unread", err)
 		return
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G107 -- dest is messageReturn's whitelist (/inbox|/inbox?…|/messages), never an attacker URL
+	if toInbox {
+		http.Redirect(w, r, "/inbox", http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "/messages", http.StatusSeeOther)
+	}
 }
 
 // messageReturn is where a message-read POST returns to. The two read handlers are
