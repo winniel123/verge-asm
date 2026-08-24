@@ -1,11 +1,16 @@
 # Package version
 
-current: 3.2.3
+current: 3.4.0
 exported: 2026-08-24
 
 Convention: MAJOR.ROUND.PATCH — MAJOR is the package generation, ROUND increments per sync/Wayfinder round, PATCH per mid-round ruling or spec fix. The design workspace bumps this on every export; the repo copy always states what landed.
 
 ## Log
+- 3.4.0 — 2026-08-24 · P4.0 pilot artifacts: templates/inventory.tmpl (design-owned, self-contained, exact component values; carries recordrows + subject-missing), fixtures/fixtures.json (view contract + clock), verify/{states,config}.json, verify/PILOT-P4.0.md work order
+- 3.3.2 — 2026-08-24 · WAYFINDER-MAP.md: per-screen conversion order (22 stops, Inventory pilot, shell last with crop-to-main rule), the 4-step loop with operator visual sign-off gates, batching rule
+- 3.3.1 — 2026-08-24 · determinism section: one canonical pinned Linux container renders BOTH goldens and repo captures (goldens regenerated in-container from templates+fixtures, never workspace screenshots); packaged fonts; Windows/macOS runs advisory
+- 3.3.0 — 2026-08-24 · WORKFLOW v4 ruled and charted: design-authored .tmpl view layer, fixture contract, hard CI pixel gate (G1 verbatim + G2 pixelmatch 3%), P4 migration tree (P4.0 Inventory pilot first); CLAUDE.md block v2
+- 3.2.4 — 2026-08-24 · collision #13 ruled (U6): Inventory re-specced onto the shipped open-span read — dead controls retired, client-side kind/gaps/filter scope added; shot 03 recaptured
 - 3.2.3 — 2026-08-24 · collision #17 ruled (P0.6c schedule→channel binding); wizard Delivery step + list Delivery column specced (shot 15); docs artifact copy fixed
 - 3.2.2 — 2026-08-24 · collision #16 ruled (P0.6b notify-with-link delivery; ADR-0039 stands)
 - 3.2.1 — 2026-08-24 · collision #15 ruled (P0.6 dispatch + delivery backend); SPEC-CHANGE log at 15 entries

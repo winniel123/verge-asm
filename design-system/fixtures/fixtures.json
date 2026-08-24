@@ -1,0 +1,52 @@
+{
+  "$comment": "Fixture contract v3.4.0 — the seeded instance's /inventory MUST render exactly these groups/subjects/facets (rendered strings, not raw spans). The loader synthesizes whatever spans produce this via buildInventory. Since strings are UTC date-only.",
+  "clock": "2026-08-24T12:00:00Z",
+  "inventory": {
+    "groups": [
+      { "kind": "name", "label": "Names", "subjects": [
+        { "key": "www.acmecorp.io", "type": "Name", "link": "/asset/www.acmecorp.io", "facets": [
+          { "label": "resolution", "summary": "A · 2 addresses", "since": "2026-07-14", "details": [ { "type": "A", "data": "198.51.100.7" }, { "type": "A", "data": "198.51.100.8" } ] },
+          { "label": "dns-records", "summary": "CNAME · TXT", "since": "2026-07-14", "details": [ { "type": "CNAME", "data": "edge.acmecorp.io" }, { "type": "TXT", "data": "verge-custody=vg1:9f3k…" } ] }
+        ] },
+        { "key": "api.acmecorp.io", "type": "Name", "link": "/asset/api.acmecorp.io", "facets": [
+          { "label": "resolution", "summary": "A · 203.0.113.44", "since": "2026-06-02" },
+          { "label": "dns-records", "summary": "CAA · 1 record", "since": "2026-06-02", "details": [ { "type": "CAA", "data": "0 issue “letsencrypt.org”" } ] }
+        ] },
+        { "key": "mail.acmecorp.io", "type": "Name", "link": "/asset/mail.acmecorp.io", "facets": [
+          { "label": "resolution", "summary": "A · 203.0.113.25", "since": "2026-05-19" },
+          { "label": "dns-records", "is_gap": true, "since": "2026-08-21" }
+        ] }
+      ] },
+      { "kind": "service", "label": "Services", "subjects": [
+        { "key": "198.51.100.7:443/tcp", "type": "Service", "link": "/subjects/service?key=198.51.100.7%3A443%2Ftcp", "facets": [
+          { "label": "tls-acceptance", "summary": "TLS 1.2 · 1.3", "since": "2026-07-14" },
+          { "label": "certificate-chain", "summary": "leaf www.acmecorp.io · exp 2026-11-02", "since": "2026-08-03", "details": [ { "type": "leaf", "data": "CN=www.acmecorp.io · not_after 2026-11-02" }, { "type": "int", "data": "CN=R11 · Let’s Encrypt" } ] }
+        ] },
+        { "key": "203.0.113.44:22/tcp", "type": "Service", "link": "/subjects/service?key=203.0.113.44%3A22%2Ftcp", "facets": [
+          { "label": "reachability", "summary": "answers · 22/tcp", "since": "2026-04-30" },
+          { "label": "tls-acceptance", "summary": "none · plaintext ssh", "since": "2026-04-30" }
+        ] },
+        { "key": "198.51.100.31:8443/tcp", "type": "Service", "link": "/subjects/service?key=198.51.100.31%3A8443%2Ftcp", "facets": [
+          { "label": "certificate-chain", "is_gap": true, "since": "2026-08-19" }
+        ] }
+      ] },
+      { "kind": "endpoint", "label": "Endpoints", "subjects": [
+        { "key": "www.acmecorp.io · :443 https", "type": "Endpoint", "link": "/subjects/endpoint?key=www.acmecorp.io+%C2%B7+%3A443+https", "facets": [
+          { "label": "http-identity", "summary": "nginx · 200 · “Acme — sign in”", "since": "2026-07-14" }
+        ] },
+        { "key": "grafana.acmecorp.io · :443 https", "type": "Endpoint", "link": "/subjects/endpoint?key=grafana.acmecorp.io+%C2%B7+%3A443+https", "facets": [
+          { "label": "http-identity", "summary": "Grafana · 302 → /login", "since": "2026-06-27" }
+        ] }
+      ] },
+      { "kind": "address", "label": "Addresses", "subjects": [
+        { "key": "198.51.100.7", "type": "Address", "link": "", "facets": [
+          { "label": "reachability · vantage 1", "summary": "answers · 443/tcp", "since": "2026-07-14" },
+          { "label": "reachability · vantage 3", "summary": "answers · 443/tcp · 8443/tcp", "since": "2026-08-02" }
+        ] },
+        { "key": "203.0.113.44", "type": "Address", "link": "", "facets": [
+          { "label": "reachability · prober", "summary": "answers · 22/tcp", "since": "2026-04-30" }
+        ] }
+      ] }
+    ]
+  }
+}
