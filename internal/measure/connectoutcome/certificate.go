@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/netip"
+	"time"
 
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -34,9 +35,15 @@ func EndpointKey(serverName string, target netip.AddrPort, transport string) str
 // The value space is a closed union: a presentation carries its chain, and the two
 // negatives (`tls-refused`, `no-tls`) carry none, because each is a value in its
 // own right and not an absence (CONTEXT.md `Certificate`).
+//
+// NotAfter is the leaf certificate's expiry as an RFC3339 string, carried only on a
+// presented chain (the negatives omit it). It is the exact `not_after` key + format
+// cmd/web/deltas.go reads for the Dashboard "Certs expiring ≤30d" stat (SPEC-CHANGE.md
+// collision #8, #464).
 type certificateValue struct {
-	Outcome TLSOutcome `json:"outcome"`
-	Chain   []string   `json:"chain,omitempty"`
+	Outcome  TLSOutcome `json:"outcome"`
+	Chain    []string   `json:"chain,omitempty"`
+	NotAfter string     `json:"not_after,omitempty"`
 }
 
 // EmitCertificate renders one Endpoint's presented-certificate value at one
@@ -54,8 +61,18 @@ func EmitCertificate(batch, vantage string, target netip.AddrPort, serverName st
 		Subject: EndpointKey(serverName, target, "tcp"),
 		Vantage: vantage,
 		Address: target.Addr().String(),
-		Data:    mustJSON(certificateValue{Outcome: res.Outcome, Chain: res.Chain}),
+		Data:    mustJSON(certificateValue{Outcome: res.Outcome, Chain: res.Chain, NotAfter: notAfterString(res)}),
 	}
+}
+
+// notAfterString renders the leaf's expiry for the presented value: a zero NotAfter
+// — every negative, and any presentation whose leaf carried no expiry — renders the
+// empty string, which `omitempty` drops, so only a presented chain carries the key.
+func notAfterString(res HandshakeResult) string {
+	if res.Outcome != TLSPresented || res.NotAfter.IsZero() {
+		return ""
+	}
+	return res.NotAfter.UTC().Format(time.RFC3339)
 }
 
 // endpointNames folds a scope's declared server names to the set of Endpoints to

@@ -376,7 +376,7 @@ func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
 	}
 
 	// The version vectors compose the leaves the rules read.
-	for _, ver := range []string{"tls-handshake/v1", "http-exchange/v2", "connect-outcome/v1", "tls-acceptance/v1"} {
+	for _, ver := range []string{"tls-handshake/v2", "http-exchange/v2", "connect-outcome/v1", "tls-acceptance/v1"} {
 		if !strings.Contains(page, ver) {
 			t.Errorf("version vector not rendered composing %q", ver)
 		}

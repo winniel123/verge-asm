@@ -76,7 +76,7 @@ func TestHostnameSANMismatchNamelessIsOutside(t *testing.T) {
 }
 
 func TestCertificateVersionsComposeTLSHandshake(t *testing.T) {
-	const want = "rule@v1|tls-handshake/v1"
+	const want = "rule@v1|tls-handshake/v2"
 	for _, r := range []EndpointRule{
 		certificateExpired, certificateNotYetValid, certificateExpiring,
 		certificateSelfSigned, certificateWeakKeyOrSignature, certificateHostnameSANMismatch{},
@@ -108,7 +108,7 @@ func TestPlaintextHTTPNoHTTPS(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	const wantVer = "rule@v1|http-exchange/v2|tls-handshake/v1"
+	const wantVer = "rule@v1|http-exchange/v2|tls-handshake/v2"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}
