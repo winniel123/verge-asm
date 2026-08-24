@@ -5,8 +5,10 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,16 +23,22 @@ import (
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
-// The Signals screen (v1 spec §6.5, ADR-0024/ADR-0102). Every rule's census
-// renders as fired / not-fired / not-evaluable, current state only — never a
-// delta or trend. The web layer's only job is to fold the Derived corpus
-// (resolution / dns-record / membership + the operator's zone file) into the
-// per-Name snapshot the `Signal` engine evaluates; the engine owns every verdict.
+// The Signals screen (design-system/examples/console/Signals.jsx + SignalData.jsx,
+// PARITY-CHART P2.2, #448). It renders a FLAT PER-INSTANCE table: one row per
+// currently-fired (rule, subject) pair, carrying its rule's severity, a stable
+// minted SIG-#### id, asset, port and last-seen, with a severity filter, a text
+// filter, sortable columns, pagination, Open/Annotated/Withdrawn tabs with counts,
+// a row Drawer, the AnnotationControl operator dial, and the typed-name descope
+// ConfirmDialog. The old per-rule census grouping leaves the screen (ADR-0116: the
+// design is normative for look AND functionality; severity is a real datum now,
+// P0.1 #442, not a re-skin). The census is still evaluated data-side — it is what
+// mints the per-instance rows — but it no longer paints.
 //
-// A census member row is NOT the Subjects row component (ADR-0102): it carries
-// no Citation, rides no search, and its header count is exactly list.length. The
-// template draws it from a distinct component; this handler never hands it a
-// denominator to disagree with.
+// The web layer's only fold work is to compose the Derived corpus (resolution /
+// dns-record / reachability / certificate / http-identity + the operator's zone
+// file) into the per-subject snapshot the `Signal` engine evaluates; the engine
+// owns every verdict, and deriveSignalInstances turns the fired census into the
+// flat rows this screen draws.
 
 // dnsRecordValue is the JSON payload of a dns-record observation (the shape the
 // resolution-walk leaf emits). The handler reads only the CNAME target off the
@@ -45,44 +53,6 @@ type dnsRecordValue struct {
 		Lame bool `json:"lame"`
 		Gap  bool `json:"gap"`
 	} `json:"delegation"`
-}
-
-// signalMember is one census member row: a subject key and the drill-down link
-// its kind resolves to. Href is precomputed route-aware (a Service or Endpoint
-// key rides the `?key=` page, not a path segment the `/subjects/{key}` route
-// would 404 on — #248), never built from the raw key in the template. The row
-// renders no Citation and no per-row control.
-type signalMember struct {
-	Subject string
-	Href    string
-}
-
-// memberGroupView is one census member — a labelled list whose header count is
-// exactly len(Members), locked (ADR-0102). Kind is the member's register, used
-// only for styling; the three registers are deliberately not a severity ramp.
-//
-// Prose, when set, replaces the count-and-list rendering entirely: it is the
-// fully-annotated `fired` census's categorical sentence (v1 spec §6.5, #164).
-// When every subject a rule counts under `fired` carries an `Annotation`, the
-// member renders as prose, never a mute count — no number, no ratio, no
-// partition, the same all-or-nothing categorical fact the census's own honesty
-// would otherwise turn on its head.
-type memberGroupView struct {
-	Label   string
-	Kind    string
-	Members []signalMember
-	Prose   string
-}
-
-// signalCensusView is one rule's rendered census: three member lists over one
-// population, each list's header count locked to its own length. Empty marks a
-// rule whose predicate domain holds no subject at all — a no-population panel,
-// never a census of zeroes.
-type signalCensusView struct {
-	Rule    string
-	Version string
-	Empty   bool
-	Groups  []memberGroupView
 }
 
 // annotationView is one declared `Annotation` shaped for rendering: the pair it
@@ -102,6 +72,47 @@ type annotationView struct {
 	Orphan  bool
 }
 
+// signalRow is one rendered row of the flat per-instance Signals table
+// (Signals.jsx + SignalData.jsx). It is a signalInstanceView (the P0.1 datum —
+// severity, SIG id, asset, port, instants) enriched with the two facts the
+// screen's tabs and Drawer add: whether the pair carries an operator Annotation
+// (its reason and id), and whether it has withdrawn — its subject has left the
+// rule's population, the world's act, never resolved by an operator (ADR-0092).
+// ViewKey is the stable token the row Drawer opens on: a fired instance opens on
+// its SIG id, an annotation-anchored row (the Annotated / Withdrawn tabs) opens on
+// its annotation id, so the Drawer resolves without depending on a live mint.
+type signalRow struct {
+	signalInstanceView
+	SevLabel   string // the severity capitalised for the badge label ("Critical")
+	Annotated  bool
+	AnnoReason string
+	AnnoID     int64
+	Withdrawn  bool
+	ViewKey    string
+	idNum      int64 // the SIG id as a number, for the Id-column sort
+	seenAge    int64 // minutes since last-seen, for the Seen-column sort (unseen sorts last)
+}
+
+// sigSort carries the sort state and the per-column toggle links + arrows for the
+// sortable table headers (Severity / Asset / Id / Seen), precomputed so the
+// template only renders them.
+type sigSort struct {
+	Key, Dir                             string
+	SevHref, AssetHref, IDHref, SeenHref string
+	SevArrow, AssetArrow                 template.HTML
+	IDArrow, SeenArrow                   template.HTML
+}
+
+// pageCell is one slot in the pagination control — a page number and its link, or
+// an ellipsis gap. Precomputed windowed like Pagination.jsx so the control never
+// changes width while paging.
+type pageCell struct {
+	Num      int
+	Href     string
+	Active   bool
+	Ellipsis bool
+}
+
 // signalsForms carries a declare-form error back onto a re-rendered Signals page
 // so a rejected declaration keeps its message and its typed values without a
 // redirect.
@@ -116,16 +127,13 @@ func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	s.renderSignals(w, r, acct, signalsForms{})
 }
 
-// signalsExport serves the current signal set as a downloadable CSV (#346) — the same
-// reason the Drift and Reports exports exist: pull the census into a sheet or a
-// pipeline without screenshotting. It reads the same Derived corpus the Signals page
-// evaluates and emits one row per census member (rule, version, state, subject) — the
-// full census set the Open tab renders. There is no filtered subset to honour: the
-// Annotated / Withdrawn tabs partition the annotation ledger, not the census, and the
-// census itself always shows every rule over its whole population. It owns no mutation
-// and adds no store method. It fabricates nothing: an estate with no population
-// produces a header-only file, and a subject's state is exactly the register the engine
-// placed it in — never invented.
+// signalsExport streams the CURRENT TAB's filtered rows as a downloadable CSV
+// (Signals.jsx header; PARITY-CHART collision #6 — the button exports the current
+// tab's filtered rows). It reads the same corpus the page evaluates, builds the
+// same per-instance rows, applies the same text / severity filters off the query
+// string, and emits one row per signal instance. It owns no mutation beyond the
+// idempotent mint the read path already runs, and fabricates nothing: an empty tab
+// produces a header-only file.
 func (s *server) signalsExport(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	format := r.URL.Query().Get("format")
 	if format == "" {
@@ -136,85 +144,275 @@ func (s *server) signalsExport(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 
-	corpus, err := s.buildSignalCorpus(r)
+	open, annotated, withdrawn, err := s.buildSignalTabs(r)
 	if err != nil {
-		s.serverError(w, "signals export: build signal corpus", err)
+		s.serverError(w, "signals export: build signal tabs", err)
 		return
 	}
-	s.writeSignalsExportCSV(w, signal.EvaluateCorpus(corpus))
+
+	tab := r.URL.Query().Get("tab")
+	var base []signalRow
+	switch tab {
+	case "annotated":
+		base = annotated
+	case "withdrawn":
+		base = withdrawn
+	default:
+		tab = "open"
+		base = open
+	}
+
+	rows := filterSignalRows(base, strings.TrimSpace(r.URL.Query().Get("q")), r.URL.Query().Get("sev"))
+	sortSignalRows(rows, "sev", "asc")
+	s.writeSignalsExportCSV(w, tab, rows)
 }
 
-// writeSignalsExportCSV emits the census set as one uniform table — one row per member
-// of every rule's census, labelled with the register (fired / did-not-fire /
-// not-evaluable) the engine placed it in. The rule, version and state cells are
-// controlled tokens; the subject cell is attacker-influenceable free text (a name
-// ingested from CT logs), so it is passed through csvSafe. A rule with no population is
-// carried as a single row so a directory of exports records the no-population fact
-// rather than dropping the rule silently.
-func (s *server) writeSignalsExportCSV(w http.ResponseWriter, censuses []signal.Census) {
+// writeSignalsExportCSV emits the flat per-instance rows as one table — one row per
+// signal instance, carrying the same cells the screen's table shows plus both
+// instants. The severity, id and port cells are controlled tokens; the signal
+// (rule) name is controlled too; the asset cell is attacker-influenceable free text
+// (a name ingested from CT logs), so it is passed through csvSafe.
+func (s *server) writeSignalsExportCSV(w http.ResponseWriter, tab string, rows []signalRow) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="signals-`+s.now().UTC().Format("2006-01-02")+`.csv"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="signals-`+tab+`.csv"`)
 
 	cw := csv.NewWriter(w)
 	defer cw.Flush()
 
-	_ = cw.Write([]string{"rule", "version", "state", "subject"})
-
-	for _, c := range censuses {
-		ver := c.Version.String()
-		if c.Empty() {
-			_ = cw.Write([]string{c.Rule, ver, "no-population", ""})
-			continue
-		}
-		writeMembers := func(state string, members []signal.Member) {
-			for _, m := range members {
-				_ = cw.Write([]string{c.Rule, ver, state, csvSafe(m.Subject)})
-			}
-		}
-		writeMembers("fired", c.Fired)
-		writeMembers("did-not-fire", c.NotFired)
-		writeMembers("not-evaluable", c.NotEvaluable)
+	_ = cw.Write([]string{"severity", "id", "signal", "asset", "port", "first_seen", "last_seen"})
+	for _, row := range rows {
+		_ = cw.Write([]string{row.Severity, row.SigID, csvSafe(row.Signal), csvSafe(row.Asset), row.Port, row.First, row.Last})
 	}
 }
 
-// renderSignals folds the Derived corpus into the per-rule censuses, folds the
-// operator's annotations against them, and renders the Signals screen. It is the
-// single render path the GET handler and the declare handler's failure case both
-// use, so a rejected declaration re-renders the live page with its error.
+// renderSignals builds the flat per-instance table view model and renders the
+// Signals screen. It is the single render path the GET handler and the declare
+// handler's failure case both use, so a rejected declaration re-renders the live
+// page with its error banner.
 func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.Account, forms signalsForms) {
-	corpus, err := s.buildSignalCorpus(r)
+	open, annotated, withdrawn, err := s.buildSignalTabs(r)
 	if err != nil {
-		s.serverError(w, "build signal corpus", err)
-		return
-	}
-	annos, err := s.store.ListAnnotations(r.Context())
-	if err != nil {
-		s.serverError(w, "list annotations", err)
+		s.serverError(w, "build signal tabs", err)
 		return
 	}
 
-	// annotated[signal][subject] — the set of accepted pairs, so a census can ask
-	// whether its fired members are all annotated. population[signal][subject] —
-	// every subject a rule censuses, so an annotation can be marked orphan when
-	// its key names no current member.
-	annotated := map[string]map[string]bool{}
-	for _, a := range annos {
-		m := annotated[a.SignalName]
-		if m == nil {
-			m = map[string]bool{}
-			annotated[a.SignalName] = m
+	tab := r.URL.Query().Get("tab")
+	switch tab {
+	case "annotated", "withdrawn":
+	default:
+		tab = "open"
+	}
+
+	var base []signalRow
+	switch tab {
+	case "annotated":
+		base = annotated
+	case "withdrawn":
+		base = withdrawn
+	default:
+		base = open
+	}
+
+	// Filter + sort state, threaded through the query string (the shell ships no
+	// client table machinery, T0 seam).
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	sevSel := r.URL.Query().Get("sev")
+	if sevSel == "" {
+		sevSel = "All severities"
+	}
+	sortKey := r.URL.Query().Get("sort")
+	switch sortKey {
+	case "sev", "asset", "id", "seen":
+	default:
+		sortKey = "sev"
+	}
+	dir := r.URL.Query().Get("dir")
+	if dir != "desc" {
+		dir = "asc"
+	}
+
+	filtered := filterSignalRows(base, q, sevSel)
+	sortSignalRows(filtered, sortKey, dir)
+	total := len(base)
+	shown := len(filtered)
+
+	// Pagination — the Open tab only, exactly as Signals.jsx paginates only its
+	// working surface. The other tabs list every row.
+	const pageSize = 10
+	page := 1
+	if p, e := strconv.Atoi(r.URL.Query().Get("page")); e == nil && p > 1 {
+		page = p
+	}
+	showPag := tab == "open" && shown > 0
+	rows := filtered
+	var pages []pageCell
+	var prevHref, nextHref, pageInfo string
+	var prevDisabled, nextDisabled bool
+
+	filterVals := func() url.Values {
+		v := url.Values{}
+		v.Set("tab", tab)
+		if q != "" {
+			v.Set("q", q)
 		}
-		m[a.SubjectKey] = true
+		if sevSel != "All severities" {
+			v.Set("sev", sevSel)
+		}
+		return v
+	}
+
+	if showPag {
+		pageCount := (shown + pageSize - 1) / pageSize
+		if page > pageCount {
+			page = pageCount
+		}
+		start := (page - 1) * pageSize
+		end := start + pageSize
+		if end > shown {
+			end = shown
+		}
+		rows = filtered[start:end]
+
+		pageHref := func(p int) string {
+			v := filterVals()
+			v.Set("sort", sortKey)
+			v.Set("dir", dir)
+			if p > 1 {
+				v.Set("page", strconv.Itoa(p))
+			}
+			return "/signals?" + v.Encode()
+		}
+		for _, p := range pageWindow(page, pageCount) {
+			if p < 0 {
+				pages = append(pages, pageCell{Ellipsis: true})
+				continue
+			}
+			pages = append(pages, pageCell{Num: p, Href: pageHref(p), Active: p == page})
+		}
+		prevDisabled = page <= 1
+		nextDisabled = page >= pageCount
+		prevHref = pageHref(page - 1)
+		nextHref = pageHref(page + 1)
+		pageInfo = fmt.Sprintf("%d–%d of %d", start+1, end, shown)
+	} else {
+		page = 1
+	}
+
+	// The current-view query string, so the Drawer, its scrim and the descope dialog
+	// all return to exactly this tab / filter / sort / page.
+	state := filterVals()
+	state.Set("sort", sortKey)
+	state.Set("dir", dir)
+	if page > 1 {
+		state.Set("page", strconv.Itoa(page))
+	}
+	closeHref := "/signals?" + state.Encode()
+
+	// Per-column sort toggle links (reset the page) + their arrows.
+	sortHref := func(col string) string {
+		v := filterVals()
+		nd := "asc"
+		if sortKey == col && dir == "asc" {
+			nd = "desc"
+		}
+		v.Set("sort", col)
+		v.Set("dir", nd)
+		return "/signals?" + v.Encode()
+	}
+	sortState := sigSort{
+		Key: sortKey, Dir: dir,
+		SevHref: sortHref("sev"), AssetHref: sortHref("asset"),
+		IDHref: sortHref("id"), SeenHref: sortHref("seen"),
+		SevArrow:   sortArrow(sortKey == "sev", dir),
+		AssetArrow: sortArrow(sortKey == "asset", dir),
+		IDArrow:    sortArrow(sortKey == "id", dir),
+		SeenArrow:  sortArrow(sortKey == "seen", dir),
+	}
+
+	// The row Drawer opens server-side via ?view=<ViewKey> against the active tab.
+	selKey := r.URL.Query().Get("view")
+	var drawer *signalRow
+	if selKey != "" {
+		for i := range base {
+			if base[i].ViewKey == selKey {
+				d := base[i]
+				drawer = &d
+				break
+			}
+		}
+	}
+
+	// Export CSV is gated on the current tab having rows to export (Signals.jsx
+	// disables the button when the tab is empty), and carries the current filters.
+	hasExport := total > 0
+	exportVals := filterVals()
+	exportHref := "/signals/export?" + exportVals.Encode()
+
+	s.render(w, "signals", map[string]any{
+		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive":      "signals",
+		"SignalCount":    len(open),
+		"Tab":            tab,
+		"OpenCount":      len(open),
+		"AnnotatedCount": len(annotated),
+		"WithdrawnCount": len(withdrawn),
+		"Rows":           rows,
+		"HasAny":         total > 0,
+		"Shown":          shown,
+		"Total":          total,
+		"Q":              q,
+		"Sev":            sevSel,
+		"SevOptions":     []string{"All severities", "Critical", "High", "Medium", "Low", "Info"},
+		"Sort":           sortState,
+		"ClearHref":      "/signals?tab=" + tab,
+		"ShowPagination": showPag,
+		"Pages":          pages,
+		"PrevHref":       prevHref,
+		"NextHref":       nextHref,
+		"PrevDisabled":   prevDisabled,
+		"NextDisabled":   nextDisabled,
+		"PageInfo":       pageInfo,
+		"CloseHref":      closeHref,
+		"ViewPrefix":     closeHref + "&view=",
+		"DescopeHref":    closeHref + "&descope=1",
+		"ExportHref":     exportHref,
+		"HasExport":      hasExport,
+		"SelKey":         selKey,
+		"Drawer":         drawer,
+		"Descope":        r.URL.Query().Get("descope") != "",
+		"AnnoError":      forms.annoError,
+	})
+}
+
+// buildSignalTabs folds the Derived corpus into the flat per-instance rows and
+// partitions them into the screen's three tabs. Open is every currently-fired
+// (rule, subject) pair. Annotated is every operator acceptance whose subject is
+// still a current member of its rule's population; Withdrawn is every acceptance
+// whose subject has left it — orphan on read, the world's act (ADR-0092). The two
+// annotation-anchored tabs read each pair's persisted SIG id / first-seen where it
+// has one, and its last-seen where it is also currently firing.
+func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []signalRow, err error) {
+	ctx := r.Context()
+	corpus, err := s.buildSignalCorpus(r)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	annos, err := s.store.ListAnnotations(ctx)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
 	censuses := signal.EvaluateCorpus(corpus)
 
+	// population[rule][subject] — every subject a rule censuses (for orphan
+	// detection). fired[(rule,subject)] — the pairs firing right now.
 	population := map[string]map[string]bool{}
-	views := make([]signalCensusView, 0)
+	fired := map[[2]string]bool{}
 	for _, c := range censuses {
 		pop := map[string]bool{}
 		for _, m := range c.Fired {
 			pop[m.Subject] = true
+			fired[[2]string{c.Rule, m.Subject}] = true
 		}
 		for _, m := range c.NotFired {
 			pop[m.Subject] = true
@@ -223,146 +421,265 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 			pop[m.Subject] = true
 		}
 		population[c.Rule] = pop
-
-		kind := signal.SubjectKindFor(c.Rule)
-		fired := memberGroupView{Label: "Fired", Kind: "fired", Members: members(c.Fired, kind)}
-		if firedAllAnnotated(c, annotated[c.Rule]) {
-			fired.Prose = "This rule is evaluating on its own cadence and its census is live — " +
-				"it is not off. Every subject counted under fired carries an annotation right " +
-				"now, so its next firing reaches no one. See each acceptance, and its reason, " +
-				"under Annotations below."
-		}
-		views = append(views, signalCensusView{
-			Rule:    c.Rule,
-			Version: c.Version.String(),
-			Empty:   c.Empty(),
-			Groups: []memberGroupView{
-				fired,
-				{Label: "Did not fire", Kind: "not-fired", Members: members(c.NotFired, kind)},
-				{Label: "Not-evaluable", Kind: "not-evaluable", Members: members(c.NotEvaluable, kind)},
-			},
-		})
 	}
 
-	// Partition the operator's annotations into the two signal states the screen's
-	// tabs surface: an accepted risk on a subject still in its rule's population
-	// (Annotated), and one whose subject has left it (Withdrawn) — orphan on read,
-	// the world's act, never resolved by an operator (ADR-0092).
+	// The flat per-instance datum: one row per currently-fired pair (P0.1, #442).
+	instances, err := s.deriveSignalInstances(ctx, censuses)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Persisted identity for every minted pair, so an annotation-anchored row (which
+	// need not be currently firing) can still show its SIG id and first-seen.
+	identRows, err := s.store.ListSignalInstances(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ident := make(map[[2]string]instIdent, len(identRows))
+	for _, row := range identRows {
+		ident[[2]string{row.SignalName, row.SubjectKey}] = instIdent{
+			id: row.ID, first: row.FirstSeen.Time, firstOK: row.FirstSeen.Valid,
+		}
+	}
+
 	annoViews := annotationViews(annos, population)
-	annotatedRows := make([]annotationView, 0, len(annoViews))
-	withdrawnRows := make([]annotationView, 0)
-	for _, a := range annoViews {
-		if a.Orphan {
-			withdrawnRows = append(withdrawnRows, a)
-		} else {
-			annotatedRows = append(annotatedRows, a)
-		}
+	annoByPair := make(map[[2]string]annotationView, len(annoViews))
+	for _, av := range annoViews {
+		annoByPair[[2]string{av.Signal, av.Subject}] = av
 	}
 
-	// The Open count is the number of fired members across every rule — the signals
-	// raised right now. An annotated pair is still counted under fired (annotation
-	// moves the message, never the number), so it is still open here.
-	openCount := 0
-	for _, c := range views {
-		if c.Empty {
+	now := s.now().UTC()
+
+	open = make([]signalRow, 0, len(instances))
+	for _, inst := range instances {
+		row := signalRow{
+			signalInstanceView: inst,
+			SevLabel:           sevLabel(inst.Severity),
+			ViewKey:            inst.SigID,
+			idNum:              parseSigNum(inst.SigID),
+			seenAge:            seenAgeMinutes(inst.Last, now),
+		}
+		if av, ok := annoByPair[[2]string{inst.Signal, inst.Asset}]; ok {
+			row.Annotated = true
+			row.AnnoReason = av.Reason
+			row.AnnoID = av.ID
+		}
+		open = append(open, row)
+	}
+
+	for _, av := range annoViews {
+		row := annotationRow(av, ident, fired, now)
+		if av.Orphan {
+			row.Withdrawn = true
+			withdrawn = append(withdrawn, row)
+		} else {
+			annotated = append(annotated, row)
+		}
+	}
+	sortSignalRows(annotated, "sev", "asc")
+	sortSignalRows(withdrawn, "sev", "asc")
+	return open, annotated, withdrawn, nil
+}
+
+// instIdent is a persisted signal_instance identity — the stable id and first-seen
+// instant a pure re-derivation cannot reconstruct.
+type instIdent struct {
+	id      int64
+	first   time.Time
+	firstOK bool
+}
+
+// annotationRow shapes one operator acceptance into a flat per-instance row for the
+// Annotated / Withdrawn tabs. Its severity is the rule's (assigned per rule); its
+// asset / ip / port fall out of the subject key; its SIG id and first-seen come from
+// the persisted identity where the pair has ever fired, and its last-seen is now
+// only where it is also firing now (else its last-known instant, never invented).
+func annotationRow(av annotationView, ident map[[2]string]instIdent, fired map[[2]string]bool, now time.Time) signalRow {
+	key := [2]string{av.Signal, av.Subject}
+	sev, _ := signal.SeverityFor(av.Signal)
+	ip, port := subjectAddrPort(av.Subject)
+	v := signalInstanceView{
+		Signal:   av.Signal,
+		Title:    signalTitle(av.Signal),
+		Severity: sev.String(),
+		SevRank:  sev.Rank(),
+		Asset:    av.Subject,
+		IP:       ip,
+		Port:     port,
+		Href:     subjectHref(signal.SubjectKindFor(av.Signal), av.Subject),
+	}
+	if id, ok := ident[key]; ok {
+		v.SigID = formatSigID(id.id)
+		if id.firstOK {
+			v.First = id.first.UTC().Format(time.RFC3339)
+		}
+	}
+	if fired[key] {
+		v.Last = now.Format(time.RFC3339)
+		v.Seen = relTime(now, now)
+	} else if id, ok := ident[key]; ok && id.firstOK {
+		v.Last = id.first.UTC().Format(time.RFC3339)
+		v.Seen = relTime(id.first, now)
+	}
+	return signalRow{
+		signalInstanceView: v,
+		SevLabel:           sevLabel(v.Severity),
+		Annotated:          true,
+		AnnoReason:         av.Reason,
+		AnnoID:             av.ID,
+		idNum:              parseSigNum(v.SigID),
+		seenAge:            seenAgeMinutes(v.Last, now),
+		// The annotation-anchored tabs open the Drawer on the annotation id (a plain
+		// number), distinct from the Open tab's `SIG-####` ViewKey — the two id spaces
+		// never collide, and a withdrawn pair need not be currently minted to open.
+		ViewKey: strconv.FormatInt(av.ID, 10),
+	}
+}
+
+// filterSignalRows applies the screen's text and severity filters — the same
+// predicate Signals.jsx runs: a case-insensitive substring over the row's title,
+// asset, id and signal, and an exact severity match. It returns a fresh slice, so
+// the caller's base rows are untouched.
+func filterSignalRows(rows []signalRow, q, sev string) []signalRow {
+	q = strings.ToLower(strings.TrimSpace(q))
+	sevWant := ""
+	if sev != "" && sev != "All severities" {
+		sevWant = strings.ToLower(sev)
+	}
+	out := make([]signalRow, 0, len(rows))
+	for _, r := range rows {
+		if sevWant != "" && r.Severity != sevWant {
 			continue
 		}
-		for _, g := range c.Groups {
-			if g.Kind == "fired" {
-				openCount += len(g.Members)
+		if q != "" {
+			hay := strings.ToLower(r.Title + " " + r.Asset + " " + r.SigID + " " + r.Signal)
+			if !strings.Contains(hay, q) {
+				continue
 			}
 		}
+		out = append(out, r)
 	}
+	return out
+}
 
-	// Server-rendered tab / drawer / dialog state, threaded through the query string
-	// (the shell ships no client drawer/tab/dialog machinery, T0 seam). A rejected
-	// declaration re-renders on the tab that carries the form.
-	tab := r.URL.Query().Get("tab")
-	switch tab {
-	case "annotated", "withdrawn":
-	default:
-		tab = "open"
-	}
-	if forms.annoError != "" {
-		tab = "annotated"
-	}
-
-	var viewAnno *annotationView
-	var sel int64
-	if idStr := r.URL.Query().Get("view"); idStr != "" {
-		if id, err := strconv.ParseInt(idStr, 10, 64); err == nil {
-			for i := range annoViews {
-				if annoViews[i].ID == id {
-					viewAnno = &annoViews[i]
-					sel = id
-					break
-				}
+// sortSignalRows sorts in place by the named column and direction, with a stable
+// deterministic tiebreak (severity, then asset, then id) so equal keys never
+// reorder between renders. The default column is severity ascending — critical
+// first, matching SignalData.jsx's SEV_ORDER.
+func sortSignalRows(rows []signalRow, key, dir string) {
+	primary := func(a, b signalRow) int {
+		switch key {
+		case "asset":
+			return strings.Compare(a.Asset, b.Asset)
+		case "id":
+			switch {
+			case a.idNum < b.idNum:
+				return -1
+			case a.idNum > b.idNum:
+				return 1
 			}
+			return 0
+		case "seen":
+			switch {
+			case a.seenAge < b.seenAge:
+				return -1
+			case a.seenAge > b.seenAge:
+				return 1
+			}
+			return 0
+		default: // sev
+			return a.SevRank - b.SevRank
 		}
 	}
-
-	// Gate the Export CSV button on data presence, as Drift's {{if .HasEvents}} does
-	// (#346): the census set is worth exporting once any rule has a population to
-	// census. Every rule renders even with no population, so "has data" is "at least
-	// one non-empty census", never "the page rendered".
-	hasData := false
-	for _, c := range views {
-		if !c.Empty {
-			hasData = true
-			break
+	less := func(a, b signalRow) bool {
+		if c := primary(a, b); c != 0 {
+			return c < 0
 		}
+		if a.SevRank != b.SevRank {
+			return a.SevRank < b.SevRank
+		}
+		if a.Asset != b.Asset {
+			return a.Asset < b.Asset
+		}
+		return a.idNum < b.idNum
 	}
-
-	// The flat per-instance signal datum (P0.1, #442): one row per currently-fired
-	// (rule, subject) pair, carrying the rule's severity, a stable minted SIG-####
-	// id and its first-seen / last-seen instants. This is the shape SignalData.jsx
-	// renders; the Signals SCREEN that draws it is a separate ticket (P2.2), so it is
-	// exposed here as data the template can read but does not yet paint.
-	instances, err := s.deriveSignalInstances(r.Context(), censuses)
-	if err != nil {
-		s.serverError(w, "derive signal instances", err)
-		return
-	}
-
-	s.render(w, "signals", map[string]any{
-		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":      "signals",
-		"HasData":        hasData,
-		"SignalCount":    openCount,
-		"Tab":            tab,
-		"OpenCount":      openCount,
-		"AnnotatedCount": len(annotatedRows),
-		"WithdrawnCount": len(withdrawnRows),
-		"Censuses":       views,
-		"Instances":      instances,
-		"SevOrder":       signal.SevOrder,
-		"Annotations":    annoViews,
-		"Annotated":      annotatedRows,
-		"Withdrawn":      withdrawnRows,
-		"ViewAnno":       viewAnno,
-		"Sel":            sel,
-		"Descope":        r.URL.Query().Get("descope") != "",
-		"RuleNames":      signal.RuleNames(),
-		"AnnoError":      forms.annoError,
-		"AnnoSubject":    forms.annoSubject,
-		"AnnoSignal":     forms.annoSignal,
-		"AnnoReason":     forms.annoReason,
+	sort.SliceStable(rows, func(i, j int) bool {
+		if dir == "desc" {
+			return less(rows[j], rows[i])
+		}
+		return less(rows[i], rows[j])
 	})
 }
 
-// firedAllAnnotated reports whether every subject the rule counts under `fired`
-// carries an Annotation — the all-or-nothing case that renders as prose. An empty
-// fired census is never "fully annotated": there is nothing to have accepted.
-func firedAllAnnotated(c signal.Census, annotated map[string]bool) bool {
-	if len(c.Fired) == 0 {
-		return false
-	}
-	for _, m := range c.Fired {
-		if !annotated[m.Subject] {
-			return false
+// pageWindow returns the windowed page-number slots (with -1 marking an ellipsis
+// gap), the constant-width windowing Pagination.jsx uses so the control never
+// changes width while paging.
+func pageWindow(page, pageCount int) []int {
+	switch {
+	case pageCount <= 7:
+		out := make([]int, 0, pageCount)
+		for p := 1; p <= pageCount; p++ {
+			out = append(out, p)
 		}
+		return out
+	case page <= 4:
+		return []int{1, 2, 3, 4, 5, -1, pageCount}
+	case page >= pageCount-3:
+		return []int{1, -1, pageCount - 4, pageCount - 3, pageCount - 2, pageCount - 1, pageCount}
+	default:
+		return []int{1, -1, page - 1, page, page + 1, -1, pageCount}
 	}
-	return true
+}
+
+// sortArrow renders the header sort indicator: a muted up/down caret on an inactive
+// sortable column, and a single directional caret (up for asc, down for desc) on
+// the active one.
+func sortArrow(active bool, dir string) template.HTML {
+	const up = `<path d="M4 1.2l3 3.6H1z" fill="currentColor"/>`
+	const down = `<path d="M4 9.8l-3-3.6h6z" fill="currentColor"/>`
+	const open = `<svg width="8" height="11" viewBox="0 0 8 11" aria-hidden="true" style="margin-left:5px;vertical-align:middle`
+	if !active {
+		return template.HTML(open + `;opacity:0.32">` + up + down + `</svg>`)
+	}
+	if dir == "desc" {
+		return template.HTML(open + `">` + down + `</svg>`)
+	}
+	return template.HTML(open + `">` + up + `</svg>`)
+}
+
+// sevLabel capitalises a severity token for the badge label ("critical" ->
+// "Critical"); the `.sev` class then upper-cases it in CSS, matching SeverityBadge.
+func sevLabel(sev string) string {
+	if sev == "" {
+		return ""
+	}
+	return strings.ToUpper(sev[:1]) + sev[1:]
+}
+
+// parseSigNum reads the numeric identity out of a `SIG-####` display id for the
+// Id-column sort; a row with no minted id (0) sorts first ascending.
+func parseSigNum(id string) int64 {
+	if n, err := strconv.ParseInt(strings.TrimPrefix(id, "SIG-"), 10, 64); err == nil {
+		return n
+	}
+	return 0
+}
+
+// seenAgeMinutes is the row's last-seen age in whole minutes, the Seen-column sort
+// key. A row with no last-seen instant sorts last (largest age).
+func seenAgeMinutes(iso string, now time.Time) int64 {
+	if iso == "" {
+		return 1 << 62
+	}
+	t, err := time.Parse(time.RFC3339, iso)
+	if err != nil {
+		return 1 << 62
+	}
+	d := now.Sub(t)
+	if d < 0 {
+		d = 0
+	}
+	return int64(d / time.Minute)
 }
 
 // annotationViews shapes the stored annotations for rendering, marking each as
@@ -382,17 +699,6 @@ func annotationViews(annos []db.Annotation, population map[string]map[string]boo
 			v.At = a.DeclaredAt.Time.UTC().Format("2006-01-02 15:04 UTC")
 		}
 		out = append(out, v)
-	}
-	return out
-}
-
-// members shapes a census's members for rendering, precomputing each row's
-// route-aware drill-down link from the census's subject kind (every member of one
-// census shares it — the engine reads exactly one kind per rule).
-func members(in []signal.Member, kind string) []signalMember {
-	out := make([]signalMember, 0, len(in))
-	for _, m := range in {
-		out = append(out, signalMember{Subject: m.Subject, Href: subjectHref(kind, m.Subject)})
 	}
 	return out
 }
@@ -572,7 +878,6 @@ func composeResolution(classes map[string]resolutionValue, lame bool) composedRe
 	}
 	return out
 }
-
 
 func sortedKeys(m map[string]struct{}) []string {
 	out := make([]string, 0, len(m))
@@ -797,9 +1102,7 @@ func estateNameSet(names []signal.NameFacts) map[string]bool {
 
 // signalInstanceView is one currently-fired signal instance — a (rule, subject)
 // pair the engine placed under `fired` right now — shaped for the flat per-instance
-// table SignalData.jsx renders (P0.1, #442). It is the datum, not the screen: the
-// Signals template (P2.2) reads this to draw the SeverityBadge / SIG-id / severity
-// filter / sort; this ticket derives and exposes it, and never paints it.
+// table SignalData.jsx renders (P0.1, #442).
 //
 // Every field is real, none fabricated. SigID and First are read from the persisted
 // signal_instance identity; Severity/SevRank come from the rule (assigned per rule
