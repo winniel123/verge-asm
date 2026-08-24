@@ -14,6 +14,18 @@ import "html/template"
 // restyling, not authoring (ADR-0109).
 var _ = template.Must(tmpl.Parse(reportsTemplates))
 
+// The New/Edit report-schedule wizard (#290, P0.6/T4) — the "schedulewizard"
+// template, ported from design-system/examples/console/Reports.jsx's Wizard
+// (Scope: name + Sections checkbox group; Cadence: CadenceSelect; Review:
+// KeyValueList). The app is server-rendered with no client runtime, so the
+// controlled React state becomes a post-back form exactly as the onboarding wizard
+// does: the accumulated values ride hidden fields, Back/Next re-render the step, and
+// the finishing submit posts to the create/edit route. The panel, step progress,
+// checkbox group, select and key-value list are template-local CSS in the token
+// vocabulary (restyling, not authoring — ADR-0109). See reports_schedule.go for the
+// controlled flow and the real insert/update.
+var _ = template.Must(tmpl.Parse(scheduleWizardTemplate))
+
 const reportsTemplates = `
 {{define "deltachip"}}<span style="display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:var(--r-full);font:600 11px var(--mono);line-height:1;white-space:nowrap;transform:translateY(-2px);{{if eq .Tone "good"}}background:var(--ok-soft);border:1px solid var(--ok-border);color:var(--ok){{else if eq .Tone "bad"}}background:var(--danger-soft);border:1px solid var(--danger-border);color:var(--danger){{else}}background:var(--sunken);border:1px solid var(--hairline);color:var(--body){{end}}">{{if .Dir}}<svg viewBox="0 0 10 10" width="8" height="8" aria-hidden="true"{{if eq .Dir "down"}} style="transform:rotate(180deg)"{{end}}><path d="M5 8.5V1.5M1.8 4.7L5 1.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{end}}{{.Text}}</span>{{end}}
 
@@ -198,7 +210,7 @@ const reportsTemplates = `
         <span class="microlabel">Scheduled</span>
         <h2 style="margin:0;font-size:15px">Recurring reports</h2>
       </div>
-      <button type="button" class="btn ghost" disabled aria-disabled="true" title="Report scheduling is not available yet" style="margin-left:auto;opacity:0.5;cursor:default;display:inline-flex;align-items:center;gap:6px">New schedule</button>
+      <a class="btn ghost" href="/reports/schedule/new" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;text-decoration:none"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New schedule</a>
     </div>
     {{if .Schedules}}
     <table class="vg-table">
@@ -225,10 +237,10 @@ const reportsTemplates = `
                 {{else}}
                 <span role="menuitem" aria-disabled="true" title="No delivery yet" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);opacity:0.5;cursor:default"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>View last delivery</span>
                 {{end}}
-                <span role="menuitem" aria-disabled="true" title="Report scheduling is not wired yet" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);opacity:0.5;cursor:default"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>Run now</span>
-                <span role="menuitem" aria-disabled="true" title="Report scheduling is not wired yet" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);opacity:0.5;cursor:default"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Edit schedule</span>
+                <form method="post" action="/reports/schedule/run" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" role="menuitem" style="width:100%;text-align:left;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>Run now</button></form>
+                <a role="menuitem" href="/reports/schedule/{{.ID}}/edit" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--body);text-decoration:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Edit schedule</a>
                 <span style="height:1px;background:var(--hairline);margin:4px 6px"></span>
-                <span role="menuitem" aria-disabled="true" title="Report scheduling is not wired yet" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--danger);opacity:0.5;cursor:default"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>Delete schedule</span>
+                <form method="post" action="/reports/schedule/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" role="menuitem" style="width:100%;text-align:left;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font:500 13px var(--sans);color:var(--danger)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>Delete schedule</button></form>
               </div>
             </details>
           </td>
@@ -249,4 +261,98 @@ const reportsTemplates = `
 </main>
 {{template "foot" .}}{{end}}
 
+`
+
+const scheduleWizardTemplate = `
+{{define "schedulewizard"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+.sw-wrap{display:flex;justify-content:center}
+.sw-panel{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-xl);box-shadow:var(--shadow-lg);padding:var(--space-6);width:560px;max-width:100%}
+.sw-title{font-size:18px;margin:0 0 4px;color:var(--ink);letter-spacing:-0.015em}
+.sw-desc{margin:0 0 var(--space-5);color:var(--muted);font-size:13px}
+.sw-steps{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.sw-conn{flex:1;min-width:12px;height:1px;background:var(--border-strong)}
+.sw-conn.lit{background:var(--accent);opacity:0.4}
+.sw-step{display:inline-flex;align-items:center;gap:8px}
+.sw-num{width:22px;height:22px;border-radius:var(--r-full);flex:none;display:inline-flex;align-items:center;justify-content:center;font:600 11px var(--mono);border:1px solid var(--border-strong);color:var(--muted);background:transparent}
+.sw-num svg{width:12px;height:12px}
+.sw-num.cur{border:1.5px solid var(--accent);color:var(--accent)}
+.sw-num.done{background:var(--accent-soft);border:1px solid transparent;color:var(--accent)}
+.sw-step .lbl{font:400 12.5px var(--sans);color:var(--muted);white-space:nowrap}
+.sw-step.cur .lbl{font-weight:600;color:var(--ink)}
+.sw-body{display:flex;flex-direction:column;gap:16px}
+.sw-flabel{font:500 12.5px var(--sans);color:var(--body);display:block;margin-bottom:4px}
+.sw-secs{display:flex;flex-direction:column;gap:10px}
+.sw-check{display:flex;align-items:center;gap:8px;font:400 13px var(--sans);color:var(--body);cursor:pointer}
+.sw-check input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.sw-cad{display:flex;flex-direction:column;gap:8px}
+.sw-cron{width:100%;height:34px;padding:0 10px;font:400 12px var(--mono)}
+.sw-kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;padding:16px;background:var(--sunken);border-radius:var(--r-md)}
+.sw-kv-item{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sw-kv-k{font:500 11px var(--mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)}
+.sw-kv-v{font:400 12.5px var(--mono);color:var(--body);overflow-wrap:anywhere}
+.sw-foot{display:flex;align-items:center;gap:var(--space-3);margin-top:var(--space-5)}
+.sw-count{margin-right:auto;font:500 11px var(--mono);letter-spacing:0.06em;color:var(--muted)}
+</style>
+<main class="sw-wrap">
+<section class="sw-panel">
+<h1 class="sw-title">{{.WizardTitle}}</h1>
+<p class="sw-desc">A recurring export, delivered on cadence.</p>
+
+<div class="sw-steps">
+{{range $i, $s := .Steps}}
+{{if $i}}<span class="sw-conn{{if or $s.Done $s.Current}} lit{{end}}"></span>{{end}}
+<span class="sw-step{{if $s.Current}} cur{{end}}">
+<span class="sw-num{{if $s.Done}} done{{else if $s.Current}} cur{{end}}">{{if $s.Done}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>{{else}}{{$s.Num}}{{end}}</span>
+<span class="lbl">{{$s.Title}}</span>
+</span>
+{{end}}
+</div>
+
+<form method="post" action="{{.FormAction}}">
+<input type="hidden" name="step" value="{{.Step}}">
+{{if .EditMode}}<input type="hidden" name="id" value="{{.ID}}">{{end}}
+{{if ne .Step 0}}<input type="hidden" name="name" value="{{.Name}}">
+{{range .SectionsKeys}}<input type="hidden" name="sections" value="{{.}}">{{end}}{{end}}
+{{if ne .Step 1}}<input type="hidden" name="cad" value="{{.Cad}}">
+<input type="hidden" name="cron" value="{{.Cron}}">{{end}}
+
+<div class="sw-body">
+{{if eq .Step 0}}
+<label><span class="sw-flabel">Report name</span>
+<input type="text" name="name" value="{{.Name}}" placeholder="Weekly exposure summary" spellcheck="false" autocomplete="off">
+</label>
+<div class="sw-secs">
+<span class="microlabel">Sections</span>
+{{range .Sections}}<label class="sw-check"><input type="checkbox" name="sections" value="{{.Key}}"{{if .Checked}} checked{{end}}>{{.Label}}</label>{{end}}
+</div>
+{{end}}
+
+{{if eq .Step 1}}
+<div class="sw-cad">
+<label><span class="sw-flabel">Cadence</span>
+<select name="cad">{{range .Cads}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Value}}</option>{{end}}</select>
+</label>
+{{if .Custom}}<input class="sw-cron" type="text" name="cron" value="{{.Cron}}" placeholder="0 8 * * 1" spellcheck="false" aria-label="Cron expression">{{end}}
+</div>
+{{end}}
+
+{{if eq .Step 2}}
+<div class="sw-kv">
+{{range .Review}}<div class="sw-kv-item"><span class="sw-kv-k">{{.K}}</span><span class="sw-kv-v">{{.V}}</span></div>{{end}}
+</div>
+{{end}}
+</div>
+
+<div class="sw-foot">
+<span class="sw-count">{{.StepNum}} / {{.StepTotal}}</span>
+<a class="btn secondary" href="/reports" style="text-decoration:none">Cancel</a>
+{{if gt .Step 0}}<button type="submit" class="secondary" name="action" value="back">Back</button>{{end}}
+{{if .Last}}<button type="submit" name="action" value="finish">{{.FinishLabel}}</button>{{else}}<button type="submit" name="action" value="next">Next</button>{{end}}
+</div>
+</form>
+</section>
+</main>
+{{template "foot" .}}{{end}}
 `

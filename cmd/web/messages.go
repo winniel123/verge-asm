@@ -486,6 +486,9 @@ const reportDeliveryHref = "/reports/delivery"
 // carries "View last delivery", which opens the delivered artifact when this report
 // has a delivery and is disabled where it has none (no fabrication).
 type reportScheduleRow struct {
+	// ID keys the row's mutations — the Run now / Edit / Delete row-menu actions post
+	// it back so the handler resolves which schedule to act on (P0.6/T4).
+	ID       int64
 	Name     string
 	Cadence  string
 	Format   string
@@ -546,6 +549,7 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 			log.Printf("web: reports: latest delivery for schedule %d: %v", sc.ID, err)
 		}
 		rows = append(rows, reportScheduleRow{
+			ID:           sc.ID,
 			Name:         sc.Name,
 			Cadence:      sc.Cadence,
 			Format:       sc.Format,

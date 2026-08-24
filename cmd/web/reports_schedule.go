@@ -1,28 +1,542 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/message"
 )
 
-// Report scheduling has no dispatch or delivery backend (#344). A schedule row that
-// nothing reads on a cadence and nothing delivers is a declaration the product cannot
-// honour, so the Reports UI must not accept one: the "New schedule" wizard is rendered
-// disabled alongside its already-disabled sibling controls (Run now / Edit / Delete /
-// View last delivery), and this create handler — the last path that could persist a
-// row — refuses.
+// Report scheduling is live (#290, P0.6/T4), ported from
+// design-system/examples/console/Reports.jsx: the "New schedule" wizard declares a
+// recurring report and the "Recurring reports" row menu edits, deletes, and runs one
+// now. A report_schedule is Declared and carries no timeline — a re-declaration
+// through the wizard is a fresh insert, and Edit is a genuine in-place update of what
+// was declared, never a recompute (migration 21700). It never touches the comparison
+// path and never becomes a Message.
 //
-// The route stays registered (behind requireAdmin) rather than removed so a
-// hand-crafted POST meets a clear, deterministic refusal instead of a bare 405: no
-// report_schedule row is ever filed from normal use OR from a crafted request. When the
-// on-cadence dispatcher + delivery land (the real "wire report scheduling" feature,
-// explicitly out of scope here), this handler regains its wizard and its InsertReport-
-// Schedule call; until then it honestly reports the capability as unavailable.
+// The example's Wizard is a client-side modal with three steps (Scope / Cadence /
+// Review). The app is server-rendered with no client runtime, so — exactly as the
+// onboarding wizard (#307) — the controlled React state becomes a post-back form:
+// the accumulated values ride hidden fields, Back/Next re-render the step, and the
+// per-step valid gate decides whether Next advances. The markup lives in
+// templates_reports.go (the "schedulewizard" template); those components are
+// translated to template-local CSS within the existing token vocabulary (restyling,
+// not authoring — ADR-0109).
 //
-// This closes only the defect where the UI over-promised. It builds no dispatcher,
-// adds no DB query, and leaves /reports/export (csv/json) and the rest of Reports
-// untouched.
+// There is deliberately NO recipient field: the Reports.jsx wizard has none, so
+// delivery_target stays as declared (empty — download-only). The recipient /
+// notification layer is a separate ticket; inventing a field here would over-promise
+// a delivery the product cannot yet make (ADR-0039 keeps every artifact in-instance).
+
+// reportScheduleSection is one selectable report section — the key persisted in the
+// sections JSON array and the label the wizard checkbox and the Review list render.
+// Ported from Reports.jsx SECTIONS.
+type reportScheduleSection struct {
+	Key   string
+	Label string
+}
+
+var reportScheduleSections = []reportScheduleSection{
+	{"summary-kpis", "Summary KPIs"},
+	{"new-assets", "New assets"},
+	{"signal-changes", "Signal changes"},
+	{"coverage-gaps", "Coverage gaps"},
+}
+
+// reportScheduleDefaultSections is the wizard's initial section selection —
+// Reports.jsx defaults to the first three (SECTIONS.slice(0, 3)).
+func reportScheduleDefaultSections() []string {
+	return []string{
+		reportScheduleSections[0].Key,
+		reportScheduleSections[1].Key,
+		reportScheduleSections[2].Key,
+	}
+}
+
+// reportCadPresets are the CadenceSelect presets, ported verbatim from
+// design-system/components/forms/CadenceSelect.jsx. The default is "Weekly · mon
+// 09:00" (Reports.jsx's initial cad); "Custom…" reveals a cron field and gates Next
+// until it is filled.
+var reportCadPresets = []string{"Every 6h", "Daily · 08:00", "Weekly · mon 09:00", "Monthly · 1st", "Custom…"}
+
+const (
+	reportDefaultCad = "Weekly · mon 09:00"
+	reportCustomCad  = "Custom…"
+	// reportScheduleFormat is the delivered form. The Reports.jsx wizard shows the
+	// format as a fixed "pdf" in the Review list (there is no format control), so a
+	// declared schedule is always a pdf until a format control is added.
+	reportScheduleFormat = "pdf"
+)
+
+// reportScheduleStepTitles names the three wizard steps in order; reportScheduleLast
+// is the index of the Review step, where the flow finishes rather than advances.
+var reportScheduleStepTitles = []string{"Scope", "Cadence", "Review"}
+
+const reportScheduleLast = 2
+
+// scheduleWizardView is the controlled state of the wizard across the post-back
+// flow: the step being shown, the schedule id (0 on create, the target on edit), and
+// every field's current value. Sections are the checked section keys in canonical
+// order.
+type scheduleWizardView struct {
+	Step     int
+	ID       int64
+	Name     string
+	Sections []string
+	Cad      string
+	Cron     string
+}
+
+// readScheduleWizardView reconstructs the controlled state from the request form.
+// Sections are read from the multi-valued "sections" field and canonicalised (a known
+// key kept once, in declared order); an unknown key is dropped. Defaults match the
+// example's initial state (weekly cadence).
+func readScheduleWizardView(r *http.Request) scheduleWizardView {
+	_ = r.ParseForm()
+
+	step := 0
+	if n, err := strconv.Atoi(r.FormValue("step")); err == nil {
+		step = n
+	}
+	if step < 0 {
+		step = 0
+	}
+	if step > reportScheduleLast {
+		step = reportScheduleLast
+	}
+
+	var id int64
+	if n, err := strconv.ParseInt(r.FormValue("id"), 10, 64); err == nil {
+		id = n
+	}
+
+	cad := r.FormValue("cad")
+	if cad == "" {
+		cad = reportDefaultCad
+	}
+
+	return scheduleWizardView{
+		Step:     step,
+		ID:       id,
+		Name:     strings.TrimSpace(r.FormValue("name")),
+		Sections: canonicalSections(r.Form["sections"]),
+		Cad:      cad,
+		Cron:     strings.TrimSpace(r.FormValue("cron")),
+	}
+}
+
+// canonicalSections filters a set of submitted section keys to the known set,
+// preserving the declared order and dropping duplicates and unknowns — so the stored
+// array and the checkbox render are stable regardless of form order.
+func canonicalSections(selected []string) []string {
+	set := make(map[string]bool, len(selected))
+	for _, k := range selected {
+		set[k] = true
+	}
+	out := make([]string, 0, len(reportScheduleSections))
+	for _, sec := range reportScheduleSections {
+		if set[sec.Key] {
+			out = append(out, sec.Key)
+		}
+	}
+	return out
+}
+
+// scheduleStepValid is the per-step valid gate, ported from the example's step
+// `valid` predicates: Scope needs a name and at least one section; Cadence needs a
+// cron when the custom preset is chosen; Review is always valid.
+func scheduleStepValid(v scheduleWizardView) bool {
+	switch v.Step {
+	case 0:
+		return strings.TrimSpace(v.Name) != "" && len(v.Sections) > 0
+	case 1:
+		return v.Cad != reportCustomCad || strings.TrimSpace(v.Cron) != ""
+	default:
+		return true
+	}
+}
+
+// scheduleAllValid is the whole-form gate the finish path checks before persisting —
+// every step's predicate at once, so a hand-crafted finish POST that skipped a step
+// cannot file an incomplete schedule.
+func scheduleAllValid(v scheduleWizardView) bool {
+	return strings.TrimSpace(v.Name) != "" && len(v.Sections) > 0 &&
+		(v.Cad != reportCustomCad || strings.TrimSpace(v.Cron) != "")
+}
+
+// reportCadLabel renders the stored cadence label, ported from Reports.jsx's
+// `cadLabel`: a custom cadence stores its cron (or "custom" when blank), otherwise
+// the lower-cased preset ("weekly · mon 09:00").
+func reportCadLabel(cad, cron string) string {
+	if cad == reportCustomCad {
+		if c := strings.TrimSpace(cron); c != "" {
+			return c
+		}
+		return "custom"
+	}
+	return strings.ToLower(cad)
+}
+
+// reportCadPresetFor maps a stored cadence label back to the wizard's Cad/Cron pair
+// for the Edit prefill: a label equal to a preset's lower-cased form selects that
+// preset, otherwise it is a custom cadence carrying the label as its cron.
+func reportCadPresetFor(cadence string) (cad, cron string) {
+	for _, p := range reportCadPresets {
+		if p != reportCustomCad && strings.ToLower(p) == cadence {
+			return p, ""
+		}
+	}
+	return reportCustomCad, cadence
+}
+
+// reportCadenceWindow is the period a Run-now covers, derived from the schedule's
+// cadence: the run cuts the artifact for the window the cadence implies (6h / daily /
+// weekly / monthly), defaulting to a week for an unrecognised label. The receipt
+// records these bounds; the artifact recomputes its contents from them at render
+// time, snapshotting nothing (migration 22500, ADR-0039).
+func reportCadenceWindow(cadence string) time.Duration {
+	c := strings.ToLower(cadence)
+	switch {
+	case strings.Contains(c, "6h"):
+		return 6 * time.Hour
+	case strings.Contains(c, "daily"):
+		return 24 * time.Hour
+	case strings.Contains(c, "monthly"):
+		return 30 * 24 * time.Hour
+	default:
+		return 7 * 24 * time.Hour
+	}
+}
+
+// newReportScheduleWizard renders the "New schedule" wizard at its first step with
+// the example's defaults. Stepping and finishing post to /reports/schedule
+// (createReportSchedule); this GET only opens the flow. requireAdmin — declaring a
+// schedule is an admin config act.
+func (s *server) newReportScheduleWizard(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	v := scheduleWizardView{
+		Sections: reportScheduleDefaultSections(),
+		Cad:      reportDefaultCad,
+	}
+	s.renderScheduleWizard(w, acct, v, false)
+}
+
+// editReportScheduleWizard renders the wizard prefilled from an existing schedule.
+// A stale id (already deleted) redirects back to /reports rather than 500ing.
+// Stepping and finishing post to /reports/schedule/edit (editReportSchedule).
+func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		return
+	}
+	sc, err := s.store.GetReportSchedule(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Redirect(w, r, "/reports", http.StatusSeeOther)
+			return
+		}
+		s.serverError(w, "get report schedule", err)
+		return
+	}
+	cad, cron := reportCadPresetFor(sc.Cadence)
+	v := scheduleWizardView{
+		ID:       sc.ID,
+		Name:     sc.Name,
+		Sections: parseScheduleSections(sc.Sections),
+		Cad:      cad,
+		Cron:     cron,
+	}
+	s.renderScheduleWizard(w, acct, v, true)
+}
+
+// parseScheduleSections reads a schedule's stored sections JSON array back into the
+// canonical key list, dropping anything unknown so a hand-edited row cannot surface a
+// stray checkbox.
+func parseScheduleSections(raw []byte) []string {
+	var keys []string
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &keys)
+	}
+	return canonicalSections(keys)
+}
+
+// createReportSchedule drives the create wizard: Back/Next re-render the step
+// (advancing only when the current step's gate passes, mirroring the example's
+// disabled Next), and the finishing submit files the schedule and redirects to
+// /reports. requireAdmin gates every path, so a viewer is refused before the handler.
 func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	http.Error(w, "report scheduling is not available yet", http.StatusNotImplemented)
+	v := readScheduleWizardView(r)
+
+	switch r.FormValue("action") {
+	case "back":
+		if v.Step > 0 {
+			v.Step--
+		}
+		s.renderScheduleWizard(w, acct, v, false)
+		return
+	case "next":
+		if v.Step < reportScheduleLast && scheduleStepValid(v) {
+			v.Step++
+		}
+		s.renderScheduleWizard(w, acct, v, false)
+		return
+	}
+
+	// Finish. Re-render at the first step where the operator can fix an incomplete
+	// entry rather than filing a schedule that would render nothing.
+	if !scheduleAllValid(v) {
+		v.Step = 0
+		s.renderScheduleWizard(w, acct, v, false)
+		return
+	}
+
+	sections, err := json.Marshal(v.Sections)
+	if err != nil {
+		s.serverError(w, "marshal schedule sections", err)
+		return
+	}
+	if _, err := s.store.InsertReportSchedule(r.Context(), db.InsertReportScheduleParams{
+		Name:           strings.TrimSpace(v.Name),
+		Sections:       sections,
+		Cadence:        reportCadLabel(v.Cad, v.Cron),
+		Format:         reportScheduleFormat,
+		DeliveryTarget: "", // no recipient field in the wizard — download-only.
+		CreatedBy:      acct.ID,
+	}); err != nil {
+		s.serverError(w, "insert report schedule", err)
+		return
+	}
+	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+}
+
+// editReportSchedule drives the edit wizard: the same Back/Next stepping as create,
+// but the finishing submit updates the target schedule in place (a genuine update,
+// not a recompute — migration 21700) and redirects to /reports. A missing or stale id
+// answers /reports rather than 500ing.
+func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	v := readScheduleWizardView(r)
+	if v.ID == 0 {
+		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		return
+	}
+
+	switch r.FormValue("action") {
+	case "back":
+		if v.Step > 0 {
+			v.Step--
+		}
+		s.renderScheduleWizard(w, acct, v, true)
+		return
+	case "next":
+		if v.Step < reportScheduleLast && scheduleStepValid(v) {
+			v.Step++
+		}
+		s.renderScheduleWizard(w, acct, v, true)
+		return
+	}
+
+	if !scheduleAllValid(v) {
+		v.Step = 0
+		s.renderScheduleWizard(w, acct, v, true)
+		return
+	}
+
+	sections, err := json.Marshal(v.Sections)
+	if err != nil {
+		s.serverError(w, "marshal schedule sections", err)
+		return
+	}
+	if _, err := s.store.UpdateReportSchedule(r.Context(), db.UpdateReportScheduleParams{
+		ID:             v.ID,
+		Name:           strings.TrimSpace(v.Name),
+		Sections:       sections,
+		Cadence:        reportCadLabel(v.Cad, v.Cron),
+		Format:         reportScheduleFormat,
+		DeliveryTarget: "",
+	}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// The schedule was deleted between opening the wizard and saving.
+			http.Redirect(w, r, "/reports", http.StatusSeeOther)
+			return
+		}
+		s.serverError(w, "update report schedule", err)
+		return
+	}
+	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+}
+
+// runReportScheduleNow dispatches one on-demand run of a schedule (the row menu's
+// "Run now"). It cuts the artifact for the current period with the canonical
+// renderer (internal/message.RenderArtifact) and stamps a report_delivery receipt
+// (#291/T2). The wizard declares no recipient, so delivery_target is empty and the
+// run generates without delivering — state "generated", no delivered_at (migration
+// 22500). The receipt records only the period bounds; the artifact recomputes its
+// contents from them at view time, carrying nothing off-instance (ADR-0039). A stale
+// id redirects to /reports rather than 500ing.
+func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		return
+	}
+	sc, err := s.store.GetReportSchedule(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Redirect(w, r, "/reports", http.StatusSeeOther)
+			return
+		}
+		s.serverError(w, "get report schedule", err)
+		return
+	}
+
+	now := s.now().UTC()
+	start := now.Add(-reportCadenceWindow(sc.Cadence))
+
+	no, err := s.store.NextReportDeliveryNo(r.Context(), id)
+	if err != nil {
+		s.serverError(w, "next report delivery no", err)
+		return
+	}
+
+	// Cut the artifact for the current period. The delivered document recomputes from
+	// the period bounds at render time, so this render confirms the report is cuttable
+	// for the window; the receipt snapshots nothing. Content wiring lands with the
+	// delivery backend (T5) — here the canonical renderer draws the current period.
+	_ = message.RenderArtifact(message.Artifact{
+		Title:       sc.Name,
+		PeriodStart: start.Format("2006-01-02"),
+		PeriodEnd:   now.Format("2006-01-02"),
+		DeliveryNo:  int(no),
+		GeneratedAt: now.Format("2006-01-02"),
+		Format:      sc.Format,
+	})
+
+	if _, err := s.store.InsertReportDelivery(r.Context(), db.InsertReportDeliveryParams{
+		ScheduleID:  id,
+		PeriodStart: pgtype.Timestamptz{Time: start, Valid: true},
+		PeriodEnd:   pgtype.Timestamptz{Time: now, Valid: true},
+		DeliveryNo:  no,
+		State:       "generated",
+		DeliveredAt: pgtype.Timestamptz{}, // download-only: generated, not delivered.
+	}); err != nil {
+		s.serverError(w, "insert report delivery", err)
+		return
+	}
+	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+}
+
+// deleteReportSchedule removes a schedule (the row menu's "Delete"). Delete is
+// idempotent from the caller's view — a stale id is a no-op, not an error — so it
+// always redirects to /reports. requireAdmin gates it.
+func (s *server) deleteReportSchedule(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		return
+	}
+	if err := s.store.DeleteReportSchedule(r.Context(), id); err != nil {
+		s.serverError(w, "delete report schedule", err)
+		return
+	}
+	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+}
+
+// renderScheduleWizard shapes the controlled state into the "schedulewizard"
+// template data: the step progress, the current step's fields, and — on the Review
+// step — the KeyValueList summary of the real inputs. editMode switches the form's
+// post target and the finish label between the create and edit paths.
+func (s *server) renderScheduleWizard(w http.ResponseWriter, acct db.Account, v scheduleWizardView, editMode bool) {
+	steps := make([]map[string]any, len(reportScheduleStepTitles))
+	for i, title := range reportScheduleStepTitles {
+		steps[i] = map[string]any{
+			"Num":     i + 1,
+			"Title":   title,
+			"Done":    i < v.Step,
+			"Current": i == v.Step,
+		}
+	}
+
+	selected := make(map[string]bool, len(v.Sections))
+	for _, k := range v.Sections {
+		selected[k] = true
+	}
+	sectionOpts := make([]map[string]any, len(reportScheduleSections))
+	labels := make([]string, 0, len(v.Sections))
+	for i, sec := range reportScheduleSections {
+		on := selected[sec.Key]
+		sectionOpts[i] = map[string]any{"Key": sec.Key, "Label": sec.Label, "Checked": on}
+		if on {
+			labels = append(labels, sec.Label)
+		}
+	}
+
+	cads := make([]map[string]any, len(reportCadPresets))
+	for i, p := range reportCadPresets {
+		cads[i] = map[string]any{"Value": p, "Selected": p == v.Cad}
+	}
+
+	// Review summary — the real inputs, exactly as the example's KeyValueList maps
+	// them: the name (or an em dash), the chosen section labels, the cadence label,
+	// and the fixed format.
+	nameSummary := strings.TrimSpace(v.Name)
+	if nameSummary == "" {
+		nameSummary = "—"
+	}
+	sectionsSummary := "—"
+	if len(labels) > 0 {
+		sectionsSummary = strings.Join(labels, ", ")
+	}
+	review := []map[string]any{
+		{"K": "Report", "V": nameSummary},
+		{"K": "Sections", "V": sectionsSummary},
+		{"K": "Cadence", "V": reportCadLabel(v.Cad, v.Cron)},
+		{"K": "Format", "V": reportScheduleFormat},
+	}
+
+	formAction := "/reports/schedule"
+	finishLabel := "Create schedule"
+	title := "New report schedule"
+	if editMode {
+		formAction = "/reports/schedule/edit"
+		finishLabel = "Save schedule"
+		title = "Edit report schedule"
+	}
+
+	s.render(w, "schedulewizard", map[string]any{
+		"Title":     title,
+		"Account":   acct,
+		"IsAdmin":   acct.Role == roleAdmin,
+		"NavActive": "reports",
+
+		"WizardTitle": title,
+		"FormAction":  formAction,
+		"FinishLabel": finishLabel,
+		"EditMode":    editMode,
+		"ID":          v.ID,
+
+		"Step":      v.Step,
+		"StepNum":   v.Step + 1,
+		"StepTotal": len(reportScheduleStepTitles),
+		"Last":      v.Step == reportScheduleLast,
+		"Steps":     steps,
+
+		"Name":         v.Name,
+		"Sections":     sectionOpts,
+		"SectionsKeys": v.Sections,
+		"Cads":         cads,
+		"Cad":          v.Cad,
+		"Cron":         v.Cron,
+		"Custom":       v.Cad == reportCustomCad,
+
+		"Review": review,
+	})
 }

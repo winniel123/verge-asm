@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -70,7 +71,7 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 		"Open signals", "New assets discovered", "Mean time to withdrawal", // KPI band — the three trend cards
 		"Open signals over time",                     // time-series card title
 		"Scans per day", "Scans per day, last 12 weeks", // heatmap card + grid aria-label
-		"Recurring reports", "New schedule", // recurring card + the (disabled) schedule control
+		"Recurring reports", "New schedule", // recurring card + the schedule wizard control
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("reports page missing %q; body: %s", want, page)
@@ -306,19 +307,19 @@ func TestReportScheduleRowsLastSent(t *testing.T) {
 	}
 }
 
-// The recurring-reports row menu ports Reports.jsx's per-row DropdownMenu: its
-// "View last delivery" item opens T3's /reports/delivery artifact where a report
-// has delivered, and renders disabled where none has — no fabrication. The menu
-// only opens or confirms; it never fires destruction directly, so its "Delete
-// schedule" item is inert (no form, no POST) on click.
+// The recurring-reports row menu ports Reports.jsx's per-row DropdownMenu with its
+// four live actions (#290, P0.6/T4): "View last delivery" opens T3's /reports/delivery
+// artifact where a report has delivered and renders disabled where none has; Run now
+// and Delete are per-row POST forms carrying the schedule id; Edit links to the
+// prefilled wizard at /reports/schedule/{id}/edit.
 func TestReportScheduleRowMenu(t *testing.T) {
 	var buf bytes.Buffer
 	data := map[string]any{
 		"Title": "Reports", "NavActive": "reports", "IsAdmin": true,
 		"Account": db.Account{},
 		"Schedules": []reportScheduleRow{
-			{Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", LastSent: "3d", HasDelivery: true, DeliveryHref: "/reports/delivery"},
-			{Name: "Monthly asset inventory", Cadence: "monthly · 1st", Format: "csv", LastSent: "—", HasDelivery: false},
+			{ID: 7, Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", LastSent: "3d", HasDelivery: true, DeliveryHref: "/reports/delivery"},
+			{ID: 8, Name: "Monthly asset inventory", Cadence: "monthly · 1st", Format: "csv", LastSent: "—", HasDelivery: false},
 		},
 	}
 	if err := tmpl.ExecuteTemplate(&buf, "reports", data); err != nil {
@@ -337,24 +338,18 @@ func TestReportScheduleRowMenu(t *testing.T) {
 	if !strings.Contains(page, `aria-disabled="true" title="No delivery yet"`) {
 		t.Errorf("undelivered row should render a disabled 'View last delivery'; body: %s", page)
 	}
-	// The menu never destroys directly: "Delete schedule" is inert, not a POST form.
-	if !strings.Contains(page, "Delete schedule") {
-		t.Errorf("row menu missing the ported 'Delete schedule' item; body: %s", page)
-	}
-	// The menu never destroys directly — the delete item is a disabled span, carrying
-	// no destructive form or POST action of its own. The wizard's own create form posts
-	// to /reports/schedule (that is expected); what must NOT exist is a per-row mutation
-	// route (delete / run-now / edit) firing off a menu click.
-	if !strings.Contains(page, `aria-disabled="true" title="Report scheduling is not wired yet"`) {
-		t.Errorf("row menu 'Delete schedule' should render as an inert disabled span; body: %s", page)
-	}
-	for _, dead := range []string{
-		`action="/reports/schedule/delete"`,
-		`action="/reports/schedule/run"`,
-		`action="/reports/schedule/edit"`,
+
+	// The four live actions are wired per row, each carrying the schedule id.
+	for _, want := range []string{
+		`action="/reports/schedule/run"`,     // Run now POST form
+		`action="/reports/schedule/delete"`,  // Delete POST form
+		`href="/reports/schedule/7/edit"`,    // Edit link, first row's id
+		`href="/reports/schedule/8/edit"`,    // Edit link, second row's id
+		`<input type="hidden" name="id" value="7">`, // the id rides the row-menu forms
+		"Run now", "Edit schedule", "Delete schedule",
 	} {
-		if strings.Contains(page, dead) {
-			t.Errorf("row menu must not carry a destructive per-row action (%s); body: %s", dead, page)
+		if !strings.Contains(page, want) {
+			t.Errorf("row menu missing live action %q; body: %s", want, page)
 		}
 	}
 
@@ -367,36 +362,242 @@ func TestReportScheduleRowMenu(t *testing.T) {
 	}
 }
 
-// Report scheduling has no dispatch or delivery backend (#344), so the create path
-// must not persist a report_schedule row that would silently never run. An admin's
-// POST — the one role that could reach the handler — is refused (501) and files
-// nothing, so a hand-crafted request cannot re-introduce the inert row the wizard used
-// to leak.
-func TestReportScheduleCreateRefused(t *testing.T) {
+// Run now dispatches an on-demand run: an admin's POST stamps a report_delivery
+// receipt for the current period and redirects to /reports. The wizard declares no
+// recipient, so the run generates without delivering — state "generated", no
+// delivered_at (a download-only schedule). A viewer is refused before the handler.
+func TestReportScheduleRunNow(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	ctx := context.Background()
+	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
+		Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", CreatedBy: admin.ID,
+	})
+	if err != nil {
+		t.Fatalf("insert schedule: %v", err)
+	}
+	base := start(t, f, "")
+
+	// A viewer cannot run it.
+	vc := login(t, base, "viewer", "hunter2hunter2")
+	vr := postForm(t, vc, base+"/reports/schedule/run", url.Values{"id": {strconv.FormatInt(sched.ID, 10)}})
+	if vr.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer run status = %d, want 403", vr.StatusCode)
+	}
+	vr.Body.Close()
+	if len(f.reportDeliveries) != 0 {
+		t.Fatalf("viewer's denied run still stamped a delivery: %d", len(f.reportDeliveries))
+	}
+
+	// The admin runs it: one receipt is stamped, redirect to /reports.
+	ac := login(t, base, "admin", "hunter2hunter2")
+	resp := postForm(t, ac, base+"/reports/schedule/run", url.Values{"id": {strconv.FormatInt(sched.ID, 10)}})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/reports" {
+		t.Fatalf("admin run: status=%d loc=%q, want 303 /reports; body: %s", resp.StatusCode, resp.Header.Get("Location"), body(t, resp))
+	}
+	resp.Body.Close()
+
+	if len(f.reportDeliveries) != 1 {
+		t.Fatalf("run stamped %d deliveries, want 1", len(f.reportDeliveries))
+	}
+	d := f.reportDeliveries[0]
+	if d.ScheduleID != sched.ID || d.DeliveryNo != 1 {
+		t.Errorf("delivery = {schedule %d, no %d}, want {schedule %d, no 1}", d.ScheduleID, d.DeliveryNo, sched.ID)
+	}
+	if d.State != "generated" {
+		t.Errorf("state = %q, want generated (download-only run, no recipient)", d.State)
+	}
+	if d.DeliveredAt.Valid {
+		t.Errorf("delivered_at should be null on a generated (undelivered) run; got %v", d.DeliveredAt.Time)
+	}
+	// The receipt now backs the row's last-sent read: a second run advances the sequence.
+	resp2 := postForm(t, ac, base+"/reports/schedule/run", url.Values{"id": {strconv.FormatInt(sched.ID, 10)}})
+	resp2.Body.Close()
+	if f.reportDeliveries[1].DeliveryNo != 2 {
+		t.Errorf("second run delivery_no = %d, want 2", f.reportDeliveries[1].DeliveryNo)
+	}
+}
+
+// Edit updates a schedule in place: an admin's finishing edit POST rewrites the
+// declared contents of the target row (same id, same created_by) rather than filing a
+// new one. A stale id is not persisted. A viewer is refused.
+func TestReportScheduleEdit(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	ctx := context.Background()
+	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
+		Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", CreatedBy: admin.ID,
+	})
+	if err != nil {
+		t.Fatalf("insert schedule: %v", err)
+	}
+	base := start(t, f, "")
+
+	// A viewer cannot edit.
+	vc := login(t, base, "viewer", "hunter2hunter2")
+	vr := postForm(t, vc, base+"/reports/schedule/edit", url.Values{
+		"action": {"finish"}, "step": {"2"}, "id": {strconv.FormatInt(sched.ID, 10)},
+		"name": {"Hijacked"}, "sections": {"summary-kpis"}, "cad": {"Daily · 08:00"},
+	})
+	if vr.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer edit status = %d, want 403", vr.StatusCode)
+	}
+	vr.Body.Close()
+
+	// The admin edits it: the row is updated in place, not appended.
+	ac := login(t, base, "admin", "hunter2hunter2")
+	resp := postForm(t, ac, base+"/reports/schedule/edit", url.Values{
+		"action": {"finish"}, "step": {"2"}, "id": {strconv.FormatInt(sched.ID, 10)},
+		"name": {"Daily exposure summary"}, "sections": {"summary-kpis", "coverage-gaps"}, "cad": {"Daily · 08:00"},
+	})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/reports" {
+		t.Fatalf("admin edit: status=%d loc=%q, want 303 /reports; body: %s", resp.StatusCode, resp.Header.Get("Location"), body(t, resp))
+	}
+	resp.Body.Close()
+
+	if len(f.reportSchedules) != 1 {
+		t.Fatalf("edit changed the row count to %d, want 1 (update in place, not insert)", len(f.reportSchedules))
+	}
+	got := f.reportSchedules[0]
+	if got.ID != sched.ID || got.CreatedBy != admin.ID {
+		t.Errorf("edit changed identity: id %d created_by %d, want id %d created_by %d", got.ID, got.CreatedBy, sched.ID, admin.ID)
+	}
+	if got.Name != "Daily exposure summary" || got.Cadence != "daily · 08:00" {
+		t.Errorf("edit did not rewrite contents: name=%q cadence=%q", got.Name, got.Cadence)
+	}
+}
+
+// Delete removes a schedule: an admin's POST drops the row and redirects; a stale id
+// is a no-op, not an error. A viewer is refused.
+func TestReportScheduleDelete(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	ctx := context.Background()
+	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
+		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: admin.ID,
+	})
+	if err != nil {
+		t.Fatalf("insert schedule: %v", err)
+	}
+	base := start(t, f, "")
+
+	// A viewer cannot delete.
+	vc := login(t, base, "viewer", "hunter2hunter2")
+	vr := postForm(t, vc, base+"/reports/schedule/delete", url.Values{"id": {strconv.FormatInt(sched.ID, 10)}})
+	if vr.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer delete status = %d, want 403", vr.StatusCode)
+	}
+	vr.Body.Close()
+	if len(f.reportSchedules) != 1 {
+		t.Fatalf("viewer's denied delete removed the row: %d left", len(f.reportSchedules))
+	}
+
+	// The admin deletes it.
+	ac := login(t, base, "admin", "hunter2hunter2")
+	resp := postForm(t, ac, base+"/reports/schedule/delete", url.Values{"id": {strconv.FormatInt(sched.ID, 10)}})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/reports" {
+		t.Fatalf("admin delete: status=%d loc=%q, want 303 /reports", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+	if len(f.reportSchedules) != 0 {
+		t.Fatalf("delete left %d schedules, want 0", len(f.reportSchedules))
+	}
+
+	// A repeat delete of the now-stale id is a no-op, not an error.
+	resp2 := postForm(t, ac, base+"/reports/schedule/delete", url.Values{"id": {strconv.FormatInt(sched.ID, 10)}})
+	if resp2.StatusCode != http.StatusSeeOther {
+		t.Fatalf("stale delete status = %d, want 303 (idempotent)", resp2.StatusCode)
+	}
+	resp2.Body.Close()
+}
+
+// Report scheduling is live (#290, P0.6/T4): an admin's finishing wizard POST files
+// a report_schedule from the parsed Scope + Cadence and redirects to /reports. The
+// stored row carries the trimmed name, the chosen section keys, the cadence label,
+// the fixed pdf format, and — the wizard has no recipient field — an empty
+// delivery_target (download-only), never an invented recipient.
+func TestReportScheduleCreateLive(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	resp := postForm(t, ac, base+"/reports/schedule", url.Values{
-		"name":     {"Q3 exposure digest"},
+		"action":   {"finish"},
+		"step":     {"2"},
+		"name":     {"  Q3 exposure digest  "},
 		"sections": {"summary-kpis", "signal-changes"},
-		"cadence":  {"weekly"},
-		"format":   {"pdf"},
-		"target":   {"ops@example.com"},
+		"cad":      {"Weekly · mon 09:00"},
 	})
-	if resp.StatusCode != http.StatusNotImplemented {
-		t.Fatalf("admin schedule POST: status=%d, want 501 (scheduling unavailable); body: %s",
-			resp.StatusCode, body(t, resp))
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("admin schedule finish POST: status=%d, want 303; body: %s", resp.StatusCode, body(t, resp))
+	}
+	if loc := resp.Header.Get("Location"); loc != "/reports" {
+		t.Fatalf("create redirect = %q, want /reports", loc)
 	}
 	resp.Body.Close()
-	if len(f.reportSchedules) != 0 {
-		t.Fatalf("a refused create still filed a schedule: %d", len(f.reportSchedules))
+
+	if len(f.reportSchedules) != 1 {
+		t.Fatalf("live create filed %d schedules, want 1", len(f.reportSchedules))
+	}
+	got := f.reportSchedules[0]
+	if got.Name != "Q3 exposure digest" {
+		t.Errorf("name = %q, want trimmed \"Q3 exposure digest\"", got.Name)
+	}
+	if got.Cadence != "weekly · mon 09:00" {
+		t.Errorf("cadence = %q, want the lower-cased preset label", got.Cadence)
+	}
+	if got.Format != "pdf" {
+		t.Errorf("format = %q, want pdf", got.Format)
+	}
+	if got.DeliveryTarget != "" {
+		t.Errorf("delivery_target = %q, want empty (no recipient field in the wizard)", got.DeliveryTarget)
+	}
+	var sections []string
+	if err := json.Unmarshal(got.Sections, &sections); err != nil {
+		t.Fatalf("sections is not a JSON array: %v (%s)", err, got.Sections)
+	}
+	if len(sections) != 2 || sections[0] != "summary-kpis" || sections[1] != "signal-changes" {
+		t.Errorf("sections = %v, want [summary-kpis signal-changes] in canonical order", sections)
 	}
 }
 
-// A viewer's POST is refused before the handler by requireAdmin (403), still filing
-// nothing — the create path is defended at both the auth wrapper and the handler.
+// A stepping (non-finishing) wizard POST re-renders the next step rather than filing
+// a schedule: Next advances only when the current step's gate passes, mirroring the
+// example's disabled Next. An admin advancing Scope with a name and sections lands on
+// Cadence and nothing is persisted until the finishing submit.
+func TestReportScheduleWizardStepping(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := postForm(t, ac, base+"/reports/schedule", url.Values{
+		"action":   {"next"},
+		"step":     {"0"},
+		"name":     {"Weekly exposure summary"},
+		"sections": {"summary-kpis"},
+		"cad":      {"Weekly · mon 09:00"},
+	})
+	page := body(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("stepping POST status = %d, want 200 (in-flight wizard render); body: %s", resp.StatusCode, page)
+	}
+	// The Cadence step is now current, and nothing was filed.
+	if !strings.Contains(page, "Cadence") || !strings.Contains(page, `name="cad"`) {
+		t.Errorf("Next from Scope should render the Cadence step; body: %s", page)
+	}
+	if len(f.reportSchedules) != 0 {
+		t.Fatalf("stepping filed a schedule (%d); only finish persists", len(f.reportSchedules))
+	}
+}
+
+// A viewer's create POST is refused before the handler by requireAdmin (403), filing
+// nothing — declaring a schedule is an admin config act, so the role gate stops a
+// viewer at the auth wrapper regardless of the body.
 func TestReportScheduleCreateRefusesViewer(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -416,27 +617,58 @@ func TestReportScheduleCreateRefusesViewer(t *testing.T) {
 	}
 }
 
-// The Reports surface no longer offers an enabled control that can create a schedule:
-// the "New schedule" wizard is gone and its entry point renders disabled, alongside
-// its already-disabled sibling controls, presenting scheduling consistently as not
-// available yet (#344).
-func TestReportScheduleWizardDisabled(t *testing.T) {
+// The Reports surface offers a live "New schedule" control that opens the wizard, and
+// the wizard renders its first (Scope) step with the real create form. Scheduling is
+// no longer the disabled not-yet-available surface (#290, P0.6/T4).
+func TestReportScheduleWizardLive(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
-	page := getBody(t, ac, base+"/reports", http.StatusOK)
 
-	// No live create form — not even for an admin, who used to see the wizard.
-	if strings.Contains(page, `action="/reports/schedule"`) {
-		t.Errorf("Reports still renders a live schedule-create form; body: %s", page)
+	// The New schedule control on the Reports page opens the wizard, and the old
+	// disabled copy is gone.
+	page := getBody(t, ac, base+"/reports", http.StatusOK)
+	if !strings.Contains(page, `href="/reports/schedule/new"`) {
+		t.Errorf("Reports should link the New schedule control to the wizard; body: %s", page)
 	}
-	// The New schedule control is present but disabled, reading as not-yet-available.
-	if !strings.Contains(page, "New schedule") {
-		t.Errorf("Reports missing the New schedule control; body: %s", page)
+	if strings.Contains(page, "Report scheduling is not available yet") {
+		t.Errorf("New schedule control still marked unavailable; body: %s", page)
 	}
-	if !strings.Contains(page, "Report scheduling is not available yet") {
-		t.Errorf("New schedule control not marked unavailable; body: %s", page)
+
+	// The wizard itself renders the Scope step with the live create form: a name input,
+	// the section checkbox group, and a finish target of /reports/schedule.
+	wiz := getBody(t, ac, base+"/reports/schedule/new", http.StatusOK)
+	if !strings.Contains(wiz, `action="/reports/schedule"`) {
+		t.Errorf("wizard should post to the live create route; body: %s", wiz)
+	}
+	for _, want := range []string{
+		`name="name"`,                          // the Report name input
+		`name="sections" value="summary-kpis"`, // a section checkbox
+		"Scope", "Cadence", "Review",           // the three step titles
+	} {
+		if !strings.Contains(wiz, want) {
+			t.Errorf("wizard Scope step missing %q; body: %s", want, wiz)
+		}
+	}
+}
+
+// The wizard is admin-gated: a viewer's GET is bounced by requireAdmin (403), never
+// served the create form.
+func TestReportScheduleWizardRefusesViewer(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+	vc := login(t, base, "viewer", "hunter2hunter2")
+
+	resp, err := vc.Get(base + "/reports/schedule/new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body(t, resp)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer wizard GET status = %d, want 403", resp.StatusCode)
 	}
 }
 
