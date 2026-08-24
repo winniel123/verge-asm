@@ -98,7 +98,7 @@ const GUIDES = [
     { t: "h2", x: "Recurring reports" },
     { t: "p", x: "Schedule a recurring report to a channel; each delivery renders the period's movement \u2014 signals raised and withdrawn, coverage change, scan activity \u2014 into a single artifact." },
     { t: "h2", x: "The delivered artifact" },
-    { t: "p", x: "Open any delivery from the Reports row menu (*View last delivery*). The artifact doubles as the PDF and email rendering \u2014 what you see is what the channel carried." },
+    { t: "p", x: "Open any delivery from the Reports row menu (*View last delivery*). The artifact doubles as the PDF rendering \u2014 a channel receives only a link-only ready-message, so what you see here is the report; the body never leaves the instance." },
   ] },
   { slug: "integrations", title: "Integrations", section: "Signals & delivery", desc: "The tile catalogue: install states and consent.", blocks: [
     { t: "h2", x: "Tiles and consent" },
