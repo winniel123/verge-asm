@@ -49,7 +49,7 @@ func TestFirstRunEmptyEstateRendersChecklist(t *testing.T) {
 	}
 
 	// It is the first-run state, not the Dashboard: the Dashboard's regions are absent.
-	for _, forbidden := range []string{"Firing now, by rule", "By severity"} {
+	for _, forbidden := range []string{"By severity", "Scan infrastructure"} {
 		if strings.Contains(page, forbidden) {
 			t.Fatalf("empty estate should not render the Dashboard region %q; body: %s", forbidden, page)
 		}
