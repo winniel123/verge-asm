@@ -321,3 +321,45 @@ func projectExposureStats(legs []reachLeg) exposureStats {
 	}
 	return stats
 }
+
+// --- standalone current-state counts (P2.1 stat band values) ---------------
+//
+// The Dashboard "Exposed services" and "Certs expiring ≤30d" stat cells (P2.1,
+// Dashboard.jsx) render a current-state value alongside their vs-last-batch delta.
+// The delta is withheld with no previous batch (statDeltas.Known=false), so the
+// value cannot be read off the delta's Current — these read it directly, the same
+// way the delta derives it, so value and chip agree when both are present.
+
+// currentExposedCount is the count of services currently exposed to the internet —
+// the "Exposed services" cell's value. It projects the current reachability legs
+// through the same exposure engine the delta uses (projectExposureStats). ok is
+// false on a read failure, so the cell degrades to an em dash rather than a
+// fabricated zero.
+func (s *server) currentExposedCount(ctx context.Context) (int, bool) {
+	rows, err := s.store.ListServiceReachabilitySpansByClass(ctx)
+	if err != nil {
+		log.Printf("web: dashboard: exposed services count: %v", err)
+		return 0, false
+	}
+	return projectExposureStats(reachLegsFromCurrent(rows)).exposed, true
+}
+
+// currentCertsExpiring is the count of endpoint certificates whose leaf expires
+// within certExpiryWindow (≤30d) of now — the "Certs expiring ≤30d" cell's value.
+// It reads the currently-open span corpus (an invalid @since selects every span
+// still open — `closed_at IS NULL`) and counts the certificate facet's not_after the
+// same way the delta does (countCertsExpiring), so the value and its delta agree.
+// The count is honestly zero where no leaf carries a not_after; ok is false only on
+// a read failure, so the cell degrades to an em dash.
+func (s *server) currentCertsExpiring(ctx context.Context) (int, bool) {
+	rows, err := s.store.ListSpansOpenSince(ctx, pgtype.Timestamptz{})
+	if err != nil {
+		log.Printf("web: dashboard: certs-expiring count: %v", err)
+		return 0, false
+	}
+	open := make([]drift.Span, 0, len(rows))
+	for _, row := range rows {
+		open = append(open, spanFromOpenSinceRow(row))
+	}
+	return countCertsExpiring(drift.CurrentlyOpen(open), s.now().UTC()), true
+}

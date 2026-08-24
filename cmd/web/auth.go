@@ -13,7 +13,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -483,14 +482,42 @@ type dashVantageView struct {
 	Avail string
 }
 
-// dashSignalRow is one rule's current firing census for the open-signal register:
-// the rule name, its subject kind and how many subjects it fires on right now. A
-// signal carries no severity (CONTEXT.md; signals.go), so this row carries none —
-// it is a current-state count, never a scored or timestamped finding.
-type dashSignalRow struct {
-	Rule  string
-	Kind  string
-	Fired int
+// dashSevBar is one bar of the "By severity" card (Dashboard.jsx): a severity level,
+// the count of currently-firing signal instances at that level, and the bar width as a
+// percent of the busiest level. Severity is the five-level ramp (#442, internal/signal)
+// — the datum ADR-0116 has built rather than empty-stating this card.
+type dashSevBar struct {
+	Sev   string
+	Count int
+	Pct   int
+}
+
+// dashRecentSignal is one row of the most-recent Signals register (Dashboard.jsx): a
+// firing instance's severity, its human signal title, the asset and port it fires on,
+// and how long ago it was seen. Shaped from the per-instance datum (#442, signals.go
+// deriveSignalInstances) — every field a real read, none fabricated. The whole row
+// deep-links to Signals (Dashboard.jsx onRowClick={onOpenSignals}).
+type dashRecentSignal struct {
+	Severity string
+	Title    string
+	Asset    string
+	Port     string
+	Seen     string
+}
+
+// dashStat is one cell of the framed stat band (Dashboard.jsx): its label, formatted
+// value (an em dash where the read failed), caption, an optional live pulse, and its
+// vs-last-batch delta (P0.2, #443) with the tone the movement's meaning gives it —
+// bad / good / neutral, never the severity ramp. HasDelta is false where no previous
+// batch exists, so the cell shows its value with no chip rather than a fabricated +0.
+type dashStat struct {
+	Label    string
+	Value    string
+	Caption  string
+	Live     bool
+	HasDelta bool
+	Change   int
+	Tone     string
 }
 
 // firstRunStep is one step of the empty-estate first-run checklist (#302), shaped
@@ -569,7 +596,9 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 
 	nameScopes, addrScopes, hasScopes := 0, 0, false
+	var seedRows []db.ListSeedsRow
 	if rows, serr := s.store.ListSeeds(ctx); serr == nil {
+		seedRows = rows
 		for _, sd := range rows {
 			if sd.Kind == "address" {
 				addrScopes++
@@ -582,37 +611,73 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		log.Printf("web: dashboard: list seeds: %v", serr)
 	}
 
-	// Open signals — the current count of firing signals and the per-rule firing
-	// census. A signal is a current-state census member, so this is the one honest
-	// signal figure: no severity to rank, no per-signal recency feed to list. On a
-	// corpus failure the signal regions degrade to unavailable rather than 500ing.
+	// Open signals — the current firing count, the per-severity histogram (the "By
+	// severity" bars), and the most-recent per-instance rows. Severity (#442) and the
+	// per-instance identity (#442) are real datums the design renders, so this reads
+	// them rather than empty-stating the cards (ADR-0116). The corpus is folded once:
+	// the count, the histogram, the critical tally and the vs-last-batch signal deltas
+	// (P0.2) all read the same evaluation. On a corpus failure the signal regions
+	// degrade to unavailable rather than 500ing the landing page.
 	openSignals, hasOpenSignals := 0, false
-	var firing []dashSignalRow
-	// firedPairs is the flat (rule, subject) fired set the vs-last-batch signal
-	// deltas read (P0.2) — collected from the same census fold so the corpus is
-	// evaluated once for both the count and its delta.
+	criticalSignals := 0
+	sevCounts := map[string]int{}
+	var recentSignals []dashRecentSignal
+	// firedPairs is the flat (rule, subject) fired set the vs-last-batch signal deltas
+	// read (P0.2), collected from the same census fold.
 	var firedPairs []firedSignal
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
-		for _, c := range signal.EvaluateCorpus(corpus) {
-			openSignals += len(c.Fired)
-			if len(c.Fired) > 0 {
-				firing = append(firing, dashSignalRow{
-					Rule: c.Rule, Kind: signal.SubjectKindFor(c.Rule), Fired: len(c.Fired),
-				})
-				for _, m := range c.Fired {
-					firedPairs = append(firedPairs, firedSignal{Rule: c.Rule, Subject: m.Subject})
+		censuses := signal.EvaluateCorpus(corpus)
+		for _, c := range censuses {
+			sev, _ := signal.SeverityFor(c.Rule)
+			for _, m := range c.Fired {
+				openSignals++
+				firedPairs = append(firedPairs, firedSignal{Rule: c.Rule, Subject: m.Subject})
+				sevCounts[sev.String()]++
+				if sev == signal.SevCritical {
+					criticalSignals++
 				}
 			}
 		}
 		hasOpenSignals = true
-		sort.Slice(firing, func(i, j int) bool {
-			if firing[i].Fired != firing[j].Fired {
-				return firing[i].Fired > firing[j].Fired
+		// The most-recent register: the flat per-instance rows (#442), minted once on
+		// this read and ordered critical→info by deriveSignalInstances, of which the card
+		// shows the first six. Asset/Port are split off the subject key for the two columns.
+		if insts, ierr := s.deriveSignalInstances(ctx, censuses); ierr == nil {
+			for _, in := range insts {
+				if len(recentSignals) == 6 {
+					break
+				}
+				recentSignals = append(recentSignals, dashRecentSignal{
+					Severity: in.Severity,
+					Title:    in.Title,
+					Asset:    strings.TrimSuffix(in.Asset, in.Port),
+					Port:     strings.TrimPrefix(in.Port, ":"),
+					Seen:     in.Seen,
+				})
 			}
-			return firing[i].Rule < firing[j].Rule
-		})
+		} else {
+			log.Printf("web: dashboard: derive signal instances: %v", ierr)
+		}
 	} else {
 		log.Printf("web: dashboard: build signal corpus: %v", cerr)
+	}
+
+	// By-severity bars: the histogram in ramp order (critical→info), each bar scaled to
+	// the busiest level. Every level renders even at zero, so the ramp reads in full.
+	var sevBars []dashSevBar
+	maxSev := 0
+	for _, sv := range signal.SevOrder {
+		if n := sevCounts[sv.String()]; n > maxSev {
+			maxSev = n
+		}
+	}
+	for _, sv := range signal.SevOrder {
+		n := sevCounts[sv.String()]
+		pct := 0
+		if maxSev > 0 {
+			pct = n * 100 / maxSev
+		}
+		sevBars = append(sevBars, dashSevBar{Sev: sv.String(), Count: n, Pct: pct})
 	}
 
 	// First-run state — the home renders the four-step checklist instead of the
@@ -652,8 +717,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	// The header sub-line's "last full scan Xm ago · next in Yh Zm" instants (P0.4,
 	// #445): real reads over the scheduler's Dispatch and Scan corpora, assembled in
-	// scans.go. Exposed here so the home handler carries them; the sub-line markup
-	// that consumes ScanSchedule is P2.1's.
+	// scans.go.
 	schedule := s.scanSchedule(ctx)
 	firstRunDone := 0
 	for _, st := range steps {
@@ -661,6 +725,63 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 			firstRunDone++
 		}
 	}
+
+	// Vs-last-batch stat deltas (P0.2, #443): the signed change each stat cell shows
+	// against the previous batch. Best-effort — a Known=false result (no previous
+	// batch, or a corpus read failed) leaves the cells in their no-delta state, never a
+	// fabricated +0. Computed before the stat band so each cell carries its own chip.
+	deltas := s.dashboardDeltas(ctx, firedPairs)
+
+	// Exposed-services and certs-expiring current values (P2.1). Read standalone (the
+	// delta's Current is withheld with no previous batch) the same way the delta derives
+	// them, so value and chip agree when both are present.
+	exposed, hasExposed := s.currentExposedCount(ctx)
+	certsExpiring, hasCerts := s.currentCertsExpiring(ctx)
+
+	// The framed stat band's five cells (Dashboard.jsx): each a current-state value —
+	// an em dash where its read failed — its caption, and, where a previous batch
+	// exists, its vs-last-batch delta toned by the movement's meaning (more open
+	// signals / criticals / exposure / expiring certs is bad; fewer is good; estate
+	// growth is neutral).
+	assetsWatched := names + services
+	hasAssets := hasNames && hasServices
+	statBand := []dashStat{
+		{Label: "Open signals", Value: statValue(openSignals, hasOpenSignals), Caption: "firing across your estate",
+			Live: len(active) > 0, HasDelta: deltas.Known, Change: deltas.OpenSignals.Change(), Tone: statTone(deltas.OpenSignals.Change(), true)},
+		{Label: "Critical", Value: statValue(criticalSignals, hasOpenSignals), Caption: "highest severity",
+			HasDelta: deltas.Known, Change: deltas.Critical.Change(), Tone: statTone(deltas.Critical.Change(), true)},
+		{Label: "Assets watched", Value: statValue(assetsWatched, hasAssets),
+			Caption:  fmt.Sprintf("%d %s · %d %s", nameScopes, plural(nameScopes, "domain", "domains"), addrScopes, plural(addrScopes, "range", "ranges")),
+			HasDelta: deltas.Known, Change: deltas.AssetsWatched.Change(), Tone: "neutral"},
+		{Label: "Exposed services", Value: statValue(exposed, hasExposed), Caption: "reachable from the internet",
+			HasDelta: deltas.Known, Change: deltas.Exposed.Change(), Tone: statTone(deltas.Exposed.Change(), true)},
+		{Label: "Certs expiring ≤30d", Value: statValue(certsExpiring, hasCerts), Caption: "expiring within 30 days",
+			HasDelta: deltas.Known, Change: deltas.CertsExpiring.Change(), Tone: statTone(deltas.CertsExpiring.Change(), true)},
+	}
+
+	// Coverage card (P2.1, PARITY-CHART collision #2): census CoverageMeters over the
+	// declared scopes — the same real read the Coverage screen renders (cold.go
+	// apertureMeters; a census claims no denominator, ADR-0095) — and, where a vantage
+	// has gone silent, a real StalenessBadge naming it (cold.go's "silent" currency,
+	// ADR-0108). Nothing fabricated: the card renders only what is read, and the
+	// re-skinned "detail is on its own screen" pointer is gone.
+	var coverageMeters []coverageMeterView
+	if hasScopes {
+		var zones []db.ListZoneDeclarationsRow
+		if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
+			zones = z
+		}
+		coverageMeters = apertureMeters(seedRows, zones)
+	}
+	silentVantage := ""
+	if len(unavailable) > 0 {
+		silentVantage = unavailable[0]
+	}
+
+	// A server-rendered dismiss for the unreachable-vantage banner: the X links to the
+	// same page with ?probe=dismissed, and the banner withholds while that is set —
+	// the stateless twin of the spec's useState dismiss (Dashboard.jsx probeBanner).
+	probeDismissed := r.URL.Query().Get("probe") == "dismissed"
 
 	data := map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -674,35 +795,73 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		"Vantages":    vantages,
 		"Unavailable": unavailable,
 
-		"OpenSignals":    openSignals,
-		"HasOpenSignals": hasOpenSignals,
-		"Firing":         firing,
+		"StatBand":      statBand,
+		"SevBars":       sevBars,
+		"HasSignals":    hasOpenSignals,
+		"RecentSignals": recentSignals,
 
-		"Names":       names,
-		"HasNames":    hasNames,
-		"Services":    services,
-		"HasServices": hasServices,
-		"NameScopes":  nameScopes,
-		"AddrScopes":  addrScopes,
-		"Scopes":      nameScopes + addrScopes,
-		"HasScopes":   hasScopes,
-		"ActiveScans": len(active),
+		"CoverageMeters": coverageMeters,
+		"SilentVantage":  silentVantage,
 
-		"ScanSchedule": schedule,
+		"ActiveScans":    len(active),
+		"ScanSchedule":   schedule,
+		"ProbeDismissed": probeDismissed,
+
+		// Retained for the delta derivation half; the P2.1 stat band above reads
+		// StatBand, but Deltas/HasDeltas stay exposed for parity with the other reads.
+		"Deltas":    deltas,
+		"HasDeltas": deltas.Known,
 	}
 	// Light the nav's Signals pill with the live firing count when there is one.
 	if hasOpenSignals && openSignals > 0 {
 		data["SignalCount"] = openSignals
 	}
-
-	// Vs-last-batch stat deltas (P0.2, #443): the signed change each stat tile shows
-	// against the previous batch. Best-effort — a Known=false result (no previous
-	// batch, or a corpus read failed) leaves the tiles in their no-delta state. The
-	// P2.1 Dashboard markup reads these; this handler derives and exposes them.
-	deltas := s.dashboardDeltas(r.Context(), firedPairs)
-	data["Deltas"] = deltas
-	data["HasDeltas"] = deltas.Known
 	return data
+}
+
+// statValue formats a stat cell's current value: a thousands-separated integer, or an
+// em dash where the read did not resolve (never a fabricated zero).
+func statValue(n int, ok bool) string {
+	if !ok {
+		return "—"
+	}
+	return commaInt(n)
+}
+
+// commaInt renders an integer with thousands separators ("1,284"), matching the stat
+// band's numerals (Dashboard.jsx).
+func commaInt(n int) string {
+	s := strconv.Itoa(n)
+	neg := strings.HasPrefix(s, "-")
+	if neg {
+		s = s[1:]
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteByte(s[i])
+	}
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
+}
+
+// statTone maps a stat cell's signed movement to the delta chip's semantic tone — the
+// tone says whether the direction is good, never the severity ramp. riseIsBad is true
+// for a metric where growth is the bad direction (open signals, criticals, exposure,
+// expiring certs); no movement is neutral.
+func statTone(change int, riseIsBad bool) string {
+	switch {
+	case change == 0:
+		return "neutral"
+	case (change > 0) == riseIsBad:
+		return "bad"
+	default:
+		return "good"
+	}
 }
 
 // firstRunChecklist builds the four setup steps for the empty-estate home (#302),
@@ -1398,15 +1557,15 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"SSONotice":     st.ssoNotice,
 		"SSOError":      st.ssoError,
 
-		"Notice":     st.notice,
-		"PwError":    st.pwError,
-		"CreateOpen": st.createOpen,
-		"TokError":   st.tokError,
-		"TokName":    st.tokName,
-		"Minted":     st.minted,
-		"MintedName": st.mintedName,
-		"RevokeID":   st.revokeID,
-		"RevokeName": revokeName,
+		"Notice":        st.notice,
+		"PwError":       st.pwError,
+		"CreateOpen":    st.createOpen,
+		"TokError":      st.tokError,
+		"TokName":       st.tokName,
+		"Minted":        st.minted,
+		"MintedName":    st.mintedName,
+		"RevokeID":      st.revokeID,
+		"RevokeName":    revokeName,
 		"RevokeErr":     st.revokeErr,
 		"EndSession":    st.endSession,
 		"SignOutOthers": st.signOutOthers,

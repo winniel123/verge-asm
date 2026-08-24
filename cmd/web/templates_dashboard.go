@@ -2,29 +2,33 @@ package main
 
 import "html/template"
 
-// Dashboard screen — canonical `/` (#277, V2 console map #275). Composed after
-// design-system/examples/console/Dashboard.jsx (01-console.jpg): a KPI band, a
-// running-scan banner, a by-severity card, a coverage card, a vantage-health card
-// and the open-signal register.
+// Dashboard screen — canonical `/` (#277, V2 console map #275). Ported to full parity
+// with design-system/examples/console/Dashboard.jsx (01-console.jpg) under ADR-0116
+// (P2.1, PARITY-CHART.md): the design is normative for look AND functionality, so the
+// two re-skinned holds this screen used to carry — the "signals carry no severity"
+// by-severity empty state and the "coverage is on its own screen" pointer — are
+// deleted, and every region renders its real datum:
 //
-// The example is a mock over a severity-scored, per-instance signal model this
-// product does not have. Two of its regions are domain-incompatible and are
-// re-skinned to honest current-state facts + design-system empty-states rather
-// than fabricated data (CONTEXT.md; signals.go; the same stance Reports took):
+//   - Header sub-line: "last full scan Xm ago · next in Yh Zm" (P0.4, ScanSchedule).
+//   - One framed stat band of five cells (open signals · critical · assets watched ·
+//     exposed services · certs expiring ≤30d), each with its vs-last-batch delta chip
+//     (P0.2, #443), replacing the five loose .kpi tiles.
+//   - A running-scan Progress row with detail; a dismissible warn Banner with Retry.
+//   - By-severity bars over the real five-level ramp (#442); a Coverage card with
+//     census CoverageMeters (+ a StalenessBadge when a vantage is silent); a Vantages
+//     card; and the most-recent Signals register as a flat per-instance table (#442).
 //
-//   - Signals carry NO severity — the census is "deliberately not a severity
-//     ramp". So the "By severity" bars have no real series (empty-stated), and the
-//     "most recent signals" table carries no severity pill and no per-signal
-//     recency feed: it is reshaped to the current per-rule firing census, the one
-//     honest signal read.
-//   - Coverage denominators live on their own screen; the landing points to them
-//     rather than restating a partial figure.
+// The one figure with no datum is per-vantage latency: no latency is measured or
+// stored anywhere (SPEC-CHANGE.md collision #7, ruled a deferred subsystem out of
+// scope). Per acceptance #7 the latency figure renders the spec's own Skeleton
+// placeholder — never a fabricated number and never a dropped card; the rest of the
+// Vantages card is real. Every other read is best-effort: a failed read degrades to an
+// em dash or an empty region, never a fabricated value.
 //
-// Everything else is wired from real reads: the KPI counts (open-signal census,
-// current Name/Service subjects, declared scopes, in-flight scans), the vantage
-// health (ListVantages), the unreachable-vantage banner (ListUnavailableVantages),
-// and the running-scan state (the #245 active-dispatch source). Where a read does
-// not resolve, the figure degrades to an em dash, never a fabricated zero.
+// The classes below are template-local CSS translated from the design-system
+// components (Stat/DeltaChip, Progress, Banner, CoverageMeter, StalenessBadge,
+// AvailabilityBadge, SeverityBadge) within the existing token vocabulary — restyling,
+// not authoring (ADR-0109). No design-system component is authored here.
 var _ = template.Must(tmpl.Parse(dashboardTemplates))
 
 const dashboardTemplates = `
@@ -34,38 +38,123 @@ const dashboardTemplates = `
 {{template "foot" .}}{{end}}
 
 {{define "dashboard"}}
+<style>
+.dhead{display:flex;align-items:center;gap:var(--space-4)}
+.dsub{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.dsub .dsub-v{font-family:var(--mono);font-size:12px;color:var(--body)}
+.dbtn-ico{display:inline-flex;align-items:center;gap:6px}
+.dbtn-ico svg{width:14px;height:14px}
+/* Progress (indeterminate scan sweep) */
+.dprog{display:flex;flex-direction:column;gap:6px}
+.dprog-head{display:flex;align-items:baseline;gap:8px}
+.dprog-detail{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--body);white-space:nowrap}
+.dprog-track{height:6px;border-radius:999px;background:var(--sunken);overflow:hidden;position:relative}
+.dprog-track > span{position:absolute;top:0;bottom:0;width:34%;border-radius:999px;background:var(--accent);animation:dash-sweep 1.4s ease-in-out infinite}
+@keyframes dash-sweep{0%{left:-34%}100%{left:100%}}
+/* Banner action + dismiss */
+.dbanner{align-items:center}
+.dbanner .banner-body{flex:1;min-width:0}
+.dbanner .banner-act{flex:none;margin-left:8px}
+.dbanner .banner-x{flex:none;width:24px;height:24px;margin:-2px -4px 0 0;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-sm);color:var(--warn);text-decoration:none;font-size:15px;line-height:1}
+.dbanner .banner-x:hover{background:var(--warn-border);text-decoration:none}
+/* Framed stat band */
+.statband{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
+.statband-grid{display:grid;grid-template-columns:repeat(5,1fr)}
+.statcell{padding:20px 24px;min-width:0}
+.statcell + .statcell{border-left:1px solid var(--hairline)}
+.stat-label{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)}
+.stat-live{width:7px;height:7px;border-radius:999px;background:var(--accent);animation:verge-pulse 1.6s infinite}
+.stat-row{display:flex;align-items:baseline;gap:8px;margin-top:4px}
+.stat-num{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--ink);line-height:1.1}
+.stat-cap{display:block;margin-top:4px;font-size:11.5px;color:var(--muted)}
+.dchip{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:999px;font-family:var(--mono);font-size:11px;font-weight:600;line-height:1;white-space:nowrap;border:1px solid transparent;transform:translateY(-2px)}
+.dchip.bad{background:var(--danger-soft);border-color:var(--danger-border);color:var(--danger)}
+.dchip.good{background:var(--ok-soft);border-color:var(--ok-border);color:var(--ok)}
+.dchip.neutral{background:var(--sunken);border-color:var(--hairline);color:var(--muted)}
+.dchip svg.down{transform:rotate(180deg)}
+/* By-severity bars */
+.sevbar{display:flex;align-items:center;gap:12px}
+.sevbar .sb-label{width:72px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted)}
+.sevbar .sb-track{flex:1;height:8px;border-radius:999px;background:var(--sunken);overflow:hidden}
+.sevbar .sb-fill{display:block;height:100%;border-radius:999px}
+.sevbar .sb-count{width:26px;text-align:right;font-family:var(--mono);font-size:12.5px;color:var(--body)}
+/* Coverage census meters */
+.covmeter{display:flex;flex-direction:column;gap:6px}
+.covmeter-head{display:flex;align-items:baseline;gap:8px}
+.covmeter-head .cm-count{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--body);white-space:nowrap}
+.covmeter-bar{height:4px;border-radius:999px;background:repeating-linear-gradient(45deg,var(--accent-soft) 0 5px,var(--sunken) 5px 10px)}
+.covmeter-detail{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cov-stale{display:flex;align-items:center;gap:8px}
+.stale-badge{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:var(--r-sm);background:var(--stale-bg);border:1px solid var(--stale-border);color:var(--stale-fg);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.04em;white-space:nowrap;line-height:1}
+.stale-badge svg{width:9px;height:9px;flex:none}
+/* Vantage rows + latency skeleton + availability badge */
+.vrow{display:flex;align-items:center;gap:10px}
+.vrow .vname{font-family:var(--mono);font-size:12.5px;color:var(--body)}
+.dash-skel{display:inline-block;width:40px;height:10px;border-radius:6px;background:var(--border-strong);animation:dash-skel 1.6s ease-in-out infinite}
+@keyframes dash-skel{0%,100%{opacity:1}50%{opacity:0.5}}
+.avbadge{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:var(--r-sm);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.04em;white-space:nowrap;line-height:1;border:1px solid transparent}
+.avbadge .av-dot{width:5px;height:5px;border-radius:999px;flex:none}
+.avbadge.available{background:var(--ok-soft);border-color:var(--ok-border);color:var(--ok)}
+.avbadge.available .av-dot{background:var(--ok)}
+.avbadge.unavailable{background:var(--danger-soft);border-color:var(--danger-border);color:var(--danger)}
+.avbadge.unavailable .av-dot{background:var(--danger)}
+.avbadge.unverified{background:transparent;border:1px dashed var(--border-strong);color:var(--muted)}
+.avbadge.unverified .av-dot{background:var(--border-strong)}
+/* Most-recent Signals register (flat per-instance, whole-row deep-link) */
+.dsig-head,.dsig-row{display:grid;grid-template-columns:110px 1.4fr 1fr 70px 64px;align-items:center;gap:12px}
+.dsig-head{padding:0 0 var(--space-3);border-bottom:1px solid var(--border-strong)}
+.dsig-head span{font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted)}
+.dsig-head .r,.dsig-row .r{text-align:right}
+.dsig-row{padding:10px 0;border-bottom:1px solid var(--hairline);text-decoration:none;color:var(--body)}
+.dsig-row:last-child{border-bottom:none}
+.dsig-row:hover{background:var(--sunken);text-decoration:none}
+.dsig-row .dsig-title{font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsig-row .mono{font-family:var(--mono);font-size:12px}
+</style>
 <main style="display:flex;flex-direction:column;gap:var(--space-5)">
 
-<header style="display:flex;align-items:center;gap:var(--space-4)">
+<header class="dhead">
   <div style="display:flex;flex-direction:column;gap:2px">
     <h1 style="margin:0;font-size:21px">Dashboard</h1>
-    <span class="muted" style="font-size:12.5px">Signals, coverage and scan activity across your estate.</span>
+    <span class="dsub">{{with .ScanSchedule}}{{if .HasLast}}Last full scan <span class="dsub-v">{{.LastAgo}}</span> ago{{else}}No full scan yet{{end}}{{if .HasNext}} &#183; next in <span class="dsub-v">{{.NextIn}}</span>{{end}}{{end}}</span>
   </div>
   <div style="margin-left:auto;display:flex;gap:var(--space-2)">
-    <a class="btn secondary" href="/scope">Add seed</a>
-    <a class="btn" href="/scans">Run scan</a>
+    <a class="btn secondary dbtn-ico" href="/scope"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add seed</a>
+    {{if .Scanning}}<button class="btn dbtn-ico" disabled><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>Scan running</button>{{else}}<a class="btn dbtn-ico" href="/scans"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>Run scan</a>{{end}}
   </div>
 </header>
 
 {{if .Scanning}}
-<div class="banner info">
-  <span class="dot live"></span>
-  <div><strong>Scan running</strong> &#8212; {{.ActiveScans}} scan{{if ne .ActiveScans 1}}s{{end}} in flight. Figures update as the worker reports.</div>
+<div class="dprog">
+  <div class="dprog-head"><span class="microlabel">Scan running</span><span class="dprog-detail">{{.ActiveScans}} scan{{if ne .ActiveScans 1}}s{{end}} in flight</span></div>
+  <div class="dprog-track"><span></span></div>
 </div>
 {{end}}
 
-{{if .Unavailable}}
-<div class="banner warn">
-  <div><strong>Vantage unreachable</strong> &#8212; {{range $i, $n := .Unavailable}}{{if $i}}, {{end}}<span class="mono">{{$n}}</span>{{end}}. Scans continue from your other vantages.</div>
+{{if and .Unavailable (not .ProbeDismissed)}}
+<div class="banner warn dbanner">
+  <div class="banner-body">
+    <div style="font-weight:600;color:var(--ink)">Vantage unreachable</div>
+    <div style="font-size:12.5px;color:var(--body)">{{range $i, $n := .Unavailable}}{{if $i}}, {{end}}<span class="mono">{{$n}}</span>{{end}} could not be reached. Scans continue from your other vantages.</div>
+  </div>
+  <span class="banner-act"><a class="btn secondary" href="/scans" style="padding:5px 12px;font-size:12px;text-decoration:none">Retry now</a></span>
+  <a class="banner-x" href="/?probe=dismissed" aria-label="Dismiss">&#215;</a>
 </div>
 {{end}}
 
-<div class="kpis" style="margin-bottom:0">
-  <div class="kpi"><div class="kpi-label">Open signals</div><div class="kpi-num">{{if .HasOpenSignals}}{{.OpenSignals}}{{else}}&#8212;{{end}}</div><div class="kpi-delta">firing right now</div></div>
-  <div class="kpi"><div class="kpi-label">Names watched</div><div class="kpi-num">{{if .HasNames}}{{.Names}}{{else}}&#8212;{{end}}</div><div class="kpi-delta">in your estate</div></div>
-  <div class="kpi"><div class="kpi-label">Services seen</div><div class="kpi-num">{{if .HasServices}}{{.Services}}{{else}}&#8212;{{end}}</div><div class="kpi-delta">current reachability</div></div>
-  <div class="kpi"><div class="kpi-label">Scopes declared</div><div class="kpi-num">{{if .HasScopes}}{{.Scopes}}{{else}}&#8212;{{end}}</div><div class="kpi-delta">{{if .HasScopes}}{{.NameScopes}} name &#183; {{.AddrScopes}} address{{else}}unavailable{{end}}</div></div>
-  <div class="kpi"><div class="kpi-label">Scans in flight</div><div class="kpi-num">{{.ActiveScans}}</div><div class="kpi-delta">dispatched now</div></div>
+<div class="statband">
+  <div class="statband-grid">
+    {{range .StatBand}}
+    <div class="statcell">
+      <span class="stat-label">{{.Label}}{{if .Live}}<span class="stat-live"></span>{{end}}</span>
+      <span class="stat-row">
+        <span class="stat-num">{{.Value}}</span>
+        {{if .HasDelta}}<span class="dchip {{.Tone}}">{{if ne .Change 0}}<svg class="{{if lt .Change 0}}down{{end}}" viewBox="0 0 10 10" width="8" height="8" aria-hidden="true"><path d="M5 8.5V1.5M1.8 4.7L5 1.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{{end}}{{signDelta .Change}}</span>{{end}}
+      </span>
+      <span class="stat-cap">{{.Caption}}</span>
+    </div>
+    {{end}}
+  </div>
 </div>
 
 <div style="display:grid;grid-template-columns:380px 1fr;gap:var(--space-5);align-items:start">
@@ -76,12 +165,24 @@ const dashboardTemplates = `
         <span class="microlabel">Open signals</span>
         <h2 style="margin:0;font-size:15px">By severity</h2>
       </div>
+      {{if .HasSignals}}
+      <div style="display:flex;flex-direction:column;gap:12px">
+        {{range .SevBars}}
+        <div class="sevbar">
+          <span class="sb-label">{{.Sev}}</span>
+          <span class="sb-track"><span class="sb-fill" style="width:{{.Pct}}%;background:var(--sev-{{.Sev}}-dot)"></span></span>
+          <span class="sb-count">{{.Count}}</span>
+        </div>
+        {{end}}
+      </div>
+      {{else}}
       <div class="emptystate">
-        <div class="microlabel">No severity ramp</div>
-        <h2>Signals carry no severity</h2>
-        <p style="max-width:60ch;margin:var(--space-3) auto">A signal is a census member, not a scored one &#8212; the register set is deliberately not a severity ramp, so there is nothing to rank here. See each rule's fired, did-not-fire and not-evaluable members on Signals.</p>
+        <div class="microlabel">Unavailable</div>
+        <h2>Severity could not be read</h2>
+        <p style="max-width:60ch;margin:var(--space-3) auto">The signal census did not resolve on this load. Open Signals for the live ramp.</p>
         <a class="btn ghost" href="/signals">Go to Signals</a>
       </div>
+      {{end}}
     </section>
 
     <section class="section" style="margin-bottom:0">
@@ -89,12 +190,30 @@ const dashboardTemplates = `
         <span class="microlabel">Coverage</span>
         <h2 style="margin:0;font-size:15px">Did we look, how completely</h2>
       </div>
-      <div class="emptystate">
-        <div class="microlabel">Lives on Coverage</div>
-        <h2>Coverage detail is on its own screen</h2>
-        <p style="max-width:60ch;margin:var(--space-3) auto">The denominator reads &#8212; how much of each declared range and zone you have looked at, and how current each is &#8212; live on Coverage. This landing does not restate a partial figure.</p>
-        <a class="btn ghost" href="/coverage">Go to Coverage</a>
+      {{if .CoverageMeters}}
+      <div style="display:flex;flex-direction:column;gap:16px">
+        {{range .CoverageMeters}}
+        <div class="covmeter">
+          <div class="covmeter-head"><span class="microlabel">{{.Label}}</span><span class="cm-count">census &#183; {{.Count}}{{if .Unit}} {{.Unit}}{{end}}</span></div>
+          <div class="covmeter-bar" aria-label="Census — no denominator"></div>
+          {{if .Detail}}<div class="covmeter-detail">{{.Detail}}</div>{{end}}
+        </div>
+        {{end}}
+        {{if .SilentVantage}}
+        <div class="cov-stale">
+          <span class="stale-badge"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="5" cy="5" r="3.6"/><path d="M5 3.2V5l1.4 1" stroke-linecap="round"/></svg>no reports</span>
+          <span class="muted" style="font-size:11.5px">position <span class="mono">{{.SilentVantage}}</span> went silent</span>
+        </div>
+        {{end}}
       </div>
+      {{else}}
+      <div class="emptystate">
+        <div class="microlabel">No scope declared</div>
+        <h2>Nothing to census yet</h2>
+        <p style="max-width:60ch;margin:var(--space-3) auto">A census counts what each declared scope looks at. Declare a seed on Scope, and its aperture appears here.</p>
+        <a class="btn ghost" href="/scope">Go to Scope</a>
+      </div>
+      {{end}}
     </section>
 
     <section class="section" style="margin-bottom:0">
@@ -105,10 +224,10 @@ const dashboardTemplates = `
       {{if .Vantages}}
       <div style="display:flex;flex-direction:column;gap:var(--space-3)">
         {{range .Vantages}}
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="mono" style="font-size:12.5px;color:var(--body)">{{.Name}}</span>
-          <span class="mono muted" style="font-size:12px">{{.Class}}</span>
-          <span style="margin-left:auto">{{if eq .Avail "available"}}<span class="badge">available</span>{{else if eq .Avail "unavailable"}}<span class="badge off">unavailable</span>{{else}}<span class="badge off">{{if .Avail}}{{.Avail}}{{else}}unknown{{end}}</span>{{end}}</span>
+        <div class="vrow">
+          <span class="vname">{{.Name}}</span>
+          <span class="dash-skel" title="Per-vantage latency is not measured yet" aria-label="latency not measured"></span>
+          <span style="margin-left:auto">{{if eq .Avail "available"}}<span class="avbadge available"><span class="av-dot"></span>available</span>{{else if eq .Avail "unavailable"}}<span class="avbadge unavailable"><span class="av-dot"></span>unavailable</span>{{else}}<span class="avbadge unverified"><span class="av-dot"></span>{{if .Avail}}{{.Avail}}{{else}}unverified{{end}}</span>{{end}}</span>
         </div>
         {{end}}
       </div>
@@ -127,23 +246,23 @@ const dashboardTemplates = `
   <section class="section" style="margin-bottom:0">
     <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-4)">
       <div style="display:flex;flex-direction:column;gap:3px">
-        <span class="microlabel">Open signals</span>
-        <h2 style="margin:0;font-size:15px">Firing now, by rule</h2>
+        <span class="microlabel">Most recent</span>
+        <h2 style="margin:0;font-size:15px">Signals</h2>
       </div>
       <a class="btn ghost" href="/signals" style="margin-left:auto">View all</a>
     </div>
-    {{if .Firing}}
-    <table class="vg-table">
-      <thead><tr><th>Rule</th><th>Subject</th><th style="text-align:right">Fired</th></tr></thead>
-      <tbody>
-      {{range .Firing}}<tr>
-        <td class="mono">{{.Rule}}</td>
-        <td><span class="badge">{{.Kind}}</span></td>
-        <td class="mono" style="text-align:right">{{.Fired}}</td>
-      </tr>{{end}}
-      </tbody>
-    </table>
-    {{else if .HasOpenSignals}}
+    {{if .RecentSignals}}
+    <div class="dsig-head"><span>Severity</span><span>Signal</span><span>Asset</span><span>Port</span><span class="r">Seen</span></div>
+    {{range .RecentSignals}}
+    <a class="dsig-row" href="/signals">
+      <span><span class="sev sev-{{.Severity}}">{{if ne .Severity "critical"}}<span class="sev-dot"></span>{{end}}{{.Severity}}</span></span>
+      <span class="dsig-title">{{.Title}}</span>
+      <span class="mono">{{.Asset}}</span>
+      <span class="mono">{{if .Port}}{{.Port}}{{else}}&#8212;{{end}}</span>
+      <span class="mono r">{{.Seen}}</span>
+    </a>
+    {{end}}
+    {{else if .HasSignals}}
     <div class="emptystate">
       <div class="microlabel">All quiet</div>
       <h2>No signals firing</h2>
@@ -153,7 +272,7 @@ const dashboardTemplates = `
     {{else}}
     <div class="emptystate">
       <div class="microlabel">Unavailable</div>
-      <h2>Signal census could not be read</h2>
+      <h2>Signal register could not be read</h2>
       <p style="max-width:60ch;margin:var(--space-3) auto">The signal register did not resolve on this load. Open Signals for the live census.</p>
       <a class="btn ghost" href="/signals">Go to Signals</a>
     </div>
