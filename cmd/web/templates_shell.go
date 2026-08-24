@@ -501,7 +501,13 @@ const wordmark = `<span class="brand-glyph" aria-hidden="true"><svg viewBox="0 0
 // tmpl is the single template the whole console renders through. The shell blocks
 // (head/foot/chrome) are parsed here; every per-screen file appends its own blocks
 // to this same tmpl via `var _ = template.Must(tmpl.Parse(...))` (see templates_*.go).
-var tmpl = template.Must(template.New("").Parse(`
+var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
+	// integrationsEnabled exposes the compile-time #388 flag (integrations.go) to
+	// templates, so the shell's command palette and the Settings tab bar can gate
+	// the hidden Integrations surface without threading a data field through every
+	// handler that renders the shell. It is false while the surface is hidden.
+	"integrationsEnabled": func() bool { return integrationsEnabled },
+}).Parse(`
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var t=localStorage.getItem("verge-theme");if(t){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
@@ -676,7 +682,7 @@ var tmpl = template.Must(template.New("").Parse(`
 <a class="cmdk-item" href="/signals">Signals{{if .SignalCount}}<span class="cmdk-hint">{{.SignalCount}} open</span>{{end}}</a>
 <a class="cmdk-item" href="/graph">Graph</a>
 <a class="cmdk-item" href="/reports">Reports</a>
-{{if .IsAdmin}}<a class="cmdk-item" href="/settings?tab=integrations">Integrations</a>
+{{if .IsAdmin}}{{if integrationsEnabled}}<a class="cmdk-item" href="/settings?tab=integrations">Integrations</a>{{end}}
 <a class="cmdk-item" href="/settings">Settings</a>{{end}}
 </div>
 <div class="cmdk-group" data-cmdk-group><div class="microlabel">Actions</div>
