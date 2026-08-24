@@ -18,25 +18,21 @@ import (
 // template in this ticket's file (the convention templates_settings.go names).
 var _ = template.Must(tmpl.Parse(integrationsTemplates))
 
-// integrationsEnabled gates the whole Settings → Integrations surface (#388). It
-// is false: the surface is a placeholder. "Installing" an integration only writes
-// a (slug, "installed") row to integration_state, and nothing — no worker, no
-// service, no delivery path — consumes that row (the real delivery worker in
-// internal/delivery/runner.go POSTs raw JSON to channel URLs and is
-// integration-agnostic). There is no client, auth, credential storage, or
-// per-integration formatting anywhere in the tree. Shipping a tile grid that lets
-// an operator "install" integrations that silently do nothing is misleading, so
-// the surface stays hidden until the real build exists.
+// integrationsEnabled gates the whole Settings → Integrations surface (#388). The
+// design package is normative for look AND functionality (ADR-0116, PARITY-CHART
+// P1.9): the shell's command palette and the Settings tab bar both reach the
+// Integrations surface in the design, so it ships enabled rather than hidden. The
+// tab, the render dispatch, and the install/disconnect routes are all guarded on
+// this one flag, so flipping it true revives the whole surface at once.
 //
-// The tab, the render dispatch, and the install/disconnect routes are all guarded
-// on this flag, so with it false nothing integration-related is reachable and no
-// user-facing route can write to integration_state. The catalogue, templates,
-// handlers, table (db/migrations/21200_integration_state.sql), and queries are
-// kept intact (dormant) rather than deleted: the future real build — real
-// clients, auth/OAuth, credential storage, per-integration message formatting,
-// acks, state mapping, and a worker path that consumes installed integrations —
-// revives this surface by flipping this one constant to true.
-const integrationsEnabled = false
+// "Installing" an integration writes a (slug, "installed") row to integration_state
+// and records the operator's declared consent; the real delivery worker
+// (internal/delivery/runner.go) POSTs raw JSON to channel URLs and is
+// integration-agnostic, so per-integration clients, credential storage, and
+// message formatting remain future work layered on top of this surface, not a
+// precondition for reaching it. The catalogue, templates, handlers, table
+// (db/migrations/21200_integration_state.sql), and queries are all in the tree.
+const integrationsEnabled = true
 
 // The three install states a tile can be in (design-system Integrations.jsx /
 // IntegrationTile.jsx). "available" is the absence of a row — nothing installed;
