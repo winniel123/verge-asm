@@ -4,6 +4,8 @@ docs
 !docs/guides
 deploy
 design-system
+docs-site
 prototypes
+**/node_modules
 *.md
 !docs/guides/*.md

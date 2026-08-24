@@ -6,18 +6,22 @@ import "html/template"
 // list (and the shared `recordrows` partial and the `subject-missing` page). The
 // Name/Service/Endpoint detail views live elsewhere: a Name row opens the Asset
 // detail (`/asset/{key}`, T1), and the Service/Endpoint drill-ins are the
-// SubjectDetail templates in templates_subjectdetail.go (U1, #478). The screen
-// ticket (T-Inventory) rewrites the body against examples/console/Inventory.jsx
-// (saved views, column picker, density, hover peeks). Ported verbatim for T0.
+// SubjectDetail templates in templates_subjectdetail.go (U1, #478). The body is
+// the re-specced Inventory (SPEC-CHANGE #13 / U6, package v3.2.4): the open-span
+// read grouped by subject, with client-side Kind / Gaps-only / subject scoping,
+// column picker, and density — the exposure-era saved views / tag filters /
+// bulk-actions bar were retired by that ruling as bound to nothing in the
+// subject/facet/span model.
 var _ = template.Must(tmpl.Parse(inventoryTemplates))
 
 const inventoryTemplates = `
 {{define "inventory"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>
-/* Inventory delta (#310) — navigable rows + saved-views/columns/density controls,
-   translated from design-system/examples/console/Inventory.jsx within the existing
-   token vocabulary (restyling, not authoring — ADR-0109). */
+/* Inventory delta (#310, re-specced U6/#517) — navigable rows + client-side
+   Kind/Gaps/subject scope, columns, and density controls, translated from
+   design-system/examples/console/Inventory.jsx within the existing token
+   vocabulary (restyling, not authoring — ADR-0109). */
 .invrow { cursor: pointer; }
 .invrow:hover { background: var(--sunken); }
 .invrow:focus, .invrow:focus-visible { outline: none; background: var(--accent-soft); }
@@ -33,6 +37,21 @@ const inventoryTemplates = `
 .seg button { border: none; border-radius: 0; background: transparent; color: var(--muted);
   font-family: var(--mono); font-size: 11px; padding: 4px 10px; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--link); }
+/* Client-side scope controls (SPEC-CHANGE #13): a Gaps-only toggle and a
+   subject filter, both scoping the already-rendered corpus — no server search. */
+.invswitch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.invswitch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.invswitch .switch { display: inline-block; width: 34px; height: 18px; border-radius: var(--r-full);
+  position: relative; background: var(--sunken); border: 1px solid var(--hairline); transition: background 120ms; }
+.invswitch input:checked + .switch { background: var(--accent); border-color: var(--accent); }
+.invswitch input:focus-visible + .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+.invswitch .knob { position: absolute; top: 1px; left: 1px; width: 14px; height: 14px; border-radius: var(--r-full);
+  background: var(--surface); transition: left 120ms; }
+.invswitch input:checked + .switch .knob { left: 17px; background: var(--on-accent); }
+.invfilter { font-family: var(--mono); font-size: 12px; padding: 5px 10px; border: 1px solid var(--hairline);
+  border-radius: var(--r-md); background: var(--surface); color: var(--ink); width: 210px; }
+.invfilter::placeholder { color: var(--muted); }
+tr[data-invsub][hidden], .section[data-kind][hidden] { display: none; }
 </style>
 <main>
 <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-4)">
@@ -54,11 +73,13 @@ endpoint returns. Each row is a subject; open it for the asset's full record, or
 to its individual records. A withdrawn subject holds no current span and so is not here. As on
 the change views there is no total: your estate's completeness is yours alone to state.</p>
 
-<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4)">
-<div style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">
-<span class="chip" style="background:var(--accent-soft);border-color:var(--accent-soft);color:var(--link)">All subjects</span>
-{{range .Groups}}<a class="chip" href="#{{.Kind}}" style="text-decoration:none">{{.Label}}</a>{{end}}
-</div>
+<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4)">
+<span class="seg" role="group" aria-label="Kind" data-invkind>
+<button type="button" data-kind="all" aria-pressed="true">All subjects</button>
+{{range .Groups}}<button type="button" data-kind="{{.Kind}}" aria-pressed="false">{{.Label}}</button>{{end}}
+</span>
+<label class="invswitch"><input type="checkbox" data-invgaps aria-label="Gaps only"><span class="switch"><span class="knob"></span></span><span class="microlabel">Gaps only</span></label>
+<input class="invfilter" type="search" data-invfilter placeholder="Filter subjects&#8230;" aria-label="Filter subjects">
 <span style="margin-left:auto;display:inline-flex;gap:12px;align-items:center">
 <span class="microlabel" data-invnav-hint>j/k or arrows to move · enter opens</span>
 <span style="display:inline-flex;gap:6px;align-items:center">
@@ -83,7 +104,7 @@ the change views there is no total: your estate's completeness is yours alone to
 <div class="invtables" data-density="compact">
 {{if .Groups}}
 {{range .Groups}}
-<div class="section" id="{{.Kind}}">
+<div class="section" id="{{.Kind}}" data-kind="{{.Kind}}">
 <div class="microlabel" style="margin-bottom:var(--space-3)">{{.Label}}</div>
 <table class="vg-table">
 <thead><tr>
@@ -93,7 +114,7 @@ the change views there is no total: your estate's completeness is yours alone to
 <th data-col="since" style="width:1%;white-space:nowrap;text-align:right">Since</th>
 </tr></thead>
 <tbody>
-{{range .Subjects}}<tr{{if .Link}} class="invrow" tabindex="0" data-href="{{.Link}}" role="link" aria-label="Open {{.Key}}"{{end}}>
+{{range .Subjects}}<tr data-invsub data-key="{{.Key}}" data-has-gap="{{if .HasGap}}1{{else}}0{{end}}"{{if .Link}} class="invrow" tabindex="0" data-href="{{.Link}}" role="link" aria-label="Open {{.Key}}"{{end}}>
 <td>{{if .Link}}<a class="mono" href="{{.Link}}" title="{{range .Facets}}{{.Label}}: {{.Summary}}&#10;{{end}}">{{.Key}}</a>{{else}}<span class="mono">{{.Key}}</span>{{end}}</td>
 <td data-col="type"><span class="badge">{{.Type}}</span></td>
 <td data-col="holds">
@@ -108,6 +129,10 @@ the change views there is no total: your estate's completeness is yours alone to
 </table>
 </div>
 {{end}}
+<div class="emptystate" data-invnomatch hidden>
+<h2>No subjects match this scope</h2>
+<p>The corpus is unaffected — only this view is scoped. <button type="button" class="btn secondary" data-invclear>Clear filters</button></p>
+</div>
 {{else}}
 <div class="emptystate">
 <h2>No population measured yet</h2>
@@ -160,6 +185,49 @@ the inventory fills as facets are folded.</p>
     cb.addEventListener("change", function () {
       container.classList.toggle("hide-" + cb.getAttribute("data-col-toggle"), !cb.checked);
     });
+  });
+  /* Client-side scope (SPEC-CHANGE #13, package v3.2.4): the Kind segmented
+     control, the Gaps-only switch, and the subject filter narrow the
+     already-rendered corpus — nothing is fetched. Hidden rows and sections stay
+     in the DOM, so clearing the scope restores the full read instantly, and the
+     "no subjects match" state stands in when the scope empties the view. */
+  var kindBtns = Array.prototype.slice.call(container.querySelectorAll("[data-invkind] button"));
+  var gapsBox = container.querySelector("[data-invgaps]");
+  var filterInput = container.querySelector("[data-invfilter]");
+  var noMatch = container.querySelector("[data-invnomatch]");
+  var sections = Array.prototype.slice.call(container.querySelectorAll(".section[data-kind]"));
+  var scope = { kind: "all", gaps: false, q: "" };
+  function applyScope() {
+    var anyVisible = false;
+    sections.forEach(function (sec) {
+      var kindOk = scope.kind === "all" || sec.getAttribute("data-kind") === scope.kind;
+      var shown = 0;
+      Array.prototype.slice.call(sec.querySelectorAll("tr[data-invsub]")).forEach(function (tr) {
+        var ok = kindOk &&
+          (!scope.gaps || tr.getAttribute("data-has-gap") === "1") &&
+          (!scope.q || (tr.getAttribute("data-key") || "").toLowerCase().indexOf(scope.q) !== -1);
+        if (ok) { tr.removeAttribute("hidden"); shown++; } else { tr.setAttribute("hidden", ""); }
+      });
+      if (shown > 0) { sec.removeAttribute("hidden"); anyVisible = true; } else { sec.setAttribute("hidden", ""); }
+    });
+    if (noMatch) { if (anyVisible) noMatch.setAttribute("hidden", ""); else noMatch.removeAttribute("hidden"); }
+  }
+  kindBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      scope.kind = btn.getAttribute("data-kind");
+      kindBtns.forEach(function (b) { b.setAttribute("aria-pressed", b === btn ? "true" : "false"); });
+      applyScope();
+    });
+  });
+  if (gapsBox) gapsBox.addEventListener("change", function () { scope.gaps = gapsBox.checked; applyScope(); });
+  if (filterInput) filterInput.addEventListener("input", function () { scope.q = filterInput.value.trim().toLowerCase(); applyScope(); });
+  var clearBtn = container.querySelector("[data-invclear]");
+  if (clearBtn) clearBtn.addEventListener("click", function () {
+    scope = { kind: "all", gaps: false, q: "" };
+    kindBtns.forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-kind") === "all" ? "true" : "false"); });
+    if (gapsBox) gapsBox.checked = false;
+    if (filterInput) filterInput.value = "";
+    applyScope();
   });
 })();
 </script>

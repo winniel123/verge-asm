@@ -305,6 +305,57 @@ func TestInventoryExportButtonGated(t *testing.T) {
 	}
 }
 
+// The re-specced Inventory (SPEC-CHANGE #13 / U6, package v3.2.4) carries the
+// client-side scope controls that replaced the exposure-era saved views / tag
+// filters / bulk-actions bar — a Kind segmented control, a Gaps-only switch, a
+// subject filter, and a "no subjects match this scope" state with a Clear-filters
+// reset. All scope the already-rendered corpus; nothing hits the server.
+func TestInventoryScopeControls(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/inventory", http.StatusOK)
+
+	for _, want := range []string{
+		`data-invkind`,     // Kind segmented control
+		`data-kind="name"`, // one Kind option (and section) per rendered group
+		`data-invgaps`,     // Gaps-only switch
+		"Gaps only",
+		`data-invfilter`,  // subject filter
+		`data-invnomatch`, // no-match empty state
+		`data-invclear`,   // its Clear-filters reset
+		`data-invsub`,     // each row is scopable
+		`data-has-gap=`,   // the Gaps-only datum, per row
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("inventory scope control missing %q; body: %s", want, page)
+		}
+	}
+	// The retired exposure-era controls (bound to nothing in the subject/facet/span
+	// model, SPEC-CHANGE #13) must not have crept back.
+	for _, banned := range []string{"Saved view", "Rescan", "Add tag", "Bulk action"} {
+		if strings.Contains(page, banned) {
+			t.Errorf("inventory rendered a retired exposure-era control %q; body: %s", banned, page)
+		}
+	}
+}
+
+// HasGap reports whether a subject holds at least one Gap facet — the per-row
+// datum the "Gaps only" client-side scope reads.
+func TestInventorySubjectHasGap(t *testing.T) {
+	withGap := inventorySubject{Facets: []inventoryFacet{{Label: "resolution"}, {Label: "dns-record", IsGap: true}}}
+	if !withGap.HasGap() {
+		t.Errorf("HasGap() = false for a subject holding a Gap facet")
+	}
+	noGap := inventorySubject{Facets: []inventoryFacet{{Label: "resolution"}}}
+	if noGap.HasGap() {
+		t.Errorf("HasGap() = true for a subject holding no Gap facet")
+	}
+}
+
 func TestInventoryRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "")
