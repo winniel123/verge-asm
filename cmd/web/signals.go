@@ -647,7 +647,7 @@ func sortArrow(active bool, dir string) template.HTML {
 	default:
 		svg = open + `">` + up + `</svg>`
 	}
-	return template.HTML(svg) //nolint:gosec // static SVG caret markup from consts; active/dir only select a branch, no user input
+	return template.HTML(svg) // #nosec G203 -- static SVG caret markup from consts; active/dir only select a branch, no user input
 }
 
 // sevLabel capitalises a severity token for the badge label ("critical" ->
