@@ -1,7 +1,9 @@
 .git
 .claude
 docs
+!docs/guides
 deploy
 design-system
 prototypes
 *.md
+!docs/guides/*.md
