@@ -98,12 +98,29 @@ func main() {
 	// On-cadence report dispatch runs beside the queue dispatcher (#502/T3): each
 	// tick renders every due schedule's artifact and stamps an in-instance receipt
 	// keyed to the tick, idempotent so a second poll in a window is a recorded skip.
-	// Off-instance send is a later ticket (#508/T7, ADR-0039 stands). It is a no-op
-	// until an admin declares a schedule — no schedule ships, so nothing is cut.
+	// A schedule bound to a Channel also enqueues one link-only ready-message per won
+	// tick (#508/T7); a download-only schedule enqueues nothing. It is a no-op until an
+	// admin declares a schedule — no schedule ships, so nothing is cut.
 	reportDispatcher := report.NewDispatcher(pool, time.Now, logger)
 	go func() {
 		if err := reportDispatcher.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Printf("worker: report dispatcher stopped: %v", err)
+		}
+	}()
+
+	// Report notify runs beside the report dispatcher (#508/T7, ADR-0039 stands): it
+	// drains pending report notifications and POSTs each bound Channel a LINK-ONLY
+	// ready-message — the report name, the run's period, and a session-authed link to
+	// the in-instance artifact, never the estate. On a 2xx it flips the receipt to
+	// 'delivered'; on dead-letter the receipt stays 'generated' and the artifact stays
+	// viewable. It rides the delivery package's shared signed-HTTPS transport and
+	// queue.Backoff curve, and is a no-op until a schedule binds a Channel.
+	// VERGE_PUBLIC_URL is the absolute base the ready-message's link is built on; empty
+	// leaves the link as the bare path.
+	notifyRunner := report.NewNotifyRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger)
+	go func() {
+		if err := notifyRunner.Run(ctx, 5*time.Second); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: report notify stopped: %v", err)
 		}
 	}()
 

@@ -20,6 +20,12 @@ type Querier interface {
 	// run_after has passed, oldest first, marking the winner running in one
 	// statement so two workers never claim the same job.
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
+	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending notifications whose
+	// run_after has passed, oldest first, marking the winner 'sending' in one statement so
+	// two workers never claim the same one. It joins the run and its schedule so the runner
+	// has everything the link-only body needs — the report name and the run's period — plus
+	// the channel to POST to and the attempt budget, in one read.
+	ClaimReportNotification(ctx context.Context) (ClaimReportNotificationRow, error)
 	// Close an open span at closed_at, recording a closure reason only where the
 	// close is a withdrawal (reason is NULL for an ordinary value move or a version
 	// change) and the id of the Batch whose fold closed it (ADR-0111) — nullable, since
@@ -318,10 +324,11 @@ type Querier interface {
 	// can copy its scope into a Seed. A Proposal already confirmed or declined does
 	// not come back, so a double submit cannot open the gate twice.
 	GetPendingProposal(ctx context.Context, id int64) (Proposal, error)
-	// One declared schedule by id — the read behind the Edit wizard (prefill) and the
-	// Run-now dispatch (the run reads the schedule's name/cadence/format to cut the
-	// artifact for the current period). No row (pgx.ErrNoRows) is a schedule that never
-	// existed or was already deleted; the caller answers a stale id rather than 500ing.
+	// One declared schedule by id — the read behind the Edit wizard (prefill, including
+	// the bound channel) and the Run-now dispatch (the run reads the schedule's
+	// name/cadence/format to cut the artifact for the current period). No row
+	// (pgx.ErrNoRows) is a schedule that never existed or was already deleted; the caller
+	// answers a stale id rather than 500ing.
 	GetReportSchedule(ctx context.Context, id int64) (ReportSchedule, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
@@ -387,19 +394,39 @@ type Querier interface {
 	// / failed; delivered_at is NULL where the run generated without leaving (a
 	// download-only schedule) and the stamp otherwise. generated_at defaults to now().
 	InsertReportDelivery(ctx context.Context, arg InsertReportDeliveryParams) (ReportDelivery, error)
+	// Reads and writes behind the report notify runner (P0.6c/T7, #508). A
+	// report_notification is the Operational record of one link-only ready-message to a
+	// Channel for a scheduled report run: it is NOT a Message and carries no estate
+	// (ADR-0039, ADR-0081). It mirrors the delivery table's claim/retry/mark queries —
+	// FOR UPDATE SKIP LOCKED, the shared queue.Backoff on retry, dead-letter on the spent
+	// attempt budget — but keys on the report_delivery it announces, not a message, and
+	// routes by the schedule's channel binding, not by class.
+	// Enqueue one pending ready-message for a scheduled run (report_delivery_id) to its
+	// schedule's bound Channel (channel_id). Called once per won tick in the dispatcher's
+	// transaction, only when the schedule binds a channel — a download-only schedule
+	// enqueues nothing. state defaults to 'pending' and run_after to now(), so the next
+	// notify poll claims it.
+	InsertReportNotification(ctx context.Context, arg InsertReportNotificationParams) error
 	// Reads and writes behind the Reports screen's recurring-reports table and its
 	// "New schedule" wizard (#290, live CRUD in P0.6/T4). A report_schedule is Declared
 	// and carries no timeline: a re-declaration through the wizard is a fresh insert,
 	// never a recompute of an existing row (migration 21700). The row-menu's Edit is a
 	// genuine in-place update of a schedule's declared contents (name / sections /
-	// cadence / format / target) — a schedule carries no derived state to recompute, so
+	// cadence / format / channel) — a schedule carries no derived state to recompute, so
 	// editing what was declared is not a recompute — and Delete is a hard delete. The
 	// estate is single-tenant, so the list is unscoped; created_by attributes the admin
 	// who declared each schedule and is immutable across an edit.
+	//
+	// The schedule's delivery destination is a Channel: channel_id binds the signed-HTTPS
+	// Channel that receives the run's link-only ready-message, and NULL is download-only
+	// (P0.6c/T7, #508, migration 22700). The free-text delivery_target is superseded by
+	// the binding — it is written empty and no longer read as the destination.
 	// Declare one recurring report. The caller has parsed the wizard form — name, the
-	// chosen sections (a JSON array), cadence, format, and the delivery target — and
-	// attributes it to the admin who submitted it. sections defaults to an empty array
-	// at the column, so a schedule with no sections chosen still inserts.
+	// chosen sections (a JSON array), cadence, format, and the delivery destination
+	// (a channel_id, or NULL for download-only) — and attributes it to the admin who
+	// submitted it. sections defaults to an empty array at the column, so a schedule with
+	// no sections chosen still inserts. delivery_target is written empty (superseded by
+	// the channel binding).
 	InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error)
 	// Record a verified (provider, sub) → account binding, established by an authenticated
 	// Profile self-link (ADR-0113). UNIQUE(provider_id, sub) guards a second account from
@@ -688,8 +715,9 @@ type Querier interface {
 	// schedule, including failed runs so the record is complete.
 	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]ReportDelivery, error)
 	// Every declared schedule, newest-first, unbounded — the "Recurring reports" table
-	// renders each row and resolves its "last delivery" from the report_delivery
-	// receipts store (#291/T2), since this table holds only the declared intent.
+	// renders each row (resolving the bound channel's URL for the Delivery cell) and its
+	// "last delivery" from the report_delivery receipts store (#291/T2), since this table
+	// holds only the declared intent.
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
 	// Every binding for the admin SSO settings — the offboarding / seat-reassignment view.
 	// Joined to provider and account so the admin sees which identity maps to whom, newest
@@ -854,6 +882,19 @@ type Querier interface {
 	// of MarkMessageRead — the design's Inbox renders a "Mark unread" affordance
 	// (Inbox.jsx:59), so read is reversible.
 	MarkMessageUnread(ctx context.Context, arg MarkMessageUnreadParams) error
+	// Flip a generated receipt to delivered and stamp the instant it left. Called by the
+	// report notify runner (T7/#508) once the Channel accepted the link-only ready-message
+	// for this run — the artifact was already generated and viewable; this records that its
+	// ready-message reached its destination. A notify FAILURE never calls this: the receipt
+	// stays 'generated' and the artifact stays viewable regardless of the send outcome.
+	MarkReportDeliveryDelivered(ctx context.Context, arg MarkReportDeliveryDeliveredParams) error
+	// A 2xx: the ready-message reached the Channel. Clears the last error. The caller
+	// flips the report_delivery receipt to 'delivered' in the same act.
+	MarkReportNotificationDelivered(ctx context.Context, id int64) error
+	// The attempt budget is spent: dead-letter the ready-message. The report_delivery
+	// receipt is deliberately left 'generated' — the artifact was cut and stays viewable
+	// in-instance; only the ready-message failed to leave (ADR-0039).
+	MarkReportNotificationUndelivered(ctx context.Context, arg MarkReportNotificationUndeliveredParams) error
 	// A completed Batch at this vantage is proof the position can observe again, so
 	// Availability is derived back to 'available' from the terminal batch outcome
 	// (ADR-0108). A host-key-mismatched prober cannot complete a Batch — its SSH
@@ -954,6 +995,10 @@ type Querier interface {
 	// by the shared backoff, and record the error. The row returns to 'pending' and
 	// the claim index picks it up again once run_after passes.
 	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error
+	// A transient failure with attempts left: advance the attempt, push run_after out by
+	// the shared backoff, and record the error. The row returns to 'pending' and the claim
+	// index picks it up again once run_after passes. The receipt is never touched.
+	RetryReportNotification(ctx context.Context, arg RetryReportNotificationParams) error
 	// Revoke every live session for an account with no exception — the password-reset
 	// path (no current session to keep) and the admin offboarding action. Idempotent.
 	RevokeAllSessionsForAccount(ctx context.Context, arg RevokeAllSessionsForAccountParams) error
@@ -1050,8 +1095,9 @@ type Querier interface {
 	// Edit one schedule's declared contents in place (the row-menu's Edit). A schedule
 	// carries no timeline and no derived state, so updating what was declared is not a
 	// recompute (migration 21700) — the id, created_by and created_at are preserved.
-	// Returns the updated row so the caller can confirm the target existed; no row means
-	// a stale id.
+	// channel_id is part of the declared contents, so an edit can rebind the destination
+	// or set it to download-only (NULL). Returns the updated row so the caller can confirm
+	// the target existed; no row means a stale id.
 	UpdateReportSchedule(ctx context.Context, arg UpdateReportScheduleParams) (ReportSchedule, error)
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
 	// Updates everything but the secret; the secret has its own write path, so an edit

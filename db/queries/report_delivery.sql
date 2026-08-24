@@ -34,6 +34,16 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (schedule_id, scheduled_tick) WHERE scheduled_tick IS NOT NULL DO NOTHING
 RETURNING id, schedule_id, period_start, period_end, delivery_no, generated_at, delivered_at, state;
 
+-- name: MarkReportDeliveryDelivered :exec
+-- Flip a generated receipt to delivered and stamp the instant it left. Called by the
+-- report notify runner (T7/#508) once the Channel accepted the link-only ready-message
+-- for this run — the artifact was already generated and viewable; this records that its
+-- ready-message reached its destination. A notify FAILURE never calls this: the receipt
+-- stays 'generated' and the artifact stays viewable regardless of the send outcome.
+UPDATE report_delivery
+SET state = 'delivered', delivered_at = $2
+WHERE id = $1;
+
 -- name: GetLatestReportDelivery :one
 -- The newest non-failed run of a schedule — the receipt the "Recurring reports"
 -- table reads for its "last sent" cell and the artifact view opens. A failed run

@@ -101,13 +101,13 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick
 	periodEnd := tick
 	periodStart := tick.Add(-window)
 
-	_, err = qtx.TryInsertScheduledDelivery(ctx, db.TryInsertScheduledDeliveryParams{
+	inserted, err := qtx.TryInsertScheduledDelivery(ctx, db.TryInsertScheduledDeliveryParams{
 		ScheduleID:    sc.ID,
 		PeriodStart:   tstz(periodStart),
 		PeriodEnd:     tstz(periodEnd),
 		DeliveryNo:    no,
 		State:         "generated",
-		DeliveredAt:   pgtype.Timestamptz{}, // generated, not delivered — off-instance send is #508/T7.
+		DeliveredAt:   pgtype.Timestamptz{}, // generated, not delivered — the ready-message send is T7.
 		ScheduledTick: tstz(tick),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -122,8 +122,8 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick
 
 	// Won the claim: cut the artifact for the window. The delivered document recomputes
 	// from the period bounds at render time, so this render confirms the report is
-	// cuttable; the receipt snapshots nothing. Content/off-instance wiring lands later
-	// (#508/T7) — here the canonical renderer draws the current period, mirroring Run-now.
+	// cuttable; the receipt snapshots nothing. The canonical renderer draws the current
+	// period, mirroring Run-now.
 	_ = message.RenderArtifact(message.Artifact{
 		Title:       sc.Name,
 		PeriodStart: periodStart.Format("2006-01-02"),
@@ -132,6 +132,21 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick
 		GeneratedAt: d.now().UTC().Format("2006-01-02"),
 		Format:      sc.Format,
 	})
+
+	// If the schedule binds a Channel, enqueue exactly ONE link-only ready-message for
+	// this run, in the SAME transaction that stamped the receipt — so a won tick and its
+	// notification are one atomic act (#508/T7). A download-only schedule (NULL
+	// channel_id) binds nothing and enqueues nothing; the artifact simply stays viewable
+	// in-instance. The receipt is left 'generated' — the notify runner flips it to
+	// 'delivered' only once the Channel accepts the ready-message (ADR-0039).
+	if shouldNotify(sc.ChannelID) {
+		if err := qtx.InsertReportNotification(ctx, db.InsertReportNotificationParams{
+			ReportDeliveryID: inserted.ID,
+			ChannelID:        sc.ChannelID.Int64,
+		}); err != nil {
+			return fmt.Errorf("report dispatcher: enqueue notification: %w", err)
+		}
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return err

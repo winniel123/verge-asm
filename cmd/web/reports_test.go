@@ -565,6 +565,88 @@ func TestReportScheduleCreateLive(t *testing.T) {
 	}
 }
 
+// The Delivery step binds a schedule to a Channel (P0.6c/T7, #508): a finishing wizard
+// POST carrying a channel id stores it as the schedule's channel_id, and the recurring-
+// reports Delivery cell renders the bound channel's URL. A schedule with no channel
+// (the download-only default) stores a NULL channel_id and reads "download only". The
+// channel binding — not the superseded delivery_target — is the destination of record.
+func TestReportScheduleChannelBinding(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	ctx := context.Background()
+	chID, err := f.CreateChannel(ctx, db.CreateChannelParams{
+		Url: "https://ops.example/hook", RouteDrift: true, Enabled: true, CreatedBy: admin.ID,
+	})
+	if err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// Finish the wizard with the channel chosen on the Delivery step.
+	resp := postForm(t, ac, base+"/reports/schedule", url.Values{
+		"action":   {"finish"},
+		"step":     {"3"},
+		"name":     {"Weekly exposure summary"},
+		"sections": {"summary-kpis"},
+		"cad":      {"Weekly · mon 09:00"},
+		"channel":  {strconv.FormatInt(chID, 10)},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("channel-bound finish POST: status=%d, want 303; body: %s", resp.StatusCode, body(t, resp))
+	}
+	resp.Body.Close()
+
+	if len(f.reportSchedules) != 1 {
+		t.Fatalf("filed %d schedules, want 1", len(f.reportSchedules))
+	}
+	bound := f.reportSchedules[0]
+	if !bound.ChannelID.Valid || bound.ChannelID.Int64 != chID {
+		t.Errorf("channel_id = %+v, want a valid binding to channel %d", bound.ChannelID, chID)
+	}
+	if bound.DeliveryTarget != "" {
+		t.Errorf("delivery_target = %q, want empty (superseded by the channel binding)", bound.DeliveryTarget)
+	}
+
+	// A download-only schedule (no channel field) binds nothing.
+	resp2 := postForm(t, ac, base+"/reports/schedule", url.Values{
+		"action":   {"finish"},
+		"step":     {"3"},
+		"name":     {"Monthly asset inventory"},
+		"sections": {"summary-kpis"},
+		"cad":      {"Monthly · 1st"},
+	})
+	if resp2.StatusCode != http.StatusSeeOther {
+		t.Fatalf("download-only finish POST: status=%d, want 303", resp2.StatusCode)
+	}
+	resp2.Body.Close()
+
+	var downloadOnly db.ReportSchedule
+	for _, sc := range f.reportSchedules {
+		if sc.Name == "Monthly asset inventory" {
+			downloadOnly = sc
+		}
+	}
+	if downloadOnly.ChannelID.Valid {
+		t.Errorf("download-only schedule channel_id = %+v, want NULL", downloadOnly.ChannelID)
+	}
+
+	// The Delivery column renders the bound channel's URL, or "download only".
+	srv := newServer(f, testKey, "", fixedClock())
+	rows := srv.reportScheduleRows(ctx)
+	byName := map[string]string{}
+	for _, r := range rows {
+		byName[r.Name] = r.Delivery
+	}
+	if byName["Weekly exposure summary"] != "https://ops.example/hook" {
+		t.Errorf("bound schedule Delivery = %q, want the channel URL", byName["Weekly exposure summary"])
+	}
+	if byName["Monthly asset inventory"] != "download only" {
+		t.Errorf("download-only schedule Delivery = %q, want \"download only\"", byName["Monthly asset inventory"])
+	}
+}
+
 // A stepping (non-finishing) wizard POST re-renders the next step rather than filing
 // a schedule: Next advances only when the current step's gate passes, mirroring the
 // example's disabled Next. An admin advancing Scope with a name and sections lands on

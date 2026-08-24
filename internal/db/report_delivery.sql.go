@@ -123,6 +123,27 @@ func (q *Queries) ListReportDeliveries(ctx context.Context, scheduleID int64) ([
 	return items, nil
 }
 
+const markReportDeliveryDelivered = `-- name: MarkReportDeliveryDelivered :exec
+UPDATE report_delivery
+SET state = 'delivered', delivered_at = $2
+WHERE id = $1
+`
+
+type MarkReportDeliveryDeliveredParams struct {
+	ID          int64              `json:"id"`
+	DeliveredAt pgtype.Timestamptz `json:"delivered_at"`
+}
+
+// Flip a generated receipt to delivered and stamp the instant it left. Called by the
+// report notify runner (T7/#508) once the Channel accepted the link-only ready-message
+// for this run — the artifact was already generated and viewable; this records that its
+// ready-message reached its destination. A notify FAILURE never calls this: the receipt
+// stays 'generated' and the artifact stays viewable regardless of the send outcome.
+func (q *Queries) MarkReportDeliveryDelivered(ctx context.Context, arg MarkReportDeliveryDeliveredParams) error {
+	_, err := q.db.Exec(ctx, markReportDeliveryDelivered, arg.ID, arg.DeliveredAt)
+	return err
+}
+
 const nextReportDeliveryNo = `-- name: NextReportDeliveryNo :one
 
 SELECT COALESCE(MAX(delivery_no), 0) + 1 AS next_no

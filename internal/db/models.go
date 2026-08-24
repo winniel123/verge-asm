@@ -235,6 +235,18 @@ type ReportDelivery struct {
 	ScheduledTick pgtype.Timestamptz `json:"scheduled_tick"`
 }
 
+type ReportNotification struct {
+	ID               int64              `json:"id"`
+	ReportDeliveryID int64              `json:"report_delivery_id"`
+	ChannelID        int64              `json:"channel_id"`
+	State            string             `json:"state"`
+	Attempt          int32              `json:"attempt"`
+	MaxAttempts      int32              `json:"max_attempts"`
+	RunAfter         pgtype.Timestamptz `json:"run_after"`
+	LastError        pgtype.Text        `json:"last_error"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
 type ReportSchedule struct {
 	ID             int64              `json:"id"`
 	Name           string             `json:"name"`
@@ -244,6 +256,7 @@ type ReportSchedule struct {
 	DeliveryTarget string             `json:"delivery_target"`
 	CreatedBy      int64              `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ChannelID      pgtype.Int8        `json:"channel_id"`
 }
 
 type RetentionSetting struct {
