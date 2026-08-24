@@ -771,6 +771,13 @@ func (f *fakeStore) MarkAllMessagesRead(_ context.Context, arg db.MarkAllMessage
 	return nil
 }
 
+func (f *fakeStore) MarkMessageUnread(_ context.Context, arg db.MarkMessageUnreadParams) error {
+	// The inverse of MarkMessageRead (#473): drop this account's read-mark so the
+	// message counts as unread again. Idempotent — deleting an absent mark is a no-op.
+	delete(f.readMarks(arg.AccountID), arg.MessageID)
+	return nil
+}
+
 func (f *fakeStore) PreviewExclusionWithdrawal(_ context.Context, _ db.PreviewExclusionWithdrawalParams) (db.PreviewExclusionWithdrawalRow, error) {
 	return f.previewResult, nil
 }

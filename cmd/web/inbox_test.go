@@ -116,6 +116,57 @@ func TestInboxSelectMarksReadAndShowsDetail(t *testing.T) {
 	}
 }
 
+// The Inbox detail renders the "Mark unread" affordance (Inbox.jsx:59, ADR-0116),
+// and posting it returns an already-read message to unread: the count climbs back
+// and the message reappears under the unread filter. Read is reversible — the port
+// no longer treats it as monotonic (#473).
+func TestInboxMarkUnread(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	m := putMessage(t, f, message.CauseDrift, "name", "a.example.com",
+		"a.example.com entered the estate", nil)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// Opening the message marks it read and renders the detail, which carries the
+	// "Mark unread" ghost button wired to POST /messages/unread returning to /inbox.
+	page := getBody(t, ac, base+"/inbox?id="+strconv.FormatInt(m.ID, 10), http.StatusOK)
+	if i := strings.Index(page, "</header>"); i >= 0 {
+		page = page[i:] // scope past the shell chrome/bell
+	}
+	for _, want := range []string{
+		`action="/messages/unread"`,
+		`>Mark unread</button>`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("inbox detail missing the Mark-unread affordance %q\nbody: %s", want, page)
+		}
+	}
+	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 0 {
+		t.Fatalf("unread after opening the only message = %d, want 0", n)
+	}
+
+	// Post Mark unread: it returns 303 to /inbox and flips the message back to unread.
+	resp := postForm(t, ac, base+"/messages/unread", url.Values{"id": {strconv.FormatInt(m.ID, 10)}, "return": {"/inbox"}})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/inbox" {
+		t.Fatalf("mark unread: status=%d location=%q, want 303 to /inbox", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 1 {
+		t.Fatalf("unread after mark unread = %d, want 1 (read is reversible)", n)
+	}
+
+	// The message is unread again, so it shows under the unread filter.
+	page = getBody(t, ac, base+"/inbox?filter=unread", http.StatusOK)
+	if i := strings.Index(page, "</header>"); i >= 0 {
+		page = page[i:]
+	}
+	if !strings.Contains(page, "a.example.com entered the estate") {
+		t.Errorf("un-read message should reappear under the unread filter\nbody: %s", page)
+	}
+}
+
 // The unread filter shows only unread messages; a read one drops out of the list.
 func TestInboxUnreadFilter(t *testing.T) {
 	f := newFakeStore()

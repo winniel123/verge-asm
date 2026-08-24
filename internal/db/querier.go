@@ -812,6 +812,14 @@ type Querier interface {
 	// mark leaves the account's first read instant in place (ON CONFLICT DO NOTHING),
 	// since read-state is a fact about having seen it and does not move on a re-read.
 	MarkMessageRead(ctx context.Context, arg MarkMessageReadParams) error
+	// Return one message to unread for the caller (#473, ADR-0116): clear this
+	// account's read-mark so the message counts as unread again. Read-state is a
+	// per-account fact held in message_read, so deleting only this account's row can
+	// never touch another operator's badge. Idempotent: deleting an absent row is a
+	// no-op, so re-marking an already-unread message is harmless. This is the inverse
+	// of MarkMessageRead — the design's Inbox renders a "Mark unread" affordance
+	// (Inbox.jsx:59), so read is reversible.
+	MarkMessageUnread(ctx context.Context, arg MarkMessageUnreadParams) error
 	// A completed Batch at this vantage is proof the position can observe again, so
 	// Availability is derived back to 'available' from the terminal batch outcome
 	// (ADR-0108). A host-key-mismatched prober cannot complete a Batch — its SSH

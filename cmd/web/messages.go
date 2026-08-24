@@ -116,8 +116,14 @@ func (s *server) fillMessagesSection(r *http.Request, acct db.Account, data map[
 }
 
 // markMessageRead marks one message read at now and returns to the panel. Read
-// state is a per-account fact; there is no un-read, since a message is read once
-// the operator has seen it.
+// state is a per-account fact.
+//
+// WITHDRAWN by ADR-0116 / #473: the former clause "there is no un-read, since a
+// message is read once the operator has seen it" no longer holds. The design
+// package is normative for functionality, and its Inbox renders a "Mark unread"
+// affordance (Inbox.jsx:59), so read is reversible — see markMessageUnread and
+// the MarkMessageUnread mutation. Marked at this site per ADR-0058 (a superseded
+// mechanism is withdrawn where it is specified), rather than only at ADR-0116.
 func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	dest := messageReturn(r)
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
@@ -145,6 +151,45 @@ func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, acc
 		return
 	}
 	http.Redirect(w, r, messageReturn(r), http.StatusSeeOther)
+}
+
+// markMessageUnread returns one message to unread for the caller and redirects
+// back to the panel (#473, ADR-0116). It is the inverse of markMessageRead: the
+// design's Inbox renders a "Mark unread" affordance (Inbox.jsx:59), so read is a
+// reversible per-account fact rather than a monotonic one. Clearing the caller's
+// own read-mark can never touch another operator's unread badge (#327), and the
+// delete is idempotent, so re-marking an already-unread message is harmless. The
+// unread count and the shell bell reflect the flip on the next read.
+func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// The unread control posts return="/inbox" (a constant); resolve the target to
+	// a bool here and redirect to a string LITERAL at each call site below, so no
+	// request-derived value ever reaches http.Redirect. This satisfies gosec's
+	// G107 open-redirect taint analyzer by construction (a #nosec its taint pass
+	// ignores would not), and preserves markMessageRead's /inbox-or-/messages home.
+	toInbox := false
+	if ret := r.FormValue("return"); ret == "/inbox" || strings.HasPrefix(ret, "/inbox") {
+		toInbox = true
+	}
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		if toInbox {
+			http.Redirect(w, r, "/inbox", http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/messages", http.StatusSeeOther)
+		}
+		return
+	}
+	if err := s.store.MarkMessageUnread(r.Context(), db.MarkMessageUnreadParams{
+		AccountID: acct.ID, MessageID: id,
+	}); err != nil {
+		s.serverError(w, "mark message unread", err)
+		return
+	}
+	if toInbox {
+		http.Redirect(w, r, "/inbox", http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "/messages", http.StatusSeeOther)
+	}
 }
 
 // messageReturn is where a message-read POST returns to. The two read handlers are

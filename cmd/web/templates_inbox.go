@@ -60,6 +60,8 @@ const inboxTemplates = `
 .ibx-actions{display:flex;gap:8px}
 .ibx-btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border:1px solid transparent;border-radius:var(--r-md);font:600 13px var(--sans);background:var(--accent);color:var(--on-accent);text-decoration:none}
 .ibx-btn:hover{background:var(--accent-hover);text-decoration:none}
+.ibx-btnghost{display:inline-flex;align-items:center;height:36px;padding:0 16px;border:1px solid transparent;border-radius:var(--r-md);font:600 13px var(--sans);background:transparent;color:var(--muted);cursor:pointer}
+.ibx-btnghost:hover{background:var(--sunken);color:var(--body)}
 .ibx-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;font-family:var(--sans)}
 .ibx-emptyicon{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--accent-soft);color:var(--accent);margin-bottom:8px}
 .ibx-emptymsg{font:600 14px var(--sans);color:var(--ink)}
@@ -136,6 +138,8 @@ const inboxTemplates = `
 {{end}}
 <div class="ibx-actions">
 <a class="ibx-btn" href="{{.Href}}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>{{.JumpLabel}}</a>
+<form method="post" action="/messages/unread" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="return" value="/inbox">
+<button type="submit" class="ibx-btnghost">Mark unread</button></form>
 </div>
 </div>
 </div>
