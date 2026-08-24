@@ -113,7 +113,7 @@ account that owns it.
 | Form | Signed cookie, set at login | `vg_pat_…` bearer string, minted on demand |
 | Lifetime | Expires after 12 hours | No expiry — lives until revoked |
 | Second factor | Enforced at login | Not applicable — the token *is* the credential |
-| Storage | Nothing server-side (stateless, signed) | SHA-256 hash + prefix in the database |
+| Storage | Opaque token, stored as its SHA-256 hash in a session record | SHA-256 hash + prefix in the database |
 | Revocation | End the session (see below) | Revoke by name |
 
 > **Divergence worth knowing.** As of this build the personal-token store exists —
@@ -128,20 +128,32 @@ account that owns it.
 
 ## Sessions
 
-This build's sessions are **stateless signed cookies** — an HMAC over the account
-id and an expiry, verified against the signing key on the `web-state` volume, with
-**no server-side registry**. That shapes what "manage sessions" can honestly mean.
+This build's sessions are **server-side records** (ADR-0117). The cookie carries an
+opaque, random session token inside an HMAC-signed payload (account id, kind and
+expiry); the server keeps only the token's **SHA-256 hash** as a row in the session
+registry and checks it on every request. Storing only the hash preserves ADR-0053's
+leak model — a dump of the registry hands out no usable token. Because a session is
+a real record, it can be both **seen** and **revoked**.
 
-- **Viewing.** Profile shows only the session making the request — its browser and
-  OS derived from your User-Agent, and its source IP from the connection (never a
-  forwarding header). There is no roster of your other logins, because none is
-  recorded.
-- **Revoking** (`POST /profile/session/revoke`) — the one session honestly
-  revocable is the current one. Revoking it clears the cookie and returns you to
-  `/login`, exactly as signing out does. Because there is no registry, a session on
-  another device cannot be revoked from here; it lapses when its 12-hour lifetime
-  expires. Rotating the session signing key (losing the `web-state` volume)
-  invalidates **every** session at once — see [running.md → Volumes](running.md#volumes).
+### Active sessions
+
+- **Personal** (`Profile`). The Sessions card lists every live session for your
+  account — device and OS from the User-Agent, source IP from the connection (never
+  a forwarding header), last-active time, and a **this device** badge on the current
+  one. From it you can **revoke one** (`POST /profile/sessions/revoke` — that browser
+  lands on `/login` on its next request), **end this session** (sign out here), or
+  **sign out others** (revoke every session but this one).
+- **Admin** (`Settings → Sessions`). An admin sees every account's live sessions
+  across the deployment, grouped by account and newest activity first, and can
+  **revoke any one** or **revoke all** for an account — the offboarding kill that
+  signs a departing member out everywhere at once.
+- **Credential change.** Changing your password (or completing a reset) **revokes
+  your other sessions** — every other browser is signed out, leaving only the one
+  that made the change.
+
+A session also lapses on its own when its **12-hour** lifetime expires, and rotating
+the session signing key (losing the `web-state` volume) invalidates **every** session
+at once — see [running.md → Volumes](running.md#volumes).
 
 ---
 
@@ -153,8 +165,9 @@ On **Profile → Credentials** (`POST /profile/password`) enter your current
 password and a new one. The current password is re-verified against a fresh read,
 the new one is bounded to **8–72 characters** (bcrypt hashes no more than 72
 bytes), and your **second factor is left untouched** — a password change does not
-strip TOTP. Other sessions are **not** invalidated; the success notice says so
-plainly rather than implying a global sign-out.
+strip TOTP. Your **other sessions are revoked** — every other browser is signed out
+through the session registry, leaving only the one that made the change, and the
+success notice says so (#408, ADR-0117).
 
 ### Forgot / reset
 
@@ -177,9 +190,9 @@ gate on — and **enumeration-safe**.
    on submit. Set the new password (same 8–72 bound, typed twice), and the token is
    spent so the link is single-use.
 
-Like a password change, a reset does not sign your other sessions out — a stateless
-signed cookie has no registry to revoke against, and the done copy says so rather
-than implying a global sign-out.
+Like a password change, a reset **signs your other sessions out** — completing it
+revokes every session for the account through the registry, and the done screen says
+every session has been signed out (#408, ADR-0117).
 
 ---
 

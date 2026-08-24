@@ -35,8 +35,9 @@ import "html/template"
 //     invite tokens) lands in T18 under Settings -> Team.
 //
 // Honest deviations carried over from the #282 port: accounts are usernames, not
-// emails (the forgot/invite fields collect a username); reset-done does not claim a
-// global sign-out this build's stateless-cookie sessions cannot perform. SSO is now
+// emails (the forgot/invite fields collect a username). Reset-done now honestly claims
+// a global sign-out — a password reset revokes the account's other sessions through the
+// server-side session registry (#408, ADR-0117). SSO is now
 // real (OIDC, #293/ADR-0112): the affordance renders a button per configured provider
 // and only falls to the not-configured state when none is set.
 //
