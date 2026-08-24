@@ -56,6 +56,13 @@ type fakeStore struct {
 	signalInstances  []db.SignalInstance
 	signalInstNextID int64
 
+	// withdrawalLifespans backs ListWithdrawalLifespans (#444, P0.3): one row per
+	// subject departure, carrying its withdrawal instant and first appearance so the
+	// Reports mean-time-to-withdrawal trend derives its intervals. Populated directly
+	// by a test — the fake folds observations into spans but never applies a
+	// withdrawal closure, so there is nothing to re-derive these from.
+	withdrawalLifespans []db.ListWithdrawalLifespansRow
+
 	sourceStates map[string]db.SourceState
 
 	// integrationStates mirrors the integration_state table (#308): the operator's
@@ -1355,6 +1362,23 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 		rows = rows[:arg.MaxEvents]
 	}
 	return rows, nil
+}
+
+// ListWithdrawalLifespans returns the seeded subject-withdrawal rows whose
+// withdrawal instant is at or after `since` (#444, P0.3), ordered oldest-first —
+// the same window and order the production query honours.
+func (f *fakeStore) ListWithdrawalLifespans(_ context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error) {
+	out := []db.ListWithdrawalLifespansRow{}
+	for _, row := range f.withdrawalLifespans {
+		if since.Valid && row.WithdrawnAt.Valid && row.WithdrawnAt.Time.Before(since.Time) {
+			continue
+		}
+		out = append(out, row)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].WithdrawnAt.Time.Before(out[j].WithdrawnAt.Time)
+	})
+	return out, nil
 }
 
 // addReachability records a reachability observation for a Service in a fresh

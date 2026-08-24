@@ -711,6 +711,69 @@ func (q *Queries) ListSpansOpenSince(ctx context.Context, since pgtype.Timestamp
 	return items, nil
 }
 
+const listWithdrawalLifespans = `-- name: ListWithdrawalLifespans :many
+SELECT DISTINCT ON (w.subject_kind, w.subject_key, w.closed_at)
+    w.subject_kind AS subject_kind,
+    w.subject_key  AS subject_key,
+    w.closed_at    AS withdrawn_at,
+    fa.first_opened AS first_opened
+FROM span w
+JOIN LATERAL (
+    SELECT MIN(p.opened_at)::timestamptz AS first_opened
+    FROM span p
+    WHERE p.subject_kind = w.subject_kind
+      AND p.subject_key = w.subject_key
+) fa ON TRUE
+WHERE w.closure_reason IS NOT NULL
+  AND w.closed_at IS NOT NULL
+  AND w.closed_at >= $1
+ORDER BY w.subject_kind, w.subject_key, w.closed_at, w.id
+`
+
+type ListWithdrawalLifespansRow struct {
+	SubjectKind string             `json:"subject_kind"`
+	SubjectKey  string             `json:"subject_key"`
+	WithdrawnAt pgtype.Timestamptz `json:"withdrawn_at"`
+	FirstOpened pgtype.Timestamptz `json:"first_opened"`
+}
+
+// Every subject withdrawal since @since, paired with the subject's first appearance,
+// so the web layer derives the mean-time-to-withdrawal trend (P0.3, #444). A
+// withdrawal closes EVERY open timeline a subject held at one instant (ADR-0082,
+// CloseWithdrawal), so the per-facet closures collapse to one subject departure:
+// DISTINCT ON (subject_kind, subject_key, closed_at) keeps one row per departure.
+// first_opened is the earliest opened_at across ALL the subject's spans — its
+// appearance — so time-to-withdrawal is withdrawn_at - first_opened. Only a WITHDRAWAL
+// close counts: closure_reason IS NOT NULL excludes an ordinary value-move close
+// (which carries no reason and is not a departure). Reads FROM span only — the
+// already-derived, never-compacted corpus (ADR-0041) — so it is NOT live-tier gated;
+// an @as_of bound would wrongly hide settled history rather than protect a
+// re-derivation. Ordered by the withdrawal instant for a stable, oldest-first series.
+func (q *Queries) ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]ListWithdrawalLifespansRow, error) {
+	rows, err := q.db.Query(ctx, listWithdrawalLifespans, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWithdrawalLifespansRow{}
+	for rows.Next() {
+		var i ListWithdrawalLifespansRow
+		if err := rows.Scan(
+			&i.SubjectKind,
+			&i.SubjectKey,
+			&i.WithdrawnAt,
+			&i.FirstOpened,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const openSpan = `-- name: OpenSpan :one
 INSERT INTO span (
     subject_kind, subject_key, facet, discriminator, vantage_id, source,

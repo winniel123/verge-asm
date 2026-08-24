@@ -756,6 +756,19 @@ type Querier interface {
 	ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error)
 	// The current frequency edits, with who made each, for the management UI.
 	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error)
+	// Every subject withdrawal since @since, paired with the subject's first appearance,
+	// so the web layer derives the mean-time-to-withdrawal trend (P0.3, #444). A
+	// withdrawal closes EVERY open timeline a subject held at one instant (ADR-0082,
+	// CloseWithdrawal), so the per-facet closures collapse to one subject departure:
+	// DISTINCT ON (subject_kind, subject_key, closed_at) keeps one row per departure.
+	// first_opened is the earliest opened_at across ALL the subject's spans — its
+	// appearance — so time-to-withdrawal is withdrawn_at - first_opened. Only a WITHDRAWAL
+	// close counts: closure_reason IS NOT NULL excludes an ordinary value-move close
+	// (which carries no reason and is not a departure). Reads FROM span only — the
+	// already-derived, never-compacted corpus (ADR-0041) — so it is NOT live-tier gated;
+	// an @as_of bound would wrongly hide settled history rather than protect a
+	// re-derivation. Ordered by the withdrawal instant for a stable, oldest-first series.
+	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]ListWithdrawalLifespansRow, error)
 	// The latest supplied zone file per name-scope Seed, with its declared domain and
 	// content, so the web layer can extract the owner names the operator declares
 	// (signal.DeclaredNames) — the domain of the two zone rules. One row per Seed;
