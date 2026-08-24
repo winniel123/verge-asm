@@ -112,6 +112,22 @@ func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 	})
 }
 
+// requireSettingsAdmin gates the Settings destination like requireAdmin, but a
+// refused viewer sees the richer settings-forbidden ErrorPage (U4, #481) — the
+// "admin only, Settings is where declared acts live" copy that names how a role is
+// widened — instead of the plain 403 every other admin route renders. Status stays
+// 403. Only the GET /settings view uses this; the Settings mutations keep the plain
+// requireAdmin gate, so this is the one surface that swaps the copy.
+func (s *server) requireSettingsAdmin(h authedHandler) http.HandlerFunc {
+	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
+		if acct.Role != roleAdmin {
+			s.settingsForbidden(w, acct)
+			return
+		}
+		h(w, r, acct)
+	})
+}
+
 const (
 	roleAdmin  = "admin"
 	roleViewer = "viewer"
@@ -475,11 +491,15 @@ func (s *server) home(w http.ResponseWriter, r *http.Request, acct db.Account) {
 }
 
 // dashVantageView is one provisioned prober shaped for the vantage-health card:
-// its name, verified class and current availability.
+// its name, verified class, current availability, and the measured connect
+// latency the card renders beside it (P0.5). Latency is the spec's mono "34ms"
+// reading when a first measurement exists and empty when it does not, in which
+// case the template renders the pending em dash — never a fabricated number.
 type dashVantageView struct {
-	Name  string
-	Class string
-	Avail string
+	Name    string
+	Class   string
+	Avail   string
+	Latency string
 }
 
 // dashSevBar is one bar of the "By severity" card (Dashboard.jsx): a severity level,
@@ -559,6 +579,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		for _, v := range rows {
 			vantages = append(vantages, dashVantageView{
 				Name: v.Name, Class: v.Class, Avail: v.Availability.String,
+				Latency: vantageLatencyLabel(v.LatencyMs),
 			})
 		}
 	} else {

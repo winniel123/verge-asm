@@ -424,6 +424,53 @@ function TeamSection({ onToast }) {
   );
 }
 
+function SessionsSection({ onToast }) {
+  const [rows, setRows] = React.useState([
+    { id: "s1", account: "ola@acmecorp.io", role: "admin", device: "Firefox \u00b7 macOS", ip: "198.51.100.7", last: "now", current: true },
+    { id: "s2", account: "dana@acmecorp.io", role: "admin", device: "Safari \u00b7 iOS", ip: "198.51.100.12", last: "2h" },
+    { id: "s3", account: "dana@acmecorp.io", role: "admin", device: "Chrome \u00b7 Windows", ip: "203.0.113.80", last: "1d" },
+    { id: "s4", account: "priya@acmecorp.io", role: "viewer", device: "Chrome \u00b7 macOS", ip: "198.51.100.31", last: "3d" },
+  ]);
+  const [revoke, setRevoke] = React.useState(null);
+  const [revokeAll, setRevokeAll] = React.useState(null);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <Card microLabel={"Access \u00b7 sessions"} title="Active sessions" pad={0}>
+        <div style={{ padding: "0 20px 4px" }}>
+          <span style={{ font: "400 12.5px/1.6 var(--font-ui)", color: "var(--text-secondary)", display: "block", maxWidth: "72ch" }}>
+            Every account's live sessions across this deployment, newest activity first. Revoking one signs that browser out at once — its next request lands on the sign-in screen. Your own sessions live on your profile.
+          </span>
+        </div>
+        <Table framed={false} dense columns={[
+          { key: "account", label: "Account", mono: true, render: (r) => <span>{r.account}{r.current ? <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>(you)</span> : null}</span> },
+          { key: "role", label: "Role", width: 96, clip: false, render: (r) => <Badge>{r.role}</Badge> },
+          { key: "device", label: "Device", width: 170 },
+          { key: "ip", label: "IP", mono: true, width: 140 },
+          { key: "last", label: "Last active", mono: true, width: 100 },
+          { key: "act", label: "", width: 84, align: "right", clip: false, render: (r) => r.current ? null : (
+            <span style={{ display: "inline-flex", gap: 4 }}>
+              <IconButton icon="log-out" label="Revoke session" size="sm" onClick={() => setRevoke(r)} />
+              <DropdownMenu align="end" trigger={<IconButton icon="ellipsis" label="More" size="sm" />} items={[
+                { label: "Revoke all for " + r.account.split("@")[0], icon: "circle-off", tone: "danger", onSelect: () => setRevokeAll(r) },
+              ]} />
+            </span>
+          ) },
+        ]} rows={rows} rowKey="id" />
+      </Card>
+      <ConfirmDialog open={!!revoke} tone="danger" title="Revoke this session"
+        message={revoke ? revoke.account + "'s session on " + revoke.device + " from " + revoke.ip + " is signed out immediately." : ""}
+        detail="Its next request lands on the sign-in screen. The account's other sessions are unaffected."
+        confirmLabel="Revoke session" onClose={() => setRevoke(null)}
+        onConfirm={() => { setRows((rs) => rs.filter((x) => x.id !== revoke.id)); onToast && onToast({ tone: "neutral", title: "Session revoked", description: revoke.account + " \u00b7 " + revoke.device }); setRevoke(null); }} />
+      <ConfirmDialog open={!!revokeAll} tone="danger" title={revokeAll ? "Revoke every session for " + revokeAll.account.split("@")[0] : ""}
+        message={revokeAll ? "Every live session " + revokeAll.account + " holds is signed out immediately." : ""}
+        detail="Their membership, role and personal tokens are unaffected; remove the member on Team to fully offboard."
+        confirmLabel="Revoke all sessions" typedConfirm={revokeAll ? revokeAll.account : undefined} onClose={() => setRevokeAll(null)}
+        onConfirm={() => { setRows((rs) => rs.filter((x) => x.account !== revokeAll.account)); onToast && onToast({ tone: "neutral", title: "All sessions revoked", description: revokeAll.account }); setRevokeAll(null); }} />
+    </div>
+  );
+}
+
 function AuditSection() {
   const [range, setRange] = React.useState({ label: "Last 7d" });
   const ROWS = [
@@ -495,7 +542,7 @@ export function Settings({ onToast, section }) {
         <h1 style={{ margin: 0, font: "600 21px var(--font-ui)", letterSpacing: "var(--heading-tracking)", color: "var(--text-ink)" }}>Settings</h1>
         <SettingsNav active={active} onNavigate={go} sections={[
           { label: "Scanning", items: [{ id: "scans", label: "Scans", icon: "radar" }, { id: "vantages", label: "Vantages", icon: "server" }] },
-          { label: "Access", items: [{ id: "sso", label: "Single sign-on", icon: "key-round" }, { id: "team", label: "Team", icon: "users" }, { id: "audit", label: "Audit log", icon: "scroll-text" }] },
+          { label: "Access", items: [{ id: "sso", label: "Single sign-on", icon: "key-round" }, { id: "team", label: "Team", icon: "users" }, { id: "sessions", label: "Sessions", icon: "monitor-smartphone" }, { id: "audit", label: "Audit log", icon: "scroll-text" }] },
           { label: "Discovery", items: [{ id: "sources", label: "Sources", icon: "database" }, { id: "aperture", label: "Port aperture", icon: "layout-grid" }] },
           { label: "Instance", items: [{ id: "instance", label: "Health", icon: "activity" }] },
           { label: "Delivery", items: [{ id: "channels", label: "Channels", icon: "send" }, { id: "integrations", label: "Integrations", icon: "puzzle" }, { id: "messages", label: "Messages", icon: "inbox" }, { id: "delivery", label: "Delivery record", icon: "list" }] },
@@ -518,6 +565,7 @@ export function Settings({ onToast, section }) {
             {active === "messages" && <MessagesSection />}
             {active === "delivery" && <DeliverySection />}
             {active === "team" && <TeamSection onToast={onToast} />}
+            {active === "sessions" && <SessionsSection onToast={onToast} />}
             {active === "audit" && <AuditSection />}
             {active === "instance" && <InstanceSection />}
             {active === "sources" && <SourcesSection onToast={onToast} />}

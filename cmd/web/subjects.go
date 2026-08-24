@@ -105,6 +105,21 @@ type servicePageData struct {
 	// — with Breaks and closures derived on read (#195). A Service opening or
 	// closing across a re-run of the hot Scan is one Span transition here.
 	Timelines []timelineView
+	// Header identity + rail data ported from SubjectDetail.jsx (U1, #478): the last
+	// observation instant, the covering Seed's declaration date, the reachability
+	// rolled up to an exposure state, and the current reachability span's open time.
+	Seen         string
+	InScopeSince string
+	Exposure     string // reachability → exposure state (assetExposure); empty when withdrawn/unmeasured
+	Since        string // the current reachability span's OpenedAt
+	Provenance   []assetKV
+	// Rules are every rule whose predicate domain includes this Service, each with
+	// its own versioned verdict (fired / did not fire) and the rule's SeverityBadge.
+	Rules []subjectRule
+	// Signals are the rules firing on this Service right now (the rail's "Signals
+	// here"), each carrying its rule's severity — the same fired census the asset
+	// drill-in reads, filtered to this subject's key.
+	Signals []assetSignal
 }
 
 // endpointPageData is the drill-down view for one Endpoint subject (#198): the
@@ -139,6 +154,27 @@ type endpointPageData struct {
 	// Timelines are the Endpoint's http-identity Span timelines — current and
 	// closed — with Breaks and closures derived on read (#198).
 	Timelines []timelineView
+	// Header identity + rail data ported from SubjectDetail.jsx (U1, #478).
+	Seen         string
+	InScopeSince string
+	Provenance   []assetKV
+	// Rules are every rule whose predicate domain includes this Endpoint, each with
+	// its own versioned verdict and the rule's SeverityBadge.
+	Rules []subjectRule
+}
+
+// subjectRule is one rule whose predicate domain includes a Service or Endpoint
+// subject, as the "Rules over this subject" table renders it (SubjectDetail.jsx):
+// the rule slug, its own version, its five-level SeverityBadge (internal/signal
+// SeverityFor, a real per-rule datum), and its current verdict — Fired, else "did
+// not fire" (a NotEvaluable member is in the domain but the rule could not read
+// its evidence, which the operator-facing table folds into "did not fire"). Every
+// field is read from the current census, never fabricated.
+type subjectRule struct {
+	Rule     string
+	Version  string // the rule's own version (Census.Version.Rule, e.g. "v1")
+	Severity string // the rule's severity token: critical | high | medium | low | info
+	Fired    bool
 }
 
 // subjectPageData is the drill-down view for one Name.
@@ -287,20 +323,14 @@ func splitEndpointKey(key string) (name, service string) {
 func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := strings.TrimSpace(r.FormValue("key"))
 	if key == "" {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	subject, err := s.store.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	if err != nil {
@@ -326,12 +356,19 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		RedirectLocation: id.RedirectLocation,
 		HasIdentity:      id.Outcome != "",
 	}
-	data.Citation, data.CitationTerminated, data.Withdrawn = s.buildEndpointCitation(r, name, service, addr)
+	var seedScope string
+	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildEndpointCitation(r, name, service, addr)
 	data.Timelines = s.buildTimelines(r, "endpoint", subject.SubjectKey)
+	if subject.ObservedAt.Valid {
+		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
+	}
+	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines))
+	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
 	s.render(w, "endpoint", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Endpoint": data,
+		"NavActive": "inventory",
+		"Endpoint":  data,
 	})
 }
 
@@ -342,7 +379,7 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 // terminating at a Seed. Where neither limb holds, the Address (and with it the
 // Service and Endpoint) has left the estate. It reuses the same address-membership
 // store reads the Service citation does, so the two chains agree on the ground.
-func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn bool) {
+func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn bool, seedScope, inScopeSince string) {
 	hops = []citationHop{{Label: "Subject · Endpoint", Value: r.FormValue("key")}}
 	if name != "" {
 		hops = append(hops, citationHop{Label: "Named · Name", Value: name})
@@ -373,13 +410,17 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 			if seed.CreatedByUsername != "" {
 				detail = "declared by " + seed.CreatedByUsername
 			}
-			hops = append(hops, citationHop{Label: "Declared · Seed", Value: "address scope " + scope, Detail: detail})
+			seedScope = "address scope " + scope
+			if seed.CreatedAt.Valid {
+				inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
+			}
+			hops = append(hops, citationHop{Label: "Declared · Seed", Value: seedScope, Detail: detail})
 			terminated = true
 		}
 	}
 
 	withdrawn = !cited && !terminated
-	return hops, terminated, withdrawn
+	return hops, terminated, withdrawn, seedScope, inScopeSince
 }
 
 // servicePage is the drill-down for one Service subject (#195). The Service key
@@ -389,20 +430,14 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := strings.TrimSpace(r.FormValue("key"))
 	if key == "" {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	subject, err := s.store.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	if err != nil {
@@ -425,12 +460,28 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		data.ReachGap = true
 		data.ReachGapReason = rv.Reason
 	}
-	data.Citation, data.CitationTerminated, data.Withdrawn = s.buildServiceCitation(r, addr)
+	var seedScope string
+	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
 	data.Timelines = s.buildTimelines(r, "service", subject.SubjectKey)
+	if subject.ObservedAt.Valid {
+		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
+	}
+	// The header ExposureBadge rolls the current reachability up to an exposure
+	// state (assetExposure), the same read the asset census carries; a withdrawn
+	// Service names no current member, so it shows no exposure (the header marks it
+	// withdrawn instead).
+	if !data.Withdrawn {
+		data.Exposure = assetExposure(rv.Outcome, data.ReachGap)
+	}
+	data.Since = currentReachSince(data.Timelines)
+	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines))
+	data.Rules = s.subjectRules(r, subject.SubjectKey)
+	data.Signals = s.assetSignals(r, subject.SubjectKey)
 
 	s.render(w, "service", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Service": data,
+		"NavActive": "inventory",
+		"Service":   data,
 	})
 }
 
@@ -459,7 +510,7 @@ func splitServiceKey(key string) (addr, port, transport string) {
 // the address-scope Seed that covers it, terminating at a Seed. Where neither
 // limb holds, the Address has left the estate (the `uncited` / `descoped`
 // departure), which the caller renders as a withdrawn Service.
-func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn bool) {
+func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn bool, seedScope, inScopeSince string) {
 	hops = []citationHop{
 		{Label: "Subject · Service", Value: r.FormValue("key")},
 		{Label: "On address · Address", Value: addr},
@@ -494,9 +545,13 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 			if seed.CreatedByUsername != "" {
 				detail = "declared by " + seed.CreatedByUsername
 			}
+			seedScope = "address scope " + scope
+			if seed.CreatedAt.Valid {
+				inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
+			}
 			hops = append(hops, citationHop{
 				Label:  "Declared · Seed",
-				Value:  "address scope " + scope,
+				Value:  seedScope,
 				Detail: detail,
 			})
 			terminated = true
@@ -507,44 +562,127 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	// a Seed covers it (CONTEXT.md `Address`). Neither limb holding means it has
 	// withdrawn — its Services with it.
 	withdrawn = !cited && !terminated
-	return hops, terminated, withdrawn
+	return hops, terminated, withdrawn, seedScope, inScopeSince
 }
 
+// subjectPage serves the by-key drill-down at `/subjects/{key}`. The key here
+// carries no `/` or `@`, so it is a Name — and a Name opens the Asset detail
+// (SubjectDetail.jsx: "A Name subject opens AssetDetail instead; this screen
+// covers the other two kinds"). The Service and Endpoint drill-ins have their own
+// `?key=` routes (servicePage / endpointPage), so this path is Name-only. It
+// delegates to assetPage, which reads the same live-tier-gated Name subject: a
+// missing/evidential Name still 404s the subject-missing page, and a withdrawn
+// Name still renders reachable by its own key — the semantics this route has
+// always carried, now on the AssetDetail surface (#478, U1).
 func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	key := r.PathValue("key")
-	subject, err := s.store.GetNameSubject(r.Context(), db.GetNameSubjectParams{
-		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		// A Name nothing has ever measured is genuinely not a subject — not a
-		// withdrawn one. Refusing it here is not the false absence ADR-0072
-		// guards against: that guard is about a Name we measured *gone*, which
-		// GetNameSubject still returns.
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
-		return
+	s.assetPage(w, r, acct)
+}
+
+// subjectProvenance assembles the rail's "how it got here" facts for a Service or
+// Endpoint (SubjectDetail.jsx): the covering Seed the citation terminates at, the
+// fixed derivation path the subject class is formed by, and when it was first
+// measured. Only real facts render — a Seed or first-seen with no honest source is
+// omitted rather than invented (the asset drill-in's "render only what exists"
+// pattern, T1), and no per-subject Vantage is fabricated where the domain carries
+// only an opaque vantage id.
+func subjectProvenance(kind, seedScope, firstSeen string) []assetKV {
+	var items []assetKV
+	if seedScope != "" {
+		items = append(items, assetKV{K: "Seed", V: seedScope})
 	}
+	// The derivation path is a fixed structural fact about the subject class, not a
+	// measured per-subject value: a Service is an address swept from DNS then reached
+	// by the hot Scan; an Endpoint is the join of a resolution and a Service.
+	via := "dns sweep → hot scan"
+	if kind == "endpoint" {
+		via = "resolution × service join"
+	}
+	items = append(items, assetKV{K: "Via", V: via})
+	if firstSeen != "" {
+		items = append(items, assetKV{K: "First seen", V: firstSeen})
+	}
+	return items
+}
+
+// firstSeenFromTimelines returns the earliest span open instant across a subject's
+// timelines — its "first seen". Every OpenedAt is the same fixed-width UTC format,
+// so the lexicographically smallest is the chronologically earliest; empty where no
+// span has been folded.
+func firstSeenFromTimelines(tls []timelineView) string {
+	best := ""
+	consider := func(t string) {
+		if t != "" && (best == "" || t < best) {
+			best = t
+		}
+	}
+	for _, tl := range tls {
+		if tl.Current != nil {
+			consider(tl.Current.OpenedAt)
+		}
+		for _, sp := range tl.Closed {
+			consider(sp.OpenedAt)
+		}
+	}
+	return best
+}
+
+// currentReachSince returns the open instant of the current reachability span — the
+// "Since" the Service's current-facet card carries. Empty where the reachability
+// timeline holds no current value (a withdrawn or gapped Service).
+func currentReachSince(tls []timelineView) string {
+	for _, tl := range tls {
+		if tl.Facet == "reachability" && tl.Current != nil {
+			return tl.Current.OpenedAt
+		}
+	}
+	return ""
+}
+
+// subjectRules lists every rule whose predicate domain includes the given subject
+// key — the "Rules over this subject" table (SubjectDetail.jsx). It folds the same
+// signal corpus the Signals page reads and keeps the censuses this subject is a
+// member of, in EvaluateCorpus order, each carrying its rule version, its verdict
+// (Fired, else "did not fire"), and its per-rule Severity (internal/signal
+// SeverityFor). The engine is split by subject kind, so a Service key only appears
+// in Service-rule censuses and an Endpoint key only in Endpoint-rule censuses — no
+// kind filter is needed. Best-effort: a corpus-build failure yields no rules.
+func (s *server) subjectRules(r *http.Request, key string) []subjectRule {
+	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
-		s.serverError(w, "get name subject", err)
-		return
+		return nil
 	}
-
-	res := decodeResolution(subject.Value)
-	data := subjectPageData{
-		Name:       subject.SubjectKey,
-		Withdrawn:  suppressesNameMembership(res.Outcome),
-		Resolution: res.Outcome,
-		Addresses:  res.Addresses,
+	var out []subjectRule
+	for _, c := range signal.EvaluateCorpus(corpus) {
+		member, fired := false, false
+		for _, m := range c.Fired {
+			if m.Subject == key {
+				member, fired = true, true
+				break
+			}
+		}
+		if !member {
+			for _, m := range c.NotFired {
+				if m.Subject == key {
+					member = true
+					break
+				}
+			}
+		}
+		if !member {
+			for _, m := range c.NotEvaluable {
+				if m.Subject == key {
+					member = true
+					break
+				}
+			}
+		}
+		if !member {
+			continue
+		}
+		sev, _ := signal.SeverityFor(c.Rule)
+		out = append(out, subjectRule{Rule: c.Rule, Version: c.Version.Rule, Severity: sev.String(), Fired: fired})
 	}
-	data.Citation, data.CitationTerminated = s.buildCitation(r, subject.SubjectKey)
-	data.Timelines = s.buildTimelines(r, "name", subject.SubjectKey)
-
-	s.render(w, "subject", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Subject": data,
-	})
+	return out
 }
 
 // hopKindAdmission and hopKindObservation are the two ways a Name enters, as
@@ -996,10 +1134,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, acct, key)
 		return
 	}
 	if err != nil {

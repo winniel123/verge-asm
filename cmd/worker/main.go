@@ -19,6 +19,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/report"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -77,13 +78,49 @@ func main() {
 	// Generate SSH keypairs for any newly provisioned vantages, keeping the
 	// private half on this worker-only volume and publishing only the public
 	// half. No measurement is dispatched over the connection yet (#8, #14).
-	provisionVantageKeys(ctx, db.New(pool), env.OrDefault("VERGE_STATE_DIR", "/app/state"))
+	stateDir := env.OrDefault("VERGE_STATE_DIR", "/app/state")
+	provisionVantageKeys(ctx, db.New(pool), stateDir)
+
+	// Measure the per-vantage connect latency the Dashboard renders (P0.5): for
+	// each provisioned prober with a published keypair but no latency yet, dial the
+	// prober connect that pins its host key and record the round-trip. Best-effort —
+	// an unreachable prober keeps its NULL latency and the Dashboard its em dash.
+	measureVantageLatencies(ctx, db.New(pool), sshProber{}, stateDir)
 
 	runSelfTest(ctx, proberPath)
 
 	go func() {
 		if err := dispatcher.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Printf("worker: dispatcher stopped: %v", err)
+		}
+	}()
+
+	// On-cadence report dispatch runs beside the queue dispatcher (#502/T3): each
+	// tick renders every due schedule's artifact and stamps an in-instance receipt
+	// keyed to the tick, idempotent so a second poll in a window is a recorded skip.
+	// A schedule bound to a Channel also enqueues one link-only ready-message per won
+	// tick (#508/T7); a download-only schedule enqueues nothing. It is a no-op until an
+	// admin declares a schedule — no schedule ships, so nothing is cut.
+	reportDispatcher := report.NewDispatcher(pool, time.Now, logger)
+	go func() {
+		if err := reportDispatcher.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: report dispatcher stopped: %v", err)
+		}
+	}()
+
+	// Report notify runs beside the report dispatcher (#508/T7, ADR-0039 stands): it
+	// drains pending report notifications and POSTs each bound Channel a LINK-ONLY
+	// ready-message — the report name, the run's period, and a session-authed link to
+	// the in-instance artifact, never the estate. On a 2xx it flips the receipt to
+	// 'delivered'; on dead-letter the receipt stays 'generated' and the artifact stays
+	// viewable. It rides the delivery package's shared signed-HTTPS transport and
+	// queue.Backoff curve, and is a no-op until a schedule binds a Channel.
+	// VERGE_PUBLIC_URL is the absolute base the ready-message's link is built on; empty
+	// leaves the link as the bare path.
+	notifyRunner := report.NewNotifyRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger)
+	go func() {
+		if err := notifyRunner.Run(ctx, 5*time.Second); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: report notify stopped: %v", err)
 		}
 	}()
 

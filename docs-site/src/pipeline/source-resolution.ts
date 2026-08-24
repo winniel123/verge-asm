@@ -299,22 +299,35 @@ export async function resolveSources(
 }
 
 /**
- * The version manifest, in the exact shape T4 (#354) feeds to the DS VersionSelect
+ * The version manifest, in the exact shape the DS VersionSelect consumes
  * (`VersionOption[]`). Order: latest → release tags (newest first) → main.
  *
- *   • `latest` .... always present, tag "current" (tracks the highest stable tag,
- *                   or `main` today). This is the "current" badge.
- *   • each `v*` .... a plain entry (no badge); prereleases included so their docs
- *                   are selectable, but they never carry "current".
+ * The `current` badge tracks the NEWEST STABLE RELEASE (DocsPage.jsx spec / D2:
+ * "newest tagged release is current"). Concretely:
+ *
+ *   • `latest` .... always present — it is a first-class, browsable version and the
+ *                   canonical + root-redirect target. It carries "current" ONLY as
+ *                   the pre-release fallback (when there is no stable tag yet, it
+ *                   tracks `main`, so "current" still points at the live docs).
+ *   • each `v*` .... a plain entry; the newest STABLE release carries "current".
+ *                   Older releases and prereleases are untagged (selectable so their
+ *                   docs are readable, but never "current").
  *   • `main` ...... tag "dev".
  *
- * Today (zero tags): [{value:"latest",tag:"current"}, {value:"main",tag:"dev"}].
- * T4 imports this function directly and passes the result to the TopNav island —
- * no reshaping (see docs-site/PIPELINE.md).
+ * Today (zero tags): [{value:"latest",tag:"current"}, {value:"main",tag:"dev"}] —
+ * `latest` holds the fallback "current". Once a stable `vX.Y.Z` is tagged, the
+ * "current" badge moves onto that release. The consuming TopNav island passes this
+ * result to the DS VersionSelect verbatim — no reshaping (see docs-site/PIPELINE.md).
  */
 export function listVersions(): VersionOption[] {
-  const options: VersionOption[] = [{ value: LATEST_VERSION, tag: "current" }];
-  for (const t of publishableTags()) options.push({ value: t.raw });
+  const tags = publishableTags();
+  const newestStable = tags.find((t) => t.prerelease === null) ?? null;
+  const options: VersionOption[] = [
+    newestStable ? { value: LATEST_VERSION } : { value: LATEST_VERSION, tag: "current" },
+  ];
+  for (const t of tags) {
+    options.push(t.raw === newestStable?.raw ? { value: t.raw, tag: "current" } : { value: t.raw });
+  }
   options.push({ value: DEFAULT_VERSION, tag: "dev" });
   return options;
 }

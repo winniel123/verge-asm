@@ -12,7 +12,8 @@
  * counter is stateful and order-sensitive, so a slugger instance MUST visit every
  * heading in source order (all levels, h1..h6) for its counter to line up with the
  * renderer's. `extractToc` therefore slugs every heading it sees and only *emits*
- * the h2/h3 rows — advancing the counter over h1/h4-h6 without listing them.
+ * the h2 rows — advancing the counter over h1/h3-h6 without listing them. The
+ * on-page "On this page" TOC lists h2 headings only, per DocsPage.jsx (D6).
  */
 import GithubSlugger from "github-slugger";
 
@@ -37,7 +38,7 @@ function stripInline(s: string): string {
 /**
  * Extract the on-page table of contents from raw markdown.
  *
- * Returns one row per `##`/`###` heading, in document order, each `href` a
+ * Returns one row per `##` (h2) heading, in document order, each `href` a
  * `#<slug>` fragment matching the rendered heading `id`. Fenced code blocks are
  * skipped so a `# comment` line inside ```sh is never mistaken for a heading.
  */
@@ -59,9 +60,9 @@ export function extractToc(markdown: string): TocItem[] {
     const level = m[1].length;
     const label = stripInline(m[2]);
     // Slug EVERY heading to keep the de-dup counter in step with the renderer,
-    // but only surface h2/h3 in the on-page TOC.
+    // but only surface h2 in the on-page TOC (DocsPage.jsx lists h2 only).
     const id = slugger.slug(label);
-    if (level === 2 || level === 3) {
+    if (level === 2) {
       toc.push({ label, href: `#${id}`, level });
     }
   }

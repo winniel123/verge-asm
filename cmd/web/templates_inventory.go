@@ -3,19 +3,25 @@ package main
 import "html/template"
 
 // Inventory screen — canonical `/inventory`. Folds today's inventory + subjects
-// list + the Name/Service/Endpoint detail views (and the shared `recordrows`
-// partial and the `subject-missing` page). The screen ticket (T-Inventory)
-// rewrites the body against examples/console/Inventory.jsx (saved views, column
-// picker, density, hover peeks). Ported verbatim for T0.
+// list (and the shared `recordrows` partial and the `subject-missing` page). The
+// Name/Service/Endpoint detail views live elsewhere: a Name row opens the Asset
+// detail (`/asset/{key}`, T1), and the Service/Endpoint drill-ins are the
+// SubjectDetail templates in templates_subjectdetail.go (U1, #478). The body is
+// the re-specced Inventory (SPEC-CHANGE #13 / U6, package v3.2.4): the open-span
+// read grouped by subject, with client-side Kind / Gaps-only / subject scoping,
+// column picker, and density — the exposure-era saved views / tag filters /
+// bulk-actions bar were retired by that ruling as bound to nothing in the
+// subject/facet/span model.
 var _ = template.Must(tmpl.Parse(inventoryTemplates))
 
 const inventoryTemplates = `
 {{define "inventory"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>
-/* Inventory delta (#310) — navigable rows + saved-views/columns/density controls,
-   translated from design-system/examples/console/Inventory.jsx within the existing
-   token vocabulary (restyling, not authoring — ADR-0109). */
+/* Inventory delta (#310, re-specced U6/#517) — navigable rows + client-side
+   Kind/Gaps/subject scope, columns, and density controls, translated from
+   design-system/examples/console/Inventory.jsx within the existing token
+   vocabulary (restyling, not authoring — ADR-0109). */
 .invrow { cursor: pointer; }
 .invrow:hover { background: var(--sunken); }
 .invrow:focus, .invrow:focus-visible { outline: none; background: var(--accent-soft); }
@@ -31,6 +37,21 @@ const inventoryTemplates = `
 .seg button { border: none; border-radius: 0; background: transparent; color: var(--muted);
   font-family: var(--mono); font-size: 11px; padding: 4px 10px; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--link); }
+/* Client-side scope controls (SPEC-CHANGE #13): a Gaps-only toggle and a
+   subject filter, both scoping the already-rendered corpus — no server search. */
+.invswitch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.invswitch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.invswitch .switch { display: inline-block; width: 34px; height: 18px; border-radius: var(--r-full);
+  position: relative; background: var(--sunken); border: 1px solid var(--hairline); transition: background 120ms; }
+.invswitch input:checked + .switch { background: var(--accent); border-color: var(--accent); }
+.invswitch input:focus-visible + .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+.invswitch .knob { position: absolute; top: 1px; left: 1px; width: 14px; height: 14px; border-radius: var(--r-full);
+  background: var(--surface); transition: left 120ms; }
+.invswitch input:checked + .switch .knob { left: 17px; background: var(--on-accent); }
+.invfilter { font-family: var(--mono); font-size: 12px; padding: 5px 10px; border: 1px solid var(--hairline);
+  border-radius: var(--r-md); background: var(--surface); color: var(--ink); width: 210px; }
+.invfilter::placeholder { color: var(--muted); }
+tr[data-invsub][hidden], .section[data-kind][hidden] { display: none; }
 </style>
 <main>
 <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-4)">
@@ -52,11 +73,13 @@ endpoint returns. Each row is a subject; open it for the asset's full record, or
 to its individual records. A withdrawn subject holds no current span and so is not here. As on
 the change views there is no total: your estate's completeness is yours alone to state.</p>
 
-<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4)">
-<div style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">
-<span class="chip" style="background:var(--accent-soft);border-color:var(--accent-soft);color:var(--link)">All subjects</span>
-{{range .Groups}}<a class="chip" href="#{{.Kind}}" style="text-decoration:none">{{.Label}}</a>{{end}}
-</div>
+<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:var(--space-4)">
+<span class="seg" role="group" aria-label="Kind" data-invkind>
+<button type="button" data-kind="all" aria-pressed="true">All subjects</button>
+{{range .Groups}}<button type="button" data-kind="{{.Kind}}" aria-pressed="false">{{.Label}}</button>{{end}}
+</span>
+<label class="invswitch"><input type="checkbox" data-invgaps aria-label="Gaps only"><span class="switch"><span class="knob"></span></span><span class="microlabel">Gaps only</span></label>
+<input class="invfilter" type="search" data-invfilter placeholder="Filter subjects&#8230;" aria-label="Filter subjects">
 <span style="margin-left:auto;display:inline-flex;gap:12px;align-items:center">
 <span class="microlabel" data-invnav-hint>j/k or arrows to move · enter opens</span>
 <span style="display:inline-flex;gap:6px;align-items:center">
@@ -81,7 +104,7 @@ the change views there is no total: your estate's completeness is yours alone to
 <div class="invtables" data-density="compact">
 {{if .Groups}}
 {{range .Groups}}
-<div class="section" id="{{.Kind}}">
+<div class="section" id="{{.Kind}}" data-kind="{{.Kind}}">
 <div class="microlabel" style="margin-bottom:var(--space-3)">{{.Label}}</div>
 <table class="vg-table">
 <thead><tr>
@@ -91,7 +114,7 @@ the change views there is no total: your estate's completeness is yours alone to
 <th data-col="since" style="width:1%;white-space:nowrap;text-align:right">Since</th>
 </tr></thead>
 <tbody>
-{{range .Subjects}}<tr{{if .Link}} class="invrow" tabindex="0" data-href="{{.Link}}" role="link" aria-label="Open {{.Key}}"{{end}}>
+{{range .Subjects}}<tr data-invsub data-key="{{.Key}}" data-has-gap="{{if .HasGap}}1{{else}}0{{end}}"{{if .Link}} class="invrow" tabindex="0" data-href="{{.Link}}" role="link" aria-label="Open {{.Key}}"{{end}}>
 <td>{{if .Link}}<a class="mono" href="{{.Link}}" title="{{range .Facets}}{{.Label}}: {{.Summary}}&#10;{{end}}">{{.Key}}</a>{{else}}<span class="mono">{{.Key}}</span>{{end}}</td>
 <td data-col="type"><span class="badge">{{.Type}}</span></td>
 <td data-col="holds">
@@ -106,6 +129,10 @@ the change views there is no total: your estate's completeness is yours alone to
 </table>
 </div>
 {{end}}
+<div class="emptystate" data-invnomatch hidden>
+<h2>No subjects match this scope</h2>
+<p>The corpus is unaffected — only this view is scoped. <button type="button" class="btn secondary" data-invclear>Clear filters</button></p>
+</div>
 {{else}}
 <div class="emptystate">
 <h2>No population measured yet</h2>
@@ -159,6 +186,49 @@ the inventory fills as facets are folded.</p>
       container.classList.toggle("hide-" + cb.getAttribute("data-col-toggle"), !cb.checked);
     });
   });
+  /* Client-side scope (SPEC-CHANGE #13, package v3.2.4): the Kind segmented
+     control, the Gaps-only switch, and the subject filter narrow the
+     already-rendered corpus — nothing is fetched. Hidden rows and sections stay
+     in the DOM, so clearing the scope restores the full read instantly, and the
+     "no subjects match" state stands in when the scope empties the view. */
+  var kindBtns = Array.prototype.slice.call(container.querySelectorAll("[data-invkind] button"));
+  var gapsBox = container.querySelector("[data-invgaps]");
+  var filterInput = container.querySelector("[data-invfilter]");
+  var noMatch = container.querySelector("[data-invnomatch]");
+  var sections = Array.prototype.slice.call(container.querySelectorAll(".section[data-kind]"));
+  var scope = { kind: "all", gaps: false, q: "" };
+  function applyScope() {
+    var anyVisible = false;
+    sections.forEach(function (sec) {
+      var kindOk = scope.kind === "all" || sec.getAttribute("data-kind") === scope.kind;
+      var shown = 0;
+      Array.prototype.slice.call(sec.querySelectorAll("tr[data-invsub]")).forEach(function (tr) {
+        var ok = kindOk &&
+          (!scope.gaps || tr.getAttribute("data-has-gap") === "1") &&
+          (!scope.q || (tr.getAttribute("data-key") || "").toLowerCase().indexOf(scope.q) !== -1);
+        if (ok) { tr.removeAttribute("hidden"); shown++; } else { tr.setAttribute("hidden", ""); }
+      });
+      if (shown > 0) { sec.removeAttribute("hidden"); anyVisible = true; } else { sec.setAttribute("hidden", ""); }
+    });
+    if (noMatch) { if (anyVisible) noMatch.setAttribute("hidden", ""); else noMatch.removeAttribute("hidden"); }
+  }
+  kindBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      scope.kind = btn.getAttribute("data-kind");
+      kindBtns.forEach(function (b) { b.setAttribute("aria-pressed", b === btn ? "true" : "false"); });
+      applyScope();
+    });
+  });
+  if (gapsBox) gapsBox.addEventListener("change", function () { scope.gaps = gapsBox.checked; applyScope(); });
+  if (filterInput) filterInput.addEventListener("input", function () { scope.q = filterInput.value.trim().toLowerCase(); applyScope(); });
+  var clearBtn = container.querySelector("[data-invclear]");
+  if (clearBtn) clearBtn.addEventListener("click", function () {
+    scope = { kind: "all", gaps: false, q: "" };
+    kindBtns.forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-kind") === "all" ? "true" : "false"); });
+    if (gapsBox) gapsBox.checked = false;
+    if (filterInput) filterInput.value = "";
+    applyScope();
+  });
 })();
 </script>
 </main>
@@ -167,273 +237,6 @@ the inventory fills as facets are folded.</p>
 {{define "recordrows"}}<table class="records"><tbody>
 {{range .}}<tr>{{if .Type}}<td class="rrtype"><span class="badge">{{.Type}}</span></td>{{else}}<td class="rrtype"></td>{{end}}<td class="mono">{{.Data}}</td></tr>{{end}}
 </tbody></table>{{end}}
-
-{{define "subject"}}{{template "head" .}}
-{{template "chrome" .}}
-<main>
-{{with .Subject}}
-<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-5)">
-<div>
-<div class="microlabel">Observed · Name</div>
-<h1 class="mono" style="margin-bottom:0">{{.Name}}</h1>
-</div>
-<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-<span class="badge">Name</span>
-<a class="btn secondary" href="/inventory" style="text-decoration:none">Back to inventory</a>
-</div>
-</div>
-{{if .Withdrawn}}
-<div class="notice">This name is withdrawn — it names a population of no current member. Its timelines are closed. It is reached by its own key and never appears in the listing.</div>
-{{end}}
-
-<div class="section">
-<div class="microlabel">Why is this here</div>
-<h2>Citation chain</h2>
-<p>Following a subject's citations backwards always terminates at a Seed you declared — that is what makes "why is this here" answerable for everything in the estate.</p>
-<ol class="chain">
-{{range .Citation}}<li>
-<div class="microlabel">{{.Label}}</div>
-<div class="mono chainval">{{.Value}}</div>
-{{if .Detail}}<div class="muted">{{.Detail}}</div>{{end}}
-</li>{{end}}
-</ol>
-{{if not .CitationTerminated}}<p class="muted">The chain does not reach a declared Seed. That is an integrity gap, not a normal state — every subject in the estate should trace back to a scope you declared.</p>{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Current · resolution</div>
-<h2>Resolution</h2>
-{{if .Resolution}}
-<div class="kv"><div class="k">Outcome</div><div><span class="badge">{{.Resolution}}</span></div></div>
-{{if .Addresses}}<div class="kv"><div class="k">Addresses</div><div class="mono">{{range .Addresses}}{{.}}<br>{{end}}</div></div>{{end}}
-{{else}}<p class="muted">No resolution value recorded.</p>{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Timelines</div>
-<h2>Current and closed timelines</h2>
-{{if .Timelines}}
-<p class="muted">Each timeline is one period a value was held. A Break marks two spans the drift engine may not compare, naming the leaf that moved; it is derived on read and never stored.</p>
-{{range .Timelines}}
-<div class="timeline">
-<div class="microlabel">{{.Label}}</div>
-{{if .Current}}
-<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else if .Current.Details}}<details class="spanrecords"><summary><span class="badge">{{.Current.Value}}</span></summary>{{template "recordrows" .Current.Details}}</details>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
-{{else}}
-<div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
-{{end}}
-{{if .Breaks}}{{range .Breaks}}
-<div class="notice">Break at {{.At}} — not comparable across it. Leaf that moved: <span class="mono">{{.MovedLeaves}}</span></div>
-{{end}}{{end}}
-{{if .Closed}}
-<table class="closedspans">
-<thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
-<tbody>
-{{range .Closed}}<tr>
-<td>{{if .IsGap}}<span class="muted">Gap</span>{{else if .Details}}<details class="spanrecords"><summary><span class="mono">{{.Value}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
-<td class="mono">{{.OpenedAt}}</td>
-<td class="mono">{{.ClosedAt}}</td>
-<td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
-</tr>{{end}}
-</tbody>
-</table>
-{{end}}
-</div>
-{{end}}
-{{else}}
-<p class="muted">No timeline has been folded yet. A Span opens when the dns Scan first measures a value for this name; re-running it with a changed answer closes the open span and opens the next.</p>
-{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Rules</div>
-<h2>Rules over this subject</h2>
-<p class="muted">Every rule whose predicate domain includes this subject renders here, each carrying its own versioned verdict. Wired up by ticket 22.</p>
-</div>
-{{end}}
-</main>
-{{template "foot" .}}{{end}}
-
-{{define "service"}}{{template "head" .}}
-{{template "chrome" .}}
-<main>
-{{with .Service}}
-<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-5)">
-<div>
-<div class="microlabel">Observed · Service</div>
-<h1 class="mono" style="margin-bottom:0">{{.Key}}</h1>
-</div>
-<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-<span class="badge">Service</span>
-<a class="btn secondary" href="/inventory" style="text-decoration:none">Back to inventory</a>
-</div>
-</div>
-{{if .Withdrawn}}
-<div class="notice">This service's address has left the estate — no current resolution cites it and no Seed covers it. It names a population of no current member; its timelines are closed and it is reached by its own key.</div>
-{{end}}
-
-<div class="section">
-<div class="microlabel">Why is this here</div>
-<h2>Citation chain</h2>
-<p>A Service is an (address, port, transport) triple. Its membership is its address's membership restated — an address is in the estate exactly while a current resolution cites it or a Seed covers it — so the chain runs from the Service down through its address to the Seed you declared.</p>
-<ol class="chain">
-{{range .Citation}}<li>
-<div class="microlabel">{{.Label}}</div>
-<div class="mono chainval">{{.Value}}</div>
-{{if .Detail}}<div class="muted">{{.Detail}}</div>{{end}}
-</li>{{end}}
-</ol>
-{{if not .CitationTerminated}}<p class="muted">The chain does not reach a declared Seed. For a service whose address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</p>{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Current · reachability</div>
-<h2>Reachability</h2>
-<div class="kv"><div class="k">Address</div><div class="mono">{{.Address}}</div></div>
-<div class="kv"><div class="k">Port</div><div class="mono">{{.Port}}/{{.Transport}}</div></div>
-{{if .ReachGap}}
-<div class="kv"><div class="k">Verdict</div><div><span class="badge">Gap</span></div></div>
-<div class="notice">{{.ReachGapReason}}. From this vantage we cannot tell a real origin service behind the edge from the edge answering for it, so the reach is undiscriminated — a Gap, not <span class="mono">reached</span>. Declare your origin IPs as an address scope to measure the real surface.</div>
-{{else if .Reach}}
-<div class="kv"><div class="k">Verdict</div><div><span class="badge">{{.Reach}}</span></div></div>
-{{else}}<p class="muted">No reachability value recorded.</p>{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Timelines</div>
-<h2>Current and closed timelines</h2>
-{{if .Timelines}}
-<p class="muted">Each timeline is one period a value was held. A Break marks two spans the drift engine may not compare, naming the leaf that moved; it is derived on read and never stored.</p>
-{{range .Timelines}}
-<div class="timeline">
-<div class="microlabel">{{.Label}}</div>
-{{if .Current}}
-<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else if .Current.Details}}<details class="spanrecords"><summary><span class="badge">{{.Current.Value}}</span></summary>{{template "recordrows" .Current.Details}}</details>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
-{{else}}
-<div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
-{{end}}
-{{if .Breaks}}{{range .Breaks}}
-<div class="notice">Break at {{.At}} — not comparable across it. Leaf that moved: <span class="mono">{{.MovedLeaves}}</span></div>
-{{end}}{{end}}
-{{if .Closed}}
-<table class="closedspans">
-<thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
-<tbody>
-{{range .Closed}}<tr>
-<td>{{if .IsGap}}<span class="muted">Gap</span>{{else if .Details}}<details class="spanrecords"><summary><span class="mono">{{.Value}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
-<td class="mono">{{.OpenedAt}}</td>
-<td class="mono">{{.ClosedAt}}</td>
-<td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
-</tr>{{end}}
-</tbody>
-</table>
-{{end}}
-</div>
-{{end}}
-{{else}}
-<p class="muted">No timeline has been folded yet. A Span opens when the hot Scan first reaches for this port; re-running it with the port opening or closing closes the open span and opens the next.</p>
-{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Rules</div>
-<h2>Rules over this subject</h2>
-<p class="muted">Every rule whose predicate domain includes this subject renders here, each carrying its own versioned verdict. Wired up by ticket 22.</p>
-</div>
-{{end}}
-</main>
-{{template "foot" .}}{{end}}
-
-{{define "endpoint"}}{{template "head" .}}
-{{template "chrome" .}}
-<main>
-{{with .Endpoint}}
-<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:var(--space-5)">
-<div>
-<div class="microlabel">Observed · Endpoint</div>
-<h1 class="mono" style="margin-bottom:0">{{if .Nameless}}<span class="muted">(nameless)</span> {{end}}{{.Key}}</h1>
-</div>
-<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-<span class="badge">Endpoint</span>
-<a class="btn secondary" href="/inventory" style="text-decoration:none">Back to inventory</a>
-</div>
-</div>
-{{if .Withdrawn}}
-<div class="notice">This endpoint's service has left the estate — no current resolution cites its address and no Seed covers it. It names a population of no current member; its timelines are closed and it is reached by its own key. An endpoint closes when either leg — its Name or its Service — withdraws.</div>
-{{end}}
-
-<div class="section">
-<div class="microlabel">Why is this here</div>
-<h2>Citation chain</h2>
-<p>An Endpoint is a (Name, Service) pair — the only key under which HTTP identity is single-valued. Its membership is its Service's, restated: a Service is in the estate exactly while a current resolution cites its address or a Seed covers it, so the chain runs from the Endpoint through its Name and Service legs down to the Seed you declared.</p>
-<ol class="chain">
-{{range .Citation}}<li>
-<div class="microlabel">{{.Label}}</div>
-<div class="mono chainval">{{.Value}}</div>
-{{if .Detail}}<div class="muted">{{.Detail}}</div>{{end}}
-</li>{{end}}
-</ol>
-{{if not .CitationTerminated}}<p class="muted">The chain does not reach a declared Seed. For an endpoint whose service address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</p>{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Current · http-identity</div>
-<h2>HTTP identity</h2>
-<div class="kv"><div class="k">Name</div><div class="mono">{{if .Nameless}}<span class="muted">nameless endpoint</span>{{else}}{{.Name}}{{end}}</div></div>
-<div class="kv"><div class="k">Service</div><div class="mono">{{.Service}}</div></div>
-{{if .HasIdentity}}
-<div class="kv"><div class="k">Status</div><div><span class="badge">{{.Status}}</span></div></div>
-{{if .Server}}<div class="kv"><div class="k">Server</div><div class="mono">{{.Server}}</div></div>{{end}}
-{{if .Title}}<div class="kv"><div class="k">Title</div><div class="mono">{{.Title}}</div></div>{{end}}
-{{if .WWWAuthenticate}}<div class="kv"><div class="k">WWW-Authenticate</div><div class="mono">{{.WWWAuthenticate}}</div></div>{{end}}
-{{if .RedirectLocation}}<div class="kv"><div class="k">Redirect</div><div class="mono">{{.RedirectLocation}} <span class="muted">(recorded, not followed)</span></div></div>{{end}}
-{{else}}<p class="muted">No HTTP identity value recorded.</p>{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Timelines</div>
-<h2>Current and closed timelines</h2>
-{{if .Timelines}}
-<p class="muted">Each timeline is one period a value was held. A Break marks two spans the drift engine may not compare, naming the leaf that moved; it is derived on read and never stored.</p>
-{{range .Timelines}}
-<div class="timeline">
-<div class="microlabel">{{.Label}}</div>
-{{if .Current}}
-<div class="kv"><div class="k">Current</div><div>{{if .Current.IsGap}}<span class="badge">Gap</span>{{else if .Current.Details}}<details class="spanrecords"><summary><span class="badge">{{.Current.Value}}</span></summary>{{template "recordrows" .Current.Details}}</details>{{else}}<span class="badge">{{.Current.Value}}</span>{{end}} <span class="muted mono">since {{.Current.OpenedAt}}</span></div></div>
-{{else}}
-<div class="kv"><div class="k">Current</div><div class="muted">Closed — this timeline holds no current value.</div></div>
-{{end}}
-{{if .Breaks}}{{range .Breaks}}
-<div class="notice">Break at {{.At}} — not comparable across it. Leaf that moved: <span class="mono">{{.MovedLeaves}}</span></div>
-{{end}}{{end}}
-{{if .Closed}}
-<table class="closedspans">
-<thead><tr><th>Value</th><th>Opened</th><th>Closed</th><th>Ground</th></tr></thead>
-<tbody>
-{{range .Closed}}<tr>
-<td>{{if .IsGap}}<span class="muted">Gap</span>{{else if .Details}}<details class="spanrecords"><summary><span class="mono">{{.Value}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}<span class="mono">{{.Value}}</span>{{end}}</td>
-<td class="mono">{{.OpenedAt}}</td>
-<td class="mono">{{.ClosedAt}}</td>
-<td>{{if .Reason}}<span class="badge">{{.Reason}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
-</tr>{{end}}
-</tbody>
-</table>
-{{end}}
-</div>
-{{end}}
-{{else}}
-<p class="muted">No timeline has been folded yet. A Span opens when the hot Scan first exchanges with this endpoint; re-running it with a changed identity closes the open span and opens the next.</p>
-{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Rules</div>
-<h2>Rules over this subject</h2>
-<p class="muted">Every rule whose predicate domain includes this subject renders here, each carrying its own versioned verdict. Wired up by ticket 22.</p>
-</div>
-{{end}}
-</main>
-{{template "foot" .}}{{end}}
 
 {{define "subject-missing"}}{{template "head" .}}
 {{template "chrome" .}}

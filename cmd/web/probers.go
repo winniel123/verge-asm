@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
@@ -92,4 +94,18 @@ func toProberViews(rows []db.ListVantagesRow) []proberView {
 
 func endpointString(host string, port int32) string {
 	return host + ":" + strconv.Itoa(int(port))
+}
+
+// vantageLatencyLabel formats a vantage's measured connect round-trip for the
+// Dashboard Vantages card (P0.5, SPEC-CHANGE.md collision #7): the spec's mono
+// "34ms" reading once a first measurement exists, and the empty string when the
+// datum is still NULL — the template renders the pending em dash for that case.
+// The latency is measured on the prober connect that pins the host key and stored
+// nullable on the vantage, so an unmeasured prober reads NULL, never a fabricated
+// number.
+func vantageLatencyLabel(ms pgtype.Int4) string {
+	if !ms.Valid {
+		return ""
+	}
+	return strconv.Itoa(int(ms.Int32)) + "ms"
 }

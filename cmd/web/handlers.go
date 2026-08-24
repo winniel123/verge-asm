@@ -272,14 +272,29 @@ type store interface {
 	// instant of a trigger (cold turns enabled once a scope opts in, ADR-0044).
 	ListScans(ctx context.Context) ([]db.Scan, error)
 
-	// Report scheduling (#290): the Reports screen's "New schedule" wizard declares a
-	// recurring report and the "Recurring reports" table lists them. A schedule is
-	// Declared — a plain insert and an unbounded newest-first list, no content update
-	// and no delete (the row-menu's edit/delete stay out of scope). There is no
-	// per-schedule delivery backing store yet (#291/T3), so a row resolves its "last
-	// delivery" from the Message corpus rather than a stamp on the schedule itself.
+	// Report scheduling (#290, live CRUD in P0.6/T4): the Reports screen's "New
+	// schedule" wizard declares a recurring report, the "Recurring reports" table lists
+	// them, and the row menu edits, deletes, and runs one now. A schedule is Declared —
+	// Insert files one, List reads them newest-first, Get reads one (Edit prefill and
+	// the Run-now dispatch), Update edits a declared schedule's contents in place (a
+	// schedule carries no derived state, so this is not a recompute — migration 21700),
+	// and Delete removes one. "Last delivery" resolves from the report_delivery receipts
+	// store (#291/T2), not a stamp on the schedule itself.
 	InsertReportSchedule(ctx context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error)
 	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
+	GetReportSchedule(ctx context.Context, id int64) (db.ReportSchedule, error)
+	UpdateReportSchedule(ctx context.Context, arg db.UpdateReportScheduleParams) (db.ReportSchedule, error)
+	DeleteReportSchedule(ctx context.Context, id int64) error
+
+	// Report-delivery receipts (#291/T2): the operational record of each run of a
+	// schedule. GetLatestReportDelivery returns the newest non-failed run, backing the
+	// "Recurring reports" table's "last sent" cell and the delivered-artifact view;
+	// pgx.ErrNoRows is the genuine empty-state (never run, or only failed). The insert
+	// and list paths round out the store the run path (T5) writes and reads.
+	InsertReportDelivery(ctx context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error)
+	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
+	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (db.ReportDelivery, error)
+	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]db.ReportDelivery, error)
 
 	// SSO / OIDC providers (#293, ADR-0112): the config behind the SignIn buttons and
 	// the Settings single-sign-on tab. The client secret is write-only — only
@@ -513,12 +528,20 @@ func (s *server) handler() http.Handler {
 	// pure-Go render, no external engine — it runs inside the distroless-static web
 	// image). A viewer reads it — a delivered report is a record, not a mutation.
 	mux.HandleFunc("GET /reports/delivery/pdf", s.requireLogin(s.reportDeliveryPDF))
-	// The Reports schedule create path (#344): report scheduling has no dispatch or
-	// delivery backend, so a persisted schedule would silently never run. The wizard is
-	// disabled in the UI and this handler refuses (501) so no report_schedule row is
-	// filed from normal use or a crafted POST. Still behind requireAdmin — declaring a
-	// schedule was an admin config act — so a viewer is refused before the handler.
+	// The Reports schedule CRUD (#290, P0.6/T4): report scheduling is live. The
+	// "New schedule" wizard and the row menu declare, edit, delete, and run one report
+	// now. Every route is an admin config act (declaring/changing a schedule), gated
+	// behind requireAdmin, so a viewer is refused before the handler. GET /new and
+	// GET /{id}/edit render the stepped wizard (server post-back, no client runtime,
+	// the onboarding pattern); POST /reports/schedule and /reports/schedule/edit carry
+	// both the step-advance and the finishing insert/update; run and delete are the
+	// row-menu mutations. All redirect back to /reports on success.
+	mux.HandleFunc("GET /reports/schedule/new", s.requireAdmin(s.newReportScheduleWizard))
+	mux.HandleFunc("GET /reports/schedule/{id}/edit", s.requireAdmin(s.editReportScheduleWizard))
 	mux.HandleFunc("POST /reports/schedule", s.requireAdmin(s.createReportSchedule))
+	mux.HandleFunc("POST /reports/schedule/edit", s.requireAdmin(s.editReportSchedule))
+	mux.HandleFunc("POST /reports/schedule/run", s.requireAdmin(s.runReportScheduleNow))
+	mux.HandleFunc("POST /reports/schedule/delete", s.requireAdmin(s.deleteReportSchedule))
 
 	// The Subjects LIST folded into /inventory (#286): Inventory is the canonical
 	// "what do I have right now" screen and lists every Name/Service/Endpoint, so
@@ -685,7 +708,7 @@ func (s *server) handler() http.Handler {
 	// The Settings destination and every mutation it hosts are admin acts
 	// (v1 spec §4.3, §6.1): viewing the operator's dials and moving them are
 	// both gated behind requireAdmin.
-	mux.HandleFunc("GET /settings", s.requireAdmin(s.settingsPage))
+	mux.HandleFunc("GET /settings", s.requireSettingsAdmin(s.settingsPage))
 	mux.HandleFunc("POST /settings/accounts", s.requireAdmin(s.inviteAccount))
 	mux.HandleFunc("POST /settings/accounts/role", s.requireAdmin(s.setAccountRole))
 	// Team (#313, T18): re-enrollment resets a member's second factor; remove passes

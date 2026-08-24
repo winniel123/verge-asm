@@ -18,12 +18,13 @@ import "html/template"
 //     census CoverageMeters (+ a StalenessBadge when a vantage is silent); a Vantages
 //     card; and the most-recent Signals register as a flat per-instance table (#442).
 //
-// The one figure with no datum is per-vantage latency: no latency is measured or
-// stored anywhere (SPEC-CHANGE.md collision #7, ruled a deferred subsystem out of
-// scope). Per acceptance #7 the latency figure renders the spec's own Skeleton
-// placeholder — never a fabricated number and never a dropped card; the rest of the
-// Vantages card is real. Every other read is best-effort: a failed read degrades to an
-// em dash or an empty region, never a fabricated value.
+// Per-vantage latency is now a real datum (P0.5, #485, resolving SPEC-CHANGE.md
+// collision #7): the worker measures the round-trip of the prober connect that pins
+// the host key and stores it nullable on the vantage, and this card renders the
+// spec's mono "34ms" reading where a measurement exists, or the spec's pending em
+// dash where the prober has not yet been reached — never a fabricated number and
+// never a dropped card. Every other read is best-effort: a failed read degrades to
+// an em dash or an empty region, never a fabricated value.
 //
 // The classes below are template-local CSS translated from the design-system
 // components (Stat/DeltaChip, Progress, Banner, CoverageMeter, StalenessBadge,
@@ -87,11 +88,10 @@ const dashboardTemplates = `
 .cov-stale{display:flex;align-items:center;gap:8px}
 .stale-badge{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:var(--r-sm);background:var(--stale-bg);border:1px solid var(--stale-border);color:var(--stale-fg);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.04em;white-space:nowrap;line-height:1}
 .stale-badge svg{width:9px;height:9px;flex:none}
-/* Vantage rows + latency skeleton + availability badge */
+/* Vantage rows + latency reading + availability badge */
 .vrow{display:flex;align-items:center;gap:10px}
 .vrow .vname{font-family:var(--mono);font-size:12.5px;color:var(--body)}
-.dash-skel{display:inline-block;width:40px;height:10px;border-radius:6px;background:var(--border-strong);animation:dash-skel 1.6s ease-in-out infinite}
-@keyframes dash-skel{0%,100%{opacity:1}50%{opacity:0.5}}
+.vlat{font-family:var(--mono);font-size:12px;color:var(--muted)}
 .avbadge{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:var(--r-sm);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.04em;white-space:nowrap;line-height:1;border:1px solid transparent}
 .avbadge .av-dot{width:5px;height:5px;border-radius:999px;flex:none}
 .avbadge.available{background:var(--ok-soft);border-color:var(--ok-border);color:var(--ok)}
@@ -226,7 +226,7 @@ const dashboardTemplates = `
         {{range .Vantages}}
         <div class="vrow">
           <span class="vname">{{.Name}}</span>
-          <span class="dash-skel" title="Per-vantage latency is not measured yet" aria-label="latency not measured"></span>
+          <span class="vlat">{{if .Latency}}{{.Latency}}{{else}}&#8212;{{end}}</span>
           <span style="margin-left:auto">{{if eq .Avail "available"}}<span class="avbadge available"><span class="av-dot"></span>available</span>{{else if eq .Avail "unavailable"}}<span class="avbadge unavailable"><span class="av-dot"></span>unavailable</span>{{else}}<span class="avbadge unverified"><span class="av-dot"></span>{{if .Avail}}{{.Avail}}{{else}}unverified{{end}}</span>{{end}}</span>
         </div>
         {{end}}

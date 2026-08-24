@@ -1,57 +1,53 @@
-# Parity chart — make verge-asm match the design exactly
+# Parity chart v3.2 — round 2
 
-Generated 2026-08-24T02:14:21Z against winniel123/verge-asm@main (tree d13a12d6d404), auditing the executed v3 WORK-CHART port. Specs live in examples/, ground truth in screenshots/, portable source in components/ + tokens/. **Wayfinder: this chart is the entry point.** The collision protocol that prevents this class of drift recurring is SPEC-CHANGE.md — land it with P0.
+Synced 2026-08-24T14:52Z against winniel123/verge-asm@main (tree e7cb9c0e0041), verifying the executed round-1 chart. **Wayfinder: start here.** The exact-parity ruling (design normative for look AND functionality, ADR-0116) and the SPEC-CHANGE.md escalation protocol are in force — round 1 proved them: 8 collisions filed, 4 ruled and built in-run, 4 correctly stopped and now ruled below.
 
-## The ruling (binding, from the project owner)
+## Landed — verified at head (do NOT redo or re-audit)
 
-The design in this package is normative for **look AND functionality**. The port's standing doctrine — "the domain term wins and the visual convention gets re-skinned around it" / "fabricated mock data is re-skinned to honest current-state facts + empty-states" (reports.go precedent; ADR-0024/ADR-0110 readings; docs/agents/design-system.md) — is **retired for composition and data shape**. Consequences:
+- P0.1 severity ramp + per-instance `SIG-####` signals (handlers.go #442, signals.go, sev classes in shell CSS; asserted by signals_test).
+- P0.2 vs-last-batch deltas (deltas.go: dashboardDeltas / signalDeltas / exposureCountDeltas + signDelta; withheld-without-previous-batch degrade tested).
+- P0.3 Reports trend series, MTTW + delta, heatmap with real intensities (reports.go; intensity steps mirror HeatmapCalendar.jsx; empty-heatmap honesty tested).
+- P0.4 certs-expiring ≤30d datum built via collision #8 (leaf `not_after` captured, CertVersion v2); scan instants wired. Latency moved to P0.5 below.
+- P1.2–P1.4, P1.6–P1.8 shell: inbox bell menu (unread dots, per-message deep-link, View all), org switcher menu (asset counts, check), footer, toast pipeline (query-blob across PRG + stack per ToastStack.jsx), initials avatar.
+- P2.1 Dashboard (severity table `dsig-*`, framed stat band with deltas; placeholder regions gone), P2.2 Signals flat per-instance table (tests assert no census renders), P2.4 Reports incl. #9's "New assets discovered" card (P2.4b: ListSubjectFirstAppearances → DiscoverySeries), P2.5 Search Documentation group restored over docs/guides/, P2.6 Exposure stat-band deltas (tested).
+- P2.7 hold sweep ran — produced collisions #10–12, all ruled and built: #10 Mark-unread mutation (messages.go, monotonic-read comment withdrawn), #12 Scope declared-name TreeView (renderSeeds → details TreeView with per-leaf max severity).
+- P3 gate ran (#454); its findings are collisions #10–14.
+- Escalation protocol landed (repo CLAUDE.md + ADR-0116) and worked as designed.
 
-1. Where the domain lacks a datum the design renders (severity, per-signal instances, deltas, trends, latency), the fix is to **build the datum**, never to empty-state or reshape the spec's region.
-2. Empty states are for genuinely empty data only, using the spec's own empty patterns. A spec region may not render as a placeholder pointing elsewhere.
-3. No dropped affordances, no added ones. What renders in the design preview is what ships.
-4. Vocabulary rules are unchanged and still binding: signal / seed / channel / vantage / annotation; withdrawn, never resolved.
+## Rulings on the four AWAITING DESIGN collisions (this sync — update SPEC-CHANGE.md log)
 
-Record this as an ADR superseding the re-skin precedent before starting P1/P2, and adopt SPEC-CHANGE.md as the standing protocol: every future domain–spec collision is filed there and ruled on by design — never resolved port-side. Land its §Stop and escalate block into the repo's CLAUDE.md as part of P0, so any needed design decision stops the item, notifies the operator, and prints the hand-off prompt for the design workspace.
+- Collision #7 → **NEW P0.5**: build the latency datum. Measure round-trip at the prober connect (the same connect that pins the host key), store nullable on the vantage, surface via probers.go; Dashboard Vantages renders the spec's pending "—" until a first measurement exists. A dedicated measurement ticket (worker + migration + read), not cmd/web-only.
+- Collision #11 → **NEW P2.10**: build severity into the offline artifact model. RenderArtifact carries per-signal severity → the by-severity bars + SeverityBadge column per ReportArtifact.jsx; renders real values when the delivery backend lands (until then the body's empty-state stands — it is genuinely empty). Reconciles ADR-0024 with P0.1 for internal/message.
+- Collision #13 → **U6, BLOCKED ON DESIGN — do not touch.** The Inventory spec predates the shipped subject/facet/span model (its columns are the older exposure-centric mock), so BulkActionsBar / SavedViews / TagInput filters have nothing real to bind. Inventory gets re-specced in the design workspace onto the real model; the fate of those three controls is decided there. Repo keeps its current Inventory meanwhile. Round-1's P2.8 is VOID — superseded by this ruling.
+- Collision #14 → **CLOSED, no repo change.** Spec catch-up ships in this package: Profile.jsx realigned to the shipped account model (username identity — no display-name/email fields, no token Scope select, no recovery-code rotation; sessions with End-this-session + confirm dialogs) and gains the Access · single sign-on "Linked identities" section (provider table, unlink, link-an-identity row) matching templates_profile.go. Settings → Sessions was already specced (U2 · shot 25). Shot 14 recaptured.
 
-## Orchestrator guidance
+## Executable now — round 2
 
-P0 first (schema + derivations; everything else reads them). P1 is one tree (templates_shell.go is shared). P2 items marked ∥ touch disjoint files and parallelize after P0 lands. P3 is the closing gate.
+- U1 Subject drill-ins (SubjectDetail.jsx, shots 22–24 · templates_inventory.go "service"/"endpoint", subjects.go; Name page renders AssetDetail per ruling).
+- U2 Settings → Sessions (Settings.jsx SessionsSection, shot 25 · templates_settings.go, /settings/sessions/*).
+- U3 missing-subject / missing-run ErrorPage kinds (shot 26) · U4 settings-forbidden kind (shot 27).
+- D1 docs left-rail IA — frontmatter edits per docs/DOCS-IA.md (six sections, deterministic orders, short SSO titles).
+- D2 VersionSelect via Tv's listVersions (releases + main·dev, newest tagged current).
+- D4 ruling stands: render.jsx markdown→DS map IS the article spec; no fabricated article on a real route.
+- D6 prev/next cards + TOC anchor links (spec in examples/DocsPage.jsx; Astro partial off nav-build's flattened NavSection[]).
+- D3 needs no repo change (search-as-palette adopted into spec).
+- P0.5 and P2.10 (rulings above).
+- P0.6 **Dispatch + delivery backend** (collision #15, ruled by the owner 2026-08-24: BUILD IT LIVE). The on-cadence dispatcher and delivery backend #344 deferred (#285/#290/#291 chain, tracking #497): scheduled reports dispatch on their cadence, deliveries record receipts, and the 501/disabled scheduling surface comes alive per Reports.jsx (enabled New-schedule wizard → create; editable recurring list with Edit/Delete). The spec is unchanged — it was the target all along. Unblocks: P2.9 (schedule create/list live), P2.10's rendering (real artifacts to carry severity), reportDeliveryPage + Inbox delivery receipts on real deliveries. This is a subsystem — chart it as its own work-item tree, parallel to U/D items.
+- P0.6b **Off-instance send = notify-with-link** (collision #16, owner ruling 2026-08-24). A delivery to a recipient sends only "your report is ready" + a session-authed URL to the in-instance artifact — the estate digest never leaves the instance (ADR-0039 stands; no estate-bearing SMTP). Build the minimal notification transport for that message only. The spec's recipient fields stay as-is; the artifact renders in-instance per P2.10.
+- D5/P3b closing gate: side-by-side of round-2 screens plus the verify list below, light AND dark, 1440px, console against screenshots/ and docs against docs.jpg.
 
-## P0 — model prerequisites (land first)
+## Verify at the round-2 gate (round-1 claims not independently confirmed)
 
-- P0.1 **Severity + per-instance signals.** Five-level ramp (critical / high / medium / low / info) assigned to each rule, and per-instance signal rows (rule × subject) carrying first-seen / last-seen instants and a mintable `SIG-####` id. Shape spec: examples/console/SignalData.jsx. Targets: internal/signal/, db/migrations, cmd/web/signals.go. CONTEXT.md's "a signal carries no severity" is superseded by the ruling.
-- P0.2 **Vs-last-batch deltas** for stat tiles: open signals, critical, assets watched, exposed services, certs expiring, exposure counts. Derivable from existing span/transition history. Targets: internal/drift/, handlers.go, exposure.go.
-- P0.3 **Trend series** for Reports: signals over time, scans-per-day heatmap intensities, mean-time-to-withdrawal from transition history. Targets: reports.go, internal/drift/.
-- P0.4 **Ancillary reads the spec renders:** certs-expiring-≤30d count (TLS corpus), per-vantage latency in ms (probers), "last full scan Xm ago · next in Yh Zm" instants (scheduler). Targets: handlers.go, probers.go, scans.go.
+- P1.1 nav pill set and order (Exposure · Coverage present).
+- P1.5 palette groups (Assets group, Sources/Port-aperture deep-links, First-run action).
+- P1.9 Integrations reachable — the shell comment still describes `integrationsEnabled` as compile-time false; confirm the surface ships enabled or file a collision.
+- P2.3 Graph severity-tinted nodes + drawer severity.
+- P2.9 resolves via P0.6 (collision #15) — the 501 refusal was intentional pending the delivery backend; once P0.6 lands, verify create/list/edit/delete per Reports.jsx.
 
-## P1 — shell (templates_shell.go) ← ConsoleApp.jsx + components/navigation/TopNav.jsx
+## Blocked on design
 
-- P1.1 Nav pills exactly and in order: Dashboard · Scope · Inventory · Drift · Signals (count) · **Exposure** · **Coverage** · Graph · Reports. Exposure and Coverage are missing today.
-- P1.2 Remove the GitHub link from navactions — not in the spec's TopNav.
-- P1.3 Inbox bell opens the recent-messages menu (per-message deep-link into Inbox, "View all") per TopNav's onOpenMessage; today it is a bare link to /inbox.
-- P1.4 Org switcher opens its menu (the real org + asset count) per OrgSwitcher; today the button is inert.
-- P1.5 Command palette parity with ConsoleApp.jsx: Screens group adds Inbox, Profile, Exposure, Coverage, Sources (settings deep-link), Port aperture (settings deep-link); Actions adds First-run onboarding; add the Assets group (top current Names, each → /asset/{key}). "Search everything" overflow stays as wired.
-- P1.6 Footer (components/navigation/Footer.jsx) renders on console screens.
-- P1.7 Toasts fire on acts (scan started/complete, saves, org switch) per ConsoleApp; the stack exists but nothing ever posts to it. Post-redirect toast rendering is fine; look/behavior per ToastStack.jsx.
-- P1.8 Avatar shows the signed-in account's initials, not literal "VA".
-- P1.9 Integrations surface ships enabled (`integrationsEnabled` is compiled false); the design shows it reachable from palette and Settings.
+- U6 Inventory re-spec onto the subject/facet/span model (collision #13). Being designed in the design workspace; lands in a future package.
 
-## P2 — screens: restore re-skinned regions
+## Acceptance (unchanged)
 
-- P2.1 ∥ **Dashboard** (templates_dashboard.go, handlers.go) ← Dashboard.jsx · shot 01. Header sub-line (last scan / next in); ONE framed card with five Stat cells + deltas (Open signals · Critical · Assets watched · Exposed services · Certs expiring ≤30d) replacing the five loose .kpi tiles; Progress row with detail while scanning; dismissible warn Banner with Retry; By-severity bars with real counts; Coverage card with CoverageMeters + StalenessBadge; Vantages card with latency; Most-recent Signals table (Severity / Signal / Asset / Port / Seen, 6 rows, row-click → Signals). Both placeholder empty-state regions ("Signals carry no severity", "Coverage detail is on its own screen") are deleted.
-- P2.2 ∥ **Signals** (templates_signals.go, signals.go) ← Signals.jsx + SignalData.jsx. Flat per-instance table — SeverityBadge, SIG id, signal, asset, port, seen — with severity filter, sort, text filter, pagination; tabs with counts; AnnotationControl; row Drawer; typed-name descope ConfirmDialog (already present). The per-rule census grouping leaves the screen (keep it data-side for the CSV if wanted). Export CSV stays — it IS in the spec (header, secondary button + download icon; now specced to export the current tab's filtered rows; disabled-when-empty degrades per the spec's empty pattern).
-- P2.3 ∥ **Graph** (templates_graph.go, graph.go) ← GraphView.jsx. Severity-tinted nodes and severity in the drawer per spec (needs P0.1); the presence-only single-accent re-skin goes.
-- P2.4 ∥ **Reports** (templates_reports.go, reports.go) ← Reports.jsx · shots 09→10. Restore the three re-skinned regions: trend KPIs with deltas (incl. the time-to-withdrawal KPI in its spec slot), heatmap with real intensities, the spec's period options. Keep row menu → View last delivery.
-- P2.5 ∥ **Search** (templates_search.go, search.go) ← SearchResults.jsx. SeverityBadge back on signal rows (P0.1); restore the Documentation group, indexed over docs/guides/ (the dropped-group rationale "no content store" no longer holds — the guides are the store).
-- P2.6 ∥ **Exposure** (templates_exposure.go, exposure.go) ← Exposure.jsx. Deltas on the stat band (P0.2). The runtime-conditional WITHHELD/board rendering stands — the spec's SegmentedControl is a preview affordance satisfied by real state.
-- P2.7 **Hold sweep.** Grep cmd/web for `re-skinned|fabricated|honest|domain-incompatible`; every remaining hold either now has its datum (P0) or gets a work item. No spec region may empty-state while its datum exists.
-
-## P3 — closing gate
-
-Side-by-side pass of all 26 screens against screenshots/ at 1440px, light AND dark, before sign-off — including the screens the port marked "verbatim" (Scope, Inventory, Drift, Settings, SignIn, Setup, Onboarding, Profile, Inbox, AssetDetail, RunDetail, ReportArtifact, Coverage, FirstRun, Error). Verbatim claims are unverified until this pass.
-
-## Acceptance (adds to WORK-CHART.md §Acceptance)
-
-5. **No dropped affordance:** every control, column, filter, menu item, and state visible in the spec file exists and operates.
-6. **No added affordance:** nothing user-facing renders that the spec doesn't show (current extra: GitHub nav link). A wanted addition goes through SPEC-CHANGE.md first.
-7. Deltas and series render real computed values; an unavailable read degrades via the spec's own empty/skeleton pattern, never a bespoke placeholder region.
+1–4 as WORK-CHART §Acceptance. 5 no dropped affordance; 6 no added affordance (additions go through SPEC-CHANGE.md); 7 deltas/series render real computed values, unavailable reads degrade via the spec's own empty/skeleton pattern.

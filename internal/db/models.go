@@ -223,6 +223,30 @@ type RecoveryCode struct {
 	UsedAt    pgtype.Timestamptz `json:"used_at"`
 }
 
+type ReportDelivery struct {
+	ID            int64              `json:"id"`
+	ScheduleID    int64              `json:"schedule_id"`
+	PeriodStart   pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd     pgtype.Timestamptz `json:"period_end"`
+	DeliveryNo    int32              `json:"delivery_no"`
+	GeneratedAt   pgtype.Timestamptz `json:"generated_at"`
+	DeliveredAt   pgtype.Timestamptz `json:"delivered_at"`
+	State         string             `json:"state"`
+	ScheduledTick pgtype.Timestamptz `json:"scheduled_tick"`
+}
+
+type ReportNotification struct {
+	ID               int64              `json:"id"`
+	ReportDeliveryID int64              `json:"report_delivery_id"`
+	ChannelID        int64              `json:"channel_id"`
+	State            string             `json:"state"`
+	Attempt          int32              `json:"attempt"`
+	MaxAttempts      int32              `json:"max_attempts"`
+	RunAfter         pgtype.Timestamptz `json:"run_after"`
+	LastError        pgtype.Text        `json:"last_error"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
 type ReportSchedule struct {
 	ID             int64              `json:"id"`
 	Name           string             `json:"name"`
@@ -232,6 +256,7 @@ type ReportSchedule struct {
 	DeliveryTarget string             `json:"delivery_target"`
 	CreatedBy      int64              `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ChannelID      pgtype.Int8        `json:"channel_id"`
 }
 
 type RetentionSetting struct {
@@ -338,6 +363,7 @@ type Vantage struct {
 	HostKey      pgtype.Text        `json:"host_key"`
 	CreatedBy    pgtype.Int8        `json:"created_by"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	LatencyMs    pgtype.Int4        `json:"latency_ms"`
 }
 
 type VergeCoreFrequencyEdit struct {

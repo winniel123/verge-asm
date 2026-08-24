@@ -179,14 +179,21 @@ func TestAssetDetailWithdrawn(t *testing.T) {
 }
 
 // A Name nothing has ever measured is not a subject — the drill-down 404s to the
-// subject-missing page rather than manufacturing a false record.
+// missing-subject ErrorPage (U3, #480) rather than manufacturing a false record: the
+// unmatched key big-mono, the "no subject is keyed under that name" copy, and the way
+// back to Inventory, all inside the console chrome.
 func TestAssetDetailUnknownName(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	getBody(t, ac, base+"/asset/never.measured.example", http.StatusNotFound)
+	page := getBody(t, ac, base+"/asset/never.measured.example", http.StatusNotFound)
+	for _, want := range []string{"No such subject", "No subject is keyed under that name", "never.measured.example", "Back to inventory"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("missing-subject page missing %q; body: %s", want, page)
+		}
+	}
 }
 
 func TestAssetDetailRequiresLogin(t *testing.T) {

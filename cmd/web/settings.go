@@ -56,7 +56,10 @@ type accountRow struct {
 // sessionRow is one active session in the admin-wide sessions view (#407). It
 // carries no token hash — the listing query never projects the secret — only whose
 // session it is (Account) and at what Role, the device derived from the stored
-// User-Agent, the source IP, and the relative last-active reading.
+// User-Agent, the source IP, and the relative last-active reading. Current marks the
+// one row whose cookie is making this request (Settings.jsx's `current`): it wears the
+// "(you)" marker and shows no revoke control, so the operator can never sign their own
+// browser out from the admin-wide surface.
 type sessionRow struct {
 	ID        int64
 	AccountID int64
@@ -65,6 +68,7 @@ type sessionRow struct {
 	Device    string
 	IP        string
 	LastSeen  string
+	Current   bool
 }
 
 // retentionView renders the two dials and who last moved them.
@@ -820,12 +824,18 @@ func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[
 	if err != nil {
 		return err
 	}
+	// The row whose cookie is making this request is marked current (Settings.jsx's
+	// `current`) — the same resolution the Profile sessions surface uses (auth.go's
+	// currentSessionID). ok=false when no cookie resolves, in which case no row is
+	// treated as current.
+	curSessionID, haveCurSession := s.currentSessionID(r)
 	sessions := make([]sessionRow, 0, len(rows))
 	for _, row := range rows {
 		sr := sessionRow{
 			ID: row.ID, AccountID: row.AccountID, Account: row.Username, Role: row.Role,
 			Device: sessionDeviceFromUA(row.UserAgent), IP: row.Ip,
 			LastSeen: agoLabel(row.LastSeenAt.Time, now),
+			Current:  haveCurSession && row.ID == curSessionID,
 		}
 		if sr.IP == "" {
 			sr.IP = "—"

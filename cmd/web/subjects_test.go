@@ -116,11 +116,14 @@ func TestShadowedNameSuppressedButReachableByKey(t *testing.T) {
 	}
 }
 
-func TestSubjectDrilldownRendersCitationChainAndPlaceholders(t *testing.T) {
+// U1 (#478): a Name key on /subjects/{key} opens the Asset detail — the ruling that
+// SubjectDetail covers only Service and Endpoint, so a Name drills to AssetDetail
+// (existing /asset/{key}). The by-key path still renders the Name's full record,
+// now on the AssetDetail surface, with the retired Name-drilldown template gone.
+func TestNameSubjectByKeyOpensAssetDetail(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
-	// An earlier and a later observation; the chain cites the earliest.
 	f.addResolution(t, admin.ID, "example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.1"]}`)
 	f.addResolution(t, admin.ID, "example.com", "dns", obsClock.Add(48*time.Hour), `{"outcome":"Resolved","addresses":["203.0.113.1","203.0.113.2"]}`)
 	base := start(t, f, "")
@@ -128,28 +131,16 @@ func TestSubjectDrilldownRendersCitationChainAndPlaceholders(t *testing.T) {
 
 	drill := getBody(t, ac, base+"/subjects/example.com", http.StatusOK)
 
-	// The "why is this here" Citation chain: subject → introducing observation →
-	// terminating Seed.
-	for _, want := range []string{
-		"Citation chain", "resolution-walk", "dns Scan",
-		"name scope example.com", "declared by admin",
-	} {
+	// The AssetDetail composition renders (its own sections), with the current
+	// resolved address wired through the DNS section.
+	for _, want := range []string{"How it got here", "Drift trail", "Open ports", "203.0.113.2"} {
 		if !strings.Contains(drill, want) {
-			t.Errorf("citation chain missing %q; body: %s", want, drill)
+			t.Errorf("Name by-key drill-down did not open the Asset detail (missing %q); body: %s", want, drill)
 		}
 	}
-	// Current resolution value renders.
-	if !strings.Contains(drill, "Resolved") || !strings.Contains(drill, "203.0.113.2") {
-		t.Errorf("current resolution not rendered; body: %s", drill)
-	}
-	// The Timelines section is now wired (#190): the two Resolved answers fold to a
-	// closed span and a current one, on the resolution timeline. The Rules section
-	// remains a placeholder for ticket 22.
-	if !strings.Contains(drill, "Current and closed timelines") {
-		t.Errorf("timelines section missing; body: %s", drill)
-	}
-	if !strings.Contains(drill, "ticket 22") {
-		t.Errorf("rules placeholder missing; body: %s", drill)
+	// The retired Name-drilldown rules placeholder is gone.
+	if strings.Contains(drill, "ticket 22") {
+		t.Errorf("retired Name-drilldown placeholder still present; body: %s", drill)
 	}
 }
 
@@ -158,7 +149,11 @@ func TestSubjectDrilldownRendersCitationChainAndPlaceholders(t *testing.T) {
 // is why the Name is here; the resolution is only that it is. So the "why is this
 // here" chain reads "Admitted by · certificate transparency" and terminates at the
 // covering Seed, while the current resolution value still renders.
-func TestSubjectDrilldownCitesCTAdmissionOverResolution(t *testing.T) {
+// ADR-0107 (#255) on the AssetDetail surface (U1, #478): a CT-admitted Name shows
+// its admission as provenance, not the introducing resolution. The by-key Name path
+// opens the Asset detail, whose "how it got here" Via reads the reconciled citation
+// hop (certificate transparency), while the current resolution still renders.
+func TestNameByKeyCitesCTAdmissionOverResolution(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
@@ -170,23 +165,17 @@ func TestSubjectDrilldownCitesCTAdmissionOverResolution(t *testing.T) {
 
 	drill := getBody(t, ac, base+"/subjects/vpn.example.com", http.StatusOK)
 
-	// The citation is the admission, terminating at the covering Seed.
-	for _, want := range []string{
-		"Citation chain", "Admitted by", "certificate transparency", "ct",
-		"name scope example.com",
-	} {
+	// Provenance reads the admission (certificate transparency), and the current
+	// resolution still renders in the DNS section.
+	for _, want := range []string{"How it got here", "certificate transparency", "203.0.113.9"} {
 		if !strings.Contains(drill, want) {
-			t.Errorf("CT-admitted citation missing %q; body: %s", want, drill)
+			t.Errorf("CT-admitted Name provenance missing %q; body: %s", want, drill)
 		}
 	}
-	// It must NOT read as an introducing resolution — that is the wrong answer to
-	// "why is this here" for a CT-admitted Name (ADR-0107).
-	if strings.Contains(drill, "Introduced by · observation") {
+	// It must NOT read as an introducing resolution — the wrong answer to "why is
+	// this here" for a CT-admitted Name (ADR-0107).
+	if strings.Contains(drill, "resolution-walk") {
 		t.Errorf("CT-admitted Name cited its resolution, not its admission; body: %s", drill)
-	}
-	// Membership is still measured: the current resolution value renders.
-	if !strings.Contains(drill, "Resolved") || !strings.Contains(drill, "203.0.113.9") {
-		t.Errorf("current resolution of a CT-admitted Name not rendered; body: %s", drill)
 	}
 }
 
@@ -196,7 +185,13 @@ func TestSubjectDrilldownCitesCTAdmissionOverResolution(t *testing.T) {
 // "example.com" Seed while a narrower "inner.example.com" Seed also covers it by
 // suffix — the chain must terminate at example.com, the Seed the admission
 // provenance names, and never at inner.example.com, which longest-suffix would pick.
-func TestSubjectDrilldownCTAdmissionTerminatesAtAdmittedSeed(t *testing.T) {
+// #256 / ADR-0107 on the AssetDetail surface (U1, #478): a CT admission's Seed is
+// the one the admitted_name row carries (its seed_id), not the longest-suffix
+// cover. With overlapping name scopes, the Asset detail's provenance Seed must read
+// "example.com" (the Seed the admission provenance names), never "inner.example.com"
+// (which longest-suffix would pick). The header key carries "inner.example.com", so
+// the assertion is scoped to the provenance card only.
+func TestNameByKeyCTAdmissionTerminatesAtAdmittedSeed(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	outer := addNameSeed(t, f, admin.ID, "example.com")
@@ -210,17 +205,26 @@ func TestSubjectDrilldownCTAdmissionTerminatesAtAdmittedSeed(t *testing.T) {
 
 	drill := getBody(t, ac, base+"/subjects/host.inner.example.com", http.StatusOK)
 
-	if !strings.Contains(drill, "name scope example.com") {
-		t.Errorf("admission citation did not terminate at admitted_name.seed_id (example.com); body: %s", drill)
+	// Slice the provenance card (the h1 key, outside it, also contains
+	// "inner.example.com").
+	prov := drill
+	if i := strings.Index(prov, "How it got here"); i >= 0 {
+		prov = prov[i:]
+		if j := strings.Index(prov, "</section>"); j >= 0 {
+			prov = prov[:j]
+		}
 	}
-	if strings.Contains(drill, "name scope inner.example.com") {
-		t.Errorf("admission citation terminated at the longest-suffix Seed, ignoring admitted_name.seed_id (#256); body: %s", drill)
+	if !strings.Contains(prov, "example.com") {
+		t.Errorf("provenance Seed did not terminate at admitted_name.seed_id (example.com); provenance: %s", prov)
+	}
+	if strings.Contains(prov, "inner.example.com") {
+		t.Errorf("provenance Seed terminated at the longest-suffix Seed, ignoring admitted_name.seed_id (#256); provenance: %s", prov)
 	}
 }
 
-func TestSubjectDrilldownRendersCurrentAndClosedTimelines(t *testing.T) {
-	// AC6: re-running the dns Scan with a changed answer produces a new Span and
-	// closes the old; the drill-down renders current + closed timelines.
+// The Name's Span timelines surface as the Asset detail's Drift trail (U1, #478):
+// re-running the dns Scan with a changed answer folds a changed transition.
+func TestNameByKeyRendersDriftTrail(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.1"]}`)
@@ -230,15 +234,12 @@ func TestSubjectDrilldownRendersCurrentAndClosedTimelines(t *testing.T) {
 
 	drill := getBody(t, ac, base+"/subjects/api.example.com", http.StatusOK)
 
-	// A current span (the later answer) and a closed-history row (the earlier one).
-	for _, want := range []string{"Current and closed timelines", "Current", "Opened", "Closed"} {
+	// The Drift trail carries the change in change's own language (never severity),
+	// on the resolution timeline that moved.
+	for _, want := range []string{"Drift trail", "changed", "203.0.113.2"} {
 		if !strings.Contains(drill, want) {
-			t.Errorf("timeline drill-down missing %q; body: %s", want, drill)
+			t.Errorf("drift trail missing %q; body: %s", want, drill)
 		}
-	}
-	// The resolution facet timeline is labelled and its closed span is present.
-	if !strings.Contains(drill, "resolution") {
-		t.Errorf("resolution timeline not labelled; body: %s", drill)
 	}
 }
 
@@ -342,16 +343,12 @@ func TestSpanDetailsListsRecordsAndAddresses(t *testing.T) {
 	}
 }
 
-func TestSubjectDrilldownExpandsRecordContents(t *testing.T) {
-	// #240: the Name drill-down keeps the collapsed count/outcome summary but
-	// expands on click to the span's actual records — RR type+data for
-	// dns-record, the address list for resolution — sourced from the already-read
-	// span value, no new query. Applies to closed spans too.
+// The Name's records surface in the Asset detail's DNS section (U1, #478): the
+// current resolution address and every other RR the dns-record facet carries.
+func TestNameByKeyRendersDNSRecords(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
-	// A resolution timeline that moves (a closed span then a current one), and a
-	// dns-record timeline whose contents appear nowhere else on the page.
 	f.addResolution(t, admin.ID, "example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.7"]}`)
 	f.addResolution(t, admin.ID, "example.com", "dns", obsClock.Add(24*time.Hour), `{"outcome":"Resolved","addresses":["203.0.113.8"]}`)
 	f.addDNSRecord(t, "example.com", "TXT", obsClock, `{"rrs":[{"name":"example.com","type":"TXT","data":"\"v=spf1 -all\""}]}`)
@@ -360,19 +357,11 @@ func TestSubjectDrilldownExpandsRecordContents(t *testing.T) {
 
 	drill := getBody(t, ac, base+"/subjects/example.com", http.StatusOK)
 
-	// Collapsed summary is unchanged: the dns-record count still renders.
-	if !strings.Contains(drill, "1 record") {
-		t.Errorf("collapsed dns-record count missing; body: %s", drill)
-	}
-	// The expand affordance wraps the summary in a disclosure.
-	if !strings.Contains(drill, `<details class="spanrecords"`) {
-		t.Errorf("expand-on-click affordance missing; body: %s", drill)
-	}
-	// Expanded contents: the TXT data (present nowhere else) and the current +
-	// closed resolution addresses all render.
-	for _, want := range []string{`v=spf1 -all`, "203.0.113.7", "203.0.113.8"} {
+	// The DNS section shows the current resolved address and the TXT contents (which
+	// appear nowhere else on the page).
+	for _, want := range []string{"DNS records", "203.0.113.8", `v=spf1 -all`} {
 		if !strings.Contains(drill, want) {
-			t.Errorf("expanded record content missing %q; body: %s", want, drill)
+			t.Errorf("Name DNS section missing %q; body: %s", want, drill)
 		}
 	}
 }
@@ -394,8 +383,11 @@ func TestServiceSubjectsListedAndDrilledDown(t *testing.T) {
 	// citation back to a Seed.
 	drill := getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A443%2Ftcp", http.StatusOK)
 	for _, want := range []string{
-		"Observed · Service", "198.51.100.1:443/tcp", "reached",
+		"198.51.100.1:443/tcp", "reached",
 		"Citation chain", "api.example.com", "443",
+		// The v3.2 SubjectDetail composition (U1, #478): the rules-over-subject table
+		// and the provenance rail.
+		"Rules over this subject", "How it got here",
 	} {
 		if !strings.Contains(drill, want) {
 			t.Errorf("service drill-down missing %q; body: %s", want, drill)
@@ -470,8 +462,10 @@ func TestEndpointSubjectsListedAndDrilledDown(t *testing.T) {
 	key := url.QueryEscape("api.example.com@198.51.100.1:443/tcp")
 	drill := getBody(t, ac, base+"/subjects/endpoint?key="+key, http.StatusOK)
 	for _, want := range []string{
-		"Observed · Endpoint", "api.example.com@198.51.100.1:443/tcp", "HTTP identity",
+		"api.example.com@198.51.100.1:443/tcp", "HTTP identity",
 		"nginx", "Citation chain", "api.example.com", "198.51.100.1:443/tcp",
+		// The v3.2 SubjectDetail composition (U1, #478).
+		"Rules over this subject", "How it got here",
 	} {
 		if !strings.Contains(drill, want) {
 			t.Errorf("endpoint drill-down missing %q; body: %s", want, drill)

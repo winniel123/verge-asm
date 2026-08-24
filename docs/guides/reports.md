@@ -1,7 +1,7 @@
 ---
 title: Reports
-section: Operating
-order: 6
+section: Signals & delivery
+order: 3
 description: Reports are scheduled digests of the whole estate — how a report differs from a notification, the recurring-schedule shape, and the delivered-report artifact and its PDF.
 ---
 
@@ -18,12 +18,18 @@ The distinction below is ruled by
 and enumerated in
 [`docs/spec/notification-channels.md`](../spec/notification-channels.md).
 
-> **Status, read this first.** Report *scheduling* has no dispatch or delivery backend
-> in v1 ([#344](https://github.com/winniel123/verge-asm/issues/344),
-> [#285](https://github.com/winniel123/verge-asm/issues/285)). The schedule model and the
-> delivery-artifact surfaces are wired and honest, but nothing yet runs a schedule or
-> produces a delivered document. Where a control is disabled or a route returns the
-> empty-state, this guide says so rather than describing behaviour that does not run.
+> **Status, read this first.** In-instance report *scheduling* is **live**
+> ([#499](https://github.com/winniel123/verge-asm/issues/499)): an admin can create,
+> list, edit, delete and run-now a schedule, the `worker`'s on-cadence dispatcher runs
+> due schedules and stamps a delivery receipt, and `/reports/delivery` renders the
+> delivered artifact. What is **not** built is **off-instance delivery** — sending the
+> produced digest to a recipient. There is no destination an operator can set: the
+> "New schedule" wizard captures no recipient/channel field and `delivery_target` has no
+> channel binding, so the notify path is unreachable. That binding is escalated as
+> [`SPEC-CHANGE.md`](../../design-system/SPEC-CHANGE.md) **collision #17 (AWAITING
+> DESIGN)** and tracked as T7 ([#508](https://github.com/winniel123/verge-asm/issues/508)).
+> Until it is ruled, `delivery_target` is declared-but-unused and schedules are
+> effectively **download-only / in-instance** — a run is *generated*, never *delivered*.
 
 ---
 
@@ -88,36 +94,44 @@ shape is:
 | `sections` | The chosen report sections, stored as a JSON array. Defaults to an empty array at the column, so a schedule with no sections still inserts. |
 | `cadence` | How often the digest is produced (e.g. weekly). |
 | `format` | The delivered document's form (e.g. `pdf`). |
-| `delivery_target` | Where the produced digest is sent. |
+| `delivery_target` | Where the produced digest would be sent off-instance. **Not yet wired** — the wizard sets no recipient, so this is declared-but-unused free text; off-instance send is escalated as SPEC-CHANGE collision #17 ([#508](https://github.com/winniel123/verge-asm/issues/508)). |
 | `created_by` | The admin who declared the schedule — the estate is single-tenant, so the list is unscoped and this is the only attribution the row carries. |
 
-A `report_schedule` is **Declared**: it carries no timeline, no per-edit history. The
-model exposes exactly a plain insert (`InsertReportSchedule`) and an unbounded,
-newest-first list (`ListReportSchedules`) — there is **no content update and no delete**
-query.
+A `report_schedule` is **Declared**: it carries no timeline, no per-edit history. Edit is
+a genuine in-place update of what was declared (`UpdateReportSchedule`), never a recompute,
+and Delete is a hard delete (`DeleteReportSchedule`); the list is unbounded and
+newest-first (`ListReportSchedules`).
 
-### Creating, editing and running a schedule — not yet wired
+### Creating, editing and running a schedule
 
-The ticket for this guide anticipated create/edit/delete and an on-demand
-`/reports/schedule/run` route. **Those routes do not exist**, and the guide follows the
-code:
+Scheduling is live and every route below is admin-gated (`requireAdmin`) in
+[`cmd/web/handlers.go`](../../cmd/web/handlers.go); a viewer is refused before the handler
+runs. The handlers live in
+[`cmd/web/reports_schedule.go`](../../cmd/web/reports_schedule.go):
 
-- The only registered schedule route is `POST /reports/schedule`
-  ([`cmd/web/handlers.go`](../../cmd/web/handlers.go)), and its handler **refuses with
-  `501 Not Implemented`** ([`cmd/web/reports_schedule.go`](../../cmd/web/reports_schedule.go)).
-  A schedule row that nothing reads on a cadence and nothing delivers would be a
-  declaration the product cannot honour, so — rather than persist a row that silently
-  never runs — the handler declines. It stays registered behind `requireAdmin` so a
-  hand-crafted POST meets a clear, deterministic refusal instead of a bare `405`, and **no
-  `report_schedule` row is ever filed** from normal use or a crafted request.
-- In the UI, the "New schedule" wizard is rendered **disabled**, alongside its already-disabled
-  sibling controls — Run now, Edit, Delete, View last delivery ([#344](https://github.com/winniel123/verge-asm/issues/344)).
-- There is therefore **no `/reports/schedule/run`, `/edit` or `/delete` route** to call. The
-  on-cadence dispatcher and delivery backend are the real "wire report scheduling" feature,
-  explicitly out of scope until [#290/#291](https://github.com/winniel123/verge-asm/issues/290)
-  populate report content and a scheduling dispatcher lands. When they do, the create
-  handler regains its wizard and its `InsertReportSchedule` call; the model above is the
-  shape it will file.
+- **Create** — `GET /reports/schedule/new` opens a three-step wizard (Scope / Cadence /
+  Review), ported from `Reports.jsx`. With no client runtime the controlled state rides a
+  post-back form: `POST /reports/schedule` re-renders each step and, on finish, files the
+  schedule with `InsertReportSchedule`, then redirects to `/reports`. The wizard captures
+  **no recipient field** — by design, so it does not over-promise a delivery the product
+  cannot yet make (see the status note above).
+- **Edit** — `GET /reports/schedule/{id}/edit` opens the same wizard prefilled from the
+  row; `POST /reports/schedule/edit` updates it in place with `UpdateReportSchedule`.
+- **Run now** — `POST /reports/schedule/run` cuts the artifact for the current period with
+  the canonical renderer and stamps a `report_delivery` receipt (state `generated`, no
+  `delivered_at` — nothing leaves the instance).
+- **Delete** — `POST /reports/schedule/delete` hard-deletes the row (idempotent: a stale
+  id is a no-op, not an error).
+
+The **on-cadence dispatcher** ([`internal/report/dispatcher.go`](../../internal/report/dispatcher.go),
+wired into the `worker` in [`cmd/worker/main.go`](../../cmd/worker/main.go); ADR-0118) polls
+each minute, floors "now" to a per-cadence tick (`CadenceWindow`), and — under a
+per-schedule advisory lock — stamps exactly one receipt per `(schedule, tick)`. Idempotency
+is durable: `TryInsertScheduledDelivery` inserts `ON CONFLICT (schedule_id, scheduled_tick)
+DO NOTHING` against the partial-unique index (migration
+[`22600`](../../db/migrations/22600_report_delivery_scheduled_tick.sql)), so a second poll
+inside a window is a recorded skip, never a second run. Every run is *generated* in-instance,
+never *delivered*: the off-instance send remains escalated (collision #17 / T7).
 
 ---
 
@@ -147,13 +161,15 @@ an `application/pdf` attachment named `report-delivery.pdf`.
 
 ### What you see today
 
-There is **no delivery backing store yet** ([#285](https://github.com/winniel123/verge-asm/issues/285);
-[#290/#291](https://github.com/winniel123/verge-asm/issues/290) populate report content), so no
-delivered artifact exists to read. Rather than fabricate a document, both handlers render a
-**zero `Artifact`** — the design-system empty-state inside the delivered-document frame, and a
-valid but empty-state PDF. When a delivery store lands, both handlers fill the same struct with
-real data of the same shape and the render path does not change: the download follows for free,
-and the PDF gains a period-dated filename once the artifact has a delivery window to name.
+The delivery backing store is live: `report_delivery` receipts are stamped by Run-now and by
+the on-cadence dispatcher, and `/reports/delivery` opens the **single most-recent non-failed
+delivery** across every schedule (`reportDeliveryArtifact` in
+[`cmd/web/reports.go`](../../cmd/web/reports.go)). A receipt snapshots no content — the artifact
+**recomputes** its figures from the receipt's period bounds at render time, so nothing is carried
+off-instance (ADR-0039). Where no schedule has ever run, both handlers render a **zero
+`Artifact`** — the design-system empty-state inside the delivered-document frame, and a valid but
+empty-state PDF — rather than fabricate a document. Once a delivery names a window, the PDF gains
+a period-dated filename (`report-<start>-to-<end>.pdf`).
 
 ---
 

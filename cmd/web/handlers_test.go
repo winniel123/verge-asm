@@ -161,6 +161,12 @@ type fakeStore struct {
 	reportSchedules []db.ReportSchedule
 	rsNextID        int64
 
+	// reportDeliveries mirrors the report_delivery receipts table (#291/T2): the
+	// operational record of each run of a schedule. Filed by insert, read latest
+	// (non-failed) per schedule and listed newest-first, matching the store.
+	reportDeliveries []db.ReportDelivery
+	rdNextID         int64
+
 	// ssoProviders mirrors the sso_provider table (#293): OIDC providers, secret
 	// included, so tests can assert the secret is stored but never surfaced through the
 	// list/get render paths (only GetSSOProviderForAuth returns it).
@@ -579,7 +585,7 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 			ID: v.ID, Name: v.Name, Class: v.Class, Resolver: v.Resolver,
 			Host: v.Host, Port: v.Port, Username: v.Username,
 			Availability: v.Availability, PublicKey: v.PublicKey, HostKey: v.HostKey,
-			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt,
+			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt, LatencyMs: v.LatencyMs,
 			CreatedByUsername: f.accounts[v.CreatedBy.Int64].Username,
 		})
 	}
@@ -2252,7 +2258,8 @@ func (f *fakeStore) InsertReportSchedule(_ context.Context, arg db.InsertReportS
 	rs := db.ReportSchedule{
 		ID: f.rsNextID, Name: arg.Name, Sections: arg.Sections,
 		Cadence: arg.Cadence, Format: arg.Format,
-		DeliveryTarget: arg.DeliveryTarget, CreatedBy: arg.CreatedBy,
+		DeliveryTarget: arg.DeliveryTarget, ChannelID: arg.ChannelID,
+		CreatedBy: arg.CreatedBy,
 	}
 	f.rsNextID++
 	f.reportSchedules = append(f.reportSchedules, rs)
@@ -2264,6 +2271,102 @@ func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, e
 	// Newest-first, mirroring ORDER BY id DESC.
 	for i, rs := range f.reportSchedules {
 		out[len(f.reportSchedules)-1-i] = rs
+	}
+	return out, nil
+}
+
+func (f *fakeStore) GetReportSchedule(_ context.Context, id int64) (db.ReportSchedule, error) {
+	for _, rs := range f.reportSchedules {
+		if rs.ID == id {
+			return rs, nil
+		}
+	}
+	return db.ReportSchedule{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) UpdateReportSchedule(_ context.Context, arg db.UpdateReportScheduleParams) (db.ReportSchedule, error) {
+	for i, rs := range f.reportSchedules {
+		if rs.ID != arg.ID {
+			continue
+		}
+		// Genuine in-place update: id, created_by and created_at are preserved.
+		rs.Name = arg.Name
+		rs.Sections = arg.Sections
+		rs.Cadence = arg.Cadence
+		rs.Format = arg.Format
+		rs.DeliveryTarget = arg.DeliveryTarget
+		rs.ChannelID = arg.ChannelID
+		f.reportSchedules[i] = rs
+		return rs, nil
+	}
+	return db.ReportSchedule{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) DeleteReportSchedule(_ context.Context, id int64) error {
+	// Idempotent, mirroring DELETE ... WHERE id = $1 (no row is not an error).
+	out := f.reportSchedules[:0]
+	for _, rs := range f.reportSchedules {
+		if rs.ID != id {
+			out = append(out, rs)
+		}
+	}
+	f.reportSchedules = out
+	return nil
+}
+
+func (f *fakeStore) NextReportDeliveryNo(_ context.Context, scheduleID int64) (int32, error) {
+	var max int32
+	for _, d := range f.reportDeliveries {
+		if d.ScheduleID == scheduleID && d.DeliveryNo > max {
+			max = d.DeliveryNo
+		}
+	}
+	return max + 1, nil
+}
+
+func (f *fakeStore) InsertReportDelivery(_ context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error) {
+	f.rdNextID++
+	d := db.ReportDelivery{
+		ID:          f.rdNextID,
+		ScheduleID:  arg.ScheduleID,
+		PeriodStart: arg.PeriodStart,
+		PeriodEnd:   arg.PeriodEnd,
+		DeliveryNo:  arg.DeliveryNo,
+		// generated_at defaults to now() at the column; the fake stamps it so the
+		// last-sent read has an instant when delivered_at is absent.
+		GeneratedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		DeliveredAt: arg.DeliveredAt,
+		State:       arg.State,
+	}
+	f.reportDeliveries = append(f.reportDeliveries, d)
+	return d, nil
+}
+
+func (f *fakeStore) GetLatestReportDelivery(_ context.Context, scheduleID int64) (db.ReportDelivery, error) {
+	// Newest non-failed run, mirroring WHERE state <> 'failed' ORDER BY id DESC LIMIT 1.
+	var latest db.ReportDelivery
+	found := false
+	for _, d := range f.reportDeliveries {
+		if d.ScheduleID != scheduleID || d.State == "failed" {
+			continue
+		}
+		if !found || d.ID > latest.ID {
+			latest, found = d, true
+		}
+	}
+	if !found {
+		return db.ReportDelivery{}, pgx.ErrNoRows
+	}
+	return latest, nil
+}
+
+func (f *fakeStore) ListReportDeliveries(_ context.Context, scheduleID int64) ([]db.ReportDelivery, error) {
+	out := []db.ReportDelivery{}
+	// Newest-first, mirroring ORDER BY id DESC.
+	for i := len(f.reportDeliveries) - 1; i >= 0; i-- {
+		if f.reportDeliveries[i].ScheduleID == scheduleID {
+			out = append(out, f.reportDeliveries[i])
+		}
 	}
 	return out, nil
 }

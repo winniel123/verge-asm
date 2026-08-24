@@ -1,0 +1,45 @@
+---
+/*
+ * Article-footer prev/next pagination cards — ported from
+ * design-system/examples/DocsPage.jsx (the ← Previous / Next → cards) (D6).
+ *
+ * ORDERING: the FLATTENED nav model. `sections` is buildNav's NavSection[] — the
+ * exact tree the left rail renders (sections in rail order, guides within a section
+ * by `order`). Flattening it (sections in order, items in order) reproduces the rail
+ * sequence without re-deriving it, so prev/next can never disagree with the rail.
+ * The active guide is the item buildNav marked `active`; the first guide has no
+ * Previous, the last no Next (an empty spacer holds the column so a lone card keeps
+ * its side).
+ *
+ * Composition, spacing and copy are ported verbatim from DocsPage.jsx; the sample's
+ * SPA <button onClick> becomes a real <a href> to the guide's in-site route.
+ */
+import type { NavSection } from "../pipeline/nav-build";
+
+const { sections = [] } = Astro.props as { sections: NavSection[] };
+
+const flat = sections.flatMap((s) => s.items);
+const idx = flat.findIndex((i) => i.active);
+const prev = idx > 0 ? flat[idx - 1] : null;
+const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
+
+const card =
+  "flex:1; background:var(--surface); border:1px solid var(--border-default); border-radius:12px; padding:14px 16px; cursor:pointer; display:flex; flex-direction:column; gap:4px; text-decoration:none;";
+const eyebrow =
+  "font:500 11px var(--font-mono); letter-spacing:0.07em; text-transform:uppercase; color:var(--text-muted);";
+const heading = "font:500 13.5px var(--font-ui); color:var(--text-ink);";
+---
+<div style="display:flex; gap:16px; margin-top:56px; padding-top:24px; border-top:1px solid var(--row-sep);">
+  {prev ? (
+    <a href={prev.href} style={`${card} text-align:left;`}>
+      <span style={eyebrow}>← Previous</span>
+      <span style={heading}>{prev.label}</span>
+    </a>
+  ) : <span style="flex:1;" />}
+  {next ? (
+    <a href={next.href} style={`${card} text-align:right; align-items:flex-end;`}>
+      <span style={eyebrow}>Next →</span>
+      <span style={heading}>{next.label}</span>
+    </a>
+  ) : <span style="flex:1;" />}
+</div>

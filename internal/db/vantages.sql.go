@@ -22,7 +22,7 @@ VALUES (
     $5::bigint
 )
 RETURNING id, name, class, resolver, host, port, username, availability,
-          public_key, host_key, created_by, created_at
+          public_key, host_key, created_by, created_at, latency_ms
 `
 
 type CreateVantageParams struct {
@@ -62,13 +62,14 @@ func (q *Queries) CreateVantage(ctx context.Context, arg CreateVantageParams) (V
 		&i.HostKey,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.LatencyMs,
 	)
 	return i, err
 }
 
 const getVantage = `-- name: GetVantage :one
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at
+       public_key, host_key, created_by, created_at, latency_ms
 FROM vantage
 WHERE id = $1
 `
@@ -89,6 +90,7 @@ func (q *Queries) GetVantage(ctx context.Context, id int64) (Vantage, error) {
 		&i.HostKey,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.LatencyMs,
 	)
 	return i, err
 }
@@ -142,7 +144,7 @@ func (q *Queries) ListUnavailableVantages(ctx context.Context) ([]ListUnavailabl
 const listVantages = `-- name: ListVantages :many
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
-       a.username AS created_by_username
+       v.latency_ms, a.username AS created_by_username
 FROM vantage v
 JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
@@ -162,11 +164,14 @@ type ListVantagesRow struct {
 	HostKey           pgtype.Text        `json:"host_key"`
 	CreatedBy         pgtype.Int8        `json:"created_by"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	LatencyMs         pgtype.Int4        `json:"latency_ms"`
 	CreatedByUsername string             `json:"created_by_username"`
 }
 
 // The web prober list: only provisioned vantages (those carrying a prober
 // endpoint). The resolver-only `local` vantage has no prober and is excluded.
+// latency_ms is the per-vantage connect round-trip the Dashboard renders (P0.5),
+// NULL until the prober connect that pins the host key lands a first measurement.
 func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 	rows, err := q.db.Query(ctx, listVantages)
 	if err != nil {
@@ -189,6 +194,7 @@ func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 			&i.HostKey,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.LatencyMs,
 			&i.CreatedByUsername,
 		); err != nil {
 			return nil, err
@@ -203,7 +209,7 @@ func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 
 const listVantagesNeedingKey = `-- name: ListVantagesNeedingKey :many
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at
+       public_key, host_key, created_by, created_at, latency_ms
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NULL
 ORDER BY id
@@ -234,6 +240,54 @@ func (q *Queries) ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
 			&i.HostKey,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.LatencyMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVantagesNeedingLatency = `-- name: ListVantagesNeedingLatency :many
+SELECT id, name, class, resolver, host, port, username, availability,
+       public_key, host_key, created_by, created_at, latency_ms
+FROM vantage
+WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
+ORDER BY id
+`
+
+// Rows the worker still has to measure a connect latency for (P0.5): a
+// provisioned prober (host set) whose keypair has been published (public_key set,
+// so a private half exists on the worker volume to dial with) but whose latency
+// has never been measured. The connect the worker makes here is the same one that
+// pins the host key trust-on-first-use, so measuring on it needs no extra dial.
+func (q *Queries) ListVantagesNeedingLatency(ctx context.Context) ([]Vantage, error) {
+	rows, err := q.db.Query(ctx, listVantagesNeedingLatency)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Vantage{}
+	for rows.Next() {
+		var i Vantage
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Class,
+			&i.Resolver,
+			&i.Host,
+			&i.Port,
+			&i.Username,
+			&i.Availability,
+			&i.PublicKey,
+			&i.HostKey,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.LatencyMs,
 		); err != nil {
 			return nil, err
 		}
@@ -290,6 +344,26 @@ type PinVantageHostKeyParams struct {
 // key is pinned, so a first-connect race can never overwrite an existing pin.
 func (q *Queries) PinVantageHostKey(ctx context.Context, arg PinVantageHostKeyParams) error {
 	_, err := q.db.Exec(ctx, pinVantageHostKey, arg.ID, arg.HostKey)
+	return err
+}
+
+const setVantageLatency = `-- name: SetVantageLatency :exec
+UPDATE vantage
+SET latency_ms = $2
+WHERE id = $1
+`
+
+type SetVantageLatencyParams struct {
+	ID        int64       `json:"id"`
+	LatencyMs pgtype.Int4 `json:"latency_ms"`
+}
+
+// The worker records the round-trip time of the prober connect that pinned the
+// host key (P0.5, SPEC-CHANGE.md collision #7). Stored in whole milliseconds — the
+// unit the Dashboard renders — and set only from a real measurement, never a
+// fabricated value.
+func (q *Queries) SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error {
+	_, err := q.db.Exec(ctx, setVantageLatency, arg.ID, arg.LatencyMs)
 	return err
 }
 
