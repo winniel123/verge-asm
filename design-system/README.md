@@ -1,5 +1,7 @@
 # Handoff: Verge ASM design system
 
+**Version 3.2.1** · exported 2026-08-24 · see VERSION.md for the log. The version bumps on every export; when replacing design-system/ wholesale, this number is what landed.
+
 ## Overview
 Complete design system for Verge ASM — a free, open-source (AGPL-3.0), self-hostable attack surface management app. It covers three surfaces (product console, marketing site, docs site): design tokens with light + dark modes, ~112 React components, composition examples for eleven screens, and the content/vocabulary rules the product depends on.
 

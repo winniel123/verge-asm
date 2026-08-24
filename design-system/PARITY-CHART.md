@@ -32,6 +32,7 @@ Synced 2026-08-24T14:52Z against winniel123/verge-asm@main (tree e7cb9c0e0041), 
 - D6 prev/next cards + TOC anchor links (spec in examples/DocsPage.jsx; Astro partial off nav-build's flattened NavSection[]).
 - D3 needs no repo change (search-as-palette adopted into spec).
 - P0.5 and P2.10 (rulings above).
+- P0.6 **Dispatch + delivery backend** (collision #15, ruled by the owner 2026-08-24: BUILD IT LIVE). The on-cadence dispatcher and delivery backend #344 deferred (#285/#290/#291 chain, tracking #497): scheduled reports dispatch on their cadence, deliveries record receipts, and the 501/disabled scheduling surface comes alive per Reports.jsx (enabled New-schedule wizard → create; editable recurring list with Edit/Delete). The spec is unchanged — it was the target all along. Unblocks: P2.9 (schedule create/list live), P2.10's rendering (real artifacts to carry severity), reportDeliveryPage + Inbox delivery receipts on real deliveries. This is a subsystem — chart it as its own work-item tree, parallel to U/D items.
 - D5/P3b closing gate: side-by-side of round-2 screens plus the verify list below, light AND dark, 1440px, console against screenshots/ and docs against docs.jpg.
 
 ## Verify at the round-2 gate (round-1 claims not independently confirmed)
@@ -40,7 +41,7 @@ Synced 2026-08-24T14:52Z against winniel123/verge-asm@main (tree e7cb9c0e0041), 
 - P1.5 palette groups (Assets group, Sources/Port-aperture deep-links, First-run action).
 - P1.9 Integrations reachable — the shell comment still describes `integrationsEnabled` as compile-time false; confirm the surface ships enabled or file a collision.
 - P2.3 Graph severity-tinted nodes + drawer severity.
-- P2.9 report schedule create/list live for admins (TestReportScheduleCreateRefused should be role-gating only, not a stub refusal).
+- P2.9 resolves via P0.6 (collision #15) — the 501 refusal was intentional pending the delivery backend; once P0.6 lands, verify create/list/edit/delete per Reports.jsx.
 
 ## Blocked on design
 
