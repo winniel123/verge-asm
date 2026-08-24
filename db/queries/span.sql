@@ -84,6 +84,45 @@ FROM span
 WHERE closed_at IS NULL
 ORDER BY subject_kind, subject_key, facet, discriminator, vantage_id, source;
 
+-- name: ListSpansOpenSince :many
+-- Every span that was open at any instant from @since onward — still open now, or
+-- closed after @since. This is exactly the corpus a vs-last-batch delta needs
+-- (P0.2, design-system PARITY-CHART.md): the currently-open population AND the
+-- spans the most recent batch closed, so the population open at the previous batch
+-- boundary is reconstructable on read (internal/drift.OpenAt) alongside the current
+-- one. Passing the previous batch's instant as @since keeps the scan to recent
+-- drift rather than the whole never-compacted corpus. Like the other span reads it
+-- is NOT live-tier gated — it reads the already-derived `span` corpus (ADR-0041),
+-- not the observation tier. Ordered by subject so a per-subject fold is one pass.
+SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
+       value, is_gap, derivation, opened_at, closed_at, closure_reason
+FROM span
+WHERE closed_at IS NULL OR closed_at > @since
+ORDER BY subject_kind, subject_key, facet, discriminator, vantage_id, source, opened_at;
+
+-- name: ListServiceReachabilitySpansByClassAt :many
+-- The `reachability` span per (Service, Vantage class) that was OPEN at instant @at
+-- — the as-of-a-past-batch twin of ListServiceReachabilitySpansByClass, for the
+-- Exposure stat band's vs-last-batch deltas (P0.2). It reconstructs each leg's
+-- value as it stood at @at from the never-compacted span corpus (ADR-0041): a span
+-- open at @at has opened_at <= @at and had not yet closed (still open, or closed
+-- after @at). DISTINCT ON keeps the most recent such span per (service, class),
+-- exactly as the current read keeps the most recent open one. Class is the static
+-- vantage column (the same join the current read uses); the exposure projection is
+-- computed in the handler over both readings. NOT live-tier gated (span corpus).
+SELECT DISTINCT ON (sp.subject_key, v.class)
+    sp.subject_key AS subject_key,
+    v.class        AS class,
+    sp.value       AS value,
+    sp.is_gap      AS is_gap
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.opened_at <= @at
+  AND (sp.closed_at IS NULL OR sp.closed_at > @at)
+ORDER BY sp.subject_key, v.class, sp.opened_at DESC, sp.id DESC;
+
 -- name: ListSpansForSubject :many
 -- A subject's full Span history — current and closed — for the Subjects
 -- drill-down. Ordered by timeline, oldest first, so the renderer walks each
@@ -166,6 +205,36 @@ WHERE b.created_at >= @since
 
 ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at
 LIMIT @max_events;
+
+-- name: ListWithdrawalLifespans :many
+-- Every subject withdrawal since @since, paired with the subject's first appearance,
+-- so the web layer derives the mean-time-to-withdrawal trend (P0.3, #444). A
+-- withdrawal closes EVERY open timeline a subject held at one instant (ADR-0082,
+-- CloseWithdrawal), so the per-facet closures collapse to one subject departure:
+-- DISTINCT ON (subject_kind, subject_key, closed_at) keeps one row per departure.
+-- first_opened is the earliest opened_at across ALL the subject's spans — its
+-- appearance — so time-to-withdrawal is withdrawn_at - first_opened. Only a WITHDRAWAL
+-- close counts: closure_reason IS NOT NULL excludes an ordinary value-move close
+-- (which carries no reason and is not a departure). Reads FROM span only — the
+-- already-derived, never-compacted corpus (ADR-0041) — so it is NOT live-tier gated;
+-- an @as_of bound would wrongly hide settled history rather than protect a
+-- re-derivation. Ordered by the withdrawal instant for a stable, oldest-first series.
+SELECT DISTINCT ON (w.subject_kind, w.subject_key, w.closed_at)
+    w.subject_kind AS subject_kind,
+    w.subject_key  AS subject_key,
+    w.closed_at    AS withdrawn_at,
+    fa.first_opened AS first_opened
+FROM span w
+JOIN LATERAL (
+    SELECT MIN(p.opened_at)::timestamptz AS first_opened
+    FROM span p
+    WHERE p.subject_kind = w.subject_kind
+      AND p.subject_key = w.subject_key
+) fa ON TRUE
+WHERE w.closure_reason IS NOT NULL
+  AND w.closed_at IS NOT NULL
+  AND w.closed_at >= @since
+ORDER BY w.subject_kind, w.subject_key, w.closed_at, w.id;
 
 -- name: ListReachedServices :many
 -- The open `Service` population the weekly `tls-acceptance` Scan enumerates over

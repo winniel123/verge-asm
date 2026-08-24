@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
@@ -18,29 +21,31 @@ import (
 // KPI band, a time-series card, a by-severity card, a scans-per-day heatmap, a
 // recurring-reports table, and a schedule wizard.
 //
-// The example is a mock over a severity-scored, trended signal model this product
-// does not have. Three of its regions are domain-incompatible and are re-skinned
-// to honest current-state facts + design-system empty-states rather than
-// fabricated data (CONTEXT.md; ADR-0024):
+// The example renders three trend series. The port once held them
+// "domain-incompatible" and re-skinned them to honest scalars + empty-states, but
+// the design is normative for look AND functionality (ADR-0116; PARITY-CHART.md
+// §"The ruling"; SPEC-CHANGE.md collision #3), so the fix is to BUILD each series,
+// not drop it. All three are now real derivations, folded in internal/drift/trend.go
+// (P0.3, #444) and passed to the template as data the Reports markup (P2.4) paints:
 //
-//   - Signals carry NO severity. The census is "deliberately not a severity ramp"
-//     (signals.go), so the "By severity" bars have no real series — empty-stated.
-//   - A signal census "is never a delta, trend or series" (internal/signal). So
-//     "Open signals over time" is not a real series either — empty-stated. The
-//     current count of firing signals IS an honest current-state scalar, and that
-//     is the one signal figure wired (the headline KPI).
-//   - Signals are withdrawn by the world, never "resolved" by an operator, so the
-//     example's mean-time-to-resolve KPI is dropped; its slot carries an honest
-//     operational scalar (active scans) instead.
+//   - Signals-over-time — the "Open signals over time" line and its "Critical +
+//     high" companion — is folded from the per-instance first-seen ledger
+//     (signal_instance, P0.1) with each rule's severity (internal/signal): weekly
+//     incidence and the standing level over the selected range.
+//   - Mean-time-to-withdrawal fills the mock's mean-time-to-resolve slot, honest to
+//     the domain (signals are withdrawn by the world, never "resolved" by an
+//     operator): it is derived from the subject-withdrawal history in the span
+//     corpus (ListWithdrawalLifespans → drift.MeanTimeToWithdrawal / WithdrawalSeries),
+//     as a KPI scalar and its trend.
+//   - Scans-per-day intensities ramp through the shared drift.HeatLevels rule off
+//     real Dispatch history (activity volume, not a signal), so the page, the export
+//     and any later surface intensify identically.
 //
-// The one legitimate series is operational: scans-per-day is activity volume, not
-// a signal, so the heatmap is wired from real Dispatch history. Report scheduling
-// (the recurring table + wizard) has no dispatch or delivery backend, so the UI must
-// not accept a schedule it cannot honour (#344): the table empty-states and the "New
-// schedule" wizard is rendered disabled alongside its already-disabled sibling
-// controls. Every gap is tracked in a comment on issue #285. This handler reads
-// exposure/scans/signals data sources read-only; it owns no mutation and adds no
-// store method.
+// Report scheduling (the recurring table + wizard) has no dispatch or delivery
+// backend, so the UI must not accept a schedule it cannot honour (#344): the table
+// empty-states and the "New schedule" wizard is rendered disabled alongside its
+// already-disabled sibling controls. This handler reads its data sources read-only
+// and owns no mutation.
 
 // reportsDispatchPerWeek budgets the Dispatch read behind the scans-per-day series
 // PER WEEK of the selected range, so a wider window reads proportionally more rows
@@ -132,6 +137,70 @@ func (s *server) openSignalsCount(r *http.Request) (count int, ok bool) {
 	return count, true
 }
 
+// reportsTrendBucket is the trend series' bucket width — one WEEK, matching the
+// /reports range control's own week granularity (reportsRangeLabel "last N weeks")
+// so a signals-over-time / mean-time-to-withdrawal column lines up with a heatmap
+// week. The series then carries `weeks` buckets over the selected range.
+const reportsTrendBucket = 7 * 24 * time.Hour
+
+// signalRaises reads the per-instance first-seen ledger into the trend fold's input
+// (P0.3, #444): one drift.Raise per minted signal_instance, carrying its first-seen
+// instant and whether its rule's severity is elevated — critical or high, the
+// design's "Critical + high" series. Severity is the RULE's, looked up per instance
+// (internal/signal); an unknown rule folds to the calmest level, so it is never
+// elevated. The whole never-deleted ledger is read so the standing level counts
+// signals raised before the window too.
+func (s *server) signalRaises(ctx context.Context) ([]drift.Raise, error) {
+	rows, err := s.store.ListSignalInstances(ctx)
+	if err != nil {
+		return nil, err
+	}
+	raises := make([]drift.Raise, 0, len(rows))
+	for _, row := range rows {
+		if !row.FirstSeen.Valid {
+			continue
+		}
+		sev, _ := signal.SeverityFor(row.SignalName)
+		raises = append(raises, drift.Raise{
+			At:       row.FirstSeen.Time.UTC(),
+			Elevated: sev.Rank() <= signal.SevHigh.Rank(),
+		})
+	}
+	return raises, nil
+}
+
+// withdrawalLifespans reads the subject-withdrawal ledger since the window's start
+// into the trend fold's input (P0.3, #444): one drift.Withdrawal per departure,
+// carrying the subject's first appearance and its withdrawal instant, from which
+// time-to-withdrawal is derived. A row with an unknown appearance or withdrawal is
+// carried through and dropped by the fold (Withdrawal.Duration), never fabricated
+// into a zero interval.
+func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]drift.Withdrawal, error) {
+	rows, err := s.store.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: since, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]drift.Withdrawal, 0, len(rows))
+	for _, row := range rows {
+		w := drift.Withdrawal{}
+		if row.FirstOpened.Valid {
+			w.Appeared = row.FirstOpened.Time.UTC()
+		}
+		if row.WithdrawnAt.Valid {
+			w.Withdrawn = row.WithdrawnAt.Time.UTC()
+		}
+		out = append(out, w)
+	}
+	return out, nil
+}
+
+// reportsDurationDays renders a duration as the console's terse day figure ("2.4d"),
+// the form the mean-time-to-withdrawal KPI reads (Reports.jsx). A sub-day mean still
+// renders in days ("0.4d") so the KPI keeps one unit.
+func reportsDurationDays(d time.Duration) string {
+	return strconv.FormatFloat(d.Hours()/24, 'f', 1, 64) + "d"
+}
+
 // heatCell is one day in the scans-per-day heatmap: the pre-computed inline
 // background (an intensity step on --chart-1, or the sunken step at zero), a
 // border, and a hover title. Intensity is folded in the handler so the template
@@ -170,6 +239,40 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// rather than 500ing the page.
 	openSignals, hasOpenSignals := s.openSignalsCount(r)
 
+	// Signals-over-time — the design's "Open signals over time" line and its
+	// "Critical + high" companion (Reports.jsx), folded from the per-instance
+	// first-seen ledger over the selected range in weekly buckets (P0.3, #444). A
+	// ledger read failure degrades to an empty series rather than failing the page.
+	now := s.now().UTC()
+	var signalTrend []drift.SignalPoint
+	hasSignalTrend := false
+	if raises, rerr := s.signalRaises(ctx); rerr != nil {
+		log.Printf("web: reports: signal raises: %v", rerr)
+	} else {
+		signalTrend = drift.SignalsOverTime(raises, now, reportsTrendBucket, weeks)
+		for _, p := range signalTrend {
+			if p.Standing > 0 || p.Count > 0 {
+				hasSignalTrend = true
+				break
+			}
+		}
+	}
+
+	// Mean-time-to-withdrawal — the KPI in the mock's mean-time-to-resolve slot, now
+	// honest to the domain (signals are withdrawn by the world, never resolved) — and
+	// its trend, both derived from the subject-withdrawal history in the span corpus
+	// (P0.3, #444). A read failure degrades the KPI to unavailable and the trend to
+	// empty rather than 500ing the page.
+	windowStart := now.Add(-reportsTrendBucket * time.Duration(weeks))
+	var withdrawalTrend []drift.WithdrawalPoint
+	mttw, hasMTTW := time.Duration(0), false
+	if ws, werr := s.withdrawalLifespans(ctx, windowStart); werr != nil {
+		log.Printf("web: reports: withdrawal lifespans: %v", werr)
+	} else {
+		withdrawalTrend = drift.WithdrawalSeries(ws, now, reportsTrendBucket, weeks)
+		mttw, hasMTTW = drift.MeanTimeToWithdrawal(ws)
+	}
+
 	s.render(w, "reports", map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "reports",
@@ -183,6 +286,17 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// Scans-per-day heatmap.
 		"Heat":    cells,
 		"HasHeat": heatTotal > 0,
+
+		// Trend series (P0.3, #444) — the datum P2.4 paints. SignalTrend is the
+		// signals-over-time line + its critical-high companion; MTTW is the
+		// mean-time-to-withdrawal KPI figure and WithdrawalTrend its sparkline. Each
+		// carries a Has* flag so an unavailable read renders the design's own empty
+		// pattern rather than a fabricated zero.
+		"SignalTrend":     signalTrend,
+		"HasSignalTrend":  hasSignalTrend,
+		"WithdrawalTrend": withdrawalTrend,
+		"MTTW":            reportsDurationDays(mttw),
+		"HasMTTW":         hasMTTW,
 
 		// Range control + range-aware labels. RangeWeeks drives the export link's
 		// carried param; RangeLabel re-skins the twelve-week captions to the active
@@ -235,29 +349,19 @@ func (s *server) bucketScanActivity(rows []db.ListDispatchProgressRow, days int)
 func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow, days int) (cells []heatCell, total, window, active int) {
 	counts, window, active := s.bucketScanActivity(rows, days)
 
-	max := 1
 	for _, c := range counts {
-		if c > max {
-			max = c
-		}
 		total += c
 	}
 
 	// Intensity steps mirror HeatmapCalendar.jsx: 0/28/48/72/100% of --chart-1
-	// mixed into --surface, with the sunken step at zero.
+	// mixed into --surface, with the sunken step at zero. The 0..4 level per day is
+	// the shared scans-per-day ramp (internal/drift.HeatLevels, P0.3), so the page,
+	// the export and any later surface intensify identically off one rule.
 	pct := []int{0, 28, 48, 72, 100}
+	levels := drift.HeatLevels(counts)
 	cells = make([]heatCell, days)
 	for i, c := range counts {
-		level := 0
-		if c > 0 {
-			level = (c*4 + max - 1) / max // ceil(c/max*4)
-			if level < 1 {
-				level = 1
-			}
-			if level > 4 {
-				level = 4
-			}
-		}
+		level := levels[i]
 		cell := heatCell{Title: pluralScans(c)}
 		if level == 0 {
 			cell.Bg = template.CSS("var(--sunken)")

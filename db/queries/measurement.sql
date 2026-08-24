@@ -90,6 +90,19 @@ INSERT INTO batch (
 ) VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id;
 
+-- name: PreviousBatchTime :one
+-- The commit instant of the second-most-recent distinct batch — the boundary a
+-- vs-last-batch stat delta reads the "value a batch ago" at (P0.2). It is the most
+-- recent batch instant strictly before the latest, so the span population open at
+-- it is the estate exactly as the previous batch left it, with only the most recent
+-- batch's opens and closes lying between it and now. NULL where fewer than two
+-- distinct batch instants exist — the first batch has no predecessor to compare
+-- against, so a delta is withheld rather than compared against nothing. Reads batch
+-- only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
+SELECT max(created_at)::timestamptz AS prev_batch_at
+FROM batch
+WHERE created_at < (SELECT max(created_at) FROM batch);
+
 -- name: InsertObservation :exec
 INSERT INTO observation (
     batch_id, facet, subject_kind, subject_key, discriminator, vantage_id,

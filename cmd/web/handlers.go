@@ -158,11 +158,30 @@ type store interface {
 	// read (ADR-0007) and groups the transitions by batch. Reads span and batch only —
 	// never dispatch — honoring the comparison-path separation (ADR-0041).
 	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
+	// Mean-time-to-withdrawal trend (#444, P0.3): every subject withdrawal since a
+	// read instant, paired with the subject's first appearance, so the Reports trend
+	// derives time-to-withdrawal (withdrawn_at − first_opened) per departure. A
+	// withdrawal closes every open timeline a subject held at one instant (ADR-0082),
+	// so the per-facet closures collapse to one departure per (subject, closed_at).
+	// Reads FROM span only — the never-compacted derived corpus (ADR-0041) — not the
+	// live-tier observation gate.
+	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error)
 	// Exposure landing view (#196): the two most recent reachability spans per
 	// (Service, vantage), joined to the prober endpoint. The class is re-verified
 	// per render from the presented address, so this read carries the host rather
 	// than the static vantage class.
 	ListReachabilitySpansForExposure(ctx context.Context) ([]db.ListReachabilitySpansForExposureRow, error)
+	// Vs-last-batch stat deltas (#443, P0.2, ADR-0116): the reads the Dashboard and
+	// Exposure stat tiles derive their signed deltas from. PreviousBatchTime is the
+	// boundary the "value a batch ago" is reconstructed at (NULL where no previous
+	// batch exists); ListSpansOpenSince returns the span corpus still open now or
+	// closed after that boundary, so the population open at it is reconstructable on
+	// read (internal/drift.OpenAt); ListServiceReachabilitySpansByClassAt is the
+	// as-of-@at twin of the current by-class read, for the exposure projection's
+	// previous snapshot. All read the derived span/batch corpora, never dispatch (ADR-0041).
+	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
+	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error)
+	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error)
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)

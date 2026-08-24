@@ -56,6 +56,13 @@ type fakeStore struct {
 	signalInstances  []db.SignalInstance
 	signalInstNextID int64
 
+	// withdrawalLifespans backs ListWithdrawalLifespans (#444, P0.3): one row per
+	// subject departure, carrying its withdrawal instant and first appearance so the
+	// Reports mean-time-to-withdrawal trend derives its intervals. Populated directly
+	// by a test — the fake folds observations into spans but never applies a
+	// withdrawal closure, so there is nothing to re-derive these from.
+	withdrawalLifespans []db.ListWithdrawalLifespansRow
+
 	sourceStates map[string]db.SourceState
 
 	// integrationStates mirrors the integration_state table (#308): the operator's
@@ -1357,6 +1364,23 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 	return rows, nil
 }
 
+// ListWithdrawalLifespans returns the seeded subject-withdrawal rows whose
+// withdrawal instant is at or after `since` (#444, P0.3), ordered oldest-first —
+// the same window and order the production query honours.
+func (f *fakeStore) ListWithdrawalLifespans(_ context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error) {
+	out := []db.ListWithdrawalLifespansRow{}
+	for _, row := range f.withdrawalLifespans {
+		if since.Valid && row.WithdrawnAt.Valid && row.WithdrawnAt.Time.Before(since.Time) {
+			continue
+		}
+		out = append(out, row)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].WithdrawnAt.Time.Before(out[j].WithdrawnAt.Time)
+	})
+	return out, nil
+}
+
 // addReachability records a reachability observation for a Service in a fresh
 // batch — the connect-outcome leaf's output the hot Scan writes. It is the seam
 // the Service drill-down tests populate.
@@ -1542,6 +1566,166 @@ func (f *fakeStore) ListServiceReachabilitySpansByClass(_ context.Context) ([]db
 	for k, o := range f.currentReachByClass() {
 		rows = append(rows, db.ListServiceReachabilitySpansByClassRow{
 			SubjectKey: k.svc, Class: k.class, Value: o.Value, IsGap: reachOutcomeIsGap(o.Value),
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SubjectKey != rows[j].SubjectKey {
+			return rows[i].SubjectKey < rows[j].SubjectKey
+		}
+		return rows[i].Class < rows[j].Class
+	})
+	return rows, nil
+}
+
+// PreviousBatchTime returns the second-most-recent distinct batch instant — the
+// vs-last-batch delta boundary (#443). The fake's batches carry no created_at, so a
+// batch's instant is the max observed_at over its observations (its commit-time
+// proxy, exactly the ordering the production created_at gives). NULL where fewer than
+// two distinct instants exist, matching the SQL's `< max` guard.
+func (f *fakeStore) PreviousBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
+	inst := map[int64]time.Time{}
+	for _, o := range f.observations {
+		if t := o.ObservedAt.Time; t.After(inst[o.BatchID]) {
+			inst[o.BatchID] = t
+		}
+	}
+	var latest, prev time.Time
+	for _, t := range inst {
+		switch {
+		case t.After(latest):
+			prev = latest
+			latest = t
+		case t.Before(latest) && t.After(prev):
+			prev = t
+		}
+	}
+	if prev.IsZero() {
+		return pgtype.Timestamptz{}, nil
+	}
+	return pgtype.Timestamptz{Time: prev, Valid: true}, nil
+}
+
+// ListSpansOpenSince folds every observation into Span timelines with the real
+// drift.Fold and returns the spans still open now OR closed after `since` — the
+// corpus a vs-last-batch delta reconstructs the previous population from (#443). It
+// keeps closed spans (unlike ListAllOpenSpans), setting ClosedAt, so drift.OpenAt can
+// read the population open at the previous batch boundary.
+func (f *fakeStore) ListSpansOpenSince(_ context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error) {
+	type tlkey struct{ kind, key, facet, discriminator, source string }
+	order := []tlkey{}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		k := tlkey{o.SubjectKind, o.SubjectKey, o.Facet, o.Discriminator, o.Source}
+		if _, seen := byKey[k]; !seen {
+			order = append(order, k)
+		}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		if o.Facet == "reachability" {
+			gap = reachOutcomeIsGap(o.Value)
+		}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+	sort.Slice(order, func(i, j int) bool {
+		a, b := order[i], order[j]
+		if a.kind != b.kind {
+			return a.kind < b.kind
+		}
+		if a.key != b.key {
+			return a.key < b.key
+		}
+		if a.facet != b.facet {
+			return a.facet < b.facet
+		}
+		if a.discriminator != b.discriminator {
+			return a.discriminator < b.discriminator
+		}
+		return a.source < b.source
+	})
+
+	rows := []db.ListSpansOpenSinceRow{}
+	var id int64
+	for _, k := range order {
+		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
+		key := drift.TimelineKey{
+			SubjectKind: k.kind, SubjectKey: k.key,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range drift.Fold(key, byKey[k]) {
+			// Drop spans closed at or before `since`: they were not open in the window
+			// the delta reconstructs, exactly as the SQL predicate does.
+			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(since.Time) {
+				continue
+			}
+			id++
+			row := db.ListSpansOpenSinceRow{
+				ID: id, SubjectKind: k.kind, SubjectKey: k.key,
+				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
+				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
+			}
+			if !s.ClosedAt.IsZero() {
+				row.ClosedAt = pgtype.Timestamptz{Time: s.ClosedAt, Valid: true}
+			}
+			rows = append(rows, row)
+		}
+	}
+	return rows, nil
+}
+
+// ListServiceReachabilitySpansByClassAt is the as-of-@at twin of
+// ListServiceReachabilitySpansByClass (#443): the reachability span per (Service,
+// class) that was OPEN at @at, folded with the real drift.Fold from the same
+// observations. It picks, per (service, class), the most-recently-opened span whose
+// interval covers @at, so the exposure delta projects the legs as they stood a batch ago.
+func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error) {
+	classOf := map[int64]string{}
+	for _, v := range f.vantages {
+		classOf[v.ID] = v.Class
+	}
+	type tlkey struct {
+		svc     string
+		vantage int64
+	}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
+			continue
+		}
+		if _, ok := classOf[o.VantageID.Int64]; !ok {
+			continue
+		}
+		k := tlkey{o.SubjectKey, o.VantageID.Int64}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: reachOutcomeIsGap(o.Value),
+			Vector: fakeFacetVector("reachability"), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+
+	type ck struct{ svc, class string }
+	best := map[ck]drift.Span{}
+	for k, readings := range byKey {
+		class := classOf[k.vantage]
+		key := drift.TimelineKey{SubjectKind: "service", SubjectKey: k.svc, Facet: "reachability"}
+		for _, s := range drift.Fold(key, readings) {
+			if s.OpenedAt.After(at.Time) {
+				continue
+			}
+			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(at.Time) {
+				continue
+			}
+			c := ck{k.svc, class}
+			if cur, ok := best[c]; !ok || s.OpenedAt.After(cur.OpenedAt) {
+				best[c] = s
+			}
+		}
+	}
+
+	rows := []db.ListServiceReachabilitySpansByClassAtRow{}
+	for c, s := range best {
+		rows = append(rows, db.ListServiceReachabilitySpansByClassAtRow{
+			SubjectKey: c.svc, Class: c.class, Value: []byte(s.Value), IsGap: s.IsGap,
 		})
 	}
 	sort.Slice(rows, func(i, j int) bool {

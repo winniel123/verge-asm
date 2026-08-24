@@ -133,6 +133,13 @@ func TestInboxUnreadFilter(t *testing.T) {
 	resp.Body.Close()
 
 	page := getBody(t, ac, base+"/inbox?filter=unread", http.StatusOK)
+	// The chrome's inbox bell lists recent messages regardless of the inbox filter
+	// (TopNav.jsx onOpenMessage), so a read message legitimately still shows in the
+	// bell menu. Scope the filter assertions to the inbox itself — the region past
+	// the chrome header — so they test the list, not the always-on bell.
+	if i := strings.Index(page, "</header>"); i >= 0 {
+		page = page[i:]
+	}
 	if !strings.Contains(page, "bravo.example.com entered the estate") {
 		t.Errorf("unread filter should show the unread message\nbody: %s", page)
 	}

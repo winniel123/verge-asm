@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -196,6 +197,81 @@ func TestScansPageViewerReads(t *testing.T) {
 	// resolves and renders its idle state for a viewer.
 	if !strings.Contains(page, "<h2>Scans</h2>") || !strings.Contains(page, "No scan running") {
 		t.Errorf("scans monitor did not render for a viewer; body: %s", page)
+	}
+}
+
+// scanSchedule (P0.4, #445): the header sub-line's "last full scan Xm ago · next in
+// Yh Zm" instants. Last is the most recent Dispatch's fan-out; next is the soonest
+// enabled-Scan cadence boundary, floored the way the dispatcher floors a tick.
+func TestScanScheduleInstants(t *testing.T) {
+	// fixedClock() is 2026-08-15 12:00:00 UTC; the seeded dns/hot Scans are daily
+	// (enabled) and cold is monthly (disabled). The next daily boundary is midnight,
+	// 12h out; the cold Scan is off the cadence, so it never contributes a tick.
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(9, "dns", now.Add(-40*time.Minute), 4, 0, 0, 4, 0, 0),
+		progressRow(8, "hot", now.Add(-6*time.Hour), 4, 0, 0, 4, 0, 0),
+	}
+	srv := newServer(f, testKey, "", fixedClock())
+
+	v := srv.scanSchedule(context.Background())
+
+	if !v.HasLast {
+		t.Fatal("HasLast = false, want a most-recent dispatch instant")
+	}
+	if want := now.Add(-40 * time.Minute); !v.LastScanAt.Equal(want) {
+		t.Errorf("LastScanAt = %s, want %s (newest dispatch)", v.LastScanAt, want)
+	}
+	if v.LastAgo != "40m" {
+		t.Errorf("LastAgo = %q, want %q", v.LastAgo, "40m")
+	}
+	if !v.HasNext {
+		t.Fatal("HasNext = false, want a next cadence boundary")
+	}
+	if want := time.Date(2026, 8, 16, 0, 0, 0, 0, time.UTC); !v.NextScanAt.Equal(want) {
+		t.Errorf("NextScanAt = %s, want %s (next daily midnight)", v.NextScanAt, want)
+	}
+	if v.NextIn != "12h 0m" {
+		t.Errorf("NextIn = %q, want %q", v.NextIn, "12h 0m")
+	}
+}
+
+// With no Dispatch ever fanned out and every Scan disabled, both halves report the
+// honest absence rather than a fabricated instant — the "never scanned" state.
+func TestScanScheduleAbsent(t *testing.T) {
+	f := newFakeStore()
+	f.dispatchProgress = nil
+	for i := range f.scans {
+		f.scans[i].Enabled = false
+	}
+	srv := newServer(f, testKey, "", fixedClock())
+
+	v := srv.scanSchedule(context.Background())
+	if v.HasLast {
+		t.Errorf("HasLast = true, want false with no dispatches")
+	}
+	if v.HasNext {
+		t.Errorf("HasNext = true, want false with every Scan disabled")
+	}
+}
+
+// humanizeCountdown renders the spec's two-unit "next in" figure across the ranges.
+func TestHumanizeCountdown(t *testing.T) {
+	tests := []struct {
+		d    time.Duration
+		want string
+	}{
+		{5*time.Hour + 22*time.Minute, "5h 22m"},
+		{47 * time.Minute, "47m"},
+		{2*24*time.Hour + 3*time.Hour, "2d 3h"},
+		{30 * time.Second, "<1m"},
+		{time.Hour, "1h 0m"},
+	}
+	for _, tt := range tests {
+		if got := humanizeCountdown(tt.d); got != tt.want {
+			t.Errorf("humanizeCountdown(%s) = %q, want %q", tt.d, got, tt.want)
+		}
 	}
 }
 

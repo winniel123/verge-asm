@@ -689,6 +689,16 @@ type Querier interface {
 	// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
 	// (service, class), mirroring the observation read one facet over.
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
+	// The `reachability` span per (Service, Vantage class) that was OPEN at instant @at
+	// — the as-of-a-past-batch twin of ListServiceReachabilitySpansByClass, for the
+	// Exposure stat band's vs-last-batch deltas (P0.2). It reconstructs each leg's
+	// value as it stood at @at from the never-compacted span corpus (ADR-0041): a span
+	// open at @at has opened_at <= @at and had not yet closed (still open, or closed
+	// after @at). DISTINCT ON keeps the most recent such span per (service, class),
+	// exactly as the current read keeps the most recent open one. Class is the static
+	// vantage column (the same join the current read uses); the exposure projection is
+	// computed in the handler over both readings. NOT live-tier gated (span corpus).
+	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]ListServiceReachabilitySpansByClassAtRow, error)
 	// One account's live sessions, newest activity first — the Profile's personal
 	// sessions list. token_hash is omitted from the read: listing never needs it, so
 	// the secret material stays out of the render path.
@@ -709,6 +719,16 @@ type Querier interface {
 	// timeline and derives its Breaks and Transitions on read. The closed corpus is
 	// never compacted, so a withdrawn Name's closed timelines render in full.
 	ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error)
+	// Every span that was open at any instant from @since onward — still open now, or
+	// closed after @since. This is exactly the corpus a vs-last-batch delta needs
+	// (P0.2, design-system PARITY-CHART.md): the currently-open population AND the
+	// spans the most recent batch closed, so the population open at the previous batch
+	// boundary is reconstructable on read (internal/drift.OpenAt) alongside the current
+	// one. Passing the previous batch's instant as @since keeps the scan to recent
+	// drift rather than the whole never-compacted corpus. Like the other span reads it
+	// is NOT live-tier gated — it reads the already-derived `span` corpus (ADR-0041),
+	// not the observation tier. Ordered by subject so a per-subject fold is one pass.
+	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]ListSpansOpenSinceRow, error)
 	// The Coverage register of positions we currently cannot observe from
 	// (ADR-0108). It includes the resolver-only `local` vantage — which ListVantages
 	// excludes for the prober list — because that is exactly the position whose
@@ -736,6 +756,19 @@ type Querier interface {
 	ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error)
 	// The current frequency edits, with who made each, for the management UI.
 	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error)
+	// Every subject withdrawal since @since, paired with the subject's first appearance,
+	// so the web layer derives the mean-time-to-withdrawal trend (P0.3, #444). A
+	// withdrawal closes EVERY open timeline a subject held at one instant (ADR-0082,
+	// CloseWithdrawal), so the per-facet closures collapse to one subject departure:
+	// DISTINCT ON (subject_kind, subject_key, closed_at) keeps one row per departure.
+	// first_opened is the earliest opened_at across ALL the subject's spans — its
+	// appearance — so time-to-withdrawal is withdrawn_at - first_opened. Only a WITHDRAWAL
+	// close counts: closure_reason IS NOT NULL excludes an ordinary value-move close
+	// (which carries no reason and is not a departure). Reads FROM span only — the
+	// already-derived, never-compacted corpus (ADR-0041) — so it is NOT live-tier gated;
+	// an @as_of bound would wrongly hide settled history rather than protect a
+	// re-derivation. Ordered by the withdrawal instant for a stable, oldest-first series.
+	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]ListWithdrawalLifespansRow, error)
 	// The latest supplied zone file per name-scope Seed, with its declared domain and
 	// content, so the web layer can extract the owner names the operator declares
 	// (signal.DeclaredNames) — the domain of the two zone rules. One row per Seed;
@@ -827,6 +860,15 @@ type Querier interface {
 	// Every subject the withdrawal takes with it: the addresses and the Services and
 	// Endpoints sitting on them (their keys carry the address as a prefix).
 	PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExclusionWithdrawalParams) (PreviewExclusionWithdrawalRow, error)
+	// The commit instant of the second-most-recent distinct batch — the boundary a
+	// vs-last-batch stat delta reads the "value a batch ago" at (P0.2). It is the most
+	// recent batch instant strictly before the latest, so the span population open at
+	// it is the estate exactly as the previous batch left it, with only the most recent
+	// batch's opens and closes lying between it and now. NULL where fewer than two
+	// distinct batch instants exist — the first batch has no predecessor to compare
+	// against, so a delta is withheld rather than compared against nothing. Reads batch
+	// only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
+	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	// Atomically claim the next free slot for one crt.sh fetch, instance-wide
 	// (ADR-0005: the 5 req/min throttle is per-source across the whole instance, in
