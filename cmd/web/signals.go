@@ -638,13 +638,16 @@ func sortArrow(active bool, dir string) template.HTML {
 	const up = `<path d="M4 1.2l3 3.6H1z" fill="currentColor"/>`
 	const down = `<path d="M4 9.8l-3-3.6h6z" fill="currentColor"/>`
 	const open = `<svg width="8" height="11" viewBox="0 0 8 11" aria-hidden="true" style="margin-left:5px;vertical-align:middle`
-	if !active {
-		return template.HTML(open + `;opacity:0.32">` + up + down + `</svg>`)
+	var svg string
+	switch {
+	case !active:
+		svg = open + `;opacity:0.32">` + up + down + `</svg>`
+	case dir == "desc":
+		svg = open + `">` + down + `</svg>`
+	default:
+		svg = open + `">` + up + `</svg>`
 	}
-	if dir == "desc" {
-		return template.HTML(open + `">` + down + `</svg>`)
-	}
-	return template.HTML(open + `">` + up + `</svg>`)
+	return template.HTML(svg) //nolint:gosec // static SVG caret markup from consts; active/dir only select a branch, no user input
 }
 
 // sevLabel capitalises a severity token for the badge label ("critical" ->
