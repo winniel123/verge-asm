@@ -53,8 +53,14 @@ func TestAdminSessionsListsEveryAccount(t *testing.T) {
 			t.Fatalf("sessions surface missing %q; body: %s", want, got)
 		}
 	}
-	// Every live account's session is present — three signed-in accounts, three rows.
-	if got, want := strings.Count(got, `href="/settings?tab=sessions&amp;revoke=`), 3; got != want {
+	// The admin's own current session is marked "(you)" and carries no revoke control —
+	// the surface can never sign the operator's own browser out (Settings.jsx `current`).
+	if !strings.Contains(got, "(you)") {
+		t.Fatalf("admin's own current session not marked \"(you)\"; body: %s", got)
+	}
+	// Every live account's session is present — three signed-in accounts — but only the
+	// two that are not the current session carry a revoke control (boyd, cara).
+	if got, want := strings.Count(got, `href="/settings?tab=sessions&amp;revoke=`), 2; got != want {
 		t.Fatalf("per-session revoke controls = %d, want %d", got, want)
 	}
 }
