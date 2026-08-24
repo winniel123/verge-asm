@@ -24,9 +24,12 @@ import (
 //     WITHHELD renders exactly when the install has no internet vantage, and the
 //     board renders otherwise. There is nothing to toggle, so the control is not
 //     ported.
-//   - The example's "+2" delta is a trend the product does not carry (exposure is a
-//     current-state census, never a series — see reports.go / internal/exposure), so
-//     the stat tiles render the honest current count without a fabricated delta.
+//   - The example's "+2" delta is now a real vs-last-batch datum (P0.2 #443, P2.6
+//     #452, ADR-0116): the exposed tile renders its signed change against the
+//     previous batch, reconstructed from the span corpus (deltas.go). Where no
+//     previous batch exists (HasDeltas false) the tile shows no chip — its honest
+//     no-delta state, never a fabricated +0. Firewalled and Not reached carry no
+//     delta, matching the spec's own stat band, which chips only the exposed tile.
 //
 // Real data flows from the same corpus T1's asset detail reads: the per-class
 // reachability spans (ListServiceReachabilitySpansByClass) compose each leg, and
