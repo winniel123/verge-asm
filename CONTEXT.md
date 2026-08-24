@@ -1221,11 +1221,14 @@ evidence. It has no lifecycle of its own; its lifecycle is its evidence's — **
 subject's membership**, so a rule whose evidence is still current fires on a `Name` that has
 withdrawn. Versions are
 per rule, never one set-wide version, so an edit to one rule leaves the rest comparable.
-A signal carries no severity: it is a named fact, and urgency belongs to the transition
-that surfaced it — **in the sense that the transition is what makes the fact worth saying, and in
-no sense that grades it**, since a `Message` carries no severity either
-([ADR-0064](./docs/adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md);
-read alone the older clause hands the grade to the message). Evaluated where its evidence is absent — **or held and unreadable by this
+A signal carries a **severity** — a five-level grade (critical / high / medium / low / info)
+assigned per rule — withdrawing the older clause that a signal carried none
+([ADR-0116](./docs/adr/0116-the-design-package-is-normative-for-look-and-functionality.md): the
+design package renders severity on every signal, so where the domain lacked the datum the ruling is
+to build it, not to empty-state the region). What the transition still owns is *timing*, not grade —
+**the transition is what makes the fact worth saying**, in no sense that it grades it. A `Message`
+still carries no severity
+([ADR-0064](./docs/adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)). Evaluated where its evidence is absent — **or held and unreadable by this
 rule**, as when a clock-reading rule's observation has aged past the subject's own horizon
 ([ADR-0043](./docs/adr/0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md))
 — it returns `not-evaluable`,
