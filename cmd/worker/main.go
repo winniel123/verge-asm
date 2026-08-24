@@ -19,6 +19,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/report"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -91,6 +92,18 @@ func main() {
 	go func() {
 		if err := dispatcher.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Printf("worker: dispatcher stopped: %v", err)
+		}
+	}()
+
+	// On-cadence report dispatch runs beside the queue dispatcher (#502/T3): each
+	// tick renders every due schedule's artifact and stamps an in-instance receipt
+	// keyed to the tick, idempotent so a second poll in a window is a recorded skip.
+	// Off-instance send is a later ticket (#508/T7, ADR-0039 stands). It is a no-op
+	// until an admin declares a schedule — no schedule ships, so nothing is cut.
+	reportDispatcher := report.NewDispatcher(pool, time.Now, logger)
+	go func() {
+		if err := reportDispatcher.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: report dispatcher stopped: %v", err)
 		}
 	}()
 

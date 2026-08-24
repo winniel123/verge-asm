@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
+	"github.com/winniel123/verge-asm/internal/report"
 )
 
 // Report scheduling is live (#290, P0.6/T4), ported from
@@ -198,25 +198,6 @@ func reportCadPresetFor(cadence string) (cad, cron string) {
 	return reportCustomCad, cadence
 }
 
-// reportCadenceWindow is the period a Run-now covers, derived from the schedule's
-// cadence: the run cuts the artifact for the window the cadence implies (6h / daily /
-// weekly / monthly), defaulting to a week for an unrecognised label. The receipt
-// records these bounds; the artifact recomputes its contents from them at render
-// time, snapshotting nothing (migration 22500, ADR-0039).
-func reportCadenceWindow(cadence string) time.Duration {
-	c := strings.ToLower(cadence)
-	switch {
-	case strings.Contains(c, "6h"):
-		return 6 * time.Hour
-	case strings.Contains(c, "daily"):
-		return 24 * time.Hour
-	case strings.Contains(c, "monthly"):
-		return 30 * 24 * time.Hour
-	default:
-		return 7 * 24 * time.Hour
-	}
-}
-
 // newReportScheduleWizard renders the "New schedule" wizard at its first step with
 // the example's defaults. Stepping and finishing post to /reports/schedule
 // (createReportSchedule); this GET only opens the flow. requireAdmin — declaring a
@@ -399,7 +380,7 @@ func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, ac
 	}
 
 	now := s.now().UTC()
-	start := now.Add(-reportCadenceWindow(sc.Cadence))
+	start := now.Add(-report.CadenceWindow(sc.Cadence))
 
 	no, err := s.store.NextReportDeliveryNo(r.Context(), id)
 	if err != nil {

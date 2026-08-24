@@ -12,7 +12,7 @@ import (
 )
 
 const getLatestReportDelivery = `-- name: GetLatestReportDelivery :one
-SELECT id, schedule_id, period_start, period_end, delivery_no, generated_at, delivered_at, state
+SELECT id, schedule_id, period_start, period_end, delivery_no, generated_at, delivered_at, state, scheduled_tick
 FROM report_delivery
 WHERE schedule_id = $1 AND state <> 'failed'
 ORDER BY id DESC
@@ -36,6 +36,7 @@ func (q *Queries) GetLatestReportDelivery(ctx context.Context, scheduleID int64)
 		&i.GeneratedAt,
 		&i.DeliveredAt,
 		&i.State,
+		&i.ScheduledTick,
 	)
 	return i, err
 }
@@ -43,7 +44,7 @@ func (q *Queries) GetLatestReportDelivery(ctx context.Context, scheduleID int64)
 const insertReportDelivery = `-- name: InsertReportDelivery :one
 INSERT INTO report_delivery (schedule_id, period_start, period_end, delivery_no, state, delivered_at)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, schedule_id, period_start, period_end, delivery_no, generated_at, delivered_at, state
+RETURNING id, schedule_id, period_start, period_end, delivery_no, generated_at, delivered_at, state, scheduled_tick
 `
 
 type InsertReportDeliveryParams struct {
@@ -78,12 +79,13 @@ func (q *Queries) InsertReportDelivery(ctx context.Context, arg InsertReportDeli
 		&i.GeneratedAt,
 		&i.DeliveredAt,
 		&i.State,
+		&i.ScheduledTick,
 	)
 	return i, err
 }
 
 const listReportDeliveries = `-- name: ListReportDeliveries :many
-SELECT id, schedule_id, period_start, period_end, delivery_no, generated_at, delivered_at, state
+SELECT id, schedule_id, period_start, period_end, delivery_no, generated_at, delivered_at, state, scheduled_tick
 FROM report_delivery
 WHERE schedule_id = $1
 ORDER BY id DESC
@@ -109,6 +111,7 @@ func (q *Queries) ListReportDeliveries(ctx context.Context, scheduleID int64) ([
 			&i.GeneratedAt,
 			&i.DeliveredAt,
 			&i.State,
+			&i.ScheduledTick,
 		); err != nil {
 			return nil, err
 		}
@@ -141,4 +144,62 @@ func (q *Queries) NextReportDeliveryNo(ctx context.Context, scheduleID int64) (i
 	var next_no int32
 	err := row.Scan(&next_no)
 	return next_no, err
+}
+
+const tryInsertScheduledDelivery = `-- name: TryInsertScheduledDelivery :one
+INSERT INTO report_delivery (schedule_id, period_start, period_end, delivery_no, state, delivered_at, scheduled_tick)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (schedule_id, scheduled_tick) WHERE scheduled_tick IS NOT NULL DO NOTHING
+RETURNING id, schedule_id, period_start, period_end, delivery_no, generated_at, delivered_at, state
+`
+
+type TryInsertScheduledDeliveryParams struct {
+	ScheduleID    int64              `json:"schedule_id"`
+	PeriodStart   pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd     pgtype.Timestamptz `json:"period_end"`
+	DeliveryNo    int32              `json:"delivery_no"`
+	State         string             `json:"state"`
+	DeliveredAt   pgtype.Timestamptz `json:"delivered_at"`
+	ScheduledTick pgtype.Timestamptz `json:"scheduled_tick"`
+}
+
+type TryInsertScheduledDeliveryRow struct {
+	ID          int64              `json:"id"`
+	ScheduleID  int64              `json:"schedule_id"`
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd   pgtype.Timestamptz `json:"period_end"`
+	DeliveryNo  int32              `json:"delivery_no"`
+	GeneratedAt pgtype.Timestamptz `json:"generated_at"`
+	DeliveredAt pgtype.Timestamptz `json:"delivered_at"`
+	State       string             `json:"state"`
+}
+
+// Claim one on-cadence run of a schedule for a tick, idempotently: the partial
+// unique (schedule_id, scheduled_tick) admits only the first poll in a window; a
+// later poll conflicts and returns no row (a recorded skip, not a double-run),
+// mirroring the queue dispatcher's TryFanOut. delivery_no is the caller's
+// NextReportDeliveryNo read; state is 'generated' and delivered_at NULL — an
+// in-instance run generates without leaving (off-instance send is T7/#508, blocked).
+func (q *Queries) TryInsertScheduledDelivery(ctx context.Context, arg TryInsertScheduledDeliveryParams) (TryInsertScheduledDeliveryRow, error) {
+	row := q.db.QueryRow(ctx, tryInsertScheduledDelivery,
+		arg.ScheduleID,
+		arg.PeriodStart,
+		arg.PeriodEnd,
+		arg.DeliveryNo,
+		arg.State,
+		arg.DeliveredAt,
+		arg.ScheduledTick,
+	)
+	var i TryInsertScheduledDeliveryRow
+	err := row.Scan(
+		&i.ID,
+		&i.ScheduleID,
+		&i.PeriodStart,
+		&i.PeriodEnd,
+		&i.DeliveryNo,
+		&i.GeneratedAt,
+		&i.DeliveredAt,
+		&i.State,
+	)
+	return i, err
 }
