@@ -242,9 +242,9 @@ func TestResetFlowSetsPasswordOnceAndExpires(t *testing.T) {
 	}
 }
 
-// reset-done does not claim a global sign-out — this build's sessions are stateless
-// cookies with no registry, so it says a session elsewhere lapses when it expires.
-func TestResetDoneDoesNotClaimGlobalSignOut(t *testing.T) {
+// reset-done now states a real global sign-out — the registry backs it (#408), so the
+// copy tells the user every session was signed out and to sign in again.
+func TestResetDoneStatesGlobalSignOut(t *testing.T) {
 	f := newFakeStore()
 	acct := seedAccount(t, f, "ola", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
@@ -252,8 +252,9 @@ func TestResetDoneDoesNotClaimGlobalSignOut(t *testing.T) {
 	got := body(t, postForm(t, newClient(t), base+"/reset", url.Values{
 		"token": {"tok"}, "password": {"brand-new-pass"}, "confirm": {"brand-new-pass"},
 	}))
-	if strings.Contains(strings.ToLower(got), "every other session") || strings.Contains(strings.ToLower(got), "signed out") {
-		t.Fatalf("reset-done fabricates a global sign-out this build cannot do; body: %s", got)
+	low := strings.ToLower(got)
+	if !strings.Contains(low, "every session has been signed out") || !strings.Contains(low, "sign in again") {
+		t.Fatalf("reset-done does not state the global sign-out; body: %s", got)
 	}
 }
 

@@ -916,10 +916,12 @@ func (s *server) resetForm(w http.ResponseWriter, r *http.Request) {
 }
 
 // resetSubmit sets the account's password from a valid reset token and spends the
-// token so the link is single-use. It does not claim to sign other sessions out:
-// this build's sessions are stateless signed cookies with no registry, so a session
-// elsewhere lapses when it expires rather than being revoked here — the done copy
-// says so plainly rather than implying a global sign-out.
+// token so the link is single-use. Because a reset is the flow you take when the old
+// password is out of your hands, it then revokes ALL of the account's live sessions
+// (#408, ADR-0118) — there is no acting session to keep here (the user re-logs in with
+// the new password), so nothing is excepted. The revoke rides after the password is
+// already persisted and the token already spent, and only logs on failure, so a
+// registry hiccup never rolls the reset back — the done copy says every session is out.
 func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	pr, ok := s.lookupReset(r, token)
@@ -951,6 +953,16 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.store.ConsumePasswordReset(r.Context(), db.ConsumePasswordResetParams{ID: pr.ID, ConsumedAt: s.obsAsOf()}); err != nil {
 		log.Printf("web: reset: consume token: %v", err)
+	}
+	// A reset is the recovery path — the old password is presumed out of the owner's
+	// hands, so sign out every live session with no exception (#408). There is no acting
+	// session to keep (the user signs back in below). Logged, never fatal: the password
+	// is already reset.
+	if err := s.store.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
+		AccountID: pr.AccountID,
+		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		log.Printf("web: reset: revoke all sessions: %v", err)
 	}
 	s.render(w, "reset-done", map[string]any{"Title": "Password updated"})
 }
@@ -1231,7 +1243,7 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		st.signOutOthers = true
 	}
 	if q.Get("saved") != "" {
-		st.notice = "Password changed. Other sessions keep working until they expire."
+		st.notice = "Password changed. Every other signed-in session has been signed out."
 	}
 	// Session-management outcomes (#406) ride back as fixed query codes, each mapped to an
 	// honest notice — never reflected free text.
@@ -1441,9 +1453,13 @@ func (s *server) profileLinkableProviders(r *http.Request, linked map[int64]bool
 // changePassword is the self-service password change (Profile → Credentials). It
 // verifies the current password against a fresh read, enforces the same length
 // bounds as every other credential path, and never touches the TOTP secret — a
-// password change leaves the second factor in force. Other sessions are not
-// invalidated (this build's sessions are stateless signed cookies), which the
-// success notice states plainly rather than implying a global sign-out.
+// password change leaves the second factor in force. On success it revokes every
+// OTHER live session for the account (#408, ADR-0118) so a changed password signs
+// out anyone still holding the old one, keeping only the session making the change
+// alive — the success notice states so. The revoke rides after the password is
+// already persisted and only logs on failure, so a registry hiccup never rolls the
+// change back; and it runs only when the current session id resolves, so the acting
+// user is never signed out of the very tab they changed the password from.
 func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	current := r.FormValue("current_password")
 	next := r.FormValue("new_password")
@@ -1469,6 +1485,23 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 	if err := s.store.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: acct.ID, PasswordHash: hash}); err != nil {
 		s.serverError(w, "profile: update password", err)
 		return
+	}
+	// The password is changed; now sign out every OTHER session so a stolen or shared
+	// old password is dead everywhere (#408). Keep this tab alive by passing its own
+	// session id as the exception. If the current session id does not resolve (a missing
+	// or pre-registry cookie on an authed request — shouldn't happen), skip the revoke
+	// rather than risk a no-exception sweep that would sign the caller out of their own
+	// change. A revoke failure is logged, never fatal: the password is already updated.
+	if curID, ok := s.currentSessionID(r); ok {
+		if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
+			AccountID: acct.ID,
+			ID:        curID,
+			RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+		}); err != nil {
+			log.Printf("web: profile: revoke other sessions after password change: %v", err)
+		}
+	} else {
+		log.Printf("web: profile: password changed but current session id did not resolve; other sessions left in place")
 	}
 	http.Redirect(w, r, "/profile?saved=1", http.StatusSeeOther)
 }
