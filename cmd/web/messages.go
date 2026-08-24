@@ -493,6 +493,10 @@ type reportScheduleRow struct {
 	Cadence  string
 	Format   string
 	LastSent string
+	// Delivery is the bound channel's URL, or "download only" where the schedule binds
+	// no channel (NULL channel_id) — the Delivery column (P0.6c/T7). A channel receives
+	// only a link-only ready-message; the report body never leaves the instance.
+	Delivery string
 	// HasDelivery is true where a last delivery exists for this report; DeliveryHref
 	// is the artifact route the menu item opens (reportDeliveryHref when a delivery
 	// exists, empty otherwise so the item renders disabled).
@@ -532,6 +536,18 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 		log.Printf("web: reports: list report schedules: %v", err)
 		return nil
 	}
+	// The Delivery cell renders each schedule's bound channel by URL. One ListChannels
+	// read builds the id→URL lookup for every row; a read failure leaves the map empty,
+	// so a bound row degrades to "download only" rather than 500ing the analytics page.
+	channelURL := map[int64]string{}
+	if channels, err := s.store.ListChannels(ctx); err != nil {
+		log.Printf("web: reports: list channels for delivery column: %v", err)
+	} else {
+		for _, c := range channels {
+			channelURL[c.ID] = c.Url
+		}
+	}
+
 	now := s.now()
 	rows := make([]reportScheduleRow, 0, len(schedules))
 	for _, sc := range schedules {
@@ -548,12 +564,22 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 		case !errors.Is(err, pgx.ErrNoRows):
 			log.Printf("web: reports: latest delivery for schedule %d: %v", sc.ID, err)
 		}
+		// The delivery destination: the bound channel's URL, or "download only" where
+		// the schedule binds none (NULL channel_id). A bound channel that no longer
+		// resolves in the map also reads "download only" rather than a dangling id.
+		delivery := "download only"
+		if sc.ChannelID.Valid {
+			if url, ok := channelURL[sc.ChannelID.Int64]; ok {
+				delivery = url
+			}
+		}
 		rows = append(rows, reportScheduleRow{
 			ID:           sc.ID,
 			Name:         sc.Name,
 			Cadence:      sc.Cadence,
 			Format:       sc.Format,
 			LastSent:     lastSent,
+			Delivery:     delivery,
 			HasDelivery:  has,
 			DeliveryHref: href,
 		})

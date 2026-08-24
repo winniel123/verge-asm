@@ -216,7 +216,8 @@ const reportsTemplates = `
     <table class="vg-table">
       <thead><tr>
         <th>Report</th>
-        <th style="width:170px">Cadence</th>
+        <th style="width:150px">Cadence</th>
+        <th style="width:175px">Delivery</th>
         <th style="width:90px">Format</th>
         <th style="width:90px;text-align:right">Last sent</th>
         <th style="width:58px" aria-label="Actions"></th>
@@ -226,6 +227,7 @@ const reportsTemplates = `
         <tr>
           <td><span style="font:500 13px var(--sans);color:var(--ink)">{{.Name}}</span></td>
           <td class="mono">{{.Cadence}}</td>
+          <td class="mono">{{.Delivery}}</td>
           <td><span class="badge">{{.Format}}</span></td>
           <td class="mono" style="text-align:right">{{.LastSent}}</td>
           <td style="text-align:right;overflow:visible">
@@ -288,6 +290,7 @@ const scheduleWizardTemplate = `
 .sw-check input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
 .sw-cad{display:flex;flex-direction:column;gap:8px}
 .sw-cron{width:100%;height:34px;padding:0 10px;font:400 12px var(--mono)}
+.sw-help{margin:0;font:400 12px/1.5 var(--sans);color:var(--muted)}
 .sw-kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;padding:16px;background:var(--sunken);border-radius:var(--r-md)}
 .sw-kv-item{display:flex;flex-direction:column;gap:3px;min-width:0}
 .sw-kv-k{font:500 11px var(--mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)}
@@ -317,6 +320,7 @@ const scheduleWizardTemplate = `
 {{range .SectionsKeys}}<input type="hidden" name="sections" value="{{.}}">{{end}}{{end}}
 {{if ne .Step 1}}<input type="hidden" name="cad" value="{{.Cad}}">
 <input type="hidden" name="cron" value="{{.Cron}}">{{end}}
+{{if ne .Step 2}}<input type="hidden" name="channel" value="{{.ChannelID}}">{{end}}
 
 <div class="sw-body">
 {{if eq .Step 0}}
@@ -339,6 +343,15 @@ const scheduleWizardTemplate = `
 {{end}}
 
 {{if eq .Step 2}}
+<div class="sw-cad">
+<label><span class="sw-flabel">Destination</span>
+<select name="channel">{{range .Channels}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+</label>
+<p class="sw-help">A channel receives a link-only ready-message &#8212; the report body never leaves the instance. Channels are declared in Settings &#8594; Channels.</p>
+</div>
+{{end}}
+
+{{if eq .Step 3}}
 <div class="sw-kv">
 {{range .Review}}<div class="sw-kv-item"><span class="sw-kv-k">{{.K}}</span><span class="sw-kv-v">{{.V}}</span></div>{{end}}
 </div>

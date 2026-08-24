@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,19 +25,22 @@ import (
 // was declared, never a recompute (migration 21700). It never touches the comparison
 // path and never becomes a Message.
 //
-// The example's Wizard is a client-side modal with three steps (Scope / Cadence /
-// Review). The app is server-rendered with no client runtime, so — exactly as the
-// onboarding wizard (#307) — the controlled React state becomes a post-back form:
-// the accumulated values ride hidden fields, Back/Next re-render the step, and the
-// per-step valid gate decides whether Next advances. The markup lives in
+// The example's Wizard is a client-side modal with four steps (Scope / Cadence /
+// Delivery / Review). The app is server-rendered with no client runtime, so — exactly
+// as the onboarding wizard (#307) — the controlled React state becomes a post-back
+// form: the accumulated values ride hidden fields, Back/Next re-render the step, and
+// the per-step valid gate decides whether Next advances. The markup lives in
 // templates_reports.go (the "schedulewizard" template); those components are
 // translated to template-local CSS within the existing token vocabulary (restyling,
 // not authoring — ADR-0109).
 //
-// There is deliberately NO recipient field: the Reports.jsx wizard has none, so
-// delivery_target stays as declared (empty — download-only). The recipient /
-// notification layer is a separate ticket; inventing a field here would over-promise
-// a delivery the product cannot yet make (ADR-0039 keeps every artifact in-instance).
+// Delivery binds the schedule to a Channel (P0.6c/T7, #508, collision #17 ruled): the
+// Destination select offers "Download only" (the default) plus every declared Channel,
+// and the chosen channel_id is what the schedule stores (NULL = download-only). The
+// bound Channel receives a LINK-ONLY ready-message when a run is cut — the report name,
+// its period, and a session-authed link to the in-instance artifact — never the estate
+// (ADR-0039 stands). The free-text delivery_target is superseded by the binding: it is
+// written empty and no longer read as the destination.
 
 // reportScheduleSection is one selectable report section — the key persisted in the
 // sections JSON array and the label the wizard checkbox and the Review list render.
@@ -77,11 +82,16 @@ const (
 	reportScheduleFormat = "pdf"
 )
 
-// reportScheduleStepTitles names the three wizard steps in order; reportScheduleLast
+// reportScheduleStepTitles names the four wizard steps in order; reportScheduleLast
 // is the index of the Review step, where the flow finishes rather than advances.
-var reportScheduleStepTitles = []string{"Scope", "Cadence", "Review"}
+var reportScheduleStepTitles = []string{"Scope", "Cadence", "Delivery", "Review"}
 
-const reportScheduleLast = 2
+const (
+	// reportScheduleDeliveryStep is the index of the Delivery step, where the channel
+	// destination is chosen (Reports.jsx's "delivery" step between Cadence and Review).
+	reportScheduleDeliveryStep = 2
+	reportScheduleLast         = 3
+)
 
 // scheduleWizardView is the controlled state of the wizard across the post-back
 // flow: the step being shown, the schedule id (0 on create, the target on edit), and
@@ -94,6 +104,10 @@ type scheduleWizardView struct {
 	Sections []string
 	Cad      string
 	Cron     string
+	// ChannelID is the chosen delivery destination: 0 is "Download only" (a NULL
+	// channel_id — the run generates in-instance and no ready-message leaves), and any
+	// other value is a declared Channel's id (P0.6c/T7).
+	ChannelID int64
 }
 
 // readScheduleWizardView reconstructs the controlled state from the request form.
@@ -124,13 +138,19 @@ func readScheduleWizardView(r *http.Request) scheduleWizardView {
 		cad = reportDefaultCad
 	}
 
+	var channelID int64
+	if n, err := strconv.ParseInt(r.FormValue("channel"), 10, 64); err == nil {
+		channelID = n
+	}
+
 	return scheduleWizardView{
-		Step:     step,
-		ID:       id,
-		Name:     strings.TrimSpace(r.FormValue("name")),
-		Sections: canonicalSections(r.Form["sections"]),
-		Cad:      cad,
-		Cron:     strings.TrimSpace(r.FormValue("cron")),
+		Step:      step,
+		ID:        id,
+		Name:      strings.TrimSpace(r.FormValue("name")),
+		Sections:  canonicalSections(r.Form["sections"]),
+		Cad:       cad,
+		Cron:      strings.TrimSpace(r.FormValue("cron")),
+		ChannelID: channelID,
 	}
 }
 
@@ -207,7 +227,7 @@ func (s *server) newReportScheduleWizard(w http.ResponseWriter, r *http.Request,
 		Sections: reportScheduleDefaultSections(),
 		Cad:      reportDefaultCad,
 	}
-	s.renderScheduleWizard(w, acct, v, false)
+	s.renderScheduleWizard(r.Context(), w, acct, v, false)
 }
 
 // editReportScheduleWizard renders the wizard prefilled from an existing schedule.
@@ -236,7 +256,10 @@ func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request
 		Cad:      cad,
 		Cron:     cron,
 	}
-	s.renderScheduleWizard(w, acct, v, true)
+	if sc.ChannelID.Valid {
+		v.ChannelID = sc.ChannelID.Int64
+	}
+	s.renderScheduleWizard(r.Context(), w, acct, v, true)
 }
 
 // parseScheduleSections reads a schedule's stored sections JSON array back into the
@@ -262,13 +285,13 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		if v.Step > 0 {
 			v.Step--
 		}
-		s.renderScheduleWizard(w, acct, v, false)
+		s.renderScheduleWizard(r.Context(), w, acct, v, false)
 		return
 	case "next":
 		if v.Step < reportScheduleLast && scheduleStepValid(v) {
 			v.Step++
 		}
-		s.renderScheduleWizard(w, acct, v, false)
+		s.renderScheduleWizard(r.Context(), w, acct, v, false)
 		return
 	}
 
@@ -276,7 +299,7 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 	// entry rather than filing a schedule that would render nothing.
 	if !scheduleAllValid(v) {
 		v.Step = 0
-		s.renderScheduleWizard(w, acct, v, false)
+		s.renderScheduleWizard(r.Context(), w, acct, v, false)
 		return
 	}
 
@@ -290,7 +313,8 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		Sections:       sections,
 		Cadence:        reportCadLabel(v.Cad, v.Cron),
 		Format:         reportScheduleFormat,
-		DeliveryTarget: "", // no recipient field in the wizard — download-only.
+		DeliveryTarget: "", // superseded by the channel binding below.
+		ChannelID:      channelBinding(v.ChannelID),
 		CreatedBy:      acct.ID,
 	}); err != nil {
 		s.serverError(w, "insert report schedule", err)
@@ -315,19 +339,19 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 		if v.Step > 0 {
 			v.Step--
 		}
-		s.renderScheduleWizard(w, acct, v, true)
+		s.renderScheduleWizard(r.Context(), w, acct, v, true)
 		return
 	case "next":
 		if v.Step < reportScheduleLast && scheduleStepValid(v) {
 			v.Step++
 		}
-		s.renderScheduleWizard(w, acct, v, true)
+		s.renderScheduleWizard(r.Context(), w, acct, v, true)
 		return
 	}
 
 	if !scheduleAllValid(v) {
 		v.Step = 0
-		s.renderScheduleWizard(w, acct, v, true)
+		s.renderScheduleWizard(r.Context(), w, acct, v, true)
 		return
 	}
 
@@ -343,6 +367,7 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 		Cadence:        reportCadLabel(v.Cad, v.Cron),
 		Format:         reportScheduleFormat,
 		DeliveryTarget: "",
+		ChannelID:      channelBinding(v.ChannelID),
 	}); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// The schedule was deleted between opening the wizard and saving.
@@ -431,11 +456,23 @@ func (s *server) deleteReportSchedule(w http.ResponseWriter, r *http.Request, ac
 	http.Redirect(w, r, "/reports", http.StatusSeeOther)
 }
 
+// channelBinding maps the wizard's chosen destination to the schedule's channel_id:
+// 0 is "Download only" — a NULL binding, so the run generates in-instance and enqueues
+// no ready-message — and any other value binds that Channel (P0.6c/T7).
+func channelBinding(channelID int64) pgtype.Int8 {
+	if channelID == 0 {
+		return pgtype.Int8{}
+	}
+	return pgtype.Int8{Int64: channelID, Valid: true}
+}
+
 // renderScheduleWizard shapes the controlled state into the "schedulewizard"
 // template data: the step progress, the current step's fields, and — on the Review
 // step — the KeyValueList summary of the real inputs. editMode switches the form's
-// post target and the finish label between the create and edit paths.
-func (s *server) renderScheduleWizard(w http.ResponseWriter, acct db.Account, v scheduleWizardView, editMode bool) {
+// post target and the finish label between the create and edit paths. The Delivery
+// step's Destination select is built from the declared Channels (ListChannels);
+// a list-read failure degrades to "Download only" alone rather than 500ing the wizard.
+func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter, acct db.Account, v scheduleWizardView, editMode bool) {
 	steps := make([]map[string]any, len(reportScheduleStepTitles))
 	for i, title := range reportScheduleStepTitles {
 		steps[i] = map[string]any{
@@ -465,9 +502,31 @@ func (s *server) renderScheduleWizard(w http.ResponseWriter, acct db.Account, v 
 		cads[i] = map[string]any{"Value": p, "Selected": p == v.Cad}
 	}
 
+	// The Delivery step's Destination select: "Download only" (value 0, the default)
+	// plus one option per declared Channel, labelled by its URL (Reports.jsx's Select).
+	// A read failure leaves only "Download only" — the wizard still works. deliveryLabel
+	// is the Review row's value: the bound channel's URL, or "download only".
+	deliveryLabel := "download only"
+	channelOpts := []map[string]any{
+		{"Value": int64(0), "Label": "Download only", "Hint": "artifact stays in Reports", "Selected": v.ChannelID == 0},
+	}
+	if channels, err := s.store.ListChannels(ctx); err != nil {
+		log.Printf("web: reports: list channels for wizard: %v", err)
+	} else {
+		for _, c := range channels {
+			sel := c.ID == v.ChannelID
+			if sel {
+				deliveryLabel = c.Url
+			}
+			channelOpts = append(channelOpts, map[string]any{
+				"Value": c.ID, "Label": c.Url, "Hint": "signed HTTPS channel", "Selected": sel,
+			})
+		}
+	}
+
 	// Review summary — the real inputs, exactly as the example's KeyValueList maps
 	// them: the name (or an em dash), the chosen section labels, the cadence label,
-	// and the fixed format.
+	// the fixed format, and the delivery destination.
 	nameSummary := strings.TrimSpace(v.Name)
 	if nameSummary == "" {
 		nameSummary = "—"
@@ -481,6 +540,7 @@ func (s *server) renderScheduleWizard(w http.ResponseWriter, acct db.Account, v 
 		{"K": "Sections", "V": sectionsSummary},
 		{"K": "Cadence", "V": reportCadLabel(v.Cad, v.Cron)},
 		{"K": "Format", "V": reportScheduleFormat},
+		{"K": "Delivery", "V": deliveryLabel},
 	}
 
 	formAction := "/reports/schedule"
@@ -517,6 +577,8 @@ func (s *server) renderScheduleWizard(w http.ResponseWriter, acct db.Account, v 
 		"Cad":          v.Cad,
 		"Cron":         v.Cron,
 		"Custom":       v.Cad == reportCustomCad,
+		"Channels":     channelOpts,
+		"ChannelID":    v.ChannelID,
 
 		"Review": review,
 	})

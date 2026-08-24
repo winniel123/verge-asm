@@ -2258,7 +2258,8 @@ func (f *fakeStore) InsertReportSchedule(_ context.Context, arg db.InsertReportS
 	rs := db.ReportSchedule{
 		ID: f.rsNextID, Name: arg.Name, Sections: arg.Sections,
 		Cadence: arg.Cadence, Format: arg.Format,
-		DeliveryTarget: arg.DeliveryTarget, CreatedBy: arg.CreatedBy,
+		DeliveryTarget: arg.DeliveryTarget, ChannelID: arg.ChannelID,
+		CreatedBy: arg.CreatedBy,
 	}
 	f.rsNextID++
 	f.reportSchedules = append(f.reportSchedules, rs)
@@ -2294,6 +2295,7 @@ func (f *fakeStore) UpdateReportSchedule(_ context.Context, arg db.UpdateReportS
 		rs.Cadence = arg.Cadence
 		rs.Format = arg.Format
 		rs.DeliveryTarget = arg.DeliveryTarget
+		rs.ChannelID = arg.ChannelID
 		f.reportSchedules[i] = rs
 		return rs, nil
 	}
