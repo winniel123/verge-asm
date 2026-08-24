@@ -587,7 +587,7 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 	// Placed after pageCSS so the design tokens win the cascade for any overlapping
 	// :root variable. It is design-authored CSS from the embedded package, no user
 	// input, so template.CSS keeps html/template from escaping it.
-	"designTokens": func() template.CSS { return template.CSS(designTokensCSS) },
+	"designTokens": func() template.CSS { return template.CSS(designTokensCSS) }, // #nosec G203 -- design-owned CSS from the embedded design package (designfs), no user input
 	// A design-served page (.DesignTokens) also gets a small shell reset, emitted in
 	// the head block, that isolates the frozen design tmpl from the legacy pageCSS
 	// cascade it is served inside. Two parts:

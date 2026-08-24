@@ -18,7 +18,7 @@ import (
 // harness login deterministic. The harness references the same two constants.
 const (
 	devSeedUsername = "operator"
-	devSeedPassword = "verge-dev-operator"
+	devSeedPassword = "verge-dev-operator" // #nosec G101 -- not a real credential: a fixed dev-only fixture operator the loader seeds, and the loader is barred outside a VERGE_DEV build
 )
 
 // The Inventory fixture loader (#525, P4.0 exact-parity pilot). It is a dev-only

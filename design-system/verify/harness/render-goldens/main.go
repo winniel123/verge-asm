@@ -118,10 +118,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("render-goldens: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(*out), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(*out), 0o750); err != nil {
 		log.Fatalf("render-goldens: mkdir: %v", err)
 	}
-	if err := os.WriteFile(*out, html, 0o644); err != nil {
+	if err := os.WriteFile(*out, html, 0o600); err != nil {
 		log.Fatalf("render-goldens: write %s: %v", *out, err)
 	}
 	log.Printf("render-goldens: wrote %s (%d bytes)", *out, len(html))
@@ -172,10 +172,13 @@ func render(bodyFlex bool) ([]byte, error) {
 	if bodyFlex {
 		diag = "<style>body{display:flex;flex-direction:column;margin:0}</style>"
 	}
-	head := template.HTML("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">" +
+	headHTML := "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">" +
 		"<style data-design-fonts>" + fontImport + "</style>" +
 		"<style data-design-tokens>" + tokens + "</style>" +
-		"<style data-golden-shell>*,*::before,*::after{box-sizing:border-box}body{margin:0}</style>" + diag + "</head><body>")
+		"<style data-golden-shell>*,*::before,*::after{box-sizing:border-box}body{margin:0}</style>" + diag + "</head><body>"
+	// The head is composed by this harness from the embedded design tokens and the
+	// frozen font @import — no user input reaches it, so it is safe to mark trusted.
+	head := template.HTML(headHTML) // #nosec G203 -- trusted design CSS/HTML composed by the harness from embedded artifacts, no user input
 
 	t := template.New("root").Funcs(template.FuncMap{
 		"stubhead": func() template.HTML { return head },
