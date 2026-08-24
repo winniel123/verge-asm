@@ -2274,6 +2274,44 @@ func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, e
 	return out, nil
 }
 
+func (f *fakeStore) GetReportSchedule(_ context.Context, id int64) (db.ReportSchedule, error) {
+	for _, rs := range f.reportSchedules {
+		if rs.ID == id {
+			return rs, nil
+		}
+	}
+	return db.ReportSchedule{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) UpdateReportSchedule(_ context.Context, arg db.UpdateReportScheduleParams) (db.ReportSchedule, error) {
+	for i, rs := range f.reportSchedules {
+		if rs.ID != arg.ID {
+			continue
+		}
+		// Genuine in-place update: id, created_by and created_at are preserved.
+		rs.Name = arg.Name
+		rs.Sections = arg.Sections
+		rs.Cadence = arg.Cadence
+		rs.Format = arg.Format
+		rs.DeliveryTarget = arg.DeliveryTarget
+		f.reportSchedules[i] = rs
+		return rs, nil
+	}
+	return db.ReportSchedule{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) DeleteReportSchedule(_ context.Context, id int64) error {
+	// Idempotent, mirroring DELETE ... WHERE id = $1 (no row is not an error).
+	out := f.reportSchedules[:0]
+	for _, rs := range f.reportSchedules {
+		if rs.ID != id {
+			out = append(out, rs)
+		}
+	}
+	f.reportSchedules = out
+	return nil
+}
+
 func (f *fakeStore) NextReportDeliveryNo(_ context.Context, scheduleID int64) (int32, error) {
 	var max int32
 	for _, d := range f.reportDeliveries {

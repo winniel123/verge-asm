@@ -176,6 +176,10 @@ type Querier interface {
 	// re-enrolling) two-factor replaces the old codes wholesale rather than
 	// accumulating stale sets that would each still redeem.
 	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
+	// Remove one schedule (the row-menu's Delete). A hard delete: the schedule is a
+	// Declared intent, so withdrawing the declaration removes the row. Idempotent from
+	// the caller's view — deleting an id already gone is not an error.
+	DeleteReportSchedule(ctx context.Context, id int64) error
 	// An admin removes any binding by id (offboarding / seat reassignment). Idempotent:
 	// removing a row already gone satisfies the intent either way.
 	DeleteSSOIdentity(ctx context.Context, id int64) error
@@ -314,6 +318,11 @@ type Querier interface {
 	// can copy its scope into a Seed. A Proposal already confirmed or declined does
 	// not come back, so a double submit cannot open the gate twice.
 	GetPendingProposal(ctx context.Context, id int64) (Proposal, error)
+	// One declared schedule by id — the read behind the Edit wizard (prefill) and the
+	// Run-now dispatch (the run reads the schedule's name/cadence/format to cut the
+	// artifact for the current period). No row (pgx.ErrNoRows) is a schedule that never
+	// existed or was already deleted; the caller answers a stale id rather than 500ing.
+	GetReportSchedule(ctx context.Context, id int64) (ReportSchedule, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
 	// Whether a (provider, sub) is already bound, and to whom — so the self-link flow can
@@ -379,11 +388,14 @@ type Querier interface {
 	// download-only schedule) and the stamp otherwise. generated_at defaults to now().
 	InsertReportDelivery(ctx context.Context, arg InsertReportDeliveryParams) (ReportDelivery, error)
 	// Reads and writes behind the Reports screen's recurring-reports table and its
-	// "New schedule" wizard (#290). A report_schedule is Declared and carries no
-	// timeline: there is a plain insert and an unbounded newest-first list, no
-	// content update and no delete (the row-menu's edit/delete stay out of scope until
-	// the scheduling dispatcher lands). The estate is single-tenant, so the list is
-	// unscoped; created_by attributes the admin who declared each schedule.
+	// "New schedule" wizard (#290, live CRUD in P0.6/T4). A report_schedule is Declared
+	// and carries no timeline: a re-declaration through the wizard is a fresh insert,
+	// never a recompute of an existing row (migration 21700). The row-menu's Edit is a
+	// genuine in-place update of a schedule's declared contents (name / sections /
+	// cadence / format / target) — a schedule carries no derived state to recompute, so
+	// editing what was declared is not a recompute — and Delete is a hard delete. The
+	// estate is single-tenant, so the list is unscoped; created_by attributes the admin
+	// who declared each schedule and is immutable across an edit.
 	// Declare one recurring report. The caller has parsed the wizard form — name, the
 	// chosen sections (a JSON array), cadence, format, and the delivery target — and
 	// attributes it to the admin who submitted it. sections defaults to an empty array
@@ -676,8 +688,8 @@ type Querier interface {
 	// schedule, including failed runs so the record is complete.
 	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]ReportDelivery, error)
 	// Every declared schedule, newest-first, unbounded — the "Recurring reports" table
-	// renders each row and resolves its "last delivery" from the Message corpus, since
-	// deliveries are messages (ADR-0039, ADR-0081) and this table holds only intent.
+	// renders each row and resolves its "last delivery" from the report_delivery
+	// receipts store (#291/T2), since this table holds only the declared intent.
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
 	// Every binding for the admin SSO settings — the offboarding / seat-reassignment view.
 	// Joined to provider and account so the admin sees which identity maps to whom, newest
@@ -1028,6 +1040,12 @@ type Querier interface {
 	// bare write; it never touches the TOTP secret, so a password change leaves the
 	// second factor in force.
 	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error
+	// Edit one schedule's declared contents in place (the row-menu's Edit). A schedule
+	// carries no timeline and no derived state, so updating what was declared is not a
+	// recompute (migration 21700) — the id, created_by and created_at are preserved.
+	// Returns the updated row so the caller can confirm the target existed; no row means
+	// a stale id.
+	UpdateReportSchedule(ctx context.Context, arg UpdateReportScheduleParams) (ReportSchedule, error)
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
 	// Updates everything but the secret; the secret has its own write path, so an edit
 	// that leaves it blank keeps the existing one untouched (exactly the channel pattern).
