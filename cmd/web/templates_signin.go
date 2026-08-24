@@ -229,7 +229,7 @@ Single sign-on not configured
 <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0;text-align:center">
 <span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:var(--r-full);background:var(--ok-soft);border:1px solid var(--ok-border);color:var(--ok)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
 <span style="font-weight:600;font-size:15px;color:var(--ink)">Password updated</span>
-<span class="muted" style="font-size:12.5px;line-height:1.6;max-width:300px">Sign in with your new password. A session on another device lapses when it expires.</span>
+<span class="muted" style="font-size:12.5px;line-height:1.6;max-width:300px">For your security, every session has been signed out. Sign in again with your new password.</span>
 <a class="btn" href="/login" style="text-decoration:none;margin-top:4px">Back to sign in</a>
 </div>
 </div>
