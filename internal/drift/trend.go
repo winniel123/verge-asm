@@ -196,6 +196,79 @@ type WithdrawalPoint struct {
 	HasMean bool
 }
 
+// --- New assets discovered ---------------------------------------------------
+
+// Appearance is one subject's FIRST appearance as the discovery fold sees it: the
+// instant it first entered the estate — its earliest span opened_at, the `appeared`
+// drift-event classification — and whether that subject is a Service (vs a Name),
+// so the caller can split the discovery count by kind for the card's caption. It
+// comes from the never-compacted span corpus (ADR-0041), so the instant is
+// measured, never fabricated. Only Name/Service subjects are counted — the same
+// watched population the assets-watched census reads (DistinctSubjects) — so an
+// Endpoint or Address facet moving is not itself a newly discovered asset.
+type Appearance struct {
+	At      time.Time
+	Service bool
+}
+
+// DiscoveryPoint is one bucket of the new-assets-discovered series: the bucket
+// start and the count of subjects that FIRST appeared within it — the daily bars
+// of the Reports "New assets discovered" card (Reports.jsx DISCOVERY). A bucket
+// with no appearance reports Count 0, a real empty bar, not a fabricated shape.
+type DiscoveryPoint struct {
+	Start time.Time
+	Count int
+}
+
+// DiscoverySeries buckets first-appearances by their appearance instant over the
+// window ending at `now`, oldest bucket first — the daily-discovery BarChart of the
+// Reports screen. Same windowing as SignalsOverTime, so a discovery column lines up
+// with the other trends. Only an appearance inside the window lands in a bucket; an
+// empty set yields all-zero buckets rather than an invented series.
+func DiscoverySeries(apps []Appearance, now time.Time, bucket time.Duration, buckets int) []DiscoveryPoint {
+	start := windowStart(now, bucket, buckets)
+	points := make([]DiscoveryPoint, buckets)
+	for i := range points {
+		points[i].Start = start.Add(bucket * time.Duration(i))
+	}
+	for _, a := range apps {
+		if idx, ok := bucketIndex(a.At, start, bucket, buckets); ok {
+			points[idx].Count++
+		}
+	}
+	return points
+}
+
+// DiscoveryTotals is the per-period discovery summary the card's KPI and caption
+// read: the total subjects that first appeared in the window, split into Names and
+// Services (Names + Services == Total). The count is the "New assets discovered"
+// value; the split is its "N names · M services" caption.
+type DiscoveryTotals struct {
+	Total    int
+	Names    int
+	Services int
+}
+
+// DiscoveryCount folds the appearances whose instant is in [start, end) into the
+// per-period totals — the count the KPI shows and the name/service split its caption
+// reads. The half-open window matches DiscoverySeries' bucketing (an appearance
+// exactly at `end` is outside), so counting [windowStart, now) sums to the series.
+func DiscoveryCount(apps []Appearance, start, end time.Time) DiscoveryTotals {
+	var t DiscoveryTotals
+	for _, a := range apps {
+		if a.At.Before(start) || !a.At.Before(end) {
+			continue
+		}
+		t.Total++
+		if a.Service {
+			t.Services++
+		} else {
+			t.Names++
+		}
+	}
+	return t
+}
+
 // WithdrawalSeries buckets withdrawals by their WITHDRAWAL instant over the window
 // ending at `now`, oldest bucket first, and computes each bucket's mean
 // time-to-withdrawal. A bucket with no valid withdrawal reports HasMean=false so the

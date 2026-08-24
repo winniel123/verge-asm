@@ -64,7 +64,7 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 		t.Errorf("reports nav pill not marked active; body: %s", page)
 	}
 	for _, want := range []string{
-		"Open signals", "Assets watched", "Mean time to withdrawal", // KPI band — the three trend cards
+		"Open signals", "New assets discovered", "Mean time to withdrawal", // KPI band — the three trend cards
 		"Open signals over time",                     // time-series card title
 		"Scans per day", "Scans per day, last 12 weeks", // heatmap card + grid aria-label
 		"Recurring reports", "New schedule", // recurring card + the (disabled) schedule control
@@ -90,6 +90,46 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 	low := strings.ToLower(page)
 	if strings.Contains(low, "mean time to resolve") || strings.Contains(low, "time to resolve") {
 		t.Errorf("no resolve metric may appear — signals are withdrawn, not resolved; body: %s", page)
+	}
+}
+
+// The KPI band's second card renders the spec's "New assets discovered" datum
+// (P2.4b, #468): the per-period count of Name/Service subjects that first appeared
+// in the range (MIN(opened_at)), its name/service split caption, a vs-previous-period
+// delta, and the daily-discovery bar series. A Name (resolution) and a Service
+// (reachability) that first appear inside the window are two newly discovered assets.
+func TestReportsRendersNewAssetsDiscovered(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	// One Name and one Service first appearing a couple of days before the render
+	// clock — both inside the default twelve-week window, none in the prior window.
+	at := reportsClock.AddDate(0, 0, -2)
+	f.addResolution(t, admin.ID, "api.example.com", "dns", at, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.addReachability(t, "198.51.100.1:443/tcp", at, `{"outcome":"reached","result":"open"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/reports", http.StatusOK)
+
+	for _, want := range []string{
+		"New assets discovered",                       // card title (not the interim "Assets watched")
+		"1 names",                                     // the name half of the split caption
+		"1 services",                                  // the service half
+		"border-bottom:1px solid var(--chart-grid)",   // the daily-discovery BarChart baseline
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("discovery card missing %q; body: %s", want, page)
+		}
+	}
+	// vs-previous-period delta: two appeared this window, none before it -> +2 (the
+	// signed "+" is HTML-escaped to &#43; in the rendered text node).
+	if !strings.Contains(page, "&#43;2</span>") {
+		t.Errorf("discovery card should show a +2 vs-previous-period delta; body: %s", page)
+	}
+	// The interim P0.2 "Assets watched" card must not survive alongside the spec card.
+	if strings.Contains(page, "Assets watched") {
+		t.Errorf("the interim \"Assets watched\" card must be replaced by \"New assets discovered\"; body: %s", page)
 	}
 }
 

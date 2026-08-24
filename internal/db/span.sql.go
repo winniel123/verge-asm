@@ -711,6 +711,58 @@ func (q *Queries) ListSpansOpenSince(ctx context.Context, since pgtype.Timestamp
 	return items, nil
 }
 
+const listSubjectFirstAppearances = `-- name: ListSubjectFirstAppearances :many
+SELECT
+    sp.subject_kind AS subject_kind,
+    sp.subject_key  AS subject_key,
+    MIN(sp.opened_at)::timestamptz AS first_opened
+FROM span sp
+WHERE sp.subject_kind IN ('name', 'service')
+GROUP BY sp.subject_kind, sp.subject_key
+HAVING MIN(sp.opened_at) >= $1
+ORDER BY first_opened, sp.subject_kind, sp.subject_key
+`
+
+type ListSubjectFirstAppearancesRow struct {
+	SubjectKind string             `json:"subject_kind"`
+	SubjectKey  string             `json:"subject_key"`
+	FirstOpened pgtype.Timestamptz `json:"first_opened"`
+}
+
+// Every Name/Service subject whose FIRST appearance is at or after @since, paired
+// with that first-appearance instant — the corpus the Reports "New assets
+// discovered" card folds into a per-period count and a daily-discovery series
+// (P2.4b, #468). A subject's appearance is the earliest opened_at across ALL its
+// spans (the `appeared` drift classification): GROUP BY collapses a subject's many
+// facet timelines to that one instant, and HAVING keeps only subjects that first
+// appeared in the window, so a subject long-present before @since is not miscounted
+// as newly discovered. Only Name and Service subjects are counted — the same
+// watched population the assets-watched census reads (internal/drift.DistinctSubjects)
+// — so an Endpoint or Address facet moving is not itself a new asset. Reads FROM
+// span only — the already-derived, never-compacted corpus (ADR-0041) — so it is NOT
+// live-tier gated; an @as_of bound would wrongly hide settled history rather than
+// protect a re-derivation. Ordered by the appearance instant for a stable,
+// oldest-first fold.
+func (q *Queries) ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]ListSubjectFirstAppearancesRow, error) {
+	rows, err := q.db.Query(ctx, listSubjectFirstAppearances, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSubjectFirstAppearancesRow{}
+	for rows.Next() {
+		var i ListSubjectFirstAppearancesRow
+		if err := rows.Scan(&i.SubjectKind, &i.SubjectKey, &i.FirstOpened); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWithdrawalLifespans = `-- name: ListWithdrawalLifespans :many
 SELECT DISTINCT ON (w.subject_kind, w.subject_key, w.closed_at)
     w.subject_kind AS subject_kind,
