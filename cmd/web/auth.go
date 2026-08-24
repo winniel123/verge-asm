@@ -588,6 +588,10 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	// corpus failure the signal regions degrade to unavailable rather than 500ing.
 	openSignals, hasOpenSignals := 0, false
 	var firing []dashSignalRow
+	// firedPairs is the flat (rule, subject) fired set the vs-last-batch signal
+	// deltas read (P0.2) — collected from the same census fold so the corpus is
+	// evaluated once for both the count and its delta.
+	var firedPairs []firedSignal
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		for _, c := range signal.EvaluateCorpus(corpus) {
 			openSignals += len(c.Fired)
@@ -595,6 +599,9 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 				firing = append(firing, dashSignalRow{
 					Rule: c.Rule, Kind: signal.SubjectKindFor(c.Rule), Fired: len(c.Fired),
 				})
+				for _, m := range c.Fired {
+					firedPairs = append(firedPairs, firedSignal{Rule: c.Rule, Subject: m.Subject})
+				}
 			}
 		}
 		hasOpenSignals = true
@@ -687,6 +694,14 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	if hasOpenSignals && openSignals > 0 {
 		data["SignalCount"] = openSignals
 	}
+
+	// Vs-last-batch stat deltas (P0.2, #443): the signed change each stat tile shows
+	// against the previous batch. Best-effort — a Known=false result (no previous
+	// batch, or a corpus read failed) leaves the tiles in their no-delta state. The
+	// P2.1 Dashboard markup reads these; this handler derives and exposes them.
+	deltas := s.dashboardDeltas(r.Context(), firedPairs)
+	data["Deltas"] = deltas
+	data["HasDeltas"] = deltas.Known
 	return data
 }
 
