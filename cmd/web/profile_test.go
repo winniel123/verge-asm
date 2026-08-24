@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -125,6 +126,93 @@ func (f *fakeStore) TouchSession(_ context.Context, arg db.TouchSessionParams) e
 func (f *fakeStore) RevokeSession(_ context.Context, arg db.RevokeSessionParams) error {
 	for i := range f.sessions {
 		if f.sessions[i].ID == arg.ID && f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
+			f.sessions[i].RevokedAt = arg.RevokedAt
+			return nil
+		}
+	}
+	return nil
+}
+
+// ListSessionsForAccount mirrors the personal-listing query: one account's live sessions
+// (unrevoked, unexpired against the passed clock), newest activity first, with token_hash
+// omitted from the projection so the secret never reaches the render path.
+func (f *fakeStore) ListSessionsForAccount(_ context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error) {
+	rows := []db.ListSessionsForAccountRow{}
+	for _, sess := range f.sessions {
+		if sess.AccountID != arg.AccountID || sess.RevokedAt.Valid || !sess.ExpiresAt.Time.After(arg.ExpiresAt.Time) {
+			continue
+		}
+		rows = append(rows, db.ListSessionsForAccountRow{
+			ID: sess.ID, AccountID: sess.AccountID, CreatedAt: sess.CreatedAt,
+			LastSeenAt: sess.LastSeenAt, UserAgent: sess.UserAgent, Ip: sess.Ip,
+			ExpiresAt: sess.ExpiresAt,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if !rows[i].LastSeenAt.Time.Equal(rows[j].LastSeenAt.Time) {
+			return rows[i].LastSeenAt.Time.After(rows[j].LastSeenAt.Time)
+		}
+		return rows[i].ID > rows[j].ID
+	})
+	return rows, nil
+}
+
+// RevokeOtherSessionsForAccount revokes every live session for the account EXCEPT the
+// current one (arg.ID) — "sign out other devices" and the password-change invalidation.
+// The acting session survives, mirroring the id <> $2 predicate.
+func (f *fakeStore) RevokeOtherSessionsForAccount(_ context.Context, arg db.RevokeOtherSessionsForAccountParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].AccountID == arg.AccountID && f.sessions[i].ID != arg.ID && !f.sessions[i].RevokedAt.Valid {
+			f.sessions[i].RevokedAt = arg.RevokedAt
+		}
+	}
+	return nil
+}
+
+// RevokeAllSessionsForAccount revokes every live session for the account with no
+// exception — the reset path (no current session to keep) and admin offboarding.
+func (f *fakeStore) RevokeAllSessionsForAccount(_ context.Context, arg db.RevokeAllSessionsForAccountParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
+			f.sessions[i].RevokedAt = arg.RevokedAt
+		}
+	}
+	return nil
+}
+
+// ListAllActiveSessions mirrors the admin query: every account's live sessions joined to
+// the owning account's username and role, ordered by username then recency. token_hash is
+// never projected here either.
+func (f *fakeStore) ListAllActiveSessions(_ context.Context, expiresAt pgtype.Timestamptz) ([]db.ListAllActiveSessionsRow, error) {
+	rows := []db.ListAllActiveSessionsRow{}
+	for _, sess := range f.sessions {
+		if sess.RevokedAt.Valid || !sess.ExpiresAt.Time.After(expiresAt.Time) {
+			continue
+		}
+		acct := f.accounts[sess.AccountID]
+		rows = append(rows, db.ListAllActiveSessionsRow{
+			ID: sess.ID, AccountID: sess.AccountID, Username: acct.Username, Role: acct.Role,
+			CreatedAt: sess.CreatedAt, LastSeenAt: sess.LastSeenAt,
+			UserAgent: sess.UserAgent, Ip: sess.Ip, ExpiresAt: sess.ExpiresAt,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Username != rows[j].Username {
+			return rows[i].Username < rows[j].Username
+		}
+		if !rows[i].LastSeenAt.Time.Equal(rows[j].LastSeenAt.Time) {
+			return rows[i].LastSeenAt.Time.After(rows[j].LastSeenAt.Time)
+		}
+		return rows[i].ID > rows[j].ID
+	})
+	return rows, nil
+}
+
+// RevokeSessionByIDForAdmin revokes any one live session by id, NOT owner-scoped — the
+// admin single-revoke, gated by requireAdmin at the handler. Idempotent.
+func (f *fakeStore) RevokeSessionByIDForAdmin(_ context.Context, arg db.RevokeSessionByIDForAdminParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].ID == arg.ID && !f.sessions[i].RevokedAt.Valid {
 			f.sessions[i].RevokedAt = arg.RevokedAt
 			return nil
 		}

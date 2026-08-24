@@ -66,12 +66,23 @@ type store interface {
 	// at cookie expiry. CreateSession opens it; GetSessionByTokenHash is the per-request
 	// validation lookup (live = unrevoked and unexpired); TouchSession refreshes
 	// last_seen_at (throttled by the handler); RevokeSession ends one session scoped to
-	// its owner (sign-out and the end-session action). The admin/other-device revocation
-	// and listing queries land with their downstream tickets (#406-#408).
+	// its owner (sign-out and the end-session action). The listing and bulk-revoke
+	// queries back the personal Profile surface (#406), the admin Settings surface
+	// (#407), and the credential-flow invalidation (#408): ListSessionsForAccount is an
+	// account's own live sessions; RevokeOtherSessionsForAccount is "sign out other
+	// devices" and the password-change invalidation (keeps the current session);
+	// RevokeAllSessionsForAccount is the reset path and admin offboarding (no exception);
+	// ListAllActiveSessions is every account's live sessions joined to username/role for
+	// the admin view; RevokeSessionByIDForAdmin revokes any one session, admin-gated.
 	CreateSession(ctx context.Context, arg db.CreateSessionParams) (db.Session, error)
 	GetSessionByTokenHash(ctx context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error)
 	TouchSession(ctx context.Context, arg db.TouchSessionParams) error
 	RevokeSession(ctx context.Context, arg db.RevokeSessionParams) error
+	ListSessionsForAccount(ctx context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error)
+	RevokeOtherSessionsForAccount(ctx context.Context, arg db.RevokeOtherSessionsForAccountParams) error
+	RevokeAllSessionsForAccount(ctx context.Context, arg db.RevokeAllSessionsForAccountParams) error
+	ListAllActiveSessions(ctx context.Context, expiresAt pgtype.Timestamptz) ([]db.ListAllActiveSessionsRow, error)
+	RevokeSessionByIDForAdmin(ctx context.Context, arg db.RevokeSessionByIDForAdminParams) error
 	// CreateInvite is the invite CREATION side (Settings -> Team, T18): it mints a
 	// single-use, time-boxed invite at a role against the same invite table T19's
 	// acceptance screen spends. ResetAccountTOTP is Team's "require re-enrollment" —
