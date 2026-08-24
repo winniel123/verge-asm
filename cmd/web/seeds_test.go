@@ -152,6 +152,63 @@ func TestViewerCannotDeclareButCanView(t *testing.T) {
 	}
 }
 
+// scopeMain returns the Scope screen's <main> region, excluding shell chrome (the
+// command palette lists current Names per P1.5, so a page-wide match could find a
+// name outside the tree).
+func scopeMain(body string) string {
+	i := strings.Index(body, "<main")
+	j := strings.LastIndex(body, "</main>")
+	if i < 0 || j < 0 || j < i {
+		return body
+	}
+	return body[i:j]
+}
+
+// The Scope screen renders the declared name tree (SPEC-CHANGE collision #12,
+// ADR-0116): each declared name scope is a registrable-domain root, every in-estate
+// name under it is a leaf, and each leaf carries its own max-of-firing-signals
+// severity — degrading to no dot where a name raises no signal.
+func TestScopeDeclaredNameTree(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	// A name resolving an internal address from the internet class fires
+	// non-globally-reachable-address-resolved-from-internet (severity medium) on the
+	// Name, so its leaf carries a medium severity dot.
+	f.addClassResolution(t, "leak.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["10.0.0.5"]}`)
+	// A name resolving a public address raises no such signal, so its leaf carries no
+	// severity dot — the spec's per-leaf empty pattern.
+	f.addClassResolution(t, "www.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["93.184.216.34"]}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	main := scopeMain(seedsBody(t, ac, base))
+
+	// The card renders with its heading and the tree container.
+	for _, want := range []string{"Declared name tree", `class="nametree"`} {
+		if !strings.Contains(main, want) {
+			t.Errorf("scope missing name-tree marker %q", want)
+		}
+	}
+	// The registrable domain is the root, with its two leaf names under it, labelled
+	// relative to the domain.
+	for _, want := range []string{
+		`class="nt-label">example.com<`, // registrable-domain root
+		`class="nt-count">2<`,           // two leaves
+		`class="nt-label">leak<`,        // leaf name, relative to the domain
+		`class="nt-label">www<`,
+	} {
+		if !strings.Contains(main, want) {
+			t.Errorf("name tree missing %q; body: %s", want, main)
+		}
+	}
+	// The signalling leaf carries its rule's real severity dot (medium) — a built
+	// datum, never fabricated.
+	if !strings.Contains(main, "var(--sev-medium-dot)") {
+		t.Errorf("name tree leaf lost its severity dot; body: %s", main)
+	}
+}
+
 func TestDeclareRequiresLogin(t *testing.T) {
 	base := start(t, newFakeStore(), "")
 	c := newClient(t)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/seed"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 // seedView is a declared Seed shaped for rendering: the scope collapsed to one
@@ -179,10 +181,21 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if intervalDays == "" {
 		intervalDays = strconv.FormatInt(cadence/86400, 10)
 	}
+	// The declared name tree (SPEC-CHANGE collision #12, ADR-0116): registrable
+	// domains → leaf names with per-leaf severity, folded off the live signal corpus.
+	// Best-effort and additive — a corpus read failure degrades the card to its empty
+	// pattern rather than 500ing the whole Scope screen.
+	var nameTree []nameTreeNode
+	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
+		nameTree = declaredNameTree(nameSeeds, corpus.Names, signal.EvaluateCorpus(corpus))
+	}
 	s.renderStatus(w, status, "scope", map[string]any{
 		"Title": "Scope", "NavActive": "scope",
 		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"Seeds": seeds, "AddressCap": s.seedAddressCap,
+		// The declared name tree (Scope.jsx:86-98): registrable domains → leaf names,
+		// each carrying its own max-of-firing-signals severity.
+		"NameTree": nameTree,
 		// Coverage messages folded onto Scope (#278): the honest coverage-fact read
 		// this screen can make from data it already holds — a provisioned vantage we
 		// currently cannot look from is a silence, exactly what the design system's
@@ -250,6 +263,81 @@ func coverageMessages(vantages []db.ListVantagesRow) []coverageMsgView {
 		})
 	}
 	return out
+}
+
+// nameTreeNode is one node of the Scope "Declared name tree" (Scope.jsx:86-98,
+// SPEC-CHANGE collision #12): a registrable-domain root (a declared name-scope
+// Seed) or a leaf Name under it. Sev is the Name's own max-of-firing-signals
+// severity token (critical|high|medium|low|info), empty where the Name raises no
+// signal — the leaf then renders no severity dot, the spec's per-leaf empty
+// pattern. Count is the number of leaves and is set on roots only.
+type nameTreeNode struct {
+	ID       string
+	Label    string
+	Sev      string
+	HasCount bool
+	Count    int
+	Children []nameTreeNode
+}
+
+// declaredNameTree builds the Scope "Declared name tree" from the current model
+// (ADR-0116: build the datum the design renders, never re-skin it). Each declared
+// name-scope Seed is a registrable-domain root; every current in-estate Name under
+// it is a leaf, labelled by the sub-name left after the domain suffix. Each Name —
+// root apex and leaf alike — carries its own max-of-firing-signals severity: the
+// most urgent (lowest-rank) severity across the signals whose subject IS that Name,
+// exactly the rollup the AssetDetail header reads (assetHeaderSeverity/assetSignals
+// in subjects.go), keyed off the same signal corpus. A Name with no firing signal
+// carries no severity, so its dot degrades away.
+func declaredNameTree(nameSeeds []seedView, names []signal.NameFacts, censuses []signal.Census) []nameTreeNode {
+	// Per-Name max severity: most urgent rule severity among fired members keyed on
+	// the Name itself — the Name-rule population is keyed by the Name, so this is the
+	// same subject==key filter assetSignals uses, rolled up like assetHeaderSeverity.
+	sevByName := map[string]signal.Severity{}
+	for _, c := range censuses {
+		sev, ok := signal.SeverityFor(c.Rule)
+		if !ok {
+			continue
+		}
+		for _, m := range c.Fired {
+			if cur, seen := sevByName[m.Subject]; !seen || sev.Rank() < cur.Rank() {
+				sevByName[m.Subject] = sev
+			}
+		}
+	}
+
+	// The leaf universe: every current in-estate Name, sorted for a deterministic
+	// tree. A Name measured out of the estate (a cross-class NameError) is not a leaf.
+	estate := make([]string, 0, len(names))
+	for _, n := range names {
+		if n.InEstate {
+			estate = append(estate, n.Name)
+		}
+	}
+	sort.Strings(estate)
+
+	roots := make([]nameTreeNode, 0, len(nameSeeds))
+	for _, ns := range nameSeeds {
+		domain := ns.Scope
+		root := nameTreeNode{ID: domain, Label: domain, HasCount: true}
+		if sev, ok := sevByName[domain]; ok {
+			root.Sev = sev.String()
+		}
+		suffix := "." + domain
+		for _, name := range estate {
+			if name == domain || !strings.HasSuffix(name, suffix) {
+				continue // the apex is the root itself; names outside the domain are other roots' leaves
+			}
+			leaf := nameTreeNode{ID: name, Label: strings.TrimSuffix(name, suffix)}
+			if sev, ok := sevByName[name]; ok {
+				leaf.Sev = sev.String()
+			}
+			root.Children = append(root.Children, leaf)
+		}
+		root.Count = len(root.Children)
+		roots = append(roots, root)
+	}
+	return roots
 }
 
 func toSeedViews(rows []db.ListSeedsRow) []seedView {

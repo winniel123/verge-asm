@@ -76,6 +76,25 @@ const scopeTemplates = `
 .cardhead h2 { margin:0; font-size:15px; }
 .cardhead .count { margin-left:auto; font-family:var(--mono); font-size:10.5px; font-weight:500;
   padding:1px 7px; border-radius:var(--r-full); background:var(--sunken); color:var(--body); }
+/* Declared name tree — TreeView.jsx translated to a JS-free <details> disclosure
+   within the existing tokens (restyle, not authoring; ADR-0109). */
+.nametree { display:flex; flex-direction:column; }
+.nametree .ntrow { display:flex; align-items:center; gap:7px; padding:5px 8px;
+  border-radius:var(--r-sm); }
+.nametree .ntrow:hover { background:var(--sunken); }
+.nametree summary.ntrow { cursor:pointer; list-style:none; }
+.nametree summary.ntrow::-webkit-details-marker { display:none; }
+.nametree .nt-caret { width:12px; height:12px; flex:none; color:var(--muted);
+  transform:rotate(-90deg); transition:transform 0.18s var(--ease-out, ease); }
+.nametree details[open] > summary.ntrow .nt-caret { transform:rotate(0); }
+.nametree .nt-spacer { width:12px; flex:none; }
+.nametree .nt-dot { width:6px; height:6px; border-radius:var(--r-full); flex:none; }
+.nametree .nt-label { font-family:var(--mono); font-size:12.5px; font-weight:500;
+  color:var(--body); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nametree .nt-count { margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--muted); }
+.nametree .nt-leaf { padding-left:26px; }
+.nametree .nt-kids { display:flex; flex-direction:column; }
+.nametree .nt-empty { padding:6px 8px 6px 26px; font-size:12px; color:var(--muted); }
 </style>
 {{template "chrome" .}}
 <main style="display:flex;flex-direction:column;gap:var(--space-5)">
@@ -126,6 +145,48 @@ const scopeTemplates = `
     <button type="submit">Declare</button>
   </form>
   <p class="taghint">Names or address scopes &#183; a block wider than the {{.AddressCap}}-address cap is refused, never auto-corrected.</p>
+  {{end}}
+</section>
+
+<!-- Declared name tree ---------------------------------------------------->
+<section class="section" style="margin-bottom:0">
+  <div class="cardhead">
+    <div class="headings"><span class="microlabel">Names</span><h2>Declared name tree</h2></div>
+  </div>
+  <p>Every name in your estate, under the registrable domain that declares it. Each name carries the
+  most urgent severity among the signals raised on it; a name with no signal carries none.</p>
+
+  {{if .NameTree}}
+  <div class="nametree">
+    {{range .NameTree}}
+    <details class="nt-root" open>
+      <summary class="ntrow nt-domain">
+        <svg class="nt-caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        {{if .Sev}}<span class="nt-dot" style="background:var(--sev-{{.Sev}}-dot)"></span>{{end}}
+        <span class="nt-label">{{.Label}}</span>
+        <span class="nt-count">{{.Count}}</span>
+      </summary>
+      <div class="nt-kids">
+        {{range .Children}}
+        <div class="ntrow nt-leaf">
+          <span class="nt-spacer"></span>
+          {{if .Sev}}<span class="nt-dot" style="background:var(--sev-{{.Sev}}-dot)"></span>{{end}}
+          <span class="nt-label">{{.Label}}</span>
+        </div>
+        {{else}}
+        <div class="nt-empty">No name resolves under this scope yet. Each one a scan measures appears here with its severity.</div>
+        {{end}}
+      </div>
+    </details>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="emptystate">
+    <div class="microlabel">No name scopes</div>
+    <h2>No name tree to grow yet</h2>
+    <p style="max-width:60ch;margin:var(--space-3) auto 0">A name tree grows under a declared name scope. Declare a domain above, then each name that
+    resolves under it appears here with its severity.</p>
+  </div>
   {{end}}
 </section>
 
