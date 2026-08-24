@@ -4,8 +4,10 @@ import (
 	"context"
 	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -194,6 +196,91 @@ func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]dr
 	return out, nil
 }
 
+// reportsDiscoveryBucket is the discovery series' bucket width — one DAY, matching
+// the spec's daily-discovery BarChart (Reports.jsx DISCOVERY is one bar per day).
+// The series carries `days` (weeks * 7) buckets over the selected range, so a
+// discovery bar lines up column-for-column with a scans-per-day heatmap cell.
+const reportsDiscoveryBucket = 24 * time.Hour
+
+// firstAppearances reads the Name/Service first-appearance ledger since a read
+// instant into the discovery fold's input (P2.4b, #468): one drift.Appearance per
+// subject, carrying its earliest span opened_at (the `appeared` classification) and
+// whether it is a service, so the fold derives the per-period count, its name/
+// service split, and the daily-discovery series. Read back two windows by the caller
+// so the previous equal period is comparable for the vs-previous-period delta.
+func (s *server) firstAppearances(ctx context.Context, since time.Time) ([]drift.Appearance, error) {
+	rows, err := s.store.ListSubjectFirstAppearances(ctx, pgtype.Timestamptz{Time: since, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]drift.Appearance, 0, len(rows))
+	for _, row := range rows {
+		if !row.FirstOpened.Valid {
+			continue
+		}
+		out = append(out, drift.Appearance{
+			At:      row.FirstOpened.Time.UTC(),
+			Service: row.SubjectKind == "service",
+		})
+	}
+	return out, nil
+}
+
+// reportsBar is one bar of the daily-discovery BarChart: its height as a percentage
+// of the busiest day, whether it is the emphasised last (today) bar, and a hover
+// title (the day's discovery count). Height is folded in the handler so the template
+// stays arithmetic-free, mirroring BarChart.jsx (flex bars, height ∝ value/max,
+// non-last bars dimmed).
+type reportsBar struct {
+	HeightPct int
+	Last      bool
+	Title     string
+}
+
+// reportsBarChart is the server-rendered form of BarChart.jsx for the "New assets
+// discovered" card: the per-day bars plus the two span labels the design draws under
+// the axis (oldest edge and today).
+type reportsBarChart struct {
+	Bars       []reportsBar
+	LeftLabel  string
+	RightLabel string
+}
+
+// buildReportsBarChart folds the daily-discovery series into the bar geometry,
+// scaling each bar to a percentage of the busiest day (floored at 1 so an all-zero
+// series is every bar at its 2px minimum rather than a divide-by-zero), exactly as
+// BarChart.jsx does. The last bar (today) is emphasised; the rest are dimmed.
+func buildReportsBarChart(points []drift.DiscoveryPoint, weeks int) reportsBarChart {
+	max := 1
+	for _, p := range points {
+		if p.Count > max {
+			max = p.Count
+		}
+	}
+	bars := make([]reportsBar, len(points))
+	for i, p := range points {
+		bars[i] = reportsBar{
+			HeightPct: p.Count * 100 / max,
+			Last:      i == len(points)-1,
+			Title:     pluralAssets(p.Count),
+		}
+	}
+	return reportsBarChart{
+		Bars:       bars,
+		LeftLabel:  strconv.Itoa(weeks) + "w ago",
+		RightLabel: "today",
+	}
+}
+
+// pluralAssets renders a discovery count as the console's terse asset figure — the
+// bar's hover title. "asset" is the UI collective noun for a watched Name/Service.
+func pluralAssets(n int) string {
+	if n == 1 {
+		return "1 asset"
+	}
+	return strconv.Itoa(n) + " assets"
+}
+
 // reportsDurationDays renders a duration as the console's terse day figure ("2.4d"),
 // the form the mean-time-to-withdrawal KPI reads (Reports.jsx). A sub-day mean still
 // renders in days ("0.4d") so the KPI keeps one unit.
@@ -213,94 +300,480 @@ type heatCell struct {
 	Title  string
 }
 
+// reportsSevCount is one severity's open-signal tally for the by-severity bars —
+// the SevBars region of Reports.jsx, now a real read off the census (P0.1). Label
+// is the microlabel form (CRITICAL … INFO), Sev the token key the template branches
+// on to pick the severity ramp fill (a literal var() per level, so the style
+// sanitiser sees static CSS rather than a blanked mid-token interpolation), and Pct
+// the bar width as a share of the busiest level.
+type reportsSevCount struct {
+	Label string
+	Sev   string
+	Count int
+	Pct   int
+}
+
+// reportsSignalCensus evaluates the signal corpus ONCE and returns the three signal
+// figures the Reports screen reads off it: the open-signal total (the "Open signals"
+// card value), the per-severity tally the by-severity bars paint (P0.1), and the
+// fired (rule, subject) pairs the vs-last-batch open-signals delta reconstructs
+// against (P0.2). ok is false on a corpus read failure so every signal region
+// degrades to its empty pattern rather than a fabricated zero. It supersedes the
+// page's openSignalsCount call (the export still shares that thinner helper).
+func (s *server) reportsSignalCensus(r *http.Request) (open int, bySeverity []reportsSevCount, fired []firedSignal, ok bool) {
+	corpus, err := s.buildSignalCorpus(r)
+	if err != nil {
+		log.Printf("web: reports: build signal corpus: %v", err)
+		return 0, nil, nil, false
+	}
+	counts := map[signal.Severity]int{}
+	for _, c := range signal.EvaluateCorpus(corpus) {
+		sev, _ := signal.SeverityFor(c.Rule)
+		for _, m := range c.Fired {
+			open++
+			counts[sev]++
+			fired = append(fired, firedSignal{Rule: c.Rule, Subject: m.Subject})
+		}
+	}
+	max := 1
+	for _, sev := range signal.SevOrder {
+		if counts[sev] > max {
+			max = counts[sev]
+		}
+	}
+	bySeverity = make([]reportsSevCount, 0, len(signal.SevOrder))
+	for _, sev := range signal.SevOrder {
+		n := counts[sev]
+		bySeverity = append(bySeverity, reportsSevCount{
+			Label: strings.ToUpper(string(sev)),
+			Sev:   string(sev),
+			Count: n,
+			Pct:   n * 100 / max,
+		})
+	}
+	return open, bySeverity, fired, true
+}
+
+// reportsDelta is a KPI card's vs-last-batch delta prepared for the template: the
+// signed text ("+3", "−2", "−0.6d"), the semantic tone (good/bad/neutral,
+// the DeltaChip colours) and the arrow direction, or Has=false where no previous
+// batch exists to compare against — the design's no-delta state (P0.2), never a
+// fabricated +0.
+type reportsDelta struct {
+	Has  bool
+	Text string
+	Tone string
+	Dir  string
+}
+
+// signedCount renders a signed integer delta with a true minus and its arrow
+// direction: "+3"/up, "−2"/down, "0"/none.
+func signedCount(n int) (text, dir string) {
+	switch {
+	case n > 0:
+		return "+" + strconv.Itoa(n), "up"
+	case n < 0:
+		return "−" + strconv.Itoa(-n), "down"
+	default:
+		return "0", ""
+	}
+}
+
+// buildMTTWDelta is the mean-time-to-withdrawal card's delta: this window's mean
+// minus the previous equal window's, in days to one place. A shorter time to
+// withdrawal is the good direction (the estate cleared its exposure faster), so a
+// negative change is toned good.
+func buildMTTWDelta(cur, prev time.Duration) reportsDelta {
+	diff := math.Round((cur.Hours()/24-prev.Hours()/24)*10) / 10
+	switch {
+	case diff > 0:
+		return reportsDelta{Has: true, Text: "+" + strconv.FormatFloat(diff, 'f', 1, 64) + "d", Tone: "bad", Dir: "up"}
+	case diff < 0:
+		return reportsDelta{Has: true, Text: "−" + strconv.FormatFloat(-diff, 'f', 1, 64) + "d", Tone: "good", Dir: "down"}
+	default:
+		return reportsDelta{Has: true, Text: "0d", Tone: "neutral", Dir: ""}
+	}
+}
+
+// reportsOpenDelta builds the "Open signals" KPI-band delta — the current firing
+// census vs those already firing a batch ago (more signals is the bad direction),
+// vs-last-batch (P0.2), reconstructed from the same span/first-seen history the
+// Dashboard reads. fired is the census the caller already evaluated, so the corpus
+// is not re-folded here. Where no previous batch exists, or a read fails, it returns
+// Has=false so the card renders its no-delta state rather than a fabricated +0. The
+// KPI band's second card (New assets discovered) derives its own count/delta from
+// the first-appearance ledger (reportsPage), not from this vs-last-batch helper.
+func (s *server) reportsOpenDelta(ctx context.Context, fired []firedSignal) (open reportsDelta) {
+	prevAt, ok, err := s.previousBatchInstant(ctx)
+	if err != nil {
+		log.Printf("web: reports: previous batch instant: %v", err)
+		return
+	}
+	if !ok {
+		return
+	}
+	od, _, derr := s.signalDeltas(ctx, fired, prevAt)
+	if derr != nil {
+		log.Printf("web: reports: signal deltas: %v", derr)
+		return
+	}
+	otext, odir := signedCount(od.Change())
+	tone := "neutral"
+	switch {
+	case od.Change() > 0:
+		tone = "bad"
+	case od.Change() < 0:
+		tone = "good"
+	}
+	open = reportsDelta{Has: true, Text: otext, Tone: tone, Dir: odir}
+	return
+}
+
+// sparkline is a KPI card's inline trend, pre-computed to plain SVG geometry the
+// template paints with no arithmetic — the server-rendered form of Sparkline.jsx.
+// Colour is the chart series token (never severity); it rides on the struct so a
+// card picks --chart-1 or --chart-2 without a second template.
+type sparkline struct {
+	W, H       int
+	Line       string
+	Area       string
+	DotX, DotY string
+	Color      string
+}
+
+// f1 formats an SVG coordinate to one decimal place — terse, stable output for the
+// points/path strings.
+func f1(x float64) string { return strconv.FormatFloat(x, 'f', 1, 64) }
+
+// buildSparkline folds a value series into the Sparkline geometry (polyline, area
+// fill, last-point dot) scaled to w×h, mirroring Sparkline.jsx. ok is false for a
+// series of fewer than two points, so the card omits the chart (the component's own
+// too-short-to-draw form) rather than inventing a shape.
+func buildSparkline(data []float64, w, h int, color string) (sparkline, bool) {
+	if len(data) < 2 {
+		return sparkline{}, false
+	}
+	min, max := data[0], data[0]
+	for _, v := range data {
+		if v < min {
+			min = v
+		}
+		if v > max {
+			max = v
+		}
+	}
+	span := max - min
+	if span == 0 {
+		span = 1
+	}
+	const pad = 3.0
+	fw, fh := float64(w), float64(h)
+	px := func(i int) float64 { return pad + float64(i)/float64(len(data)-1)*(fw-pad*2) }
+	py := func(v float64) float64 { return pad + (1-(v-min)/span)*(fh-pad*2) }
+	var line strings.Builder
+	for i, v := range data {
+		if i > 0 {
+			line.WriteByte(' ')
+		}
+		line.WriteString(f1(px(i)))
+		line.WriteByte(',')
+		line.WriteString(f1(py(v)))
+	}
+	area := "M" + f1(pad) + "," + f1(fh-pad) + " L" + strings.ReplaceAll(line.String(), " ", " L") +
+		" L" + f1(px(len(data)-1)) + "," + f1(fh-pad) + " Z"
+	return sparkline{
+		W: w, H: h, Line: line.String(), Area: area,
+		DotX: f1(px(len(data) - 1)), DotY: f1(py(data[len(data)-1])), Color: color,
+	}, true
+}
+
+// standingSeries lifts the standing (open-at-close) level of each signals-over-time
+// bucket into a float series for the "Open signals" card sparkline.
+func standingSeries(pts []drift.SignalPoint) []float64 {
+	out := make([]float64, len(pts))
+	for i, p := range pts {
+		out[i] = float64(p.Standing)
+	}
+	return out
+}
+
+// meanDaysSeries lifts each withdrawal bucket's mean time-to-withdrawal (in days)
+// into a float series for the MTTW card sparkline, SKIPPING gap buckets (HasMean
+// false) so a bucket with no withdrawal draws no fabricated zero point.
+func meanDaysSeries(pts []drift.WithdrawalPoint) []float64 {
+	out := make([]float64, 0, len(pts))
+	for _, p := range pts {
+		if p.HasMean {
+			out = append(out, p.Mean.Hours()/24)
+		}
+	}
+	return out
+}
+
+// reportsGridLine / reportsXLabel are one pre-positioned axis element of the big
+// "Open signals over time" chart — every coordinate resolved in the handler so the
+// template ranges with no arithmetic.
+type reportsGridLine struct {
+	X1, X2, Y, LabelX, Label, Stroke string
+}
+type reportsXLabel struct {
+	X, Y, Text string
+}
+
+// reportsTimeSeries is the server-rendered form of TimeSeriesChart.jsx for the
+// "Open signals over time" card: a fixed viewBox (scaled to width via the SVG),
+// nice-stepped y gridlines, sparse x labels, and the two standing series — All open
+// (--chart-1) and Critical + high (--chart-2). Every string is paint-ready.
+type reportsTimeSeries struct {
+	W, H     int
+	Grid     []reportsGridLine
+	XLabels  []reportsXLabel
+	AllOpen  string
+	CritHigh string
+}
+
+// buildReportsTimeSeries folds the signals-over-time buckets into the chart geometry,
+// choosing a nice y-axis step exactly as TimeSeriesChart.jsx does. ok is false where
+// the standing level never rises above zero, so the card renders the design's empty
+// pattern rather than a flat line on a fabricated axis.
+func buildReportsTimeSeries(pts []drift.SignalPoint) (reportsTimeSeries, bool) {
+	n := len(pts)
+	if n < 2 {
+		return reportsTimeSeries{}, false
+	}
+	max0 := 0
+	for _, p := range pts {
+		if p.Standing > max0 {
+			max0 = p.Standing
+		}
+	}
+	if max0 <= 0 {
+		return reportsTimeSeries{}, false
+	}
+	raw := float64(max0) / 4
+	mag := math.Pow(10, math.Floor(math.Log10(raw)))
+	norm := raw / mag
+	var stepN float64
+	switch {
+	case norm <= 1:
+		stepN = 1
+	case norm <= 2:
+		stepN = 2
+	case norm <= 5:
+		stepN = 5
+	default:
+		stepN = 10
+	}
+	step := stepN * mag
+	top := step
+	if c := math.Ceil(float64(max0)/step) * step; c > top {
+		top = c
+	}
+	const (
+		W, H       = 860, 230
+		PL, PR     = 40, 8
+		PT, PB     = 10, 22
+		labelX     = PL - 8
+		axisRightX = W - PR
+	)
+	x := func(i int) float64 { return PL + float64(i)/float64(n-1)*(W-PL-PR) }
+	y := func(v float64) float64 { return PT + (1-v/top)*(H-PT-PB) }
+	var grid []reportsGridLine
+	for v := 0.0; v <= top+1e-9; v += step {
+		yy := f1(y(v))
+		stroke := "var(--sunken)"
+		if v == 0 {
+			stroke = "var(--hairline)"
+		}
+		grid = append(grid, reportsGridLine{
+			X1: strconv.Itoa(PL), X2: strconv.Itoa(axisRightX), Y: yy,
+			LabelX: strconv.Itoa(labelX), Label: strconv.Itoa(int(v + 0.5)), Stroke: stroke,
+		})
+	}
+	build := func(get func(p drift.SignalPoint) int) string {
+		var b strings.Builder
+		for i, p := range pts {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(f1(x(i)))
+			b.WriteByte(',')
+			b.WriteString(f1(y(float64(get(p)))))
+		}
+		return b.String()
+	}
+	xLabelY := strconv.Itoa(H - 6)
+	xLabels := []reportsXLabel{
+		{X: f1(x(0)), Y: xLabelY, Text: strconv.Itoa(n) + "w ago"},
+		{X: f1(x(n - 1)), Y: xLabelY, Text: "now"},
+	}
+	return reportsTimeSeries{
+		W: W, H: H, Grid: grid, XLabels: xLabels,
+		AllOpen:  build(func(p drift.SignalPoint) int { return p.Standing }),
+		CritHigh: build(func(p drift.SignalPoint) int { return p.StandingElevated }),
+	}, true
+}
+
 func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
 
 	// The selected range — a week span from the offered set, defaulting to twelve.
-	// It sets the heatmap span AND the "Scans run" window KPI so both read the same
-	// window; an un-parameterised request stays exactly the twelve-week default.
+	// It sets the heatmap span, the trend-series window AND the export window so all
+	// read the same period; an un-parameterised request stays the twelve-week default.
 	weeks := resolveReportsWeeks(r)
 	days := weeks * 7
 
-	// Operational activity — the scans-per-day heatmap and the two activity KPIs.
-	// A Dispatch read failure degrades to an empty heatmap rather than failing the
-	// whole analytics page a viewer depends on.
-	cells, heatTotal, scansWindow, activeScans := []heatCell{}, 0, 0, 0
-	rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks))
-	if err != nil {
+	// The range's window bounds, shared by the trend folds (P0.3) and the discovery
+	// count (P2.4b): `windowStart` opens the selected period, `doubleStart` the equal
+	// period before it — the ledgers are read back to doubleStart so each card's
+	// vs-previous-period delta is comparable, then split at windowStart.
+	now := s.now().UTC()
+	windowStart := now.Add(-reportsTrendBucket * time.Duration(weeks))
+	doubleStart := now.Add(-reportsTrendBucket * time.Duration(2*weeks))
+
+	// Operational activity — the scans-per-day heatmap. A Dispatch read failure
+	// degrades to an empty heatmap rather than failing the whole analytics page a
+	// viewer depends on. The window/in-flight scalars the export carries are folded
+	// in reports_export.go; the band no longer shows them (the spec's band is three
+	// trend cards, not operational counters — no added affordance, ADR-0116).
+	cells, heatTotal := []heatCell{}, 0
+	if rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
 		log.Printf("web: reports: list dispatch progress: %v", err)
 	} else {
-		cells, heatTotal, scansWindow, activeScans = s.foldScanActivity(rows, days)
+		cells, heatTotal, _, _ = s.foldScanActivity(rows, days)
 	}
 
-	// The headline KPI — the current count of firing signals. It is a current-state
-	// census total (not a trend), so it is the one honest signal figure. Building
-	// the corpus is the heavier read; on failure the KPI degrades to unavailable
-	// rather than 500ing the page.
-	openSignals, hasOpenSignals := s.openSignalsCount(r)
+	// Signal census — the open-signal total (the "Open signals" card value), the
+	// per-severity bars (P0.1) and the fired pairs the open-signals delta reads
+	// against — all off ONE corpus evaluation. A failure degrades every signal region
+	// to its empty pattern rather than a fabricated zero.
+	openSignals, bySeverity, fired, hasOpenSignals := s.reportsSignalCensus(r)
+
+	// Open-signals vs-last-batch delta for the KPI band's first card (P0.2).
+	openDelta := s.reportsOpenDelta(ctx, fired)
+
+	// New assets discovered — the KPI band's second card (P2.4b, #468). The count of
+	// Name/Service subjects that FIRST appeared in the selected range, its
+	// vs-previous-period signed delta, its name/service split, and the daily-discovery
+	// bar series (Reports.jsx DISCOVERY). Derived from the span corpus's per-subject
+	// first appearance (MIN(opened_at), the `appeared` classification): the ledger is
+	// read back two windows so the previous equal window is comparable, then split at
+	// the window start. A read failure degrades the card to the ReportCard's empty
+	// pattern rather than 500ing the page (PARITY-CHART acceptance #7).
+	discoveryCount, discoveryNames, discoverySvcs := 0, 0, 0
+	var discoveryDelta reportsDelta
+	var discoveryBars reportsBarChart
+	hasDiscovery := false
+	if apps, aerr := s.firstAppearances(ctx, doubleStart); aerr != nil {
+		log.Printf("web: reports: first appearances: %v", aerr)
+	} else {
+		cur := drift.DiscoveryCount(apps, windowStart, now)
+		prev := drift.DiscoveryCount(apps, doubleStart, windowStart)
+		dtext, ddir := signedCount(cur.Total - prev.Total)
+		discoveryDelta = reportsDelta{Has: true, Text: dtext, Tone: "neutral", Dir: ddir}
+		discoveryBars = buildReportsBarChart(drift.DiscoverySeries(apps, now, reportsDiscoveryBucket, days), weeks)
+		discoveryCount, discoveryNames, discoverySvcs = cur.Total, cur.Names, cur.Services
+		hasDiscovery = true
+	}
 
 	// Signals-over-time — the design's "Open signals over time" line and its
 	// "Critical + high" companion (Reports.jsx), folded from the per-instance
-	// first-seen ledger over the selected range in weekly buckets (P0.3, #444). A
-	// ledger read failure degrades to an empty series rather than failing the page.
-	now := s.now().UTC()
-	var signalTrend []drift.SignalPoint
+	// first-seen ledger over the selected range in weekly buckets (P0.3, #444). It
+	// paints both the big trend chart and the "Open signals" card sparkline. A ledger
+	// read failure degrades to an empty series rather than failing the page.
+	var signalPoints []drift.SignalPoint
 	hasSignalTrend := false
 	if raises, rerr := s.signalRaises(ctx); rerr != nil {
 		log.Printf("web: reports: signal raises: %v", rerr)
 	} else {
-		signalTrend = drift.SignalsOverTime(raises, now, reportsTrendBucket, weeks)
-		for _, p := range signalTrend {
+		signalPoints = drift.SignalsOverTime(raises, now, reportsTrendBucket, weeks)
+		for _, p := range signalPoints {
 			if p.Standing > 0 || p.Count > 0 {
 				hasSignalTrend = true
 				break
 			}
 		}
 	}
+	signalSpark, hasSignalSpark := buildSparkline(standingSeries(signalPoints), 300, 46, "var(--chart-1)")
+	signalSeries, hasSignalSeries := buildReportsTimeSeries(signalPoints)
+	hasSignalSpark = hasSignalSpark && hasSignalTrend
 
 	// Mean-time-to-withdrawal — the KPI in the mock's mean-time-to-resolve slot, now
-	// honest to the domain (signals are withdrawn by the world, never resolved) — and
-	// its trend, both derived from the subject-withdrawal history in the span corpus
-	// (P0.3, #444). A read failure degrades the KPI to unavailable and the trend to
-	// empty rather than 500ing the page.
-	windowStart := now.Add(-reportsTrendBucket * time.Duration(weeks))
-	var withdrawalTrend []drift.WithdrawalPoint
-	mttw, hasMTTW := time.Duration(0), false
-	if ws, werr := s.withdrawalLifespans(ctx, windowStart); werr != nil {
+	// honest to the domain (signals are withdrawn by the world, never resolved) — its
+	// sparkline, and a vs-previous-window delta (Reports.jsx shows "−0.6d"). The
+	// window mean averages withdrawals that occurred in the selected range; the delta
+	// compares it against the previous equal window, so the ledger is read back two
+	// windows and split. A read failure degrades the KPI to unavailable, the trend to
+	// empty and the delta away, rather than 500ing the page (P0.3, #444).
+	var withdrawalPoints []drift.WithdrawalPoint
+	mttw, hasMTTW := "—", false
+	var mttwDelta reportsDelta
+	if ws, werr := s.withdrawalLifespans(ctx, doubleStart); werr != nil {
 		log.Printf("web: reports: withdrawal lifespans: %v", werr)
 	} else {
-		withdrawalTrend = drift.WithdrawalSeries(ws, now, reportsTrendBucket, weeks)
-		mttw, hasMTTW = drift.MeanTimeToWithdrawal(ws)
+		withdrawalPoints = drift.WithdrawalSeries(ws, now, reportsTrendBucket, weeks)
+		var recent, prior []drift.Withdrawal
+		for _, wd := range ws {
+			if wd.Withdrawn.Before(windowStart) {
+				prior = append(prior, wd)
+			} else {
+				recent = append(recent, wd)
+			}
+		}
+		if m, ok := drift.MeanTimeToWithdrawal(recent); ok {
+			mttw, hasMTTW = reportsDurationDays(m), true
+			if pm, pok := drift.MeanTimeToWithdrawal(prior); pok {
+				mttwDelta = buildMTTWDelta(m, pm)
+			}
+		}
 	}
+	mttwSpark, hasMTTWSpark := buildSparkline(meanDaysSeries(withdrawalPoints), 300, 46, "var(--chart-2)")
 
 	s.render(w, "reports", map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "reports",
 
-		// KPI band.
+		// KPI band — the three trend cards of Reports.jsx. Each renders real computed
+		// values with its vs-last-batch delta (P0.2) and inline trend (P0.3), and
+		// degrades to the ReportCard's own no-delta / no-chart form where a read is
+		// unavailable — never a fabricated figure (PARITY-CHART acceptance #7).
 		"OpenSignals":    openSignals,
 		"HasOpenSignals": hasOpenSignals,
-		"ScansWindow":    scansWindow,
-		"ActiveScans":    activeScans,
+		"OpenDelta":      openDelta,
+		"OpenSpark":      signalSpark,
+		"HasOpenSpark":   hasSignalSpark,
+
+		// New assets discovered (P2.4b, #468): the per-period count, its name/service
+		// split caption, the vs-previous-period delta, and the daily-discovery bars.
+		"DiscoveryCount":    discoveryCount,
+		"DiscoveryNames":    discoveryNames,
+		"DiscoveryServices": discoverySvcs,
+		"HasDiscovery":      hasDiscovery,
+		"DiscoveryDelta":    discoveryDelta,
+		"DiscoveryBars":     discoveryBars,
+
+		"MTTW":        mttw,
+		"HasMTTW":     hasMTTW,
+		"MTTWDelta":   mttwDelta,
+		"MTTWSpark":   mttwSpark,
+		"HasMTTWSpark": hasMTTWSpark,
+
+		// "Open signals over time" — the big trend chart.
+		"SignalSeries":    signalSeries,
+		"HasSignalSeries": hasSignalSeries,
+
+		// By-severity bars (P0.1). Rendered only where signals are firing; an all-clear
+		// estate draws the design's empty pattern.
+		"BySeverity":  bySeverity,
+		"HasSeverity": hasOpenSignals && openSignals > 0,
 
 		// Scans-per-day heatmap.
 		"Heat":    cells,
 		"HasHeat": heatTotal > 0,
 
-		// Trend series (P0.3, #444) — the datum P2.4 paints. SignalTrend is the
-		// signals-over-time line + its critical-high companion; MTTW is the
-		// mean-time-to-withdrawal KPI figure and WithdrawalTrend its sparkline. Each
-		// carries a Has* flag so an unavailable read renders the design's own empty
-		// pattern rather than a fabricated zero.
-		"SignalTrend":     signalTrend,
-		"HasSignalTrend":  hasSignalTrend,
-		"WithdrawalTrend": withdrawalTrend,
-		"MTTW":            reportsDurationDays(mttw),
-		"HasMTTW":         hasMTTW,
-
 		// Range control + range-aware labels. RangeWeeks drives the export link's
-		// carried param; RangeLabel re-skins the twelve-week captions to the active
-		// span; RangeOptions renders the header select.
+		// carried param; RangeLabel re-skins the captions to the active span;
+		// RangeOptions renders the header period select.
 		"RangeWeeks":   weeks,
 		"RangeLabel":   reportsRangeLabel(weeks),
 		"RangeOptions": reportsRangeOptions(weeks),

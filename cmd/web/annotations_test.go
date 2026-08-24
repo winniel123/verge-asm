@@ -31,8 +31,9 @@ func lameName(t *testing.T, f *fakeStore, name string) {
 	f.addDNSRecord(t, name, "NS", obsClock, `{"rrs":[],"delegation":{"lame":true}}`)
 }
 
-// AC1: an admin declares an Annotation on one pair, and the row carries no
-// status, expiry or author — only the pair, the reason and the declared instant.
+// AC1: an admin declares an Annotation on one pair, and the surface carries no
+// status, expiry or author — only the pair, the reason (read in the Drawer) and the
+// declared instant.
 func TestDeclareAnnotation(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -59,17 +60,21 @@ func TestDeclareAnnotation(t *testing.T) {
 		}
 	}
 
-	// The declaration renders in the management list, and the surface carries no
-	// author, status or expiry — every operator dial is unattributed (ADR-0073)
-	// and an Annotation carries no timeline.
-	page := getBody(t, ac, base+"/signals", http.StatusOK)
-	if !strings.Contains(page, "lame-delegation") || !strings.Contains(page, "OPS-1") {
-		t.Errorf("declared annotation not rendered on Signals; body: %s", page)
+	// The accepted subject renders on the Annotated tab, and its reason + rule read
+	// in the row Drawer.
+	annos, _ := f.ListAnnotations(t.Context())
+	annotatedPage := getBody(t, ac, base+"/signals?tab=annotated", http.StatusOK)
+	if !strings.Contains(annotatedPage, "lame.example.com") {
+		t.Errorf("declared annotation not rendered on the Annotated tab; body: %s", annotatedPage)
+	}
+	drawer := getBody(t, ac, base+"/signals?tab=annotated&view="+strconv.FormatInt(annos[0].ID, 10), http.StatusOK)
+	if !strings.Contains(drawer, "OPS-1") || !strings.Contains(drawer, "lame-delegation") {
+		t.Errorf("annotation drawer missing its reason or rule; body: %s", drawer)
 	}
 	// No author, status or expiry field exists on the surface: no such form input
 	// and no author column header.
 	for _, banned := range []string{`name="author"`, `name="status"`, `name="expiry"`, `name="expires"`, ">Declared by<", ">Status<", ">Expiry<"} {
-		if strings.Contains(page, banned) {
+		if strings.Contains(drawer, banned) {
 			t.Errorf("Signals annotation surface carries %q; an operator dial has no author/status/expiry field", banned)
 		}
 	}
@@ -109,9 +114,10 @@ func TestWithdrawAnnotationIsPlainStateChange(t *testing.T) {
 	resp.Body.Close()
 }
 
-// AC3: a rule whose entire fired census is annotated renders as categorical
-// prose, never a bare count.
-func TestFullyAnnotatedFiredCensusRendersAsProse(t *testing.T) {
+// AC3: an annotated fired signal is still open — an annotation moves the message,
+// never the number. The fired instance stays on the Open tab and also lists on the
+// Annotated tab; there is no census prose (that grouping has left the screen).
+func TestAnnotatedFiredSignalStaysOpen(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	// lame-delegation's whole fired census is one name.
@@ -120,35 +126,32 @@ func TestFullyAnnotatedFiredCensusRendersAsProse(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Before annotating, the fired member is a listed, drillable count row.
 	before := getBody(t, ac, base+"/signals", http.StatusOK)
-	if strings.Count(before, `href="/subjects/lame.example.com"`) != 1 {
-		t.Fatalf("unannotated: fired member should list its subject once; body: %s", before)
-	}
-	if strings.Contains(before, "carries an annotation right now") {
-		t.Fatalf("prose rendered while the census is not annotated")
+	if !strings.Contains(before, "lame.example.com") {
+		t.Fatalf("unannotated: the fired signal should list as an open row; body: %s", before)
 	}
 
 	annotate(t, ac, base, "lame.example.com", "lame-delegation", "accepted, being retired").Body.Close()
 
-	page := getBody(t, ac, base+"/signals", http.StatusOK)
-	// The categorical sentence renders...
-	if !strings.Contains(page, "carries an annotation right now") {
-		t.Errorf("fully-annotated fired census did not render as prose; body: %s", page)
+	after := getBody(t, ac, base+"/signals", http.StatusOK)
+	// Still open — the pair is still counted under fired.
+	if !strings.Contains(after, "lame.example.com") {
+		t.Errorf("annotated signal dropped from the Open tab; an annotation moves no number; body: %s", after)
 	}
-	if !strings.Contains(page, "Fired · every subject accepted") {
-		t.Errorf("fully-annotated fired census missing its categorical label; body: %s", page)
+	// No census prose.
+	if strings.Contains(after, "carries an annotation right now") {
+		t.Errorf("census prose rendered; that grouping has left the screen")
 	}
-	// ...and the fired census no longer lists the subject as a bare count: the
-	// only drill link to it now is the one in the Annotations list.
-	if n := strings.Count(page, `href="/subjects/lame.example.com"`); n != 1 {
-		t.Errorf("fully-annotated fired census still lists its member as a count (drill links = %d, want 1); body: %s", n, page)
+	// It also lists on the Annotated tab.
+	annotatedPage := getBody(t, ac, base+"/signals?tab=annotated", http.StatusOK)
+	if !strings.Contains(annotatedPage, "lame.example.com") {
+		t.Errorf("annotated signal not listed on the Annotated tab; body: %s", annotatedPage)
 	}
 }
 
-// AC4: a partially-annotated census still renders the normal three-member
-// breakdown — fired is not partitioned into accepted and outstanding.
-func TestPartiallyAnnotatedCensusRendersNormalBreakdown(t *testing.T) {
+// AC4: a partially-annotated set keeps both fired signals open; only the accepted
+// one lists on the Annotated tab.
+func TestPartiallyAnnotatedSignalsBothStayOpen(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	// Two names fire on lame-delegation; only one is accepted.
@@ -160,32 +163,43 @@ func TestPartiallyAnnotatedCensusRendersNormalBreakdown(t *testing.T) {
 
 	annotate(t, ac, base, "one.example.com", "lame-delegation", "accepted").Body.Close()
 
-	page := getBody(t, ac, base+"/signals", http.StatusOK)
-	// No prose — the census is only partially annotated.
-	if strings.Contains(page, "carries an annotation right now") {
-		t.Errorf("partially-annotated census wrongly rendered as prose; body: %s", page)
-	}
-	// The normal three-member breakdown stands: both fired members are still
-	// listed in the fired census (once there, once in the annotations list for the
-	// accepted one), and the fired register is a single list, not partitioned.
+	// Scope assertions to the screen's <main> region: the shell's command
+	// palette lists current Names (P1.5), so a page-wide substring check would
+	// match a name in the palette chrome, not the signals table.
+	open := signalsMain(getBody(t, ac, base+"/signals", http.StatusOK))
 	for _, name := range []string{"one.example.com", "two.example.com"} {
-		if !strings.Contains(page, `href="/subjects/`+name+`"`) {
-			t.Errorf("partial census dropped fired member %q; body: %s", name, page)
+		if !strings.Contains(open, name) {
+			t.Errorf("Open tab dropped fired signal %q; body: %s", name, open)
 		}
 	}
-	if strings.Count(page, `href="/subjects/two.example.com"`) != 1 {
-		t.Errorf("the unannotated fired member should appear once, in the fired census")
+	if strings.Contains(open, "carries an annotation right now") {
+		t.Errorf("census prose rendered on a partially-annotated set")
 	}
-	// two.example.com is only in the fired census; one.example.com is in both the
-	// fired census and the annotations list.
-	if strings.Count(page, `href="/subjects/one.example.com"`) != 2 {
-		t.Errorf("the accepted member should appear in both the fired census and the annotations list")
+
+	annotatedPage := signalsMain(getBody(t, ac, base+"/signals?tab=annotated", http.StatusOK))
+	if !strings.Contains(annotatedPage, "one.example.com") {
+		t.Errorf("Annotated tab missing the accepted signal; body: %s", annotatedPage)
+	}
+	if strings.Contains(annotatedPage, "two.example.com") {
+		t.Errorf("Annotated tab wrongly lists the un-accepted signal")
 	}
 }
 
-// A declaration naming a subject that is in no current population of the rule is
-// marked as orphan on read — it names a withdrawn or never-measured subject and
-// matches nothing right now (ADR-0092).
+// signalsMain returns the screen's <main> region, excluding shell chrome (nav,
+// command palette, footer). The palette lists current Names (P1.5), so a
+// page-wide substring match would find a name outside the signals table.
+func signalsMain(body string) string {
+	i := strings.Index(body, "<main>")
+	j := strings.LastIndex(body, "</main>")
+	if i < 0 || j < 0 || j < i {
+		return body
+	}
+	return body[i:j]
+}
+
+// A declaration naming a subject that is in no current population of the rule is an
+// orphan on read — it surfaces on the Withdrawn tab as withdrawn by the world, and
+// nowhere else (ADR-0092).
 func TestAnnotationOnAbsentSubjectMarkedOrphan(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -197,9 +211,9 @@ func TestAnnotationOnAbsentSubjectMarkedOrphan(t *testing.T) {
 	// A pair whose subject the rule never censuses.
 	annotate(t, ac, base, "ghost.example.com", "lame-delegation", "kept for when it returns").Body.Close()
 
-	page := getBody(t, ac, base+"/signals", http.StatusOK)
-	if !strings.Contains(page, "names no current member") {
-		t.Errorf("annotation on an absent subject not marked orphan; body: %s", page)
+	page := getBody(t, ac, base+"/signals?tab=withdrawn", http.StatusOK)
+	if !strings.Contains(page, "ghost.example.com") || !strings.Contains(page, "withdrawn") {
+		t.Errorf("annotation on an absent subject not surfaced as withdrawn; body: %s", page)
 	}
 }
 
