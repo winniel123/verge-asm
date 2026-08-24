@@ -1,6 +1,9 @@
 package main
 
-import "html/template"
+import (
+	"html/template"
+	"strconv"
+)
 
 // pageCSS is a self-contained slice of the Verge ASM design system: the tokens
 // and the shared component rules the console screens need. The web binary is
@@ -576,6 +579,24 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 	// the hidden Integrations surface without threading a data field through every
 	// handler that renders the shell. It is false while the surface is hidden.
 	"integrationsEnabled": func() bool { return integrationsEnabled },
+	// signDelta formats a vs-last-batch stat delta (drift.Delta.Change, P0.2 #443) as
+	// the design's signed chip label: "+N" for a rise, "−N" (a true minus, the
+	// voice's signed-delta rule — design-system README) for a fall, and "0" for no
+	// movement. The tile picks the chip's tone; this only formats the number. The
+	// output is digits and a sign only — safe to mark trusted so html/template keeps
+	// the literal "+" rather than escaping it to an entity.
+	"signDelta": func(n int) template.HTML {
+		var s string
+		switch {
+		case n > 0:
+			s = "+" + strconv.Itoa(n)
+		case n < 0:
+			s = "−" + strconv.Itoa(-n)
+		default:
+			s = "0"
+		}
+		return template.HTML(s) // #nosec G203 -- a sign and digits only, from an int; no user input
+	},
 }).Parse(`
 {{define "head"}}<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
