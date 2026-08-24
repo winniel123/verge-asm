@@ -588,6 +588,10 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	// corpus failure the signal regions degrade to unavailable rather than 500ing.
 	openSignals, hasOpenSignals := 0, false
 	var firing []dashSignalRow
+	// firedPairs is the flat (rule, subject) fired set the vs-last-batch signal
+	// deltas read (P0.2) — collected from the same census fold so the corpus is
+	// evaluated once for both the count and its delta.
+	var firedPairs []firedSignal
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		for _, c := range signal.EvaluateCorpus(corpus) {
 			openSignals += len(c.Fired)
@@ -595,6 +599,9 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 				firing = append(firing, dashSignalRow{
 					Rule: c.Rule, Kind: signal.SubjectKindFor(c.Rule), Fired: len(c.Fired),
 				})
+				for _, m := range c.Fired {
+					firedPairs = append(firedPairs, firedSignal{Rule: c.Rule, Subject: m.Subject})
+				}
 			}
 		}
 		hasOpenSignals = true
@@ -642,6 +649,12 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	if emptyEstate {
 		steps = firstRunChecklist(nameScopes+addrScopes, zoneUploaded, internetVantage, scanDispatched)
 	}
+
+	// The header sub-line's "last full scan Xm ago · next in Yh Zm" instants (P0.4,
+	// #445): real reads over the scheduler's Dispatch and Scan corpora, assembled in
+	// scans.go. Exposed here so the home handler carries them; the sub-line markup
+	// that consumes ScanSchedule is P2.1's.
+	schedule := s.scanSchedule(ctx)
 	firstRunDone := 0
 	for _, st := range steps {
 		if st.Done {
@@ -674,11 +687,21 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		"Scopes":      nameScopes + addrScopes,
 		"HasScopes":   hasScopes,
 		"ActiveScans": len(active),
+
+		"ScanSchedule": schedule,
 	}
 	// Light the nav's Signals pill with the live firing count when there is one.
 	if hasOpenSignals && openSignals > 0 {
 		data["SignalCount"] = openSignals
 	}
+
+	// Vs-last-batch stat deltas (P0.2, #443): the signed change each stat tile shows
+	// against the previous batch. Best-effort — a Known=false result (no previous
+	// batch, or a corpus read failed) leaves the tiles in their no-delta state. The
+	// P2.1 Dashboard markup reads these; this handler derives and exposes them.
+	deltas := s.dashboardDeltas(r.Context(), firedPairs)
+	data["Deltas"] = deltas
+	data["HasDeltas"] = deltas.Known
 	return data
 }
 

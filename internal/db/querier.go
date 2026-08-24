@@ -689,6 +689,16 @@ type Querier interface {
 	// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
 	// (service, class), mirroring the observation read one facet over.
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
+	// The `reachability` span per (Service, Vantage class) that was OPEN at instant @at
+	// — the as-of-a-past-batch twin of ListServiceReachabilitySpansByClass, for the
+	// Exposure stat band's vs-last-batch deltas (P0.2). It reconstructs each leg's
+	// value as it stood at @at from the never-compacted span corpus (ADR-0041): a span
+	// open at @at has opened_at <= @at and had not yet closed (still open, or closed
+	// after @at). DISTINCT ON keeps the most recent such span per (service, class),
+	// exactly as the current read keeps the most recent open one. Class is the static
+	// vantage column (the same join the current read uses); the exposure projection is
+	// computed in the handler over both readings. NOT live-tier gated (span corpus).
+	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]ListServiceReachabilitySpansByClassAtRow, error)
 	// One account's live sessions, newest activity first — the Profile's personal
 	// sessions list. token_hash is omitted from the read: listing never needs it, so
 	// the secret material stays out of the render path.
@@ -709,6 +719,16 @@ type Querier interface {
 	// timeline and derives its Breaks and Transitions on read. The closed corpus is
 	// never compacted, so a withdrawn Name's closed timelines render in full.
 	ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error)
+	// Every span that was open at any instant from @since onward — still open now, or
+	// closed after @since. This is exactly the corpus a vs-last-batch delta needs
+	// (P0.2, design-system PARITY-CHART.md): the currently-open population AND the
+	// spans the most recent batch closed, so the population open at the previous batch
+	// boundary is reconstructable on read (internal/drift.OpenAt) alongside the current
+	// one. Passing the previous batch's instant as @since keeps the scan to recent
+	// drift rather than the whole never-compacted corpus. Like the other span reads it
+	// is NOT live-tier gated — it reads the already-derived `span` corpus (ADR-0041),
+	// not the observation tier. Ordered by subject so a per-subject fold is one pass.
+	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]ListSpansOpenSinceRow, error)
 	// The Coverage register of positions we currently cannot observe from
 	// (ADR-0108). It includes the resolver-only `local` vantage — which ListVantages
 	// excludes for the prober list — because that is exactly the position whose
@@ -840,6 +860,15 @@ type Querier interface {
 	// Every subject the withdrawal takes with it: the addresses and the Services and
 	// Endpoints sitting on them (their keys carry the address as a prefix).
 	PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExclusionWithdrawalParams) (PreviewExclusionWithdrawalRow, error)
+	// The commit instant of the second-most-recent distinct batch — the boundary a
+	// vs-last-batch stat delta reads the "value a batch ago" at (P0.2). It is the most
+	// recent batch instant strictly before the latest, so the span population open at
+	// it is the estate exactly as the previous batch left it, with only the most recent
+	// batch's opens and closes lying between it and now. NULL where fewer than two
+	// distinct batch instants exist — the first batch has no predecessor to compare
+	// against, so a delta is withheld rather than compared against nothing. Reads batch
+	// only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
+	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	// Atomically claim the next free slot for one crt.sh fetch, instance-wide
 	// (ADR-0005: the 5 req/min throttle is per-source across the whole instance, in

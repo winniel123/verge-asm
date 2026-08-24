@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"sort"
 
@@ -83,7 +84,13 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	rows, stats := s.foldExposure(r)
-	s.render(w, "exposure", map[string]any{
+
+	// Vs-last-batch deltas on the stat band (P0.2, #443, ADR-0116): the specced "+2"
+	// delta is a real datum, so the exposed / firewalled / not-reached tiles each
+	// render their change against the previous batch, reconstructed from the span
+	// corpus. Known=false where no previous batch exists — the tiles then show their
+	// no-delta state, never a fabricated zero. The P2.6 Exposure markup reads these.
+	data := map[string]any{
 		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive":  "exposure",
 		"Withheld":   false,
@@ -91,7 +98,18 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		"Exposed":    stats.exposed,
 		"Firewalled": stats.firewalled,
 		"NotReached": stats.notReached,
-	})
+	}
+	if prevAt, ok, err := s.previousBatchInstant(ctx); err != nil {
+		log.Printf("web: exposure: previous batch instant: %v", err)
+	} else if ok {
+		if exposed, firewalled, notReached, dok := s.exposureCountDeltas(ctx, prevAt); dok {
+			data["ExposedDelta"] = exposed
+			data["FirewalledDelta"] = firewalled
+			data["NotReachedDelta"] = notReached
+			data["HasDeltas"] = true
+		}
+	}
+	s.render(w, "exposure", data)
 }
 
 // legInfo is one class-scoped reachability leg as the by-class read carries it.

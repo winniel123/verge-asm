@@ -521,6 +521,62 @@ func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDrift
 	return items, nil
 }
 
+const listServiceReachabilitySpansByClassAt = `-- name: ListServiceReachabilitySpansByClassAt :many
+SELECT DISTINCT ON (sp.subject_key, v.class)
+    sp.subject_key AS subject_key,
+    v.class        AS class,
+    sp.value       AS value,
+    sp.is_gap      AS is_gap
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.opened_at <= $1
+  AND (sp.closed_at IS NULL OR sp.closed_at > $1)
+ORDER BY sp.subject_key, v.class, sp.opened_at DESC, sp.id DESC
+`
+
+type ListServiceReachabilitySpansByClassAtRow struct {
+	SubjectKey string `json:"subject_key"`
+	Class      string `json:"class"`
+	Value      []byte `json:"value"`
+	IsGap      bool   `json:"is_gap"`
+}
+
+// The `reachability` span per (Service, Vantage class) that was OPEN at instant @at
+// — the as-of-a-past-batch twin of ListServiceReachabilitySpansByClass, for the
+// Exposure stat band's vs-last-batch deltas (P0.2). It reconstructs each leg's
+// value as it stood at @at from the never-compacted span corpus (ADR-0041): a span
+// open at @at has opened_at <= @at and had not yet closed (still open, or closed
+// after @at). DISTINCT ON keeps the most recent such span per (service, class),
+// exactly as the current read keeps the most recent open one. Class is the static
+// vantage column (the same join the current read uses); the exposure projection is
+// computed in the handler over both readings. NOT live-tier gated (span corpus).
+func (q *Queries) ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]ListServiceReachabilitySpansByClassAtRow, error) {
+	rows, err := q.db.Query(ctx, listServiceReachabilitySpansByClassAt, at)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListServiceReachabilitySpansByClassAtRow{}
+	for rows.Next() {
+		var i ListServiceReachabilitySpansByClassAtRow
+		if err := rows.Scan(
+			&i.SubjectKey,
+			&i.Class,
+			&i.Value,
+			&i.IsGap,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpansForSubject = `-- name: ListSpansForSubject :many
 SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
        value, is_gap, derivation, opened_at, closed_at, closure_reason
@@ -563,6 +619,73 @@ func (q *Queries) ListSpansForSubject(ctx context.Context, arg ListSpansForSubje
 	items := []ListSpansForSubjectRow{}
 	for rows.Next() {
 		var i ListSpansForSubjectRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SubjectKind,
+			&i.SubjectKey,
+			&i.Facet,
+			&i.Discriminator,
+			&i.VantageID,
+			&i.Source,
+			&i.Value,
+			&i.IsGap,
+			&i.Derivation,
+			&i.OpenedAt,
+			&i.ClosedAt,
+			&i.ClosureReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSpansOpenSince = `-- name: ListSpansOpenSince :many
+SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
+       value, is_gap, derivation, opened_at, closed_at, closure_reason
+FROM span
+WHERE closed_at IS NULL OR closed_at > $1
+ORDER BY subject_kind, subject_key, facet, discriminator, vantage_id, source, opened_at
+`
+
+type ListSpansOpenSinceRow struct {
+	ID            int64              `json:"id"`
+	SubjectKind   string             `json:"subject_kind"`
+	SubjectKey    string             `json:"subject_key"`
+	Facet         string             `json:"facet"`
+	Discriminator string             `json:"discriminator"`
+	VantageID     pgtype.Int8        `json:"vantage_id"`
+	Source        string             `json:"source"`
+	Value         []byte             `json:"value"`
+	IsGap         bool               `json:"is_gap"`
+	Derivation    []byte             `json:"derivation"`
+	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
+	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
+	ClosureReason pgtype.Text        `json:"closure_reason"`
+}
+
+// Every span that was open at any instant from @since onward — still open now, or
+// closed after @since. This is exactly the corpus a vs-last-batch delta needs
+// (P0.2, design-system PARITY-CHART.md): the currently-open population AND the
+// spans the most recent batch closed, so the population open at the previous batch
+// boundary is reconstructable on read (internal/drift.OpenAt) alongside the current
+// one. Passing the previous batch's instant as @since keeps the scan to recent
+// drift rather than the whole never-compacted corpus. Like the other span reads it
+// is NOT live-tier gated — it reads the already-derived `span` corpus (ADR-0041),
+// not the observation tier. Ordered by subject so a per-subject fold is one pass.
+func (q *Queries) ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]ListSpansOpenSinceRow, error) {
+	rows, err := q.db.Query(ctx, listSpansOpenSince, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSpansOpenSinceRow{}
+	for rows.Next() {
+		var i ListSpansOpenSinceRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.SubjectKind,
