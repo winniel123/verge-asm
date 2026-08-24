@@ -32,9 +32,10 @@ func TestDeclareNameAndAddressSeeds(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// A name scope.
+	// A name scope. The save lands back on Scope, now carrying a post-redirect-get
+	// toast in the query (PARITY-CHART P1.7), so match the path, not the whole URL.
 	resp := declare(t, ac, base, "name", "Example.com")
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(resp.Header.Get("Location"), "/scope") {
 		t.Fatalf("declare name: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()

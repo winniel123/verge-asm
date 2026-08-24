@@ -11,7 +11,7 @@ import (
 
 // The error pages (T11, #306): the three full-screen states share one render path
 // through the "error-page" template (templates_error.go). Each is a chrome-less
-// frame, so the data map carries no "IsAdmin"/nav keys — injectUnread leaves it
+// frame, so the data map carries no "IsAdmin"/nav keys — injectChrome leaves it
 // alone and no chrome read runs. Only the 500 carries an incident id.
 
 // renderError writes the shared error page at the given HTTP status. kind is the

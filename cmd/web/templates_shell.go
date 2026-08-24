@@ -247,7 +247,6 @@ button.danger, .btn.danger { background: var(--danger); border-color: var(--dang
 .topnav .brand { display: inline-flex; align-items: center; gap: 8px; flex: none; text-decoration: none; }
 .topnav .brand:hover { text-decoration: none; }
 .brand-glyph { display: inline-block; width: 20px; height: 20px; color: var(--accent); flex: none; }
-.orgswitcher { flex: none; }
 .org-btn { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
   border-radius: var(--r-full); background: var(--sunken); border: 1px solid var(--hairline);
   font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--muted); cursor: pointer; }
@@ -271,16 +270,60 @@ button.danger, .btn.danger { background: var(--danger); border-color: var(--dang
 .iconbtn svg { width: 16px; height: 16px; }
 .cmdk-btn { gap: 4px; }
 .ver { font: 400 11px var(--mono); color: var(--muted); }
-.ghlink { font-size: 12px; font-weight: 500; color: var(--muted); text-decoration: none; }
-.ghlink:hover { color: var(--ink); }
-.msgnav { position: relative; display: inline-flex; align-items: center; gap: 6px;
-  color: var(--body); text-decoration: none; }
-.msgnav:hover { color: var(--accent); text-decoration: none; }
+/* Inbox bell — a disclosure that opens the recent-messages menu (TopNav.jsx). */
+.msgmenu { position: relative; display: inline-flex; }
+.msgmenu > summary { list-style: none; cursor: pointer; display: inline-flex; }
+.msgmenu > summary::-webkit-details-marker { display: none; }
+.msgnav { position: relative; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 30px; padding: 0 6px; border-radius: var(--r-md);
+  border: 1px solid var(--hairline); background: var(--surface); color: var(--body); }
+.msgmenu[open] > summary .msgnav { background: var(--sunken); color: var(--accent); }
+.msgnav:hover { background: var(--sunken); }
 .msgnav svg { width: 18px; height: 18px; }
-.msgnav .count { font-family: var(--mono); font-size: 10px; font-weight: 600;
-  letter-spacing: 0.02em; background: var(--accent); color: var(--on-accent);
-  border-radius: var(--r-full); padding: 0 5px; min-width: 16px; height: 16px; line-height: 16px;
-  text-align: center; }
+.msgnav .count { position: absolute; top: -5px; right: -5px; font-family: var(--mono);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.02em; background: var(--accent);
+  color: var(--on-accent); border-radius: var(--r-full); padding: 0 5px; min-width: 16px;
+  height: 16px; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px var(--surface); }
+.msgmenu-panel { position: absolute; right: 0; top: calc(100% + 6px); width: 340px;
+  max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); box-shadow: var(--shadow-md); padding: 6px; z-index: 35;
+  display: flex; flex-direction: column; gap: 2px; }
+.msgmenu-panel .microlabel { padding: 4px 6px 2px; }
+.msgmenu-row { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 9px 8px;
+  border: none; border-radius: var(--r-sm); background: transparent; text-align: left;
+  text-decoration: none; color: var(--body); }
+.msgmenu-row:hover { background: var(--sunken); text-decoration: none; }
+.msgmenu-row .unread-dot { width: 7px; height: 7px; border-radius: var(--r-full); margin-top: 5px;
+  flex: none; background: transparent; }
+.msgmenu-row.unread .unread-dot { background: var(--accent); }
+.msgmenu-row .msg-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.msgmenu-row .msg-top { display: flex; align-items: center; gap: 8px; }
+.msgmenu-row .msg-class { font-family: var(--mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+  border: 1px solid var(--hairline); border-radius: var(--r-full); padding: 1px 6px; }
+.msgmenu-row .msg-when { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.msgmenu-row .msg-text { font-size: 12.5px; line-height: 1.5; color: var(--body); }
+.msgmenu-row.unread .msg-text { font-weight: 500; }
+.msgmenu-all { border: none; border-top: 1px solid var(--hairline); background: transparent;
+  padding: 9px 8px 4px; font-size: 12px; font-weight: 500; color: var(--link);
+  text-align: left; text-decoration: none; margin-top: 2px; }
+.msgmenu-all:hover { text-decoration: underline; }
+.msgmenu-empty { padding: 8px; font-size: 12.5px; color: var(--muted); }
+/* Org switcher — a disclosure that opens the org menu (OrgSwitcher.jsx). */
+.orgmenu { position: relative; display: inline-flex; flex: none; }
+.orgmenu > summary { list-style: none; cursor: pointer; display: inline-flex; }
+.orgmenu > summary::-webkit-details-marker { display: none; }
+.orgmenu-panel { position: absolute; left: 0; top: calc(100% + 6px); width: 224px;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md);
+  box-shadow: var(--shadow-md); padding: 5px; z-index: 35; }
+.orgmenu-panel .microlabel { padding: 6px 10px 4px; }
+.orgmenu-item { display: flex; align-items: center; gap: 8px; width: 100%; height: 32px;
+  padding: 0 10px; border: none; border-radius: var(--r-sm); background: transparent;
+  text-align: left; font-family: var(--mono); font-size: 12px; color: var(--ink); }
+.orgmenu-item:hover { background: var(--sunken); }
+.orgmenu-item .org-assets { font-size: 10.5px; color: var(--muted); }
+.orgmenu-item .org-check { margin-left: auto; color: var(--link); display: inline-flex; }
+.orgmenu-item .org-check svg { width: 13px; height: 13px; }
 .acctmenu { position: relative; }
 .acctmenu > summary { list-style: none; cursor: pointer; display: inline-flex; }
 .acctmenu > summary::-webkit-details-marker { display: none; }
@@ -297,11 +340,37 @@ button.danger, .btn.danger { background: var(--danger); border-color: var(--dang
 .acctmenu-panel form { margin: 0; }
 .acctmenu-panel .cmdk-hintitem { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .acctmenu-panel .menu-hint { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-/* Toast stack */
-.toaststack { position: fixed; right: 20px; bottom: 20px; z-index: 60;
-  display: flex; flex-direction: column; gap: 10px; width: 340px; max-width: calc(100vw - 40px); }
-.toast { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md);
-  box-shadow: var(--shadow-md); padding: var(--space-3) var(--space-4); }
+/* Toast stack — acts post here across the post-redirect-get (ToastStack.jsx / Toast.jsx). */
+.toaststack { position: fixed; right: 24px; bottom: 24px; z-index: 60;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+  width: 340px; max-width: calc(100vw - 40px); pointer-events: none; }
+.toast { display: flex; align-items: flex-start; gap: 10px; width: 100%;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md); padding: 12px 14px; pointer-events: auto;
+  animation: vg-toast-in 0.28s var(--ease-out, ease); }
+.toast.leaving { animation: vg-toast-out 0.24s ease forwards; }
+.toast .toast-dot { width: 8px; height: 8px; border-radius: var(--r-full); flex: none; margin-top: 5px; background: var(--muted); }
+.toast.ok .toast-dot { background: var(--ok); }
+.toast.warn .toast-dot { background: var(--warn); }
+.toast.danger .toast-dot { background: var(--danger); }
+.toast .toast-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.toast .toast-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+.toast .toast-desc { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.toast .toast-x { flex: none; margin: -2px -4px 0 0; width: 22px; height: 22px; padding: 0;
+  border: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+.toast .toast-x:hover { background: var(--sunken); color: var(--ink); }
+@keyframes vg-toast-in { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes vg-toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(6px); } }
+/* App footer — console variant of components/navigation/Footer.jsx. */
+.appfooter { display: flex; align-items: center; gap: 16px; padding: 14px 32px;
+  border-top: 1px solid var(--hairline); margin-top: auto; }
+.appfooter .foot-note { font-size: 12px; color: var(--muted); }
+.appfooter .foot-links { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+.appfooter .foot-links a { font-size: 12px; color: var(--muted); text-decoration: none; }
+.appfooter .foot-links a:hover { color: var(--ink); text-decoration: none; }
+body { min-height: 100vh; display: flex; flex-direction: column; }
+body > main, body > .center { flex: 1 0 auto; }
 /* Command palette scaffold */
 .cmdk { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; }
 .cmdk[hidden] { display: none; }
@@ -512,7 +581,7 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>try{var t=localStorage.getItem("verge-theme");if(t){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
 <title>{{.Title}} · Verge ASM</title>{{if .Refresh}}<meta http-equiv="refresh" content="6">{{end}}<style>` + pageCSS + `</style></head><body>{{end}}
-{{define "foot"}}<script>
+{{define "foot"}}{{if .Chrome}}<footer class="appfooter"><span class="foot-note">verge asm · self-hosted · AGPL-3.0</span><span class="foot-links"><a href="https://github.com/winniel123/verge-asm/tree/main/docs" rel="noreferrer">Docs</a><a href="https://github.com/winniel123/verge-asm" rel="noreferrer">GitHub</a></span></footer>{{end}}<script>
 /* Preserve scroll position across the POST-redirect-GET every form action runs.
    Each mutating handler answers 303 to the same page, so a naive reload lands at
    the top — jarring on a long screen. On submit we stash scrollY keyed by the
@@ -642,27 +711,84 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
     }
   });
 })();
+/* Toasts — an act carries a toast across the post-redirect-get in the URL's
+   "toast" query (a base64url JSON blob; ConsoleApp fires the same toasts client-
+   side). On load we read it, fire it into the toast stack, then strip it from the
+   address bar so a refresh does not re-toast. Look and dismiss behaviour follow
+   ToastStack.jsx / Toast.jsx; titles and descriptions are set as textContent,
+   never HTML, so a toast cannot inject. */
+(function () {
+  var stack = document.getElementById("toasts");
+  if (!stack) return;
+  var params;
+  try { params = new URLSearchParams(location.search); } catch (e) { return; }
+  var raw = params.get("toast");
+  if (!raw) return;
+  // Strip the param so a reload or a shared link does not re-fire the toast.
+  params.delete("toast");
+  var qs = params.toString();
+  try { history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash); } catch (e) {}
+  var list;
+  try {
+    var b = raw.replace(/-/g, "+").replace(/_/g, "/");
+    for (var pad = (4 - (b.length & 3)) & 3; pad > 0; pad--) b += "=";
+    list = JSON.parse(decodeURIComponent(escape(atob(b))));
+  } catch (e) { return; }
+  if (!list) return;
+  if (!Array.isArray(list)) list = [list];
+  function dismiss(el) {
+    if (el.classList.contains("leaving")) return;
+    el.classList.add("leaving");
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 260);
+  }
+  list.forEach(function (t) {
+    if (!t || !t.title) return;
+    var el = document.createElement("div");
+    el.className = "toast " + (t.tone || "neutral");
+    el.setAttribute("role", "status");
+    var dot = document.createElement("span"); dot.className = "toast-dot"; el.appendChild(dot);
+    var body = document.createElement("div"); body.className = "toast-body";
+    var title = document.createElement("span"); title.className = "toast-title"; title.textContent = t.title; body.appendChild(title);
+    if (t.description) { var d = document.createElement("span"); d.className = "toast-desc"; d.textContent = t.description; body.appendChild(d); }
+    el.appendChild(body);
+    var x = document.createElement("button"); x.type = "button"; x.className = "toast-x"; x.setAttribute("aria-label", "Dismiss"); x.textContent = "×";
+    x.addEventListener("click", function () { dismiss(el); });
+    el.appendChild(x);
+    stack.appendChild(el);
+    setTimeout(function () { dismiss(el); }, 5000);
+  });
+})();
 </script></body></html>{{end}}
 
 {{define "chrome"}}<header class="topnav">
 <a class="brand" href="/">` + wordmark + `</a>
-<div class="orgswitcher"><button type="button" class="org-btn" data-org-switcher aria-label="Switch organization">self-hosted <span class="chev">&#9662;</span></button></div>
+<details class="orgmenu"><summary aria-label="Switch organization"><span class="org-btn">{{.OrgName}} <span class="chev">&#9662;</span></span></summary>
+<div class="orgmenu-panel" role="menu">
+<div class="microlabel">Orgs</div>
+<span class="orgmenu-item"><span>{{.OrgName}}</span>{{if .AssetCount}}<span class="org-assets">{{.AssetCount}}</span>{{end}}<span class="org-check" aria-label="current"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 9.5l3.5 3.5 7.5-8"/></svg></span></span>
+</div></details>
 <nav class="navpills" aria-label="Primary">
 <a class="navpill{{if eq .NavActive "dashboard"}} active{{end}}" href="/">Dashboard</a>
 <a class="navpill{{if eq .NavActive "scope"}} active{{end}}" href="/scope">Scope</a>
 <a class="navpill{{if eq .NavActive "inventory"}} active{{end}}" href="/inventory">Inventory</a>
 <a class="navpill{{if eq .NavActive "drift"}} active{{end}}" href="/drift">Drift</a>
 <a class="navpill{{if eq .NavActive "signals"}} active{{end}}" href="/signals">Signals{{if .SignalCount}} <span class="pill-count">{{.SignalCount}}</span>{{end}}</a>
+<a class="navpill{{if eq .NavActive "exposure"}} active{{end}}" href="/exposure">Exposure</a>
+<a class="navpill{{if eq .NavActive "coverage"}} active{{end}}" href="/coverage">Coverage</a>
 <a class="navpill{{if eq .NavActive "graph"}} active{{end}}" href="/graph">Graph</a>
 <a class="navpill{{if eq .NavActive "reports"}} active{{end}}" href="/reports">Reports</a>
 </nav>
 <div class="navactions">
 {{if .Scanning}}<span class="scan-status"><span class="dot live"></span>Scan running</span>{{end}}
 <button type="button" class="iconbtn cmdk-btn" data-cmdk-open aria-label="Command palette"><span class="mono">&#8984;K</span></button>
-<a class="msgnav" href="/inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{{if .Unread}}<span class="count">{{.Unread}}</span>{{end}}</a>
+<details class="msgmenu"><summary aria-label="Messages"><span class="msgnav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{{if .Unread}}<span class="count">{{.Unread}}</span>{{end}}</span></summary>
+<div class="msgmenu-panel" role="menu">
+<div class="microlabel">Messages</div>
+{{range .RecentMessages}}<a class="msgmenu-row{{if .Unread}} unread{{end}}" href="{{.Href}}"><span class="unread-dot"></span><span class="msg-body"><span class="msg-top"><span class="msg-class">{{.Class}}</span><span class="msg-when">{{.Rel}}</span></span><span class="msg-text">{{.Headline}}</span></span></a>{{else}}<div class="msgmenu-empty">No messages.</div>{{end}}
+<a class="msgmenu-all" href="/inbox">All messages</a>
+</div></details>
 <button type="button" class="iconbtn" data-theme-toggle aria-label="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></button>
-<a class="ghlink" href="https://github.com/winniel123/verge-asm" rel="noreferrer">GitHub</a>
-<details class="acctmenu"><summary aria-label="Account menu"><span class="avatar">VA</span></summary>
+<details class="acctmenu"><summary aria-label="Account menu"><span class="avatar">{{.Initials}}</span></summary>
 <div class="acctmenu-panel">
 <a href="/profile">Profile</a>
 {{if .IsAdmin}}<a href="/settings">Settings</a>{{end}}
@@ -680,16 +806,26 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 <a class="cmdk-item" href="/inventory">Inventory</a>
 <a class="cmdk-item" href="/drift">Drift</a>
 <a class="cmdk-item" href="/signals">Signals{{if .SignalCount}}<span class="cmdk-hint">{{.SignalCount}} open</span>{{end}}</a>
+<a class="cmdk-item" href="/exposure">Exposure</a>
+<a class="cmdk-item" href="/coverage">Coverage</a>
 <a class="cmdk-item" href="/graph">Graph</a>
 <a class="cmdk-item" href="/reports">Reports</a>
-{{if .IsAdmin}}{{if integrationsEnabled}}<a class="cmdk-item" href="/settings?tab=integrations">Integrations</a>{{end}}
+<a class="cmdk-item" href="/inbox">Inbox{{if .Unread}}<span class="cmdk-hint">{{.Unread}} unread</span>{{end}}</a>
+<a class="cmdk-item" href="/profile">Profile</a>
+{{if .IsAdmin}}<a class="cmdk-item" href="/settings?tab=sources">Sources</a>
+<a class="cmdk-item" href="/settings?tab=aperture">Port aperture</a>
+{{if integrationsEnabled}}<a class="cmdk-item" href="/settings?tab=integrations">Integrations</a>{{end}}
 <a class="cmdk-item" href="/settings">Settings</a>{{end}}
 </div>
 <div class="cmdk-group" data-cmdk-group><div class="microlabel">Actions</div>
 <a class="cmdk-item" href="/scans">Run scan</a>
 <a class="cmdk-item" href="/scope">Add seed</a>
+<a class="cmdk-item" href="/onboarding">First-run onboarding</a>
 <button type="button" class="cmdk-item" data-theme-toggle>Toggle theme</button>
 </div>
+{{if .PaletteAssets}}<div class="cmdk-group" data-cmdk-group><div class="microlabel">Assets</div>
+{{range .PaletteAssets}}<a class="cmdk-item" href="{{.Href}}">{{.Key}}</a>{{end}}
+</div>{{end}}
 <div class="cmdk-empty" data-cmdk-empty hidden>No matching screen or action</div>
 <div class="cmdk-group"><a class="cmdk-item" href="/search" data-cmdk-search>Search everything</a></div>
 </div></div>
