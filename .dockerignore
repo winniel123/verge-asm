@@ -3,7 +3,18 @@
 docs
 !docs/guides
 deploy
+# The bulk of the design package (JSX, components, examples, goldens, the verify
+# harness) is not needed in the image — but cmd/web now imports the designfs
+# package, which //go:embed's the frozen view-layer artifacts into the binary, so
+# those specific paths MUST stay in the build context or `go build ./cmd/web` fails
+# with "no required module provides package .../design-system".
 design-system
+!design-system/designfs.go
+!design-system/templates
+!design-system/tokens
+!design-system/fixtures
+!design-system/verify/config.json
+!design-system/verify/states.json
 docs-site
 prototypes
 **/node_modules
