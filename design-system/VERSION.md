@@ -1,11 +1,12 @@
 # Package version
 
-current: 3.2.1
+current: 3.2.2
 exported: 2026-08-24
 
 Convention: MAJOR.ROUND.PATCH — MAJOR is the package generation, ROUND increments per sync/Wayfinder round, PATCH per mid-round ruling or spec fix. The design workspace bumps this on every export; the repo copy always states what landed.
 
 ## Log
+- 3.2.2 — 2026-08-24 · collision #16 ruled (P0.6b notify-with-link delivery; ADR-0039 stands)
 - 3.2.1 — 2026-08-24 · collision #15 ruled (P0.6 dispatch + delivery backend); SPEC-CHANGE log at 15 entries
 - 3.2.0 — 2026-08-24 · round-2 chart: verified Landed ledger, rulings #7/#11/#13/#14, Profile spec catch-up (account model + SSO section, shot 14)
 - 3.1.0 — 2026-08-24 · parity ruling + PARITY-CHART; SPEC-CHANGE escalation protocol; Export CSV specced
