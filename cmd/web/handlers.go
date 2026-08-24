@@ -646,6 +646,12 @@ func (s *server) handler() http.Handler {
 	// through a typed-name ConfirmDialog. Both are admin acts and mutate one account.
 	mux.HandleFunc("POST /settings/accounts/reenroll", s.requireAdmin(s.reenrollAccount))
 	mux.HandleFunc("POST /settings/accounts/remove", s.requireAdmin(s.removeAccount))
+	// Admin-wide sessions (#407, ADR-0117): the Access-group Sessions tab lists every
+	// account's live sessions. Revoking any one session (not owner-scoped) and revoking
+	// every session for one account (offboarding, through a typed-name confirm) are both
+	// admin acts, gated like the rest of the /settings block.
+	mux.HandleFunc("POST /settings/sessions/revoke", s.requireAdmin(s.revokeSessionAdmin))
+	mux.HandleFunc("POST /settings/sessions/revoke-account", s.requireAdmin(s.revokeAccountSessions))
 	mux.HandleFunc("POST /settings/channels", s.requireAdmin(s.createChannel))
 	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
