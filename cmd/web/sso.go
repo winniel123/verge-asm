@@ -44,9 +44,10 @@ import (
 // inside the caller's session and records `(provider, sub) → their account`.
 //
 // The state/nonce/PKCE-verifier ride an HMAC-signed, short-lived cookie between the
-// two hops (the app keeps no server-side session store), so the callback can trust the
-// state it echoes back was minted here — CSRF and replay are both closed. The cookie's
-// Link flag keeps a self-link transaction from ever being replayed as a sign-in.
+// two hops (the transaction is carried in the signed cookie itself, not looked up
+// server-side), so the callback can trust the state it echoes back was minted here —
+// CSRF and replay are both closed. The cookie's Link flag keeps a self-link
+// transaction from ever being replayed as a sign-in.
 
 const (
 	ssoTxCookie = "verge_sso_tx"

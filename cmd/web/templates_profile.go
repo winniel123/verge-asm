@@ -208,7 +208,7 @@ const profileTemplates = `
 <div class="microlabel" style="margin-bottom:8px">End session</div>
 <h2 style="margin:0 0 8px">End this session</h2>
 <p style="margin:0 0 4px">You are signed out on this device and returned to sign-in.</p>
-<p class="muted" style="margin:0 0 var(--space-4)">A session on another device is not ended here &#8212; it lapses when it expires.</p>
+<p class="muted" style="margin:0 0 var(--space-4)">This ends only this device. To sign a different device out, use &#8220;Sign out others&#8221; or revoke it from the Sessions list above.</p>
 <div class="dialog-actions">
 <a class="btn ghost" href="/profile">Cancel</a>
 <form method="post" action="/profile/session/revoke" style="margin:0"><button class="danger" type="submit">End session</button></form>

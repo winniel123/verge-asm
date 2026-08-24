@@ -1,6 +1,7 @@
 // Package auth holds the identity primitives for the web listener: password
-// hashing, the file-backed session signing key, stateless signed session
-// cookies, per-account TOTP, and the single-use setup token. It is
+// hashing, the file-backed session signing key, HMAC-signed session cookies
+// (backed by the server-side session registry, ADR-0117), per-account TOTP,
+// and the single-use setup token. It is
 // deliberately database-free so the whole of it is unit-testable, and so the
 // one auth secret that must never reach Postgres — the session signing key —
 // is produced and held here, read from the web-only volume (v1 spec §4.3).
