@@ -931,6 +931,8 @@ type assetPageData struct {
 	Withdrawn    bool
 	Seen         string // the latest observation instant for this Name
 	InScopeSince string // the covering Seed's declaration date
+	Severity     string // header aggregate: the most urgent severity across firing Signals (AssetDetail.jsx:35); empty when none fire
+	Exposure     string // header aggregate: the worst reachability across open Ports (AssetDetail.jsx:36); empty when none measured
 	Ports        []assetPort
 	DNS          []assetDNSRow
 	Provenance   []assetKV
@@ -1018,6 +1020,8 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.DNS = s.assetDNS(r, key, res)
 	data.Ports = s.assetPorts(r, res.Addresses)
 	data.Signals = s.assetSignals(r, key)
+	data.Severity = assetHeaderSeverity(data.Signals)
+	data.Exposure = assetHeaderExposure(data.Ports)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
 	s.render(w, "asset", map[string]any{
@@ -1150,6 +1154,41 @@ func assetExposure(outcome string, isGap bool) string {
 	default:
 		return "unverified"
 	}
+}
+
+// assetHeaderSeverity is the header's aggregate SeverityBadge (AssetDetail.jsx:35):
+// the most urgent (lowest-rank) severity across the asset's firing signals — the
+// same ramp the "Signals here" rows draw, rolled up to one badge. It reads the
+// severity already resolved onto each signal, so it invents nothing. Empty when no
+// signal fires, in which case the header simply omits the badge (the spec's own
+// conditional-omit pattern, as with the seen/scope line).
+func assetHeaderSeverity(signals []assetSignal) string {
+	best := ""
+	bestRank := len(signal.SevOrder)
+	for _, sg := range signals {
+		if rank := signal.Severity(sg.Severity).Rank(); rank < bestRank {
+			bestRank, best = rank, sg.Severity
+		}
+	}
+	return best
+}
+
+// assetHeaderExposure is the header's aggregate ExposureBadge (AssetDetail.jsx:36):
+// the worst reachability across the asset's open ports (exposed ≻ firewalled ≻
+// not-reached ≻ unverified) — one port answering from the internet makes the asset
+// exposed. It rolls up the states the census already carries, inventing nothing.
+// Empty when no port is measured, in which case the header omits the badge.
+func assetHeaderExposure(ports []assetPort) string {
+	rank := map[string]int{"exposed": 0, "firewalled": 1, "not-reached": 2, "unverified": 3}
+	best := ""
+	bestRank := len(rank)
+	for _, p := range ports {
+		r, ok := rank[p.Exposure]
+		if ok && r < bestRank {
+			bestRank, best = r, p.Exposure
+		}
+	}
+	return best
 }
 
 // assetSignals folds the full signal corpus and keeps the fired members whose
