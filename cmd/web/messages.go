@@ -164,7 +164,7 @@ func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct 
 	dest := messageReturn(r)
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, dest, http.StatusSeeOther)
+		http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G107 -- dest is messageReturn's whitelist (/inbox|/inbox?…|/messages), never an attacker URL
 		return
 	}
 	if err := s.store.MarkMessageUnread(r.Context(), db.MarkMessageUnreadParams{
@@ -173,7 +173,7 @@ func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "mark message unread", err)
 		return
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G107 -- dest is messageReturn's whitelist (/inbox|/inbox?…|/messages), never an attacker URL
 }
 
 // messageReturn is where a message-read POST returns to. The two read handlers are
