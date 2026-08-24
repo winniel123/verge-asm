@@ -1,7 +1,7 @@
 ---
 title: Notification channels
-section: Operating
-order: 5
+section: Signals & delivery
+order: 2
 description: Channels are the outbound https endpoints the worker POSTs each message to — declaring them, what fires, and why a delivery is a record and never a message.
 ---
 

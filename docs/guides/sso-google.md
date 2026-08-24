@@ -1,7 +1,7 @@
 ---
-title: Single sign-on with Google Workspace
-section: Operating
-order: 9
+title: SSO with Google
+section: Access
+order: 5
 description: Wire Google Workspace to verge-asm as an OpenID Connect provider — build the OAuth client, register verge's two callbacks, and restrict sign-in to your organisation.
 ---
 

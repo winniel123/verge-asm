@@ -1,7 +1,7 @@
 ---
 title: Single sign-on (SSO)
-section: Operating
-order: 9
+section: Access
+order: 3
 description: Configure OpenID Connect single sign-on — declare a provider, register the callback URL, and let users link their verified identity to a local account.
 ---
 

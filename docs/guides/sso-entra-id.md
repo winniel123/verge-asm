@@ -1,7 +1,7 @@
 ---
-title: Single sign-on with Microsoft Entra ID
-section: Operating
-order: 9
+title: SSO with Entra ID
+section: Access
+order: 6
 description: A worked example of declaring a Microsoft Entra ID (formerly Azure AD) OpenID Connect provider — register the app, its two redirect URIs and a secret, and pin the tenant-scoped v2.0 issuer.
 ---
 
