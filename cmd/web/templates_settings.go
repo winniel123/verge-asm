@@ -616,25 +616,24 @@ whose recorded source set it moved — so there is nothing to page through here 
 {{define "settings-sessions"}}
 <div class="microlabel">Access · sessions</div>
 <h2>Active sessions</h2>
-<p>Every account's live browser sessions across this deployment, grouped by account and
-newest activity first. Revoking a session signs that browser out at once — its next
-request lands on the sign-in screen. Revoke every session for an account to offboard a
-departing member; their membership, role and personal tokens are untouched.</p>
+<p>Every account's live sessions across this deployment, newest activity first. Revoking
+one signs that browser out at once — its next request lands on the sign-in screen. Your
+own sessions live on your profile.</p>
 {{if .Sessions}}
 <div class="section">
 <table>
 <thead><tr><th>Account</th><th>Role</th><th>Device</th><th>IP</th><th>Last active</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
 <tbody>
 {{range .Sessions}}<tr>
-<td class="mono">{{.Account}}</td>
+<td class="mono">{{.Account}}{{if .Current}} <span class="muted">(you)</span>{{end}}</td>
 <td><span class="badge">{{.Role}}</span></td>
 <td>{{.Device}}</td>
 <td class="mono">{{.IP}}</td>
 <td class="mono">{{.LastSeen}}</td>
-{{if $.IsAdmin}}<td class="row">
+{{if $.IsAdmin}}<td class="row">{{if .Current}}<span class="muted">—</span>{{else}}
 <a class="btn secondary" href="/settings?tab=sessions&amp;revoke={{.ID}}">Revoke</a>
-<a class="btn secondary" href="/settings?tab=sessions&amp;revoke-account={{.AccountID}}">Revoke all</a>
-</td>{{end}}
+<a class="btn secondary" href="/settings?tab=sessions&amp;revoke-account={{.AccountID}}">Revoke all for {{.Account}}</a>
+{{end}}</td>{{end}}
 </tr>{{end}}
 </tbody>
 </table>
@@ -666,7 +665,7 @@ stays listed here until it is revoked or expires.</p>
 <div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Revoke all sessions" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);z-index:42">
 <div class="microlabel" style="margin-bottom:8px">Revoke all sessions</div>
 <h2 style="margin:0 0 8px">Revoke every session for {{.Username}}</h2>
-<p style="margin:0 0 4px">Every live session {{.Username}} holds is signed out immediately — the offboarding kill.</p>
+<p style="margin:0 0 4px">Every live session {{.Username}} holds is signed out immediately.</p>
 <p class="muted" style="margin:0 0 var(--space-4)">Their membership, role and personal tokens are unaffected; remove the member on <a href="/settings?tab=team">Team</a> to fully offboard.</p>
 {{if $.RevokeAccountError}}<div class="error">{{$.RevokeAccountError}}</div>{{end}}
 <form method="post" action="/settings/sessions/revoke-account">
