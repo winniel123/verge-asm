@@ -175,8 +175,13 @@ function publishableTags(): ParsedTag[] {
   return kept;
 }
 
-/** The git ref a manifest `value` resolves to. `latest` → highest stable tag. */
-function refForVersion(version: string): string {
+/**
+ * The git ref a manifest `value` resolves to. `latest` → highest stable tag (or
+ * `main` when there are no stable tags yet). Exported so the guide route can hand
+ * render.jsx the exact ref its ADR cross-refs must blob-link against — the island
+ * cannot run git itself, so the server resolves the ref for it.
+ */
+export function refForVersion(version: string): string {
   if (version === DEFAULT_VERSION) return DEFAULT_VERSION;
   if (version === LATEST_VERSION) {
     const stable = publishableTags().find((t) => t.prerelease === null);

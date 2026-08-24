@@ -5,6 +5,7 @@ import { Kbd } from "@ds/components/display/Kbd.jsx";
 import { VersionSelect } from "@ds/components/navigation/VersionSelect.jsx";
 import { CommandPalette } from "@ds/components/feedback/CommandPalette.jsx";
 import { Icon } from "../ds/Icon.jsx";
+import { REPO_URL } from "../repo.ts";
 
 /*
  * Top navigation bar — search + ⌘K palette + live VersionSelect (T4 / #354).
@@ -46,7 +47,7 @@ export default function TopNav({
   version,
   onVersionChange,
   searchPlaceholder = "Search docs",
-  githubHref = "#",
+  githubHref = REPO_URL,
 }) {
   const initial =
     version ||
@@ -168,6 +169,8 @@ export default function TopNav({
         <VersionSelect value={ver} onChange={handleChange} versions={versions} />
         <a
           href={githubHref}
+          target="_blank"
+          rel="noreferrer noopener"
           style={{
             font: "500 12px var(--font-ui)",
             color: "var(--text-secondary)",

@@ -14,9 +14,14 @@
  *     fragment must match a real heading id in the target guide.
  *   - Anchor-only links (`#frag`) must match a heading id in their own guide.
  *   - External `http(s)`/`mailto:` links are left alone.
- *   - Relative links that escape the guides dir (`../adr/...`, `../../deploy/...`,
- *     `*.go`, bare directories) are repo cross-references, not rendered guide
- *     routes — out of scope for this gate, so they are not flagged.
+ *   - `../adr/<file>.md` cross-references (which render.jsx rewrites to a GitHub
+ *     blob URL) must name an ADR file that EXISTS in docs/adr/, so a renamed or
+ *     deleted ADR fails the build instead of shipping a dead blob link (#428).
+ *     The `#fragment` is NOT checked: ADRs render on GitHub, whose heading-anchor
+ *     algorithm differs from ours, so only file reachability is meaningful here.
+ *   - Other relative links that escape the guides dir (`../../deploy/...`, `*.go`,
+ *     bare directories) are repo cross-references with no home on the docs site —
+ *     out of scope for this gate, so they are not flagged.
  *
  * PER-VERSION: the checker loops over a version list and validates each version's
  * link graph independently against ONLY that version's guide + anchor inventory —
@@ -39,6 +44,17 @@ import { dirname, join, relative, resolve } from "node:path";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
 const GUIDES_DIR = join(REPO_ROOT, "docs", "guides");
+const ADR_DIR = join(REPO_ROOT, "docs", "adr");
+
+/**
+ * ADR filenames present in docs/adr/, for validating `../adr/<file>.md` cross-refs.
+ * Read once from the working tree — correct while there is a single working-tree
+ * version (like the guide inventory in loadVersions). When Tv's git-ref versions
+ * land, this moves into the per-version seam so each ref checks its own ADR set.
+ */
+const ADR_FILES = new Set(
+  readdirSync(ADR_DIR).filter((name) => name.endsWith(".md")),
+);
 
 /** A guide resolved at one version: slug + its raw markdown + repo-relative path. */
 /**
@@ -125,6 +141,9 @@ const EXTERNAL = /^([a-z][a-z0-9+.-]*:)?\/\//i;
 const MAILTO = /^mailto:/i;
 // intra-guide relative link: optional `./`, a bare slug, `.md`, optional `#frag`.
 const INTRA_GUIDE = /^\.?\/?([a-z0-9][a-z0-9-]*)\.md(?:#(.+))?$/i;
+// ADR cross-ref: `../adr/<file>.md` (flat filename, no nested path), optional `#frag`.
+// Mirrors render.jsx's ADR_XREF exactly so gate and renderer classify links identically.
+const ADR_XREF = /^\.\.\/adr\/([^#?/]+\.md)(?:#(.+))?$/i;
 
 /**
  * Check one link target against a version's guide + anchor inventory.
@@ -141,8 +160,16 @@ function checkTarget(target, currentSlug, guides, anchorsBySlug) {
       : `anchor "#${frag}" not found in ${currentSlug}`;
   }
 
+  const adr = ADR_XREF.exec(target);
+  if (adr) {
+    // render.jsx rewrites this to a GitHub blob URL; guard the file still exists.
+    return ADR_FILES.has(adr[1])
+      ? null
+      : `ADR "${adr[1]}" does not exist in docs/adr/`;
+  }
+
   const m = INTRA_GUIDE.exec(target);
-  if (!m) return null; // ../adr/..., ../../deploy/, *.go, directories — out of scope
+  if (!m) return null; // ../../deploy/, *.go, directories — out of scope
 
   const slug = m[1];
   const frag = m[2];
