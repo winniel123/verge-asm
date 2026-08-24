@@ -469,6 +469,67 @@ func TestSignalsExportButtonGated(t *testing.T) {
 	}
 }
 
+// TestDeriveSignalInstancesDatum is the P0.1 datum end-to-end: the handler folds
+// the live censuses into the flat per-instance table SignalData.jsx renders — each
+// currently-fired (rule, subject) pair carrying its rule's severity, a stable minted
+// SIG-#### id, and its first/last-seen instants — ordered by the severity ramp.
+func TestDeriveSignalInstancesDatum(t *testing.T) {
+	f := newFakeStore()
+	srv := newServer(f, testKey, "", fixedClock())
+
+	// A critical service firing and a medium name firing, given out of ramp order to
+	// prove the derivation sorts by severity.
+	censuses := []signal.Census{
+		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "edge.example.com"}}},
+		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "198.51.100.7:5900/tcp"}}},
+	}
+
+	insts, err := srv.deriveSignalInstances(t.Context(), censuses)
+	if err != nil {
+		t.Fatalf("deriveSignalInstances: %v", err)
+	}
+	if len(insts) != 2 {
+		t.Fatalf("want 2 instances (one per fired pair), got %d", len(insts))
+	}
+
+	// Severity ramp order: critical before medium.
+	crit := insts[0]
+	if crit.Signal != "sensitive-port-reached-from-internet" {
+		t.Fatalf("critical instance should sort first, got %q", crit.Signal)
+	}
+	if crit.Severity != "critical" || crit.SevRank != 0 {
+		t.Errorf("severity = %q rank %d, want critical/0", crit.Severity, crit.SevRank)
+	}
+	if crit.IP != "198.51.100.7" || crit.Port != ":5900" {
+		t.Errorf("addr/port = %q/%q, want 198.51.100.7/:5900", crit.IP, crit.Port)
+	}
+	if crit.Title != "Sensitive port reached from internet" {
+		t.Errorf("title = %q", crit.Title)
+	}
+	if !strings.HasPrefix(crit.SigID, "SIG-") {
+		t.Errorf("SigID = %q, want a SIG-#### id", crit.SigID)
+	}
+	if crit.First == "" || crit.Last == "" {
+		t.Errorf("instants: first=%q last=%q, both must be present", crit.First, crit.Last)
+	}
+	if med := insts[1]; med.Severity != "medium" || med.IP != "" || med.Port != "" {
+		t.Errorf("name instance = %+v, want medium severity and no ip/port", med)
+	}
+
+	// Identity is stable: re-deriving the same fired set keeps each SIG id and its
+	// first-seen instant (the mint is idempotent on the pair).
+	again, err := srv.deriveSignalInstances(t.Context(), censuses)
+	if err != nil {
+		t.Fatalf("re-derive: %v", err)
+	}
+	if again[0].SigID != crit.SigID {
+		t.Errorf("SIG id not stable: %q then %q", crit.SigID, again[0].SigID)
+	}
+	if again[0].First != crit.First {
+		t.Errorf("first-seen not stable: %q then %q", crit.First, again[0].First)
+	}
+}
+
 func TestSignalsRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "")

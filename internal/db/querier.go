@@ -693,6 +693,13 @@ type Querier interface {
 	// sessions list. token_hash is omitted from the read: listing never needs it, so
 	// the secret material stays out of the render path.
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
+	// Every minted instance identity, ordered by signal then subject — the same
+	// deterministic order the annotation ledger uses. The web layer folds these
+	// against the live census by `(signal_name, subject_key)` to attach each currently
+	// -fired member its stable id and first-seen instant; a stored row whose pair is no
+	// longer firing simply matches nothing this render and contributes no per-instance
+	// row (the pair is not currently open).
+	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
 	// where one exists and its shipped default otherwise.
@@ -729,6 +736,19 @@ type Querier interface {
 	ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error)
 	// The current frequency edits, with who made each, for the management UI.
 	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error)
+	// Every subject withdrawal since @since, paired with the subject's first appearance,
+	// so the web layer derives the mean-time-to-withdrawal trend (P0.3, #444). A
+	// withdrawal closes EVERY open timeline a subject held at one instant (ADR-0082,
+	// CloseWithdrawal), so the per-facet closures collapse to one subject departure:
+	// DISTINCT ON (subject_kind, subject_key, closed_at) keeps one row per departure.
+	// first_opened is the earliest opened_at across ALL the subject's spans — its
+	// appearance — so time-to-withdrawal is withdrawn_at - first_opened. Only a WITHDRAWAL
+	// close counts: closure_reason IS NOT NULL excludes an ordinary value-move close
+	// (which carries no reason and is not a departure). Reads FROM span only — the
+	// already-derived, never-compacted corpus (ADR-0041) — so it is NOT live-tier gated;
+	// an @as_of bound would wrongly hide settled history rather than protect a
+	// re-derivation. Ordered by the withdrawal instant for a stable, oldest-first series.
+	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]ListWithdrawalLifespansRow, error)
 	// The latest supplied zone file per name-scope Seed, with its declared domain and
 	// content, so the web layer can extract the owner names the operator declares
 	// (signal.DeclaredNames) — the domain of the two zone rules. One row per Seed;
@@ -766,6 +786,21 @@ type Querier interface {
 	// A pinned host key later mismatched, or the position went unreachable: the
 	// vantage is marked unavailable rather than silently re-trusting a new key.
 	MarkVantageUnavailable(ctx context.Context, id int64) error
+	// Per-instance signal identity (#442, P0.1). A signal_instance is the persistent
+	// id + first-seen instant of one `(signal-name, subject)` pair the engine placed
+	// under `fired`. The census is re-derived live and never stored; these two queries
+	// add only the mintable `SIG-####` id (formatted from the identity) and the
+	// first-seen instant that a pure re-derivation cannot reconstruct. Everything else
+	// the SignalData.jsx row shows is derived on read (severity from the rule,
+	// last-seen = the current derivation instant, asset/ip/port from the subject key).
+	// Mint an identity for every currently-fired pair, idempotently. Called on the
+	// Signals read path with the whole current fired set unnested into two parallel
+	// arrays; ON CONFLICT DO NOTHING means a pair already firing keeps its original id
+	// and first_seen (so "first seen" is when it was first raised, not last rendered),
+	// while a newly-fired pair is minted with first_seen defaulting to now(). It writes
+	// identity only — never a severity, never a last-seen — so the row carries exactly
+	// what must persist.
+	MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error
 	// The Addresses a current resolution cites, per Name — an `Address` is in the
 	// estate exactly while a current resolution cites it. Only a `Resolved` value
 	// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,

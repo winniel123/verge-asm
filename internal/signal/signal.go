@@ -127,14 +127,20 @@ func (v Version) String() string {
 }
 
 // Rule is one `Signal`: a named, versioned rule that decides an Outcome for one
-// subject's Derived facts. It has no lifecycle of its own and no severity — it is
-// a named fact, and urgency belongs to the transition that surfaces it.
+// subject's Derived facts. It has no lifecycle of its own — it is a named fact —
+// and it carries a `Severity`, the five-level ramp assigned per rule (P0.1; the
+// PARITY-CHART.md ruling that the design is normative for look AND functionality,
+// superseding the old "a signal carries no severity" reading). The ramp is a
+// fixed property of the rule, not of the transition that surfaces it.
 type Rule interface {
 	// Name is the fact the rule reads, never a conclusion or a protocol
 	// (CONTEXT.md `Signal`). Its extension is the rule's `Predicate domain`.
 	Name() string
 	// Version is the rule's version vector.
 	Version() Version
+	// Severity is the rule's five-level urgency ramp (critical…info), shared by
+	// every instance the rule raises.
+	Severity() Severity
 	// Eval decides the subject's Outcome. Returning OutsideDomain excludes the
 	// subject from the census entirely.
 	Eval(f NameFacts) Outcome
