@@ -23,9 +23,17 @@ func sampleArtifact() Artifact {
 			{Label: "New assets", Value: "12", Delta: "+8", DeltaTone: "neutral", Caption: "8 names · 4 addresses"},
 			{Label: "Scans run", Value: "128", Caption: "this period"},
 		},
-		Appeared: []ArtifactChange{
-			{Change: "appeared", Subject: "edge-gw-03.acmecorp.io", Detail: "entered the estate aug 22"},
-			{Change: "revealed", Subject: "api.acmecorp.io", Detail: "came into view aug 22"},
+		SeverityCounts: []ArtifactSeverityCount{
+			{Level: "critical", Count: 3},
+			{Level: "high", Count: 11},
+			{Level: "medium", Count: 18},
+			{Level: "low", Count: 9},
+			{Level: "info", Count: 6},
+		},
+		Signals: []ArtifactSignal{
+			{Severity: "critical", Signal: "Service answering without transport encryption", Asset: "edge-gw-03.acmecorp.io", Raised: "aug 22"},
+			{Severity: "high", Signal: "Endpoint reachable from the internet", Asset: "api.acmecorp.io", Raised: "aug 22"},
+			{Severity: "medium", Signal: "Certificate expires in 23 days", Asset: "idp-signing-2026", Raised: "aug 20"},
 		},
 		Withdrawn: []ArtifactChange{
 			{Change: "withdrawn", Subject: "staging-4.acmecorp.io:8080", Detail: "closed since batch 14:00Z"},
@@ -54,8 +62,9 @@ func TestRenderArtifactPDFPopulated(t *testing.T) {
 }
 
 // The PDF says the same things the delivered document says: the identity, the KPI
-// band, the two change sections and their subjects, and the delivery receipt — and
-// it grades nothing (no valence word reaches the print copy).
+// band, the by-severity breakdown, the signals table, the withdrawn section and its
+// subjects, and the delivery receipt — and it grades nothing in prose (no valence
+// word reaches the print copy; the severity ramp is the exempt one loud voice).
 func TestArtifactPDFStringsPopulated(t *testing.T) {
 	got := strings.Join(artifactPDFStrings(sampleArtifact()), "\n")
 
@@ -65,7 +74,9 @@ func TestArtifactPDFStringsPopulated(t *testing.T) {
 		"verge v0.9.2",
 		"Open signals", "47", "+3", "vs previous week", // KPI band, delta appended to numeral
 		"Scans run", "128",
-		"New this week", "edge-gw-03.acmecorp.io", // appeared section
+		"Open signals by severity",                // severity breakdown header
+		"New this week", "edge-gw-03.acmecorp.io", // signals table
+		"Endpoint reachable from the internet",                 // a signal headline
 		"Withdrawn by the world", "staging-4.acmecorp.io:8080", // withdrawn section
 		"delivered 2026-08-22T09:00Z · ops.acmecorp.io", // receipt, host only
 	} {
@@ -75,9 +86,19 @@ func TestArtifactPDFStringsPopulated(t *testing.T) {
 	}
 
 	// No valence word grades the print copy — the same guarantee the HTML render
-	// makes. The strings are visible text only, so the guard reads them directly.
-	if ContainsValence(got) {
-		t.Errorf("PDF copy carries a valence word; text:\n%s", got)
+	// makes. The severity ramp is the one loud voice, exempt from the graded-prose
+	// guard exactly as on screen: its labels are never emitted to this view, and its
+	// section title (which names the scale) is dropped here as the HTML test strips
+	// the marked ramp elements. What remains is pure prose and grades nothing.
+	var prose []string
+	for _, s := range artifactPDFStrings(sampleArtifact()) {
+		if s == artifactSeverityTitle {
+			continue
+		}
+		prose = append(prose, s)
+	}
+	if joined := strings.Join(prose, "\n"); ContainsValence(joined) {
+		t.Errorf("PDF copy carries a valence word; text:\n%s", joined)
 	}
 }
 
