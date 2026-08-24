@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
@@ -540,5 +541,44 @@ func TestReportsExportRequiresLogin(t *testing.T) {
 	}
 	if loc := resp.Header.Get("Location"); loc != "/login" {
 		t.Fatalf("anonymous export location = %q, want /login", loc)
+	}
+}
+
+// The trend datum (P0.3, #444) is built and threaded through reportsPage: with a
+// per-instance ledger and a withdrawal history seeded, the page still renders the
+// full 200 composition. The series themselves are painted by P2.4, so this guards
+// the web-layer glue — the severity lookup that splits the critical+high series and
+// the pgtype handling of the withdrawal instants — against a real, populated read
+// rather than only the empty path the other tests exercise. The derivations proper
+// are unit-tested in internal/drift/trend_test.go.
+func TestReportsBuildsTrendDatumWithoutError(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	// A per-instance ledger: one high-severity rule (elevated) and one calm rule,
+	// first-seen inside the window, so the signals-over-time fold has real raises.
+	within := reportsClock.AddDate(0, 0, -7)
+	f.signalInstances = []db.SignalInstance{
+		{ID: 1000, SignalName: "cname-target-name-error", SubjectKey: "a.example.com", FirstSeen: pgtype.Timestamptz{Time: within, Valid: true}},
+		{ID: 1001, SignalName: "some-unknown-calm-rule", SubjectKey: "b.example.com", FirstSeen: pgtype.Timestamptz{Time: within, Valid: true}},
+	}
+
+	// A subject withdrawal in the window: appeared three weeks before it was
+	// withdrawn, so the mean-time-to-withdrawal KPI has a real interval to average.
+	appeared := reportsClock.AddDate(0, 0, -28)
+	withdrawn := reportsClock.AddDate(0, 0, -7)
+	f.withdrawalLifespans = []db.ListWithdrawalLifespansRow{
+		{SubjectKind: "name", SubjectKey: "gone.example.com",
+			WithdrawnAt: pgtype.Timestamptz{Time: withdrawn, Valid: true},
+			FirstOpened: pgtype.Timestamptz{Time: appeared, Valid: true}},
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/reports", http.StatusOK)
+	// The page composes as before — the heatmap card is the stable structural anchor
+	// the datum wiring must not have disturbed.
+	if !strings.Contains(page, "Scans per day") {
+		t.Fatal("Reports page should still render the scans-per-day heatmap with the trend datum wired")
 	}
 }
