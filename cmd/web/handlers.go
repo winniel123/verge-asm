@@ -644,9 +644,14 @@ func (s *server) handler() http.Handler {
 	// through a confirm step (never fired on the tile click). Both mutations are
 	// admin acts, and the Integrations tab itself is reached only through the
 	// admin-gated /settings — an integration is distinct from a delivery channel
-	// and from a discovery source, and keeps its own routes.
-	mux.HandleFunc("POST /settings/integrations/install", s.requireAdmin(s.installIntegration))
-	mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.disconnectIntegration))
+	// and from a discovery source, and keeps its own routes. These routes are only
+	// registered when the Integrations surface is live (#388, integrationsEnabled):
+	// with the surface hidden they stay unregistered, so no user-facing route can
+	// write to integration_state.
+	if integrationsEnabled {
+		mux.HandleFunc("POST /settings/integrations/install", s.requireAdmin(s.installIntegration))
+		mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.disconnectIntegration))
+	}
 
 	// Recovered panics render the 500 error page with a real, logged incident id
 	// (T11, #306). Wrapped once here at the mux-construction boundary; the render

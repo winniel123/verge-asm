@@ -507,6 +507,15 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		active = tabForSection(f.section)
 	}
 
+	// The Integrations surface is hidden (#388, integrationsEnabled). A direct
+	// ?tab=integrations navigation renders no tab and no section, so bounce it to
+	// the default Scans tab rather than an empty page — nothing integration-related
+	// is reachable while the flag is off.
+	if active == "integrations" && !integrationsEnabled {
+		http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
+		return
+	}
+
 	data := map[string]any{
 		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "settings", "Tab": active,

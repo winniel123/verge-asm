@@ -38,7 +38,7 @@ const settingsTemplates = `
 <a class="tab{{if eq .Tab "aperture"}} active{{end}}" href="/settings?tab=aperture">Port aperture</a>
 <a class="tab{{if eq .Tab "instance"}} active{{end}}" href="/settings?tab=instance">Health</a>
 <a class="tab{{if eq .Tab "channels"}} active{{end}}" href="/settings?tab=channels">Channels</a>
-<a class="tab{{if eq .Tab "integrations"}} active{{end}}" href="/settings?tab=integrations">Integrations</a>
+{{if integrationsEnabled}}<a class="tab{{if eq .Tab "integrations"}} active{{end}}" href="/settings?tab=integrations">Integrations</a>{{end}}
 <a class="tab{{if eq .Tab "messages"}} active{{end}}" href="/settings?tab=messages">Messages</a>
 <a class="tab{{if eq .Tab "delivery"}} active{{end}}" href="/settings?tab=delivery">Delivery</a>
 </div>
@@ -53,7 +53,7 @@ const settingsTemplates = `
 {{if eq .Tab "aperture"}}{{template "settings-aperture" .}}{{end}}
 {{if eq .Tab "instance"}}{{template "settings-instance" .}}{{end}}
 {{if eq .Tab "channels"}}{{template "settings-channels" .}}{{end}}
-{{if eq .Tab "integrations"}}{{template "settings-integrations" .}}{{end}}
+{{if integrationsEnabled}}{{if eq .Tab "integrations"}}{{template "settings-integrations" .}}{{end}}{{end}}
 {{if eq .Tab "messages"}}{{template "settings-messages" .}}{{end}}
 {{if eq .Tab "delivery"}}{{template "settings-delivery" .}}{{end}}
 </main>

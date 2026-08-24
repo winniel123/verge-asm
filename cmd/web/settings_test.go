@@ -65,11 +65,12 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 		t.Fatalf("anon GET /settings: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 
-	// An admin reaches all seven sub-tabs, and each folded section renders on its
-	// own tab.
+	// An admin reaches every sub-tab, and each folded section renders on its own
+	// tab. The Integrations tab is intentionally absent — that surface is hidden
+	// (#388, integrationsEnabled); see TestIntegrationsTabHidden.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := settingsBody(t, ac, base)
-	for _, tab := range []string{"tab=scans", "tab=vantages", "tab=sso", "tab=team", "tab=audit", "tab=sources", "tab=aperture", "tab=instance", "tab=channels", "tab=integrations", "tab=messages", "tab=delivery"} {
+	for _, tab := range []string{"tab=scans", "tab=vantages", "tab=sso", "tab=team", "tab=audit", "tab=sources", "tab=aperture", "tab=instance", "tab=channels", "tab=messages", "tab=delivery"} {
 		if !strings.Contains(page, tab) {
 			t.Errorf("settings tab bar missing %q", tab)
 		}

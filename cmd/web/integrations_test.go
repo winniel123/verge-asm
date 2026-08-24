@@ -33,6 +33,16 @@ func (f *fakeStore) DeleteIntegrationState(_ context.Context, slug string) error
 
 // --- helpers ----------------------------------------------------------------
 
+// skipIfIntegrationsHidden skips a behavioural Integrations test while the surface
+// is hidden (#388, integrationsEnabled == false). Flipping the flag to revive the
+// surface makes these tests run again.
+func skipIfIntegrationsHidden(t *testing.T) {
+	t.Helper()
+	if !integrationsEnabled {
+		t.Skip("integrations surface hidden (#388)")
+	}
+}
+
 // integrationsBody fetches the Integrations sub-tab with an optional extra query
 // fragment (e.g. "&open=slack"). Settings is admin-gated, so pass an admin client.
 func integrationsBody(t *testing.T, c *http.Client, base, extra string) string {
@@ -47,12 +57,103 @@ func integrationsBody(t *testing.T, c *http.Client, base, extra string) string {
 	return body(t, resp)
 }
 
-// --- tests ------------------------------------------------------------------
+// --- hidden-surface tests ---------------------------------------------------
+//
+// The Integrations surface is hidden (#388, integrationsEnabled == false). These
+// tests assert nothing integration-related is reachable in that shipped state.
+// When the surface is revived (the flag flipped to true) they skip, and the
+// behavioural tests below take over — so both states are covered in the tree and
+// flipping the one constant flips which set runs.
+
+// No Integrations tab appears in the Settings navigation while the surface is
+// hidden, and there is no link to the tab.
+func TestIntegrationsTabHidden(t *testing.T) {
+	if integrationsEnabled {
+		t.Skip("integrations surface is live; the tab is expected to render")
+	}
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := settingsBody(t, ac, base)
+	if strings.Contains(page, "tab=integrations") {
+		t.Errorf("settings tab bar still links to the hidden Integrations tab; body: %s", page)
+	}
+	if strings.Contains(page, ">Integrations<") {
+		t.Errorf("an Integrations tab still renders while the surface is hidden; body: %s", page)
+	}
+}
+
+// Navigating directly to /settings?tab=integrations does not render the
+// placeholder catalog: it redirects to another tab.
+func TestIntegrationsDirectNavRedirects(t *testing.T) {
+	if integrationsEnabled {
+		t.Skip("integrations surface is live; the tab is expected to render")
+	}
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// The test client does not follow redirects, so the 303 is observable here.
+	resp, err := ac.Get(base + "/settings?tab=integrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=scans" {
+		t.Fatalf("direct nav to hidden tab: status=%d loc=%q, want 303 -> /settings?tab=scans",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	page := body(t, resp)
+	// The catalog and its scaffolding must not render on the redirect body.
+	for _, absent := range []string{"Channels need no integration", "Install Slack", "Install PagerDuty"} {
+		if strings.Contains(page, absent) {
+			t.Errorf("the placeholder catalog rendered on the hidden tab; found %q; body: %s", absent, page)
+		}
+	}
+}
+
+// No user-facing route can write to integration_state: the install and disconnect
+// routes are unregistered while the surface is hidden, so a POST is a 404 and
+// nothing is written.
+func TestIntegrationsMutationRoutesUnregistered(t *testing.T) {
+	if integrationsEnabled {
+		t.Skip("integrations surface is live; the mutation routes are expected to be registered")
+	}
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	for _, path := range []string{"/settings/integrations/install", "/settings/integrations/disconnect"} {
+		resp := postForm(t, ac, base+path, url.Values{"slug": {"slack"}})
+		got := resp.StatusCode
+		resp.Body.Close()
+		// With no POST handler registered, the mux answers 405 — the path is only
+		// matched by the catch-all "GET /" subtree, so it is method-not-allowed
+		// rather than not-found. Either way there is no route that writes: the
+		// definitive check is that integration_state stays empty below.
+		if got != http.StatusMethodNotAllowed && got != http.StatusNotFound {
+			t.Errorf("POST %s while hidden: status=%d, want 405/404 (no write route registered)", path, got)
+		}
+	}
+	if len(f.integrationStates) != 0 {
+		t.Fatalf("a hidden-surface route wrote to integration_state; got %d rows", len(f.integrationStates))
+	}
+}
+
+// --- behavioural tests (dormant while the surface is hidden) -----------------
+//
+// These exercise the full Integrations surface and run only when it is revived
+// (integrationsEnabled == true). They are kept in the tree so the future real
+// build inherits the coverage by flipping the one constant.
 
 // The tile grid renders every catalogued integration with its install state, the
 // category segments, and the channels-vs-integration callout — with no fabricated
 // install state: a fresh install shows every tile available (not installed).
 func TestIntegrationsTileGridRenders(t *testing.T) {
+	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -94,6 +195,7 @@ func TestIntegrationsTileGridRenders(t *testing.T) {
 // consent, and it persists real install state. Consent is gated: the grants are
 // shown with the install action, and grants are all-or-nothing.
 func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
+	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -141,6 +243,7 @@ func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
 // confirm button POSTs the disconnect. An available integration offers no
 // disconnect target at all.
 func TestIntegrationsDisconnectRoutesThroughConfirm(t *testing.T) {
+	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -193,6 +296,7 @@ func TestIntegrationsDisconnectRoutesThroughConfirm(t *testing.T) {
 // a configuration callout in the drawer. Seeded directly: needs-config is a real
 // stored state the render must handle, never fabricated into the catalogue.
 func TestIntegrationsNeedsConfigRenders(t *testing.T) {
+	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	f.integrationStates["jira"] = db.IntegrationState{Slug: "jira", State: integrationNeedsConfig}
@@ -211,6 +315,7 @@ func TestIntegrationsNeedsConfigRenders(t *testing.T) {
 
 // The category segment and search box narrow the catalogue.
 func TestIntegrationsFilterAndSearch(t *testing.T) {
+	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -233,6 +338,7 @@ func TestIntegrationsFilterAndSearch(t *testing.T) {
 // Sources tab carries the discovery-source catalogue, the Integrations tab the
 // third-party tiles, and neither bleeds into the other.
 func TestIntegrationsAdminGatedAndDistinctFromSources(t *testing.T) {
+	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
