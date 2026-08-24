@@ -1,7 +1,7 @@
 ---
-title: Single sign-on with Keycloak
-section: Operating
-order: 9
+title: SSO with Keycloak
+section: Access
+order: 7
 description: Configure Keycloak as an OpenID Connect provider for verge-asm — pick a realm, register a client and its two callback URLs, and let users link their verified identity to a local account.
 ---
 
