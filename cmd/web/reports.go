@@ -196,6 +196,91 @@ func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]dr
 	return out, nil
 }
 
+// reportsDiscoveryBucket is the discovery series' bucket width — one DAY, matching
+// the spec's daily-discovery BarChart (Reports.jsx DISCOVERY is one bar per day).
+// The series carries `days` (weeks * 7) buckets over the selected range, so a
+// discovery bar lines up column-for-column with a scans-per-day heatmap cell.
+const reportsDiscoveryBucket = 24 * time.Hour
+
+// firstAppearances reads the Name/Service first-appearance ledger since a read
+// instant into the discovery fold's input (P2.4b, #468): one drift.Appearance per
+// subject, carrying its earliest span opened_at (the `appeared` classification) and
+// whether it is a service, so the fold derives the per-period count, its name/
+// service split, and the daily-discovery series. Read back two windows by the caller
+// so the previous equal period is comparable for the vs-previous-period delta.
+func (s *server) firstAppearances(ctx context.Context, since time.Time) ([]drift.Appearance, error) {
+	rows, err := s.store.ListSubjectFirstAppearances(ctx, pgtype.Timestamptz{Time: since, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]drift.Appearance, 0, len(rows))
+	for _, row := range rows {
+		if !row.FirstOpened.Valid {
+			continue
+		}
+		out = append(out, drift.Appearance{
+			At:      row.FirstOpened.Time.UTC(),
+			Service: row.SubjectKind == "service",
+		})
+	}
+	return out, nil
+}
+
+// reportsBar is one bar of the daily-discovery BarChart: its height as a percentage
+// of the busiest day, whether it is the emphasised last (today) bar, and a hover
+// title (the day's discovery count). Height is folded in the handler so the template
+// stays arithmetic-free, mirroring BarChart.jsx (flex bars, height ∝ value/max,
+// non-last bars dimmed).
+type reportsBar struct {
+	HeightPct int
+	Last      bool
+	Title     string
+}
+
+// reportsBarChart is the server-rendered form of BarChart.jsx for the "New assets
+// discovered" card: the per-day bars plus the two span labels the design draws under
+// the axis (oldest edge and today).
+type reportsBarChart struct {
+	Bars       []reportsBar
+	LeftLabel  string
+	RightLabel string
+}
+
+// buildReportsBarChart folds the daily-discovery series into the bar geometry,
+// scaling each bar to a percentage of the busiest day (floored at 1 so an all-zero
+// series is every bar at its 2px minimum rather than a divide-by-zero), exactly as
+// BarChart.jsx does. The last bar (today) is emphasised; the rest are dimmed.
+func buildReportsBarChart(points []drift.DiscoveryPoint, weeks int) reportsBarChart {
+	max := 1
+	for _, p := range points {
+		if p.Count > max {
+			max = p.Count
+		}
+	}
+	bars := make([]reportsBar, len(points))
+	for i, p := range points {
+		bars[i] = reportsBar{
+			HeightPct: p.Count * 100 / max,
+			Last:      i == len(points)-1,
+			Title:     pluralAssets(p.Count),
+		}
+	}
+	return reportsBarChart{
+		Bars:       bars,
+		LeftLabel:  strconv.Itoa(weeks) + "w ago",
+		RightLabel: "today",
+	}
+}
+
+// pluralAssets renders a discovery count as the console's terse asset figure — the
+// bar's hover title. "asset" is the UI collective noun for a watched Name/Service.
+func pluralAssets(n int) string {
+	if n == 1 {
+		return "1 asset"
+	}
+	return strconv.Itoa(n) + " assets"
+}
+
 // reportsDurationDays renders a duration as the console's terse day figure ("2.4d"),
 // the form the mean-time-to-withdrawal KPI reads (Reports.jsx). A sub-day mean still
 // renders in days ("0.4d") so the KPI keeps one unit.
@@ -310,15 +395,15 @@ func buildMTTWDelta(cur, prev time.Duration) reportsDelta {
 	}
 }
 
-// reportsStatDeltas builds the two KPI-band deltas the Reports screen shows a real
-// number for: open signals (more is bad) and assets watched (neutral — growth is
-// neither good nor bad in itself). Both are vs-last-batch (P0.2), reconstructed from
-// the same span/first-seen history the Dashboard reads. assetsCount is the current
-// distinct name/service subject count (the "Assets watched" card value). Where no
-// previous batch exists, or a read fails, every return degrades to Has=false /
-// hasAssets=false so the cards render their no-delta / unavailable state. fired is
-// the census the caller already evaluated, so the corpus is not re-folded here.
-func (s *server) reportsStatDeltas(ctx context.Context, fired []firedSignal) (open, assets reportsDelta, assetsCount int, hasAssets bool) {
+// reportsOpenDelta builds the "Open signals" KPI-band delta — the current firing
+// census vs those already firing a batch ago (more signals is the bad direction),
+// vs-last-batch (P0.2), reconstructed from the same span/first-seen history the
+// Dashboard reads. fired is the census the caller already evaluated, so the corpus
+// is not re-folded here. Where no previous batch exists, or a read fails, it returns
+// Has=false so the card renders its no-delta state rather than a fabricated +0. The
+// KPI band's second card (New assets discovered) derives its own count/delta from
+// the first-appearance ledger (reportsPage), not from this vs-last-batch helper.
+func (s *server) reportsOpenDelta(ctx context.Context, fired []firedSignal) (open reportsDelta) {
 	prevAt, ok, err := s.previousBatchInstant(ctx)
 	if err != nil {
 		log.Printf("web: reports: previous batch instant: %v", err)
@@ -327,27 +412,6 @@ func (s *server) reportsStatDeltas(ctx context.Context, fired []firedSignal) (op
 	if !ok {
 		return
 	}
-
-	// Assets watched — distinct name/service subjects with an open span, now vs a
-	// batch ago, off the span corpus scoped to recent drift.
-	rows, serr := s.store.ListSpansOpenSince(ctx, pgtypeTimestamptz(prevAt))
-	if serr != nil {
-		log.Printf("web: reports: list spans open since: %v", serr)
-		return
-	}
-	watched := make([]drift.Span, 0, len(rows))
-	for _, row := range rows {
-		if row.SubjectKind == "name" || row.SubjectKind == "service" {
-			watched = append(watched, spanFromOpenSinceRow(row))
-		}
-	}
-	ad := drift.CountDelta(watched, prevAt, drift.DistinctSubjects)
-	atext, adir := signedCount(ad.Change())
-	assets = reportsDelta{Has: true, Text: atext, Tone: "neutral", Dir: adir}
-	assetsCount, hasAssets = ad.Current, true
-
-	// Open signals — the current census vs those already firing a batch ago (more
-	// signals is the bad direction).
 	od, _, derr := s.signalDeltas(ctx, fired, prevAt)
 	if derr != nil {
 		log.Printf("web: reports: signal deltas: %v", derr)
@@ -559,6 +623,14 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	weeks := resolveReportsWeeks(r)
 	days := weeks * 7
 
+	// The range's window bounds, shared by the trend folds (P0.3) and the discovery
+	// count (P2.4b): `windowStart` opens the selected period, `doubleStart` the equal
+	// period before it — the ledgers are read back to doubleStart so each card's
+	// vs-previous-period delta is comparable, then split at windowStart.
+	now := s.now().UTC()
+	windowStart := now.Add(-reportsTrendBucket * time.Duration(weeks))
+	doubleStart := now.Add(-reportsTrendBucket * time.Duration(2*weeks))
+
 	// Operational activity — the scans-per-day heatmap. A Dispatch read failure
 	// degrades to an empty heatmap rather than failing the whole analytics page a
 	// viewer depends on. The window/in-flight scalars the export carries are folded
@@ -577,15 +649,38 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// to its empty pattern rather than a fabricated zero.
 	openSignals, bySeverity, fired, hasOpenSignals := s.reportsSignalCensus(r)
 
-	// Vs-last-batch deltas for the KPI band (P0.2): open signals and assets watched.
-	openDelta, assetsDelta, assetsCount, hasAssets := s.reportsStatDeltas(ctx, fired)
+	// Open-signals vs-last-batch delta for the KPI band's first card (P0.2).
+	openDelta := s.reportsOpenDelta(ctx, fired)
+
+	// New assets discovered — the KPI band's second card (P2.4b, #468). The count of
+	// Name/Service subjects that FIRST appeared in the selected range, its
+	// vs-previous-period signed delta, its name/service split, and the daily-discovery
+	// bar series (Reports.jsx DISCOVERY). Derived from the span corpus's per-subject
+	// first appearance (MIN(opened_at), the `appeared` classification): the ledger is
+	// read back two windows so the previous equal window is comparable, then split at
+	// the window start. A read failure degrades the card to the ReportCard's empty
+	// pattern rather than 500ing the page (PARITY-CHART acceptance #7).
+	discoveryCount, discoveryNames, discoverySvcs := 0, 0, 0
+	var discoveryDelta reportsDelta
+	var discoveryBars reportsBarChart
+	hasDiscovery := false
+	if apps, aerr := s.firstAppearances(ctx, doubleStart); aerr != nil {
+		log.Printf("web: reports: first appearances: %v", aerr)
+	} else {
+		cur := drift.DiscoveryCount(apps, windowStart, now)
+		prev := drift.DiscoveryCount(apps, doubleStart, windowStart)
+		dtext, ddir := signedCount(cur.Total - prev.Total)
+		discoveryDelta = reportsDelta{Has: true, Text: dtext, Tone: "neutral", Dir: ddir}
+		discoveryBars = buildReportsBarChart(drift.DiscoverySeries(apps, now, reportsDiscoveryBucket, days), weeks)
+		discoveryCount, discoveryNames, discoverySvcs = cur.Total, cur.Names, cur.Services
+		hasDiscovery = true
+	}
 
 	// Signals-over-time — the design's "Open signals over time" line and its
 	// "Critical + high" companion (Reports.jsx), folded from the per-instance
 	// first-seen ledger over the selected range in weekly buckets (P0.3, #444). It
 	// paints both the big trend chart and the "Open signals" card sparkline. A ledger
 	// read failure degrades to an empty series rather than failing the page.
-	now := s.now().UTC()
 	var signalPoints []drift.SignalPoint
 	hasSignalTrend := false
 	if raises, rerr := s.signalRaises(ctx); rerr != nil {
@@ -610,8 +705,6 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// compares it against the previous equal window, so the ledger is read back two
 	// windows and split. A read failure degrades the KPI to unavailable, the trend to
 	// empty and the delta away, rather than 500ing the page (P0.3, #444).
-	windowStart := now.Add(-reportsTrendBucket * time.Duration(weeks))
-	doubleStart := now.Add(-reportsTrendBucket * time.Duration(2*weeks))
 	var withdrawalPoints []drift.WithdrawalPoint
 	mttw, hasMTTW := "—", false
 	var mttwDelta reportsDelta
@@ -650,9 +743,14 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"OpenSpark":      signalSpark,
 		"HasOpenSpark":   hasSignalSpark,
 
-		"AssetsCount": assetsCount,
-		"HasAssets":   hasAssets,
-		"AssetsDelta": assetsDelta,
+		// New assets discovered (P2.4b, #468): the per-period count, its name/service
+		// split caption, the vs-previous-period delta, and the daily-discovery bars.
+		"DiscoveryCount":    discoveryCount,
+		"DiscoveryNames":    discoveryNames,
+		"DiscoveryServices": discoverySvcs,
+		"HasDiscovery":      hasDiscovery,
+		"DiscoveryDelta":    discoveryDelta,
+		"DiscoveryBars":     discoveryBars,
 
 		"MTTW":        mttw,
 		"HasMTTW":     hasMTTW,

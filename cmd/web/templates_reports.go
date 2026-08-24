@@ -19,6 +19,8 @@ const reportsTemplates = `
 
 {{define "spark"}}<svg width="100%" height="{{.H}}" viewBox="0 0 {{.W}} {{.H}}" preserveAspectRatio="none" style="display:block;width:100%;overflow:visible" aria-hidden="true"><path d="{{.Area}}" fill="{{.Color}}" opacity="0.1"></path><polyline points="{{.Line}}" fill="none" stroke="{{.Color}}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="{{.DotX}}" cy="{{.DotY}}" r="2.5" fill="{{.Color}}"></circle></svg>{{end}}
 
+{{define "barchart"}}<div style="display:flex;flex-direction:column;gap:6px" aria-hidden="true"><div style="display:flex;align-items:flex-end;gap:4px;height:44px;border-bottom:1px solid var(--chart-grid);padding-bottom:1px">{{range .Bars}}<span title="{{.Title}}" style="flex:1;min-width:3px;height:{{.HeightPct}}%;min-height:2px;border-radius:3px 3px 0 0;background:var(--chart-1);opacity:{{if .Last}}1{{else}}0.45{{end}}"></span>{{end}}</div><div style="display:flex;justify-content:space-between;gap:8px"><span class="mono muted" style="font-size:9.5px">{{.LeftLabel}}</span><span class="mono muted" style="font-size:9.5px">{{.RightLabel}}</span></div></div>{{end}}
+
 {{define "reports"}}{{template "head" .}}
 {{template "chrome" .}}
 <main style="display:flex;flex-direction:column;gap:var(--space-5)">
@@ -66,16 +68,17 @@ const reportsTemplates = `
 
   <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:14px;min-width:0">
     <div style="display:flex;align-items:baseline;gap:10px">
-      <span class="microlabel">Assets watched</span>
+      <span class="microlabel">New assets discovered</span>
       <span class="mono muted" style="margin-left:auto;font-size:11px">{{.RangeLabel}}</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:2px">
       <span style="display:flex;align-items:baseline;gap:8px">
-        <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{if .HasAssets}}{{.AssetsCount}}{{else}}&#8212;{{end}}</span>
-        {{if .AssetsDelta.Has}}{{template "deltachip" .AssetsDelta}}{{end}}
+        <span class="mono" style="font-size:28px;font-weight:600;color:var(--ink);line-height:1.1">{{if .HasDiscovery}}{{.DiscoveryCount}}{{else}}&#8212;{{end}}</span>
+        {{if .DiscoveryDelta.Has}}{{template "deltachip" .DiscoveryDelta}}{{end}}
       </span>
-      <span class="muted" style="font-size:11.5px">distinct names and services</span>
+      <span class="muted" style="font-size:11.5px">{{if .HasDiscovery}}{{.DiscoveryNames}} names &#183; {{.DiscoveryServices}} services{{else}}first appearances over the period{{end}}</span>
     </div>
+    {{if .HasDiscovery}}<div style="margin-top:auto">{{template "barchart" .DiscoveryBars}}</div>{{end}}
   </section>
 
   <section style="background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--space-5);display:flex;flex-direction:column;gap:14px;min-width:0">
