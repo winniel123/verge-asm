@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -431,6 +433,124 @@ func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
 		dv.DispatchedAt = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
 	}
 	return dv
+}
+
+// --- scan schedule instants (P0.4, #445) ----------------------------------
+//
+// The Dashboard header sub-line renders two instants — "last full scan Xm ago ·
+// next in Yh Zm" (Dashboard.jsx, PARITY-CHART P0.4/P2.1). Both are real reads over
+// the scheduler's own corpora, assembled here so the home handler (auth.go
+// dashboardData) exposes them; the markup that renders them is P2.1's.
+//
+// "Last" is the instant of the most recent Dispatch across every Scan kind — the
+// last time any measurement actually fanned out (dispatch.created_at, the same
+// "when did this scan start" instant the monitor reads, #245). "Next" is the
+// soonest upcoming cadence boundary among the ENABLED Scans, floored exactly the
+// way the dispatcher floors a tick (internal/queue.scheduledTick) so the figure
+// matches when the worker will really fire. Dispatch and Scan are Operational, so
+// this read never touches the comparison path (ADR-0041).
+
+// scanScheduleView is the header sub-line's two instants and their humanized forms.
+// Has* is false where the datum is genuinely absent — no Dispatch has ever fanned
+// out, or no enabled Scan carries a cadence — so the surface renders the honest
+// "never scanned" state rather than a fabricated instant.
+type scanScheduleView struct {
+	HasLast    bool
+	LastScanAt time.Time     // the most recent Dispatch's fan-out instant (UTC)
+	SinceLast  time.Duration // now − LastScanAt, floored at zero
+	LastAgo    string        // humanized SinceLast, e.g. "38m"
+
+	HasNext    bool
+	NextScanAt time.Time     // the soonest enabled-Scan cadence boundary after now (UTC)
+	UntilNext  time.Duration // NextScanAt − now, floored at zero
+	NextIn     string        // humanized UntilNext, e.g. "5h 22m"
+}
+
+// scanSchedule assembles the last/next scan instants. Each half is best-effort: a
+// failed read logs and leaves its Has* false rather than 500ing the landing page a
+// viewer depends on, matching the rest of dashboardData's degradation discipline.
+func (s *server) scanSchedule(ctx context.Context) scanScheduleView {
+	now := s.now().UTC()
+	var v scanScheduleView
+
+	// Last: ListDispatchProgress is newest-first (ORDER BY d.id DESC), so the first
+	// row carrying a real created_at is the most recent fan-out.
+	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
+		log.Printf("web: dashboard: scan schedule: list dispatches: %v", err)
+	} else {
+		for _, r := range rows {
+			if r.CreatedAt.Valid {
+				v.LastScanAt = r.CreatedAt.Time.UTC()
+				if d := now.Sub(v.LastScanAt); d > 0 {
+					v.SinceLast = d
+				}
+				v.LastAgo = humanizeDuration(v.SinceLast)
+				v.HasLast = true
+				break
+			}
+		}
+	}
+
+	// Next: the soonest cadence boundary among the enabled Scans. A disabled Scan is
+	// off the dispatcher's cadence, so it never contributes a next tick.
+	if scans, err := s.store.ListScans(ctx); err != nil {
+		log.Printf("web: dashboard: scan schedule: list scans: %v", err)
+	} else {
+		var best time.Time
+		for _, sc := range scans {
+			if !sc.Enabled || sc.CadenceSeconds <= 0 {
+				continue
+			}
+			next := nextCadenceBoundary(now, sc.CadenceSeconds)
+			if best.IsZero() || next.Before(best) {
+				best = next
+			}
+		}
+		if !best.IsZero() {
+			v.NextScanAt = best
+			if d := best.Sub(now); d > 0 {
+				v.UntilNext = d
+			}
+			v.NextIn = humanizeCountdown(v.UntilNext)
+			v.HasNext = true
+		}
+	}
+
+	return v
+}
+
+// nextCadenceBoundary is the next dispatch tick strictly after now for a Scan of the
+// given cadence: the same flooring internal/queue.scheduledTick uses, plus one
+// cadence. Missed ticks are not caught up (dispatch is idempotent on the tick), so
+// the next fan-out is always the next boundary from now, never a stale past one.
+func nextCadenceBoundary(now time.Time, cadenceSeconds int64) time.Time {
+	secs := cadenceSeconds
+	if secs <= 0 {
+		secs = 1
+	}
+	floored := (now.UTC().Unix() / secs) * secs
+	return time.Unix(floored+secs, 0).UTC()
+}
+
+// humanizeCountdown renders a countdown as the spec's two-unit figure — "2d 3h",
+// "5h 22m", or "47m" (Dashboard.jsx "next in 5h 22m"). Under a minute reads "<1m"
+// so an imminent tick never renders a bare 0. It is the countdown twin of
+// humanizeDuration's single-unit "ago" figure.
+func humanizeCountdown(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "<1m"
+	case d >= 24*time.Hour:
+		days := int(d / (24 * time.Hour))
+		hrs := int((d % (24 * time.Hour)) / time.Hour)
+		return fmt.Sprintf("%dd %dh", days, hrs)
+	case d >= time.Hour:
+		hrs := int(d / time.Hour)
+		mins := int((d % time.Hour) / time.Minute)
+		return fmt.Sprintf("%dh %dm", hrs, mins)
+	default:
+		return fmt.Sprintf("%dm", int(d/time.Minute))
+	}
 }
 
 // toJobView shapes one queue job for the drill-down. A 'retried' row is a
