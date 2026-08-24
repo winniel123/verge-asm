@@ -10,13 +10,18 @@ import "html/template"
 //
 // The document body is NOT built here — it is rendered by internal/message's
 // RenderArtifact, the on-screen render form. This page wraps that document in the
-// console chrome. "Download PDF" links to /reports/delivery/pdf, the print form of
-// the same artifact rendered by internal/message.RenderArtifactPDF (#345). "Edit
-// schedule" stays inert — there is no report-scheduling backend yet (#285, #290),
-// so it renders disabled rather than fabricating an action. A schedule that has
-// never delivered renders the design-system empty-state inside the document (and
-// so the PDF is the empty-state document until a delivery lands) — never
-// fabricated data (ADR-0110).
+// console chrome: {{.Heading}} names the delivered report, {{.Period}} the delivery
+// window (message.ArtifactPeriod), and {{.Body}} carries the document — the KPI
+// band, the by-severity bars, the signals table, the withdrawn section, and the
+// receipt footer (host only, never a raw URL). "Download PDF" links to
+// /reports/delivery/pdf, the print form of the same artifact rendered by
+// internal/message.RenderArtifactPDF (#345). "Edit schedule" stays inert — its
+// enablement is owned elsewhere — so it renders disabled rather than fabricating an
+// action. The delivery receipts store now backs this view (#291/T2): the handler
+// (reportDeliveryArtifact) reads the latest delivery and recomputes the document
+// from its period bounds. A schedule that has never delivered renders the
+// design-system empty-state inside the document (and so the PDF is the empty-state
+// document until a delivery lands) — never fabricated data (ADR-0110).
 var _ = template.Must(tmpl.Parse(reportArtifactTemplates))
 
 const reportArtifactTemplates = `
