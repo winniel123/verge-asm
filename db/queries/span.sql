@@ -167,6 +167,36 @@ WHERE b.created_at >= @since
 ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at
 LIMIT @max_events;
 
+-- name: ListWithdrawalLifespans :many
+-- Every subject withdrawal since @since, paired with the subject's first appearance,
+-- so the web layer derives the mean-time-to-withdrawal trend (P0.3, #444). A
+-- withdrawal closes EVERY open timeline a subject held at one instant (ADR-0082,
+-- CloseWithdrawal), so the per-facet closures collapse to one subject departure:
+-- DISTINCT ON (subject_kind, subject_key, closed_at) keeps one row per departure.
+-- first_opened is the earliest opened_at across ALL the subject's spans — its
+-- appearance — so time-to-withdrawal is withdrawn_at - first_opened. Only a WITHDRAWAL
+-- close counts: closure_reason IS NOT NULL excludes an ordinary value-move close
+-- (which carries no reason and is not a departure). Reads FROM span only — the
+-- already-derived, never-compacted corpus (ADR-0041) — so it is NOT live-tier gated;
+-- an @as_of bound would wrongly hide settled history rather than protect a
+-- re-derivation. Ordered by the withdrawal instant for a stable, oldest-first series.
+SELECT DISTINCT ON (w.subject_kind, w.subject_key, w.closed_at)
+    w.subject_kind AS subject_kind,
+    w.subject_key  AS subject_key,
+    w.closed_at    AS withdrawn_at,
+    fa.first_opened AS first_opened
+FROM span w
+JOIN LATERAL (
+    SELECT MIN(p.opened_at)::timestamptz AS first_opened
+    FROM span p
+    WHERE p.subject_kind = w.subject_kind
+      AND p.subject_key = w.subject_key
+) fa ON TRUE
+WHERE w.closure_reason IS NOT NULL
+  AND w.closed_at IS NOT NULL
+  AND w.closed_at >= @since
+ORDER BY w.subject_kind, w.subject_key, w.closed_at, w.id;
+
 -- name: ListReachedServices :many
 -- The open `Service` population the weekly `tls-acceptance` Scan enumerates over
 -- (#199, ADR-0028): every Service whose CURRENT `reachability` span reads `reached`,
