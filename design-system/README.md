@@ -27,7 +27,7 @@ Two kinds of material, and the distinction matters:
 6. Replace the placeholder `Logo` (pulse glyph) when a real brand mark exists — it is explicitly placeholder-quality.
 
 ## Screens (examples/)
-Console (`examples/console/`): **Dashboard** (+ first-run checklist state, `FirstRun.jsx`) · **Scope** (seeds + refusals, zone file, proposals + org-name registry search, exclusions, custody) · **Inventory** (→ `AssetDetail`) · **AssetDetail** · **Drift** (→ `RunDetail`) · **RunDetail** · **Signals** · **Exposure** (incl. the withheld state) · **Coverage** · **Graph** · **Reports** (→ `ReportArtifact`) · **ReportArtifact** · **Inbox** · **SearchResults** · **Profile** · **Settings** (scans, vantages + prober provisioning, channels, messages, delivery, SSO, integrations, team — two roles, audit log, sources catalogue, port aperture, instance health) · **SignIn** (credentials, TOTP, forgot/reset, MFA enrollment, invite) · **Setup** · **ErrorPage** (404/403/500) · **Onboarding** wizard. Plus `Homepage.jsx` (marketing) and `DocsPage.jsx` (docs).
+Console (`examples/console/`): **Dashboard** (+ first-run checklist state, `FirstRun.jsx`) · **Scope** (seeds + refusals, zone file, proposals + org-name registry search, exclusions, custody) · **Inventory** (→ `AssetDetail`) · **AssetDetail** · **SubjectDetail** (Service + Endpoint drill-ins, withdrawn state; a Name subject opens AssetDetail) · **Drift** (→ `RunDetail`) · **RunDetail** · **Signals** · **Exposure** (incl. the withheld state) · **Coverage** · **Graph** · **Reports** (→ `ReportArtifact`) · **ReportArtifact** · **Inbox** · **SearchResults** · **Profile** · **Settings** (scans, vantages + prober provisioning, channels, messages, delivery, SSO, integrations, team — two roles, sessions — admin revoke, audit log, sources catalogue, port aperture, instance health) · **SignIn** (credentials, TOTP, forgot/reset, MFA enrollment, invite) · **Setup** · **ErrorPage** (404/403/500 + no-such-subject/run + settings forbidden) · **Onboarding** wizard. Plus `Homepage.jsx` (marketing) and `DocsPage.jsx` (docs).
 
 ## Interactions & behavior conventions
 - All inputs are **controlled** (`value` + `onChange`); overlays are controlled (`open` + `onClose`).
@@ -55,9 +55,10 @@ Since the v2 package the repo imported: 12 operational views (asset/run/report d
 - `components/forms|display|feedback|navigation|media/` — ~112 components × (`.jsx` + `.d.ts` + `.prompt.md`)
 - `examples/console/` — 26 screen/flow compositions + shell (`ConsoleApp.jsx`) + screen README
 - `WORK-CHART.md` — the v3 implementation chart: work items, repo targets, parallelism notes, acceptance (executed)
-- `PARITY-CHART.md` — the v3.1 corrective chart: the exact-parity ruling and the work items that bring the executed port back to the design, look and functionality both
+- `PARITY-CHART.md` — v3.2 round-2 chart: verified Landed ledger, round-2 executables (U1–U4, D1–D6, P0.5, P2.10), rulings on collisions #7–14
 - `SPEC-CHANGE.md` — the collision protocol: how domain–spec conflicts get ruled on by design instead of resolved port-side, plus the running collision log
 - `examples/Homepage.jsx`, `examples/DocsPage.jsx` — marketing and docs surfaces
 - `screenshots/` — captures of every screen (ground truth; see its README for the index)
+- `docs/DOCS-IA.md` — the ruled docs-site left-rail IA (D1): section model + exact frontmatter deltas
 - `docs/DESIGN-NOTES.md` — full design rationale: palette math, severity contrast tables, per-batch component history, production notes
 - `docs/AGENT-GUIDE.md` — compact usage guide written for AI agents working in this system (also a good human quick-start)
