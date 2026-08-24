@@ -579,7 +579,7 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 			ID: v.ID, Name: v.Name, Class: v.Class, Resolver: v.Resolver,
 			Host: v.Host, Port: v.Port, Username: v.Username,
 			Availability: v.Availability, PublicKey: v.PublicKey, HostKey: v.HostKey,
-			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt,
+			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt, LatencyMs: v.LatencyMs,
 			CreatedByUsername: f.accounts[v.CreatedBy.Int64].Username,
 		})
 	}

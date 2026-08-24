@@ -77,7 +77,14 @@ func main() {
 	// Generate SSH keypairs for any newly provisioned vantages, keeping the
 	// private half on this worker-only volume and publishing only the public
 	// half. No measurement is dispatched over the connection yet (#8, #14).
-	provisionVantageKeys(ctx, db.New(pool), env.OrDefault("VERGE_STATE_DIR", "/app/state"))
+	stateDir := env.OrDefault("VERGE_STATE_DIR", "/app/state")
+	provisionVantageKeys(ctx, db.New(pool), stateDir)
+
+	// Measure the per-vantage connect latency the Dashboard renders (P0.5): for
+	// each provisioned prober with a published keypair but no latency yet, dial the
+	// prober connect that pins its host key and record the round-trip. Best-effort —
+	// an unreachable prober keeps its NULL latency and the Dashboard its em dash.
+	measureVantageLatencies(ctx, db.New(pool), sshProber{}, stateDir)
 
 	runSelfTest(ctx, proberPath)
 
