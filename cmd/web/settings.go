@@ -53,6 +53,20 @@ type accountRow struct {
 	IsSelf      bool
 }
 
+// sessionRow is one active session in the admin-wide sessions view (#407). It
+// carries no token hash — the listing query never projects the secret — only whose
+// session it is (Account) and at what Role, the device derived from the stored
+// User-Agent, the source IP, and the relative last-active reading.
+type sessionRow struct {
+	ID        int64
+	AccountID int64
+	Account   string
+	Role      string
+	Device    string
+	IP        string
+	LastSeen  string
+}
+
 // retentionView renders the two dials and who last moved them.
 type retentionView struct {
 	ObservationCurrencyDays int64
@@ -118,6 +132,12 @@ type settingsForms struct {
 
 	vcError string
 	vcPort  string
+
+	// sessions (#407). revokeAccountID/revokeAccountError re-open the typed-name
+	// revoke-all-for-account ConfirmDialog on a mismatch, exactly as the Team
+	// remove-account dialog re-opens through removeID/removeError.
+	revokeAccountID    int64
+	revokeAccountError string
 }
 
 // settingsTabs is the sub-tab order of the Settings screen, ported from
@@ -127,7 +147,7 @@ type settingsForms struct {
 // record). Each is reached at /settings?tab=<id>.
 var settingsTabs = []string{
 	"scans", "vantages",
-	"sso", "team", "audit",
+	"sso", "team", "audit", "sessions",
 	"sources", "aperture",
 	"instance",
 	"channels", "integrations", "messages", "delivery",
@@ -163,13 +183,33 @@ func tabForSection(section string) string {
 		return "delivery"
 	case "vergecore":
 		return "aperture"
+	case "sessions":
+		return "sessions"
 	default:
 		return "scans"
 	}
 }
 
 func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSettings(w, r, acct, settingsForms{tab: validTab(r.URL.Query().Get("tab"))})
+	q := r.URL.Query()
+	s.renderSettings(w, r, acct, settingsForms{
+		tab:    validTab(q.Get("tab")),
+		notice: sessionsNotice(q.Get("notice")),
+	})
+}
+
+// sessionsNotice maps a redirect's notice code to a fixed success line so a
+// completed admin session act (#407) confirms on the reloaded surface without
+// reflecting arbitrary query text into the page. An unknown code renders no notice.
+func sessionsNotice(code string) string {
+	switch code {
+	case "revoked":
+		return "Session revoked — its next request lands on the sign-in screen."
+	case "revoked-account":
+		return "Every session for that account was revoked."
+	default:
+		return ""
+	}
 }
 
 // --- team ------------------------------------------------------------------
@@ -536,6 +576,8 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		err = s.fillTeamSection(r, acct, f, data)
 	case "audit":
 		err = s.fillAuditSection(r, data)
+	case "sessions":
+		err = s.fillSessionsSection(r, f, data)
 	case "sources":
 		err = s.fillSourcesSection(r, data)
 	case "aperture":
@@ -763,6 +805,164 @@ func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsFor
 func (s *server) fillAuditSection(_ *http.Request, data map[string]any) error {
 	data["AuditRows"] = nil
 	return nil
+}
+
+// fillSessionsSection carries the admin-wide sessions surface (#407, ADR-0117): every
+// account's live browser sessions across the deployment, joined to the owning account's
+// username and role, grouped by account then recency (the query's own order). The
+// listing never projects the token hash. It also opens the two ConfirmDialogs by query
+// param — single-session revoke (?revoke=<sessionID>) and revoke-all-for-account
+// (?revoke-account=<accountID>, typed-name), the latter re-opened by a rejected POST
+// through settingsForms — matching the Team surface's dialog idiom.
+func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[string]any) error {
+	now := s.now()
+	rows, err := s.store.ListAllActiveSessions(r.Context(), pgtype.Timestamptz{Time: now, Valid: true})
+	if err != nil {
+		return err
+	}
+	sessions := make([]sessionRow, 0, len(rows))
+	for _, row := range rows {
+		sr := sessionRow{
+			ID: row.ID, AccountID: row.AccountID, Account: row.Username, Role: row.Role,
+			Device: sessionDeviceFromUA(row.UserAgent), IP: row.Ip,
+			LastSeen: agoLabel(row.LastSeenAt.Time, now),
+		}
+		if sr.IP == "" {
+			sr.IP = "—"
+		}
+		sessions = append(sessions, sr)
+	}
+	data["Sessions"] = sessions
+
+	q := r.URL.Query()
+	// Single-revoke ConfirmDialog: opened by ?revoke=<sessionID>. The dialog reads the
+	// session's own details from the already-gathered list.
+	if v := q.Get("revoke"); v != "" {
+		if id, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+			for i := range sessions {
+				if sessions[i].ID == id {
+					data["RevokeSessionTarget"] = &sessions[i]
+					break
+				}
+			}
+		}
+	}
+	// Revoke-all-for-account typed-name dialog: opened by ?revoke-account=<accountID> (GET)
+	// or re-opened by a rejected typed-name POST through f.revokeAccountID. The username the
+	// operator must type is taken from any of that account's sessions in the list.
+	revokeAcct := f.revokeAccountID
+	if revokeAcct == 0 {
+		if v := q.Get("revoke-account"); v != "" {
+			if id, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+				revokeAcct = id
+			}
+		}
+	}
+	if revokeAcct != 0 {
+		for i := range sessions {
+			if sessions[i].AccountID == revokeAcct {
+				data["RevokeAccountTarget"] = map[string]any{
+					"AccountID": revokeAcct, "Username": sessions[i].Account,
+				}
+				data["RevokeAccountError"] = f.revokeAccountError
+				break
+			}
+		}
+	}
+	return nil
+}
+
+// revokeSessionAdmin revokes any single session by id — the admin-wide kill of one
+// active session (#407). It is admin-gated (requireAdmin) and NOT owner-scoped
+// (RevokeSessionByIDForAdmin), reached only through the per-row ConfirmDialog. It is
+// idempotent: an unparseable or already-revoked id redirects back cleanly. The very
+// next request carrying that session's cookie resolves no live session and is bounced to
+// /login (#405).
+func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		return
+	}
+	if err := s.store.RevokeSessionByIDForAdmin(r.Context(), db.RevokeSessionByIDForAdminParams{
+		ID: id, RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		s.serverError(w, "admin revoke session", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=sessions&notice=revoked", http.StatusSeeOther)
+}
+
+// revokeAccountSessions revokes every live session for one account — the offboarding
+// kill (#407). It passes through a typed-name gate exactly as the Team remove-account
+// act does: the operator must type the account's username to confirm, and it is reached
+// only through the revoke-all ConfirmDialog. It never touches the account's membership,
+// role or personal tokens — only its live sessions — and is idempotent.
+func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("account_id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		return
+	}
+	target, err := s.store.GetAccountByID(r.Context(), id)
+	if err != nil {
+		// The account is gone; there is nothing to revoke and no dialog to re-open.
+		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		return
+	}
+	if strings.TrimSpace(r.FormValue("confirm_name")) != target.Username {
+		s.renderSettings(w, r, acct, settingsForms{
+			section: "sessions", revokeAccountID: id,
+			revokeAccountError: "That did not match. Type " + target.Username + " exactly to revoke every session.",
+		})
+		return
+	}
+	if err := s.store.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
+		AccountID: id, RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		s.serverError(w, "admin revoke account sessions", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=sessions&notice=revoked-account", http.StatusSeeOther)
+}
+
+// sessionDeviceFromUA describes a session from a stored User-Agent string — a real
+// derivation of what the client sent, never a fabricated device. It is the string-typed
+// twin of auth.go's sessionDevice (which reads the live request); the admin surface only
+// holds the persisted UA, so it derives the same label from that. An absent or
+// unrecognised agent degrades to a plain label rather than a guess.
+func sessionDeviceFromUA(ua string) string {
+	if ua == "" {
+		return "Unknown device"
+	}
+	browser := "Browser"
+	switch {
+	case strings.Contains(ua, "Firefox"):
+		browser = "Firefox"
+	case strings.Contains(ua, "Edg"):
+		browser = "Edge"
+	case strings.Contains(ua, "Chrome"), strings.Contains(ua, "Chromium"):
+		browser = "Chrome"
+	case strings.Contains(ua, "Safari"):
+		browser = "Safari"
+	}
+	os := ""
+	switch {
+	case strings.Contains(ua, "Mac OS X"), strings.Contains(ua, "Macintosh"):
+		os = "macOS"
+	case strings.Contains(ua, "Windows"):
+		os = "Windows"
+	case strings.Contains(ua, "iPhone"), strings.Contains(ua, "iPad"):
+		os = "iOS"
+	case strings.Contains(ua, "Android"):
+		os = "Android"
+	case strings.Contains(ua, "Linux"):
+		os = "Linux"
+	}
+	if os != "" {
+		return browser + " · " + os
+	}
+	return browser
 }
 
 // fillInstanceSection carries the instance-health tab (Settings.jsx InstanceSection)

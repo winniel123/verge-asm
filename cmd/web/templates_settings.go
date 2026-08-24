@@ -34,6 +34,7 @@ const settingsTemplates = `
 <a class="tab{{if eq .Tab "sso"}} active{{end}}" href="/settings?tab=sso">Single sign-on</a>
 <a class="tab{{if eq .Tab "team"}} active{{end}}" href="/settings?tab=team">Team</a>
 <a class="tab{{if eq .Tab "audit"}} active{{end}}" href="/settings?tab=audit">Audit log</a>
+<a class="tab{{if eq .Tab "sessions"}} active{{end}}" href="/settings?tab=sessions">Sessions</a>
 <a class="tab{{if eq .Tab "sources"}} active{{end}}" href="/settings?tab=sources">Sources</a>
 <a class="tab{{if eq .Tab "aperture"}} active{{end}}" href="/settings?tab=aperture">Port aperture</a>
 <a class="tab{{if eq .Tab "instance"}} active{{end}}" href="/settings?tab=instance">Health</a>
@@ -49,6 +50,7 @@ const settingsTemplates = `
 {{if eq .Tab "sso"}}{{template "settings-sso" .}}{{end}}
 {{if eq .Tab "team"}}{{template "settings-team" .}}{{end}}
 {{if eq .Tab "audit"}}{{template "settings-audit" .}}{{end}}
+{{if eq .Tab "sessions"}}{{template "settings-sessions" .}}{{end}}
 {{if eq .Tab "sources"}}{{template "settings-sources" .}}{{end}}
 {{if eq .Tab "aperture"}}{{template "settings-aperture" .}}{{end}}
 {{if eq .Tab "instance"}}{{template "settings-instance" .}}{{end}}
@@ -609,6 +611,74 @@ whose recorded source set it moved — so there is nothing to page through here 
 <p>The operational records this build does keep are the <a href="/settings?tab=delivery">delivery record</a> and the <a href="/messages">message store</a> — each fact is legible where it fired.</p>
 </div>
 {{end}}
+{{end}}
+
+{{define "settings-sessions"}}
+<div class="microlabel">Access · sessions</div>
+<h2>Active sessions</h2>
+<p>Every account's live browser sessions across this deployment, grouped by account and
+newest activity first. Revoking a session signs that browser out at once — its next
+request lands on the sign-in screen. Revoke every session for an account to offboard a
+departing member; their membership, role and personal tokens are untouched.</p>
+{{if .Sessions}}
+<div class="section">
+<table>
+<thead><tr><th>Account</th><th>Role</th><th>Device</th><th>IP</th><th>Last active</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+<tbody>
+{{range .Sessions}}<tr>
+<td class="mono">{{.Account}}</td>
+<td><span class="badge">{{.Role}}</span></td>
+<td>{{.Device}}</td>
+<td class="mono">{{.IP}}</td>
+<td class="mono">{{.LastSeen}}</td>
+{{if $.IsAdmin}}<td class="row">
+<a class="btn secondary" href="/settings?tab=sessions&amp;revoke={{.ID}}">Revoke</a>
+<a class="btn secondary" href="/settings?tab=sessions&amp;revoke-account={{.AccountID}}">Revoke all</a>
+</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<div class="emptystate">
+<h2>No active sessions</h2>
+<p>No account has a live session right now. A session opens when someone signs in and
+stays listed here until it is revoked or expires.</p>
+</div>
+{{end}}
+
+{{if .RevokeSessionTarget}}{{with .RevokeSessionTarget}}
+<a class="scrim" href="/settings?tab=sessions" aria-label="Cancel"></a>
+<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Revoke session" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);z-index:42">
+<div class="microlabel" style="margin-bottom:8px">Revoke session</div>
+<h2 style="margin:0 0 8px">Revoke this session</h2>
+<p style="margin:0 0 4px">{{.Account}}'s session on <span class="mono">{{.Device}}</span> from <span class="mono">{{.IP}}</span> is signed out immediately.</p>
+<p class="muted" style="margin:0 0 var(--space-4)">Its next request lands on the sign-in screen. The account's other sessions are unaffected.</p>
+<div class="dialog-actions">
+<a class="btn ghost" href="/settings?tab=sessions">Cancel</a>
+<form method="post" action="/settings/sessions/revoke" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button class="danger" type="submit">Revoke session</button></form>
+</div>
+</div>
+{{end}}{{end}}
+
+{{if .RevokeAccountTarget}}{{with .RevokeAccountTarget}}
+<a class="scrim" href="/settings?tab=sessions" aria-label="Cancel"></a>
+<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Revoke all sessions" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);z-index:42">
+<div class="microlabel" style="margin-bottom:8px">Revoke all sessions</div>
+<h2 style="margin:0 0 8px">Revoke every session for {{.Username}}</h2>
+<p style="margin:0 0 4px">Every live session {{.Username}} holds is signed out immediately — the offboarding kill.</p>
+<p class="muted" style="margin:0 0 var(--space-4)">Their membership, role and personal tokens are unaffected; remove the member on <a href="/settings?tab=team">Team</a> to fully offboard.</p>
+{{if $.RevokeAccountError}}<div class="error">{{$.RevokeAccountError}}</div>{{end}}
+<form method="post" action="/settings/sessions/revoke-account">
+<input type="hidden" name="account_id" value="{{.AccountID}}">
+<label><span>Type <span class="mono">{{.Username}}</span> to confirm</span><input name="confirm_name" autocomplete="off" spellcheck="false" autofocus required></label>
+<div class="dialog-actions">
+<a class="btn ghost" href="/settings?tab=sessions">Cancel</a>
+<button class="danger" type="submit">Revoke all sessions</button>
+</div>
+</form>
+</div>
+{{end}}{{end}}
 {{end}}
 
 {{define "settings-aperture"}}
