@@ -1,7 +1,7 @@
 ---
 title: Signals reference
-section: Operating
-order: 4
+section: Signals & delivery
+order: 1
 description: The per-signal reference for the v1 rule set — what each signal means, its subject, and when it fires.
 ---
 
