@@ -153,7 +153,10 @@ async function run() {
           } else if (st.session) {
             await mintSession(context, st.session);
           }
-          const route = st.route || screenStates.route;
+          let route = st.route || screenStates.route;
+          // A state may declare a `variant` (signin's login-sso-none): ride it as a ?variant=
+          // query the dev handler reads, so the candidate route matches the golden's variant.
+          if (st.variant) route += (route.includes('?') ? '&' : '?') + 'variant=' + encodeURIComponent(st.variant);
           await page.goto(`${baseURL}${route}`, { waitUntil: 'networkidle' });
         }
 

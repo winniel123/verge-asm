@@ -36,6 +36,8 @@ import (
 	"strings"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/auth"
+	"github.com/winniel123/verge-asm/internal/qr"
 )
 
 // The template data shape mirrors the holes the frozen inventory.tmpl reads and
@@ -100,7 +102,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin")
 	out := flag.String("out", "", "inventory: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -165,8 +167,26 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "signin":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen signin")
+		}
+		files, err := renderSigninStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	default:
-		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile)", *screen)
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin)", *screen)
 	}
 }
 
@@ -499,6 +519,135 @@ func renderProfileStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+// signinFixture is the design-system/fixtures/fixtures.json → signin slice plus the two login
+// accounts (for the totp step's mid-login username and the enroll screen's account): the build
+// version, the login provider set (slug/name/mark), the well-known reset/invite tokens + invite
+// role, the enroll secret, and the recovery-code set. The golden reads them here (never
+// re-hardcoded) so a fixture change flows through; cmd/web/devfixtures.go pins the same values
+// with a drift test (TestSigninFixtureMatchesPackage).
+type signinFixture struct {
+	Version      string `json:"version"`
+	SSOProviders []struct {
+		Slug string `json:"slug"`
+		Name string `json:"name"`
+		Mark string `json:"mark"`
+	} `json:"sso_providers"`
+	ResetToken    string   `json:"reset_token"`
+	InviteToken   string   `json:"invite_token"`
+	InviteRole    string   `json:"invite_role"`
+	EnrollSecret  string   `json:"enroll_secret"`
+	RecoveryCodes []string `json:"recovery_codes"`
+	// AdminUser / ViewerUser are read from the top-level accounts slice: the totp step names the
+	// mid-login admin account, the enroll/recovery screens run as the viewer session account.
+	AdminUser  string
+	ViewerUser string
+}
+
+func loadSigninFixture() (signinFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return signinFixture{}, err
+	}
+	var ff struct {
+		Signin   signinFixture `json:"signin"`
+		Accounts []struct {
+			Username string `json:"username"`
+			Role     string `json:"role"`
+		} `json:"accounts"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return signinFixture{}, err
+	}
+	sf := ff.Signin
+	for _, a := range ff.Accounts {
+		switch a.Role {
+		case "admin":
+			if sf.AdminUser == "" {
+				sf.AdminUser = a.Username
+			}
+		case "viewer":
+			if sf.ViewerUser == "" {
+				sf.ViewerUser = a.Username
+			}
+		}
+	}
+	return sf, nil
+}
+
+// renderSigninStates composes the SignIn-family golden HTMLs from the frozen signin.tmpl, one per
+// states.json signin state (states.json is authoritative: 11 states, no reset-done). Each state's
+// data map mirrors the handler output EXACTLY (the holes the frozen tmpl reads) so the chrome-less
+// `body` crop is byte-identical to what the seeded server renders — golden and candidate = same
+// tmpl, same holes. Every page emits authfoot, so every map carries .Version. The enroll QR is
+// built with the SAME auth.OtpauthURI + qr.SVG the handler's totpEnrollData uses, over the same
+// secret + viewer username + issuer, so the two encodings are byte-identical.
+func renderSigninStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadSigninFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	// issuer mirrors cmd/web's `issuer` const (auth.go); the enroll otpauth URI names it.
+	const issuer = "Verge ASM"
+
+	providers := make([]map[string]any, 0, len(fx.SSOProviders))
+	for _, p := range fx.SSOProviders {
+		providers = append(providers, map[string]any{"Slug": p.Slug, "Name": p.Name, "Mark": p.Mark})
+	}
+
+	// Enroll: build the QR from the pinned secret + viewer account, exactly as totpEnrollData does.
+	enrollURI := auth.OtpauthURI(fx.EnrollSecret, fx.ViewerUser, issuer)
+	enrollSVG, err := qr.SVG([]byte(enrollURI), "Two-factor enrollment QR code for "+fx.ViewerUser)
+	if err != nil {
+		return nil, fmt.Errorf("signin: build enroll QR: %w", err)
+	}
+
+	v := func(m map[string]any) map[string]any {
+		m["Version"] = fx.Version
+		return m
+	}
+
+	type sstate struct {
+		id   string
+		tmpl string
+		data map[string]any
+	}
+	states := []sstate{
+		{"login", "login", v(map[string]any{"Notice": "", "Error": "", "SSOProviders": providers})},
+		{"login-sso-none", "login", v(map[string]any{"Notice": "", "Error": "", "SSOProviders": []map[string]any{}})},
+		{"totp", "totp", v(map[string]any{"Error": "", "Username": fx.AdminUser})},
+		{"forgot", "forgot", v(map[string]any{})},
+		{"forgot-sent", "forgot-sent", v(map[string]any{})},
+		{"reset", "reset", v(map[string]any{"Error": "", "Token": fx.ResetToken})},
+		{"reset-invalid", "reset-invalid", v(map[string]any{})},
+		{"invite", "invite", v(map[string]any{"Error": "", "Token": fx.InviteToken, "Role": fx.InviteRole, "Username": ""})},
+		{"invite-invalid", "invite-invalid", v(map[string]any{})},
+		{"enroll", "totp-enroll", v(map[string]any{"Error": "", "Secret": fx.EnrollSecret, "OtpauthQR": template.HTML(enrollSVG)})}, // #nosec G203 -- trusted QR SVG built by our own encoder, no user input
+		{"recovery", "totp-recovery", v(map[string]any{"Codes": fx.RecoveryCodes})},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/signin.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, st.tmpl, st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
 	}
 	return out, nil
 }

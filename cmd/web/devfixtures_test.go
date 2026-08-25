@@ -200,3 +200,89 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureSigninPackage mirrors the design-owned fixtures.json → signin slice the screen-4 dev
+// affordances pin in devfixtures.go: the build version, provider set (slug/name/mark), the
+// well-known reset/invite tokens + invite role, the accepted TOTP code, the enroll secret, and
+// the recovery-code set.
+type fixtureSigninPackage struct {
+	Signin struct {
+		Version      string `json:"version"`
+		SSOProviders []struct {
+			Slug string `json:"slug"`
+			Name string `json:"name"`
+			Mark string `json:"mark"`
+		} `json:"sso_providers"`
+		ResetToken    string   `json:"reset_token"`
+		InviteToken   string   `json:"invite_token"`
+		InviteRole    string   `json:"invite_role"`
+		TotpAcceptCode string  `json:"totp_accept_code"`
+		EnrollSecret  string   `json:"enroll_secret"`
+		RecoveryCodes []string `json:"recovery_codes"`
+	} `json:"signin"`
+}
+
+// TestSigninFixtureMatchesPackage is the byte-exactness gate for the screen-4 conversion: every
+// value devfixtures.go pins is folded back through the frozen fixtures.json → signin slice, so a
+// drift between the seed/dev affordances and the frozen package fails here rather than in a
+// screenshot diff — exactly as TestProfileFixtureMatchesPackage guards the Profile slice. It
+// also asserts the repo's Mark derivation reproduces the fixture's mark, and that the recovery
+// count matches the enrolment count.
+func TestSigninFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureSigninPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	s := f.Signin
+
+	if s.Version != devFixtureVersion {
+		t.Errorf("version drift: fixtures.json = %q, devFixtureVersion = %q", s.Version, devFixtureVersion)
+	}
+	if s.ResetToken != devFixtureResetToken {
+		t.Errorf("reset token drift: fixtures.json = %q, devFixtureResetToken = %q", s.ResetToken, devFixtureResetToken)
+	}
+	if s.InviteToken != devFixtureInviteToken {
+		t.Errorf("invite token drift: fixtures.json = %q, devFixtureInviteToken = %q", s.InviteToken, devFixtureInviteToken)
+	}
+	if s.InviteRole != devFixtureInviteRole {
+		t.Errorf("invite role drift: fixtures.json = %q, devFixtureInviteRole = %q", s.InviteRole, devFixtureInviteRole)
+	}
+	if s.TotpAcceptCode != devFixtureTOTPCode {
+		t.Errorf("totp code drift: fixtures.json = %q, devFixtureTOTPCode = %q", s.TotpAcceptCode, devFixtureTOTPCode)
+	}
+	if s.EnrollSecret != devFixtureEnrollSecret {
+		t.Errorf("enroll secret drift: fixtures.json = %q, devFixtureEnrollSecret = %q", s.EnrollSecret, devFixtureEnrollSecret)
+	}
+
+	// Providers — slug, name, and the repo-derived Mark all equal the fixture, in order.
+	if len(s.SSOProviders) != len(devSigninProviders) {
+		t.Fatalf("provider count drift: fixtures.json = %d, devSigninProviders = %d", len(s.SSOProviders), len(devSigninProviders))
+	}
+	for i, want := range s.SSOProviders {
+		got := devSigninProviders[i]
+		if got.slug != want.Slug || got.name != want.Name || got.mark != want.Mark {
+			t.Errorf("provider[%d] drift: fixtures.json = {%q,%q,%q}, seeder = {%q,%q,%q}",
+				i, want.Slug, want.Name, want.Mark, got.slug, got.name, got.mark)
+		}
+		if m := ssoMark(want.Name); m != want.Mark {
+			t.Errorf("provider[%d] Mark derivation drift: ssoMark(%q) = %q, fixtures.json = %q", i, want.Name, m, want.Mark)
+		}
+	}
+
+	// Recovery codes — exact set + order, and the count matches the enrolment count.
+	if len(s.RecoveryCodes) != len(devFixtureRecoveryCodes) {
+		t.Fatalf("recovery count drift: fixtures.json = %d, devFixtureRecoveryCodes = %d", len(s.RecoveryCodes), len(devFixtureRecoveryCodes))
+	}
+	if len(s.RecoveryCodes) != recoveryCodeCount {
+		t.Errorf("recovery count %d != enrolment count %d", len(s.RecoveryCodes), recoveryCodeCount)
+	}
+	for i, want := range s.RecoveryCodes {
+		if devFixtureRecoveryCodes[i] != want {
+			t.Errorf("recovery[%d] drift: fixtures.json = %q, seeder = %q", i, want, devFixtureRecoveryCodes[i])
+		}
+	}
+}

@@ -722,6 +722,10 @@ func (s *server) handler() http.Handler {
 
 	mux.HandleFunc("GET /account", s.requireLogin(s.accountPage))
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
+	// GET /account/totp/enroll renders the two-factor enrollment screen (v3.7.0, SignIn family):
+	// the profile "Enable" button POSTs to /account/totp/enable, but the frozen SignIn "enroll"
+	// capture state navigates here by GET (what page.goto can drive). Both open the same screen.
+	mux.HandleFunc("GET /account/totp/enroll", s.requireLogin(s.totpEnrollForm))
 	mux.HandleFunc("POST /account/totp/enable", s.requireLogin(s.totpEnable))
 	mux.HandleFunc("POST /account/totp/confirm", s.requireLogin(s.totpConfirm))
 

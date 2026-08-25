@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/winniel123/verge-asm/internal/auth"
@@ -349,6 +350,155 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 		); err != nil {
 			return fmt.Errorf("profile fixture: insert token %q: %w", pt.name, err)
 		}
+	}
+	return nil
+}
+
+// --- screen 4: SignIn family fixture (package v3.7.0, WORK-ORDER-4-6-BATCH1.md) -------------
+//
+// Everything below pins the SignIn-family fixture (design-system/fixtures/fixtures.json →
+// signin) so the login / totp / enroll / recovery / forgot / reset / invite states render
+// byte-for-byte for the pixel harness. The pinned constants are the single source of the seed
+// and the dev capture affordances (buildVersion, loginProviders, the totp code + recovery-code
+// determinism, beginTOTPEnroll); TestSigninFixtureMatchesPackage folds each one back through
+// fixtures.json → signin and fails the build on any divergence — the byte-exactness gate before
+// the pixels, exactly as TestProfileFixtureMatchesPackage guards the Profile slice. All of it
+// runs only under VERGE_DEV; a real deployment reaches none of it.
+
+const (
+	// devFixtureVersion is fixtures.json → signin.version: the build version the chrome-less
+	// authfoot renders ({{.Version}}). buildVersion returns it in a VERGE_DEV build so the
+	// SignIn/Setup goldens' footer is stable; a real build reads VERGE_VERSION.
+	devFixtureVersion = "v0.9.2"
+
+	// devFixtureTOTPCode is fixtures.json → signin.totp_accept_code: the code a VERGE_DEV build
+	// accepts at the TOTP login step and at enrolment-confirm, so the harness can pass the
+	// second factor deterministically. A real build always runs the RFC 6238 verification.
+	devFixtureTOTPCode = "482913"
+
+	// devFixtureEnrollSecret is fixtures.json → signin.enroll_secret: the secret the enrolment
+	// screen shows (and encodes into its QR) in a VERGE_DEV build, so the enroll golden is
+	// stable. It is the design's readable display string (dash-grouped), not a verifiable base32
+	// seed — which is why dev confirm accepts the pinned code rather than verifying against it.
+	devFixtureEnrollSecret = "VG7K-2Q9X-8MRD-P3TL" // #nosec G101 -- not a real credential: a fixed dev-only fixture secret shown only in a VERGE_DEV build
+
+	// devFixtureResetToken / devFixtureInviteToken are fixtures.json → signin.reset_token /
+	// invite_token: the well-known plaintext tokens the seed writes (as SHA-256 hashes) so
+	// /reset?token=… and /invite?token=… resolve to a real row for the capture.
+	devFixtureResetToken  = "fixture-reset-token"  // #nosec G101 -- not a real credential: a fixed dev-only reset token, seeded (hashed) only under VERGE_DEV
+	devFixtureInviteToken = "fixture-invite-token" // #nosec G101 -- not a real credential: a fixed dev-only invite token, seeded (hashed) only under VERGE_DEV
+
+	// devFixtureInviteRole is fixtures.json → signin.invite_role: the role the seeded invite
+	// grants (the frozen invite card renders it in its sub-line).
+	devFixtureInviteRole = roleViewer
+)
+
+// devSigninProvider is one pinned login SSO button (fixtures.json → signin.sso_providers): the
+// slug, display name, and the mono Mark. loginProviders returns this set in a VERGE_DEV build
+// so the login golden shows exactly the fixture's provider — even though the shared fixture DB
+// also enables the Profile screen's linkable Google provider (which a real login would list too).
+type devSigninProvider struct {
+	slug string
+	name string
+	mark string
+}
+
+// devSigninProviders pins fixtures.json → signin.sso_providers, in fixture order.
+var devSigninProviders = []devSigninProvider{
+	{slug: "okta", name: "Okta", mark: "O"},
+}
+
+// devFixtureRecoveryCodes pins fixtures.json → signin.recovery_codes: the recovery set the
+// enrolment-confirm reveals in a VERGE_DEV build, so the recovery golden is stable. A real
+// enrolment draws fresh high-entropy codes (newRecoveryCodes).
+var devFixtureRecoveryCodes = []string{
+	"k4mq-9d2x", "7hfa-t3wn", "p8rc-01zk", "vx5j-mm4d",
+	"q2sl-88bh", "e6ty-r7cn", "a1zw-kk3p", "n9gd-45vu",
+}
+
+// recoveryCodes returns the recovery set to reveal + store at enrolment-confirm. A VERGE_DEV
+// build returns the pinned fixture set (with bcrypt hashes to store); a real build draws fresh
+// high-entropy codes. Splitting here keeps the dev determinism out of the real credential path.
+func (s *server) recoveryCodes() (plain, hashes []string, err error) {
+	if s.devMode {
+		plain = append(plain, devFixtureRecoveryCodes...)
+		for _, code := range devFixtureRecoveryCodes {
+			h, herr := auth.HashPassword(code)
+			if herr != nil {
+				return nil, nil, herr
+			}
+			hashes = append(hashes, h)
+		}
+		return plain, hashes, nil
+	}
+	return newRecoveryCodes(recoveryCodeCount)
+}
+
+// devResetTOTPEnroll clears any prior two-factor enrolment on an account (VERGE_DEV only) so the
+// GET /account/totp/enroll capture always lands on the enroll screen, no matter that a previous
+// recovery-state capture enabled two-factor on the same fixture account against the shared DB.
+// It touches only the named account's own rows (totp columns + recovery codes) and is nil-guarded
+// on the raw pool the dev build wires.
+func (s *server) devResetTOTPEnroll(ctx context.Context, accountID int64) error {
+	if s.pool == nil {
+		return fmt.Errorf("dev: reset totp: pool not wired")
+	}
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE account SET totp_enabled = false, totp_secret = NULL, totp_last_step = NULL WHERE id = $1`,
+		accountID); err != nil {
+		return fmt.Errorf("dev: reset totp columns: %w", err)
+	}
+	if err := s.store.DeleteRecoveryCodesForAccount(ctx, accountID); err != nil {
+		return fmt.Errorf("dev: reset recovery codes: %w", err)
+	}
+	return nil
+}
+
+// seedSigninFixtures seeds the SignIn-family fixture (fixtures.json → signin) so the harness's
+// /reset and /invite capture states resolve to a real row: a single-use password-reset grant for
+// the ola.perez admin under the well-known reset-token hash, and a viewer-role invite under the
+// well-known invite-token hash. Both are pinned unexpired against the fixture clock. It is
+// idempotent (it deletes any row under those hashes before inserting) and runs only from the
+// -seed-fixtures one-shot (main.go, VERGE_DEV-gated), after seedDevFixtureAccounts. The login
+// provider set and the enrol/recovery determinism need no seed — they are dev capture affordances
+// resolved in the handlers. TotpEnabled on ola.perez (seeded true by seedProfileFixtures) is what
+// makes the login→totp capture land on the second-factor step.
+func seedSigninFixtures(ctx context.Context, pool *pgxpool.Pool) error {
+	clock, err := devFixtureClockTime()
+	if err != nil {
+		return fmt.Errorf("signin fixture: parse clock: %w", err)
+	}
+	q := db.New(pool)
+	acct, err := q.GetAccountByUsername(ctx, devProfileUsername)
+	if err != nil {
+		return fmt.Errorf("signin fixture: account %q not seeded: %w", devProfileUsername, err)
+	}
+
+	// Password reset — one unspent, unexpired grant under the well-known token hash, so
+	// /reset?token=fixture-reset-token resolves. Reset any prior row under the hash first.
+	resetHash := hashToken(devFixtureResetToken)
+	if _, err := pool.Exec(ctx, `DELETE FROM password_reset WHERE token_hash = $1`, resetHash); err != nil {
+		return fmt.Errorf("signin fixture: reset password_reset: %w", err)
+	}
+	if _, err := q.CreatePasswordReset(ctx, db.CreatePasswordResetParams{
+		AccountID: acct.ID, TokenHash: resetHash,
+		ExpiresAt: pgtype.Timestamptz{Time: clock.Add(30 * time.Minute), Valid: true},
+	}); err != nil {
+		return fmt.Errorf("signin fixture: create password_reset: %w", err)
+	}
+
+	// Invite — one unspent, unexpired viewer invite under the well-known token hash, so
+	// /invite?token=fixture-invite-token resolves. Reset any prior row under the hash first.
+	inviteHash := hashToken(devFixtureInviteToken)
+	if _, err := pool.Exec(ctx, `DELETE FROM invite WHERE token_hash = $1`, inviteHash); err != nil {
+		return fmt.Errorf("signin fixture: reset invite: %w", err)
+	}
+	if _, err := q.CreateInvite(ctx, db.CreateInviteParams{
+		TokenHash: inviteHash, Role: devFixtureInviteRole,
+		InvitedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+		ExpiresAt: pgtype.Timestamptz{Time: clock.Add(72 * time.Hour), Valid: true},
+	}); err != nil {
+		return fmt.Errorf("signin fixture: create invite: %w", err)
 	}
 	return nil
 }

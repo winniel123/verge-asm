@@ -84,7 +84,13 @@ func main() {
 		if err := seedProfileFixtures(ctx, pool); err != nil {
 			log.Fatalf("web: seed-fixtures: %v", err)
 		}
-		log.Printf("web: seeded inventory fixtures from %s (%d open spans); dev operator %q + %d fixture accounts + Profile fixture ready", *seedFixtures, len(inventoryFixtureSpans), devSeedUsername, len(devFixtureAccounts))
+		// The SignIn-family fixture (screen 4, #548): a password-reset + invite row under the
+		// well-known token hashes so /reset and /invite resolve for the capture. Idempotent and
+		// dev-only; runs after the fixture accounts above exist.
+		if err := seedSigninFixtures(ctx, pool); err != nil {
+			log.Fatalf("web: seed-fixtures: %v", err)
+		}
+		log.Printf("web: seeded inventory fixtures from %s (%d open spans); dev operator %q + %d fixture accounts + Profile + SignIn fixtures ready", *seedFixtures, len(inventoryFixtureSpans), devSeedUsername, len(devFixtureAccounts))
 		return
 	}
 
