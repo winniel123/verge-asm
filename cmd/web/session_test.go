@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,9 +97,12 @@ func TestEndSessionHandlerRevokesRow(t *testing.T) {
 
 	c := login(t, base, "admin", "hunter2hunter2")
 	resp := postForm(t, c, base+"/profile/session/revoke", url.Values{})
+	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
-		t.Fatalf("end-session: status=%d loc=%q, want 303 -> /login", resp.StatusCode, resp.Header.Get("Location"))
+	// End-session carries the "Session ended" toast (#18) on the /login redirect so it
+	// fires on the sign-in page, so the destination is /login?toast=… not bare /login.
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(loc, "/login") {
+		t.Fatalf("end-session: status=%d loc=%q, want 303 -> /login", resp.StatusCode, loc)
 	}
 	if len(f.sessions) != 1 || !f.sessions[0].RevokedAt.Valid {
 		t.Fatalf("end-session did not stamp revoked_at on the session row: rows=%d", len(f.sessions))

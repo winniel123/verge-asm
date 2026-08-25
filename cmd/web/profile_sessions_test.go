@@ -98,6 +98,12 @@ func TestProfileRevokeOneSession(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(loc, "/profile") {
 		t.Fatalf("revoke other: status=%d loc=%q, want 303 to /profile", resp.StatusCode, loc)
 	}
+	// The act result rides the shell toast (#18) naming the revoked device (Profile.jsx:100).
+	toast := decodeToast(t, loc)
+	if toast["tone"] != "neutral" || toast["title"] != "Session revoked" ||
+		!strings.HasSuffix(toast["description"], " signs out on its next request.") {
+		t.Fatalf("session-revoke toast = %+v, want neutral/Session revoked/<device> signs out on its next request.", toast)
+	}
 
 	// The revoked row is gone from the acting session's next render, and the badge still
 	// marks exactly the surviving current session.
@@ -179,6 +185,13 @@ func TestProfileSignOutOthers(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(loc, "/profile") {
 		t.Fatalf("sign out others: status=%d loc=%q, want 303 to /profile", resp.StatusCode, loc)
+	}
+	// Two other sessions were signed out, so the act toast (#18) reads "2 sessions ended."
+	// (Profile.jsx:158).
+	toast := decodeToast(t, loc)
+	if toast["tone"] != "neutral" || toast["title"] != "Other sessions signed out" ||
+		toast["description"] != "2 sessions ended." {
+		t.Fatalf("sign-out-others toast = %+v, want neutral/Other sessions signed out/2 sessions ended.", toast)
 	}
 
 	// The acting session keeps working and no longer lists the others.

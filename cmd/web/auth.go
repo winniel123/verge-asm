@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/env"
@@ -1379,6 +1380,18 @@ func subtleConstantEqual(a, b string) bool {
 
 // --- profile (#304, T9) -----------------------------------------------------
 
+// The Profile page markup is the DESIGN-OWNED, frozen design-system/templates/profile.tmpl
+// (package v3.6.0, WORKFLOW v4), embedded read-only via the designfs package and parsed
+// into the shared template set here — mirroring the screen-2 error.tmpl landing (#533).
+// The repo-authored templates_profile.go const is deleted (#540): renderProfile only wires
+// data into the holes the frozen tmpl declares (.Initials/.Username/.Role/.CreatedISO/
+// .TotpEnabled/.Sessions/.SSOIdentities/.SSOProviders/.Tokens/…), never edits the tmpl (CI
+// gate G1 byte-compares it to the package). A needed change goes through SPEC-CHANGE and
+// returns in the next package version. profile.tmpl auto-embeds through designfs's existing
+// `templates/*.tmpl` glob, so no designfs.go change is needed; its "profile" definition is
+// the single source of the served page.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/profile.tmpl"))
+
 // profileTokenView is one personal API token shaped for the tokens table: its id
 // (for the revoke link), the operator's label, the non-secret prefix, and the two
 // timestamps. Last is an em dash for a token never yet presented — the honest read
@@ -1445,17 +1458,11 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if q.Get("signoutothers") != "" {
 		st.signOutOthers = true
 	}
-	if q.Get("saved") != "" {
-		st.notice = "Password changed. Every other signed-in session has been signed out."
-	}
-	// Session-management outcomes (#406) ride back as fixed query codes, each mapped to an
-	// honest notice — never reflected free text.
-	if q.Get("sessionrevoked") != "" {
-		st.notice = "That session was signed out."
-	}
-	if q.Get("othersout") != "" {
-		st.notice = "Your other sessions were signed out. This one keeps working."
-	}
+	// The four act results — password changed, session revoked, token revoked, signed out
+	// others — no longer ride back as inline notices; they fire as shell toasts carried on
+	// the redirect by toastRedirect (SPEC-CHANGE #18, P1.7). The `.Notice` hole stays for
+	// anything that still uses it. SSO self-link outcomes keep their own `.SSONotice`/
+	// `.SSOError` channels below.
 	// SSO self-link outcomes ride back as fixed query codes (never reflected free text),
 	// each mapped here to an honest message.
 	switch q.Get("linked") {
@@ -1562,6 +1569,11 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	data := map[string]any{
 		"Title": "Profile", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "",
+		// The frozen profile.tmpl styles against the design-owned token vocabulary
+		// (design-system/tokens/*.css); the "head" block inlines those tokens only when this
+		// datum is set — mirroring the screen-2 error render (E4, #535). Opt in so the served
+		// page carries the vocabulary the tmpl draws against.
+		"DesignTokens": true,
 
 		"Initials":    initials(acct.Username),
 		"Username":    acct.Username,
@@ -1706,7 +1718,9 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 	} else {
 		log.Printf("web: profile: password changed but current session id did not resolve; other sessions left in place")
 	}
-	http.Redirect(w, r, "/profile?saved=1", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7) with the spec's copy
+	// (Profile.jsx:68) rather than an inline notice.
+	s.toastRedirect(w, r, "/profile", "ok", "Password changed", "Other sessions keep working until they expire.")
 }
 
 // createPersonalToken mints a personal API token and reveals it once. The plaintext
@@ -1741,14 +1755,14 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 	s.renderProfile(w, r, acct, profileState{minted: plaintext, mintedName: name})
 }
 
-// revokePersonalToken revokes a token through the typed-name gate: the operator must
-// type the token's exact name to confirm, guarding the worst destructive act on the
-// page — a revoke is irreversible and silently breaks whatever automation held the
-// token. It is reached only through the ConfirmDialog (a POST), never a menu click,
-// and the delete is scoped to the owner so no account can revoke another's token.
+// revokePersonalToken revokes a token behind a plain danger ConfirmDialog (SPEC-CHANGE
+// #18, ruled 2026-08-25): the typed-name `confirm_name` gate is dropped here — the dialog
+// is message + detail + danger confirm only (`.RevokeName` still labels it). The typed
+// gate stays reserved for the worst acts (seed descope), so this only relaxes the token
+// path. It is reached only through the ConfirmDialog (a POST), never a menu click, and the
+// delete is scoped to the owner so no account can revoke another's token.
 func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, _ := strconv.ParseInt(r.FormValue("id"), 10, 64)
-	typed := strings.TrimSpace(r.FormValue("confirm_name"))
 
 	rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID)
 	if err != nil {
@@ -1767,18 +1781,13 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
-	if typed != name {
-		s.renderProfile(w, r, acct, profileState{
-			revokeID:  id,
-			revokeErr: "That did not match. Type " + name + " exactly to revoke.",
-		})
-		return
-	}
 	if err := s.store.DeletePersonalToken(r.Context(), db.DeletePersonalTokenParams{ID: id, AccountID: acct.ID}); err != nil {
 		s.serverError(w, "profile: revoke token", err)
 		return
 	}
-	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Token revoked", the
+	// revoked token's name as the description (Profile.jsx:150).
+	s.toastRedirect(w, r, "/profile", "neutral", "Token revoked", name)
 }
 
 // revokeSession ends the current session for real (#405, ADR-0117). Sessions now have
@@ -1791,7 +1800,10 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 func (s *server) revokeSession(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	s.revokeCurrentSession(r)
 	s.clearCookie(w, sessionCookie)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	// Ending this session signs the caller out and lands them on sign-in; the act result
+	// rides the shell toast pipeline (#18, P1.7) on the /login redirect so it fires there
+	// (Profile.jsx:154). The sign-in page carries a toast stack for exactly this.
+	s.toastRedirect(w, r, "/login", "neutral", "Session ended", "Signed out on this device.")
 }
 
 // revokeOneSession revokes a single one of the account's own live sessions by id (#406) —
@@ -1809,6 +1821,20 @@ func (s *server) revokeOneSession(w http.ResponseWriter, r *http.Request, acct d
 		return
 	}
 	curID, haveCur := s.currentSessionID(r)
+	// Resolve the revoked session's device for the toast description (Profile.jsx:100),
+	// read from the live list before the revoke; a read blip just leaves it empty.
+	device := ""
+	if sess, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+		AccountID: acct.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err == nil {
+		for _, row := range sess {
+			if row.ID == id {
+				device = sessionDeviceFromUA(row.UserAgent)
+				break
+			}
+		}
+	}
 	if err := s.store.RevokeSession(r.Context(), db.RevokeSessionParams{
 		ID:        id,
 		AccountID: acct.ID,
@@ -1822,7 +1848,9 @@ func (s *server) revokeOneSession(w http.ResponseWriter, r *http.Request, acct d
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/profile?sessionrevoked=1", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Session revoked",
+	// "<device> signs out on its next request." as the description (Profile.jsx:100).
+	s.toastRedirect(w, r, "/profile", "neutral", "Session revoked", device+" signs out on its next request.")
 }
 
 // signOutOtherSessions revokes every live session for the account EXCEPT the one making
@@ -1837,6 +1865,19 @@ func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, ac
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
+	// Count the other live sessions before the sweep for the toast description
+	// (Profile.jsx:158, "N sessions ended."); a read blip just leaves the count at zero.
+	ended := 0
+	if sess, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+		AccountID: acct.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err == nil {
+		for _, row := range sess {
+			if row.ID != curID {
+				ended++
+			}
+		}
+	}
 	if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
 		AccountID: acct.ID,
 		ID:        curID,
@@ -1845,7 +1886,9 @@ func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, ac
 		s.serverError(w, "profile: sign out other sessions", err)
 		return
 	}
-	http.Redirect(w, r, "/profile?othersout=1", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Other sessions signed
+	// out", "<N> sessions ended." as the description (Profile.jsx:158).
+	s.toastRedirect(w, r, "/profile", "neutral", "Other sessions signed out", strconv.Itoa(ended)+" sessions ended.")
 }
 
 // mintPersonalToken generates a personal token, returning the plaintext to reveal

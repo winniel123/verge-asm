@@ -87,7 +87,8 @@ Single sign-on not configured
 <span class="muted" style="display:block;font-size:11.5px;line-height:1.6;margin-top:var(--space-3)">Locked out? Reset on the host: <code style="background:var(--sunken);border:1px solid var(--hairline);border-radius:6px;padding:1px 5px;font-size:0.92em">verge users reset-password</code></span>
 </div>
 {{template "authfoot" .}}
-</div></div>{{template "foot" .}}{{end}}
+</div></div>
+<div class="toaststack" id="toasts" aria-live="polite" aria-atomic="false"></div>{{template "foot" .}}{{end}}
 
 {{define "totp"}}{{template "head" .}}
 <div class="center"><div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-5);width:400px;max-width:100%">
