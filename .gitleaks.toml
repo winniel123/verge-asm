@@ -17,5 +17,5 @@ title = "verge-asm"
 useDefault = true
 
 [allowlist]
-description = "Design-owned deterministic TOTP-enrol fixture secret (parity golden stability; real enrolment uses crypto/rand). Not a live credential."
-regexes = ['''VG7K-2Q9X-8MRD-P3TL''']
+description = "Value-scoped false-positive allowlist. Each entry is an exact fixture literal, not a path — any OTHER secret still trips. (1) The design-owned deterministic TOTP-enrol fixture secret (SignIn `enroll` parity golden stability; real enrolment mints via crypto/rand — SPEC-CHANGE #19b). (2) The batch-4 AssetDetail fixture subject key `edge-gw-03.acmecorp.io` and its endpoint/copy-key forms — a domain identifier gitleaks' generic-api-key rule flags on the `key = \"...\"` keyword+entropy heuristic (design-system/fixtures/fixtures.json + cmd/web/devfixtures.go; batch 4, map #579). Neither is a live credential; both are value-scoped so they survive squash-merge where a commit-fingerprint entry would not."
+regexes = ['''VG7K-2Q9X-8MRD-P3TL''', '''edge-gw-03\.acmecorp\.io''']
