@@ -2096,3 +2096,98 @@ func (s *server) endpointFixtureData(acct db.Account, key string) (map[string]an
 		"Endpoint": devEndpointData(),
 	}, true
 }
+
+// --- screen 15: Graph fixture (package v3.10.0, WORK-ORDER-13-15-BATCH4.md) ------------------
+//
+// The Graph screen (/graph, #583) reads inside the full app chrome and a real admin session
+// (minted by the harness). Its VIEW corpus — the 26-edge, 27-node topology (1 domain apex + 10
+// subdomains + 9 addresses + 7 services), each node's placed canvas + minimap coordinates, its
+// two halo radii (#22f), its type-derived label offset, the four detailed nodes' ports / first-seen
+// / open-signals, and the domain|subdomain split (#22e) — is the design's curated fixture, not a
+// live-estate read: the exact hand-classified apex, the placed coordinates and the curated per-node
+// severities cannot be reconstructed from the live open-span corpus without fabricating layout data,
+// which SPEC-CHANGE forbids. So, exactly as the sibling screens pin their dev fixture and serve it
+// under devMode, graphPage serves the pinned fixtures.json graph slice below when s.devMode, and
+// TestGraphFixtureMatchesPackage folds every value back through the frozen package — the
+// byte-exactness gate before the pixels. The production path (graph.go buildGraph/joinSignals) folds
+// the same holes from the real Name/Address/Service topology + the Signal engine's fired census
+// (#22e/#22f wired there too); this pins the design's exact bytes for the goldens.
+
+// devGraphData assembles the pinned graphView the goldens capture. It is the exact fixtures.json →
+// graph slice in authored order (nodes then edges); TestGraphFixtureMatchesPackage folds every value
+// back through the frozen package. render-goldens composes the identical holes statically, so golden
+// and candidate agree byte-for-byte.
+func devGraphData() graphView {
+	nodes := []graphNode{
+		{ID: "acmecorp.io", Label: "acmecorp.io", Type: "domain", X: 90, Y: 320, Mx: 8.3, My: 29.3, Sev: "medium", HaloA: 23, HaloB: 20.5, LabelDX: 25, Ports: ":80 :443", First: "2026-05-19T07:58:41Z", OpenSignals: []graphSignal{{Severity: "medium", SevLabel: "Medium", Rule: "dns-mail-policy", Subject: "acmecorp.io"}}},
+		{ID: "www.acmecorp.io", Label: "www", Type: "subdomain", X: 400, Y: 52, Mx: 36.7, My: 4.8, Sev: "low", HaloA: 17, HaloB: 14.5, LabelDX: 19},
+		{ID: "api.acmecorp.io", Label: "api", Type: "subdomain", X: 400, Y: 112, Mx: 36.7, My: 10.3, Sev: "high", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443", First: "2026-05-19T08:00:12Z", OpenSignals: []graphSignal{{Severity: "high", SevLabel: "High", Rule: "outdated-nginx", Subject: "api.acmecorp.io :443"}}},
+		{ID: "vpn.acmecorp.io", Label: "vpn", Type: "subdomain", X: 400, Y: 172, Mx: 36.7, My: 15.8, Sev: "critical", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443 :1194", First: "2026-06-02T11:40:00Z", OpenSignals: []graphSignal{{Severity: "critical", SevLabel: "Critical", Rule: "tls-cert-expired", Subject: "vpn.acmecorp.io :443"}}},
+		{ID: "mail.acmecorp.io", Label: "mail", Type: "subdomain", X: 400, Y: 232, Mx: 36.7, My: 21.3, Sev: "", HaloA: 17, HaloB: 14.5, LabelDX: 19},
+		{ID: "grafana.acmecorp.io", Label: "grafana", Type: "subdomain", X: 400, Y: 292, Mx: 36.7, My: 26.8, Sev: "high", HaloA: 17, HaloB: 14.5, LabelDX: 19},
+		{ID: "edge-gw-03.acmecorp.io", Label: "edge-gw-03", Type: "subdomain", X: 400, Y: 352, Mx: 36.7, My: 32.3, Sev: "critical", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443 :5900", First: "2026-08-12T09:14:33Z", OpenSignals: []graphSignal{{Severity: "critical", SevLabel: "Critical", Rule: "vnc-exposure", Subject: ":5900 vnc"}}},
+		{ID: "build-07.acmecorp.io", Label: "build-07", Type: "subdomain", X: 400, Y: 412, Mx: 36.7, My: 37.8, Sev: "high", HaloA: 17, HaloB: 14.5, LabelDX: 19},
+		{ID: "assets.acmecorp.io", Label: "assets", Type: "subdomain", X: 400, Y: 472, Mx: 36.7, My: 43.3, Sev: "medium", HaloA: 17, HaloB: 14.5, LabelDX: 19},
+		{ID: "old-blog.acmecorp.io", Label: "old-blog", Type: "subdomain", X: 400, Y: 532, Mx: 36.7, My: 48.8, Sev: "medium", HaloA: 17, HaloB: 14.5, LabelDX: 19},
+		{ID: "staging-4.acmecorp.io", Label: "staging-4", Type: "subdomain", X: 400, Y: 592, Mx: 36.7, My: 54.3, Sev: "info", HaloA: 17, HaloB: 14.5, LabelDX: 19},
+		{ID: "203.0.113.4", Label: "203.0.113.4", Type: "ip", X: 730, Y: 80, Mx: 66.9, My: 7.3, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "203.0.113.9", Label: "203.0.113.9", Type: "ip", X: 730, Y: 138, Mx: 66.9, My: 12.7, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "203.0.113.12", Label: "203.0.113.12", Type: "ip", X: 730, Y: 196, Mx: 66.9, My: 18, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "203.0.113.25", Label: "203.0.113.25", Type: "ip", X: 730, Y: 254, Mx: 66.9, My: 23.3, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "203.0.113.31", Label: "203.0.113.31", Type: "ip", X: 730, Y: 312, Mx: 66.9, My: 28.6, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "203.0.113.7", Label: "203.0.113.7", Type: "ip", X: 730, Y: 370, Mx: 66.9, My: 33.9, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "203.0.113.44", Label: "203.0.113.44", Type: "ip", X: 730, Y: 428, Mx: 66.9, My: 39.2, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "203.0.113.18", Label: "203.0.113.18", Type: "ip", X: 730, Y: 486, Mx: 66.9, My: 44.5, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "203.0.113.61", Label: "203.0.113.61", Type: "ip", X: 730, Y: 544, Mx: 66.9, My: 49.9, Sev: "", HaloA: 16, HaloB: 13.5, LabelDX: 18},
+		{ID: "svc-0", Label: ":443 https", Type: "service", X: 1030, Y: 100, Mx: 94.4, My: 9.2, Sev: "", HaloA: 13, HaloB: 10.5, LabelDX: 15},
+		{ID: "svc-1", Label: ":5900 vnc", Type: "service", X: 1030, Y: 168, Mx: 94.4, My: 15.4, Sev: "critical", HaloA: 13, HaloB: 10.5, LabelDX: 15},
+		{ID: "svc-2", Label: ":443 nginx", Type: "service", X: 1030, Y: 236, Mx: 94.4, My: 21.6, Sev: "high", HaloA: 13, HaloB: 10.5, LabelDX: 15},
+		{ID: "svc-3", Label: ":443 tls", Type: "service", X: 1030, Y: 304, Mx: 94.4, My: 27.9, Sev: "critical", HaloA: 13, HaloB: 10.5, LabelDX: 15},
+		{ID: "svc-4", Label: ":25 smtp", Type: "service", X: 1030, Y: 372, Mx: 94.4, My: 34.1, Sev: "low", HaloA: 13, HaloB: 10.5, LabelDX: 15},
+		{ID: "svc-5", Label: ":3000 http", Type: "service", X: 1030, Y: 440, Mx: 94.4, My: 40.3, Sev: "high", HaloA: 13, HaloB: 10.5, LabelDX: 15},
+		{ID: "svc-6", Label: ":22 ssh", Type: "service", X: 1030, Y: 508, Mx: 94.4, My: 46.6, Sev: "high", HaloA: 13, HaloB: 10.5, LabelDX: 15},
+	}
+	edges := []graphEdge{
+		{X1: 90, Y1: 320, X2: 400, Y2: 52},
+		{X1: 90, Y1: 320, X2: 400, Y2: 112},
+		{X1: 90, Y1: 320, X2: 400, Y2: 172},
+		{X1: 90, Y1: 320, X2: 400, Y2: 232},
+		{X1: 90, Y1: 320, X2: 400, Y2: 292},
+		{X1: 90, Y1: 320, X2: 400, Y2: 352},
+		{X1: 90, Y1: 320, X2: 400, Y2: 412},
+		{X1: 90, Y1: 320, X2: 400, Y2: 472},
+		{X1: 90, Y1: 320, X2: 400, Y2: 532},
+		{X1: 90, Y1: 320, X2: 400, Y2: 592},
+		{X1: 400, Y1: 52, X2: 730, Y2: 80},
+		{X1: 400, Y1: 112, X2: 730, Y2: 138},
+		{X1: 400, Y1: 172, X2: 730, Y2: 196},
+		{X1: 400, Y1: 232, X2: 730, Y2: 254},
+		{X1: 400, Y1: 292, X2: 730, Y2: 312},
+		{X1: 400, Y1: 352, X2: 730, Y2: 370},
+		{X1: 400, Y1: 412, X2: 730, Y2: 428},
+		{X1: 400, Y1: 472, X2: 730, Y2: 486},
+		{X1: 400, Y1: 592, X2: 730, Y2: 544},
+		{X1: 730, Y1: 80, X2: 1030, Y2: 100, ToService: true},
+		{X1: 730, Y1: 370, X2: 1030, Y2: 168, ToService: true},
+		{X1: 730, Y1: 138, X2: 1030, Y2: 236, ToService: true},
+		{X1: 730, Y1: 196, X2: 1030, Y2: 304, ToService: true},
+		{X1: 730, Y1: 254, X2: 1030, Y2: 372, ToService: true},
+		{X1: 730, Y1: 312, X2: 1030, Y2: 440, ToService: true},
+		{X1: 730, Y1: 428, X2: 1030, Y2: 508, ToService: true},
+	}
+	return graphView{
+		Nodes: nodes, Edges: edges, Empty: false,
+		ViewW: graphViewW, ViewH: graphViewH, MiniW: graphMiniW, MiniH: graphMiniH,
+	}
+}
+
+// graphFixtureData is the render map graphPage passes to the frozen graph.tmpl in a VERGE_DEV build
+// (the three golden states are pure client-JS variants of this one server render). render-goldens
+// composes the identical map statically, so golden and candidate agree byte-for-byte.
+func (s *server) graphFixtureData(acct db.Account) map[string]any {
+	return map[string]any{
+		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "graph", "DesignTokens": true,
+		"Graph": devGraphData(),
+	}
+}

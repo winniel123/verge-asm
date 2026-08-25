@@ -88,11 +88,11 @@ func TestJoinSignalsToGraph(t *testing.T) {
 
 	// A fired census on each subject kind, plus one firing that matches no node.
 	censuses := []signal.Census{
-		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "api.example.com"}}},                                        // name -> name node
-		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "203.0.113.5:443/tcp"}}},               // service -> service node
-		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}},            // endpoint -> its Name node
-		{Rule: "redirect-does-not-upgrade-to-tls", Fired: []signal.Member{{Subject: "@203.0.113.5:443/tcp"}}},                  // nameless endpoint -> its Service node
-		{Rule: "cname-target-name-error", Fired: []signal.Member{{Subject: "ghost.example.com"}}},                              // matches no node -> dropped
+		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "api.example.com"}}},                             // name -> name node
+		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "203.0.113.5:443/tcp"}}},    // service -> service node
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}}, // endpoint -> its Name node
+		{Rule: "redirect-does-not-upgrade-to-tls", Fired: []signal.Member{{Subject: "@203.0.113.5:443/tcp"}}},       // nameless endpoint -> its Service node
+		{Rule: "cname-target-name-error", Fired: []signal.Member{{Subject: "ghost.example.com"}}},                   // matches no node -> dropped
 	}
 
 	g = joinSignals(g, censuses)
@@ -136,7 +136,7 @@ func TestJoinSignalsToGraph(t *testing.T) {
 	}
 	var sawSev bool
 	for _, s := range svc.OpenSignals {
-		if s.Rule == "sensitive-port-reached-from-internet" && s.Sev == "critical" {
+		if s.Rule == "sensitive-port-reached-from-internet" && s.Severity == "critical" {
 			sawSev = true
 		}
 	}
@@ -202,10 +202,10 @@ func TestGraphPageJoinsOpenSignals(t *testing.T) {
 		`data-for="leak.example.com"`,                           // the per-node drawer signal block
 		`class="gnode-halo"`,                                    // a halo is drawn
 		"var(--sev-medium-dot)",                                 // tinted to the rule's real severity (medium)
-		`class="sev sev-medium"`,                                // the drawer SeverityBadge for the firing
-		`value="critical"`,                                      // a five-level severity filter option
+		"var(--sev-medium-bg)",                                  // the landed sevbadge for the firing (medium)
+		`data-sev="critical"`,                                   // a five-level severity filter option
 		"All severities",                                        // the severity filter's default
-		"No open signals",                                       // the honest empty state for unlit nodes
+		"No open signals on this node.",                         // the honest empty state for unlit nodes
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("graph page missing %q; body: %s", want, page)
@@ -231,13 +231,13 @@ func TestGraphPageRendersTopology(t *testing.T) {
 	page := getBody(t, ac, base+"/graph", http.StatusOK)
 
 	for _, want := range []string{
-		`id="graph-svg"`,      // the canvas
-		`id="graph-minimap"`,  // the minimap
-		`id="graph-controls"`, // the pan/zoom controls
-		`id="graph-drawer"`,   // the node drawer
-		"api.example.com",     // the real Name node
-		"203.0.113.5",         // the real Address node
-		":443 tcp",            // the real Service node label
+		`id="gr-svg"`,                          // the canvas
+		`id="gr-minimap"`,                      // the minimap
+		`data-gr-zoom="in"`,                    // the pan/zoom controls
+		`id="gr-drawer"`,                       // the node drawer
+		"api.example.com",                      // the real Name node
+		"203.0.113.5",                          // the real Address node
+		":443 tcp",                             // the real Service node label
 		`class="navpill active" href="/graph"`, // NavActive wired to graph
 	} {
 		if !strings.Contains(page, want) {
@@ -258,7 +258,7 @@ func TestGraphPageEmptyState(t *testing.T) {
 	if !strings.Contains(page, "Nothing to plot yet") {
 		t.Errorf("empty graph missing the empty-state; body: %s", page)
 	}
-	if strings.Contains(page, `id="graph-svg"`) {
+	if strings.Contains(page, `id="gr-svg"`) {
 		t.Errorf("empty graph rendered a canvas; want only the empty-state")
 	}
 }
