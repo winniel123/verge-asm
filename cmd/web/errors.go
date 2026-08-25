@@ -138,6 +138,12 @@ func (s *server) recoverPanics(next http.Handler) http.Handler {
 		defer func() {
 			if rec := recover(); rec != nil {
 				id := newIncidentID()
+				// In a VERGE_DEV build the id is the deterministic fixture value so the
+				// pixel-parity harness's 500 golden is stable; real builds keep the
+				// crypto/rand draw above (devfixtures.go, WORK-ORDER-2-ERROR.md step 3).
+				if s.devMode {
+					id = devFixtureIncidentID
+				}
 				log.Printf("web: incident %s: recovered panic on %s %s: %v\n%s",
 					id, r.Method, r.URL.Path, rec, debug.Stack())
 				s.renderError(w, r, http.StatusInternalServerError, "500", "Something broke", id)
