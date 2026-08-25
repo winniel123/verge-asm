@@ -273,5 +273,98 @@
         "js": ""
       }
     ]
+  },
+  "scope": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/scope",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "refusal",
+        "route": "/scope",
+        "session": "admin",
+        "js": "var i=document.querySelector('.sc-field input[name=scope]'); i.value='203.0.113.0/20'; i.form.submit();",
+        "delay": 900
+      },
+      {
+        "id": "exclusion-preview",
+        "route": "/scope",
+        "session": "admin",
+        "js": "var f=document.querySelector('.sc-xadd'); f.querySelector('input.val').value='staging-4.acmecorp.io'; f.querySelector('[formaction=\"/exclusions/preview\"]').click();",
+        "delay": 900
+      }
+    ]
+  },
+  "dashboard": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "scanning",
+        "route": "/",
+        "session": "admin",
+        "variant": "scanning",
+        "js": ""
+      },
+      {
+        "id": "banner-dismissed",
+        "route": "/?probe=dismissed",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "signals": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/signals?tab=open",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "drawer-open",
+        "route": "/signals?view=SIG-1042",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "drawer-annotated",
+        "route": "/signals?view=SIG-1027",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "descope-confirm",
+        "route": "/signals?descope=SIG-1042",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "withdrawn-tab",
+        "route": "/signals?tab=withdrawn",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "menu-open",
+        "route": "/signals?tab=open",
+        "session": "admin",
+        "js": "document.querySelector('[data-menu-btn]').click()"
+      }
+    ]
   }
 }

@@ -1,0 +1,415 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — scope.tmpl · package v3.9.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Scope.jsx · shot 02. Replaces the "scope" define in
+  templates_scope.go (and the repo-authored "proposals" define, folded in here).
+  Holes: .Notice .IsAdmin .AddressCap .Seeds[{ID,Anchor,Scope,IsAddress}] .FormScope .FormError
+  .Refusal{Input,Reason,Reachable}(NEW, nullable) .CustodyScopes[{ID,Scope,CustodyExtension,Census}]
+  .CustodyError .ZoneScopes[{ID,Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}] .ZoneError
+  .ZoneIntervalDays .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}]
+  .CoverageMsgs[{Kind,Badge,Bound,Subject,Text,When,ISO}] .Proposals[{ID,Value,Kind,Source}]
+  .OrgQuery .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,Headline,Loss}
+  Reconciliations (SPEC-CHANGE #21, ruled): spec two-column card layout; seed kind select drops —
+  the handler infers name/address from the value's shape (#21a); refusals render the spec
+  RefusalCallout from .Refusal; custody renders the spec toggle+census once per name scope (#21b);
+  zone upload is the spec FileDrop — seed select drops, the handler infers the scope from the
+  file's apex (#21c); cold-tier + prober config relocate to /settings (their design homes, shots
+  17–18) (#21d); the exclusion Preview receipt stays (spec-styled). Forms keep their POST routes.
+*/}}
+{{define "scope"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes sc-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.sc-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.sc-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.sc-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.sc-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.sc-cardhead { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
+.sc-cardhead .hd { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sc-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.sc-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.sc-count { margin-left: auto; font: 500 10.5px var(--font-mono); padding: 1px 7px; border-radius: 999px; background: var(--surface-sunken); color: var(--text-secondary); flex: none; }
+.sc-body { padding: 20px; }
+.sc-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.sc-tag form { margin: 0; display: inline-flex; }
+.sc-tag .rm { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: none; border-radius: 999px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; }
+.sc-tag .rm:hover { background: var(--border-strong); }
+.sc-field { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 36px; padding: 5px 10px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); cursor: text; }
+.sc-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sc-field.err { border-color: var(--danger-solid); }
+.sc-field form { display: flex; flex: 1; min-width: 80px; margin: 0; }
+.sc-field input { flex: 1; min-width: 80px; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 12.5px var(--font-mono); }
+.sc-hint { font-size: 11.5px; font-family: var(--font-ui); color: var(--text-muted); }
+.sc-errline { font-size: 11.5px; font-family: var(--font-ui); color: var(--danger); }
+.sc-refusal { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; font-family: var(--font-ui); }
+.sc-refusal .ic { color: var(--danger); display: inline-flex; margin-top: 1px; flex: none; }
+.sc-refusal .ct { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.sc-refusal .t { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.sc-refusal .t .mono { font: 600 12.5px var(--font-mono); }
+.sc-refusal .r { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-body); }
+.sc-refusal .reach { font: 400 12px var(--font-ui); color: var(--text-secondary); }
+.sc-refusal .reach .mono { font: 500 12px var(--font-mono); color: var(--text-body); }
+.sc-switchrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sc-switchrow form { margin: 0; display: inline-flex; }
+.sc-switch { display: inline-flex; width: 36px; height: 20px; flex: none; border-radius: 999px; position: relative; border: none; padding: 0; background: var(--neutral-300); cursor: pointer; transition: background var(--dur-base) var(--ease-out); }
+.sc-switch.on { background: var(--accent); }
+.sc-switch .knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgba(35,31,25,0.2); transition: left var(--dur-base) var(--ease-out); }
+.sc-switch.on .knob { left: 18px; }
+.sc-switchrow .lbl { font: 400 13px var(--font-ui); color: var(--text-body); }
+.sc-switchrow .lbl .mono { font: 400 12.5px var(--font-mono); }
+.sc-meter { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
+.sc-meter .top { display: flex; align-items: baseline; gap: 8px; }
+.sc-meter .top .val { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.sc-meter .census { height: 4px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-sunken) 5px 10px); }
+.sc-meter .det { font: 400 11px var(--font-ui); color: var(--text-muted); }
+.sc-zrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sc-zrow .zname { font: 500 12px var(--font-mono); color: var(--text-body); }
+.sc-zrow .zmeta { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.sc-badge-warn { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--warn-soft); border: 1px solid var(--warn-border); color: var(--warn); font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.sc-badge-warn .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+.sc-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 16px 14px; border: 1.5px dashed var(--border-strong); border-radius: 16px; background: var(--surface); cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); font-family: var(--font-ui); text-align: center; }
+.sc-drop:hover, .sc-drop.over { border-color: var(--accent); background: var(--accent-softer); }
+.sc-drop .ic { color: var(--text-muted); display: inline-flex; }
+.sc-drop:hover .ic, .sc-drop.over .ic { color: var(--accent); }
+.sc-drop .l { font: 500 13px var(--font-ui); color: var(--text-body); }
+.sc-drop .h { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+.sc-introw { display: flex; align-items: center; gap: 8px; }
+.sc-introw input { width: 72px; height: 30px; padding: 0 10px; border: 1px solid var(--border-default); border-radius: 10px; background: var(--surface); color: var(--text-ink); font: 400 12px var(--font-mono); outline: none; }
+.sc-introw input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sc-introw .unit { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+.sc-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.sc-btn-sm:hover { background: var(--surface-sunken); }
+.sc-btn-sm[disabled] { opacity: 0.45; cursor: default; }
+.sc-btn-sm[disabled]:hover { background: var(--surface); }
+.sc-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: transparent; color: var(--text-secondary); border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.sc-btn-ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.sc-btn-ghost[disabled] { opacity: 0.45; cursor: default; }
+.sc-btn-ghost[disabled]:hover { background: transparent; color: var(--text-secondary); }
+.sc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.sc-btn:hover { background: var(--surface-sunken); }
+.sc-tree { display: flex; flex-direction: column; font-family: var(--font-ui); }
+.sc-trow { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 8px; width: 100%; border: none; background: transparent; text-align: left; transition: background var(--dur-fast) var(--ease-out); }
+.sc-trow:hover { background: var(--surface-sunken); }
+button.sc-trow { cursor: pointer; }
+.sc-trow .chev { width: 12px; height: 12px; flex: none; color: var(--text-muted); transition: transform var(--dur-base) var(--ease-out); }
+.sc-trow[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.sc-trow .spacer { width: 12px; flex: none; }
+.sc-trow .dot { width: 6px; height: 6px; border-radius: 999px; flex: none; }
+.sc-trow .tl { font: 500 12.5px var(--font-mono); color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-trow .tc { margin-left: auto; font: 400 10.5px var(--font-mono); color: var(--text-muted); }
+.sc-tkids { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--dur-base) var(--ease-out); }
+.sc-tkids.closed { grid-template-rows: 0fr; }
+.sc-tkids > div { overflow: hidden; min-height: 0; }
+.sc-tkids .sc-trow { padding-left: 26px; }
+.sc-msgs { display: flex; flex-direction: column; font-family: var(--font-ui); }
+.sc-msg { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 11px 0; }
+.sc-msg + .sc-msg { border-top: 1px solid var(--row-sep); }
+.sc-msg .sbj { font: 600 12px var(--font-mono); color: var(--text-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-msg .txt { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); }
+.sc-when { font: 500 12.5px var(--font-mono); color: var(--text-body); border-bottom: 1px dashed var(--border-strong); cursor: default; white-space: nowrap; }
+.sc-gapbadge { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: transparent; border: 1px dotted var(--border-strong); color: var(--text-secondary); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; }
+.sc-stale { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: var(--stale-bg); border: 1px solid var(--stale-border); color: var(--stale-fg); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.sc-stale .b { font-weight: 400; opacity: 0.8; }
+.sc-input { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
+.sc-input .il { font-size: 12.5px; font-weight: 500; color: var(--text-body); }
+.sc-input .iw { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.sc-input .iw:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sc-input input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 13px var(--font-ui); }
+.sc-cb { position: relative; display: inline-flex; cursor: pointer; }
+.sc-cb input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.sc-cb .box { width: 18px; height: 18px; flex: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.sc-cb input:checked + .box { background: var(--accent); border-color: var(--accent); }
+.sc-cb .box svg { display: none; }
+.sc-cb input:checked + .box svg { display: block; }
+.sc-cb input:focus-visible + .box { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+.sc-prow { display: flex; align-items: center; gap: 12px; padding: 10px 2px; }
+.sc-prow + .sc-prow { border-top: 1px solid var(--row-sep); }
+.sc-prow .pv { font: 500 12.5px var(--font-mono); color: var(--text-ink); }
+.sc-prow .psrc { font: 400 11.5px var(--font-ui); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-prow form { margin: 0 0 0 auto; flex: none; }
+.sc-xrow { display: flex; align-items: center; gap: 10px; padding: 7px 10px; background: var(--surface-sunken); border-radius: 10px; }
+.sc-xrow .xv { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.sc-xrow form { margin: 0 0 0 auto; }
+.sc-xrow .rm { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: none; border-radius: 999px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; }
+.sc-xrow .rm:hover { background: var(--border-strong); }
+.sc-listbox { position: relative; display: inline-flex; width: 150px; }
+.sc-listbox .trig { display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 12px; background: var(--surface); color: var(--text-ink); font: 400 13px var(--font-ui); text-align: left; border: 1px solid var(--border-default); border-radius: 12px; cursor: pointer; }
+.sc-listbox .trig .cv { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-listbox .trig .chev { color: var(--text-muted); flex: none; transition: transform var(--dur-base) var(--ease-out); }
+.sc-listbox .trig[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sc-listbox .trig[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.sc-listbox .panel { position: absolute; top: 100%; left: 0; margin-top: 6px; width: 100%; z-index: 95; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: sc-pop var(--dur-base) var(--ease-out); }
+.sc-listbox .panel[hidden] { display: none; }
+.sc-listbox .opt { display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); }
+.sc-listbox .opt:hover { background: var(--surface-sunken); }
+.sc-listbox .opt.on { color: var(--link); font-weight: 600; }
+.sc-xadd input.val { flex: 1; height: 30px; padding: 0 10px; background: var(--surface); color: var(--text-ink); font: 400 12px var(--font-mono); border: 1px solid var(--border-default); border-radius: 10px; outline: none; }
+.sc-xadd input.val:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sc-receipt { padding: 12px 14px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); display: flex; flex-direction: column; gap: 4px; }
+.sc-receipt .hl { margin: 0; font: 600 13px var(--font-ui); color: var(--text-ink); }
+.sc-receipt .ls { margin: 0; font: 400 12.5px/1.5 var(--font-ui); color: var(--text-body); }
+.sc-notice { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; background: var(--ok-soft); border: 1px solid var(--ok-border); border-radius: 12px; font-family: var(--font-ui); font-size: 12.5px; line-height: 1.5; color: var(--text-body); }
+.sc-notice .ic { color: var(--ok); display: inline-flex; margin-top: 1px; flex: none; }
+.sc-error { padding: 10px 14px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; font: 400 12.5px/1.5 var(--font-ui); color: var(--danger); }
+</style>
+<main class="sc-main" data-screen-label="Scope">
+{{if .Notice}}<div class="sc-notice"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span><span>{{.Notice}}</span></div>{{end}}
+<header style="display:flex;flex-direction:column;gap:2px">
+<h1>Scope</h1>
+<span class="sc-sub">What Verge is allowed to look at: seeds, proposals, exclusions, custody.</span>
+</header>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="sc-card">
+<div class="sc-cardhead"><div class="hd"><span class="sc-micro">Seeds</span><h3>Declared scopes</h3></div></div>
+<div class="sc-body">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div class="sc-field{{if .FormError}} err{{end}}" data-focus-input>
+{{range .Seeds}}<span class="sc-tag" id="seed-{{.Anchor}}">{{.Scope}}{{if $.IsAdmin}}<form method="post" action="/seeds/delete"><input type="hidden" name="id" value="{{.ID}}"><button class="rm" type="submit" aria-label="Remove seed"><svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}</span>{{end}}
+{{if .IsAdmin}}<form method="post" action="/seeds"><input name="scope" value="{{.FormScope}}" placeholder="{{if not .Seeds}}acmecorp.io or 203.0.113.0/24{{end}}" autocomplete="off" aria-label="Declare a scope"></form>{{end}}
+</div>
+{{if .FormError}}<span class="sc-errline">{{.FormError}}</span>{{else}}<span class="sc-hint">Names or address scopes · a block wider than the {{.AddressCap}}-address cap is refused, never auto-corrected.</span>{{end}}
+</div>
+{{with .Refusal}}
+<div class="sc-refusal">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg></span>
+<div class="ct">
+<span class="t">Declaration refused: <span class="mono">{{.Input}}</span></span>
+<span class="r">{{.Reason}}</span>
+{{if .Reachable}}<span class="reach">Reachable set: <span class="mono">{{.Reachable}}</span> — nothing is auto-corrected; declare it yourself.</span>{{end}}
+</div>
+</div>
+{{end}}
+</div>
+</div>
+</section>
+<section class="sc-card">
+<div class="sc-cardhead"><div class="hd"><span class="sc-micro">Custody</span><h3>Adjacent infrastructure</h3></div></div>
+<div class="sc-body">
+{{if .CustodyError}}<div class="sc-error" style="margin-bottom:12px">{{.CustodyError}}</div>{{end}}
+{{if .CustodyScopes}}
+<div style="display:flex;flex-direction:column;gap:16px">
+{{range .CustodyScopes}}
+<div style="display:flex;flex-direction:column;gap:12px">
+<div class="sc-switchrow">
+{{if $.IsAdmin}}
+<form method="post" action="/seeds/custody"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="extend" value="{{if .CustodyExtension}}false{{else}}true{{end}}"><button type="submit" role="switch" aria-checked="{{if .CustodyExtension}}true{{else}}false{{end}}" class="sc-switch{{if .CustodyExtension}} on{{end}}" aria-label="Extend custody — {{.Scope}}"><span class="knob"></span></button></form>
+{{else}}<span class="sc-switch{{if .CustodyExtension}} on{{end}}" role="switch" aria-checked="{{if .CustodyExtension}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
+<span class="lbl">Extend custody to adjacent infrastructure — <span class="mono">{{.Scope}}</span></span>
+</div>
+{{if .CustodyExtension}}
+<div class="sc-meter">
+<div class="top"><span class="sc-micro">Custody extension</span><span class="val">census · {{.Census}} addresses</span></div>
+<div class="census" aria-label="Census — no denominator"></div>
+<span class="det">recomputed each batch — read-only, never per-address approval</span>
+</div>
+{{end}}
+</div>
+{{end}}
+</div>
+{{else}}
+<span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">A custody extension is a property of a name scope. Declare a name scope, then extend custody to the addresses it resolves into.</span>
+{{end}}
+</div>
+</section>
+<section class="sc-card">
+<div class="sc-cardhead"><div class="hd"><span class="sc-micro">Removal detection</span><h3>Zone file</h3></div></div>
+<div class="sc-body">
+<div style="display:flex;flex-direction:column;gap:12px">
+{{if .ZoneError}}<div class="sc-error">{{.ZoneError}}</div>{{end}}
+{{range .ZoneScopes}}
+<div class="sc-zrow">
+{{if .HasFile}}
+<span class="zname">{{.Domain}}.zone</span>
+<span class="zmeta">uploaded {{.SuppliedAt}}{{if .IntervalLabel}} · re-supply {{.IntervalLabel}}{{end}}</span>
+{{if .AgingLabel}}<span style="margin-left:auto"><span class="sc-badge-warn"><span class="dot"></span>{{.AgingLabel}}</span></span>{{end}}
+{{else}}
+<span class="zname">{{.Domain}}</span>
+<span class="zmeta">no zone file supplied</span>
+{{end}}
+</div>
+{{end}}
+{{if .IsAdmin}}
+<form method="post" action="/seeds/zone" enctype="multipart/form-data" style="margin:0">
+<label class="sc-drop" id="sc-zone-drop">
+<span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg></span>
+<span class="l">Re-supply zone file</span>
+<span class="h">Upload is a dated act — the upload instant is the observation instant. An apex outside your name scopes is refused, with the reason.</span>
+<input type="file" name="zonefile" accept=".zone,.txt" style="display:none">
+</label>
+</form>
+<div class="sc-introw">
+<span class="sc-micro">Re-supply interval</span>
+<form method="post" action="/seeds/zone/interval" style="margin:0 0 0 auto;display:flex;align-items:center;gap:8px">
+<input name="interval_days" inputmode="numeric" value="{{.ZoneIntervalDays}}" aria-label="Re-supply interval in days"><span class="unit">days</span>
+<button type="submit" class="sc-btn-sm">Save</button>
+</form>
+</div>
+{{if .ZoneIntervalError}}<div class="sc-error">{{.ZoneIntervalError}}</div>{{end}}
+{{end}}
+</div>
+</div>
+</section>
+<section class="sc-card">
+<div class="sc-cardhead"><div class="hd"><span class="sc-micro">Names</span><h3>Declared name tree</h3></div></div>
+<div class="sc-body">
+{{if .NameTree}}
+<div class="sc-tree">
+{{range .NameTree}}
+<div>
+<button type="button" class="sc-trow" aria-expanded="true">
+<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+{{if .Sev}}<span class="dot" style="background:var(--sev-{{.Sev}}-dot)"></span>{{end}}
+<span class="tl">{{.Label}}</span>
+{{if .Count}}<span class="tc">{{.Count}}</span>{{end}}
+</button>
+<div class="sc-tkids"><div>
+{{range .Children}}
+<div class="sc-trow">
+<span class="spacer"></span>
+{{if .Sev}}<span class="dot" style="background:var(--sev-{{.Sev}}-dot)"></span>{{end}}
+<span class="tl">{{.Label}}</span>
+</div>
+{{end}}
+</div></div>
+</div>
+{{end}}
+</div>
+{{else}}
+<span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">A name tree grows under a declared name scope. Declare a domain above; each name that resolves under it appears here with its severity.</span>
+{{end}}
+</div>
+</section>
+</div>
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="sc-card">
+<div class="sc-cardhead"><div class="hd"><span class="sc-micro">Coverage</span><h3>Coverage messages</h3></div></div>
+<div class="sc-body">
+{{if .CoverageMsgs}}
+<div class="sc-msgs">
+{{range .CoverageMsgs}}
+<div class="sc-msg">
+<span style="padding-top:1px">{{if eq .Kind "gap"}}<span class="sc-gapbadge"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none"><rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="1.6 1.6"></rect></svg>{{.Badge}}</span>{{else}}<span class="sc-stale"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none"><circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.4"></circle><path d="M5 3.2V5l1.4 1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>{{.Badge}}{{if .Bound}}<span class="b">· {{.Bound}}</span>{{end}}</span>{{end}}</span>
+<span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="sbj">{{.Subject}}</span><span class="txt">{{.Text}}</span></span>
+{{if .When}}<span class="sc-when" title="{{.ISO}}">{{.When}}</span>{{end}}
+</div>
+{{end}}
+</div>
+{{else}}
+<span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">Every vantage is reporting and no gap, staleness or silence stands.</span>
+{{end}}
+</div>
+</section>
+<section class="sc-card">
+<div class="sc-cardhead"><div class="hd"><span class="sc-micro">Proposals</span><h3>From the registry</h3></div><span class="sc-count">{{len .Proposals}}</span></div>
+<div class="sc-body">
+{{if .IsAdmin}}
+<form method="post" action="/proposals/search" style="display:flex;gap:8px;align-items:flex-end;margin:0 0 14px">
+<span class="sc-input" style="flex:1"><span class="il">Org-name search</span><span class="iw"><input name="org" value="{{.OrgQuery}}" placeholder="Acme Corporation" autocomplete="off"></span></span>
+<button type="submit" class="sc-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>Search registries</button>
+</form>
+{{end}}
+<span style="display:block;font:400 11.5px/1.6 var(--font-ui);color:var(--text-muted);margin-bottom:14px">Proposers answer an org-name search with address scopes — never subdomains. A proposal asserts nothing until confirmed into a seed; declines are recorded as exclusions.</span>
+{{if .Proposals}}
+<form method="post" action="/proposals/decline" id="sc-decline-form" style="margin:0"></form>
+<div style="display:flex;flex-direction:column">
+{{range .Proposals}}
+<div class="sc-prow">
+<label class="sc-cb"><input type="checkbox" name="ids" value="{{.ID}}" form="sc-decline-form" data-decline><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></label>
+<span class="pv">{{.Value}}</span>
+<span class="sc-tag">{{.Kind}}</span>
+<span class="psrc">{{.Source}}</span>
+{{if $.IsAdmin}}<form method="post" action="/proposals/confirm"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="sc-btn-sm">Confirm</button></form>{{end}}
+</div>
+{{end}}
+<div style="display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--row-sep)">
+<span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">Confirm one at a time; decline in bulk.</span>
+{{if .IsAdmin}}<button type="submit" form="sc-decline-form" class="sc-btn-ghost" id="sc-decline-btn" style="margin-left:auto" disabled>Decline selected</button>{{end}}
+</div>
+</div>
+{{else}}
+<span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">No open proposals. The registry suggests scopes as it sees them.</span>
+{{end}}
+</div>
+</section>
+<section class="sc-card">
+<div class="sc-cardhead"><div class="hd"><span class="sc-micro">Exclusions</span><h3>Never scanned</h3></div></div>
+<div class="sc-body">
+<div style="display:flex;flex-direction:column;gap:12px">
+{{if .ExclError}}<div class="sc-error">{{.ExclError}}</div>{{end}}
+<div style="display:flex;flex-direction:column;gap:6px">
+{{range .Exclusions}}
+<div class="sc-xrow">
+<span class="sc-tag">{{.Kind}}</span>
+<span class="xv">{{if eq .Kind "subtree"}}*.{{end}}{{.Value}}</span>
+{{if $.IsAdmin}}<form method="post" action="/exclusions/delete"><input type="hidden" name="id" value="{{.ID}}"><button class="rm" type="submit" aria-label="Remove exclusion"><svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}
+</div>
+{{else}}
+<span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">No exclusions. Everything declared is in scope.</span>
+{{end}}
+</div>
+{{if .IsAdmin}}
+<form method="post" action="/exclusions" style="display:flex;gap:8px;align-items:center;margin:0" class="sc-xadd">
+<input type="hidden" name="kind" value="{{if .ExclKind}}{{.ExclKind}}{{else}}subtree{{end}}" id="sc-xkind">
+<span class="sc-listbox">
+<button type="button" class="trig" id="sc-xkind-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cv">Subtree</span><svg class="chev" viewBox="0 0 16 16" width="14" height="14"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+<div class="panel" id="sc-xkind-panel" hidden>
+<button type="button" class="opt" data-kind="name">Exact name</button>
+<button type="button" class="opt on" data-kind="subtree">Subtree</button>
+<button type="button" class="opt" data-kind="address">Address scope</button>
+</div>
+</span>
+<input class="val" name="value" value="{{.ExclValue}}" placeholder="old-blog.acmecorp.io" autocomplete="off" aria-label="Exclusion value">
+<button type="submit" formaction="/exclusions/preview" class="sc-btn-ghost" style="flex:none">Preview</button>
+<button type="submit" class="sc-btn-sm" style="flex:none">Add exclusion</button>
+</form>
+{{with .ExclPreview}}
+<div class="sc-receipt">
+<span class="sc-micro">What this exclusion would withdraw</span>
+{{if .Fires}}<p class="hl">{{.Headline}}</p><p class="ls">{{.Loss}}</p>{{else}}<p class="ls">Nothing is withdrawn. No subject leaves the estate, so no message fires — an excluded name that still resolves survives, and its Gap carries it.</p>{{end}}
+</div>
+{{end}}
+{{end}}
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<script>
+(function(){
+  [].forEach.call(document.querySelectorAll("[data-focus-input]"),function(f){
+    f.addEventListener("click",function(e){if(e.target.closest("form")&&e.target.tagName!=="INPUT")return;var i=f.querySelector("input[name=scope]");if(i&&e.target!==i)i.focus();});
+  });
+  [].forEach.call(document.querySelectorAll(".sc-tree .sc-trow[aria-expanded]"),function(b){
+    b.addEventListener("click",function(){
+      var open=b.getAttribute("aria-expanded")==="true";
+      b.setAttribute("aria-expanded",open?"false":"true");
+      var kids=b.parentNode.querySelector(".sc-tkids");
+      if(kids){if(open)kids.classList.add("closed");else kids.classList.remove("closed");}
+    });
+  });
+  var boxes=[].slice.call(document.querySelectorAll("[data-decline]")),db=document.getElementById("sc-decline-btn");
+  function recount(){if(!db)return;var n=boxes.filter(function(b){return b.checked;}).length;db.textContent="Decline selected"+(n?" ("+n+")":"");if(n)db.removeAttribute("disabled");else db.setAttribute("disabled","");}
+  boxes.forEach(function(b){b.addEventListener("change",recount);});
+  var drop=document.getElementById("sc-zone-drop");
+  if(drop){
+    var fi=drop.querySelector("input[type=file]");
+    fi.addEventListener("change",function(){if(fi.files.length)fi.form.submit();});
+    drop.addEventListener("dragover",function(e){e.preventDefault();drop.classList.add("over");});
+    drop.addEventListener("dragleave",function(){drop.classList.remove("over");});
+    drop.addEventListener("drop",function(e){e.preventDefault();drop.classList.remove("over");if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;fi.form.submit();}});
+  }
+  var kb=document.getElementById("sc-xkind-btn"),kp=document.getElementById("sc-xkind-panel"),kh=document.getElementById("sc-xkind");
+  if(kb&&kp&&kh){
+    var labels={name:"Exact name",subtree:"Subtree",address:"Address scope"},vi=document.querySelector(".sc-xadd input.val");
+    function sync(){kb.querySelector(".cv").textContent=labels[kh.value]||kh.value;[].forEach.call(kp.querySelectorAll(".opt"),function(o){o.classList.toggle("on",o.getAttribute("data-kind")===kh.value);});if(vi)vi.placeholder=kh.value==="address"?"203.0.113.128/25":"old-blog.acmecorp.io";}
+    sync();
+    kb.addEventListener("click",function(e){e.stopPropagation();var open=kp.hasAttribute("hidden");if(open)kp.removeAttribute("hidden");else kp.setAttribute("hidden","");kb.setAttribute("aria-expanded",open?"true":"false");});
+    [].forEach.call(kp.querySelectorAll(".opt"),function(o){o.addEventListener("click",function(){kh.value=o.getAttribute("data-kind");sync();kp.setAttribute("hidden","");kb.setAttribute("aria-expanded","false");});});
+    document.addEventListener("mousedown",function(e){if(!kp.hasAttribute("hidden")&&!kp.contains(e.target)&&!kb.contains(e.target)){kp.setAttribute("hidden","");kb.setAttribute("aria-expanded","false");}});
+    document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!kp.hasAttribute("hidden")){kp.setAttribute("hidden","");kb.setAttribute("aria-expanded","false");}});
+  }
+})();
+</script>
+{{template "foot" .}}{{end}}

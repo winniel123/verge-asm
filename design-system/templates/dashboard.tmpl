@@ -1,0 +1,236 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — dashboard.tmpl · package v3.9.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Dashboard.jsx · shot 01. Replaces templates_dashboard.go
+  (defines "home" + "dashboard" kept; "firstrun" stays repo-authored until map #20).
+  Holes kept: .EmptyEstate .ScanSchedule{HasLast,LastAgo,HasNext,NextIn} .Scanning .Unavailable[]
+  .ProbeDismissed .StatBand[{Label,Value,Live,HasDelta,Change,Tone,Caption}] (signDelta func stays)
+  .HasSignals .SevBars[{Sev,Pct,Count}] .Vantages[{Name,Latency,Avail}]. Changed holes
+  (SPEC-CHANGE #21, ruled): .ScanDetail (NEW, e.g. "214 subjects queued") replaces the inline
+  ActiveScans phrasing (#21e); .CoverageMeters gains nullable .Total + .Pct — address scopes render
+  counted/total per #19c, name scopes stay census (#21e2); .SilentZone{Bound,Text} (NEW) replaces
+  .SilentVantage — the spec renders the staleness badge + its subject line (#21e3);
+  .RecentSignals gains .SevLabel + .ViewKey so rows deep-link into the Signals drawer (#21f).
+*/}}
+{{define "home"}}{{template "head" .}}
+{{template "chrome" .}}
+{{if .EmptyEstate}}{{template "firstrun" .}}{{else}}{{template "dashboard" .}}{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "dashboard"}}
+<style>
+@keyframes db-sweep { 0% { left: -34%; } 100% { left: 100%; } }
+@keyframes db-pulse { 0% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0.35); } 70% { box-shadow: 0 0 0 6px rgba(3, 122, 192, 0); } 100% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0); } }
+.db-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+.db-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.db-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.db-sub .v { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); }
+.db-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.db-card.flush { overflow: hidden; }
+.db-cardhead { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
+.db-card.flush .db-cardhead { padding: 20px 20px 14px; }
+.db-cardhead .hd { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.db-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.db-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.db-body { padding: 20px; }
+.db-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out); }
+.db-btn.pri { background: var(--accent); color: var(--on-accent); }
+.db-btn.pri:hover { background: var(--accent-hover); }
+.db-btn.pri[disabled] { opacity: 0.45; cursor: default; }
+.db-btn.pri[disabled]:hover { background: var(--accent); }
+.db-btn.sec { background: var(--surface); color: var(--text-body); border-color: var(--border-strong); }
+.db-btn.sec:hover { background: var(--surface-sunken); }
+.db-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.db-btn-sm:hover { background: var(--surface-sunken); }
+.db-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: transparent; color: var(--text-secondary); border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.db-btn-ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.db-prog { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
+.db-prog .top { display: flex; align-items: baseline; gap: 8px; }
+.db-prog .det { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.db-prog .track { height: 6px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; position: relative; }
+.db-prog .track > span { position: absolute; top: 0; bottom: 0; width: 34%; border-radius: 999px; background: var(--accent); animation: db-sweep 1.4s var(--ease-in-out) infinite; }
+.db-banner { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: 12px; font-family: var(--font-ui); }
+.db-banner .ic { display: inline-flex; color: var(--warn); margin-top: 1px; flex: none; }
+.db-banner .bd { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.db-banner .bd b { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.db-banner .bd span { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-body); }
+.db-banner .act { flex: none; margin-left: 8px; align-self: center; }
+.db-banner .x { flex: none; margin: -3px -4px 0 0; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 10px; color: var(--text-secondary); text-decoration: none; transition: background var(--dur-fast) var(--ease-out); }
+.db-banner .x:hover { background: var(--surface-sunken); color: var(--text-body); }
+.db-statgrid { display: grid; grid-template-columns: repeat(5, 1fr); }
+.db-cell { padding: 20px 24px; min-width: 0; }
+.db-cell + .db-cell { border-left: 1px solid var(--row-sep); }
+.db-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.db-stat .lb { display: flex; align-items: center; gap: 8px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.db-stat .live { width: 7px; height: 7px; border-radius: 999px; background: var(--accent); animation: db-pulse 1.8s var(--ease-out) infinite; }
+.db-stat .vr { display: flex; align-items: baseline; gap: 8px; }
+.db-stat .num { font: 600 28px var(--font-mono); color: var(--text-ink); line-height: 1.1; }
+.db-stat .cap { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+.db-chip { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 999px; border: 1px solid transparent; font: 600 11px var(--font-mono); line-height: 1; white-space: nowrap; transform: translateY(-2px); }
+.db-chip.bad { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.db-chip.good { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.db-chip.neutral { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.db-chip svg.down { transform: rotate(180deg); }
+.db-sevbar { display: flex; align-items: center; gap: 12px; }
+.db-sevbar .sl { width: 72px; font: 500 11px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+.db-sevbar .st { flex: 1; height: 8px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.db-sevbar .sf { display: block; height: 100%; border-radius: 999px; }
+.db-sevbar .sn { width: 26px; text-align: right; font: 500 12.5px var(--font-mono); color: var(--text-body); }
+.db-meter { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
+.db-meter .top { display: flex; align-items: baseline; gap: 8px; }
+.db-meter .top .val { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.db-meter .track { height: 4px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.db-meter .track .fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--dur-slow) var(--ease-out); }
+.db-meter .census { height: 4px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-sunken) 5px 10px); }
+.db-meter .det { font: 400 11px var(--font-ui); color: var(--text-muted); }
+.db-stale { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: var(--stale-bg); border: 1px solid var(--stale-border); color: var(--stale-fg); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.db-stale .b { font-weight: 400; opacity: 0.8; }
+.db-vrow { display: flex; align-items: center; gap: 10px; }
+.db-vrow .vn { font: 400 12.5px var(--font-mono); color: var(--text-body); }
+.db-vrow .vl { font: 400 12px var(--font-mono); color: var(--text-muted); }
+.db-av { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.db-av .d { width: 5px; height: 5px; border-radius: 999px; }
+.db-av.available { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.db-av.available .d { background: var(--ok-solid); }
+.db-av.unavailable { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.db-av.unavailable .d { background: var(--danger-solid); }
+.db-av.unverified { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
+.db-av.unverified .d { background: var(--neutral-400); }
+.db-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.db-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.db-table td { padding: 10px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); overflow: hidden; text-overflow: ellipsis; }
+.db-table tbody tr:first-child td { border-top: none; }
+.db-table tbody tr { cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+.db-table tbody tr:hover { background: var(--surface-sunken); }
+.db-table td.mono { font: 400 12.5px var(--font-mono); }
+.db-table td .tt { font: 500 13px var(--font-ui); color: var(--text-ink); text-decoration: none; }
+</style>
+<main class="db-main" data-screen-label="Dashboard">
+<header style="display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<h1>Dashboard</h1>
+<span class="db-sub">{{with .ScanSchedule}}{{if .HasLast}}Last full scan <span class="v">{{.LastAgo}}</span> ago{{else}}No full scan yet{{end}}{{if .HasNext}} · next in <span class="v">{{.NextIn}}</span>{{end}}{{end}}</span>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px">
+<a class="db-btn sec" href="/scope"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>Add seed</a>
+{{if .Scanning}}<button class="db-btn pri" disabled><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Scan running</button>{{else}}<a class="db-btn pri" href="/scans"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Run scan</a>{{end}}
+</div>
+</header>
+{{if .Scanning}}
+<div class="db-prog">
+<div class="top"><span class="db-micro">Scan running</span><span class="det">{{.ScanDetail}}</span></div>
+<div class="track"><span></span></div>
+</div>
+{{end}}
+{{if and .Unavailable (not .ProbeDismissed)}}
+<div class="db-banner">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span>
+<span class="bd"><b>Vantage unreachable</b><span>{{range $i, $n := .Unavailable}}{{if $i}}, {{end}}<span style="font-family:var(--font-mono);font-size:12px">{{$n}}</span>{{end}} missed checks this batch. Scans continue from other vantages.</span></span>
+<span class="act"><a class="db-btn-sm" href="/scans">Retry now</a></span>
+<a class="x" href="/?probe=dismissed" aria-label="Dismiss"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></a>
+</div>
+{{end}}
+<div class="db-card flush">
+<div class="db-statgrid">
+{{range .StatBand}}
+<div class="db-cell"><div class="db-stat">
+<span class="lb">{{.Label}}{{if .Live}}<span class="live"></span>{{end}}</span>
+<span class="vr"><span class="num">{{.Value}}</span>{{if .HasDelta}}<span class="db-chip {{.Tone}}">{{if ne .Change 0}}<svg class="{{if lt .Change 0}}down{{end}}" viewBox="0 0 10 10" width="8" height="8" aria-hidden="true"><path d="M5 8.5V1.5M1.8 4.7L5 1.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{end}}{{signDelta .Change}}</span>{{end}}</span>
+<span class="cap">{{.Caption}}</span>
+</div></div>
+{{end}}
+</div>
+</div>
+<div style="display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="db-card">
+<div class="db-cardhead"><div class="hd"><span class="db-micro">Open signals</span><h3>By severity</h3></div></div>
+<div class="db-body">
+{{if .HasSignals}}
+<div style="display:flex;flex-direction:column;gap:12px">
+{{range .SevBars}}
+<div class="db-sevbar">
+<span class="sl">{{.Sev}}</span>
+<span class="st"><span class="sf" style="width:{{.Pct}}%;background:var(--sev-{{.Sev}}-dot)"></span></span>
+<span class="sn">{{.Count}}</span>
+</div>
+{{end}}
+</div>
+{{else}}
+<span style="font:400 12.5px/1.5 var(--font-ui);color:var(--text-muted)">The signal census did not resolve on this load. <a href="/signals" style="color:var(--link)">Open Signals</a> for the live ramp.</span>
+{{end}}
+</div>
+</section>
+<section class="db-card">
+<div class="db-cardhead"><div class="hd"><span class="db-micro">Coverage</span><h3>Did we look, how completely</h3></div></div>
+<div class="db-body">
+{{if .CoverageMeters}}
+<div style="display:flex;flex-direction:column;gap:16px">
+{{range .CoverageMeters}}
+<div class="db-meter">
+<div class="top"><span class="db-micro">{{.Label}}</span><span class="val">{{if .Total}}{{.Counted}} / {{.Total}}{{if .Unit}} {{.Unit}}{{end}}{{else}}census · {{.Counted}}{{if .Unit}} {{.Unit}}{{end}}{{end}}</span></div>
+{{if .Total}}<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Counted}}"><span class="fill" style="width:{{.Pct}}%"></span></div>{{else}}<div class="census" aria-label="Census — no denominator"></div>{{end}}
+{{if .Detail}}<span class="det">{{.Detail}}</span>{{end}}
+</div>
+{{end}}
+{{with .SilentZone}}
+<div style="display:flex;align-items:center;gap:8px">
+<span class="db-stale"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none"><circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.4"></circle><path d="M5 3.2V5l1.4 1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>no reports{{if .Bound}}<span class="b">· {{.Bound}}</span>{{end}}</span>
+<span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">{{.Text}}</span>
+</div>
+{{end}}
+</div>
+{{else}}
+<span style="font:400 12.5px/1.5 var(--font-ui);color:var(--text-muted)">A census counts what each declared scope looks at. Declare a seed on <a href="/scope" style="color:var(--link)">Scope</a>, and its aperture appears here.</span>
+{{end}}
+</div>
+</section>
+<section class="db-card">
+<div class="db-cardhead"><div class="hd"><span class="db-micro">Vantages</span><h3>Scan infrastructure</h3></div></div>
+<div class="db-body">
+{{if .Vantages}}
+<div style="display:flex;flex-direction:column;gap:12px">
+{{range .Vantages}}
+<div class="db-vrow">
+<span class="vn">{{.Name}}</span>
+<span class="vl">{{if .Latency}}{{.Latency}}{{else}}—{{end}}</span>
+<span style="margin-left:auto">{{if eq .Avail "available"}}<span class="db-av available"><span class="d"></span>available</span>{{else if eq .Avail "unavailable"}}<span class="db-av unavailable"><span class="d"></span>unavailable</span>{{else}}<span class="db-av unverified"><span class="d"></span>{{if .Avail}}{{.Avail}}{{else}}unverified{{end}}</span>{{end}}</span>
+</div>
+{{end}}
+</div>
+{{else}}
+<span style="font:400 12.5px/1.5 var(--font-ui);color:var(--text-muted)">A vantage is a position you scan from. None is provisioned, so scans resolve from the shipped resolver only. Provision a prober in <a href="/settings/vantages" style="color:var(--link)">Settings</a> to measure reachability from the internet.</span>
+{{end}}
+</div>
+</section>
+</div>
+<section class="db-card flush">
+<div class="db-cardhead"><div class="hd"><span class="db-micro">Most recent</span><h3>Signals</h3></div><a class="db-btn-ghost" href="/signals" style="margin-left:auto">View all</a></div>
+{{if .RecentSignals}}
+<table class="db-table">
+<thead><tr><th style="width:110px">Severity</th><th>Signal</th><th>Asset</th><th style="width:70px">Port</th><th style="width:64px;text-align:right">Seen</th></tr></thead>
+<tbody>
+{{range .RecentSignals}}<tr data-href="/signals?view={{.ViewKey}}">
+<td>{{template "sevbadge" .}}</td>
+<td><a class="tt" href="/signals?view={{.ViewKey}}">{{.Title}}</a></td>
+<td class="mono">{{.Asset}}</td>
+<td class="mono">{{if .Port}}{{.Port}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+<td class="mono" style="text-align:right">{{.Seen}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else if .HasSignals}}
+<div style="padding:20px"><span style="font:400 12.5px/1.5 var(--font-ui);color:var(--text-muted)">No rule is firing on any subject right now. A signal appears here the moment the world moves your estate into a rule's population, and is withdrawn just as quietly when the world moves back.</span></div>
+{{else}}
+<div style="padding:20px"><span style="font:400 12.5px/1.5 var(--font-ui);color:var(--text-muted)">The signal register did not resolve on this load. <a href="/signals" style="color:var(--link)">Open Signals</a> for the live census.</span></div>
+{{end}}
+</section>
+</div>
+</main>
+<script>
+(function(){
+  [].forEach.call(document.querySelectorAll("tr[data-href]"),function(r){
+    r.addEventListener("click",function(e){if(e.target.closest("a"))return;window.location=r.getAttribute("data-href");});
+  });
+})();
+</script>
+{{end}}
