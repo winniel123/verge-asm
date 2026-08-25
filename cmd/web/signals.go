@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
@@ -81,26 +82,75 @@ type annotationView struct {
 // ViewKey is the stable token the row Drawer opens on: a fired instance opens on
 // its SIG id, an annotation-anchored row (the Annotated / Withdrawn tabs) opens on
 // its annotation id, so the Drawer resolves without depending on a live mint.
+//
+// The trailing fields carry the spec Drawer's rule metadata + join data (#21j):
+// the rule tags, an optional CVE, the rule's description prose, the rule id +
+// version rendered together, the detecting vantage, the drift diff for the
+// subject, and the span-derived history. On the honest live projection these are
+// what the corpus can source (rule id from the rule name, the span-derived
+// history from the instants); the design's curated fixture (served under devMode)
+// carries the full authored set, byte-for-byte with the goldens.
 type signalRow struct {
 	signalInstanceView
-	SevLabel   string // the severity capitalised for the badge label ("Critical")
-	Annotated  bool
-	AnnoReason string
-	AnnoID     int64
-	Withdrawn  bool
-	ViewKey    string
-	idNum      int64 // the SIG id as a number, for the Id-column sort
-	seenAge    int64 // minutes since last-seen, for the Seen-column sort (unseen sorts last)
+	SevLabel    string // the severity capitalised for the badge label ("Critical")
+	Annotated   bool
+	AnnoReason  string
+	AnnoID      int64
+	Withdrawn   bool
+	ViewKey     string
+	DescopeHref string // per-row descope link (/signals?…&descope={ViewKey}, filters preserved)
+	// Drawer (#21j) — rule metadata + join data.
+	Tags        []string
+	CVE         string
+	Desc        string
+	RuleID      string
+	RuleVersion string
+	DetectedBy  string
+	Diff        *sigDiff
+	History     []sigHistoryEntry
+	idNum       int64 // the SIG id as a number, for the Id-column sort
+	seenAge     int64 // minutes since last-seen, for the Seen-column sort (unseen sorts last)
 }
 
-// sigSort carries the sort state and the per-column toggle links + arrows for the
-// sortable table headers (Severity / Asset / Id / Seen), precomputed so the
-// template only renders them.
+// sigDiff is the before/after drift join the Drawer shows for a subject (#21j):
+// a titled block of typed lines (add | remove | same). Nil where the subject has
+// no drift transition to show.
+type sigDiff struct {
+	Title string
+	Lines []sigDiffLine
+}
+
+type sigDiffLine struct {
+	Type string // add | remove | same
+	Text string
+}
+
+// sigHistoryEntry is one span-derived Drawer history event (#21j): a title, an
+// optional detail line (mono when Mono), a right-aligned time token, and a Tone
+// (accent | warn | danger | neutral) that colours the rail dot.
+type sigHistoryEntry struct {
+	Title  string
+	Detail string
+	Time   string
+	Tone   string
+	Mono   bool
+}
+
+// descopeView is the spec typed-confirm dialog's data (#21): the exact asset the
+// operator must retype to arm the danger button, and the link that closes the
+// dialog back to the current tab / filter / drawer.
+type descopeView struct {
+	Asset     string
+	CloseHref string
+}
+
+// sigSort carries the sort state and the per-column toggle links for the sortable
+// table headers (Severity / Asset / Id / Seen), precomputed so the template only
+// renders them. The caret svg renders from Key/Dir directly (#21i — the *Arrow
+// string holes retired).
 type sigSort struct {
 	Key, Dir                             string
 	SevHref, AssetHref, IDHref, SeenHref string
-	SevArrow, AssetArrow                 template.HTML
-	IDArrow, SeenArrow                   template.HTML
 }
 
 // pageCell is one slot in the pagination control — a page number and its link, or
@@ -123,7 +173,22 @@ type signalsForms struct {
 	annoReason  string
 }
 
+// The frozen design-owned signals.tmpl (design-system/templates/signals.tmpl, package
+// v3.9.0) is the view layer: it defines "signals" + the shared "sevbadge" /
+// "sevbadge-md" / "withdrawnmark" partials (dashboard.tmpl consumes "sevbadge"). It is
+// embedded read-only via the designfs package and parsed into the shared set here; the
+// repo authors no markup/CSS/JS for /signals.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/signals.tmpl"))
+
 func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// A VERGE_DEV build serves the design's curated fixtures.json signals slice so the
+	// screen renders byte-for-byte for the pixel-parity harness (the 47-of-47 open count,
+	// the authored rows, the drawer's rule metadata + drift join + span history, the
+	// typed-confirm descope). A real deployment renders the honest live projection below.
+	if s.devMode {
+		s.render(w, "signals", s.signalsFixtureData(acct, r))
+		return
+	}
 	s.renderSignals(w, r, acct, signalsForms{})
 }
 
@@ -323,10 +388,14 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		Key: sortKey, Dir: dir,
 		SevHref: sortHref("sev"), AssetHref: sortHref("asset"),
 		IDHref: sortHref("id"), SeenHref: sortHref("seen"),
-		SevArrow:   sortArrow(sortKey == "sev", dir),
-		AssetArrow: sortArrow(sortKey == "asset", dir),
-		IDArrow:    sortArrow(sortKey == "id", dir),
-		SeenArrow:  sortArrow(sortKey == "seen", dir),
+	}
+
+	// Per-row descope link — the header Descope button drops (#21); descope now lives
+	// on the row kebab / right-click menu and the drawer. Each visible row carries a
+	// link that re-opens the current tab / filter with ?descope=<ViewKey>, which the
+	// dialog resolves to the row's asset for the typed-confirm gate.
+	for i := range rows {
+		rows[i].DescopeHref = closeHref + "&descope=" + url.QueryEscape(rows[i].ViewKey)
 	}
 
 	// The row Drawer opens server-side via ?view=<ViewKey> against the active tab.
@@ -336,7 +405,21 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		for i := range base {
 			if base[i].ViewKey == selKey {
 				d := base[i]
+				s.enrichSignalDrawer(&d)
 				drawer = &d
+				break
+			}
+		}
+	}
+
+	// The descope typed-confirm dialog (#21) resolves ?descope=<ViewKey> to the row's
+	// asset — the exact string the operator must retype — and returns to the current
+	// view on cancel/submit. Admin-gated (the tmpl also gates on .IsAdmin).
+	var descope *descopeView
+	if dk := r.URL.Query().Get("descope"); dk != "" {
+		for i := range base {
+			if base[i].ViewKey == dk {
+				descope = &descopeView{Asset: base[i].Asset, CloseHref: closeHref}
 				break
 			}
 		}
@@ -374,14 +457,47 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		"PageInfo":       pageInfo,
 		"CloseHref":      closeHref,
 		"ViewPrefix":     closeHref + "&view=",
-		"DescopeHref":    closeHref + "&descope=1",
 		"ExportHref":     exportHref,
 		"HasExport":      hasExport,
 		"SelKey":         selKey,
 		"Drawer":         drawer,
-		"Descope":        r.URL.Query().Get("descope") != "",
+		"Descope":        descope,
 		"AnnoError":      forms.annoError,
 	})
+}
+
+// enrichSignalDrawer folds the honest live projection of the Drawer's rule metadata
+// + join data onto a row about to open in the drawer (#21j). The rule id is the rule
+// name; the IP renders "—" where the subject carries no address (the tmpl keys the
+// copy affordance on that sentinel); the history is span-derived from the instants the
+// row already carries. The design's richer rule metadata — tags, CVE, the description
+// prose, the drift diff and the detecting vantage — is not reconstructable from the
+// current corpus, so it is left off rather than invented (the curated fixture served
+// under devMode carries the full authored set for the pixel goldens).
+func (s *server) enrichSignalDrawer(row *signalRow) {
+	if row.IP == "" {
+		row.IP = "—"
+	}
+	row.RuleID = row.Signal
+
+	var hist []sigHistoryEntry
+	if row.Last != "" {
+		title := "Still present"
+		tone := "accent"
+		if row.Withdrawn {
+			title = "Last seen firing"
+			tone = "neutral"
+		}
+		hist = append(hist, sigHistoryEntry{Title: title, Time: row.Seen, Tone: tone})
+	}
+	if row.First != "" {
+		tone := "neutral"
+		if row.Severity == "critical" || row.Severity == "high" {
+			tone = "danger"
+		}
+		hist = append(hist, sigHistoryEntry{Title: "Signal raised", Detail: row.SigID, Time: row.First, Tone: tone, Mono: true})
+	}
+	row.History = hist
 }
 
 // buildSignalTabs folds the Derived corpus into the flat per-instance rows and
@@ -629,25 +745,6 @@ func pageWindow(page, pageCount int) []int {
 	default:
 		return []int{1, -1, page - 1, page, page + 1, -1, pageCount}
 	}
-}
-
-// sortArrow renders the header sort indicator: a muted up/down caret on an inactive
-// sortable column, and a single directional caret (up for asc, down for desc) on
-// the active one.
-func sortArrow(active bool, dir string) template.HTML {
-	const up = `<path d="M4 1.2l3 3.6H1z" fill="currentColor"/>`
-	const down = `<path d="M4 9.8l-3-3.6h6z" fill="currentColor"/>`
-	const open = `<svg width="8" height="11" viewBox="0 0 8 11" aria-hidden="true" style="margin-left:5px;vertical-align:middle`
-	var svg string
-	switch {
-	case !active:
-		svg = open + `;opacity:0.32">` + up + down + `</svg>`
-	case dir == "desc":
-		svg = open + `">` + down + `</svg>`
-	default:
-		svg = open + `">` + up + `</svg>`
-	}
-	return template.HTML(svg) // #nosec G203 -- static SVG caret markup from consts; active/dir only select a branch, no user input
 }
 
 // sevLabel capitalises a severity token for the badge label ("critical" ->

@@ -185,7 +185,13 @@ async function run() {
         // candidate. A per-state golden (--pagedir: error, profile) is already pre-rendered in
         // its end state, so its script — which may submit a form and hit the server (profile
         // "minted") — must NOT run against the static file. Run everywhere EXCEPT golden+pagedir.
-        const runStateJs = st.js && st.js.trim() && !(mode === 'golden' && pageDir);
+        // A per-state golden (--pagedir) is normally pre-rendered in its end state, so its
+        // script must NOT run against the static file — EXCEPT a pure client-side interaction
+        // script with no settle delay (signals' menu-open: opening a kebab), which is safe to
+        // run on the static golden and IS how that state reaches its captured form on both
+        // sides. A navigating script (profile "minted", scope "refusal") declares a `delay`, so
+        // it stays skipped on the pagedir golden.
+        const runStateJs = st.js && st.js.trim() && !(mode === 'golden' && pageDir && st.delay);
         if (runStateJs) {
           try {
             await page.evaluate((js) => {
@@ -213,7 +219,14 @@ async function run() {
         // is present. Done before the settle waits so the reflow paints before the shot.
         if (mode === 'candidate' && hideChrome) {
           await page.evaluate(() => {
-            document.querySelectorAll('header.topnav, .topnav').forEach((el) => { el.style.display = 'none'; });
+            document.querySelectorAll('header.topnav, .topnav, footer.appfooter, .appfooter').forEach((el) => { el.style.display = 'none'; });
+            // The app's pageCSS pins body{min-height:100vh}, so a `body`-crop candidate (signals'
+            // drawer / descope overlays) would box to the full viewport while the chrome-less golden
+            // body shrink-wraps to <main>. The scrim + drawer are position:fixed (viewport-relative),
+            // so clipping the body to content height is symmetric on both sides — neutralize the
+            // min-height so the candidate body box matches the golden's. A no-op for `main`-crop
+            // screens (they clip the <main> element, not the body).
+            document.body.style.minHeight = '0';
           });
         }
         // Wait for webfonts to finish loading before snapshotting. Both the golden
@@ -226,7 +239,10 @@ async function run() {
         await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
         await page.waitForTimeout(120);
 
-        const cropSel = screenStates.crop || 'main';
+        // Per-state crop overrides the screen-level crop: signals crops `main` for the table
+        // states but `body` for the drawer / descope overlays that escape `main` (the fixed
+        // scrim + drawer are painted on <body>, outside the <main> box).
+        const cropSel = st.crop || screenStates.crop || 'main';
         const buf = await page.locator(cropSel).first().screenshot();
         const png = PNG.sync.read(buf);
 

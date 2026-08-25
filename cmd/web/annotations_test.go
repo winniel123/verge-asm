@@ -189,7 +189,7 @@ func TestPartiallyAnnotatedSignalsBothStayOpen(t *testing.T) {
 // command palette, footer). The palette lists current Names (P1.5), so a
 // page-wide substring match would find a name outside the signals table.
 func signalsMain(body string) string {
-	i := strings.Index(body, "<main>")
+	i := strings.Index(body, "<main")
 	j := strings.LastIndex(body, "</main>")
 	if i < 0 || j < 0 || j < i {
 		return body

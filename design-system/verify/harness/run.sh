@@ -60,7 +60,8 @@ docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen exposure -outdir design-system/goldens/exposure && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen drift -out design-system/goldens/drift.html && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen rundetail -outdir design-system/goldens/rundetail && \
-         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen scope -outdir design-system/goldens/scope"
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen scope -outdir design-system/goldens/scope && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen signals -outdir design-system/goldens/signals"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
 docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_IMAGE" \
@@ -92,6 +93,8 @@ if [ "${GOLDENS:-}" = "write" ]; then
     node capture.mjs --mode golden --write-goldens --advisory --screen rundetail --pagedir /src/design-system/goldens/rundetail
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen scope --pagedir /src/design-system/goldens/scope
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen signals --pagedir /src/design-system/goldens/signals
 fi
 
 echo "== 3a. Postgres (pinned) =="
@@ -178,6 +181,17 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # /dev/seed/empty TRUNCATEs the account table (which would strand scope's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen scope --base "http://${WEB}:8080" --hide-chrome
+# signals: chrome-hosted screen, session admin (per-state /dev/session mint), served from the pinned
+# fixtures.json signals slice under VERGE_DEV. --hide-chrome drops the sticky console header from flow
+# so <main> sits at the viewport top and aligns with the chrome-less golden (as scope). The default /
+# withdrawn-tab / menu-open states crop `main`; the drawer-open / drawer-annotated / descope-confirm
+# states crop `body` (per-state crop in states.json) because the fixed scrim + drawer / dialog escape
+# <main>. The drawer / descope / withdrawn states are pure query-string routes signalsFixtureData
+# reads; menu-open runs states.json's `js` (open a kebab) against the frozen tmpl's own handler on
+# BOTH sides. No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty
+# TRUNCATEs the account table (which would strand signals' authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen signals --base "http://${WEB}:8080" --hide-chrome
 # setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
 # capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
 # window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB
