@@ -102,7 +102,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup")
 	out := flag.String("out", "", "inventory: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -185,8 +185,26 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "setup":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen setup")
+		}
+		files, err := renderSetupStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	default:
-		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin)", *screen)
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup)", *screen)
 	}
 }
 
@@ -645,6 +663,57 @@ func renderSigninStates(bodyFlex bool) ([]errorGolden, error) {
 		}
 		var buf bytes.Buffer
 		if err := t.ExecuteTemplate(&buf, st.tmpl, st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+// renderSetupStates composes the Setup screen's golden HTMLs from the frozen setup.tmpl, one per
+// states.json setup state (default, error). setup.tmpl's single "setup" define reuses the SignIn
+// family's shared authcss / authbrand / authfoot partials, so BOTH signin.tmpl and setup.tmpl are
+// parsed into the stub set for those refs to resolve — mirroring the app, where both parse into the
+// one shared set. Each state's data map mirrors the setupForm / setupSubmit handler output EXACTLY
+// (the .Error / .Token / .Version holes): "default" is the open first-run form (no error, empty
+// token) and "error" is the invalid-token re-render the states.json script drives (POST with
+// token="wrong" → "Invalid setup token." with the rejected token echoed back). .Version is the
+// SignIn fixture's build version (the authfoot the app fills via buildVersion→devFixtureVersion), so
+// the chrome-less footer matches the candidate. The `body` crop is byte-identical to the seeded
+// server's render — golden and candidate = same tmpl, same holes.
+func renderSetupStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	// The version hole is filled by authfoot on every SignIn-family page, Setup included; it comes
+	// from the SignIn fixture slice (the app's buildVersion returns devFixtureVersion in dev).
+	sf, err := loadSigninFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	type sstate struct {
+		id   string
+		data map[string]any
+	}
+	states := []sstate{
+		{"default", map[string]any{"Error": "", "Token": "", "Version": sf.Version}},
+		{"error", map[string]any{"Error": "Invalid setup token.", "Token": "wrong", "Version": sf.Version}},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		// signin.tmpl carries the shared authcss/authbrand/authfoot setup.tmpl calls; parse both.
+		if _, err := t.ParseFS(designfs.FS, "templates/signin.tmpl", "templates/setup.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "setup", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})

@@ -791,6 +791,10 @@ func (s *server) handler() http.Handler {
 		// cookie (so the Firefox·macOS row wears the "this device" badge without minting a
 		// fourth session). The literal path outranks the {role} wildcard above.
 		mux.HandleFunc("GET /dev/profile/session", s.devProfileSessionPrepare)
+		// Screen 5 (Setup, #550): realize states.json setup's seed:"empty" — empty the account
+		// table and reopen the first-run window under the pinned fixture token, so GET /setup
+		// renders the open bootstrap form. Captured last, so emptying the shared DB is safe.
+		mux.HandleFunc("GET /dev/seed/empty", s.devSetupSeedEmpty)
 	}
 
 	// Recovered panics render the 500 error page with a real, logged incident id

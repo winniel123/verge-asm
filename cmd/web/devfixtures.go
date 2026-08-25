@@ -503,6 +503,51 @@ func seedSigninFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
+// --- screen 5: Setup fixture (package v3.7.0, WORK-ORDER-4-6-BATCH1.md) ---------------------
+//
+// The Setup screen (#550) is the chrome-less first-run bootstrap surface, which renders ONLY
+// while no accounts exist. The shared fixture DB the harness seeds always has accounts (the
+// admin + viewer + the Profile/SignIn fixtures), so at boot bootstrapSetupToken returns "" and
+// the setup window is shut. The dev affordance below is how the Setup capture (states.json
+// setup, top-level seed:"empty") reaches the open first-run form: it empties the accounts table
+// (closing every dependent row by cascade) and reopens the window under the pinned fixture
+// token. There is no positive one-shot seed for Setup — its "fixture" is the empty variant plus
+// the pinned token — so main.go's -seed-fixtures block is left untouched. TestSetupFixtureMatchesPackage
+// is the byte-exactness gate that the token here equals the frozen fixtures.json → setup.token.
+
+// devFixtureSetupToken is the single-use setup token the dev seed route reopens the first-run
+// /setup window with, so the Setup screen's capture renders deterministically. It mirrors
+// design-system/fixtures/fixtures.json → setup.token; TestSetupFixtureMatchesPackage folds it
+// back through the frozen package. A real deployment draws VERGE_SETUP_TOKEN or a crypto/rand
+// token (bootstrapSetupToken) — this value is never used outside a VERGE_DEV build.
+const devFixtureSetupToken = "fixture-setup-token" // #nosec G101 -- dev-only fixture setup token, not a real credential
+
+// devSetupSeedEmpty is the /dev/seed/empty handler (VERGE_DEV only): it realizes the Setup
+// screen's seed:"empty" variant. Because the shared fixture DB is seeded with accounts (so the
+// setup window is shut and s.setupToken is ""), this route empties the account table — cascading
+// to every session / identity / token / reset / invite row — and reopens the first-run window
+// under devFixtureSetupToken, so GET /setup renders the open form for the pixel capture. Setup is
+// the LAST screen the run.sh candidate block captures, so emptying the shared fixture DB here
+// never strands an earlier screen's capture. Dev-only, nil-guarded on the raw pool the dev build
+// wires; the token assignment is serialised under the same setupMu setupSubmit takes.
+func (s *server) devSetupSeedEmpty(w http.ResponseWriter, r *http.Request) {
+	if s.pool == nil {
+		s.notFound(w, r)
+		return
+	}
+	if _, err := s.pool.Exec(r.Context(), `TRUNCATE account RESTART IDENTITY CASCADE`); err != nil {
+		s.serverError(w, "dev: empty accounts for setup capture", err)
+		return
+	}
+	s.setupMu.Lock()
+	s.setupToken = devFixtureSetupToken
+	s.setupMu.Unlock()
+	// A 200 with a tiny body (not 204) so the harness's page.goto completes the navigation — a
+	// 204 makes Chromium abort it (net::ERR_ABORTED), mirroring devProfileSessionPrepare.
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("ok"))
+}
+
 // seedDevSSOProvider upserts one enabled OIDC provider by slug and returns its id. The
 // issuer/client_id are dev placeholders (the Profile screen never exercises the flow — it
 // only lists the provider); the client secret stays NULL. Dev-only, from the seed one-shot.

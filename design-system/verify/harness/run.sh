@@ -49,12 +49,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "== 1. render-goldens -> static HTML (inventory + error + profile + signin) =="
+echo "== 1. render-goldens -> static HTML (inventory + error + profile + signin + setup) =="
 docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
   sh -c "go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen inventory -out design-system/goldens/inventory.html && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen error -outdir design-system/goldens/error && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen profile -outdir design-system/goldens/profile && \
-         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen signin -outdir design-system/goldens/signin"
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen signin -outdir design-system/goldens/signin && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen setup -outdir design-system/goldens/setup"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
 docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_IMAGE" \
@@ -70,6 +71,8 @@ if [ "${GOLDENS:-}" = "write" ]; then
     node capture.mjs --mode golden --write-goldens --advisory --screen profile --pagedir /src/design-system/goldens/profile
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen signin --pagedir /src/design-system/goldens/signin
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen setup --pagedir /src/design-system/goldens/setup
 fi
 
 echo "== 3a. Postgres (pinned) =="
@@ -111,5 +114,11 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # mint, no --adopt/--hide-chrome. The no-sso variant rides a dev ?variant query capture.mjs appends.
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen signin --base "http://${WEB}:8080"
+# setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
+# capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
+# window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB
+# here would strand any screen captured after it.
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen setup --base "http://${WEB}:8080"
 
 echo "== done (ADVISORY=${ADVISORY:-1}) =="

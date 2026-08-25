@@ -33,6 +33,10 @@ f913c43d083b2ef5e867325604509234dda411ff  design-system/goldens/profile/revoke-t
 46b9066d0318eb68b122c9d7881e0199f7cf30df  design-system/goldens/profile/revoke-token-1440-light.png
 9213f382fac250282223705ad8c432ada0b94588  design-system/goldens/profile/signout-others-1440-dark.png
 26d2912c6ae9ccdf9ac125f6ca522a9ffdca6202  design-system/goldens/profile/signout-others-1440-light.png
+eb615f23465847425234c23953d8d83fef5b3844  design-system/goldens/setup/default-1440-dark.png
+1d554ee9621d5a9a54f407ee9006147fe440d100  design-system/goldens/setup/default-1440-light.png
+f2362a6c8a660643582aa933bd86f5481f03e422  design-system/goldens/setup/error-1440-dark.png
+1871552f7ef7db483e83626ada7f2cb6b5a64e3a  design-system/goldens/setup/error-1440-light.png
 ccad571146cb0cb59350e739c7711d43003058d0  design-system/goldens/signin/enroll-1440-dark.png
 e81bce285852b9c06d83d98acdf6d3b24c69c404  design-system/goldens/signin/enroll-1440-light.png
 5223d4fcd95d07b9e5eb0b3a36a31df1f8a08c0c  design-system/goldens/signin/forgot-1440-dark.png

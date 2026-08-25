@@ -286,3 +286,35 @@ func TestSigninFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureSetupPackage mirrors the design-owned fixtures.json → setup slice the screen-5 dev
+// affordance pins in devfixtures.go: the empty-seed variant and the single-use setup token the
+// dev seed route (/dev/seed/empty) reopens the first-run window with.
+type fixtureSetupPackage struct {
+	Setup struct {
+		Variant string `json:"variant"`
+		Token   string `json:"token"`
+	} `json:"setup"`
+}
+
+// TestSetupFixtureMatchesPackage is the byte-exactness gate for the screen-5 conversion: the
+// setup token devfixtures.go pins (devFixtureSetupToken) equals the frozen fixtures.json →
+// setup.token, and the fixture's seed variant is the "empty" one the capture harness + dev route
+// realize — so a drift between the dev affordance and the frozen package fails here rather than
+// in a screenshot diff, exactly as TestSigninFixtureMatchesPackage guards the SignIn slice.
+func TestSetupFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureSetupPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	if f.Setup.Token != devFixtureSetupToken {
+		t.Errorf("setup token drift: fixtures.json = %q, devFixtureSetupToken = %q", f.Setup.Token, devFixtureSetupToken)
+	}
+	if f.Setup.Variant != "empty" {
+		t.Errorf("setup variant drift: fixtures.json = %q, want %q (the dev seed route empties accounts)", f.Setup.Variant, "empty")
+	}
+}

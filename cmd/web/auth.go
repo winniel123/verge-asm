@@ -143,7 +143,7 @@ func (s *server) setupForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	s.render(w, "setup", map[string]any{"Title": "Setup", "Token": r.URL.Query().Get("token")})
+	s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": r.URL.Query().Get("token")}))
 }
 
 func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
@@ -161,15 +161,15 @@ func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if !auth.TokensEqual(token, s.setupToken) {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": "Invalid setup token."})
+		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": "Invalid setup token."}))
 		return
 	}
 	if msg := validateCredentials(username, password); msg != "" {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": msg})
+		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": msg}))
 		return
 	}
 	if _, err := s.createAccountRow(r, username, roleAdmin, password); err != nil {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)})
+		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)}))
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -204,6 +204,16 @@ func (s *server) setupClosed(r *http.Request) bool {
 // returns in the next package version. signin.tmpl auto-embeds through designfs's existing
 // `templates/*.tmpl` glob, so no designfs.go change is needed.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/signin.tmpl"))
+
+// The Setup screen (screen 5, #550) is the same story: the frozen design-owned
+// design-system/templates/setup.tmpl (package v3.7.0, WORKFLOW v4) replaces the repo-authored
+// templates_setup.go const (deleted). Its single "setup" define reuses the SignIn family's shared
+// authcss / authbrand / authfoot partials, so it MUST parse into the same set signin.tmpl parsed
+// into (above) for those refs to resolve at execution. Its holes are .Error / .Token / .Version
+// (the last via authfoot); the setupForm/setupSubmit handlers pass them through signinData so the
+// design-token opt-in and build version are never forgotten. setup.tmpl auto-embeds through
+// designfs's existing `templates/*.tmpl` glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/setup.tmpl"))
 
 // buildVersion is the build version the frozen authfoot renders ({{.Version}}). A real
 // deployment reads VERGE_VERSION (the same env the worker's CT client reads), defaulting to
