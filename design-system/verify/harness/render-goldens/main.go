@@ -100,9 +100,9 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile")
 	out := flag.String("out", "", "inventory: path to write the single golden HTML")
-	outdir := flag.String("outdir", "", "error: directory to write one golden HTML per state (<state>.html)")
+	outdir := flag.String("outdir", "", "error|profile: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
 	// it injects the app shell's body layout context (body{display:flex;
 	// flex-direction:column;margin:0}) so the golden's <main> shrink-wraps to its
@@ -147,8 +147,26 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "profile":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen profile")
+		}
+		files, err := renderProfileStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	default:
-		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error)", *screen)
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile)", *screen)
 	}
 }
 
@@ -296,6 +314,191 @@ func renderErrorStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+// profileFixture is the design-system/fixtures/fixtures.json → profile slice: the account,
+// its live sessions, linked SSO identity + linkable provider, personal tokens, and the
+// deterministic minted-token plaintext. The golden reads them here (never re-hardcoded) so a
+// fixture change flows through; cmd/web/devfixtures.go pins the same values with a drift test.
+type profileFixture struct {
+	Account struct {
+		Username    string `json:"username"`
+		Role        string `json:"role"`
+		Created     string `json:"created"`
+		TotpEnabled bool   `json:"totp_enabled"`
+		Initials    string `json:"initials"`
+	} `json:"account"`
+	Sessions []struct {
+		ID         string `json:"id"`
+		Device     string `json:"device"`
+		IP         string `json:"ip"`
+		LastActive string `json:"last_active"`
+		Current    bool   `json:"current"`
+	} `json:"sessions"`
+	SSOIdentities []struct {
+		ID          string `json:"id"`
+		Provider    string `json:"provider"`
+		DisplayName string `json:"display_name"`
+		LinkedAt    string `json:"linked_at"`
+	} `json:"sso_identities"`
+	SSOProviders []struct {
+		Slug string `json:"slug"`
+		Name string `json:"name"`
+	} `json:"sso_providers"`
+	Tokens []struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		Prefix  string `json:"prefix"`
+		Created string `json:"created"`
+		Last    string `json:"last"`
+	} `json:"tokens"`
+	MintedToken string `json:"minted_token_fixture"`
+}
+
+func loadProfileFixture() (profileFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return profileFixture{}, err
+	}
+	var ff struct {
+		Profile profileFixture `json:"profile"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return profileFixture{}, err
+	}
+	return ff.Profile, nil
+}
+
+// renderProfileStates composes the six Profile golden HTMLs from the frozen profile.tmpl, one
+// per states.json state. Each state's data map mirrors renderProfile's output EXACTLY (the holes
+// the frozen tmpl reads): the persistent surface (account, sessions, tokens, SSO) is the same
+// across all six, and each state flips only its own transient dialog flag — so the cropped `main`
+// is byte-identical to what the seeded server renders (golden and candidate = same tmpl, same
+// holes). Tokens are emitted in fixture order (created-ASC: laptop-cli → grafana-readonly), which
+// is the order renderProfile now sorts to; the minted state appends the fixture's ci-golden token
+// last (created 2026-08-24, never-used "—"), mirroring the live create → re-list. IDs feed only
+// form values + hrefs, never text in the `main` crop.
+func renderProfileStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadProfileFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	sessions := make([]map[string]any, 0, len(fx.Sessions))
+	for _, s := range fx.Sessions {
+		sessions = append(sessions, map[string]any{
+			"ID": s.ID, "Device": s.Device, "IP": s.IP, "LastActive": s.LastActive, "Current": s.Current,
+		})
+	}
+	baseTokens := make([]map[string]any, 0, len(fx.Tokens))
+	for _, t := range fx.Tokens {
+		baseTokens = append(baseTokens, map[string]any{
+			"ID": t.ID, "Name": t.Name, "Prefix": t.Prefix, "Created": t.Created, "Last": t.Last,
+		})
+	}
+	ssoIdent := make([]map[string]any, 0, len(fx.SSOIdentities))
+	for _, i := range fx.SSOIdentities {
+		ssoIdent = append(ssoIdent, map[string]any{
+			"ID": i.ID, "Provider": i.Provider, "DisplayName": i.DisplayName, "LinkedAt": i.LinkedAt,
+		})
+	}
+	ssoProv := make([]map[string]any, 0, len(fx.SSOProviders))
+	for _, p := range fx.SSOProviders {
+		ssoProv = append(ssoProv, map[string]any{"Slug": p.Slug, "Name": p.Name})
+	}
+
+	// The minted state's tokens table gains the freshly-minted ci-golden row LAST — mirroring
+	// createPersonalToken's fixture mint (devFixtureMintedToken) + the created-ASC re-list. Its
+	// prefix is plaintext[:11]+"…" exactly as fixtureMintedToken forms it; created is the pinned
+	// fixture clock's date; last is "—" (never used). A separate slice so it never leaks into the
+	// other five states.
+	mintedPrefix := fx.MintedToken
+	if len(mintedPrefix) >= 11 {
+		mintedPrefix = mintedPrefix[:11] + "…"
+	}
+	mintedTokens := make([]map[string]any, 0, len(baseTokens)+1)
+	mintedTokens = append(mintedTokens, baseTokens...)
+	mintedTokens = append(mintedTokens, map[string]any{
+		"ID": "new", "Name": "ci-golden", "Prefix": mintedPrefix, "Created": "2026-08-24", "Last": "—",
+	})
+
+	base := func(tokens []map[string]any) map[string]any {
+		return map[string]any{
+			"Initials":      fx.Account.Initials,
+			"Username":      fx.Account.Username,
+			"Role":          fx.Account.Role,
+			"CreatedISO":    fx.Account.Created,
+			"TotpEnabled":   fx.Account.TotpEnabled,
+			"Notice":        "",
+			"PwError":       "",
+			"Sessions":      sessions,
+			"Tokens":        tokens,
+			"SSOIdentities": ssoIdent,
+			"SSOProviders":  ssoProv,
+			"SSONotice":     "",
+			"SSOError":      "",
+			"CreateOpen":    false,
+			"Minted":        "",
+			"TokName":       "",
+			"TokError":      "",
+			"MintedName":    "",
+			"RevokeID":      "",
+			"RevokeName":    "",
+			"RevokeErr":     "",
+			"EndSession":    false,
+			"SignOutOthers": false,
+		}
+	}
+
+	// Order mirrors states.json's profile block.
+	newTok := base(baseTokens)
+	newTok["CreateOpen"] = true
+
+	minted := base(mintedTokens)
+	minted["Minted"] = fx.MintedToken
+	minted["TokName"] = "ci-golden"
+	minted["MintedName"] = "ci-golden"
+
+	revoke := base(baseTokens)
+	revoke["RevokeID"] = "t1"
+	revoke["RevokeName"] = "laptop-cli"
+
+	endSession := base(baseTokens)
+	endSession["EndSession"] = true
+
+	signOutOthers := base(baseTokens)
+	signOutOthers["SignOutOthers"] = true
+
+	data := map[string]map[string]any{
+		"default":        base(baseTokens),
+		"new-token":      newTok,
+		"minted":         minted,
+		"revoke-token":   revoke,
+		"end-session":    endSession,
+		"signout-others": signOutOthers,
+	}
+	order := []string{"default", "new-token", "minted", "revoke-token", "end-session", "signout-others"}
+
+	out := make([]errorGolden, 0, len(order))
+	for _, id := range order {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/profile.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "profile", data[id]); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: id, html: buf.Bytes()})
 	}
 	return out, nil
 }

@@ -13,12 +13,15 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/env"
@@ -1379,6 +1382,18 @@ func subtleConstantEqual(a, b string) bool {
 
 // --- profile (#304, T9) -----------------------------------------------------
 
+// The Profile page markup is the DESIGN-OWNED, frozen design-system/templates/profile.tmpl
+// (package v3.6.0, WORKFLOW v4), embedded read-only via the designfs package and parsed
+// into the shared template set here — mirroring the screen-2 error.tmpl landing (#533).
+// The repo-authored templates_profile.go const is deleted (#540): renderProfile only wires
+// data into the holes the frozen tmpl declares (.Initials/.Username/.Role/.CreatedISO/
+// .TotpEnabled/.Sessions/.SSOIdentities/.SSOProviders/.Tokens/…), never edits the tmpl (CI
+// gate G1 byte-compares it to the package). A needed change goes through SPEC-CHANGE and
+// returns in the next package version. profile.tmpl auto-embeds through designfs's existing
+// `templates/*.tmpl` glob, so no designfs.go change is needed; its "profile" definition is
+// the single source of the served page.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/profile.tmpl"))
+
 // profileTokenView is one personal API token shaped for the tokens table: its id
 // (for the revoke link), the operator's label, the non-secret prefix, and the two
 // timestamps. Last is an em dash for a token never yet presented — the honest read
@@ -1437,6 +1452,10 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if v := q.Get("revoke"); v != "" {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
 			st.revokeID = id
+		} else if s.devMode {
+			// Pixel-parity capture only (#542): resolve the frozen fixture token id (`t1`) to a
+			// real personal_token id so the revoke-token golden opens. A no-op in a real build.
+			st.revokeID = s.devResolveFixtureTokenID(r, acct.ID, v)
 		}
 	}
 	if q.Get("endsession") != "" {
@@ -1445,17 +1464,11 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if q.Get("signoutothers") != "" {
 		st.signOutOthers = true
 	}
-	if q.Get("saved") != "" {
-		st.notice = "Password changed. Every other signed-in session has been signed out."
-	}
-	// Session-management outcomes (#406) ride back as fixed query codes, each mapped to an
-	// honest notice — never reflected free text.
-	if q.Get("sessionrevoked") != "" {
-		st.notice = "That session was signed out."
-	}
-	if q.Get("othersout") != "" {
-		st.notice = "Your other sessions were signed out. This one keeps working."
-	}
+	// The four act results — password changed, session revoked, token revoked, signed out
+	// others — no longer ride back as inline notices; they fire as shell toasts carried on
+	// the redirect by toastRedirect (SPEC-CHANGE #18, P1.7). The `.Notice` hole stays for
+	// anything that still uses it. SSO self-link outcomes keep their own `.SSONotice`/
+	// `.SSOError` channels below.
 	// SSO self-link outcomes ride back as fixed query codes (never reflected free text),
 	// each mapped here to an honest message.
 	switch q.Get("linked") {
@@ -1497,11 +1510,11 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	var tokens []profileTokenView
-	if rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID); err == nil {
+	if rows, err := s.listPersonalTokensCreatedAsc(r.Context(), acct.ID); err == nil {
 		for _, t := range rows {
 			tokens = append(tokens, profileTokenView{
 				ID: t.ID, Name: t.Name, Prefix: t.Prefix,
-				Created: isoDate(t.CreatedAt), Last: lastUsed(t.LastUsedAt),
+				Created: isoDate(t.CreatedAt), Last: lastUsed(t.LastUsedAt, s.now()),
 			})
 		}
 	} else {
@@ -1533,10 +1546,15 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	}); err == nil {
 		for _, row := range rows {
 			sessions = append(sessions, profileSessionView{
-				ID:         row.ID,
-				Device:     sessionDeviceFromUA(row.UserAgent),
-				IP:         row.Ip,
-				LastActive: agoLabel(row.LastSeenAt.Time, s.now()),
+				ID:     row.ID,
+				Device: sessionDeviceFromUA(row.UserAgent),
+				IP:     row.Ip,
+				// The Profile sessions table renders the bare relative token (now / 2h / 3d),
+				// matching the frozen design (Profile.jsx, fixtures.json → profile.sessions),
+				// not the " ago"-suffixed agoLabel the drift feed uses. profileRelTime reads
+				// the injectable clock, so a VERGE_DEV build (clock pinned to the fixture
+				// instant) renders the fixture's tokens exactly.
+				LastActive: profileRelTime(row.LastSeenAt.Time, s.now()),
 				Current:    haveCurSession && row.ID == curSessionID,
 			})
 		}
@@ -1562,6 +1580,11 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	data := map[string]any{
 		"Title": "Profile", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "",
+		// The frozen profile.tmpl styles against the design-owned token vocabulary
+		// (design-system/tokens/*.css); the "head" block inlines those tokens only when this
+		// datum is set — mirroring the screen-2 error render (E4, #535). Opt in so the served
+		// page carries the vocabulary the tmpl draws against.
+		"DesignTokens": true,
 
 		"Initials":    initials(acct.Username),
 		"Username":    acct.Username,
@@ -1592,6 +1615,51 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"SignOutOthers": st.signOutOthers,
 	}
 	s.render(w, "profile", data)
+}
+
+// listPersonalTokensCreatedAsc reads one account's tokens in the order the Profile renders
+// them: created-ASC (oldest first) with id ASC as a stable tiebreak — the design's order
+// (Profile.jsx's array + concat; fixtures.json → profile.tokens is authored the same way), so
+// a freshly-minted token, carrying the newest created_at, sorts last. ListPersonalTokens
+// returns newest-first (created_at DESC), so this re-sorts the returned slice in place —
+// simpler than an sqlc/query change both Profile read paths would share (#542 ruling). It is
+// the single source of the Profile token order (renderProfile + the dev revoke-id bridge).
+func (s *server) listPersonalTokensCreatedAsc(ctx context.Context, accountID int64) ([]db.ListPersonalTokensRow, error) {
+	rows, err := s.store.ListPersonalTokens(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		ti, tj := rows[i].CreatedAt.Time, rows[j].CreatedAt.Time
+		if ti.Equal(tj) {
+			return rows[i].ID < rows[j].ID
+		}
+		return ti.Before(tj)
+	})
+	return rows, nil
+}
+
+// devResolveFixtureTokenID bridges the design's fixture token id to a real personal_token id
+// for the pixel-parity capture (#542), in a VERGE_DEV build ONLY. The frozen capture state
+// navigates `/profile?revoke=t1` (fixtures.json → profile.tokens[].id are "t1"/"t2"), but
+// personal_token uses int64 ids and the real Profile therefore emits `?revoke=<int64>` links
+// — so `t1` never parses in a real build and simply opens no dialog. Here, dev-only, `t<N>`
+// resolves to the N-th token in the Profile's created-ASC order (t1 → laptop-cli), so the
+// revoke-token golden opens against the same token the design mocks. Returns 0 (no dialog) on
+// any miss, exactly as an unknown id would. Never reached in a real deployment.
+func (s *server) devResolveFixtureTokenID(r *http.Request, accountID int64, ref string) int64 {
+	if !strings.HasPrefix(ref, "t") {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimPrefix(ref, "t"))
+	if err != nil || n < 1 {
+		return 0
+	}
+	rows, err := s.listPersonalTokensCreatedAsc(r.Context(), accountID)
+	if err != nil || n > len(rows) {
+		return 0
+	}
+	return rows[n-1].ID
 }
 
 // profileIdentityView is one linked SSO identity shown on the Profile: the binding id
@@ -1706,7 +1774,9 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 	} else {
 		log.Printf("web: profile: password changed but current session id did not resolve; other sessions left in place")
 	}
-	http.Redirect(w, r, "/profile?saved=1", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7) with the spec's copy
+	// (Profile.jsx:68) rather than an inline notice.
+	s.toastRedirect(w, r, "/profile", "ok", "Password changed", "Other sessions keep working until they expire.")
 }
 
 // createPersonalToken mints a personal API token and reveals it once. The plaintext
@@ -1723,7 +1793,7 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 		s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "Name must be 64 characters or fewer.", tokName: name})
 		return
 	}
-	plaintext, prefix, hash, err := mintPersonalToken()
+	plaintext, prefix, hash, err := s.newPersonalToken()
 	if err != nil {
 		s.serverError(w, "profile: mint token", err)
 		return
@@ -1741,14 +1811,14 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 	s.renderProfile(w, r, acct, profileState{minted: plaintext, mintedName: name})
 }
 
-// revokePersonalToken revokes a token through the typed-name gate: the operator must
-// type the token's exact name to confirm, guarding the worst destructive act on the
-// page — a revoke is irreversible and silently breaks whatever automation held the
-// token. It is reached only through the ConfirmDialog (a POST), never a menu click,
-// and the delete is scoped to the owner so no account can revoke another's token.
+// revokePersonalToken revokes a token behind a plain danger ConfirmDialog (SPEC-CHANGE
+// #18, ruled 2026-08-25): the typed-name `confirm_name` gate is dropped here — the dialog
+// is message + detail + danger confirm only (`.RevokeName` still labels it). The typed
+// gate stays reserved for the worst acts (seed descope), so this only relaxes the token
+// path. It is reached only through the ConfirmDialog (a POST), never a menu click, and the
+// delete is scoped to the owner so no account can revoke another's token.
 func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, _ := strconv.ParseInt(r.FormValue("id"), 10, 64)
-	typed := strings.TrimSpace(r.FormValue("confirm_name"))
 
 	rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID)
 	if err != nil {
@@ -1767,18 +1837,13 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
-	if typed != name {
-		s.renderProfile(w, r, acct, profileState{
-			revokeID:  id,
-			revokeErr: "That did not match. Type " + name + " exactly to revoke.",
-		})
-		return
-	}
 	if err := s.store.DeletePersonalToken(r.Context(), db.DeletePersonalTokenParams{ID: id, AccountID: acct.ID}); err != nil {
 		s.serverError(w, "profile: revoke token", err)
 		return
 	}
-	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Token revoked", the
+	// revoked token's name as the description (Profile.jsx:150).
+	s.toastRedirect(w, r, "/profile", "neutral", "Token revoked", name)
 }
 
 // revokeSession ends the current session for real (#405, ADR-0117). Sessions now have
@@ -1791,7 +1856,10 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 func (s *server) revokeSession(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	s.revokeCurrentSession(r)
 	s.clearCookie(w, sessionCookie)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	// Ending this session signs the caller out and lands them on sign-in; the act result
+	// rides the shell toast pipeline (#18, P1.7) on the /login redirect so it fires there
+	// (Profile.jsx:154). The sign-in page carries a toast stack for exactly this.
+	s.toastRedirect(w, r, "/login", "neutral", "Session ended", "Signed out on this device.")
 }
 
 // revokeOneSession revokes a single one of the account's own live sessions by id (#406) —
@@ -1809,6 +1877,20 @@ func (s *server) revokeOneSession(w http.ResponseWriter, r *http.Request, acct d
 		return
 	}
 	curID, haveCur := s.currentSessionID(r)
+	// Resolve the revoked session's device for the toast description (Profile.jsx:100),
+	// read from the live list before the revoke; a read blip just leaves it empty.
+	device := ""
+	if sess, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+		AccountID: acct.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err == nil {
+		for _, row := range sess {
+			if row.ID == id {
+				device = sessionDeviceFromUA(row.UserAgent)
+				break
+			}
+		}
+	}
 	if err := s.store.RevokeSession(r.Context(), db.RevokeSessionParams{
 		ID:        id,
 		AccountID: acct.ID,
@@ -1822,7 +1904,9 @@ func (s *server) revokeOneSession(w http.ResponseWriter, r *http.Request, acct d
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/profile?sessionrevoked=1", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Session revoked",
+	// "<device> signs out on its next request." as the description (Profile.jsx:100).
+	s.toastRedirect(w, r, "/profile", "neutral", "Session revoked", device+" signs out on its next request.")
 }
 
 // signOutOtherSessions revokes every live session for the account EXCEPT the one making
@@ -1837,6 +1921,19 @@ func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, ac
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
+	// Count the other live sessions before the sweep for the toast description
+	// (Profile.jsx:158, "N sessions ended."); a read blip just leaves the count at zero.
+	ended := 0
+	if sess, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+		AccountID: acct.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err == nil {
+		for _, row := range sess {
+			if row.ID != curID {
+				ended++
+			}
+		}
+	}
 	if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
 		AccountID: acct.ID,
 		ID:        curID,
@@ -1845,7 +1942,33 @@ func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, ac
 		s.serverError(w, "profile: sign out other sessions", err)
 		return
 	}
-	http.Redirect(w, r, "/profile?othersout=1", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Other sessions signed
+	// out", "<N> sessions ended." as the description (Profile.jsx:158).
+	s.toastRedirect(w, r, "/profile", "neutral", "Other sessions signed out", strconv.Itoa(ended)+" sessions ended.")
+}
+
+// newPersonalToken mints the plaintext / non-secret prefix / hash for a personal token. In
+// a VERGE_DEV build (s.devMode) it returns the fixture-deterministic value so the minted-
+// dialog golden is pixel-stable; a real build always draws crypto/rand (mintPersonalToken).
+// This mirrors the screen-2 deterministic incident-id gate (recoverPanics, #534): the dev
+// affordance is strictly gated to VERGE_DEV and never fires in a real deployment.
+func (s *server) newPersonalToken() (plaintext, prefix, hash string, err error) {
+	if s.devMode {
+		return fixtureMintedToken()
+	}
+	return mintPersonalToken()
+}
+
+// fixtureMintedToken is the deterministic personal-token mint used only in a VERGE_DEV
+// build: the plaintext is design-system/fixtures/fixtures.json → profile.minted_token_fixture
+// (pinned as devFixtureMintedToken, asserted by TestProfileFixtureMatchesPackage), so the
+// minted-dialog golden's pixel diff never drifts.
+func fixtureMintedToken() (plaintext, prefix, hash string, err error) {
+	plaintext = devFixtureMintedToken
+	sum := sha256.Sum256([]byte(plaintext))
+	hash = hex.EncodeToString(sum[:])
+	prefix = plaintext[:11] + "…" // vg_pat_ + 4 chars + ellipsis, as mintPersonalToken forms it
+	return plaintext, prefix, hash, nil
 }
 
 // mintPersonalToken generates a personal token, returning the plaintext to reveal
@@ -1885,26 +2008,63 @@ func isoDate(ts pgtype.Timestamptz) string {
 	return ts.Time.Format("2006-01-02")
 }
 
-// lastUsed renders a token's last-used instant, or an em dash when it has never been
-// presented — the honest read of a NULL last_used_at, not a fabricated recency.
-func lastUsed(ts pgtype.Timestamptz) string {
+// lastUsed renders a token's last-used instant as the bare relative token (2h / 14d),
+// matching the frozen design (Profile.jsx, fixtures.json → profile.tokens), or an em dash
+// when it has never been presented — the honest read of a NULL last_used_at, not a
+// fabricated recency. profileRelTime reads the injectable clock, so a VERGE_DEV build (clock
+// pinned to the fixture instant) renders the fixture's tokens exactly.
+func lastUsed(ts pgtype.Timestamptz, now time.Time) string {
 	if !ts.Valid {
 		return "—"
 	}
-	return ts.Time.Format("2006-01-02")
+	return profileRelTime(ts.Time, now)
 }
 
-// initials derives a two-letter avatar label from the username, upper-cased.
+// profileRelTime renders a relative age the way the frozen Profile design does (now / 2h /
+// 3d / 14d): sub-minute reads "now", then minutes, hours, then DAYS with no week rollover.
+// It deliberately differs from relTime (messages.go), which rolls into weeks past 7d for the
+// drift feed — the Profile's sessions and tokens tables keep counting days (fixtures.json →
+// profile shows a 14d token, not "2w"). Like relTime it clamps a future instant to "now" and
+// reads the passed (injectable) clock, so a fixed-clock render is deterministic.
+func profileRelTime(t, now time.Time) string {
+	d := now.Sub(t)
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d < time.Minute:
+		return "now"
+	case d < time.Hour:
+		return strconv.Itoa(int(d/time.Minute)) + "m"
+	case d < 24*time.Hour:
+		return strconv.Itoa(int(d/time.Hour)) + "h"
+	default:
+		return strconv.Itoa(int(d/(24*time.Hour))) + "d"
+	}
+}
+
+// initials derives the two-letter avatar label the Profile renders: the first letter of each
+// of the first two name segments, upper-cased — segments split on "." "_" "-" or whitespace,
+// so "ola.perez" reads "OP" (fixtures.json → profile.account.initials). A single-segment name
+// falls back to its first two letters, and an empty name to "?".
 func initials(username string) string {
-	u := strings.TrimSpace(username)
-	if u == "" {
+	fields := strings.FieldsFunc(username, func(r rune) bool {
+		return r == '.' || r == '_' || r == '-' || unicode.IsSpace(r)
+	})
+	switch len(fields) {
+	case 0:
 		return "?"
+	case 1:
+		r := []rune(strings.ToUpper(fields[0]))
+		if len(r) == 1 {
+			return string(r[0])
+		}
+		return string(r[0]) + string(r[1])
+	default:
+		a := []rune(strings.ToUpper(fields[0]))
+		b := []rune(strings.ToUpper(fields[1]))
+		return string(a[0]) + string(b[0])
 	}
-	r := []rune(strings.ToUpper(u))
-	if len(r) == 1 {
-		return string(r[0])
-	}
-	return string(r[0]) + string(r[1])
 }
 
 // sessionIP is the address this request arrived from. It reads RemoteAddr, never a

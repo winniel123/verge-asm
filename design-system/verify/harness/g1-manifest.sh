@@ -29,6 +29,7 @@ PATHS=(
   design-system/verify/PILOT-P4.0.md
   design-system/goldens/inventory
   design-system/goldens/error
+  design-system/goldens/profile
 )
 
 # "<blob-sha>  <path>", sorted by path, C locale for a stable order across machines.

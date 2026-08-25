@@ -1,12 +1,38 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 )
+
+// decodeToast pulls the shell toast payload (#18, P1.7) off a redirect Location's
+// `toast` query — a base64url JSON blob — so a test can assert the act result carried
+// the spec's tone/title/description instead of an inline notice.
+func decodeToast(t *testing.T, loc string) map[string]string {
+	t.Helper()
+	u, err := url.Parse(loc)
+	if err != nil {
+		t.Fatalf("parse redirect %q: %v", loc, err)
+	}
+	raw := u.Query().Get("toast")
+	if raw == "" {
+		t.Fatalf("redirect %q carries no toast payload", loc)
+	}
+	blob, err := base64.RawURLEncoding.DecodeString(raw)
+	if err != nil {
+		t.Fatalf("decode toast %q: %v", raw, err)
+	}
+	var m map[string]string
+	if err := json.Unmarshal(blob, &m); err != nil {
+		t.Fatalf("unmarshal toast %q: %v", string(blob), err)
+	}
+	return m
+}
 
 // --- credential changes revoke other sessions (#408, ADR-0118) --------------
 //
@@ -51,8 +77,15 @@ func TestChangePasswordSignsOutOtherSessions(t *testing.T) {
 	})
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther || loc != "/profile?saved=1" {
-		t.Fatalf("change password: status=%d loc=%q, want 303 to /profile?saved=1", resp.StatusCode, loc)
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(loc, "/profile?toast=") {
+		t.Fatalf("change password: status=%d loc=%q, want 303 to /profile?toast=…", resp.StatusCode, loc)
+	}
+	// The act result rides the shell toast pipeline (#18) with the spec copy (Profile.jsx:68),
+	// not an inline notice.
+	toast := decodeToast(t, loc)
+	if toast["tone"] != "ok" || toast["title"] != "Password changed" ||
+		toast["description"] != "Other sessions keep working until they expire." {
+		t.Fatalf("change-password toast = %+v, want ok/Password changed/Other sessions keep working until they expire.", toast)
 	}
 
 	// Exactly one live session remains — the others were revoked.
@@ -60,11 +93,8 @@ func TestChangePasswordSignsOutOtherSessions(t *testing.T) {
 		t.Fatalf("live sessions after change = %d, want 1", got)
 	}
 
-	// The acting session keeps working and, following the redirect, sees the honest notice.
-	got := getBody(t, c1, base+"/profile?saved=1", http.StatusOK)
-	if !strings.Contains(got, "Every other signed-in session has been signed out") {
-		t.Fatalf("change-password notice missing the global sign-out copy; body: %s", got)
-	}
+	// The acting session keeps working after the redirect.
+	getBody(t, c1, base+"/profile", http.StatusOK)
 
 	// The other client is bounced to /login on its next request.
 	if !bounced(t, c2, base) {

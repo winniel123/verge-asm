@@ -267,7 +267,7 @@ func TestProfileRendersRealAccount(t *testing.T) {
 		"Profile", "Who you are", `value="ola"`, // identity
 		"Password &amp; two-factor", "two-factor off", "Enable two-factor", // credentials + 2FA status
 		"Signed in right now", // sessions
-		"Personal API tokens", "No personal tokens", // tokens empty state
+		"Personal API tokens", "You have no personal API tokens", // tokens empty state
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("profile missing %q; body: %s", want, got)
@@ -351,38 +351,39 @@ func TestProfileTokenDuplicateName(t *testing.T) {
 	}
 }
 
-// Revoke passes through the ConfirmDialog's typed-name gate: a wrong name leaves
-// the token in place with an error; the exact name deletes it.
-func TestProfileTokenRevokeTypedNameGate(t *testing.T) {
+// Revoke is a plain danger ConfirmDialog (SPEC-CHANGE #18): the dialog names the token
+// and confirms with a single danger action — no typed-name gate — and a confirm POST
+// deletes it, carrying the "Token revoked" toast (Profile.jsx:150) on the redirect.
+func TestProfileTokenRevokePlainConfirm(t *testing.T) {
 	f, base, acct := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
 	tok, _ := f.CreatePersonalToken(t.Context(), db.CreatePersonalTokenParams{
 		AccountID: acct.ID, Name: "grafana", Prefix: "vg_pat_x81m…", TokenHash: "h",
 	})
 
-	// The revoke control is a link to the confirm dialog, never a direct POST.
+	// The revoke control is a link to the confirm dialog, never a direct POST. The dialog
+	// names its target but no longer collects a typed confirmation.
 	dialog := getBody(t, c, base+"/profile?revoke="+strconv.FormatInt(tok.ID, 10), http.StatusOK)
-	if !strings.Contains(dialog, "Revoke grafana") || !strings.Contains(dialog, "confirm_name") {
-		t.Fatalf("revoke ConfirmDialog with typed-name gate not shown; body: %s", dialog)
+	if !strings.Contains(dialog, "Revoke grafana") {
+		t.Fatalf("revoke ConfirmDialog not shown; body: %s", dialog)
+	}
+	if strings.Contains(dialog, "confirm_name") {
+		t.Fatalf("typed-name gate should be dropped from the token-revoke dialog (#18); body: %s", dialog)
 	}
 
-	// A mismatched name does not revoke.
-	resp := postForm(t, c, base+"/profile/tokens/revoke", url.Values{"id": {strconv.FormatInt(tok.ID, 10)}, "confirm_name": {"wrong"}})
-	if got := body(t, resp); !strings.Contains(got, "did not match") {
-		t.Fatalf("typed-name mismatch not reported; body: %s", got)
-	}
-	if len(f.personalTokens) != 1 {
-		t.Fatalf("token revoked on mismatch; count=%d", len(f.personalTokens))
-	}
-
-	// The exact name revokes it.
-	resp = postForm(t, c, base+"/profile/tokens/revoke", url.Values{"id": {strconv.FormatInt(tok.ID, 10)}, "confirm_name": {"grafana"}})
+	// Confirming the plain dialog (id only) revokes the token and redirects with the toast.
+	resp := postForm(t, c, base+"/profile/tokens/revoke", url.Values{"id": {strconv.FormatInt(tok.ID, 10)}})
+	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("revoke on match: status=%d, want 303", resp.StatusCode)
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(loc, "/profile?toast=") {
+		t.Fatalf("revoke: status=%d loc=%q, want 303 to /profile?toast=…", resp.StatusCode, loc)
+	}
+	toast := decodeToast(t, loc)
+	if toast["tone"] != "neutral" || toast["title"] != "Token revoked" || toast["description"] != "grafana" {
+		t.Fatalf("token-revoke toast = %+v, want neutral/Token revoked/grafana", toast)
 	}
 	if len(f.personalTokens) != 0 {
-		t.Fatalf("token not revoked on match; count=%d", len(f.personalTokens))
+		t.Fatalf("token not revoked; count=%d", len(f.personalTokens))
 	}
 }
 
