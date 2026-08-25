@@ -49,6 +49,12 @@ f913c43d083b2ef5e867325604509234dda411ff  design-system/goldens/profile/revoke-t
 26d2912c6ae9ccdf9ac125f6ca522a9ffdca6202  design-system/goldens/profile/signout-others-1440-light.png
 4903733aa86f993886a56e4a0bd1c6d4ca2b1800  design-system/goldens/rundetail/default-1440-dark.png
 d67e47c3fe993d95281a33c95a53c2972780821f  design-system/goldens/rundetail/default-1440-light.png
+ee758f36c44ed2c9a5459fe320306ec13dc588f4  design-system/goldens/scope/default-1440-dark.png
+deab5a69fdb2b6310f5adf6e5208328b1dcb3911  design-system/goldens/scope/default-1440-light.png
+ee758f36c44ed2c9a5459fe320306ec13dc588f4  design-system/goldens/scope/exclusion-preview-1440-dark.png
+deab5a69fdb2b6310f5adf6e5208328b1dcb3911  design-system/goldens/scope/exclusion-preview-1440-light.png
+2ad47749f570ab8080cc0d2bd22801cfa69cae1c  design-system/goldens/scope/refusal-1440-dark.png
+54252358af888ee713c1b46366ae9517b7bebaea  design-system/goldens/scope/refusal-1440-light.png
 eb615f23465847425234c23953d8d83fef5b3844  design-system/goldens/setup/default-1440-dark.png
 1d554ee9621d5a9a54f407ee9006147fe440d100  design-system/goldens/setup/default-1440-light.png
 f2362a6c8a660643582aa933bd86f5481f03e422  design-system/goldens/setup/error-1440-dark.png

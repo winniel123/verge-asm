@@ -133,6 +133,45 @@ own while a scan is in flight.</p>
 batch after onboarding — its completed dispatches are listed here.</p>
 </div>
 {{end}}
+
+<!-- Full-range (cold) tier opt-in — relocated from /scope (#21d). -->
+<div class="microlabel">Configured · full-range scan (cold tier)</div>
+<p>The cold scan connects to every TCP port, 1&#8211;65535, monthly. It ships <strong>disabled</strong>
+with no scopes: a full-range sweep runs only where you ask for it, per scope &#8212; never at onboarding,
+never on save. Opting a scope in enables the tier for that scope and it begins on its own monthly
+cadence; opting the last scope out returns it to off. Only Custody-admitted addresses are ever probed,
+so opting in widens what is measured, never who.</p>
+
+{{if .ColdEnabled}}<span class="badge">tier on</span>{{else}}<span class="badge off">tier off &#8212; no scope opted in</span>{{end}}
+{{if .ColdError}}<div class="error">{{.ColdError}}</div>{{end}}
+{{if .ColdScopes}}
+<div class="section">
+<h2>Full-range opt-in</h2>
+<table>
+<thead><tr><th>Scope</th><th>Kind</th><th>Full range</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+<tbody>
+{{range .ColdScopes}}<tr>
+<td class="mono">{{.Scope}}</td>
+<td>{{if .IsAddress}}address{{else}}name{{end}}</td>
+<td>{{if .OptedIn}}<span class="badge">opted in</span>{{else}}<span class="badge off">off</span>{{end}}</td>
+{{if $.IsAdmin}}<td>
+<form method="post" action="/settings/cold">
+<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="opt_in" value="{{if .OptedIn}}false{{else}}true{{end}}">
+<button class="secondary" type="submit">{{if .OptedIn}}Opt out{{else}}Opt in{{end}}</button>
+</form>
+</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<div class="section">
+<div class="microlabel">No scopes</div>
+<p>The full-range tier opts in a declared scope. Declare a name or address scope on
+<a href="/scope">Scope</a>, then opt it into the cold scan here.</p>
+</div>
+{{end}}
 {{end}}
 
 {{define "settings-vantages"}}
@@ -189,6 +228,22 @@ the internet.</p>
 </div>
 {{end}}
 <p class="muted">Declare the vantage's observed egress as an address scope from <a href="/scope">Scope</a> so the estate knows its own outbound address.</p>
+</div>
+{{end}}
+
+<!-- Prober provisioning — relocated from /scope (#21d). Provisioning declares this vantage is on the internet. -->
+{{if .IsAdmin}}
+<div class="section">
+<div class="microlabel">Declared · probers</div>
+<h2>Provision a prober</h2>
+<p class="muted">You supply the host, port, and a non-root username; the instance generates the SSH keypair on the worker volume and exposes only the public half. The private key never leaves the instance.</p>
+{{if .ProberError}}<div class="error">{{.ProberError}}</div>{{end}}
+<form method="post" action="/settings/probers" class="seedform">
+<label><span>Host</span><input name="host" value="{{.ProberHost}}" placeholder="prober.example.com" autocomplete="off" required></label>
+<label><span>Port</span><input name="port" value="{{.ProberPort}}" placeholder="22" autocomplete="off"></label>
+<label><span>Username</span><input name="username" value="{{.ProberUser}}" placeholder="scanner" autocomplete="off" required></label>
+<button type="submit">Provision</button>
+</form>
 </div>
 {{end}}
 {{end}}

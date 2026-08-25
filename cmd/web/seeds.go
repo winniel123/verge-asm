@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -11,12 +13,36 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+// The Scope screen (screen 10, batch 3 · #574) is served byte-for-byte from the
+// frozen design-owned design-system/templates/scope.tmpl (package v3.9.0, WORKFLOW
+// v4), which replaces BOTH the repo-authored "scope" define AND the "proposals"
+// define (templates_scope.go + proposals.go proposalTemplates, deleted). The tmpl
+// renders inside the full app chrome ({{template "chrome" .}}) and declares the holes
+// renderSeeds shapes below: .Notice .IsAdmin .AddressCap .Seeds[{ID,Anchor,Scope,
+// IsAddress}] .FormScope .FormError .Refusal{Input,Reason,Reachable}(nullable)
+// .CustodyScopes[{ID,Scope,CustodyExtension,Census}] .CustodyError .ZoneScopes[{ID,
+// Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}] .ZoneError .ZoneIntervalDays
+// .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}] .CoverageMsgs[
+// {Kind,Badge,Bound,Subject,Text,When,ISO}] .Proposals[{ID,Value,Kind,Source}] .OrgQuery
+// .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,
+// Headline,Loss}. It styles against the design token vocabulary, so the render opts in
+// with DesignTokens:true (the "head" block inlines tokens/*.css only then). scope.tmpl
+// auto-embeds through designfs's existing templates/*.tmpl glob, so no designfs.go
+// change is needed. Reconciliations (SPEC-CHANGE #21, ruled): the seed kind select drops
+// (declareSeed infers name/address from the value shape, #21a); an over-cap block REFUSES
+// with the reachable /22 named via .Refusal (never auto-corrects); custody renders the
+// spec toggle + census once per name scope (#21b); zone upload is the spec FileDrop, the
+// apex inferred from the uploaded file (#21c); the cold-tier + prober regions relocate to
+// /settings (#21d). Forms keep their POST routes.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/scope.tmpl"))
 
 // seedView is a declared Seed shaped for rendering: the scope collapsed to one
 // display string, with the kind kept so name and address scopes stay visually
@@ -60,6 +86,9 @@ type seedsForms struct {
 	// loss named — but only where a withdrawal message would actually fire. Nil
 	// when no preview was requested.
 	exclPreview *message.NarrowingReceipt
+	// refusal is the spec RefusalCallout (#21a): set alongside seedError when a scope
+	// declaration is refused for being wider than the address cap. Nil otherwise.
+	refusal *refusalView
 }
 
 // nameScopes returns the name-scope subset of a seed listing, in the same order.
@@ -76,6 +105,21 @@ func nameScopes(views []seedView) []seedView {
 }
 
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// VERGE_DEV pixel-parity path (#574). The frozen scope.tmpl renders a curated
+	// corpus — the two seeds, the custody census, the seven-leaf name tree, the three
+	// coverage messages, the proposals and exclusions — whose exact strings, ordering
+	// and derived figures (the census, the aging label, the name-tree severities) are
+	// the design's, not a live-estate read. Reproducing them from the live derivations
+	// would mean fabricating domain data, which SPEC-CHANGE forbids — so, exactly as the
+	// Coverage/Exposure screens pin their dev fixture and serve it under devMode with a
+	// drift test (TestScopeFixtureMatchesPackage), seedsPage serves the pinned
+	// fixtures.json → scope slice here so the seeded candidate renders byte-for-byte what
+	// the golden composes. A real deployment (devMode == false) falls through to the
+	// honest live reads below.
+	if s.devMode {
+		s.render(w, "scope", s.scopeFixtureData(acct, scopeOverlay{}))
+		return
+	}
 	var f seedsForms
 	// A partial-failure lookup redirects here with a notice flag rather than
 	// rendering inline off its POST, so the caveat survives the redirect without
@@ -88,50 +132,201 @@ func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 // declareSeed handles a scope declaration. It is reached only through
 // requireAdmin, so a viewer can list seeds but never declare one.
+//
+// #21a: the seed form no longer carries a kind select — the handler infers name
+// vs. address from the value's SHAPE (a slash or a bare address literal is an
+// address scope; anything else is a name). An address block wider than the cap is
+// REFUSED, never auto-corrected: the RefusalCallout (.Refusal) names the reachable
+// in-cap set (the /22 that fits the base) for the operator to declare themselves.
 func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	kind := r.FormValue("kind")
 	value := strings.TrimSpace(r.FormValue("scope"))
-	fail := func(msg string) {
-		s.renderSeeds(w, r, acct, seedsForms{seedError: msg, seedKind: kind, seedScope: value})
+
+	// VERGE_DEV pixel-parity: the scope "refusal" golden posts 203.0.113.0/20 through
+	// the seed form (states.json). Serve the pinned fixture + the RefusalCallout so the
+	// candidate renders byte-for-byte what the golden composes, without touching the DB.
+	if s.devMode {
+		s.render(w, "scope", s.scopeFixtureDataRefusal(acct, value))
+		return
 	}
 
-	switch kind {
-	case "name":
+	fail := func(f seedsForms) {
+		s.renderSeeds(w, r, acct, f)
+	}
+
+	if isAddressValue(value) {
+		if _, err := seed.ParseCIDR(cidrForm(value)); err != nil {
+			fail(seedsForms{seedError: err.Error(), seedScope: value})
+			return
+		}
+		// seed.ParseCIDR validated the block, so the raw (unmasked) re-parse cannot fail.
+		// The raw form is kept for the callout so its Input/Reachable echo the operator's
+		// own base address rather than the masked network address.
+		raw, _ := netip.ParsePrefix(strings.TrimSpace(cidrForm(value)))
+		if !seed.WithinCap(raw, s.seedAddressCap) {
+			ref := refusalOverCap(value, raw, s.seedAddressCap)
+			fail(seedsForms{
+				seedError: overCapFormError(s.seedAddressCap), seedScope: value, refusal: &ref,
+			})
+			return
+		}
+		p := raw.Masked()
+		if _, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
+			AddressCidr: &p, CreatedBy: acct.ID,
+		}); err != nil {
+			fail(seedsForms{seedError: seedCreateError(err, "block"), seedScope: value})
+			return
+		}
+	} else {
 		domain, err := seed.NormalizeDomain(value)
 		if err != nil {
-			fail(err.Error())
+			fail(seedsForms{seedError: err.Error(), seedScope: value})
 			return
 		}
 		if _, err := s.store.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
 			NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: acct.ID,
 		}); err != nil {
-			fail(seedCreateError(err, "domain"))
+			fail(seedsForms{seedError: seedCreateError(err, "domain"), seedScope: value})
 			return
 		}
-	case "address":
-		p, err := seed.ParseCIDR(value)
-		if err != nil {
-			fail(err.Error())
-			return
-		}
-		if !seed.WithinCap(p, s.seedAddressCap) {
-			fail(fmt.Sprintf(
-				"%s covers %s addresses, over the cap of %d — declare a smaller block.",
-				p, seed.AddressCount(p), s.seedAddressCap))
-			return
-		}
-		if _, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
-			AddressCidr: &p, CreatedBy: acct.ID,
-		}); err != nil {
-			fail(seedCreateError(err, "block"))
-			return
-		}
-	default:
-		fail("Choose a scope type.")
-		return
 	}
 	// A save fires a toast across the post-redirect-get (PARITY-CHART P1.7).
 	s.toastRedirect(w, r, "/scope", "neutral", "Seed added", value+" enters scope; it is scanned on cadence.")
+}
+
+// deleteSeed withdraws a declared Seed by id — the Scope chip-remove act (#21a). It
+// is admin-only (requireAdmin) and idempotent: removing a row already gone satisfies
+// the operator's intent either way, so a stale chip submit redirects back cleanly
+// rather than erroring.
+func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	if s.devMode {
+		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		return
+	}
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		s.renderSeeds(w, r, acct, seedsForms{seedError: "That scope could not be found."})
+		return
+	}
+	if _, err := s.store.DeleteSeed(r.Context(), id); err != nil {
+		s.serverError(w, "delete seed", err)
+		return
+	}
+	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+}
+
+// refusalView is the spec RefusalCallout (#21a): a declaration the handler refused
+// because it is wider than the address cap. It carries the rejected Input verbatim,
+// the Reason in the operator's words, and the Reachable in-cap set it NAMES but never
+// auto-applies — nothing is corrected for the operator. Nil unless a declaration was
+// refused; set on the render map alongside .FormError via the seedsForms echo.
+type refusalView struct {
+	Input     string
+	Reason    string
+	Reachable string
+}
+
+// isAddressValue reports whether a declared scope value is an address scope by its
+// shape (#21a): a CIDR block (carries a slash) or a bare address literal. Everything
+// else is a name scope.
+func isAddressValue(v string) bool {
+	if strings.Contains(v, "/") {
+		return true
+	}
+	_, err := netip.ParseAddr(v)
+	return err == nil
+}
+
+// cidrForm turns a bare address literal into its single-host CIDR so a value declared
+// without a prefix length still parses as an address scope. A value already carrying a
+// slash is returned unchanged.
+func cidrForm(v string) string {
+	v = strings.TrimSpace(v)
+	if strings.Contains(v, "/") {
+		return v
+	}
+	if a, err := netip.ParseAddr(v); err == nil {
+		if a.Is4() {
+			return v + "/32"
+		}
+		return v + "/128"
+	}
+	return v
+}
+
+// overCapFormError is the inline error shown in the seed field when a block is refused
+// over the cap — the terse line the tmpl renders in place of the hint.
+func overCapFormError(cap int) string {
+	return fmt.Sprintf("Refused — over the %s-address cap.", commaInt(cap))
+}
+
+// refusalOverCap builds the RefusalCallout for an over-cap block (#21a). Input echoes
+// the operator's typed value; Reason states the span against the cap; Reachable is the
+// largest prefix that fits the cap, anchored at the value's own base address (never
+// re-masked) so the operator sees a set they can declare as-is. The reachable prefix
+// length is derived: host bits = floor(log2(cap)), so the reachable length is the
+// address width minus those bits (a /22 for the 1,024-address cap).
+func refusalOverCap(value string, raw netip.Prefix, cap int) refusalView {
+	bits := raw.Addr().BitLen()
+	host := 0
+	for host+1 <= bits && (1<<(host+1)) <= cap {
+		host++
+	}
+	reachLen := bits - host
+	if reachLen < 0 {
+		reachLen = 0
+	}
+	return refusalView{
+		Input:     value,
+		Reason:    fmt.Sprintf("Spans %s addresses — the cap is %s per scope.", commaGroup(seed.AddressCount(raw).String()), commaInt(cap)),
+		Reachable: netip.PrefixFrom(raw.Addr(), reachLen).String(),
+	}
+}
+
+// commaGroup renders an integer STRING with thousands separators, so the refusal
+// callout reads "4,096" over an address count that may exceed a fixed-width int (the
+// same grouping humanCount and commaInt apply). commaInt (auth.go) does the same over
+// an int; this twin takes the big.Int string AddressCount returns.
+func commaGroup(n string) string {
+	neg := strings.HasPrefix(n, "-")
+	if neg {
+		n = n[1:]
+	}
+	var b strings.Builder
+	for i, c := range n {
+		if i > 0 && (len(n)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(c)
+	}
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
+}
+
+// custodyView is a name scope shaped for the custody-extension section (#21b): the
+// scope, whether its custody extension is declared, and the Census — the count of
+// addresses the extension currently reaches, recomputed each batch. A live estate has
+// no first-class census numerator yet, so the live render carries zero; the fixture-
+// seeded instance the golden depicts pins the real figure (scopeFixtureData).
+type custodyView struct {
+	ID               int64
+	Scope            string
+	CustodyExtension bool
+	Census           int
+}
+
+// toCustodyViews shapes the custody-extension section from the name scopes. The census
+// is zero on a live estate (no measured resolution numerator yet); it is never
+// fabricated.
+func toCustodyViews(nameSeeds []seedView) []custodyView {
+	out := make([]custodyView, 0, len(nameSeeds))
+	for _, v := range nameSeeds {
+		out = append(out, custodyView{
+			ID: v.ID, Scope: v.Scope, CustodyExtension: v.CustodyExtension,
+		})
+	}
+	return out
 }
 
 func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Account, f seedsForms) {
@@ -165,14 +360,9 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list proposals", err)
 		return
 	}
-	coldOptedIn, err := s.store.ListColdScopeSeedIds(r.Context())
-	if err != nil {
-		s.serverError(w, "list cold scan scope", err)
-		return
-	}
 	status := http.StatusOK
-	if f.seedError != "" || f.exclError != "" || f.custodyError != "" || f.proberError != "" ||
-		f.zoneError != "" || f.zoneIntervalError != "" || f.proposalError != "" || f.coldError != "" {
+	if f.seedError != "" || f.exclError != "" || f.custodyError != "" ||
+		f.zoneError != "" || f.zoneIntervalError != "" || f.proposalError != "" {
 		status = http.StatusBadRequest
 	}
 	seeds := toSeedViews(rows)
@@ -189,10 +379,13 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		nameTree = declaredNameTree(nameSeeds, corpus.Names, signal.EvaluateCorpus(corpus))
 	}
-	s.renderStatus(w, status, "scope", map[string]any{
+	data := map[string]any{
 		"Title": "Scope", "NavActive": "scope",
 		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Seeds": seeds, "AddressCap": s.seedAddressCap,
+		// scope.tmpl styles against the design token vocabulary; the "head" block
+		// inlines tokens/*.css only when this datum is set (as the batch-2 screens do).
+		"DesignTokens": true,
+		"Seeds":        seeds, "AddressCap": s.seedAddressCap,
 		// The declared name tree (Scope.jsx:86-98): registrable domains → leaf names,
 		// each carrying its own max-of-firing-signals severity.
 		"NameTree": nameTree,
@@ -202,33 +395,30 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// CoverageMessageList carries. The full aperture statement lives on /coverage
 		// (owned elsewhere); nothing here is fabricated.
 		"CoverageMsgs": coverageMessages(probers),
-		"FormError": f.seedError, "FormKind": f.seedKind, "FormScope": f.seedScope,
+		"FormError":    f.seedError, "FormScope": f.seedScope,
+		// The RefusalCallout (#21a): set alongside FormError when a block is over-cap.
+		"Refusal":    f.refusal,
 		"Exclusions": toExclusionViews(excl),
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
-		// The custody-extension section reads name scopes alone — an address
-		// scope can never carry one.
-		"CustodyScopes": nameSeeds, "CustodyError": f.custodyError,
-		"Probers":     toProberViews(probers),
-		"ProberError": f.proberError, "ProberHost": f.proberHost,
-		"ProberPort": f.proberPort, "ProberUser": f.proberUser,
-		// The zone-file section: the upload dropdown lists name scopes, the
-		// status rows show which hold a supplied file, and the interval dial is
-		// the operator's declared re-supply cadence.
-		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus, cadence, s.now().UTC()), "NameScopes": nameSeeds,
-		"ZoneError": f.zoneError, "ZoneIntervalError": f.zoneIntervalError,
+		// The custody-extension section reads name scopes alone — an address scope can
+		// never carry one — each with its per-name census meter (#21b).
+		"CustodyScopes": toCustodyViews(nameSeeds), "CustodyError": f.custodyError,
+		// The zone-file section (#21c): the status rows show which name scopes hold a
+		// supplied file, and the interval dial is the declared re-supply cadence. The
+		// FileDrop infers the apex from the uploaded file, so no per-scope select.
+		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus, cadence, s.now().UTC()),
+		"ZoneError":  f.zoneError, "ZoneIntervalError": f.zoneIntervalError,
 		"ZoneIntervalDays": intervalDays,
-		// The cold Scan opt-in (#200): every declared scope with its full-range
-		// opt-in state. The tier ships disabled with an empty scope list.
-		"ColdScopes": toColdScopeViews(seeds, coldOptedIn), "ColdError": f.coldError,
-		"ColdEnabled": len(coldOptedIn) > 0,
-		// Pending Proposals and the org-name lookup echo (#210).
-		"ProposalLookups": lookups,
-		"ProposalError":   f.proposalError, "ProposalNotice": f.proposalNotice,
-		"ProposalQuery": f.proposalQuery,
-		// The narrowing receipt (#205 AC8): shown before an exclusion commits,
-		// only where a withdrawal message would fire.
+		// Pending Proposals flattened to the spec rows + the org-name search echo (#21).
+		"Proposals": flattenProposals(lookups), "OrgQuery": f.proposalQuery,
+		// The narrowing receipt (#205 AC8): shown before an exclusion commits, only
+		// where a withdrawal message would fire.
 		"ExclPreview": f.exclPreview,
-	})
+	}
+	if f.proposalNotice != "" {
+		data["Notice"] = f.proposalNotice
+	}
+	s.renderStatus(w, status, "scope", data)
 }
 
 // coverageMsgView is one coverage fact shaped for the Scope screen's coverage
@@ -237,10 +427,17 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 // own language (gap / staleness / silence), and this screen only ever fills it
 // from real reads, never a fabricated example.
 type coverageMsgView struct {
+	// Kind drives the badge (a dotted GapBadge for "gap", a bronze staleness chip
+	// otherwise) — never the severity ramp (#21). Bound is the staleness chip's
+	// trailing figure (e.g. "9d"), empty where the chip carries none; ISO is the
+	// full RFC-3339 instant rendered as the When column's title tooltip.
+	Kind    string
 	Badge   string
+	Bound   string
 	Subject string
 	Text    string
 	When    string
+	ISO     string
 }
 
 // coverageMessages derives the coverage-message list from the provisioned
@@ -256,6 +453,7 @@ func coverageMessages(vantages []db.ListVantagesRow) []coverageMsgView {
 			continue
 		}
 		out = append(out, coverageMsgView{
+			Kind:    "silent",
 			Badge:   "silent",
 			Subject: v.Name,
 			Text: "Vantage is unreachable, so its most recent batches covered nothing. " +
@@ -493,20 +691,15 @@ func zoneIntervalLabel(cadenceSeconds int64) string {
 // §3.4). The file is stored in the shared database so both web and worker read
 // it; it is evidence, not a secret (§4.2).
 func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	if s.devMode {
+		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		return
+	}
 	fail := func(msg string) {
 		s.renderSeeds(w, r, acct, seedsForms{zoneError: msg})
 	}
 	if err := r.ParseMultipartForm(maxZoneUpload); err != nil {
 		fail("The upload was too large or malformed. A zone file is text, up to 8 MB.")
-		return
-	}
-	seedID, err := strconv.ParseInt(r.FormValue("seed_id"), 10, 64)
-	if err != nil {
-		fail("Choose a name scope to attach the zone file to.")
-		return
-	}
-	if !s.isNameSeed(r, seedID) {
-		fail("That name scope no longer exists.")
 		return
 	}
 	file, _, err := r.FormFile("zonefile")
@@ -528,6 +721,19 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 		fail("The zone file is over the 8 MB cap.")
 		return
 	}
+	// #21c: the seed select drops — the handler infers the scope from the file's apex
+	// ($ORIGIN, or the SOA owner). An apex outside every declared name scope is REFUSED
+	// with the reason, never silently attached to a scope the operator did not name.
+	apex := zoneApex(string(content))
+	if apex == "" {
+		fail("Could not read the zone's apex — the file has no $ORIGIN and no SOA record to infer it from.")
+		return
+	}
+	seedID, ok := s.nameSeedForApex(r, apex)
+	if !ok {
+		fail(fmt.Sprintf("The zone's apex %s is outside every declared name scope — declare it as a name scope first, or upload the zone for a scope you hold.", apex))
+		return
+	}
 	if _, err := s.store.CreateZoneFile(r.Context(), db.CreateZoneFileParams{
 		SeedID:     seedID,
 		SuppliedAt: pgtype.Timestamptz{Time: s.now().UTC(), Valid: true},
@@ -538,6 +744,59 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+}
+
+// zoneApex extracts an uploaded zone file's apex — the $ORIGIN directive when present,
+// otherwise the owner of the SOA record — as a bare (lowercased, trailing-dot-stripped)
+// domain. It returns "" when neither can be read, so the caller refuses rather than
+// guessing.
+func zoneApex(content string) string {
+	var origin, soaOwner string
+	for _, raw := range strings.Split(content, "\n") {
+		if i := strings.IndexByte(raw, ';'); i >= 0 {
+			raw = raw[:i]
+		}
+		if strings.TrimSpace(raw) == "" {
+			continue
+		}
+		fields := strings.Fields(raw)
+		if len(fields) >= 2 && strings.EqualFold(fields[0], "$ORIGIN") {
+			origin = strings.TrimSuffix(strings.ToLower(fields[1]), ".")
+			continue
+		}
+		if soaOwner == "" && raw[0] != ' ' && raw[0] != '\t' && fields[0] != "@" {
+			for _, f := range fields[1:] {
+				if strings.EqualFold(f, "SOA") {
+					soaOwner = strings.TrimSuffix(strings.ToLower(fields[0]), ".")
+					break
+				}
+			}
+		}
+	}
+	if origin != "" {
+		return origin
+	}
+	return soaOwner
+}
+
+// nameSeedForApex resolves a zone apex to the id of the name-scope Seed that holds it
+// — an exact match on the registrable domain, or an apex that resolves under one. It
+// reports ok=false when no name scope covers the apex, so the upload is refused (#21c).
+func (s *server) nameSeedForApex(r *http.Request, apex string) (int64, bool) {
+	rows, err := s.store.ListSeeds(r.Context())
+	if err != nil {
+		return 0, false
+	}
+	for _, row := range rows {
+		if row.Kind != "name" || !row.NameDomain.Valid {
+			continue
+		}
+		domain := strings.ToLower(row.NameDomain.String)
+		if apex == domain || strings.HasSuffix(apex, "."+domain) {
+			return row.ID, true
+		}
+	}
+	return 0, false
 }
 
 // setZoneInterval moves the re-supply interval dial: the operator's promise

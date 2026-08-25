@@ -241,6 +241,24 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "scope":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen scope")
+		}
+		files, err := renderScopeStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	case "rundetail":
 		if *outdir == "" {
 			log.Fatal("render-goldens: -outdir is required for -screen rundetail")
@@ -649,6 +667,212 @@ func renderExposureStates(bodyFlex bool) ([]errorGolden, error) {
 		}
 		var buf bytes.Buffer
 		if err := t.ExecuteTemplate(&buf, "exposure", st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+// scopeFixture is the design-system/fixtures/fixtures.json scope slice: the seeds, the refusal +
+// exclusion-preview + org-search fixtures, custody, zone, name tree, coverage messages, proposals
+// and exclusions. The golden reads them here (never re-hardcoded) so a fixture change flows
+// through; cmd/web/devfixtures.go pins the same values with a drift test
+// (TestScopeFixtureMatchesPackage).
+type scopeFixture struct {
+	AddressCap int `json:"address_cap"`
+	Seeds      []struct {
+		ID        string `json:"id"`
+		Anchor    string `json:"anchor"`
+		Scope     string `json:"scope"`
+		IsAddress bool   `json:"is_address"`
+	} `json:"seeds"`
+	RefusalFixture struct {
+		PostValue string `json:"post_value"`
+		Input     string `json:"input"`
+		Reason    string `json:"reason"`
+		Reachable string `json:"reachable"`
+		FormError string `json:"form_error"`
+	} `json:"refusal_fixture"`
+	CustodyScopes []struct {
+		ID               string `json:"id"`
+		Scope            string `json:"scope"`
+		CustodyExtension bool   `json:"custody_extension"`
+		Census           int    `json:"census"`
+	} `json:"custody_scopes"`
+	ZoneScopes []struct {
+		ID            string `json:"id"`
+		Domain        string `json:"domain"`
+		HasFile       bool   `json:"has_file"`
+		SuppliedAt    string `json:"supplied_at"`
+		IntervalLabel string `json:"interval_label"`
+		AgingLabel    string `json:"aging_label"`
+	} `json:"zone_scopes"`
+	ZoneIntervalDays int `json:"zone_interval_days"`
+	NameTree         []struct {
+		Label    string `json:"label"`
+		Count    int    `json:"count"`
+		Sev      string `json:"sev"`
+		Children []struct {
+			Label string `json:"label"`
+			Sev   string `json:"sev"`
+		} `json:"children"`
+	} `json:"name_tree"`
+	CoverageMsgs []struct {
+		Kind    string `json:"kind"`
+		Badge   string `json:"badge"`
+		Bound   string `json:"bound"`
+		Subject string `json:"subject"`
+		Text    string `json:"text"`
+		When    string `json:"when"`
+		ISO     string `json:"iso"`
+	} `json:"coverage_msgs"`
+	Proposals []struct {
+		ID     string `json:"id"`
+		Value  string `json:"value"`
+		Kind   string `json:"kind"`
+		Source string `json:"source"`
+	} `json:"proposals"`
+	Exclusions []struct {
+		ID    string `json:"id"`
+		Kind  string `json:"kind"`
+		Value string `json:"value"`
+	} `json:"exclusions"`
+	ExclusionPreviewFixture struct {
+		PostKind  string `json:"post_kind"`
+		PostValue string `json:"post_value"`
+		Fires     bool   `json:"fires"`
+		Headline  string `json:"headline"`
+		Loss      string `json:"loss"`
+	} `json:"exclusion_preview_fixture"`
+}
+
+func loadScopeFixture() (scopeFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return scopeFixture{}, err
+	}
+	var ff struct {
+		Scope scopeFixture `json:"scope"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return scopeFixture{}, err
+	}
+	return ff.Scope, nil
+}
+
+// renderScopeStates composes the three Scope golden HTMLs from the frozen scope.tmpl, one per
+// states.json scope state (default, refusal, exclusion-preview). Every state's data map mirrors
+// seedsPage's scopeFixtureData EXACTLY (the holes the frozen tmpl reads) — the pinned fixtures.json
+// scope slice in authored order — so the cropped `main` is byte-identical to what the seeded server
+// renders. The "refusal" state adds the RefusalCallout + FormError (read from refusal_fixture, the
+// same values declareSeed derives) with the posted value echoed in FormScope; the "exclusion-preview"
+// state adds the firing Preview receipt (read from exclusion_preview_fixture) with the typed kind +
+// value echoed. Chrome is the empty stub (goldens crop to `main`).
+func renderScopeStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadScopeFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	seeds := make([]map[string]any, 0, len(fx.Seeds))
+	for _, s := range fx.Seeds {
+		seeds = append(seeds, map[string]any{"ID": s.ID, "Anchor": s.Anchor, "Scope": s.Scope, "IsAddress": s.IsAddress})
+	}
+	custody := make([]map[string]any, 0, len(fx.CustodyScopes))
+	for _, c := range fx.CustodyScopes {
+		custody = append(custody, map[string]any{"ID": c.ID, "Scope": c.Scope, "CustodyExtension": c.CustodyExtension, "Census": c.Census})
+	}
+	zones := make([]map[string]any, 0, len(fx.ZoneScopes))
+	for _, z := range fx.ZoneScopes {
+		zones = append(zones, map[string]any{"ID": z.ID, "Domain": z.Domain, "HasFile": z.HasFile, "SuppliedAt": z.SuppliedAt, "IntervalLabel": z.IntervalLabel, "AgingLabel": z.AgingLabel})
+	}
+	tree := make([]map[string]any, 0, len(fx.NameTree))
+	for _, root := range fx.NameTree {
+		kids := make([]map[string]any, 0, len(root.Children))
+		for _, leaf := range root.Children {
+			kids = append(kids, map[string]any{"Label": leaf.Label, "Sev": leaf.Sev})
+		}
+		tree = append(tree, map[string]any{"Label": root.Label, "Count": root.Count, "Sev": root.Sev, "Children": kids})
+	}
+	msgs := make([]map[string]any, 0, len(fx.CoverageMsgs))
+	for _, m := range fx.CoverageMsgs {
+		msgs = append(msgs, map[string]any{"Kind": m.Kind, "Badge": m.Badge, "Bound": m.Bound, "Subject": m.Subject, "Text": m.Text, "When": m.When, "ISO": m.ISO})
+	}
+	proposals := make([]map[string]any, 0, len(fx.Proposals))
+	for _, p := range fx.Proposals {
+		proposals = append(proposals, map[string]any{"ID": p.ID, "Value": p.Value, "Kind": p.Kind, "Source": p.Source})
+	}
+	exclusions := make([]map[string]any, 0, len(fx.Exclusions))
+	for _, e := range fx.Exclusions {
+		exclusions = append(exclusions, map[string]any{"ID": e.ID, "Kind": e.Kind, "Value": e.Value})
+	}
+
+	base := func() map[string]any {
+		return map[string]any{
+			"Title": "Scope", "NavActive": "scope", "DesignTokens": true,
+			"AddressCap":       fx.AddressCap,
+			"Seeds":            seeds,
+			"FormScope":        "",
+			"FormError":        "",
+			"CustodyScopes":    custody,
+			"ZoneScopes":       zones,
+			"ZoneIntervalDays": strconv.Itoa(fx.ZoneIntervalDays),
+			"NameTree":         tree,
+			"CoverageMsgs":     msgs,
+			"Proposals":        proposals,
+			"OrgQuery":         "",
+			"Exclusions":       exclusions,
+			"ExclKind":         "",
+			"ExclValue":        "",
+		}
+	}
+
+	defaultData := base()
+
+	refusalData := base()
+	refusalData["FormScope"] = fx.RefusalFixture.PostValue
+	refusalData["FormError"] = fx.RefusalFixture.FormError
+	refusalData["Refusal"] = map[string]any{
+		"Input":     fx.RefusalFixture.Input,
+		"Reason":    fx.RefusalFixture.Reason,
+		"Reachable": fx.RefusalFixture.Reachable,
+	}
+
+	previewData := base()
+	previewData["ExclKind"] = fx.ExclusionPreviewFixture.PostKind
+	previewData["ExclValue"] = fx.ExclusionPreviewFixture.PostValue
+	previewData["ExclPreview"] = map[string]any{
+		"Fires":    fx.ExclusionPreviewFixture.Fires,
+		"Headline": fx.ExclusionPreviewFixture.Headline,
+		"Loss":     fx.ExclusionPreviewFixture.Loss,
+	}
+
+	type sstate struct {
+		id   string
+		data map[string]any
+	}
+	states := []sstate{
+		{"default", defaultData},
+		{"refusal", refusalData},
+		{"exclusion-preview", previewData},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/scope.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "scope", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})

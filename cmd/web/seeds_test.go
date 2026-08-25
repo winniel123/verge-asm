@@ -54,10 +54,9 @@ func TestDeclareNameAndAddressSeeds(t *testing.T) {
 	if !strings.Contains(page, "203.0.113.0/24") {
 		t.Errorf("address scope not listed; body: %s", page)
 	}
-	// The two kinds are distinguished in the listing.
-	if !strings.Contains(page, ">name<") || !strings.Contains(page, ">address<") {
-		t.Errorf("name/address not distinguished in listing; body: %s", page)
-	}
+	// The frozen scope.tmpl renders each declared scope as a chip carrying the scope
+	// itself (#574); the kind is inferred from the value's shape and no longer shown as a
+	// per-chip badge.
 }
 
 func TestAddressScopeOverCapRejected(t *testing.T) {
@@ -69,7 +68,9 @@ func TestAddressScopeOverCapRejected(t *testing.T) {
 	// /21 is 2048 addresses, over the 1024 cap.
 	resp := declare(t, ac, base, "address", "10.0.0.0/21")
 	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "over the cap of 1024") {
+	// #21a: over-cap declarations are REFUSED, not auto-corrected — the RefusalCallout
+	// names the span against the cap.
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "over the 1,024-address cap") {
 		t.Fatalf("over-cap scope not rejected clearly: status=%d body=%s", resp.StatusCode, got)
 	}
 	// The rejected value is preserved so the admin need not retype it.
@@ -184,8 +185,8 @@ func TestScopeDeclaredNameTree(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	main := scopeMain(seedsBody(t, ac, base))
 
-	// The card renders with its heading and the tree container.
-	for _, want := range []string{"Declared name tree", `class="nametree"`} {
+	// The card renders with its heading and the tree container (frozen scope.tmpl, #574).
+	for _, want := range []string{"Declared name tree", `class="sc-tree"`} {
 		if !strings.Contains(main, want) {
 			t.Errorf("scope missing name-tree marker %q", want)
 		}
@@ -193,10 +194,10 @@ func TestScopeDeclaredNameTree(t *testing.T) {
 	// The registrable domain is the root, with its two leaf names under it, labelled
 	// relative to the domain.
 	for _, want := range []string{
-		`class="nt-label">example.com<`, // registrable-domain root
-		`class="nt-count">2<`,           // two leaves
-		`class="nt-label">leak<`,        // leaf name, relative to the domain
-		`class="nt-label">www<`,
+		`class="tl">example.com<`, // registrable-domain root
+		`class="tc">2<`,           // two leaves
+		`class="tl">leak<`,        // leaf name, relative to the domain
+		`class="tl">www<`,
 	} {
 		if !strings.Contains(main, want) {
 			t.Errorf("name tree missing %q; body: %s", want, main)

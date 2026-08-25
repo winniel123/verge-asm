@@ -116,6 +116,24 @@ func (q *Queries) DeclineLookup(ctx context.Context, lookupID int64) (int64, err
 	return result.RowsAffected(), nil
 }
 
+const declineProposal = `-- name: DeclineProposal :execrows
+UPDATE proposal
+SET status = 'declined'
+WHERE id = $1 AND status = 'pending'
+`
+
+// Declines a single still-pending Proposal by id (#21: the Scope decline-many
+// act declines each checked proposal). Guarded on status = 'pending' so a repeat
+// or concurrent decline is a no-op. A declined scope is recorded as an exclusion
+// by the handler, off the row read before the decline.
+func (q *Queries) DeclineProposal(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.Exec(ctx, declineProposal, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getPendingProposal = `-- name: GetPendingProposal :one
 SELECT id, lookup_id, source_slug, record_kind, address_cidr, org_name, status, confirmed_seed_id, created_at
 FROM proposal

@@ -124,6 +124,11 @@ type Querier interface {
 	// batch because a pending Proposal is read by nothing, so 'declined' and 'never
 	// answered' have the same effect on the gate.
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
+	// Declines a single still-pending Proposal by id (#21: the Scope decline-many
+	// act declines each checked proposal). Guarded on status = 'pending' so a repeat
+	// or concurrent decline is a no-op. A declined scope is recorded as an exclusion
+	// by the handler, off the row read before the decline.
+	DeclineProposal(ctx context.Context, id int64) (int64, error)
 	// Remove a member (Settings -> Team, T18). The handler gates this behind a typed-
 	// name confirmation and refuses to remove yourself or the last admin. Attributed
 	// work keeps the account's id: the created_by references on seeds, channels,
@@ -193,6 +198,10 @@ type Querier interface {
 	// never unlink another's; returns rows so a stale or foreign id no-ops honestly.
 	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
+	// Withdraws a declared Seed by id (#21a: the Scope chip-remove act). A viewer
+	// never reaches it (requireAdmin). Idempotent: deleting a row already gone
+	// affects zero rows and is not an error, so a stale chip submit is a no-op.
+	DeleteSeed(ctx context.Context, id int64) (int64, error)
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error

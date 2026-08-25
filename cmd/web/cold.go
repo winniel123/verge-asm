@@ -81,7 +81,7 @@ func toColdScopeViews(seeds []seedView, optedIn []int64) []coldScopeView {
 func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSeeds(w, r, acct, seedsForms{coldError: "That scope could not be found."})
+		s.renderSettings(w, r, acct, settingsForms{section: "scans", coldError: "That scope could not be found."})
 		return
 	}
 	// The form carries the intended end state, not a blind flip: a stale page is
@@ -107,7 +107,8 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "sync cold scan enabled", err)
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	// #21d: the cold-tier region relocated to Settings → Scans.
+	http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
 }
 
 // --- Coverage (#301, ADR-0110) ----------------------------------------------

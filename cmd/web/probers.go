@@ -44,8 +44,10 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 	port := r.FormValue("port")
 	username := r.FormValue("username")
 	fail := func(msg string) {
-		s.renderSeeds(w, r, acct, seedsForms{
-			proberError: msg, proberHost: host, proberPort: port, proberUser: username,
+		// #21d: prober provisioning relocated to Settings → Vantages; a rejected
+		// provision re-renders that tab with its own error and typed values.
+		s.renderSettings(w, r, acct, settingsForms{
+			section: "vantages", proberError: msg, proberHost: host, proberPort: port, proberUser: username,
 		})
 	}
 
@@ -69,7 +71,8 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail("Could not provision the prober.")
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	// #21d: prober provisioning relocated to Settings → Vantages.
+	http.Redirect(w, r, "/settings?tab=vantages", http.StatusSeeOther)
 }
 
 func toProberViews(rows []db.ListVantagesRow) []proberView {

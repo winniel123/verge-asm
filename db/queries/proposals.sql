@@ -48,3 +48,12 @@ WHERE id = $1 AND status = 'pending';
 UPDATE proposal
 SET status = 'declined'
 WHERE lookup_id = $1 AND status = 'pending';
+
+-- name: DeclineProposal :execrows
+-- Declines a single still-pending Proposal by id (#21: the Scope decline-many
+-- act declines each checked proposal). Guarded on status = 'pending' so a repeat
+-- or concurrent decline is a no-op. A declined scope is recorded as an exclusion
+-- by the handler, off the row read before the decline.
+UPDATE proposal
+SET status = 'declined'
+WHERE id = $1 AND status = 'pending';

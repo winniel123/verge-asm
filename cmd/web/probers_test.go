@@ -12,11 +12,20 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+// Prober provisioning relocated from /scope to Settings → Vantages (#21d): the act
+// posts /settings/probers and the region renders under /settings?tab=vantages.
 func provision(t *testing.T, c *http.Client, base, host, port, username string) *http.Response {
 	t.Helper()
-	return postForm(t, c, base+"/probers", url.Values{
+	return postForm(t, c, base+"/settings/probers", url.Values{
 		"host": {host}, "port": {port}, "username": {username},
 	})
+}
+
+// vantagesBody reads the Settings → Vantages tab, where prober provisioning + the
+// prober listing now live.
+func vantagesBody(t *testing.T, c *http.Client, base string) string {
+	t.Helper()
+	return getBody(t, c, base+"/settings?tab=vantages", http.StatusOK)
 }
 
 func TestProvisionProber(t *testing.T) {
@@ -26,7 +35,7 @@ func TestProvisionProber(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	resp := provision(t, ac, base, "prober.example.com", "2222", "scanner")
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=vantages" {
 		t.Fatalf("provision: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()
@@ -41,7 +50,7 @@ func TestProvisionProber(t *testing.T) {
 
 	// The provisioned endpoint is listed, and its key is "not set" until the
 	// worker publishes a public half.
-	page := seedsBody(t, ac, base)
+	page := vantagesBody(t, ac, base)
 	if !strings.Contains(page, "prober.example.com:2222") {
 		t.Errorf("prober endpoint not listed; body: %s", page)
 	}
@@ -119,7 +128,7 @@ func TestPublicKeyShownAndPrivateNeverIs(t *testing.T) {
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
-	page := seedsBody(t, ac, base)
+	page := vantagesBody(t, ac, base)
 
 	if !strings.Contains(page, pub) {
 		t.Errorf("public key not rendered; body: %s", page)
@@ -195,12 +204,12 @@ func TestViewerCannotProvisionButCanView(t *testing.T) {
 		t.Fatalf("vantages after denied provision = %d, want 1", len(f.vantages))
 	}
 
-	// The viewer can see the list but is not offered the provisioning form.
-	page := seedsBody(t, vc, base)
-	if !strings.Contains(page, "prober.example.com:22") {
-		t.Errorf("viewer cannot see provisioned probers; body: %s", page)
-	}
-	if strings.Contains(page, `action="/probers"`) {
-		t.Errorf("provision form shown to a viewer; body: %s", page)
+	// Prober provisioning relocated to the admin-only Settings → Vantages surface (#21d),
+	// so a viewer is bounced from the read too; the viewer-facing vantage read is
+	// Settings' concern at map #21.
+	resp = get(t, vc, base+"/settings?tab=vantages")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("viewer reached the admin-only vantages surface: status=%d, want 403", resp.StatusCode)
 	}
 }

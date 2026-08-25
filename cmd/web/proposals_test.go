@@ -97,14 +97,12 @@ func TestLookupProducesProposalsNotSeeds(t *testing.T) {
 		}
 	}
 
-	// The pending Proposals render on the Seeds screen, each with the record
-	// kind that produced it and a singular, count-labelled confirm.
+	// The pending Proposals render on the Scope screen (frozen scope.tmpl, #574): each
+	// proposed scope with a singular Confirm, and a bulk Decline-selected control.
 	page := seedsBody(t, ac, base)
 	for _, want := range []string{
 		"203.0.113.0/24", "198.51.100.8/29",
-		"RIR delegation", "compelled reassignment",
-		"Confirm 256 addresses", "Confirm 8 addresses",
-		"Decline all 2",
+		">Confirm<", "Decline selected",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("proposals section missing %q; body: %s", want, page)
@@ -192,15 +190,20 @@ func TestDeclineIsBulkOverALookup(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	lookup(t, ac, base, "Example").Body.Close()
 
-	lookupID := f.proposals[0].LookupID
-	resp := postForm(t, ac, base+"/proposals/decline", url.Values{"lookup_id": {itoa(lookupID)}})
+	// The frozen scope.tmpl declines the CHECKED proposals: their ids post under `ids`
+	// (#574). Declining every pending proposal empties the section.
+	var ids []string
+	for _, p := range f.proposals {
+		ids = append(ids, itoa(p.ID))
+	}
+	resp := postForm(t, ac, base+"/proposals/decline", url.Values{"ids": ids})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("decline status=%d, want 303", resp.StatusCode)
 	}
 	resp.Body.Close()
 
-	// Every Proposal under the lookup is declined in one act, and no Seed was
-	// created — declining is a boundary claim, not an admission.
+	// Every selected Proposal is declined in one act, and no Seed was created —
+	// declining is a boundary claim, not an admission.
 	for _, p := range f.proposals {
 		if p.Status != "declined" {
 			t.Errorf("proposal %d status=%q, want declined", p.ID, p.Status)
@@ -210,8 +213,8 @@ func TestDeclineIsBulkOverALookup(t *testing.T) {
 		t.Errorf("seeds after decline = %d, want 0", len(f.seeds))
 	}
 	// The pending section is now empty.
-	if page := seedsBody(t, ac, base); !strings.Contains(page, "No pending proposals") {
-		t.Errorf("declined lookup still shown as pending; body: %s", page)
+	if page := seedsBody(t, ac, base); !strings.Contains(page, "No open proposals") {
+		t.Errorf("declined proposals still shown as pending; body: %s", page)
 	}
 }
 
@@ -223,8 +226,11 @@ func TestDeclineRecordsEachScopeAsAnExclusion(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	lookup(t, ac, base, "Example").Body.Close()
 
-	lookupID := f.proposals[0].LookupID
-	resp := postForm(t, ac, base+"/proposals/decline", url.Values{"lookup_id": {itoa(lookupID)}})
+	var ids []string
+	for _, p := range f.proposals {
+		ids = append(ids, itoa(p.ID))
+	}
+	resp := postForm(t, ac, base+"/proposals/decline", url.Values{"ids": ids})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("decline status=%d, want 303", resp.StatusCode)
 	}

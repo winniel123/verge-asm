@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/seed"
 )
 
 // Dev-only pixel-parity affordances for screen 2 (ErrorPage, package v3.5.0,
@@ -1066,4 +1068,272 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 		"TransitionCount": devDriftTransitionCount,
 		"TransitionDelta": devDriftTransitionDelta,
 	}
+}
+
+// --- screen 10: Scope fixture (package v3.9.0, WORK-ORDER-10-12-BATCH3.md) ------------------
+//
+// The Scope screen (#574) renders inside the full app chrome. Its VIEW corpus — the two seeds,
+// the custody census (62 addresses on acmecorp.io), the one supplied zone file with its aging
+// label, the seven-leaf name tree, the three coverage messages, the three proposals and two
+// exclusions — is the design's curated fixture, not a live-estate read: the exact strings, the
+// authored ordering, and the DERIVED figures (the census numerator, the "ages into a gap in 7d"
+// countdown, the per-leaf severities) cannot be reconstructed from the live derivations without
+// fabricating domain data, which SPEC-CHANGE forbids. So, exactly as the Coverage/Exposure
+// screens pin their dev fixture and serve it under devMode, seedsPage serves the pinned
+// fixtures.json scope slice below when s.devMode, and TestScopeFixtureMatchesPackage folds
+// every value back through the frozen package — the byte-exactness gate before the pixels. The
+// two non-default golden states (refusal, exclusion-preview) ride the SAME fixture with an
+// overlay the POST handlers set (declareSeed over-cap sets .Refusal + .FormError; previewExclusion
+// sets .ExclPreview), mirroring the states.json capture scripts. All of it is VERGE_DEV-only; a
+// real deployment renders the honest live projection in seeds.go renderSeeds instead.
+
+const (
+	// devScopeAddressCap is fixtures.json scope.address_cap.
+	devScopeAddressCap = 1024
+
+	// devScopeZoneIntervalDays is fixtures.json scope.zone_interval_days, the re-supply
+	// dial value the interval-form input echoes.
+	devScopeZoneIntervalDays = "30"
+
+	// The refusal golden (states.json scope "refusal") posts devScopeRefusalPost through the
+	// seed form; the handler refuses it over the cap and renders the RefusalCallout + FormError.
+	// These mirror fixtures.json scope.refusal_fixture.
+	devScopeRefusalPost      = "203.0.113.0/20"
+	devScopeRefusalInput     = "203.0.113.0/20"
+	devScopeRefusalReason    = "Spans 4,096 addresses — the cap is 1,024 per scope."
+	devScopeRefusalReachable = "203.0.113.0/22"
+	devScopeRefusalFormError = "Refused — over the 1,024-address cap."
+
+	// The exclusion-preview golden (states.json scope "exclusion-preview") types
+	// devScopeExclPreviewValue and clicks Preview; the handler renders the firing receipt.
+	// These mirror fixtures.json scope.exclusion_preview_fixture.
+	devScopeExclPreviewKind     = "subtree"
+	devScopeExclPreviewValue    = "staging-4.acmecorp.io"
+	devScopeExclPreviewFires    = true
+	devScopeExclPreviewHeadline = "1 name and 2 subjects would close as descoped in the next batch."
+	devScopeExclPreviewLoss     = "staging-4.acmecorp.io and the service spans it anchors leave the estate; their history stays readable."
+
+	// devScopeOrgQuery / devScopeOrgNotice are fixtures.json scope.org_search_fixture: the
+	// org-name search echo and the partial-answer notice. They are asserted by the drift test
+	// but do not drive a golden state.
+	devScopeOrgQuery  = "Acme Corporation"
+	devScopeOrgNotice = "3 registries answered — 1 new proposal for \"Acme Corporation\". RIPE paths are off until you accept their terms."
+)
+
+// devScopeSeedRow mirrors one fixtures.json scope.seeds entry.
+type devScopeSeedRow struct {
+	ID        string
+	Anchor    string
+	Scope     string
+	IsAddress bool
+}
+
+var devScopeSeeds = []devScopeSeedRow{
+	{ID: "s1", Anchor: "acmecorp-io", Scope: "acmecorp.io", IsAddress: false},
+	{ID: "s2", Anchor: "203-0-113-0-24", Scope: "203.0.113.0/24", IsAddress: true},
+}
+
+// devScopeCustodyRow mirrors one fixtures.json scope.custody_scopes entry (#21b).
+type devScopeCustodyRow struct {
+	ID               string
+	Scope            string
+	CustodyExtension bool
+	Census           int
+}
+
+var devScopeCustody = []devScopeCustodyRow{
+	{ID: "s1", Scope: "acmecorp.io", CustodyExtension: true, Census: 62},
+}
+
+// devScopeZoneRow mirrors one fixtures.json scope.zone_scopes entry (#21c).
+type devScopeZoneRow struct {
+	ID            string
+	Domain        string
+	HasFile       bool
+	SuppliedAt    string
+	IntervalLabel string
+	AgingLabel    string
+}
+
+var devScopeZones = []devScopeZoneRow{
+	{ID: "s1", Domain: "acmecorp.io", HasFile: true, SuppliedAt: "2026-07-30", IntervalLabel: "monthly", AgingLabel: "ages into a gap in 7d"},
+}
+
+// devScopeTreeLeaf / devScopeTreeRoot mirror fixtures.json scope.name_tree.
+type devScopeTreeLeaf struct {
+	Label string
+	Sev   string
+}
+
+type devScopeTreeRoot struct {
+	Label    string
+	Count    int
+	Sev      string
+	Children []devScopeTreeLeaf
+}
+
+var devScopeNameTree = []devScopeTreeRoot{
+	{Label: "acmecorp.io", Count: 10, Sev: "medium", Children: []devScopeTreeLeaf{
+		{Label: "www", Sev: "low"},
+		{Label: "api", Sev: "high"},
+		{Label: "vpn", Sev: "critical"},
+		{Label: "edge-gw-03", Sev: "critical"},
+		{Label: "grafana", Sev: "high"},
+		{Label: "mail", Sev: ""},
+		{Label: "staging-4", Sev: "info"},
+	}},
+}
+
+// devScopeCovMsg mirrors one fixtures.json scope.coverage_msgs entry.
+type devScopeCovMsg struct {
+	Kind    string
+	Badge   string
+	Bound   string
+	Subject string
+	Text    string
+	When    string
+	ISO     string
+}
+
+var devScopeCoverageMsgs = []devScopeCovMsg{
+	{Kind: "gap", Badge: "no address", Subject: "old-blog.acmecorp.io", Text: "Expected a resolution; none observed for 3 checks.", When: "2h", ISO: "2026-08-22T12:20:04Z"},
+	{Kind: "stale", Badge: "stale", Bound: "9d", Subject: "edge-gw-03.acmecorp.io", Text: "Last full service observation is older than the scan cadence.", When: "9d", ISO: "2026-08-13T04:44:19Z"},
+	{Kind: "silent", Badge: "no reports", Subject: "dc-fra-01", Text: "Vantage stopped reporting mid-batch; open spans are not evaluable.", When: "41m", ISO: "2026-08-22T13:41:02Z"},
+}
+
+// devScopeProposalRow mirrors one fixtures.json scope.proposals entry.
+type devScopeProposalRow struct {
+	ID     string
+	Value  string
+	Kind   string
+	Source string
+}
+
+var devScopeProposals = []devScopeProposalRow{
+	{ID: "p1", Value: "acme-corp.net", Kind: "name", Source: "registrar match"},
+	{ID: "p2", Value: "acmecorp.dev", Kind: "name", Source: "certificate SAN"},
+	{ID: "p3", Value: "198.51.100.0/26", Kind: "range", Source: "announced by AS64500"},
+}
+
+// devScopeExclusionRow mirrors one fixtures.json scope.exclusions entry.
+type devScopeExclusionRow struct {
+	ID    string
+	Kind  string
+	Value string
+}
+
+var devScopeExclusions = []devScopeExclusionRow{
+	{ID: "x1", Kind: "subtree", Value: "old-blog.acmecorp.io"},
+	{ID: "x2", Kind: "address", Value: "203.0.113.128/25"},
+}
+
+// scopeOverlay carries the transient state a scope golden's POST handler overlays on the
+// pinned fixture: a RefusalCallout (the over-cap seed form), or the exclusion Preview receipt.
+// The zero value is the default state.
+type scopeOverlay struct {
+	formScope   string
+	formError   string
+	refusal     *refusalView
+	exclKind    string
+	exclValue   string
+	exclPreview map[string]any
+}
+
+// scopeFixtureData assembles the render data map seedsPage passes to the frozen scope.tmpl in a
+// VERGE_DEV build. It stamps the chrome + design-token holes, then the pinned fixtures.json scope
+// slice (seeds, custody, zone, name tree, coverage messages, proposals, exclusions) in authored
+// order, and finally the overlay (refusal / exclusion-preview) so both non-default golden states
+// ride the same corpus. render-goldens composes the identical map statically, so golden and
+// candidate agree byte-for-byte.
+func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]any {
+	seeds := make([]map[string]any, 0, len(devScopeSeeds))
+	for _, r := range devScopeSeeds {
+		seeds = append(seeds, map[string]any{"ID": r.ID, "Anchor": r.Anchor, "Scope": r.Scope, "IsAddress": r.IsAddress})
+	}
+	custody := make([]map[string]any, 0, len(devScopeCustody))
+	for _, c := range devScopeCustody {
+		custody = append(custody, map[string]any{"ID": c.ID, "Scope": c.Scope, "CustodyExtension": c.CustodyExtension, "Census": c.Census})
+	}
+	zones := make([]map[string]any, 0, len(devScopeZones))
+	for _, z := range devScopeZones {
+		zones = append(zones, map[string]any{"ID": z.ID, "Domain": z.Domain, "HasFile": z.HasFile, "SuppliedAt": z.SuppliedAt, "IntervalLabel": z.IntervalLabel, "AgingLabel": z.AgingLabel})
+	}
+	tree := make([]map[string]any, 0, len(devScopeNameTree))
+	for _, root := range devScopeNameTree {
+		kids := make([]map[string]any, 0, len(root.Children))
+		for _, leaf := range root.Children {
+			kids = append(kids, map[string]any{"Label": leaf.Label, "Sev": leaf.Sev})
+		}
+		tree = append(tree, map[string]any{"Label": root.Label, "Count": root.Count, "Sev": root.Sev, "Children": kids})
+	}
+	msgs := make([]map[string]any, 0, len(devScopeCoverageMsgs))
+	for _, m := range devScopeCoverageMsgs {
+		msgs = append(msgs, map[string]any{"Kind": m.Kind, "Badge": m.Badge, "Bound": m.Bound, "Subject": m.Subject, "Text": m.Text, "When": m.When, "ISO": m.ISO})
+	}
+	proposals := make([]map[string]any, 0, len(devScopeProposals))
+	for _, p := range devScopeProposals {
+		proposals = append(proposals, map[string]any{"ID": p.ID, "Value": p.Value, "Kind": p.Kind, "Source": p.Source})
+	}
+	exclusions := make([]map[string]any, 0, len(devScopeExclusions))
+	for _, e := range devScopeExclusions {
+		exclusions = append(exclusions, map[string]any{"ID": e.ID, "Kind": e.Kind, "Value": e.Value})
+	}
+
+	data := map[string]any{
+		"Title": "Scope", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "scope", "DesignTokens": true,
+		"AddressCap":       devScopeAddressCap,
+		"Seeds":            seeds,
+		"FormScope":        ov.formScope,
+		"FormError":        ov.formError,
+		"CustodyScopes":    custody,
+		"ZoneScopes":       zones,
+		"ZoneIntervalDays": devScopeZoneIntervalDays,
+		"NameTree":         tree,
+		"CoverageMsgs":     msgs,
+		"Proposals":        proposals,
+		"OrgQuery":         "",
+		"Exclusions":       exclusions,
+		"ExclKind":         ov.exclKind,
+		"ExclValue":        ov.exclValue,
+	}
+	if ov.refusal != nil {
+		data["Refusal"] = ov.refusal
+	}
+	if ov.exclPreview != nil {
+		data["ExclPreview"] = ov.exclPreview
+	}
+	return data
+}
+
+// scopeFixtureDataRefusal is the "refusal" golden's render (states.json): the pinned corpus plus
+// the RefusalCallout the over-cap seed form raises. It builds the callout from the SAME derivation
+// declareSeed uses in production (refusalOverCap), so the dev render and the live refusal agree.
+func (s *server) scopeFixtureDataRefusal(acct db.Account, value string) map[string]any {
+	if value == "" {
+		value = devScopeRefusalPost
+	}
+	ov := scopeOverlay{formScope: value}
+	if isAddressValue(value) {
+		if raw, err := netip.ParsePrefix(cidrForm(value)); err == nil && !seed.WithinCap(raw, devScopeAddressCap) {
+			ref := refusalOverCap(value, raw, devScopeAddressCap)
+			ov.refusal = &ref
+			ov.formError = overCapFormError(devScopeAddressCap)
+		}
+	}
+	return s.scopeFixtureData(acct, ov)
+}
+
+// scopeFixtureDataPreview is the "exclusion-preview" golden's render (states.json): the pinned
+// corpus plus the firing Preview receipt for the staging-4.acmecorp.io subtree exclusion.
+func (s *server) scopeFixtureDataPreview(acct db.Account) map[string]any {
+	return s.scopeFixtureData(acct, scopeOverlay{
+		exclKind:  devScopeExclPreviewKind,
+		exclValue: devScopeExclPreviewValue,
+		exclPreview: map[string]any{
+			"Fires":    devScopeExclPreviewFires,
+			"Headline": devScopeExclPreviewHeadline,
+			"Loss":     devScopeExclPreviewLoss,
+		},
+	})
 }
