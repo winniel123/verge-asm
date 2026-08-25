@@ -815,6 +815,12 @@ func renderScopeStates(bodyFlex bool) ([]errorGolden, error) {
 	base := func() map[string]any {
 		return map[string]any{
 			"Title": "Scope", "NavActive": "scope", "DesignTokens": true,
+			// states.json scope states run session=admin, so the golden renders the admin
+			// view (seed chip-remove + declare form, custody toggle form, zone FileDrop,
+			// proposals confirm/decline, exclusion add) — the same IsAdmin the seeded
+			// candidate carries. Without it the golden would render the viewer view and
+			// diverge by the whole admin control surface.
+			"IsAdmin":          true,
 			"AddressCap":       fx.AddressCap,
 			"Seeds":            seeds,
 			"FormScope":        "",
