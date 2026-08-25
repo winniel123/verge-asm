@@ -104,7 +104,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard")
 	out := flag.String("out", "", "inventory|drift: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile|…: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -282,6 +282,24 @@ func main() {
 			log.Fatal("render-goldens: -outdir is required for -screen signals")
 		}
 		files, err := renderSignalsStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "dashboard":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen dashboard")
+		}
+		files, err := renderDashboardStates(*bodyFlex)
 		if err != nil {
 			log.Fatalf("render-goldens: %v", err)
 		}
@@ -1990,6 +2008,202 @@ func renderSignalsStates(bodyFlex bool) ([]errorGolden, error) {
 		}
 		var buf bytes.Buffer
 		if err := t.ExecuteTemplate(&buf, "signals", st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+// dashboardFixture is the design-system/fixtures/fixtures.json → dashboard slice: the header
+// schedule, the running-scan detail + `scanning` variant token, the missed-check vantage set, the
+// five-cell stat band (with per-cell delta + the live_when_scanning flag), the by-severity ramp, the
+// two-shape coverage meters (address counted/total + pct, name census), the silent-zone callout and
+// the three vantages. The most-recent register reuses the signals.rows slice (fixtures.json says
+// "first 6 of signals.rows"). The golden reads them here (never re-hardcoded) so a fixture change
+// flows through; cmd/web/devfixtures.go pins the same values with a drift test
+// (TestDashboardFixtureMatchesPackage).
+type dashboardFixture struct {
+	ScanSchedule struct {
+		HasLast bool   `json:"has_last"`
+		LastAgo string `json:"last_ago"`
+		HasNext bool   `json:"has_next"`
+		NextIn  string `json:"next_in"`
+	} `json:"scan_schedule"`
+	ScanDetail  string   `json:"scan_detail"`
+	Unavailable []string `json:"unavailable"`
+	StatBand    []struct {
+		Label            string `json:"label"`
+		Value            string `json:"value"`
+		LiveWhenScanning bool   `json:"live_when_scanning"`
+		HasDelta         bool   `json:"has_delta"`
+		Change           int    `json:"change"`
+		Tone             string `json:"tone"`
+		Caption          string `json:"caption"`
+	} `json:"stat_band"`
+	SevBars []struct {
+		Sev   string `json:"sev"`
+		Pct   int    `json:"pct"`
+		Count int    `json:"count"`
+	} `json:"sev_bars"`
+	CoverageMeters []struct {
+		Label   string          `json:"label"`
+		Counted json.RawMessage `json:"counted"`
+		Total   *int            `json:"total"`
+		Pct     int             `json:"pct"`
+		Unit    string          `json:"unit"`
+	} `json:"coverage_meters"`
+	SilentZone struct {
+		Bound string `json:"bound"`
+		Text  string `json:"text"`
+	} `json:"silent_zone"`
+	Vantages []struct {
+		Name    string `json:"name"`
+		Latency string `json:"latency"`
+		Avail   string `json:"avail"`
+	} `json:"vantages"`
+}
+
+func loadDashboardFixture() (dashboardFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return dashboardFixture{}, err
+	}
+	var ff struct {
+		Dashboard dashboardFixture `json:"dashboard"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return dashboardFixture{}, err
+	}
+	return ff.Dashboard, nil
+}
+
+// dashRawStr renders a fixtures.json coverage-meter `counted` value verbatim — the field is mixed
+// (a JSON number 212 for the address scope, a pre-formatted string "1,284" for the name scope), so
+// it is read as a raw message and unquoted only when it is a JSON string.
+func dashRawStr(raw json.RawMessage) string {
+	s := strings.TrimSpace(string(raw))
+	if len(s) >= 1 && s[0] == '"' {
+		var out string
+		if err := json.Unmarshal(raw, &out); err == nil {
+			return out
+		}
+	}
+	return s
+}
+
+// renderDashboardStates composes the three Dashboard golden HTMLs from the frozen dashboard.tmpl, one
+// per states.json dashboard state (default, scanning, banner-dismissed). Every state's data map
+// mirrors home()'s dashboardFixtureData EXACTLY (the holes the frozen tmpl reads) — the pinned
+// fixtures.json dashboard slice in authored order plus the first six signals.rows for the most-recent
+// register — so the cropped `main` is byte-identical to what the seeded server renders. The `scanning`
+// state lights .Scanning + .ScanDetail and the first cell's live pulse; banner-dismissed sets
+// .ProbeDismissed. "home" wraps head/chrome/dashboard/foot; it references the repo-authored "firstrun"
+// (stubbed empty here — never executed with EmptyEstate false) and the "sevbadge" define signals.tmpl
+// declares (parsed in for the register rows). Chrome is the empty stub (goldens crop to `main`).
+func renderDashboardStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadDashboardFixture()
+	if err != nil {
+		return nil, err
+	}
+	sfx, err := loadSignalsFixture()
+	if err != nil {
+		return nil, err
+	}
+	if len(sfx.Rows) < 6 {
+		return nil, fmt.Errorf("dashboard golden: signals.rows has %d rows, need >= 6", len(sfx.Rows))
+	}
+
+	sevBars := make([]map[string]any, 0, len(fx.SevBars))
+	for _, b := range fx.SevBars {
+		sevBars = append(sevBars, map[string]any{"Sev": b.Sev, "Pct": b.Pct, "Count": b.Count})
+	}
+	meters := make([]map[string]any, 0, len(fx.CoverageMeters))
+	for _, m := range fx.CoverageMeters {
+		mv := map[string]any{"Label": m.Label, "Counted": dashRawStr(m.Counted), "Unit": m.Unit}
+		if m.Total != nil {
+			mv["Total"] = strconv.Itoa(*m.Total)
+			mv["Pct"] = m.Pct
+		}
+		meters = append(meters, mv)
+	}
+	vantages := make([]map[string]any, 0, len(fx.Vantages))
+	for _, v := range fx.Vantages {
+		vantages = append(vantages, map[string]any{"Name": v.Name, "Latency": v.Latency, "Avail": v.Avail})
+	}
+	recent := make([]map[string]any, 0, 6)
+	for _, row := range sfx.Rows[:6] {
+		recent = append(recent, map[string]any{
+			"Severity": row.Severity, "SevLabel": row.SevLabel, "Title": row.Title,
+			"Asset": row.Asset, "Port": row.Port, "Seen": row.Seen, "ViewKey": row.ViewKey,
+		})
+	}
+
+	buildData := func(scanning, probeDismissed bool) map[string]any {
+		statBand := make([]map[string]any, 0, len(fx.StatBand))
+		for _, st := range fx.StatBand {
+			statBand = append(statBand, map[string]any{
+				"Label": st.Label, "Value": st.Value, "Live": scanning && st.LiveWhenScanning,
+				"HasDelta": st.HasDelta, "Change": st.Change, "Tone": st.Tone, "Caption": st.Caption,
+			})
+		}
+		data := map[string]any{
+			"Title": "Dashboard", "NavActive": "dashboard", "DesignTokens": true, "IsAdmin": true,
+			"EmptyEstate": false,
+			"ScanSchedule": map[string]any{
+				"HasLast": fx.ScanSchedule.HasLast, "LastAgo": fx.ScanSchedule.LastAgo,
+				"HasNext": fx.ScanSchedule.HasNext, "NextIn": fx.ScanSchedule.NextIn,
+			},
+			"Scanning":       scanning,
+			"Unavailable":    fx.Unavailable,
+			"ProbeDismissed": probeDismissed,
+			"StatBand":       statBand,
+			"HasSignals":     true,
+			"SevBars":        sevBars,
+			"CoverageMeters": meters,
+			"SilentZone":     map[string]any{"Bound": fx.SilentZone.Bound, "Text": fx.SilentZone.Text},
+			"Vantages":       vantages,
+			"RecentSignals":  recent,
+		}
+		if scanning {
+			data["ScanDetail"] = fx.ScanDetail
+		}
+		return data
+	}
+
+	states := []struct {
+		id   string
+		data map[string]any
+	}{
+		{"default", buildData(false, false)},
+		{"scanning", buildData(true, false)},
+		{"banner-dismissed", buildData(false, true)},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		// "home" references the repo-authored "firstrun" define; stub it empty so the escaper (which
+		// statically walks every {{template}} target) resolves it — EmptyEstate is false, so it is
+		// never executed. signals.tmpl carries the "sevbadge" define the register rows call.
+		if _, err := t.Parse(`{{define "firstrun"}}{{end}}`); err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/signals.tmpl"); err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/dashboard.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "home", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
