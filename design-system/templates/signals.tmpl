@@ -1,0 +1,426 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — signals.tmpl · package v3.9.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Signals.jsx + SignalData.jsx · shot 05. Replaces
+  templates_signals.go (defines "signals" + "sevbadge" + "sevbadge-md" + "withdrawnmark").
+  PRG skeleton kept: tab/filter/sort/page/drawer/descope stay query-string state on the existing
+  routes; view JS layers only what navigation cannot express (row kebab menu, right-click menu,
+  Escape-to-close, typed-confirm gate, annotate enable). Holes kept: .Tab .OpenCount
+  .AnnotatedCount .WithdrawnCount .Q .Sev .SevOptions .Shown .Total .HasAny .ClearHref .HasExport
+  .ExportHref .IsAdmin .AnnoError .ViewPrefix .SelKey .Sort{Key,Dir,SevHref,AssetHref,IDHref,SeenHref}
+  .ShowPagination .PageInfo .Pages[{Ellipsis,Href,Num,Active}] .Prev/NextDisabled .Prev/NextHref
+  .CloseHref. Changed (SPEC-CHANGE #21, ruled): header Descope button drops — descope lives on the
+  row menus and drawer; .Rows gains .SevLabel + .DescopeHref; the .Sort.*Arrow string holes retire
+  (the caret svg renders from .Sort.Key/.Dir) (#21i); the severity filter is a spec listbox of
+  links (#21h); .Descope becomes {Asset,CloseHref} and the dialog gains the spec typed-confirm gate
+  posting the typed value to POST /exclusions kind=subtree; .Drawer gains the spec's real data —
+  .Tags[] .CVE .Desc .RuleID/.RuleVersion .DetectedBy .Diff{Title,Lines[{Type,Text}]}
+  .History[{Title,Detail,Time,Tone,Mono}] (#21j — rule metadata, the drift join, and span-derived
+  history exist; build the reads).
+*/}}
+{{define "sevbadge"}}{{if eq .Severity "critical"}}<span style="display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 8px;border-radius:999px;font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-critical-fill);color:var(--sev-critical-text)">{{.SevLabel}}</span>{{else}}<span style="display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 8px;border-radius:999px;font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-{{.Severity}}-bg);border:1px solid var(--sev-{{.Severity}}-border);color:var(--sev-{{.Severity}}-fg)"><span style="width:5px;height:5px;border-radius:999px;background:var(--sev-{{.Severity}}-dot);flex:none"></span>{{.SevLabel}}</span>{{end}}{{end}}
+
+{{define "sevbadge-md"}}{{if eq .Severity "critical"}}<span style="display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 10px;border-radius:999px;font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-critical-fill);color:var(--sev-critical-text)">{{.SevLabel}}</span>{{else}}<span style="display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 10px;border-radius:999px;font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-{{.Severity}}-bg);border:1px solid var(--sev-{{.Severity}}-border);color:var(--sev-{{.Severity}}-fg)"><span style="width:6px;height:6px;border-radius:999px;background:var(--sev-{{.Severity}}-dot);flex:none"></span>{{.SevLabel}}</span>{{end}}{{end}}
+
+{{define "withdrawnmark"}}<span style="display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:8px;background:transparent;border:1px dashed var(--drift-loss-border);color:var(--drift-loss-fg);font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:0.04em;white-space:nowrap"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{end}}
+
+{{define "signals"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes sg-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes sg-pop-c { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes sg-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sg-slide { from { opacity: 0.4; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+.sg-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.sg-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.sg-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.sg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.sg-btn:hover { background: var(--surface-sunken); }
+.sg-btn[disabled] { opacity: 0.45; cursor: default; }
+.sg-btn[disabled]:hover { background: var(--surface); }
+.sg-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.sg-btn-sm:hover { background: var(--surface-sunken); }
+.sg-btn-pri-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; background: var(--accent); color: var(--on-accent); border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out); }
+.sg-btn-pri-sm:hover { background: var(--accent-hover); }
+.sg-btn-pri-sm[disabled] { opacity: 0.45; cursor: default; }
+.sg-btn-pri-sm[disabled]:hover { background: var(--accent); }
+.sg-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: transparent; color: var(--text-secondary); border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.sg-btn-ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.sg-btn-danger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; background: var(--danger); color: var(--on-danger); border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out); }
+.sg-btn-danger:hover { background: var(--danger-hover); }
+.sg-btn-danger[disabled] { opacity: 0.45; cursor: default; }
+.sg-btn-danger[disabled]:hover { background: var(--danger); }
+.sg-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--border-default); }
+.sg-tab { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 0 2px 10px; text-decoration: none; font-family: var(--font-ui); font-size: 13px; font-weight: 500; color: var(--text-secondary); transition: color var(--dur-fast) var(--ease-out); }
+.sg-tab:hover { color: var(--text-body); }
+.sg-tab.on { font-weight: 600; color: var(--text-ink); }
+.sg-tab .ct { font: 500 10.5px var(--font-mono); padding: 1px 6px; border-radius: 999px; background: var(--surface-sunken); color: var(--text-secondary); }
+.sg-tab .bar { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; border-radius: 999px; background: var(--accent); }
+.sg-search { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; width: 320px; box-sizing: border-box; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.sg-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sg-search .ic { display: inline-flex; color: var(--text-muted); flex: none; }
+.sg-search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 12.5px var(--font-mono); }
+.sg-listbox { position: relative; display: inline-flex; width: 170px; }
+.sg-listbox .trig { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px; background: var(--surface); color: var(--text-ink); font: 400 13px var(--font-ui); text-align: left; border: 1px solid var(--border-default); border-radius: 12px; cursor: pointer; }
+.sg-listbox .trig .cv { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-listbox .trig .chev { color: var(--text-muted); flex: none; transition: transform var(--dur-base) var(--ease-out); }
+.sg-listbox .trig[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sg-listbox .trig[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.sg-listbox .panel { position: absolute; top: 100%; left: 0; margin-top: 6px; width: 100%; z-index: 95; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: sg-pop var(--dur-base) var(--ease-out); display: flex; flex-direction: column; }
+.sg-listbox .panel[hidden] { display: none; }
+.sg-listbox .opt { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-radius: 8px; text-align: left; text-decoration: none; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
+.sg-listbox .opt:hover { background: var(--surface-sunken); }
+.sg-listbox .opt.on { color: var(--link); font-weight: 600; }
+.sg-listbox .opt .ck { margin-left: auto; display: inline-flex; color: var(--link); }
+.sg-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-xs); overflow: hidden; }
+.sg-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.sg-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.sg-table th a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; }
+.sg-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); overflow: hidden; text-overflow: ellipsis; }
+.sg-table tbody tr:first-child td { border-top: none; }
+.sg-table tbody tr { cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+.sg-table tbody tr:hover { background: var(--surface-sunken); }
+.sg-table tbody tr.sel { background: var(--row-selected); }
+.sg-table td.mono { font: 400 12.5px var(--font-mono); }
+.sg-table .tt { font: 500 13px var(--font-ui); color: var(--text-ink); text-decoration: none; }
+.sg-selbar { position: absolute; left: 4px; top: 6px; bottom: 6px; width: 3px; border-radius: 999px; background: var(--accent); }
+.sg-caret { margin-left: 5px; vertical-align: -1px; }
+.sg-kebab { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: background var(--dur-fast) var(--ease-out); padding: 0; }
+.sg-kebab:hover { background: var(--surface-sunken); color: var(--text-body); }
+.sg-menu { position: fixed; z-index: 150; width: 200px; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: sg-pop var(--dur-base) var(--ease-out); font-family: var(--font-ui); }
+.sg-menu[hidden] { display: none; }
+.sg-menu .mi { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); text-decoration: none; box-sizing: border-box; transition: background var(--dur-fast) var(--ease-out); }
+.sg-menu .mi:hover { background: var(--surface-sunken); }
+.sg-menu .mi.danger { color: var(--danger); }
+.sg-menu .mi.danger:hover { background: var(--danger-soft); }
+.sg-menu .mi .mic { display: inline-flex; color: var(--text-secondary); flex: none; }
+.sg-menu .mi.danger .mic { color: var(--danger); }
+.sg-menu .sep { height: 1px; background: var(--row-sep); margin: 5px 4px; }
+.sg-pager { display: flex; align-items: center; gap: 4px; font-family: var(--font-ui); }
+.sg-pager .info { font: 400 11.5px var(--font-mono); color: var(--text-muted); margin-right: 10px; }
+.sg-pg { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-secondary); font: 500 12px var(--font-mono); text-decoration: none; transition: background var(--dur-fast) var(--ease-out); }
+.sg-pg:hover { background: var(--surface-sunken); }
+.sg-pg.on { border-color: var(--accent); background: var(--accent-soft); color: var(--link); font-weight: 600; }
+.sg-pg.off { opacity: 0.45; pointer-events: none; }
+.sg-pg.gap { color: var(--text-muted); pointer-events: none; }
+.sg-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 48px 24px; font-family: var(--font-ui); }
+.sg-empty .ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+.sg-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.sg-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+.sg-empty .act { margin-top: 14px; }
+.sg-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.sg-scrim { position: fixed; inset: 0; z-index: 100; background: rgba(21,18,15,0.28); animation: sg-fade var(--dur-base) var(--ease-out); display: block; }
+.sg-scrim.dlg { background: rgba(21,18,15,0.4); }
+.sg-drawer { position: fixed; top: 0; bottom: 0; right: 0; z-index: 101; width: min(480px, 92%); background: var(--surface); border-left: 1px solid var(--border-default); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; animation: sg-slide var(--dur-slow) var(--ease-out); }
+.sg-drawer .dh { display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px 0; flex: none; }
+.sg-drawer .dh h2 { margin: 0; font: 600 16px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.sg-drawer .dh p { margin: 0; font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); }
+.sg-drawer .db { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+.sg-drawer .df { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--row-sep); background: var(--surface); }
+.sg-x { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; background: transparent; color: var(--text-secondary); border: 1px solid transparent; cursor: pointer; text-decoration: none; margin-left: auto; flex: none; transition: background var(--dur-fast) var(--ease-out); }
+.sg-x:hover { background: var(--surface-sunken); color: var(--text-body); }
+.sg-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
+.sg-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sg-kv .k { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.sg-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.sg-copy { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.sg-copy button { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); flex: none; }
+.sg-copy:hover button, .sg-copy button.ok { opacity: 1; }
+.sg-copy button.ok { color: var(--ok); }
+.sg-rule { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; line-height: 1; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-body); font: 500 11.5px var(--font-mono); cursor: default; }
+.sg-diff { border: 1px solid var(--border-default); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.sg-diff .ttl { padding: 7px 12px; border-bottom: 1px solid var(--row-sep); font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.sg-diff .rows { padding: 6px 0; }
+.sg-diff .row { display: flex; gap: 10px; padding: 3px 12px; }
+.sg-diff .row.add { background: var(--ok-soft); }
+.sg-diff .row.remove { background: var(--danger-soft); }
+.sg-diff .sign { width: 10px; flex: none; font: 600 12px var(--font-mono); color: var(--text-muted); }
+.sg-diff .row.add .sign, .sg-diff .row.add .tx { color: var(--ok); }
+.sg-diff .row.remove .sign, .sg-diff .row.remove .tx { color: var(--danger); }
+.sg-diff .tx { font: 400 12px/1.6 var(--font-mono); color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.sg-anno { display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
+.sg-anno .chip { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border-default); color: var(--text-secondary); font: 600 10.5px var(--font-mono); letter-spacing: 0.05em; }
+.sg-anno .chip .d { width: 6px; height: 6px; border-radius: 999px; background: var(--neutral-500); }
+.sg-anno p { margin: 0; font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.sg-annoform textarea { resize: vertical; min-height: 64px; padding: 9px 12px; background: var(--surface); color: var(--text-ink); font: 400 13px/1.5 var(--font-ui); border: 1px solid var(--border-default); border-radius: 12px; outline: none; width: 100%; box-sizing: border-box; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.sg-annoform textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sg-ev { display: flex; gap: 12px; font-family: var(--font-ui); }
+.sg-ev .rail { display: flex; flex-direction: column; align-items: center; flex: none; width: 10px; }
+.sg-ev .dot { width: 8px; height: 8px; border-radius: 999px; margin-top: 5px; flex: none; box-shadow: 0 0 0 2px var(--surface); }
+.sg-ev .conn { width: 1px; flex: 1; background: var(--border-default); margin: 3px 0; }
+.sg-ev:last-child .conn { display: none; }
+.sg-ev .evb { display: flex; flex-direction: column; gap: 2px; padding-bottom: 16px; min-width: 0; flex: 1; }
+.sg-ev:last-child .evb { padding-bottom: 0; }
+.sg-ev .tr { display: flex; align-items: flex-start; gap: 10px; }
+.sg-ev .tt { font: 500 13px/1.45 var(--font-ui); color: var(--text-ink); min-width: 0; }
+.sg-ev .tm { font: 400 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; padding-top: 3px; margin-left: auto; }
+.sg-ev .dt { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); overflow-wrap: anywhere; }
+.sg-ev .dt.mono { font: 400 12px var(--font-mono); }
+.sg-dialog { position: fixed; inset: 0; z-index: 101; display: flex; align-items: center; justify-content: center; padding: 24px; pointer-events: none; }
+.sg-dialog .panel { pointer-events: auto; width: min(440px, 92%); max-height: 85%; overflow-y: auto; background: var(--surface); border-radius: 24px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-default); padding: 24px; animation: sg-pop-c var(--dur-slow) var(--ease-out); font-family: var(--font-ui); }
+.sg-dialog h2 { margin: 0; font: 600 16px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.sg-dialog .desc { margin: 4px 0 0; font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); }
+.sg-dialog .detail { margin: 16px 0 0; font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.sg-dialog .typel { font: 400 12.5px var(--font-ui); color: var(--text-secondary); }
+.sg-dialog .typel .mono { font: 600 12px var(--font-mono); color: var(--text-ink); }
+.sg-dialog input.typed { height: 34px; padding: 0 12px; background: var(--surface); color: var(--text-ink); font: 400 12.5px var(--font-mono); border: 1px solid var(--border-default); border-radius: 10px; outline: none; width: 100%; box-sizing: border-box; }
+.sg-dialog input.typed:focus { border-color: var(--danger-solid); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-solid) 16%, transparent); }
+.sg-error { padding: 10px 14px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; font: 400 12.5px/1.5 var(--font-ui); color: var(--danger); }
+</style>
+<main class="sg-main" data-screen-label="Signals">
+<header style="display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<h1>Signals</h1>
+<span class="sg-sub">Raised when your attack surface drifts. Severity is Critical → Info.</span>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px">
+{{if .HasExport}}<a class="sg-btn" href="{{.ExportHref}}" title="Export the current tab's filtered rows as CSV"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Export CSV</a>
+{{else}}<button type="button" class="sg-btn" disabled title="Nothing to export from this tab"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Export CSV</button>{{end}}
+</div>
+</header>
+{{if .AnnoError}}<div class="sg-error">{{.AnnoError}}</div>{{end}}
+<div class="sg-tabs">
+<a class="sg-tab{{if eq .Tab "open"}} on{{end}}" href="/signals?tab=open">Open<span class="ct">{{.OpenCount}}</span>{{if eq .Tab "open"}}<span class="bar"></span>{{end}}</a>
+<a class="sg-tab{{if eq .Tab "annotated"}} on{{end}}" href="/signals?tab=annotated">Annotated<span class="ct">{{.AnnotatedCount}}</span>{{if eq .Tab "annotated"}}<span class="bar"></span>{{end}}</a>
+<a class="sg-tab{{if eq .Tab "withdrawn"}} on{{end}}" href="/signals?tab=withdrawn">Withdrawn<span class="ct">{{.WithdrawnCount}}</span>{{if eq .Tab "withdrawn"}}<span class="bar"></span>{{end}}</a>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-end">
+<form method="get" action="/signals" style="margin:0">
+<input type="hidden" name="tab" value="{{.Tab}}">
+<input type="hidden" name="sev" value="{{.Sev}}">
+<input type="hidden" name="sort" value="{{.Sort.Key}}">
+<input type="hidden" name="dir" value="{{.Sort.Dir}}">
+<span class="sg-search">
+<span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></span>
+<input type="search" name="q" value="{{.Q}}" placeholder="Search signals, assets, ids" aria-label="Search signals">
+</span>
+</form>
+<span class="sg-listbox">
+<button type="button" class="trig" id="sg-sev-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cv">{{.Sev}}</span><svg class="chev" viewBox="0 0 16 16" width="14" height="14"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+<div class="panel" id="sg-sev-panel" hidden>
+{{range .SevOptions}}<a class="opt{{if eq . $.Sev}} on{{end}}" href="/signals?tab={{$.Tab}}&q={{$.Q}}&sev={{.}}&sort={{$.Sort.Key}}&dir={{$.Sort.Dir}}">{{.}}{{if eq . $.Sev}}<span class="ck"><svg viewBox="0 0 18 18" width="13" height="13"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{end}}</a>{{end}}
+</div>
+</span>
+<span style="margin-left:auto;font:400 12px var(--font-mono);color:var(--text-muted)">{{.Shown}} of {{.Total}} shown</span>
+</div>
+{{if .Rows}}
+<div class="sg-card">
+<table class="sg-table">
+<thead><tr>
+<th style="width:104px"><a href="{{.Sort.SevHref}}">Severity<svg class="sg-caret" viewBox="0 0 10 14" width="8" height="11"><path d="M5 1.5L8 5H2Z" fill="{{if and (eq .Sort.Key "sev") (eq .Sort.Dir "asc")}}var(--accent){{else}}var(--border-strong){{end}}"></path><path d="M5 12.5L2 9h6Z" fill="{{if and (eq .Sort.Key "sev") (eq .Sort.Dir "desc")}}var(--accent){{else}}var(--border-strong){{end}}"></path></svg></a></th>
+<th>Signal</th>
+<th><a href="{{.Sort.AssetHref}}">Asset<svg class="sg-caret" viewBox="0 0 10 14" width="8" height="11"><path d="M5 1.5L8 5H2Z" fill="{{if and (eq .Sort.Key "asset") (eq .Sort.Dir "asc")}}var(--accent){{else}}var(--border-strong){{end}}"></path><path d="M5 12.5L2 9h6Z" fill="{{if and (eq .Sort.Key "asset") (eq .Sort.Dir "desc")}}var(--accent){{else}}var(--border-strong){{end}}"></path></svg></a></th>
+<th style="width:76px">Port</th>
+<th style="width:112px"><a href="{{.Sort.IDHref}}">Id<svg class="sg-caret" viewBox="0 0 10 14" width="8" height="11"><path d="M5 1.5L8 5H2Z" fill="{{if and (eq .Sort.Key "id") (eq .Sort.Dir "asc")}}var(--accent){{else}}var(--border-strong){{end}}"></path><path d="M5 12.5L2 9h6Z" fill="{{if and (eq .Sort.Key "id") (eq .Sort.Dir "desc")}}var(--accent){{else}}var(--border-strong){{end}}"></path></svg></a></th>
+<th style="width:60px;text-align:right"><a href="{{.Sort.SeenHref}}" style="justify-content:flex-end">Seen<svg class="sg-caret" viewBox="0 0 10 14" width="8" height="11"><path d="M5 1.5L8 5H2Z" fill="{{if and (eq .Sort.Key "seen") (eq .Sort.Dir "asc")}}var(--accent){{else}}var(--border-strong){{end}}"></path><path d="M5 12.5L2 9h6Z" fill="{{if and (eq .Sort.Key "seen") (eq .Sort.Dir "desc")}}var(--accent){{else}}var(--border-strong){{end}}"></path></svg></a></th>
+<th style="width:58px"></th>
+</tr></thead>
+<tbody>
+{{range .Rows}}
+<tr{{if and $.SelKey (eq .ViewKey $.SelKey)}} class="sel"{{end}} data-href="{{$.ViewPrefix}}{{.ViewKey}}" data-asset="{{.Asset}}" data-descope="{{.DescopeHref}}">
+<td style="position:relative">{{if and $.SelKey (eq .ViewKey $.SelKey)}}<span class="sg-selbar"></span>{{end}}{{template "sevbadge" .}}</td>
+<td><span style="display:inline-flex;align-items:center;gap:8px"><a class="tt" href="{{$.ViewPrefix}}{{.ViewKey}}">{{.Title}}</a>{{if .Withdrawn}}{{template "withdrawnmark"}}{{end}}</span></td>
+<td class="mono">{{.Asset}}</td>
+<td class="mono">{{if .Port}}{{.Port}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+<td class="mono">{{.SigID}}</td>
+<td class="mono" style="text-align:right"><span title="{{.Last}}" style="font:500 12.5px var(--font-mono);color:var(--text-body);border-bottom:1px dashed var(--border-strong)">{{if .Seen}}{{.Seen}}{{else}}—{{end}}</span></td>
+<td style="text-align:right;overflow:visible"><button type="button" class="sg-kebab" data-menu-btn aria-label="Actions" aria-haspopup="menu"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></button></td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{if .ShowPagination}}
+<div style="display:flex;justify-content:flex-end">
+<nav class="sg-pager" aria-label="Pagination">
+<span class="info">{{.PageInfo}}</span>
+{{if .PrevDisabled}}<span class="sg-pg off"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M10 3.5L5.5 8 10 12.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{else}}<a class="sg-pg" href="{{.PrevHref}}" aria-label="Previous page"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M10 3.5L5.5 8 10 12.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>{{end}}
+{{range .Pages}}{{if .Ellipsis}}<span class="sg-pg gap">…</span>{{else}}<a class="sg-pg{{if .Active}} on{{end}}" href="{{.Href}}" aria-label="Page {{.Num}}">{{.Num}}</a>{{end}}{{end}}
+{{if .NextDisabled}}<span class="sg-pg off"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{else}}<a class="sg-pg" href="{{.NextHref}}" aria-label="Next page"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>{{end}}
+</nav>
+</div>
+{{end}}
+{{else if .HasAny}}
+<div class="sg-card"><div class="sg-empty">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></span>
+<span class="msg">No signals match your filters.</span>
+<span class="det">Clear the search or severity filter to see {{if eq .Tab "annotated"}}annotated{{else if eq .Tab "withdrawn"}}withdrawn{{else}}open{{end}} signals.</span>
+<span class="act"><a class="sg-btn-sm" href="{{.ClearHref}}">Clear filters</a></span>
+</div></div>
+{{else if eq .Tab "annotated"}}
+<div class="sg-card"><div class="sg-empty">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path></svg></span>
+<span class="msg">No annotation is declared</span>
+<span class="det">A fired signal you accept as a known risk is declared here, keyed on its subject. Open a signal and record the reason — it is all an annotation carries.</span>
+</div></div>
+{{else if eq .Tab "withdrawn"}}
+<div class="sg-card"><div class="sg-empty">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg></span>
+<span class="msg">No signal has withdrawn</span>
+<span class="det">When a subject you annotated leaves its rule's population, its acceptance surfaces here as withdrawn — derived on read, no operator act. Nothing has withdrawn right now.</span>
+</div></div>
+{{else}}
+<div class="sg-card"><div class="sg-empty">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+<span class="msg">No open signals</span>
+<span class="det">Nothing in your estate is firing a rule right now. Signals appear here the moment your attack surface drifts.</span>
+</div></div>
+{{end}}
+</main>
+<div class="sg-menu" id="sg-menu" hidden role="menu">
+<a class="mi" data-mi="open" href="#"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M15 3v18"></path></svg></span>Open</a>
+<a class="mi" data-mi="annotate" href="#"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path></svg></span>Annotate — accept risk</a>
+<button class="mi" data-mi="copy" type="button"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span>Copy asset</button>
+<div class="sep"></div>
+<a class="mi danger" data-mi="descope" href="#"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></span>Descope seed</a>
+</div>
+{{with .Drawer}}
+<a class="sg-scrim" href="{{$.CloseHref}}" aria-label="Close detail"></a>
+<aside class="sg-drawer" role="dialog" aria-modal="true" aria-label="{{.Title}}">
+<div class="dh">
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+<h2>{{.Title}}</h2>
+<p>Raised {{.Seen}} ago · {{.SigID}}</p>
+</div>
+<a class="sg-x" href="{{$.CloseHref}}" aria-label="Close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></a>
+</div>
+<div class="db">
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+{{template "sevbadge-md" .}}
+{{if .Withdrawn}}{{template "withdrawnmark"}}{{end}}
+{{range .Tags}}<span class="sg-tag">{{.}}</span>{{end}}
+{{if .CVE}}<span class="sg-tag">{{.CVE}}</span>{{end}}
+</div>
+<p style="margin:0;font:400 13px/1.55 var(--font-ui);color:var(--text-body)">{{.Desc}}</p>
+<div class="sg-kv">
+<div class="cell"><span class="k">Asset</span><span class="v"><span class="sg-copy"><span>{{.Asset}}</span><button type="button" data-copy="{{.Asset}}" aria-label="Copy value"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></span></span></div>
+<div class="cell"><span class="k">IP</span><span class="v">{{if eq .IP "—"}}—{{else}}<span class="sg-copy"><span>{{.IP}}</span><button type="button" data-copy="{{.IP}}" aria-label="Copy value"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></span>{{end}}</span></div>
+<div class="cell"><span class="k">Rule</span><span class="v"><span class="sg-rule" title="Rule {{.RuleID}} v{{.RuleVersion}} — definition in source"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5 8 15l2 2.5"></path><path d="m14 12.5 2 2.5-2 2.5"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"></path></svg>{{.RuleID}}@{{.RuleVersion}}</span></span></div>
+<div class="cell"><span class="k">Port</span><span class="v">{{.Port}}</span></div>
+<div class="cell"><span class="k">Detected by</span><span class="v">{{.DetectedBy}}</span></div>
+<div class="cell"><span class="k">First seen</span><span class="v">{{.First}}</span></div>
+<div class="cell"><span class="k">Last seen</span><span class="v">{{.Last}}</span></div>
+</div>
+{{with .Diff}}
+<div class="sg-diff">
+<div class="ttl">{{.Title}}</div>
+<div class="rows">
+{{range .Lines}}<div class="row {{.Type}}"><span class="sign">{{if eq .Type "add"}}+{{else if eq .Type "remove"}}−{{end}}</span><span class="tx">{{.Text}}</span></div>{{end}}
+</div>
+</div>
+{{end}}
+{{if .Annotated}}
+<div class="sg-anno">
+<div style="display:flex;align-items:center;gap:10px">
+<span class="chip"><span class="d"></span>accepted risk</span>
+{{if $.IsAdmin}}<form method="post" action="/annotations/withdraw" style="margin:0 0 0 auto"><input type="hidden" name="id" value="{{.AnnoID}}"><button type="submit" class="sg-btn-ghost">Remove annotation</button></form>{{end}}
+</div>
+<p>{{.AnnoReason}}</p>
+</div>
+{{else if $.IsAdmin}}
+<form method="post" action="/annotations" class="sg-annoform" style="display:flex;flex-direction:column;gap:8px;margin:0">
+<span style="font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)">Annotation</span>
+<input type="hidden" name="subject" value="{{.Asset}}">
+<input type="hidden" name="signal" value="{{.RuleID}}">
+<textarea name="reason" rows="3" placeholder="Why this risk is accepted" required></textarea>
+<div style="display:flex;align-items:center;gap:10px">
+<button type="submit" class="sg-btn-pri-sm" disabled data-anno-submit>Accept this risk</button>
+<span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">Applies to this subject–signal pair. No expiry, no status, no author.</span>
+</div>
+</form>
+{{end}}
+{{if .History}}
+<div>
+<div style="font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">History</div>
+<div style="display:flex;flex-direction:column">
+{{range .History}}
+<div class="sg-ev">
+<div class="rail"><span class="dot" style="background:{{if eq .Tone "accent"}}var(--accent){{else if eq .Tone "warn"}}var(--warn-solid){{else if eq .Tone "danger"}}var(--danger-solid){{else}}var(--neutral-400){{end}}"></span><span class="conn"></span></div>
+<div class="evb">
+<div class="tr"><span class="tt">{{.Title}}</span><span class="tm">{{.Time}}</span></div>
+{{if .Detail}}<span class="dt{{if .Mono}} mono{{end}}">{{.Detail}}</span>{{end}}
+</div>
+</div>
+{{end}}
+</div>
+</div>
+{{end}}
+</div>
+<div class="df"><a class="sg-btn" href="{{$.CloseHref}}">Close</a></div>
+</aside>
+{{end}}
+{{if and .Descope .IsAdmin}}
+<a class="sg-scrim dlg" href="{{.Descope.CloseHref}}" aria-label="Cancel"></a>
+<div class="sg-dialog">
+<div class="panel" role="dialog" aria-modal="true" aria-label="Descope seed">
+<h2>Descope seed</h2>
+<p class="desc">Removes <span style="font:500 12.5px var(--font-mono);color:var(--text-ink)">{{.Descope.Asset}}</span> and its subjects from scope.</p>
+<p class="detail">Spans close as descoped in the next batch; the exclusion is recorded on the Scope screen. This does not resolve any signal — it narrows what you measure.</p>
+<form method="post" action="/exclusions" style="display:flex;flex-direction:column;gap:6px;margin:16px 0 0">
+<input type="hidden" name="kind" value="subtree">
+<span class="typel">Type <span class="mono" id="sg-descope-name">{{.Descope.Asset}}</span> to confirm.</span>
+<input class="typed" name="value" autocomplete="off" spellcheck="false" required aria-label="Type the exact name to descope">
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px">
+<a class="sg-btn-ghost" style="height:36px;padding:0 16px;border-radius:12px;font:600 13px var(--font-ui)" href="{{.Descope.CloseHref}}">Cancel</a>
+<button type="submit" class="sg-btn-danger" disabled data-descope-submit>Descope seed</button>
+</div>
+</form>
+</div>
+</div>
+{{end}}
+<script>
+(function(){
+  var sb=document.getElementById("sg-sev-btn"),sp=document.getElementById("sg-sev-panel");
+  if(sb&&sp){
+    sb.addEventListener("click",function(e){e.stopPropagation();var open=sp.hasAttribute("hidden");if(open)sp.removeAttribute("hidden");else sp.setAttribute("hidden","");sb.setAttribute("aria-expanded",open?"true":"false");});
+    document.addEventListener("mousedown",function(e){if(!sp.hasAttribute("hidden")&&!sp.contains(e.target)&&!sb.contains(e.target)){sp.setAttribute("hidden","");sb.setAttribute("aria-expanded","false");}});
+  }
+  var menu=document.getElementById("sg-menu"),mrow=null;
+  function openMenu(x,y,row){
+    mrow=row;
+    menu.removeAttribute("hidden");
+    var w=menu.offsetWidth,h=menu.offsetHeight;
+    menu.style.left=Math.max(8,Math.min(x,window.innerWidth-w-8))+"px";
+    menu.style.top=Math.max(8,Math.min(y,window.innerHeight-h-8))+"px";
+    menu.querySelector('[data-mi="open"]').setAttribute("href",row.getAttribute("data-href"));
+    menu.querySelector('[data-mi="annotate"]').setAttribute("href",row.getAttribute("data-href"));
+    menu.querySelector('[data-mi="descope"]').setAttribute("href",row.getAttribute("data-descope"));
+  }
+  function closeMenu(){menu.setAttribute("hidden","");mrow=null;}
+  [].forEach.call(document.querySelectorAll("tr[data-href]"),function(r){
+    r.addEventListener("click",function(e){if(e.target.closest("a")||e.target.closest("button"))return;window.location=r.getAttribute("data-href");});
+    r.addEventListener("contextmenu",function(e){e.preventDefault();openMenu(e.clientX,e.clientY,r);});
+    var kb=r.querySelector("[data-menu-btn]");
+    if(kb)kb.addEventListener("click",function(e){e.stopPropagation();var rc=kb.getBoundingClientRect();openMenu(rc.right-200,rc.bottom+6,r);});
+  });
+  if(menu){
+    menu.querySelector('[data-mi="copy"]').addEventListener("click",function(){
+      if(mrow){var v=mrow.getAttribute("data-asset");if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(v);else{var ta=document.createElement("textarea");ta.value=v;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(err){}document.body.removeChild(ta);}}
+      closeMenu();
+    });
+    document.addEventListener("mousedown",function(e){if(!menu.hasAttribute("hidden")&&!menu.contains(e.target))closeMenu();});
+    window.addEventListener("scroll",closeMenu,true);
+  }
+  [].forEach.call(document.querySelectorAll("[data-copy]"),function(b){
+    b.addEventListener("click",function(){
+      var v=b.getAttribute("data-copy");
+      if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(v);else{var ta=document.createElement("textarea");ta.value=v;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(err){}document.body.removeChild(ta);}
+      b.classList.add("ok");setTimeout(function(){b.classList.remove("ok");},1400);
+    });
+  });
+  var af=document.querySelector(".sg-annoform");
+  if(af){var ta2=af.querySelector("textarea"),asb=af.querySelector("[data-anno-submit]");
+    ta2.addEventListener("input",function(){if(ta2.value.trim())asb.removeAttribute("disabled");else asb.setAttribute("disabled","");});}
+  var dn=document.getElementById("sg-descope-name");
+  if(dn){var di=document.querySelector(".sg-dialog input.typed"),ds=document.querySelector("[data-descope-submit]");
+    di.addEventListener("input",function(){if(di.value===dn.textContent)ds.removeAttribute("disabled");else ds.setAttribute("disabled","");});
+    di.focus();}
+  document.addEventListener("keydown",function(e){
+    if(e.key!=="Escape")return;
+    if(menu&&!menu.hasAttribute("hidden")){closeMenu();return;}
+    if(sp&&!sp.hasAttribute("hidden")){sp.setAttribute("hidden","");sb.setAttribute("aria-expanded","false");return;}
+    var esc=document.querySelector(".sg-scrim");
+    if(esc)window.location=esc.getAttribute("href");
+  });
+})();
+</script>
+{{template "foot" .}}{{end}}

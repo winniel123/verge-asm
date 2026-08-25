@@ -731,5 +731,630 @@
         "status": "degraded"
       }
     ]
+  },
+  "scope": {
+    "address_cap": 1024,
+    "seeds": [
+      {
+        "id": "s1",
+        "anchor": "acmecorp-io",
+        "scope": "acmecorp.io",
+        "is_address": false
+      },
+      {
+        "id": "s2",
+        "anchor": "203-0-113-0-24",
+        "scope": "203.0.113.0/24",
+        "is_address": true
+      }
+    ],
+    "refusal_fixture": {
+      "post_value": "203.0.113.0/20",
+      "input": "203.0.113.0/20",
+      "reason": "Spans 4,096 addresses — the cap is 1,024 per scope.",
+      "reachable": "203.0.113.0/22",
+      "form_error": "Refused — over the 1,024-address cap."
+    },
+    "custody_scopes": [
+      {
+        "id": "s1",
+        "scope": "acmecorp.io",
+        "custody_extension": true,
+        "census": 62
+      }
+    ],
+    "zone_scopes": [
+      {
+        "id": "s1",
+        "domain": "acmecorp.io",
+        "has_file": true,
+        "supplied_at": "2026-07-30",
+        "interval_label": "monthly",
+        "aging_label": "ages into a gap in 7d"
+      }
+    ],
+    "zone_interval_days": 30,
+    "name_tree": [
+      {
+        "label": "acmecorp.io",
+        "count": 10,
+        "sev": "medium",
+        "children": [
+          {
+            "label": "www",
+            "sev": "low"
+          },
+          {
+            "label": "api",
+            "sev": "high"
+          },
+          {
+            "label": "vpn",
+            "sev": "critical"
+          },
+          {
+            "label": "edge-gw-03",
+            "sev": "critical"
+          },
+          {
+            "label": "grafana",
+            "sev": "high"
+          },
+          {
+            "label": "mail"
+          },
+          {
+            "label": "staging-4",
+            "sev": "info"
+          }
+        ]
+      }
+    ],
+    "coverage_msgs": [
+      {
+        "kind": "gap",
+        "badge": "no address",
+        "subject": "old-blog.acmecorp.io",
+        "text": "Expected a resolution; none observed for 3 checks.",
+        "when": "2h",
+        "iso": "2026-08-22T12:20:04Z"
+      },
+      {
+        "kind": "stale",
+        "badge": "stale",
+        "bound": "9d",
+        "subject": "edge-gw-03.acmecorp.io",
+        "text": "Last full service observation is older than the scan cadence.",
+        "when": "9d",
+        "iso": "2026-08-13T04:44:19Z"
+      },
+      {
+        "kind": "silent",
+        "badge": "no reports",
+        "subject": "dc-fra-01",
+        "text": "Vantage stopped reporting mid-batch; open spans are not evaluable.",
+        "when": "41m",
+        "iso": "2026-08-22T13:41:02Z"
+      }
+    ],
+    "proposals": [
+      {
+        "id": "p1",
+        "value": "acme-corp.net",
+        "kind": "name",
+        "source": "registrar match"
+      },
+      {
+        "id": "p2",
+        "value": "acmecorp.dev",
+        "kind": "name",
+        "source": "certificate SAN"
+      },
+      {
+        "id": "p3",
+        "value": "198.51.100.0/26",
+        "kind": "range",
+        "source": "announced by AS64500"
+      }
+    ],
+    "org_search_fixture": {
+      "org": "Acme Corporation",
+      "adds": {
+        "value": "203.0.114.0/25",
+        "kind": "range",
+        "source": "ARIN · org match \"Acme Corporation\""
+      },
+      "notice": "3 registries answered — 1 new proposal for \"Acme Corporation\". RIPE paths are off until you accept their terms."
+    },
+    "exclusions": [
+      {
+        "id": "x1",
+        "kind": "subtree",
+        "value": "old-blog.acmecorp.io"
+      },
+      {
+        "id": "x2",
+        "kind": "address",
+        "value": "203.0.113.128/25"
+      }
+    ],
+    "exclusion_preview_fixture": {
+      "post_kind": "subtree",
+      "post_value": "staging-4.acmecorp.io",
+      "fires": true,
+      "headline": "1 name and 2 subjects would close as descoped in the next batch.",
+      "loss": "staging-4.acmecorp.io and the service spans it anchors leave the estate; their history stays readable."
+    }
+  },
+  "dashboard": {
+    "scan_schedule": {
+      "has_last": true,
+      "last_ago": "38m",
+      "has_next": true,
+      "next_in": "5h 22m"
+    },
+    "scanning_variant": "scanning",
+    "scan_detail": "214 subjects queued",
+    "unavailable": [
+      "ap-south-1"
+    ],
+    "stat_band": [
+      {
+        "label": "Open signals",
+        "value": "47",
+        "live_when_scanning": true,
+        "has_delta": true,
+        "change": 3,
+        "tone": "bad",
+        "caption": "vs last scan"
+      },
+      {
+        "label": "Critical",
+        "value": "3",
+        "has_delta": true,
+        "change": -1,
+        "tone": "good",
+        "caption": "1 withdrawn today"
+      },
+      {
+        "label": "Assets watched",
+        "value": "1,284",
+        "has_delta": true,
+        "change": 12,
+        "tone": "neutral",
+        "caption": "8 domains · 3 ranges"
+      },
+      {
+        "label": "Exposed services",
+        "value": "216",
+        "has_delta": true,
+        "change": 4,
+        "tone": "bad",
+        "caption": "across 62 IPs"
+      },
+      {
+        "label": "Certs expiring ≤30d",
+        "value": "9",
+        "has_delta": true,
+        "change": -2,
+        "tone": "good",
+        "caption": "next: 2026-08-29"
+      }
+    ],
+    "sev_bars": [
+      {
+        "sev": "critical",
+        "pct": 17,
+        "count": 3
+      },
+      {
+        "sev": "high",
+        "pct": 61,
+        "count": 11
+      },
+      {
+        "sev": "medium",
+        "pct": 100,
+        "count": 18
+      },
+      {
+        "sev": "low",
+        "pct": 50,
+        "count": 9
+      },
+      {
+        "sev": "info",
+        "pct": 33,
+        "count": 6
+      }
+    ],
+    "coverage_meters": [
+      {
+        "label": "203.0.113.0/24",
+        "counted": 212,
+        "total": 256,
+        "pct": 83,
+        "unit": "addresses"
+      },
+      {
+        "label": "acmecorp.io names",
+        "counted": "1,284",
+        "unit": "names"
+      }
+    ],
+    "silent_zone": {
+      "bound": "9d",
+      "text": "zone transfer for internal.acmecorp.io"
+    },
+    "vantages": [
+      {
+        "name": "eu-west-1",
+        "latency": "34ms",
+        "avail": "available"
+      },
+      {
+        "name": "us-east-2",
+        "latency": "51ms",
+        "avail": "available"
+      },
+      {
+        "name": "ap-south-1",
+        "latency": "12m",
+        "avail": "unavailable"
+      }
+    ],
+    "recent_signals_note": "first 6 of signals.rows with sev_label + view_key"
+  },
+  "signals": {
+    "open_count": 47,
+    "total": 47,
+    "shown": 10,
+    "page": 1,
+    "page_count": 5,
+    "page_info": "1–10 of 47",
+    "default_sort": {
+      "key": "sev",
+      "dir": "asc"
+    },
+    "view_prefix": "/signals?view=",
+    "detected_by": "vantage eu-west-1",
+    "rows": [
+      {
+        "id": "SIG-1042",
+        "severity": "critical",
+        "sev_label": "Critical",
+        "title": "VNC exposed to internet",
+        "asset": "edge-gw-03.acmecorp.io",
+        "ip": "203.0.113.7",
+        "port": ":5900",
+        "seen": "4m",
+        "first": "2026-08-22T13:58:02Z",
+        "last": "2026-08-22T14:02:11Z",
+        "cve": null,
+        "tags": [
+          "vnc",
+          "remote-access"
+        ],
+        "desc": "A VNC service answered on 203.0.113.7:5900 without transport encryption. Close the port or restrict it to your VPN.",
+        "rule": [
+          "vnc-exposure",
+          3
+        ],
+        "view_key": "SIG-1042"
+      },
+      {
+        "id": "SIG-1041",
+        "severity": "critical",
+        "sev_label": "Critical",
+        "title": "TLS certificate expired",
+        "asset": "vpn.acmecorp.io",
+        "ip": "203.0.113.12",
+        "port": ":443",
+        "seen": "12m",
+        "first": "2026-08-21T00:00:00Z",
+        "last": "2026-08-22T13:54:40Z",
+        "cve": null,
+        "tags": [
+          "tls",
+          "cert"
+        ],
+        "desc": "The certificate served on :443 expired 2026-08-21. Clients may accept downgraded or spoofed connections. Renew and redeploy.",
+        "rule": [
+          "tls-acceptance",
+          2
+        ],
+        "view_key": "SIG-1041"
+      },
+      {
+        "id": "SIG-1039",
+        "severity": "high",
+        "sev_label": "High",
+        "title": "Admin panel reachable",
+        "asset": "grafana.acmecorp.io",
+        "ip": "203.0.113.31",
+        "port": ":3000",
+        "seen": "26m",
+        "first": "2026-08-22T11:20:19Z",
+        "last": "2026-08-22T13:40:08Z",
+        "cve": null,
+        "tags": [
+          "grafana",
+          "admin"
+        ],
+        "desc": "A Grafana login page is reachable from the internet. Put it behind SSO or your VPN.",
+        "rule": [
+          "dns-mail-policy",
+          1
+        ],
+        "view_key": "SIG-1039"
+      },
+      {
+        "id": "SIG-1036",
+        "severity": "high",
+        "sev_label": "High",
+        "title": "Outdated nginx",
+        "asset": "api.acmecorp.io",
+        "ip": "203.0.113.9",
+        "port": ":443",
+        "seen": "1h",
+        "first": "2026-08-22T09:03:55Z",
+        "last": "2026-08-22T13:02:33Z",
+        "cve": "CVE-2026-1187",
+        "tags": [
+          "nginx/1.25.0"
+        ],
+        "desc": "nginx/1.25.0 matches CVE-2026-1187 (request smuggling). Upgrade to 1.25.4 or later.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-1036"
+      },
+      {
+        "id": "SIG-1034",
+        "severity": "high",
+        "sev_label": "High",
+        "title": "SSH password auth enabled",
+        "asset": "build-07.acmecorp.io",
+        "ip": "203.0.113.44",
+        "port": ":22",
+        "seen": "2h",
+        "first": "2026-08-21T22:41:12Z",
+        "last": "2026-08-22T12:11:47Z",
+        "cve": null,
+        "tags": [
+          "ssh"
+        ],
+        "desc": "sshd accepts password authentication. Switch to key-only auth and disable PasswordAuthentication.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-1034"
+      },
+      {
+        "id": "SIG-1031",
+        "severity": "medium",
+        "sev_label": "Medium",
+        "title": "Subdomain takeover candidate",
+        "asset": "old-blog.acmecorp.io",
+        "ip": "—",
+        "port": "",
+        "seen": "3h",
+        "first": "2026-08-22T05:12:00Z",
+        "last": "2026-08-22T11:12:29Z",
+        "cve": null,
+        "tags": [
+          "dns",
+          "cname"
+        ],
+        "desc": "CNAME points to an unclaimed pages.example.net project. Claim it or remove the record.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-1031"
+      },
+      {
+        "id": "SIG-1029",
+        "severity": "medium",
+        "sev_label": "Medium",
+        "title": "Directory listing enabled",
+        "asset": "assets.acmecorp.io",
+        "ip": "203.0.113.18",
+        "port": ":443",
+        "seen": "5h",
+        "first": "2026-08-20T18:30:00Z",
+        "last": "2026-08-22T09:00:10Z",
+        "cve": null,
+        "tags": [
+          "http"
+        ],
+        "desc": "Autoindex is on at /uploads/. Disable directory listing or add an index file.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-1029"
+      },
+      {
+        "id": "SIG-1027",
+        "severity": "medium",
+        "sev_label": "Medium",
+        "title": "SPF record missing",
+        "asset": "acmecorp.io",
+        "ip": "—",
+        "port": "",
+        "seen": "9h",
+        "first": "2026-08-19T07:22:41Z",
+        "last": "2026-08-22T05:02:52Z",
+        "cve": null,
+        "tags": [
+          "dns",
+          "email"
+        ],
+        "desc": "No SPF record found. Publish one to reduce spoofed mail from your domain.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-1027"
+      },
+      {
+        "id": "SIG-1024",
+        "severity": "low",
+        "sev_label": "Low",
+        "title": "Verbose server header",
+        "asset": "www.acmecorp.io",
+        "ip": "203.0.113.4",
+        "port": ":443",
+        "seen": "1d",
+        "first": "2026-08-18T12:00:09Z",
+        "last": "2026-08-21T14:10:00Z",
+        "cve": null,
+        "tags": [
+          "http",
+          "header"
+        ],
+        "desc": "Responses disclose exact server and OS versions. Trim the Server header.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-1024"
+      },
+      {
+        "id": "SIG-1022",
+        "severity": "info",
+        "sev_label": "Info",
+        "title": "New subdomain discovered",
+        "asset": "staging-4.acmecorp.io",
+        "ip": "203.0.113.61",
+        "port": "",
+        "seen": "3d",
+        "first": "2026-08-19T02:12:33Z",
+        "last": "2026-08-19T02:12:33Z",
+        "cve": null,
+        "tags": [
+          "discovery"
+        ],
+        "desc": "First seen via certificate transparency. Added to your inventory and scheduled for scanning.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-1022"
+      }
+    ],
+    "withdrawn": [
+      {
+        "id": "SIG-0991",
+        "severity": "medium",
+        "sev_label": "Medium",
+        "title": "Directory listing enabled",
+        "asset": "files.acmecorp.io",
+        "ip": "203.0.113.21",
+        "port": ":443",
+        "seen": "6d",
+        "first": "2026-07-30T10:11:00Z",
+        "last": "2026-08-16T09:00:00Z",
+        "tags": [
+          "http"
+        ],
+        "desc": "Autoindex stopped answering in a later batch. The key is in no current population — withdrawn on read, no operator act.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-0991"
+      },
+      {
+        "id": "SIG-0968",
+        "severity": "high",
+        "sev_label": "High",
+        "title": "Admin panel reachable",
+        "asset": "jenkins.acmecorp.io",
+        "ip": "203.0.113.29",
+        "port": ":8080",
+        "seen": "12d",
+        "first": "2026-07-18T08:40:22Z",
+        "last": "2026-08-10T13:25:41Z",
+        "tags": [
+          "jenkins",
+          "admin"
+        ],
+        "desc": "The service left the population; the world moved and the signal withdrew itself.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-0968"
+      },
+      {
+        "id": "SIG-0944",
+        "severity": "low",
+        "sev_label": "Low",
+        "title": "Verbose server header",
+        "asset": "cdn.acmecorp.io",
+        "ip": "203.0.113.66",
+        "port": ":443",
+        "seen": "21d",
+        "first": "2026-06-29T12:02:19Z",
+        "last": "2026-08-01T07:12:00Z",
+        "tags": [
+          "http",
+          "header"
+        ],
+        "desc": "Header trimmed upstream; key absent from the current population.",
+        "rule": [
+          "svc-exposure",
+          3
+        ],
+        "view_key": "SIG-0944"
+      }
+    ],
+    "annotations": {
+      "SIG-1027": {
+        "id": "a1",
+        "reason": "Third-party mail provider publishes SPF on our behalf."
+      },
+      "SIG-1024": {
+        "id": "a2",
+        "reason": "Public banner is intentional — accepted."
+      }
+    },
+    "diffs": {
+      "SIG-1042": {
+        "title": "Open ports · drift",
+        "lines": [
+          {
+            "type": "same",
+            "text": ":443 https nginx/1.25.4"
+          },
+          {
+            "type": "add",
+            "text": ":5900 vnc — no transport encryption"
+          },
+          {
+            "type": "remove",
+            "text": ":8080 http-alt"
+          }
+        ]
+      },
+      "SIG-1036": {
+        "title": "Service banner · drift",
+        "lines": [
+          {
+            "type": "remove",
+            "text": "nginx/1.24.0"
+          },
+          {
+            "type": "add",
+            "text": "nginx/1.25.0 (CVE-2026-1187)"
+          }
+        ]
+      }
+    },
+    "history_rule": "Still present (accent, detail 'vantage eu-west-1 re-confirmed', time=seen) · Drift detected (warn, mono, '<asset> changed', time=seen, only when a diff exists) · Signal raised (danger for critical/high else neutral, mono, detail=id, time=first) · Asset discovered (neutral, mono, detail=asset, time=2026-08-12)"
   }
 }

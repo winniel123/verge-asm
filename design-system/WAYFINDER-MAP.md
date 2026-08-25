@@ -27,12 +27,12 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | 4 | SignIn (+ flows) | /signin … | signin.tmpl | TOTP step · forgot/reset · invite | **LANDED — operator confirmed 2026-08-25** |
 | 5 | Setup | /setup | setup.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
 | 6 | Coverage | /coverage | coverage.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
-| 7 | Exposure | /exposure | exposure.tmpl | withheld state | **BATCH 2 — artifacts in v3.8.0** |
-| 8 | Drift | /drift | drift.tmpl | feed item expanded | **BATCH 2 — artifacts in v3.8.0** |
-| 9 | RunDetail | /runs/{id} | rundetail.tmpl | — | **BATCH 2 — artifacts in v3.8.0** |
-| 10 | Scope | /scope | scope.tmpl | declared-name tree expanded · exclusion confirm · zone-file card | queued |
-| 11 | Dashboard | / | dashboard.tmpl | scanning progress row · banner dismissed | queued |
-| 12 | Signals | /signals | signals.tmpl | drawer open · descope confirm · annotation control open | queued |
+| 7 | Exposure | /exposure | exposure.tmpl | withheld state | **LANDED — operator confirmed 2026-08-25** |
+| 8 | Drift | /drift | drift.tmpl | feed item expanded | **LANDED — operator confirmed 2026-08-25** |
+| 9 | RunDetail | /runs/{id} | rundetail.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
+| 10 | Scope | /scope | scope.tmpl | declared-name tree expanded · exclusion confirm · zone-file card | **BATCH 3 — artifacts in v3.9.0** |
+| 11 | Dashboard | / | dashboard.tmpl | scanning progress row · banner dismissed | **BATCH 3 — artifacts in v3.9.0** |
+| 12 | Signals | /signals | signals.tmpl | drawer open · descope confirm · annotation control open | **BATCH 3 — artifacts in v3.9.0** |
 | 13 | AssetDetail | /asset/{key} | asset.tmpl | — | queued |
 | 14 | SubjectDetail | /subjects/… | subjectdetail.tmpl | withdrawn state | queued |
 | 15 | Graph | /graph | graph.tmpl | node drawer open | queued |
