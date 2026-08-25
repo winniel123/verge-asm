@@ -53,28 +53,32 @@ func TestRunDetailRendersSections(t *testing.T) {
 
 	// Real data wired: the batch status, the dispatched instant as the log title, the
 	// stage folded from the job kind with its count, both vantages with an ok badge,
-	// and the completed stat.
+	// and the header meta.
 	for _, want := range []string{
-		"complete",              // batch status
-		"batch 2026-08-16",      // log title carries the dispatched instant
-		"2 of 2 done",           // stage count folded from the jobs
+		"complete",               // batch status
+		"batch 2026-08-16",       // log title carries the dispatched instant
+		"2 of 2 done",            // stage count folded from the jobs
 		"eu-west-1", "us-east-2", // the vantages that looked
-		"hot profile",           // header meta: the scan kind as profile
-		"2 vantages",            // vantage count
+		"hot profile",            // header meta: the scan kind as profile
+		"2 vantages",             // vantage count
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("run detail missing wired value %q; body: %s", want, page)
 		}
 	}
 
-	// The Outcome stats are the run's OWN job outcomes, never drift/signal counts —
-	// the dispatch corpus is barred from the comparison path (ADR-0041).
-	if !strings.Contains(page, "Completed") || !strings.Contains(page, "Dead-lettered") {
-		t.Errorf("outcome stats not the run's own job outcomes; body: %s", page)
+	// The Outcome card is now the spec's — Transitions + New signals, the read-side join
+	// of the derived stores keyed by the run's batch (#20a, ruled; the .Completed/.Dead
+	// pair retired). This fake dispatch's jobs carry no committed batch, so the diff has
+	// not concluded and both figures render the honest em dash — never a fabricated count.
+	for _, want := range []string{"Transitions", "New signals"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("outcome card missing the batch-join stat %q; body: %s", want, page)
+		}
 	}
-	for _, banned := range []string{"Transitions", "New signals"} {
-		if strings.Contains(page, banned) {
-			t.Errorf("run detail fabricated a drift/signal outcome %q; body: %s", banned, page)
+	for _, retired := range []string{"Completed", "Dead-lettered"} {
+		if strings.Contains(page, retired) {
+			t.Errorf("run detail still renders the retired outcome stat %q; body: %s", retired, page)
 		}
 	}
 

@@ -104,7 +104,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | rundetail")
 	out := flag.String("out", "", "inventory: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -223,9 +223,152 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "rundetail":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen rundetail")
+		}
+		files, err := renderRunDetailStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	default:
-		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup | coverage)", *screen)
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup | coverage | rundetail)", *screen)
 	}
+}
+
+// runDetailFixture is the design-system/fixtures/fixtures.json → rundetail slice: the run header +
+// Outcome figures (the #20a batch join, carried as strings), the four stages, the seven log lines
+// (one warn, one error), the nullable degraded callout, the five params and the three vantages. The
+// golden reads them here (never re-hardcoded) so a fixture change flows through; cmd/web/devfixtures.go
+// pins the same values with a drift test (TestRunDetailFixtureMatchesPackage).
+type runDetailFixture struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	Scope       string `json:"scope"`
+	Meta        string `json:"meta"`
+	Active      bool   `json:"active"`
+	Transitions string `json:"transitions"`
+	NewSignals  string `json:"new_signals"`
+	Stages      []struct {
+		Num     int    `json:"num"`
+		Title   string `json:"title"`
+		Detail  string `json:"detail"`
+		Done    bool   `json:"done"`
+		Current bool   `json:"current"`
+		Last    bool   `json:"last"`
+	} `json:"stages"`
+	Log []struct {
+		Tag   string `json:"tag"`
+		Level string `json:"level"`
+		Text  string `json:"text"`
+	} `json:"log"`
+	Degraded *struct {
+		Vantage string `json:"vantage"`
+		Detail  string `json:"detail"`
+	} `json:"degraded"`
+	Params []struct {
+		K string `json:"k"`
+		V string `json:"v"`
+	} `json:"params"`
+	Vantages []struct {
+		Name    string `json:"name"`
+		Latency string `json:"latency"`
+		Status  string `json:"status"`
+	} `json:"vantages"`
+}
+
+func loadRunDetailFixture() (runDetailFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return runDetailFixture{}, err
+	}
+	var ff struct {
+		RunDetail runDetailFixture `json:"rundetail"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return runDetailFixture{}, err
+	}
+	return ff.RunDetail, nil
+}
+
+// renderRunDetailStates composes the RunDetail golden HTML from the frozen rundetail.tmpl, for the
+// one states.json rundetail state (default, /runs/1407). The data map mirrors runPage's
+// runDetailFixtureData EXACTLY (the .Run holes the frozen tmpl reads): the header, the four done
+// stages, the seven-line log (levels feeding the colored-text treatment #20e), the Outcome batch
+// join (7 transitions · 3 new signals as strings), the nullable degraded callout, the five params
+// and the three vantages — all in fixtures.json authored order — so the cropped `main` is
+// byte-identical to what the seeded server renders (golden and candidate = same tmpl, same holes).
+// Chrome is the empty stub (goldens crop to `main`).
+func renderRunDetailStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadRunDetailFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	stages := make([]map[string]any, 0, len(fx.Stages))
+	for _, st := range fx.Stages {
+		stages = append(stages, map[string]any{
+			"Num": st.Num, "Title": st.Title, "Detail": st.Detail,
+			"Done": st.Done, "Current": st.Current, "Last": st.Last,
+		})
+	}
+	logLines := make([]map[string]any, 0, len(fx.Log))
+	for _, l := range fx.Log {
+		logLines = append(logLines, map[string]any{"Tag": l.Tag, "Level": l.Level, "Text": l.Text})
+	}
+	params := make([]map[string]any, 0, len(fx.Params))
+	for _, p := range fx.Params {
+		params = append(params, map[string]any{"K": p.K, "V": p.V})
+	}
+	vantages := make([]map[string]any, 0, len(fx.Vantages))
+	for _, vt := range fx.Vantages {
+		vantages = append(vantages, map[string]any{"Name": vt.Name, "Latency": vt.Latency, "Status": vt.Status})
+	}
+	run := map[string]any{
+		"Title": fx.Title, "Status": fx.Status, "Scope": fx.Scope, "Meta": fx.Meta,
+		"Transitions": fx.Transitions, "NewSignals": fx.NewSignals, "Active": fx.Active,
+		"Stages": stages, "Log": logLines, "Params": params, "Vantages": vantages,
+	}
+	// Nullable degraded (#20): the frozen tmpl's {{with .Degraded}} renders the callout only when
+	// present. A nil map value renders nothing, matching runDetailFixtureData's *runDegraded.
+	if fx.Degraded != nil {
+		run["Degraded"] = map[string]any{"Vantage": fx.Degraded.Vantage, "Detail": fx.Degraded.Detail}
+	} else {
+		run["Degraded"] = nil
+	}
+
+	data := map[string]any{
+		"Title": "batch " + fx.Title, "NavActive": "drift", "DesignTokens": true,
+		"Run": run,
+	}
+
+	t, err := newStubbedTemplate(head)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.ParseFS(designfs.FS, "templates/rundetail.tmpl"); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "run", data); err != nil {
+		return nil, err
+	}
+	return []errorGolden{{id: "default", html: buf.Bytes()}}, nil
 }
 
 // coverageFixture is the design-system/fixtures/fixtures.json coverage slice: the aperture meters

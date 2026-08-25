@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"strconv"
@@ -10,8 +11,29 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 )
+
+// The RunDetail screen (screen 9, #565/#566) is served byte-for-byte from the frozen
+// design-owned design-system/templates/rundetail.tmpl (package v3.8.0, WORKFLOW v4),
+// which replaces the repo-authored templates_rundetail.go const (deleted). The tmpl
+// keeps the "run" define and the .Run struct, renders inside the full app chrome
+// ({{template "chrome" .}}), and styles against the design token vocabulary — so the
+// render opts in with DesignTokens:true (the "head" block inlines tokens/*.css only
+// then). rundetail.tmpl auto-embeds through designfs's existing templates/*.tmpl glob,
+// so no designfs.go change is needed.
+//
+// Reconciliations SPEC-CHANGE #20 (ruled): the Outcome card is the spec's — .Completed/
+// .Dead RETIRE in favour of .Transitions + .NewSignals, the read-side join of the
+// derived stores (transitions folded from THIS batch's diff, signals first raised in
+// it) per the 2026-08-24 binding ruling (#20a); joinRunOutcome builds it below. ADR-0041's
+// corpus separation for dispatch EXECUTION stands — the comparison path is untouched; this
+// only JOINS derived stores on the read path. .Degraded becomes nullable {Vantage,Detail}
+// (#20). Log levels render as colored text, not level pills (#20e — encoded in the frozen
+// tmpl). The "run-missing" define RETIRES (#20d): a missing run routes to error.tmpl's
+// missing-run kind (renderMissingRun, landed screen 2), never a rundetail-local define.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/rundetail.tmpl"))
 
 // The Scans monitor (#245, v1 spec §4.1): a read-only window onto the queue so an
 // operator can see a scan is in flight and how far along it is, without querying
@@ -161,23 +183,36 @@ type runVantage struct {
 	Status  string // "ok" | "degraded"
 }
 
+// runDegraded is the nullable Outcome callout datum (#20): the vantage that fell
+// short in this batch and the terse reason ("missed 2 of 3 checks"). Nil renders
+// nothing — the frozen tmpl's {{with .Degraded}} guards it. The tmpl supplies the
+// surrounding sentence, so Detail carries only the middle clause.
+type runDegraded struct {
+	Vantage string
+	Detail  string
+}
+
 // runView is one Dispatch shaped for the Run detail drill-in: the header identity
-// and batch status, the four sections' data, and the degraded-vantage name that
-// raises the outcome callout when one did not finish.
+// and batch status, the four sections' data, the batch-joined Outcome (transitions +
+// new signals, #20a), and the nullable degraded-vantage callout.
 type runView struct {
-	ID           int64
-	Title        string // the dispatched instant — the h1 and breadcrumb id
-	Status       string // "running" | "complete" | "failed" (BatchStatus)
-	Scope        string
-	Meta         string
-	Completed    int64
-	Dead         int64
-	Active       bool
-	Stages       []runStage
-	Log          []runLogLine
-	Params       []runKV
-	Vantages     []runVantage
-	Degraded     string
+	ID     int64
+	Title  string // the dispatched instant — the h1 and breadcrumb id
+	Status string // "running" | "complete" | "failed" (BatchStatus)
+	Scope  string
+	Meta   string
+	// Transitions / NewSignals are the Outcome card's batch join (#20a, ruled):
+	// transitions folded from THIS batch's diff stage and signals first raised in it,
+	// rendered as strings. Both read "—" until the run's diff stage has concluded.
+	Transitions string
+	NewSignals  string
+	Active      bool
+	Stages      []runStage
+	Log         []runLogLine
+	Params      []runKV
+	Vantages    []runVantage
+	// Degraded is nullable (#20): a *runDegraded, nil where no vantage fell short.
+	Degraded *runDegraded
 }
 
 // runPage renders the per-run drill-in. The run id is a Dispatch id; the dispatch
@@ -187,6 +222,28 @@ type runView struct {
 // read-only window onto the Operational queue.
 func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := r.PathValue("id")
+
+	// VERGE_DEV pixel-parity path (#565/#566). The frozen rundetail.tmpl renders the run
+	// 1407 drill-in — the four done stages, the 7-line log (one warn, one error), the
+	// Outcome card (7 transitions · 3 new signals), the nullable ap-south-1 degraded
+	// callout, the 5 params and the 3 vantages — a curated corpus whose exact figures are
+	// the design's, not a live-queue read. Reproducing them from the live derivations would
+	// mean fabricating domain data, which SPEC-CHANGE forbids — so, exactly as the
+	// Exposure/Coverage screens pin their dev fixture and serve it under devMode with a
+	// drift test (TestRunDetailFixtureMatchesPackage), runPage serves the pinned
+	// fixtures.json → rundetail slice for the fixture id here. Any other id (1408, the
+	// pinned MISSING id the error goldens use) routes to the missing-run ErrorPage — the
+	// #20d wiring — so the "run-missing" state is proven end-to-end. A real deployment
+	// (devMode == false) falls through to the honest live reads + batch join below.
+	if s.devMode {
+		if raw == devRunDetailID {
+			s.render(w, "run", s.runDetailFixtureData(acct))
+			return
+		}
+		s.renderMissingRun(w, acct, raw)
+		return
+	}
+
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
 		s.renderMissingRun(w, acct, raw)
@@ -221,7 +278,10 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	s.render(w, "run", map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "drift",
-		"Run":       view,
+		// rundetail.tmpl styles against the design token vocabulary; the "head" block
+		// inlines tokens/*.css only when this datum is set (as Coverage/Exposure do).
+		"DesignTokens": true,
+		"Run":          view,
 	})
 }
 
@@ -232,12 +292,10 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 // reads — a fresh job replaced it — but stays in the log, marked, as a real event.
 func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.ListJobsForDispatchRow) runView {
 	v := runView{
-		ID:        dv.ID,
-		Title:     dv.DispatchedAt,
-		Completed: dv.Completed,
-		Dead:      dv.Dead,
-		Active:    dv.Active,
-		Scope:     "all scopes",
+		ID:     dv.ID,
+		Title:  dv.DispatchedAt,
+		Active: dv.Active,
+		Scope:  "all scopes",
 	}
 	switch {
 	case dv.Active:
@@ -254,14 +312,28 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 	}
 
 	v.Vantages = runVantages(jobs)
-	for _, vt := range v.Vantages {
-		if vt.Status == "degraded" {
-			v.Degraded = vt.Name
-			break
-		}
-	}
 	v.Stages = runStages(jobs)
 	v.Log = runLog(jobs)
+
+	// The Outcome card's batch join (#20a, ruled): .Transitions and .NewSignals join the
+	// derived stores on the READ path (the comparison path is untouched — ADR-0041 stands
+	// for dispatch execution). The run's batch id set is the batch(es) its jobs committed
+	// under; joinRunOutcome counts the drift transitions folded from those batches and the
+	// signals first raised in them. Both read "—" until the run's diff stage has concluded.
+	batchIDs := dispatchBatchIDs(jobRows)
+	out := s.joinRunOutcome(r.Context(), batchIDs)
+	if out.Concluded {
+		v.Transitions = strconv.Itoa(out.Transitions)
+		v.NewSignals = strconv.Itoa(out.NewSignals)
+	} else {
+		v.Transitions = "—"
+		v.NewSignals = "—"
+	}
+
+	// The degraded callout is nullable (#20): raised only where a vantage fell short in
+	// this batch, with the terse reason its jobs record. A healthy run leaves it nil and
+	// the frozen tmpl's {{with .Degraded}} renders nothing.
+	v.Degraded = runDegradedFrom(jobs)
 
 	nv := len(v.Vantages)
 	v.Meta = dv.ScanKind + " profile"
@@ -387,6 +459,172 @@ func runVantages(jobs []jobView) []runVantage {
 		out = append(out, runVantage{Name: n, Latency: "—", Status: status})
 	}
 	return out
+}
+
+// runDegradedFrom folds the jobs into the nullable Outcome callout (#20): the first
+// vantage that fell short in this batch (any non-superseded job dead-lettered) with the
+// terse "missed N of M checks" reason its own jobs record. A run where every vantage
+// finished returns nil, so the frozen tmpl's {{with .Degraded}} renders nothing. It is a
+// vantage that looked, never a probe/scanner/agent.
+func runDegradedFrom(jobs []jobView) *runDegraded {
+	var order []string
+	seen := map[string]bool{}
+	total := map[string]int{}
+	dead := map[string]int{}
+	for _, j := range jobs {
+		if j.Vantage == "" || j.Superseded {
+			continue
+		}
+		if !seen[j.Vantage] {
+			seen[j.Vantage] = true
+			order = append(order, j.Vantage)
+		}
+		total[j.Vantage]++
+		if j.State == "dead" {
+			dead[j.Vantage]++
+		}
+	}
+	for _, n := range order {
+		if dead[n] > 0 {
+			return &runDegraded{
+				Vantage: n,
+				Detail:  fmt.Sprintf("missed %d of %d checks", dead[n], total[n]),
+			}
+		}
+	}
+	return nil
+}
+
+// dispatchBatchIDs is the set of Batch ids a Dispatch's jobs committed under (queue_job.
+// batch_id, carried by ListJobsForDispatch). It is the key the read-side Outcome join
+// (#20a) uses to pull THIS run's transitions and new signals out of the estate-wide
+// derived stores — the batch is where a run's diff and signals are keyed (ADR-0111,
+// ADR-0041), so the run drill-in joins on it.
+func dispatchBatchIDs(jobRows []db.ListJobsForDispatchRow) map[int64]bool {
+	set := map[int64]bool{}
+	for _, j := range jobRows {
+		if j.BatchID.Valid {
+			set[j.BatchID.Int64] = true
+		}
+	}
+	return set
+}
+
+// runOutcome is the Outcome card's batch join result (#20a): the count of transitions
+// folded from this run's batch diff and the count of signals first raised in it.
+// Concluded is false where the run committed no batch yet — its diff stage has not
+// concluded — in which case both figures render "—".
+type runOutcome struct {
+	Transitions int
+	NewSignals  int
+	Concluded   bool
+}
+
+// joinRunOutcome reads the estate-wide derived stores and joins them to a run's batches
+// (#20a, ruled). It reads the drift-event corpus (ListRecentDriftEvents, the same read
+// the /drift feed folds) and the signal-instance corpus (ListSignalInstances), then
+// hands both to countRunOutcome to key them by batch. This is the READ joining derived
+// stores; it never touches the comparison path (ADR-0041 stands for dispatch execution).
+// A read failure degrades to a not-concluded outcome ("—") rather than 500ing the page.
+func (s *server) joinRunOutcome(ctx context.Context, batchIDs map[int64]bool) runOutcome {
+	if len(batchIDs) == 0 {
+		return runOutcome{Concluded: false}
+	}
+	driftRows, err := s.store.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
+		// The zero (all) window reads from the zero instant, so no batch is excluded by
+		// age — a run's batch may be older than any fixed period.
+		Since: pgtype.Timestamptz{Time: time.Time{}, Valid: true}, MaxEvents: driftFeedLimit,
+	})
+	if err != nil {
+		log.Printf("web: run detail: outcome join: list drift events: %v", err)
+		return runOutcome{Concluded: false}
+	}
+	signals, err := s.store.ListSignalInstances(ctx)
+	if err != nil {
+		log.Printf("web: run detail: outcome join: list signal instances: %v", err)
+		return runOutcome{Concluded: false}
+	}
+	return countRunOutcome(batchIDs, driftRows, signals, s.now())
+}
+
+// countRunOutcome is the pure join over the derived-store reads (unit-tested). Transitions
+// are the narratable drift events (the SAME classifyDriftEvent the /drift feed applies)
+// whose Batch is one of the run's — transitions folded from this batch's diff. New signals
+// are the signal instances first raised inside a run batch's fold window: [batchAt,
+// nextBatchAt), where nextBatchAt is the next batch fold instant after it across the
+// corpus (a signal's first_seen is minted at fold, so it lands in the fold that raised it).
+// A run that committed a batch is concluded even where it moved nothing (0 · 0), distinct
+// from a still-running run ("—").
+func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListRecentDriftEventsRow, signals []db.SignalInstance, now time.Time) runOutcome {
+	// No committed batch means the run's diff stage has not concluded — render "—".
+	if len(batchIDs) == 0 {
+		return runOutcome{Concluded: false}
+	}
+	out := runOutcome{Concluded: true}
+
+	// Batch fold instants across the whole corpus, ascending — the boundaries that bound
+	// each batch's signal-raise window.
+	instantOf := map[int64]time.Time{}
+	for _, row := range driftRows {
+		if row.BatchAt.Valid {
+			instantOf[row.BatchID] = row.BatchAt.Time.UTC()
+		}
+	}
+	allInstants := make([]time.Time, 0, len(instantOf))
+	for _, t := range instantOf {
+		allInstants = append(allInstants, t)
+	}
+	sortTimesAsc(allInstants)
+
+	// Transitions: narratable drift events keyed to one of the run's batches.
+	for _, row := range driftRows {
+		if !batchIDs[row.BatchID] {
+			continue
+		}
+		if _, ok := classifyDriftEvent(row, now); ok {
+			out.Transitions++
+		}
+	}
+
+	// New signals: signal instances whose first_seen falls in a run batch's fold window.
+	for id := range batchIDs {
+		start, ok := instantOf[id]
+		if !ok {
+			continue // this batch raised no transition, so we cannot bound its window
+		}
+		end := nextInstantAfter(allInstants, start)
+		for _, sig := range signals {
+			if !sig.FirstSeen.Valid {
+				continue
+			}
+			fs := sig.FirstSeen.Time.UTC()
+			if !fs.Before(start) && (end.IsZero() || fs.Before(end)) {
+				out.NewSignals++
+			}
+		}
+	}
+	return out
+}
+
+// nextInstantAfter returns the smallest instant in the ascending slice strictly greater
+// than t, or the zero time when t is the latest (an open-ended final window).
+func nextInstantAfter(asc []time.Time, t time.Time) time.Time {
+	for _, x := range asc {
+		if x.After(t) {
+			return x
+		}
+	}
+	return time.Time{}
+}
+
+// sortTimesAsc sorts instants ascending in place (insertion sort — the batch-instant
+// list is short, at most driftFeedLimit distinct batches, usually a handful).
+func sortTimesAsc(ts []time.Time) {
+	for i := 1; i < len(ts); i++ {
+		for j := i; j > 0 && ts[j].Before(ts[j-1]); j-- {
+			ts[j], ts[j-1] = ts[j-1], ts[j]
+		}
+	}
 }
 
 // plural picks the singular or plural noun for a count.

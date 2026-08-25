@@ -726,6 +726,112 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	return data
 }
 
+// --- screen 9: RunDetail fixture (package v3.8.0, WORK-ORDER-7-9-BATCH2.md) -----------------
+//
+// The RunDetail screen (#565/#566) renders inside the full app chrome and reads inside a real
+// admin session (minted by the harness). Its VIEW corpus — the header identity + batch status,
+// the four-stage pipeline, the 7-line batch log (one warn, one error rendered as colored text
+// per #20e), the Outcome card (7 transitions · 3 new signals, the #20a batch join), the nullable
+// ap-south-1 degraded callout, the 5 run parameters and the 3-vantage health list — is the
+// design curated fixture, not a live-queue read: the exact figures ("3m 12s", "7"/"3", the log
+// copy, the per-vantage latencies) cannot be reconstructed from the live derivations without
+// fabricating domain data, which SPEC-CHANGE forbids. So, exactly as the Exposure/Coverage
+// screens pin their dev fixture and serve it under devMode, runPage serves the pinned
+// fixtures.json → rundetail slice below when s.devMode, and TestRunDetailFixtureMatchesPackage
+// folds every value back through the frozen package — the byte-exactness gate before the pixels.
+// The MISSING id (1408) is served by renderMissingRun (error.tmpl's missing-run kind, #20d),
+// proving the run-missing route. All of it is VERGE_DEV-only; a real deployment renders the honest
+// live reads + batch join in scans.go runPage/joinRunOutcome instead.
+
+const (
+	// devRunDetailID is fixtures.json → rundetail.id: the dispatch id the run drill-in
+	// serves from the fixture (the golden route /runs/1407). 1408 stays the MISSING id the
+	// error goldens use — anything but 1407 routes to the missing-run ErrorPage.
+	devRunDetailID = "1407"
+
+	// The run header + Outcome figures fixtures.json → rundetail pins.
+	devRunTitle       = "2026-08-22T14:00Z"
+	devRunStatus      = "complete"
+	devRunScope       = "all scopes"
+	devRunMeta        = "standard profile · 3 vantages · 3m 12s"
+	devRunActive      = false
+	devRunTransitions = "7"
+	devRunNewSignals  = "3"
+
+	// The nullable degraded callout (#20): ap-south-1 missed 2 of 3 checks this batch.
+	devRunDegradedVantage = "ap-south-1"
+	devRunDegradedDetail  = "missed 2 of 3 checks"
+)
+
+// devRunStages pins fixtures.json → rundetail.stages in authored order: the four-step
+// pipeline, all done (the last drops its trailing connector).
+var devRunStages = []runStage{
+	{Num: 1, Title: "Resolve", Detail: "dns + zone + CT · 1,284 names", Done: true, Current: false, Last: false},
+	{Num: 2, Title: "Probe", Detail: "reachability from 3 vantages", Done: true, Current: false, Last: false},
+	{Num: 3, Title: "Census", Detail: "top 1,000 tcp · 62 addresses", Done: true, Current: false, Last: false},
+	{Num: 4, Title: "Diff", Detail: "against 08:00Z · 7 transitions", Done: true, Current: false, Last: true},
+}
+
+// devRunLog pins fixtures.json → rundetail.log in authored order: seven batch-log lines, one
+// warn and one error (rendered as colored text per LogViewer.jsx / #20e), the rest unleveled.
+var devRunLog = []runLogLine{
+	{Tag: "14:00:02", Level: "", Text: "batch started · 214 subjects · 3 vantages"},
+	{Tag: "14:00:09", Level: "", Text: "dns sweep · acmecorp.io · 1,284 names"},
+	{Tag: "14:00:41", Level: "warn", Text: "vantage ap-south-1 missed check (2/3)"},
+	{Tag: "14:01:12", Level: "", Text: "tls-acceptance · vpn.acmecorp.io:443"},
+	{Tag: "14:02:03", Level: "error", Text: "connect refused · 203.0.113.44:22"},
+	{Tag: "14:02:31", Level: "", Text: "port census · 62 addresses · top 1,000 tcp"},
+	{Tag: "14:03:14", Level: "", Text: "diff against 08:00Z · 7 transitions · 3 signals raised"},
+}
+
+// devRunParams pins fixtures.json → rundetail.params in authored order: the five "as
+// configured" run parameters.
+var devRunParams = []runKV{
+	{K: "Profile", V: "standard"},
+	{K: "Cadence", V: "daily · 08:00 + 14:00"},
+	{K: "Subjects", V: "214"},
+	{K: "Address cap", V: "1,024"},
+	{K: "Connect timeout", V: "800ms"},
+}
+
+// devRunVantages pins fixtures.json → rundetail.vantages in authored order: three vantages,
+// the degraded ap-south-1 carrying an em-dash latency.
+var devRunVantages = []runVantage{
+	{Name: "eu-west-1", Latency: "34ms", Status: "ok"},
+	{Name: "us-east-2", Latency: "51ms", Status: "ok"},
+	{Name: "ap-south-1", Latency: "—", Status: "degraded"},
+}
+
+// runDetailFixtureData assembles the render data map runPage passes to the frozen rundetail.tmpl
+// in a VERGE_DEV build. It stamps the chrome + design-token holes, then the full pinned run view —
+// the header, the four done stages, the seven-line log, the Outcome batch join (7 transitions · 3
+// new signals, fed as the strings the join renders), the nullable degraded callout, the five params
+// and the three vantages. The .Run view is the SAME runView struct the live buildRunView emits, so
+// golden and candidate agree byte-for-byte. All VERGE_DEV-only.
+func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
+	view := runView{
+		ID:          1407,
+		Title:       devRunTitle,
+		Status:      devRunStatus,
+		Scope:       devRunScope,
+		Meta:        devRunMeta,
+		Transitions: devRunTransitions,
+		NewSignals:  devRunNewSignals,
+		Active:      devRunActive,
+		Stages:      devRunStages,
+		Log:         devRunLog,
+		Params:      devRunParams,
+		Vantages:    devRunVantages,
+		Degraded:    &runDegraded{Vantage: devRunDegradedVantage, Detail: devRunDegradedDetail},
+	}
+	return map[string]any{
+		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive":    "drift",
+		"DesignTokens": true,
+		"Run":          view,
+	}
+}
+
 // devCoverageSeedEmpty is the GET /dev/seed/empty-authed handler (VERGE_DEV only): it realizes
 // states.json coverage seed:"empty-authed" by arming the consume-once empty flag coveragePage
 // reads, so the NEXT /coverage render serves the empty estate. Unlike /dev/seed/empty (Setup) it
