@@ -104,8 +104,8 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage")
-	out := flag.String("out", "", "inventory: path to write the single golden HTML")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | drift")
+	out := flag.String("out", "", "inventory|drift: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
 	// it injects the app shell's body layout context (body{display:flex;
@@ -223,8 +223,23 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "drift":
+		if *out == "" {
+			log.Fatal("render-goldens: -out is required for -screen drift")
+		}
+		html, err := renderDrift(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(*out), 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		if err := os.WriteFile(*out, html, 0o600); err != nil {
+			log.Fatalf("render-goldens: write %s: %v", *out, err)
+		}
+		log.Printf("render-goldens: wrote %s (%d bytes)", *out, len(html))
 	default:
-		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup | coverage)", *screen)
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup | coverage | drift)", *screen)
 	}
 }
 
@@ -379,6 +394,132 @@ func renderCoverageStates(bodyFlex bool) ([]errorGolden, error) {
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
 	}
 	return out, nil
+}
+
+// driftFixture is the design-system/fixtures/fixtures.json drift slice: the range-picker presets,
+// the change vocabulary, the trigger + tally scalars (period, period_label, batch_id/label, the
+// transition count + signed delta), the movement map, and the batch groups (each with its collapsed
+// flag and transition events, some carrying a before/after diff). The golden reads them here (never
+// re-hardcoded) so a fixture change flows through; cmd/web/devfixtures.go pins the same values with
+// a drift test (TestDriftFixtureMatchesPackage).
+type driftFixture struct {
+	Period          string `json:"period"`
+	PeriodLabel     string `json:"period_label"`
+	HasEvents       bool   `json:"has_events"`
+	Truncated       bool   `json:"truncated"`
+	FeedLimit       int    `json:"feed_limit"`
+	BatchID         string `json:"batch_id"`
+	BatchLabel      string `json:"batch_label"`
+	TransitionCount int    `json:"transition_count"`
+	TransitionDelta string `json:"transition_delta"`
+	Periods         []struct {
+		Token string `json:"token"`
+		Label string `json:"label"`
+	} `json:"periods"`
+	Kinds []struct {
+		Change string `json:"change"`
+		Family string `json:"family"`
+	} `json:"kinds"`
+	Movement map[string]int `json:"movement"`
+	Groups   []struct {
+		Label     string `json:"label"`
+		Meta      string `json:"meta"`
+		Collapsed bool   `json:"collapsed"`
+		Events    []struct {
+			Change  string `json:"change"`
+			Family  string `json:"family"`
+			Subject string `json:"subject"`
+			Detail  string `json:"detail"`
+			Time    string `json:"time"`
+			Reason  string `json:"reason"`
+			Diff    []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"diff"`
+		} `json:"events"`
+	} `json:"groups"`
+}
+
+func loadDriftFixture() (driftFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return driftFixture{}, err
+	}
+	var ff struct {
+		Drift driftFixture `json:"drift"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return driftFixture{}, err
+	}
+	return ff.Drift, nil
+}
+
+// renderDrift composes the single Drift golden HTML from the frozen drift.tmpl. Its data map
+// mirrors driftPage driftFixtureData EXACTLY (the holes the frozen tmpl reads) — the preset +
+// change vocabularies, the pinned batch groups (each with its Collapsed flag and events), the
+// movement tally, and the trigger + tally scalars, all in fixtures.json authored order — so the
+// cropped `main` is byte-identical to what the seeded server renders for the DEFAULT state. The
+// feed-expanded and range-open states are the SAME HTML with the frozen tmpl's own JS driven over
+// it by capture.mjs (states.json), exactly as inventory's expanded/columns-open states — so drift
+// is a single-file golden (--page), not a per-state dir. Chrome is the empty stub (crop to `main`).
+func renderDrift(bodyFlex bool) ([]byte, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadDriftFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	periods := make([]map[string]any, 0, len(fx.Periods))
+	for _, p := range fx.Periods {
+		periods = append(periods, map[string]any{"Token": p.Token, "Label": p.Label})
+	}
+	kinds := make([]map[string]any, 0, len(fx.Kinds))
+	for _, k := range fx.Kinds {
+		kinds = append(kinds, map[string]any{"Change": k.Change, "Family": k.Family})
+	}
+	groups := make([]map[string]any, 0, len(fx.Groups))
+	for _, g := range fx.Groups {
+		events := make([]map[string]any, 0, len(g.Events))
+		for _, e := range g.Events {
+			diff := make([]map[string]any, 0, len(e.Diff))
+			for _, d := range e.Diff {
+				diff = append(diff, map[string]any{"Type": d.Type, "Text": d.Text})
+			}
+			events = append(events, map[string]any{
+				"Change": e.Change, "Family": e.Family, "Subject": e.Subject,
+				"Detail": e.Detail, "Time": e.Time, "Reason": e.Reason, "Diff": diff,
+			})
+		}
+		groups = append(groups, map[string]any{
+			"Label": g.Label, "Meta": g.Meta, "Collapsed": g.Collapsed, "Events": events,
+		})
+	}
+
+	data := map[string]any{
+		"Title": "Drift", "NavActive": "drift", "DesignTokens": true,
+		"Kinds": kinds, "Periods": periods,
+		"Period": fx.Period, "PeriodLabel": fx.PeriodLabel,
+		"Groups": groups, "Movement": fx.Movement,
+		"HasEvents": fx.HasEvents, "Truncated": fx.Truncated, "FeedLimit": fx.FeedLimit,
+		"BatchID": fx.BatchID, "BatchLabel": fx.BatchLabel,
+		"TransitionCount": fx.TransitionCount, "TransitionDelta": fx.TransitionDelta,
+	}
+
+	t, err := newStubbedTemplate(head)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.ParseFS(designfs.FS, "templates/drift.tmpl"); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "drift", data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // goldenHead builds the golden's <head>…<body> shell: the frozen font @import hoisted

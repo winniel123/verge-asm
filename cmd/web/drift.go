@@ -1,14 +1,41 @@
 package main
 
 import (
+	"html/template"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 )
+
+// The Drift screen is served byte-for-byte from the frozen design-owned
+// design-system/templates/drift.tmpl (package v3.8.0, WORKFLOW v4, #562/#563/#564),
+// which replaces the repo-authored templates_drift.go const (deleted). The tmpl keeps
+// the "drift" + "changeglyph" defines and renders inside the full app chrome
+// ({{template "chrome" .}}); it styles against the design token vocabulary, so the
+// render opts in with DesignTokens:true (the "head" block inlines tokens/*.css only
+// then, as Coverage/Exposure do). drift.tmpl auto-embeds through designfs's existing
+// templates/*.tmpl glob, so no designfs.go change is needed.
+//
+// The tmpl declares the holes driftPage shapes below. KEPT: .Periods[{Token,Label}],
+// .Period, .HasEvents, .BatchID, .BatchLabel, .Truncated, .FeedLimit,
+// .Kinds[{Change,Family}], .Groups[…], .Movement. NEW (this conversion): .PeriodLabel
+// (the trigger label — the active preset's label, or "start – end" for a custom range),
+// .Groups[].Collapsed (groups older than the two most recent batches), .TransitionCount,
+// and .TransitionDelta (a nullable signed string vs the previous period; "" suppresses
+// the chip). Reconciliations SPEC-CHANGE #20 (all ruled): the period control is the
+// spec's range picker — preset tokens stay links inside the popover, a custom ISO pair
+// submits GET /drift?start=&end= (#20b, resolveDriftWindow); the "Derived · drift"
+// microlabel drops (#20c); kind chips toggle and batch groups collapse client-side —
+// the view JS ships in the frozen tmpl (ADR-0105), so .Groups always carries the FULL
+// period feed, never a server-filtered one; the Movement tally follows the .Kinds
+// vocabulary order (#20g). Batch detail routes /runs/{id}.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/drift.tmpl"))
 
 // The Drift screen (#283, ADR-0108/ADR-0110) — the canonical `/drift`, nav item 4
 // of 7 and the product's thesis: what moved since last time, grouped by batch, in
@@ -88,7 +115,12 @@ type driftEvent struct {
 type driftBatch struct {
 	Label  string
 	Meta   string
-	Events []driftEvent
+	// Collapsed marks a group whose events start folded away in the timeline —
+	// true for groups older than the two most recent batches (SPEC-CHANGE #20). The
+	// frozen tmpl draws it closed and its own JS toggles it open client-side; the
+	// full feed is always carried, never server-filtered.
+	Collapsed bool
+	Events    []driftEvent
 }
 
 // driftPeriod is one entry of the period selector: the ?period token, its badge
@@ -100,19 +132,26 @@ type driftPeriod struct {
 	Window time.Duration
 }
 
-// driftPeriods is the fixed period vocabulary the selector offers, in order. 7d is
-// the default (matching the ported example's "Last 7d" badge).
+// driftPeriods is the fixed preset vocabulary the range picker offers, in the design's
+// authored order (fixtures.json → drift.periods): 24h, 7d, 30d, 90d. The design package
+// is normative for functionality, so this is the design's vocabulary — 7d is the default
+// (fixtures.json → drift.period), but it is the SECOND entry, so the default is named
+// explicitly rather than taken as the first.
 func driftPeriods() []driftPeriod {
 	return []driftPeriod{
+		{Token: "24h", Label: "Last 24h", Window: 24 * time.Hour},
 		{Token: "7d", Label: "Last 7d", Window: 7 * 24 * time.Hour},
 		{Token: "30d", Label: "Last 30d", Window: 30 * 24 * time.Hour},
 		{Token: "90d", Label: "Last 90d", Window: 90 * 24 * time.Hour},
-		{Token: "all", Label: "All time", Window: 0},
 	}
 }
 
-// resolveDriftPeriod maps the ?period query to a period, defaulting to 7d for an
-// absent or unrecognised token (a hand-crafted value never widens the window past
+// driftDefaultPeriod is the preset selected when no ?period token is given — 7d, the
+// design's default (fixtures.json → drift.period).
+const driftDefaultPeriod = "7d"
+
+// resolveDriftPeriod maps the ?period query to a preset, defaulting to driftDefaultPeriod
+// for an absent or unrecognised token (a hand-crafted value never widens the window past
 // the offered set).
 func resolveDriftPeriod(token string) driftPeriod {
 	for _, p := range driftPeriods() {
@@ -120,18 +159,87 @@ func resolveDriftPeriod(token string) driftPeriod {
 			return p
 		}
 	}
+	for _, p := range driftPeriods() {
+		if p.Token == driftDefaultPeriod {
+			return p
+		}
+	}
 	return driftPeriods()[0]
 }
 
+// driftCustomPrefix marks a custom-range period token — "custom_<start>_<end>" with ISO
+// (YYYY-MM-DD) bounds. The range popover submits GET /drift?start=&end= (#20b); the page
+// stamps this stable token into .Period so the Export CSV link (/drift/export?period=)
+// carries the same window and the file mirrors the screen.
+const driftCustomPrefix = "custom_"
+
+// parseCustomToken splits a "custom_<start>_<end>" period token back into its ISO bounds.
+func parseCustomToken(token string) (start, end string, ok bool) {
+	rest, found := strings.CutPrefix(token, driftCustomPrefix)
+	if !found {
+		return "", "", false
+	}
+	start, end, found = strings.Cut(rest, "_")
+	if !found || start == "" || end == "" {
+		return "", "", false
+	}
+	return start, end, true
+}
+
+// resolveDriftWindow resolves the request's period into the feed window: the .Period
+// token and .PeriodLabel the tmpl renders, plus the query bounds. A custom range — an
+// explicit ?start=&end= from the popover form (#20b), or a "custom_" ?period token from
+// the export link — resolves to an absolute [start, end] window with a stable token and
+// a "start – end" label. Otherwise a preset resolves to its relative lookback (upper
+// bound left invalid, i.e. up to now). A malformed custom pair falls back to the preset
+// path, so a hand-crafted query never errors the thesis screen.
+func (s *server) resolveDriftWindow(r *http.Request) (token, label string, since, until pgtype.Timestamptz) {
+	q := r.URL.Query()
+	start, end := q.Get("start"), q.Get("end")
+	if start == "" && end == "" {
+		if st, en, ok := parseCustomToken(q.Get("period")); ok {
+			start, end = st, en
+		}
+	}
+	if start != "" && end != "" {
+		sd, e1 := time.Parse("2006-01-02", start)
+		ed, e2 := time.Parse("2006-01-02", end)
+		if e1 == nil && e2 == nil {
+			return driftCustomPrefix + start + "_" + end,
+				start + " – " + end,
+				pgtype.Timestamptz{Time: sd.UTC(), Valid: true},
+				// The end date is inclusive: bound at the start of the following day.
+				pgtype.Timestamptz{Time: ed.UTC().Add(24 * time.Hour), Valid: true}
+		}
+	}
+	period := resolveDriftPeriod(q.Get("period"))
+	return period.Token, period.Label, s.driftSince(period), pgtype.Timestamptz{}
+}
+
+// filterDriftRowsUntil drops the raw span events whose batch instant is at or after the
+// custom range's exclusive upper bound. The feed query has no upper-bound parameter (it
+// reads from @since to now), so a custom range's end is applied here on the read side.
+// Preset periods pass an invalid `until` and skip this entirely.
+func filterDriftRowsUntil(rows []db.ListRecentDriftEventsRow, until time.Time) []db.ListRecentDriftEventsRow {
+	out := make([]db.ListRecentDriftEventsRow, 0, len(rows))
+	for _, row := range rows {
+		if row.BatchAt.Valid && row.BatchAt.Time.Before(until) {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
 // driftFeedLimit caps how many span events the feed reads and renders in one page,
-// so `period=all` on a mature estate cannot load and render an unbounded corpus (the
-// thesis screen must never 500 or balloon). The most recent events win — the query
-// orders newest-batch-first — and the page states plainly when the cap truncated the
-// view rather than dropping rows silently.
+// so the widest preset (90d) on a mature estate cannot load and render an unbounded
+// corpus (the thesis screen must never 500 or balloon). The most recent events win —
+// the query orders newest-batch-first — and the page states plainly when the cap
+// truncated the view rather than dropping rows silently.
 const driftFeedLimit int32 = 500
 
-// driftSince turns a period into the @since bound the feed query filters on. `all`
-// (zero window) reads from the zero instant, so no batch is excluded by age.
+// driftSince turns a preset into the @since bound the feed query filters on. A
+// zero-window preset (none in the current vocabulary) reads from the zero instant, so
+// no batch is excluded by age; the offered presets (24h–90d) all carry a real window.
 func (s *server) driftSince(p driftPeriod) pgtype.Timestamptz {
 	if p.Window == 0 {
 		return pgtype.Timestamptz{Time: time.Time{}, Valid: true}
@@ -145,43 +253,82 @@ func (s *server) driftSince(p driftPeriod) pgtype.Timestamptz {
 // fabricates no change events. A feed read error degrades to the empty-state rather
 // than 500ing the thesis screen.
 func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	period := resolveDriftPeriod(r.URL.Query().Get("period"))
+	// VERGE_DEV pixel-parity path (#563). The frozen drift.tmpl renders the batch-grouped
+	// transition timeline, the range picker, the movement tally and the diff affordance —
+	// a curated corpus (3 groups / 7 events incl. one diff, the movement tally, the +2
+	// transition delta) whose exact events, groups and delta are the design's, not a
+	// live-estate read. Reproducing them from the live span derivations would mean
+	// fabricating domain data, which SPEC-CHANGE forbids — so, exactly as the Exposure /
+	// Coverage screens pin their dev fixture and serve it under devMode with a drift test
+	// (TestDriftFixtureMatchesPackage), drift serves the pinned fixtures.json → drift slice
+	// here so the seeded candidate renders byte-for-byte what the golden composes. A real
+	// deployment (devMode == false) falls through to the honest live feed below.
+	if s.devMode {
+		s.render(w, "drift", s.driftFixtureData(acct))
+		return
+	}
+
+	// The period window: a preset (relative lookback) or a custom ISO [start, end] range
+	// (#20b). token + label feed .Period / .PeriodLabel; until bounds a custom range.
+	token, periodLabel, since, until := s.resolveDriftWindow(r)
 
 	var groups []driftBatch
 	movement := driftMovement{}
 	truncated := false
 	if rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: s.driftSince(period), MaxEvents: driftFeedLimit,
+		Since: since, MaxEvents: driftFeedLimit,
 	}); err != nil {
 		log.Printf("web: drift: list recent drift events: %v", err)
 	} else {
+		if until.Valid {
+			rows = filterDriftRowsUntil(rows, until.Time)
+		}
 		// The cap keeps the newest events (query orders newest-first); a full page is
 		// stated as truncated rather than silently dropping the older tail.
 		truncated = int32(len(rows)) >= driftFeedLimit
 		groups, movement = buildDriftFeed(rows, s.now())
 	}
 
-	// Batch detail entry (#311, T16) — opens the Run detail screen (T2, GET /run/{id};
-	// id is a Dispatch id) for the most recent batch. Change and batches are distinct
-	// feeds: a batch exists as soon as a scan has been dispatched, well before two
-	// batches have folded a transition, so the entry is offered whenever a real
-	// dispatch exists and omitted otherwise — never a fabricated id. This mirrors the
-	// ported example's `onOpenRun && <Button>Batch detail</Button>`.
+	// Groups older than the two most recent batches start collapsed (SPEC-CHANGE #20);
+	// the full feed is always carried and the tmpl's JS toggles them open client-side.
+	// .TransitionCount is this period's total folded transitions (the .Movement sum).
+	transitionCount := 0
+	for i := range groups {
+		transitionCount += len(groups[i].Events)
+		if i >= 2 {
+			groups[i].Collapsed = true
+		}
+	}
+
+	// Batch detail entry (#311, T16) — opens the Run detail screen (screen 9, GET
+	// /runs/{id}; id is a Dispatch id) for the most recent batch. Change and batches are
+	// distinct feeds: a batch exists as soon as a scan has been dispatched, well before
+	// two batches have folded a transition, so the entry is offered whenever a real
+	// dispatch exists and omitted otherwise — never a fabricated id.
 	batchID, batchLabel := s.latestBatch(r)
 
 	s.render(w, "drift", map[string]any{
 		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "drift",
-		"Kinds":      driftKinds(),
-		"Groups":     groups,
-		"Movement":   movement,
-		"Periods":    driftPeriods(),
-		"Period":     period.Token,
-		"HasEvents":  len(groups) > 0,
-		"Truncated":  truncated,
-		"FeedLimit":  driftFeedLimit,
-		"BatchID":    batchID,
-		"BatchLabel": batchLabel,
+		"NavActive": "drift",
+		// drift.tmpl styles against the design token vocabulary; the "head" block inlines
+		// tokens/*.css only when this datum is set (as Coverage/Exposure do).
+		"DesignTokens":    true,
+		"Kinds":           driftKinds(),
+		"Groups":          groups,
+		"Movement":        movement,
+		"Periods":         driftPeriods(),
+		"Period":          token,
+		"PeriodLabel":     periodLabel,
+		"HasEvents":       len(groups) > 0,
+		"Truncated":       truncated,
+		"FeedLimit":       driftFeedLimit,
+		"BatchID":         batchID,
+		"BatchLabel":      batchLabel,
+		"TransitionCount": transitionCount,
+		// The vs-previous-period delta chip is suppressed with an empty string when no
+		// comparison is wired — the honest no-delta state, never a fabricated "+0"
+		// (mirroring Exposure's HasDeltas-false tile). The design fixture carries "+2".
+		"TransitionDelta": "",
 	})
 }
 
@@ -204,18 +351,23 @@ func (s *server) driftExport(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
-	period := resolveDriftPeriod(r.URL.Query().Get("period"))
+	// The export reads the same window the page renders for the same ?period= — a preset
+	// or a custom_ range token (#20b) — so the file mirrors the screen.
+	token, _, since, until := s.resolveDriftWindow(r)
 	rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: s.driftSince(period), MaxEvents: driftFeedLimit,
+		Since: since, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
 		s.serverError(w, "drift export: list recent drift events", err)
 		return
 	}
-	if int32(len(rows)) >= driftFeedLimit {
-		log.Printf("web: drift export: feed capped at %d events for period=%s; older tail omitted", driftFeedLimit, period.Token)
+	if until.Valid {
+		rows = filterDriftRowsUntil(rows, until.Time)
 	}
-	s.writeDriftExportCSV(w, period, rows)
+	if int32(len(rows)) >= driftFeedLimit {
+		log.Printf("web: drift export: feed capped at %d events for period=%s; older tail omitted", driftFeedLimit, token)
+	}
+	s.writeDriftExportCSV(w, token, rows)
 }
 
 // latestBatch reads the most recent Dispatch (a batch) so Drift can offer a "Batch
