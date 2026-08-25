@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -1508,7 +1509,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		for _, t := range rows {
 			tokens = append(tokens, profileTokenView{
 				ID: t.ID, Name: t.Name, Prefix: t.Prefix,
-				Created: isoDate(t.CreatedAt), Last: lastUsed(t.LastUsedAt),
+				Created: isoDate(t.CreatedAt), Last: lastUsed(t.LastUsedAt, s.now()),
 			})
 		}
 	} else {
@@ -1540,10 +1541,15 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	}); err == nil {
 		for _, row := range rows {
 			sessions = append(sessions, profileSessionView{
-				ID:         row.ID,
-				Device:     sessionDeviceFromUA(row.UserAgent),
-				IP:         row.Ip,
-				LastActive: agoLabel(row.LastSeenAt.Time, s.now()),
+				ID:     row.ID,
+				Device: sessionDeviceFromUA(row.UserAgent),
+				IP:     row.Ip,
+				// The Profile sessions table renders the bare relative token (now / 2h / 3d),
+				// matching the frozen design (Profile.jsx, fixtures.json → profile.sessions),
+				// not the " ago"-suffixed agoLabel the drift feed uses. profileRelTime reads
+				// the injectable clock, so a VERGE_DEV build (clock pinned to the fixture
+				// instant) renders the fixture's tokens exactly.
+				LastActive: profileRelTime(row.LastSeenAt.Time, s.now()),
 				Current:    haveCurSession && row.ID == curSessionID,
 			})
 		}
@@ -1737,7 +1743,7 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 		s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "Name must be 64 characters or fewer.", tokName: name})
 		return
 	}
-	plaintext, prefix, hash, err := mintPersonalToken()
+	plaintext, prefix, hash, err := s.newPersonalToken()
 	if err != nil {
 		s.serverError(w, "profile: mint token", err)
 		return
@@ -1891,6 +1897,30 @@ func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, ac
 	s.toastRedirect(w, r, "/profile", "neutral", "Other sessions signed out", strconv.Itoa(ended)+" sessions ended.")
 }
 
+// newPersonalToken mints the plaintext / non-secret prefix / hash for a personal token. In
+// a VERGE_DEV build (s.devMode) it returns the fixture-deterministic value so the minted-
+// dialog golden is pixel-stable; a real build always draws crypto/rand (mintPersonalToken).
+// This mirrors the screen-2 deterministic incident-id gate (recoverPanics, #534): the dev
+// affordance is strictly gated to VERGE_DEV and never fires in a real deployment.
+func (s *server) newPersonalToken() (plaintext, prefix, hash string, err error) {
+	if s.devMode {
+		return fixtureMintedToken()
+	}
+	return mintPersonalToken()
+}
+
+// fixtureMintedToken is the deterministic personal-token mint used only in a VERGE_DEV
+// build: the plaintext is design-system/fixtures/fixtures.json → profile.minted_token_fixture
+// (pinned as devFixtureMintedToken, asserted by TestProfileFixtureMatchesPackage), so the
+// minted-dialog golden's pixel diff never drifts.
+func fixtureMintedToken() (plaintext, prefix, hash string, err error) {
+	plaintext = devFixtureMintedToken
+	sum := sha256.Sum256([]byte(plaintext))
+	hash = hex.EncodeToString(sum[:])
+	prefix = plaintext[:11] + "…" // vg_pat_ + 4 chars + ellipsis, as mintPersonalToken forms it
+	return plaintext, prefix, hash, nil
+}
+
 // mintPersonalToken generates a personal token, returning the plaintext to reveal
 // once, the non-secret prefix to store for display, and the hash to store in place
 // of the secret. The token is high-entropy random, so a SHA-256 digest is the right
@@ -1928,26 +1958,63 @@ func isoDate(ts pgtype.Timestamptz) string {
 	return ts.Time.Format("2006-01-02")
 }
 
-// lastUsed renders a token's last-used instant, or an em dash when it has never been
-// presented — the honest read of a NULL last_used_at, not a fabricated recency.
-func lastUsed(ts pgtype.Timestamptz) string {
+// lastUsed renders a token's last-used instant as the bare relative token (2h / 14d),
+// matching the frozen design (Profile.jsx, fixtures.json → profile.tokens), or an em dash
+// when it has never been presented — the honest read of a NULL last_used_at, not a
+// fabricated recency. profileRelTime reads the injectable clock, so a VERGE_DEV build (clock
+// pinned to the fixture instant) renders the fixture's tokens exactly.
+func lastUsed(ts pgtype.Timestamptz, now time.Time) string {
 	if !ts.Valid {
 		return "—"
 	}
-	return ts.Time.Format("2006-01-02")
+	return profileRelTime(ts.Time, now)
 }
 
-// initials derives a two-letter avatar label from the username, upper-cased.
+// profileRelTime renders a relative age the way the frozen Profile design does (now / 2h /
+// 3d / 14d): sub-minute reads "now", then minutes, hours, then DAYS with no week rollover.
+// It deliberately differs from relTime (messages.go), which rolls into weeks past 7d for the
+// drift feed — the Profile's sessions and tokens tables keep counting days (fixtures.json →
+// profile shows a 14d token, not "2w"). Like relTime it clamps a future instant to "now" and
+// reads the passed (injectable) clock, so a fixed-clock render is deterministic.
+func profileRelTime(t, now time.Time) string {
+	d := now.Sub(t)
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d < time.Minute:
+		return "now"
+	case d < time.Hour:
+		return strconv.Itoa(int(d/time.Minute)) + "m"
+	case d < 24*time.Hour:
+		return strconv.Itoa(int(d/time.Hour)) + "h"
+	default:
+		return strconv.Itoa(int(d/(24*time.Hour))) + "d"
+	}
+}
+
+// initials derives the two-letter avatar label the Profile renders: the first letter of each
+// of the first two name segments, upper-cased — segments split on "." "_" "-" or whitespace,
+// so "ola.perez" reads "OP" (fixtures.json → profile.account.initials). A single-segment name
+// falls back to its first two letters, and an empty name to "?".
 func initials(username string) string {
-	u := strings.TrimSpace(username)
-	if u == "" {
+	fields := strings.FieldsFunc(username, func(r rune) bool {
+		return r == '.' || r == '_' || r == '-' || unicode.IsSpace(r)
+	})
+	switch len(fields) {
+	case 0:
 		return "?"
+	case 1:
+		r := []rune(strings.ToUpper(fields[0]))
+		if len(r) == 1 {
+			return string(r[0])
+		}
+		return string(r[0]) + string(r[1])
+	default:
+		a := []rune(strings.ToUpper(fields[0]))
+		b := []rune(strings.ToUpper(fields[1]))
+		return string(a[0]) + string(b[0])
 	}
-	r := []rune(strings.ToUpper(u))
-	if len(r) == 1 {
-		return string(r[0])
-	}
-	return string(r[0]) + string(r[1])
 }
 
 // sessionIP is the address this request arrived from. It reads RemoteAddr, never a

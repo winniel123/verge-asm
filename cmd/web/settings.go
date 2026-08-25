@@ -945,6 +945,21 @@ func sessionDeviceFromUA(ua string) string {
 	if ua == "" {
 		return "Unknown device"
 	}
+	// A non-browser client (the verge CLI / API automation) announces itself as verge-cli
+	// and carries its user@host in the parenthetical, e.g. "verge-cli/1.0 (verge@build-07)".
+	// Label such a session "CLI · <host>" so it reads distinctly from a browser device
+	// (Profile sessions, "CLI · verge@build-07"). A verge-cli client with no parenthetical
+	// falls back to a bare "CLI".
+	if strings.HasPrefix(ua, "verge-cli") {
+		if i := strings.IndexByte(ua, '('); i >= 0 {
+			if j := strings.IndexByte(ua[i:], ')'); j > 1 {
+				if host := strings.TrimSpace(ua[i+1 : i+j]); host != "" {
+					return "CLI · " + host
+				}
+			}
+		}
+		return "CLI"
+	}
 	browser := "Browser"
 	switch {
 	case strings.Contains(ua, "Firefox"):

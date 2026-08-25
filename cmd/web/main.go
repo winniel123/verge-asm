@@ -78,7 +78,13 @@ func main() {
 		if err := seedDevFixtureAccounts(ctx, pool); err != nil {
 			log.Fatalf("web: seed-fixtures: %v", err)
 		}
-		log.Printf("web: seeded inventory fixtures from %s (%d open spans); dev operator %q + %d fixture accounts ready", *seedFixtures, len(inventoryFixtureSpans), devSeedUsername, len(devFixtureAccounts))
+		// The Profile screen fixture (screen 3, #541): sessions/SSO/tokens on the ola.perez
+		// admin, with clock-relative + date-only timestamps. Idempotent and dev-only; runs
+		// after the account above exists.
+		if err := seedProfileFixtures(ctx, pool); err != nil {
+			log.Fatalf("web: seed-fixtures: %v", err)
+		}
+		log.Printf("web: seeded inventory fixtures from %s (%d open spans); dev operator %q + %d fixture accounts + Profile fixture ready", *seedFixtures, len(inventoryFixtureSpans), devSeedUsername, len(devFixtureAccounts))
 		return
 	}
 
@@ -96,11 +102,23 @@ func main() {
 		log.Fatalf("web: setup token: %v", err)
 	}
 
-	web := newServer(queries, key, setupToken, time.Now)
-	// VERGE_DEV unlocks the pixel-parity harness affordances (dev /dev/* routes and the
-	// deterministic 500 incident id). It is the same gate -seed-fixtures rides; a real
-	// deployment never sets it, so no /dev route is registered and incident ids stay random.
-	web.devMode = isTruthy(env.OrDefault("VERGE_DEV", ""))
+	// VERGE_DEV unlocks the pixel-parity harness affordances (dev /dev/* routes, the
+	// deterministic 500 incident id + token mint) AND pins the server clock to the frozen
+	// fixture instant (fixtures.json → clock) so relative-time renders — the Profile
+	// sessions/tokens tables (#541) — read a fixed instant rather than wall time and the
+	// goldens never drift. A real deployment never sets it, so the clock stays time.Now and
+	// no dev affordance exists.
+	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
+	clock := time.Now
+	if devMode {
+		if pinned, perr := devFixtureClockTime(); perr == nil {
+			clock = func() time.Time { return pinned }
+		} else {
+			log.Printf("web: VERGE_DEV: could not pin fixture clock (%v); using wall time", perr)
+		}
+	}
+	web := newServer(queries, key, setupToken, clock)
+	web.devMode = devMode
 	web.secureCookies = isTruthy(env.OrDefault("VERGE_SECURE_COOKIES", ""))
 	// The trusted origin for the OIDC callback redirect_uri (#293); empty falls back to
 	// the request host.
