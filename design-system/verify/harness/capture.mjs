@@ -42,7 +42,8 @@ const mode = arg('--mode', 'golden'); // golden | candidate
 const writeGoldens = has('--write-goldens');
 const advisory = has('--advisory');
 const screen = arg('--screen', 'inventory');
-const pagePath = arg('--page'); // golden mode: static HTML file
+const pagePath = arg('--page'); // golden mode: single static HTML file (all states share it)
+const pageDir = arg('--pagedir'); // golden mode: per-state HTML dir (<state>.html), used when states differ
 const baseURL = arg('--base', 'http://localhost:8080'); // candidate mode
 const user = arg('--user', 'operator');
 const pass = arg('--pass', 'verge-dev-operator');
@@ -80,6 +81,20 @@ async function login(context) {
   await page.close();
 }
 
+// mintSession establishes a role's session in the context via the dev session mint
+// (/dev/session/{role}, VERGE_DEV only), so a state's per-state `session` (states.json:
+// "admin" | "viewer") is set before its route is captured. The endpoint signs in as the
+// fixture account for the role and redirects, dropping the session cookie on the context.
+async function mintSession(context, role) {
+  const page = await context.newPage();
+  await page.goto(`${baseURL}/dev/session/${role}`, { waitUntil: 'networkidle' });
+  await page.close();
+}
+
+// Screens whose states carry a per-state `session` (the error screen) mint per state;
+// screens without it (inventory) log in once per context with --user/--pass.
+const perStateSession = screenStates.states.some((s) => s.session);
+
 function diffPercent(a, b) {
   if (a.width !== b.width || a.height !== b.height) {
     return { mismatch: true, aw: a.width, ah: a.height, bw: b.width, bh: b.height };
@@ -107,14 +122,20 @@ async function run() {
         colorScheme: theme,
       });
 
-      if (mode === 'candidate') await login(context);
+      if (mode === 'candidate' && !perStateSession) await login(context);
 
       for (const st of screenStates.states) {
         const page = await context.newPage();
         if (mode === 'golden') {
-          await page.goto(pathToFileURL(resolve(pagePath)).href, { waitUntil: 'networkidle' });
+          // Per-state file (--pagedir, error) or a single shared file (--page, inventory).
+          const gp = pageDir ? join(pageDir, `${st.id}.html`) : pagePath;
+          await page.goto(pathToFileURL(resolve(gp)).href, { waitUntil: 'networkidle' });
         } else {
-          await page.goto(`${baseURL}${screenStates.route}`, { waitUntil: 'networkidle' });
+          // Establish this state's session first (error), then navigate its own route
+          // (states.json's per-state route) or the screen-level route (inventory).
+          if (st.session) await mintSession(context, st.session);
+          const route = st.route || screenStates.route;
+          await page.goto(`${baseURL}${route}`, { waitUntil: 'networkidle' });
         }
 
         // Force the theme deterministically in BOTH modes (design colors.css
