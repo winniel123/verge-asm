@@ -660,3 +660,135 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureRunDetailPackage mirrors the fixtures.json rundetail slice the screen-9 dev fixture pins
+// (devfixtures.go, served by runPage under devMode): the run header + Outcome figures, the four
+// stages, the seven log lines, the nullable degraded callout, the five params and the three
+// vantages. Snake_case JSON → the runView PascalCase the frozen rundetail.tmpl reads.
+type fixtureRunDetailPackage struct {
+	RunDetail struct {
+		ID          string `json:"id"`
+		Title       string `json:"title"`
+		Status      string `json:"status"`
+		Scope       string `json:"scope"`
+		Meta        string `json:"meta"`
+		Active      bool   `json:"active"`
+		Transitions string `json:"transitions"`
+		NewSignals  string `json:"new_signals"`
+		Stages      []struct {
+			Num     int    `json:"num"`
+			Title   string `json:"title"`
+			Detail  string `json:"detail"`
+			Done    bool   `json:"done"`
+			Current bool   `json:"current"`
+			Last    bool   `json:"last"`
+		} `json:"stages"`
+		Log []struct {
+			Tag   string `json:"tag"`
+			Level string `json:"level"`
+			Text  string `json:"text"`
+		} `json:"log"`
+		Degraded *struct {
+			Vantage string `json:"vantage"`
+			Detail  string `json:"detail"`
+		} `json:"degraded"`
+		Params []struct {
+			K string `json:"k"`
+			V string `json:"v"`
+		} `json:"params"`
+		Vantages []struct {
+			Name    string `json:"name"`
+			Latency string `json:"latency"`
+			Status  string `json:"status"`
+		} `json:"vantages"`
+	} `json:"rundetail"`
+}
+
+// TestRunDetailFixtureMatchesPackage is the byte-exactness gate for the screen-9 conversion: every
+// value the dev fixture pins (devfixtures.go, served by runPage under devMode) equals the frozen
+// fixtures.json rundetail slice, in authored order — so a drift between the served candidate and the
+// golden (which composes the same fixture statically) fails here rather than in a screenshot diff,
+// exactly as TestCoverageFixtureMatchesPackage guards the Coverage slice.
+func TestRunDetailFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureRunDetailPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	rd := f.RunDetail
+
+	if rd.ID != devRunDetailID {
+		t.Errorf("id drift: fixtures.json = %q, pinned = %q", rd.ID, devRunDetailID)
+	}
+	if rd.Title != devRunTitle {
+		t.Errorf("title drift: fixtures.json = %q, pinned = %q", rd.Title, devRunTitle)
+	}
+	if rd.Status != devRunStatus {
+		t.Errorf("status drift: fixtures.json = %q, pinned = %q", rd.Status, devRunStatus)
+	}
+	if rd.Scope != devRunScope {
+		t.Errorf("scope drift: fixtures.json = %q, pinned = %q", rd.Scope, devRunScope)
+	}
+	if rd.Meta != devRunMeta {
+		t.Errorf("meta drift: fixtures.json = %q, pinned = %q", rd.Meta, devRunMeta)
+	}
+	if rd.Active != devRunActive {
+		t.Errorf("active drift: fixtures.json = %v, pinned = %v", rd.Active, devRunActive)
+	}
+	if rd.Transitions != devRunTransitions {
+		t.Errorf("transitions drift: fixtures.json = %q, pinned = %q", rd.Transitions, devRunTransitions)
+	}
+	if rd.NewSignals != devRunNewSignals {
+		t.Errorf("new_signals drift: fixtures.json = %q, pinned = %q", rd.NewSignals, devRunNewSignals)
+	}
+
+	if rd.Degraded == nil {
+		t.Fatalf("degraded drift: fixtures.json has no degraded, pinned = %s/%s", devRunDegradedVantage, devRunDegradedDetail)
+	}
+	if rd.Degraded.Vantage != devRunDegradedVantage || rd.Degraded.Detail != devRunDegradedDetail {
+		t.Errorf("degraded drift:\n fixtures.json = %+v\n pinned        = {%s %s}", *rd.Degraded, devRunDegradedVantage, devRunDegradedDetail)
+	}
+
+	if len(rd.Stages) != len(devRunStages) {
+		t.Fatalf("stages length drift: fixtures.json = %d, pinned = %d", len(rd.Stages), len(devRunStages))
+	}
+	for i, st := range rd.Stages {
+		p := devRunStages[i]
+		if st.Num != p.Num || st.Title != p.Title || st.Detail != p.Detail || st.Done != p.Done || st.Current != p.Current || st.Last != p.Last {
+			t.Errorf("stage %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, st, p)
+		}
+	}
+
+	if len(rd.Log) != len(devRunLog) {
+		t.Fatalf("log length drift: fixtures.json = %d, pinned = %d", len(rd.Log), len(devRunLog))
+	}
+	for i, l := range rd.Log {
+		p := devRunLog[i]
+		if l.Tag != p.Tag || l.Level != p.Level || l.Text != p.Text {
+			t.Errorf("log %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, l, p)
+		}
+	}
+
+	if len(rd.Params) != len(devRunParams) {
+		t.Fatalf("params length drift: fixtures.json = %d, pinned = %d", len(rd.Params), len(devRunParams))
+	}
+	for i, pr := range rd.Params {
+		p := devRunParams[i]
+		if pr.K != p.K || pr.V != p.V {
+			t.Errorf("param %d drift: fixtures.json = %+v, pinned = %+v", i, pr, p)
+		}
+	}
+
+	if len(rd.Vantages) != len(devRunVantages) {
+		t.Fatalf("vantages length drift: fixtures.json = %d, pinned = %d", len(rd.Vantages), len(devRunVantages))
+	}
+	for i, vt := range rd.Vantages {
+		p := devRunVantages[i]
+		if vt.Name != p.Name || vt.Latency != p.Latency || vt.Status != p.Status {
+			t.Errorf("vantage %d drift: fixtures.json = %+v, pinned = %+v", i, vt, p)
+		}
+	}
+}
