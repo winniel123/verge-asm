@@ -108,5 +108,117 @@
         "js": ""
       }
     ]
+  },
+  "signin": {
+    "crop": "body",
+    "states": [
+      {
+        "id": "login",
+        "route": "/login",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "login-sso-none",
+        "route": "/login",
+        "session": "none",
+        "variant": "no-sso",
+        "js": ""
+      },
+      {
+        "id": "totp",
+        "route": "/login",
+        "session": "none",
+        "js": "document.querySelector('input[name=username]').value='ola.perez'; document.querySelector('input[name=password]').value='verge-dev-1'; document.querySelector('form.vg-form').submit();",
+        "delay": 900
+      },
+      {
+        "id": "forgot",
+        "route": "/forgot",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "forgot-sent",
+        "route": "/forgot",
+        "session": "none",
+        "js": "document.querySelector('input[name=username]').value='ola.perez'; document.querySelector('form.vg-form').submit();",
+        "delay": 900
+      },
+      {
+        "id": "reset",
+        "route": "/reset?token=fixture-reset-token",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "reset-invalid",
+        "route": "/reset?token=bad",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "invite",
+        "route": "/invite?token=fixture-invite-token",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "invite-invalid",
+        "route": "/invite?token=bad",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "enroll",
+        "route": "/account/totp/enroll",
+        "session": "viewer",
+        "js": ""
+      },
+      {
+        "id": "recovery",
+        "route": "/account/totp/enroll",
+        "session": "viewer",
+        "js": "var h=document.getElementById('vg-ecode-h'); h.value='482913'; h.form.submit();",
+        "delay": 900
+      }
+    ]
+  },
+  "setup": {
+    "crop": "body",
+    "seed": "empty",
+    "states": [
+      {
+        "id": "default",
+        "route": "/setup",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "error",
+        "route": "/setup",
+        "session": "none",
+        "js": "document.querySelector('input[name=token]').value='wrong'; document.querySelector('input[name=username]').value='ola.perez'; document.querySelector('input[name=password]').value='fixture-password-12'; document.querySelector('form.vg-form').submit();",
+        "delay": 900
+      }
+    ]
+  },
+  "coverage": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/coverage",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "empty",
+        "route": "/coverage",
+        "session": "admin",
+        "seed": "empty-authed",
+        "js": ""
+      }
+    ]
   }
 }

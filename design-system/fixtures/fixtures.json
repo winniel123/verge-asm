@@ -294,5 +294,124 @@
       }
     ],
     "minted_token_fixture": "vg_pat_cigolden0example"
+  },
+  "signin": {
+    "version": "v0.9.2",
+    "sso_providers": [
+      {
+        "slug": "okta",
+        "name": "Okta",
+        "mark": "O"
+      }
+    ],
+    "reset_token": "fixture-reset-token",
+    "invite_token": "fixture-invite-token",
+    "invite_role": "viewer",
+    "totp_accept_code": "482913",
+    "enroll_secret": "VG7K-2Q9X-8MRD-P3TL",
+    "recovery_codes": [
+      "k4mq-9d2x",
+      "7hfa-t3wn",
+      "p8rc-01zk",
+      "vx5j-mm4d",
+      "q2sl-88bh",
+      "e6ty-r7cn",
+      "a1zw-kk3p",
+      "n9gd-45vu"
+    ]
+  },
+  "setup": {
+    "variant": "empty",
+    "token": "fixture-setup-token"
+  },
+  "coverage": {
+    "meters": [
+      {
+        "label": "203.0.113.0/24",
+        "counted": 198,
+        "total": 214,
+        "unit": "subjects",
+        "detail": "16 skipped: excluded subtree + 3 unresolvable names"
+      },
+      {
+        "label": "acmecorp.io (name scope)",
+        "counted": 62,
+        "unit": "addresses",
+        "detail": "census state — a name scope has no denominator; custody extension reaches what resolution reveals"
+      }
+    ],
+    "messages": [
+      {
+        "kind": "gap",
+        "badge": "no address",
+        "subject": "old-blog.acmecorp.io",
+        "text": "Expected a resolution; none observed for 3 checks.",
+        "when": "2h",
+        "iso": "2026-08-22T12:20:04Z"
+      },
+      {
+        "kind": "stale",
+        "badge": "stale",
+        "bound": "9d",
+        "subject": "internal.acmecorp.io zone",
+        "text": "Zone aged past two re-supply intervals — the source went stale.",
+        "when": "9d",
+        "iso": "2026-08-13T04:44:19Z"
+      },
+      {
+        "kind": "silent",
+        "badge": "no reports",
+        "subject": "dc-fra-01",
+        "text": "Vantage stopped reporting mid-batch; open spans are not evaluable.",
+        "when": "41m",
+        "iso": "2026-08-22T13:41:02Z"
+      },
+      {
+        "kind": "not-evaluable",
+        "badge": "not evaluable",
+        "subject": "ap-south-1 conclusions",
+        "text": "Missed 2 of 3 checks this batch; exposure conclusions marked unverified.",
+        "when": "5h",
+        "iso": "2026-08-22T09:03:55Z"
+      }
+    ],
+    "gaps": [
+      {
+        "subject": "old-blog.acmecorp.io",
+        "gap": "no address",
+        "expected": "A record",
+        "since": "2h"
+      },
+      {
+        "subject": "203.0.113.44:22",
+        "gap": "no banner",
+        "expected": "ssh identification",
+        "since": "6h"
+      },
+      {
+        "subject": "mail.acmecorp.io:25",
+        "gap": "no exchange",
+        "expected": "smtp greeting",
+        "since": "1d"
+      }
+    ],
+    "unevaluable": [
+      {
+        "id": "tls-weak-key",
+        "version": 3,
+        "why": "needs a completed tls-acceptance exchange; none committed this batch"
+      },
+      {
+        "id": "zone-removal",
+        "version": 1,
+        "why": "needs a fresh zone file; the upload aged into a gap"
+      }
+    ],
+    "stale_zones": [
+      {
+        "zone": "internal.acmecorp.io",
+        "age": "2 re-supply intervals"
+      }
+    ]
   }
 }

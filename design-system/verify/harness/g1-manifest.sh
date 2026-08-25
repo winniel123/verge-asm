@@ -30,6 +30,9 @@ PATHS=(
   design-system/goldens/inventory
   design-system/goldens/error
   design-system/goldens/profile
+  design-system/goldens/signin
+  design-system/goldens/setup
+  design-system/goldens/coverage
 )
 
 # "<blob-sha>  <path>", sorted by path, C locale for a stable order across machines.
