@@ -487,11 +487,13 @@ func (s *server) ssoUnlink(w http.ResponseWriter, r *http.Request, acct db.Accou
 // password handlers can fall back to the sign-in form carrying a message. It re-lists
 // the enabled providers so the buttons still render on the error re-paint.
 func (s *server) loginData(ctx context.Context, errMsg string) map[string]any {
-	data := map[string]any{"Title": "Sign in", "SSOProviders": s.enabledSSOProviders(ctx)}
+	data := map[string]any{"Title": "Sign in", "SSOProviders": s.loginProviders(ctx, false)}
 	if errMsg != "" {
 		data["Error"] = errMsg
 	}
-	return data
+	// The frozen login.tmpl styles against the design token vocabulary and its authfoot reads
+	// the build version; stamp both so an SSO/password error re-paint carries them too.
+	return s.signinData(data)
 }
 
 // enabledSSOProviders lists the providers SignIn renders a button for. A read failure

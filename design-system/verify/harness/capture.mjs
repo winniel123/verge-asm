@@ -102,6 +102,17 @@ async function mintSession(context, role) {
   await page.close();
 }
 
+// applySeed reshapes the seeded fixture DB into a named variant before a state is captured, via a
+// dev seed route (/dev/seed/{variant}, VERGE_DEV only). A screen (or a single state) may declare a
+// `seed` in states.json — the Setup screen declares seed:"empty" so /dev/seed/empty empties the
+// account table and reopens the first-run window under the pinned fixture token, letting GET /setup
+// render the open bootstrap form. Screens with no `seed` never touch this. Candidate mode only.
+async function applySeed(context, variant) {
+  const page = await context.newPage();
+  await page.goto(`${baseURL}/dev/seed/${encodeURIComponent(variant)}`, { waitUntil: 'networkidle' });
+  await page.close();
+}
+
 // Screens whose states carry a per-state `session` (the error screen) mint per state;
 // screens without it (inventory) log in once per context with --user/--pass.
 const perStateSession = screenStates.states.some((s) => s.session);
@@ -146,6 +157,11 @@ async function run() {
           // per-state route) or the screen-level route (inventory). The profile screen uses the
           // --adopt reseed+cookie route (per state) instead of the per-state /dev/session mint,
           // so a prior state's minted token is reset and the current-session badge resolves.
+          // A seed (screen-level or per-state) reshapes the fixture DB into a named variant first
+          // (Setup's seed:"empty" empties accounts + reopens the setup window). Idempotent, so a
+          // re-seed per state is safe.
+          const seed = st.seed || screenStates.seed;
+          if (seed) await applySeed(context, seed);
           if (adoptPath) {
             const prep = await context.newPage();
             await prep.goto(`${baseURL}${adoptPath}`, { waitUntil: 'networkidle' });
@@ -153,7 +169,10 @@ async function run() {
           } else if (st.session) {
             await mintSession(context, st.session);
           }
-          const route = st.route || screenStates.route;
+          let route = st.route || screenStates.route;
+          // A state may declare a `variant` (signin's login-sso-none): ride it as a ?variant=
+          // query the dev handler reads, so the candidate route matches the golden's variant.
+          if (st.variant) route += (route.includes('?') ? '&' : '?') + 'variant=' + encodeURIComponent(st.variant);
           await page.goto(`${baseURL}${route}`, { waitUntil: 'networkidle' });
         }
 

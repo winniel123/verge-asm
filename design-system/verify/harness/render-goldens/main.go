@@ -30,12 +30,16 @@ import (
 	"html/template"
 	"io/fs"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/auth"
+	"github.com/winniel123/verge-asm/internal/qr"
 )
 
 // The template data shape mirrors the holes the frozen inventory.tmpl reads and
@@ -100,7 +104,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage")
 	out := flag.String("out", "", "inventory: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -165,9 +169,216 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "signin":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen signin")
+		}
+		files, err := renderSigninStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "setup":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen setup")
+		}
+		files, err := renderSetupStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "coverage":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen coverage")
+		}
+		files, err := renderCoverageStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	default:
-		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile)", *screen)
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup | coverage)", *screen)
 	}
+}
+
+// coverageFixture is the design-system/fixtures/fixtures.json coverage slice: the aperture meters
+// (address counted/total, name census), the currency messages (with relative When + ISO tooltip),
+// the gaps register, the unevaluable rules and the per-zone stale callouts. The golden reads them
+// here (never re-hardcoded) so a fixture change flows through; cmd/web/devfixtures.go pins the same
+// values with a drift test (TestCoverageFixtureMatchesPackage).
+type coverageFixture struct {
+	Meters []struct {
+		Label   string `json:"label"`
+		Counted int    `json:"counted"`
+		Total   *int   `json:"total"`
+		Unit    string `json:"unit"`
+		Detail  string `json:"detail"`
+	} `json:"meters"`
+	Messages []struct {
+		Kind    string `json:"kind"`
+		Badge   string `json:"badge"`
+		Bound   string `json:"bound"`
+		Subject string `json:"subject"`
+		Text    string `json:"text"`
+		When    string `json:"when"`
+		ISO     string `json:"iso"`
+	} `json:"messages"`
+	Gaps []struct {
+		Subject  string `json:"subject"`
+		Gap      string `json:"gap"`
+		Expected string `json:"expected"`
+		Since    string `json:"since"`
+	} `json:"gaps"`
+	Unevaluable []struct {
+		ID      string `json:"id"`
+		Version int    `json:"version"`
+		Why     string `json:"why"`
+	} `json:"unevaluable"`
+	StaleZones []struct {
+		Zone string `json:"zone"`
+		Age  string `json:"age"`
+	} `json:"stale_zones"`
+}
+
+func loadCoverageFixture() (coverageFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return coverageFixture{}, err
+	}
+	var ff struct {
+		Coverage coverageFixture `json:"coverage"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return coverageFixture{}, err
+	}
+	return ff.Coverage, nil
+}
+
+// coveragePct replicates cmd/web/cold.go coveragePct byte-for-byte: the ADDRESS-scope meter fill
+// (counted/total, rounded to the nearest whole percent, clamped 0–100). Keeping this arithmetic
+// identical is the point — fixtures.json carries counted/total but no precomputed pct, so the
+// golden must compute the same fill the seeded candidate does.
+func coveragePct(counted, total int) int {
+	if total <= 0 {
+		return 0
+	}
+	p := int(math.Round(float64(counted) / float64(total) * 100))
+	if p < 0 {
+		return 0
+	}
+	if p > 100 {
+		return 100
+	}
+	return p
+}
+
+// renderCoverageStates composes the two Coverage golden HTMLs from the frozen coverage.tmpl, one
+// per states.json coverage state (default, empty). The "default" data map mirrors coveragePage
+// coverageFixtureData EXACTLY (the holes the frozen tmpl reads) — the aperture meters with the
+// #19c address counted/total + computed Pct and the name census, the four relative-time messages,
+// the gaps, the unevaluable rules and the per-zone stale callout, all in fixtures.json authored
+// order — so the cropped `main` is byte-identical to what the seeded server renders. The "empty"
+// state renders every region empty (the tmpl draws its own empty states, no stale callout),
+// mirroring the /dev/seed/empty-authed capture. Chrome is the empty stub (goldens crop to `main`).
+func renderCoverageStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadCoverageFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	meters := make([]map[string]any, 0, len(fx.Meters))
+	for _, m := range fx.Meters {
+		mv := map[string]any{
+			"Label": m.Label, "Counted": strconv.Itoa(m.Counted), "Unit": m.Unit, "Detail": m.Detail,
+		}
+		if m.Total != nil {
+			mv["Total"] = strconv.Itoa(*m.Total)
+			mv["Pct"] = coveragePct(m.Counted, *m.Total)
+		}
+		meters = append(meters, mv)
+	}
+	messages := make([]map[string]any, 0, len(fx.Messages))
+	for _, m := range fx.Messages {
+		messages = append(messages, map[string]any{
+			"Kind": m.Kind, "Badge": m.Badge, "Bound": m.Bound, "Subject": m.Subject, "Text": m.Text, "When": m.When, "ISO": m.ISO,
+		})
+	}
+	gaps := make([]map[string]any, 0, len(fx.Gaps))
+	for _, g := range fx.Gaps {
+		gaps = append(gaps, map[string]any{"Subject": g.Subject, "Gap": g.Gap, "Expected": g.Expected, "Since": g.Since})
+	}
+	unevaluable := make([]map[string]any, 0, len(fx.Unevaluable))
+	for _, u := range fx.Unevaluable {
+		unevaluable = append(unevaluable, map[string]any{"ID": u.ID, "Version": strconv.Itoa(u.Version), "Why": u.Why})
+	}
+	stale := make([]map[string]any, 0, len(fx.StaleZones))
+	for _, z := range fx.StaleZones {
+		stale = append(stale, map[string]any{"Zone": z.Zone, "Age": z.Age})
+	}
+
+	type cstate struct {
+		id   string
+		data map[string]any
+	}
+	states := []cstate{
+		{"default", map[string]any{
+			"Title": "Coverage", "NavActive": "coverage", "DesignTokens": true,
+			"Meters": meters, "Messages": messages, "Gaps": gaps, "Unevaluable": unevaluable, "StaleZones": stale,
+		}},
+		{"empty", map[string]any{
+			"Title": "Coverage", "NavActive": "coverage", "DesignTokens": true,
+			"Meters": []map[string]any{}, "Messages": []map[string]any{}, "Gaps": []map[string]any{},
+			"Unevaluable": []map[string]any{}, "StaleZones": []map[string]any{},
+		}},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/coverage.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "coverage", st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
 }
 
 // goldenHead builds the golden's <head>…<body> shell: the frozen font @import hoisted
@@ -499,6 +710,186 @@ func renderProfileStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+// signinFixture is the design-system/fixtures/fixtures.json → signin slice plus the two login
+// accounts (for the totp step's mid-login username and the enroll screen's account): the build
+// version, the login provider set (slug/name/mark), the well-known reset/invite tokens + invite
+// role, the enroll secret, and the recovery-code set. The golden reads them here (never
+// re-hardcoded) so a fixture change flows through; cmd/web/devfixtures.go pins the same values
+// with a drift test (TestSigninFixtureMatchesPackage).
+type signinFixture struct {
+	Version      string `json:"version"`
+	SSOProviders []struct {
+		Slug string `json:"slug"`
+		Name string `json:"name"`
+		Mark string `json:"mark"`
+	} `json:"sso_providers"`
+	ResetToken    string   `json:"reset_token"`
+	InviteToken   string   `json:"invite_token"`
+	InviteRole    string   `json:"invite_role"`
+	EnrollSecret  string   `json:"enroll_secret"`
+	RecoveryCodes []string `json:"recovery_codes"`
+	// AdminUser / ViewerUser are read from the top-level accounts slice: the totp step names the
+	// mid-login admin account, the enroll/recovery screens run as the viewer session account.
+	AdminUser  string
+	ViewerUser string
+}
+
+func loadSigninFixture() (signinFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return signinFixture{}, err
+	}
+	var ff struct {
+		Signin   signinFixture `json:"signin"`
+		Accounts []struct {
+			Username string `json:"username"`
+			Role     string `json:"role"`
+		} `json:"accounts"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return signinFixture{}, err
+	}
+	sf := ff.Signin
+	for _, a := range ff.Accounts {
+		switch a.Role {
+		case "admin":
+			if sf.AdminUser == "" {
+				sf.AdminUser = a.Username
+			}
+		case "viewer":
+			if sf.ViewerUser == "" {
+				sf.ViewerUser = a.Username
+			}
+		}
+	}
+	return sf, nil
+}
+
+// renderSigninStates composes the SignIn-family golden HTMLs from the frozen signin.tmpl, one per
+// states.json signin state (states.json is authoritative: 11 states, no reset-done). Each state's
+// data map mirrors the handler output EXACTLY (the holes the frozen tmpl reads) so the chrome-less
+// `body` crop is byte-identical to what the seeded server renders — golden and candidate = same
+// tmpl, same holes. Every page emits authfoot, so every map carries .Version. The enroll QR is
+// built with the SAME auth.OtpauthURI + qr.SVG the handler's totpEnrollData uses, over the same
+// secret + viewer username + issuer, so the two encodings are byte-identical.
+func renderSigninStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadSigninFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	// issuer mirrors cmd/web's `issuer` const (auth.go); the enroll otpauth URI names it.
+	const issuer = "Verge ASM"
+
+	providers := make([]map[string]any, 0, len(fx.SSOProviders))
+	for _, p := range fx.SSOProviders {
+		providers = append(providers, map[string]any{"Slug": p.Slug, "Name": p.Name, "Mark": p.Mark})
+	}
+
+	// Enroll: build the QR from the pinned secret + viewer account, exactly as totpEnrollData does.
+	enrollURI := auth.OtpauthURI(fx.EnrollSecret, fx.ViewerUser, issuer)
+	enrollSVG, err := qr.SVG([]byte(enrollURI), "Two-factor enrollment QR code for "+fx.ViewerUser)
+	if err != nil {
+		return nil, fmt.Errorf("signin: build enroll QR: %w", err)
+	}
+
+	v := func(m map[string]any) map[string]any {
+		m["Version"] = fx.Version
+		return m
+	}
+
+	type sstate struct {
+		id   string
+		tmpl string
+		data map[string]any
+	}
+	states := []sstate{
+		{"login", "login", v(map[string]any{"Notice": "", "Error": "", "SSOProviders": providers})},
+		{"login-sso-none", "login", v(map[string]any{"Notice": "", "Error": "", "SSOProviders": []map[string]any{}})},
+		{"totp", "totp", v(map[string]any{"Error": "", "Username": fx.AdminUser})},
+		{"forgot", "forgot", v(map[string]any{})},
+		{"forgot-sent", "forgot-sent", v(map[string]any{})},
+		{"reset", "reset", v(map[string]any{"Error": "", "Token": fx.ResetToken})},
+		{"reset-invalid", "reset-invalid", v(map[string]any{})},
+		{"invite", "invite", v(map[string]any{"Error": "", "Token": fx.InviteToken, "Role": fx.InviteRole, "Username": ""})},
+		{"invite-invalid", "invite-invalid", v(map[string]any{})},
+		{"enroll", "totp-enroll", v(map[string]any{"Error": "", "Secret": fx.EnrollSecret, "OtpauthQR": template.HTML(enrollSVG)})}, // #nosec G203 -- trusted QR SVG built by our own encoder, no user input
+		{"recovery", "totp-recovery", v(map[string]any{"Codes": fx.RecoveryCodes})},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/signin.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, st.tmpl, st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+// renderSetupStates composes the Setup screen's golden HTMLs from the frozen setup.tmpl, one per
+// states.json setup state (default, error). setup.tmpl's single "setup" define reuses the SignIn
+// family's shared authcss / authbrand / authfoot partials, so BOTH signin.tmpl and setup.tmpl are
+// parsed into the stub set for those refs to resolve — mirroring the app, where both parse into the
+// one shared set. Each state's data map mirrors the setupForm / setupSubmit handler output EXACTLY
+// (the .Error / .Token / .Version holes): "default" is the open first-run form (no error, empty
+// token) and "error" is the invalid-token re-render the states.json script drives (POST with
+// token="wrong" → "Invalid setup token." with the rejected token echoed back). .Version is the
+// SignIn fixture's build version (the authfoot the app fills via buildVersion→devFixtureVersion), so
+// the chrome-less footer matches the candidate. The `body` crop is byte-identical to the seeded
+// server's render — golden and candidate = same tmpl, same holes.
+func renderSetupStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	// The version hole is filled by authfoot on every SignIn-family page, Setup included; it comes
+	// from the SignIn fixture slice (the app's buildVersion returns devFixtureVersion in dev).
+	sf, err := loadSigninFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	type sstate struct {
+		id   string
+		data map[string]any
+	}
+	states := []sstate{
+		{"default", map[string]any{"Error": "", "Token": "", "Version": sf.Version}},
+		{"error", map[string]any{"Error": "Invalid setup token.", "Token": "wrong", "Version": sf.Version}},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		// signin.tmpl carries the shared authcss/authbrand/authfoot setup.tmpl calls; parse both.
+		if _, err := t.ParseFS(designfs.FS, "templates/signin.tmpl", "templates/setup.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "setup", st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
 	}
 	return out, nil
 }

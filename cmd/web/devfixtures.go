@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/winniel123/verge-asm/internal/auth"
@@ -353,6 +355,200 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
+// --- screen 4: SignIn family fixture (package v3.7.0, WORK-ORDER-4-6-BATCH1.md) -------------
+//
+// Everything below pins the SignIn-family fixture (design-system/fixtures/fixtures.json →
+// signin) so the login / totp / enroll / recovery / forgot / reset / invite states render
+// byte-for-byte for the pixel harness. The pinned constants are the single source of the seed
+// and the dev capture affordances (buildVersion, loginProviders, the totp code + recovery-code
+// determinism, beginTOTPEnroll); TestSigninFixtureMatchesPackage folds each one back through
+// fixtures.json → signin and fails the build on any divergence — the byte-exactness gate before
+// the pixels, exactly as TestProfileFixtureMatchesPackage guards the Profile slice. All of it
+// runs only under VERGE_DEV; a real deployment reaches none of it.
+
+const (
+	// devFixtureVersion is fixtures.json → signin.version: the build version the chrome-less
+	// authfoot renders ({{.Version}}). buildVersion returns it in a VERGE_DEV build so the
+	// SignIn/Setup goldens' footer is stable; a real build reads VERGE_VERSION.
+	devFixtureVersion = "v0.9.2"
+
+	// devFixtureTOTPCode is fixtures.json → signin.totp_accept_code: the code a VERGE_DEV build
+	// accepts at the TOTP login step and at enrolment-confirm, so the harness can pass the
+	// second factor deterministically. A real build always runs the RFC 6238 verification.
+	devFixtureTOTPCode = "482913"
+
+	// devFixtureEnrollSecret is fixtures.json → signin.enroll_secret: the secret the enrolment
+	// screen shows (and encodes into its QR) in a VERGE_DEV build, so the enroll golden is
+	// stable. It is the design's readable display string (dash-grouped), not a verifiable base32
+	// seed — which is why dev confirm accepts the pinned code rather than verifying against it.
+	devFixtureEnrollSecret = "VG7K-2Q9X-8MRD-P3TL" // #nosec G101 -- not a real credential: a fixed dev-only fixture secret shown only in a VERGE_DEV build
+
+	// devFixtureResetToken / devFixtureInviteToken are fixtures.json → signin.reset_token /
+	// invite_token: the well-known plaintext tokens the seed writes (as SHA-256 hashes) so
+	// /reset?token=… and /invite?token=… resolve to a real row for the capture.
+	devFixtureResetToken  = "fixture-reset-token"  // #nosec G101 -- not a real credential: a fixed dev-only reset token, seeded (hashed) only under VERGE_DEV
+	devFixtureInviteToken = "fixture-invite-token" // #nosec G101 -- not a real credential: a fixed dev-only invite token, seeded (hashed) only under VERGE_DEV
+
+	// devFixtureInviteRole is fixtures.json → signin.invite_role: the role the seeded invite
+	// grants (the frozen invite card renders it in its sub-line).
+	devFixtureInviteRole = roleViewer
+)
+
+// devSigninProvider is one pinned login SSO button (fixtures.json → signin.sso_providers): the
+// slug, display name, and the mono Mark. loginProviders returns this set in a VERGE_DEV build
+// so the login golden shows exactly the fixture's provider — even though the shared fixture DB
+// also enables the Profile screen's linkable Google provider (which a real login would list too).
+type devSigninProvider struct {
+	slug string
+	name string
+	mark string
+}
+
+// devSigninProviders pins fixtures.json → signin.sso_providers, in fixture order.
+var devSigninProviders = []devSigninProvider{
+	{slug: "okta", name: "Okta", mark: "O"},
+}
+
+// devFixtureRecoveryCodes pins fixtures.json → signin.recovery_codes: the recovery set the
+// enrolment-confirm reveals in a VERGE_DEV build, so the recovery golden is stable. A real
+// enrolment draws fresh high-entropy codes (newRecoveryCodes).
+var devFixtureRecoveryCodes = []string{
+	"k4mq-9d2x", "7hfa-t3wn", "p8rc-01zk", "vx5j-mm4d",
+	"q2sl-88bh", "e6ty-r7cn", "a1zw-kk3p", "n9gd-45vu",
+}
+
+// recoveryCodes returns the recovery set to reveal + store at enrolment-confirm. A VERGE_DEV
+// build returns the pinned fixture set (with bcrypt hashes to store); a real build draws fresh
+// high-entropy codes. Splitting here keeps the dev determinism out of the real credential path.
+func (s *server) recoveryCodes() (plain, hashes []string, err error) {
+	if s.devMode {
+		plain = append(plain, devFixtureRecoveryCodes...)
+		for _, code := range devFixtureRecoveryCodes {
+			h, herr := auth.HashPassword(code)
+			if herr != nil {
+				return nil, nil, herr
+			}
+			hashes = append(hashes, h)
+		}
+		return plain, hashes, nil
+	}
+	return newRecoveryCodes(recoveryCodeCount)
+}
+
+// devResetTOTPEnroll clears any prior two-factor enrolment on an account (VERGE_DEV only) so the
+// GET /account/totp/enroll capture always lands on the enroll screen, no matter that a previous
+// recovery-state capture enabled two-factor on the same fixture account against the shared DB.
+// It touches only the named account's own rows (totp columns + recovery codes) and is nil-guarded
+// on the raw pool the dev build wires.
+func (s *server) devResetTOTPEnroll(ctx context.Context, accountID int64) error {
+	if s.pool == nil {
+		return fmt.Errorf("dev: reset totp: pool not wired")
+	}
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE account SET totp_enabled = false, totp_secret = NULL, totp_last_step = NULL WHERE id = $1`,
+		accountID); err != nil {
+		return fmt.Errorf("dev: reset totp columns: %w", err)
+	}
+	if err := s.store.DeleteRecoveryCodesForAccount(ctx, accountID); err != nil {
+		return fmt.Errorf("dev: reset recovery codes: %w", err)
+	}
+	return nil
+}
+
+// seedSigninFixtures seeds the SignIn-family fixture (fixtures.json → signin) so the harness's
+// /reset and /invite capture states resolve to a real row: a single-use password-reset grant for
+// the ola.perez admin under the well-known reset-token hash, and a viewer-role invite under the
+// well-known invite-token hash. Both are pinned unexpired against the fixture clock. It is
+// idempotent (it deletes any row under those hashes before inserting) and runs only from the
+// -seed-fixtures one-shot (main.go, VERGE_DEV-gated), after seedDevFixtureAccounts. The login
+// provider set and the enrol/recovery determinism need no seed — they are dev capture affordances
+// resolved in the handlers. TotpEnabled on ola.perez (seeded true by seedProfileFixtures) is what
+// makes the login→totp capture land on the second-factor step.
+func seedSigninFixtures(ctx context.Context, pool *pgxpool.Pool) error {
+	clock, err := devFixtureClockTime()
+	if err != nil {
+		return fmt.Errorf("signin fixture: parse clock: %w", err)
+	}
+	q := db.New(pool)
+	acct, err := q.GetAccountByUsername(ctx, devProfileUsername)
+	if err != nil {
+		return fmt.Errorf("signin fixture: account %q not seeded: %w", devProfileUsername, err)
+	}
+
+	// Password reset — one unspent, unexpired grant under the well-known token hash, so
+	// /reset?token=fixture-reset-token resolves. Reset any prior row under the hash first.
+	resetHash := hashToken(devFixtureResetToken)
+	if _, err := pool.Exec(ctx, `DELETE FROM password_reset WHERE token_hash = $1`, resetHash); err != nil {
+		return fmt.Errorf("signin fixture: reset password_reset: %w", err)
+	}
+	if _, err := q.CreatePasswordReset(ctx, db.CreatePasswordResetParams{
+		AccountID: acct.ID, TokenHash: resetHash,
+		ExpiresAt: pgtype.Timestamptz{Time: clock.Add(30 * time.Minute), Valid: true},
+	}); err != nil {
+		return fmt.Errorf("signin fixture: create password_reset: %w", err)
+	}
+
+	// Invite — one unspent, unexpired viewer invite under the well-known token hash, so
+	// /invite?token=fixture-invite-token resolves. Reset any prior row under the hash first.
+	inviteHash := hashToken(devFixtureInviteToken)
+	if _, err := pool.Exec(ctx, `DELETE FROM invite WHERE token_hash = $1`, inviteHash); err != nil {
+		return fmt.Errorf("signin fixture: reset invite: %w", err)
+	}
+	if _, err := q.CreateInvite(ctx, db.CreateInviteParams{
+		TokenHash: inviteHash, Role: devFixtureInviteRole,
+		InvitedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+		ExpiresAt: pgtype.Timestamptz{Time: clock.Add(72 * time.Hour), Valid: true},
+	}); err != nil {
+		return fmt.Errorf("signin fixture: create invite: %w", err)
+	}
+	return nil
+}
+
+// --- screen 5: Setup fixture (package v3.7.0, WORK-ORDER-4-6-BATCH1.md) ---------------------
+//
+// The Setup screen (#550) is the chrome-less first-run bootstrap surface, which renders ONLY
+// while no accounts exist. The shared fixture DB the harness seeds always has accounts (the
+// admin + viewer + the Profile/SignIn fixtures), so at boot bootstrapSetupToken returns "" and
+// the setup window is shut. The dev affordance below is how the Setup capture (states.json
+// setup, top-level seed:"empty") reaches the open first-run form: it empties the accounts table
+// (closing every dependent row by cascade) and reopens the window under the pinned fixture
+// token. There is no positive one-shot seed for Setup — its "fixture" is the empty variant plus
+// the pinned token — so main.go's -seed-fixtures block is left untouched. TestSetupFixtureMatchesPackage
+// is the byte-exactness gate that the token here equals the frozen fixtures.json → setup.token.
+
+// devFixtureSetupToken is the single-use setup token the dev seed route reopens the first-run
+// /setup window with, so the Setup screen's capture renders deterministically. It mirrors
+// design-system/fixtures/fixtures.json → setup.token; TestSetupFixtureMatchesPackage folds it
+// back through the frozen package. A real deployment draws VERGE_SETUP_TOKEN or a crypto/rand
+// token (bootstrapSetupToken) — this value is never used outside a VERGE_DEV build.
+const devFixtureSetupToken = "fixture-setup-token" // #nosec G101 -- dev-only fixture setup token, not a real credential
+
+// devSetupSeedEmpty is the /dev/seed/empty handler (VERGE_DEV only): it realizes the Setup
+// screen's seed:"empty" variant. Because the shared fixture DB is seeded with accounts (so the
+// setup window is shut and s.setupToken is ""), this route empties the account table — cascading
+// to every session / identity / token / reset / invite row — and reopens the first-run window
+// under devFixtureSetupToken, so GET /setup renders the open form for the pixel capture. Setup is
+// the LAST screen the run.sh candidate block captures, so emptying the shared fixture DB here
+// never strands an earlier screen's capture. Dev-only, nil-guarded on the raw pool the dev build
+// wires; the token assignment is serialised under the same setupMu setupSubmit takes.
+func (s *server) devSetupSeedEmpty(w http.ResponseWriter, r *http.Request) {
+	if s.pool == nil {
+		s.notFound(w, r)
+		return
+	}
+	if _, err := s.pool.Exec(r.Context(), `TRUNCATE account RESTART IDENTITY CASCADE`); err != nil {
+		s.serverError(w, "dev: empty accounts for setup capture", err)
+		return
+	}
+	s.setupMu.Lock()
+	s.setupToken = devFixtureSetupToken
+	s.setupMu.Unlock()
+	// A 200 with a tiny body (not 204) so the harness's page.goto completes the navigation — a
+	// 204 makes Chromium abort it (net::ERR_ABORTED), mirroring devProfileSessionPrepare.
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("ok"))
+}
+
 // seedDevSSOProvider upserts one enabled OIDC provider by slug and returns its id. The
 // issuer/client_id are dev placeholders (the Profile screen never exercises the flow — it
 // only lists the provider); the client secret stays NULL. Dev-only, from the seed one-shot.
@@ -369,4 +565,176 @@ func seedDevSSOProvider(ctx context.Context, pool *pgxpool.Pool, slug, name stri
 		return 0, fmt.Errorf("profile fixture: upsert sso provider %q: %w", slug, err)
 	}
 	return id, nil
+}
+
+// --- screen 6: Coverage fixture (package v3.7.0, WORK-ORDER-4-6-BATCH1.md) ------------------
+//
+// The Coverage screen (#551/#552) renders inside the full app chrome and is DB-backed only in
+// its session (a real admin, minted by the harness). Its VIEW corpus — the #19c address-scope
+// counted/total meter, the two-shape aperture (address counted/total, name census), the four
+// relative-time currency messages, the gaps register, the unevaluable rules and the per-zone
+// stale callout — is the design curated fixture, not a live-estate read: the exact message copy,
+// the 198/214 figures (with the "16 skipped" breakdown) and the when/iso pair (When is the
+// last-check age, ISO the underlying event instant — the two deliberately do NOT correlate
+// through the fixture clock) cannot be reconstructed from the live derivations without fabricating
+// domain data, which SPEC-CHANGE forbids. So, exactly as the SignIn/Setup screens pin their dev
+// fixture (login providers, recovery codes, setup token) and serve it under devMode, coveragePage
+// serves the pinned fixtures.json coverage slice below when s.devMode, and
+// TestCoverageFixtureMatchesPackage folds every value back through the frozen package — the
+// byte-exactness gate before the pixels. All of it is VERGE_DEV-only; a real deployment renders
+// the honest live census reads in cold.go coveragePage instead.
+
+// devCoverageMeter mirrors one fixtures.json coverage.meters entry. total is a pointer so a name
+// scope (no denominator) is a census (nil), matching the frozen JSON omitted "total".
+type devCoverageMeter struct {
+	label   string
+	counted int
+	total   *int
+	unit    string
+	detail  string
+}
+
+// devCoverageMessage mirrors one fixtures.json coverage.messages entry (bound empty where the
+// staleness chip carries no trailing figure).
+type devCoverageMessage struct {
+	kind    string
+	badge   string
+	bound   string
+	subject string
+	text    string
+	when    string
+	iso     string
+}
+
+type devCoverageGap struct {
+	subject  string
+	gap      string
+	expected string
+	since    string
+}
+
+type devCoverageUnevaluable struct {
+	id      string
+	version int
+	why     string
+}
+
+type devCoverageStaleZone struct {
+	zone string
+	age  string
+}
+
+// coverageTotal214 backs the address-scope meter nullable denominator (a package-level so its
+// address is stable). One named var reads clearer than an intptr helper.
+var coverageTotal214 = 214
+
+// devCoverageMeters pins fixtures.json coverage.meters in authored order: an ADDRESS scope
+// (203.0.113.0/24) rendering 198/214 subjects with the skip breakdown, then a NAME scope
+// (acmecorp.io) as a census of 62 addresses (no denominator).
+var devCoverageMeters = []devCoverageMeter{
+	{label: "203.0.113.0/24", counted: 198, total: &coverageTotal214, unit: "subjects", detail: "16 skipped: excluded subtree + 3 unresolvable names"},
+	{label: "acmecorp.io (name scope)", counted: 62, total: nil, unit: "addresses", detail: "census state — a name scope has no denominator; custody extension reaches what resolution reveals"},
+}
+
+// devCoverageMessages pins fixtures.json coverage.messages in authored order (gap / stale·9d /
+// silent / not-evaluable), each carrying the relative When and the ISO tooltip instant.
+var devCoverageMessages = []devCoverageMessage{
+	{kind: "gap", badge: "no address", subject: "old-blog.acmecorp.io", text: "Expected a resolution; none observed for 3 checks.", when: "2h", iso: "2026-08-22T12:20:04Z"},
+	{kind: "stale", badge: "stale", bound: "9d", subject: "internal.acmecorp.io zone", text: "Zone aged past two re-supply intervals — the source went stale.", when: "9d", iso: "2026-08-13T04:44:19Z"},
+	{kind: "silent", badge: "no reports", subject: "dc-fra-01", text: "Vantage stopped reporting mid-batch; open spans are not evaluable.", when: "41m", iso: "2026-08-22T13:41:02Z"},
+	{kind: "not-evaluable", badge: "not evaluable", subject: "ap-south-1 conclusions", text: "Missed 2 of 3 checks this batch; exposure conclusions marked unverified.", when: "5h", iso: "2026-08-22T09:03:55Z"},
+}
+
+// devCoverageGaps pins fixtures.json coverage.gaps in authored order.
+var devCoverageGaps = []devCoverageGap{
+	{subject: "old-blog.acmecorp.io", gap: "no address", expected: "A record", since: "2h"},
+	{subject: "203.0.113.44:22", gap: "no banner", expected: "ssh identification", since: "6h"},
+	{subject: "mail.acmecorp.io:25", gap: "no exchange", expected: "smtp greeting", since: "1d"},
+}
+
+// devCoverageUnevaluables pins fixtures.json coverage.unevaluable in authored order.
+var devCoverageUnevaluables = []devCoverageUnevaluable{
+	{id: "tls-weak-key", version: 3, why: "needs a completed tls-acceptance exchange; none committed this batch"},
+	{id: "zone-removal", version: 1, why: "needs a fresh zone file; the upload aged into a gap"},
+}
+
+// devCoverageStaleZones pins fixtures.json coverage.stale_zones in authored order.
+var devCoverageStaleZones = []devCoverageStaleZone{
+	{zone: "internal.acmecorp.io", age: "2 re-supply intervals"},
+}
+
+// coverageFixtureData assembles the render data map coveragePage passes to the frozen
+// coverage.tmpl in a VERGE_DEV build. It stamps the chrome + design-token holes, then either the
+// full pinned fixture corpus or — when a preceding GET /dev/seed/empty-authed set the
+// consume-once empty flag — the empty estate (every region nil, so the tmpl draws its empty
+// states and no stale callout), reading-and-clearing the flag so a later "default" capture (which
+// applies no seed) renders the full corpus again. The address-scope Pct is computed here with the
+// same coveragePct arithmetic render-goldens replicates, so golden and candidate agree.
+func (s *server) coverageFixtureData(acct db.Account) map[string]any {
+	data := map[string]any{
+		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "coverage", "DesignTokens": true,
+	}
+
+	s.coverageMu.Lock()
+	empty := s.coverageEmptyOnce
+	s.coverageEmptyOnce = false
+	s.coverageMu.Unlock()
+	if empty {
+		data["Meters"] = []coverageMeterView(nil)
+		data["Messages"] = []coverageMessageView(nil)
+		data["Gaps"] = []coverageGapView(nil)
+		data["Unevaluable"] = []unevaluableRuleView(nil)
+		data["StaleZones"] = []coverageStaleZoneView(nil)
+		return data
+	}
+
+	meters := make([]coverageMeterView, 0, len(devCoverageMeters))
+	for _, m := range devCoverageMeters {
+		mv := coverageMeterView{Label: m.label, Counted: strconv.Itoa(m.counted), Unit: m.unit, Detail: m.detail}
+		if m.total != nil {
+			t := strconv.Itoa(*m.total)
+			mv.Total = &t
+			mv.Pct = coveragePct(m.counted, *m.total)
+		}
+		meters = append(meters, mv)
+	}
+	messages := make([]coverageMessageView, 0, len(devCoverageMessages))
+	for _, m := range devCoverageMessages {
+		messages = append(messages, coverageMessageView{
+			Kind: m.kind, Badge: m.badge, Bound: m.bound, Subject: m.subject, Text: m.text, When: m.when, ISO: m.iso,
+		})
+	}
+	gaps := make([]coverageGapView, 0, len(devCoverageGaps))
+	for _, g := range devCoverageGaps {
+		gaps = append(gaps, coverageGapView{Subject: g.subject, Gap: g.gap, Expected: g.expected, Since: g.since})
+	}
+	unevaluable := make([]unevaluableRuleView, 0, len(devCoverageUnevaluables))
+	for _, u := range devCoverageUnevaluables {
+		unevaluable = append(unevaluable, unevaluableRuleView{ID: u.id, Version: strconv.Itoa(u.version), Why: u.why})
+	}
+	stale := make([]coverageStaleZoneView, 0, len(devCoverageStaleZones))
+	for _, z := range devCoverageStaleZones {
+		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
+	}
+
+	data["Meters"] = meters
+	data["Messages"] = messages
+	data["Gaps"] = gaps
+	data["Unevaluable"] = unevaluable
+	data["StaleZones"] = stale
+	return data
+}
+
+// devCoverageSeedEmpty is the GET /dev/seed/empty-authed handler (VERGE_DEV only): it realizes
+// states.json coverage seed:"empty-authed" by arming the consume-once empty flag coveragePage
+// reads, so the NEXT /coverage render serves the empty estate. Unlike /dev/seed/empty (Setup) it
+// touches no table — the authed admin session Coverage states run under is preserved. A 200 with a
+// tiny body (not 204) so the harness page.goto completes the navigation, mirroring the Setup route.
+func (s *server) devCoverageSeedEmpty(w http.ResponseWriter, r *http.Request) {
+	s.coverageMu.Lock()
+	s.coverageEmptyOnce = true
+	s.coverageMu.Unlock()
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("ok"))
 }

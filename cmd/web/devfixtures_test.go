@@ -200,3 +200,234 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureSigninPackage mirrors the design-owned fixtures.json → signin slice the screen-4 dev
+// affordances pin in devfixtures.go: the build version, provider set (slug/name/mark), the
+// well-known reset/invite tokens + invite role, the accepted TOTP code, the enroll secret, and
+// the recovery-code set.
+type fixtureSigninPackage struct {
+	Signin struct {
+		Version      string `json:"version"`
+		SSOProviders []struct {
+			Slug string `json:"slug"`
+			Name string `json:"name"`
+			Mark string `json:"mark"`
+		} `json:"sso_providers"`
+		ResetToken    string   `json:"reset_token"`
+		InviteToken   string   `json:"invite_token"`
+		InviteRole    string   `json:"invite_role"`
+		TotpAcceptCode string  `json:"totp_accept_code"`
+		EnrollSecret  string   `json:"enroll_secret"`
+		RecoveryCodes []string `json:"recovery_codes"`
+	} `json:"signin"`
+}
+
+// TestSigninFixtureMatchesPackage is the byte-exactness gate for the screen-4 conversion: every
+// value devfixtures.go pins is folded back through the frozen fixtures.json → signin slice, so a
+// drift between the seed/dev affordances and the frozen package fails here rather than in a
+// screenshot diff — exactly as TestProfileFixtureMatchesPackage guards the Profile slice. It
+// also asserts the repo's Mark derivation reproduces the fixture's mark, and that the recovery
+// count matches the enrolment count.
+func TestSigninFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureSigninPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	s := f.Signin
+
+	if s.Version != devFixtureVersion {
+		t.Errorf("version drift: fixtures.json = %q, devFixtureVersion = %q", s.Version, devFixtureVersion)
+	}
+	if s.ResetToken != devFixtureResetToken {
+		t.Errorf("reset token drift: fixtures.json = %q, devFixtureResetToken = %q", s.ResetToken, devFixtureResetToken)
+	}
+	if s.InviteToken != devFixtureInviteToken {
+		t.Errorf("invite token drift: fixtures.json = %q, devFixtureInviteToken = %q", s.InviteToken, devFixtureInviteToken)
+	}
+	if s.InviteRole != devFixtureInviteRole {
+		t.Errorf("invite role drift: fixtures.json = %q, devFixtureInviteRole = %q", s.InviteRole, devFixtureInviteRole)
+	}
+	if s.TotpAcceptCode != devFixtureTOTPCode {
+		t.Errorf("totp code drift: fixtures.json = %q, devFixtureTOTPCode = %q", s.TotpAcceptCode, devFixtureTOTPCode)
+	}
+	if s.EnrollSecret != devFixtureEnrollSecret {
+		t.Errorf("enroll secret drift: fixtures.json = %q, devFixtureEnrollSecret = %q", s.EnrollSecret, devFixtureEnrollSecret)
+	}
+
+	// Providers — slug, name, and the repo-derived Mark all equal the fixture, in order.
+	if len(s.SSOProviders) != len(devSigninProviders) {
+		t.Fatalf("provider count drift: fixtures.json = %d, devSigninProviders = %d", len(s.SSOProviders), len(devSigninProviders))
+	}
+	for i, want := range s.SSOProviders {
+		got := devSigninProviders[i]
+		if got.slug != want.Slug || got.name != want.Name || got.mark != want.Mark {
+			t.Errorf("provider[%d] drift: fixtures.json = {%q,%q,%q}, seeder = {%q,%q,%q}",
+				i, want.Slug, want.Name, want.Mark, got.slug, got.name, got.mark)
+		}
+		if m := ssoMark(want.Name); m != want.Mark {
+			t.Errorf("provider[%d] Mark derivation drift: ssoMark(%q) = %q, fixtures.json = %q", i, want.Name, m, want.Mark)
+		}
+	}
+
+	// Recovery codes — exact set + order, and the count matches the enrolment count.
+	if len(s.RecoveryCodes) != len(devFixtureRecoveryCodes) {
+		t.Fatalf("recovery count drift: fixtures.json = %d, devFixtureRecoveryCodes = %d", len(s.RecoveryCodes), len(devFixtureRecoveryCodes))
+	}
+	if len(s.RecoveryCodes) != recoveryCodeCount {
+		t.Errorf("recovery count %d != enrolment count %d", len(s.RecoveryCodes), recoveryCodeCount)
+	}
+	for i, want := range s.RecoveryCodes {
+		if devFixtureRecoveryCodes[i] != want {
+			t.Errorf("recovery[%d] drift: fixtures.json = %q, seeder = %q", i, want, devFixtureRecoveryCodes[i])
+		}
+	}
+}
+
+// fixtureSetupPackage mirrors the design-owned fixtures.json → setup slice the screen-5 dev
+// affordance pins in devfixtures.go: the empty-seed variant and the single-use setup token the
+// dev seed route (/dev/seed/empty) reopens the first-run window with.
+type fixtureSetupPackage struct {
+	Setup struct {
+		Variant string `json:"variant"`
+		Token   string `json:"token"`
+	} `json:"setup"`
+}
+
+// TestSetupFixtureMatchesPackage is the byte-exactness gate for the screen-5 conversion: the
+// setup token devfixtures.go pins (devFixtureSetupToken) equals the frozen fixtures.json →
+// setup.token, and the fixture's seed variant is the "empty" one the capture harness + dev route
+// realize — so a drift between the dev affordance and the frozen package fails here rather than
+// in a screenshot diff, exactly as TestSigninFixtureMatchesPackage guards the SignIn slice.
+func TestSetupFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureSetupPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	if f.Setup.Token != devFixtureSetupToken {
+		t.Errorf("setup token drift: fixtures.json = %q, devFixtureSetupToken = %q", f.Setup.Token, devFixtureSetupToken)
+	}
+	if f.Setup.Variant != "empty" {
+		t.Errorf("setup variant drift: fixtures.json = %q, want %q (the dev seed route empties accounts)", f.Setup.Variant, "empty")
+	}
+}
+
+// fixtureCoveragePackage mirrors the fixtures.json coverage slice the screen-6 dev fixture pins
+// in devfixtures.go (devCoverageMeters/Messages/Gaps/Unevaluables/StaleZones). total and bound are
+// pointers/optional so an absent JSON key (a name-scope census meter; a message with no staleness
+// figure) round-trips as nil/"".
+type fixtureCoveragePackage struct {
+	Coverage struct {
+		Meters []struct {
+			Label   string `json:"label"`
+			Counted int    `json:"counted"`
+			Total   *int   `json:"total"`
+			Unit    string `json:"unit"`
+			Detail  string `json:"detail"`
+		} `json:"meters"`
+		Messages []struct {
+			Kind    string `json:"kind"`
+			Badge   string `json:"badge"`
+			Bound   string `json:"bound"`
+			Subject string `json:"subject"`
+			Text    string `json:"text"`
+			When    string `json:"when"`
+			ISO     string `json:"iso"`
+		} `json:"messages"`
+		Gaps []struct {
+			Subject  string `json:"subject"`
+			Gap      string `json:"gap"`
+			Expected string `json:"expected"`
+			Since    string `json:"since"`
+		} `json:"gaps"`
+		Unevaluable []struct {
+			ID      string `json:"id"`
+			Version int    `json:"version"`
+			Why     string `json:"why"`
+		} `json:"unevaluable"`
+		StaleZones []struct {
+			Zone string `json:"zone"`
+			Age  string `json:"age"`
+		} `json:"stale_zones"`
+	} `json:"coverage"`
+}
+
+// TestCoverageFixtureMatchesPackage is the byte-exactness gate for the screen-6 conversion: every
+// value the dev fixture pins (devfixtures.go, served by coveragePage under devMode) equals the
+// frozen fixtures.json coverage slice, in authored order — so a drift between the served candidate
+// and the golden (which composes the same fixture statically) fails here rather than in a
+// screenshot diff, exactly as TestSigninFixtureMatchesPackage guards the SignIn slice. It also
+// asserts the *int total round-trips (address scope set, name scope nil), the anchor of #19c.
+func TestCoverageFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureCoveragePackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+
+	if len(f.Coverage.Meters) != len(devCoverageMeters) {
+		t.Fatalf("meters length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.Meters), len(devCoverageMeters))
+	}
+	for i, m := range f.Coverage.Meters {
+		p := devCoverageMeters[i]
+		if m.Label != p.label || m.Counted != p.counted || m.Unit != p.unit || m.Detail != p.detail {
+			t.Errorf("meter %d drift: fixtures.json = %+v, pinned = %+v", i, m, p)
+		}
+		switch {
+		case m.Total == nil && p.total != nil, m.Total != nil && p.total == nil:
+			t.Errorf("meter %d total presence drift: fixtures.json nil=%v, pinned nil=%v", i, m.Total == nil, p.total == nil)
+		case m.Total != nil && p.total != nil && *m.Total != *p.total:
+			t.Errorf("meter %d total drift: fixtures.json = %d, pinned = %d", i, *m.Total, *p.total)
+		}
+	}
+
+	if len(f.Coverage.Messages) != len(devCoverageMessages) {
+		t.Fatalf("messages length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.Messages), len(devCoverageMessages))
+	}
+	for i, m := range f.Coverage.Messages {
+		p := devCoverageMessages[i]
+		if m.Kind != p.kind || m.Badge != p.badge || m.Bound != p.bound || m.Subject != p.subject || m.Text != p.text || m.When != p.when || m.ISO != p.iso {
+			t.Errorf("message %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, m, p)
+		}
+	}
+
+	if len(f.Coverage.Gaps) != len(devCoverageGaps) {
+		t.Fatalf("gaps length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.Gaps), len(devCoverageGaps))
+	}
+	for i, g := range f.Coverage.Gaps {
+		p := devCoverageGaps[i]
+		if g.Subject != p.subject || g.Gap != p.gap || g.Expected != p.expected || g.Since != p.since {
+			t.Errorf("gap %d drift: fixtures.json = %+v, pinned = %+v", i, g, p)
+		}
+	}
+
+	if len(f.Coverage.Unevaluable) != len(devCoverageUnevaluables) {
+		t.Fatalf("unevaluable length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.Unevaluable), len(devCoverageUnevaluables))
+	}
+	for i, u := range f.Coverage.Unevaluable {
+		p := devCoverageUnevaluables[i]
+		if u.ID != p.id || u.Version != p.version || u.Why != p.why {
+			t.Errorf("unevaluable %d drift: fixtures.json = %+v, pinned = %+v", i, u, p)
+		}
+	}
+
+	if len(f.Coverage.StaleZones) != len(devCoverageStaleZones) {
+		t.Fatalf("stale_zones length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.StaleZones), len(devCoverageStaleZones))
+	}
+	for i, z := range f.Coverage.StaleZones {
+		p := devCoverageStaleZones[i]
+		if z.Zone != p.zone || z.Age != p.age {
+			t.Errorf("stale_zone %d drift: fixtures.json = %+v, pinned = %+v", i, z, p)
+		}
+	}
+}

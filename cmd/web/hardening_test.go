@@ -268,7 +268,7 @@ func TestTOTPSecretEncryptedAtRest(t *testing.T) {
 	// Verification round-trips: confirm enables 2FA, and a fresh login accepts the code
 	// via the decrypt read path.
 	code, _ := auth.TOTPCode(secret, now)
-	if got := body(t, postForm(t, ac, base+"/account/totp/confirm", url.Values{"code": {code}})); !strings.Contains(got, "enabled") {
+	if got := body(t, postForm(t, ac, base+"/account/totp/confirm", url.Values{"code": {code}})); !strings.Contains(got, "Recovery codes") {
 		t.Fatalf("confirm did not enable via the encrypt/decrypt round-trip; body: %s", got)
 	}
 	c := newClient(t)

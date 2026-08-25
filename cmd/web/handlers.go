@@ -401,6 +401,16 @@ type server struct {
 	// and makes the 500 incident id deterministic — never set in a real deployment, so no
 	// dev route is reachable and the incident id keeps its crypto/rand draw (errors.go).
 	devMode bool
+
+	// coverageMu / coverageEmptyOnce back the Coverage screen's empty-state capture
+	// (#552). states.json coverage declares an "empty" state seeded "empty-authed":
+	// GET /dev/seed/empty-authed (devMode only) sets coverageEmptyOnce so the NEXT
+	// /coverage render serves the empty estate while the authed admin session is kept
+	// (unlike /dev/seed/empty, which truncates accounts). coveragePage consumes the flag
+	// (reads-and-clears) as it renders, so a later context's "default" state — which
+	// applies no seed — renders the full fixture again. In-process, devMode-only.
+	coverageMu        sync.Mutex
+	coverageEmptyOnce bool
 }
 
 func newServer(s store, key []byte, setupToken string, now func() time.Time) *server {
@@ -722,6 +732,10 @@ func (s *server) handler() http.Handler {
 
 	mux.HandleFunc("GET /account", s.requireLogin(s.accountPage))
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
+	// GET /account/totp/enroll renders the two-factor enrollment screen (v3.7.0, SignIn family):
+	// the profile "Enable" button POSTs to /account/totp/enable, but the frozen SignIn "enroll"
+	// capture state navigates here by GET (what page.goto can drive). Both open the same screen.
+	mux.HandleFunc("GET /account/totp/enroll", s.requireLogin(s.totpEnrollForm))
 	mux.HandleFunc("POST /account/totp/enable", s.requireLogin(s.totpEnable))
 	mux.HandleFunc("POST /account/totp/confirm", s.requireLogin(s.totpConfirm))
 
@@ -787,6 +801,16 @@ func (s *server) handler() http.Handler {
 		// cookie (so the Firefox·macOS row wears the "this device" badge without minting a
 		// fourth session). The literal path outranks the {role} wildcard above.
 		mux.HandleFunc("GET /dev/profile/session", s.devProfileSessionPrepare)
+		// Screen 5 (Setup, #550): realize states.json setup's seed:"empty" — empty the account
+		// table and reopen the first-run window under the pinned fixture token, so GET /setup
+		// renders the open bootstrap form. Captured last, so emptying the shared DB is safe.
+		mux.HandleFunc("GET /dev/seed/empty", s.devSetupSeedEmpty)
+		// Screen 6 (Coverage, #552): realize states.json coverage's "empty" state
+		// (seed:"empty-authed"). Unlike /dev/seed/empty it keeps the account table (the
+		// authed admin session Coverage needs), clearing only the coverage view for the
+		// next render. A distinct literal path — it outranks nothing and collides with
+		// nothing ("/dev/seed/empty" is a different literal).
+		mux.HandleFunc("GET /dev/seed/empty-authed", s.devCoverageSeedEmpty)
 	}
 
 	// Recovered panics render the 500 error page with a real, logged incident id

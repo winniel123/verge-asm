@@ -194,7 +194,7 @@ const dashboardTemplates = `
       <div style="display:flex;flex-direction:column;gap:16px">
         {{range .CoverageMeters}}
         <div class="covmeter">
-          <div class="covmeter-head"><span class="microlabel">{{.Label}}</span><span class="cm-count">census &#183; {{.Count}}{{if .Unit}} {{.Unit}}{{end}}</span></div>
+          <div class="covmeter-head"><span class="microlabel">{{.Label}}</span><span class="cm-count">census &#183; {{.Counted}}{{if .Unit}} {{.Unit}}{{end}}</span></div>
           <div class="covmeter-bar" aria-label="Census — no denominator"></div>
           {{if .Detail}}<div class="covmeter-detail">{{.Detail}}</div>{{end}}
         </div>

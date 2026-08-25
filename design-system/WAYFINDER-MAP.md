@@ -23,10 +23,10 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | --- | --- | --- | --- | --- | --- |
 | 1 | Inventory | /inventory | inventory.tmpl | record expansion open · gaps-only on · filtered-empty | **LANDED — operator confirmed 2026-08-24** |
 | 2 | ErrorPage (all kinds) | /404 /403 /500 … | error.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
-| 3 | Profile | /profile | profile.tmpl | new-token dialog · end-session confirm | **NEXT — artifacts in v3.6.0** |
-| 4 | SignIn (+ flows) | /signin … | signin.tmpl | TOTP step · forgot/reset · invite | queued |
-| 5 | Setup | /setup | setup.tmpl | — | queued |
-| 6 | Coverage | /coverage | coverage.tmpl | — | queued |
+| 3 | Profile | /profile | profile.tmpl | new-token dialog · end-session confirm | **LANDED — operator confirmed 2026-08-25** |
+| 4 | SignIn (+ flows) | /signin … | signin.tmpl | TOTP step · forgot/reset · invite | **BATCH 1 — artifacts in v3.7.0** |
+| 5 | Setup | /setup | setup.tmpl | — | **BATCH 1 — artifacts in v3.7.0** |
+| 6 | Coverage | /coverage | coverage.tmpl | — | **BATCH 1 — artifacts in v3.7.0** |
 | 7 | Exposure | /exposure | exposure.tmpl | withheld state | queued |
 | 8 | Drift | /drift | drift.tmpl | feed item expanded | queued |
 | 9 | RunDetail | /runs/{id} | rundetail.tmpl | — | queued |

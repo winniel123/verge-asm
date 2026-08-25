@@ -143,7 +143,7 @@ func (s *server) setupForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	s.render(w, "setup", map[string]any{"Title": "Setup", "Token": r.URL.Query().Get("token")})
+	s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": r.URL.Query().Get("token")}))
 }
 
 func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
@@ -161,15 +161,15 @@ func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if !auth.TokensEqual(token, s.setupToken) {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": "Invalid setup token."})
+		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": "Invalid setup token."}))
 		return
 	}
 	if msg := validateCredentials(username, password); msg != "" {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": msg})
+		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": msg}))
 		return
 	}
 	if _, err := s.createAccountRow(r, username, roleAdmin, password); err != nil {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)})
+		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)}))
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -192,19 +192,125 @@ func (s *server) setupClosed(r *http.Request) bool {
 
 // --- login -----------------------------------------------------------------
 
+// The SignIn-family markup is the DESIGN-OWNED, frozen design-system/templates/signin.tmpl
+// (package v3.7.0, WORKFLOW v4), embedded read-only via the designfs package and parsed into
+// the shared template set here — mirroring the screen-2 error.tmpl and screen-3 profile.tmpl
+// landings. The repo-authored templates_signin.go const is deleted (#547): the login / totp /
+// totp-enroll / totp-recovery / forgot / forgot-sent / reset / reset-invalid / reset-done /
+// invite / invite-invalid pages, and the shared authbrand / authfoot / authcss partials, all
+// live in the frozen tmpl now (Setup's setup.tmpl reuses those partials — both parse into this
+// one set). The handlers below only wire data into the holes the tmpl declares; CI gate G1
+// byte-compares the tmpl to the package, so a needed change goes through SPEC-CHANGE and
+// returns in the next package version. signin.tmpl auto-embeds through designfs's existing
+// `templates/*.tmpl` glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/signin.tmpl"))
+
+// The Setup screen (screen 5, #550) is the same story: the frozen design-owned
+// design-system/templates/setup.tmpl (package v3.7.0, WORKFLOW v4) replaces the repo-authored
+// templates_setup.go const (deleted). Its single "setup" define reuses the SignIn family's shared
+// authcss / authbrand / authfoot partials, so it MUST parse into the same set signin.tmpl parsed
+// into (above) for those refs to resolve at execution. Its holes are .Error / .Token / .Version
+// (the last via authfoot); the setupForm/setupSubmit handlers pass them through signinData so the
+// design-token opt-in and build version are never forgotten. setup.tmpl auto-embeds through
+// designfs's existing `templates/*.tmpl` glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/setup.tmpl"))
+
+// buildVersion is the build version the frozen authfoot renders ({{.Version}}). A real
+// deployment reads VERGE_VERSION (the same env the worker's CT client reads), defaulting to
+// "dev". A VERGE_DEV build returns the pinned fixture version (devFixtureVersion) so the
+// SignIn/Setup goldens — whose chrome-less footer shows the version — never drift; the drift
+// test folds it back through fixtures.json → signin.version.
+func (s *server) buildVersion() string {
+	if s.devMode {
+		return devFixtureVersion
+	}
+	return env.OrDefault("VERGE_VERSION", "dev")
+}
+
+// signinData stamps the two holes EVERY signin.tmpl page needs onto a page's data map: the
+// design-token vocabulary opt-in (the "head" block inlines tokens/*.css only when .DesignTokens
+// is truthy, exactly as the error/profile renders do) and the build version the authfoot reads.
+// Each auth render passes its page-specific holes through here so neither is ever forgotten.
+func (s *server) signinData(data map[string]any) map[string]any {
+	if data == nil {
+		data = map[string]any{}
+	}
+	data["DesignTokens"] = true
+	data["Version"] = s.buildVersion()
+	return data
+}
+
+// ssoLoginProvider is one SSO button on the login page: the provider slug (its
+// /login/sso/<slug> href), display name, and the 1–2 letter mono Mark the frozen login.tmpl
+// renders in the button's chip. Mark is a NEW hole (SPEC-CHANGE #19 / v3.7.0): the repo derives
+// it from the name because the sso_provider row carries no mark of its own.
+type ssoLoginProvider struct {
+	Slug string
+	Name string
+	Mark string
+}
+
+// ssoMark derives the login button's mono mark from a provider name: the first letter of up to
+// the first two words, uppercased (e.g. "Okta" → "O", "Acme Corp" → "AC"). An empty name yields
+// an empty mark, which the tmpl simply renders as a blank chip.
+func ssoMark(name string) string {
+	mark := ""
+	for _, field := range strings.Fields(name) {
+		r := []rune(field)
+		if len(r) == 0 {
+			continue
+		}
+		mark += strings.ToUpper(string(r[0]))
+		if len(mark) == 2 {
+			break
+		}
+	}
+	return mark
+}
+
+// loginProviders is the SSO button list the login page renders. A real build lists the enabled
+// providers from the store and derives each Mark. A VERGE_DEV build returns the pinned signin
+// fixture provider set (devSigninProviders) instead, so the login golden is deterministic even
+// though the shared fixture DB also enables the Profile screen's linkable Google provider — a
+// dev-capture affordance in the same family as the pinned clock / incident id / minted token,
+// strictly gated to devMode and never reached in a real deployment. The no-sso variant (the
+// login-sso-none capture state) forces the empty list so the "not configured" branch renders.
+func (s *server) loginProviders(ctx context.Context, noSSO bool) []ssoLoginProvider {
+	if noSSO {
+		return nil
+	}
+	if s.devMode {
+		out := make([]ssoLoginProvider, 0, len(devSigninProviders))
+		for _, p := range devSigninProviders {
+			out = append(out, ssoLoginProvider{Slug: p.slug, Name: p.name, Mark: p.mark})
+		}
+		return out
+	}
+	rows := s.enabledSSOProviders(ctx)
+	out := make([]ssoLoginProvider, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, ssoLoginProvider{Slug: row.Slug, Name: row.Name, Mark: ssoMark(row.Name)})
+	}
+	return out
+}
+
 func (s *server) loginForm(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.currentAccount(r); ok {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	data := map[string]any{"Title": "Sign in", "SSOProviders": s.enabledSSOProviders(r.Context())}
+	// noSSO drives the login-sso-none capture state: a VERGE_DEV-only ?variant=no-sso forces
+	// the empty provider list so the frozen "SSO not configured" branch renders against the
+	// shared fixture DB (which has a provider enabled). Ignored in a real build.
+	noSSO := s.devMode && r.URL.Query().Get("variant") == "no-sso"
+	data := map[string]any{"Title": "Sign in", "SSOProviders": s.loginProviders(r.Context(), noSSO)}
 	// A freshly accepted invite lands here (invite acceptance creates the account
 	// but grants no session — the new operator signs in with the credentials they
 	// just set), so surface a notice rather than a bare form.
 	if r.URL.Query().Get("invited") != "" {
 		data["Notice"] = "Account created. Sign in with your new credentials."
 	}
-	s.render(w, "login", data)
+	s.render(w, "login", s.signinData(data))
 }
 
 func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +347,10 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return
 		}
-		s.render(w, "totp", map[string]any{"Title": "Two-factor"})
+		// .Username is the mid-login account the frozen totp step names in its sub-line (a NEW
+		// hole, v3.7.0) — threaded from the account resolved above, not the pending cookie
+		// (which carries no username), so the sub-line reads the real account.
+		s.render(w, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username}))
 		return
 	}
 	s.completeLogin(w, r, acct.ID)
@@ -271,11 +380,21 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 	acctKey, ipKey := loginAccountKey(acct.Username), loginIPKey(r)
 	if s.loginLimiter.locked(acctKey, ipKey) {
 		s.clearCookie(w, pendingCookie)
-		s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": lockoutMessage})
+		s.render(w, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
 		return
 	}
 
 	code := r.FormValue("code")
+	// A VERGE_DEV build accepts the pinned fixture TOTP code so the capture harness can drive
+	// the second factor deterministically (the enrol→recovery flow and any TOTP login), exactly
+	// as the dev clock/incident-id/token affordances pin their values. Gated to devMode; a real
+	// build always runs the full RFC 6238 verification below.
+	if s.devMode && code == devFixtureTOTPCode {
+		s.loginLimiter.reset(acctKey, ipKey)
+		s.clearCookie(w, pendingCookie)
+		s.completeLogin(w, r, acct.ID)
+		return
+	}
 	// The authenticator code is the primary path; a recovery code is the fallback
 	// when the authenticator is lost (SignIn delta #314). Both land in the one
 	// field, so a failed TOTP falls through to a single-use recovery-code redeem
@@ -321,10 +440,10 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 		// pending cookie is invalidated so the attacker must start from the password.
 		if nowLocked := s.loginLimiter.fail(acctKey, ipKey); nowLocked {
 			s.clearCookie(w, pendingCookie)
-			s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": lockoutMessage})
+			s.render(w, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
 			return
 		}
-		s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": "Incorrect code."})
+		s.render(w, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": "Incorrect code."}))
 		return
 	}
 	s.loginLimiter.reset(acctKey, ipKey)
@@ -962,23 +1081,49 @@ func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.A
 	s.renderSettings(w, r, acct, settingsForms{tab: "team", notice: "Account " + username + " created."})
 }
 
+// totpEnable is the profile "Enable two-factor" POST (screen 3, profile.tmpl). It opens the
+// enrollment screen through the shared beginTOTPEnroll path.
 func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// Do not let an already-enrolled account re-roll its secret through this
-	// path: it would set totp_enabled=false and strip the second factor until
-	// a fresh confirm — a downgrade a stolen session must not be able to do.
-	if acct.TotpEnabled {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
+	s.beginTOTPEnroll(w, r, acct)
+}
+
+// totpEnrollForm is the GET entry point onto the same enrollment screen (v3.7.0): the frozen
+// SignIn "enroll" capture state navigates GET /account/totp/enroll (handlers.go), which
+// page.goto can drive where the profile POST cannot. Same rendered page, same holes.
+func (s *server) totpEnrollForm(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	s.beginTOTPEnroll(w, r, acct)
+}
+
+// beginTOTPEnroll rolls a fresh TOTP secret, stores it (encrypted at rest, ADR-0053), and
+// renders the enrollment screen (QR + secret + confirm). A real build refuses when two-factor
+// is already on — re-rolling would set totp_enabled=false and strip the second factor until a
+// fresh confirm, a downgrade a stolen session must not be able to do. A VERGE_DEV build instead
+// resets to a known enrollment baseline (the pinned devFixtureEnrollSecret, any prior enrolment
+// on the account cleared) so the enroll and recovery goldens render deterministically no matter
+// which capture state ran against the shared fixture DB before.
+func (s *server) beginTOTPEnroll(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	secret, err := auth.NewTOTPSecret()
 	if err != nil {
 		s.serverError(w, "generate totp secret", err)
 		return
 	}
-	// #337: the secret is a bearer authenticator seed, so it is encrypted at rest with
-	// the file-backed AEAD sub-key before it touches Postgres (ADR-0053). The cleartext
-	// base32 stays in this handler only, to drive the enrollment QR and manual-entry
-	// fallback below; the column holds ciphertext.
+	if s.devMode {
+		// Pixel-parity capture only: reset any prior enrolment on this account (a previous
+		// recovery state may have enabled it) and pin the secret, so GET /account/totp/enroll
+		// always renders the enroll page with the fixture secret + QR.
+		if err := s.devResetTOTPEnroll(r.Context(), acct.ID); err != nil {
+			s.serverError(w, "dev: reset totp enrolment", err)
+			return
+		}
+		secret = devFixtureEnrollSecret
+	} else if acct.TotpEnabled {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	// #337: the secret is a bearer authenticator seed, so it is encrypted at rest with the
+	// file-backed AEAD sub-key before it touches Postgres (ADR-0053). The cleartext stays in
+	// this handler only, to drive the enrollment QR and manual-entry fallback; the column holds
+	// ciphertext.
 	enc, err := auth.EncryptTOTPSecret(s.totpKey, secret)
 	if err != nil {
 		s.serverError(w, "encrypt totp secret", err)
@@ -990,7 +1135,7 @@ func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.serverError(w, "store totp secret", err)
 		return
 	}
-	s.render(w, "totp-enroll", totpEnrollData(acct.Username, secret, ""))
+	s.render(w, "totp-enroll", s.signinData(totpEnrollData(acct.Username, secret, "")))
 }
 
 // totpEnrollData assembles the template data for the enrollment screen: the
@@ -1019,20 +1164,25 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	// #337: the stored secret is ciphertext; decrypt to the cleartext base32 the
-	// verifier and the re-render's QR/manual-entry fallback need. Enrollment just wrote
-	// valid ciphertext, so a decryption failure here is a hard fault — a legacy cleartext
-	// row, corruption, or a mis-derived key — surfaced loudly rather than tolerated as a
-	// wrong code.
-	secret, derr := auth.DecryptTOTPSecret(s.totpKey, fresh.TotpSecret.String)
-	if derr != nil {
-		s.serverError(w, "decrypt totp secret", derr)
-		return
-	}
-	if !auth.VerifyTOTP(secret, r.FormValue("code"), s.now()) {
-		s.render(w, "totp-enroll", totpEnrollData(acct.Username, secret,
-			"Incorrect code. Two-factor is not enabled."))
-		return
+	// A VERGE_DEV build accepts the pinned fixture code so the recovery capture state can
+	// confirm enrolment deterministically (the fixture enroll secret is a display string, not a
+	// verifiable base32 seed). Gated to devMode; a real build runs the full verification below.
+	if !(s.devMode && r.FormValue("code") == devFixtureTOTPCode) {
+		// #337: the stored secret is ciphertext; decrypt to the cleartext base32 the
+		// verifier and the re-render's QR/manual-entry fallback need. Enrollment just wrote
+		// valid ciphertext, so a decryption failure here is a hard fault — a legacy cleartext
+		// row, corruption, or a mis-derived key — surfaced loudly rather than tolerated as a
+		// wrong code.
+		secret, derr := auth.DecryptTOTPSecret(s.totpKey, fresh.TotpSecret.String)
+		if derr != nil {
+			s.serverError(w, "decrypt totp secret", derr)
+			return
+		}
+		if !auth.VerifyTOTP(secret, r.FormValue("code"), s.now()) {
+			s.render(w, "totp-enroll", s.signinData(totpEnrollData(acct.Username, secret,
+				"Incorrect code. Two-factor is not enabled.")))
+			return
+		}
 	}
 	if err := s.store.ConfirmTOTP(r.Context(), acct.ID); err != nil {
 		s.serverError(w, "confirm totp", err)
@@ -1047,7 +1197,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// them. Re-issuing clears any prior set so only this set redeems. A failure to
 	// store the codes must not leave two-factor on with no recovery path, so it is a
 	// hard error rather than a silent skip.
-	plain, hashes, err := newRecoveryCodes(recoveryCodeCount)
+	plain, hashes, err := s.recoveryCodes()
 	if err != nil {
 		s.serverError(w, "generate recovery codes", err)
 		return
@@ -1064,7 +1214,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 			return
 		}
 	}
-	s.render(w, "totp-recovery", map[string]any{"Title": "Two-factor", "Codes": plain})
+	s.render(w, "totp-recovery", s.signinData(map[string]any{"Title": "Two-factor", "Codes": plain}))
 }
 
 // --- forgot / reset password (#314, T19) ------------------------------------
@@ -1072,7 +1222,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 // forgotForm renders the "enter your account name" step of the reset flow. It is
 // pre-auth: a caller who has lost their password has no session to gate on.
 func (s *server) forgotForm(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "forgot", map[string]any{"Title": "Reset password"})
+	s.render(w, "forgot", s.signinData(map[string]any{"Title": "Reset password"}))
 }
 
 // forgotSubmit mints a single-use reset link for the named account, then always
@@ -1106,7 +1256,7 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	s.render(w, "forgot-sent", map[string]any{"Title": "Reset password"})
+	s.render(w, "forgot-sent", s.signinData(map[string]any{"Title": "Reset password"}))
 }
 
 // resetForm renders the set-a-new-password step for a valid, unspent, unexpired
@@ -1115,10 +1265,10 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 func (s *server) resetForm(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if _, ok := s.lookupReset(r, token); !ok {
-		s.render(w, "reset-invalid", map[string]any{"Title": "Reset password"})
+		s.render(w, "reset-invalid", s.signinData(map[string]any{"Title": "Reset password"}))
 		return
 	}
-	s.render(w, "reset", map[string]any{"Title": "Set a new password", "Token": token})
+	s.render(w, "reset", s.signinData(map[string]any{"Title": "Set a new password", "Token": token}))
 }
 
 // resetSubmit sets the account's password from a valid reset token and spends the
@@ -1132,13 +1282,13 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	pr, ok := s.lookupReset(r, token)
 	if !ok {
-		s.render(w, "reset-invalid", map[string]any{"Title": "Reset password"})
+		s.render(w, "reset-invalid", s.signinData(map[string]any{"Title": "Reset password"}))
 		return
 	}
 	pw := r.FormValue("password")
 	confirm := r.FormValue("confirm")
 	fail := func(msg string) {
-		s.renderStatus(w, http.StatusBadRequest, "reset", map[string]any{"Title": "Set a new password", "Token": token, "Error": msg})
+		s.renderStatus(w, http.StatusBadRequest, "reset", s.signinData(map[string]any{"Title": "Set a new password", "Token": token, "Error": msg}))
 	}
 	if msg := validatePassword(pw); msg != "" {
 		fail(msg)
@@ -1170,7 +1320,7 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		log.Printf("web: reset: revoke all sessions: %v", err)
 	}
-	s.render(w, "reset-done", map[string]any{"Title": "Password updated"})
+	s.render(w, "reset-done", s.signinData(map[string]any{"Title": "Password updated"}))
 }
 
 // lookupReset resolves a presented reset token to its row and reports whether it is
@@ -1205,10 +1355,10 @@ func (s *server) inviteForm(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	inv, ok := s.lookupInvite(r, token)
 	if !ok {
-		s.render(w, "invite-invalid", map[string]any{"Title": "Invitation"})
+		s.render(w, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
 		return
 	}
-	s.render(w, "invite", map[string]any{"Title": "Accept invitation", "Token": token, "Role": inv.Role})
+	s.render(w, "invite", s.signinData(map[string]any{"Title": "Accept invitation", "Token": token, "Role": inv.Role}))
 }
 
 // inviteAccept creates the account the invite grants — the acceptor's chosen
@@ -1220,16 +1370,16 @@ func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	inv, ok := s.lookupInvite(r, token)
 	if !ok {
-		s.render(w, "invite-invalid", map[string]any{"Title": "Invitation"})
+		s.render(w, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
 		return
 	}
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	fail := func(msg string) {
-		s.renderStatus(w, http.StatusBadRequest, "invite", map[string]any{
+		s.renderStatus(w, http.StatusBadRequest, "invite", s.signinData(map[string]any{
 			"Title": "Accept invitation", "Token": token, "Role": inv.Role,
 			"Error": msg, "Username": username,
-		})
+		}))
 	}
 	if msg := validateCredentials(username, password); msg != "" {
 		fail(msg)
@@ -1988,11 +2138,13 @@ func mintPersonalToken() (plaintext, prefix, hash string, err error) {
 }
 
 // validatePassword bounds a new password to the same range every credential path
-// enforces: at least 8 characters, and at most 72 (bcrypt hashes no more).
+// enforces: at least 12 characters, and at most 72 (bcrypt hashes no more). The 12+
+// floor unifies the hint copy and the server-side rule (SPEC-CHANGE #19d) — the
+// design forms all read "12+ characters", so the enforcement matches the hint.
 func validatePassword(pw string) string {
 	switch {
-	case len(pw) < 8:
-		return "Password must be at least 8 characters."
+	case len(pw) < 12:
+		return "Password must be at least 12 characters."
 	case len(pw) > 72:
 		return "Password must be 72 characters or fewer."
 	default:
@@ -2097,8 +2249,8 @@ func validateCredentials(username, password string) string {
 		return "Username is required."
 	case len(username) > 64:
 		return "Username must be 64 characters or fewer."
-	case len(password) < 8:
-		return "Password must be at least 8 characters."
+	case len(password) < 12:
+		return "Password must be at least 12 characters."
 	case len(password) > 72:
 		// bcrypt hashes at most 72 bytes and errors beyond that; reject it
 		// here with a clear message rather than a generic create failure.

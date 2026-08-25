@@ -1,0 +1,21 @@
+# gitleaks config — verge-asm.
+#
+# Extends gitleaks' default ruleset (unchanged behaviour) and adds ONE narrow,
+# value-scoped allowlist for the design-owned deterministic TOTP-enrolment
+# fixture secret. This value exists only so the SignIn `enroll` parity golden is
+# byte-stable; the real enrolment path mints secrets via crypto/rand and is
+# untouched (design-system/verify/WORK-ORDER-4-6-BATCH1.md; SPEC-CHANGE #19b).
+#
+# Scoped to the exact literal, not to a file or path, so any OTHER secret — even
+# in design-system/fixtures/fixtures.json or cmd/web/devfixtures.go — still trips
+# the scan. This preserves the fingerprint-exact posture set in the 2026-08-23
+# security audit (map #320, see .gitleaksignore) while being robust to the
+# squash-merge SHA change that a fingerprint entry would not survive on `main`.
+title = "verge-asm"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Design-owned deterministic TOTP-enrol fixture secret (parity golden stability; real enrolment uses crypto/rand). Not a live credential."
+regexes = ['''VG7K-2Q9X-8MRD-P3TL''']
