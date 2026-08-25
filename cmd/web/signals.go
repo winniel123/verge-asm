@@ -405,7 +405,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		for i := range base {
 			if base[i].ViewKey == selKey {
 				d := base[i]
-				s.enrichSignalDrawer(&d)
+				s.enrichSignalDrawer(r, &d)
 				drawer = &d
 				break
 			}
@@ -467,18 +467,25 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 }
 
 // enrichSignalDrawer folds the honest live projection of the Drawer's rule metadata
-// + join data onto a row about to open in the drawer (#21j). The rule id is the rule
-// name; the IP renders "—" where the subject carries no address (the tmpl keys the
-// copy affordance on that sentinel); the history is span-derived from the instants the
-// row already carries. The design's richer rule metadata — tags, CVE, the description
-// prose, the drift diff and the detecting vantage — is not reconstructable from the
-// current corpus, so it is left off rather than invented (the curated fixture served
-// under devMode carries the full authored set for the pixel goldens).
-func (s *server) enrichSignalDrawer(row *signalRow) {
+// + join data onto a row about to open in the drawer (#21j). Three fields are REAL
+// derived-store joins built here on the production path: the rule id is the rule name
+// and the rule version is that rule's own Version().String() vector (ruleVersions,
+// keyed by name over the whole shipped corpus); the drift diff is the subject's most
+// recent value transition joined out of the Span corpus (signalDrift, the same
+// ListSpansForSubject → Breaks read the drill-down timelines and RunDetail's Outcome
+// use), nil where the subject has no drift; and the history is span-derived from the
+// instants the row carries. Four fields are GENUINELY ABSENT from the corpus — no
+// rules registry carries a rule's tags / CVE / description prose, and a fired signal
+// is a cross-vantage composition so signal_instance has no single detecting vantage —
+// so Tags / CVE / Desc / DetectedBy are omitted rather than invented (the curated
+// fixture served under devMode carries the authored set for the pixel goldens).
+func (s *server) enrichSignalDrawer(r *http.Request, row *signalRow) {
 	if row.IP == "" {
 		row.IP = "—"
 	}
 	row.RuleID = row.Signal
+	row.RuleVersion = ruleVersions[row.Signal]
+	row.Diff = s.signalDrift(r, signal.SubjectKindFor(row.Signal), row.Asset)
 
 	var hist []sigHistoryEntry
 	if row.Last != "" {
@@ -498,6 +505,67 @@ func (s *server) enrichSignalDrawer(row *signalRow) {
 		hist = append(hist, sigHistoryEntry{Title: "Signal raised", Detail: row.SigID, Time: row.First, Tone: tone, Mono: true})
 	}
 	row.History = hist
+}
+
+// ruleVersions maps every shipped rule's name to its Version().String() vector, built
+// once over the whole corpus (the five Name rules, the ten Endpoint rules, the two
+// Service rules — signal.All / AllEndpointRules / AllServiceRules). The drawer's Rule
+// cell renders "{RuleID}@{RuleVersion}" off this, so the version is the rule's own
+// deterministic vector (rule@vN|leaf/vM|…), not a guess. A name with no shipped rule
+// (never expected for a fired instance) maps to "" and renders the id alone.
+var ruleVersions = buildRuleVersions()
+
+func buildRuleVersions() map[string]string {
+	m := make(map[string]string, len(signal.AllRuleNames()))
+	for _, r := range signal.All() {
+		m[r.Name()] = r.Version().String()
+	}
+	for _, r := range signal.AllEndpointRules() {
+		m[r.Name()] = r.Version().String()
+	}
+	for _, r := range signal.AllServiceRules() {
+		m[r.Name()] = r.Version().String()
+	}
+	return m
+}
+
+// signalDrift joins the Drawer's before/after drift diff (#21j) out of the subject's
+// Span corpus — the same derived-store read the drill-down timelines and RunDetail's
+// Outcome perform (ListSpansForSubject → per-(facet,discriminator) timelines with
+// Breaks derived on read, ADR-0007/ADR-0008). It surfaces the subject's MOST RECENT
+// value transition: across the subject's timelines, the open span whose value differs
+// from its immediately-preceding closed span, opened latest. The before/after are the
+// shared valueLabel summaries (the same vocabulary driftDiff renders), so a Signals
+// drawer diff reads exactly like the Drift feed's. It returns nil — an honest
+// not-present, never fabricated — where the subject has no such transition, and
+// degrades to nil on any read error (the drawer diff is diagnostic, not load-bearing).
+func (s *server) signalDrift(r *http.Request, kind, key string) *sigDiff {
+	if kind == "" || key == "" {
+		return nil
+	}
+	tls := s.buildTimelines(r, kind, key)
+	var best *sigDiff
+	var bestAt string
+	for _, tv := range tls {
+		if tv.Current == nil || len(tv.Closed) == 0 {
+			continue
+		}
+		before := tv.Closed[len(tv.Closed)-1].Value
+		after := tv.Current.Value
+		if before == after {
+			continue
+		}
+		// spanView.OpenedAt is the fixed-width "2006-01-02 15:04 UTC" stamp, so a plain
+		// string compare orders the transitions chronologically — the latest opener wins.
+		if best == nil || tv.Current.OpenedAt > bestAt {
+			bestAt = tv.Current.OpenedAt
+			best = &sigDiff{
+				Title: tv.Label + " · drift",
+				Lines: []sigDiffLine{{Type: "remove", Text: before}, {Type: "add", Text: after}},
+			}
+		}
+	}
+	return best
 }
 
 // buildSignalTabs folds the Derived corpus into the flat per-instance rows and
