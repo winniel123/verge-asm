@@ -1,0 +1,208 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — rundetail.tmpl · package v3.8.0 · WORKFLOW.md v4
+  Source of truth: examples/console/RunDetail.jsx · shot 11. Replaces templates_rundetail.go.
+  Define "run" kept. Holes: .Run{Title, Status(scheduled|running|complete|failed), Scope, Meta,
+  Stages[{Num,Title,Detail,Done,Current,Last}], Log[{Tag,Level,Text}], Active,
+  Transitions(string, "—" until a diff concluded), NewSignals(string, same),
+  Degraded(nullable {Vantage,Detail}), Params[{K,V}], Vantages[{Name,Latency,Status(ok|degraded)}]}.
+  Reconciliations (SPEC-CHANGE #20, ruled): the Outcome card is the spec's — .Transitions and
+  .NewSignals (the drift feed and signals ARE keyed by batch; the join gets built per the
+  2026-08-24 binding ruling), replacing .Completed/.Dead (#20a). Log levels render as colored
+  text per LogViewer.jsx, not level pills (#20e). The "run-missing" define retires — a missing
+  run routes to error.tmpl's missing-run kind, landed as screen 2 (#20d).
+*/}}
+{{define "run"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes rd-pulse { 0% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0.35); } 70% { box-shadow: 0 0 0 6px rgba(3, 122, 192, 0); } 100% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0); } }
+.rd-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.rd-crumb { display: flex; align-items: center; gap: 8px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; }
+.rd-crumb a { color: var(--text-muted); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+.rd-crumb a:hover { color: var(--link); }
+.rd-crumb .sep { color: var(--text-muted); }
+.rd-crumb .here { color: var(--text-body); }
+.rd-main h1 { margin: 0; font: 600 21px var(--font-mono); letter-spacing: -0.01em; color: var(--text-ink); }
+.rd-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.rd-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 0; }
+.rd-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.rd-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.rd-body { padding: 20px; }
+.rd-batch { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.rd-batch .dot { width: 5px; height: 5px; border-radius: 999px; flex: none; }
+.rd-batch.scheduled { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.rd-batch.scheduled .dot { background: var(--neutral-400); }
+.rd-batch.running { background: var(--accent-soft); color: var(--link); }
+.rd-batch.running .dot { background: var(--accent); animation: rd-pulse 1.8s var(--ease-out) infinite; }
+.rd-batch.complete { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.rd-batch.complete .dot { background: var(--ok-solid); }
+.rd-batch.failed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.rd-batch.failed .dot { background: var(--danger-solid); }
+.rd-batch .scope { font-weight: 400; opacity: 0.8; }
+.rd-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.rd-btn:hover { background: var(--surface-sunken); }
+.rd-step { display: flex; gap: 14px; font-family: var(--font-ui); }
+.rd-step .rail { display: flex; flex-direction: column; align-items: center; flex: none; }
+.rd-step .num { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 999px; flex: none; background: var(--surface); border: 1px solid var(--border-strong); font: 600 11.5px var(--font-mono); color: var(--text-muted); }
+.rd-step .num.done { background: var(--accent); border: 1px solid var(--accent); }
+.rd-step .num.current { border: 2px solid var(--accent); color: var(--link); }
+.rd-step .conn { width: 1.5px; flex: 1; min-height: 18px; background: var(--border-default); margin: 4px 0; }
+.rd-step .conn.done { background: var(--accent); }
+.rd-step .stbody { display: flex; flex-direction: column; gap: 2px; flex: 1; padding-top: 3px; min-width: 0; }
+.rd-step.notlast .stbody { padding-bottom: 20px; }
+.rd-step .sttitle { font: 500 13.5px var(--font-ui); color: var(--text-muted); }
+.rd-step .sttitle.done { color: var(--text-body); }
+.rd-step .sttitle.current { font-weight: 600; color: var(--text-ink); }
+.rd-step .stdetail { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); }
+.rd-log { background: var(--surface-inverted); border-radius: 12px; overflow: hidden; }
+.rd-loghead { display: flex; align-items: center; gap: 8px; padding: 8px 14px 0; }
+.rd-loghead .lbl { font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--neutral-500); }
+.rd-loghead .live { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 500 10px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--primary-400); }
+.rd-loghead .live .ldot { width: 6px; height: 6px; border-radius: 999px; background: var(--primary-400); animation: rd-pulse 1.8s var(--ease-out) infinite; }
+.rd-logbody { height: 300px; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 12px; }
+.rd-line { display: flex; gap: 10px; font: 400 11.5px/1.7 var(--font-mono); }
+.rd-line .t { color: var(--neutral-600); flex: none; }
+.rd-line .x { color: var(--text-on-inverted); overflow-wrap: anywhere; }
+.rd-line.warn .x { color: #e0aa4a; }
+.rd-line.error .x { color: #f08c82; }
+.rd-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rd-stat .num { font: 600 28px var(--font-mono); color: var(--text-ink); line-height: 1.1; }
+.rd-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: 12px; font-family: var(--font-ui); }
+.rd-callout .ic { color: var(--warn); display: inline-flex; margin-top: 1px; flex: none; }
+.rd-callout .ct { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rd-callout .ct b { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.rd-callout .ct span { font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.rd-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
+.rd-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rd-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.rd-vant { display: flex; align-items: center; gap: 10px; }
+.rd-vant .name { font: 500 12.5px var(--font-mono); color: var(--text-ink); }
+.rd-vant .right { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.rd-vant .lat { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.rd-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.rd-badge .bdot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+.rd-badge.ok { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.rd-badge.degraded { background: var(--warn-soft); border-color: var(--warn-border); color: var(--warn); }
+.rd-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 48px 24px; font-family: var(--font-ui); }
+.rd-empty .ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+.rd-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.rd-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+</style>
+<main class="rd-main" data-screen-label="Scan run detail">
+{{with .Run}}
+<nav aria-label="Breadcrumb" class="rd-crumb">
+<a href="/drift">Drift</a>
+<span aria-hidden="true" class="sep">/</span>
+<span aria-current="page" class="here">batch {{.Title}}</span>
+</nav>
+<header style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:8px">
+<h1>{{.Title}}</h1>
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span class="rd-batch {{.Status}}"><span class="dot"></span>{{.Status}}{{if .Scope}}<span class="scope">· {{.Scope}}</span>{{end}}</span>
+<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{.Meta}}</span>
+</div>
+</div>
+<div style="margin-left:auto">
+<a class="rd-btn" href="/drift"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" x2="6" y1="3" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>Drift from this batch</a>
+</div>
+</header>
+<section class="rd-card">
+<div class="rd-cardhead"><span class="rd-micro">Pipeline</span><h3>Stages</h3></div>
+<div class="rd-body">
+{{if .Stages}}
+<div>
+{{range .Stages}}
+<div class="rd-step{{if not .Last}} notlast{{end}}">
+<div class="rail">
+<span class="num{{if .Done}} done{{else if .Current}} current{{end}}">{{if .Done}}<svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{else}}{{.Num}}{{end}}</span>
+{{if not .Last}}<span class="conn{{if .Done}} done{{end}}"></span>{{end}}
+</div>
+<div class="stbody">
+<span class="sttitle{{if .Done}} done{{end}}{{if .Current}} current{{end}}">{{.Title}}</span>
+{{if .Detail}}<span class="stdetail">{{.Detail}}</span>{{end}}
+</div>
+</div>
+{{end}}
+</div>
+{{else}}
+<div class="rd-empty">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg></span>
+<span class="msg">No stage to show</span>
+<span class="det">This run enqueued no job, so its pipeline has no stage to trace. A stage appears here for each kind of work the fan-out enqueued.</span>
+</div>
+{{end}}
+</div>
+</section>
+<div style="display:grid;grid-template-columns:minmax(0, 1fr) 340px;gap:24px;align-items:start">
+{{if .Log}}
+<div class="rd-log">
+<div class="rd-loghead">
+<span class="lbl">batch {{.Title}}</span>
+{{if .Active}}<span class="live"><span class="ldot"></span>streaming</span>{{end}}
+</div>
+<div class="rd-logbody">
+{{range .Log}}
+<div class="rd-line{{if .Level}} {{.Level}}{{end}}"><span class="t">{{.Tag}}</span><span class="x">{{.Text}}</span></div>
+{{end}}
+</div>
+</div>
+{{else}}
+<div class="rd-log" style="display:flex;align-items:center;justify-content:center">
+<div class="rd-empty">
+<span class="msg" style="color:var(--text-on-inverted)">No log to show</span>
+<span class="det" style="color:var(--neutral-500)">This run recorded no per-job event yet. Each job the fan-out enqueued appears here with its kind, live state and the vantage it ran at as the worker moves it.</span>
+</div>
+</div>
+{{end}}
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="rd-card">
+<div class="rd-cardhead"><span class="rd-micro">Outcome</span><h3>What it produced</h3></div>
+<div class="rd-body">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div class="rd-stat"><span class="rd-micro">Transitions</span><span class="num">{{.Transitions}}</span></div>
+<div class="rd-stat"><span class="rd-micro">New signals</span><span class="num">{{.NewSignals}}</span></div>
+</div>
+{{with .Degraded}}
+<div class="rd-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span>
+<span class="ct"><b>One vantage degraded</b><span>{{.Vantage}} {{.Detail}} — exposure conclusions from it are marked unverified for this batch.</span></span></div>
+{{end}}
+</div>
+</div>
+</section>
+<section class="rd-card">
+<div class="rd-cardhead"><span class="rd-micro">Parameters</span><h3>As configured</h3></div>
+<div class="rd-body">
+<div class="rd-kv">
+{{range .Params}}<div class="cell"><span class="rd-micro">{{.K}}</span><span class="v">{{.V}}</span></div>{{end}}
+</div>
+</div>
+</section>
+<section class="rd-card">
+<div class="rd-cardhead"><span class="rd-micro">Vantages</span><h3>Who looked</h3></div>
+<div class="rd-body">
+{{if .Vantages}}
+<div style="display:flex;flex-direction:column;gap:10px">
+{{range .Vantages}}
+<div class="rd-vant">
+<span class="name">{{.Name}}</span>
+<span class="right">
+<span class="lat">{{.Latency}}</span>
+<span class="rd-badge {{.Status}}"><span class="bdot"></span>{{.Status}}</span>
+</span>
+</div>
+{{end}}
+</div>
+{{else}}
+<div class="rd-empty" style="padding:24px 12px">
+<span class="msg">No vantage recorded</span>
+<span class="det">No job in this run carried a vantage, so there is no per-vantage health to show. A vantage appears here once the fan-out runs a check from one.</span>
+</div>
+{{end}}
+</div>
+</section>
+</div>
+</div>
+{{end}}
+</main>
+{{template "foot" .}}{{end}}

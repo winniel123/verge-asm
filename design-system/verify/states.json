@@ -220,5 +220,58 @@
         "js": ""
       }
     ]
+  },
+  "exposure": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/exposure",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "withheld",
+        "route": "/exposure",
+        "session": "admin",
+        "variant": "no-internet-vantage",
+        "js": ""
+      }
+    ]
+  },
+  "drift": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/drift",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "feed-expanded",
+        "route": "/drift",
+        "session": "admin",
+        "js": "[].forEach.call(document.querySelectorAll('.dr-ghead[aria-expanded=\"false\"]'),function(b){b.click();})",
+        "delay": 600
+      },
+      {
+        "id": "range-open",
+        "route": "/drift",
+        "session": "admin",
+        "js": "document.getElementById('dr-range-btn').click()"
+      }
+    ]
+  },
+  "rundetail": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/runs/1407",
+        "session": "admin",
+        "js": ""
+      }
+    ]
   }
 }

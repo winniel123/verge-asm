@@ -1,11 +1,12 @@
 # Package version
 
-current: 3.7.0
-exported: 2026-08-24
+current: 3.8.0
+exported: 2026-08-25
 
 Convention: MAJOR.ROUND.PATCH — MAJOR is the package generation, ROUND increments per sync/Wayfinder round, PATCH per mid-round ruling or spec fix. The design workspace bumps this on every export; the repo copy always states what landed.
 
 ## Log
+- 3.8.0 — 2026-08-25 · batch 2 (screens 7–9): exposure.tmpl (withheld first-class, delta chip, both-legs table), drift.tmpl (spec range picker with custom ISO pair, client-side kind toggles, collapsible batch groups, framed diff cards), rundetail.tmpl (Outcome = transitions + new signals per 2026-08-24 binding ruling, colored log levels, run-missing retired to error.tmpl); reconciliation #20; fixtures + states for all three; WORK-ORDER-7-9-BATCH2.md; SignIn/Setup/Coverage marked LANDED
 - 3.7.0 — 2026-08-25 · batch 1 (screens 4–6): signin.tmpl (11 auth states, segmented code input, SSO not-configured state), setup.tmpl, coverage.tmpl (denominator meters for address scopes, relative-time messages); reconciliation #19; SignIn/Setup specs realigned to username identity; fixtures + states for all three; WORK-ORDER-4-6-BATCH1.md; Profile marked LANDED
 - 3.6.0 — 2026-08-25 · screen 3 (Profile): profile.tmpl (PRG holes kept; spec cards/dialogs/badges/tables), reconciliation #18 (plain revoke confirm, TOTP-off state, toast mapping), profile fixtures + six goldens states, WORK-ORDER-3-PROFILE.md; ErrorPage marked LANDED
 - 3.5.1 — 2026-08-25 · batching rule expanded: parallel-session mechanics (one screen/branch each, single package version per batch, append-only shared files, serial merges with G1+G2 re-runs)
