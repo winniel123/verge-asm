@@ -1809,3 +1809,97 @@ func (s *server) dashboardFixtureData(acct db.Account, r *http.Request) map[stri
 	}
 	return data
 }
+
+// --- screen 13: AssetDetail fixture (package v3.10.0, WORK-ORDER-13-15-BATCH4.md) -------------
+//
+// The Asset detail (`/asset/{key}`, #581) reads inside the full app chrome and a real admin session
+// (minted by the harness). Its VIEW corpus — the header identity (subdomain · Critical · exposed ·
+// seen 4m · in scope since 2026-06-14), the three-port census with its joined Service strings, the
+// three DNS records, the parsed TLS certificate card (valid · 47d, ECDSA-SHA256, R11, pinned
+// fingerprint), the five provenance facts, the one signal-here (SIG-1042 · 4m) and the four drift
+// events — is the design's curated fixture, not a live-estate read: the exact strings (the joined
+// Service banners, the cert identity, the relative instants) cannot be reconstructed from the live
+// derivations without fabricating domain data, which SPEC-CHANGE forbids. So, exactly as the sibling
+// screens pin their dev fixture and serve it under devMode, assetPage serves the pinned fixtures.json
+// asset slice below when s.devMode, and TestAssetFixtureMatchesPackage folds every value back through
+// the frozen package — the byte-exactness gate before the pixels. The production path (subjects.go)
+// builds the same holes from real Name-scoped reads (#22a–d); this pins the design's exact bytes.
+const devAssetKey = "edge-gw-03.acmecorp.io"
+
+// devAssetCertFingerprint is the pinned leaf fingerprint the certificate card renders and copies
+// (fixtures.json → asset.cert.fingerprint). It is a public certificate digest, not a secret.
+const devAssetCertFingerprint = "SHA256:2b:9e:44:a1:7c:03:d8:f2:61:5b:c9:10:8e:af:72:d4" // #nosec G101 -- a public TLS certificate fingerprint fixture, not a credential
+
+var devAssetPorts = []assetPort{
+	{Port: ":443", Service: "https · nginx/1.25.0", Exposure: "exposed", Since: "2026-06-14"},
+	{Port: ":5900", Service: "vnc — no transport encryption", Exposure: "exposed", Since: "2026-08-22"},
+	{Port: ":22", Service: "ssh · OpenSSH 9.6", Exposure: "firewalled", Since: "2026-06-14"},
+}
+
+var devAssetDNS = []assetDNSRow{
+	{Type: "A", Value: "203.0.113.7", Seen: "4m"},
+	{Type: "AAAA", Value: "2001:db8::7", Seen: "4m"},
+	{Type: "TXT", Value: "verge-custody=vg_7f2a91c4", Seen: "6h"},
+}
+
+var devAssetCert = &assetCert{
+	Name:        "edge-gw-03.acmecorp.io",
+	Issuer:      "CN=R11, O=Let's Encrypt",
+	Algorithm:   "ECDSA-SHA256",
+	NotAfter:    "2026-10-08",
+	Label:       "valid · 47d",
+	Tone:        "ok",
+	Fingerprint: devAssetCertFingerprint,
+}
+
+var devAssetProvenance = []assetKV{
+	{K: "Seed", V: "acmecorp.io"},
+	{K: "Via", V: "CT log → dns sweep"},
+	{K: "Vantage", V: "eu-west-1"},
+	{K: "Custody", V: "verified · TXT record"},
+	{K: "First seen", V: "2026-06-14"},
+}
+
+var devAssetSignals = []assetSignal{
+	{Severity: "critical", SevLabel: "Critical", Rule: ":5900 vnc — no transport encryption", SigID: "SIG-1042", Time: "4m"},
+}
+
+var devAssetDrift = []assetDriftEvent{
+	{Change: "changed", Family: "change", Subject: ":443 service banner", Detail: "nginx/1.24.0 → 1.25.0", Time: "4m"},
+	{Change: "appeared", Family: "gain", Subject: ":5900 vnc", Detail: "service · new in batch 14:00Z", Time: "4m"},
+	{Change: "changed", Family: "change", Subject: "certificate", Detail: "renewed · Let's Encrypt R11", Time: "12d"},
+	{Change: "appeared", Family: "gain", Subject: "edge-gw-03.acmecorp.io", Detail: "name · first seen via certificate transparency", Time: "69d"},
+}
+
+// devAssetData assembles the pinned assetPageData the golden captures. It is the exact
+// fixtures.json → asset slice in authored order; TestAssetFixtureMatchesPackage folds every value
+// back through the frozen package.
+func devAssetData() assetPageData {
+	return assetPageData{
+		Key:          devAssetKey,
+		Type:         "subdomain",
+		Withdrawn:    false,
+		Seen:         "4m",
+		InScopeSince: "2026-06-14",
+		Severity:     "critical",
+		SevLabel:     "Critical",
+		Exposure:     "exposed",
+		Ports:        devAssetPorts,
+		DNS:          devAssetDNS,
+		Cert:         devAssetCert,
+		Provenance:   devAssetProvenance,
+		Signals:      devAssetSignals,
+		Drift:        devAssetDrift,
+	}
+}
+
+// assetFixtureData is the render map assetPage passes to the frozen asset.tmpl in a VERGE_DEV build
+// (the default golden state). render-goldens composes the identical map statically, so golden and
+// candidate agree byte-for-byte.
+func (s *server) assetFixtureData(acct db.Account) map[string]any {
+	return map[string]any{
+		"Title": devAssetKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "inventory", "DesignTokens": true,
+		"Asset": devAssetData(),
+	}
+}

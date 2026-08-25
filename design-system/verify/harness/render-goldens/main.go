@@ -313,6 +313,24 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "asset":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen asset")
+		}
+		files, err := renderAssetStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	case "drift":
 		if *out == "" {
 			log.Fatal("render-goldens: -out is required for -screen drift")
@@ -2209,4 +2227,118 @@ func renderDashboardStates(bodyFlex bool) ([]errorGolden, error) {
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
 	}
 	return out, nil
+}
+
+// assetFixture is the design-system/fixtures/fixtures.json → asset slice: the header identity, the
+// three-port census (with the joined Service strings), the DNS records, the parsed TLS certificate
+// card, the provenance facts, the signals-here and the drift trail. Its Go field names ARE the holes
+// the frozen asset.tmpl reads, so the loaded value passes straight to the template as `.Asset`.
+// cmd/web/devfixtures.go pins the same values with a drift test (TestAssetFixtureMatchesPackage).
+type assetFixture struct {
+	Key          string             `json:"key"`
+	Type         string             `json:"type"`
+	Severity     string             `json:"severity"`
+	SevLabel     string             `json:"sev_label"`
+	Exposure     string             `json:"exposure"`
+	Seen         string             `json:"seen"`
+	InScopeSince string             `json:"in_scope_since"`
+	Withdrawn    bool               `json:"withdrawn"`
+	Ports        []assetFixturePort `json:"ports"`
+	DNS          []assetFixtureDNS  `json:"dns"`
+	Cert         *assetFixtureCert  `json:"cert"`
+	Provenance   []assetFixtureKV   `json:"provenance"`
+	Signals      []assetFixtureSig  `json:"signals"`
+	Drift        []assetFixtureDrft `json:"drift"`
+}
+
+type assetFixturePort struct {
+	Port     string `json:"port"`
+	Service  string `json:"service"`
+	Exposure string `json:"exposure"`
+	Since    string `json:"since"`
+}
+
+type assetFixtureDNS struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+	Seen  string `json:"seen"`
+}
+
+type assetFixtureCert struct {
+	Name        string `json:"name"`
+	Issuer      string `json:"issuer"`
+	Algorithm   string `json:"algorithm"`
+	NotAfter    string `json:"not_after"`
+	Label       string `json:"label"`
+	Tone        string `json:"tone"`
+	Fingerprint string `json:"fingerprint"`
+}
+
+type assetFixtureKV struct {
+	K string `json:"k"`
+	V string `json:"v"`
+}
+
+type assetFixtureSig struct {
+	Severity string `json:"severity"`
+	SevLabel string `json:"sev_label"`
+	Rule     string `json:"rule"`
+	SigID    string `json:"sig_id"`
+	Time     string `json:"time"`
+}
+
+type assetFixtureDrft struct {
+	Change  string `json:"change"`
+	Family  string `json:"family"`
+	Subject string `json:"subject"`
+	Detail  string `json:"detail"`
+	Time    string `json:"time"`
+}
+
+func loadAssetFixture() (assetFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return assetFixture{}, err
+	}
+	var ff struct {
+		Asset assetFixture `json:"asset"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return assetFixture{}, err
+	}
+	return ff.Asset, nil
+}
+
+// renderAssetStates composes the AssetDetail golden HTML from the frozen asset.tmpl, for the single
+// states.json asset state (default). The data map mirrors assetPage's assetFixtureData EXACTLY (the
+// holes the frozen tmpl reads) — the pinned fixtures.json asset slice — so the cropped `main` is
+// byte-identical to what the seeded server renders. "asset" wraps head/chrome/asset/foot; it reuses
+// the "sevbadge" define signals.tmpl declares (header + signals-here badges) and the "changeglyph"
+// define drift.tmpl declares (drift-trail glyphs) — both parsed into the set here. Chrome is the empty
+// stub (goldens crop to `main`).
+func renderAssetStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadAssetFixture()
+	if err != nil {
+		return nil, err
+	}
+	data := map[string]any{
+		"Title": fx.Key, "NavActive": "inventory", "IsAdmin": true,
+		"Asset": fx,
+	}
+	t, err := newStubbedTemplate(head)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.ParseFS(designfs.FS, "templates/signals.tmpl", "templates/drift.tmpl", "templates/asset.tmpl"); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "asset", data); err != nil {
+		return nil, err
+	}
+	return []errorGolden{{id: "default", html: buf.Bytes()}}, nil
 }

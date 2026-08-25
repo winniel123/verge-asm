@@ -40,10 +40,20 @@ func EndpointKey(serverName string, target netip.AddrPort, transport string) str
 // presented chain (the negatives omit it). It is the exact `not_after` key + format
 // cmd/web/deltas.go reads for the Dashboard "Certs expiring ≤30d" stat (SPEC-CHANGE.md
 // collision #8, #464).
+//
+// Issuer and Algorithm are the leaf's parsed identity (its issuer distinguished
+// name and signature algorithm), carried only on a presented chain and dropped
+// when empty. They are the leaf's own attributes — a read of the certificate the
+// handshake already holds, not a new fingerprint — and the Asset detail's
+// TLS-certificate card renders them beside the fingerprint and validity
+// (SPEC-CHANGE.md collision #22c, #581). A presented value from before this leaf
+// parsed them carries neither key, and the card omits each honestly.
 type certificateValue struct {
-	Outcome  TLSOutcome `json:"outcome"`
-	Chain    []string   `json:"chain,omitempty"`
-	NotAfter string     `json:"not_after,omitempty"`
+	Outcome   TLSOutcome `json:"outcome"`
+	Chain     []string   `json:"chain,omitempty"`
+	NotAfter  string     `json:"not_after,omitempty"`
+	Issuer    string     `json:"issuer,omitempty"`
+	Algorithm string     `json:"algorithm,omitempty"`
 }
 
 // EmitCertificate renders one Endpoint's presented-certificate value at one
@@ -61,8 +71,18 @@ func EmitCertificate(batch, vantage string, target netip.AddrPort, serverName st
 		Subject: EndpointKey(serverName, target, "tcp"),
 		Vantage: vantage,
 		Address: target.Addr().String(),
-		Data:    mustJSON(certificateValue{Outcome: res.Outcome, Chain: res.Chain, NotAfter: notAfterString(res)}),
+		Data:    mustJSON(certificateValue{Outcome: res.Outcome, Chain: res.Chain, NotAfter: notAfterString(res), Issuer: presentedIdentity(res, res.Issuer), Algorithm: presentedIdentity(res, res.Algorithm)}),
 	}
+}
+
+// presentedIdentity guards a leaf-identity field (issuer, algorithm) so it is
+// carried only on a presented chain — every negative outcome renders the empty
+// string, which omitempty drops, exactly as notAfterString guards the expiry.
+func presentedIdentity(res HandshakeResult, v string) string {
+	if res.Outcome != TLSPresented {
+		return ""
+	}
+	return v
 }
 
 // notAfterString renders the leaf's expiry for the presented value: a zero NotAfter

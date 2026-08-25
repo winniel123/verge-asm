@@ -1363,3 +1363,138 @@ func TestDashboardFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureAssetPackage is the fixtures.json → asset slice, snake_case as stored.
+type fixtureAssetPackage struct {
+	Asset struct {
+		Key          string `json:"key"`
+		Type         string `json:"type"`
+		Severity     string `json:"severity"`
+		SevLabel     string `json:"sev_label"`
+		Exposure     string `json:"exposure"`
+		Seen         string `json:"seen"`
+		InScopeSince string `json:"in_scope_since"`
+		Withdrawn    bool   `json:"withdrawn"`
+		Ports        []struct {
+			Port     string `json:"port"`
+			Service  string `json:"service"`
+			Exposure string `json:"exposure"`
+			Since    string `json:"since"`
+		} `json:"ports"`
+		DNS []struct {
+			Type  string `json:"type"`
+			Value string `json:"value"`
+			Seen  string `json:"seen"`
+		} `json:"dns"`
+		Cert struct {
+			Name        string `json:"name"`
+			Issuer      string `json:"issuer"`
+			Algorithm   string `json:"algorithm"`
+			NotAfter    string `json:"not_after"`
+			Tone        string `json:"tone"`
+			Label       string `json:"label"`
+			Fingerprint string `json:"fingerprint"`
+		} `json:"cert"`
+		Provenance []struct {
+			K string `json:"k"`
+			V string `json:"v"`
+		} `json:"provenance"`
+		Signals []struct {
+			Severity string `json:"severity"`
+			SevLabel string `json:"sev_label"`
+			Rule     string `json:"rule"`
+			SigID    string `json:"sig_id"`
+			Time     string `json:"time"`
+		} `json:"signals"`
+		Drift []struct {
+			Change  string `json:"change"`
+			Family  string `json:"family"`
+			Subject string `json:"subject"`
+			Detail  string `json:"detail"`
+			Time    string `json:"time"`
+		} `json:"drift"`
+	} `json:"asset"`
+}
+
+// TestAssetFixtureMatchesPackage folds every pinned AssetDetail dev-fixture value back
+// through design-system/fixtures/fixtures.json → asset, so the VERGE_DEV render the
+// pixel goldens capture can never drift from the frozen package (#581).
+func TestAssetFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureAssetPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	a := f.Asset
+	d := devAssetData()
+
+	if a.Key != d.Key || a.Key != devAssetKey {
+		t.Errorf("key drift: fixtures.json = %q, pinned = %q/%q", a.Key, d.Key, devAssetKey)
+	}
+	if a.Type != d.Type || a.Severity != d.Severity || a.SevLabel != d.SevLabel ||
+		a.Exposure != d.Exposure || a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.Withdrawn != d.Withdrawn {
+		t.Errorf("header drift:\n fixtures.json = %+v\n pinned        = %+v", a, d)
+	}
+
+	if len(a.Ports) != len(d.Ports) {
+		t.Fatalf("ports length drift: fixtures.json = %d, pinned = %d", len(a.Ports), len(d.Ports))
+	}
+	for i, p := range a.Ports {
+		q := d.Ports[i]
+		if p.Port != q.Port || p.Service != q.Service || p.Exposure != q.Exposure || p.Since != q.Since {
+			t.Errorf("ports[%d] drift: fixtures.json = %+v, pinned = %+v", i, p, q)
+		}
+	}
+
+	if len(a.DNS) != len(d.DNS) {
+		t.Fatalf("dns length drift: fixtures.json = %d, pinned = %d", len(a.DNS), len(d.DNS))
+	}
+	for i, r := range a.DNS {
+		q := d.DNS[i]
+		if r.Type != q.Type || r.Value != q.Value || r.Seen != q.Seen {
+			t.Errorf("dns[%d] drift: fixtures.json = %+v, pinned = %+v", i, r, q)
+		}
+	}
+
+	if d.Cert == nil {
+		t.Fatalf("pinned cert is nil; fixtures.json carries one")
+	}
+	if a.Cert.Name != d.Cert.Name || a.Cert.Issuer != d.Cert.Issuer || a.Cert.Algorithm != d.Cert.Algorithm ||
+		a.Cert.NotAfter != d.Cert.NotAfter || a.Cert.Tone != d.Cert.Tone || a.Cert.Label != d.Cert.Label ||
+		a.Cert.Fingerprint != d.Cert.Fingerprint {
+		t.Errorf("cert drift:\n fixtures.json = %+v\n pinned        = %+v", a.Cert, *d.Cert)
+	}
+
+	if len(a.Provenance) != len(d.Provenance) {
+		t.Fatalf("provenance length drift: fixtures.json = %d, pinned = %d", len(a.Provenance), len(d.Provenance))
+	}
+	for i, p := range a.Provenance {
+		q := d.Provenance[i]
+		if p.K != q.K || p.V != q.V {
+			t.Errorf("provenance[%d] drift: fixtures.json = %+v, pinned = %+v", i, p, q)
+		}
+	}
+
+	if len(a.Signals) != len(d.Signals) {
+		t.Fatalf("signals length drift: fixtures.json = %d, pinned = %d", len(a.Signals), len(d.Signals))
+	}
+	for i, s := range a.Signals {
+		q := d.Signals[i]
+		if s.Severity != q.Severity || s.SevLabel != q.SevLabel || s.Rule != q.Rule || s.SigID != q.SigID || s.Time != q.Time {
+			t.Errorf("signals[%d] drift: fixtures.json = %+v, pinned = %+v", i, s, q)
+		}
+	}
+
+	if len(a.Drift) != len(d.Drift) {
+		t.Fatalf("drift length drift: fixtures.json = %d, pinned = %d", len(a.Drift), len(d.Drift))
+	}
+	for i, e := range a.Drift {
+		q := d.Drift[i]
+		if e.Change != q.Change || e.Family != q.Family || e.Subject != q.Subject || e.Detail != q.Detail || e.Time != q.Time {
+			t.Errorf("drift[%d] drift: fixtures.json = %+v, pinned = %+v", i, e, q)
+		}
+	}
+}

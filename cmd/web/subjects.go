@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"html/template"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -12,12 +13,21 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+// The frozen design-owned asset.tmpl (design-system/templates/asset.tmpl, package
+// v3.10.0) is the view layer for /asset/{key}: it defines "asset" + "assetexposure"
+// and reuses the "sevbadge" define signals.tmpl declares and the "changeglyph" define
+// drift.tmpl declares — all parse into the one shared `tmpl` set, so they resolve at
+// execute time. It is embedded read-only via the designfs package (auto-globbed
+// through `templates/*.tmpl`); the repo authors no markup/CSS/JS for this route.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/asset.tmpl"))
 
 // The Subjects screen (v1 spec §6.6, ADR-0072). At wave-0 only `Name` subjects
 // exist — they come from the `resolution-walk` leaf's `resolution` facet (#188).
@@ -1070,22 +1080,43 @@ type assetPageData struct {
 	Seen         string // the latest observation instant for this Name
 	InScopeSince string // the covering Seed's declaration date
 	Severity     string // header aggregate: the most urgent severity across firing Signals (AssetDetail.jsx:35); empty when none fire
+	SevLabel     string // the aggregate severity capitalised for the header badge label ("Critical"); empty when none fire (#22a)
 	Exposure     string // header aggregate: the worst reachability across open Ports (AssetDetail.jsx:36); empty when none measured
 	Ports        []assetPort
 	DNS          []assetDNSRow
+	Cert         *assetCert // the TLS certificate's parsed identity off the chain leaf; nil → the honest empty state (#22c)
 	Provenance   []assetKV
 	Signals      []assetSignal
 	Drift        []assetDriftEvent
 }
 
-// assetPort is one open Service on this asset's addresses: its port and transport,
-// the reachability verdict rendered as an exposure state, and when it first
-// opened. It never carries a product/version — no technology fingerprinting.
+// assetPort is one open Service on this asset's addresses: its port, the reachability
+// verdict rendered as an exposure state, and when it first opened. Service is a
+// precomputed display string joining the transport with the http-identity Server an
+// Endpoint on that port holds, where one exists — a read of stored evidence, not a
+// new fingerprint (#22d); transport-only where no Endpoint holds an http-identity.
 type assetPort struct {
-	Port      string
-	Transport string
-	Exposure  string
-	Since     string
+	Port     string
+	Service  string
+	Exposure string
+	Since    string
+}
+
+// assetCert is the TLS certificate's parsed identity for the asset, folded off the
+// certificate-chain leaf (#22c). Name is the endpoint's presented name; Fingerprint
+// is the leaf's stored fingerprint (chain[0]); NotAfter is the leaf's expiry as a
+// date; Issuer and Algorithm are the leaf's parsed identity where the stored value
+// carries them (honestly omitted where a pre-parse span does not). Label and Tone
+// are precomputed from the days-to-expiry: "valid · Nd" ok, "expires in Nd" warn
+// (≤30d), "expired Nd ago" danger.
+type assetCert struct {
+	Name        string
+	Issuer      string
+	Algorithm   string
+	NotAfter    string
+	Label       string
+	Tone        string // ok | warn | danger
+	Fingerprint string
 }
 
 // assetDNSRow is one resolved record: the RR type, its value, and when last seen.
@@ -1111,6 +1142,9 @@ type assetSignal struct {
 	Rule     string
 	Subject  string
 	Severity string // the rule's severity token: critical | high | medium | low | info
+	SevLabel string // the severity capitalised for the badge label ("Critical") (#22a)
+	SigID    string // the stable minted "SIG-####" id the row deep-links to (#22b)
+	Time     string // first-raised, rendered relative to now ("4m") (#22b)
 }
 
 // assetDriftEvent is one transition on this asset, in change's own language: the
@@ -1129,6 +1163,13 @@ type assetDriftEvent struct {
 // so a thin section falls to its empty-state rather than 500ing the page. The route
 // keys on the Name (no `/` or `@`), so a plain `/asset/{key}` path segment resolves.
 func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// A VERGE_DEV build serves the pinned fixtures.json asset slice — the byte-exact
+	// corpus the pixel goldens capture (as the sibling screens do). The seeded key is
+	// the fixture's own; any other key still resolves the live read below.
+	if s.devMode && r.PathValue("key") == devAssetKey {
+		s.render(w, "asset", s.assetFixtureData(acct))
+		return
+	}
 	key := r.PathValue("key")
 	subject, err := s.store.GetNameSubject(r.Context(), db.GetNameSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
@@ -1154,15 +1195,17 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
 	data.DNS = s.assetDNS(r, key, res)
 	data.Ports = s.assetPorts(r, res.Addresses)
+	data.Cert = s.assetCertificate(r, key, res.Addresses)
 	data.Signals = s.assetSignals(r, key)
 	data.Severity = assetHeaderSeverity(data.Signals)
+	data.SevLabel = sevLabel(data.Severity)
 	data.Exposure = assetHeaderExposure(data.Ports)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
 	s.render(w, "asset", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Asset":     data,
+		"NavActive": "inventory", "DesignTokens": true,
+		"Asset": data,
 	})
 }
 
@@ -1253,6 +1296,24 @@ func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
 	if err != nil {
 		return nil
 	}
+	// First pass: the http-identity Server an Endpoint on each of the asset's
+	// address:port pairs holds, keyed by address:port. An Endpoint key is
+	// `name@address:port/transport`, so its Service leg carries the same address:port
+	// a reachability Service key does — the join key the census Service column reads.
+	servers := map[string]string{}
+	for _, row := range rows {
+		if row.SubjectKind != "endpoint" || row.Facet != "http-identity" {
+			continue
+		}
+		_, service := splitEndpointKey(row.SubjectKey)
+		addr, port, _ := splitServiceKey(service)
+		if !addrSet[addr] {
+			continue
+		}
+		if srv := decodeHTTPIdentity(row.Value).Server; srv != "" {
+			servers[addr+":"+port] = srv
+		}
+	}
 	var ports []assetPort
 	for _, row := range rows {
 		if row.SubjectKind != "service" || row.Facet != "reachability" {
@@ -1263,13 +1324,24 @@ func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
 			continue
 		}
 		ports = append(ports, assetPort{
-			Port:      ":" + port,
-			Transport: transport,
-			Exposure:  assetExposure(decodeReachability(row.Value).Outcome, row.IsGap),
-			Since:     row.OpenedAt.Time.UTC().Format(spanTimeFmt),
+			Port:     ":" + port,
+			Service:  assetPortService(transport, servers[addr+":"+port]),
+			Exposure: assetExposure(decodeReachability(row.Value).Outcome, row.IsGap),
+			Since:    row.OpenedAt.Time.UTC().Format(spanTimeFmt),
 		})
 	}
 	return ports
+}
+
+// assetPortService is the census Service column's precomputed display string (#22d):
+// the transport joined with the http-identity Server an Endpoint on the port holds,
+// where one exists (`tcp · nginx/1.25.0`); the bare transport where no Endpoint holds
+// a Server. It is a read of stored http-identity evidence, never a new fingerprint.
+func assetPortService(transport, server string) string {
+	if server == "" {
+		return transport
+	}
+	return transport + " · " + server
 }
 
 // assetExposure maps a reachability verdict to the exposure state the census chip
@@ -1288,6 +1360,99 @@ func assetExposure(outcome string, isGap bool) string {
 		return "not-reached"
 	default:
 		return "unverified"
+	}
+}
+
+// certificateLeafValue is the parsed shape of a stored `certificate` facet value
+// (internal/measure/connectoutcome): the leaf-first fingerprint chain, the leaf's
+// expiry, and — where a leaf that parsed them folded the value (#22c) — the leaf's
+// issuer distinguished name and signature algorithm. A pre-parse span carries only
+// chain + not_after, so issuer/algorithm read empty and the card omits them.
+type certificateLeafValue struct {
+	Outcome   string   `json:"outcome"`
+	Chain     []string `json:"chain"`
+	NotAfter  string   `json:"not_after"`
+	Issuer    string   `json:"issuer"`
+	Algorithm string   `json:"algorithm"`
+}
+
+// assetCertificate folds the asset's TLS certificate card off the certificate-chain
+// leaf (#22c). It reads the latest per-Endpoint `certificate` value (the same read
+// the certificate rules use) and keeps the presented chain on an Endpoint whose Name
+// leg IS this asset — the leaf under which the presented chain is single-valued
+// (connectoutcome.EndpointKey). From the leaf it renders the real parsed identity:
+// the fingerprint (chain[0]), the expiry as a date, and — where the stored value
+// carries them — the issuer and signature algorithm, with the validity Label/Tone
+// precomputed from the days-to-expiry. A subject that holds no presented leaf returns
+// nil, so the card falls to its honest empty state rather than fabricate one.
+func (s *server) assetCertificate(r *http.Request, key string, addresses []string) *assetCert {
+	rows, err := s.store.ListEndpointCertificates(r.Context(), db.ListEndpointCertificatesParams{
+		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
+	if err != nil {
+		return nil
+	}
+	addrSet := make(map[string]bool, len(addresses))
+	for _, a := range addresses {
+		addrSet[a] = true
+	}
+	var chosen *certificateLeafValue
+	for _, row := range rows {
+		name, service := splitEndpointKey(row.SubjectKey)
+		addr, _, _ := splitServiceKey(service)
+		// The named Endpoint keyed under this asset is preferred; a nameless Endpoint
+		// on one of the asset's addresses is the fallback when no named leaf presented.
+		named := name == key
+		if !named && !(name == "" && addrSet[addr]) {
+			continue
+		}
+		var v certificateLeafValue
+		if err := json.Unmarshal(row.Value, &v); err != nil {
+			continue
+		}
+		if v.Outcome != "presented" || len(v.Chain) == 0 {
+			continue
+		}
+		vv := v
+		if named {
+			chosen = &vv
+			break
+		}
+		if chosen == nil {
+			chosen = &vv
+		}
+	}
+	if chosen == nil {
+		return nil
+	}
+	cert := &assetCert{
+		Name:        key,
+		Issuer:      chosen.Issuer,
+		Algorithm:   chosen.Algorithm,
+		Fingerprint: chosen.Chain[0],
+	}
+	if chosen.NotAfter != "" {
+		if na, perr := time.Parse(time.RFC3339, chosen.NotAfter); perr == nil {
+			cert.NotAfter = na.UTC().Format("2006-01-02")
+			cert.Label, cert.Tone = certValidity(na, s.now().UTC())
+		}
+	}
+	return cert
+}
+
+// certValidity precomputes the certificate card's validity Label + Tone from the
+// leaf's expiry relative to now (#22c): "valid · Nd" ok while more than 30 days
+// remain, "expires in Nd" warn within the 30-day window, and "expired Nd ago" danger
+// once past. Days are whole days, floored, so "0d" reads on the day of expiry.
+func certValidity(notAfter, now time.Time) (label, tone string) {
+	days := int(notAfter.Sub(now).Hours() / 24)
+	switch {
+	case days < 0:
+		return "expired " + strconv.Itoa(-days) + "d ago", "danger"
+	case days <= 30:
+		return "expires in " + strconv.Itoa(days) + "d", "warn"
+	default:
+		return "valid · " + strconv.Itoa(days) + "d", "ok"
 	}
 }
 
@@ -1336,14 +1501,34 @@ func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
 	if err != nil {
 		return nil
 	}
+	// deriveSignalInstances mints (idempotently) and reads back the stable SIG-####
+	// identity + first-seen for every currently-fired (rule, subject) pair — the same
+	// id the Signals screen's drawer resolves under /signals?view= (#22b). Keep the
+	// members whose subject IS this asset; each carries its rule's severity + label
+	// (SeverityFor, never fabricated) and its raised time rendered relative to now.
+	instances, err := s.deriveSignalInstances(r.Context(), signal.EvaluateCorpus(corpus))
+	if err != nil {
+		return nil
+	}
+	now := s.now().UTC()
 	var out []assetSignal
-	for _, c := range signal.EvaluateCorpus(corpus) {
-		for _, m := range c.Fired {
-			if m.Subject == key {
-				sev, _ := signal.SeverityFor(c.Rule)
-				out = append(out, assetSignal{Rule: c.Rule, Subject: m.Subject, Severity: sev.String()})
+	for _, inst := range instances {
+		if inst.Asset != key {
+			continue
+		}
+		sig := assetSignal{
+			Rule:     inst.Signal,
+			Subject:  inst.Asset,
+			Severity: inst.Severity,
+			SevLabel: sevLabel(inst.Severity),
+			SigID:    inst.SigID,
+		}
+		if inst.First != "" {
+			if t, perr := time.Parse(time.RFC3339, inst.First); perr == nil {
+				sig.Time = relTime(t, now)
 			}
 		}
+		out = append(out, sig)
 	}
 	return out
 }
