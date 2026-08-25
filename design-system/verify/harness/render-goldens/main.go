@@ -30,9 +30,11 @@ import (
 	"html/template"
 	"io/fs"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
@@ -102,7 +104,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage")
 	out := flag.String("out", "", "inventory: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -203,9 +205,180 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "coverage":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen coverage")
+		}
+		files, err := renderCoverageStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	default:
-		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup)", *screen)
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup | coverage)", *screen)
 	}
+}
+
+// coverageFixture is the design-system/fixtures/fixtures.json coverage slice: the aperture meters
+// (address counted/total, name census), the currency messages (with relative When + ISO tooltip),
+// the gaps register, the unevaluable rules and the per-zone stale callouts. The golden reads them
+// here (never re-hardcoded) so a fixture change flows through; cmd/web/devfixtures.go pins the same
+// values with a drift test (TestCoverageFixtureMatchesPackage).
+type coverageFixture struct {
+	Meters []struct {
+		Label   string `json:"label"`
+		Counted int    `json:"counted"`
+		Total   *int   `json:"total"`
+		Unit    string `json:"unit"`
+		Detail  string `json:"detail"`
+	} `json:"meters"`
+	Messages []struct {
+		Kind    string `json:"kind"`
+		Badge   string `json:"badge"`
+		Bound   string `json:"bound"`
+		Subject string `json:"subject"`
+		Text    string `json:"text"`
+		When    string `json:"when"`
+		ISO     string `json:"iso"`
+	} `json:"messages"`
+	Gaps []struct {
+		Subject  string `json:"subject"`
+		Gap      string `json:"gap"`
+		Expected string `json:"expected"`
+		Since    string `json:"since"`
+	} `json:"gaps"`
+	Unevaluable []struct {
+		ID      string `json:"id"`
+		Version int    `json:"version"`
+		Why     string `json:"why"`
+	} `json:"unevaluable"`
+	StaleZones []struct {
+		Zone string `json:"zone"`
+		Age  string `json:"age"`
+	} `json:"stale_zones"`
+}
+
+func loadCoverageFixture() (coverageFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return coverageFixture{}, err
+	}
+	var ff struct {
+		Coverage coverageFixture `json:"coverage"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return coverageFixture{}, err
+	}
+	return ff.Coverage, nil
+}
+
+// coveragePct replicates cmd/web/cold.go coveragePct byte-for-byte: the ADDRESS-scope meter fill
+// (counted/total, rounded to the nearest whole percent, clamped 0–100). Keeping this arithmetic
+// identical is the point — fixtures.json carries counted/total but no precomputed pct, so the
+// golden must compute the same fill the seeded candidate does.
+func coveragePct(counted, total int) int {
+	if total <= 0 {
+		return 0
+	}
+	p := int(math.Round(float64(counted) / float64(total) * 100))
+	if p < 0 {
+		return 0
+	}
+	if p > 100 {
+		return 100
+	}
+	return p
+}
+
+// renderCoverageStates composes the two Coverage golden HTMLs from the frozen coverage.tmpl, one
+// per states.json coverage state (default, empty). The "default" data map mirrors coveragePage
+// coverageFixtureData EXACTLY (the holes the frozen tmpl reads) — the aperture meters with the
+// #19c address counted/total + computed Pct and the name census, the four relative-time messages,
+// the gaps, the unevaluable rules and the per-zone stale callout, all in fixtures.json authored
+// order — so the cropped `main` is byte-identical to what the seeded server renders. The "empty"
+// state renders every region empty (the tmpl draws its own empty states, no stale callout),
+// mirroring the /dev/seed/empty-authed capture. Chrome is the empty stub (goldens crop to `main`).
+func renderCoverageStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadCoverageFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	meters := make([]map[string]any, 0, len(fx.Meters))
+	for _, m := range fx.Meters {
+		mv := map[string]any{
+			"Label": m.Label, "Counted": strconv.Itoa(m.Counted), "Unit": m.Unit, "Detail": m.Detail,
+		}
+		if m.Total != nil {
+			mv["Total"] = strconv.Itoa(*m.Total)
+			mv["Pct"] = coveragePct(m.Counted, *m.Total)
+		}
+		meters = append(meters, mv)
+	}
+	messages := make([]map[string]any, 0, len(fx.Messages))
+	for _, m := range fx.Messages {
+		messages = append(messages, map[string]any{
+			"Kind": m.Kind, "Badge": m.Badge, "Bound": m.Bound, "Subject": m.Subject, "Text": m.Text, "When": m.When, "ISO": m.ISO,
+		})
+	}
+	gaps := make([]map[string]any, 0, len(fx.Gaps))
+	for _, g := range fx.Gaps {
+		gaps = append(gaps, map[string]any{"Subject": g.Subject, "Gap": g.Gap, "Expected": g.Expected, "Since": g.Since})
+	}
+	unevaluable := make([]map[string]any, 0, len(fx.Unevaluable))
+	for _, u := range fx.Unevaluable {
+		unevaluable = append(unevaluable, map[string]any{"ID": u.ID, "Version": strconv.Itoa(u.Version), "Why": u.Why})
+	}
+	stale := make([]map[string]any, 0, len(fx.StaleZones))
+	for _, z := range fx.StaleZones {
+		stale = append(stale, map[string]any{"Zone": z.Zone, "Age": z.Age})
+	}
+
+	type cstate struct {
+		id   string
+		data map[string]any
+	}
+	states := []cstate{
+		{"default", map[string]any{
+			"Title": "Coverage", "NavActive": "coverage", "DesignTokens": true,
+			"Meters": meters, "Messages": messages, "Gaps": gaps, "Unevaluable": unevaluable, "StaleZones": stale,
+		}},
+		{"empty", map[string]any{
+			"Title": "Coverage", "NavActive": "coverage", "DesignTokens": true,
+			"Meters": []map[string]any{}, "Messages": []map[string]any{}, "Gaps": []map[string]any{},
+			"Unevaluable": []map[string]any{}, "StaleZones": []map[string]any{},
+		}},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/coverage.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "coverage", st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
 }
 
 // goldenHead builds the golden's <head>…<body> shell: the frozen font @import hoisted

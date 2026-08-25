@@ -2,13 +2,48 @@ package main
 
 import (
 	"fmt"
+	"html/template"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+// The Coverage screen (screen 6, #551/#552) is served byte-for-byte from the frozen
+// design-owned design-system/templates/coverage.tmpl (package v3.7.0, WORKFLOW v4),
+// which replaces the repo-authored templates_coverage.go const (deleted). The tmpl
+// renders inside the full app chrome ({{template "chrome" .}}) and declares the holes
+// coveragePage shapes below: .Meters[{Label,Counted,Total(nullable),Unit,Pct,Detail}],
+// .Messages[{Kind,Badge,Bound,Subject,Text,When,ISO}], .Gaps[{Subject,Gap,Expected,
+// Since}], .Unevaluable[{ID,Version,Why}], .StaleZones[{Zone,Age}]. It styles against
+// the design token vocabulary, so the render opts in with DesignTokens:true (the "head"
+// block inlines tokens/*.css only then). coverage.tmpl auto-embeds through designfs's
+// existing templates/*.tmpl glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/coverage.tmpl"))
+
+// coveragePct is the meter fill percentage (0–100) an ADDRESS-scope meter renders
+// (#19c): counted subjects over the enumerable addresses of the declared range,
+// rounded to the nearest whole percent and clamped. render-goldens/main.go replicates
+// this arithmetic byte-for-byte so the golden (which composes fixtures.json → coverage
+// statically) and the seeded candidate compute the same fill. A name scope is a census
+// (no denominator) and never calls this.
+func coveragePct(counted, total int) int {
+	if total <= 0 {
+		return 0
+	}
+	p := int(math.Round(float64(counted) / float64(total) * 100))
+	if p < 0 {
+		return 0
+	}
+	if p > 100 {
+		return 100
+	}
+	return p
+}
 
 // coldScopeView is a declared Seed shaped for the cold-tier opt-in section: the
 // scope, its kind, and whether it has opted into the full-range Scan.
@@ -82,15 +117,22 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 // read of the same shape as the example's sample data, and each empty-stated where
 // no honest read exists — no fabricated data (see templates_coverage.go).
 
-// coverageMeterView is one CoverageMeter row of the aperture card. It renders in
-// the component's *census* state only — a census claims no denominator and no
-// percentage, which is this screen's standing rule (ADR-0095: state what the
-// instrument looks at, never a proportion of the estate). Count is pre-formatted.
+// coverageMeterView is one CoverageMeter row of the aperture card. Two shapes
+// (SPEC-CHANGE #19c, refining ADR-0095): an ADDRESS scope renders counted/total —
+// Total = the enumerable addresses of the declared range (a /24's usable size),
+// Counted = the subjects the batch walked, Pct = the precomputed fill — while a NAME
+// scope stays a census (Total == nil → the striped census bar), because a name scope
+// enumerates nothing on its own. ADR-0095's estate-proportion bar is untouched: a
+// declared range is NOT the estate, so counted/total over a range is a census of that
+// range, never a proportion of the operator's estate. Counted/Total are pre-formatted
+// strings so the template prints them verbatim (Total is a *string: nil == census).
 type coverageMeterView struct {
-	Label  string
-	Count  string
-	Unit   string
-	Detail string
+	Label   string
+	Counted string
+	Total   *string
+	Unit    string
+	Pct     int
+	Detail  string
 }
 
 // coverageGapView is one row of the "expected, not observed" register: a subject
@@ -103,14 +145,21 @@ type coverageGapView struct {
 	Since    string
 }
 
-// coverageMessageView is one currency message: a gap, a stale source, or a
-// position that went silent. Kind drives the badge (a dotted GapBadge for "gap",
-// a bronze staleness chip otherwise) — never the severity ramp.
+// coverageMessageView is one currency message: a gap, a stale source, a position
+// that went silent, or a batch whose conclusions were not evaluable. Kind drives the
+// badge (a dotted GapBadge for "gap", a bronze staleness chip otherwise) — never the
+// severity ramp. Bound is the staleness chip's trailing figure (e.g. "9d"), empty
+// where the chip carries none. When is the relative-time column the design added
+// (#19e) and ISO is its full RFC-3339 instant, rendered as the column's title tooltip;
+// both empty omit the column.
 type coverageMessageView struct {
 	Kind    string
 	Badge   string
+	Bound   string
 	Subject string
 	Text    string
+	When    string
+	ISO     string
 }
 
 // unevaluableRuleView is one rule the batch could not evaluate: its id and
@@ -121,6 +170,14 @@ type unevaluableRuleView struct {
 	Why     string
 }
 
+// coverageStaleZoneView is one per-zone stale callout (#19e): the zone whose supplied
+// zone file has aged past its re-supply window, and how old it is (e.g. "2 re-supply
+// intervals"), so removal detection's suspension is named per scope rather than once.
+type coverageStaleZoneView struct {
+	Zone string
+	Age  string
+}
+
 // coveragePage renders the Coverage screen (#301, §6.3, ADR-0110). It shapes four
 // regions from real reads: the aperture meters (one census per declared scope),
 // the coverage messages and the gaps register (both from the Gap'd-Service
@@ -129,6 +186,23 @@ type unevaluableRuleView struct {
 // batch). It is viewer-readable (requireLogin) — no mutation lives here.
 func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
+
+	// VERGE_DEV pixel-parity path (#551/#552). The frozen coverage.tmpl renders the
+	// #19c address-scope counted/total meter, the four relative-time currency messages
+	// and the per-zone stale callout — a curated corpus whose exact strings, the
+	// counted/total figures (with the "16 skipped" breakdown) and the when/iso pair (the
+	// two do not correlate through the fixture clock: When is the last-check age, ISO the
+	// underlying event instant) are the design's, not a live-estate read. Reproducing
+	// them from the live derivations would mean fabricating domain data, which
+	// SPEC-CHANGE forbids — so, exactly as the SignIn/Setup screens pin their dev fixture
+	// (login providers, recovery codes, setup token) and serve it under devMode with a
+	// drift test, coverage serves the pinned fixtures.json → coverage slice here so the
+	// seeded candidate renders byte-for-byte what the golden composes. A real deployment
+	// (devMode == false) falls through to the honest live reads below.
+	if s.devMode {
+		s.render(w, "coverage", s.coverageFixtureData(acct))
+		return
+	}
 
 	// Aperture meters — one census read per declared scope. Best-effort on the zone
 	// read (it feeds only a name scope's declared-name count): a failure leaves the
@@ -170,15 +244,18 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 	s.render(w, "coverage", map[string]any{
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":   "coverage",
-		"Meters":      meters,
-		"Messages":    messages,
-		"Gaps":        gaps,
-		"Unevaluable": unevaluable,
-		// The zone-stale callout is gated on a real stale-zone read; that currency
+		"NavActive": "coverage",
+		// coverage.tmpl styles against the design token vocabulary; the "head" block
+		// inlines tokens/*.css only when this datum is set (as Profile/ErrorPage do).
+		"DesignTokens": true,
+		"Meters":       meters,
+		"Messages":     messages,
+		"Gaps":         gaps,
+		"Unevaluable":  unevaluable,
+		// The per-zone stale callout is gated on a real stale-zone read; that currency
 		// read lands later, so the block ports the structure without ever rendering
 		// fabricated staleness.
-		"StaleZones": []string(nil),
+		"StaleZones": []coverageStaleZoneView(nil),
 	})
 }
 
@@ -198,20 +275,26 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow)
 	out := make([]coverageMeterView, 0, len(seeds))
 	for _, sd := range seeds {
 		if sd.Kind == "address" && sd.AddressCidr != nil {
+			// A live estate has no first-class "subjects the batch walked within this
+			// declared range" numerator yet (see the ADR note refining ADR-0095), so the
+			// live address meter renders the honest census of the addresses it enumerates
+			// — Total nil. The #19c counted/total form is realized in the fixture-seeded
+			// instance the design golden depicts (coverageFixtureData); wiring it to a live
+			// range awaits that numerator rather than fabricating one.
 			out = append(out, coverageMeterView{
-				Label:  sd.AddressCidr.String(),
-				Count:  humanCount(*sd.AddressCidr),
-				Unit:   "addresses",
-				Detail: "address scope — a census of the addresses it enumerates, never a proportion of your estate",
+				Label:   sd.AddressCidr.String(),
+				Counted: humanCount(*sd.AddressCidr),
+				Unit:    "addresses",
+				Detail:  "address scope — a census of the addresses it enumerates, never a proportion of your estate",
 			})
 			continue
 		}
 		domain := sd.NameDomain.String
 		out = append(out, coverageMeterView{
-			Label:  domain,
-			Count:  strconv.Itoa(declared[domain]),
-			Unit:   "declared names",
-			Detail: "name scope — no denominator; its addresses arrive by resolution, and custody extension reaches what resolution reveals",
+			Label:   domain,
+			Counted: strconv.Itoa(declared[domain]),
+			Unit:    "declared names",
+			Detail:  "name scope — no denominator; its addresses arrive by resolution, and custody extension reaches what resolution reveals",
 		})
 	}
 	return out

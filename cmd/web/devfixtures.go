@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -564,4 +565,176 @@ func seedDevSSOProvider(ctx context.Context, pool *pgxpool.Pool, slug, name stri
 		return 0, fmt.Errorf("profile fixture: upsert sso provider %q: %w", slug, err)
 	}
 	return id, nil
+}
+
+// --- screen 6: Coverage fixture (package v3.7.0, WORK-ORDER-4-6-BATCH1.md) ------------------
+//
+// The Coverage screen (#551/#552) renders inside the full app chrome and is DB-backed only in
+// its session (a real admin, minted by the harness). Its VIEW corpus — the #19c address-scope
+// counted/total meter, the two-shape aperture (address counted/total, name census), the four
+// relative-time currency messages, the gaps register, the unevaluable rules and the per-zone
+// stale callout — is the design curated fixture, not a live-estate read: the exact message copy,
+// the 198/214 figures (with the "16 skipped" breakdown) and the when/iso pair (When is the
+// last-check age, ISO the underlying event instant — the two deliberately do NOT correlate
+// through the fixture clock) cannot be reconstructed from the live derivations without fabricating
+// domain data, which SPEC-CHANGE forbids. So, exactly as the SignIn/Setup screens pin their dev
+// fixture (login providers, recovery codes, setup token) and serve it under devMode, coveragePage
+// serves the pinned fixtures.json coverage slice below when s.devMode, and
+// TestCoverageFixtureMatchesPackage folds every value back through the frozen package — the
+// byte-exactness gate before the pixels. All of it is VERGE_DEV-only; a real deployment renders
+// the honest live census reads in cold.go coveragePage instead.
+
+// devCoverageMeter mirrors one fixtures.json coverage.meters entry. total is a pointer so a name
+// scope (no denominator) is a census (nil), matching the frozen JSON omitted "total".
+type devCoverageMeter struct {
+	label   string
+	counted int
+	total   *int
+	unit    string
+	detail  string
+}
+
+// devCoverageMessage mirrors one fixtures.json coverage.messages entry (bound empty where the
+// staleness chip carries no trailing figure).
+type devCoverageMessage struct {
+	kind    string
+	badge   string
+	bound   string
+	subject string
+	text    string
+	when    string
+	iso     string
+}
+
+type devCoverageGap struct {
+	subject  string
+	gap      string
+	expected string
+	since    string
+}
+
+type devCoverageUnevaluable struct {
+	id      string
+	version int
+	why     string
+}
+
+type devCoverageStaleZone struct {
+	zone string
+	age  string
+}
+
+// coverageTotal214 backs the address-scope meter nullable denominator (a package-level so its
+// address is stable). One named var reads clearer than an intptr helper.
+var coverageTotal214 = 214
+
+// devCoverageMeters pins fixtures.json coverage.meters in authored order: an ADDRESS scope
+// (203.0.113.0/24) rendering 198/214 subjects with the skip breakdown, then a NAME scope
+// (acmecorp.io) as a census of 62 addresses (no denominator).
+var devCoverageMeters = []devCoverageMeter{
+	{label: "203.0.113.0/24", counted: 198, total: &coverageTotal214, unit: "subjects", detail: "16 skipped: excluded subtree + 3 unresolvable names"},
+	{label: "acmecorp.io (name scope)", counted: 62, total: nil, unit: "addresses", detail: "census state — a name scope has no denominator; custody extension reaches what resolution reveals"},
+}
+
+// devCoverageMessages pins fixtures.json coverage.messages in authored order (gap / stale·9d /
+// silent / not-evaluable), each carrying the relative When and the ISO tooltip instant.
+var devCoverageMessages = []devCoverageMessage{
+	{kind: "gap", badge: "no address", subject: "old-blog.acmecorp.io", text: "Expected a resolution; none observed for 3 checks.", when: "2h", iso: "2026-08-22T12:20:04Z"},
+	{kind: "stale", badge: "stale", bound: "9d", subject: "internal.acmecorp.io zone", text: "Zone aged past two re-supply intervals — the source went stale.", when: "9d", iso: "2026-08-13T04:44:19Z"},
+	{kind: "silent", badge: "no reports", subject: "dc-fra-01", text: "Vantage stopped reporting mid-batch; open spans are not evaluable.", when: "41m", iso: "2026-08-22T13:41:02Z"},
+	{kind: "not-evaluable", badge: "not evaluable", subject: "ap-south-1 conclusions", text: "Missed 2 of 3 checks this batch; exposure conclusions marked unverified.", when: "5h", iso: "2026-08-22T09:03:55Z"},
+}
+
+// devCoverageGaps pins fixtures.json coverage.gaps in authored order.
+var devCoverageGaps = []devCoverageGap{
+	{subject: "old-blog.acmecorp.io", gap: "no address", expected: "A record", since: "2h"},
+	{subject: "203.0.113.44:22", gap: "no banner", expected: "ssh identification", since: "6h"},
+	{subject: "mail.acmecorp.io:25", gap: "no exchange", expected: "smtp greeting", since: "1d"},
+}
+
+// devCoverageUnevaluables pins fixtures.json coverage.unevaluable in authored order.
+var devCoverageUnevaluables = []devCoverageUnevaluable{
+	{id: "tls-weak-key", version: 3, why: "needs a completed tls-acceptance exchange; none committed this batch"},
+	{id: "zone-removal", version: 1, why: "needs a fresh zone file; the upload aged into a gap"},
+}
+
+// devCoverageStaleZones pins fixtures.json coverage.stale_zones in authored order.
+var devCoverageStaleZones = []devCoverageStaleZone{
+	{zone: "internal.acmecorp.io", age: "2 re-supply intervals"},
+}
+
+// coverageFixtureData assembles the render data map coveragePage passes to the frozen
+// coverage.tmpl in a VERGE_DEV build. It stamps the chrome + design-token holes, then either the
+// full pinned fixture corpus or — when a preceding GET /dev/seed/empty-authed set the
+// consume-once empty flag — the empty estate (every region nil, so the tmpl draws its empty
+// states and no stale callout), reading-and-clearing the flag so a later "default" capture (which
+// applies no seed) renders the full corpus again. The address-scope Pct is computed here with the
+// same coveragePct arithmetic render-goldens replicates, so golden and candidate agree.
+func (s *server) coverageFixtureData(acct db.Account) map[string]any {
+	data := map[string]any{
+		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "coverage", "DesignTokens": true,
+	}
+
+	s.coverageMu.Lock()
+	empty := s.coverageEmptyOnce
+	s.coverageEmptyOnce = false
+	s.coverageMu.Unlock()
+	if empty {
+		data["Meters"] = []coverageMeterView(nil)
+		data["Messages"] = []coverageMessageView(nil)
+		data["Gaps"] = []coverageGapView(nil)
+		data["Unevaluable"] = []unevaluableRuleView(nil)
+		data["StaleZones"] = []coverageStaleZoneView(nil)
+		return data
+	}
+
+	meters := make([]coverageMeterView, 0, len(devCoverageMeters))
+	for _, m := range devCoverageMeters {
+		mv := coverageMeterView{Label: m.label, Counted: strconv.Itoa(m.counted), Unit: m.unit, Detail: m.detail}
+		if m.total != nil {
+			t := strconv.Itoa(*m.total)
+			mv.Total = &t
+			mv.Pct = coveragePct(m.counted, *m.total)
+		}
+		meters = append(meters, mv)
+	}
+	messages := make([]coverageMessageView, 0, len(devCoverageMessages))
+	for _, m := range devCoverageMessages {
+		messages = append(messages, coverageMessageView{
+			Kind: m.kind, Badge: m.badge, Bound: m.bound, Subject: m.subject, Text: m.text, When: m.when, ISO: m.iso,
+		})
+	}
+	gaps := make([]coverageGapView, 0, len(devCoverageGaps))
+	for _, g := range devCoverageGaps {
+		gaps = append(gaps, coverageGapView{Subject: g.subject, Gap: g.gap, Expected: g.expected, Since: g.since})
+	}
+	unevaluable := make([]unevaluableRuleView, 0, len(devCoverageUnevaluables))
+	for _, u := range devCoverageUnevaluables {
+		unevaluable = append(unevaluable, unevaluableRuleView{ID: u.id, Version: strconv.Itoa(u.version), Why: u.why})
+	}
+	stale := make([]coverageStaleZoneView, 0, len(devCoverageStaleZones))
+	for _, z := range devCoverageStaleZones {
+		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
+	}
+
+	data["Meters"] = meters
+	data["Messages"] = messages
+	data["Gaps"] = gaps
+	data["Unevaluable"] = unevaluable
+	data["StaleZones"] = stale
+	return data
+}
+
+// devCoverageSeedEmpty is the GET /dev/seed/empty-authed handler (VERGE_DEV only): it realizes
+// states.json coverage seed:"empty-authed" by arming the consume-once empty flag coveragePage
+// reads, so the NEXT /coverage render serves the empty estate. Unlike /dev/seed/empty (Setup) it
+// touches no table — the authed admin session Coverage states run under is preserved. A 200 with a
+// tiny body (not 204) so the harness page.goto completes the navigation, mirroring the Setup route.
+func (s *server) devCoverageSeedEmpty(w http.ResponseWriter, r *http.Request) {
+	s.coverageMu.Lock()
+	s.coverageEmptyOnce = true
+	s.coverageMu.Unlock()
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("ok"))
 }

@@ -318,3 +318,116 @@ func TestSetupFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("setup variant drift: fixtures.json = %q, want %q (the dev seed route empties accounts)", f.Setup.Variant, "empty")
 	}
 }
+
+// fixtureCoveragePackage mirrors the fixtures.json coverage slice the screen-6 dev fixture pins
+// in devfixtures.go (devCoverageMeters/Messages/Gaps/Unevaluables/StaleZones). total and bound are
+// pointers/optional so an absent JSON key (a name-scope census meter; a message with no staleness
+// figure) round-trips as nil/"".
+type fixtureCoveragePackage struct {
+	Coverage struct {
+		Meters []struct {
+			Label   string `json:"label"`
+			Counted int    `json:"counted"`
+			Total   *int   `json:"total"`
+			Unit    string `json:"unit"`
+			Detail  string `json:"detail"`
+		} `json:"meters"`
+		Messages []struct {
+			Kind    string `json:"kind"`
+			Badge   string `json:"badge"`
+			Bound   string `json:"bound"`
+			Subject string `json:"subject"`
+			Text    string `json:"text"`
+			When    string `json:"when"`
+			ISO     string `json:"iso"`
+		} `json:"messages"`
+		Gaps []struct {
+			Subject  string `json:"subject"`
+			Gap      string `json:"gap"`
+			Expected string `json:"expected"`
+			Since    string `json:"since"`
+		} `json:"gaps"`
+		Unevaluable []struct {
+			ID      string `json:"id"`
+			Version int    `json:"version"`
+			Why     string `json:"why"`
+		} `json:"unevaluable"`
+		StaleZones []struct {
+			Zone string `json:"zone"`
+			Age  string `json:"age"`
+		} `json:"stale_zones"`
+	} `json:"coverage"`
+}
+
+// TestCoverageFixtureMatchesPackage is the byte-exactness gate for the screen-6 conversion: every
+// value the dev fixture pins (devfixtures.go, served by coveragePage under devMode) equals the
+// frozen fixtures.json coverage slice, in authored order — so a drift between the served candidate
+// and the golden (which composes the same fixture statically) fails here rather than in a
+// screenshot diff, exactly as TestSigninFixtureMatchesPackage guards the SignIn slice. It also
+// asserts the *int total round-trips (address scope set, name scope nil), the anchor of #19c.
+func TestCoverageFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureCoveragePackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+
+	if len(f.Coverage.Meters) != len(devCoverageMeters) {
+		t.Fatalf("meters length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.Meters), len(devCoverageMeters))
+	}
+	for i, m := range f.Coverage.Meters {
+		p := devCoverageMeters[i]
+		if m.Label != p.label || m.Counted != p.counted || m.Unit != p.unit || m.Detail != p.detail {
+			t.Errorf("meter %d drift: fixtures.json = %+v, pinned = %+v", i, m, p)
+		}
+		switch {
+		case m.Total == nil && p.total != nil, m.Total != nil && p.total == nil:
+			t.Errorf("meter %d total presence drift: fixtures.json nil=%v, pinned nil=%v", i, m.Total == nil, p.total == nil)
+		case m.Total != nil && p.total != nil && *m.Total != *p.total:
+			t.Errorf("meter %d total drift: fixtures.json = %d, pinned = %d", i, *m.Total, *p.total)
+		}
+	}
+
+	if len(f.Coverage.Messages) != len(devCoverageMessages) {
+		t.Fatalf("messages length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.Messages), len(devCoverageMessages))
+	}
+	for i, m := range f.Coverage.Messages {
+		p := devCoverageMessages[i]
+		if m.Kind != p.kind || m.Badge != p.badge || m.Bound != p.bound || m.Subject != p.subject || m.Text != p.text || m.When != p.when || m.ISO != p.iso {
+			t.Errorf("message %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, m, p)
+		}
+	}
+
+	if len(f.Coverage.Gaps) != len(devCoverageGaps) {
+		t.Fatalf("gaps length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.Gaps), len(devCoverageGaps))
+	}
+	for i, g := range f.Coverage.Gaps {
+		p := devCoverageGaps[i]
+		if g.Subject != p.subject || g.Gap != p.gap || g.Expected != p.expected || g.Since != p.since {
+			t.Errorf("gap %d drift: fixtures.json = %+v, pinned = %+v", i, g, p)
+		}
+	}
+
+	if len(f.Coverage.Unevaluable) != len(devCoverageUnevaluables) {
+		t.Fatalf("unevaluable length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.Unevaluable), len(devCoverageUnevaluables))
+	}
+	for i, u := range f.Coverage.Unevaluable {
+		p := devCoverageUnevaluables[i]
+		if u.ID != p.id || u.Version != p.version || u.Why != p.why {
+			t.Errorf("unevaluable %d drift: fixtures.json = %+v, pinned = %+v", i, u, p)
+		}
+	}
+
+	if len(f.Coverage.StaleZones) != len(devCoverageStaleZones) {
+		t.Fatalf("stale_zones length drift: fixtures.json = %d, pinned = %d", len(f.Coverage.StaleZones), len(devCoverageStaleZones))
+	}
+	for i, z := range f.Coverage.StaleZones {
+		p := devCoverageStaleZones[i]
+		if z.Zone != p.zone || z.Age != p.age {
+			t.Errorf("stale_zone %d drift: fixtures.json = %+v, pinned = %+v", i, z, p)
+		}
+	}
+}
