@@ -24,12 +24,12 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | 1 | Inventory | /inventory | inventory.tmpl | record expansion open · gaps-only on · filtered-empty | **LANDED — operator confirmed 2026-08-24** |
 | 2 | ErrorPage (all kinds) | /404 /403 /500 … | error.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
 | 3 | Profile | /profile | profile.tmpl | new-token dialog · end-session confirm | **LANDED — operator confirmed 2026-08-25** |
-| 4 | SignIn (+ flows) | /signin … | signin.tmpl | TOTP step · forgot/reset · invite | **BATCH 1 — artifacts in v3.7.0** |
-| 5 | Setup | /setup | setup.tmpl | — | **BATCH 1 — artifacts in v3.7.0** |
-| 6 | Coverage | /coverage | coverage.tmpl | — | **BATCH 1 — artifacts in v3.7.0** |
-| 7 | Exposure | /exposure | exposure.tmpl | withheld state | queued |
-| 8 | Drift | /drift | drift.tmpl | feed item expanded | queued |
-| 9 | RunDetail | /runs/{id} | rundetail.tmpl | — | queued |
+| 4 | SignIn (+ flows) | /signin … | signin.tmpl | TOTP step · forgot/reset · invite | **LANDED — operator confirmed 2026-08-25** |
+| 5 | Setup | /setup | setup.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
+| 6 | Coverage | /coverage | coverage.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
+| 7 | Exposure | /exposure | exposure.tmpl | withheld state | **BATCH 2 — artifacts in v3.8.0** |
+| 8 | Drift | /drift | drift.tmpl | feed item expanded | **BATCH 2 — artifacts in v3.8.0** |
+| 9 | RunDetail | /runs/{id} | rundetail.tmpl | — | **BATCH 2 — artifacts in v3.8.0** |
 | 10 | Scope | /scope | scope.tmpl | declared-name tree expanded · exclusion confirm · zone-file card | queued |
 | 11 | Dashboard | / | dashboard.tmpl | scanning progress row · banner dismissed | queued |
 | 12 | Signals | /signals | signals.tmpl | drawer open · descope confirm · annotation control open | queued |

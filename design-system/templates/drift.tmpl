@@ -1,0 +1,256 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — drift.tmpl · package v3.8.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Drift.jsx · shot 04. Replaces templates_drift.go.
+  Defines and hole names kept: "drift" + "changeglyph". Holes: .Periods[{Token,Label}], .Period,
+  .PeriodLabel (NEW — trigger label: active preset or "start – end"), .HasEvents, .BatchID,
+  .BatchLabel, .Truncated, .FeedLimit, .Kinds[{Change,Family}], .Groups[{Label,Meta,Collapsed(NEW),
+  Events[{Change,Family,Subject,Time,Detail,Reason,Diff[{Type,Text}]}]}], .Movement (map kind→count),
+  .TransitionCount (NEW), .TransitionDelta (NEW, nullable signed string, e.g. "+2").
+  Reconciliations (SPEC-CHANGE #20, ruled): the period control is the spec's range picker — preset
+  tokens stay links, a custom ISO pair submits GET /drift?start=&end= (#20b); the "Derived · drift"
+  microlabel above the h1 drops (#20c); kind chips become client-side toggles and batch groups
+  collapse client-side (view JS in tmpl, ADR-0105 precedent) — .Collapsed marks groups older than
+  the two most recent batches. Batch detail routes /runs/{id}.
+*/}}
+{{define "changeglyph"}}<svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{if eq . "appeared"}}<path d="M5 1.6v6.8M1.6 5h6.8"></path>{{else if eq . "revealed"}}<circle cx="5" cy="5" r="3.4" stroke-dasharray="2.1 1.7"></circle>{{else if eq . "returned"}}<path d="M8.2 5.8A3.3 3.3 0 1 1 7.4 2.8"></path><path d="M7 1l0.6 2L5.6 3.4"></path>{{else if eq . "withdrawn"}}<path d="M1.6 5h6.8"></path>{{else if eq . "descoped"}}<path d="M1.6 6.4h6.8"></path><circle cx="5" cy="2.6" r="1" fill="currentColor" stroke="none"></circle>{{else if eq . "changed"}}<path d="M5 1.8L8.4 8H1.6Z"></path>{{end}}</svg>{{end}}
+
+{{define "drift"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes dr-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.dr-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.dr-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.dr-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.dr-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.dr-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 0; }
+.dr-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.dr-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.dr-body { padding: 20px; }
+.dr-chip { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; }
+.dr-chip.gain { background: var(--drift-gain-bg); border-color: var(--drift-gain-border); color: var(--drift-gain-fg); }
+.dr-chip.loss { background: var(--drift-loss-bg); border-color: var(--drift-loss-border); color: var(--drift-loss-fg); }
+.dr-chip.change { background: var(--drift-change-bg); border-color: var(--drift-change-border); color: var(--drift-change-fg); }
+.dr-kind { border: none; background: transparent; padding: 0; cursor: pointer; opacity: 1; transition: opacity var(--dur-fast) var(--ease-out); }
+.dr-kind[aria-pressed="false"] { opacity: 0.4; }
+.dr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.dr-btn:hover { background: var(--surface-sunken); }
+.dr-btn[disabled] { opacity: 0.45; cursor: default; }
+.dr-btn[disabled]:hover { background: var(--surface); }
+.dr-btn .mono { font: 500 12px var(--font-mono); }
+.dr-pop { position: relative; display: inline-flex; }
+.dr-panel { position: absolute; top: 100%; right: 0; margin-top: 6px; width: 232px; z-index: 95; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 14px; animation: dr-pop var(--dur-base) var(--ease-out); display: flex; flex-direction: column; gap: 3px; font-family: var(--font-ui); }
+.dr-panel[hidden] { display: none; }
+.dr-preset { display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; text-decoration: none; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
+.dr-preset:hover { background: var(--surface-sunken); }
+.dr-preset.on { background: var(--accent-soft); color: var(--link); font-weight: 600; }
+.dr-preset .ck { margin-left: auto; display: inline-flex; color: var(--link); }
+.dr-panel .sep { height: 1px; background: var(--row-sep); margin: 6px 2px; }
+.dr-panel .lbl { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); padding: 2px 2px 4px; }
+.dr-panel input { width: 100%; height: 28px; padding: 0 8px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface); color: var(--text-ink); font: 400 11.5px var(--font-mono); outline: none; box-sizing: border-box; }
+.dr-apply { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; background: var(--accent); color: var(--on-accent); border: 1px solid transparent; margin-top: 8px; width: 100%; transition: background var(--dur-fast) var(--ease-out); }
+.dr-apply:hover { background: var(--accent-hover); }
+.dr-apply[disabled] { opacity: 0.45; cursor: default; }
+.dr-apply[disabled]:hover { background: var(--accent); }
+.dr-kinds { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 16px; margin-bottom: 4px; border-bottom: 1px solid var(--row-sep); }
+.dr-ghead { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 2px; border: none; background: transparent; cursor: pointer; text-align: left; }
+.dr-ghead .chev { color: var(--text-muted); transition: transform var(--dur-base) var(--ease-out); flex: none; }
+.dr-ghead[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.dr-ghead .glabel { font: 600 12px var(--font-mono); color: var(--text-ink); }
+.dr-ghead .gmeta { font: 400 11px var(--font-mono); color: var(--text-muted); }
+.dr-count { margin-left: auto; font: 500 10.5px var(--font-mono); padding: 1px 7px; border-radius: 999px; background: var(--surface-sunken); color: var(--text-secondary); }
+.dr-gwrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--dur-slow) var(--ease-out); }
+.dr-gwrap.closed { grid-template-rows: 0fr; }
+.dr-gwrap > div { overflow: hidden; min-height: 0; }
+.dr-gevents { padding: 4px 0 12px 24px; display: flex; flex-direction: column; font-family: var(--font-ui); }
+.dr-ev { display: flex; gap: 12px; }
+.dr-ev[hidden] { display: none; }
+.dr-ev .rail { display: flex; flex-direction: column; align-items: center; flex: none; width: 10px; }
+.dr-ev .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--neutral-400); margin-top: 5px; flex: none; box-shadow: 0 0 0 2px var(--surface); }
+.dr-ev .conn { width: 1px; flex: 1; background: var(--border-default); margin: 3px 0; }
+.dr-ev:last-child .conn, .dr-ev.vlast .conn { display: none; }
+.dr-ev .evbody { display: flex; flex-direction: column; gap: 2px; padding-bottom: 16px; min-width: 0; flex: 1; }
+.dr-ev:last-child .evbody, .dr-ev.vlast .evbody { padding-bottom: 0; }
+.dr-ev .toprow { display: flex; align-items: flex-start; gap: 10px; }
+.dr-ev .title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 4px; min-width: 0; }
+.dr-ev .sbj { font: 500 12.5px var(--font-mono); color: var(--text-ink); }
+.dr-ev .time { font: 400 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; padding-top: 3px; margin-left: auto; }
+.dr-ev .det { font: 400 12px var(--font-mono); color: var(--text-secondary); overflow-wrap: anywhere; }
+.dr-diff { border: 1px solid var(--border-default); border-radius: 12px; overflow: hidden; background: var(--surface); margin-top: 8px; }
+.dr-diff .rows { padding: 6px 0; }
+.dr-diff .row { display: flex; gap: 10px; padding: 3px 12px; }
+.dr-diff .row.add { background: var(--ok-soft); }
+.dr-diff .row.remove { background: var(--danger-soft); }
+.dr-diff .sign { width: 10px; flex: none; font: 600 12px var(--font-mono); }
+.dr-diff .row.add .sign, .dr-diff .row.add .tx { color: var(--ok); }
+.dr-diff .row.remove .sign, .dr-diff .row.remove .tx { color: var(--danger); }
+.dr-diff .tx { font: 400 12px/1.6 var(--font-mono); color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.dr-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 12px; font-family: var(--font-ui); margin-bottom: 12px; }
+.dr-callout .ic { color: var(--text-secondary); display: inline-flex; margin-top: 1px; flex: none; }
+.dr-callout span.tx { font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.dr-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dr-stat .val { display: flex; align-items: baseline; gap: 8px; }
+.dr-stat .num { font: 600 28px var(--font-mono); color: var(--text-ink); line-height: 1.1; }
+.dr-stat .cap { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+.dr-delta { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font: 600 11px var(--font-mono); line-height: 1; white-space: nowrap; transform: translateY(-2px); }
+.dr-tally { display: flex; align-items: center; gap: 10px; }
+.dr-tally .n { margin-left: auto; font: 500 12.5px var(--font-mono); color: var(--text-body); }
+.dr-tally .n.zero { color: var(--text-muted); }
+.dr-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 48px 24px; font-family: var(--font-ui); }
+.dr-empty .ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+.dr-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.dr-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+.dr-empty .act { margin-top: 14px; }
+.dr-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.dr-btn-sm:hover { background: var(--surface-sunken); }
+</style>
+<main class="dr-main" data-screen-label="Drift">
+<header style="display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<h1>Drift</h1>
+<span class="dr-sub">What moved since last time, grouped by batch. Change is its own language — not severity.</span>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+<span class="dr-pop">
+<button type="button" class="dr-btn" id="dr-range-btn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg><span class="mono">{{.PeriodLabel}}</span></button>
+<div class="dr-panel" id="dr-range-panel" hidden>
+{{range .Periods}}<a class="dr-preset{{if eq .Token $.Period}} on{{end}}" href="/drift?period={{.Token}}">{{.Label}}{{if eq .Token $.Period}}<span class="ck"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>{{end}}</a>{{end}}
+<div class="sep"></div>
+<span class="lbl">Custom (ISO 8601)</span>
+<form method="get" action="/drift" style="display:flex;flex-direction:column;gap:3px;margin:0">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+<input name="start" placeholder="2026-08-01" autocomplete="off">
+<input name="end" placeholder="2026-08-22" autocomplete="off">
+</div>
+<button type="submit" class="dr-apply" disabled>Apply range</button>
+</form>
+</div>
+</span>
+{{if .HasEvents}}<a class="dr-btn" href="/drift/export?period={{.Period}}" title="Download the transition feed for this period as CSV"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Export CSV</a>
+{{else}}<button type="button" class="dr-btn" disabled title="Nothing to export until a transition is folded"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Export CSV</button>{{end}}
+{{if .BatchID}}<a class="dr-btn" href="/runs/{{.BatchID}}" title="Open the most recent batch{{if .BatchLabel}} · {{.BatchLabel}}{{end}} in Run detail"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M4 7V4a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2h-3.5"></path><circle cx="7.5" cy="15.5" r="2.5"></circle><path d="m11 19-1.7-1.7"></path></svg>Batch detail</a>{{end}}
+</div>
+</header>
+<div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start">
+<section class="dr-card">
+<div class="dr-cardhead"><span class="dr-micro">Transitions</span><h3>By batch</h3></div>
+<div class="dr-body">
+<div class="dr-kinds">
+{{range .Kinds}}<button type="button" class="dr-kind" data-kind="{{.Change}}" aria-pressed="true"><span class="dr-chip {{.Family}}">{{template "changeglyph" .Change}}{{.Change}}</span></button>{{end}}
+</div>
+{{if .Truncated}}<div class="dr-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="tx">Showing the most recent {{.FeedLimit}} transitions for this period. Narrow the period to see older change.</span></div>{{end}}
+{{if .Groups}}
+<div style="display:flex;flex-direction:column;gap:4px" id="dr-feed">
+{{range .Groups}}
+<div class="dr-group">
+<button type="button" class="dr-ghead" aria-expanded="{{if .Collapsed}}false{{else}}true{{end}}">
+<svg class="chev" viewBox="0 0 16 16" width="13" height="13"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="glabel">{{.Label}}</span>
+{{if .Meta}}<span class="gmeta">{{.Meta}}</span>{{end}}
+<span class="dr-count">{{len .Events}}</span>
+</button>
+<div class="dr-gwrap{{if .Collapsed}} closed{{end}}"><div>
+<div class="dr-gevents">
+{{range .Events}}
+<div class="dr-ev" data-kind="{{.Change}}">
+<div class="rail"><span class="dot"></span><span class="conn"></span></div>
+<div class="evbody">
+<div class="toprow">
+<span class="title"><span class="dr-chip {{.Family}}">{{template "changeglyph" .Change}}{{.Change}}</span><span class="sbj">{{.Subject}}</span></span>
+<span class="time">{{.Time}}</span>
+</div>
+<span class="det">{{.Detail}}{{if .Reason}} · {{.Reason}}{{end}}</span>
+{{if .Diff}}
+<div class="dr-diff"><div class="rows">
+{{range .Diff}}<div class="row {{.Type}}"><span class="sign">{{if eq .Type "add"}}+{{else if eq .Type "remove"}}−{{end}}</span><span class="tx">{{.Text}}</span></div>{{end}}
+</div></div>
+{{end}}
+</div>
+</div>
+{{end}}
+</div>
+</div></div>
+</div>
+{{end}}
+</div>
+{{else}}
+<div class="dr-empty">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg></span>
+<span class="msg">No change to show yet</span>
+<span class="det">Once two batches have folded a value for the same subject, their transitions appear here — grouped by batch, each carried in its own change chip, with a before/after diff where a held value moved. Declare a scope and let a scan run twice to begin measuring change.</span>
+<span class="act"><a class="dr-btn-sm" href="/scope">Go to Scope</a></span>
+</div>
+{{end}}
+</div>
+</section>
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="dr-card">
+<div class="dr-cardhead"><span class="dr-micro">This period</span><h3>Movement</h3></div>
+<div class="dr-body">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div class="dr-stat">
+<span class="dr-micro">Transitions</span>
+<span class="val"><span class="num">{{.TransitionCount}}</span>{{if .TransitionDelta}}<span class="dr-delta"><svg viewBox="0 0 10 10" width="8" height="8" aria-hidden="true"><path d="M5 8.5V1.5M1.8 4.7L5 1.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{.TransitionDelta}}</span>{{end}}</span>
+<span class="cap">vs previous period</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+{{range .Kinds}}
+<div class="dr-tally">
+<span class="dr-chip {{.Family}}">{{template "changeglyph" .Change}}{{.Change}}</span>
+{{$c := index $.Movement .Change}}{{if $c}}<span class="n">{{$c}}</span>{{else}}<span class="n zero">—</span>{{end}}
+</div>
+{{end}}
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<script>
+(function(){
+  var btn=document.getElementById("dr-range-btn"),panel=document.getElementById("dr-range-panel");
+  if(btn&&panel){
+    btn.addEventListener("click",function(e){e.stopPropagation();var open=panel.hasAttribute("hidden");if(open){panel.removeAttribute("hidden");}else{panel.setAttribute("hidden","");}btn.setAttribute("aria-expanded",open?"true":"false");});
+    document.addEventListener("mousedown",function(e){if(!panel.hasAttribute("hidden")&&!panel.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){panel.setAttribute("hidden","");btn.setAttribute("aria-expanded","false");}});
+    document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!panel.hasAttribute("hidden")){panel.setAttribute("hidden","");btn.setAttribute("aria-expanded","false");}});
+    var form=panel.querySelector("form"),inputs=form?form.querySelectorAll("input"):[],apply=form?form.querySelector(".dr-apply"):null;
+    function chk(){var ok=true;[].forEach.call(inputs,function(i){if(!i.value)ok=false;});if(apply){if(ok)apply.removeAttribute("disabled");else apply.setAttribute("disabled","");}}
+    [].forEach.call(inputs,function(i){i.addEventListener("input",chk);});
+  }
+  [].forEach.call(document.querySelectorAll(".dr-ghead"),function(h){
+    h.addEventListener("click",function(){
+      var open=h.getAttribute("aria-expanded")==="true";
+      h.setAttribute("aria-expanded",open?"false":"true");
+      var wrap=h.parentNode.querySelector(".dr-gwrap");
+      if(wrap){if(open)wrap.classList.add("closed");else wrap.classList.remove("closed");}
+    });
+  });
+  var kindBtns=[].slice.call(document.querySelectorAll(".dr-kind"));
+  var KINDS=kindBtns.map(function(b){return b.getAttribute("data-kind");});
+  var active=KINDS.slice();
+  function update(){
+    kindBtns.forEach(function(b){b.setAttribute("aria-pressed",active.indexOf(b.getAttribute("data-kind"))!==-1?"true":"false");});
+    [].forEach.call(document.querySelectorAll(".dr-group"),function(g){
+      var vis=0,last=null;
+      [].forEach.call(g.querySelectorAll(".dr-ev"),function(ev){
+        ev.classList.remove("vlast");
+        var on=active.indexOf(ev.getAttribute("data-kind"))!==-1;
+        if(on){ev.removeAttribute("hidden");vis++;last=ev;}else{ev.setAttribute("hidden","");}
+      });
+      if(last)last.classList.add("vlast");
+      var pill=g.querySelector(".dr-count");if(pill)pill.textContent=vis;
+      if(vis===0)g.setAttribute("hidden","");else g.removeAttribute("hidden");
+    });
+  }
+  kindBtns.forEach(function(b){
+    b.addEventListener("click",function(){
+      var k=b.getAttribute("data-kind"),i=active.indexOf(k);
+      if(i!==-1){if(active.length===1){active=KINDS.slice();}else{active.splice(i,1);}}
+      else{active.push(k);}
+      update();
+    });
+  });
+})();
+</script>
+{{template "foot" .}}{{end}}

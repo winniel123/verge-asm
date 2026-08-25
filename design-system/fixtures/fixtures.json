@@ -413,5 +413,323 @@
         "age": "2 re-supply intervals"
       }
     ]
+  },
+  "exposure": {
+    "exposed": 14,
+    "has_deltas": true,
+    "exposed_delta": 2,
+    "firewalled": 41,
+    "not_reached": 7,
+    "withheld_variant": "no-internet-vantage",
+    "rows": [
+      {
+        "asset": "edge-gw-03.acmecorp.io",
+        "svc": ":5900 vnc",
+        "internal": "exposed",
+        "internet": "exposed",
+        "since": "4m"
+      },
+      {
+        "asset": "api.acmecorp.io",
+        "svc": ":443 https",
+        "internal": "exposed",
+        "internet": "exposed",
+        "since": "69d"
+      },
+      {
+        "asset": "vpn.acmecorp.io",
+        "svc": ":1194 openvpn",
+        "internal": "exposed",
+        "internet": "exposed",
+        "since": "41d"
+      },
+      {
+        "asset": "build-07.acmecorp.io",
+        "svc": ":22 ssh",
+        "internal": "exposed",
+        "internet": "firewalled",
+        "since": "12d"
+      },
+      {
+        "asset": "grafana.acmecorp.io",
+        "svc": ":3000 http",
+        "internal": "exposed",
+        "internet": "firewalled",
+        "since": "26d"
+      },
+      {
+        "asset": "203.0.113.61",
+        "svc": ":443 https",
+        "internal": "not-reached",
+        "internet": "unverified",
+        "since": "—"
+      }
+    ]
+  },
+  "drift": {
+    "period": "7d",
+    "period_label": "Last 7d",
+    "periods": [
+      {
+        "token": "24h",
+        "label": "Last 24h"
+      },
+      {
+        "token": "7d",
+        "label": "Last 7d"
+      },
+      {
+        "token": "30d",
+        "label": "Last 30d"
+      },
+      {
+        "token": "90d",
+        "label": "Last 90d"
+      }
+    ],
+    "has_events": true,
+    "truncated": false,
+    "feed_limit": 500,
+    "batch_id": "1407",
+    "batch_label": "2026-08-22T14:00Z",
+    "transition_count": 7,
+    "transition_delta": "+2",
+    "kinds": [
+      {
+        "change": "appeared",
+        "family": "gain"
+      },
+      {
+        "change": "revealed",
+        "family": "gain"
+      },
+      {
+        "change": "withdrawn",
+        "family": "loss"
+      },
+      {
+        "change": "descoped",
+        "family": "loss"
+      },
+      {
+        "change": "returned",
+        "family": "gain"
+      },
+      {
+        "change": "changed",
+        "family": "change"
+      }
+    ],
+    "movement": {
+      "appeared": 1,
+      "revealed": 1,
+      "withdrawn": 1,
+      "descoped": 1,
+      "returned": 1,
+      "changed": 2
+    },
+    "groups": [
+      {
+        "label": "2026-08-22T14:00Z",
+        "meta": "full scan · 3 vantages",
+        "collapsed": false,
+        "events": [
+          {
+            "change": "changed",
+            "family": "change",
+            "subject": "api.acmecorp.io :443",
+            "detail": "service banner",
+            "time": "4m",
+            "diff": [
+              {
+                "type": "remove",
+                "text": "nginx/1.24.0"
+              },
+              {
+                "type": "add",
+                "text": "nginx/1.25.0 (CVE-2026-1187)"
+              }
+            ]
+          },
+          {
+            "change": "appeared",
+            "family": "gain",
+            "subject": "staging-5.acmecorp.io",
+            "detail": "name · first seen via certificate transparency",
+            "time": "8m"
+          },
+          {
+            "change": "withdrawn",
+            "family": "loss",
+            "subject": ":8080 http-alt on edge-gw-03.acmecorp.io",
+            "detail": "service",
+            "reason": "closed since last batch",
+            "time": "9m"
+          }
+        ]
+      },
+      {
+        "label": "2026-08-22T08:00Z",
+        "meta": "full scan · 3 vantages",
+        "collapsed": false,
+        "events": [
+          {
+            "change": "returned",
+            "family": "gain",
+            "subject": "mail.acmecorp.io :587",
+            "detail": "service · absent for 2 batches",
+            "time": "6h"
+          },
+          {
+            "change": "revealed",
+            "family": "gain",
+            "subject": "203.0.113.77",
+            "detail": "address · custody extension widened the aperture",
+            "time": "6h"
+          }
+        ]
+      },
+      {
+        "label": "2026-08-21T14:00Z",
+        "meta": "full scan · 2 vantages",
+        "collapsed": true,
+        "events": [
+          {
+            "change": "descoped",
+            "family": "loss",
+            "subject": "old-blog.acmecorp.io",
+            "detail": "name",
+            "reason": "operator excluded subtree",
+            "time": "1d"
+          },
+          {
+            "change": "changed",
+            "family": "change",
+            "subject": "www.acmecorp.io :443",
+            "detail": "certificate issuer",
+            "time": "1d"
+          }
+        ]
+      }
+    ]
+  },
+  "rundetail": {
+    "id": "1407",
+    "title": "2026-08-22T14:00Z",
+    "status": "complete",
+    "scope": "all scopes",
+    "meta": "standard profile · 3 vantages · 3m 12s",
+    "active": false,
+    "stages": [
+      {
+        "num": 1,
+        "title": "Resolve",
+        "detail": "dns + zone + CT · 1,284 names",
+        "done": true,
+        "current": false,
+        "last": false
+      },
+      {
+        "num": 2,
+        "title": "Probe",
+        "detail": "reachability from 3 vantages",
+        "done": true,
+        "current": false,
+        "last": false
+      },
+      {
+        "num": 3,
+        "title": "Census",
+        "detail": "top 1,000 tcp · 62 addresses",
+        "done": true,
+        "current": false,
+        "last": false
+      },
+      {
+        "num": 4,
+        "title": "Diff",
+        "detail": "against 08:00Z · 7 transitions",
+        "done": true,
+        "current": false,
+        "last": true
+      }
+    ],
+    "log": [
+      {
+        "tag": "14:00:02",
+        "text": "batch started · 214 subjects · 3 vantages"
+      },
+      {
+        "tag": "14:00:09",
+        "text": "dns sweep · acmecorp.io · 1,284 names"
+      },
+      {
+        "tag": "14:00:41",
+        "level": "warn",
+        "text": "vantage ap-south-1 missed check (2/3)"
+      },
+      {
+        "tag": "14:01:12",
+        "text": "tls-acceptance · vpn.acmecorp.io:443"
+      },
+      {
+        "tag": "14:02:03",
+        "level": "error",
+        "text": "connect refused · 203.0.113.44:22"
+      },
+      {
+        "tag": "14:02:31",
+        "text": "port census · 62 addresses · top 1,000 tcp"
+      },
+      {
+        "tag": "14:03:14",
+        "text": "diff against 08:00Z · 7 transitions · 3 signals raised"
+      }
+    ],
+    "transitions": "7",
+    "new_signals": "3",
+    "degraded": {
+      "vantage": "ap-south-1",
+      "detail": "missed 2 of 3 checks"
+    },
+    "params": [
+      {
+        "k": "Profile",
+        "v": "standard"
+      },
+      {
+        "k": "Cadence",
+        "v": "daily · 08:00 + 14:00"
+      },
+      {
+        "k": "Subjects",
+        "v": "214"
+      },
+      {
+        "k": "Address cap",
+        "v": "1,024"
+      },
+      {
+        "k": "Connect timeout",
+        "v": "800ms"
+      }
+    ],
+    "vantages": [
+      {
+        "name": "eu-west-1",
+        "latency": "34ms",
+        "status": "ok"
+      },
+      {
+        "name": "us-east-2",
+        "latency": "51ms",
+        "status": "ok"
+      },
+      {
+        "name": "ap-south-1",
+        "latency": "—",
+        "status": "degraded"
+      }
+    ]
   }
 }
