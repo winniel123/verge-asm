@@ -139,7 +139,7 @@ func TestSignalsOpenTabRendersFlatInstanceTable(t *testing.T) {
 
 	// Severity is a real datum now — a SeverityBadge and a minted SIG id render on
 	// the fired rows.
-	if !strings.Contains(page, `class="sev sev-`) {
+	if !strings.Contains(page, `var(--sev-`) {
 		t.Errorf("Signals table renders no SeverityBadge; body: %s", page)
 	}
 	if !strings.Contains(page, "SIG-") {
@@ -154,7 +154,7 @@ func TestSignalsOpenTabRendersFlatInstanceTable(t *testing.T) {
 	}
 
 	// The Open / Annotated / Withdrawn tabs frame the screen and default to Open.
-	if !strings.Contains(page, `class="tabs"`) {
+	if !strings.Contains(page, `class="sg-tabs"`) {
 		t.Errorf("Signals page renders no tabs; body: %s", page)
 	}
 	for _, href := range []string{`href="/signals?tab=open"`, `href="/signals?tab=annotated"`, `href="/signals?tab=withdrawn"`} {
@@ -162,7 +162,7 @@ func TestSignalsOpenTabRendersFlatInstanceTable(t *testing.T) {
 			t.Errorf("Signals tabs missing %q", href)
 		}
 	}
-	if !strings.Contains(page, "tab active") {
+	if !strings.Contains(page, "sg-tab on") {
 		t.Errorf("no active tab on the default Signals view")
 	}
 
@@ -266,7 +266,7 @@ func TestSignalsDetailDrawerOpens(t *testing.T) {
 	}
 
 	page := getBody(t, ac, base+"/signals?tab=annotated&view="+strconv.FormatInt(annos[0].ID, 10), http.StatusOK)
-	for _, want := range []string{`class="drawer-panel"`, `role="dialog"`, "lame.example.com", "reviewed and accepted", "Remove annotation"} {
+	for _, want := range []string{`class="sg-drawer"`, `role="dialog"`, "lame.example.com", "reviewed and accepted", "Remove annotation"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("detail drawer missing %q; body: %s", want, page)
 		}
@@ -281,11 +281,23 @@ func TestSignalsDescopeConfirmDialogWiredToExclusions(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	// A firing signal so a row exists to descope; ?descope=<ViewKey> resolves to its asset.
+	lameName(t, f, "lame.example.com")
 	base := start(t, f, "")
 
 	ac := login(t, base, "admin", "hunter2hunter2")
-	dialog := getBody(t, ac, base+"/signals?descope=1", http.StatusOK)
-	for _, want := range []string{`class="dialog-panel"`, `class="scrim"`, "Descope seed", `action="/exclusions"`, `name="value"`, `value="subtree"`, "Type the exact name"} {
+	// Render once to mint the instance identity, then read its SIG id (the row's ViewKey).
+	getBody(t, ac, base+"/signals", http.StatusOK)
+	insts, _ := f.ListSignalInstances(t.Context())
+	if len(insts) == 0 {
+		t.Fatal("precondition: no signal instance minted for the firing rule")
+	}
+	key := formatSigID(insts[0].ID)
+
+	// The typed-confirm dialog resolves the row's asset — the exact string the operator must retype
+	// — and posts the typed value to the real POST /exclusions (kind=subtree).
+	dialog := getBody(t, ac, base+"/signals?descope="+key, http.StatusOK)
+	for _, want := range []string{`class="sg-dialog"`, `class="sg-scrim dlg"`, "Descope seed", `action="/exclusions"`, `name="value"`, `value="subtree"`, "to confirm", "lame.example.com"} {
 		if !strings.Contains(dialog, want) {
 			t.Errorf("descope confirm dialog missing %q; body: %s", want, dialog)
 		}
@@ -301,11 +313,12 @@ func TestSignalsDescopeConfirmDialogWiredToExclusions(t *testing.T) {
 		t.Fatalf("descope did not record an exclusion; exclusions = %d, want 1", len(excl))
 	}
 
-	// A viewer never sees the descope affordance.
+	// A viewer can never OPEN the typed-confirm dialog: the descope route renders no dialog for a
+	// non-admin (the menu item is design-owned client markup, but the act + dialog are admin-gated).
 	vc := login(t, base, "viewer", "hunter2hunter2")
-	vp := getBody(t, vc, base+"/signals", http.StatusOK)
-	if strings.Contains(vp, "Descope seed") {
-		t.Errorf("a viewer must not see the descope affordance")
+	vp := getBody(t, vc, base+"/signals?descope="+key, http.StatusOK)
+	if strings.Contains(vp, `class="sg-dialog"`) {
+		t.Errorf("a viewer must not open the descope confirm dialog; body: %s", vp)
 	}
 }
 
@@ -346,16 +359,16 @@ func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
 
 	// The fired Service and Endpoint pairs render as rows, keyed on their subject.
 	for _, asset := range []string{
-		"198.51.100.1:3389/tcp",                  // sensitive-port fired
-		"plain.example.com@198.51.100.5:80/tcp",  // plaintext-http + unauthenticated fired
-		"redir.example.com@198.51.100.6:80/tcp",  // both redirect rules fired
+		"198.51.100.1:3389/tcp",                 // sensitive-port fired
+		"plain.example.com@198.51.100.5:80/tcp", // plaintext-http + unauthenticated fired
+		"redir.example.com@198.51.100.6:80/tcp", // both redirect rules fired
 	} {
 		if !strings.Contains(page, asset) {
 			t.Errorf("fired signal on %q not rendered as an instance row; body: %s", asset, page)
 		}
 	}
 	// Severity and the minted id render on the rows.
-	if !strings.Contains(page, `class="sev sev-`) || !strings.Contains(page, "SIG-") {
+	if !strings.Contains(page, `var(--sev-`) || !strings.Contains(page, "SIG-") {
 		t.Errorf("Service/Endpoint rows missing a SeverityBadge or SIG id; body: %s", page)
 	}
 	// A not-evaluable certificate member raises no row: the census markup is gone.
@@ -377,7 +390,7 @@ func TestSignalsEmptyEstateRendersEmptyState(t *testing.T) {
 		t.Errorf("empty estate did not render the open empty state; body: %s", page)
 	}
 	// The screen still frames itself — the tabs render.
-	if !strings.Contains(page, `class="tabs"`) {
+	if !strings.Contains(page, `class="sg-tabs"`) {
 		t.Errorf("empty estate dropped the tabs; body: %s", page)
 	}
 }

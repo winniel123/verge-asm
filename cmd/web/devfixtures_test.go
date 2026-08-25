@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -213,12 +214,12 @@ type fixtureSigninPackage struct {
 			Name string `json:"name"`
 			Mark string `json:"mark"`
 		} `json:"sso_providers"`
-		ResetToken    string   `json:"reset_token"`
-		InviteToken   string   `json:"invite_token"`
-		InviteRole    string   `json:"invite_role"`
-		TotpAcceptCode string  `json:"totp_accept_code"`
-		EnrollSecret  string   `json:"enroll_secret"`
-		RecoveryCodes []string `json:"recovery_codes"`
+		ResetToken     string   `json:"reset_token"`
+		InviteToken    string   `json:"invite_token"`
+		InviteRole     string   `json:"invite_role"`
+		TotpAcceptCode string   `json:"totp_accept_code"`
+		EnrollSecret   string   `json:"enroll_secret"`
+		RecoveryCodes  []string `json:"recovery_codes"`
 	} `json:"signin"`
 }
 
@@ -1002,5 +1003,178 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		xp.Headline != devScopeExclPreviewHeadline || xp.Loss != devScopeExclPreviewLoss {
 		t.Errorf("exclusion_preview_fixture drift:\n fixtures.json = %+v\n pinned        = kind=%q value=%q fires=%v headline=%q loss=%q",
 			xp, devScopeExclPreviewKind, devScopeExclPreviewValue, devScopeExclPreviewFires, devScopeExclPreviewHeadline, devScopeExclPreviewLoss)
+	}
+}
+
+// fixtureSignalsPackage is the on-disk shape of design-system/fixtures/fixtures.json → signals,
+// the frozen slice TestSignalsFixtureMatchesPackage folds the pinned dev fixture back through.
+type fixtureSignalsPackage struct {
+	Signals struct {
+		OpenCount   int                `json:"open_count"`
+		Shown       int                `json:"shown"`
+		PageInfo    string             `json:"page_info"`
+		PageCount   int                `json:"page_count"`
+		DetectedBy  string             `json:"detected_by"`
+		HistoryRule string             `json:"history_rule"`
+		Rows        []fixtureSignalRow `json:"rows"`
+		Withdrawn   []fixtureSignalRow `json:"withdrawn"`
+		Annotations map[string]struct {
+			ID     string `json:"id"`
+			Reason string `json:"reason"`
+		} `json:"annotations"`
+		Diffs map[string]struct {
+			Title string `json:"title"`
+			Lines []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"lines"`
+		} `json:"diffs"`
+	} `json:"signals"`
+}
+
+type fixtureSignalRow struct {
+	ID       string            `json:"id"`
+	Severity string            `json:"severity"`
+	SevLabel string            `json:"sev_label"`
+	Title    string            `json:"title"`
+	Asset    string            `json:"asset"`
+	IP       string            `json:"ip"`
+	Port     string            `json:"port"`
+	Seen     string            `json:"seen"`
+	First    string            `json:"first"`
+	Last     string            `json:"last"`
+	CVE      *string           `json:"cve"`
+	Tags     []string          `json:"tags"`
+	Desc     string            `json:"desc"`
+	Rule     []json.RawMessage `json:"rule"`
+	ViewKey  string            `json:"view_key"`
+}
+
+func (r fixtureSignalRow) ruleParts() (id, version string) {
+	if len(r.Rule) >= 1 {
+		_ = json.Unmarshal(r.Rule[0], &id)
+	}
+	if len(r.Rule) >= 2 {
+		var n json.Number
+		if err := json.Unmarshal(r.Rule[1], &n); err == nil {
+			version = n.String()
+		}
+	}
+	return id, version
+}
+
+func (r fixtureSignalRow) cve() string {
+	if r.CVE != nil {
+		return *r.CVE
+	}
+	return ""
+}
+
+// assertSignalRow folds one fixture row through the pinned devSignalRow and deep-asserts each field
+// (the rule ref split into id + version, the nullable CVE, the tags in order).
+func assertSignalRow(t *testing.T, where string, i int, f fixtureSignalRow, p devSignalRow) {
+	t.Helper()
+	id, ver := f.ruleParts()
+	if f.ID != p.ID || f.Severity != p.Severity || f.SevLabel != p.SevLabel || f.Title != p.Title ||
+		f.Asset != p.Asset || f.IP != p.IP || f.Port != p.Port || f.Seen != p.Seen ||
+		f.First != p.First || f.Last != p.Last || f.cve() != p.CVE || f.Desc != p.Desc ||
+		id != p.RuleID || ver != p.RuleVersion {
+		t.Errorf("%s row %d drift:\n fixtures.json = %+v (rule %s@%s)\n pinned        = %+v", where, i, f, id, ver, p)
+	}
+	if len(f.Tags) != len(p.Tags) {
+		t.Fatalf("%s row %d tags length drift: fixtures.json = %d, pinned = %d", where, i, len(f.Tags), len(p.Tags))
+	}
+	for j := range f.Tags {
+		if f.Tags[j] != p.Tags[j] {
+			t.Errorf("%s row %d tag %d drift: fixtures.json = %q, pinned = %q", where, i, j, f.Tags[j], p.Tags[j])
+		}
+	}
+}
+
+// TestSignalsFixtureMatchesPackage is the byte-exactness gate before the pixels: it folds the pinned
+// dev Signals fixture (cmd/web/devfixtures.go) back through the frozen design package
+// (design-system/fixtures/fixtures.json → signals) and fails the build on any divergence — the open
+// scalars, the ten open + three withdrawn rows (with rule metadata), the annotations, the drift
+// diffs, and the two span-history literals the derivation depends on. It guards the same seam
+// TestScopeFixtureMatchesPackage guards for Scope.
+func TestSignalsFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureSignalsPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	sig := f.Signals
+
+	// Open-tab scalars.
+	if sig.OpenCount != devSignalsOpenCount || sig.Shown != devSignalsShown ||
+		sig.PageInfo != devSignalsPageInfo || sig.PageCount != devSignalsPageCount ||
+		sig.DetectedBy != devSignalsDetectedBy {
+		t.Errorf("open scalars drift:\n fixtures.json = open=%d shown=%d pageInfo=%q pageCount=%d detectedBy=%q\n pinned        = open=%d shown=%d pageInfo=%q pageCount=%d detectedBy=%q",
+			sig.OpenCount, sig.Shown, sig.PageInfo, sig.PageCount, sig.DetectedBy,
+			devSignalsOpenCount, devSignalsShown, devSignalsPageInfo, devSignalsPageCount, devSignalsDetectedBy)
+	}
+
+	// The span-history derivation depends on two literals embedded in history_rule: the fixed
+	// discovery instant and the detecting vantage. Assert both appear there so the derivation stays
+	// tied to the frozen fixture (history is a rule, not an authored array).
+	if !strings.Contains(sig.HistoryRule, devSignalsDiscovered) {
+		t.Errorf("history_rule missing pinned discovery instant %q: %q", devSignalsDiscovered, sig.HistoryRule)
+	}
+	if !strings.Contains(sig.HistoryRule, devSignalsDetectedBy) {
+		t.Errorf("history_rule missing pinned detecting vantage %q: %q", devSignalsDetectedBy, sig.HistoryRule)
+	}
+
+	// Open rows.
+	if len(sig.Rows) != len(devSignalsOpen) {
+		t.Fatalf("open rows length drift: fixtures.json = %d, pinned = %d", len(sig.Rows), len(devSignalsOpen))
+	}
+	for i, row := range sig.Rows {
+		assertSignalRow(t, "open", i, row, devSignalsOpen[i])
+	}
+
+	// Withdrawn rows.
+	if len(sig.Withdrawn) != len(devSignalsWithdrawn) {
+		t.Fatalf("withdrawn rows length drift: fixtures.json = %d, pinned = %d", len(sig.Withdrawn), len(devSignalsWithdrawn))
+	}
+	for i, row := range sig.Withdrawn {
+		assertSignalRow(t, "withdrawn", i, row, devSignalsWithdrawn[i])
+	}
+
+	// Annotations.
+	if len(sig.Annotations) != len(devSignalsAnnotations) {
+		t.Fatalf("annotations length drift: fixtures.json = %d, pinned = %d", len(sig.Annotations), len(devSignalsAnnotations))
+	}
+	for key, a := range sig.Annotations {
+		p, ok := devSignalsAnnotations[key]
+		if !ok {
+			t.Errorf("annotation %q missing from pinned set", key)
+			continue
+		}
+		if a.ID != p.ID || a.Reason != p.Reason {
+			t.Errorf("annotation %q drift:\n fixtures.json = %+v\n pinned        = %+v", key, a, p)
+		}
+	}
+
+	// Drift diffs.
+	if len(sig.Diffs) != len(devSignalsDiffs) {
+		t.Fatalf("diffs length drift: fixtures.json = %d, pinned = %d", len(sig.Diffs), len(devSignalsDiffs))
+	}
+	for key, d := range sig.Diffs {
+		p, ok := devSignalsDiffs[key]
+		if !ok {
+			t.Errorf("diff %q missing from pinned set", key)
+			continue
+		}
+		if d.Title != p.Title || len(d.Lines) != len(p.Lines) {
+			t.Fatalf("diff %q drift:\n fixtures.json = %+v\n pinned        = %+v", key, d, p)
+		}
+		for j, l := range d.Lines {
+			if l.Type != p.Lines[j].Type || l.Text != p.Lines[j].Text {
+				t.Errorf("diff %q line %d drift:\n fixtures.json = %+v\n pinned        = %+v", key, j, l, p.Lines[j])
+			}
+		}
 	}
 }

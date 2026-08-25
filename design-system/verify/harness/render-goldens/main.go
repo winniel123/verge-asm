@@ -104,7 +104,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals")
 	out := flag.String("out", "", "inventory|drift: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile|…: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -264,6 +264,24 @@ func main() {
 			log.Fatal("render-goldens: -outdir is required for -screen rundetail")
 		}
 		files, err := renderRunDetailStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "signals":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen signals")
+		}
+		files, err := renderSignalsStates(*bodyFlex)
 		if err != nil {
 			log.Fatalf("render-goldens: %v", err)
 		}
@@ -1645,4 +1663,336 @@ func loadFixture() (pageData, error) {
 		groups = append(groups, group{Kind: g.Kind, Label: g.Label, Subjects: subs})
 	}
 	return pageData{HasData: len(groups) > 0, Groups: groups}, nil
+}
+
+// signalsFixture is the design-system/fixtures/fixtures.json signals slice: the open-tab scalars
+// (open count, shown, page info/count), the detecting vantage, the ten open rows + three withdrawn
+// rows (each carrying its rule metadata: tags, nullable CVE, description, the [name, version] rule
+// ref), the annotations and the drift diffs. The golden reads them here (never re-hardcoded) so a
+// fixture change flows through; cmd/web/devfixtures.go pins the same values with a drift test
+// (TestSignalsFixtureMatchesPackage).
+type signalsFixture struct {
+	OpenCount   int                 `json:"open_count"`
+	Shown       int                 `json:"shown"`
+	PageInfo    string              `json:"page_info"`
+	PageCount   int                 `json:"page_count"`
+	DetectedBy  string              `json:"detected_by"`
+	Rows        []signalsFixtureRow `json:"rows"`
+	Withdrawn   []signalsFixtureRow `json:"withdrawn"`
+	Annotations map[string]struct {
+		ID     string `json:"id"`
+		Reason string `json:"reason"`
+	} `json:"annotations"`
+	Diffs map[string]struct {
+		Title string `json:"title"`
+		Lines []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"lines"`
+	} `json:"diffs"`
+}
+
+type signalsFixtureRow struct {
+	ID       string            `json:"id"`
+	Severity string            `json:"severity"`
+	SevLabel string            `json:"sev_label"`
+	Title    string            `json:"title"`
+	Asset    string            `json:"asset"`
+	IP       string            `json:"ip"`
+	Port     string            `json:"port"`
+	Seen     string            `json:"seen"`
+	First    string            `json:"first"`
+	Last     string            `json:"last"`
+	CVE      *string           `json:"cve"`
+	Tags     []string          `json:"tags"`
+	Desc     string            `json:"desc"`
+	Rule     []json.RawMessage `json:"rule"`
+	ViewKey  string            `json:"view_key"`
+}
+
+// signalsDiscovered is the fixed discovery instant the span-derived "Asset discovered" history
+// entry renders (embedded in fixtures.json signals.history_rule). cmd/web/devfixtures.go pins the
+// identical literal (devSignalsDiscovered), asserted present in history_rule by the drift test.
+const signalsDiscovered = "2026-08-12"
+
+func loadSignalsFixture() (signalsFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return signalsFixture{}, err
+	}
+	var ff struct {
+		Signals signalsFixture `json:"signals"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return signalsFixture{}, err
+	}
+	return ff.Signals, nil
+}
+
+// ruleParts splits the fixture's [name, version] rule ref into the id + version strings the drawer
+// renders as "id@version".
+func ruleParts(raw []json.RawMessage) (id, version string) {
+	if len(raw) >= 1 {
+		_ = json.Unmarshal(raw[0], &id)
+	}
+	if len(raw) >= 2 {
+		var n json.Number
+		if err := json.Unmarshal(raw[1], &n); err == nil {
+			version = n.String()
+		}
+	}
+	return id, version
+}
+
+func signalsCVE(row signalsFixtureRow) string {
+	if row.CVE != nil {
+		return *row.CVE
+	}
+	return ""
+}
+
+// signalsHistoryG mirrors cmd/web/devfixtures.go signalsHistory byte-for-byte (span-derived per
+// fixtures.json signals.history_rule): Still present · Drift detected (only when a diff exists) ·
+// Signal raised · Asset discovered.
+func signalsHistoryG(row signalsFixtureRow, detectedBy string, hasDiff bool) []map[string]any {
+	raisedTone := "neutral"
+	if row.Severity == "critical" || row.Severity == "high" {
+		raisedTone = "danger"
+	}
+	hist := []map[string]any{
+		{"Title": "Still present", "Detail": detectedBy + " re-confirmed", "Time": row.Seen, "Tone": "accent", "Mono": false},
+	}
+	if hasDiff {
+		hist = append(hist, map[string]any{"Title": "Drift detected", "Detail": row.Asset + " changed", "Time": row.Seen, "Tone": "warn", "Mono": true})
+	}
+	hist = append(hist,
+		map[string]any{"Title": "Signal raised", "Detail": row.ID, "Time": row.First, "Tone": raisedTone, "Mono": true},
+		map[string]any{"Title": "Asset discovered", "Detail": row.Asset, "Time": signalsDiscovered, "Tone": "neutral", "Mono": true},
+	)
+	return hist
+}
+
+// signalsRowMapG mirrors cmd/web/devfixtures.go signalsRowMap: one table row's holes.
+func signalsRowMapG(row signalsFixtureRow, closeHref string, withdrawn bool) map[string]any {
+	return map[string]any{
+		"Severity":    row.Severity,
+		"SevLabel":    row.SevLabel,
+		"Title":       row.Title,
+		"Asset":       row.Asset,
+		"Port":        row.Port,
+		"SigID":       row.ID,
+		"Seen":        row.Seen,
+		"Last":        row.Last,
+		"Withdrawn":   withdrawn,
+		"ViewKey":     row.ID,
+		"DescopeHref": closeHref + "&descope=" + row.ID,
+	}
+}
+
+// signalsDrawerMapG mirrors cmd/web/devfixtures.go signalsDrawerMap: the full spec drawer (#21j).
+func signalsDrawerMapG(fx signalsFixture, row signalsFixtureRow, withdrawn bool) map[string]any {
+	ruleID, ruleVersion := ruleParts(row.Rule)
+	d := map[string]any{
+		"Title":       row.Title,
+		"Seen":        row.Seen,
+		"SigID":       row.ID,
+		"Severity":    row.Severity,
+		"SevLabel":    row.SevLabel,
+		"Withdrawn":   withdrawn,
+		"Tags":        row.Tags,
+		"CVE":         signalsCVE(row),
+		"Desc":        row.Desc,
+		"Asset":       row.Asset,
+		"IP":          row.IP,
+		"RuleID":      ruleID,
+		"RuleVersion": ruleVersion,
+		"Port":        row.Port,
+		"DetectedBy":  fx.DetectedBy,
+		"First":       row.First,
+		"Last":        row.Last,
+	}
+	diff, hasDiff := fx.Diffs[row.ID]
+	if hasDiff {
+		lines := make([]map[string]any, 0, len(diff.Lines))
+		for _, l := range diff.Lines {
+			lines = append(lines, map[string]any{"Type": l.Type, "Text": l.Text})
+		}
+		d["Diff"] = map[string]any{"Title": diff.Title, "Lines": lines}
+	}
+	if anno, ok := fx.Annotations[row.ID]; ok {
+		d["Annotated"] = true
+		d["AnnoID"] = anno.ID
+		d["AnnoReason"] = anno.Reason
+	}
+	d["History"] = signalsHistoryG(row, fx.DetectedBy, hasDiff)
+	return d
+}
+
+// renderSignalsStates composes the six Signals golden HTMLs from the frozen signals.tmpl, one per
+// states.json signals state (default, drawer-open, drawer-annotated, descope-confirm, withdrawn-tab,
+// menu-open). Every state's data map mirrors signalsPage's signalsFixtureData EXACTLY (the holes the
+// frozen tmpl reads) — the pinned fixtures.json signals slice in authored order, the 47-of-47 open
+// count, and the drawer's rule metadata + diff + span history — so the cropped `main`/`body` is
+// byte-identical to what the seeded server renders. The drawer / descope states select the row by
+// its view key; withdrawn-tab lists the three withdrawn rows; menu-open is the default page whose
+// kebab the state JS opens on both sides (capture.mjs runs it against the frozen tmpl's own handler).
+// Chrome is the empty stub (drawer/descope crop `body`, the rest crop `main`).
+func renderSignalsStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadSignalsFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	withdrawnSet := map[string]bool{}
+	for _, w := range fx.Withdrawn {
+		withdrawnSet[w.ID] = true
+	}
+	byKey := map[string]signalsFixtureRow{}
+	for _, row := range fx.Rows {
+		byKey[row.ID] = row
+	}
+	for _, row := range fx.Withdrawn {
+		byKey[row.ID] = row
+	}
+
+	// base builds the tab's data map exactly as signalsFixtureData does for the given tab.
+	base := func(tab string) map[string]any {
+		closeHref := "/signals?tab=" + tab + "&sort=sev&dir=asc"
+		viewPrefix := closeHref + "&view="
+
+		var tabRows []signalsFixtureRow
+		switch tab {
+		case "withdrawn":
+			tabRows = fx.Withdrawn
+		case "annotated":
+			for _, row := range fx.Rows {
+				if _, ok := fx.Annotations[row.ID]; ok {
+					tabRows = append(tabRows, row)
+				}
+			}
+		default:
+			tabRows = fx.Rows
+		}
+		rows := make([]map[string]any, 0, len(tabRows))
+		for _, row := range tabRows {
+			rows = append(rows, signalsRowMapG(row, closeHref, withdrawnSet[row.ID]))
+		}
+
+		sortHref := func(col string) string {
+			nd := "asc"
+			if col == "sev" {
+				nd = "desc"
+			}
+			return "/signals?tab=" + tab + "&sort=" + col + "&dir=" + nd
+		}
+
+		data := map[string]any{
+			"Title": "Signals", "NavActive": "signals", "DesignTokens": true, "IsAdmin": true,
+			"Tab":            tab,
+			"OpenCount":      fx.OpenCount,
+			"AnnotatedCount": len(fx.Annotations),
+			"WithdrawnCount": len(fx.Withdrawn),
+			"Q":              "",
+			"Sev":            "All severities",
+			"SevOptions":     []string{"All severities", "Critical", "High", "Medium", "Low", "Info"},
+			"HasAny":         true,
+			"ClearHref":      "/signals?tab=" + tab,
+			"HasExport":      true,
+			"ExportHref":     "/signals/export?tab=" + tab,
+			"AnnoError":      "",
+			"ViewPrefix":     viewPrefix,
+			"CloseHref":      closeHref,
+			"Rows":           rows,
+			"SelKey":         "",
+			"Sort": map[string]any{
+				"Key": "sev", "Dir": "asc",
+				"SevHref": sortHref("sev"), "AssetHref": sortHref("asset"),
+				"IDHref": sortHref("id"), "SeenHref": sortHref("seen"),
+			},
+		}
+		if tab == "open" {
+			data["Shown"] = fx.Shown
+			data["Total"] = fx.OpenCount
+			data["ShowPagination"] = true
+			data["PageInfo"] = fx.PageInfo
+			data["PrevDisabled"] = true
+			data["PrevHref"] = closeHref
+			data["NextDisabled"] = false
+			data["NextHref"] = closeHref + "&page=2"
+			pages := make([]map[string]any, 0, fx.PageCount)
+			for p := 1; p <= fx.PageCount; p++ {
+				href := closeHref
+				if p > 1 {
+					href = closeHref + "&page=" + strconv.Itoa(p)
+				}
+				pages = append(pages, map[string]any{"Ellipsis": false, "Href": href, "Num": p, "Active": p == 1})
+			}
+			data["Pages"] = pages
+		} else {
+			data["Shown"] = len(tabRows)
+			data["Total"] = len(tabRows)
+			data["ShowPagination"] = false
+			data["Pages"] = []map[string]any{}
+		}
+		return data
+	}
+
+	defaultData := base("open")
+
+	drawerOpen := base("open")
+	if row, ok := byKey["SIG-1042"]; ok {
+		drawerOpen["SelKey"] = "SIG-1042"
+		drawerOpen["Drawer"] = signalsDrawerMapG(fx, row, withdrawnSet["SIG-1042"])
+	}
+
+	drawerAnnotated := base("open")
+	if row, ok := byKey["SIG-1027"]; ok {
+		drawerAnnotated["SelKey"] = "SIG-1027"
+		drawerAnnotated["Drawer"] = signalsDrawerMapG(fx, row, withdrawnSet["SIG-1027"])
+	}
+
+	descopeConfirm := base("open")
+	if row, ok := byKey["SIG-1042"]; ok {
+		descopeConfirm["Descope"] = map[string]any{"Asset": row.Asset, "CloseHref": "/signals?tab=open&sort=sev&dir=asc"}
+	}
+
+	withdrawnTab := base("withdrawn")
+
+	// menu-open is the default page; its kebab is opened by the state JS on both golden and
+	// candidate (capture.mjs runs the state's js against the frozen tmpl's own handler).
+	menuOpen := base("open")
+
+	type sstate struct {
+		id   string
+		data map[string]any
+	}
+	states := []sstate{
+		{"default", defaultData},
+		{"drawer-open", drawerOpen},
+		{"drawer-annotated", drawerAnnotated},
+		{"descope-confirm", descopeConfirm},
+		{"withdrawn-tab", withdrawnTab},
+		{"menu-open", menuOpen},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/signals.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "signals", st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
 }

@@ -44,7 +44,7 @@ type devFixtureAccount struct {
 // devFixtureAccounts pins fixtures.json → accounts: an admin and a viewer. One account
 // per role — the mint resolves states.json's `session` role to the account here.
 var devFixtureAccounts = []devFixtureAccount{
-	{username: "ola.perez", role: roleAdmin, password: "verge-dev-1"},  // #nosec G101 -- dev-only fixture login, seeded only under VERGE_DEV
+	{username: "ola.perez", role: roleAdmin, password: "verge-dev-1"},   // #nosec G101 -- dev-only fixture login, seeded only under VERGE_DEV
 	{username: "sam.reader", role: roleViewer, password: "verge-dev-2"}, // #nosec G101 -- dev-only fixture login, seeded only under VERGE_DEV
 }
 
@@ -1336,4 +1336,338 @@ func (s *server) scopeFixtureDataPreview(acct db.Account) map[string]any {
 			"Loss":     devScopeExclPreviewLoss,
 		},
 	})
+}
+
+// --- screen 12: Signals fixture (package v3.9.0, WORK-ORDER-10-12-BATCH3.md) ----------------
+//
+// The Signals screen (#576) renders inside the full app chrome. Its VIEW corpus — the ten open
+// rows (of 47 · page 1 of 5), the three withdrawn rows, the annotations on SIG-1027/SIG-1024, the
+// drift diffs on SIG-1042/SIG-1036, the per-rule refs and the drawer's rule metadata (tags, CVE,
+// description prose, rule id/version, the detecting vantage) — is the design's curated fixture,
+// not a live-estate read: the exact rows, the 47-of-47 open count, the authored severity order and
+// the rule metadata the corpus does not carry cannot be reconstructed from the live derivations
+// without fabricating domain data, which SPEC-CHANGE forbids. So, exactly as the Scope/Exposure
+// screens pin their dev fixture and serve it under devMode, signalsPage serves the pinned
+// fixtures.json signals slice below when s.devMode, and TestSignalsFixtureMatchesPackage folds
+// every value back through the frozen package — the byte-exactness gate before the pixels. The
+// drawer / descope / withdrawn / menu-open golden states ride the SAME fixture, selected by the
+// tab / view / descope query string (states.json). All of it is VERGE_DEV-only; a real deployment
+// renders the honest live projection in signals.go renderSignals instead.
+
+const (
+	// devSignalsDetectedBy is fixtures.json signals.detected_by: the vantage every row's drawer
+	// names as the detector.
+	devSignalsDetectedBy = "vantage eu-west-1"
+
+	// The open-tab scalars fixtures.json signals pins: 47 open (the tab badge + Total), 10 shown
+	// on page 1 of 5, with the authored page-info label. Only ten rows are authored — the count
+	// is the design's, not a derivation over a 47-row slice.
+	devSignalsOpenCount = 47
+	devSignalsShown     = 10
+	devSignalsPageCount = 5
+	devSignalsPageInfo  = "1–10 of 47"
+
+	// devSignalsDiscovered is the fixed discovery instant the span-derived "Asset discovered"
+	// history entry renders (fixtures.json signals.history_rule).
+	devSignalsDiscovered = "2026-08-12"
+)
+
+// devSignalsSevOptions is the severity listbox vocabulary (fixtures.json signals — the filter
+// options), in authored order. "All severities" is the unfiltered default.
+var devSignalsSevOptions = []string{"All severities", "Critical", "High", "Medium", "Low", "Info"}
+
+// devSignalRow mirrors one fixtures.json signals row (open or withdrawn): the SIG id + view key,
+// the severity token + its capitalised label, the human title, the asset/ip/port, the relative
+// seen + the two instants, the nullable CVE, the rule tags, the description prose, and the rule
+// ref (name + version) split from the fixture's [name, version] pair.
+type devSignalRow struct {
+	ID          string
+	Severity    string
+	SevLabel    string
+	Title       string
+	Asset       string
+	IP          string
+	Port        string
+	Seen        string
+	First       string
+	Last        string
+	CVE         string
+	Tags        []string
+	Desc        string
+	RuleID      string
+	RuleVersion string
+}
+
+// devSignalsOpen pins fixtures.json signals.rows in authored order (default sort sev·asc): the ten
+// open rows shown on page 1.
+var devSignalsOpen = []devSignalRow{
+	{ID: "SIG-1042", Severity: "critical", SevLabel: "Critical", Title: "VNC exposed to internet", Asset: "edge-gw-03.acmecorp.io", IP: "203.0.113.7", Port: ":5900", Seen: "4m", First: "2026-08-22T13:58:02Z", Last: "2026-08-22T14:02:11Z", Tags: []string{"vnc", "remote-access"}, Desc: "A VNC service answered on 203.0.113.7:5900 without transport encryption. Close the port or restrict it to your VPN.", RuleID: "vnc-exposure", RuleVersion: "3"},
+	{ID: "SIG-1041", Severity: "critical", SevLabel: "Critical", Title: "TLS certificate expired", Asset: "vpn.acmecorp.io", IP: "203.0.113.12", Port: ":443", Seen: "12m", First: "2026-08-21T00:00:00Z", Last: "2026-08-22T13:54:40Z", Tags: []string{"tls", "cert"}, Desc: "The certificate served on :443 expired 2026-08-21. Clients may accept downgraded or spoofed connections. Renew and redeploy.", RuleID: "tls-acceptance", RuleVersion: "2"},
+	{ID: "SIG-1039", Severity: "high", SevLabel: "High", Title: "Admin panel reachable", Asset: "grafana.acmecorp.io", IP: "203.0.113.31", Port: ":3000", Seen: "26m", First: "2026-08-22T11:20:19Z", Last: "2026-08-22T13:40:08Z", Tags: []string{"grafana", "admin"}, Desc: "A Grafana login page is reachable from the internet. Put it behind SSO or your VPN.", RuleID: "dns-mail-policy", RuleVersion: "1"},
+	{ID: "SIG-1036", Severity: "high", SevLabel: "High", Title: "Outdated nginx", Asset: "api.acmecorp.io", IP: "203.0.113.9", Port: ":443", Seen: "1h", First: "2026-08-22T09:03:55Z", Last: "2026-08-22T13:02:33Z", CVE: "CVE-2026-1187", Tags: []string{"nginx/1.25.0"}, Desc: "nginx/1.25.0 matches CVE-2026-1187 (request smuggling). Upgrade to 1.25.4 or later.", RuleID: "svc-exposure", RuleVersion: "3"},
+	{ID: "SIG-1034", Severity: "high", SevLabel: "High", Title: "SSH password auth enabled", Asset: "build-07.acmecorp.io", IP: "203.0.113.44", Port: ":22", Seen: "2h", First: "2026-08-21T22:41:12Z", Last: "2026-08-22T12:11:47Z", Tags: []string{"ssh"}, Desc: "sshd accepts password authentication. Switch to key-only auth and disable PasswordAuthentication.", RuleID: "svc-exposure", RuleVersion: "3"},
+	{ID: "SIG-1031", Severity: "medium", SevLabel: "Medium", Title: "Subdomain takeover candidate", Asset: "old-blog.acmecorp.io", IP: "—", Port: "", Seen: "3h", First: "2026-08-22T05:12:00Z", Last: "2026-08-22T11:12:29Z", Tags: []string{"dns", "cname"}, Desc: "CNAME points to an unclaimed pages.example.net project. Claim it or remove the record.", RuleID: "svc-exposure", RuleVersion: "3"},
+	{ID: "SIG-1029", Severity: "medium", SevLabel: "Medium", Title: "Directory listing enabled", Asset: "assets.acmecorp.io", IP: "203.0.113.18", Port: ":443", Seen: "5h", First: "2026-08-20T18:30:00Z", Last: "2026-08-22T09:00:10Z", Tags: []string{"http"}, Desc: "Autoindex is on at /uploads/. Disable directory listing or add an index file.", RuleID: "svc-exposure", RuleVersion: "3"},
+	{ID: "SIG-1027", Severity: "medium", SevLabel: "Medium", Title: "SPF record missing", Asset: "acmecorp.io", IP: "—", Port: "", Seen: "9h", First: "2026-08-19T07:22:41Z", Last: "2026-08-22T05:02:52Z", Tags: []string{"dns", "email"}, Desc: "No SPF record found. Publish one to reduce spoofed mail from your domain.", RuleID: "svc-exposure", RuleVersion: "3"},
+	{ID: "SIG-1024", Severity: "low", SevLabel: "Low", Title: "Verbose server header", Asset: "www.acmecorp.io", IP: "203.0.113.4", Port: ":443", Seen: "1d", First: "2026-08-18T12:00:09Z", Last: "2026-08-21T14:10:00Z", Tags: []string{"http", "header"}, Desc: "Responses disclose exact server and OS versions. Trim the Server header.", RuleID: "svc-exposure", RuleVersion: "3"},
+	{ID: "SIG-1022", Severity: "info", SevLabel: "Info", Title: "New subdomain discovered", Asset: "staging-4.acmecorp.io", IP: "203.0.113.61", Port: "", Seen: "3d", First: "2026-08-19T02:12:33Z", Last: "2026-08-19T02:12:33Z", Tags: []string{"discovery"}, Desc: "First seen via certificate transparency. Added to your inventory and scheduled for scanning.", RuleID: "svc-exposure", RuleVersion: "3"},
+}
+
+// devSignalsWithdrawn pins fixtures.json signals.withdrawn in authored order: three acceptances
+// whose subject has left its rule's population — withdrawn on read, no operator act (ADR-0092).
+var devSignalsWithdrawn = []devSignalRow{
+	{ID: "SIG-0991", Severity: "medium", SevLabel: "Medium", Title: "Directory listing enabled", Asset: "files.acmecorp.io", IP: "203.0.113.21", Port: ":443", Seen: "6d", First: "2026-07-30T10:11:00Z", Last: "2026-08-16T09:00:00Z", Tags: []string{"http"}, Desc: "Autoindex stopped answering in a later batch. The key is in no current population — withdrawn on read, no operator act.", RuleID: "svc-exposure", RuleVersion: "3"},
+	{ID: "SIG-0968", Severity: "high", SevLabel: "High", Title: "Admin panel reachable", Asset: "jenkins.acmecorp.io", IP: "203.0.113.29", Port: ":8080", Seen: "12d", First: "2026-07-18T08:40:22Z", Last: "2026-08-10T13:25:41Z", Tags: []string{"jenkins", "admin"}, Desc: "The service left the population; the world moved and the signal withdrew itself.", RuleID: "svc-exposure", RuleVersion: "3"},
+	{ID: "SIG-0944", Severity: "low", SevLabel: "Low", Title: "Verbose server header", Asset: "cdn.acmecorp.io", IP: "203.0.113.66", Port: ":443", Seen: "21d", First: "2026-06-29T12:02:19Z", Last: "2026-08-01T07:12:00Z", Tags: []string{"http", "header"}, Desc: "Header trimmed upstream; key absent from the current population.", RuleID: "svc-exposure", RuleVersion: "3"},
+}
+
+// devSignalsAnnotation is one fixtures.json signals.annotations entry: the operator's accepted-risk
+// reason, keyed on the row's view key (SIG id).
+type devSignalsAnnotation struct {
+	ID     string
+	Reason string
+}
+
+// devSignalsAnnotations pins fixtures.json signals.annotations: SIG-1027 and SIG-1024 carry an
+// operator acceptance (both still open, so both surface on the Annotated tab).
+var devSignalsAnnotations = map[string]devSignalsAnnotation{
+	"SIG-1027": {ID: "a1", Reason: "Third-party mail provider publishes SPF on our behalf."},
+	"SIG-1024": {ID: "a2", Reason: "Public banner is intentional — accepted."},
+}
+
+// devSignalsDiffLine / devSignalsDiff mirror one fixtures.json signals.diffs entry: the drift join
+// the drawer shows for a subject (a titled block of typed before/after lines).
+type devSignalsDiffLine struct {
+	Type string
+	Text string
+}
+type devSignalsDiff struct {
+	Title string
+	Lines []devSignalsDiffLine
+}
+
+// devSignalsDiffs pins fixtures.json signals.diffs: SIG-1042 (open ports) and SIG-1036 (service
+// banner) carry a drift transition.
+var devSignalsDiffs = map[string]devSignalsDiff{
+	"SIG-1042": {Title: "Open ports · drift", Lines: []devSignalsDiffLine{
+		{Type: "same", Text: ":443 https nginx/1.25.4"},
+		{Type: "add", Text: ":5900 vnc — no transport encryption"},
+		{Type: "remove", Text: ":8080 http-alt"},
+	}},
+	"SIG-1036": {Title: "Service banner · drift", Lines: []devSignalsDiffLine{
+		{Type: "remove", Text: "nginx/1.24.0"},
+		{Type: "add", Text: "nginx/1.25.0 (CVE-2026-1187)"},
+	}},
+}
+
+// signalsHistory derives one row's drawer history per fixtures.json signals.history_rule (span-
+// derived, newest first): Still present (accent) · Drift detected (warn, mono — only when a diff
+// exists) · Signal raised (danger for critical/high else neutral, mono, detail = id) · Asset
+// discovered (neutral, mono, detail = asset, fixed instant). render-goldens replicates this exact
+// derivation so golden and candidate agree byte-for-byte.
+func signalsHistory(row devSignalRow, hasDiff bool) []map[string]any {
+	raisedTone := "neutral"
+	if row.Severity == "critical" || row.Severity == "high" {
+		raisedTone = "danger"
+	}
+	hist := []map[string]any{
+		{"Title": "Still present", "Detail": devSignalsDetectedBy + " re-confirmed", "Time": row.Seen, "Tone": "accent", "Mono": false},
+	}
+	if hasDiff {
+		hist = append(hist, map[string]any{"Title": "Drift detected", "Detail": row.Asset + " changed", "Time": row.Seen, "Tone": "warn", "Mono": true})
+	}
+	hist = append(hist,
+		map[string]any{"Title": "Signal raised", "Detail": row.ID, "Time": row.First, "Tone": raisedTone, "Mono": true},
+		map[string]any{"Title": "Asset discovered", "Detail": row.Asset, "Time": devSignalsDiscovered, "Tone": "neutral", "Mono": true},
+	)
+	return hist
+}
+
+// signalsRowMap shapes one fixture row for the table (the holes the frozen tmpl's row reads),
+// carrying the per-row descope link (filters preserved) and the withdrawn flag (the withdrawn tab
+// draws the mark).
+func signalsRowMap(row devSignalRow, closeHref string, withdrawn bool) map[string]any {
+	return map[string]any{
+		"Severity":    row.Severity,
+		"SevLabel":    row.SevLabel,
+		"Title":       row.Title,
+		"Asset":       row.Asset,
+		"Port":        row.Port,
+		"SigID":       row.ID,
+		"Seen":        row.Seen,
+		"Last":        row.Last,
+		"Withdrawn":   withdrawn,
+		"ViewKey":     row.ID,
+		"DescopeHref": closeHref + "&descope=" + row.ID,
+	}
+}
+
+// signalsDrawerMap shapes one fixture row into the full spec drawer (#21j): the rule metadata
+// (tags, CVE, description, rule id/version, detecting vantage), the nullable drift diff, the
+// annotation state, and the span-derived history.
+func signalsDrawerMap(row devSignalRow, withdrawn bool) map[string]any {
+	d := map[string]any{
+		"Title":       row.Title,
+		"Seen":        row.Seen,
+		"SigID":       row.ID,
+		"Severity":    row.Severity,
+		"SevLabel":    row.SevLabel,
+		"Withdrawn":   withdrawn,
+		"Tags":        row.Tags,
+		"CVE":         row.CVE,
+		"Desc":        row.Desc,
+		"Asset":       row.Asset,
+		"IP":          row.IP,
+		"RuleID":      row.RuleID,
+		"RuleVersion": row.RuleVersion,
+		"Port":        row.Port,
+		"DetectedBy":  devSignalsDetectedBy,
+		"First":       row.First,
+		"Last":        row.Last,
+	}
+	diff, hasDiff := devSignalsDiffs[row.ID]
+	if hasDiff {
+		lines := make([]map[string]any, 0, len(diff.Lines))
+		for _, l := range diff.Lines {
+			lines = append(lines, map[string]any{"Type": l.Type, "Text": l.Text})
+		}
+		d["Diff"] = map[string]any{"Title": diff.Title, "Lines": lines}
+	}
+	if anno, ok := devSignalsAnnotations[row.ID]; ok {
+		d["Annotated"] = true
+		d["AnnoID"] = anno.ID
+		d["AnnoReason"] = anno.Reason
+	}
+	d["History"] = signalsHistory(row, hasDiff)
+	return d
+}
+
+// signalsFixtureData assembles the render data map signalsPage passes to the frozen signals.tmpl in
+// a VERGE_DEV build. It reads the tab / view / descope query (states.json drives the golden states
+// through it), builds the tab's rows from the pinned fixture, and stamps the open-tab scalars
+// (47 open · 10 shown · page 1 of 5) directly rather than deriving them over a 47-row slice — the
+// count is the design's. The drawer (?view=) carries the full rule metadata + diff + history; the
+// descope dialog (?descope=) resolves the row's asset for the typed-confirm gate. render-goldens
+// composes the identical maps statically, so golden and candidate agree byte-for-byte.
+func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string]any {
+	tab := r.URL.Query().Get("tab")
+	switch tab {
+	case "annotated", "withdrawn":
+	default:
+		tab = "open"
+	}
+
+	closeHref := "/signals?tab=" + tab + "&sort=sev&dir=asc"
+	viewPrefix := closeHref + "&view="
+
+	// The union of every fixture row (open + withdrawn), so ?view= / ?descope= resolve regardless
+	// of the active tab. withdrawnSet marks which keys draw the withdrawn treatment.
+	all := make([]devSignalRow, 0, len(devSignalsOpen)+len(devSignalsWithdrawn))
+	all = append(all, devSignalsOpen...)
+	all = append(all, devSignalsWithdrawn...)
+	withdrawnSet := map[string]bool{}
+	for _, w := range devSignalsWithdrawn {
+		withdrawnSet[w.ID] = true
+	}
+
+	// The active tab's rows, in authored order (default sort sev·asc is the authored order).
+	var tabRows []devSignalRow
+	switch tab {
+	case "withdrawn":
+		tabRows = devSignalsWithdrawn
+	case "annotated":
+		for _, row := range devSignalsOpen {
+			if _, ok := devSignalsAnnotations[row.ID]; ok {
+				tabRows = append(tabRows, row)
+			}
+		}
+	default:
+		tabRows = devSignalsOpen
+	}
+	rows := make([]map[string]any, 0, len(tabRows))
+	for _, row := range tabRows {
+		rows = append(rows, signalsRowMap(row, closeHref, withdrawnSet[row.ID]))
+	}
+
+	sortHref := func(col string) string {
+		nd := "asc"
+		if col == "sev" {
+			nd = "desc" // sev is the active asc column; its own toggle flips to desc
+		}
+		return "/signals?tab=" + tab + "&sort=" + col + "&dir=" + nd
+	}
+
+	data := map[string]any{
+		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "signals", "DesignTokens": true,
+		"Tab":            tab,
+		"OpenCount":      devSignalsOpenCount,
+		"AnnotatedCount": len(devSignalsAnnotations),
+		"WithdrawnCount": len(devSignalsWithdrawn),
+		"Q":              "",
+		"Sev":            "All severities",
+		"SevOptions":     devSignalsSevOptions,
+		"HasAny":         true,
+		"ClearHref":      "/signals?tab=" + tab,
+		"HasExport":      true,
+		"ExportHref":     "/signals/export?tab=" + tab,
+		"AnnoError":      "",
+		"ViewPrefix":     viewPrefix,
+		"CloseHref":      closeHref,
+		"Rows":           rows,
+		"Sort": map[string]any{
+			"Key": "sev", "Dir": "asc",
+			"SevHref": sortHref("sev"), "AssetHref": sortHref("asset"),
+			"IDHref": sortHref("id"), "SeenHref": sortHref("seen"),
+		},
+	}
+
+	// Open-tab pagination: 47 of 47 open, 10 shown on page 1 of 5. The other tabs list every row.
+	if tab == "open" {
+		data["Shown"] = devSignalsShown
+		data["Total"] = devSignalsOpenCount
+		data["ShowPagination"] = true
+		data["PageInfo"] = devSignalsPageInfo
+		data["PrevDisabled"] = true
+		data["PrevHref"] = closeHref
+		data["NextDisabled"] = false
+		data["NextHref"] = closeHref + "&page=2"
+		pages := make([]map[string]any, 0, devSignalsPageCount)
+		for p := 1; p <= devSignalsPageCount; p++ {
+			href := closeHref
+			if p > 1 {
+				href = closeHref + "&page=" + strconv.Itoa(p)
+			}
+			pages = append(pages, map[string]any{"Ellipsis": false, "Href": href, "Num": p, "Active": p == 1})
+		}
+		data["Pages"] = pages
+	} else {
+		data["Shown"] = len(tabRows)
+		data["Total"] = len(tabRows)
+		data["ShowPagination"] = false
+		data["Pages"] = []map[string]any{}
+	}
+
+	// The row drawer (?view=<key>) and the typed-confirm descope dialog (?descope=<key>) resolve
+	// against the fixture union, so both open regardless of the active tab.
+	byKey := map[string]devSignalRow{}
+	for _, row := range all {
+		byKey[row.ID] = row
+	}
+	if selKey := r.URL.Query().Get("view"); selKey != "" {
+		if row, ok := byKey[selKey]; ok {
+			data["SelKey"] = selKey
+			data["Drawer"] = signalsDrawerMap(row, withdrawnSet[selKey])
+		} else {
+			data["SelKey"] = ""
+		}
+	} else {
+		data["SelKey"] = ""
+	}
+	if dk := r.URL.Query().Get("descope"); dk != "" {
+		if row, ok := byKey[dk]; ok {
+			data["Descope"] = map[string]any{"Asset": row.Asset, "CloseHref": closeHref}
+		}
+	}
+	return data
 }
