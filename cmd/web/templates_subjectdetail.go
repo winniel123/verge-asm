@@ -128,6 +128,13 @@ const subjectDetailTemplates = `
 </div>
 </section>{{end}}
 
+{{/* subjectexposure is this (still repo-authored) screen's local exposure chip,
+     matching its own .exp CSS. It replaces the "assetexposure" partial the deleted
+     templates_asset.go used to share with this file: screen 13 now byte-serves the
+     design-owned asset.tmpl, whose "assetexposure" define carries the design (.as-leg)
+     markup, so this screen carries its own until its own conversion (#582) lands. */}}
+{{define "subjectexposure"}}<span class="exp {{if eq . "exposed"}}exposed{{else if eq . "firewalled"}}firewalled{{else if eq . "not-reached"}}notreached{{else}}unverified{{end}}">{{if eq . "not-reached"}}not reached{{else}}{{.}}{{end}}</span>{{end}}
+
 {{define "service"}}{{template "head" .}}
 {{template "chrome" .}}
 {{template "subjectstyle" .}}
@@ -140,7 +147,7 @@ const subjectDetailTemplates = `
 <h1 class="mono" style="margin:0;font-size:21px;letter-spacing:-0.01em;color:var(--ink)">{{.Key}}</h1>
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="chip">service</span>
-{{if .Withdrawn}}<span class="chip loss">withdrawn</span>{{else if .Exposure}}{{template "assetexposure" .Exposure}}{{end}}
+{{if .Withdrawn}}<span class="chip loss">withdrawn</span>{{else if .Exposure}}{{template "subjectexposure" .Exposure}}{{end}}
 {{if or .Seen .InScopeSince}}<span class="mono muted" style="font-size:12px">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
 </div>
 </div>

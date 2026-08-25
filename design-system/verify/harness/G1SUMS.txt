@@ -1,4 +1,6 @@
 601fd25fc36ec841cebbaad4c070ff74eedaa055  design-system/fixtures/fixtures.json
+73d0610ac8af04992e415c732adceecead1005cc  design-system/goldens/asset/default-1440-dark.png
+2e74f682618f35d200e87326e7e8af16c8ee2504  design-system/goldens/asset/default-1440-light.png
 dac24643c2828776478b734aed381bbba3712d66  design-system/goldens/coverage/default-1440-dark.png
 bdd0b8d0d1f74f17a92e6ccace5955b2b59de91c  design-system/goldens/coverage/default-1440-light.png
 833824e4c1621b5f866e3ccbac6da58f8ecf906f  design-system/goldens/coverage/empty-1440-dark.png

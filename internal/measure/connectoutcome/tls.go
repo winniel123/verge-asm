@@ -109,6 +109,14 @@ type HandshakeResult struct {
 	Outcome  TLSOutcome
 	Chain    []string
 	NotAfter time.Time
+	// Issuer and Algorithm are the leaf's parsed identity, read off chain[0] on a
+	// presented handshake — the issuer distinguished name and the signature
+	// algorithm the leaf certificate carries. Both are carried only on TLSPresented
+	// (the negatives leave them empty); the fold drops an empty via omitempty, so a
+	// negative outcome and a pre-parse span carry neither key (SPEC-CHANGE.md
+	// collision #22c, #581). They feed the Asset detail's TLS-certificate card.
+	Issuer    string
+	Algorithm string
 }
 
 // Handshaker performs one TLS handshake against a Service that the connect
@@ -194,7 +202,18 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	// The leaf (chain[0]) is already in hand for fingerprinting; read its NotAfter
 	// here so the presented value can carry the expiry the certs-expiring stat reads
 	// (SPEC-CHANGE.md collision #8). InsecureSkipVerify does not withhold the chain.
-	return HandshakeResult{Outcome: TLSPresented, Chain: chain, NotAfter: state.PeerCertificates[0].NotAfter}
+	// The same leaf carries its parsed identity — the issuer DN and the signature
+	// algorithm — which the presented value carries for the Asset detail's cert card
+	// (#22c, #581); a leaf that carries neither renders the empty string, which the
+	// fold drops via omitempty.
+	leaf := state.PeerCertificates[0]
+	return HandshakeResult{
+		Outcome:   TLSPresented,
+		Chain:     chain,
+		NotAfter:  leaf.NotAfter,
+		Issuer:    leaf.Issuer.String(),
+		Algorithm: leaf.SignatureAlgorithm.String(),
+	}
 }
 
 // classifyTLSError splits a failed handshake dial into its two negatives. A TLS

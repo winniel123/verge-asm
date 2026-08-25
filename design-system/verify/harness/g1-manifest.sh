@@ -39,6 +39,7 @@ PATHS=(
   design-system/goldens/scope
   design-system/goldens/signals
   design-system/goldens/dashboard
+  design-system/goldens/asset
 )
 
 # "<blob-sha>  <path>", sorted by path, C locale for a stable order across machines.
