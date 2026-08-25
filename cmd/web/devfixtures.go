@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"html/template"
+	"io/fs"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -11,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/seed"
@@ -2190,4 +2194,386 @@ func (s *server) graphFixtureData(acct db.Account) map[string]any {
 		"NavActive": "graph", "DesignTokens": true,
 		"Graph": devGraphData(),
 	}
+}
+
+// --- screen 16: Reports fixture (package v3.11.0, WORK-ORDER-16-18-BATCH5.md) -----------------
+//
+// The Reports screen (`/reports`, #588) renders inside the full app chrome and a real admin session
+// (minted by the harness). Its VIEW corpus — the three KPI cards with their precomputed spark/bar
+// geometry and delta chips, the "Open signals over time" chart (grid, polylines, x-labels + the
+// hover-readout data attributes), the by-severity bars, the 84-cell scans-per-day heat, and the
+// three schedule rows — is the design's curated fixture, not a live-estate read: the exact SVG
+// coordinates, the color-mix intensities and the relative instants cannot be reconstructed from the
+// live derivations without fabricating domain data, which SPEC-CHANGE forbids. So, exactly as the
+// sibling screens pin their dev fixture and serve it under devMode, reportsPage serves the pinned
+// fixtures.json reports slice below when s.devMode. Unlike the sibling screens (which hand-pin Go
+// literals and fold them back through the fixture in a drift test), the reports corpus is read
+// STRAIGHT from the embedded fixtures.json — there is no second copy to drift from. render-goldens
+// composes the identical maps from the SAME bytes, so golden and candidate agree; G2 is the gate.
+// The production path (reports.go) builds the same holes from real reads (period picker, trend folds).
+//
+// The struct set below mirrors the reports slice one-to-one: numbers ride as json.Number so the
+// rendered figure is the fixture's literal text (16.7 stays "16.7", never a re-formatted float), and
+// the heat cell backgrounds ride as template.CSS so the color-mix()/var() values reach the style
+// attribute verbatim rather than being neutralised to ZgotmplZ (the production heatCell does the
+// same). render-goldens carries a byte-identical copy of these types.
+
+type reportsFixtureDelta struct {
+	Has  bool   `json:"has"`
+	Text string `json:"text"`
+	Dir  string `json:"dir"`
+	Tone string `json:"tone"`
+}
+
+type reportsFixtureSpark struct {
+	W     json.Number `json:"w"`
+	H     json.Number `json:"h"`
+	Area  string      `json:"area"`
+	Line  string      `json:"line"`
+	Color string      `json:"color"`
+	DotX  json.Number `json:"dot_x"`
+	DotY  json.Number `json:"dot_y"`
+}
+
+type reportsFixtureBar struct {
+	HeightPct json.Number `json:"height_pct"`
+	Title     string      `json:"title"`
+	Last      bool        `json:"last"`
+}
+
+type reportsFixtureBars struct {
+	Bars       []reportsFixtureBar `json:"bars"`
+	LeftLabel  string              `json:"left_label"`
+	RightLabel string              `json:"right_label"`
+}
+
+type reportsFixtureGrid struct {
+	Y      json.Number `json:"y"`
+	X1     json.Number `json:"x1"`
+	X2     json.Number `json:"x2"`
+	Stroke string      `json:"stroke"`
+	LabelX json.Number `json:"label_x"`
+	Label  string      `json:"label"`
+}
+
+type reportsFixtureXLabel struct {
+	X    json.Number `json:"x"`
+	Y    json.Number `json:"y"`
+	Text string      `json:"text"`
+}
+
+type reportsFixtureSeries struct {
+	W          json.Number            `json:"w"`
+	H          json.Number            `json:"h"`
+	N          json.Number            `json:"n"`
+	Grid       []reportsFixtureGrid   `json:"grid"`
+	AllOpen    string                 `json:"all_open"`
+	CritHigh   string                 `json:"crit_high"`
+	XLabels    []reportsFixtureXLabel `json:"x_labels"`
+	LabelsAttr string                 `json:"labels_attr"`
+	SeriesJSON string                 `json:"series_json"`
+}
+
+type reportsFixtureSev struct {
+	Sev   string      `json:"sev"`
+	Label string      `json:"label"`
+	Pct   json.Number `json:"pct"`
+	Count json.Number `json:"count"`
+}
+
+type reportsFixtureHeat struct {
+	Title  string       `json:"title"`
+	Bg     template.CSS `json:"bg"`
+	Border template.CSS `json:"border"`
+}
+
+type reportsFixtureSchedule struct {
+	ID           string      `json:"id"`
+	Name         string      `json:"name"`
+	Cadence      string      `json:"cadence"`
+	Delivery     string      `json:"delivery"`
+	Format       string      `json:"format"`
+	LastSent     string      `json:"last_sent"`
+	LastMins     json.Number `json:"last_mins"`
+	HasDelivery  bool        `json:"has_delivery"`
+	DeliveryHref string      `json:"delivery_href"`
+}
+
+type reportsFixturePeriod struct {
+	Token string `json:"token"`
+	Label string `json:"label"`
+}
+
+type reportsFixtureWizardSection struct {
+	Key     string `json:"key"`
+	Label   string `json:"label"`
+	Checked bool   `json:"checked"`
+}
+
+type reportsFixtureWizardChannel struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Hint  string `json:"hint"`
+}
+
+type reportsFixtureWizard struct {
+	Title       string                        `json:"title"`
+	FormAction  string                        `json:"form_action"`
+	FinishLabel string                        `json:"finish_label"`
+	Steps       []string                      `json:"steps"`
+	Sections    []reportsFixtureWizardSection `json:"sections"`
+	Cads        []string                      `json:"cads"`
+	DefaultCad  string                        `json:"default_cad"`
+	Channels    []reportsFixtureWizardChannel `json:"channels"`
+}
+
+type reportsFixture struct {
+	Period            string                 `json:"period"`
+	PeriodLabel       string                 `json:"period_label"`
+	Periods           []reportsFixturePeriod `json:"periods"`
+	RangeLabel        string                 `json:"range_label"`
+	RangeWeeks        json.Number            `json:"range_weeks"`
+	HasOpenSignals    bool                   `json:"has_open_signals"`
+	OpenSignals       string                 `json:"open_signals"`
+	OpenDelta         reportsFixtureDelta    `json:"open_delta"`
+	HasOpenSpark      bool                   `json:"has_open_spark"`
+	OpenSpark         reportsFixtureSpark    `json:"open_spark"`
+	HasDiscovery      bool                   `json:"has_discovery"`
+	DiscoveryCount    string                 `json:"discovery_count"`
+	DiscoveryDelta    reportsFixtureDelta    `json:"discovery_delta"`
+	DiscoveryNames    json.Number            `json:"discovery_names"`
+	DiscoveryServices json.Number            `json:"discovery_services"`
+	DiscoveryBars     reportsFixtureBars     `json:"discovery_bars"`
+	HasMTTW           bool                   `json:"has_mttw"`
+	MTTW              string                 `json:"mttw"`
+	MTTWDelta         reportsFixtureDelta    `json:"mttw_delta"`
+	HasMTTWSpark      bool                   `json:"has_mttw_spark"`
+	MTTWSpark         reportsFixtureSpark    `json:"mttw_spark"`
+	HasSignalSeries   bool                   `json:"has_signal_series"`
+	SignalSeries      reportsFixtureSeries   `json:"signal_series"`
+	HasSeverity       bool                   `json:"has_severity"`
+	BySeverity        []reportsFixtureSev    `json:"by_severity"`
+	HasHeat           bool                   `json:"has_heat"`
+	Heat              []reportsFixtureHeat   `json:"heat"`
+	Schedules         []reportsFixtureSchedule `json:"schedules"`
+	Wizard            reportsFixtureWizard   `json:"wizard"`
+}
+
+// loadReportsFixture reads the pinned fixtures.json reports slice from the embedded design
+// package (designfs). Both reportsPage (candidate) and render-goldens (golden) read the SAME
+// bytes and shape them identically, so the two agree. A read/parse failure degrades to the
+// zero fixture (the page's empty states) rather than 500ing.
+func loadReportsFixture() reportsFixture {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return reportsFixture{}
+	}
+	var ff struct {
+		Reports reportsFixture `json:"reports"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return reportsFixture{}
+	}
+	return ff.Reports
+}
+
+// reportsFixtureData is the render map reportsPage passes to the frozen reports.tmpl in a
+// VERGE_DEV build. It stamps the chrome + design-token holes and the pinned fixture corpus,
+// passing each sub-struct straight through to the tmpl's holes. render-goldens composes the
+// identical map statically from the same fixtures.json, so golden and candidate agree.
+func (s *server) reportsFixtureData(acct db.Account) map[string]any {
+	fx := loadReportsFixture()
+	return map[string]any{
+		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "reports", "DesignTokens": true,
+
+		"RangeLabel":  fx.RangeLabel,
+		"RangeWeeks":  fx.RangeWeeks,
+		"Periods":     fx.Periods,
+		"Period":      fx.Period,
+		"PeriodLabel": fx.PeriodLabel,
+
+		"HasOpenSignals": fx.HasOpenSignals,
+		"OpenSignals":    fx.OpenSignals,
+		"OpenDelta":      fx.OpenDelta,
+		"HasOpenSpark":   fx.HasOpenSpark,
+		"OpenSpark":      fx.OpenSpark,
+
+		"HasDiscovery":      fx.HasDiscovery,
+		"DiscoveryCount":    fx.DiscoveryCount,
+		"DiscoveryDelta":    fx.DiscoveryDelta,
+		"DiscoveryNames":    fx.DiscoveryNames,
+		"DiscoveryServices": fx.DiscoveryServices,
+		"DiscoveryBars":     fx.DiscoveryBars,
+
+		"HasMTTW":      fx.HasMTTW,
+		"MTTW":         fx.MTTW,
+		"MTTWDelta":    fx.MTTWDelta,
+		"HasMTTWSpark": fx.HasMTTWSpark,
+		"MTTWSpark":    fx.MTTWSpark,
+
+		"HasSignalSeries": fx.HasSignalSeries,
+		"SignalSeries":    fx.SignalSeries,
+
+		"HasSeverity": fx.HasSeverity,
+		"BySeverity":  fx.BySeverity,
+
+		"HasHeat": fx.HasHeat,
+		"Heat":    fx.Heat,
+
+		"Schedules": fx.Schedules,
+	}
+}
+
+// reportsWizardWindow shapes the "schedulewizard" holes from the pinned fixtures.json wizard
+// slice and the request query (#23f). The wizard states hit the PRG GET URLs directly
+// (states.json), so the step, name, sections, cad and channel are read from the query — a
+// fresh GET (no ?step) opens step 0 with the fixture's checked defaults. render-goldens
+// composes the identical map for wizard-1..4, so golden and candidate agree.
+func (s *server) reportsWizardFixtureData(r *http.Request, acct db.Account) map[string]any {
+	fx := loadReportsFixture().Wizard
+	return reportsWizardMap(fx, r.URL.Query(), acct)
+}
+
+// reportsWizardMap is the shared shaping the dev handler and render-goldens both apply, so the
+// two never diverge. It reconstructs the wizard's controlled state from the query using the
+// fixture vocabulary (section keys, cadence presets, channel tokens) and stamps every hole the
+// frozen "schedulewizard" tmpl reads.
+func reportsWizardMap(fx reportsFixtureWizard, q map[string][]string, acct db.Account) map[string]any {
+	get := func(k string) string {
+		if v, ok := q[k]; ok && len(v) > 0 {
+			return v[0]
+		}
+		return ""
+	}
+	step := 0
+	if n, err := strconv.Atoi(get("step")); err == nil {
+		step = n
+	}
+	if step < 0 {
+		step = 0
+	}
+	if step > len(fx.Steps)-1 {
+		step = len(fx.Steps) - 1
+	}
+
+	// Sections: an explicit query set (the PRG steps carry them) else the fixture's checked
+	// defaults (the fresh first step). Canonicalised to the fixture order, unknowns dropped.
+	selected := map[string]bool{}
+	if raw, ok := q["sections"]; ok {
+		for _, k := range raw {
+			selected[k] = true
+		}
+	} else {
+		for _, sec := range fx.Sections {
+			if sec.Checked {
+				selected[sec.Key] = true
+			}
+		}
+	}
+	sectionOpts := make([]map[string]any, 0, len(fx.Sections))
+	orderedKeys := make([]string, 0, len(fx.Sections))
+	labels := make([]string, 0, len(fx.Sections))
+	for _, sec := range fx.Sections {
+		on := selected[sec.Key]
+		sectionOpts = append(sectionOpts, map[string]any{"Key": sec.Key, "Label": sec.Label, "Checked": on})
+		if on {
+			orderedKeys = append(orderedKeys, sec.Key)
+			labels = append(labels, sec.Label)
+		}
+	}
+
+	cad := get("cad")
+	if cad == "" {
+		cad = fx.DefaultCad
+	}
+	cron := get("cron")
+	cads := make([]map[string]any, 0, len(fx.Cads))
+	for _, c := range fx.Cads {
+		cads = append(cads, map[string]any{"Value": c, "Selected": c == cad})
+	}
+
+	channel := get("channel")
+	if channel == "" && len(fx.Channels) > 0 {
+		channel = fx.Channels[0].Value
+	}
+	channelLabel := ""
+	channels := make([]map[string]any, 0, len(fx.Channels))
+	for _, c := range fx.Channels {
+		sel := c.Value == channel
+		if sel {
+			channelLabel = c.Label
+		}
+		channels = append(channels, map[string]any{"Value": c.Value, "Label": c.Label, "Hint": c.Hint, "Selected": sel})
+	}
+
+	steps := make([]map[string]any, 0, len(fx.Steps))
+	for i, title := range fx.Steps {
+		steps = append(steps, map[string]any{"Num": i + 1, "Title": title, "Done": i < step, "Current": i == step})
+	}
+
+	nameSummary := reportsWizardName(get("name"))
+	sectionsSummary := "—"
+	if len(labels) > 0 {
+		sectionsSummary = reportsWizardJoin(labels)
+	}
+	review := []map[string]any{
+		{"K": "Report", "V": nameSummary},
+		{"K": "Sections", "V": sectionsSummary},
+		{"K": "Cadence", "V": reportCadLabel(cad, cron)},
+		{"K": "Format", "V": reportScheduleFormat},
+		{"K": "Delivery", "V": channelLabel},
+	}
+
+	last := step == len(fx.Steps)-1
+	return map[string]any{
+		"Title": fx.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "reports", "DesignTokens": true,
+
+		"WizardTitle": fx.Title,
+		"FormAction":  fx.FormAction,
+		"FinishLabel": fx.FinishLabel,
+		"EditMode":    false,
+		"ID":          int64(0),
+
+		"Step":      step,
+		"StepNum":   step + 1,
+		"StepTotal": len(fx.Steps),
+		"Last":      last,
+		"Steps":     steps,
+
+		"Name":         get("name"),
+		"Sections":     sectionOpts,
+		"SectionsKeys": orderedKeys,
+		"Cads":         cads,
+		"Cad":          cad,
+		"Cron":         cron,
+		"Custom":       cad == reportCustomCad,
+		"Channels":     channels,
+		"ChannelID":    channel,
+		"ChannelLabel": channelLabel,
+
+		"Review": review,
+	}
+}
+
+// reportsWizardName / reportsWizardJoin are the tiny review helpers the wizard shaping shares
+// with render-goldens (an em dash for an empty name, a comma-joined section list), so both
+// produce the identical Review rows.
+func reportsWizardName(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
+}
+
+func reportsWizardJoin(parts []string) string {
+	out := ""
+	for i, p := range parts {
+		if i > 0 {
+			out += ", "
+		}
+		out += p
+	}
+	return out
 }

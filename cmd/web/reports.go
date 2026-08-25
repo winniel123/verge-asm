@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"html/template"
 	"log"
@@ -73,57 +74,108 @@ const (
 	reportsHeatDays  = reportsHeatWeeks * 7
 )
 
-// reportsRangeWeeks is the fixed set of spans the /reports range control offers, in
-// weeks. A small honest set — a quarter, the default twelve, a half-year, a year —
-// rather than a free from/to pair: the underlying series is whole-day scan volume,
-// so a coarse week-granular window is the faithful control. reportsHeatWeeks (12) is
-// the default and MUST appear in the set.
-var reportsRangeWeeks = []int{4, 12, 26, 52}
+// reportsPeriod is one entry of the /reports range picker (SPEC-CHANGE #23b): the
+// ?period token, its badge label, and the internal WEEK span the KPI band, trend
+// chart, discovery bars and scans-per-day heatmap all read over. The design's period
+// vocabulary (fixtures.json → reports.periods) is 24h/7d/30d/90d; each maps to a
+// whole-week span for the folds — 7d is the default and maps to the twelve-week heat
+// span (reportsHeatWeeks), so an un-parameterised request renders exactly the design's
+// default (range_label "Last 7d", range_weeks 12, an 84-cell heat). The design itself
+// labels that twelve-week activity view "Last 7d", so this mapping is faithful; the
+// wider presets extend the span. The old ?weeks= param and its select retire (#23b).
+type reportsPeriod struct {
+	Token string
+	Label string
+	Weeks int
+}
 
-// resolveReportsWeeks reads the ?weeks= range param and clamps it to the offered set
-// (reportsRangeWeeks), defaulting to reportsHeatWeeks when the param is absent,
-// unparseable, or not one of the offered spans. Threading it through reportsPage and
-// the export keeps the heatmap span, the "Scans run" window KPI, and the export all
-// reading the same range.
-func resolveReportsWeeks(r *http.Request) int {
-	raw := r.URL.Query().Get("weeks")
-	if raw == "" {
-		return reportsHeatWeeks
+// reportsPeriods is the fixed preset vocabulary the range picker offers, in the
+// design's authored order (fixtures.json → reports.periods).
+func reportsPeriods() []reportsPeriod {
+	return []reportsPeriod{
+		{Token: "24h", Label: "Last 24h", Weeks: 4},
+		{Token: "7d", Label: "Last 7d", Weeks: reportsHeatWeeks},
+		{Token: "30d", Label: "Last 30d", Weeks: 26},
+		{Token: "90d", Label: "Last 90d", Weeks: 52},
 	}
-	n, err := strconv.Atoi(raw)
-	if err != nil {
-		return reportsHeatWeeks
-	}
-	for _, w := range reportsRangeWeeks {
-		if w == n {
-			return n
+}
+
+// reportsDefaultPeriod is the preset selected when no ?period token is given — 7d, the
+// design's default (fixtures.json → reports.period).
+const reportsDefaultPeriod = "7d"
+
+// resolveReportsPeriod maps the ?period query to a preset, defaulting to
+// reportsDefaultPeriod for an absent or unrecognised token (a hand-crafted value never
+// widens the window past the offered set).
+func resolveReportsPeriod(token string) reportsPeriod {
+	for _, p := range reportsPeriods() {
+		if p.Token == token {
+			return p
 		}
 	}
-	return reportsHeatWeeks
-}
-
-// reportsRangeOption is one entry in the range-select control: its weeks value, the
-// human label ("last 12 weeks"), and whether it is the active selection.
-type reportsRangeOption struct {
-	Weeks    int
-	Label    string
-	Selected bool
-}
-
-// reportsRangeOptions builds the select entries for the header range control,
-// marking the active span selected.
-func reportsRangeOptions(active int) []reportsRangeOption {
-	opts := make([]reportsRangeOption, 0, len(reportsRangeWeeks))
-	for _, w := range reportsRangeWeeks {
-		opts = append(opts, reportsRangeOption{Weeks: w, Label: reportsRangeLabel(w), Selected: w == active})
+	for _, p := range reportsPeriods() {
+		if p.Token == reportsDefaultPeriod {
+			return p
+		}
 	}
-	return opts
+	return reportsPeriods()[0]
 }
 
-// reportsRangeLabel is the terse sentence-case span label used on the KPI caption,
-// the heatmap aria-label/legend, and the range-select options ("last 12 weeks").
-func reportsRangeLabel(weeks int) string {
-	return "last " + strconv.Itoa(weeks) + " weeks"
+// reportsCustomPrefix marks a custom-range period token — "custom_<start>_<end>" with
+// ISO (YYYY-MM-DD) bounds (the drift #20b mechanism). The range popover submits GET
+// /reports?start=&end=; the page stamps this stable token into .Period so the export
+// links (/reports/export?period=) carry the same window.
+const reportsCustomPrefix = "custom_"
+
+// parseReportsCustomToken splits a "custom_<start>_<end>" token back into its ISO bounds.
+func parseReportsCustomToken(token string) (start, end string, ok bool) {
+	rest, found := strings.CutPrefix(token, reportsCustomPrefix)
+	if !found {
+		return "", "", false
+	}
+	start, end, found = strings.Cut(rest, "_")
+	if !found || start == "" || end == "" {
+		return "", "", false
+	}
+	return start, end, true
+}
+
+// reportsWindow is the resolved reporting window: the stable .Period token and
+// .PeriodLabel the tmpl renders, and the internal week span the folds read over.
+type reportsWindow struct {
+	Token string
+	Label string
+	Weeks int
+}
+
+// resolveReportsWindow resolves the request into the reporting window. A custom range —
+// an explicit ?start=&end= from the popover, or a "custom_" ?period token from an export
+// link — resolves to an absolute [start, end] window with a stable token, a "start – end"
+// label, and a week span derived from the span (rounded up, min one week). Otherwise a
+// preset resolves to its span. A malformed custom pair falls back to the preset path, so
+// a hand-crafted query never errors the page.
+func resolveReportsWindow(r *http.Request) reportsWindow {
+	q := r.URL.Query()
+	start, end := q.Get("start"), q.Get("end")
+	if start == "" && end == "" {
+		if st, en, ok := parseReportsCustomToken(q.Get("period")); ok {
+			start, end = st, en
+		}
+	}
+	if start != "" && end != "" {
+		sd, e1 := time.Parse("2006-01-02", start)
+		ed, e2 := time.Parse("2006-01-02", end)
+		if e1 == nil && e2 == nil && !ed.Before(sd) {
+			days := int(ed.Sub(sd).Hours()/24) + 1
+			weeks := (days + 6) / 7
+			if weeks < 1 {
+				weeks = 1
+			}
+			return reportsWindow{Token: reportsCustomPrefix + start + "_" + end, Label: start + " – " + end, Weeks: weeks}
+		}
+	}
+	p := resolveReportsPeriod(q.Get("period"))
+	return reportsWindow{Token: p.Token, Label: p.Label, Weeks: p.Weeks}
 }
 
 // openSignalsCount is the one honest signal figure the Reports screen and its export
@@ -534,6 +586,21 @@ type reportsTimeSeries struct {
 	XLabels  []reportsXLabel
 	AllOpen  string
 	CritHigh string
+	// N, LabelsAttr and SeriesJSON feed the frozen tmpl's hover-readout JS (#23e): the
+	// point count, a pipe-joined per-point label list (data-labels) and the two series as
+	// a JSON array (data-series) the crosshair reads — the same math the polylines draw,
+	// no new geometry.
+	N          int
+	LabelsAttr string
+	SeriesJSON string
+}
+
+// reportsHoverSeries is one series in the chart's data-series JSON (the hover readout):
+// its legend label, its chart colour token, and the per-point standing values.
+type reportsHoverSeries struct {
+	Label string `json:"label"`
+	Color string `json:"color"`
+	Data  []int  `json:"data"`
 }
 
 // buildReportsTimeSeries folds the signals-over-time buckets into the chart geometry,
@@ -611,20 +678,52 @@ func buildReportsTimeSeries(pts []drift.SignalPoint) (reportsTimeSeries, bool) {
 		{X: f1(x(0)), Y: xLabelY, Text: strconv.Itoa(n) + "w ago"},
 		{X: f1(x(n - 1)), Y: xLabelY, Text: "now"},
 	}
+	// The hover-readout inputs (#23e): a label per point and the two standing series as a
+	// JSON array the crosshair JS reads (data-labels / data-series). The labels index the
+	// buckets (weekly), enough for the tooltip's per-point title; the values are the same
+	// standing figures the polylines plot.
+	allData := make([]int, n)
+	critData := make([]int, n)
+	labels := make([]string, n)
+	for i, p := range pts {
+		allData[i] = p.Standing
+		critData[i] = p.StandingElevated
+		labels[i] = "wk " + strconv.Itoa(i+1)
+	}
+	seriesJSON, _ := json.Marshal([]reportsHoverSeries{
+		{Label: "All open", Color: "var(--chart-1)", Data: allData},
+		{Label: "Critical + high", Color: "var(--chart-2)", Data: critData},
+	})
 	return reportsTimeSeries{
 		W: W, H: H, Grid: grid, XLabels: xLabels,
-		AllOpen:  build(func(p drift.SignalPoint) int { return p.Standing }),
-		CritHigh: build(func(p drift.SignalPoint) int { return p.StandingElevated }),
+		AllOpen:    build(func(p drift.SignalPoint) int { return p.Standing }),
+		CritHigh:   build(func(p drift.SignalPoint) int { return p.StandingElevated }),
+		N:          n,
+		LabelsAttr: strings.Join(labels, "|"),
+		SeriesJSON: string(seriesJSON),
 	}, true
 }
 
 func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
 
-	// The selected range — a week span from the offered set, defaulting to twelve.
-	// It sets the heatmap span, the trend-series window AND the export window so all
-	// read the same period; an un-parameterised request stays the twelve-week default.
-	weeks := resolveReportsWeeks(r)
+	// VERGE_DEV pixel-parity path (#588): serve the pinned fixtures.json reports slice so
+	// the seeded instance renders byte-for-byte what the golden composes (as the sibling
+	// screens do). The exact spark/series geometry, the 84-cell heat, the delta chips and
+	// the schedule rows are the design's curated fixture — they cannot be reconstructed
+	// from live derivations without fabricating domain data, which SPEC-CHANGE forbids. A
+	// real deployment (devMode == false) falls through to the honest live reads below.
+	if s.devMode {
+		s.render(w, "reports", s.reportsFixtureData(acct))
+		return
+	}
+
+	// The selected period — a preset token (SPEC-CHANGE #23b) or a custom ISO range —
+	// resolving to a WEEK span that sets the heatmap span, the trend-series window AND the
+	// export window so all read the same period; an un-parameterised request stays the
+	// design's default (7d → twelve weeks).
+	window := resolveReportsWindow(r)
+	weeks := window.Weeks
 	days := weeks * 7
 
 	// The range's window bounds, shared by the trend folds (P0.3) and the discovery
@@ -735,7 +834,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	s.render(w, "reports", map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports",
+		"NavActive": "reports", "DesignTokens": true,
 
 		// KPI band — the three trend cards of Reports.jsx. Each renders real computed
 		// values with its vs-last-batch delta (P0.2) and inline trend (P0.3), and
@@ -775,12 +874,15 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"Heat":    cells,
 		"HasHeat": heatTotal > 0,
 
-		// Range control + range-aware labels. RangeWeeks drives the export link's
-		// carried param; RangeLabel re-skins the captions to the active span;
-		// RangeOptions renders the header period select.
-		"RangeWeeks":   weeks,
-		"RangeLabel":   reportsRangeLabel(weeks),
-		"RangeOptions": reportsRangeOptions(weeks),
+		// Period picker + period-aware labels (#23b). Periods renders the preset links,
+		// Period is the active token the export links carry, PeriodLabel/RangeLabel re-skin
+		// the header and captions to the active period, and RangeWeeks drives the heat
+		// legend's "N weeks ago" (the fixed twelve-week activity span).
+		"RangeWeeks":  weeks,
+		"RangeLabel":  window.Label,
+		"Periods":     reportsPeriods(),
+		"Period":      window.Token,
+		"PeriodLabel": window.Label,
 
 		// Recurring reports. Scheduling has no backend yet (#290/#291), so this is
 		// empty and the table renders the empty-state; the row-menu "View last

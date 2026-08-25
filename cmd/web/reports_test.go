@@ -69,8 +69,8 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Open signals", "New assets discovered", "Mean time to withdrawal", // KPI band — the three trend cards
-		"Open signals over time",                     // time-series card title
-		"Scans per day", "Scans per day, last 12 weeks", // heatmap card + grid aria-label
+		"Open signals over time",                // time-series card title
+		"Scans per day", "Scans per day, Last 7d", // heatmap card + grid aria-label (period-labelled, #23b)
 		"Recurring reports", "New schedule", // recurring card + the schedule wizard control
 	} {
 		if !strings.Contains(page, want) {
@@ -85,7 +85,7 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 	if !strings.Contains(page, "color-mix(in srgb, var(--chart-1)") {
 		t.Errorf("heatmap intensity fill missing; body: %s", page)
 	}
-	if strings.Contains(page, "No scans in the last 12 weeks") {
+	if strings.Contains(page, "No scans in the Last 7d") {
 		t.Errorf("heatmap should be wired, not empty-stated; body: %s", page)
 	}
 
@@ -151,10 +151,10 @@ func TestReportsEmptyStates(t *testing.T) {
 	page := getBody(t, ac, base+"/reports", http.StatusOK)
 
 	for _, want := range []string{
-		"No signal history",             // time-series region — no raises yet
-		"No signals firing",             // by-severity region — nothing firing
-		"No scans in the last 12 weeks", // heatmap empty-state
-		"No recurring reports",          // recurring table empty-state
+		"No signal history",    // time-series region — no raises yet
+		"No signals firing",    // by-severity region — nothing firing
+		"No scans in the Last 7d", // heatmap empty-state (period-labelled, #23b)
+		"No recurring reports", // recurring table empty-state
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("reports empty-state missing %q; body: %s", want, page)
@@ -435,11 +435,13 @@ func TestReportScheduleEdit(t *testing.T) {
 	}
 	base := start(t, f, "")
 
+	editURL := base + "/reports/schedule/" + strconv.FormatInt(sched.ID, 10) + "/edit"
+
 	// A viewer cannot edit.
 	vc := login(t, base, "viewer", "hunter2hunter2")
-	vr := postForm(t, vc, base+"/reports/schedule/edit", url.Values{
+	vr := postForm(t, vc, editURL, url.Values{
 		"action": {"finish"}, "step": {"2"}, "id": {strconv.FormatInt(sched.ID, 10)},
-		"name": {"Hijacked"}, "sections": {"summary-kpis"}, "cad": {"Daily · 08:00"},
+		"name": {"Hijacked"}, "sections": {"kpis"}, "cad": {"Daily · 08:00"},
 	})
 	if vr.StatusCode != http.StatusForbidden {
 		t.Fatalf("viewer edit status = %d, want 403", vr.StatusCode)
@@ -448,9 +450,9 @@ func TestReportScheduleEdit(t *testing.T) {
 
 	// The admin edits it: the row is updated in place, not appended.
 	ac := login(t, base, "admin", "hunter2hunter2")
-	resp := postForm(t, ac, base+"/reports/schedule/edit", url.Values{
+	resp := postForm(t, ac, editURL, url.Values{
 		"action": {"finish"}, "step": {"2"}, "id": {strconv.FormatInt(sched.ID, 10)},
-		"name": {"Daily exposure summary"}, "sections": {"summary-kpis", "coverage-gaps"}, "cad": {"Daily · 08:00"},
+		"name": {"Daily exposure summary"}, "sections": {"kpis", "coverage-gaps"}, "cad": {"Daily · 08:00"},
 	})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/reports" {
 		t.Fatalf("admin edit: status=%d loc=%q, want 303 /reports; body: %s", resp.StatusCode, resp.Header.Get("Location"), body(t, resp))
@@ -525,11 +527,11 @@ func TestReportScheduleCreateLive(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/reports/schedule", url.Values{
+	resp := postForm(t, ac, base+"/reports/schedule/new", url.Values{
 		"action":   {"finish"},
 		"step":     {"2"},
 		"name":     {"  Q3 exposure digest  "},
-		"sections": {"summary-kpis", "signal-changes"},
+		"sections": {"kpis", "signal-changes"},
 		"cad":      {"Weekly · mon 09:00"},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
@@ -560,8 +562,8 @@ func TestReportScheduleCreateLive(t *testing.T) {
 	if err := json.Unmarshal(got.Sections, &sections); err != nil {
 		t.Fatalf("sections is not a JSON array: %v (%s)", err, got.Sections)
 	}
-	if len(sections) != 2 || sections[0] != "summary-kpis" || sections[1] != "signal-changes" {
-		t.Errorf("sections = %v, want [summary-kpis signal-changes] in canonical order", sections)
+	if len(sections) != 2 || sections[0] != "kpis" || sections[1] != "signal-changes" {
+		t.Errorf("sections = %v, want [kpis signal-changes] in canonical order", sections)
 	}
 }
 
@@ -585,11 +587,11 @@ func TestReportScheduleChannelBinding(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	// Finish the wizard with the channel chosen on the Delivery step.
-	resp := postForm(t, ac, base+"/reports/schedule", url.Values{
+	resp := postForm(t, ac, base+"/reports/schedule/new", url.Values{
 		"action":   {"finish"},
 		"step":     {"3"},
 		"name":     {"Weekly exposure summary"},
-		"sections": {"summary-kpis"},
+		"sections": {"kpis"},
 		"cad":      {"Weekly · mon 09:00"},
 		"channel":  {strconv.FormatInt(chID, 10)},
 	})
@@ -610,11 +612,11 @@ func TestReportScheduleChannelBinding(t *testing.T) {
 	}
 
 	// A download-only schedule (no channel field) binds nothing.
-	resp2 := postForm(t, ac, base+"/reports/schedule", url.Values{
+	resp2 := postForm(t, ac, base+"/reports/schedule/new", url.Values{
 		"action":   {"finish"},
 		"step":     {"3"},
 		"name":     {"Monthly asset inventory"},
-		"sections": {"summary-kpis"},
+		"sections": {"kpis"},
 		"cad":      {"Monthly · 1st"},
 	})
 	if resp2.StatusCode != http.StatusSeeOther {
@@ -647,33 +649,44 @@ func TestReportScheduleChannelBinding(t *testing.T) {
 	}
 }
 
-// A stepping (non-finishing) wizard POST re-renders the next step rather than filing
-// a schedule: Next advances only when the current step's gate passes, mirroring the
-// example's disabled Next. An admin advancing Scope with a name and sections lands on
-// Cadence and nothing is persisted until the finishing submit.
+// A stepping (non-finishing) wizard POST 303-redirects to the next step's GET URL rather
+// than filing a schedule (the PRG post-back, #23f): Next advances only when the current
+// step's gate passes, and the accumulated values ride the redirect query so the target is
+// bookmarkable. An admin advancing Scope with a name and sections lands on step 1 (Cadence)
+// and nothing is persisted until the finishing submit.
 func TestReportScheduleWizardStepping(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/reports/schedule", url.Values{
+	resp := postForm(t, ac, base+"/reports/schedule/new", url.Values{
 		"action":   {"next"},
 		"step":     {"0"},
 		"name":     {"Weekly exposure summary"},
-		"sections": {"summary-kpis"},
+		"sections": {"kpis"},
 		"cad":      {"Weekly · mon 09:00"},
 	})
-	page := body(t, resp)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("stepping POST status = %d, want 200 (in-flight wizard render); body: %s", resp.StatusCode, page)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("stepping POST status = %d, want 303 (PRG redirect to the next step)", resp.StatusCode)
 	}
-	// The Cadence step is now current, and nothing was filed.
-	if !strings.Contains(page, "Cadence") || !strings.Contains(page, `name="cad"`) {
-		t.Errorf("Next from Scope should render the Cadence step; body: %s", page)
+	loc := resp.Header.Get("Location")
+	if !strings.HasPrefix(loc, "/reports/schedule/new?") || !strings.Contains(loc, "step=1") {
+		t.Errorf("Next from Scope should redirect to the step-1 GET URL; location: %q", loc)
+	}
+	// The accumulated values ride the redirect query so the target renders the full state.
+	if !strings.Contains(loc, "name=Weekly") || !strings.Contains(loc, "sections=kpis") {
+		t.Errorf("redirect should carry the accumulated name + sections; location: %q", loc)
 	}
 	if len(f.reportSchedules) != 0 {
 		t.Fatalf("stepping filed a schedule (%d); only finish persists", len(f.reportSchedules))
+	}
+
+	// Following the redirect renders the Cadence step.
+	page := getBody(t, ac, base+loc, http.StatusOK)
+	if !strings.Contains(page, "Cadence") || !strings.Contains(page, `name="cad"`) {
+		t.Errorf("the step-1 GET should render the Cadence step; body: %s", page)
 	}
 }
 
@@ -687,7 +700,7 @@ func TestReportScheduleCreateRefusesViewer(t *testing.T) {
 	base := start(t, f, "")
 	vc := login(t, base, "viewer", "hunter2hunter2")
 
-	resp := postForm(t, vc, base+"/reports/schedule", url.Values{
+	resp := postForm(t, vc, base+"/reports/schedule/new", url.Values{
 		"name": {"Sneaky schedule"}, "cadence": {"weekly"}, "format": {"pdf"},
 	})
 	if resp.StatusCode != http.StatusForbidden {
@@ -719,15 +732,16 @@ func TestReportScheduleWizardLive(t *testing.T) {
 	}
 
 	// The wizard itself renders the Scope step with the live create form: a name input,
-	// the section checkbox group, and a finish target of /reports/schedule.
+	// the section checkbox group, and a finish target of /reports/schedule/new (the PRG
+	// post-back route, #23f).
 	wiz := getBody(t, ac, base+"/reports/schedule/new", http.StatusOK)
-	if !strings.Contains(wiz, `action="/reports/schedule"`) {
+	if !strings.Contains(wiz, `action="/reports/schedule/new"`) {
 		t.Errorf("wizard should post to the live create route; body: %s", wiz)
 	}
 	for _, want := range []string{
-		`name="name"`,                          // the Report name input
-		`name="sections" value="summary-kpis"`, // a section checkbox
-		"Scope", "Cadence", "Review",           // the three step titles
+		`name="name"`,                   // the Report name input
+		`name="sections" value="kpis"`,  // a section checkbox
+		"Scope", "Cadence", "Review",    // the three step titles
 	} {
 		if !strings.Contains(wiz, want) {
 			t.Errorf("wizard Scope step missing %q; body: %s", want, wiz)
@@ -794,28 +808,32 @@ func TestFoldScanActivity(t *testing.T) {
 	}
 }
 
-// resolveReportsWeeks parses ?weeks= and clamps to the offered set, defaulting to
-// twelve when the param is absent, unparseable, or not one of the offered spans.
-func TestResolveReportsWeeks(t *testing.T) {
+// resolveReportsWindow parses ?period= (or a custom ?start=&end= pair) into the reporting
+// window, defaulting to the design's 7d preset (twelve-week span) when the token is absent
+// or unrecognised, and resolving a valid custom pair to a stable token + span.
+func TestResolveReportsWindow(t *testing.T) {
 	cases := []struct {
-		query string
-		want  int
+		query      string
+		wantToken  string
+		wantLabel  string
+		wantWeeks  int
 	}{
-		{"", reportsHeatWeeks},           // absent -> default
-		{"weeks=26", 26},                 // offered
-		{"weeks=4", 4},                   // offered
-		{"weeks=52", 52},                 // offered
-		{"weeks=12", 12},                 // offered (the default, explicitly)
-		{"weeks=9", reportsHeatWeeks},    // not offered -> default
-		{"weeks=0", reportsHeatWeeks},    // not offered -> default
-		{"weeks=-8", reportsHeatWeeks},   // not offered -> default
-		{"weeks=abc", reportsHeatWeeks},  // unparseable -> default
-		{"weeks=99999", reportsHeatWeeks}, // out of set -> default
+		{"", "7d", "Last 7d", reportsHeatWeeks},                 // absent -> default preset
+		{"period=24h", "24h", "Last 24h", 4},                    // preset
+		{"period=30d", "30d", "Last 30d", 26},                   // preset
+		{"period=90d", "90d", "Last 90d", 52},                   // preset
+		{"period=7d", "7d", "Last 7d", reportsHeatWeeks},        // the default, explicitly
+		{"period=nope", "7d", "Last 7d", reportsHeatWeeks},      // unrecognised -> default
+		{"start=2026-08-01&end=2026-08-14", "custom_2026-08-01_2026-08-14", "2026-08-01 – 2026-08-14", 2}, // custom pair
+		{"period=custom_2026-08-01_2026-08-07", "custom_2026-08-01_2026-08-07", "2026-08-01 – 2026-08-07", 1}, // custom token from an export link
+		{"start=bogus&end=2026-08-14", "7d", "Last 7d", reportsHeatWeeks}, // malformed custom -> preset fallback
 	}
 	for _, c := range cases {
 		r := httptest.NewRequest(http.MethodGet, "/reports?"+c.query, nil)
-		if got := resolveReportsWeeks(r); got != c.want {
-			t.Errorf("resolveReportsWeeks(%q) = %d, want %d", c.query, got, c.want)
+		win := resolveReportsWindow(r)
+		if win.Token != c.wantToken || win.Label != c.wantLabel || win.Weeks != c.wantWeeks {
+			t.Errorf("resolveReportsWindow(%q) = {%q,%q,%d}, want {%q,%q,%d}",
+				c.query, win.Token, win.Label, win.Weeks, c.wantToken, c.wantLabel, c.wantWeeks)
 		}
 	}
 }
@@ -849,35 +867,34 @@ func TestFoldScanActivityRangeWindow(t *testing.T) {
 	}
 }
 
-// The header range control renders the offered spans, marks the active one selected,
-// re-skins the range-aware captions, and carries the active span into the export
-// links. The default (no param) stays exactly "last 12 weeks".
-func TestReportsRangeControlRenders(t *testing.T) {
+// The header period picker (#23b) renders the preset links, marks the active one, re-skins
+// the period-aware captions, and carries the active period token into the export links. The
+// default (no param) is the design's 7d preset.
+func TestReportsPeriodPickerRenders(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Default: twelve weeks, and the export links carry weeks=12.
+	// Default: 7d, the preset link is marked active, and the export links carry period=7d.
 	def := getBody(t, ac, base+"/reports", http.StatusOK)
-	if !strings.Contains(def, `<option value="12" selected>last 12 weeks</option>`) {
-		t.Errorf("default range control should mark 12 weeks selected; body: %s", def)
+	if !strings.Contains(def, `href="/reports?period=7d"`) {
+		t.Errorf("period picker should offer the 7d preset link; body: %s", def)
 	}
-	if !strings.Contains(def, "/reports/export?format=csv&amp;weeks=12") {
-		t.Errorf("default export link should carry weeks=12; body: %s", def)
+	if !strings.Contains(def, "/reports/export?format=csv&period=7d") {
+		t.Errorf("default export link should carry period=7d; body: %s", def)
+	}
+	if !strings.Contains(def, "/reports/export?format=pdf&period=7d") {
+		t.Errorf("export SplitButton should offer the PDF route carrying period=7d; body: %s", def)
 	}
 
-	// A selected range re-skins the caption, the heatmap aria-label, and the export
-	// links to the chosen span.
-	wide := getBody(t, ac, base+"/reports?weeks=26", http.StatusOK)
-	if !strings.Contains(wide, `<option value="26" selected>last 26 weeks</option>`) {
-		t.Errorf("range=26 should mark 26 weeks selected; body: %s", wide)
+	// A selected preset re-skins the header/captions and the export links to the period.
+	wide := getBody(t, ac, base+"/reports?period=30d", http.StatusOK)
+	if !strings.Contains(wide, "Last 30d") {
+		t.Errorf("period=30d should re-skin the header/captions to 'Last 30d'; body: %s", wide)
 	}
-	if !strings.Contains(wide, "last 26 weeks") {
-		t.Errorf("range=26 should re-skin captions to 'last 26 weeks'; body: %s", wide)
-	}
-	if !strings.Contains(wide, "/reports/export?format=json&amp;weeks=26") {
-		t.Errorf("range=26 JSON export link should carry weeks=26; body: %s", wide)
+	if !strings.Contains(wide, "/reports/export?format=json&period=30d") {
+		t.Errorf("period=30d JSON export link should carry period=30d; body: %s", wide)
 	}
 }
 
@@ -896,7 +913,7 @@ func TestReportsExportCSV(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp, err := ac.Get(base + "/reports/export?format=csv&weeks=12")
+	resp, err := ac.Get(base + "/reports/export?format=csv&period=7d")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -937,7 +954,7 @@ func TestReportsExportJSON(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp, err := ac.Get(base + "/reports/export?format=json&weeks=26")
+	resp, err := ac.Get(base + "/reports/export?format=json&period=30d")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -978,7 +995,37 @@ func TestReportsExportJSON(t *testing.T) {
 	}
 }
 
-// An unrecognised export format is a 400 — the handler serves only csv and json.
+// GET /reports/export?format=pdf streams an application/pdf attachment — the delivered-
+// report document recomputed from the period bounds (#23c), rendered by the SAME
+// internal/message.RenderArtifactPDF the delivery PDF uses. An empty estate still renders
+// the empty-state document, never a fabricated one.
+func TestReportsExportPDF(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp, err := ac.Get(base + "/reports/export?format=pdf&period=7d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := body(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("export pdf status = %d, want 200 (body: %s)", resp.StatusCode, got)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "application/pdf" {
+		t.Errorf("export pdf Content-Type = %q, want application/pdf", ct)
+	}
+	if cd := resp.Header.Get("Content-Disposition"); !strings.Contains(cd, "attachment; filename=") || !strings.Contains(cd, ".pdf") {
+		t.Errorf("export pdf Content-Disposition = %q, want an attachment .pdf filename", cd)
+	}
+	// A real PDF document, not a stub — it begins with the %PDF signature.
+	if !strings.HasPrefix(got, "%PDF") {
+		t.Errorf("export pdf body should be a real PDF (%%PDF header); got %.16q", got)
+	}
+}
+
+// An unrecognised export format is a 400 — the handler serves csv, json and pdf.
 func TestReportsExportBadFormat(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

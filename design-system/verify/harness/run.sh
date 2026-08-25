@@ -65,6 +65,7 @@ docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen dashboard -outdir design-system/goldens/dashboard && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen asset -outdir design-system/goldens/asset && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen subjectdetail -outdir design-system/goldens/subjectdetail && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen reports -outdir design-system/goldens/reports && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen graph -out design-system/goldens/graph.html"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
@@ -105,6 +106,11 @@ if [ "${GOLDENS:-}" = "write" ]; then
     node capture.mjs --mode golden --write-goldens --advisory --screen asset --pagedir /src/design-system/goldens/asset
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen subjectdetail --pagedir /src/design-system/goldens/subjectdetail
+  # reports: per-state HTML dir (--pagedir). default/range-open/row-menu-open share the "reports"
+  # page HTML (their JS is driven on both sides); wizard-1..4 are the per-step "schedulewizard"
+  # renders at the PRG GET URLs (states.json).
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen reports --pagedir /src/design-system/goldens/reports
   # graph is a SINGLE shared golden file (--page, like drift): its default / node-drawer /
   # filtered-critical states are the same HTML with the frozen tmpl's own view JS (node click →
   # drawer, severity listbox → filter) driven over it by capture.mjs (states.json) on BOTH sides.
@@ -243,6 +249,16 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # the account table (which would strand graph's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen graph --base "http://${WEB}:8080" --hide-chrome
+# reports: chrome-hosted /reports (+ the schedule wizard) cropped to `main`, session admin (per-state
+# /dev/session mint), served from the pinned fixtures.json reports slice under VERGE_DEV. --hide-chrome
+# drops the sticky console header so <main> sits at the viewport top and aligns with the chrome-less
+# golden (as coverage). default/range-open/row-menu-open are the /reports route driven by the frozen
+# tmpl's own JS (open the range popover / open a row kebab) on BOTH sides; wizard-1..4 are the pure PRG
+# GET URLs (/reports/schedule/new?step=N&…) newReportScheduleWizard reads in devMode. No seed — it
+# touches no table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table
+# (which would strand reports' authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen reports --base "http://${WEB}:8080" --hide-chrome
 # setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
 # capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
 # window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB

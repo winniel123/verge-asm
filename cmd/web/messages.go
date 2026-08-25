@@ -493,6 +493,10 @@ type reportScheduleRow struct {
 	Cadence  string
 	Format   string
 	LastSent string
+	// LastMins is the numeric "last sent" sort value the client-side schedule sort reads
+	// (data-last, #23e): whole minutes since the last delivery. A never-run schedule sorts
+	// last (a large sentinel) rather than as "just now".
+	LastMins int
 	// Delivery is the bound channel's URL, or "download only" where the schedule binds
 	// no channel (NULL channel_id) — the Delivery column (P0.6c/T7). A channel receives
 	// only a link-only ready-message; the report body never leaves the instance.
@@ -555,11 +559,19 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 		// No such run (pgx.ErrNoRows) is the genuine empty-state — an em dash and a
 		// disabled item, never an invented delivery. Any other read error degrades the
 		// row to that same empty-state rather than failing the whole page.
+		// reportScheduleNeverRunMins sorts a never-run schedule last under the client-side
+		// "Last sent" sort (a value larger than any real age).
+		const reportScheduleNeverRunMins = 1 << 30
 		lastSent, href, has := "—", "", false
+		lastMins := reportScheduleNeverRunMins
 		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
 		switch {
 		case err == nil:
-			lastSent = relTime(reportDeliveryInstant(del), now)
+			inst := reportDeliveryInstant(del)
+			lastSent = relTime(inst, now)
+			if m := int(now.Sub(inst).Minutes()); m >= 0 {
+				lastMins = m
+			}
 			href, has = reportDeliveryHref, true
 		case !errors.Is(err, pgx.ErrNoRows):
 			log.Printf("web: reports: latest delivery for schedule %d: %v", sc.ID, err)
@@ -579,6 +591,7 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 			Cadence:      sc.Cadence,
 			Format:       sc.Format,
 			LastSent:     lastSent,
+			LastMins:     lastMins,
 			Delivery:     delivery,
 			HasDelivery:  has,
 			DeliveryHref: href,

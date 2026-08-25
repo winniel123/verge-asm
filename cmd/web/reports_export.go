@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/message"
 )
 
 // Reports export — `GET /reports/export` (#291). It serves the operational Reports
@@ -43,23 +45,39 @@ type reportsExportRange struct {
 	To    time.Time
 }
 
-// reportsExport serves the Reports figures for the active range as CSV or JSON. The
-// format is chosen by ?format=; an absent format defaults to csv, an unrecognised one
-// is a 400. The range rides the same ?weeks= param as the page, so the download
-// mirrors the screen.
+// reportsExport serves the Reports figures for the active period as CSV, JSON or PDF
+// (the spec SplitButton — CSV primary, JSON + PDF in the menu, #23c). The format is
+// chosen by ?format=; an absent format defaults to csv, an unrecognised one is a 400.
+// The window rides the ?period= token the page carries (#23b), so the download mirrors
+// the screen. CSV/JSON are the operational activity series; PDF is the delivered-report
+// document recomputed from the period bounds (the same machinery as the delivery PDF).
 func (s *server) reportsExport(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	format := r.URL.Query().Get("format")
 	if format == "" {
 		format = "csv"
 	}
-	if format != "csv" && format != "json" {
-		http.Error(w, "unsupported export format: "+format+" (want csv or json)", http.StatusBadRequest)
+	if format != "csv" && format != "json" && format != "pdf" {
+		http.Error(w, "unsupported export format: "+format+" (want csv, json or pdf)", http.StatusBadRequest)
 		return
 	}
 
 	ctx := r.Context()
-	weeks := resolveReportsWeeks(r)
+	win := resolveReportsWindow(r)
+	weeks := win.Weeks
 	days := weeks * 7
+
+	const day = 24 * time.Hour
+	to := s.now().UTC().Truncate(day)
+	rng := reportsExportRange{Weeks: weeks, Days: days, From: to.AddDate(0, 0, -(days - 1)), To: to}
+
+	// PDF (#23c): the delivered-report document for the period, recomputed from the
+	// bounds via internal/message.RenderArtifactPDF — the SAME renderer the delivery PDF
+	// uses (reportDeliveryPDF), not a stub. It carries the period's signals / severity
+	// breakdown / withdrawals recomputed off the never-deleted ledgers.
+	if format == "pdf" {
+		s.writeReportsExportPDF(ctx, w, rng, win)
+		return
+	}
 
 	// Scans-per-day series + the two activity KPIs — the same read reportsPage does.
 	// A Dispatch read failure marks the activity block unavailable (empty / null KPIs
@@ -79,10 +97,6 @@ func (s *server) reportsExport(w http.ResponseWriter, r *http.Request, acct db.A
 	// corpus read failure it exports as unavailable (empty / null), never a zero.
 	openSignals, hasOpenSignals := s.openSignalsCount(r)
 
-	const day = 24 * time.Hour
-	to := s.now().UTC().Truncate(day)
-	rng := reportsExportRange{Weeks: weeks, Days: days, From: to.AddDate(0, 0, -(days - 1)), To: to}
-
 	fig := reportsExportFigures{
 		counts: counts, window: window, active: active, hasActivity: hasActivity,
 		openSignals: openSignals, hasOpenSignals: hasOpenSignals,
@@ -92,6 +106,39 @@ func (s *server) reportsExport(w http.ResponseWriter, r *http.Request, acct db.A
 		s.writeReportsExportJSON(w, rng, fig)
 	default:
 		s.writeReportsExportCSV(w, rng, fig)
+	}
+}
+
+// writeReportsExportPDF renders the period document as a PDF download (#23c). It builds
+// the delivered Artifact for the period's [From, To] bounds — the report name is the
+// period label — and recomputes its signals / severity / withdrawals off the same
+// ledgers the delivery path reads (reportDeliverySignals / reportDeliveryWithdrawals),
+// then renders it with internal/message.RenderArtifactPDF (the pure-Go renderer that
+// runs inside the distroless-static web image). A viewer reads it — a report is a
+// record, not a mutation. A render failure is a 500; the ledgers degrade to empty
+// sections rather than fabricating content.
+func (s *server) writeReportsExportPDF(ctx context.Context, w http.ResponseWriter, rng reportsExportRange, win reportsWindow) {
+	start, end := rng.From, s.now().UTC()
+	art := message.Artifact{
+		Title:       "Reports · " + win.Label,
+		PeriodStart: rng.From.Format("2006-01-02"),
+		PeriodEnd:   rng.To.Format("2006-01-02"),
+		GeneratedAt: s.now().UTC().Format(time.RFC3339),
+		Format:      "pdf",
+	}
+	art.Signals, art.SeverityCounts = s.reportDeliverySignals(ctx, start, end)
+	art.Withdrawn = s.reportDeliveryWithdrawals(ctx, start, end)
+
+	pdf, err := message.RenderArtifactPDF(art)
+	if err != nil {
+		log.Printf("web: reports export pdf: render: %v", err)
+		http.Error(w, "could not render report PDF", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+reportsExportFilename(rng, "pdf")+`"`)
+	if _, err := w.Write(pdf); err != nil {
+		log.Printf("web: reports export pdf: write: %v", err)
 	}
 }
 

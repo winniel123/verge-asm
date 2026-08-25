@@ -575,10 +575,15 @@ func (s *server) handler() http.Handler {
 	// the onboarding pattern); POST /reports/schedule and /reports/schedule/edit carry
 	// both the step-advance and the finishing insert/update; run and delete are the
 	// row-menu mutations. All redirect back to /reports on success.
+	// The wizard is a PRG post-back (#23f): each step POSTs to its route and 303-redirects
+	// to a GET at the same route carrying the accumulated values, so the flow is
+	// bookmarkable and harness-addressable. Create posts to /reports/schedule/new, edit to
+	// /reports/schedule/{id}/edit; run and delete are the row-menu mutations. All redirect
+	// back to /reports on success.
 	mux.HandleFunc("GET /reports/schedule/new", s.requireAdmin(s.newReportScheduleWizard))
+	mux.HandleFunc("POST /reports/schedule/new", s.requireAdmin(s.createReportSchedule))
 	mux.HandleFunc("GET /reports/schedule/{id}/edit", s.requireAdmin(s.editReportScheduleWizard))
-	mux.HandleFunc("POST /reports/schedule", s.requireAdmin(s.createReportSchedule))
-	mux.HandleFunc("POST /reports/schedule/edit", s.requireAdmin(s.editReportSchedule))
+	mux.HandleFunc("POST /reports/schedule/{id}/edit", s.requireAdmin(s.editReportSchedule))
 	mux.HandleFunc("POST /reports/schedule/run", s.requireAdmin(s.runReportScheduleNow))
 	mux.HandleFunc("POST /reports/schedule/delete", s.requireAdmin(s.deleteReportSchedule))
 
