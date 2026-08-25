@@ -1498,3 +1498,259 @@ func TestAssetFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureSubjectSpan / …Timeline / …Service / …Endpoint mirror the
+// design-system/fixtures/fixtures.json → subjectdetail shapes for the drift test below.
+type fixtureSubjectSpan struct {
+	IsGap      bool   `json:"is_gap"`
+	Value      string `json:"value"`
+	OpenedAt   string `json:"opened_at"`
+	OpenedFull string `json:"opened_full"`
+	ClosedAt   string `json:"closed_at"`
+	ClosedFull string `json:"closed_full"`
+	Reason     string `json:"reason"`
+}
+
+type fixtureSubjectTimeline struct {
+	Label   string `json:"label"`
+	Current *struct {
+		IsGap    bool   `json:"is_gap"`
+		Value    string `json:"value"`
+		OpenedAt string `json:"opened_at"`
+	} `json:"current"`
+	Breaks []struct {
+		At          string `json:"at"`
+		MovedLeaves string `json:"moved_leaves"`
+	} `json:"breaks"`
+	Closed []fixtureSubjectSpan `json:"closed"`
+}
+
+type fixtureSubjectService struct {
+	Key          string `json:"key"`
+	CopyKey      string `json:"copy_key"`
+	Withdrawn    bool   `json:"withdrawn"`
+	Exposure     string `json:"exposure"`
+	Seen         string `json:"seen"`
+	InScopeSince string `json:"in_scope_since"`
+	Citation     []struct {
+		Label  string `json:"label"`
+		Value  string `json:"value"`
+		Detail string `json:"detail"`
+	} `json:"citation"`
+	CitationTerminated bool                     `json:"citation_terminated"`
+	Address            string                   `json:"address"`
+	Port               string                   `json:"port"`
+	Transport          string                   `json:"transport"`
+	Reach              string                   `json:"reach"`
+	Since              string                   `json:"since"`
+	Timelines          []fixtureSubjectTimeline `json:"timelines"`
+	Rules              []struct {
+		Rule     string `json:"rule"`
+		Version  int    `json:"version"`
+		Severity string `json:"severity"`
+		SevLabel string `json:"sev_label"`
+		Fired    bool   `json:"fired"`
+	} `json:"rules"`
+	Provenance []struct {
+		K string `json:"k"`
+		V string `json:"v"`
+	} `json:"provenance"`
+	Signals []struct {
+		Severity string `json:"severity"`
+		SevLabel string `json:"sev_label"`
+		Rule     string `json:"rule"`
+		SigID    string `json:"sig_id"`
+		Time     string `json:"time"`
+	} `json:"signals"`
+}
+
+type fixtureSubjectEndpoint struct {
+	Key          string `json:"key"`
+	CopyKey      string `json:"copy_key"`
+	Nameless     bool   `json:"nameless"`
+	Withdrawn    bool   `json:"withdrawn"`
+	Seen         string `json:"seen"`
+	InScopeSince string `json:"in_scope_since"`
+	Citation     []struct {
+		Label  string `json:"label"`
+		Value  string `json:"value"`
+		Detail string `json:"detail"`
+	} `json:"citation"`
+	CitationTerminated bool                     `json:"citation_terminated"`
+	Name               string                   `json:"name"`
+	Service            string                   `json:"service"`
+	HasIdentity        bool                     `json:"has_identity"`
+	Status             string                   `json:"status"`
+	Server             string                   `json:"server"`
+	Title              string                   `json:"title"`
+	RedirectLocation   string                   `json:"redirect_location"`
+	WWWAuthenticate    string                   `json:"www_authenticate"`
+	Timelines          []fixtureSubjectTimeline `json:"timelines"`
+	Rules              []struct {
+		Rule     string `json:"rule"`
+		Version  int    `json:"version"`
+		Severity string `json:"severity"`
+		SevLabel string `json:"sev_label"`
+		Fired    bool   `json:"fired"`
+	} `json:"rules"`
+	Provenance []struct {
+		K string `json:"k"`
+		V string `json:"v"`
+	} `json:"provenance"`
+}
+
+type fixtureSubjectPackage struct {
+	SubjectDetail struct {
+		Service          fixtureSubjectService  `json:"service"`
+		ServiceWithdrawn fixtureSubjectService  `json:"service_withdrawn"`
+		Endpoint         fixtureSubjectEndpoint `json:"endpoint"`
+	} `json:"subjectdetail"`
+}
+
+// assertServiceFixture folds one fixtures.json service slice against its pinned servicePageData.
+func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d servicePageData) {
+	t.Helper()
+	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Withdrawn != d.Withdrawn || a.Exposure != d.Exposure ||
+		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.CitationTerminated != d.CitationTerminated ||
+		a.Address != d.Address || a.Port != d.Port || a.Transport != d.Transport || a.Reach != d.Reach || a.Since != d.Since {
+		t.Errorf("%s: service header drift:\n fixtures.json = %+v\n pinned        = %+v", name, a, d)
+	}
+	if len(a.Citation) != len(d.Citation) {
+		t.Fatalf("%s: citation length drift: %d vs %d", name, len(a.Citation), len(d.Citation))
+	}
+	for i, c := range a.Citation {
+		q := d.Citation[i]
+		if c.Label != q.Label || c.Value != q.Value || c.Detail != q.Detail {
+			t.Errorf("%s: citation[%d] drift: %+v vs %+v", name, i, c, q)
+		}
+	}
+	assertSubjectTimelines(t, name, a.Timelines, d.Timelines)
+	if len(a.Rules) != len(d.Rules) {
+		t.Fatalf("%s: rules length drift: %d vs %d", name, len(a.Rules), len(d.Rules))
+	}
+	for i, r := range a.Rules {
+		q := d.Rules[i]
+		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Fired != q.Fired {
+			t.Errorf("%s: rules[%d] drift: %+v vs %+v", name, i, r, q)
+		}
+	}
+	if len(a.Provenance) != len(d.Provenance) {
+		t.Fatalf("%s: provenance length drift: %d vs %d", name, len(a.Provenance), len(d.Provenance))
+	}
+	for i, p := range a.Provenance {
+		q := d.Provenance[i]
+		if p.K != q.K || p.V != q.V {
+			t.Errorf("%s: provenance[%d] drift: %+v vs %+v", name, i, p, q)
+		}
+	}
+	if len(a.Signals) != len(d.Signals) {
+		t.Fatalf("%s: signals length drift: %d vs %d", name, len(a.Signals), len(d.Signals))
+	}
+	for i, s := range a.Signals {
+		q := d.Signals[i]
+		if s.Severity != q.Severity || s.SevLabel != q.SevLabel || s.Rule != q.Rule || s.SigID != q.SigID || s.Time != q.Time {
+			t.Errorf("%s: signals[%d] drift: %+v vs %+v", name, i, s, q)
+		}
+	}
+}
+
+// assertSubjectTimelines folds the fixtures.json timeline slice against the pinned []timelineView.
+func assertSubjectTimelines(t *testing.T, name string, a []fixtureSubjectTimeline, d []timelineView) {
+	t.Helper()
+	if len(a) != len(d) {
+		t.Fatalf("%s: timelines length drift: %d vs %d", name, len(a), len(d))
+	}
+	for i, tl := range a {
+		q := d[i]
+		if tl.Label != q.Label {
+			t.Errorf("%s: timelines[%d] label drift: %q vs %q", name, i, tl.Label, q.Label)
+		}
+		if (tl.Current == nil) != (q.Current == nil) {
+			t.Errorf("%s: timelines[%d] current presence drift: %v vs %v", name, i, tl.Current != nil, q.Current != nil)
+		} else if tl.Current != nil {
+			if tl.Current.IsGap != q.Current.IsGap || tl.Current.Value != q.Current.Value || tl.Current.OpenedAt != q.Current.OpenedAt {
+				t.Errorf("%s: timelines[%d] current drift: %+v vs %+v", name, i, *tl.Current, *q.Current)
+			}
+		}
+		if len(tl.Breaks) != len(q.Breaks) {
+			t.Fatalf("%s: timelines[%d] breaks length drift: %d vs %d", name, i, len(tl.Breaks), len(q.Breaks))
+		}
+		for j, b := range tl.Breaks {
+			if b.At != q.Breaks[j].At || b.MovedLeaves != q.Breaks[j].MovedLeaves {
+				t.Errorf("%s: timelines[%d] breaks[%d] drift: %+v vs %+v", name, i, j, b, q.Breaks[j])
+			}
+		}
+		if len(tl.Closed) != len(q.Closed) {
+			t.Fatalf("%s: timelines[%d] closed length drift: %d vs %d", name, i, len(tl.Closed), len(q.Closed))
+		}
+		for j, c := range tl.Closed {
+			s := q.Closed[j]
+			if c.IsGap != s.IsGap || c.Value != s.Value || c.OpenedAt != s.OpenedAt || c.OpenedFull != s.OpenedFull ||
+				c.ClosedAt != s.ClosedAt || c.ClosedFull != s.ClosedFull || c.Reason != s.Reason {
+				t.Errorf("%s: timelines[%d] closed[%d] drift: %+v vs %+v", name, i, j, c, s)
+			}
+		}
+	}
+}
+
+// TestSubjectDetailFixtureMatchesPackage folds every pinned SubjectDetail dev-fixture value back
+// through design-system/fixtures/fixtures.json → subjectdetail, so the VERGE_DEV render the pixel
+// goldens capture can never drift from the frozen package (#582).
+func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureSubjectPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	if f.SubjectDetail.Service.Key != devServiceKey {
+		t.Errorf("service key drift: fixtures.json = %q, pinned = %q", f.SubjectDetail.Service.Key, devServiceKey)
+	}
+	if f.SubjectDetail.ServiceWithdrawn.Key != devServiceWithdrawnKey {
+		t.Errorf("withdrawn key drift: fixtures.json = %q, pinned = %q", f.SubjectDetail.ServiceWithdrawn.Key, devServiceWithdrawnKey)
+	}
+	if f.SubjectDetail.Endpoint.Key != devEndpointKey {
+		t.Errorf("endpoint key drift: fixtures.json = %q, pinned = %q", f.SubjectDetail.Endpoint.Key, devEndpointKey)
+	}
+	assertServiceFixture(t, "service", f.SubjectDetail.Service, devServiceData())
+	assertServiceFixture(t, "service_withdrawn", f.SubjectDetail.ServiceWithdrawn, devServiceWithdrawnData())
+
+	// Endpoint.
+	a, d := f.SubjectDetail.Endpoint, devEndpointData()
+	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Nameless != d.Nameless || a.Withdrawn != d.Withdrawn ||
+		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.CitationTerminated != d.CitationTerminated ||
+		a.Name != d.Name || a.Service != d.Service || a.HasIdentity != d.HasIdentity || a.Status != d.Status ||
+		a.Server != d.Server || a.Title != d.Title || a.RedirectLocation != d.RedirectLocation || a.WWWAuthenticate != d.WWWAuthenticate {
+		t.Errorf("endpoint header drift:\n fixtures.json = %+v\n pinned        = %+v", a, d)
+	}
+	if len(a.Citation) != len(d.Citation) {
+		t.Fatalf("endpoint citation length drift: %d vs %d", len(a.Citation), len(d.Citation))
+	}
+	for i, c := range a.Citation {
+		q := d.Citation[i]
+		if c.Label != q.Label || c.Value != q.Value || c.Detail != q.Detail {
+			t.Errorf("endpoint citation[%d] drift: %+v vs %+v", i, c, q)
+		}
+	}
+	assertSubjectTimelines(t, "endpoint", a.Timelines, d.Timelines)
+	if len(a.Rules) != len(d.Rules) {
+		t.Fatalf("endpoint rules length drift: %d vs %d", len(a.Rules), len(d.Rules))
+	}
+	for i, r := range a.Rules {
+		q := d.Rules[i]
+		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Fired != q.Fired {
+			t.Errorf("endpoint rules[%d] drift: %+v vs %+v", i, r, q)
+		}
+	}
+	if len(a.Provenance) != len(d.Provenance) {
+		t.Fatalf("endpoint provenance length drift: %d vs %d", len(a.Provenance), len(d.Provenance))
+	}
+	for i, p := range a.Provenance {
+		q := d.Provenance[i]
+		if p.K != q.K || p.V != q.V {
+			t.Errorf("endpoint provenance[%d] drift: %+v vs %+v", i, p, q)
+		}
+	}
+}

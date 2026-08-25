@@ -101,6 +101,12 @@ fc6c4247b5fef69e7809109a8e55f2f2c56d93c4  design-system/goldens/signin/reset-inv
 1971d7133056b83a795e687e886cc55320469e0b  design-system/goldens/signin/reset-invalid-1440-light.png
 a4d4a7649477059e5b2ad9b58ecd02a8ce3ee712  design-system/goldens/signin/totp-1440-dark.png
 e4bb4fe07de548c2b621763191354444056eaa5e  design-system/goldens/signin/totp-1440-light.png
+d49cd5e6357640c673833788dfe78be0193eae5e  design-system/goldens/subjectdetail/endpoint-1440-dark.png
+15c87d9e2ee93629f4b657ccc0944b419bb8c67a  design-system/goldens/subjectdetail/endpoint-1440-light.png
+ceb732c86bfdc7037415a6e42f9b42202bc7e73a  design-system/goldens/subjectdetail/service-1440-dark.png
+75976b238ca67012f6d87da77ca626346c76f5b3  design-system/goldens/subjectdetail/service-1440-light.png
+6fd3ddefadde535e1c0dc02aedde777dd6759a09  design-system/goldens/subjectdetail/service-withdrawn-1440-dark.png
+2128a7cca07757ccf400d33fce55cd763ec0b8ee  design-system/goldens/subjectdetail/service-withdrawn-1440-light.png
 64c92a6cc94f713a11d28007a1efd248ca25b51b  design-system/templates/asset.tmpl
 dd3bd00483ceb27c61da7fbb05d4e15aff326157  design-system/templates/coverage.tmpl
 92177bcf1532489c1323423fc52ccfa1907fd078  design-system/templates/dashboard.tmpl

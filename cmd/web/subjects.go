@@ -29,6 +29,17 @@ import (
 // through `templates/*.tmpl`); the repo authors no markup/CSS/JS for this route.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/asset.tmpl"))
 
+// The frozen design-owned subjectdetail.tmpl (design-system/templates/subjectdetail.tmpl,
+// package v3.10.0) is the view layer for /subjects/{service,endpoint}: it defines
+// "service" + "endpoint" and the shared "subjectstyle"/"subjectbreadcrumb"/
+// "subjecttimelines"/"subjectrules"/"subjectprovenance"/"subjectmenu"/"subjectjs"/
+// "subjectcitation" partials, and reuses the "assetexposure" define asset.tmpl declares,
+// the "sevbadge" define signals.tmpl declares and the "recordrows" define inventory.tmpl
+// declares — all parse into the one shared `tmpl` set, so they resolve at execute time. It
+// is embedded read-only via the designfs package (auto-globbed through `templates/*.tmpl`);
+// the repo authors no markup/CSS/JS for these routes (screen 14 conversion, #582).
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/subjectdetail.tmpl"))
+
 // The Subjects screen (v1 spec §6.6, ADR-0072). At wave-0 only `Name` subjects
 // exist — they come from the `resolution-walk` leaf's `resolution` facet (#188).
 // The listing is the estate alone: every current Name, searchable, with **no
@@ -90,7 +101,10 @@ type citationHop struct {
 
 // servicePageData is the drill-down view for one Service subject.
 type servicePageData struct {
-	Key       string
+	Key string
+	// CopyKey is the copyable key string the "Copy" card renders (#22): the address,
+	// port and transport as a space-joined token ("203.0.113.7:5900 tcp").
+	CopyKey   string
 	Address   string
 	Port      string
 	Transport string
@@ -135,7 +149,11 @@ type servicePageData struct {
 // endpointPageData is the drill-down view for one Endpoint subject (#198): the
 // (Name, Service) pair the http-exchange leaf's http-identity facet is held on.
 type endpointPageData struct {
-	Key      string
+	Key string
+	// CopyKey is the copyable key string the "Copy" card renders (#22): the Name, the
+	// Service address:port and the transport space-joined ("edge-gw-03.acmecorp.io
+	// 203.0.113.7:443 tcp"); the Name is dropped for the nameless endpoint.
+	CopyKey  string
 	Name     string // empty for the nameless endpoint
 	Nameless bool
 	Service  string
@@ -182,8 +200,9 @@ type endpointPageData struct {
 // field is read from the current census, never fabricated.
 type subjectRule struct {
 	Rule     string
-	Version  string // the rule's own version (Census.Version.Rule, e.g. "v1")
+	Version  string // the rule's own version, bare (Census.Version.Rule with the "v" trimmed — the tmpl re-adds it as "v{{.Version}}")
 	Severity string // the rule's severity token: critical | high | medium | low | info
+	SevLabel string // the severity capitalised for the SeverityBadge label ("Critical") (#22a)
 	Fired    bool
 }
 
@@ -233,7 +252,12 @@ type spanView struct {
 	Details  []spanDetail
 	OpenedAt string
 	ClosedAt string
-	Reason   string
+	// OpenedFull and ClosedFull are the span's open/close instants in full ISO form,
+	// rendered as the closed-row title tooltips (#22, the spec RelativeTime pattern):
+	// the visible OpenedAt/ClosedAt carry the terse label, the *Full the exact instant.
+	OpenedFull string
+	ClosedFull string
+	Reason     string
 }
 
 // spanDetail is one row of a span value's expanded contents: an RR (its type and
@@ -336,6 +360,14 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.renderMissingSubject(w, acct, key)
 		return
 	}
+	// A VERGE_DEV build serves the pinned fixtures.json subjectdetail endpoint slice —
+	// the byte-exact corpus the pixel goldens capture (as the sibling screens do).
+	if s.devMode {
+		if data, ok := s.endpointFixtureData(acct, key); ok {
+			s.render(w, "endpoint", data)
+			return
+		}
+	}
 	subject, err := s.store.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
@@ -349,17 +381,18 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	name, service := splitEndpointKey(subject.SubjectKey)
-	addr, port, _ := splitServiceKey(service)
+	addr, port, transport := splitServiceKey(service)
 	id := decodeHTTPIdentity(subject.Value)
 	data := endpointPageData{
 		Key:              subject.SubjectKey,
+		CopyKey:          endpointCopyKey(name, addr, port, transport),
 		Name:             name,
 		Nameless:         name == "",
 		Service:          service,
 		Address:          addr,
 		Port:             port,
 		Outcome:          id.Outcome,
-		Status:           httpIdentityLabel(id),
+		Status:           endpointStatusLabel(id),
 		Server:           id.Server,
 		Title:            id.Title,
 		WWWAuthenticate:  id.WWWAuthenticate,
@@ -377,9 +410,23 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 	s.render(w, "endpoint", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Endpoint":  data,
+		"NavActive": "inventory", "DesignTokens": true,
+		"Endpoint": data,
 	})
+}
+
+// endpointStatusLabel is the HTTP-identity card's Status cell (#22): the bare status
+// code ("200"), the Server rendering in its own cell alongside. A no-http-response
+// identity — reached but speaking no HTTP — renders that negative as the status value.
+// An unmeasured (empty) value renders nothing (the card gates on HasIdentity).
+func endpointStatusLabel(v httpIdentityValue) string {
+	if v.Outcome == httpexchange.OutcomeNoHTTPResponse {
+		return "no HTTP response"
+	}
+	if v.Status == 0 {
+		return ""
+	}
+	return strconv.Itoa(v.Status)
 }
 
 // buildEndpointCitation assembles the "why is this here" chain for an Endpoint:
@@ -443,6 +490,15 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.renderMissingSubject(w, acct, key)
 		return
 	}
+	// A VERGE_DEV build serves the pinned fixtures.json subjectdetail service slices —
+	// the byte-exact corpus the pixel goldens capture (as the sibling screens do). The
+	// seeded keys are the fixtures' own; any other key still resolves the live read below.
+	if s.devMode {
+		if data, ok := s.serviceFixtureData(acct, key); ok {
+			s.render(w, "service", data)
+			return
+		}
+	}
 	subject, err := s.store.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
@@ -459,6 +515,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	rv := decodeReachability(subject.Value)
 	data := servicePageData{
 		Key:       subject.SubjectKey,
+		CopyKey:   serviceCopyKey(addr, port, transport),
 		Address:   addr,
 		Port:      port,
 		Transport: transport,
@@ -490,9 +547,34 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	s.render(w, "service", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Service":   data,
+		"NavActive": "inventory", "DesignTokens": true,
+		"Service": data,
 	})
+}
+
+// serviceCopyKey is the Service "Copy" card's copyable token (#22): the address, port
+// and transport space-joined ("203.0.113.7:5900 tcp") — the key with the "/" before the
+// transport rendered as a space, so it pastes as a shell-friendly triple.
+func serviceCopyKey(addr, port, transport string) string {
+	key := addr
+	if port != "" {
+		key += ":" + port
+	}
+	if transport != "" {
+		key += " " + transport
+	}
+	return key
+}
+
+// endpointCopyKey is the Endpoint "Copy" card's copyable token (#22): the Name, the
+// Service address:port and the transport space-joined ("edge-gw-03.acmecorp.io
+// 203.0.113.7:443 tcp"); the nameless endpoint drops the leading Name.
+func endpointCopyKey(name, addr, port, transport string) string {
+	key := serviceCopyKey(addr, port, transport)
+	if name != "" {
+		return name + " " + key
+	}
+	return key
 }
 
 // splitServiceKey parses an `address:port/transport` Service key into its parts,
@@ -690,7 +772,13 @@ func (s *server) subjectRules(r *http.Request, key string) []subjectRule {
 			continue
 		}
 		sev, _ := signal.SeverityFor(c.Rule)
-		out = append(out, subjectRule{Rule: c.Rule, Version: c.Version.Rule, Severity: sev.String(), Fired: fired})
+		out = append(out, subjectRule{
+			Rule:     c.Rule,
+			Version:  strings.TrimPrefix(c.Version.Rule, "v"),
+			Severity: sev.String(),
+			SevLabel: sevLabel(sev.String()),
+			Fired:    fired,
+		})
 	}
 	return out
 }
@@ -807,6 +895,11 @@ func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool
 
 const spanTimeFmt = "2006-01-02 15:04 UTC"
 
+// spanFullFmt is the full-ISO instant a closed span carries as its title tooltip
+// (spanView.OpenedFull/.ClosedFull, #22): a UTC time renders the trailing "Z"
+// ("2026-07-14T06:00Z"), the spec RelativeTime pattern's exact-instant hover.
+const spanFullFmt = "2006-01-02T15:04Z07:00"
+
 // buildTimelines reads the subject's Span corpus and assembles one view per
 // (facet, discriminator) timeline: its current span if it holds one, its closed
 // history, and the Breaks between spans of differing Derivation vectors — the
@@ -860,15 +953,17 @@ func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow
 			Reason:   drift.ClosureReason(row.ClosureReason.String),
 		})
 		sv := spanView{
-			Value:    valueLabel(facet, row.Value, row.IsGap),
-			IsGap:    row.IsGap,
-			Open:     !row.ClosedAt.Valid,
-			Details:  spanDetails(facet, row.Value, row.IsGap),
-			OpenedAt: row.OpenedAt.Time.UTC().Format(spanTimeFmt),
-			Reason:   row.ClosureReason.String,
+			Value:      valueLabel(facet, row.Value, row.IsGap),
+			IsGap:      row.IsGap,
+			Open:       !row.ClosedAt.Valid,
+			Details:    spanDetails(facet, row.Value, row.IsGap),
+			OpenedAt:   row.OpenedAt.Time.UTC().Format(spanTimeFmt),
+			OpenedFull: row.OpenedAt.Time.UTC().Format(spanFullFmt),
+			Reason:     row.ClosureReason.String,
 		}
 		if row.ClosedAt.Valid {
 			sv.ClosedAt = row.ClosedAt.Time.UTC().Format(spanTimeFmt)
+			sv.ClosedFull = row.ClosedAt.Time.UTC().Format(spanFullFmt)
 			tv.Closed = append(tv.Closed, sv)
 		} else {
 			cur := sv

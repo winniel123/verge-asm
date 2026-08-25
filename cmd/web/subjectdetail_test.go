@@ -30,14 +30,14 @@ func TestServiceDetailRendersV32Composition(t *testing.T) {
 	for _, want := range []string{
 		// Breadcrumb + header + nav
 		`href="/inventory"`, `class="navpill active" href="/inventory"`,
-		`<span class="chip">service</span>`,
-		`class="exp exposed">exposed`, // header ExposureBadge rolled up from reachability
-		"198.51.100.1:3389/tcp",       // the key
+		`<span class="sd-tag">service</span>`,
+		`class="as-leg exposed">exposed`, // header ExposureBadge rolled up from reachability (assetexposure)
+		"198.51.100.1:3389/tcp",          // the key
 		// The card composition
 		"Citation chain", "Reachability", "Current and closed timelines",
 		"Rules over this subject", "How it got here", "Signals here",
-		// The firing rule carries its real severity + verdict, and rides the rail.
-		"sensitive-port-reached-from-internet", `class="sev sev-critical"`, "fired",
+		// The firing rule carries its real severity + verdict (design sevbadge), and rides the rail.
+		"sensitive-port-reached-from-internet", "var(--sev-critical-fill)", "fired",
 	} {
 		if !strings.Contains(drill, want) {
 			t.Errorf("service detail missing %q; body: %s", want, drill)
@@ -65,7 +65,7 @@ func TestEndpointDetailRendersV32Composition(t *testing.T) {
 	drill := getBody(t, ac, base+"/subjects/endpoint?key="+key, http.StatusOK)
 
 	for _, want := range []string{
-		`href="/inventory"`, `<span class="chip">endpoint</span>`,
+		`href="/inventory"`, `<span class="sd-tag">endpoint</span>`,
 		"api.example.com@198.51.100.1:443/tcp",
 		"Citation chain", "HTTP identity", "Current and closed timelines",
 		"Rules over this subject", "How it got here",
@@ -96,9 +96,11 @@ func TestServiceDetailWithdrawn(t *testing.T) {
 	drill := getBody(t, ac, base+"/subjects/service?key=203.0.113.99%3A5900%2Ftcp", http.StatusOK)
 
 	for _, want := range []string{
-		`class="chip loss">withdrawn`, // the header WithdrawnMark equivalent (change palette)
-		"left the estate", "no current member",
-		`<button class="btn secondary" disabled`, // Rescan disabled for a withdrawn subject
+		`class="sd-wmark"`, // the header dashed WithdrawnMark (design)
+		"withdrawn",
+		"Withdrawn by the world",              // the neutral withdrawn Banner heading
+		"left the estate", "no current member", // its body prose
+		`<button class="sd-btn" disabled`, // Rescan disabled for a withdrawn subject
 	} {
 		if !strings.Contains(drill, want) {
 			t.Errorf("withdrawn service detail missing %q; body: %s", want, drill)
@@ -109,7 +111,7 @@ func TestServiceDetailWithdrawn(t *testing.T) {
 	if strings.Contains(drill, "Signals here") {
 		t.Errorf("withdrawn service should withhold the signals-here rail; body: %s", drill)
 	}
-	if strings.Contains(drill, `class="exp exposed"`) {
+	if strings.Contains(drill, `class="as-leg exposed"`) {
 		t.Errorf("withdrawn service should show no ExposureBadge; body: %s", drill)
 	}
 }
