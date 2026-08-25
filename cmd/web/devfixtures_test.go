@@ -1754,3 +1754,94 @@ func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureGraphPackage is the fixtures.json → graph slice, snake_case as stored.
+type fixtureGraphPackage struct {
+	Graph struct {
+		Empty bool `json:"empty"`
+		ViewW int  `json:"view_w"`
+		ViewH int  `json:"view_h"`
+		MiniW int  `json:"mini_w"`
+		MiniH int  `json:"mini_h"`
+		Nodes []struct {
+			ID          string  `json:"id"`
+			Label       string  `json:"label"`
+			Type        string  `json:"type"`
+			X           int     `json:"x"`
+			Y           int     `json:"y"`
+			Mx          float64 `json:"mx"`
+			My          float64 `json:"my"`
+			Sev         string  `json:"sev"`
+			HaloA       float64 `json:"halo_a"`
+			HaloB       float64 `json:"halo_b"`
+			LabelDX     int     `json:"label_dx"`
+			Ports       string  `json:"ports"`
+			First       string  `json:"first"`
+			OpenSignals []struct {
+				Severity string `json:"severity"`
+				SevLabel string `json:"sev_label"`
+				Rule     string `json:"rule"`
+				Subject  string `json:"subject"`
+			} `json:"open_signals"`
+		} `json:"nodes"`
+		Edges []struct {
+			X1        int  `json:"x1"`
+			Y1        int  `json:"y1"`
+			X2        int  `json:"x2"`
+			Y2        int  `json:"y2"`
+			ToService bool `json:"to_service"`
+		} `json:"edges"`
+	} `json:"graph"`
+}
+
+// TestGraphFixtureMatchesPackage folds every pinned Graph dev-fixture value back through
+// design-system/fixtures/fixtures.json -> graph, so the VERGE_DEV render the pixel goldens
+// capture can never drift from the frozen package (#583).
+func TestGraphFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureGraphPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	g := f.Graph
+	d := devGraphData()
+
+	if g.Empty != d.Empty || g.ViewW != d.ViewW || g.ViewH != d.ViewH || g.MiniW != d.MiniW || g.MiniH != d.MiniH {
+		t.Errorf("graph dims drift: fixtures.json = {empty:%v %d/%d mini %d/%d}, pinned = {empty:%v %d/%d mini %d/%d}",
+			g.Empty, g.ViewW, g.ViewH, g.MiniW, g.MiniH, d.Empty, d.ViewW, d.ViewH, d.MiniW, d.MiniH)
+	}
+
+	if len(g.Nodes) != len(d.Nodes) {
+		t.Fatalf("nodes length drift: fixtures.json = %d, pinned = %d", len(g.Nodes), len(d.Nodes))
+	}
+	for i, n := range g.Nodes {
+		q := d.Nodes[i]
+		if n.ID != q.ID || n.Label != q.Label || n.Type != q.Type || n.X != q.X || n.Y != q.Y ||
+			n.Mx != q.Mx || n.My != q.My || n.Sev != q.Sev || n.HaloA != q.HaloA || n.HaloB != q.HaloB ||
+			n.LabelDX != q.LabelDX || n.Ports != q.Ports || n.First != q.First {
+			t.Errorf("nodes[%d] drift:\n fixtures.json = %+v\n pinned        = %+v", i, n, q)
+		}
+		if len(n.OpenSignals) != len(q.OpenSignals) {
+			t.Fatalf("nodes[%d] (%s) open_signals length drift: fixtures.json = %d, pinned = %d", i, n.ID, len(n.OpenSignals), len(q.OpenSignals))
+		}
+		for j, s := range n.OpenSignals {
+			p := q.OpenSignals[j]
+			if s.Severity != p.Severity || s.SevLabel != p.SevLabel || s.Rule != p.Rule || s.Subject != p.Subject {
+				t.Errorf("nodes[%d] (%s) open_signals[%d] drift: fixtures.json = %+v, pinned = %+v", i, n.ID, j, s, p)
+			}
+		}
+	}
+
+	if len(g.Edges) != len(d.Edges) {
+		t.Fatalf("edges length drift: fixtures.json = %d, pinned = %d", len(g.Edges), len(d.Edges))
+	}
+	for i, e := range g.Edges {
+		q := d.Edges[i]
+		if e.X1 != q.X1 || e.Y1 != q.Y1 || e.X2 != q.X2 || e.Y2 != q.Y2 || e.ToService != q.ToService {
+			t.Errorf("edges[%d] drift: fixtures.json = %+v, pinned = %+v", i, e, q)
+		}
+	}
+}

@@ -33,6 +33,12 @@ b85d7ec09e7b013b770bc02ac3b8898b76c2a47b  design-system/goldens/error/settings-f
 0cf692d014796d72b24e6ca3202a1c8665010fbb  design-system/goldens/exposure/default-1440-light.png
 92c9dcd4955cf4544a80e6ae9f4c25fde44e463a  design-system/goldens/exposure/withheld-1440-dark.png
 630f0d3229631c9d4cc10f3a2e8d93367167a283  design-system/goldens/exposure/withheld-1440-light.png
+2e7cac03857daf3f965918c2fdf185f3d6743c7e  design-system/goldens/graph/default-1440-dark.png
+59210f117d68d58d466d7e5f77e6f1e08123a998  design-system/goldens/graph/default-1440-light.png
+0280340791897d448b3a0e6f5503255549ce65da  design-system/goldens/graph/filtered-critical-1440-dark.png
+d98021b21416b68e8b21a92e71b6d5c86fdfa229  design-system/goldens/graph/filtered-critical-1440-light.png
+3d96ccedb7b01c260dabdb9c61f801051bd26b1e  design-system/goldens/graph/node-drawer-1440-dark.png
+49d0a7187ed7549873e778878d505408dbcd9a4a  design-system/goldens/graph/node-drawer-1440-light.png
 881fc0bf4238fdb79373c7e33d0a79f86d039c96  design-system/goldens/inventory/columns-open-1440-dark.png
 dc3cfc963e6683c61bd4ebb41042d35993a89396  design-system/goldens/inventory/columns-open-1440-light.png
 f23be0fb57b87bc30972e9ea624337956bee3586  design-system/goldens/inventory/default-1440-dark.png

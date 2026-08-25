@@ -104,7 +104,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard | asset | subjectdetail")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard | asset | subjectdetail | graph")
 	out := flag.String("out", "", "inventory|drift: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile|…: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -349,6 +349,21 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "graph":
+		if *out == "" {
+			log.Fatal("render-goldens: -out is required for -screen graph")
+		}
+		html, err := renderGraph(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(*out), 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		if err := os.WriteFile(*out, html, 0o600); err != nil {
+			log.Fatalf("render-goldens: write %s: %v", *out, err)
+		}
+		log.Printf("render-goldens: wrote %s (%d bytes)", *out, len(html))
 	case "drift":
 		if *out == "" {
 			log.Fatal("render-goldens: -out is required for -screen drift")
@@ -2534,4 +2549,101 @@ func renderSubjectDetailStates(bodyFlex bool) ([]errorGolden, error) {
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
 	}
 	return out, nil
+}
+
+// graphFixture is the design-system/fixtures/fixtures.json → graph slice: the whole rendered graph
+// (empty marker, canvas + minimap dims, the placed nodes and resolved edges). Its Go field names ARE
+// the holes the frozen graph.tmpl reads (.Graph.{Empty,ViewW,ViewH,MiniW,MiniH,Nodes,Edges}), so a
+// loaded value passes straight to the template. cmd/web/devfixtures.go pins the same values with a
+// drift test (TestGraphFixtureMatchesPackage). The three golden states (default · node-drawer ·
+// filtered-critical) are pure client-JS variants of this ONE server render, so this is a single
+// shared golden HTML (--page, like drift) that states.json's JS drives on BOTH sides.
+type graphFixture struct {
+	Empty bool               `json:"empty"`
+	ViewW int                `json:"view_w"`
+	ViewH int                `json:"view_h"`
+	MiniW int                `json:"mini_w"`
+	MiniH int                `json:"mini_h"`
+	Nodes []graphNodeFixture `json:"nodes"`
+	Edges []graphEdgeFixture `json:"edges"`
+}
+
+type graphNodeFixture struct {
+	ID          string               `json:"id"`
+	Label       string               `json:"label"`
+	Type        string               `json:"type"`
+	X           int                  `json:"x"`
+	Y           int                  `json:"y"`
+	Mx          float64              `json:"mx"`
+	My          float64              `json:"my"`
+	Sev         string               `json:"sev"`
+	HaloA       float64              `json:"halo_a"`
+	HaloB       float64              `json:"halo_b"`
+	LabelDX     int                  `json:"label_dx"`
+	Ports       string               `json:"ports"`
+	First       string               `json:"first"`
+	OpenSignals []graphSignalFixture `json:"open_signals"`
+}
+
+type graphSignalFixture struct {
+	Severity string `json:"severity"`
+	SevLabel string `json:"sev_label"`
+	Rule     string `json:"rule"`
+	Subject  string `json:"subject"`
+}
+
+type graphEdgeFixture struct {
+	X1        int  `json:"x1"`
+	Y1        int  `json:"y1"`
+	X2        int  `json:"x2"`
+	Y2        int  `json:"y2"`
+	ToService bool `json:"to_service"`
+}
+
+func loadGraphFixture() (graphFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return graphFixture{}, err
+	}
+	var ff struct {
+		Graph graphFixture `json:"graph"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return graphFixture{}, err
+	}
+	return ff.Graph, nil
+}
+
+// renderGraph composes the Graph golden HTML from the frozen graph.tmpl, for the states.json graph
+// states (default · node-drawer · filtered-critical). The data map mirrors graphPage's
+// graphFixtureData EXACTLY (the .Graph holes the frozen tmpl reads) — the pinned fixtures.json graph
+// slice — so the cropped `main`/`body` is byte-identical to what the seeded server renders. "graph"
+// wraps head/chrome/graph/foot; it reuses the "sevbadge" define signals.tmpl declares (the drawer's
+// sev-badged signal rows) — parsed into the set here. Chrome is the empty stub (default/filtered-
+// critical crop `main`; the node-drawer state crops `body`, since the fixed scrim + drawer escape it).
+func renderGraph(bodyFlex bool) ([]byte, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadGraphFixture()
+	if err != nil {
+		return nil, err
+	}
+	data := map[string]any{
+		"Title": "Graph", "NavActive": "graph", "IsAdmin": true,
+		"Graph": fx,
+	}
+	t, err := newStubbedTemplate(head)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.ParseFS(designfs.FS, "templates/signals.tmpl", "templates/graph.tmpl"); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "graph", data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

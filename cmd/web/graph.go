@@ -1,15 +1,28 @@
 package main
 
 import (
+	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
 	"time"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+// The frozen design-owned graph.tmpl (design-system/templates/graph.tmpl, package
+// v3.10.0, WORKFLOW v4) is the view layer for /graph: it defines "graph" and reuses
+// the landed "sevbadge" define signals.tmpl declares (the drawer's sev-badged signal
+// rows) — one parse set. It is embedded read-only via the designfs package
+// (auto-globbed through `templates/*.tmpl`); the repo authors no markup/CSS/JS for
+// this route (the pan/zoom/minimap/PNG-export engine and the severity-filter listbox
+// are the design's own view JS, kept byte-for-byte). Replaces the repo-authored
+// templates_graph.go, which is deleted with this conversion (#583).
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/graph.tmpl"))
 
 // The Graph screen (#284, canonical `/graph`, ported from
 // design-system/examples/console/GraphView.jsx). It draws the estate as a graph:
@@ -67,9 +80,10 @@ const (
 // Sev is one of the five ramp tokens (critical | high | medium | low | info); the
 // drawer keys a SeverityBadge off it.
 type graphSignal struct {
-	Rule    string
-	Subject string
-	Sev     string
+	Severity string
+	SevLabel string
+	Rule     string
+	Subject  string
 }
 
 // graphNode is one placed node: its key (the drawer's identity), display label,
@@ -85,8 +99,9 @@ type graphNode struct {
 	Type        string
 	X, Y        int
 	LabelDX     int
-	HaloR       int
-	Mx, My      int
+	HaloA       float64
+	HaloB       float64
+	Mx, My      float64
 	Ports       string
 	First       string
 	OpenSignals []graphSignal
@@ -111,9 +126,13 @@ type graphView struct {
 	ViewW, ViewH, MiniW, MiniH int
 }
 
-// graphRadius is a node type's drawn radius, mirroring the example's NODE_R.
+// graphRadius is a node type's drawn radius, mirroring the design's NODE_R. The
+// domain apex draws largest (#22e: r16, ink stroke), a subdomain name r10, an
+// address r9 and a service r6.
 func graphRadius(typ string) int {
 	switch typ {
+	case "domain":
+		return 16
 	case "ip":
 		return 9
 	case "service":
@@ -121,6 +140,45 @@ func graphRadius(typ string) int {
 	default: // subdomain
 		return 10
 	}
+}
+
+// round1 rounds a float to one decimal place — the minimap coordinate precision the
+// design fixture carries (e.g. 90·110/1200 = 8.25 → 8.3).
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
+
+// classifyNameTypes splits the Name set into the domain|subdomain tiers (#22e): a
+// name is the DOMAIN apex when it is a registrable root of the observed topology —
+// it parents at least one other name in the set (some other name is `<label>.<it>`)
+// and is itself parented by none. Every other name is a subdomain. The split is read
+// purely off the observed name set (no public-suffix guess): an estate whose apex was
+// never itself measured simply has no domain node, and each measured leaf stays a
+// subdomain. Deterministic for a fixed set.
+func classifyNameTypes(names map[string]struct{}) map[string]string {
+	isChildOf := func(child, parent string) bool {
+		return len(child) > len(parent)+1 && child[len(child)-len(parent)-1] == '.' &&
+			child[len(child)-len(parent):] == parent
+	}
+	out := make(map[string]string, len(names))
+	for n := range names {
+		hasChild, hasParent := false, false
+		for m := range names {
+			if m == n {
+				continue
+			}
+			if isChildOf(m, n) {
+				hasChild = true
+			}
+			if isChildOf(n, m) {
+				hasParent = true
+			}
+		}
+		if hasChild && !hasParent {
+			out[n] = "domain"
+		} else {
+			out[n] = "subdomain"
+		}
+	}
+	return out
 }
 
 // buildGraph folds the estate's open spans into the graph's nodes and edges. It
@@ -196,12 +254,14 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 		x := col
 		y := graphRowTop + idx*graphRowStep
 		pos[internalID] = struct{ x, y int }{x, y}
+		r := graphRadius(typ)
 		n := graphNode{
 			ID: id, Label: label, Type: typ, X: x, Y: y,
-			LabelDX: graphRadius(typ) + 9,
-			HaloR:   graphRadius(typ) + 6,
-			Mx:      x * graphMiniW / graphViewW,
-			My:      y * graphMiniH / graphViewH,
+			LabelDX: r + 9,
+			HaloA:   float64(r) + 7,   // #22f: outer fill halo (r+7, opacity 0.12)
+			HaloB:   float64(r) + 4.5, // #22f: inner ring halo (r+4.5, sw2, opacity 0.65)
+			Mx:      round1(float64(x) * graphMiniW / graphViewW),
+			My:      round1(float64(y) * graphMiniH / graphViewH),
 			Ports:   ports,
 		}
 		if t, ok := first[internalID]; ok {
@@ -210,8 +270,9 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 		nodes = append(nodes, n)
 	}
 
+	nameType := classifyNameTypes(names)
 	for i, k := range sortedSet(names) {
-		place("name:"+k, k, k, "subdomain", graphColName, i, "—")
+		place("name:"+k, k, k, nameType[k], graphColName, i, "—")
 	}
 	for i, a := range sortedSet(addrs) {
 		place("addr:"+a, a, a, "ip", graphColAddr, i, joinPorts(addrPorts[a]))
@@ -272,7 +333,7 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 		kind := signal.SubjectKindFor(c.Rule)
 		sev, _ := signal.SeverityFor(c.Rule)
 		for _, m := range c.Fired {
-			sig := graphSignal{Rule: c.Rule, Subject: m.Subject, Sev: sev.String()}
+			sig := graphSignal{Severity: sev.String(), SevLabel: sevLabel(sev.String()), Rule: c.Rule, Subject: m.Subject}
 			switch kind {
 			case "name", "service":
 				attach(m.Subject, sig)
@@ -303,9 +364,9 @@ func worstSeverity(sigs []graphSignal) string {
 	best := ""
 	bestRank := len(signal.SevOrder)
 	for _, s := range sigs {
-		if r := signal.Severity(s.Sev).Rank(); r < bestRank {
+		if r := signal.Severity(s.Severity).Rank(); r < bestRank {
 			bestRank = r
-			best = s.Sev
+			best = s.Severity
 		}
 	}
 	return best
@@ -351,6 +412,13 @@ func joinPorts(set map[string]struct{}) string {
 // rather than 500ing the topology a viewer depends on, exactly as reports.go
 // degrades its KPI on a failed read.
 func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// A VERGE_DEV build serves the pinned fixtures.json graph slice — the byte-exact
+	// 26-node topology the pixel goldens capture (as the sibling screens do). A real
+	// deployment falls through to the honest live reads below.
+	if s.devMode {
+		s.render(w, "graph", s.graphFixtureData(acct))
+		return
+	}
 	rows, err := s.store.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
@@ -367,7 +435,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 	s.render(w, "graph", map[string]any{
 		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "graph",
-		"Graph":     g,
+		"NavActive": "graph", "DesignTokens": true,
+		"Graph": g,
 	})
 }

@@ -64,7 +64,8 @@ docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen signals -outdir design-system/goldens/signals && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen dashboard -outdir design-system/goldens/dashboard && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen asset -outdir design-system/goldens/asset && \
-         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen subjectdetail -outdir design-system/goldens/subjectdetail"
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen subjectdetail -outdir design-system/goldens/subjectdetail && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen graph -out design-system/goldens/graph.html"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
 docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_IMAGE" \
@@ -104,6 +105,11 @@ if [ "${GOLDENS:-}" = "write" ]; then
     node capture.mjs --mode golden --write-goldens --advisory --screen asset --pagedir /src/design-system/goldens/asset
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen subjectdetail --pagedir /src/design-system/goldens/subjectdetail
+  # graph is a SINGLE shared golden file (--page, like drift): its default / node-drawer /
+  # filtered-critical states are the same HTML with the frozen tmpl's own view JS (node click →
+  # drawer, severity listbox → filter) driven over it by capture.mjs (states.json) on BOTH sides.
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen graph --page /src/design-system/goldens/graph.html
 fi
 
 echo "== 3a. Postgres (pinned) =="
@@ -227,6 +233,16 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # strand subjectdetail's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen subjectdetail --base "http://${WEB}:8080" --hide-chrome
+# graph: chrome-hosted /graph, session admin (per-state /dev/session mint), served from the pinned
+# fixtures.json graph slice under VERGE_DEV. --hide-chrome drops the sticky console header so <main>
+# sits at the viewport top and aligns with the chrome-less golden (as coverage). The default /
+# filtered-critical states crop `main`; the node-drawer state crops `body` (per-state crop in
+# states.json) because the fixed scrim + drawer escape <main>. All three run states.json's `js` (click
+# a node / pick the critical severity option) against the frozen tmpl's own view JS on BOTH golden and
+# candidate. No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs
+# the account table (which would strand graph's authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen graph --base "http://${WEB}:8080" --hide-chrome
 # setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
 # capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
 # window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB
