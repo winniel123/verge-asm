@@ -76,19 +76,19 @@ func TestReportDeliveryRendersRealDelivery(t *testing.T) {
 	page := getBody(t, ac, base+"/reports/delivery", http.StatusOK)
 
 	for _, want := range []string{
-		"Weekly exposure summary",         // the report name as heading + breadcrumb
-		"2026-08-15 → 2026-08-22",         // the recomputed period window
-		"delivery #7",                     // the delivery number
-		"Open signals by severity",        // severity breakdown present
-		"Critical",                        // certificate-expired is critical
-		"New this week",                   // signals table present
-		"Certificate expired",             // a signal headline (signalTitle)
-		"idp.example.test",                // its asset
-		"aug 20",                          // its raised date
-		"Withdrawn by the world",          // withdrawn section
-		"legacy.example.test",             // the withdrawn subject
-		"delivered 2026-08-22T09:00:00Z",  // receipt instant
-		"ops.example.test",                // destination host only
+		"Weekly exposure summary",        // the report name as heading + breadcrumb
+		"2026-08-15 → 2026-08-22",        // the recomputed period window
+		"delivery #7",                    // the delivery number
+		"Open signals by severity",       // severity breakdown present
+		"Critical",                       // certificate-expired is critical
+		"New this week",                  // signals table present
+		"Certificate expired",            // a signal headline (signalTitle)
+		"idp.example.test",               // its asset
+		"aug 20",                         // its raised date
+		"Withdrawn by the world",         // withdrawn section
+		"legacy.example.test",            // the withdrawn subject
+		"delivered 2026-08-22T09:00:00Z", // receipt instant
+		"ops.example.test",               // destination host only
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("real delivery page missing %q; body: %s", want, page)
@@ -96,7 +96,7 @@ func TestReportDeliveryRendersRealDelivery(t *testing.T) {
 	}
 
 	// The empty-state must NOT stand once a delivery exists.
-	if strings.Contains(page, "No report has been delivered yet") {
+	if strings.Contains(page, "No delivery yet") {
 		t.Errorf("a delivered report must not render the empty-state; body: %s", page)
 	}
 	// The embedded delivery-target token is never printed — host only (ADR-0081).
@@ -169,7 +169,7 @@ func TestReportDeliveryEmptyStateWithoutDelivery(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/reports/delivery", http.StatusOK)
 
-	if !strings.Contains(page, "No report has been delivered yet") {
+	if !strings.Contains(page, "No delivery yet") {
 		t.Errorf("no delivery: expected the design-system empty-state; body: %s", page)
 	}
 	if strings.Contains(page, "Open signals by severity") {

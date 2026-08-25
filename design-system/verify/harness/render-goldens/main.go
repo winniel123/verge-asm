@@ -39,6 +39,7 @@ import (
 
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/qr"
 )
 
@@ -354,6 +355,24 @@ func main() {
 			log.Fatal("render-goldens: -outdir is required for -screen reports")
 		}
 		files, err := renderReportsStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "reportartifact":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen reportartifact")
+		}
+		files, err := renderReportartifactStates(*bodyFlex)
 		if err != nil {
 			log.Fatalf("render-goldens: %v", err)
 		}
@@ -3069,4 +3088,125 @@ func renderReportsStates(bodyFlex bool) ([]errorGolden, error) {
 		out = append(out, errorGolden{id: "wizard-" + strconv.Itoa(i+1), html: wh})
 	}
 	return out, nil
+}
+
+// --- screen 17: ReportArtifact (reportartifact.tmpl, package v3.11.0, WORK-ORDER-16-18-BATCH5) --
+//
+// renderReportartifactStates composes the two ReportArtifact golden HTMLs from the frozen
+// reportartifact.tmpl. The page define "reportartifact" calls "artifactdoc", which in turn calls
+// "deltachip" (reports.tmpl), "sevbadge" (signals.tmpl) and "changeglyph" (drift.tmpl) — one parse
+// set — so all four tmpls are parsed into the stubbed template. Every data map mirrors
+// reportartifactFixtureData (cmd/web/devfixtures.go) EXACTLY, read from the SAME fixtures.json
+// reportartifact slice unmarshalled straight into message.ArtifactDoc, so the cropped `main` is
+// byte-identical to what the seeded server renders. Chrome is the empty stub (goldens crop to `main`).
+
+type reportartifactFixtureVariant struct {
+	Period     string              `json:"period"`
+	ScheduleID string              `json:"schedule_id"`
+	Doc        message.ArtifactDoc `json:"doc"`
+}
+
+type reportartifactFixture struct {
+	Heading        string                       `json:"heading"`
+	Period         string                       `json:"period"`
+	ScheduleID     string                       `json:"schedule_id"`
+	Doc            message.ArtifactDoc          `json:"doc"`
+	NeverDelivered reportartifactFixtureVariant `json:"never_delivered_variant"`
+}
+
+func loadReportartifactFixture() (reportartifactFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return reportartifactFixture{}, err
+	}
+	var ff struct {
+		ReportArtifact reportartifactFixture `json:"reportartifact"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return reportartifactFixture{}, err
+	}
+	return ff.ReportArtifact, nil
+}
+
+// reportartifactVariantHeading mirrors cmd/web/devfixtures.go: the never-delivered variant's
+// heading is the honest name of its schedule (s2), resolved from the reports schedules fixture.
+func reportartifactVariantHeading(scheduleID string) string {
+	fx, err := loadReportsFixture()
+	if err != nil {
+		return "Report delivery"
+	}
+	for _, sc := range fx.Schedules {
+		if sc.ID == scheduleID {
+			return sc.Name
+		}
+	}
+	return "Report delivery"
+}
+
+// reportartifactPageData mirrors reportartifactFixtureData (cmd/web/devfixtures.go): the pinned
+// slice passed straight through to the "reportartifact" holes for the given variant. Account/IsAdmin
+// are omitted — the golden's chrome/head are the empty stubs, and the page body never reads them.
+func reportartifactPageData(fx reportartifactFixture, variant string) map[string]any {
+	heading, period, scheduleID, doc := fx.Heading, fx.Period, fx.ScheduleID, fx.Doc
+	if variant == "never-delivered" {
+		heading = reportartifactVariantHeading(fx.NeverDelivered.ScheduleID)
+		period = fx.NeverDelivered.Period
+		scheduleID = fx.NeverDelivered.ScheduleID
+		doc = fx.NeverDelivered.Doc
+	}
+	var scheduleHole any
+	if scheduleID != "" {
+		scheduleHole = scheduleID
+	}
+	return map[string]any{
+		"Title": "Report delivery", "NavActive": "reports", "DesignTokens": true,
+		"Heading":    heading,
+		"Period":     period,
+		"ScheduleID": scheduleHole,
+		"Doc":        doc,
+	}
+}
+
+func renderReportartifactStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadReportartifactFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	exec := func(data map[string]any) ([]byte, error) {
+		t, terr := newStubbedTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS,
+			"templates/reportartifact.tmpl",
+			"templates/reports.tmpl",
+			"templates/signals.tmpl",
+			"templates/drift.tmpl",
+		); terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, "reportartifact", data); terr != nil {
+			return nil, terr
+		}
+		return buf.Bytes(), nil
+	}
+
+	def, err := exec(reportartifactPageData(fx, ""))
+	if err != nil {
+		return nil, err
+	}
+	nev, err := exec(reportartifactPageData(fx, "never-delivered"))
+	if err != nil {
+		return nil, err
+	}
+	return []errorGolden{
+		{id: "default", html: def},
+		{id: "never-delivered", html: nev},
+	}, nil
 }

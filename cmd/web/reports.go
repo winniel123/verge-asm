@@ -855,10 +855,10 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"DiscoveryDelta":    discoveryDelta,
 		"DiscoveryBars":     discoveryBars,
 
-		"MTTW":        mttw,
-		"HasMTTW":     hasMTTW,
-		"MTTWDelta":   mttwDelta,
-		"MTTWSpark":   mttwSpark,
+		"MTTW":         mttw,
+		"HasMTTW":      hasMTTW,
+		"MTTWDelta":    mttwDelta,
+		"MTTWSpark":    mttwSpark,
 		"HasMTTWSpark": hasMTTWSpark,
 
 		// "Open signals over time" — the big trend chart.
@@ -974,19 +974,39 @@ func pluralScans(n int) string {
 // delivered-document frame (ADR-0110) and the header falls back to a generic
 // heading — nothing is fabricated.
 func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	art := s.reportDeliveryArtifact(r.Context())
+	// VERGE_DEV pixel-parity path (#589): serve the pinned fixtures.json reportartifact
+	// slice so the seeded instance renders byte-for-byte what the golden composes (as the
+	// sibling screens do). The default delivery document and the never-delivered variant
+	// (.Doc.Empty, schedule s2 — a dev ?variant=never-delivered query, states.json) are the
+	// design's curated corpus. A real deployment (devMode == false) falls through to the
+	// honest live reads below.
+	if s.devMode {
+		s.render(w, "reportartifact", s.reportartifactFixtureData(acct, r.URL.Query().Get("variant")))
+		return
+	}
+
+	art, scheduleID, live := s.reportDeliveryArtifact(r.Context())
 
 	heading := art.Title
 	if heading == "" {
 		heading = "Report delivery"
 	}
 
+	// #23h: "Edit schedule" links /reports/schedule/{id}/edit when the delivery is still
+	// backed by a live schedule; where none stands (the empty-state, or a delivery whose
+	// schedule is gone) .ScheduleID is nil and the tmpl renders the disabled honest treatment.
+	var scheduleHole any
+	if live {
+		scheduleHole = scheduleID
+	}
+
 	s.render(w, "reportartifact", map[string]any{
 		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports",
-		"Heading":   heading,
-		"Period":    message.ArtifactPeriod(art),
-		"Body":      message.RenderArtifact(art),
+		"NavActive": "reports", "DesignTokens": true,
+		"Heading":    heading,
+		"Period":     message.ArtifactPeriod(art),
+		"ScheduleID": scheduleHole,
+		"Doc":        message.BuildArtifactDoc(art),
 	})
 }
 
@@ -998,7 +1018,7 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 // what the page shows; where no schedule has delivered that is the empty-state
 // document. A viewer reads it — a delivered report is a record, not a mutation.
 func (s *server) reportDeliveryPDF(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	art := s.reportDeliveryArtifact(r.Context())
+	art, _, _ := s.reportDeliveryArtifact(r.Context())
 
 	pdf, err := message.RenderArtifactPDF(art)
 	if err != nil {
@@ -1037,11 +1057,14 @@ func reportDeliveryPDFName(a message.Artifact) string {
 // at render time (T1 ruling), reading the never-deleted first-seen and withdrawal
 // ledgers. A list/read failure degrades to the empty-state or an empty section rather
 // than 500ing the view a viewer depends on.
-func (s *server) reportDeliveryArtifact(ctx context.Context) message.Artifact {
+// It returns the resolved Artifact, the id of the schedule behind the delivery, and
+// whether a live delivery (and so a live schedule to edit) was found — the last two feed
+// the page's nullable .ScheduleID (#23h). The empty-state resolves to (zero, 0, false).
+func (s *server) reportDeliveryArtifact(ctx context.Context) (message.Artifact, int64, bool) {
 	schedules, err := s.store.ListReportSchedules(ctx)
 	if err != nil {
 		log.Printf("web: report delivery: list schedules: %v", err)
-		return message.Artifact{}
+		return message.Artifact{}, 0, false
 	}
 	var (
 		best  db.ReportDelivery
@@ -1063,9 +1086,9 @@ func (s *server) reportDeliveryArtifact(ctx context.Context) message.Artifact {
 		}
 	}
 	if !found {
-		return message.Artifact{}
+		return message.Artifact{}, 0, false
 	}
-	return s.buildReportDeliveryArtifact(ctx, sched, best)
+	return s.buildReportDeliveryArtifact(ctx, sched, best), sched.ID, true
 }
 
 // buildReportDeliveryArtifact fills the delivered Artifact for one run: its identity

@@ -61,6 +61,10 @@ f913c43d083b2ef5e867325604509234dda411ff  design-system/goldens/profile/revoke-t
 46b9066d0318eb68b122c9d7881e0199f7cf30df  design-system/goldens/profile/revoke-token-1440-light.png
 9213f382fac250282223705ad8c432ada0b94588  design-system/goldens/profile/signout-others-1440-dark.png
 26d2912c6ae9ccdf9ac125f6ca522a9ffdca6202  design-system/goldens/profile/signout-others-1440-light.png
+ae7600837df58b69ebe7b6b786e6e58f575842d6  design-system/goldens/reportartifact/default-1440-dark.png
+e8bb861e101cfa82483a48c22b8c0cca084b1e7b  design-system/goldens/reportartifact/default-1440-light.png
+12b1a99575127c519fedf0b32fbbbcf59bfefc86  design-system/goldens/reportartifact/never-delivered-1440-dark.png
+e42f1eccc2ed60c9bba24cf8a80be93d75c58e8d  design-system/goldens/reportartifact/never-delivered-1440-light.png
 1fef6dc2996d9b6d5e47969afca77e266800c08e  design-system/goldens/reports/default-1440-dark.png
 5cd5c80a2f22713174667de4df72b96234cfa08c  design-system/goldens/reports/default-1440-light.png
 b3f51ebaba5f9b0f0154bcf89ec5acac312d1438  design-system/goldens/reports/range-open-1440-dark.png

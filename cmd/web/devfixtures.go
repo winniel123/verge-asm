@@ -17,6 +17,7 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
@@ -2328,35 +2329,35 @@ type reportsFixtureWizard struct {
 }
 
 type reportsFixture struct {
-	Period            string                 `json:"period"`
-	PeriodLabel       string                 `json:"period_label"`
-	Periods           []reportsFixturePeriod `json:"periods"`
-	RangeLabel        string                 `json:"range_label"`
-	RangeWeeks        json.Number            `json:"range_weeks"`
-	HasOpenSignals    bool                   `json:"has_open_signals"`
-	OpenSignals       string                 `json:"open_signals"`
-	OpenDelta         reportsFixtureDelta    `json:"open_delta"`
-	HasOpenSpark      bool                   `json:"has_open_spark"`
-	OpenSpark         reportsFixtureSpark    `json:"open_spark"`
-	HasDiscovery      bool                   `json:"has_discovery"`
-	DiscoveryCount    string                 `json:"discovery_count"`
-	DiscoveryDelta    reportsFixtureDelta    `json:"discovery_delta"`
-	DiscoveryNames    json.Number            `json:"discovery_names"`
-	DiscoveryServices json.Number            `json:"discovery_services"`
-	DiscoveryBars     reportsFixtureBars     `json:"discovery_bars"`
-	HasMTTW           bool                   `json:"has_mttw"`
-	MTTW              string                 `json:"mttw"`
-	MTTWDelta         reportsFixtureDelta    `json:"mttw_delta"`
-	HasMTTWSpark      bool                   `json:"has_mttw_spark"`
-	MTTWSpark         reportsFixtureSpark    `json:"mttw_spark"`
-	HasSignalSeries   bool                   `json:"has_signal_series"`
-	SignalSeries      reportsFixtureSeries   `json:"signal_series"`
-	HasSeverity       bool                   `json:"has_severity"`
-	BySeverity        []reportsFixtureSev    `json:"by_severity"`
-	HasHeat           bool                   `json:"has_heat"`
-	Heat              []reportsFixtureHeat   `json:"heat"`
+	Period            string                   `json:"period"`
+	PeriodLabel       string                   `json:"period_label"`
+	Periods           []reportsFixturePeriod   `json:"periods"`
+	RangeLabel        string                   `json:"range_label"`
+	RangeWeeks        json.Number              `json:"range_weeks"`
+	HasOpenSignals    bool                     `json:"has_open_signals"`
+	OpenSignals       string                   `json:"open_signals"`
+	OpenDelta         reportsFixtureDelta      `json:"open_delta"`
+	HasOpenSpark      bool                     `json:"has_open_spark"`
+	OpenSpark         reportsFixtureSpark      `json:"open_spark"`
+	HasDiscovery      bool                     `json:"has_discovery"`
+	DiscoveryCount    string                   `json:"discovery_count"`
+	DiscoveryDelta    reportsFixtureDelta      `json:"discovery_delta"`
+	DiscoveryNames    json.Number              `json:"discovery_names"`
+	DiscoveryServices json.Number              `json:"discovery_services"`
+	DiscoveryBars     reportsFixtureBars       `json:"discovery_bars"`
+	HasMTTW           bool                     `json:"has_mttw"`
+	MTTW              string                   `json:"mttw"`
+	MTTWDelta         reportsFixtureDelta      `json:"mttw_delta"`
+	HasMTTWSpark      bool                     `json:"has_mttw_spark"`
+	MTTWSpark         reportsFixtureSpark      `json:"mttw_spark"`
+	HasSignalSeries   bool                     `json:"has_signal_series"`
+	SignalSeries      reportsFixtureSeries     `json:"signal_series"`
+	HasSeverity       bool                     `json:"has_severity"`
+	BySeverity        []reportsFixtureSev      `json:"by_severity"`
+	HasHeat           bool                     `json:"has_heat"`
+	Heat              []reportsFixtureHeat     `json:"heat"`
 	Schedules         []reportsFixtureSchedule `json:"schedules"`
-	Wizard            reportsFixtureWizard   `json:"wizard"`
+	Wizard            reportsFixtureWizard     `json:"wizard"`
 }
 
 // loadReportsFixture reads the pinned fixtures.json reports slice from the embedded design
@@ -2422,6 +2423,93 @@ func (s *server) reportsFixtureData(acct db.Account) map[string]any {
 		"Heat":    fx.Heat,
 
 		"Schedules": fx.Schedules,
+	}
+}
+
+// --- screen 17: ReportArtifact (reportartifact.tmpl, package v3.11.0) ------------------------
+
+// reportartifactFixture is the pinned fixtures.json → reportartifact slice: the page holes
+// (.Heading .Period .ScheduleID) and the delivered document (.Doc, a message.ArtifactDoc whose
+// JSON tags mirror the fixture keys verbatim), plus the never-delivered variant (schedule s2,
+// .Doc.Empty) the states.json ?variant=never-delivered golden pins.
+type reportartifactFixture struct {
+	Heading        string                       `json:"heading"`
+	Period         string                       `json:"period"`
+	ScheduleID     string                       `json:"schedule_id"`
+	Doc            message.ArtifactDoc          `json:"doc"`
+	NeverDelivered reportartifactFixtureVariant `json:"never_delivered_variant"`
+}
+
+// reportartifactFixtureVariant is the never-delivered overlay: a schedule that exists (s2) but
+// has not delivered, so .Doc.Empty stands and .Period reads "no delivery yet". Its heading is not
+// pinned in the slice — it is the schedule's own honest name, resolved from the reports schedules
+// fixture by id (reportartifactVariantHeading), the same datum the Reports screen shows for s2.
+type reportartifactFixtureVariant struct {
+	Period     string              `json:"period"`
+	ScheduleID string              `json:"schedule_id"`
+	Doc        message.ArtifactDoc `json:"doc"`
+}
+
+// loadReportartifactFixture reads the pinned fixtures.json reportartifact slice from the embedded
+// design package. Both reportDeliveryPage (candidate) and render-goldens (golden) read the SAME
+// bytes and shape them identically, so the two agree. A read/parse failure degrades to the zero
+// fixture (the empty-state document) rather than 500ing.
+func loadReportartifactFixture() reportartifactFixture {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return reportartifactFixture{}
+	}
+	var ff struct {
+		ReportArtifact reportartifactFixture `json:"reportartifact"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return reportartifactFixture{}
+	}
+	return ff.ReportArtifact
+}
+
+// reportartifactVariantHeading resolves the never-delivered variant's heading — the honest name
+// of the schedule behind it — from the reports schedules fixture by id (s2 → "Monthly asset
+// inventory"). The default state pins its heading directly (s1's name); the variant carries only
+// the schedule id, so its title comes from the same package datum rather than being fabricated. A
+// missing id falls back to the generic delivery heading.
+func reportartifactVariantHeading(scheduleID string) string {
+	for _, sc := range loadReportsFixture().Schedules {
+		if sc.ID == scheduleID {
+			return sc.Name
+		}
+	}
+	return "Report delivery"
+}
+
+// reportartifactFixtureData is the render map reportDeliveryPage passes to the frozen
+// reportartifact.tmpl in a VERGE_DEV build. The default state serves the pinned delivery document;
+// the never-delivered variant (?variant=never-delivered, states.json) overlays schedule s2's
+// empty-state document, its "no delivery yet" period, and s2's resolved heading. render-goldens
+// composes the identical map from the same fixtures.json, so golden and candidate agree.
+func (s *server) reportartifactFixtureData(acct db.Account, variant string) map[string]any {
+	fx := loadReportartifactFixture()
+
+	heading, period, scheduleID, doc := fx.Heading, fx.Period, fx.ScheduleID, fx.Doc
+	if variant == "never-delivered" {
+		heading = reportartifactVariantHeading(fx.NeverDelivered.ScheduleID)
+		period = fx.NeverDelivered.Period
+		scheduleID = fx.NeverDelivered.ScheduleID
+		doc = fx.NeverDelivered.Doc
+	}
+
+	var scheduleHole any
+	if scheduleID != "" {
+		scheduleHole = scheduleID
+	}
+
+	return map[string]any{
+		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "reports", "DesignTokens": true,
+		"Heading":    heading,
+		"Period":     period,
+		"ScheduleID": scheduleHole,
+		"Doc":        doc,
 	}
 }
 
