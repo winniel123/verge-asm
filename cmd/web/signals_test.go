@@ -266,7 +266,13 @@ func TestSignalsDetailDrawerOpens(t *testing.T) {
 	}
 
 	page := getBody(t, ac, base+"/signals?tab=annotated&view="+strconv.FormatInt(annos[0].ID, 10), http.StatusOK)
-	for _, want := range []string{`class="sg-drawer"`, `role="dialog"`, "lame.example.com", "reviewed and accepted", "Remove annotation"} {
+	for _, want := range []string{
+		`class="sg-drawer"`, `role="dialog"`, "lame.example.com", "reviewed and accepted", "Remove annotation",
+		// The Rule cell renders the real rule id + its Version().String() vector (#21j),
+		// not a placeholder: lame-delegation is version {Rule:"v1", …}, so its vector
+		// begins "rule@v1". This locks the production-path RuleVersion read.
+		"lame-delegation@rule@v1",
+	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("detail drawer missing %q; body: %s", want, page)
 		}
