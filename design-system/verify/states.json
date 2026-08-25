@@ -66,5 +66,47 @@
         "js": ""
       }
     ]
+  },
+  "profile": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/profile",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "new-token",
+        "route": "/profile?new=1",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "minted",
+        "route": "/profile?new=1",
+        "session": "admin",
+        "js": "var i=document.querySelector('#pr-tokform input[name=name]'); i.value='ci-golden'; document.getElementById('pr-tokform').submit();",
+        "delay": 900
+      },
+      {
+        "id": "revoke-token",
+        "route": "/profile?revoke=t1",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "end-session",
+        "route": "/profile?endsession=1",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "signout-others",
+        "route": "/profile?signoutothers=1",
+        "session": "admin",
+        "js": ""
+      }
+    ]
   }
 }

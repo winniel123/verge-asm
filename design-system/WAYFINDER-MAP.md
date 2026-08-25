@@ -22,8 +22,8 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | # | Screen | Route | tmpl | States to golden | Status |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Inventory | /inventory | inventory.tmpl | record expansion open · gaps-only on · filtered-empty | **LANDED — operator confirmed 2026-08-24** |
-| 2 | ErrorPage (all kinds) | /404 /403 /500 … | error.tmpl | — | **NEXT — artifacts in v3.5.0** |
-| 3 | Profile | /profile | profile.tmpl | new-token dialog · end-session confirm | queued |
+| 2 | ErrorPage (all kinds) | /404 /403 /500 … | error.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
+| 3 | Profile | /profile | profile.tmpl | new-token dialog · end-session confirm | **NEXT — artifacts in v3.6.0** |
 | 4 | SignIn (+ flows) | /signin … | signin.tmpl | TOTP step · forgot/reset · invite | queued |
 | 5 | Setup | /setup | setup.tmpl | — | queued |
 | 6 | Coverage | /coverage | coverage.tmpl | — | queued |
@@ -50,4 +50,11 @@ Docs site: separate tree after #22 (its pipeline already renders design-owned as
 
 ## Batching rule
 
-Screens 1–3 strictly serial with operator sign-off between. From #4 on, up to 3 screens per batch (disjoint templates), still one sign-off message per batch. Settings and Shell always solo.
+Screens 1–3 strictly serial with operator sign-off between. From #4 on, up to 3 screens per batch — still one sign-off message per batch. Settings and Shell always solo.
+
+Parallel sessions (multiple Claude Code sessions or Wayfinder subagents) are fine within a batch under these rules:
+- **One screen per session, one branch/worktree each.** Templates are disjoint by construction; the collision points are shared files only: the embed registration, the fixture loader, verify/states.json wiring, CI config.
+- **Same landed package version for the whole batch.** Never mix versions across sessions; a mid-batch package bump restarts the batch.
+- **Shared-file edits are append-only** (add your screen's loader case / states entry; never reshape another screen's).
+- **Merge serially**: first PR merges, the rest rebase and re-run G1+G2 before merging — a green branch is stale the moment another lands.
+- The operator sign-off still covers the whole batch at once, after ALL its PRs merge.

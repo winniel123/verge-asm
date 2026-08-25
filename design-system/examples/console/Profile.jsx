@@ -17,7 +17,7 @@ import { Icon } from "../../components/media/Icon.jsx";
    (no display name / email — there is no IdP profile), a token inherits the account's
    role (no scope select), recovery-code rotation is not a feature. Org-wide access
    lives in Settings → Team; providers are configured in Settings → Single sign-on. */
-export function Profile({ onToast }) {
+export function Profile({ onToast, totpEnabled = true }) {
   const username = "ola.perez";
   const [tokens, setTokens] = React.useState([
     { name: "laptop-cli", prefix: "vg_pat_9f3k…", created: "2026-05-02", last: "2h" },
@@ -28,6 +28,7 @@ export function Profile({ onToast }) {
   const [minted, setMinted] = React.useState(null);
   const [endOpen, setEndOpen] = React.useState(false);
   const [othersOpen, setOthersOpen] = React.useState(false);
+  const [revokeTok, setRevokeTok] = React.useState(null);
   const [identities, setIdentities] = React.useState([
     { id: "i1", provider: "Okta", identity: "ola.perez@acmecorp.io", linked: "2026-06-30" },
   ]);
@@ -66,8 +67,18 @@ export function Profile({ onToast }) {
             <Input label="New password" type="password" hint="12+ characters; a passphrase beats complexity" autoComplete="new-password" />
             <div><Button size="sm" variant="secondary" onClick={() => toast("Password changed", "Other sessions keep working until they expire.")}>Change password</Button></div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 12, borderTop: "1px solid var(--row-sep)", flexWrap: "wrap" }}>
-              <Badge tone="ok" dot>two-factor enabled</Badge>
-              <span style={{ font: "400 11.5px var(--font-mono)", color: "var(--text-muted)" }}>TOTP</span>
+              {totpEnabled ? (
+                <React.Fragment>
+                  <Badge tone="ok" dot>two-factor enabled</Badge>
+                  <span style={{ font: "400 11.5px var(--font-mono)", color: "var(--text-muted)" }}>TOTP</span>
+                </React.Fragment>
+              ) : (
+                <React.Fragment>
+                  <Badge>two-factor off</Badge>
+                  <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>Add a second factor to your sign-in.</span>
+                  <Button size="sm" variant="secondary" style={{ marginLeft: "auto" }} onClick={() => toast("TOTP enrolment", "Scan the code with your authenticator.", "neutral")}>Enable two-factor</Button>
+                </React.Fragment>
+              )}
             </div>
           </div>
         </Card>
@@ -115,7 +126,7 @@ export function Profile({ onToast }) {
           { key: "prefix", label: "Token", mono: true, width: 150 },
           { key: "created", label: "Created", mono: true, width: 110 },
           { key: "last", label: "Last used", mono: true, width: 90 },
-          { key: "act", label: "", width: 52, align: "right", clip: false, render: (r) => <IconButton icon="trash-2" label="Revoke" size="sm" onClick={() => { setTokens(tokens.filter((t) => t.name !== r.name)); toast("Token revoked", r.name, "neutral"); }} /> },
+          { key: "act", label: "", width: 52, align: "right", clip: false, render: (r) => <IconButton icon="trash-2" label="Revoke" size="sm" onClick={() => setRevokeTok(r)} /> },
         ]} rows={tokens} rowKey="name" />
         <p style={{ margin: 0, padding: "10px 16px 14px", font: "400 12px/1.5 var(--font-ui)", color: "var(--text-muted)" }}>A token is scoped to your account and inherits your role. It is shown once at creation — Verge keeps only a hash.</p>
       </Card>
@@ -133,6 +144,10 @@ export function Profile({ onToast }) {
           <Input label="Token name" placeholder="laptop-cli" value={tokName} onChange={(e) => setTokName(e.target.value)} autoFocus />
         )}
       </Dialog>
+      <ConfirmDialog open={!!revokeTok} title={"Revoke " + (revokeTok ? revokeTok.name : "")} tone="danger" confirmLabel="Revoke token"
+        message="Any automation using this token stops working at once."
+        detail="This cannot be undone — a revoked token is never recoverable, only re-minted."
+        onConfirm={() => { setTokens(tokens.filter((t) => t.name !== revokeTok.name)); toast("Token revoked", revokeTok.name, "neutral"); }} onClose={() => setRevokeTok(null)} />
       <ConfirmDialog open={endOpen} title="End this session" tone="danger" confirmLabel="End session"
         message="You are signed out on this device and returned to sign-in."
         detail="This ends only this device. To sign a different device out, use “Sign out others” or revoke it from the Sessions list."

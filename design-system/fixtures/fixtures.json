@@ -231,5 +231,68 @@
     "incident_id": "err_9f3ka72c",
     "missing_subject": "stagng-5.acmecorp.io",
     "missing_run": "1408"
+  },
+  "profile": {
+    "account": {
+      "username": "ola.perez",
+      "role": "admin",
+      "created": "2026-04-11",
+      "totp_enabled": true,
+      "initials": "OP"
+    },
+    "sessions": [
+      {
+        "id": "s1",
+        "device": "Firefox · macOS",
+        "ip": "198.51.100.7",
+        "last_active": "now",
+        "current": true
+      },
+      {
+        "id": "s2",
+        "device": "CLI · verge@build-07",
+        "ip": "203.0.113.44",
+        "last_active": "2h",
+        "current": false
+      },
+      {
+        "id": "s3",
+        "device": "Safari · iOS",
+        "ip": "198.51.100.31",
+        "last_active": "3d",
+        "current": false
+      }
+    ],
+    "sso_identities": [
+      {
+        "id": "i1",
+        "provider": "Okta",
+        "display_name": "ola.perez@acmecorp.io",
+        "linked_at": "2026-06-30"
+      }
+    ],
+    "sso_providers": [
+      {
+        "slug": "google",
+        "name": "Google"
+      }
+    ],
+    "tokens": [
+      {
+        "id": "t1",
+        "name": "laptop-cli",
+        "prefix": "vg_pat_9f3k…",
+        "created": "2026-05-02",
+        "last": "2h"
+      },
+      {
+        "id": "t2",
+        "name": "grafana-readonly",
+        "prefix": "vg_pat_x81m…",
+        "created": "2026-07-19",
+        "last": "14d"
+      }
+    ],
+    "minted_token_fixture": "vg_pat_cigolden0example"
   }
 }

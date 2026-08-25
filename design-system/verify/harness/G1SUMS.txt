@@ -1,4 +1,4 @@
-9f500ba2f29d501d042a38290090c7d08cc1cbe9  design-system/fixtures/fixtures.json
+a8457734283058b6d00f071e07666296527aabf0  design-system/fixtures/fixtures.json
 a18d4ecb7ca9b7a286b6ed9a76b99470f145cf11  design-system/goldens/error/403-1440-dark.png
 2f07bfb453ca427e608caffc8ae3c8e21db129f9  design-system/goldens/error/403-1440-light.png
 febde73fc4df81af61c26b2fe68409daab6590c6  design-system/goldens/error/404-1440-dark.png
@@ -23,6 +23,7 @@ ebe4500776041847b17465282ac4be4900c32714  design-system/goldens/inventory/filter
 628e1c45788a54a25d1b9d09d1396f651b09dd72  design-system/goldens/inventory/gaps-only-1440-light.png
 19e5664a1a940564ced9e6f189aacd603a8b4f0f  design-system/templates/error.tmpl
 25f0e038a99f6f27fe6dba989bb738e4e1b28a4b  design-system/templates/inventory.tmpl
+8e3eac18a001dfc555ec7a1848f8aefd7d58262e  design-system/templates/profile.tmpl
 af1bab9a936d2642a957225a8a97fdc7386d3929  design-system/tokens/base.css
 77a01a08fecb7ac5df9439dd2044e1e184ecb587  design-system/tokens/colors.css
 5b6b748572efd8fe7013e8cc52099892bf7ea232  design-system/tokens/elevation.css
@@ -32,4 +33,4 @@ ce55c028dafb1edeef11ddafbe8690e5ce280bb6  design-system/tokens/radius.css
 15b202d10a3c6c26c4dd6bf49144c6fc404359bc  design-system/tokens/typography.css
 3c93d85c70fab4ca0c098c6775ed0a29b994ca8b  design-system/verify/PILOT-P4.0.md
 5c50f66e316a0409513e25deb5e10f73c06a7ea9  design-system/verify/config.json
-ded67a755d9692accd46c93811ba241d3e268ced  design-system/verify/states.json
+bdbfca7f5b3b63c8238bba0af7755427123f70e2  design-system/verify/states.json
