@@ -1,0 +1,335 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — graph.tmpl · package v3.10.0 · WORKFLOW.md v4
+  Source of truth: examples/console/GraphView.jsx + components/display/Graph.jsx · shot 08.
+  Replaces templates_graph.go (define "graph" kept; "sevbadge" from signals.tmpl reused).
+  Holes: .Graph{Empty, ViewW, ViewH, MiniW, MiniH, Edges[{X1,Y1,X2,Y2,ToService}],
+  Nodes[{ID,Label,Type(domain|subdomain|ip|service),X,Y,Mx,My,Sev,HaloA,HaloB,LabelDX,Ports,First,
+  OpenSignals[{Severity,SevLabel,Rule,Subject}]}]}.
+  Reconciliations (SPEC-CHANGE #22, ruled): .Type gains the domain|subdomain split (apex → domain:
+  r16, ink stroke sw2, 600 13px label; other names → subdomain: r10) and the legend names both
+  (#22e); halos carry the spec's two radii — .HaloA (r+7, fill 0.12) + .HaloB (r+4.5, ring 0.65)
+  replace .HaloR (#22f); the severity filter is the spec listbox (view JS; all nodes stay drawn,
+  halos + minimap dots light per level); node select draws the focus ring; the node drawer renders
+  the spec Drawer (scrim, 420px panel, slide-in, sunken 1-column KV, sev-badged signal list).
+  The pan/zoom/minimap/PNG-export engine is kept from the landed port (it is Graph.jsx translated).
+*/}}
+{{define "graph"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes gr-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes gr-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes gr-slide { from { opacity: 0.4; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+.gr-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.gr-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.gr-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.gr-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
+.gr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.gr-btn:hover { background: var(--surface-sunken); }
+.gr-listbox { position: relative; display: inline-flex; width: 170px; }
+.gr-listbox .trig { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px; background: var(--surface); color: var(--text-ink); font: 400 13px var(--font-ui); text-align: left; border: 1px solid var(--border-default); border-radius: 12px; cursor: pointer; }
+.gr-listbox .trig .cv { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gr-listbox .trig .chev { color: var(--text-muted); flex: none; transition: transform var(--dur-base) var(--ease-out); }
+.gr-listbox .trig[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.gr-listbox .trig[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.gr-listbox .panel { position: absolute; top: 100%; left: 0; margin-top: 6px; width: 100%; z-index: 95; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: gr-pop var(--dur-base) var(--ease-out); display: flex; flex-direction: column; }
+.gr-listbox .panel[hidden] { display: none; }
+.gr-listbox .opt { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
+.gr-listbox .opt:hover { background: var(--surface-sunken); }
+.gr-listbox .opt.on { color: var(--link); font-weight: 600; }
+.gr-listbox .opt .ck { margin-left: auto; display: inline-flex; color: var(--link); }
+.gnode { cursor: pointer; }
+.gnode .gbody { stroke-width: 1.5; }
+.gnode:hover .gbody { stroke-width: 2; }
+.gnode .gsel { display: none; }
+.gnode.sel .gsel { display: block; }
+.gr-legend { padding: 12px 20px; border-top: 1px solid var(--row-sep); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.gr-legend .it { display: inline-flex; align-items: center; gap: 7px; }
+.gr-legend .lb { font: 400 11px var(--font-mono); color: var(--text-secondary); }
+.gr-mini { position: absolute; left: 14px; bottom: 14px; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 10px; box-shadow: var(--shadow-md); padding: 6px; line-height: 0; }
+.gr-ctrl { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 3px; }
+.gr-ctrl button { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; font: 500 15px var(--font-mono); border-radius: 8px; transition: background var(--dur-fast) var(--ease-out); }
+.gr-ctrl button:hover { background: var(--surface-sunken); }
+.gr-scrim { position: fixed; inset: 0; z-index: 100; background: rgba(21,18,15,0.28); animation: gr-fade var(--dur-base) var(--ease-out); border: none; padding: 0; cursor: default; width: 100%; }
+.gr-drawer { position: fixed; top: 0; bottom: 0; right: 0; z-index: 101; width: min(420px, 92%); background: var(--surface); border-left: 1px solid var(--border-default); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; animation: gr-slide var(--dur-slow) var(--ease-out); }
+.gr-drawer .dh { display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px 0; flex: none; }
+.gr-drawer .dh h2 { margin: 0; font: 600 16px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); overflow-wrap: anywhere; }
+.gr-drawer .dh p { margin: 0; font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); }
+.gr-drawer .db { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+.gr-drawer .df { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--row-sep); background: var(--surface); }
+.gr-x { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; background: transparent; color: var(--text-secondary); border: 1px solid transparent; cursor: pointer; margin-left: auto; flex: none; transition: background var(--dur-fast) var(--ease-out); }
+.gr-x:hover { background: var(--surface-sunken); color: var(--text-body); }
+.gr-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.gr-kv { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
+.gr-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.gr-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.gr-kv .v.ui { font: 400 12.5px/1.5 var(--font-ui); }
+.gr-sigrow { display: flex; align-items: flex-start; gap: 10px; }
+.gr-sigrow .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gr-sigrow .t1 { font: 500 13px var(--font-ui); color: var(--text-ink); }
+.gr-sigrow .t2 { font: 400 11px var(--font-mono); color: var(--text-muted); overflow-wrap: anywhere; }
+.gr-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 48px 24px; font-family: var(--font-ui); }
+.gr-empty .ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+.gr-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.gr-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+.gr-empty .act { margin-top: 14px; }
+.gr-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.gr-btn-sm:hover { background: var(--surface-sunken); }
+</style>
+<main class="gr-main" data-screen-label="Graph">
+<header style="display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<h1>Graph</h1>
+<span class="gr-sub">How your assets connect. Halos mark open signals; drag to pan.</span>
+</div>
+{{if not .Graph.Empty}}
+<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+<span class="gr-listbox">
+<button type="button" class="trig" id="gr-sev-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cv">All severities</span><svg class="chev" viewBox="0 0 16 16" width="14" height="14"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+<div class="panel" id="gr-sev-panel" hidden>
+<button type="button" class="opt on" data-sev="all">All severities<span class="ck"><svg viewBox="0 0 18 18" width="13" height="13"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></button>
+<button type="button" class="opt" data-sev="critical">Critical</button>
+<button type="button" class="opt" data-sev="high">High</button>
+<button type="button" class="opt" data-sev="medium">Medium</button>
+<button type="button" class="opt" data-sev="low">Low</button>
+<button type="button" class="opt" data-sev="info">Info</button>
+</div>
+</span>
+<button type="button" class="gr-btn" id="gr-export"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Export PNG</button>
+</div>
+{{end}}
+</header>
+{{if .Graph.Empty}}
+<div class="gr-card"><div class="gr-empty">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><circle cx="19" cy="5" r="2"></circle><circle cx="5" cy="19" r="2"></circle><path d="M10.4 9.6 6.3 17.2"></path><path d="m13.6 9.6 4.1-3.2"></path></svg></span>
+<span class="msg">Nothing to plot yet</span>
+<span class="det">The graph draws from the same subjects the inventory holds. Declare a scope and let a scan measure a subject into the estate to populate it.</span>
+<span class="act"><a class="gr-btn-sm" href="/scope">Go to Scope</a></span>
+</div></div>
+{{else}}
+<div class="gr-card">
+<div style="position:relative" id="gr-canvas">
+<svg id="gr-svg" viewBox="0 0 {{.Graph.ViewW}} {{.Graph.ViewH}}" style="display:block;width:100%;height:560px;cursor:grab;touch-action:none">
+<g id="gr-viewport" transform="translate(0,0) scale(1)">
+{{range .Graph.Edges}}<line x1="{{.X1}}" y1="{{.Y1}}" x2="{{.X2}}" y2="{{.Y2}}" stroke="{{if .ToService}}var(--border-default){{else}}var(--border-strong){{end}}" stroke-width="1.25"></line>
+{{end}}
+{{range .Graph.Nodes}}<g class="gnode" data-id="{{.ID}}" data-type="{{.Type}}" data-ports="{{.Ports}}" data-first="{{.First}}" data-sev="{{.Sev}}" transform="translate({{.X}},{{.Y}})">
+{{if .Sev}}<circle class="gnode-halo" r="{{.HaloA}}" fill="var(--sev-{{.Sev}}-dot)" opacity="0.12"></circle><circle class="gnode-halo" r="{{.HaloB}}" fill="none" stroke="var(--sev-{{.Sev}}-dot)" stroke-width="2" opacity="0.65"></circle>
+{{end}}{{if eq .Type "domain"}}<circle class="gsel" r="25" fill="none" stroke="var(--focus-ring)" stroke-width="2.5"></circle><circle class="gbody" r="16" fill="var(--surface)" stroke="var(--text-ink)" style="stroke-width:2"></circle>
+{{else if eq .Type "ip"}}<circle class="gsel" r="18" fill="none" stroke="var(--focus-ring)" stroke-width="2.5"></circle><rect class="gbody" x="-9" y="-9" width="18" height="18" rx="5" fill="var(--surface)" stroke="var(--text-secondary)"></rect>
+{{else if eq .Type "service"}}<circle class="gsel" r="15" fill="none" stroke="var(--focus-ring)" stroke-width="2.5"></circle><circle class="gbody" r="6" fill="{{if .Sev}}var(--sev-{{.Sev}}-dot){{else}}var(--surface){{end}}" stroke="{{if .Sev}}var(--surface){{else}}var(--neutral-500){{end}}"></circle>
+{{else}}<circle class="gsel" r="19" fill="none" stroke="var(--focus-ring)" stroke-width="2.5"></circle><circle class="gbody" r="10" fill="var(--surface)" stroke="var(--neutral-500)"></circle>
+{{end}}<text x="{{.LabelDX}}" y="4" style="font:{{if eq .Type "domain"}}600 13px{{else}}400 11px{{end}} var(--font-mono);fill:{{if eq .Type "domain"}}var(--text-ink){{else}}var(--text-secondary){{end}};user-select:none">{{.Label}}</text>
+</g>
+{{end}}
+</g>
+</svg>
+<div class="gr-mini" id="gr-minimap">
+<svg width="{{.Graph.MiniW}}" height="{{.Graph.MiniH}}">
+{{range .Graph.Nodes}}<circle data-id="{{.ID}}" data-sev="{{.Sev}}" cx="{{.Mx}}" cy="{{.My}}" r="1.5" fill="{{if .Sev}}var(--sev-{{.Sev}}-dot){{else}}var(--neutral-400){{end}}"></circle>{{end}}
+<rect id="gr-mini-rect" data-mw="{{.Graph.MiniW}}" data-mh="{{.Graph.MiniH}}" x="0" y="0" width="{{.Graph.MiniW}}" height="{{.Graph.MiniH}}" rx="3" fill="none" stroke="var(--accent)" stroke-width="1.5"></rect>
+</svg>
+</div>
+<div class="gr-ctrl">
+<button type="button" data-gr-zoom="in" aria-label="Zoom in">+</button>
+<button type="button" data-gr-zoom="out" aria-label="Zoom out">−</button>
+<button type="button" data-gr-zoom="reset" aria-label="Reset view">⤢</button>
+</div>
+</div>
+<div class="gr-legend">
+<span class="it"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="var(--surface)" stroke="var(--text-ink)" stroke-width="2"></circle></svg><span class="lb">domain</span></span>
+<span class="it"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="var(--surface)" stroke="var(--neutral-500)" stroke-width="1.5"></circle></svg><span class="lb">subdomain</span></span>
+<span class="it"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="3.5" fill="var(--surface)" stroke="var(--text-secondary)" stroke-width="1.5"></rect></svg><span class="lb">ip</span></span>
+<span class="it"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" fill="var(--neutral-500)"></circle></svg><span class="lb">service</span></span>
+<span class="it"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" fill="var(--sev-critical-dot)" opacity="0.15"></circle><circle cx="9" cy="9" r="6" fill="none" stroke="var(--sev-critical-dot)" stroke-width="2" opacity="0.7"></circle><circle cx="9" cy="9" r="3" fill="var(--surface)" stroke="var(--neutral-500)" stroke-width="1.5"></circle></svg><span class="lb">open signal halo</span></span>
+</div>
+</div>
+<div id="gr-drawer" hidden>
+<button type="button" class="gr-scrim" data-gr-close aria-label="Close detail"></button>
+<aside class="gr-drawer" role="dialog" aria-modal="true" aria-label="Node detail">
+<div class="dh">
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+<h2 id="gd-title"></h2>
+<p id="gd-sub"></p>
+</div>
+<button type="button" class="gr-x" data-gr-close aria-label="Close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+</div>
+<div class="db">
+<div class="gr-kv">
+<div class="cell"><span class="gr-micro">Node</span><span class="v" id="gd-node"></span></div>
+<div class="cell"><span class="gr-micro">Type</span><span class="v ui" id="gd-type"></span></div>
+<div class="cell"><span class="gr-micro">Open ports</span><span class="v" id="gd-ports"></span></div>
+<div class="cell"><span class="gr-micro">First seen</span><span class="v" id="gd-first"></span></div>
+</div>
+<div>
+<div class="gr-micro" style="margin-bottom:10px">Open signals</div>
+<div id="gd-signals" style="display:flex;flex-direction:column;gap:10px" hidden></div>
+<span id="gd-signals-empty" style="font:400 12.5px var(--font-ui);color:var(--text-muted)">No open signals on this node.</span>
+</div>
+</div>
+<div class="df"><button type="button" class="gr-btn" data-gr-close>Close</button></div>
+</aside>
+</div>
+<div id="gr-signal-data" hidden>
+{{range $n := .Graph.Nodes}}<div data-for="{{$n.ID}}">{{range $n.OpenSignals}}<div class="gr-sigrow">
+{{template "sevbadge" .}}
+<span class="t"><span class="t1">{{.Rule}}</span>{{if ne .Subject $n.ID}}<span class="t2">{{.Subject}}</span>{{end}}</span>
+</div>{{end}}</div>{{end}}
+</div>
+{{end}}
+</main>
+{{if not .Graph.Empty}}
+<script>
+(function () {
+  var svg = document.getElementById("gr-svg");
+  if (!svg) return;
+  var vp = document.getElementById("gr-viewport");
+  var VW = {{.Graph.ViewW}}, VH = {{.Graph.ViewH}};
+  var view = { x: 0, y: 0, k: 1 };
+  var drag = null, movedRecently = false;
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function apply() {
+    vp.setAttribute("transform", "translate(" + view.x + "," + view.y + ") scale(" + view.k + ")");
+    updateMini();
+  }
+  function zoomAt(f, cx, cy) {
+    var k = clamp(view.k * f, 0.5, 2.5);
+    view.x = cx - (cx - view.x) * (k / view.k);
+    view.y = cy - (cy - view.y) * (k / view.k);
+    view.k = k; apply();
+  }
+  function zoom(f) { zoomAt(f, VW / 2, VH / 2); }
+  svg.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    var r = svg.getBoundingClientRect();
+    var s = VW / (r.width || VW);
+    zoomAt(e.deltaY < 0 ? 1.15 : 0.87, (e.clientX - r.left) * s, (e.clientY - r.top) * s);
+  }, { passive: false });
+  svg.addEventListener("pointerdown", function (e) {
+    drag = { sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y, moved: false, pid: e.pointerId };
+  });
+  svg.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+    if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 3) {
+      drag.moved = true;
+      try { svg.setPointerCapture(drag.pid); } catch (err) {}
+      svg.style.cursor = "grabbing";
+    }
+    if (!drag.moved) return;
+    var r = svg.getBoundingClientRect();
+    var s = VW / (r.width || VW);
+    view.x = drag.ox + dx * s; view.y = drag.oy + dy * s; apply();
+  });
+  function endDrag() {
+    if (drag && drag.moved) { movedRecently = true; setTimeout(function () { movedRecently = false; }, 0); }
+    svg.style.cursor = "grab"; drag = null;
+  }
+  svg.addEventListener("pointerup", endDrag);
+  svg.addEventListener("pointerleave", endDrag);
+  [].forEach.call(document.querySelectorAll("[data-gr-zoom]"), function (b) {
+    b.addEventListener("click", function () {
+      var m = b.getAttribute("data-gr-zoom");
+      if (m === "in") zoom(1.25);
+      else if (m === "out") zoom(0.8);
+      else { view = { x: 0, y: 0, k: 1 }; apply(); }
+    });
+  });
+  var mrect = document.getElementById("gr-mini-rect");
+  function updateMini() {
+    if (!mrect) return;
+    var mw = +mrect.getAttribute("data-mw"), mh = +mrect.getAttribute("data-mh");
+    var s = mw / VW;
+    var vx = clamp((-view.x / view.k) * s, 0, mw), vy = clamp((-view.y / view.k) * s, 0, mh);
+    var vw = clamp((VW / view.k) * s, 8, mw - vx), vh = clamp((VH / view.k) * s, 8, mh - vy);
+    mrect.setAttribute("x", vx); mrect.setAttribute("y", vy);
+    mrect.setAttribute("width", vw); mrect.setAttribute("height", vh);
+  }
+  var drawer = document.getElementById("gr-drawer"), selNode = null;
+  function txt(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+  function openDrawer(g) {
+    if (selNode) selNode.classList.remove("sel");
+    selNode = g; g.classList.add("sel");
+    var id = g.getAttribute("data-id"), type = g.getAttribute("data-type");
+    txt("gd-title", id); txt("gd-sub", type); txt("gd-node", id); txt("gd-type", type);
+    txt("gd-ports", g.getAttribute("data-ports") || "—");
+    txt("gd-first", g.getAttribute("data-first") || "—");
+    var box = document.getElementById("gd-signals");
+    var empty = document.getElementById("gd-signals-empty");
+    var src = document.querySelector('#gr-signal-data [data-for="' + id + '"]');
+    if (box && src && src.children.length) {
+      box.innerHTML = src.innerHTML;
+      box.removeAttribute("hidden");
+      if (empty) empty.setAttribute("hidden", "");
+    } else {
+      if (box) { box.innerHTML = ""; box.setAttribute("hidden", ""); }
+      if (empty) empty.removeAttribute("hidden");
+    }
+    drawer.removeAttribute("hidden");
+  }
+  function closeDrawer() {
+    if (drawer) drawer.setAttribute("hidden", "");
+    if (selNode) { selNode.classList.remove("sel"); selNode = null; }
+  }
+  [].forEach.call(document.querySelectorAll(".gnode"), function (g) {
+    g.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (movedRecently) return;
+      openDrawer(g);
+    });
+  });
+  [].forEach.call(document.querySelectorAll("[data-gr-close]"), function (c) { c.addEventListener("click", closeDrawer); });
+  var sb = document.getElementById("gr-sev-btn"), sp = document.getElementById("gr-sev-panel");
+  function litFor(sev, mode) { return !!sev && (mode === "all" || mode === sev); }
+  if (sb && sp) {
+    sb.addEventListener("click", function (e) { e.stopPropagation(); var open = sp.hasAttribute("hidden"); if (open) sp.removeAttribute("hidden"); else sp.setAttribute("hidden", ""); sb.setAttribute("aria-expanded", open ? "true" : "false"); });
+    document.addEventListener("mousedown", function (e) { if (!sp.hasAttribute("hidden") && !sp.contains(e.target) && !sb.contains(e.target)) { sp.setAttribute("hidden", ""); sb.setAttribute("aria-expanded", "false"); } });
+    [].forEach.call(sp.querySelectorAll(".opt"), function (o) {
+      o.addEventListener("click", function () {
+        var mode = o.getAttribute("data-sev");
+        sb.querySelector(".cv").textContent = o.textContent;
+        [].forEach.call(sp.querySelectorAll(".opt"), function (x) {
+          var on = x === o;
+          x.classList.toggle("on", on);
+          var ck = x.querySelector(".ck"); if (ck) ck.remove();
+          if (on) x.insertAdjacentHTML("beforeend", '<span class="ck"><svg viewBox="0 0 18 18" width="13" height="13"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>');
+        });
+        sp.setAttribute("hidden", ""); sb.setAttribute("aria-expanded", "false");
+        [].forEach.call(document.querySelectorAll(".gnode"), function (n) {
+          var lit = litFor(n.getAttribute("data-sev"), mode);
+          [].forEach.call(n.querySelectorAll(".gnode-halo"), function (h) { h.style.display = lit ? "" : "none"; });
+        });
+        [].forEach.call(document.querySelectorAll("#gr-minimap circle[data-id]"), function (d) {
+          var s = d.getAttribute("data-sev");
+          d.setAttribute("fill", litFor(s, mode) ? "var(--sev-" + s + "-dot)" : "var(--neutral-400)");
+        });
+      });
+    });
+  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (sp && !sp.hasAttribute("hidden")) { sp.setAttribute("hidden", ""); sb.setAttribute("aria-expanded", "false"); return; }
+    closeDrawer();
+  });
+  var exp = document.getElementById("gr-export");
+  if (exp) exp.addEventListener("click", function () {
+    try {
+      var xml = new XMLSerializer().serializeToString(svg);
+      var img = new Image();
+      img.onload = function () {
+        var cv = document.createElement("canvas");
+        cv.width = VW; cv.height = VH;
+        var ctx = cv.getContext("2d");
+        ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
+        ctx.fillRect(0, 0, VW, VH);
+        ctx.drawImage(img, 0, 0, VW, VH);
+        var a = document.createElement("a");
+        a.download = "graph.png"; a.href = cv.toDataURL("image/png"); a.click();
+      };
+      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(xml)));
+    } catch (err) {}
+  });
+  apply();
+})();
+</script>
+{{end}}
+{{template "foot" .}}{{end}}

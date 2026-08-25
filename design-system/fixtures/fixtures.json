@@ -1356,5 +1356,1062 @@
       }
     },
     "history_rule": "Still present (accent, detail 'vantage eu-west-1 re-confirmed', time=seen) · Drift detected (warn, mono, '<asset> changed', time=seen, only when a diff exists) · Signal raised (danger for critical/high else neutral, mono, detail=id, time=first) · Asset discovered (neutral, mono, detail=asset, time=2026-08-12)"
+  },
+  "asset": {
+    "key": "edge-gw-03.acmecorp.io",
+    "type": "subdomain",
+    "severity": "critical",
+    "sev_label": "Critical",
+    "exposure": "exposed",
+    "seen": "4m",
+    "in_scope_since": "2026-06-14",
+    "withdrawn": false,
+    "ports": [
+      {
+        "port": ":443",
+        "service": "https · nginx/1.25.0",
+        "exposure": "exposed",
+        "since": "2026-06-14"
+      },
+      {
+        "port": ":5900",
+        "service": "vnc — no transport encryption",
+        "exposure": "exposed",
+        "since": "2026-08-22"
+      },
+      {
+        "port": ":22",
+        "service": "ssh · OpenSSH 9.6",
+        "exposure": "firewalled",
+        "since": "2026-06-14"
+      }
+    ],
+    "dns": [
+      {
+        "type": "A",
+        "value": "203.0.113.7",
+        "seen": "4m"
+      },
+      {
+        "type": "AAAA",
+        "value": "2001:db8::7",
+        "seen": "4m"
+      },
+      {
+        "type": "TXT",
+        "value": "verge-custody=vg_7f2a91c4",
+        "seen": "6h"
+      }
+    ],
+    "cert": {
+      "name": "edge-gw-03.acmecorp.io",
+      "issuer": "CN=R11, O=Let's Encrypt",
+      "algorithm": "ECDSA-SHA256",
+      "not_after": "2026-10-08",
+      "days_left": 47,
+      "tone": "ok",
+      "label": "valid · 47d",
+      "fingerprint": "SHA256:2b:9e:44:a1:7c:03:d8:f2:61:5b:c9:10:8e:af:72:d4"
+    },
+    "provenance": [
+      {
+        "k": "Seed",
+        "v": "acmecorp.io"
+      },
+      {
+        "k": "Via",
+        "v": "CT log → dns sweep"
+      },
+      {
+        "k": "Vantage",
+        "v": "eu-west-1"
+      },
+      {
+        "k": "Custody",
+        "v": "verified · TXT record"
+      },
+      {
+        "k": "First seen",
+        "v": "2026-06-14"
+      }
+    ],
+    "signals": [
+      {
+        "severity": "critical",
+        "sev_label": "Critical",
+        "rule": ":5900 vnc — no transport encryption",
+        "sig_id": "SIG-1042",
+        "time": "4m"
+      }
+    ],
+    "drift": [
+      {
+        "change": "changed",
+        "family": "change",
+        "subject": ":443 service banner",
+        "detail": "nginx/1.24.0 → 1.25.0",
+        "time": "4m"
+      },
+      {
+        "change": "appeared",
+        "family": "gain",
+        "subject": ":5900 vnc",
+        "detail": "service · new in batch 14:00Z",
+        "time": "4m"
+      },
+      {
+        "change": "changed",
+        "family": "change",
+        "subject": "certificate",
+        "detail": "renewed · Let's Encrypt R11",
+        "time": "12d"
+      },
+      {
+        "change": "appeared",
+        "family": "gain",
+        "subject": "edge-gw-03.acmecorp.io",
+        "detail": "name · first seen via certificate transparency",
+        "time": "69d"
+      }
+    ]
+  },
+  "subjectdetail": {
+    "service": {
+      "key": "203.0.113.7:5900/tcp",
+      "copy_key": "203.0.113.7:5900 tcp",
+      "withdrawn": false,
+      "exposure": "exposed",
+      "seen": "4m",
+      "in_scope_since": "2026-08-22",
+      "citation": [
+        {
+          "label": "Service",
+          "value": "203.0.113.7:5900/tcp",
+          "detail": "an (address, port, transport) triple"
+        },
+        {
+          "label": "Address · cited by a current resolution",
+          "value": "203.0.113.7"
+        },
+        {
+          "label": "Name · citing resolution",
+          "value": "edge-gw-03.acmecorp.io",
+          "detail": "A record, seen 4m ago"
+        },
+        {
+          "label": "Seed · name scope",
+          "value": "acmecorp.io",
+          "detail": "declared 2026-06-14 · custody verified"
+        }
+      ],
+      "citation_terminated": true,
+      "address": "203.0.113.7",
+      "port": "5900",
+      "transport": "tcp",
+      "reach": "reached",
+      "since": "2026-08-22T14:00Z",
+      "timelines": [
+        {
+          "label": "reachability",
+          "current": {
+            "is_gap": false,
+            "value": "reached",
+            "opened_at": "2026-08-22T14:00Z"
+          },
+          "breaks": [
+            {
+              "at": "2026-08-01T06:00Z",
+              "moved_leaves": "transport"
+            }
+          ],
+          "closed": [
+            {
+              "value": "not-reached",
+              "opened_at": "2026-07-14",
+              "opened_full": "2026-07-14T06:00Z",
+              "closed_at": "2026-08-22",
+              "closed_full": "2026-08-22T14:00Z",
+              "reason": "changed"
+            },
+            {
+              "is_gap": true,
+              "value": "Gap",
+              "opened_at": "2026-07-02",
+              "opened_full": "2026-07-02T06:00Z",
+              "closed_at": "2026-07-14",
+              "closed_full": "2026-07-14T06:00Z",
+              "reason": "stopped looking"
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "rule": "vnc-exposure",
+          "version": 3,
+          "severity": "critical",
+          "sev_label": "Critical",
+          "fired": true
+        },
+        {
+          "rule": "tls-acceptance",
+          "version": 2,
+          "severity": "high",
+          "sev_label": "High",
+          "fired": false
+        }
+      ],
+      "provenance": [
+        {
+          "k": "Seed",
+          "v": "acmecorp.io"
+        },
+        {
+          "k": "Via",
+          "v": "dns sweep → hot scan"
+        },
+        {
+          "k": "Vantage",
+          "v": "eu-west-1"
+        },
+        {
+          "k": "First seen",
+          "v": "2026-08-22"
+        }
+      ],
+      "signals": [
+        {
+          "severity": "critical",
+          "sev_label": "Critical",
+          "rule": ":5900 vnc — no transport encryption",
+          "sig_id": "SIG-1042",
+          "time": "4m"
+        }
+      ]
+    },
+    "service_withdrawn": {
+      "key": "203.0.113.29:8080/tcp",
+      "copy_key": "203.0.113.29:8080 tcp",
+      "withdrawn": true,
+      "seen": "12d",
+      "in_scope_since": "2026-07-18",
+      "citation": [
+        {
+          "label": "Service",
+          "value": "203.0.113.29:8080/tcp",
+          "detail": "an (address, port, transport) triple"
+        },
+        {
+          "label": "Address · formerly cited",
+          "value": "203.0.113.29"
+        },
+        {
+          "label": "Name · last citing resolution",
+          "value": "jenkins.acmecorp.io",
+          "detail": "A record, last seen 12d ago"
+        },
+        {
+          "label": "Seed · name scope",
+          "value": "acmecorp.io",
+          "detail": "declared 2026-06-14 · custody verified"
+        }
+      ],
+      "citation_terminated": true,
+      "address": "203.0.113.29",
+      "port": "8080",
+      "transport": "tcp",
+      "reach": "",
+      "since": "",
+      "timelines": [
+        {
+          "label": "reachability",
+          "current": null,
+          "breaks": [],
+          "closed": [
+            {
+              "value": "reached",
+              "opened_at": "2026-07-18",
+              "opened_full": "2026-07-18T08:40Z",
+              "closed_at": "2026-08-10",
+              "closed_full": "2026-08-10T13:25Z",
+              "reason": "withdrawn"
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "rule": "admin-panel-reachable",
+          "version": 1,
+          "severity": "high",
+          "sev_label": "High",
+          "fired": false
+        }
+      ],
+      "provenance": [
+        {
+          "k": "Seed",
+          "v": "acmecorp.io"
+        },
+        {
+          "k": "Via",
+          "v": "dns sweep → hot scan"
+        },
+        {
+          "k": "Vantage",
+          "v": "eu-west-1"
+        },
+        {
+          "k": "First seen",
+          "v": "2026-07-18"
+        }
+      ],
+      "signals": []
+    },
+    "endpoint": {
+      "key": "edge-gw-03.acmecorp.io · :443 https",
+      "copy_key": "edge-gw-03.acmecorp.io 203.0.113.7:443 tcp",
+      "nameless": false,
+      "withdrawn": false,
+      "seen": "4m",
+      "in_scope_since": "2026-06-14",
+      "citation": [
+        {
+          "label": "Endpoint",
+          "value": "edge-gw-03.acmecorp.io · :443 https",
+          "detail": "a (Name, Service) pair — the only key under which HTTP identity is single-valued"
+        },
+        {
+          "label": "Name leg",
+          "value": "edge-gw-03.acmecorp.io"
+        },
+        {
+          "label": "Service leg",
+          "value": "203.0.113.7:443/tcp"
+        },
+        {
+          "label": "Seed · name scope",
+          "value": "acmecorp.io",
+          "detail": "declared 2026-06-14 · custody verified"
+        }
+      ],
+      "citation_terminated": true,
+      "name": "edge-gw-03.acmecorp.io",
+      "service": "203.0.113.7:443/tcp",
+      "has_identity": true,
+      "status": "200",
+      "server": "nginx/1.25.0",
+      "title": "Acme edge gateway",
+      "redirect_location": "",
+      "www_authenticate": "",
+      "timelines": [
+        {
+          "label": "http-identity",
+          "current": {
+            "is_gap": false,
+            "value": "200 · nginx/1.25.0",
+            "opened_at": "2026-08-12T06:00Z"
+          },
+          "breaks": [],
+          "closed": [
+            {
+              "value": "200 · nginx/1.24.0",
+              "opened_at": "2026-06-14",
+              "opened_full": "2026-06-14T09:00Z",
+              "closed_at": "2026-08-12",
+              "closed_full": "2026-08-12T06:00Z",
+              "reason": "changed"
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "rule": "admin-panel-reachable",
+          "version": 1,
+          "severity": "high",
+          "sev_label": "High",
+          "fired": false
+        },
+        {
+          "rule": "verbose-server-header",
+          "version": 2,
+          "severity": "low",
+          "sev_label": "Low",
+          "fired": true
+        }
+      ],
+      "provenance": [
+        {
+          "k": "Seed",
+          "v": "acmecorp.io"
+        },
+        {
+          "k": "Via",
+          "v": "resolution × service join"
+        },
+        {
+          "k": "Vantage",
+          "v": "eu-west-1"
+        },
+        {
+          "k": "First seen",
+          "v": "2026-06-14"
+        }
+      ]
+    }
+  },
+  "graph": {
+    "empty": false,
+    "view_w": 1200,
+    "view_h": 640,
+    "mini_w": 110,
+    "mini_h": 59,
+    "nodes": [
+      {
+        "id": "acmecorp.io",
+        "label": "acmecorp.io",
+        "type": "domain",
+        "x": 90,
+        "y": 320,
+        "mx": 8.3,
+        "my": 29.3,
+        "sev": "medium",
+        "halo_a": 23,
+        "halo_b": 20.5,
+        "label_dx": 25,
+        "ports": ":80 :443",
+        "first": "2026-05-19T07:58:41Z",
+        "open_signals": [
+          {
+            "severity": "medium",
+            "sev_label": "Medium",
+            "rule": "dns-mail-policy",
+            "subject": "acmecorp.io"
+          }
+        ]
+      },
+      {
+        "id": "www.acmecorp.io",
+        "label": "www",
+        "type": "subdomain",
+        "x": 400,
+        "y": 52,
+        "mx": 36.7,
+        "my": 4.8,
+        "sev": "low",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "api.acmecorp.io",
+        "label": "api",
+        "type": "subdomain",
+        "x": 400,
+        "y": 112,
+        "mx": 36.7,
+        "my": 10.3,
+        "sev": "high",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": ":443",
+        "first": "2026-05-19T08:00:12Z",
+        "open_signals": [
+          {
+            "severity": "high",
+            "sev_label": "High",
+            "rule": "outdated-nginx",
+            "subject": "api.acmecorp.io :443"
+          }
+        ]
+      },
+      {
+        "id": "vpn.acmecorp.io",
+        "label": "vpn",
+        "type": "subdomain",
+        "x": 400,
+        "y": 172,
+        "mx": 36.7,
+        "my": 15.8,
+        "sev": "critical",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": ":443 :1194",
+        "first": "2026-06-02T11:40:00Z",
+        "open_signals": [
+          {
+            "severity": "critical",
+            "sev_label": "Critical",
+            "rule": "tls-cert-expired",
+            "subject": "vpn.acmecorp.io :443"
+          }
+        ]
+      },
+      {
+        "id": "mail.acmecorp.io",
+        "label": "mail",
+        "type": "subdomain",
+        "x": 400,
+        "y": 232,
+        "mx": 36.7,
+        "my": 21.3,
+        "sev": "",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "grafana.acmecorp.io",
+        "label": "grafana",
+        "type": "subdomain",
+        "x": 400,
+        "y": 292,
+        "mx": 36.7,
+        "my": 26.8,
+        "sev": "high",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "edge-gw-03.acmecorp.io",
+        "label": "edge-gw-03",
+        "type": "subdomain",
+        "x": 400,
+        "y": 352,
+        "mx": 36.7,
+        "my": 32.3,
+        "sev": "critical",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": ":443 :5900",
+        "first": "2026-08-12T09:14:33Z",
+        "open_signals": [
+          {
+            "severity": "critical",
+            "sev_label": "Critical",
+            "rule": "vnc-exposure",
+            "subject": ":5900 vnc"
+          }
+        ]
+      },
+      {
+        "id": "build-07.acmecorp.io",
+        "label": "build-07",
+        "type": "subdomain",
+        "x": 400,
+        "y": 412,
+        "mx": 36.7,
+        "my": 37.8,
+        "sev": "high",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "assets.acmecorp.io",
+        "label": "assets",
+        "type": "subdomain",
+        "x": 400,
+        "y": 472,
+        "mx": 36.7,
+        "my": 43.3,
+        "sev": "medium",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "old-blog.acmecorp.io",
+        "label": "old-blog",
+        "type": "subdomain",
+        "x": 400,
+        "y": 532,
+        "mx": 36.7,
+        "my": 48.8,
+        "sev": "medium",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "staging-4.acmecorp.io",
+        "label": "staging-4",
+        "type": "subdomain",
+        "x": 400,
+        "y": 592,
+        "mx": 36.7,
+        "my": 54.3,
+        "sev": "info",
+        "halo_a": 17,
+        "halo_b": 14.5,
+        "label_dx": 19,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.4",
+        "label": "203.0.113.4",
+        "type": "ip",
+        "x": 730,
+        "y": 80,
+        "mx": 66.9,
+        "my": 7.3,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.9",
+        "label": "203.0.113.9",
+        "type": "ip",
+        "x": 730,
+        "y": 138,
+        "mx": 66.9,
+        "my": 12.7,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.12",
+        "label": "203.0.113.12",
+        "type": "ip",
+        "x": 730,
+        "y": 196,
+        "mx": 66.9,
+        "my": 18,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.25",
+        "label": "203.0.113.25",
+        "type": "ip",
+        "x": 730,
+        "y": 254,
+        "mx": 66.9,
+        "my": 23.3,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.31",
+        "label": "203.0.113.31",
+        "type": "ip",
+        "x": 730,
+        "y": 312,
+        "mx": 66.9,
+        "my": 28.6,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.7",
+        "label": "203.0.113.7",
+        "type": "ip",
+        "x": 730,
+        "y": 370,
+        "mx": 66.9,
+        "my": 33.9,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.44",
+        "label": "203.0.113.44",
+        "type": "ip",
+        "x": 730,
+        "y": 428,
+        "mx": 66.9,
+        "my": 39.2,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.18",
+        "label": "203.0.113.18",
+        "type": "ip",
+        "x": 730,
+        "y": 486,
+        "mx": 66.9,
+        "my": 44.5,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "203.0.113.61",
+        "label": "203.0.113.61",
+        "type": "ip",
+        "x": 730,
+        "y": 544,
+        "mx": 66.9,
+        "my": 49.9,
+        "sev": "",
+        "halo_a": 16,
+        "halo_b": 13.5,
+        "label_dx": 18,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "svc-0",
+        "label": ":443 https",
+        "type": "service",
+        "x": 1030,
+        "y": 100,
+        "mx": 94.4,
+        "my": 9.2,
+        "sev": "",
+        "halo_a": 13,
+        "halo_b": 10.5,
+        "label_dx": 15,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "svc-1",
+        "label": ":5900 vnc",
+        "type": "service",
+        "x": 1030,
+        "y": 168,
+        "mx": 94.4,
+        "my": 15.4,
+        "sev": "critical",
+        "halo_a": 13,
+        "halo_b": 10.5,
+        "label_dx": 15,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "svc-2",
+        "label": ":443 nginx",
+        "type": "service",
+        "x": 1030,
+        "y": 236,
+        "mx": 94.4,
+        "my": 21.6,
+        "sev": "high",
+        "halo_a": 13,
+        "halo_b": 10.5,
+        "label_dx": 15,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "svc-3",
+        "label": ":443 tls",
+        "type": "service",
+        "x": 1030,
+        "y": 304,
+        "mx": 94.4,
+        "my": 27.9,
+        "sev": "critical",
+        "halo_a": 13,
+        "halo_b": 10.5,
+        "label_dx": 15,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "svc-4",
+        "label": ":25 smtp",
+        "type": "service",
+        "x": 1030,
+        "y": 372,
+        "mx": 94.4,
+        "my": 34.1,
+        "sev": "low",
+        "halo_a": 13,
+        "halo_b": 10.5,
+        "label_dx": 15,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "svc-5",
+        "label": ":3000 http",
+        "type": "service",
+        "x": 1030,
+        "y": 440,
+        "mx": 94.4,
+        "my": 40.3,
+        "sev": "high",
+        "halo_a": 13,
+        "halo_b": 10.5,
+        "label_dx": 15,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      },
+      {
+        "id": "svc-6",
+        "label": ":22 ssh",
+        "type": "service",
+        "x": 1030,
+        "y": 508,
+        "mx": 94.4,
+        "my": 46.6,
+        "sev": "high",
+        "halo_a": 13,
+        "halo_b": 10.5,
+        "label_dx": 15,
+        "ports": "",
+        "first": "",
+        "open_signals": []
+      }
+    ],
+    "edges": [
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 52,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 112,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 172,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 232,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 292,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 352,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 412,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 472,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 532,
+        "to_service": false
+      },
+      {
+        "x1": 90,
+        "y1": 320,
+        "x2": 400,
+        "y2": 592,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 52,
+        "x2": 730,
+        "y2": 80,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 112,
+        "x2": 730,
+        "y2": 138,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 172,
+        "x2": 730,
+        "y2": 196,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 232,
+        "x2": 730,
+        "y2": 254,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 292,
+        "x2": 730,
+        "y2": 312,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 352,
+        "x2": 730,
+        "y2": 370,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 412,
+        "x2": 730,
+        "y2": 428,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 472,
+        "x2": 730,
+        "y2": 486,
+        "to_service": false
+      },
+      {
+        "x1": 400,
+        "y1": 592,
+        "x2": 730,
+        "y2": 544,
+        "to_service": false
+      },
+      {
+        "x1": 730,
+        "y1": 80,
+        "x2": 1030,
+        "y2": 100,
+        "to_service": true
+      },
+      {
+        "x1": 730,
+        "y1": 370,
+        "x2": 1030,
+        "y2": 168,
+        "to_service": true
+      },
+      {
+        "x1": 730,
+        "y1": 138,
+        "x2": 1030,
+        "y2": 236,
+        "to_service": true
+      },
+      {
+        "x1": 730,
+        "y1": 196,
+        "x2": 1030,
+        "y2": 304,
+        "to_service": true
+      },
+      {
+        "x1": 730,
+        "y1": 254,
+        "x2": 1030,
+        "y2": 372,
+        "to_service": true
+      },
+      {
+        "x1": 730,
+        "y1": 312,
+        "x2": 1030,
+        "y2": 440,
+        "to_service": true
+      },
+      {
+        "x1": 730,
+        "y1": 428,
+        "x2": 1030,
+        "y2": 508,
+        "to_service": true
+      }
+    ]
   }
 }

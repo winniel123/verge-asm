@@ -366,5 +366,64 @@
         "js": "document.querySelector('[data-menu-btn]').click()"
       }
     ]
+  },
+  "asset": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/asset/edge-gw-03.acmecorp.io",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "subjectdetail": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "service",
+        "route": "/subjects/service?key=203.0.113.7%3A5900%2Ftcp",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "endpoint",
+        "route": "/subjects/endpoint?key=edge-gw-03.acmecorp.io+%C2%B7+%3A443+https",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "service-withdrawn",
+        "route": "/subjects/service?key=203.0.113.29%3A8080%2Ftcp",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "graph": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/graph",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "node-drawer",
+        "route": "/graph",
+        "session": "admin",
+        "js": "document.querySelector('.gnode[data-id=\"edge-gw-03.acmecorp.io\"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))",
+        "crop": "body",
+        "delay": 600
+      },
+      {
+        "id": "filtered-critical",
+        "route": "/graph",
+        "session": "admin",
+        "js": "document.getElementById('gr-sev-btn').click(); document.querySelector('#gr-sev-panel .opt[data-sev=\"critical\"]').click();"
+      }
+    ]
   }
 }
