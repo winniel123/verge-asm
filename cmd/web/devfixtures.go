@@ -549,6 +549,89 @@ func (s *server) devSetupSeedEmpty(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
+// --- screen 7: Exposure fixture (package v3.8.0, WORK-ORDER-7-9-BATCH2.md) ------------------
+//
+// The Exposure screen (#560/#561) renders inside the full app chrome. Its VIEW corpus — the
+// both-legs board (six service rows with per-leg reach states and a "since"), the summary band
+// (14 exposed with a +2 vs-last-batch delta, 41 firewalled, 7 not reached) and the WITHHELD
+// state — is the design curated fixture, not a live-estate read: the exact rows, counts and
+// signed delta cannot be reconstructed from the live derivations without fabricating domain
+// data, which SPEC-CHANGE forbids. So, exactly as the SignIn/Setup/Coverage screens pin their
+// dev fixture and serve it under devMode, exposurePage serves the pinned fixtures.json →
+// exposure slice below when s.devMode, and TestExposureFixtureMatchesPackage folds every value
+// back through the frozen package — the byte-exactness gate before the pixels. The WITHHELD
+// state rides a dev ?variant=no-internet-vantage query (states.json). All of it is VERGE_DEV-only;
+// a real deployment renders the honest live projection in exposure.go exposurePage instead.
+
+const (
+	// The summary-band figures fixtures.json → exposure pins: 14 exposed (with a +2 vs-last-batch
+	// delta, has_deltas true), 41 firewalled, 7 not reached.
+	devExposureExposed      = 14
+	devExposureExposedDelta = 2
+	devExposureFirewalled   = 41
+	devExposureNotReached   = 7
+	devExposureHasDeltas    = true
+
+	// devExposureWithheldVariant is fixtures.json → exposure.withheld_variant: the ?variant token
+	// (states.json exposure "withheld" state) that drives the WITHHELD render — no internet vantage,
+	// so exposure is withheld rather than reported.
+	devExposureWithheldVariant = "no-internet-vantage"
+)
+
+// devExposureRow mirrors one fixtures.json exposure.rows entry: a service's address, its
+// ":port transport", the internal + internet reach legs (expleg display states), and its since.
+type devExposureRow struct {
+	asset    string
+	svc      string
+	internal string
+	internet string
+	since    string
+}
+
+// devExposureRows pins fixtures.json → exposure.rows in authored order.
+var devExposureRows = []devExposureRow{
+	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "exposed", internet: "exposed", since: "4m"},
+	{asset: "api.acmecorp.io", svc: ":443 https", internal: "exposed", internet: "exposed", since: "69d"},
+	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "exposed", internet: "exposed", since: "41d"},
+	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "exposed", internet: "firewalled", since: "12d"},
+	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "exposed", internet: "firewalled", since: "26d"},
+	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internet: "unverified", since: "—"},
+}
+
+// exposureFixtureData assembles the render data map exposurePage passes to the frozen
+// exposure.tmpl in a VERGE_DEV build. It stamps the chrome + design-token holes, then either the
+// WITHHELD state (when the ?variant matches devExposureWithheldVariant, mirroring the live
+// no-internet-vantage branch) or the full pinned board — the six rows, the summary counts and the
+// +2 exposed delta (rendered via the tmpl's signDelta over .ExposedDelta.Change). The delta is fed
+// as a {Change} map exactly as render-goldens does, so golden and candidate agree byte-for-byte.
+func (s *server) exposureFixtureData(acct db.Account, variant string) map[string]any {
+	data := map[string]any{
+		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "exposure", "DesignTokens": true,
+	}
+	if variant == devExposureWithheldVariant {
+		data["Withheld"] = true
+		return data
+	}
+
+	rows := make([]exposureRow, 0, len(devExposureRows))
+	for _, r := range devExposureRows {
+		rows = append(rows, exposureRow{
+			Asset: r.asset, Svc: r.svc, Internal: r.internal, Internet: r.internet, Since: r.since,
+		})
+	}
+	data["Withheld"] = false
+	data["Rows"] = rows
+	data["Exposed"] = devExposureExposed
+	data["Firewalled"] = devExposureFirewalled
+	data["NotReached"] = devExposureNotReached
+	if devExposureHasDeltas {
+		data["HasDeltas"] = true
+		data["ExposedDelta"] = map[string]any{"Change": devExposureExposedDelta}
+	}
+	return data
+}
+
 // seedDevSSOProvider upserts one enabled OIDC provider by slug and returns its id. The
 // issuer/client_id are dev placeholders (the Profile screen never exercises the flow — it
 // only lists the provider); the client secret stays NULL. Dev-only, from the seed one-shot.

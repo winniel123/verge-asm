@@ -86,7 +86,7 @@ func TestExposureBothLegsTable(t *testing.T) {
 	// A single batch has no previous batch to compare against (HasDeltas false), so
 	// the stat band shows no delta chip — the spec's own no-delta pattern, never a
 	// fabricated +0.
-	if strings.Contains(got, `class="exdelta `) {
+	if strings.Contains(got, `class="ex-delta `) {
 		t.Fatalf("stat band rendered a delta chip with only one batch; body: %s", got)
 	}
 }
@@ -133,14 +133,14 @@ func TestExposureStatBandRendersDelta(t *testing.T) {
 		t.Fatalf("GET /exposure: status = %d, want 200", resp.StatusCode)
 	}
 	// The exposed tile carries a signed delta chip in the danger tone.
-	if !strings.Contains(got, `class="exdelta bad"`) {
+	if !strings.Contains(got, `class="ex-delta bad"`) {
 		t.Fatalf("exposed tile missing the bad-tone delta chip; body: %s", got)
 	}
 	if !strings.Contains(got, "+1") {
 		t.Fatalf("exposed delta chip missing the +1 movement; body: %s", got)
 	}
 	// Only the exposed tile is chipped — firewalled and not-reached carry no delta.
-	if n := strings.Count(got, `class="exdelta `); n != 1 {
+	if n := strings.Count(got, `class="ex-delta `); n != 1 {
 		t.Fatalf("stat band rendered %d delta chips, want exactly 1 (exposed tile only); body: %s", n, got)
 	}
 }

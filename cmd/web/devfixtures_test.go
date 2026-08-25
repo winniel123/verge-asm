@@ -432,6 +432,73 @@ func TestCoverageFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
+// fixtureExposurePackage mirrors the fixtures.json exposure slice the screen-7 dev fixture pins
+// in devfixtures.go (the summary band, the +2 exposed delta, the withheld variant and the six
+// board rows).
+type fixtureExposurePackage struct {
+	Exposure struct {
+		Exposed         int    `json:"exposed"`
+		HasDeltas       bool   `json:"has_deltas"`
+		ExposedDelta    int    `json:"exposed_delta"`
+		Firewalled      int    `json:"firewalled"`
+		NotReached      int    `json:"not_reached"`
+		WithheldVariant string `json:"withheld_variant"`
+		Rows            []struct {
+			Asset    string `json:"asset"`
+			Svc      string `json:"svc"`
+			Internal string `json:"internal"`
+			Internet string `json:"internet"`
+			Since    string `json:"since"`
+		} `json:"rows"`
+	} `json:"exposure"`
+}
+
+// TestExposureFixtureMatchesPackage is the byte-exactness gate for the screen-7 conversion: every
+// value the dev fixture pins (devfixtures.go, served by exposurePage under devMode) equals the
+// frozen fixtures.json exposure slice, in authored order — so a drift between the served candidate
+// and the golden (which composes the same fixture statically) fails here rather than in a
+// screenshot diff, exactly as TestCoverageFixtureMatchesPackage guards the Coverage slice.
+func TestExposureFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureExposurePackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	e := f.Exposure
+
+	if e.Exposed != devExposureExposed {
+		t.Errorf("exposed drift: fixtures.json = %d, pinned = %d", e.Exposed, devExposureExposed)
+	}
+	if e.HasDeltas != devExposureHasDeltas {
+		t.Errorf("has_deltas drift: fixtures.json = %v, pinned = %v", e.HasDeltas, devExposureHasDeltas)
+	}
+	if e.ExposedDelta != devExposureExposedDelta {
+		t.Errorf("exposed_delta drift: fixtures.json = %d, pinned = %d", e.ExposedDelta, devExposureExposedDelta)
+	}
+	if e.Firewalled != devExposureFirewalled {
+		t.Errorf("firewalled drift: fixtures.json = %d, pinned = %d", e.Firewalled, devExposureFirewalled)
+	}
+	if e.NotReached != devExposureNotReached {
+		t.Errorf("not_reached drift: fixtures.json = %d, pinned = %d", e.NotReached, devExposureNotReached)
+	}
+	if e.WithheldVariant != devExposureWithheldVariant {
+		t.Errorf("withheld_variant drift: fixtures.json = %q, pinned = %q", e.WithheldVariant, devExposureWithheldVariant)
+	}
+
+	if len(e.Rows) != len(devExposureRows) {
+		t.Fatalf("rows length drift: fixtures.json = %d, pinned = %d", len(e.Rows), len(devExposureRows))
+	}
+	for i, r := range e.Rows {
+		p := devExposureRows[i]
+		if r.Asset != p.asset || r.Svc != p.svc || r.Internal != p.internal || r.Internet != p.internet || r.Since != p.since {
+			t.Errorf("row %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, r, p)
+		}
+	}
+}
+
 // fixtureDriftPackage mirrors the fixtures.json drift slice the screen-8 dev fixture pins in
 // devfixtures.go (the range-picker presets, the change vocabulary, the trigger + tally scalars,
 // the movement map and the batch groups with their events and optional diffs).

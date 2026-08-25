@@ -104,9 +104,9 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | drift")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift")
 	out := flag.String("out", "", "inventory|drift: path to write the single golden HTML")
-	outdir := flag.String("outdir", "", "error|profile: directory to write one golden HTML per state (<state>.html)")
+	outdir := flag.String("outdir", "", "error|profile|…: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
 	// it injects the app shell's body layout context (body{display:flex;
 	// flex-direction:column;margin:0}) so the golden's <main> shrink-wraps to its
@@ -223,6 +223,24 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "exposure":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen exposure")
+		}
+		files, err := renderExposureStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	case "drift":
 		if *out == "" {
 			log.Fatal("render-goldens: -out is required for -screen drift")
@@ -239,7 +257,7 @@ func main() {
 		}
 		log.Printf("render-goldens: wrote %s (%d bytes)", *out, len(html))
 	default:
-		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup | coverage | drift)", *screen)
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error | profile | signin | setup | coverage | exposure | drift)", *screen)
 	}
 }
 
@@ -389,6 +407,105 @@ func renderCoverageStates(bodyFlex bool) ([]errorGolden, error) {
 		}
 		var buf bytes.Buffer
 		if err := t.ExecuteTemplate(&buf, "coverage", st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+// exposureFixture is the design-system/fixtures/fixtures.json exposure slice: the summary band
+// (exposed with a vs-last-batch delta, firewalled, not reached), the withheld variant token, and
+// the both-legs board rows (asset, ":port transport", the internal + internet leg display states,
+// and the "since"). The golden reads them here (never re-hardcoded) so a fixture change flows
+// through; cmd/web/devfixtures.go pins the same values with a drift test
+// (TestExposureFixtureMatchesPackage).
+type exposureFixture struct {
+	Exposed         int    `json:"exposed"`
+	HasDeltas       bool   `json:"has_deltas"`
+	ExposedDelta    int    `json:"exposed_delta"`
+	Firewalled      int    `json:"firewalled"`
+	NotReached      int    `json:"not_reached"`
+	WithheldVariant string `json:"withheld_variant"`
+	Rows            []struct {
+		Asset    string `json:"asset"`
+		Svc      string `json:"svc"`
+		Internal string `json:"internal"`
+		Internet string `json:"internet"`
+		Since    string `json:"since"`
+	} `json:"rows"`
+}
+
+func loadExposureFixture() (exposureFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return exposureFixture{}, err
+	}
+	var ff struct {
+		Exposure exposureFixture `json:"exposure"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return exposureFixture{}, err
+	}
+	return ff.Exposure, nil
+}
+
+// renderExposureStates composes the two Exposure golden HTMLs from the frozen exposure.tmpl, one
+// per states.json exposure state (default, withheld). The "default" data map mirrors exposurePage
+// exposureFixtureData EXACTLY (the holes the frozen tmpl reads) — the six board rows in fixtures.json
+// authored order, the summary counts and the +2 exposed delta fed as .ExposedDelta.Change (the tmpl's
+// signDelta formats it) — so the cropped `main` is byte-identical to what the seeded server renders.
+// The "withheld" state sets only .Withheld (the no-internet-vantage branch), so the tmpl draws its
+// WITHHELD card. Chrome is the empty stub (goldens crop to `main`).
+func renderExposureStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadExposureFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]map[string]any, 0, len(fx.Rows))
+	for _, r := range fx.Rows {
+		rows = append(rows, map[string]any{
+			"Asset": r.Asset, "Svc": r.Svc, "Internal": r.Internal, "Internet": r.Internet, "Since": r.Since,
+		})
+	}
+
+	defaultData := map[string]any{
+		"Title": "Exposure", "NavActive": "exposure", "DesignTokens": true,
+		"Withheld": false, "Rows": rows,
+		"Exposed": fx.Exposed, "Firewalled": fx.Firewalled, "NotReached": fx.NotReached,
+	}
+	if fx.HasDeltas {
+		defaultData["HasDeltas"] = true
+		defaultData["ExposedDelta"] = map[string]any{"Change": fx.ExposedDelta}
+	}
+
+	type estate struct {
+		id   string
+		data map[string]any
+	}
+	states := []estate{
+		{"default", defaultData},
+		{"withheld", map[string]any{
+			"Title": "Exposure", "NavActive": "exposure", "DesignTokens": true, "Withheld": true,
+		}},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/exposure.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "exposure", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -571,6 +688,22 @@ func goldenHead(bodyFlex bool) (template.HTML, error) {
 func newStubbedTemplate(head template.HTML) (*template.Template, error) {
 	t := template.New("root").Funcs(template.FuncMap{
 		"stubhead": func() template.HTML { return head },
+		// signDelta mirrors cmd/web/templates_shell.go byte-for-byte: the exposure.tmpl's
+		// exposed-tile chip formats its vs-last-batch change (.ExposedDelta.Change) through it,
+		// so the golden must carry the identical "+N" / "−N" / "0" label the app renders. A
+		// screen that never calls signDelta (inventory, coverage, …) simply ignores it.
+		"signDelta": func(n int) template.HTML {
+			var s string
+			switch {
+			case n > 0:
+				s = "+" + strconv.Itoa(n)
+			case n < 0:
+				s = "−" + strconv.Itoa(-n)
+			default:
+				s = "0"
+			}
+			return template.HTML(s) // #nosec G203 -- a sign and digits only, from an int; no user input
+		},
 	})
 	return t.Parse(`{{define "head"}}{{stubhead}}{{end}}{{define "chrome"}}{{end}}{{define "foot"}}</body></html>{{end}}`)
 }

@@ -535,6 +535,13 @@ func (s *server) handler() http.Handler {
 	// exists. Reports still folds the period analytics; this is the dedicated
 	// exposure board. Viewer-readable: a viewer reads the board, mutates nothing.
 	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
+	// The Exposure WITHHELD state's action links /settings/vantages (SPEC-CHANGE #20f,
+	// ruled: provisioning a prober is a vantage act, not /scope). Settings → Vantages
+	// (#21) is not built yet, so this repo-owned alias resolves the link target for now —
+	// provisioning currently lives on /scope (POST /probers), so the alias lands there.
+	// The final destination is Settings' concern; this only keeps the frozen tmpl's link
+	// from 404ing. Viewer-readable, matching the exposure board it is reached from.
+	mux.HandleFunc("GET /settings/vantages", s.requireLogin(s.redirectTo("/scope", http.StatusSeeOther)))
 	mux.HandleFunc("GET /reports", s.requireLogin(s.reportsPage))
 	// The Reports export (#291): the KPI band + scans-per-day series for the active
 	// ?weeks= range as a downloadable csv/json file. A viewer reads it — an export is
