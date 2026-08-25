@@ -137,6 +137,15 @@ type settingsForms struct {
 	vcError string
 	vcPort  string
 
+	// cold + probers (#21d): the full-range opt-in and prober provisioning acts
+	// relocated from /scope. coldError is an inline error on the Scans tab's cold-tier
+	// region; the prober fields echo a rejected provision form back on the Vantages tab.
+	coldError   string
+	proberError string
+	proberHost  string
+	proberPort  string
+	proberUser  string
+
 	// sessions (#407). revokeAccountID/revokeAccountError re-open the typed-name
 	// revoke-all-for-account ConfirmDialog on a mismatch, exactly as the Team
 	// remove-account dialog re-opens through removeID/removeError.
@@ -189,6 +198,10 @@ func tabForSection(section string) string {
 		return "aperture"
 	case "sessions":
 		return "sessions"
+	case "vantages":
+		return "vantages"
+	case "scans", "cold":
+		return "scans"
 	default:
 		return "scans"
 	}
@@ -571,9 +584,9 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	var err error
 	switch active {
 	case "scans":
-		err = s.fillScansSection(r, acct, data)
+		err = s.fillScansSection(r, acct, f, data)
 	case "vantages":
-		err = s.fillVantagesSection(r, data)
+		err = s.fillVantagesSection(r, f, data)
 	case "sso":
 		err = s.fillSSOSection(r, f, data)
 	case "team":
@@ -612,11 +625,17 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 // fillVantagesSection lists the provisioned measurement positions (CONTEXT.md
 // "Vantage"). A read-only display: provisioning lives on Scope, and a vantage is
 // never a probe/scanner/agent here.
-func (s *server) fillVantagesSection(r *http.Request, data map[string]any) error {
+func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[string]any) error {
 	rows, err := s.store.ListVantages(r.Context())
 	if err != nil {
 		return err
 	}
+	// The prober provisioning form's echo (#21d, relocated from /scope): a rejected
+	// provision re-renders the Vantages tab with its own error and typed values.
+	data["ProberError"] = f.proberError
+	data["ProberHost"] = f.proberHost
+	data["ProberPort"] = f.proberPort
+	data["ProberUser"] = f.proberUser
 	out := make([]vantageRow, 0, len(rows))
 	for _, v := range rows {
 		vr := vantageRow{

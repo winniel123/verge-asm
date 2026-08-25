@@ -34,8 +34,13 @@ func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 		t.Fatalf("custody extension on by default, want off")
 	}
 	page := seedsBody(t, ac, base)
-	if !strings.Contains(page, "Declare extension") {
-		t.Errorf("declare-extension control not offered; body: %s", page)
+	// The spec toggle (#21b) renders a switch posting /seeds/custody, aria-unchecked
+	// while the extension is off.
+	if !strings.Contains(page, `aria-label="Extend custody — example.com"`) {
+		t.Errorf("custody toggle not offered; body: %s", page)
+	}
+	if strings.Contains(page, `aria-checked="true"`) {
+		t.Errorf("custody shown on before it was declared; body: %s", page)
 	}
 
 	// Declare it.
@@ -48,8 +53,9 @@ func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 		t.Fatalf("custody extension not stored on declare")
 	}
 	page = seedsBody(t, ac, base)
-	if !strings.Contains(page, "extension on") || !strings.Contains(page, "Withdraw") {
-		t.Errorf("declared extension not reflected with a withdraw control; body: %s", page)
+	// On: the switch reads checked and the census meter appears.
+	if !strings.Contains(page, `aria-checked="true"`) || !strings.Contains(page, "recomputed each batch") {
+		t.Errorf("declared extension not reflected with the on switch + census; body: %s", page)
 	}
 
 	// Withdraw it.
@@ -76,17 +82,16 @@ func TestCustodyCensusIsDisplayOnly(t *testing.T) {
 	id := f.seeds[0].ID
 
 	// No census before the extension is declared.
-	if page := seedsBody(t, ac, base); strings.Contains(page, "Covered addresses") {
+	if page := seedsBody(t, ac, base); strings.Contains(page, "recomputed each batch") {
 		t.Errorf("census shown before extension declared; body: %s", page)
 	}
 
 	setCustody(t, ac, base, id, true).Body.Close()
 	page := seedsBody(t, ac, base)
-	if !strings.Contains(page, "Covered addresses") || !strings.Contains(page, "Display only") {
+	// The census meter (#21b) is display-only: it states its census with no denominator
+	// and no per-address approval.
+	if !strings.Contains(page, "census ·") || !strings.Contains(page, "recomputed each batch — read-only, never per-address approval") {
 		t.Errorf("census not rendered display-only; body: %s", page)
-	}
-	if !strings.Contains(page, "No addresses measured yet") {
-		t.Errorf("census not rendered as empty/unavailable; body: %s", page)
 	}
 	// No per-address approve control anywhere on the page.
 	if strings.Contains(page, ">Approve<") || strings.Contains(page, `name="approve"`) {
@@ -142,7 +147,7 @@ func TestViewerCannotToggleCustodyButCanView(t *testing.T) {
 
 	// But the viewer sees the scope and its census, with no toggle control offered.
 	page := seedsBody(t, vc, base)
-	if !strings.Contains(page, "example.com") || !strings.Contains(page, "Covered addresses") {
+	if !strings.Contains(page, "example.com") || !strings.Contains(page, "recomputed each batch") {
 		t.Errorf("viewer cannot see the custody scope or census; body: %s", page)
 	}
 	if strings.Contains(page, `action="/seeds/custody"`) {

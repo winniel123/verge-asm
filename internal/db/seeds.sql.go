@@ -64,6 +64,21 @@ func (q *Queries) CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) 
 	return i, err
 }
 
+const deleteSeed = `-- name: DeleteSeed :execrows
+DELETE FROM seed WHERE id = $1
+`
+
+// Withdraws a declared Seed by id (#21a: the Scope chip-remove act). A viewer
+// never reaches it (requireAdmin). Idempotent: deleting a row already gone
+// affects zero rows and is not an error, so a stale chip submit is a no-op.
+func (q *Queries) DeleteSeed(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSeed, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listSeeds = `-- name: ListSeeds :many
 SELECT s.id, s.kind, s.name_domain, s.address_cidr, s.custody_extension,
        s.created_by, s.created_at, a.username AS created_by_username

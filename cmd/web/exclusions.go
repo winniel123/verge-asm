@@ -85,6 +85,14 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 // receipt, because a preview for a message that will not fire is a promise the
 // widening side never has to make good on.
 func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// VERGE_DEV pixel-parity: the scope "exclusion-preview" golden types
+	// staging-4.acmecorp.io and clicks Preview (states.json). Serve the pinned fixture +
+	// the firing Preview receipt so the candidate renders byte-for-byte what the golden
+	// composes, without touching the DB.
+	if s.devMode {
+		s.render(w, "scope", s.scopeFixtureDataPreview(acct))
+		return
+	}
 	kind := r.FormValue("kind")
 	value := strings.TrimSpace(r.FormValue("value"))
 	fail := func(msg string) {

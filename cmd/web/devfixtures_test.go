@@ -792,3 +792,215 @@ func TestRunDetailFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureScopePackage mirrors the fixtures.json scope slice the screen-10 dev fixture pins
+// (devfixtures.go): the cap, the seeds, the refusal + exclusion-preview + org-search fixtures,
+// custody, zone, name tree, coverage messages, proposals and exclusions.
+type fixtureScopePackage struct {
+	Scope struct {
+		AddressCap int `json:"address_cap"`
+		Seeds      []struct {
+			ID        string `json:"id"`
+			Anchor    string `json:"anchor"`
+			Scope     string `json:"scope"`
+			IsAddress bool   `json:"is_address"`
+		} `json:"seeds"`
+		RefusalFixture struct {
+			PostValue string `json:"post_value"`
+			Input     string `json:"input"`
+			Reason    string `json:"reason"`
+			Reachable string `json:"reachable"`
+			FormError string `json:"form_error"`
+		} `json:"refusal_fixture"`
+		CustodyScopes []struct {
+			ID               string `json:"id"`
+			Scope            string `json:"scope"`
+			CustodyExtension bool   `json:"custody_extension"`
+			Census           int    `json:"census"`
+		} `json:"custody_scopes"`
+		ZoneScopes []struct {
+			ID            string `json:"id"`
+			Domain        string `json:"domain"`
+			HasFile       bool   `json:"has_file"`
+			SuppliedAt    string `json:"supplied_at"`
+			IntervalLabel string `json:"interval_label"`
+			AgingLabel    string `json:"aging_label"`
+		} `json:"zone_scopes"`
+		ZoneIntervalDays int `json:"zone_interval_days"`
+		NameTree         []struct {
+			Label    string `json:"label"`
+			Count    int    `json:"count"`
+			Sev      string `json:"sev"`
+			Children []struct {
+				Label string `json:"label"`
+				Sev   string `json:"sev"`
+			} `json:"children"`
+		} `json:"name_tree"`
+		CoverageMsgs []struct {
+			Kind    string `json:"kind"`
+			Badge   string `json:"badge"`
+			Bound   string `json:"bound"`
+			Subject string `json:"subject"`
+			Text    string `json:"text"`
+			When    string `json:"when"`
+			ISO     string `json:"iso"`
+		} `json:"coverage_msgs"`
+		Proposals []struct {
+			ID     string `json:"id"`
+			Value  string `json:"value"`
+			Kind   string `json:"kind"`
+			Source string `json:"source"`
+		} `json:"proposals"`
+		OrgSearchFixture struct {
+			Org    string `json:"org"`
+			Notice string `json:"notice"`
+		} `json:"org_search_fixture"`
+		Exclusions []struct {
+			ID    string `json:"id"`
+			Kind  string `json:"kind"`
+			Value string `json:"value"`
+		} `json:"exclusions"`
+		ExclusionPreviewFixture struct {
+			PostKind  string `json:"post_kind"`
+			PostValue string `json:"post_value"`
+			Fires     bool   `json:"fires"`
+			Headline  string `json:"headline"`
+			Loss      string `json:"loss"`
+		} `json:"exclusion_preview_fixture"`
+	} `json:"scope"`
+}
+
+// TestScopeFixtureMatchesPackage is the byte-exactness gate for the screen-10 conversion: every
+// value the dev fixture pins (devfixtures.go, served by seedsPage/declareSeed/previewExclusion
+// under devMode) equals the frozen fixtures.json scope slice, in authored order — so a drift
+// between the served candidate and the golden (which composes the same fixture statically) fails
+// here rather than in a screenshot diff, exactly as TestExposureFixtureMatchesPackage guards the
+// Exposure slice.
+func TestScopeFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureScopePackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	sc := f.Scope
+
+	if sc.AddressCap != devScopeAddressCap {
+		t.Errorf("address_cap drift: fixtures.json = %d, pinned = %d", sc.AddressCap, devScopeAddressCap)
+	}
+	if got := devScopeZoneIntervalDays; got != itoa(int64(sc.ZoneIntervalDays)) {
+		t.Errorf("zone_interval_days drift: fixtures.json = %d, pinned = %q", sc.ZoneIntervalDays, got)
+	}
+
+	// Seeds.
+	if len(sc.Seeds) != len(devScopeSeeds) {
+		t.Fatalf("seeds length drift: fixtures.json = %d, pinned = %d", len(sc.Seeds), len(devScopeSeeds))
+	}
+	for i, s := range sc.Seeds {
+		p := devScopeSeeds[i]
+		if s.ID != p.ID || s.Anchor != p.Anchor || s.Scope != p.Scope || s.IsAddress != p.IsAddress {
+			t.Errorf("seed %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, s, p)
+		}
+	}
+
+	// Refusal fixture.
+	r := sc.RefusalFixture
+	if r.PostValue != devScopeRefusalPost || r.Input != devScopeRefusalInput || r.Reason != devScopeRefusalReason ||
+		r.Reachable != devScopeRefusalReachable || r.FormError != devScopeRefusalFormError {
+		t.Errorf("refusal_fixture drift:\n fixtures.json = %+v\n pinned        = post=%q input=%q reason=%q reachable=%q formErr=%q",
+			r, devScopeRefusalPost, devScopeRefusalInput, devScopeRefusalReason, devScopeRefusalReachable, devScopeRefusalFormError)
+	}
+
+	// Custody.
+	if len(sc.CustodyScopes) != len(devScopeCustody) {
+		t.Fatalf("custody length drift: fixtures.json = %d, pinned = %d", len(sc.CustodyScopes), len(devScopeCustody))
+	}
+	for i, c := range sc.CustodyScopes {
+		p := devScopeCustody[i]
+		if c.ID != p.ID || c.Scope != p.Scope || c.CustodyExtension != p.CustodyExtension || c.Census != p.Census {
+			t.Errorf("custody %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, c, p)
+		}
+	}
+
+	// Zone.
+	if len(sc.ZoneScopes) != len(devScopeZones) {
+		t.Fatalf("zone length drift: fixtures.json = %d, pinned = %d", len(sc.ZoneScopes), len(devScopeZones))
+	}
+	for i, z := range sc.ZoneScopes {
+		p := devScopeZones[i]
+		if z.ID != p.ID || z.Domain != p.Domain || z.HasFile != p.HasFile || z.SuppliedAt != p.SuppliedAt ||
+			z.IntervalLabel != p.IntervalLabel || z.AgingLabel != p.AgingLabel {
+			t.Errorf("zone %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, z, p)
+		}
+	}
+
+	// Name tree.
+	if len(sc.NameTree) != len(devScopeNameTree) {
+		t.Fatalf("name_tree length drift: fixtures.json = %d, pinned = %d", len(sc.NameTree), len(devScopeNameTree))
+	}
+	for i, root := range sc.NameTree {
+		pr := devScopeNameTree[i]
+		if root.Label != pr.Label || root.Count != pr.Count || root.Sev != pr.Sev {
+			t.Errorf("name_tree root %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, root, pr)
+		}
+		if len(root.Children) != len(pr.Children) {
+			t.Fatalf("name_tree root %d children length drift: fixtures.json = %d, pinned = %d", i, len(root.Children), len(pr.Children))
+		}
+		for j, leaf := range root.Children {
+			pl := pr.Children[j]
+			if leaf.Label != pl.Label || leaf.Sev != pl.Sev {
+				t.Errorf("name_tree leaf %d/%d drift:\n fixtures.json = %+v\n pinned        = %+v", i, j, leaf, pl)
+			}
+		}
+	}
+
+	// Coverage messages.
+	if len(sc.CoverageMsgs) != len(devScopeCoverageMsgs) {
+		t.Fatalf("coverage_msgs length drift: fixtures.json = %d, pinned = %d", len(sc.CoverageMsgs), len(devScopeCoverageMsgs))
+	}
+	for i, m := range sc.CoverageMsgs {
+		p := devScopeCoverageMsgs[i]
+		if m.Kind != p.Kind || m.Badge != p.Badge || m.Bound != p.Bound || m.Subject != p.Subject ||
+			m.Text != p.Text || m.When != p.When || m.ISO != p.ISO {
+			t.Errorf("coverage_msg %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, m, p)
+		}
+	}
+
+	// Proposals.
+	if len(sc.Proposals) != len(devScopeProposals) {
+		t.Fatalf("proposals length drift: fixtures.json = %d, pinned = %d", len(sc.Proposals), len(devScopeProposals))
+	}
+	for i, p := range sc.Proposals {
+		pp := devScopeProposals[i]
+		if p.ID != pp.ID || p.Value != pp.Value || p.Kind != pp.Kind || p.Source != pp.Source {
+			t.Errorf("proposal %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, p, pp)
+		}
+	}
+
+	// Org-search fixture.
+	if sc.OrgSearchFixture.Org != devScopeOrgQuery || sc.OrgSearchFixture.Notice != devScopeOrgNotice {
+		t.Errorf("org_search_fixture drift:\n fixtures.json = %+v\n pinned        = org=%q notice=%q",
+			sc.OrgSearchFixture, devScopeOrgQuery, devScopeOrgNotice)
+	}
+
+	// Exclusions.
+	if len(sc.Exclusions) != len(devScopeExclusions) {
+		t.Fatalf("exclusions length drift: fixtures.json = %d, pinned = %d", len(sc.Exclusions), len(devScopeExclusions))
+	}
+	for i, e := range sc.Exclusions {
+		pe := devScopeExclusions[i]
+		if e.ID != pe.ID || e.Kind != pe.Kind || e.Value != pe.Value {
+			t.Errorf("exclusion %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, e, pe)
+		}
+	}
+
+	// Exclusion-preview fixture.
+	xp := sc.ExclusionPreviewFixture
+	if xp.PostKind != devScopeExclPreviewKind || xp.PostValue != devScopeExclPreviewValue || xp.Fires != devScopeExclPreviewFires ||
+		xp.Headline != devScopeExclPreviewHeadline || xp.Loss != devScopeExclPreviewLoss {
+		t.Errorf("exclusion_preview_fixture drift:\n fixtures.json = %+v\n pinned        = kind=%q value=%q fires=%v headline=%q loss=%q",
+			xp, devScopeExclPreviewKind, devScopeExclPreviewValue, devScopeExclPreviewFires, devScopeExclPreviewHeadline, devScopeExclPreviewLoss)
+	}
+}

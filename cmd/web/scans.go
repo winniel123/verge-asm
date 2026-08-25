@@ -100,8 +100,19 @@ func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 // trigger panel (#252), whose "in flight" markers reuse the active kinds computed
 // here. A failed panel build degrades to an absent panel rather than 500ing the
 // read-only monitor a viewer depends on.
-func (s *server) fillScansSection(r *http.Request, acct db.Account, data map[string]any) error {
+func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
+	// The full-range (cold) tier opt-in, relocated from /scope (#21d): every declared
+	// scope with its opt-in state, and whether the tier is on (at least one scope in).
+	// Best-effort — a read failure degrades the region to no scopes rather than 500ing
+	// the whole tab. The coldError echo comes from a rejected opt-in POST.
+	if seeds, serr := s.store.ListSeeds(ctx); serr == nil {
+		if optedIn, oerr := s.store.ListColdScopeSeedIds(ctx); oerr == nil {
+			data["ColdScopes"] = toColdScopeViews(toSeedViews(seeds), optedIn)
+			data["ColdEnabled"] = len(optedIn) > 0
+		}
+	}
+	data["ColdError"] = f.coldError
 	rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit)
 	if err != nil {
 		return err

@@ -98,6 +98,8 @@ type store interface {
 	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	// DeleteSeed withdraws a declared Seed by id — the Scope chip-remove act (#21a).
+	DeleteSeed(ctx context.Context, id int64) (int64, error)
 	SetCustodyExtension(ctx context.Context, arg db.SetCustodyExtensionParams) error
 	CreateNameExclusion(ctx context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error)
 	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
@@ -206,6 +208,9 @@ type store interface {
 	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
 	ConfirmProposal(ctx context.Context, arg db.ConfirmProposalParams) (int64, error)
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
+	// DeclineProposal declines one still-pending Proposal by id — the Scope
+	// decline-many act declines each checked proposal (#574).
+	DeclineProposal(ctx context.Context, id int64) (int64, error)
 	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error)
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
@@ -520,14 +525,20 @@ func (s *server) handler() http.Handler {
 	// answers 303 to /scope.
 	mux.HandleFunc("GET /seeds", s.requireLogin(s.redirectTo("/scope", http.StatusMovedPermanently)))
 	mux.HandleFunc("POST /seeds", s.requireAdmin(s.declareSeed))
+	// The chip-remove act (#21a): scope.tmpl posts a seed's id to withdraw it.
+	mux.HandleFunc("POST /seeds/delete", s.requireAdmin(s.deleteSeed))
 	mux.HandleFunc("POST /seeds/custody", s.requireAdmin(s.setCustody))
 	mux.HandleFunc("POST /seeds/zone", s.requireAdmin(s.uploadZoneFile))
 	mux.HandleFunc("POST /seeds/zone/interval", s.requireAdmin(s.setZoneInterval))
-	mux.HandleFunc("POST /seeds/cold", s.requireAdmin(s.setColdScope))
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
 	mux.HandleFunc("POST /exclusions/preview", s.requireAdmin(s.previewExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
-	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
+	// #21d: the cold-tier opt-in and prober provisioning REGIONS + ROUTES relocate to
+	// /settings (their design homes, shots 17/18). scope.tmpl no longer renders them; the
+	// acts now redirect to /settings, where the read surfaces live. Settings' own design
+	// parity lands at map #21 — batch 3 owns only the move-out.
+	mux.HandleFunc("POST /settings/cold", s.requireAdmin(s.setColdScope))
+	mux.HandleFunc("POST /settings/probers", s.requireAdmin(s.provisionProber))
 
 	// The Exposure page (#300, T5, ADR-0110): `/exposure` is repurposed from the
 	// #286 redirect-to-/reports into the first-class Exposure screen — the both-legs
@@ -536,12 +547,10 @@ func (s *server) handler() http.Handler {
 	// exposure board. Viewer-readable: a viewer reads the board, mutates nothing.
 	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
 	// The Exposure WITHHELD state's action links /settings/vantages (SPEC-CHANGE #20f,
-	// ruled: provisioning a prober is a vantage act, not /scope). Settings → Vantages
-	// (#21) is not built yet, so this repo-owned alias resolves the link target for now —
-	// provisioning currently lives on /scope (POST /probers), so the alias lands there.
-	// The final destination is Settings' concern; this only keeps the frozen tmpl's link
-	// from 404ing. Viewer-readable, matching the exposure board it is reached from.
-	mux.HandleFunc("GET /settings/vantages", s.requireLogin(s.redirectTo("/scope", http.StatusSeeOther)))
+	// ruled: provisioning a prober is a vantage act, not /scope). Prober provisioning now
+	// lives under Settings → Vantages (#21d, batch 3), so this alias lands on that tab
+	// rather than /scope. Viewer-readable, matching the exposure board it is reached from.
+	mux.HandleFunc("GET /settings/vantages", s.requireLogin(s.redirectTo("/settings?tab=vantages", http.StatusSeeOther)))
 	mux.HandleFunc("GET /reports", s.requireLogin(s.reportsPage))
 	// The Reports export (#291): the KPI band + scans-per-day series for the active
 	// ?weeks= range as a downloadable csv/json file. A viewer reads it — an export is
@@ -635,6 +644,9 @@ func (s *server) handler() http.Handler {
 	// address space, declining is a boundary claim. A viewer reads the pending
 	// list on /scope but mutates nothing.
 	mux.HandleFunc("POST /proposals", s.requireAdmin(s.runLookup))
+	// The frozen scope.tmpl posts the org-name search to /proposals/search (field `org`);
+	// runLookup accepts either route (#574).
+	mux.HandleFunc("POST /proposals/search", s.requireAdmin(s.runLookup))
 	mux.HandleFunc("POST /proposals/confirm", s.requireAdmin(s.confirmProposal))
 	mux.HandleFunc("POST /proposals/decline", s.requireAdmin(s.declineLookup))
 

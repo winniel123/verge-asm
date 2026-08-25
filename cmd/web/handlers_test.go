@@ -492,6 +492,18 @@ func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 	return rows, nil
 }
 
+// DeleteSeed removes a Seed by id (#21a), returning the rows affected so a missing id
+// is an idempotent no-op, mirroring the SQL.
+func (f *fakeStore) DeleteSeed(_ context.Context, id int64) (int64, error) {
+	for i, s := range f.seeds {
+		if s.ID == id {
+			f.seeds = append(f.seeds[:i], f.seeds[i+1:]...)
+			return 1, nil
+		}
+	}
+	return 0, nil
+}
+
 func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExtensionParams) error {
 	for i, s := range f.seeds {
 		if s.ID == arg.ID && s.Kind == "name" {
@@ -2249,6 +2261,18 @@ func (f *fakeStore) DeclineLookup(_ context.Context, lookupID int64) (int64, err
 		}
 	}
 	return n, nil
+}
+
+// DeclineProposal declines one still-pending Proposal by id (#574), mirroring the SQL
+// guard on status = 'pending' so a repeat submit affects zero rows.
+func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) {
+	for i, p := range f.proposals {
+		if p.ID == id && p.Status == "pending" {
+			f.proposals[i].Status = "declined"
+			return 1, nil
+		}
+	}
+	return 0, nil
 }
 
 func (f *fakeStore) InsertReportSchedule(_ context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error) {
