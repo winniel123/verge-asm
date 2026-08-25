@@ -388,6 +388,12 @@ type server struct {
 	// online password guess has a bounded budget. It is in-process and clock-driven
 	// (no DB, no new dependency), reset on a successful auth.
 	loginLimiter *loginLimiter
+
+	// devMode is a VERGE_DEV build: it unlocks the dev-only pixel-parity affordances
+	// (main.go sets it from VERGE_DEV). It gates the /dev/* harness routes (devfixtures.go)
+	// and makes the 500 incident id deterministic — never set in a real deployment, so no
+	// dev route is reachable and the incident id keeps its crypto/rand draw (errors.go).
+	devMode bool
 }
 
 func newServer(s store, key []byte, setupToken string, now func() time.Time) *server {
@@ -575,6 +581,13 @@ func (s *server) handler() http.Handler {
 	// — it is a read-only window onto the Operational queue corpus. A Dispatch id is
 	// an integer carrying neither `/` nor `@`, so it rides a plain path segment.
 	mux.HandleFunc("GET /run/{id}", s.requireLogin(s.runPage))
+	// /runs/{id} is the design-canonical run-detail route (WAYFINDER-MAP.md screen 9;
+	// verify/states.json's missing-run capture navigates /runs/1408). The repo has served
+	// run detail at /run/{id} since T2; screen 9 (RunDetail) owns the eventual /run→/runs
+	// migration. Until then this alias reuses the same handler so the design-declared route
+	// resolves — a nonexistent id (1408) renders the missing-run ErrorPage, matching the
+	// state states.json declares. Routes are repo-owned (WORKFLOW.md).
+	mux.HandleFunc("GET /runs/{id}", s.requireLogin(s.runPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
 	// The Signals CSV export (#346): the current census set the page evaluates, as a
@@ -749,6 +762,19 @@ func (s *server) handler() http.Handler {
 	if integrationsEnabled {
 		mux.HandleFunc("POST /settings/integrations/install", s.requireAdmin(s.installIntegration))
 		mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.disconnectIntegration))
+	}
+
+	// Dev-only pixel-parity harness routes (devfixtures.go), registered only in a
+	// VERGE_DEV build so no /dev surface exists in a real deployment. They let the
+	// capture harness reach the error states states.json declares: /dev/403 renders the
+	// plain 403, /dev/panic exercises the 500 recovery, and /dev/session/{role} mints a
+	// session as the fixture admin/viewer so a state's per-state `session` is established
+	// before capture. (404, missing-subject, missing-run, settings-forbidden reach their
+	// kinds through real routes on fixture data.)
+	if s.devMode {
+		mux.HandleFunc("GET /dev/403", s.forbidden)
+		mux.HandleFunc("GET /dev/panic", s.devPanic)
+		mux.HandleFunc("GET /dev/session/{role}", s.devSessionMint)
 	}
 
 	// Recovered panics render the 500 error page with a real, logged incident id

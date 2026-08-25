@@ -73,7 +73,12 @@ func main() {
 		if err := seedDevOperator(ctx, pool); err != nil {
 			log.Fatalf("web: seed-fixtures: %v", err)
 		}
-		log.Printf("web: seeded inventory fixtures from %s (%d open spans); dev operator %q ready", *seedFixtures, len(inventoryFixtureSpans), devSeedUsername)
+		// The fixtures.json admin + viewer the ErrorPage capture states sign in as
+		// (screen 2, #534). Idempotent and dev-only, like the operator above.
+		if err := seedDevFixtureAccounts(ctx, pool); err != nil {
+			log.Fatalf("web: seed-fixtures: %v", err)
+		}
+		log.Printf("web: seeded inventory fixtures from %s (%d open spans); dev operator %q + %d fixture accounts ready", *seedFixtures, len(inventoryFixtureSpans), devSeedUsername, len(devFixtureAccounts))
 		return
 	}
 
@@ -92,6 +97,10 @@ func main() {
 	}
 
 	web := newServer(queries, key, setupToken, time.Now)
+	// VERGE_DEV unlocks the pixel-parity harness affordances (dev /dev/* routes and the
+	// deterministic 500 incident id). It is the same gate -seed-fixtures rides; a real
+	// deployment never sets it, so no /dev route is registered and incident ids stay random.
+	web.devMode = isTruthy(env.OrDefault("VERGE_DEV", ""))
 	web.secureCookies = isTruthy(env.OrDefault("VERGE_SECURE_COOKIES", ""))
 	// The trusted origin for the OIDC callback redirect_uri (#293); empty falls back to
 	// the request host.

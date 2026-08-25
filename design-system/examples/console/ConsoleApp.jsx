@@ -99,7 +99,7 @@ export function ConsoleApp() {
         {screen === "dashboard" && (firstRun
           ? <FirstRunChecklist onOpenScope={() => setScreen("scope")} onOpenVantages={() => { setSettingsSection("vantages"); setScreen("settings"); }} onRunScan={() => { setFirstRun(false); runScan(); }} />
           : <Dashboard scanning={scanning} onRunScan={runScan} onAddTarget={() => setAddOpen(true)} onOpenSignals={() => setScreen("signals")} />)}
-        {screen === "inventory" && <Inventory onToast={setToast} onOpenAsset={(a) => { setAssetId(a); setScreen("asset"); }} />}
+        {screen === "inventory" && <Inventory onToast={setToast} onOpenAsset={(a) => { setAssetId(a); setScreen("asset"); }} onOpenSubject={(k) => setScreen(k)} onOpenScope={() => setScreen("scope")} />}
         {screen === "scope" && <Scope onToast={setToast} />}
         {screen === "drift" && <Drift onOpenRun={() => setScreen("run")} />}
         {screen === "graph" && <GraphView />}

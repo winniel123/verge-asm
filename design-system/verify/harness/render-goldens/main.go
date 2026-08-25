@@ -100,7 +100,9 @@ type fixtureFile struct {
 }
 
 func main() {
-	out := flag.String("out", "", "path to write the golden inventory HTML (required)")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error")
+	out := flag.String("out", "", "inventory: path to write the single golden HTML")
+	outdir := flag.String("outdir", "", "error: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
 	// it injects the app shell's body layout context (body{display:flex;
 	// flex-direction:column;margin:0}) so the golden's <main> shrink-wraps to its
@@ -110,64 +112,75 @@ func main() {
 	// frozen stub contract.
 	bodyFlex := flag.Bool("body-flex", false, "diagnostic: add body{display:flex;flex-direction:column} so main shrink-wraps like the app")
 	flag.Parse()
-	if *out == "" {
-		log.Fatal("render-goldens: -out is required")
-	}
 
-	html, err := render(*bodyFlex)
-	if err != nil {
-		log.Fatalf("render-goldens: %v", err)
+	switch *screen {
+	case "inventory":
+		if *out == "" {
+			log.Fatal("render-goldens: -out is required for -screen inventory")
+		}
+		html, err := render(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(*out), 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		if err := os.WriteFile(*out, html, 0o600); err != nil {
+			log.Fatalf("render-goldens: write %s: %v", *out, err)
+		}
+		log.Printf("render-goldens: wrote %s (%d bytes)", *out, len(html))
+	case "error":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen error")
+		}
+		files, err := renderErrorStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	default:
+		log.Fatalf("render-goldens: unknown -screen %q (want inventory | error)", *screen)
 	}
-	if err := os.MkdirAll(filepath.Dir(*out), 0o750); err != nil {
-		log.Fatalf("render-goldens: mkdir: %v", err)
-	}
-	if err := os.WriteFile(*out, html, 0o600); err != nil {
-		log.Fatalf("render-goldens: write %s: %v", *out, err)
-	}
-	log.Printf("render-goldens: wrote %s (%d bytes)", *out, len(html))
 }
 
-func render(bodyFlex bool) ([]byte, error) {
+// goldenHead builds the golden's <head>…<body> shell: the frozen font @import hoisted
+// to its own leading <style>, the concatenated design tokens, and the minimal reset
+// that reconciles the candidate's effective body context for the cropped `main`. It is
+// the SAME shell for every screen (see the reconciliation notes below), so both goldens
+// carry the identical token cascade + font load the app inlines for design-served pages.
+//
+//   - body{margin:0}                — app pageCSS sets it; base.css does not.
+//   - body{display:block}           — the app neutralizes its legacy flex shell for
+//     design-served pages via a gated `<style data-design-shell>` shim; block flow is
+//     already the golden's default, so this is a no-op but stated for parity of intent.
+//   - *{box-sizing:border-box}      — app pageCSS applies this global reset; the design
+//     components are authored for border-box. base.css (inlined via tokens) does NOT set
+//     box-sizing, so without this padded controls grow content-box and diverge.
+//
+// FONT LOAD SYMMETRY: typography.css carries the webfont `@import url(...)` as its leading
+// rule, valid there. Once tokens are CONCATENATED it is no longer first, so per CSS spec it
+// is INVALID and dropped — the golden would fall back to system fonts while the candidate
+// (whose pageCSS puts the same @import first) loads real Instrument Sans / Geist Mono,
+// diverging glyph metrics. So hoist that exact @import into its own leading <style>, so BOTH
+// sides attempt the identical webfont load (deterministic whether or not the CDN resolves).
+func goldenHead(bodyFlex bool) (template.HTML, error) {
 	tokens, err := loadDesignTokens()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-
-	// Build the stub head string in Go and inject it via a func, so the token
-	// CSS (which may contain single braces) is never itself parsed as template
-	// text. No pageCSS, no theme script, no viewport meta — see file header.
-	//
-	// The golden shell reproduces the candidate's effective body context for the
-	// cropped `main`, so the design tmpl renders identically both sides:
-	//   * body{margin:0}                — app pageCSS sets it; base.css does not.
-	//   * body{display:block}           — the app neutralizes its legacy flex shell
-	//     for design-served pages via a gated `<style data-design-shell>` shim, so
-	//     `<main class="inv-main">` sizes as authored (full width to its 1440
-	//     max-width, content height) rather than shrink-wrapping/stretching. Block
-	//     flow is already the golden's default, so this is a no-op but stated for
-	//     parity of intent.
-	//   * *{box-sizing:border-box}      — app pageCSS applies this global reset; the
-	//     design components are authored for border-box (e.g. height:36px controls
-	//     WITH padding). base.css (inlined via tokens) does NOT set box-sizing, so
-	//     without this the golden falls back to content-box and every padded control
-	//     grows, accumulating a per-row height delta vs the candidate. Matching it is
-	//     faithful render-context reconciliation, not a frozen-file edit.
-	// Kept minimal: tokens + this reset, no pageCSS.
-	//
-	// FONT LOAD SYMMETRY: typography.css carries the webfont `@import url(...)` as its
-	// leading rule, valid there. But once tokens are CONCATENATED (base.css first,
-	// typography.css later), that @import is no longer the first rule of the combined
-	// sheet, so per CSS spec it is INVALID and dropped — the golden would fall back to
-	// system fonts while the candidate (whose pageCSS puts the same @import first in
-	// its own <style>) loads real Instrument Sans / Geist Mono, diverging line-height:
-	// normal glyph metrics. So hoist that exact @import into its OWN leading <style>
-	// at the very top of <head>, before the concatenated tokens, so BOTH sides attempt
-	// the identical webfont load (deterministic whether or not the CDN is reachable).
 	fontImport, err := leadingFontImport()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-
 	diag := ""
 	if bodyFlex {
 		diag = "<style>body{display:flex;flex-direction:column;margin:0}</style>"
@@ -178,13 +191,27 @@ func render(bodyFlex bool) ([]byte, error) {
 		"<style data-golden-shell>*,*::before,*::after{box-sizing:border-box}body{margin:0}</style>" + diag + "</head><body>"
 	// The head is composed by this harness from the embedded design tokens and the
 	// frozen font @import — no user input reaches it, so it is safe to mark trusted.
-	head := template.HTML(headHTML) // #nosec G203 -- trusted design CSS/HTML composed by the harness from embedded artifacts, no user input
+	return template.HTML(headHTML), nil // #nosec G203 -- trusted design CSS/HTML composed by the harness from embedded artifacts, no user input
+}
 
+// newStubbedTemplate returns a template set whose "head"/"chrome"/"foot" are the golden
+// stubs the design tmpls call: "head" inlines the composed shell (so the token CSS's
+// single braces are never parsed as template text), "chrome" is empty (cropped out of the
+// `main` screenshot), and "foot" only closes the document.
+func newStubbedTemplate(head template.HTML) (*template.Template, error) {
 	t := template.New("root").Funcs(template.FuncMap{
 		"stubhead": func() template.HTML { return head },
 	})
-	// Stub the shell blocks the "inventory" definition calls.
-	if _, err := t.Parse(`{{define "head"}}{{stubhead}}{{end}}{{define "chrome"}}{{end}}{{define "foot"}}</body></html>{{end}}`); err != nil {
+	return t.Parse(`{{define "head"}}{{stubhead}}{{end}}{{define "chrome"}}{{end}}{{define "foot"}}</body></html>{{end}}`)
+}
+
+func render(bodyFlex bool) ([]byte, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	t, err := newStubbedTemplate(head)
+	if err != nil {
 		return nil, err
 	}
 	if _, err := t.ParseFS(designfs.FS, "templates/inventory.tmpl"); err != nil {
@@ -201,6 +228,76 @@ func render(bodyFlex bool) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// errorGolden is one rendered error-state golden: its state id (states.json) and the
+// static HTML the capture harness snapshots in golden mode.
+type errorGolden struct {
+	id   string
+	html []byte
+}
+
+// renderErrorStates composes the six ErrorPage golden HTMLs from the frozen error.tmpl,
+// one per states.json state. The per-state data map mirrors errors.go's handlers EXACTLY
+// (Kind/Code/Subject/IncidentID/ActionLabel/ActionHref) so the cropped `main` is
+// byte-identical to what the seeded server renders — the golden and the candidate are the
+// same tmpl fed the same holes. The incident id and the missing-subject/run keys are read
+// from fixtures.json (never hardcoded here) so a fixture change flows through. .Chrome is
+// unset: goldens crop to `main`, so the chrome band is excluded (shell #22 gates it).
+func renderErrorStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadErrorFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	// Order mirrors states.json. 404/403/500 carry no ActionLabel/Href — the tmpl
+	// defaults ("Back to dashboard" → "/") apply, exactly as renderError leaves them.
+	states := []errorGolden{
+		{id: "404", html: nil},
+		{id: "403", html: nil},
+		{id: "500", html: nil},
+		{id: "missing-subject", html: nil},
+		{id: "missing-run", html: nil},
+		{id: "settings-forbidden", html: nil},
+	}
+	data := map[string]map[string]any{
+		"404": {"Kind": "404"},
+		"403": {"Kind": "403"},
+		"500": {"Kind": "500", "IncidentID": fx.IncidentID},
+		"missing-subject": {
+			"Kind": "missing-subject", "Subject": fx.MissingSubject,
+			"ActionLabel": "Back to inventory", "ActionHref": "/inventory",
+		},
+		"missing-run": {
+			"Kind": "missing-run", "Subject": "run #" + fx.MissingRun,
+			"ActionLabel": "Back to drift", "ActionHref": "/drift",
+		},
+		"settings-forbidden": {
+			"Kind": "settings-forbidden", "Code": "403",
+			"ActionLabel": "Back to dashboard", "ActionHref": "/",
+		},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/error.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "error-page", data[st.id]); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
 }
 
 // loadDesignTokens replicates cmd/web/templates_inventory.go's loadDesignTokens
@@ -240,6 +337,38 @@ func leadingFontImport() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no @import found in tokens/typography.css")
+}
+
+// errorFixture is the design-system/fixtures/fixtures.json → error slice: the
+// deterministic 500 incident id and the keys the missing-subject/run states show.
+// The golden reads them here so a fixture change flows through instead of being pinned
+// twice; the repo side pins the same values in code (devfixtures.go) with a drift test.
+type errorFixture struct {
+	IncidentID     string
+	MissingSubject string
+	MissingRun     string
+}
+
+func loadErrorFixture() (errorFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return errorFixture{}, err
+	}
+	var ff struct {
+		Error struct {
+			IncidentID     string `json:"incident_id"`
+			MissingSubject string `json:"missing_subject"`
+			MissingRun     string `json:"missing_run"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return errorFixture{}, err
+	}
+	return errorFixture{
+		IncidentID:     ff.Error.IncidentID,
+		MissingSubject: ff.Error.MissingSubject,
+		MissingRun:     ff.Error.MissingRun,
+	}, nil
 }
 
 func loadFixture() (pageData, error) {
