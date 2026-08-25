@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1451,6 +1452,10 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if v := q.Get("revoke"); v != "" {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
 			st.revokeID = id
+		} else if s.devMode {
+			// Pixel-parity capture only (#542): resolve the frozen fixture token id (`t1`) to a
+			// real personal_token id so the revoke-token golden opens. A no-op in a real build.
+			st.revokeID = s.devResolveFixtureTokenID(r, acct.ID, v)
 		}
 	}
 	if q.Get("endsession") != "" {
@@ -1505,7 +1510,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	var tokens []profileTokenView
-	if rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID); err == nil {
+	if rows, err := s.listPersonalTokensCreatedAsc(r.Context(), acct.ID); err == nil {
 		for _, t := range rows {
 			tokens = append(tokens, profileTokenView{
 				ID: t.ID, Name: t.Name, Prefix: t.Prefix,
@@ -1610,6 +1615,51 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"SignOutOthers": st.signOutOthers,
 	}
 	s.render(w, "profile", data)
+}
+
+// listPersonalTokensCreatedAsc reads one account's tokens in the order the Profile renders
+// them: created-ASC (oldest first) with id ASC as a stable tiebreak — the design's order
+// (Profile.jsx's array + concat; fixtures.json → profile.tokens is authored the same way), so
+// a freshly-minted token, carrying the newest created_at, sorts last. ListPersonalTokens
+// returns newest-first (created_at DESC), so this re-sorts the returned slice in place —
+// simpler than an sqlc/query change both Profile read paths would share (#542 ruling). It is
+// the single source of the Profile token order (renderProfile + the dev revoke-id bridge).
+func (s *server) listPersonalTokensCreatedAsc(ctx context.Context, accountID int64) ([]db.ListPersonalTokensRow, error) {
+	rows, err := s.store.ListPersonalTokens(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		ti, tj := rows[i].CreatedAt.Time, rows[j].CreatedAt.Time
+		if ti.Equal(tj) {
+			return rows[i].ID < rows[j].ID
+		}
+		return ti.Before(tj)
+	})
+	return rows, nil
+}
+
+// devResolveFixtureTokenID bridges the design's fixture token id to a real personal_token id
+// for the pixel-parity capture (#542), in a VERGE_DEV build ONLY. The frozen capture state
+// navigates `/profile?revoke=t1` (fixtures.json → profile.tokens[].id are "t1"/"t2"), but
+// personal_token uses int64 ids and the real Profile therefore emits `?revoke=<int64>` links
+// — so `t1` never parses in a real build and simply opens no dialog. Here, dev-only, `t<N>`
+// resolves to the N-th token in the Profile's created-ASC order (t1 → laptop-cli), so the
+// revoke-token golden opens against the same token the design mocks. Returns 0 (no dialog) on
+// any miss, exactly as an unknown id would. Never reached in a real deployment.
+func (s *server) devResolveFixtureTokenID(r *http.Request, accountID int64, ref string) int64 {
+	if !strings.HasPrefix(ref, "t") {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimPrefix(ref, "t"))
+	if err != nil || n < 1 {
+		return 0
+	}
+	rows, err := s.listPersonalTokensCreatedAsc(r.Context(), accountID)
+	if err != nil || n > len(rows) {
+		return 0
+	}
+	return rows[n-1].ID
 }
 
 // profileIdentityView is one linked SSO identity shown on the Profile: the binding id

@@ -47,6 +47,17 @@ const pageDir = arg('--pagedir'); // golden mode: per-state HTML dir (<state>.ht
 const baseURL = arg('--base', 'http://localhost:8080'); // candidate mode
 const user = arg('--user', 'operator');
 const pass = arg('--pass', 'verge-dev-operator');
+// candidate mode, profile screen: a dev route hit before EVERY state that (re)seeds the fixture
+// (so the "minted" state's created token never leaks into the next state) and hands back the
+// seeded current-session cookie (so the fixture's current row wears the "this device" badge
+// without minting a fourth session). When set, it replaces the per-state /dev/session mint.
+const adoptPath = arg('--adopt');
+// candidate mode: hide the console chrome (the sticky <header class="topnav">) before the shot.
+// The crop is `main`, so chrome is never in-frame — but it occupies ~56px above <main> in flow,
+// which shifts a viewport-FIXED overlay (profile's dialogs) relative to the captured main box.
+// The golden renders no chrome (empty stub), so hiding it here puts <main> at the viewport top on
+// BOTH sides and the fixed overlay aligns. Chrome itself is out of Phase-A scope (shell #22).
+const hideChrome = has('--hide-chrome');
 
 const config = JSON.parse(readFileSync(join(verifyDir, 'config.json'), 'utf8'));
 const statesDoc = JSON.parse(readFileSync(join(verifyDir, 'states.json'), 'utf8'));
@@ -131,9 +142,17 @@ async function run() {
           const gp = pageDir ? join(pageDir, `${st.id}.html`) : pagePath;
           await page.goto(pathToFileURL(resolve(gp)).href, { waitUntil: 'networkidle' });
         } else {
-          // Establish this state's session first (error), then navigate its own route
-          // (states.json's per-state route) or the screen-level route (inventory).
-          if (st.session) await mintSession(context, st.session);
+          // Establish this state's session first, then navigate its own route (states.json's
+          // per-state route) or the screen-level route (inventory). The profile screen uses the
+          // --adopt reseed+cookie route (per state) instead of the per-state /dev/session mint,
+          // so a prior state's minted token is reset and the current-session badge resolves.
+          if (adoptPath) {
+            const prep = await context.newPage();
+            await prep.goto(`${baseURL}${adoptPath}`, { waitUntil: 'networkidle' });
+            await prep.close();
+          } else if (st.session) {
+            await mintSession(context, st.session);
+          }
           const route = st.route || screenStates.route;
           await page.goto(`${baseURL}${route}`, { waitUntil: 'networkidle' });
         }
@@ -143,11 +162,40 @@ async function run() {
         await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
         await page.addStyleTag({ content: FREEZE_CSS });
 
-        if (st.js && st.js.trim()) {
-          await page.evaluate((js) => {
-            // eslint-disable-next-line no-new-func
-            new Function(js)();
-          }, st.js);
+        // State scripts drive both modes for a shared-file golden (inventory) and the live
+        // candidate. A per-state golden (--pagedir: error, profile) is already pre-rendered in
+        // its end state, so its script — which may submit a form and hit the server (profile
+        // "minted") — must NOT run against the static file. Run everywhere EXCEPT golden+pagedir.
+        const runStateJs = st.js && st.js.trim() && !(mode === 'golden' && pageDir);
+        if (runStateJs) {
+          try {
+            await page.evaluate((js) => {
+              // eslint-disable-next-line no-new-func
+              new Function(js)();
+            }, st.js);
+          } catch (e) {
+            // A form-submitting script (profile "minted") can tear down the execution context
+            // as it navigates; that is expected and handled by the settle + re-assert below.
+            // Only a script with no declared settle delay should surface the error.
+            if (!st.delay) throw e;
+          }
+          // A script may navigate (profile "minted" POSTs the create form; the handler renders
+          // the minted dialog directly). Wait its declared settle, then re-assert theme + freeze
+          // on the new document — a navigation drops [data-theme] and the injected freeze style.
+          if (st.delay) {
+            await page.waitForLoadState('networkidle').catch(() => {});
+            await page.waitForTimeout(st.delay);
+            await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+            await page.addStyleTag({ content: FREEZE_CSS });
+          }
+        }
+        // Drop the console chrome from flow (candidate only) so <main> sits at the viewport top,
+        // aligning the fixed dialog overlay with the chrome-less golden. A no-op when no chrome
+        // is present. Done before the settle waits so the reflow paints before the shot.
+        if (mode === 'candidate' && hideChrome) {
+          await page.evaluate(() => {
+            document.querySelectorAll('header.topnav, .topnav').forEach((el) => { el.style.display = 'none'; });
+          });
         }
         // Wait for webfonts to finish loading before snapshotting. Both the golden
         // (leading @import in its own <style>) and the candidate (pageCSS @import)

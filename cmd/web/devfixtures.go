@@ -77,6 +77,44 @@ func (s *server) devSessionMint(w http.ResponseWriter, r *http.Request) {
 	s.completeLogin(w, r, acct.ID)
 }
 
+// devProfileSessionPrepare is the /dev/profile/session handler (VERGE_DEV only): it prepares the
+// Profile capture context for one state (screen 3, #542). Unlike devSessionMint — which opens a
+// FRESH session row and would add a fourth, badge-stealing session to the fixture account — this:
+//
+//  1. re-seeds the Profile fixture (seedProfileFixtures is idempotent: it resets the account's
+//     own sessions/identities/tokens), so a token minted by the previous "minted" capture state
+//     never leaks into the next state's tokens table; and
+//  2. hands back a signed session cookie wrapping the well-known seeded current-session token
+//     (devProfileCurrentSessionToken). That token's hash is on the seeded Firefox·macOS row, so
+//     currentAccount resolves the capture as ola.perez AND currentSessionID resolves to that row
+//     — the one fixtures.json marks current — so it wears the "this device" badge, and no new
+//     session row is created (the sessions table stays the fixture's three).
+//
+// The reseed recreates the current-session row with the SAME token hash, so the cookie keeps
+// resolving across the per-state reseeds. Dev-only, nil-guarded on the pool.
+func (s *server) devProfileSessionPrepare(w http.ResponseWriter, r *http.Request) {
+	if s.pool == nil {
+		s.notFound(w, r)
+		return
+	}
+	if err := seedProfileFixtures(r.Context(), s.pool); err != nil {
+		s.serverError(w, "dev: reseed profile fixture", err)
+		return
+	}
+	acct, err := s.store.GetAccountByUsername(r.Context(), devProfileUsername)
+	if err != nil {
+		s.notFound(w, r)
+		return
+	}
+	if !s.setSignedCookie(w, r, sessionCookie, auth.KindSession, acct.ID, devProfileCurrentSessionToken, s.sessionTTL) {
+		return
+	}
+	// A 200 with a tiny body (not 204) so the harness's page.goto completes the navigation and
+	// stores the Set-Cookie — a 204 makes Chromium abort the navigation (net::ERR_ABORTED).
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("ok"))
+}
+
 // seedDevFixtureAccounts makes the fixtures.json admin + viewer exist so the dev session
 // mint can sign in as either. It is idempotent — an account already present (by username)
 // is left untouched — so a re-seed is a no-op, and it runs only from the -seed-fixtures

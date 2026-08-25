@@ -49,21 +49,24 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "== 1. render-goldens -> static HTML (inventory + error) =="
+echo "== 1. render-goldens -> static HTML (inventory + error + profile) =="
 docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
   sh -c "go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen inventory -out design-system/goldens/inventory.html && \
-         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen error -outdir design-system/goldens/error"
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen error -outdir design-system/goldens/error && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen profile -outdir design-system/goldens/profile"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
 docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_IMAGE" \
   sh -c "npm install --no-audit --no-fund >/dev/null 2>&1 && echo deps ok"
 
 if [ "${GOLDENS:-}" = "write" ]; then
-  echo "== 2. capture --write-goldens (file://) — inventory + error =="
+  echo "== 2. capture --write-goldens (file://) — inventory + error + profile =="
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen inventory --page /src/design-system/goldens/inventory.html
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen error --pagedir /src/design-system/goldens/error
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen profile --pagedir /src/design-system/goldens/profile
 fi
 
 echo "== 3a. Postgres (pinned) =="
@@ -94,10 +97,12 @@ for i in $(seq 1 30); do docker exec "$WEB" /out/web -healthcheck >/dev/null 2>&
 # binding G2 gate, which only ever runs in this pinned container.
 ADV_FLAG=""
 if [ "${ADVISORY:-1}" = "1" ]; then ADV_FLAG="--advisory"; fi
-echo "== 4. capture --mode candidate ${ADV_FLAG} — inventory + error =="
+echo "== 4. capture --mode candidate ${ADV_FLAG} — inventory + error + profile =="
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen inventory --base "http://${WEB}:8080"
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen error --base "http://${WEB}:8080"
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen profile --base "http://${WEB}:8080" --adopt /dev/profile/session --hide-chrome
 
 echo "== done (ADVISORY=${ADVISORY:-1}) =="

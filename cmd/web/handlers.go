@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -388,6 +389,12 @@ type server struct {
 	// online password guess has a bounded budget. It is in-process and clock-driven
 	// (no DB, no new dependency), reset on a successful auth.
 	loginLimiter *loginLimiter
+
+	// pool is the raw pgx pool, wired ONLY for the VERGE_DEV pixel-parity harness
+	// affordance that re-seeds the Profile fixture between capture states (#542) via
+	// the /dev/profile/session route. A real deployment leaves it nil — that route is
+	// registered only in devMode and guards on a nil pool — so no non-dev path touches it.
+	pool *pgxpool.Pool
 
 	// devMode is a VERGE_DEV build: it unlocks the dev-only pixel-parity affordances
 	// (main.go sets it from VERGE_DEV). It gates the /dev/* harness routes (devfixtures.go)
@@ -775,6 +782,11 @@ func (s *server) handler() http.Handler {
 		mux.HandleFunc("GET /dev/403", s.forbidden)
 		mux.HandleFunc("GET /dev/panic", s.devPanic)
 		mux.HandleFunc("GET /dev/session/{role}", s.devSessionMint)
+		// Screen 3 (Profile, #542): prepare the capture context — re-seed the Profile fixture
+		// (so a prior state's minted token never leaks) and hand back the seeded current-session
+		// cookie (so the Firefox·macOS row wears the "this device" badge without minting a
+		// fourth session). The literal path outranks the {role} wildcard above.
+		mux.HandleFunc("GET /dev/profile/session", s.devProfileSessionPrepare)
 	}
 
 	// Recovered panics render the 500 error page with a real, logged incident id
