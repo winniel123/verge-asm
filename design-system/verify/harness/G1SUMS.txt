@@ -15,6 +15,10 @@ b230480b2f1432053677a03278254f62add5ace5  design-system/goldens/error/missing-su
 9e8c93ef8be6bfd2d867c10c80ac1b30af534d72  design-system/goldens/error/missing-subject-1440-light.png
 b85d7ec09e7b013b770bc02ac3b8898b76c2a47b  design-system/goldens/error/settings-forbidden-1440-dark.png
 148ff834f71eaafa6a22b0bf079e86a081262203  design-system/goldens/error/settings-forbidden-1440-light.png
+8b93bd217d0f887a5d34a4e6dd5ccb7da837f239  design-system/goldens/exposure/default-1440-dark.png
+0cf692d014796d72b24e6ca3202a1c8665010fbb  design-system/goldens/exposure/default-1440-light.png
+92c9dcd4955cf4544a80e6ae9f4c25fde44e463a  design-system/goldens/exposure/withheld-1440-dark.png
+630f0d3229631c9d4cc10f3a2e8d93367167a283  design-system/goldens/exposure/withheld-1440-light.png
 881fc0bf4238fdb79373c7e33d0a79f86d039c96  design-system/goldens/inventory/columns-open-1440-dark.png
 dc3cfc963e6683c61bd4ebb41042d35993a89396  design-system/goldens/inventory/columns-open-1440-light.png
 f23be0fb57b87bc30972e9ea624337956bee3586  design-system/goldens/inventory/default-1440-dark.png

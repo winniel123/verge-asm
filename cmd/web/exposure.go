@@ -1,13 +1,29 @@
 package main
 
 import (
+	"html/template"
 	"log"
 	"net/http"
 	"sort"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/exposure"
 )
+
+// The Exposure screen (screen 7, #560/#561) is served byte-for-byte from the frozen
+// design-owned design-system/templates/exposure.tmpl (package v3.8.0, WORKFLOW v4),
+// which replaces the repo-authored templates_exposure.go const (deleted). The tmpl
+// keeps the "exposure" + "expleg" defines and renders inside the full app chrome
+// ({{template "chrome" .}}); it declares the holes exposurePage shapes below —
+// .Withheld, .Exposed, .Firewalled, .NotReached, .HasDeltas, .ExposedDelta.Change (int,
+// via the signDelta funcmap entry, templates_shell.go), and .Rows[{Asset,Svc,Internal,
+// Internet,Since}]. It styles against the design token vocabulary, so the render opts in
+// with DesignTokens:true (the "head" block inlines tokens/*.css only then). exposure.tmpl
+// auto-embeds through designfs's existing templates/*.tmpl glob, so no designfs.go change
+// is needed. Reconciliation SPEC-CHANGE #20f (ruled): the withheld action targets
+// Settings → Vantages (/settings/vantages, aliased in handlers.go), not /scope.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/exposure.tmpl"))
 
 // The Exposure page — canonical `/exposure` (#300, T5, ADR-0110). Ported from
 // design-system/examples/console/Exposure.jsx: the both-legs table (a service per
@@ -60,6 +76,22 @@ type exposureStats struct {
 func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
 
+	// VERGE_DEV pixel-parity path (#560/#561). The frozen exposure.tmpl renders the
+	// both-legs board (six rows, the +2 exposed delta, 41 firewalled, 7 not reached) and
+	// the WITHHELD state — a curated corpus whose exact rows, counts and delta are the
+	// design's, not a live-estate read. Reproducing them from the live derivations would
+	// mean fabricating domain data, which SPEC-CHANGE forbids — so, exactly as the
+	// SignIn/Setup/Coverage screens pin their dev fixture and serve it under devMode with a
+	// drift test (TestExposureFixtureMatchesPackage), exposure serves the pinned fixtures.json
+	// → exposure slice here so the seeded candidate renders byte-for-byte what the golden
+	// composes. The withheld golden rides a dev ?variant=no-internet-vantage query (states.json),
+	// which capture.mjs appends. A real deployment (devMode == false) falls through to the honest
+	// live reads below.
+	if s.devMode {
+		s.render(w, "exposure", s.exposureFixtureData(acct, r.URL.Query().Get("variant")))
+		return
+	}
+
 	// The internet leg is a provisioned prober classed to the internet (probers.go:
 	// "provisioning a prober declares this vantage is on the internet"). Without one,
 	// no exposure claim is constructible — internal reachability may be complete, but
@@ -82,7 +114,10 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.render(w, "exposure", map[string]any{
 			"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 			"NavActive": "exposure",
-			"Withheld":  true,
+			// exposure.tmpl styles against the design token vocabulary; the "head" block
+			// inlines tokens/*.css only when this datum is set (as Coverage/Profile do).
+			"DesignTokens": true,
+			"Withheld":     true,
 		})
 		return
 	}
@@ -96,12 +131,15 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// no-delta state, never a fabricated zero. The P2.6 Exposure markup reads these.
 	data := map[string]any{
 		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "exposure",
-		"Withheld":   false,
-		"Rows":       rows,
-		"Exposed":    stats.exposed,
-		"Firewalled": stats.firewalled,
-		"NotReached": stats.notReached,
+		"NavActive": "exposure",
+		// exposure.tmpl styles against the design token vocabulary; the "head" block
+		// inlines tokens/*.css only when this datum is set (as Coverage/Profile do).
+		"DesignTokens": true,
+		"Withheld":     false,
+		"Rows":         rows,
+		"Exposed":      stats.exposed,
+		"Firewalled":   stats.firewalled,
+		"NotReached":   stats.notReached,
 	}
 	if prevAt, ok, err := s.previousBatchInstant(ctx); err != nil {
 		log.Printf("web: exposure: previous batch instant: %v", err)
