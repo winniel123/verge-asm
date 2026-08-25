@@ -604,9 +604,26 @@ func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64)
 
 // --- home / Dashboard -------------------------------------------------------
 
+// The Dashboard screen is now byte-served from the design-owned, frozen dashboard.tmpl
+// (package v3.9.0, WORKFLOW v4), embedded read-only via the designfs package and parsed
+// into the shared set here. The repo authors no dashboard markup/CSS/JS: templates_dashboard.go
+// is deleted (its "home" + "dashboard" defines move to the frozen tmpl); only the empty-estate
+// "firstrun" define stays repo-authored (templates_firstrun.go) until map #20. dashboard.tmpl's
+// most-recent-signals rows call the "sevbadge" define signals.tmpl declares — both parse into the
+// one shared `tmpl` set, so it resolves at execute time. dashboard.tmpl auto-embeds through
+// designfs's existing `templates/*.tmpl` glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/dashboard.tmpl"))
+
 func (s *server) home(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if r.URL.Path != "/" {
 		s.notFound(w, r)
+		return
+	}
+	// VERGE_DEV pixel-parity path: serve the pinned fixtures.json dashboard slice so the seeded
+	// instance renders byte-for-byte what the golden composes (as coverage/exposure/signals do).
+	// A real deployment (devMode == false) falls through to the honest live reads below.
+	if s.devMode {
+		s.render(w, "home", s.dashboardFixtureData(acct, r))
 		return
 	}
 	s.render(w, "home", s.dashboardData(r, acct))
@@ -638,13 +655,27 @@ type dashSevBar struct {
 // firing instance's severity, its human signal title, the asset and port it fires on,
 // and how long ago it was seen. Shaped from the per-instance datum (#442, signals.go
 // deriveSignalInstances) — every field a real read, none fabricated. The whole row
-// deep-links to Signals (Dashboard.jsx onRowClick={onOpenSignals}).
+// deep-links into the Signals drawer at /signals?view={ViewKey} (#21f, Dashboard.jsx
+// onRowClick={onOpenSignals}); ViewKey is the fired instance's SIG id — the same token the
+// Signals screen's ?view= resolves — and SevLabel its capitalised severity for the sevbadge.
 type dashRecentSignal struct {
 	Severity string
+	SevLabel string
 	Title    string
 	Asset    string
 	Port     string
 	Seen     string
+	ViewKey  string
+}
+
+// dashSilentZone is the Coverage card's staleness callout (Dashboard.jsx StalenessBadge,
+// SPEC-CHANGE #21e3): a source that has gone silent — its staleness age (Bound, e.g. "9d",
+// empty where no age is read) and the subject line naming what went quiet. Nil where nothing
+// is silent, so the card renders no callout rather than a fabricated one. It replaces the
+// prior bare .SilentVantage string with the spec's badge + subject shape.
+type dashSilentZone struct {
+	Bound string
+	Text  string
 }
 
 // dashStat is one cell of the framed stat band (Dashboard.jsx): its label, formatted
@@ -792,10 +823,12 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 				}
 				recentSignals = append(recentSignals, dashRecentSignal{
 					Severity: in.Severity,
+					SevLabel: sevLabel(in.Severity),
 					Title:    in.Title,
 					Asset:    strings.TrimSuffix(in.Asset, in.Port),
-					Port:     strings.TrimPrefix(in.Port, ":"),
+					Port:     in.Port,
 					Seen:     in.Seen,
+					ViewKey:  in.SigID,
 				})
 			}
 		} else {
@@ -916,9 +949,32 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		}
 		coverageMeters = apertureMeters(seedRows, zones)
 	}
-	silentVantage := ""
+	// A silent source drives the Coverage card's staleness callout (#21e3): where a
+	// provisioned vantage has stopped reporting, the card names the silent position. Bound
+	// (a staleness age) is left empty — the live read carries no honest age yet, so the badge
+	// renders "no reports" with no fabricated figure; nil where nothing is silent.
+	var silentZone *dashSilentZone
 	if len(unavailable) > 0 {
-		silentVantage = unavailable[0]
+		silentZone = &dashSilentZone{Text: "position " + unavailable[0] + " went silent"}
+	}
+
+	// ScanDetail — the running-scan Progress detail line ("N subjects queued", #21e): the
+	// subjects still in flight across the active dispatches, read off the same dispatch-progress
+	// corpus the active-kinds fold reads. Best-effort: a failed read leaves the detail blank
+	// rather than fabricating a figure.
+	scanDetail := ""
+	if len(active) > 0 {
+		if rows, derr := s.store.ListDispatchProgress(ctx, scansHistoryLimit); derr == nil {
+			queued := 0
+			for _, row := range rows {
+				if dv := toDispatchView(row); dv.Active {
+					queued += int(dv.InFlight)
+				}
+			}
+			scanDetail = fmt.Sprintf("%d %s queued", queued, plural(queued, "subject", "subjects"))
+		} else {
+			log.Printf("web: dashboard: scan detail: list dispatches: %v", derr)
+		}
 	}
 
 	// A server-rendered dismiss for the unreachable-vantage banner: the X links to the
@@ -944,9 +1000,9 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		"RecentSignals": recentSignals,
 
 		"CoverageMeters": coverageMeters,
-		"SilentVantage":  silentVantage,
+		"SilentZone":     silentZone,
 
-		"ActiveScans":    len(active),
+		"ScanDetail":     scanDetail,
 		"ScanSchedule":   schedule,
 		"ProbeDismissed": probeDismissed,
 

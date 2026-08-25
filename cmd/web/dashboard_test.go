@@ -53,8 +53,8 @@ func TestDashboardParityRegions(t *testing.T) {
 	// The spec's regions render: the framed stat band with all five cells, the
 	// by-severity ramp, the coverage/vantage cards, and the most-recent register.
 	for _, want := range []string{
-		"statband-grid", // one framed card, five Stat cells
-		"Open signals",  // stat cell labels
+		"db-statgrid",  // one framed card, five Stat cells (frozen dashboard.tmpl)
+		"Open signals", // stat cell labels
 		"Critical",
 		"Assets watched",
 		"Exposed services",
@@ -71,10 +71,10 @@ func TestDashboardParityRegions(t *testing.T) {
 		}
 	}
 
-	// The unmeasured vantage renders the spec's pending em dash, and the retired
-	// latency Skeleton placeholder is gone — a real value or a dash, never a
-	// fabricated number and never the old skeleton.
-	if !strings.Contains(page, "&#8212;") {
+	// The unmeasured vantage renders the spec's pending em dash (the frozen tmpl emits
+	// the literal — glyph, not the old &#8212; entity), and the retired latency Skeleton
+	// placeholder is gone — a real value or a dash, never a fabricated number.
+	if !strings.Contains(page, "—") {
 		t.Error("dashboard did not render the pending em dash for the unmeasured vantage latency")
 	}
 	if strings.Contains(page, "dash-skel") {

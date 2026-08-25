@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1175,6 +1176,190 @@ func TestSignalsFixtureMatchesPackage(t *testing.T) {
 			if l.Type != p.Lines[j].Type || l.Text != p.Lines[j].Text {
 				t.Errorf("diff %q line %d drift:\n fixtures.json = %+v\n pinned        = %+v", key, j, l, p.Lines[j])
 			}
+		}
+	}
+}
+
+// fixtureDashboardPackage mirrors the fixtures.json dashboard slice the screen-11 dev fixture pins in
+// devfixtures.go, plus the signals.rows the most-recent register reuses. counted is a RawMessage
+// because the JSON is mixed (a number for the address scope, a pre-formatted string for the name
+// scope); total is a pointer so the name-scope census (no denominator) round-trips as nil.
+type fixtureDashboardPackage struct {
+	Dashboard struct {
+		ScanSchedule struct {
+			HasLast bool   `json:"has_last"`
+			LastAgo string `json:"last_ago"`
+			HasNext bool   `json:"has_next"`
+			NextIn  string `json:"next_in"`
+		} `json:"scan_schedule"`
+		ScanningVariant string   `json:"scanning_variant"`
+		ScanDetail      string   `json:"scan_detail"`
+		Unavailable     []string `json:"unavailable"`
+		StatBand        []struct {
+			Label            string `json:"label"`
+			Value            string `json:"value"`
+			LiveWhenScanning bool   `json:"live_when_scanning"`
+			HasDelta         bool   `json:"has_delta"`
+			Change           int    `json:"change"`
+			Tone             string `json:"tone"`
+			Caption          string `json:"caption"`
+		} `json:"stat_band"`
+		SevBars []struct {
+			Sev   string `json:"sev"`
+			Pct   int    `json:"pct"`
+			Count int    `json:"count"`
+		} `json:"sev_bars"`
+		CoverageMeters []struct {
+			Label   string          `json:"label"`
+			Counted json.RawMessage `json:"counted"`
+			Total   *int            `json:"total"`
+			Pct     int             `json:"pct"`
+			Unit    string          `json:"unit"`
+		} `json:"coverage_meters"`
+		SilentZone struct {
+			Bound string `json:"bound"`
+			Text  string `json:"text"`
+		} `json:"silent_zone"`
+		Vantages []struct {
+			Name    string `json:"name"`
+			Latency string `json:"latency"`
+			Avail   string `json:"avail"`
+		} `json:"vantages"`
+	} `json:"dashboard"`
+	Signals struct {
+		Rows []struct {
+			ID       string `json:"id"`
+			Severity string `json:"severity"`
+			SevLabel string `json:"sev_label"`
+			Title    string `json:"title"`
+			Asset    string `json:"asset"`
+			Port     string `json:"port"`
+			Seen     string `json:"seen"`
+			ViewKey  string `json:"view_key"`
+		} `json:"rows"`
+	} `json:"signals"`
+}
+
+// dashCountedStr renders a fixtures.json coverage-meter counted RawMessage as the pinned string:
+// a JSON string is unquoted ("1,284"), a JSON number is used verbatim ("212").
+func dashCountedStr(raw json.RawMessage) string {
+	s := strings.TrimSpace(string(raw))
+	if len(s) >= 1 && s[0] == '"' {
+		var out string
+		if err := json.Unmarshal(raw, &out); err == nil {
+			return out
+		}
+	}
+	return s
+}
+
+// TestDashboardFixtureMatchesPackage is the byte-exactness gate for the screen-11 conversion: every
+// value the dev fixture pins (devfixtures.go, served by home() under devMode) equals the frozen
+// fixtures.json dashboard slice, in authored order — so a drift between the served candidate and the
+// golden (which composes the same fixture statically) fails here rather than in a screenshot diff. It
+// also folds the most-recent register back through the fixtures.json signals.rows the note points at
+// (first six), confirming the deep-link ViewKey resolves the Signals drawer.
+func TestDashboardFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureDashboardPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	d := f.Dashboard
+
+	if d.ScanningVariant != devDashScanningVariant {
+		t.Errorf("scanning variant drift: fixtures.json = %q, pinned = %q", d.ScanningVariant, devDashScanningVariant)
+	}
+	if d.ScanDetail != devDashScanDetail {
+		t.Errorf("scan_detail drift: fixtures.json = %q, pinned = %q", d.ScanDetail, devDashScanDetail)
+	}
+	if d.ScanSchedule.HasLast != devDashSchedule["HasLast"] || d.ScanSchedule.LastAgo != devDashSchedule["LastAgo"] ||
+		d.ScanSchedule.HasNext != devDashSchedule["HasNext"] || d.ScanSchedule.NextIn != devDashSchedule["NextIn"] {
+		t.Errorf("scan_schedule drift: fixtures.json = %+v, pinned = %+v", d.ScanSchedule, devDashSchedule)
+	}
+	if len(d.Unavailable) != len(devDashUnavailable) {
+		t.Fatalf("unavailable length drift: fixtures.json = %d, pinned = %d", len(d.Unavailable), len(devDashUnavailable))
+	}
+	for i := range d.Unavailable {
+		if d.Unavailable[i] != devDashUnavailable[i] {
+			t.Errorf("unavailable[%d] drift: fixtures.json = %q, pinned = %q", i, d.Unavailable[i], devDashUnavailable[i])
+		}
+	}
+
+	if len(d.StatBand) != len(devDashStatBand) {
+		t.Fatalf("stat_band length drift: fixtures.json = %d, pinned = %d", len(d.StatBand), len(devDashStatBand))
+	}
+	for i, st := range d.StatBand {
+		p := devDashStatBand[i]
+		if st.Label != p.label || st.Value != p.value || st.LiveWhenScanning != p.liveWhenScanning ||
+			st.HasDelta != p.hasDelta || st.Change != p.change || st.Tone != p.tone || st.Caption != p.caption {
+			t.Errorf("stat_band %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, st, p)
+		}
+	}
+
+	if len(d.SevBars) != len(devDashSevBars) {
+		t.Fatalf("sev_bars length drift: fixtures.json = %d, pinned = %d", len(d.SevBars), len(devDashSevBars))
+	}
+	for i, b := range d.SevBars {
+		p := devDashSevBars[i]
+		if b.Sev != p.Sev || b.Pct != p.Pct || b.Count != p.Count {
+			t.Errorf("sev_bars %d drift: fixtures.json = %+v, pinned = %+v", i, b, p)
+		}
+	}
+
+	if len(d.CoverageMeters) != len(devDashboardMeters) {
+		t.Fatalf("coverage_meters length drift: fixtures.json = %d, pinned = %d", len(d.CoverageMeters), len(devDashboardMeters))
+	}
+	for i, m := range d.CoverageMeters {
+		p := devDashboardMeters[i]
+		if m.Label != p.Label || dashCountedStr(m.Counted) != p.Counted || m.Unit != p.Unit {
+			t.Errorf("coverage_meters %d drift: fixtures.json = {%q,%q,%q}, pinned = {%q,%q,%q}",
+				i, m.Label, dashCountedStr(m.Counted), m.Unit, p.Label, p.Counted, p.Unit)
+		}
+		switch {
+		case m.Total == nil && p.Total != nil, m.Total != nil && p.Total == nil:
+			t.Errorf("coverage_meters %d total presence drift: fixtures.json nil=%v, pinned nil=%v", i, m.Total == nil, p.Total == nil)
+		case m.Total != nil && p.Total != nil:
+			if strconv.Itoa(*m.Total) != *p.Total {
+				t.Errorf("coverage_meters %d total drift: fixtures.json = %d, pinned = %q", i, *m.Total, *p.Total)
+			}
+			if m.Pct != p.Pct {
+				t.Errorf("coverage_meters %d pct drift: fixtures.json = %d, pinned = %d", i, m.Pct, p.Pct)
+			}
+		}
+	}
+
+	if d.SilentZone.Bound != devDashSilentZone.Bound || d.SilentZone.Text != devDashSilentZone.Text {
+		t.Errorf("silent_zone drift: fixtures.json = %+v, pinned = %+v", d.SilentZone, *devDashSilentZone)
+	}
+
+	if len(d.Vantages) != len(devDashVantages) {
+		t.Fatalf("vantages length drift: fixtures.json = %d, pinned = %d", len(d.Vantages), len(devDashVantages))
+	}
+	for i, v := range d.Vantages {
+		p := devDashVantages[i]
+		if v.Name != p.Name || v.Latency != p.Latency || v.Avail != p.Avail {
+			t.Errorf("vantages %d drift: fixtures.json = %+v, pinned = {%q,%q,%q}", i, v, p.Name, p.Latency, p.Avail)
+		}
+	}
+
+	// Most-recent register: the pinned dashRecentSignals() equals the first six fixtures.json
+	// signals.rows, each carrying the deep-link ViewKey the Signals drawer resolves.
+	if len(f.Signals.Rows) < 6 {
+		t.Fatalf("signals.rows has %d rows, dashboard register needs >= 6", len(f.Signals.Rows))
+	}
+	recent := dashRecentSignals()
+	if len(recent) != 6 {
+		t.Fatalf("dashRecentSignals length = %d, want 6", len(recent))
+	}
+	for i, got := range recent {
+		want := f.Signals.Rows[i]
+		if got.Severity != want.Severity || got.SevLabel != want.SevLabel || got.Title != want.Title ||
+			got.Asset != want.Asset || got.Port != want.Port || got.Seen != want.Seen || got.ViewKey != want.ViewKey {
+			t.Errorf("recent[%d] drift:\n fixtures.json = %+v\n pinned        = %+v", i, want, got)
 		}
 	}
 }

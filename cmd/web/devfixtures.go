@@ -1671,3 +1671,141 @@ func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string
 	}
 	return data
 }
+
+// --- screen 11: Dashboard fixture (package v3.9.0, WORK-ORDER-10-12-BATCH3.md) --------------
+//
+// The Dashboard (`/`, #575) renders inside the full app chrome and reads inside a real admin
+// session (minted by the harness). Its VIEW corpus — the header schedule (38m / 5h 22m), the
+// five-cell stat band with its vs-last-scan deltas, the by-severity ramp (3/11/18/9/6), the
+// two-shape coverage meters (an address scope counted/total 212/256, a name scope census 1,284),
+// the silent-zone staleness callout (9d · internal.acmecorp.io), the three vantages
+// (ap-south-1 unavailable · 12m) and the most-recent register (the first six signal rows) — is the
+// design curated fixture, not a live-estate read: the exact figures ("47", "1,284", "216", the
+// deltas and captions) cannot be reconstructed from the live derivations without fabricating domain
+// data, which SPEC-CHANGE forbids. So, exactly as the sibling screens pin their dev fixture and serve
+// it under devMode, home() serves the pinned fixtures.json dashboard slice below when s.devMode, and
+// TestDashboardFixtureMatchesPackage folds every value back through the frozen package — the
+// byte-exactness gate before the pixels. The most-recent register reuses the devSignalsOpen rows the
+// Signals screen pins (fixtures.json says "first 6 of signals.rows"), so the deep-link ?view=<SIG id>
+// resolves in the Signals drawer. All of it is VERGE_DEV-only; a real deployment renders the honest
+// live reads in auth.go dashboardData instead.
+
+// devDashScanningVariant is the states.json dashboard `scanning` variant token: it pins .Scanning
+// (the running-scan Progress row + live pulse) and the .ScanDetail figure.
+const devDashScanningVariant = "scanning"
+
+// devDashScanDetail is fixtures.json dashboard.scan_detail — the running-scan Progress detail the
+// `scanning` variant renders.
+const devDashScanDetail = "214 subjects queued"
+
+// devDashSchedule is fixtures.json dashboard.scan_schedule: the header sub-line's two instants.
+var devDashSchedule = map[string]any{"HasLast": true, "LastAgo": "38m", "HasNext": true, "NextIn": "5h 22m"}
+
+// devDashUnavailable is fixtures.json dashboard.unavailable: the missed-check vantage the banner names.
+var devDashUnavailable = []string{"ap-south-1"}
+
+// devDashStat mirrors one fixtures.json dashboard.stat_band cell. liveWhenScanning is the JSON's
+// live_when_scanning flag — the pulse shows only while a scan is running, so Live is set from it AND
+// the active `scanning` variant, never on the resting default.
+type devDashStat struct {
+	label            string
+	value            string
+	liveWhenScanning bool
+	hasDelta         bool
+	change           int
+	tone             string
+	caption          string
+}
+
+// devDashStatBand pins fixtures.json dashboard.stat_band in authored order (five cells).
+var devDashStatBand = []devDashStat{
+	{label: "Open signals", value: "47", liveWhenScanning: true, hasDelta: true, change: 3, tone: "bad", caption: "vs last scan"},
+	{label: "Critical", value: "3", hasDelta: true, change: -1, tone: "good", caption: "1 withdrawn today"},
+	{label: "Assets watched", value: "1,284", hasDelta: true, change: 12, tone: "neutral", caption: "8 domains · 3 ranges"},
+	{label: "Exposed services", value: "216", hasDelta: true, change: 4, tone: "bad", caption: "across 62 IPs"},
+	{label: "Certs expiring ≤30d", value: "9", hasDelta: true, change: -2, tone: "good", caption: "next: 2026-08-29"},
+}
+
+// devDashSevBars pins fixtures.json dashboard.sev_bars in ramp order (critical→info).
+var devDashSevBars = []dashSevBar{
+	{Sev: "critical", Pct: 17, Count: 3},
+	{Sev: "high", Pct: 61, Count: 11},
+	{Sev: "medium", Pct: 100, Count: 18},
+	{Sev: "low", Pct: 50, Count: 9},
+	{Sev: "info", Pct: 33, Count: 6},
+}
+
+// dashMeterTotal256 backs the address-scope meter's nullable denominator (package-level so its
+// address is stable); the name scope leaves Total nil (a census, the striped bar).
+var dashMeterTotal256 = "256"
+
+// devDashboardMeters pins fixtures.json dashboard.coverage_meters in authored order: an ADDRESS scope
+// rendering counted/total 212/256 (pct 83, #19c) and a NAME scope census of 1,284 names (no
+// denominator, #21e2). Counted/Total are pre-formatted strings the tmpl prints verbatim.
+var devDashboardMeters = []coverageMeterView{
+	{Label: "203.0.113.0/24", Counted: "212", Total: &dashMeterTotal256, Pct: 83, Unit: "addresses"},
+	{Label: "acmecorp.io names", Counted: "1,284", Unit: "names"},
+}
+
+// devDashSilentZone pins fixtures.json dashboard.silent_zone: the Coverage card's staleness callout.
+var devDashSilentZone = &dashSilentZone{Bound: "9d", Text: "zone transfer for internal.acmecorp.io"}
+
+// devDashVantages pins fixtures.json dashboard.vantages in authored order (ap-south-1 unavailable).
+var devDashVantages = []dashVantageView{
+	{Name: "eu-west-1", Latency: "34ms", Avail: "available"},
+	{Name: "us-east-2", Latency: "51ms", Avail: "available"},
+	{Name: "ap-south-1", Latency: "12m", Avail: "unavailable"},
+}
+
+// dashRecentSignals shapes the most-recent register from the first six devSignalsOpen rows (the
+// fixture's "first 6 of signals.rows"), each carrying the SevLabel + ViewKey the row + sevbadge read,
+// so ?view=<SIG id> deep-links into the Signals drawer.
+func dashRecentSignals() []dashRecentSignal {
+	out := make([]dashRecentSignal, 0, 6)
+	for _, row := range devSignalsOpen[:6] {
+		out = append(out, dashRecentSignal{
+			Severity: row.Severity, SevLabel: row.SevLabel, Title: row.Title,
+			Asset: row.Asset, Port: row.Port, Seen: row.Seen, ViewKey: row.ID,
+		})
+	}
+	return out
+}
+
+// dashboardFixtureData assembles the render data map home() passes to the frozen dashboard.tmpl in a
+// VERGE_DEV build. It stamps the chrome + design-token holes and the pinned fixture corpus, then reads
+// the `scanning` variant (states.json) — which lights .Scanning, the .ScanDetail figure and the first
+// cell's live pulse — and the ?probe=dismissed query (the banner-dismissed state). render-goldens
+// composes the identical maps statically, so golden and candidate agree byte-for-byte.
+func (s *server) dashboardFixtureData(acct db.Account, r *http.Request) map[string]any {
+	scanning := r.URL.Query().Get("variant") == devDashScanningVariant
+	probeDismissed := r.URL.Query().Get("probe") == "dismissed"
+
+	statBand := make([]dashStat, 0, len(devDashStatBand))
+	for _, st := range devDashStatBand {
+		statBand = append(statBand, dashStat{
+			Label: st.label, Value: st.value, Live: scanning && st.liveWhenScanning,
+			HasDelta: st.hasDelta, Change: st.change, Tone: st.tone, Caption: st.caption,
+		})
+	}
+
+	data := map[string]any{
+		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "dashboard", "DesignTokens": true,
+		"EmptyEstate":    false,
+		"ScanSchedule":   devDashSchedule,
+		"Scanning":       scanning,
+		"Unavailable":    devDashUnavailable,
+		"ProbeDismissed": probeDismissed,
+		"StatBand":       statBand,
+		"HasSignals":     true,
+		"SevBars":        devDashSevBars,
+		"CoverageMeters": devDashboardMeters,
+		"SilentZone":     devDashSilentZone,
+		"Vantages":       devDashVantages,
+		"RecentSignals":  dashRecentSignals(),
+	}
+	if scanning {
+		data["ScanDetail"] = devDashScanDetail
+	}
+	return data
+}
