@@ -139,6 +139,12 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 	if !p.Account.TotpEnabled {
 		t.Errorf("account totp_enabled drift: fixtures.json = %v, seeder seeds true", p.Account.TotpEnabled)
 	}
+	if p.Account.Created != devProfileCreated {
+		t.Errorf("account created drift: fixtures.json = %q, devProfileCreated = %q", p.Account.Created, devProfileCreated)
+	}
+	if _, err := time.Parse("2006-01-02", devProfileCreated); err != nil {
+		t.Errorf("account created not a date-only value: %q", devProfileCreated)
+	}
 	if got := initials(p.Account.Username); got != p.Account.Initials {
 		t.Errorf("initials drift: initials(%q) = %q, fixtures.json = %q", p.Account.Username, got, p.Account.Initials)
 	}

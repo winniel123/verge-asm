@@ -165,6 +165,14 @@ const (
 	// admin, by devFixtureAccounts).
 	devProfileUsername = "ola.perez"
 
+	// devProfileCreated is fixtures.json → profile.account.created: the date-only UTC
+	// account-creation date the Profile's "Member since" row renders (isoDate(acct.CreatedAt)).
+	// seedDevFixtureAccounts creates the account at wall-clock now(), so seedProfileFixtures
+	// pins created_at back to this fixture date; otherwise "Member since" drifts to the seed
+	// day (a "row data equals fixtures" miss). TestProfileFixtureMatchesPackage folds it back
+	// through the frozen package.
+	devProfileCreated = "2026-04-11"
+
 	// The one Okta identity linked to the fixture account, and its date-only UTC link date.
 	devProfileSSOProviderSlug = "okta"
 	devProfileSSOProviderName = "Okta"
@@ -264,6 +272,17 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 	// session mint, which bypasses the password/TOTP challenge, so no secret is required.
 	if _, err := pool.Exec(ctx, `UPDATE account SET totp_enabled = true WHERE id = $1`, acct.ID); err != nil {
 		return fmt.Errorf("profile fixture: enable totp: %w", err)
+	}
+
+	// Member since — the account was created at wall-clock now() by seedDevFixtureAccounts,
+	// so pin created_at to the fixture's date-only UTC value (fixtures.json → profile.account.
+	// created) or the "Member since" row (isoDate(acct.CreatedAt)) drifts to the seed day.
+	created, err := devFixtureDate(devProfileCreated)
+	if err != nil {
+		return fmt.Errorf("profile fixture: parse account created: %w", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE account SET created_at = $2 WHERE id = $1`, acct.ID, created); err != nil {
+		return fmt.Errorf("profile fixture: pin account created: %w", err)
 	}
 
 	// Sessions — reset this account's rows, then reinsert the three with last_seen_at at the
