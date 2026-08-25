@@ -1,11 +1,13 @@
 # Package version
 
-current: 3.4.0
+current: 3.5.0
 exported: 2026-08-24
 
 Convention: MAJOR.ROUND.PATCH — MAJOR is the package generation, ROUND increments per sync/Wayfinder round, PATCH per mid-round ruling or spec fix. The design workspace bumps this on every export; the repo copy always states what landed.
 
 ## Log
+- 3.5.0 — 2026-08-25 · screen 2 (ErrorPage): error.tmpl (six kinds, spec copy verbatim, hover copy control, chrome-when-signed-in rule), fixture accounts + deterministic incident id, six capture states, WORK-ORDER-2-ERROR.md; Inventory marked LANDED (operator confirmed)
+- 3.4.1 — 2026-08-24 · claude/skills/consume-design-package/SKILL.md added — the repo-side skill encoding the v4 consuming contract (land a version, convert a screen, wire holes, gates, escalation)
 - 3.4.0 — 2026-08-24 · P4.0 pilot artifacts: templates/inventory.tmpl (design-owned, self-contained, exact component values; carries recordrows + subject-missing), fixtures/fixtures.json (view contract + clock), verify/{states,config}.json, verify/PILOT-P4.0.md work order
 - 3.3.2 — 2026-08-24 · WAYFINDER-MAP.md: per-screen conversion order (22 stops, Inventory pilot, shell last with crop-to-main rule), the 4-step loop with operator visual sign-off gates, batching rule
 - 3.3.1 — 2026-08-24 · determinism section: one canonical pinned Linux container renders BOTH goldens and repo captures (goldens regenerated in-container from templates+fixtures, never workspace screenshots); packaged fonts; Windows/macOS runs advisory

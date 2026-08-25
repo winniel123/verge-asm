@@ -4,11 +4,67 @@
     "route": "/inventory",
     "crop": "main",
     "states": [
-      { "id": "default", "js": "" },
-      { "id": "expanded", "js": "document.querySelectorAll('.inv-exp').forEach(function(b){ b.click(); })" },
-      { "id": "gaps-only", "js": "var g=document.getElementById('inv-gaps'); g.checked=true; g.dispatchEvent(new Event('change',{bubbles:true}))" },
-      { "id": "filtered-empty", "js": "var q=document.getElementById('inv-q'); q.value='zzz'; q.dispatchEvent(new Event('input',{bubbles:true}))" },
-      { "id": "columns-open", "js": "document.getElementById('inv-cols-btn').click()" }
+      {
+        "id": "default",
+        "js": ""
+      },
+      {
+        "id": "expanded",
+        "js": "document.querySelectorAll('.inv-exp').forEach(function(b){ b.click(); })"
+      },
+      {
+        "id": "gaps-only",
+        "js": "var g=document.getElementById('inv-gaps'); g.checked=true; g.dispatchEvent(new Event('change',{bubbles:true}))"
+      },
+      {
+        "id": "filtered-empty",
+        "js": "var q=document.getElementById('inv-q'); q.value='zzz'; q.dispatchEvent(new Event('input',{bubbles:true}))"
+      },
+      {
+        "id": "columns-open",
+        "js": "document.getElementById('inv-cols-btn').click()"
+      }
+    ]
+  },
+  "error": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "404",
+        "route": "/this-route-does-not-exist",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "403",
+        "route": "/dev/403",
+        "session": "viewer",
+        "js": ""
+      },
+      {
+        "id": "500",
+        "route": "/dev/panic",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "missing-subject",
+        "route": "/asset/stagng-5.acmecorp.io",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "missing-run",
+        "route": "/runs/1408",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "settings-forbidden",
+        "route": "/settings",
+        "session": "viewer",
+        "js": ""
+      }
     ]
   }
 }

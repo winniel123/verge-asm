@@ -21,8 +21,8 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 
 | # | Screen | Route | tmpl | States to golden | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Inventory | /inventory | inventory.tmpl | record expansion open · gaps-only on · filtered-empty | **PILOT — artifacts shipped v3.4.0; run PILOT-P4.0.md** |
-| 2 | ErrorPage (all kinds) | /404 /403 /500 … | error.tmpl | — | queued |
+| 1 | Inventory | /inventory | inventory.tmpl | record expansion open · gaps-only on · filtered-empty | **LANDED — operator confirmed 2026-08-24** |
+| 2 | ErrorPage (all kinds) | /404 /403 /500 … | error.tmpl | — | **NEXT — artifacts in v3.5.0** |
 | 3 | Profile | /profile | profile.tmpl | new-token dialog · end-session confirm | queued |
 | 4 | SignIn (+ flows) | /signin … | signin.tmpl | TOTP step · forgot/reset · invite | queued |
 | 5 | Setup | /setup | setup.tmpl | — | queued |

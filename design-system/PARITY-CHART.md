@@ -34,6 +34,7 @@ Synced 2026-08-24T14:52Z against winniel123/verge-asm@main (tree e7cb9c0e0041), 
 - P0.5 and P2.10 (rulings above).
 - P0.6 **Dispatch + delivery backend** (collision #15, ruled by the owner 2026-08-24: BUILD IT LIVE). The on-cadence dispatcher and delivery backend #344 deferred (#285/#290/#291 chain, tracking #497): scheduled reports dispatch on their cadence, deliveries record receipts, and the 501/disabled scheduling surface comes alive per Reports.jsx (enabled New-schedule wizard → create; editable recurring list with Edit/Delete). The spec is unchanged — it was the target all along. Unblocks: P2.9 (schedule create/list live), P2.10's rendering (real artifacts to carry severity), reportDeliveryPage + Inbox delivery receipts on real deliveries. This is a subsystem — chart it as its own work-item tree, parallel to U/D items.
 - P0.6b **Off-instance send = notify-with-link** (collision #16, owner ruling 2026-08-24). A delivery to a recipient sends only "your report is ready" + a session-authed URL to the in-instance artifact — the estate digest never leaves the instance (ADR-0039 stands; no estate-bearing SMTP). Build the minimal notification transport for that message only. The spec's recipient fields stay as-is; the artifact renders in-instance per P2.10.
+- U6 Inventory re-port (collision #13 ruled; spec Inventory.jsx · shot 03). JS-only delta over the shipped template: client-side kind scope (All subjects / Names / Services / Endpoints / Addresses), Gaps-only toggle, subject text filter, EmptyState for a filtered-empty view (clear-filters action, corpus untouched). Everything shipped stands as-built — grouped read, record expansion, density, columns, keyboard nav, gated Export CSV, Add seed → Scope; BulkActionsBar/SavedViews/TagInput/Pagination stay retired; no severity/Change columns; no server-side search (ADR-0105). Unblocks #517.
 - D5/P3b closing gate: side-by-side of round-2 screens plus the verify list below, light AND dark, 1440px, console against screenshots/ and docs against docs.jpg.
 
 ## Verify at the round-2 gate (round-1 claims not independently confirmed)
@@ -44,9 +45,13 @@ Synced 2026-08-24T14:52Z against winniel123/verge-asm@main (tree e7cb9c0e0041), 
 - P2.3 Graph severity-tinted nodes + drawer severity.
 - P2.9 resolves via P0.6 (collision #15) — the 501 refusal was intentional pending the delivery backend; once P0.6 lands, verify create/list/edit/delete per Reports.jsx.
 
+## P4 — v4 workflow migration (new tree; see WORKFLOW.md)
+
+Owner-ruled 2026-08-24: design-authored view layer landed verbatim, hard CI pixel gate (3%, fixtures, 1440/1024/390 × light/dark × states, phased goldens). Items P4.0–P4.4 in WORKFLOW.md §Migration chart — run P4.0 (Inventory pilot) first and stop for the pilot review before P4.3 mass conversion. R1/M1 are design-side and not repo work.
+
 ## Blocked on design
 
-- U6 Inventory re-spec onto the subject/facet/span model (collision #13). Being designed in the design workspace; lands in a future package.
+- (none — U6 ruled and specced in v3.2.4; see U6 under Executable now.)
 
 ## Acceptance (unchanged)
 

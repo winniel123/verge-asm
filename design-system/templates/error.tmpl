@@ -1,0 +1,70 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — error.tmpl · package v3.5.0 · WORKFLOW.md v4
+  Source of truth: examples/console/ErrorPage.jsx · shots 26/27.
+  Replaces templates_error.go's "error-page". Holes unchanged: .Chrome (chrome gate,
+  injected when a session exists — spec renders all kinds inside chrome when signed in),
+  .Kind, .Code, .Subject, .IncidentID, .ActionLabel, .ActionHref.
+  Icons: lucide compass/lock/server-crash/scan-search/history @ stroke 1.75 (Icon.jsx default).
+*/}}
+{{define "error-page"}}{{template "head" .}}{{if .Chrome}}{{template "chrome" .}}{{end}}
+<style>
+.err-main { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px; text-align: center; }
+.err-badge { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 16px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-muted); }
+.err-code { font: 600 32px var(--font-mono); letter-spacing: 0.04em; color: var(--text-muted); }
+.err-subject { font: 600 21px var(--font-mono); letter-spacing: -0.01em; color: var(--text-ink); word-break: break-all; max-width: 560px; }
+.err-text { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.err-text h1 { margin: 0; font: 600 18px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.err-text p { margin: 0; font: 400 13px/1.6 var(--font-ui); color: var(--text-muted); max-width: 440px; }
+.err-copy { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.err-copy .val { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.err-copy button { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; flex: none; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.err-copy:hover button, .err-copy button.copied { opacity: 1; }
+.err-copy button.copied { color: var(--ok); }
+.err-copy button svg[data-i-ok] { display: none; }
+.err-copy button.copied svg[data-i-copy] { display: none; }
+.err-copy button.copied svg[data-i-ok] { display: block; }
+.err-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--accent); color: var(--on-accent); border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out); }
+.err-btn:hover { background: var(--accent-hover); }
+.err-btn:active { background: var(--accent-active); }
+.err-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+</style>
+<main class="err-main" data-screen-label="Error {{.Kind}}">
+<span class="err-badge">
+{{if eq .Kind "404"}}<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+{{else if eq .Kind "500"}}<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"></path><path d="M6 14H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-2"></path><path d="M6 6h.01"></path><path d="M6 18h.01"></path><path d="m13 6-4 6h6l-4 6"></path></svg>
+{{else if eq .Kind "missing-subject"}}<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><circle cx="12" cy="12" r="3"></circle><path d="m16 16-1.9-1.9"></path></svg>
+{{else if eq .Kind "missing-run"}}<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
+{{else}}<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>{{end}}
+</span>
+{{if .Subject}}<span class="err-subject">{{.Subject}}</span>{{else}}<span class="err-code">{{if .Code}}{{.Code}}{{else}}{{.Kind}}{{end}}</span>{{end}}
+<div class="err-text">
+{{if eq .Kind "404"}}<h1>Page not found</h1><p>The address doesn't match any screen in this deployment. The link may predate a rename.</p>
+{{else if eq .Kind "403"}}<h1>Access denied</h1><p>Your role can't view this. An admin can widen it in Settings → Team.</p>
+{{else if eq .Kind "500"}}<h1>Something broke</h1><p>The console hit an unexpected error. The incident is logged on the host with the ID below.</p>
+{{else if eq .Kind "missing-subject"}}<h1>No such subject</h1><p>No subject is keyed under that name. Nothing has ever measured it into the estate — this is not a withdrawn subject, which would still be reachable here by its own key.</p>
+{{else if eq .Kind "missing-run"}}<h1>No such run</h1><p>No dispatch is keyed under that id. A run is one fan-out of jobs; recent dispatches are listed on Settings → Scans, and each change event on Drift links its batch.</p>
+{{else if eq .Kind "settings-forbidden"}}<h1>Admin only</h1><p>Settings is where declared acts live — seeds, scans, channels, team. Your role reads everything and changes nothing; an admin can change roles in Settings → Team.</p>
+{{end}}
+</div>
+{{if .IncidentID}}
+<span class="err-copy"><span class="val">{{.IncidentID}}</span>
+<button type="button" data-incident-copy="{{.IncidentID}}" aria-label="Copy value">
+<svg data-i-copy width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+<svg data-i-ok width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+</button></span>
+<script>
+(function(){
+  var b=document.querySelector("[data-incident-copy]");
+  if(!b)return;
+  function done(ok){ if(!ok)return; b.classList.add("copied"); setTimeout(function(){ b.classList.remove("copied"); },1400); }
+  b.addEventListener("click",function(){
+    var v=b.getAttribute("data-incident-copy");
+    function legacy(){ try{ var ta=document.createElement("textarea"); ta.value=v; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); var ok=document.execCommand("copy"); document.body.removeChild(ta); done(ok); }catch(e){} }
+    if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(v).then(function(){done(true);},legacy); else legacy();
+  });
+})();
+</script>
+{{end}}
+<a class="err-btn" href="{{if .ActionHref}}{{.ActionHref}}{{else}}/{{end}}">{{if .ActionLabel}}{{.ActionLabel}}{{else}}Back to dashboard{{end}}</a>
+</main>
+{{template "foot" .}}{{end}}

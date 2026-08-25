@@ -28,6 +28,7 @@ PATHS=(
   design-system/verify/states.json
   design-system/verify/PILOT-P4.0.md
   design-system/goldens/inventory
+  design-system/goldens/error
 )
 
 # "<blob-sha>  <path>", sorted by path, C locale for a stable order across machines.
