@@ -1,0 +1,360 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — subjectdetail.tmpl · package v3.10.0 · WORKFLOW.md v4
+  Source of truth: examples/console/SubjectDetail.jsx · shots 22 (service) / 23 (endpoint) /
+  24 (withdrawn). Replaces templates_subjectdetail.go. Defines kept: "service" + "endpoint" +
+  shared "subjectstyle" / "subjectbreadcrumb" / "subjecttimelines" / "subjectrules" /
+  "subjectprovenance". Reuses "assetexposure" (asset.tmpl), "sevbadge" (signals.tmpl),
+  "recordrows" (inventory.tmpl) — one parse set.
+  Holes kept: .Service{Key,Withdrawn,Exposure,Seen,InScopeSince,Citation[{Label,Value,Detail}],
+  CitationTerminated,Address,Port,Transport,Reach,ReachGap,ReachGapReason,Since,
+  Timelines[{Label,Current{IsGap,Value,Details,OpenedAt},Breaks[{At,MovedLeaves}],
+  Closed[{IsGap,Value,Details,OpenedAt,OpenedFull,ClosedAt,ClosedFull,Reason}]}],
+  Rules[{Rule,Version,Severity,SevLabel,Fired}],Provenance[{K,V}],Signals[…]} and
+  .Endpoint{…,Nameless,Name,Service,HasIdentity,Status,Server,Title,WWWAuthenticate,
+  RedirectLocation}. Reconciliations (SPEC-CHANGE #22, ruled): the citation chain renders the
+  spec rail (dots + connector, Seed dot accent); the current facet renders the spec sunken
+  KeyValueList; closed spans gain .OpenedFull/.ClosedFull (title tooltips); withdrawn renders the
+  spec dashed WithdrawnMark + the neutral Banner; the more-menu is the spec dropdown (view JS);
+  signals-here rows gain .SigID + .Time and deep-link /signals?view={id} (#22b); the Break banner
+  renders the spec accent Banner with the git-branch icon.
+*/}}
+{{define "subjectstyle"}}<style>
+@keyframes sd-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.sd-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.sd-crumb { display: flex; align-items: center; gap: 8px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; }
+.sd-crumb a { color: var(--text-muted); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+.sd-crumb a:hover { color: var(--link); }
+.sd-crumb .here { color: var(--text-body); }
+.sd-main h1 { margin: 0; font: 600 21px var(--font-mono); letter-spacing: -0.01em; color: var(--text-ink); }
+.sd-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.sd-card.flush { overflow: hidden; }
+.sd-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 0; }
+.sd-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.sd-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.sd-body { padding: 20px; }
+.sd-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.sd-wmark { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: transparent; border: 1px dashed var(--drift-loss-border); color: var(--drift-loss-fg); font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; }
+.sd-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.sd-btn:hover { background: var(--surface-sunken); }
+.sd-btn[disabled] { opacity: 0.45; cursor: default; }
+.sd-btn[disabled]:hover { background: var(--surface); }
+.sd-banner { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; border-radius: 12px; font-family: var(--font-ui); border: 1px solid var(--border-default); background: var(--surface-sunken); }
+.sd-banner.accent { background: var(--accent-softer); border-color: var(--accent-soft); }
+.sd-banner .ic { display: inline-flex; color: var(--text-secondary); margin-top: 1px; flex: none; }
+.sd-banner.accent .ic { color: var(--accent); }
+.sd-banner .bd { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.sd-banner .bd b { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.sd-banner .bd span { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-body); }
+.sd-banner .bd .mono { font-family: var(--font-mono); }
+.sd-chain { list-style: none; margin: 0; padding: 0; }
+.sd-chain li { position: relative; padding: 0 0 18px 22px; }
+.sd-chain li:last-child { padding-bottom: 0; }
+.sd-chain li:not(:last-child) .line { position: absolute; left: 3.5px; top: 12px; bottom: 2px; width: 1px; background: var(--border-default); }
+.sd-chain .cdot { position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border-radius: 999px; background: var(--surface); border: 1.5px solid var(--border-strong); box-sizing: border-box; }
+.sd-chain li:last-child .cdot { background: var(--accent); border-color: var(--accent); }
+.sd-chain .cl { display: block; font: 500 10.5px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.sd-chain .cv { display: block; font: 500 13px var(--font-mono); color: var(--text-ink); margin: 2px 0; overflow-wrap: anywhere; }
+.sd-chain .cd { display: block; font: 400 12px var(--font-ui); color: var(--text-secondary); }
+.sd-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
+.sd-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sd-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.sd-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.sd-badge.danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.sd-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.sd-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.sd-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
+.sd-table tbody tr:first-child td { border-top: none; }
+.sd-table td.mono { font: 400 12.5px var(--font-mono); }
+.sd-table tr.link { cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+.sd-table tr.link:hover { background: var(--surface-sunken); }
+.sd-spans summary { list-style: none; cursor: pointer; display: inline-flex; }
+.sd-spans summary::-webkit-details-marker { display: none; }
+.sd-sig { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 8px; text-decoration: none; font-family: var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
+.sd-sig:hover { background: var(--surface-sunken); }
+.sd-sig .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sd-sig .t1 { font: 500 12.5px var(--font-ui); color: var(--text-ink); }
+.sd-sig .t2 { font: 400 11px var(--font-mono); color: var(--text-muted); }
+.sd-copy { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.sd-copy .cv { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.sd-copy button { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); flex: none; }
+.sd-copy:hover button, .sd-copy button.ok { opacity: 1; }
+.sd-copy button.ok { color: var(--ok); }
+.sd-menu { position: absolute; right: 0; top: 100%; margin-top: 6px; z-index: 95; width: 200px; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: sd-pop var(--dur-base) var(--ease-out); font-family: var(--font-ui); }
+.sd-menu[hidden] { display: none; }
+.sd-menu .mi { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); text-decoration: none; box-sizing: border-box; transition: background var(--dur-fast) var(--ease-out); }
+.sd-menu .mi:hover { background: var(--surface-sunken); }
+.sd-menu .mi.danger { color: var(--danger); }
+.sd-menu .mi.danger:hover { background: var(--danger-soft); }
+.sd-menu .mi .mic { display: inline-flex; color: var(--text-secondary); flex: none; }
+.sd-menu .mi.danger .mic { color: var(--danger); }
+.sd-menu .sep { height: 1px; background: var(--row-sep); margin: 5px 4px; }
+.sd-mutedline { font: 400 12.5px/1.6 var(--font-ui); color: var(--text-secondary); }
+.sd-hint { font: 400 12.5px/1.6 var(--font-ui); color: var(--text-secondary); max-width: 62ch; }
+</style>{{end}}
+
+{{define "subjectbreadcrumb"}}<nav aria-label="Breadcrumb" class="sd-crumb">
+<a href="/inventory">Inventory</a>
+<span aria-hidden="true" style="color:var(--text-muted)">/</span>
+<span aria-current="page" class="here">{{.}}</span>
+</nav>{{end}}
+
+{{define "subjectmenu"}}<span style="position:relative;display:inline-flex">
+<button type="button" class="sd-btn" data-sd-more aria-haspopup="menu" aria-expanded="false" aria-label="More actions"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></button>
+<div class="sd-menu" hidden role="menu">
+<a class="mi" role="menuitem" href="/signals"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path></svg></span>Annotate</a>
+<div class="sep"></div>
+<a class="mi danger" role="menuitem" href="/scope"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"></path><path d="M8.35 2.69A10 10 0 0 1 21.3 15.65"></path><path d="M19.08 19.08A10 10 0 1 1 4.92 4.92"></path></svg></span>{{.}}</a>
+</div>
+</span>{{end}}
+
+{{define "subjectjs"}}<script>
+(function(){
+  [].forEach.call(document.querySelectorAll("[data-sd-more]"),function(mb){
+    var mm=mb.parentNode.querySelector(".sd-menu");
+    mb.addEventListener("click",function(e){e.stopPropagation();var open=mm.hasAttribute("hidden");if(open)mm.removeAttribute("hidden");else mm.setAttribute("hidden","");mb.setAttribute("aria-expanded",open?"true":"false");});
+    document.addEventListener("mousedown",function(e){if(!mm.hasAttribute("hidden")&&!mm.contains(e.target)&&!mb.contains(e.target)){mm.setAttribute("hidden","");mb.setAttribute("aria-expanded","false");}});
+    document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!mm.hasAttribute("hidden")){mm.setAttribute("hidden","");mb.setAttribute("aria-expanded","false");}});
+  });
+  [].forEach.call(document.querySelectorAll("[data-copy]"),function(b){
+    b.addEventListener("click",function(){
+      var v=b.getAttribute("data-copy");
+      if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(v);else{var ta=document.createElement("textarea");ta.value=v;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(err){}document.body.removeChild(ta);}
+      b.classList.add("ok");setTimeout(function(){b.classList.remove("ok");},1400);
+    });
+  });
+  [].forEach.call(document.querySelectorAll("tr[data-href]"),function(r){
+    r.addEventListener("click",function(e){if(e.target.closest("a")||e.target.closest("details"))return;window.location=r.getAttribute("data-href");});
+  });
+})();
+</script>{{end}}
+
+{{define "subjectcitation"}}<ol class="sd-chain">
+{{range .}}<li><span class="line"></span><span class="cdot"></span>
+<span class="cl">{{.Label}}</span>
+<span class="cv">{{.Value}}</span>
+{{if .Detail}}<span class="cd">{{.Detail}}</span>{{end}}
+</li>{{end}}
+</ol>{{end}}
+
+{{define "subjecttimelines"}}<section class="sd-card flush">
+<div class="sd-cardhead" style="padding-bottom:0"><span class="sd-micro">Timelines</span><h3>Current and closed timelines</h3></div>
+{{if .}}
+{{range .}}
+<div style="padding:16px 20px 12px;display:flex;flex-direction:column;gap:10px">
+<span class="sd-micro" style="letter-spacing:0.06em">{{.Label}}</span>
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="font:400 12px var(--font-ui);color:var(--text-secondary);width:64px">Current</span>
+{{if .Current}}
+{{if .Current.IsGap}}<span class="sd-badge">Gap</span>{{else if .Current.Details}}<details class="sd-spans"><summary><span class="sd-badge">{{.Current.Value}}</span></summary>{{template "recordrows" .Current.Details}}</details>{{else}}<span class="sd-badge">{{.Current.Value}}</span>{{end}}
+<span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">since {{.Current.OpenedAt}}</span>
+{{else}}
+<span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">Closed — this timeline holds no current value.</span>
+{{end}}
+</div>
+{{range .Breaks}}
+<div class="sd-banner accent">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg></span>
+<span class="bd"><span>Break at {{.At}} — spans are not comparable across it. Leaf that moved: <span class="mono">{{.MovedLeaves}}</span>. Derived on read, never stored.</span></span>
+</div>
+{{end}}
+</div>
+{{if .Closed}}
+<table class="sd-table">
+<thead><tr><th>Value</th><th style="width:96px">Opened</th><th style="width:96px">Closed</th><th style="width:148px;text-align:right">Ground</th></tr></thead>
+<tbody>
+{{range .Closed}}<tr>
+<td class="mono">{{if .IsGap}}<span style="color:var(--text-muted)">Gap</span>{{else if .Details}}<details class="sd-spans"><summary><span>{{.Value}}</span></summary>{{template "recordrows" .Details}}</details>{{else}}{{.Value}}{{end}}</td>
+<td class="mono"><span title="{{.OpenedFull}}">{{.OpenedAt}}</span></td>
+<td class="mono"><span title="{{.ClosedFull}}">{{.ClosedAt}}</span></td>
+<td style="text-align:right;overflow:visible">{{if .Reason}}<span class="sd-badge">{{.Reason}}</span>{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
+{{end}}
+{{else}}
+<div class="sd-body"><span class="sd-mutedline">No timeline has been folded yet. A Span opens when the hot Scan first measures a value; re-running it with a changed value closes the open span and opens the next.</span></div>
+{{end}}
+</section>{{end}}
+
+{{define "subjectrules"}}<section class="sd-card flush">
+<div class="sd-cardhead" style="padding-bottom:14px"><span class="sd-micro">Rules</span><h3>Rules over this subject</h3></div>
+{{if .}}
+<table class="sd-table">
+<thead><tr><th>Rule</th><th style="width:90px">Version</th><th style="width:130px">Verdict</th></tr></thead>
+<tbody>
+{{range .}}<tr class="link" data-href="/signals">
+<td><span style="display:inline-flex;align-items:center;gap:8px">{{template "sevbadge" .}}<span style="font-family:var(--font-mono);font-size:12.5px">{{.Rule}}</span></span></td>
+<td class="mono">v{{.Version}}</td>
+<td>{{if .Fired}}<span class="sd-badge danger">fired</span>{{else}}<span class="sd-badge">did not fire</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="sd-body"><span class="sd-mutedline">No rule's predicate domain includes this subject yet. A rule renders here — with its own versioned verdict and severity — once the estate holds evidence of its kind for it to read.</span></div>
+{{end}}
+</section>{{end}}
+
+{{define "subjectprovenance"}}<section class="sd-card">
+<div class="sd-cardhead"><span class="sd-micro">Provenance</span><h3>How it got here</h3></div>
+<div class="sd-body">
+{{if .}}
+<div class="sd-kv">{{range .}}<div class="cell"><span class="sd-micro">{{.K}}</span><span class="v">{{.V}}</span></div>{{end}}</div>
+{{else}}
+<span class="sd-mutedline">No provenance to trace yet. Its "why is this here" chain fills in as a Scan measures it against a scope you declared.</span>
+{{end}}
+</div>
+</section>{{end}}
+
+{{define "service"}}{{template "head" .}}
+{{template "chrome" .}}
+{{template "subjectstyle" .}}
+<main class="sd-main" data-screen-label="Service detail">
+{{with .Service}}
+{{template "subjectbreadcrumb" .Key}}
+<header style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:8px">
+<h1>{{.Key}}</h1>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<span class="sd-tag">service</span>
+{{if .Withdrawn}}<span class="sd-wmark"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{else if .Exposure}}{{template "assetexposure" .Exposure}}{{end}}
+{{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
+</div>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px">
+{{if .Withdrawn}}<button class="sd-btn" disabled title="A withdrawn service names no current member"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Rescan service</button>{{else}}<a class="sd-btn" href="/scans"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Rescan service</a>{{end}}
+{{template "subjectmenu" "Descope address"}}
+</div>
+</header>
+{{if .Withdrawn}}
+<div class="sd-banner">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="bd"><b>Withdrawn by the world</b><span>This service's address has left the estate — no current resolution cites it and no Seed covers it. It names a population of no current member; its timelines are closed and it is reached by its own key.</span></span>
+</div>
+{{end}}
+<div style="display:grid;grid-template-columns:minmax(0, 1fr) 340px;gap:24px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="sd-card">
+<div class="sd-cardhead"><span class="sd-micro">Why is this here</span><h3>Citation chain</h3></div>
+<div class="sd-body">
+<div style="display:flex;flex-direction:column;gap:16px">
+<span class="sd-hint">Following citations backwards always terminates at a Seed you declared — that is what makes "why is this here" answerable for everything in the estate.</span>
+{{template "subjectcitation" .Citation}}
+{{if not .CitationTerminated}}<span class="sd-mutedline">The chain does not reach a declared Seed. For a service whose address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</span>{{end}}
+</div>
+</div>
+</section>
+<section class="sd-card">
+<div class="sd-cardhead"><span class="sd-micro">Current · reachability</span><h3>Reachability</h3></div>
+<div class="sd-body">
+<div class="sd-kv">
+<div class="cell"><span class="sd-micro">Address</span><span class="v">{{.Address}}</span></div>
+<div class="cell"><span class="sd-micro">Port</span><span class="v">{{.Port}}/{{.Transport}}</span></div>
+<div class="cell"><span class="sd-micro">Verdict</span><span class="v">{{if .ReachGap}}Gap{{else if .Withdrawn}}—{{else if .Reach}}{{.Reach}}{{else}}—{{end}}</span></div>
+<div class="cell"><span class="sd-micro">Since</span><span class="v">{{if .Since}}{{.Since}}{{else}}—{{end}}</span></div>
+</div>
+{{if .ReachGap}}
+<div class="sd-banner" style="margin-top:12px">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="bd"><span>{{.ReachGapReason}}. From this vantage we cannot tell a real origin service behind the edge from the edge answering for it, so the reach is undiscriminated — a Gap, not <span class="mono">reached</span>. Declare your origin IPs as an address scope to measure the real surface.</span></span>
+</div>
+{{end}}
+</div>
+</section>
+{{template "subjecttimelines" .Timelines}}
+{{template "subjectrules" .Rules}}
+</div>
+<div style="display:flex;flex-direction:column;gap:24px">
+{{template "subjectprovenance" .Provenance}}
+{{if and (not .Withdrawn) .Signals}}
+<section class="sd-card">
+<div class="sd-cardhead"><span class="sd-micro">Open</span><h3>Signals here</h3></div>
+<div style="padding:12px">
+{{range .Signals}}<a class="sd-sig" href="/signals?view={{.SigID}}">
+{{template "sevbadge" .}}
+<span class="txt"><span class="t1">{{.Rule}}</span><span class="t2">{{.SigID}} · raised {{.Time}} ago</span></span>
+<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);flex:none"><path d="m9 18 6-6-6-6"></path></svg>
+</a>{{end}}
+</div>
+</section>
+{{end}}
+<section class="sd-card">
+<div class="sd-cardhead"><span class="sd-micro">Service key</span><h3>Copy</h3></div>
+<div class="sd-body"><span class="sd-copy"><span class="cv">{{.CopyKey}}</span><button type="button" data-copy="{{.CopyKey}}" aria-label="Copy value"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></span></div>
+</section>
+</div>
+</div>
+{{end}}
+</main>
+{{template "subjectjs" .}}
+{{template "foot" .}}{{end}}
+
+{{define "endpoint"}}{{template "head" .}}
+{{template "chrome" .}}
+{{template "subjectstyle" .}}
+<main class="sd-main" data-screen-label="Endpoint detail">
+{{with .Endpoint}}
+{{template "subjectbreadcrumb" .Key}}
+<header style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:8px">
+<h1>{{if .Nameless}}<span style="color:var(--text-muted)">(nameless)</span> {{end}}{{.Key}}</h1>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<span class="sd-tag">endpoint</span>
+{{if .Withdrawn}}<span class="sd-wmark"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{end}}
+{{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
+</div>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px">
+{{if .Withdrawn}}<button class="sd-btn" disabled title="A withdrawn endpoint names no current member"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Rescan endpoint</button>{{else}}<a class="sd-btn" href="/scans"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Rescan endpoint</a>{{end}}
+{{template "subjectmenu" "Descope name"}}
+</div>
+</header>
+{{if .Withdrawn}}
+<div class="sd-banner">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="bd"><b>Withdrawn by the world</b><span>This endpoint's service has left the estate. An endpoint closes when either leg — its Name or its Service — withdraws; its timelines are closed and it is reached by its own key.</span></span>
+</div>
+{{end}}
+<div style="display:grid;grid-template-columns:minmax(0, 1fr) 340px;gap:24px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="sd-card">
+<div class="sd-cardhead"><span class="sd-micro">Why is this here</span><h3>Citation chain</h3></div>
+<div class="sd-body">
+<div style="display:flex;flex-direction:column;gap:16px">
+<span class="sd-hint">Following citations backwards always terminates at a Seed you declared — that is what makes "why is this here" answerable for everything in the estate.</span>
+{{template "subjectcitation" .Citation}}
+{{if not .CitationTerminated}}<span class="sd-mutedline">The chain does not reach a declared Seed. For an endpoint whose service address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</span>{{end}}
+</div>
+</div>
+</section>
+<section class="sd-card">
+<div class="sd-cardhead"><span class="sd-micro">Current · http-identity</span><h3>HTTP identity</h3></div>
+<div class="sd-body">
+{{if .HasIdentity}}
+<div class="sd-kv">
+<div class="cell"><span class="sd-micro">Status</span><span class="v">{{if .Withdrawn}}—{{else}}{{.Status}}{{end}}</span></div>
+<div class="cell"><span class="sd-micro">Server</span><span class="v">{{if .Server}}{{.Server}}{{else}}—{{end}}</span></div>
+<div class="cell"><span class="sd-micro">Title</span><span class="v">{{if .Title}}{{.Title}}{{else}}—{{end}}</span></div>
+<div class="cell"><span class="sd-micro">Redirect</span><span class="v">{{if .RedirectLocation}}{{.RedirectLocation}} (recorded, not followed){{else}}— (recorded, not followed){{end}}</span></div>
+{{if .WWWAuthenticate}}<div class="cell"><span class="sd-micro">WWW-Authenticate</span><span class="v">{{.WWWAuthenticate}}</span></div>{{end}}
+</div>
+{{else}}
+<span class="sd-mutedline">No HTTP identity value recorded.</span>
+{{end}}
+</div>
+</section>
+{{template "subjecttimelines" .Timelines}}
+{{template "subjectrules" .Rules}}
+</div>
+<div style="display:flex;flex-direction:column;gap:24px">
+{{template "subjectprovenance" .Provenance}}
+<section class="sd-card">
+<div class="sd-cardhead"><span class="sd-micro">Endpoint key</span><h3>Copy</h3></div>
+<div class="sd-body"><span class="sd-copy"><span class="cv">{{.CopyKey}}</span><button type="button" data-copy="{{.CopyKey}}" aria-label="Copy value"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></span></div>
+</section>
+</div>
+</div>
+{{end}}
+</main>
+{{template "subjectjs" .}}
+{{template "foot" .}}{{end}}

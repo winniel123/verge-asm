@@ -1,11 +1,12 @@
 # Package version
 
-current: 3.9.0
+current: 3.10.0
 exported: 2026-08-25
 
 Convention: MAJOR.ROUND.PATCH — MAJOR is the package generation, ROUND increments per sync/Wayfinder round, PATCH per mid-round ruling or spec fix. The design workspace bumps this on every export; the repo copy always states what landed.
 
 ## Log
+- 3.10.0 — 2026-08-25 · batch 4 (screens 13–15): asset.tmpl (spec CertificateCard from the built parsed-cert read, census Service column joins stored identity, signals-here deep links, collapsible drift-trail group), subjectdetail.tmpl (spec citation rail, sunken facet KVs, tooltip span bounds, spec withdrawn banner + mark, spec menus), graph.tmpl (domain/subdomain split, two-radius halos, spec listbox filter, selection ring, spec node drawer; pan/zoom engine kept); reconciliation #22; fixtures + states for all three; WORK-ORDER-13-15-BATCH4.md; Scope/Dashboard/Signals marked LANDED
 - 3.9.0 — 2026-08-25 · batch 3 (screens 10–12): scope.tmpl (spec two-column layout, tag-field seeds with shape-inferred kind, RefusalCallout, per-scope custody + census, FileDrop zone re-supply with apex inference, JS name tree, proposals org-search + confirm-one/decline-many, exclusion editor + preview receipt), dashboard.tmpl (spec stat band/banner/progress, denominator coverage meters, drawer-deep-linked recent signals), signals.tmpl (PRG skeleton kept; spec tabs/listbox/table/pagination, row kebab + context menus, full drawer with tags/desc/rule/diff/annotation/history, typed-confirm descope); reconciliation #21; cold tier + probers relocate to /settings; fixtures + states for all three; WORK-ORDER-10-12-BATCH3.md; Exposure/Drift/RunDetail marked LANDED
 - 3.8.0 — 2026-08-25 · batch 2 (screens 7–9): exposure.tmpl (withheld first-class, delta chip, both-legs table), drift.tmpl (spec range picker with custom ISO pair, client-side kind toggles, collapsible batch groups, framed diff cards), rundetail.tmpl (Outcome = transitions + new signals per 2026-08-24 binding ruling, colored log levels, run-missing retired to error.tmpl); reconciliation #20; fixtures + states for all three; WORK-ORDER-7-9-BATCH2.md; SignIn/Setup/Coverage marked LANDED
 - 3.7.0 — 2026-08-25 · batch 1 (screens 4–6): signin.tmpl (11 auth states, segmented code input, SSO not-configured state), setup.tmpl, coverage.tmpl (denominator meters for address scopes, relative-time messages); reconciliation #19; SignIn/Setup specs realigned to username identity; fixtures + states for all three; WORK-ORDER-4-6-BATCH1.md; Profile marked LANDED

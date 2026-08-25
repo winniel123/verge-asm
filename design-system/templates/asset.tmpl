@@ -1,0 +1,301 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — asset.tmpl · package v3.10.0 · WORKFLOW.md v4
+  Source of truth: examples/console/AssetDetail.jsx · shot 12. Replaces templates_asset.go
+  (defines "asset" + "assetexposure" kept; "sevbadge" from signals.tmpl and "changeglyph" from
+  drift.tmpl are reused — one parse set).
+  Holes kept: .Asset{Key,Type,Severity,Exposure,Seen,InScopeSince,Withdrawn,
+  Ports[{Port,Service,Exposure,Since}], DNS[{Type,Value,Seen}], Provenance[{K,V}],
+  Signals[…], Drift[{Change,Family,Subject,Detail,Time}]}.
+  Reconciliations (SPEC-CHANGE #22, ruled): .SevLabel joins every severity read (batch-3
+  precedent). Signals-here rows gain .SigID + .Time and deep-link /signals?view={id} (#22b — the
+  mock's VG-#### ids predate the SIG-#### mint; the real id renders). The TLS certificate card
+  renders from .Cert{Name,Issuer,Algorithm,NotAfter,Label,Tone,Fingerprint} (nullable) — BUILD the
+  parsed-certificate read off the certificate-chain leaf (#22c; the facet already stores
+  "CN=R11 · Let's Encrypt · exp 2026-11-02"); the honest empty state stays when null. The census
+  Service column renders transport + the http-identity Server where an endpoint on that port holds
+  one — a read of stored evidence, not a new fingerprint (#22d). The header more-menu carries
+  Annotate + Descope asset only ("Add tag" has no store — dropped). Drift trail renders the spec's
+  collapsible group ("This asset · last 30 days").
+*/}}
+{{define "assetexposure"}}<span class="as-leg {{if eq . "exposed"}}exposed{{else if eq . "firewalled"}}firewalled{{else if eq . "not-reached"}}notreached{{else}}unverified{{end}}">{{if eq . "not-reached"}}not reached{{else}}{{.}}{{end}}</span>{{end}}
+
+{{define "asset"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes as-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.as-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.as-crumb { display: flex; align-items: center; gap: 8px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; }
+.as-crumb a { color: var(--text-muted); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+.as-crumb a:hover { color: var(--link); }
+.as-crumb .here { color: var(--text-body); }
+.as-main h1 { margin: 0; font: 600 21px var(--font-mono); letter-spacing: -0.01em; color: var(--text-ink); }
+.as-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.as-card.flush { overflow: hidden; }
+.as-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 0; }
+.as-card.flush .as-cardhead { padding: 20px 20px 14px; }
+.as-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.as-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.as-body { padding: 20px; }
+.as-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.as-leg { display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.as-leg.exposed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.as-leg.firewalled { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.as-leg.notreached { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.as-leg.unverified { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
+.as-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.as-btn:hover { background: var(--surface-sunken); }
+.as-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.as-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.as-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
+.as-table tbody tr:first-child td { border-top: none; }
+.as-table td.mono { font: 400 12.5px var(--font-mono); }
+.as-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
+.as-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.as-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.as-sig { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 8px; text-decoration: none; font-family: var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
+.as-sig:hover { background: var(--surface-sunken); }
+.as-sig .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.as-sig .t1 { font: 500 12.5px var(--font-ui); color: var(--text-ink); }
+.as-sig .t2 { font: 400 11px var(--font-mono); color: var(--text-muted); }
+.as-cert { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; font-family: var(--font-ui); }
+.as-cert.danger { border-color: var(--danger); }
+.as-cert .row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 6px; }
+.as-cert .cn { font: 600 13px var(--font-mono); color: var(--text-ink); white-space: nowrap; }
+.as-cert .role { font: 500 10.5px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.as-cert .meta { display: flex; align-items: center; gap: 12px; font: 400 11.5px var(--font-mono); color: var(--text-secondary); flex-wrap: wrap; }
+.as-cert .meta .until { color: var(--text-muted); flex: none; }
+.as-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.as-badge .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+.as-badge.ok { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.as-badge.warn { background: var(--warn-soft); border-color: var(--warn-border); color: var(--warn); }
+.as-badge.danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.as-copy { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.as-copy .cv { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.as-copy button { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); flex: none; }
+.as-copy:hover button, .as-copy button.ok { opacity: 1; }
+.as-copy button.ok { color: var(--ok); }
+.as-ghead { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 2px; border: none; background: transparent; cursor: pointer; text-align: left; }
+.as-ghead .chev { color: var(--text-muted); transition: transform var(--dur-base) var(--ease-out); flex: none; }
+.as-ghead[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.as-ghead .gl { font: 600 12px var(--font-mono); color: var(--text-ink); }
+.as-ghead .gm { font: 400 11px var(--font-mono); color: var(--text-muted); }
+.as-count { margin-left: auto; font: 500 10.5px var(--font-mono); padding: 1px 7px; border-radius: 999px; background: var(--surface-sunken); color: var(--text-secondary); }
+.as-gwrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--dur-slow) var(--ease-out); }
+.as-gwrap.closed { grid-template-rows: 0fr; }
+.as-gwrap > div { overflow: hidden; min-height: 0; }
+.as-gevents { padding: 4px 0 12px 24px; display: flex; flex-direction: column; font-family: var(--font-ui); }
+.as-ev { display: flex; gap: 12px; }
+.as-ev .rail { display: flex; flex-direction: column; align-items: center; flex: none; width: 10px; }
+.as-ev .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--neutral-400); margin-top: 5px; flex: none; box-shadow: 0 0 0 2px var(--surface); }
+.as-ev .conn { width: 1px; flex: 1; background: var(--border-default); margin: 3px 0; }
+.as-ev:last-child .conn { display: none; }
+.as-ev .evb { display: flex; flex-direction: column; gap: 2px; padding-bottom: 16px; min-width: 0; flex: 1; }
+.as-ev:last-child .evb { padding-bottom: 0; }
+.as-ev .tr { display: flex; align-items: flex-start; gap: 10px; }
+.as-ev .title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 4px; min-width: 0; }
+.as-ev .sbj { font: 500 12.5px var(--font-mono); color: var(--text-ink); }
+.as-ev .tm { font: 400 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; padding-top: 3px; margin-left: auto; }
+.as-ev .det { font: 400 12px var(--font-mono); color: var(--text-secondary); overflow-wrap: anywhere; }
+.as-chip { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; }
+.as-chip.gain { background: var(--drift-gain-bg); border-color: var(--drift-gain-border); color: var(--drift-gain-fg); }
+.as-chip.loss { background: var(--drift-loss-bg); border-color: var(--drift-loss-border); color: var(--drift-loss-fg); }
+.as-chip.change { background: var(--drift-change-bg); border-color: var(--drift-change-border); color: var(--drift-change-fg); }
+.as-menu { position: absolute; right: 0; top: 100%; margin-top: 6px; z-index: 95; width: 200px; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: as-pop var(--dur-base) var(--ease-out); font-family: var(--font-ui); }
+.as-menu[hidden] { display: none; }
+.as-menu .mi { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); text-decoration: none; box-sizing: border-box; transition: background var(--dur-fast) var(--ease-out); }
+.as-menu .mi:hover { background: var(--surface-sunken); }
+.as-menu .mi.danger { color: var(--danger); }
+.as-menu .mi.danger:hover { background: var(--danger-soft); }
+.as-menu .mi .mic { display: inline-flex; color: var(--text-secondary); flex: none; }
+.as-menu .mi.danger .mic { color: var(--danger); }
+.as-menu .sep { height: 1px; background: var(--row-sep); margin: 5px 4px; }
+.as-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 36px 24px; font-family: var(--font-ui); }
+.as-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.as-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+.as-notice { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 12px; font: 400 12.5px/1.5 var(--font-ui); color: var(--text-body); }
+</style>
+<main class="as-main" data-screen-label="Asset detail">
+{{with .Asset}}
+<nav aria-label="Breadcrumb" class="as-crumb">
+<a href="/inventory">Inventory</a>
+<span aria-hidden="true" style="color:var(--text-muted)">/</span>
+<span aria-current="page" class="here">{{.Key}}</span>
+</nav>
+<header style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:8px">
+<h1>{{.Key}}</h1>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<span class="as-tag">{{.Type}}</span>
+{{if .Severity}}{{template "sevbadge" .}}{{end}}
+{{if .Exposure}}{{template "assetexposure" .Exposure}}{{end}}
+{{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}seen {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
+</div>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px">
+<a class="as-btn" href="/scans"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Rescan asset</a>
+<span style="position:relative;display:inline-flex">
+<button type="button" class="as-btn" id="as-more-btn" aria-haspopup="menu" aria-expanded="false" aria-label="More actions"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></button>
+<div class="as-menu" id="as-more-menu" hidden role="menu">
+<a class="mi" role="menuitem" href="/signals"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path></svg></span>Annotate</a>
+<div class="sep"></div>
+<a class="mi danger" role="menuitem" href="/scope"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"></path><path d="M8.35 2.69A10 10 0 0 1 21.3 15.65"></path><path d="M19.08 19.08A10 10 0 1 1 4.92 4.92"></path></svg></span>Descope asset</a>
+</div>
+</span>
+</div>
+</header>
+{{if .Withdrawn}}<div class="as-notice">This name is withdrawn — it names a population of no current member. Its timelines are closed. It is reached by its own key and never appears in the listing.</div>{{end}}
+<div style="display:grid;grid-template-columns:minmax(0, 1fr) 340px;gap:24px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="as-card flush">
+<div class="as-cardhead"><span class="as-micro">Census</span><h3>Open ports</h3></div>
+{{if .Ports}}
+<table class="as-table">
+<thead><tr><th style="width:90px">Port</th><th>Service</th><th style="width:150px">Exposure</th><th style="width:110px;text-align:right">First seen</th></tr></thead>
+<tbody>
+{{range .Ports}}<tr>
+<td class="mono">{{.Port}}</td>
+<td class="mono">{{.Service}}</td>
+<td>{{template "assetexposure" .Exposure}}</td>
+<td class="mono" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="as-empty"><span class="msg">No open port measured</span><span class="det">No Service holds an open reachability span on this asset's addresses yet. Let a scan reach for its ports; each one that answers appears here with its exposure.</span></div>
+{{end}}
+</section>
+<section class="as-card flush">
+<div class="as-cardhead"><span class="as-micro">Resolution</span><h3>DNS records</h3></div>
+{{if .DNS}}
+<table class="as-table">
+<thead><tr><th style="width:90px">Type</th><th>Value</th><th style="width:80px;text-align:right">Seen</th></tr></thead>
+<tbody>
+{{range .DNS}}<tr>
+<td class="mono">{{.Type}}</td>
+<td class="mono">{{.Value}}</td>
+<td class="mono" style="text-align:right;color:var(--text-muted)">{{if .Seen}}{{.Seen}}{{else}}—{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="as-empty"><span class="msg">No records resolved</span><span class="det">This name holds no current resolution or dns-record value. A record appears here once the dns scan folds one for it.</span></div>
+{{end}}
+</section>
+{{with .Cert}}
+<section class="as-cert{{if eq .Tone "danger"}} danger{{end}}">
+<div class="row1">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted)"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M4.7 19.3 9 15"></path><path d="m9 10-4.3 4.3c-.94.94-.94 2.46 0 3.4l1.6 1.6c.94.94 2.46.94 3.4 0L14 15"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"></path><circle cx="10" cy="14" r="2"></circle></svg>
+<span class="cn">{{.Name}}</span>
+<span class="role">TLS certificate</span>
+<span style="margin-left:auto"><span class="as-badge {{.Tone}}"><span class="dot"></span>{{.Label}}</span></span>
+</div>
+<div class="meta">
+{{if .Issuer}}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{.Issuer}}</span>{{end}}
+{{if .Algorithm}}<span style="flex:none">{{.Algorithm}}</span>{{end}}
+{{if .NotAfter}}<span class="until">until {{.NotAfter}}</span>{{end}}
+</div>
+{{if .Fingerprint}}<span class="as-copy"><span class="cv">{{.Fingerprint}}</span><button type="button" data-copy="{{.Fingerprint}}" aria-label="Copy value"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></span>{{end}}
+</section>
+{{else}}
+<section class="as-card">
+<div class="as-cardhead"><span class="as-micro">Transport</span><h3>TLS certificate</h3></div>
+<div class="as-body"><div class="as-empty" style="padding:24px 12px"><span class="msg">No certificate detail to show</span><span class="det">No certificate-chain leaf holds a parsed value for this asset yet. Its identity — issuer, algorithm, validity — appears once a scan folds one.</span></div></div>
+</section>
+{{end}}
+</div>
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="as-card">
+<div class="as-cardhead"><span class="as-micro">Provenance</span><h3>How it got here</h3></div>
+<div class="as-body">
+{{if .Provenance}}
+<div class="as-kv">
+{{range .Provenance}}<div class="cell"><span class="as-micro">{{.K}}</span><span class="v">{{.V}}</span></div>{{end}}
+</div>
+{{else}}
+<div class="as-empty" style="padding:24px 12px"><span class="msg">No provenance to trace</span><span class="det">Nothing has cited this name into the estate yet. Its "why is this here" chain fills in as a scan measures it against a scope you declared.</span></div>
+{{end}}
+</div>
+</section>
+<section class="as-card">
+<div class="as-cardhead"><span class="as-micro">Open</span><h3>Signals here</h3></div>
+<div style="padding:12px">
+{{if .Signals}}
+<div style="display:flex;flex-direction:column">
+{{range .Signals}}<a class="as-sig" href="/signals?view={{.SigID}}">
+{{template "sevbadge" .}}
+<span class="txt"><span class="t1">{{.Rule}}</span><span class="t2">{{.SigID}} · raised {{.Time}} ago</span></span>
+<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);flex:none"><path d="m9 18 6-6-6-6"></path></svg>
+</a>{{end}}
+</div>
+{{else}}
+<div class="as-empty" style="padding:24px 12px"><span class="msg">No signal raised here</span><span class="det">No rule is firing on this asset right now. A signal is raised when the world drifts into a rule's predicate, and withdrawn when the world moves back — never resolved by hand.</span></div>
+{{end}}
+</div>
+</section>
+<section class="as-card">
+<div class="as-cardhead"><span class="as-micro">History</span><h3>Drift trail</h3></div>
+<div class="as-body" style="padding-top:12px">
+{{if .Drift}}
+<div>
+<button type="button" class="as-ghead" aria-expanded="true">
+<svg class="chev" viewBox="0 0 16 16" width="13" height="13"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="gl">This asset</span>
+<span class="gm">last 30 days</span>
+<span class="as-count">{{len .Drift}}</span>
+</button>
+<div class="as-gwrap"><div>
+<div class="as-gevents">
+{{range .Drift}}
+<div class="as-ev">
+<div class="rail"><span class="dot"></span><span class="conn"></span></div>
+<div class="evb">
+<div class="tr">
+<span class="title"><span class="as-chip {{.Family}}">{{template "changeglyph" .Change}}{{.Change}}</span><span class="sbj">{{.Subject}}</span></span>
+<span class="tm">{{.Time}}</span>
+</div>
+<span class="det">{{.Detail}}</span>
+</div>
+</div>
+{{end}}
+</div>
+</div></div>
+</div>
+{{else}}
+<div class="as-empty" style="padding:24px 12px"><span class="msg">No change to show yet</span><span class="det">This asset holds no folded span yet, so there is no transition to trace. Its drift trail fills in as a scan measures a value and a re-run moves it.</span></div>
+{{end}}
+</div>
+</section>
+<section class="as-card">
+<div class="as-cardhead"><span class="as-micro">Address</span><h3>Copy</h3></div>
+<div class="as-body"><span class="as-copy"><span class="cv">{{.Key}}</span><button type="button" data-copy="{{.Key}}" aria-label="Copy value"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></span></div>
+</section>
+</div>
+</div>
+{{end}}
+</main>
+<script>
+(function(){
+  var mb=document.getElementById("as-more-btn"),mm=document.getElementById("as-more-menu");
+  if(mb&&mm){
+    mb.addEventListener("click",function(e){e.stopPropagation();var open=mm.hasAttribute("hidden");if(open)mm.removeAttribute("hidden");else mm.setAttribute("hidden","");mb.setAttribute("aria-expanded",open?"true":"false");});
+    document.addEventListener("mousedown",function(e){if(!mm.hasAttribute("hidden")&&!mm.contains(e.target)&&!mb.contains(e.target)){mm.setAttribute("hidden","");mb.setAttribute("aria-expanded","false");}});
+    document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!mm.hasAttribute("hidden")){mm.setAttribute("hidden","");mb.setAttribute("aria-expanded","false");}});
+  }
+  [].forEach.call(document.querySelectorAll(".as-ghead"),function(h){
+    h.addEventListener("click",function(){
+      var open=h.getAttribute("aria-expanded")==="true";
+      h.setAttribute("aria-expanded",open?"false":"true");
+      var w=h.parentNode.querySelector(".as-gwrap");
+      if(w){if(open)w.classList.add("closed");else w.classList.remove("closed");}
+    });
+  });
+  [].forEach.call(document.querySelectorAll("[data-copy]"),function(b){
+    b.addEventListener("click",function(){
+      var v=b.getAttribute("data-copy");
+      if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(v);else{var ta=document.createElement("textarea");ta.value=v;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(err){}document.body.removeChild(ta);}
+      b.classList.add("ok");setTimeout(function(){b.classList.remove("ok");},1400);
+    });
+  });
+})();
+</script>
+{{template "foot" .}}{{end}}

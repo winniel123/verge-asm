@@ -30,12 +30,12 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | 7 | Exposure | /exposure | exposure.tmpl | withheld state | **LANDED — operator confirmed 2026-08-25** |
 | 8 | Drift | /drift | drift.tmpl | feed item expanded | **LANDED — operator confirmed 2026-08-25** |
 | 9 | RunDetail | /runs/{id} | rundetail.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
-| 10 | Scope | /scope | scope.tmpl | declared-name tree expanded · exclusion confirm · zone-file card | **BATCH 3 — artifacts in v3.9.0** |
-| 11 | Dashboard | / | dashboard.tmpl | scanning progress row · banner dismissed | **BATCH 3 — artifacts in v3.9.0** |
-| 12 | Signals | /signals | signals.tmpl | drawer open · descope confirm · annotation control open | **BATCH 3 — artifacts in v3.9.0** |
-| 13 | AssetDetail | /asset/{key} | asset.tmpl | — | queued |
-| 14 | SubjectDetail | /subjects/… | subjectdetail.tmpl | withdrawn state | queued |
-| 15 | Graph | /graph | graph.tmpl | node drawer open | queued |
+| 10 | Scope | /scope | scope.tmpl | declared-name tree expanded · exclusion confirm · zone-file card | **LANDED — operator confirmed 2026-08-25** |
+| 11 | Dashboard | / | dashboard.tmpl | scanning progress row · banner dismissed | **LANDED — operator confirmed 2026-08-25** |
+| 12 | Signals | /signals | signals.tmpl | drawer open · descope confirm · annotation control open | **LANDED — operator confirmed 2026-08-25** |
+| 13 | AssetDetail | /asset/{key} | asset.tmpl | — | **BATCH 4 — artifacts in v3.10.0** |
+| 14 | SubjectDetail | /subjects/… | subjectdetail.tmpl | withdrawn state | **BATCH 4 — artifacts in v3.10.0** |
+| 15 | Graph | /graph | graph.tmpl | node drawer open | **BATCH 4 — artifacts in v3.10.0** |
 | 16 | Reports | /reports | reports.tmpl | wizard steps 1–4 · row menu open | queued |
 | 17 | ReportArtifact | /reports/… | reportartifact.tmpl | — | queued |
 | 18 | Inbox | /inbox | inbox.tmpl | message open · mark-unread menu | queued |
