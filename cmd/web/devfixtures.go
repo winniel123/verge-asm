@@ -549,6 +549,89 @@ func (s *server) devSetupSeedEmpty(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
+// --- screen 7: Exposure fixture (package v3.8.0, WORK-ORDER-7-9-BATCH2.md) ------------------
+//
+// The Exposure screen (#560/#561) renders inside the full app chrome. Its VIEW corpus — the
+// both-legs board (six service rows with per-leg reach states and a "since"), the summary band
+// (14 exposed with a +2 vs-last-batch delta, 41 firewalled, 7 not reached) and the WITHHELD
+// state — is the design curated fixture, not a live-estate read: the exact rows, counts and
+// signed delta cannot be reconstructed from the live derivations without fabricating domain
+// data, which SPEC-CHANGE forbids. So, exactly as the SignIn/Setup/Coverage screens pin their
+// dev fixture and serve it under devMode, exposurePage serves the pinned fixtures.json →
+// exposure slice below when s.devMode, and TestExposureFixtureMatchesPackage folds every value
+// back through the frozen package — the byte-exactness gate before the pixels. The WITHHELD
+// state rides a dev ?variant=no-internet-vantage query (states.json). All of it is VERGE_DEV-only;
+// a real deployment renders the honest live projection in exposure.go exposurePage instead.
+
+const (
+	// The summary-band figures fixtures.json → exposure pins: 14 exposed (with a +2 vs-last-batch
+	// delta, has_deltas true), 41 firewalled, 7 not reached.
+	devExposureExposed      = 14
+	devExposureExposedDelta = 2
+	devExposureFirewalled   = 41
+	devExposureNotReached   = 7
+	devExposureHasDeltas    = true
+
+	// devExposureWithheldVariant is fixtures.json → exposure.withheld_variant: the ?variant token
+	// (states.json exposure "withheld" state) that drives the WITHHELD render — no internet vantage,
+	// so exposure is withheld rather than reported.
+	devExposureWithheldVariant = "no-internet-vantage"
+)
+
+// devExposureRow mirrors one fixtures.json exposure.rows entry: a service's address, its
+// ":port transport", the internal + internet reach legs (expleg display states), and its since.
+type devExposureRow struct {
+	asset    string
+	svc      string
+	internal string
+	internet string
+	since    string
+}
+
+// devExposureRows pins fixtures.json → exposure.rows in authored order.
+var devExposureRows = []devExposureRow{
+	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "exposed", internet: "exposed", since: "4m"},
+	{asset: "api.acmecorp.io", svc: ":443 https", internal: "exposed", internet: "exposed", since: "69d"},
+	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "exposed", internet: "exposed", since: "41d"},
+	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "exposed", internet: "firewalled", since: "12d"},
+	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "exposed", internet: "firewalled", since: "26d"},
+	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internet: "unverified", since: "—"},
+}
+
+// exposureFixtureData assembles the render data map exposurePage passes to the frozen
+// exposure.tmpl in a VERGE_DEV build. It stamps the chrome + design-token holes, then either the
+// WITHHELD state (when the ?variant matches devExposureWithheldVariant, mirroring the live
+// no-internet-vantage branch) or the full pinned board — the six rows, the summary counts and the
+// +2 exposed delta (rendered via the tmpl's signDelta over .ExposedDelta.Change). The delta is fed
+// as a {Change} map exactly as render-goldens does, so golden and candidate agree byte-for-byte.
+func (s *server) exposureFixtureData(acct db.Account, variant string) map[string]any {
+	data := map[string]any{
+		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "exposure", "DesignTokens": true,
+	}
+	if variant == devExposureWithheldVariant {
+		data["Withheld"] = true
+		return data
+	}
+
+	rows := make([]exposureRow, 0, len(devExposureRows))
+	for _, r := range devExposureRows {
+		rows = append(rows, exposureRow{
+			Asset: r.asset, Svc: r.svc, Internal: r.internal, Internet: r.internet, Since: r.since,
+		})
+	}
+	data["Withheld"] = false
+	data["Rows"] = rows
+	data["Exposed"] = devExposureExposed
+	data["Firewalled"] = devExposureFirewalled
+	data["NotReached"] = devExposureNotReached
+	if devExposureHasDeltas {
+		data["HasDeltas"] = true
+		data["ExposedDelta"] = map[string]any{"Change": devExposureExposedDelta}
+	}
+	return data
+}
+
 // seedDevSSOProvider upserts one enabled OIDC provider by slug and returns its id. The
 // issuer/client_id are dev placeholders (the Profile screen never exercises the flow — it
 // only lists the provider); the client secret stays NULL. Dev-only, from the seed one-shot.
@@ -843,4 +926,144 @@ func (s *server) devCoverageSeedEmpty(w http.ResponseWriter, r *http.Request) {
 	s.coverageMu.Unlock()
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, _ = w.Write([]byte("ok"))
+}
+
+// --- screen 8: Drift fixture (package v3.8.0, WORK-ORDER-7-9-BATCH2.md) ------------------
+//
+// The Drift screen (#562/#563) renders inside the full app chrome. Its VIEW corpus — the
+// batch-grouped transition timeline (3 groups / 7 events, one carrying a before/after diff,
+// the oldest group collapsed), the movement tally, the +2 transition delta and the range
+// picker's preset vocabulary — is the design curated fixture, not a live-estate read: a
+// transition is derived on read from consecutive span adjacencies (ADR-0007), and the exact
+// events, subjects, diffs and counts cannot be reconstructed from the live derivations
+// without fabricating domain data, which SPEC-CHANGE forbids. So, exactly as the Exposure /
+// Coverage screens pin their dev fixture and serve it under devMode, driftPage serves the
+// pinned fixtures.json → drift slice below when s.devMode, and TestDriftFixtureMatchesPackage
+// folds every value back through the frozen package — the byte-exactness gate before the
+// pixels. The .Periods and .Kinds holes are fed from driftPeriods()/driftKinds() (the same
+// vocabulary the live path renders), which that test also pins to the fixture. All of it is
+// VERGE_DEV-only; a real deployment renders the honest live feed in drift.go driftPage instead.
+
+const (
+	// The trigger + tally scalars fixtures.json → drift pins: the active preset (7d),
+	// its label, the batch-detail entry (batch_id 1407 ↔ its ISO label), the transition
+	// count for the period and the signed vs-previous-period delta. batch_id is carried
+	// as a string (the tmpl renders it into /runs/{id} and gates the entry on non-empty).
+	devDriftPeriod          = "7d"
+	devDriftPeriodLabel     = "Last 7d"
+	devDriftHasEvents       = true
+	devDriftTruncated       = false
+	devDriftBatchID         = "1407"
+	devDriftBatchLabel      = "2026-08-22T14:00Z"
+	devDriftTransitionCount = 7
+	devDriftTransitionDelta = "+2"
+)
+
+// devDriftMovement pins fixtures.json → drift.movement: the per-change-kind tally the
+// Movement card renders (keyed by change word, looked up in .Kinds vocabulary order).
+var devDriftMovement = driftMovement{
+	"appeared": 1, "revealed": 1, "withdrawn": 1, "descoped": 1, "returned": 1, "changed": 2,
+}
+
+// devDriftDiffLine / devDriftEvent / devDriftGroup mirror one fixtures.json → drift.groups
+// entry, in authored order: a batch group (its ISO label, scope meta, and collapsed flag)
+// carrying its transition events (change kind + drift family, subject, detail, relative time,
+// an optional closure reason, and an optional before/after diff).
+type devDriftDiffLine struct {
+	typ  string
+	text string
+}
+type devDriftEvent struct {
+	change  string
+	family  string
+	subject string
+	detail  string
+	time    string
+	reason  string
+	diff    []devDriftDiffLine
+}
+type devDriftGroup struct {
+	label     string
+	meta      string
+	collapsed bool
+	events    []devDriftEvent
+}
+
+// devDriftGroups pins fixtures.json → drift.groups in authored order: the newest batch first
+// (a value move with a nginx-banner diff, an appearance, a withdrawal), the prior batch (a
+// return, a reveal), and the collapsed 2026-08-21 batch (a descope, a certificate change).
+var devDriftGroups = []devDriftGroup{
+	{
+		label: "2026-08-22T14:00Z", meta: "full scan · 3 vantages", collapsed: false,
+		events: []devDriftEvent{
+			{change: "changed", family: "change", subject: "api.acmecorp.io :443", detail: "service banner", time: "4m", diff: []devDriftDiffLine{
+				{typ: "remove", text: "nginx/1.24.0"},
+				{typ: "add", text: "nginx/1.25.0 (CVE-2026-1187)"},
+			}},
+			{change: "appeared", family: "gain", subject: "staging-5.acmecorp.io", detail: "name · first seen via certificate transparency", time: "8m"},
+			{change: "withdrawn", family: "loss", subject: ":8080 http-alt on edge-gw-03.acmecorp.io", detail: "service", reason: "closed since last batch", time: "9m"},
+		},
+	},
+	{
+		label: "2026-08-22T08:00Z", meta: "full scan · 3 vantages", collapsed: false,
+		events: []devDriftEvent{
+			{change: "returned", family: "gain", subject: "mail.acmecorp.io :587", detail: "service · absent for 2 batches", time: "6h"},
+			{change: "revealed", family: "gain", subject: "203.0.113.77", detail: "address · custody extension widened the aperture", time: "6h"},
+		},
+	},
+	{
+		label: "2026-08-21T14:00Z", meta: "full scan · 2 vantages", collapsed: true,
+		events: []devDriftEvent{
+			{change: "descoped", family: "loss", subject: "old-blog.acmecorp.io", detail: "name", reason: "operator excluded subtree", time: "1d"},
+			{change: "changed", family: "change", subject: "www.acmecorp.io :443", detail: "certificate issuer", time: "1d"},
+		},
+	},
+}
+
+// driftFixtureData assembles the render data map driftPage passes to the frozen drift.tmpl in a
+// VERGE_DEV build. It stamps the chrome + design-token holes, the range-picker vocabulary
+// (driftPeriods) and change vocabulary (driftKinds), then the pinned groups (each with its
+// Collapsed flag and events), the movement tally, and the trigger + tally scalars — so the
+// cropped `main` is byte-identical to what render-goldens composes statically from the same
+// fixture. The tmpl's own JS drives the kind-toggle / group-collapse / range-popover
+// interactions client-side over this full feed.
+func (s *server) driftFixtureData(acct db.Account) map[string]any {
+	groups := make([]driftBatch, 0, len(devDriftGroups))
+	for _, g := range devDriftGroups {
+		events := make([]driftEvent, 0, len(g.events))
+		for _, e := range g.events {
+			var diff []driftDiffLine
+			for _, d := range e.diff {
+				diff = append(diff, driftDiffLine{Type: d.typ, Text: d.text})
+			}
+			events = append(events, driftEvent{
+				Change: e.change, Family: e.family, Subject: e.subject,
+				Detail: e.detail, Time: e.time, Reason: e.reason, Diff: diff,
+			})
+		}
+		groups = append(groups, driftBatch{Label: g.label, Meta: g.meta, Collapsed: g.collapsed, Events: events})
+	}
+
+	movement := driftMovement{}
+	for k, v := range devDriftMovement {
+		movement[k] = v
+	}
+
+	return map[string]any{
+		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "drift", "DesignTokens": true,
+		"Kinds":           driftKinds(),
+		"Periods":         driftPeriods(),
+		"Period":          devDriftPeriod,
+		"PeriodLabel":     devDriftPeriodLabel,
+		"Groups":          groups,
+		"Movement":        movement,
+		"HasEvents":       devDriftHasEvents,
+		"Truncated":       devDriftTruncated,
+		"FeedLimit":       driftFeedLimit,
+		"BatchID":         devDriftBatchID,
+		"BatchLabel":      devDriftBatchLabel,
+		"TransitionCount": devDriftTransitionCount,
+		"TransitionDelta": devDriftTransitionDelta,
+	}
 }

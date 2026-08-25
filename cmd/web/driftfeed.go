@@ -196,9 +196,9 @@ func spanValueIsGap(facet string, raw []byte) bool {
 // The same classification the screen uses decides each row, so the file and the
 // screen never disagree; a Break-crossing opening or a revealed opening is skipped in
 // both.
-func (s *server) writeDriftExportCSV(w http.ResponseWriter, period driftPeriod, rows []db.ListRecentDriftEventsRow) {
+func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, rows []db.ListRecentDriftEventsRow) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="drift-`+period.Token+`.csv"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="drift-`+periodToken+`.csv"`)
 
 	cw := csv.NewWriter(w)
 	defer cw.Flush()

@@ -197,10 +197,11 @@ func TestDriftRequiresLogin(t *testing.T) {
 }
 
 // T16 delta (#311): with a real batch dispatched, the Drift header offers a "Batch
-// detail" entry into the Run detail screen at GET /run/{id} — id being the most
-// recent Dispatch id. The entry is real data (a dispatch exists), never a fabricated
-// change event, and it stands even while the transition timeline is still the
-// empty-state (change and batches are distinct feeds).
+// detail" entry into the Run detail screen at GET /runs/{id} — id being the most
+// recent Dispatch id (the frozen drift.tmpl routes batch detail to /runs/{id}). The
+// entry is real data (a dispatch exists), never a fabricated change event, and it
+// stands even while the transition timeline is still the empty-state (change and
+// batches are distinct feeds).
 func TestDriftBatchDetailLinksToRun(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -220,11 +221,11 @@ func TestDriftBatchDetailLinksToRun(t *testing.T) {
 	if !strings.Contains(page, "Batch detail") {
 		t.Errorf("drift page missing the Batch detail entry; body: %s", page)
 	}
-	if !strings.Contains(page, `href="/run/88"`) {
-		t.Errorf("Batch detail should link to the most recent batch /run/88; body: %s", page)
+	if !strings.Contains(page, `href="/runs/88"`) {
+		t.Errorf("Batch detail should link to the most recent batch /runs/88; body: %s", page)
 	}
-	if strings.Contains(page, `href="/run/87"`) {
-		t.Errorf("Batch detail linked an older batch /run/87, not the latest; body: %s", page)
+	if strings.Contains(page, `href="/runs/87"`) {
+		t.Errorf("Batch detail linked an older batch /runs/87, not the latest; body: %s", page)
 	}
 	// The timeline is still the empty-state — the entry does not fabricate change.
 	if !strings.Contains(page, "No change to show yet") {
@@ -233,7 +234,7 @@ func TestDriftBatchDetailLinksToRun(t *testing.T) {
 }
 
 // With no scan yet dispatched there is no batch to open, so the header offers no
-// Batch detail entry rather than fabricate a run id — no /run/ link is rendered.
+// Batch detail entry rather than fabricate a run id — no /runs/ link is rendered.
 func TestDriftBatchDetailOmittedWithoutBatch(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -241,7 +242,7 @@ func TestDriftBatchDetailOmittedWithoutBatch(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/drift", http.StatusOK)
 
-	if strings.Contains(page, "Batch detail") || strings.Contains(page, `href="/run/`) {
+	if strings.Contains(page, "Batch detail") || strings.Contains(page, `href="/runs/`) {
 		t.Errorf("drift page offered a Batch detail entry with no batch dispatched; body: %s", page)
 	}
 }
@@ -289,12 +290,13 @@ func TestDriftFeedRendersTransitions(t *testing.T) {
 
 // The period selector bounds the feed: a change older than the default 7d window is
 // excluded from the default view (the timeline falls back to the empty-state) and
-// included under ?period=all.
+// included under the widest preset, ?period=90d (the design's range vocabulary tops
+// out at 90d — there is no "all time" preset).
 func TestDriftFeedPeriodFilter(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
-	// An appearance well over 7d before the fixed clock (2026-08-15).
+	// An appearance well over 7d — but under 90d — before the fixed clock (2026-08-15).
 	old := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
 	f.addResolution(t, admin.ID, "api.example.com", "hot", old, `{"outcome":"Resolved"}`)
 
@@ -306,13 +308,13 @@ func TestDriftFeedPeriodFilter(t *testing.T) {
 	if !strings.Contains(def, "No change to show yet") {
 		t.Errorf("default 7d window should exclude a >7d-old transition; body: %s", def)
 	}
-	// All time: the appearance is in window and renders.
-	all := getBody(t, ac, base+"/drift?period=all", http.StatusOK)
-	if strings.Contains(all, "No change to show yet") {
-		t.Errorf("all-time window should include the transition; body: %s", all)
+	// 90d: the appearance is in window and renders.
+	wide := getBody(t, ac, base+"/drift?period=90d", http.StatusOK)
+	if strings.Contains(wide, "No change to show yet") {
+		t.Errorf("90d window should include the <90d-old transition; body: %s", wide)
 	}
-	if !strings.Contains(all, "api.example.com") {
-		t.Errorf("all-time feed missing the transition's subject; body: %s", all)
+	if !strings.Contains(wide, "api.example.com") {
+		t.Errorf("90d feed missing the transition's subject; body: %s", wide)
 	}
 }
 
@@ -330,7 +332,7 @@ func TestDriftExportCSV(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp, err := ac.Get(base + "/drift/export?period=all")
+	resp, err := ac.Get(base + "/drift/export?period=90d")
 	if err != nil {
 		t.Fatal(err)
 	}

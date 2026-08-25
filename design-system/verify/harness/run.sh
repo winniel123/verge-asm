@@ -49,7 +49,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "== 1. render-goldens -> static HTML (inventory + error + profile + signin + setup + coverage + rundetail) =="
+echo "== 1. render-goldens -> static HTML (inventory + error + profile + signin + setup + coverage + exposure + drift + rundetail) =="
 docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
   sh -c "go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen inventory -out design-system/goldens/inventory.html && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen error -outdir design-system/goldens/error && \
@@ -57,6 +57,8 @@ docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen signin -outdir design-system/goldens/signin && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen setup -outdir design-system/goldens/setup && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen coverage -outdir design-system/goldens/coverage && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen exposure -outdir design-system/goldens/exposure && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen drift -out design-system/goldens/drift.html && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen rundetail -outdir design-system/goldens/rundetail"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
@@ -64,7 +66,7 @@ docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_I
   sh -c "npm install --no-audit --no-fund >/dev/null 2>&1 && echo deps ok"
 
 if [ "${GOLDENS:-}" = "write" ]; then
-  echo "== 2. capture --write-goldens (file://) — inventory + error + profile + signin + setup + coverage + rundetail =="
+  echo "== 2. capture --write-goldens (file://) — inventory + error + profile + signin + setup + coverage + exposure + drift + rundetail =="
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen inventory --page /src/design-system/goldens/inventory.html
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
@@ -77,6 +79,14 @@ if [ "${GOLDENS:-}" = "write" ]; then
     node capture.mjs --mode golden --write-goldens --advisory --screen setup --pagedir /src/design-system/goldens/setup
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen coverage --pagedir /src/design-system/goldens/coverage
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen exposure --pagedir /src/design-system/goldens/exposure
+  # drift is a SINGLE shared golden file (--page, like inventory): its default/feed-expanded/
+  # range-open states are the same HTML with the frozen tmpl's own JS (group-collapse, range
+  # popover) driven over it by capture.mjs (states.json). So write one page and let the state
+  # JS produce the expanded/open captures — not a per-state dir.
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen drift --page /src/design-system/goldens/drift.html
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen rundetail --pagedir /src/design-system/goldens/rundetail
 fi
@@ -109,7 +119,7 @@ for i in $(seq 1 30); do docker exec "$WEB" /out/web -healthcheck >/dev/null 2>&
 # binding G2 gate, which only ever runs in this pinned container.
 ADV_FLAG=""
 if [ "${ADVISORY:-1}" = "1" ]; then ADV_FLAG="--advisory"; fi
-echo "== 4. capture --mode candidate ${ADV_FLAG} — inventory + error + profile + signin + coverage + setup + rundetail =="
+echo "== 4. capture --mode candidate ${ADV_FLAG} — inventory + error + profile + signin + coverage + exposure + drift + rundetail + setup =="
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen inventory --base "http://${WEB}:8080"
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
@@ -128,6 +138,25 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # with no authed-admin session.
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen coverage --base "http://${WEB}:8080" --hide-chrome
+# exposure: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
+# served from the pinned fixtures.json exposure slice under VERGE_DEV. --hide-chrome drops the
+# sticky console header from flow so <main> sits at the viewport top and aligns with the
+# chrome-less golden (as coverage). The withheld state rides a dev ?variant=no-internet-vantage
+# query capture.mjs appends (states.json), which exposurePage reads to render WITHHELD. No seed —
+# it touches no table — so its position relative to coverage is free; it MUST precede setup, whose
+# /dev/seed/empty TRUNCATEs the account table (which would strand exposure's authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen exposure --base "http://${WEB}:8080" --hide-chrome
+# drift: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
+# served from the pinned fixtures.json drift slice under VERGE_DEV. --hide-chrome drops the sticky
+# console header from flow so <main> sits at the viewport top and aligns with the chrome-less
+# golden (as coverage). The feed-expanded / range-open states run states.json's `js` (expand the
+# collapsed group headers / open the range popover) against the frozen tmpl's own handlers, in BOTH
+# golden and candidate. No seed — it touches no table — so its position relative to coverage is
+# free; it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table (which would
+# strand drift's authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen drift --base "http://${WEB}:8080" --hide-chrome
 # rundetail: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
 # in-memory dev fixture (no DB reshape). --hide-chrome drops the sticky console header from flow so
 # <main> sits at the viewport top and aligns with the chrome-less golden (as coverage). Route is
