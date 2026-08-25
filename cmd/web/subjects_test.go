@@ -488,7 +488,7 @@ func TestNamelessEndpointRendersAndRedirectRecorded(t *testing.T) {
 	// identity without following it.
 	key := url.QueryEscape("@198.51.100.2:80/tcp")
 	drill := getBody(t, ac, base+"/subjects/endpoint?key="+key, http.StatusOK)
-	for _, want := range []string{"nameless endpoint", "301", "https://x.example/", "not followed"} {
+	for _, want := range []string{"(nameless)", "301", "https://x.example/", "not followed"} {
 		if !strings.Contains(drill, want) {
 			t.Errorf("nameless/redirect drill-down missing %q; body: %s", want, drill)
 		}

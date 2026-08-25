@@ -1903,3 +1903,196 @@ func (s *server) assetFixtureData(acct db.Account) map[string]any {
 		"Asset": devAssetData(),
 	}
 }
+
+// --- screen 14: SubjectDetail fixture (package v3.10.0, WORK-ORDER-13-15-BATCH4.md) ----------
+//
+// The SubjectDetail screen (#582) serves /subjects/{service,endpoint} from the frozen
+// subjectdetail.tmpl. Its VIEW corpus — the two service states (reachable + withdrawn) and the
+// endpoint state, each with its citation rail, current facet, span timelines (with the closed-row
+// title tooltips), rules-over-subject table, provenance and the Service's signals-here — is the
+// design's curated fixture, not a live-estate read: the exact chain hops, the joined timeline
+// values, the relative instants and the minted SIG id cannot be reconstructed from the live
+// derivations without fabricating domain data, which SPEC-CHANGE forbids. So, exactly as the
+// sibling screens pin their dev fixture and serve it under devMode, servicePage / endpointPage
+// serve the pinned fixtures.json subjectdetail slices below when s.devMode, and
+// TestSubjectDetailFixtureMatchesPackage folds every value back through the frozen package — the
+// byte-exactness gate before the pixels. The production path (subjects.go) builds the same holes
+// from real subject-scoped reads (#22 wiring); this pins the design's exact bytes. All VERGE_DEV-only.
+const (
+	// The three pinned subject keys the golden states drill into (fixtures.json →
+	// subjectdetail.{service,service_withdrawn,endpoint}.key). The endpoint key is the
+	// design's display form ("Name · :port scheme"), not the internal name@service key.
+	devServiceKey          = "203.0.113.7:5900/tcp"
+	devServiceWithdrawnKey = "203.0.113.29:8080/tcp"
+	devEndpointKey         = "edge-gw-03.acmecorp.io · :443 https"
+)
+
+// devServiceData is the pinned fixtures.json → subjectdetail.service slice — the reachable VNC
+// service. TestSubjectDetailFixtureMatchesPackage folds every value back through the frozen package.
+func devServiceData() servicePageData {
+	return servicePageData{
+		Key:          devServiceKey,
+		CopyKey:      "203.0.113.7:5900 tcp",
+		Withdrawn:    false,
+		Exposure:     "exposed",
+		Seen:         "4m",
+		InScopeSince: "2026-08-22",
+		Citation: []citationHop{
+			{Label: "Service", Value: "203.0.113.7:5900/tcp", Detail: "an (address, port, transport) triple"},
+			{Label: "Address · cited by a current resolution", Value: "203.0.113.7"},
+			{Label: "Name · citing resolution", Value: "edge-gw-03.acmecorp.io", Detail: "A record, seen 4m ago"},
+			{Label: "Seed · name scope", Value: "acmecorp.io", Detail: "declared 2026-06-14 · custody verified"},
+		},
+		CitationTerminated: true,
+		Address:            "203.0.113.7",
+		Port:               "5900",
+		Transport:          "tcp",
+		Reach:              "reached",
+		Since:              "2026-08-22T14:00Z",
+		Timelines: []timelineView{{
+			Label:   "reachability",
+			Current: &spanView{IsGap: false, Value: "reached", OpenedAt: "2026-08-22T14:00Z"},
+			Breaks:  []breakView{{At: "2026-08-01T06:00Z", MovedLeaves: "transport"}},
+			Closed: []spanView{
+				{Value: "not-reached", OpenedAt: "2026-07-14", OpenedFull: "2026-07-14T06:00Z", ClosedAt: "2026-08-22", ClosedFull: "2026-08-22T14:00Z", Reason: "changed"},
+				{IsGap: true, Value: "Gap", OpenedAt: "2026-07-02", OpenedFull: "2026-07-02T06:00Z", ClosedAt: "2026-07-14", ClosedFull: "2026-07-14T06:00Z", Reason: "stopped looking"},
+			},
+		}},
+		Rules: []subjectRule{
+			{Rule: "vnc-exposure", Version: "3", Severity: "critical", SevLabel: "Critical", Fired: true},
+			{Rule: "tls-acceptance", Version: "2", Severity: "high", SevLabel: "High", Fired: false},
+		},
+		Provenance: []assetKV{
+			{K: "Seed", V: "acmecorp.io"},
+			{K: "Via", V: "dns sweep → hot scan"},
+			{K: "Vantage", V: "eu-west-1"},
+			{K: "First seen", V: "2026-08-22"},
+		},
+		Signals: []assetSignal{
+			{Severity: "critical", SevLabel: "Critical", Rule: ":5900 vnc — no transport encryption", SigID: "SIG-1042", Time: "4m"},
+		},
+	}
+}
+
+// devServiceWithdrawnData is the pinned fixtures.json → subjectdetail.service_withdrawn slice — the
+// jenkins service whose address has left the estate (closed timeline, no current member).
+func devServiceWithdrawnData() servicePageData {
+	return servicePageData{
+		Key:          devServiceWithdrawnKey,
+		CopyKey:      "203.0.113.29:8080 tcp",
+		Withdrawn:    true,
+		Exposure:     "",
+		Seen:         "12d",
+		InScopeSince: "2026-07-18",
+		Citation: []citationHop{
+			{Label: "Service", Value: "203.0.113.29:8080/tcp", Detail: "an (address, port, transport) triple"},
+			{Label: "Address · formerly cited", Value: "203.0.113.29"},
+			{Label: "Name · last citing resolution", Value: "jenkins.acmecorp.io", Detail: "A record, last seen 12d ago"},
+			{Label: "Seed · name scope", Value: "acmecorp.io", Detail: "declared 2026-06-14 · custody verified"},
+		},
+		CitationTerminated: true,
+		Address:            "203.0.113.29",
+		Port:               "8080",
+		Transport:          "tcp",
+		Reach:              "",
+		Since:              "",
+		Timelines: []timelineView{{
+			Label:   "reachability",
+			Current: nil,
+			Breaks:  nil,
+			Closed: []spanView{
+				{Value: "reached", OpenedAt: "2026-07-18", OpenedFull: "2026-07-18T08:40Z", ClosedAt: "2026-08-10", ClosedFull: "2026-08-10T13:25Z", Reason: "withdrawn"},
+			},
+		}},
+		Rules: []subjectRule{
+			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Fired: false},
+		},
+		Provenance: []assetKV{
+			{K: "Seed", V: "acmecorp.io"},
+			{K: "Via", V: "dns sweep → hot scan"},
+			{K: "Vantage", V: "eu-west-1"},
+			{K: "First seen", V: "2026-07-18"},
+		},
+		Signals: nil,
+	}
+}
+
+// devEndpointData is the pinned fixtures.json → subjectdetail.endpoint slice — the edge-gw-03
+// HTTPS endpoint (200 · nginx/1.25.0, one closed span, verbose-server-header fired).
+func devEndpointData() endpointPageData {
+	return endpointPageData{
+		Key:          devEndpointKey,
+		CopyKey:      "edge-gw-03.acmecorp.io 203.0.113.7:443 tcp",
+		Name:         "edge-gw-03.acmecorp.io",
+		Nameless:     false,
+		Service:      "203.0.113.7:443/tcp",
+		Withdrawn:    false,
+		Seen:         "4m",
+		InScopeSince: "2026-06-14",
+		Citation: []citationHop{
+			{Label: "Endpoint", Value: "edge-gw-03.acmecorp.io · :443 https", Detail: "a (Name, Service) pair — the only key under which HTTP identity is single-valued"},
+			{Label: "Name leg", Value: "edge-gw-03.acmecorp.io"},
+			{Label: "Service leg", Value: "203.0.113.7:443/tcp"},
+			{Label: "Seed · name scope", Value: "acmecorp.io", Detail: "declared 2026-06-14 · custody verified"},
+		},
+		CitationTerminated: true,
+		HasIdentity:        true,
+		Status:             "200",
+		Server:             "nginx/1.25.0",
+		Title:              "Acme edge gateway",
+		RedirectLocation:   "",
+		WWWAuthenticate:    "",
+		Timelines: []timelineView{{
+			Label:   "http-identity",
+			Current: &spanView{IsGap: false, Value: "200 · nginx/1.25.0", OpenedAt: "2026-08-12T06:00Z"},
+			Breaks:  nil,
+			Closed: []spanView{
+				{Value: "200 · nginx/1.24.0", OpenedAt: "2026-06-14", OpenedFull: "2026-06-14T09:00Z", ClosedAt: "2026-08-12", ClosedFull: "2026-08-12T06:00Z", Reason: "changed"},
+			},
+		}},
+		Rules: []subjectRule{
+			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Fired: false},
+			{Rule: "verbose-server-header", Version: "2", Severity: "low", SevLabel: "Low", Fired: true},
+		},
+		Provenance: []assetKV{
+			{K: "Seed", V: "acmecorp.io"},
+			{K: "Via", V: "resolution × service join"},
+			{K: "Vantage", V: "eu-west-1"},
+			{K: "First seen", V: "2026-06-14"},
+		},
+	}
+}
+
+// serviceFixtureData is the render map servicePage passes to the frozen subjectdetail.tmpl in a
+// VERGE_DEV build for the two pinned service keys. It returns ok=false for any other key so the
+// live read still resolves. render-goldens composes the identical maps statically, so golden and
+// candidate agree byte-for-byte.
+func (s *server) serviceFixtureData(acct db.Account, key string) (map[string]any, bool) {
+	var data servicePageData
+	switch key {
+	case devServiceKey:
+		data = devServiceData()
+	case devServiceWithdrawnKey:
+		data = devServiceWithdrawnData()
+	default:
+		return nil, false
+	}
+	return map[string]any{
+		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "inventory", "DesignTokens": true,
+		"Service": data,
+	}, true
+}
+
+// endpointFixtureData is the render map endpointPage passes to the frozen subjectdetail.tmpl in a
+// VERGE_DEV build for the pinned endpoint key; ok=false for any other key.
+func (s *server) endpointFixtureData(acct db.Account, key string) (map[string]any, bool) {
+	if key != devEndpointKey {
+		return nil, false
+	}
+	return map[string]any{
+		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "inventory", "DesignTokens": true,
+		"Endpoint": devEndpointData(),
+	}, true
+}

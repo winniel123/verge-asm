@@ -104,7 +104,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard | asset | subjectdetail")
 	out := flag.String("out", "", "inventory|drift: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile|…: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -318,6 +318,24 @@ func main() {
 			log.Fatal("render-goldens: -outdir is required for -screen asset")
 		}
 		files, err := renderAssetStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "subjectdetail":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen subjectdetail")
+		}
+		files, err := renderSubjectDetailStates(*bodyFlex)
 		if err != nil {
 			log.Fatalf("render-goldens: %v", err)
 		}
@@ -2341,4 +2359,179 @@ func renderAssetStates(bodyFlex bool) ([]errorGolden, error) {
 		return nil, err
 	}
 	return []errorGolden{{id: "default", html: buf.Bytes()}}, nil
+}
+
+// subjectDetailFixture is the design-system/fixtures/fixtures.json → subjectdetail slice: the two
+// service states (reachable + withdrawn) and the endpoint state. Its Go field names ARE the holes
+// the frozen subjectdetail.tmpl reads (.Service / .Endpoint), so a loaded value passes straight to
+// the template. cmd/web/devfixtures.go pins the same values with a drift test
+// (TestSubjectDetailFixtureMatchesPackage).
+type subjectDetailFixture struct {
+	Service          subjectServiceFixture  `json:"service"`
+	ServiceWithdrawn subjectServiceFixture  `json:"service_withdrawn"`
+	Endpoint         subjectEndpointFixture `json:"endpoint"`
+}
+
+type subjectServiceFixture struct {
+	Key                string                   `json:"key"`
+	CopyKey            string                   `json:"copy_key"`
+	Withdrawn          bool                     `json:"withdrawn"`
+	Exposure           string                   `json:"exposure"`
+	Seen               string                   `json:"seen"`
+	InScopeSince       string                   `json:"in_scope_since"`
+	Citation           []subjectCitationFixture `json:"citation"`
+	CitationTerminated bool                     `json:"citation_terminated"`
+	Address            string                   `json:"address"`
+	Port               string                   `json:"port"`
+	Transport          string                   `json:"transport"`
+	Reach              string                   `json:"reach"`
+	ReachGap           bool                     `json:"reach_gap"`
+	ReachGapReason     string                   `json:"reach_gap_reason"`
+	Since              string                   `json:"since"`
+	Timelines          []subjectTimelineFixture `json:"timelines"`
+	Rules              []subjectRuleFixture     `json:"rules"`
+	Provenance         []subjectKVFixture       `json:"provenance"`
+	Signals            []subjectSignalFixture   `json:"signals"`
+}
+
+type subjectEndpointFixture struct {
+	Key                string                   `json:"key"`
+	CopyKey            string                   `json:"copy_key"`
+	Nameless           bool                     `json:"nameless"`
+	Withdrawn          bool                     `json:"withdrawn"`
+	Seen               string                   `json:"seen"`
+	InScopeSince       string                   `json:"in_scope_since"`
+	Citation           []subjectCitationFixture `json:"citation"`
+	CitationTerminated bool                     `json:"citation_terminated"`
+	Name               string                   `json:"name"`
+	Service            string                   `json:"service"`
+	HasIdentity        bool                     `json:"has_identity"`
+	Status             string                   `json:"status"`
+	Server             string                   `json:"server"`
+	Title              string                   `json:"title"`
+	RedirectLocation   string                   `json:"redirect_location"`
+	WWWAuthenticate    string                   `json:"www_authenticate"`
+	Timelines          []subjectTimelineFixture `json:"timelines"`
+	Rules              []subjectRuleFixture     `json:"rules"`
+	Provenance         []subjectKVFixture       `json:"provenance"`
+}
+
+type subjectCitationFixture struct {
+	Label  string `json:"label"`
+	Value  string `json:"value"`
+	Detail string `json:"detail"`
+}
+
+type subjectTimelineFixture struct {
+	Label   string                `json:"label"`
+	Current *subjectSpanFixture   `json:"current"`
+	Breaks  []subjectBreakFixture `json:"breaks"`
+	Closed  []subjectSpanFixture  `json:"closed"`
+}
+
+type subjectSpanFixture struct {
+	IsGap      bool                       `json:"is_gap"`
+	Value      string                     `json:"value"`
+	Details    []subjectSpanDetailFixture `json:"details"`
+	OpenedAt   string                     `json:"opened_at"`
+	OpenedFull string                     `json:"opened_full"`
+	ClosedAt   string                     `json:"closed_at"`
+	ClosedFull string                     `json:"closed_full"`
+	Reason     string                     `json:"reason"`
+}
+
+type subjectSpanDetailFixture struct {
+	Type string `json:"type"`
+	Data string `json:"data"`
+}
+
+type subjectBreakFixture struct {
+	At          string `json:"at"`
+	MovedLeaves string `json:"moved_leaves"`
+}
+
+type subjectRuleFixture struct {
+	Rule     string `json:"rule"`
+	Version  int    `json:"version"`
+	Severity string `json:"severity"`
+	SevLabel string `json:"sev_label"`
+	Fired    bool   `json:"fired"`
+}
+
+type subjectKVFixture struct {
+	K string `json:"k"`
+	V string `json:"v"`
+}
+
+type subjectSignalFixture struct {
+	Severity string `json:"severity"`
+	SevLabel string `json:"sev_label"`
+	Rule     string `json:"rule"`
+	SigID    string `json:"sig_id"`
+	Time     string `json:"time"`
+}
+
+func loadSubjectDetailFixture() (subjectDetailFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return subjectDetailFixture{}, err
+	}
+	var ff struct {
+		SubjectDetail subjectDetailFixture `json:"subjectdetail"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return subjectDetailFixture{}, err
+	}
+	return ff.SubjectDetail, nil
+}
+
+// renderSubjectDetailStates composes the SubjectDetail golden HTMLs from the frozen
+// subjectdetail.tmpl, one per states.json subjectdetail state (service · endpoint ·
+// service-withdrawn). Each data map mirrors servicePage / endpointPage's fixture data EXACTLY (the
+// holes the frozen tmpl reads) — the pinned fixtures.json subjectdetail slice — so the cropped
+// `main` is byte-identical to what the seeded server renders. "service"/"endpoint" wrap
+// head/chrome/…/foot; they reuse the "assetexposure" define asset.tmpl declares, the "sevbadge"
+// define signals.tmpl declares and the "recordrows" define inventory.tmpl declares — all parsed
+// into the set here (drift.tmpl is pulled in for asset.tmpl's "changeglyph" reference so the set
+// parses, though the executed defines never reach it). Chrome is the empty stub (goldens crop `main`).
+func renderSubjectDetailStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadSubjectDetailFixture()
+	if err != nil {
+		return nil, err
+	}
+	states := []struct {
+		id     string
+		define string
+		data   map[string]any
+	}{
+		{id: "service", define: "service", data: map[string]any{
+			"Title": fx.Service.Key, "NavActive": "inventory", "IsAdmin": true, "Service": fx.Service,
+		}},
+		{id: "endpoint", define: "endpoint", data: map[string]any{
+			"Title": fx.Endpoint.Key, "NavActive": "inventory", "IsAdmin": true, "Endpoint": fx.Endpoint,
+		}},
+		{id: "service-withdrawn", define: "service", data: map[string]any{
+			"Title": fx.ServiceWithdrawn.Key, "NavActive": "inventory", "IsAdmin": true, "Service": fx.ServiceWithdrawn,
+		}},
+	}
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/signals.tmpl", "templates/drift.tmpl", "templates/asset.tmpl", "templates/inventory.tmpl", "templates/subjectdetail.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, st.define, st.data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
 }
