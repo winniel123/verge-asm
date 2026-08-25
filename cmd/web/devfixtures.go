@@ -38,8 +38,8 @@ type devFixtureAccount struct {
 // devFixtureAccounts pins fixtures.json → accounts: an admin and a viewer. One account
 // per role — the mint resolves states.json's `session` role to the account here.
 var devFixtureAccounts = []devFixtureAccount{
-	{username: "ola.perez", role: roleAdmin, password: "verge-dev-1"},
-	{username: "sam.reader", role: roleViewer, password: "verge-dev-2"},
+	{username: "ola.perez", role: roleAdmin, password: "verge-dev-1"},  // #nosec G101 -- dev-only fixture login, seeded only under VERGE_DEV
+	{username: "sam.reader", role: roleViewer, password: "verge-dev-2"}, // #nosec G101 -- dev-only fixture login, seeded only under VERGE_DEV
 }
 
 // devPanic is the /dev/panic handler (VERGE_DEV only): it panics so recoverPanics
