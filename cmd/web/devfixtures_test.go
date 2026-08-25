@@ -498,3 +498,165 @@ func TestExposureFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// fixtureDriftPackage mirrors the fixtures.json drift slice the screen-8 dev fixture pins in
+// devfixtures.go (the range-picker presets, the change vocabulary, the trigger + tally scalars,
+// the movement map and the batch groups with their events and optional diffs).
+type fixtureDriftPackage struct {
+	Drift struct {
+		Period          string `json:"period"`
+		PeriodLabel     string `json:"period_label"`
+		HasEvents       bool   `json:"has_events"`
+		Truncated       bool   `json:"truncated"`
+		FeedLimit       int32  `json:"feed_limit"`
+		BatchID         string `json:"batch_id"`
+		BatchLabel      string `json:"batch_label"`
+		TransitionCount int    `json:"transition_count"`
+		TransitionDelta string `json:"transition_delta"`
+		Periods         []struct {
+			Token string `json:"token"`
+			Label string `json:"label"`
+		} `json:"periods"`
+		Kinds []struct {
+			Change string `json:"change"`
+			Family string `json:"family"`
+		} `json:"kinds"`
+		Movement map[string]int `json:"movement"`
+		Groups   []struct {
+			Label     string `json:"label"`
+			Meta      string `json:"meta"`
+			Collapsed bool   `json:"collapsed"`
+			Events    []struct {
+				Change  string `json:"change"`
+				Family  string `json:"family"`
+				Subject string `json:"subject"`
+				Detail  string `json:"detail"`
+				Time    string `json:"time"`
+				Reason  string `json:"reason"`
+				Diff    []struct {
+					Type string `json:"type"`
+					Text string `json:"text"`
+				} `json:"diff"`
+			} `json:"events"`
+		} `json:"groups"`
+	} `json:"drift"`
+}
+
+// TestDriftFixtureMatchesPackage is the byte-exactness gate for the screen-8 conversion: every
+// value the dev fixture serves (devfixtures.go driftFixtureData, served by driftPage under
+// devMode) equals the frozen fixtures.json drift slice, in authored order — so a drift between
+// the served candidate and the golden (which composes the same fixture statically) fails here
+// rather than in a screenshot diff, exactly as TestExposureFixtureMatchesPackage guards Exposure.
+// It also pins the code-owned vocabulary the tmpl's .Periods/.Kinds holes are fed from
+// (driftPeriods / driftKinds) to the fixture's presets and change kinds.
+func TestDriftFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureDriftPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	d := f.Drift
+
+	// Trigger + tally scalars.
+	if d.Period != devDriftPeriod {
+		t.Errorf("period drift: fixtures.json = %q, pinned = %q", d.Period, devDriftPeriod)
+	}
+	if d.PeriodLabel != devDriftPeriodLabel {
+		t.Errorf("period_label drift: fixtures.json = %q, pinned = %q", d.PeriodLabel, devDriftPeriodLabel)
+	}
+	if d.HasEvents != devDriftHasEvents {
+		t.Errorf("has_events drift: fixtures.json = %v, pinned = %v", d.HasEvents, devDriftHasEvents)
+	}
+	if d.Truncated != devDriftTruncated {
+		t.Errorf("truncated drift: fixtures.json = %v, pinned = %v", d.Truncated, devDriftTruncated)
+	}
+	if d.FeedLimit != driftFeedLimit {
+		t.Errorf("feed_limit drift: fixtures.json = %d, pinned = %d", d.FeedLimit, driftFeedLimit)
+	}
+	if d.BatchID != devDriftBatchID {
+		t.Errorf("batch_id drift: fixtures.json = %q, pinned = %q", d.BatchID, devDriftBatchID)
+	}
+	if d.BatchLabel != devDriftBatchLabel {
+		t.Errorf("batch_label drift: fixtures.json = %q, pinned = %q", d.BatchLabel, devDriftBatchLabel)
+	}
+	if d.TransitionCount != devDriftTransitionCount {
+		t.Errorf("transition_count drift: fixtures.json = %d, pinned = %d", d.TransitionCount, devDriftTransitionCount)
+	}
+	if d.TransitionDelta != devDriftTransitionDelta {
+		t.Errorf("transition_delta drift: fixtures.json = %q, pinned = %q", d.TransitionDelta, devDriftTransitionDelta)
+	}
+
+	// The transition count must equal the movement tally sum (the "This period" card total).
+	sum := 0
+	for _, v := range d.Movement {
+		sum += v
+	}
+	if sum != devDriftTransitionCount {
+		t.Errorf("transition_count %d != movement sum %d", devDriftTransitionCount, sum)
+	}
+
+	// Range-picker presets: driftPeriods() feeds the .Periods hole, so it must equal the
+	// fixture's presets in authored order.
+	periods := driftPeriods()
+	if len(d.Periods) != len(periods) {
+		t.Fatalf("periods length drift: fixtures.json = %d, driftPeriods = %d", len(d.Periods), len(periods))
+	}
+	for i, p := range d.Periods {
+		if p.Token != periods[i].Token || p.Label != periods[i].Label {
+			t.Errorf("period %d drift: fixtures.json = {%q %q}, driftPeriods = {%q %q}", i, p.Token, p.Label, periods[i].Token, periods[i].Label)
+		}
+	}
+
+	// Change vocabulary: driftKinds() feeds the .Kinds hole (and the Movement/legend order).
+	kinds := driftKinds()
+	if len(d.Kinds) != len(kinds) {
+		t.Fatalf("kinds length drift: fixtures.json = %d, driftKinds = %d", len(d.Kinds), len(kinds))
+	}
+	for i, k := range d.Kinds {
+		if k.Change != kinds[i].Change || k.Family != kinds[i].Family {
+			t.Errorf("kind %d drift: fixtures.json = {%q %q}, driftKinds = {%q %q}", i, k.Change, k.Family, kinds[i].Change, kinds[i].Family)
+		}
+	}
+
+	// Movement map.
+	if len(d.Movement) != len(devDriftMovement) {
+		t.Fatalf("movement length drift: fixtures.json = %d, pinned = %d", len(d.Movement), len(devDriftMovement))
+	}
+	for k, v := range d.Movement {
+		if devDriftMovement[k] != v {
+			t.Errorf("movement[%q] drift: fixtures.json = %d, pinned = %d", k, v, devDriftMovement[k])
+		}
+	}
+
+	// Batch groups, in authored order, with events and diffs.
+	if len(d.Groups) != len(devDriftGroups) {
+		t.Fatalf("groups length drift: fixtures.json = %d, pinned = %d", len(d.Groups), len(devDriftGroups))
+	}
+	for gi, g := range d.Groups {
+		pg := devDriftGroups[gi]
+		if g.Label != pg.label || g.Meta != pg.meta || g.Collapsed != pg.collapsed {
+			t.Errorf("group %d drift: fixtures.json = {%q %q collapsed=%v}, pinned = {%q %q collapsed=%v}", gi, g.Label, g.Meta, g.Collapsed, pg.label, pg.meta, pg.collapsed)
+		}
+		if len(g.Events) != len(pg.events) {
+			t.Fatalf("group %d events length drift: fixtures.json = %d, pinned = %d", gi, len(g.Events), len(pg.events))
+		}
+		for ei, e := range g.Events {
+			pe := pg.events[ei]
+			if e.Change != pe.change || e.Family != pe.family || e.Subject != pe.subject || e.Detail != pe.detail || e.Time != pe.time || e.Reason != pe.reason {
+				t.Errorf("group %d event %d drift:\n fixtures.json = %+v\n pinned        = %+v", gi, ei, e, pe)
+			}
+			if len(e.Diff) != len(pe.diff) {
+				t.Fatalf("group %d event %d diff length drift: fixtures.json = %d, pinned = %d", gi, ei, len(e.Diff), len(pe.diff))
+			}
+			for di, dl := range e.Diff {
+				pd := pe.diff[di]
+				if dl.Type != pd.typ || dl.Text != pd.text {
+					t.Errorf("group %d event %d diff %d drift: fixtures.json = {%q %q}, pinned = {%q %q}", gi, ei, di, dl.Type, dl.Text, pd.typ, pd.text)
+				}
+			}
+		}
+	}
+}

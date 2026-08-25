@@ -3,6 +3,12 @@ dac24643c2828776478b734aed381bbba3712d66  design-system/goldens/coverage/default
 bdd0b8d0d1f74f17a92e6ccace5955b2b59de91c  design-system/goldens/coverage/default-1440-light.png
 833824e4c1621b5f866e3ccbac6da58f8ecf906f  design-system/goldens/coverage/empty-1440-dark.png
 85e324ab32a440609da811469e44acd821b555b6  design-system/goldens/coverage/empty-1440-light.png
+1f48d8de6ea4e113e8fb4a1a8fc418735cb64b1d  design-system/goldens/drift/default-1440-dark.png
+35d03e40d7d76a2a1634eadff30ff1fb716db1f1  design-system/goldens/drift/default-1440-light.png
+e939a9e8594e18769640ec2f4df6fcf12451add7  design-system/goldens/drift/feed-expanded-1440-dark.png
+307da289e1deccb1ec6b9c4cce5d01c384dfca47  design-system/goldens/drift/feed-expanded-1440-light.png
+3869e65b9795a5d81361035019330a2c4444f90d  design-system/goldens/drift/range-open-1440-dark.png
+7a4b1b5d04f72cc603c6f441323e04b2205e66c7  design-system/goldens/drift/range-open-1440-light.png
 a18d4ecb7ca9b7a286b6ed9a76b99470f145cf11  design-system/goldens/error/403-1440-dark.png
 2f07bfb453ca427e608caffc8ae3c8e21db129f9  design-system/goldens/error/403-1440-light.png
 febde73fc4df81af61c26b2fe68409daab6590c6  design-system/goldens/error/404-1440-dark.png
