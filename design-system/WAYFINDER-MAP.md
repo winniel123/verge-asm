@@ -33,12 +33,12 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | 10 | Scope | /scope | scope.tmpl | declared-name tree expanded · exclusion confirm · zone-file card | **LANDED — operator confirmed 2026-08-25** |
 | 11 | Dashboard | / | dashboard.tmpl | scanning progress row · banner dismissed | **LANDED — operator confirmed 2026-08-25** |
 | 12 | Signals | /signals | signals.tmpl | drawer open · descope confirm · annotation control open | **LANDED — operator confirmed 2026-08-25** |
-| 13 | AssetDetail | /asset/{key} | asset.tmpl | — | **BATCH 4 — artifacts in v3.10.0** |
-| 14 | SubjectDetail | /subjects/… | subjectdetail.tmpl | withdrawn state | **BATCH 4 — artifacts in v3.10.0** |
-| 15 | Graph | /graph | graph.tmpl | node drawer open | **BATCH 4 — artifacts in v3.10.0** |
-| 16 | Reports | /reports | reports.tmpl | wizard steps 1–4 · row menu open | queued |
-| 17 | ReportArtifact | /reports/… | reportartifact.tmpl | — | queued |
-| 18 | Inbox | /inbox | inbox.tmpl | message open · mark-unread menu | queued |
+| 13 | AssetDetail | /asset/{key} | asset.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
+| 14 | SubjectDetail | /subjects/… | subjectdetail.tmpl | withdrawn state | **LANDED — operator confirmed 2026-08-25** |
+| 15 | Graph | /graph | graph.tmpl | node drawer open | **LANDED — operator confirmed 2026-08-25** |
+| 16 | Reports | /reports | reports.tmpl | wizard steps 1–4 · row menu open | **BATCH 5 — artifacts in v3.11.0** |
+| 17 | ReportArtifact | /reports/… | reportartifact.tmpl | — | **BATCH 5 — artifacts in v3.11.0** |
+| 18 | Inbox | /inbox | inbox.tmpl | message open · mark-unread menu | **BATCH 5 — artifacts in v3.11.0** |
 | 19 | SearchResults | /search | search.tmpl | — | queued |
 | 20 | Onboarding + FirstRun | /onboarding, / | onboarding.tmpl, firstrun.tmpl | wizard steps | queued |
 | 21 | Settings (all sections) | /settings/* | settings.tmpl | one golden per section incl. sessions, SSO, vantages+prober flow, channels, sources, aperture | queued |
