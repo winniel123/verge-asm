@@ -38,7 +38,7 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | 15 | Graph | /graph | graph.tmpl | node drawer open | **LANDED — operator confirmed 2026-08-25** |
 | 16 | Reports | /reports | reports.tmpl | wizard steps 1–4 · row menu open | **BATCH 5 — artifacts in v3.11.0** |
 | 17 | ReportArtifact | /reports/… | reportartifact.tmpl | — | **BATCH 5 — artifacts in v3.11.0** |
-| 18 | Inbox | /inbox | inbox.tmpl | message open · mark-unread menu | **BATCH 5 — artifacts in v3.11.0** |
+| 18 | Inbox | /inbox | inbox.tmpl | message open · mark-unread menu | **BATCH 5 — artifacts in v3.11.1 (#24: no prose body)** |
 | 19 | SearchResults | /search | search.tmpl | — | queued |
 | 20 | Onboarding + FirstRun | /onboarding, / | onboarding.tmpl, firstrun.tmpl | wizard steps | queued |
 | 21 | Settings (all sections) | /settings/* | settings.tmpl | one golden per section incl. sessions, SSO, vantages+prober flow, channels, sources, aperture | queued |

@@ -1,14 +1,16 @@
 {{/*
-  DESIGN-OWNED ARTIFACT — inbox.tmpl · package v3.11.0 · WORKFLOW.md v4
+  DESIGN-OWNED ARTIFACT — inbox.tmpl · package v3.11.1 · WORKFLOW.md v4
   Source of truth: examples/console/Inbox.jsx · shot 07. Replaces templates_inbox.go
   (define "inbox" kept). PRG skeleton kept: open = ?id link (marks read), filter = query param,
   mark-all-read / mark-unread = POSTs returning to /inbox.
   Holes kept: .Unread .Filter .AllHref .UnreadHref .Messages[{ID,Read,Selected,Class,Instant,Rel,
   Headline}] .Selected{ID,Class,Headline,Rel,Instant,Census[{Kind,Key,Href}],
   Deliveries[{State,ChannelHost,Failed,LastError}],Href,JumpLabel}.
-  Reconciliations (SPEC-CHANGE #23i, ruled): .Selected gains nullable .Body — the message's
-  rendered prose paragraph (internal/message produces it for delivery; render the same text here).
-  The census and delivery-receipt regions become design-owned (the repo's msgcensus/msgdelivery
+  Reconciliations: (SPEC-CHANGE #24, ruled — supersedes #23i's .Body) the detail card carries NO
+  prose body — the mock's paragraph predates the census store, and internal/message is
+  valence-free by design (ADR-0064); the detail form IS the census + delivery receipts, with depth
+  one jump away. No .Body hole; no prose producer should be built. (#23i, remainder ruled): the
+  census and delivery-receipt regions become design-owned (the repo's msgcensus/msgdelivery
   global classes retire for this route): census renders as sunken key rows (kind micro-label +
   mono key link), deliveries as receipt lines — failed renders the danger "undelivered" badge, the
   host, the honest "could not be delivered, not that nothing fired" clause and a dotted reason
@@ -50,7 +52,6 @@
 .ib-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
 .ib-cardbody { padding: 20px; }
 .ib-meta { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
-.ib-body { margin: 0; font: 400 13.5px/1.65 var(--font-ui); color: var(--text-body); max-width: 560px; }
 .ib-census { display: flex; flex-direction: column; gap: 0; background: var(--surface-sunken); border-radius: 12px; padding: 6px 14px; }
 .ib-crow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
 .ib-crow + .ib-crow { border-top: 1px solid var(--row-sep); }
@@ -125,7 +126,6 @@
 <div class="ib-cardbody">
 <div style="display:flex;flex-direction:column;gap:16px">
 <span class="ib-meta">{{if .Rel}}{{.Rel}} ago{{end}}{{if .Instant}} · {{.Instant}}{{end}}</span>
-{{if .Body}}<p class="ib-body">{{.Body}}</p>{{end}}
 {{if .Census}}
 <div class="ib-census">
 {{range .Census}}

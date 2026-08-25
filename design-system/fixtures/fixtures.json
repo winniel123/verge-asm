@@ -3359,7 +3359,6 @@
       "headline": "VNC exposed to internet · edge-gw-03.acmecorp.io",
       "rel": "4m",
       "instant": "2026-08-22T14:02:11Z",
-      "body": "Vantage eu-west-1 concluded :5900 vnc on edge-gw-03.acmecorp.io is exposed to internet with no transport encryption. Raised as SIG-1042, critical. The port appeared in batch 2026-08-22T14:00Z and was reachable on both legs.",
       "census": [
         {
           "kind": "Signal",
@@ -3391,7 +3390,8 @@
         }
       ],
       "href": "/signals?view=SIG-1042",
-      "jump_label": "Open signal"
+      "jump_label": "Open signal",
+      "$note": "SPEC-CHANGE #24: no .Body hole — the detail form is census + deliveries (ADR-0064 stays intact; no prose producer)."
     },
     "jump_labels": {
       "signals": "Open signal",

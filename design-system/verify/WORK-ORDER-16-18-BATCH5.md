@@ -1,6 +1,6 @@
-# Work order — batch 5: Reports + ReportArtifact + Inbox (map #16–#18, package v3.11.0)
+# Work order — batch 5: Reports + ReportArtifact + Inbox (map #16–#18, package v3.11.1)
 
-Use the consume-design-package skill. Fifth parallel batch: up to 3 sessions, one screen each, one branch each, all pinned to v3.11.0, shared files append-only, PRs merge serially with G1+G2 re-runs (WAYFINDER-MAP §Batching). Screens 1–15 are LANDED — do not touch. **reports.tmpl and reportartifact.tmpl land together** (reportartifact calls "deltachip" from reports.tmpl; it also calls landed "sevbadge" (signals.tmpl) + "changeglyph" (drift.tmpl) — one parse set).
+Use the consume-design-package skill. Fifth parallel batch: up to 3 sessions, one screen each, one branch each, all pinned to v3.11.1 for screen 18 (the v3.11.1 delta is inbox-only; reports/reportartifact bytes are identical to v3.11.0, so the open 16+17 PR stands — no restart), shared files append-only, PRs merge serially with G1+G2 re-runs (WAYFINDER-MAP §Batching). Screens 1–15 are LANDED — do not touch. **reports.tmpl and reportartifact.tmpl land together** (reportartifact calls "deltachip" from reports.tmpl; it also calls landed "sevbadge" (signals.tmpl) + "changeglyph" (drift.tmpl) — one parse set).
 
 ## Screen 16 — Reports (`templates/reports.tmpl` replaces templates_reports.go)
 
@@ -29,16 +29,16 @@ Defines: "reportartifact" (page) + **"artifactdoc"** (the delivered document).
 
 ## Screen 18 — Inbox (`templates/inbox.tmpl` replaces templates_inbox.go)
 
-Define "inbox" kept. PRG skeleton kept: open = `?id` link (marks read), filter = query param, mark-all-read / mark-unread POSTs with `return`. Holes kept (see tmpl header). Changed (#23i):
-- `.Selected` gains nullable `.Body` — the message's rendered prose paragraph (internal/message already produces it for delivery; render the same text). Signal ids in it use the SIG-#### mint (#22b precedent).
-- The census + delivery regions become design-owned in-tmpl (the repo's global `msgcensus`/`msgdelivery` classes retire for this route): census = sunken rows (kind micro-label + mono key, linked); deliveries = receipt lines — failed renders the danger "undelivered" pill + host + "could not be delivered, not that nothing fired" + dotted `(reason)` tooltip from `.LastError`.
+Define "inbox" kept. PRG skeleton kept: open = `?id` link (marks read), filter = query param, mark-all-read / mark-unread POSTs with `return`. Holes kept (see tmpl header). Changed:
+- **#24 (ruled, supersedes the #23i .Body item): the detail card carries NO prose body.** The sample paragraph predates the census store; the ADR-0064 valence-free discipline stands — build no prose grammar, no carve-out. The detail form IS the census + delivery receipts; depth is one jump away on the signal. There is no `.Body` hole.
+- (#23i, remainder) The census + delivery regions become design-owned in-tmpl (the repo's global `msgcensus`/`msgdelivery` classes retire for this route): census = sunken rows (kind micro-label + mono key, linked); deliveries = receipt lines — failed renders the danger "undelivered" pill + host + "could not be delivered, not that nothing fired" + dotted `(reason)` tooltip from `.LastError`.
 - Map note: the map's "mark-unread menu" golden state predates the mock — mark-unread is a button in the detail card, covered by the message-open golden.
 
 ## Fixtures (fixtures.json → reports / reportartifact / inbox)
 
 - reports: period 7d of 4 tokens; KPI 47 (+3 bad, 14-pt spark), 12 (+8 neutral, 8 names · 4 services, 14 bars), MTTW 2.4d (−0.6d good, chart-2 spark); trend series (yTop 60, ticks 0/20/40/60, labels Aug 9–22 sparse ×5, LabelsAttr + SeriesJSON for the hover JS); sev bars 3/11/18/9/6; 84-day heat (levels precomputed); 3 schedules (s1–s3, LastMins 4320/31680/840); wizard slice (4 sections with keys, 5 cadence presets, 3 channels with hints, PRG note).
 - reportartifact: delivery #42 of s1 (org acmecorp · generated 2026-08-22T09:00:00Z · verge v0.9.2 · pdf); 3 stats; sev bars; 3 new rows; 2 withdrawn; receipt delivered · ok. Variant `never-delivered` pins .Doc.Empty (schedule s2).
-- inbox: 5 messages (m1–m5, 2 unread, ISO instants); selected fixture m1 with .Body prose (SIG-1042), census (Signal → /signals?view=SIG-1042 · Asset → /asset/… · Batch → /runs/1407), 2 deliveries (delivered ops hook; failed pager with LastError "TLS handshake failed · 3 attempts"); jump labels per class.
+- inbox: 5 messages (m1–m5, 2 unread, ISO instants); selected fixture m1 with census (Signal → /signals?view=SIG-1042 · Asset → /asset/… · Batch → /runs/1407), 2 deliveries (delivered ops hook; failed pager with LastError "TLS handshake failed · 3 attempts"); jump labels per class.
 
 ## Goldens (crop `main` · × light/dark @1440)
 

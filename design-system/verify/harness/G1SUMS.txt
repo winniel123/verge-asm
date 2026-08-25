@@ -1,4 +1,4 @@
-af9a9d6e446eb8ec60f595f3013cb8506c17b408  design-system/fixtures/fixtures.json
+deaaed480e79919b949467acd2f9b6e9086e1896  design-system/fixtures/fixtures.json
 73d0610ac8af04992e415c732adceecead1005cc  design-system/goldens/asset/default-1440-dark.png
 2e74f682618f35d200e87326e7e8af16c8ee2504  design-system/goldens/asset/default-1440-light.png
 dac24643c2828776478b734aed381bbba3712d66  design-system/goldens/coverage/default-1440-dark.png
@@ -138,7 +138,7 @@ e52923163b95cf0641464955802c94b25a6cc7e4  design-system/templates/drift.tmpl
 19e5664a1a940564ced9e6f189aacd603a8b4f0f  design-system/templates/error.tmpl
 70585b7ccece550348fc17b87ef4ad4577787db0  design-system/templates/exposure.tmpl
 64813fd8c26af80271de1405a098854b52d936aa  design-system/templates/graph.tmpl
-f30cd2e7e578b2b316824401762a9d7ae64912e3  design-system/templates/inbox.tmpl
+43ea11bfd714c57c2add88b20673b44809c87e0d  design-system/templates/inbox.tmpl
 25f0e038a99f6f27fe6dba989bb738e4e1b28a4b  design-system/templates/inventory.tmpl
 8e3eac18a001dfc555ec7a1848f8aefd7d58262e  design-system/templates/profile.tmpl
 500d92cac46ea611800a8ce611003d09223d8be8  design-system/templates/reportartifact.tmpl
