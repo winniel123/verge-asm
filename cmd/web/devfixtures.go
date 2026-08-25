@@ -338,9 +338,7 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 	if _, err := pool.Exec(ctx, `DELETE FROM personal_token WHERE account_id = $1`, acct.ID); err != nil {
 		return fmt.Errorf("profile fixture: reset tokens: %w", err)
 	}
-	const insToken = `
-		INSERT INTO personal_token (account_id, name, prefix, token_hash, created_at, last_used_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+	const insToken = `INSERT INTO personal_token (account_id, name, prefix, token_hash, created_at, last_used_at) VALUES ($1, $2, $3, $4, $5, $6)` // #nosec G101 -- SQL statement, not a credential: the const name and the token_hash column trip the G101 heuristic
 	for _, pt := range devProfileTokens {
 		created, derr := devFixtureDate(pt.created)
 		if derr != nil {
