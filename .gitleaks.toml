@@ -16,7 +16,6 @@ title = "verge-asm"
 [extend]
 useDefault = true
 
-[[allowlist]]
+[allowlist]
 description = "Design-owned deterministic TOTP-enrol fixture secret (parity golden stability; real enrolment uses crypto/rand). Not a live credential."
-regexTarget = "match"
 regexes = ['''VG7K-2Q9X-8MRD-P3TL''']
