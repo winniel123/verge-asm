@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -39,8 +41,14 @@ type inventoryFacet struct {
 	Details []spanDetail
 	Since   string
 
-	src string
-	van pgtype.Int8
+	// facet is the stored (lower-case) facet tag this row was folded from —
+	// resolution, dns-record, reachability, tls-acceptance, certificate,
+	// http-identity. It is the sort key the canonical inventory facet order sorts
+	// on (inventoryFacetRank), kept alongside src/van so the display Label ("dns-records",
+	// "certificate-chain") never has to be reverse-mapped to its facet.
+	facet string
+	src   string
+	van   pgtype.Int8
 }
 
 // inventorySubject is one subject and every facet it currently holds. Link is the
@@ -126,6 +134,14 @@ func inventoryRowHref(kind, key string) string {
 	if kind == "name" {
 		return "/asset/" + url.PathEscape(key)
 	}
+	// An Address has no drill-in surface of its own in the Inventory pilot — the
+	// row renders as plain, non-navigable text (fixtures.json carries link="" for
+	// every Address). The shared subjectHref would route it to /subjects/{key},
+	// which is why this is an inventory-local override rather than a subjectHref
+	// change: the graph/search paths still link Addresses through subjectHref.
+	if kind == "address" {
+		return ""
+	}
 	return subjectHref(kind, key)
 }
 
@@ -164,59 +180,324 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 
 		s := &groups[gi].Subjects[si]
 		s.Facets = append(s.Facets, inventoryFacet{
-			Label:   timelineLabel(row.Facet, row.Discriminator),
-			Summary: valueLabel(row.Facet, row.Value, row.IsGap),
+			Label:   inventoryFacetLabel(row.Facet, row.Discriminator),
+			Summary: inventoryValueLabel(row.Facet, row.Value, row.IsGap),
 			IsGap:   row.IsGap,
-			Details: spanDetails(row.Facet, row.Value, row.IsGap),
-			Since:   row.OpenedAt.Time.UTC().Format(spanTimeFmt),
-			src:     row.Source,
-			van:     row.VantageID,
+			Details: inventorySpanDetails(row.Facet, row.Value, row.IsGap),
+			// Inventory renders the Since column (and the CSV export) date-only
+			// (#524) — the day a subject's currently-held span opened, without the
+			// wall-clock time the change/drill-down views carry. spanTimeFmt stays the
+			// shared datetime format those other screens depend on; only the inventory
+			// facet's Since is the shorter form.
+			Since: row.OpenedAt.Time.UTC().Format("2006-01-02"),
+			facet: row.Facet,
+			src:   row.Source,
+			van:   row.VantageID,
 		})
 	}
 
+	// Order everything by the canonical inventory orderings so the render is
+	// deterministic regardless of the open-span read order: facets within a subject
+	// by inventoryFacetRank, subjects within a group by their leading facet, and the
+	// groups themselves by kind. Every sort is stable so ties keep read order (which
+	// is what pins the two vantages of an Address's reachability in insertion order).
 	for gi := range groups {
 		for si := range groups[gi].Subjects {
-			disambiguateFacetLabels(groups[gi].Subjects[si].Facets)
+			facets := groups[gi].Subjects[si].Facets
+			sort.SliceStable(facets, func(a, b int) bool {
+				return inventoryFacetRank(facets[a].facet) < inventoryFacetRank(facets[b].facet)
+			})
 		}
+		subs := groups[gi].Subjects
+		sort.SliceStable(subs, func(a, b int) bool {
+			return lessInventorySubject(subs[a], subs[b])
+		})
 	}
+	sort.SliceStable(groups, func(a, b int) bool {
+		return inventoryKindRank(groups[a].Kind) < inventoryKindRank(groups[b].Kind)
+	})
 	return groups
 }
 
-// disambiguateFacetLabels appends a source/vantage qualifier to any facet rows a
-// subject holds that would otherwise share a label — two open timelines of the
-// same (facet, discriminator) differing only by vantage or source, which the
-// span_open_timeline_idx permits (a Name resolved from two vantage classes, a
-// Service reached from two vantages). A subject holding one span per facet is left
-// with the plain label, so the common case stays uncluttered.
-func disambiguateFacetLabels(facets []inventoryFacet) {
-	counts := map[string]int{}
-	for _, f := range facets {
-		counts[f.Label]++
-	}
-	for i := range facets {
-		if counts[facets[i].Label] <= 1 {
-			continue
-		}
-		if q := facetVantageSource(facets[i].src, facets[i].van); q != "" {
-			facets[i].Label += " · " + q
-		}
+// inventoryFacetRank is the canonical display order of a subject's facets on the
+// Inventory pilot: resolution, dns-record, reachability, tls-acceptance,
+// certificate, http-identity — the order the fixture lists them and the order the
+// subject sort reads its leading facet from. An unknown facet sorts last so a new
+// facet folded ahead of its rank still lists rather than jumping the column.
+func inventoryFacetRank(facet string) int {
+	switch facet {
+	case "resolution":
+		return 0
+	case "dns-record":
+		return 1
+	case "reachability":
+		return 2
+	case "tls-acceptance":
+		return 3
+	case "certificate":
+		return 4
+	case "http-identity":
+		return 5
+	default:
+		return 99
 	}
 }
 
-// facetVantageSource renders a span's source and vantage as a short qualifier —
-// `resolver`, `prober · vantage 3` — used only to tell colliding facet rows apart.
-// The vantage is its raw id: its class is re-verified per render from the presented
-// address, never a stored label (ADR-0103, `ListReachabilitySpansForExposure`), so
-// the id is the honest provisioning detail to disambiguate on.
-func facetVantageSource(src string, van pgtype.Int8) string {
-	var parts []string
-	if src != "" {
-		parts = append(parts, src)
+// inventoryKindRank is the canonical group order: Names, Services, Endpoints,
+// Addresses — the estate read top-down from the naming layer to the raw address.
+// An unknown kind sorts last, stable, so a new subject kind still groups.
+func inventoryKindRank(kind string) int {
+	switch kind {
+	case "name":
+		return 0
+	case "service":
+		return 1
+	case "endpoint":
+		return 2
+	case "address":
+		return 3
+	default:
+		return 99
 	}
-	if van.Valid {
-		parts = append(parts, "vantage "+strconv.FormatInt(van.Int64, 10))
+}
+
+// lessInventorySubject orders two subjects within a group by their leading facet
+// (facet[0] after the canonical facet sort): a subject whose leading facet holds a
+// value sorts ahead of one whose leading facet is a Gap; among equals the more
+// recently-opened leads (the "since" date compares lexically, later-first); ties
+// break on the subject key. This reproduces the fixture's per-group subject order.
+func lessInventorySubject(a, b inventorySubject) bool {
+	af, bf := leadingFacet(a), leadingFacet(b)
+	if af.IsGap != bf.IsGap {
+		return !af.IsGap // a value before a Gap
 	}
-	return strings.Join(parts, " · ")
+	if af.Since != bf.Since {
+		return af.Since > bf.Since // later "since" first
+	}
+	return a.Key < b.Key
+}
+
+// leadingFacet returns a subject's first facet after the canonical facet sort — the
+// facet the subject order keys on — or a zero facet for a subject that (impossibly,
+// every inventory subject holds at least one) holds none.
+func leadingFacet(s inventorySubject) inventoryFacet {
+	if len(s.Facets) == 0 {
+		return inventoryFacet{}
+	}
+	return s.Facets[0]
+}
+
+// inventoryFacetLabel renders the facet label the Inventory pilot shows — the
+// display facet noun, with the span's discriminator appended where it carries one.
+// Two facets are renamed for the surface: dns-record reads "dns-records" and
+// certificate reads "certificate-chain"; the other four render their stored tag.
+// The discriminator (e.g. "vantage 1") already tells two open timelines of one
+// facet apart, so no source/vantage disambiguation runs in the inventory path —
+// the label is unique by construction.
+func inventoryFacetLabel(dbFacet, discriminator string) string {
+	displayFacet := dbFacet
+	switch dbFacet {
+	case "dns-record":
+		displayFacet = "dns-records"
+	case "certificate":
+		displayFacet = "certificate-chain"
+	}
+	if discriminator != "" {
+		return displayFacet + " · " + discriminator
+	}
+	return displayFacet
+}
+
+// invResolutionValue is the resolution value the Inventory loader stores: the RR
+// type answered and the addresses it resolved to. It is inventory-local — the
+// shared resolutionValue (subjects.go) carries an `outcome` the change views
+// summarise, where the inventory summary is `rrtype · <n> addresses`.
+type invResolutionValue struct {
+	RRType    string   `json:"rrtype"`
+	Addresses []string `json:"addresses"`
+}
+
+// invReachabilityValue is the reachability value the Inventory loader stores: the
+// outcome and the ports it answered on, rendered `outcome · port · port`.
+type invReachabilityValue struct {
+	Outcome string   `json:"outcome"`
+	Ports   []string `json:"ports"`
+}
+
+// invTLSAcceptanceValue is the tls-acceptance value the Inventory loader stores:
+// the outcome and the plain version strings ("1.2", "1.3"), rendered `TLS 1.2 · 1.3`
+// on an enumeration and the bare outcome ("none · plaintext ssh") otherwise. The
+// shared tlsAcceptanceValue carries per-version cipher suites the change views
+// expand; the inventory summary needs only the version strings, so it decodes its
+// own shape.
+type invTLSAcceptanceValue struct {
+	Outcome  string   `json:"outcome"`
+	Versions []string `json:"versions"`
+}
+
+// invCertificateValue is the certificate chain the Inventory loader stores: an
+// ordered chain of links, the leaf first, each carrying its CN and either the
+// leaf's not_after or an intermediate's issuer_org. The shared certificateValue
+// carries opaque fingerprint strings; the inventory chain carries the parsed
+// identity the pilot renders, so it decodes its own shape.
+type invCertificateValue struct {
+	Chain []struct {
+		CN        string `json:"cn"`
+		NotAfter  string `json:"not_after"`
+		IssuerOrg string `json:"issuer_org"`
+	} `json:"chain"`
+}
+
+// inventoryValueLabel renders a facet's collapsed one-line summary for the
+// Inventory pilot from the loader-authored structured value. A Gap holds no value,
+// so its summary is empty (the template renders the Gap marker off IsGap). Each
+// facet composes its own line from the admitted fields — never a raw outcome tag
+// where the pilot shows a shaped value.
+func inventoryValueLabel(dbFacet string, value []byte, isGap bool) string {
+	if isGap {
+		return ""
+	}
+	switch dbFacet {
+	case "resolution":
+		v := decodeInvResolution(value)
+		if len(v.Addresses) == 1 {
+			return v.RRType + " · " + v.Addresses[0]
+		}
+		return v.RRType + " · " + strconv.Itoa(len(v.Addresses)) + " addresses"
+	case "dns-record":
+		rrs := decodeDNSRecord(value).RRs
+		distinct := orderedDistinctRRTypes(rrs)
+		if len(distinct) == 1 {
+			unit := " records"
+			if len(rrs) == 1 {
+				unit = " record"
+			}
+			return distinct[0] + " · " + strconv.Itoa(len(rrs)) + unit
+		}
+		return strings.Join(distinct, " · ")
+	case "reachability":
+		v := decodeInvReachability(value)
+		if len(v.Ports) > 0 {
+			return v.Outcome + " · " + strings.Join(v.Ports, " · ")
+		}
+		return v.Outcome
+	case "tls-acceptance":
+		v := decodeInvTLSAcceptance(value)
+		if len(v.Versions) > 0 {
+			return "TLS " + strings.Join(v.Versions, " · ")
+		}
+		return v.Outcome
+	case "certificate":
+		chain := decodeInvCertificate(value).Chain
+		if len(chain) == 0 {
+			return ""
+		}
+		return "leaf " + chain[0].CN + " · exp " + chain[0].NotAfter
+	case "http-identity":
+		v := decodeHTTPIdentity(value)
+		s := v.Server + " · " + strconv.Itoa(v.Status)
+		if v.Title != "" {
+			s += " · " + "“" + v.Title + "”" // curly “ ”
+		}
+		if v.RedirectLocation != "" {
+			s += " → " + v.RedirectLocation // space arrow space
+		}
+		return s
+	default:
+		return ""
+	}
+}
+
+// inventorySpanDetails lists a facet value's expand-on-click rows for the Inventory
+// pilot. Only the facets the fixture expands carry detail rows — resolution (one
+// row per address, but only where more than one resolved), dns-record (one row per
+// RR), and certificate (one row per chain link). reachability, tls-acceptance and
+// http-identity render their whole value in the summary, so they expand to nothing.
+func inventorySpanDetails(dbFacet string, value []byte, isGap bool) []spanDetail {
+	if isGap {
+		return nil
+	}
+	switch dbFacet {
+	case "resolution":
+		v := decodeInvResolution(value)
+		if len(v.Addresses) <= 1 {
+			return nil
+		}
+		details := make([]spanDetail, 0, len(v.Addresses))
+		for _, a := range v.Addresses {
+			details = append(details, spanDetail{Type: v.RRType, Data: a})
+		}
+		return details
+	case "dns-record":
+		rrs := decodeDNSRecord(value).RRs
+		if len(rrs) == 0 {
+			return nil
+		}
+		details := make([]spanDetail, 0, len(rrs))
+		for _, rr := range rrs {
+			details = append(details, spanDetail{Type: rr.Type, Data: rr.Data})
+		}
+		return details
+	case "certificate":
+		chain := decodeInvCertificate(value).Chain
+		if len(chain) == 0 {
+			return nil
+		}
+		details := make([]spanDetail, 0, len(chain))
+		for i, link := range chain {
+			if i == 0 {
+				details = append(details, spanDetail{Type: "leaf", Data: "CN=" + link.CN + " · not_after " + link.NotAfter})
+			} else {
+				details = append(details, spanDetail{Type: "int", Data: "CN=" + link.CN + " · " + link.IssuerOrg})
+			}
+		}
+		return details
+	default:
+		return nil
+	}
+}
+
+// orderedDistinctRRTypes returns the RR types in a dns-record value, de-duplicated
+// but in first-seen order — the ordered set the collapsed summary joins.
+func orderedDistinctRRTypes(rrs []struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+	Data string `json:"data"`
+}) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, rr := range rrs {
+		if seen[rr.Type] {
+			continue
+		}
+		seen[rr.Type] = true
+		out = append(out, rr.Type)
+	}
+	return out
+}
+
+func decodeInvResolution(raw []byte) invResolutionValue {
+	var v invResolutionValue
+	_ = json.Unmarshal(raw, &v)
+	return v
+}
+
+func decodeInvReachability(raw []byte) invReachabilityValue {
+	var v invReachabilityValue
+	_ = json.Unmarshal(raw, &v)
+	return v
+}
+
+func decodeInvTLSAcceptance(raw []byte) invTLSAcceptanceValue {
+	var v invTLSAcceptanceValue
+	_ = json.Unmarshal(raw, &v)
+	return v
+}
+
+func decodeInvCertificate(raw []byte) invCertificateValue {
+	var v invCertificateValue
+	_ = json.Unmarshal(raw, &v)
+	return v
 }
 
 // inventoryPage is the estate-wide Inventory read (#243). It reads every open span
@@ -233,6 +514,11 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 		"Title": "Inventory", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "inventory",
 		"Groups":    groups,
+		// The frozen design tmpl styles against the design-owned CSS-token vocabulary
+		// (design-system/tokens/*.css). Opt this page into loading those tokens (the
+		// "head" block gates on this datum); no other screen sets it, so their styling
+		// is untouched.
+		"DesignTokens": true,
 		// Gate the Export CSV button on data presence, exactly as Drift's {{if
 		// .HasEvents}} does (#347): an enabled link when a value has been folded, the
 		// disabled button otherwise. An estate with no open span has nothing to export.
@@ -270,7 +556,7 @@ func (s *server) inventoryExport(w http.ResponseWriter, r *http.Request, acct db
 // The `type` cell carries the singular domain noun the screen's Type column shows
 // (Name / Service / Endpoint / Address), so the file reads in the interface's own
 // vocabulary. A Gap facet — a value the system currently cannot state — carries the
-// literal "Gap" (f.Summary is already "Gap" for a gap, valueLabel's isGap branch),
+// literal "Gap" (its inventory summary is empty, so the export substitutes the word),
 // never a blank standing in for a real read. The free-text cells (subject, facet,
 // value) are passed through csvSafe so a value ingested from an attacker-influenced
 // source cannot execute as a spreadsheet formula.
@@ -286,11 +572,20 @@ func (s *server) writeInventoryExportCSV(w http.ResponseWriter, groups []invento
 	for _, g := range groups {
 		for _, sub := range g.Subjects {
 			for _, f := range sub.Facets {
+				// A Gap facet holds no value, so its inventory summary is empty (the
+				// screen renders the Gap marker off IsGap, not off the summary). The
+				// export names the Gap explicitly — the literal "Gap" — rather than a
+				// blank cell that reads as a missing export rather than an honest
+				// "we currently cannot state this".
+				value := f.Summary
+				if f.IsGap {
+					value = "Gap"
+				}
 				_ = cw.Write([]string{
 					csvSafe(sub.Type),
 					csvSafe(sub.Key),
 					csvSafe(f.Label),
-					csvSafe(f.Summary),
+					csvSafe(value),
 					f.Since,
 				})
 			}

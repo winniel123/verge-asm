@@ -1,0 +1,14 @@
+{
+  "$comment": "Per-screen capture states. Each state: route + JS run before capture. The SAME scripts drive golden rendering and repo capture. Crop to `main` until shell (#22) lands.",
+  "inventory": {
+    "route": "/inventory",
+    "crop": "main",
+    "states": [
+      { "id": "default", "js": "" },
+      { "id": "expanded", "js": "document.querySelectorAll('.inv-exp').forEach(function(b){ b.click(); })" },
+      { "id": "gaps-only", "js": "var g=document.getElementById('inv-gaps'); g.checked=true; g.dispatchEvent(new Event('change',{bubbles:true}))" },
+      { "id": "filtered-empty", "js": "var q=document.getElementById('inv-q'); q.value='zzz'; q.dispatchEvent(new Event('input',{bubbles:true}))" },
+      { "id": "columns-open", "js": "document.getElementById('inv-cols-btn').click()" }
+    ]
+  }
+}
