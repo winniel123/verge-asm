@@ -92,7 +92,7 @@ shape is:
 | --- | --- |
 | `name` | What the schedule is called in the recurring-reports table. |
 | `sections` | The chosen report sections, stored as a JSON array. Defaults to an empty array at the column, so a schedule with no sections still inserts. |
-| `cadence` | How often the digest is produced (e.g. weekly). |
+| `cadence` | When the digest is produced. A preset carries its clock time (`daily · 08:00`, `weekly · mon 09:00`, `monthly · 1st`, `every 6h`) or "Custom…" stores a 5-field cron expression. The dispatcher fires at that declared time — presets to the minute, Custom as real cron, in UTC (ADR-0122). |
 | `format` | The delivered document's form (e.g. `pdf`). |
 | `delivery_target` | Where the produced digest would be sent off-instance. **Not yet wired** — the wizard sets no recipient, so this is declared-but-unused free text; off-instance send is escalated as SPEC-CHANGE collision #17 ([#508](https://github.com/winniel123/verge-asm/issues/508)). |
 | `created_by` | The admin who declared the schedule — the estate is single-tenant, so the list is unscoped and this is the only attribution the row carries. |
@@ -124,14 +124,22 @@ runs. The handlers live in
   id is a no-op, not an error).
 
 The **on-cadence dispatcher** ([`internal/report/dispatcher.go`](../../internal/report/dispatcher.go),
-wired into the `worker` in [`cmd/worker/main.go`](../../cmd/worker/main.go); ADR-0118) polls
-each minute, floors "now" to a per-cadence tick (`CadenceWindow`), and — under a
-per-schedule advisory lock — stamps exactly one receipt per `(schedule, tick)`. Idempotency
-is durable: `TryInsertScheduledDelivery` inserts `ON CONFLICT (schedule_id, scheduled_tick)
-DO NOTHING` against the partial-unique index (migration
-[`22600`](../../db/migrations/22600_report_delivery_scheduled_tick.sql)), so a second poll
-inside a window is a recorded skip, never a second run. Every run is *generated* in-instance,
-never *delivered*: the off-instance send remains escalated (collision #17 / T7).
+wired into the `worker` in [`cmd/worker/main.go`](../../cmd/worker/main.go); ADR-0118, ADR-0122)
+polls each minute and fires each schedule at the clock time its cadence declares — **presets
+honoured to the minute, and a Custom cadence interpreted as a real 5-field cron expression**, all
+in **UTC** (this build models no per-instance timezone). `DispatchTick`
+([`cadence.go`](../../internal/report/cadence.go)) computes the schedule's most-recent firing at or
+before "now"; that fire instant is the idempotency key, and is kept separate from `CadenceWindow`,
+which still names only the artifact **period** a run covers. Under a per-schedule advisory lock the
+dispatcher stamps exactly one receipt per `(schedule, tick)`: `TryInsertScheduledDelivery` inserts
+`ON CONFLICT (schedule_id, scheduled_tick) DO NOTHING` against the partial-unique index (migration
+[`22600`](../../db/migrations/22600_report_delivery_scheduled_tick.sql)), so a second poll before
+the next firing is a recorded skip, never a second run. **Missed firings are not caught up** — a
+worker that was down over one dispatches only the current firing, never backfills (currency, not
+history). An **invalid Custom cron is refused at schedule create/edit** (the wizard's Cadence step
+will not advance or finish while it does not parse), never silently coerced to a default. Every run
+is *generated* in-instance, never *delivered*: the off-instance send remains escalated (collision
+#17 / T7).
 
 ---
 
