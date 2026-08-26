@@ -1233,6 +1233,19 @@ func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error
 		}
 		release["State"] = state
 		inst["Release"] = release
+
+		// Backup card (#391, ADR-0124, B3). A synchronous streamed backup never sets
+		// InProgress/Streamed/SizeHint/Percent, so those stay unset and the tmpl's
+		// {{if .InProgress}} branch collapses to the download button + last-backup note.
+		// .Backup itself must be non-nil for {{with .Backup}} to render the button at all;
+		// the record is null (empty LastAt) until the first UI backup, when SetLastBackup
+		// (cmd/web/backup.go) stamps it. LastAt mirrors the Release CheckedAt format.
+		backup := map[string]any{"LastAt": "", "LastSize": ""}
+		if cfg.LastBackupAt.Valid {
+			backup["LastAt"] = cfg.LastBackupAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+			backup["LastSize"] = humanBytes(cfg.LastBackupSize.Int64)
+		}
+		inst["Backup"] = backup
 	} else {
 		log.Printf("web: instance: release config: %v", err)
 	}

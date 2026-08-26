@@ -974,6 +974,12 @@ func (f *fakeStore) SetUpdateCheckEnabled(_ context.Context, arg db.SetUpdateChe
 	return nil
 }
 
+func (f *fakeStore) SetLastBackup(_ context.Context, lastBackupSize pgtype.Int8) error {
+	f.instanceConfig.LastBackupAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	f.instanceConfig.LastBackupSize = lastBackupSize
+	return nil
+}
+
 func (f *fakeStore) SetAPIEnabled(_ context.Context, arg db.SetAPIEnabledParams) error {
 	f.instanceConfig.ApiEnabled = arg.ApiEnabled
 	f.instanceConfig.ApiUpdatedBy = arg.ApiUpdatedBy

@@ -134,6 +134,9 @@ type store interface {
 	// SetUpdateCheckEnabled opts the worker's daily release-feed check in or out and
 	// stamps who/when (#391); the Version & updates toggle on the Instance tab drives it.
 	SetUpdateCheckEnabled(ctx context.Context, arg db.SetUpdateCheckEnabledParams) error
+	// SetLastBackup records the instant (now()) and byte size of the last UI-taken backup
+	// (#391, B3); the Backup card surfaces it as .Backup.LastAt/LastSize.
+	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
 	// SetAPIEnabled flips the read-only /api/v1 surface on or off and stamps who/when
 	// (#390); the API access toggle on the Settings · Access · API tab drives it.
 	SetAPIEnabled(ctx context.Context, arg db.SetAPIEnabledParams) error
@@ -834,6 +837,9 @@ func (s *server) handler() http.Handler {
 	// check in or out is an admin config act, gated like retention. While disabled the
 	// worker never phones home — air-gap-safe; the swap itself always stays a host action.
 	mux.HandleFunc("POST /settings/updates/check", s.requireAdmin(s.updateCheckToggle))
+	// Backup (#391, ADR-0124, B3): an admin streams a data-only logical archive of the
+	// estate + config tables. See cmd/web/backup.go — secret-free by construction.
+	mux.HandleFunc("POST /settings/backup", s.requireAdmin(s.backupDownload))
 	// API access (#390, ADR-0123): flipping the read-only /api/v1 surface on or off is an
 	// admin config act, gated like the update-check toggle. Off by default; while off every
 	// minted personal token is inert and /api/v1 answers nothing (surface off beats auth).
