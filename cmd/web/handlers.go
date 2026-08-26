@@ -134,6 +134,9 @@ type store interface {
 	// SetUpdateCheckEnabled opts the worker's daily release-feed check in or out and
 	// stamps who/when (#391); the Version & updates toggle on the Instance tab drives it.
 	SetUpdateCheckEnabled(ctx context.Context, arg db.SetUpdateCheckEnabledParams) error
+	// SetLastBackup records the instant (now()) and byte size of the last UI-taken backup
+	// (#391, B3); the Backup card surfaces it as .Backup.LastAt/LastSize.
+	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
 	// TightestEnabledScanCadenceSeconds is the tightest bound in force, which the
 	// observation dial floors at (#208, ADR-0094) — symmetric to the Dispatch
 	// floor's SlowestEnabledScanCadenceSeconds.
@@ -831,6 +834,9 @@ func (s *server) handler() http.Handler {
 	// check in or out is an admin config act, gated like retention. While disabled the
 	// worker never phones home — air-gap-safe; the swap itself always stays a host action.
 	mux.HandleFunc("POST /settings/updates/check", s.requireAdmin(s.updateCheckToggle))
+	// Backup (#391, ADR-0124, B3): an admin streams a data-only logical archive of the
+	// estate + config tables. See cmd/web/backup.go — secret-free by construction.
+	mux.HandleFunc("POST /settings/backup", s.requireAdmin(s.backupDownload))
 
 	// Single sign-on config (#293, ADR-0112): declaring, editing, re-keying and
 	// removing an OIDC provider are admin config acts, gated like channel and seed
