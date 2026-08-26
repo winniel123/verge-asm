@@ -233,9 +233,13 @@ function evaluate(c) {
 }
 
 const P = new URLSearchParams(location.search);
-const HEADER = P.get("header") || "rule";
-const ROW    = P.get("row")    || "both";
-const FILL   = P.get("fill")   || "mixed";
+/* Every reflected param reaches an innerHTML sink, so each is constrained to a
+   known-safe value (strict whitelist) before use — a raw value outside the set
+   falls back to the default and can never carry markup. */
+const pick   = (raw, opts, def) => opts.includes(raw) ? raw : def;
+const HEADER = pick(P.get("header"), ["none", "rule", "range"],       "rule");
+const ROW    = pick(P.get("row"),    ["days", "both", "fraction"],    "both");
+const FILL   = pick(P.get("fill"),   ["mixed", "shortlived", "empty"], "mixed");
 
 /* ═══════════════════════════════════════════════════════════════════════
    THE ESTATE. Lifetimes span the range ADR-0034 measured: Let's Encrypt's
