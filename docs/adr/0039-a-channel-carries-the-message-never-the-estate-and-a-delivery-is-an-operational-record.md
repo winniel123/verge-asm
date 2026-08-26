@@ -42,6 +42,19 @@ reads the estate, which is #6's refusal verbatim. It says nothing about an **out
 which authenticates us to them and grants no read of anything. Pretending otherwise would let the
 constraint do work it cannot do.
 
+> **Annotated 2026-08-26 by [#660](https://github.com/winniel123/verge-asm/issues/660) /
+> [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** #6's
+> bearer refusal is now **narrowly reversed**: a **read-only, opt-in, off-by-default** `/api/v1`
+> bearer surface is admitted, because a read-only bearer bypasses no factor TOTP guards (TOTP guards
+> mutation). **This ADR's decision is untouched by that.** The clause *"a pull feed is the one
+> option #6's constraint genuinely kills"* refers to an **unauthenticated** feed a reader polls with
+> no credential — that remains killed; the ADR-0123 surface is bearer-authed and opt-in, which is
+> not that feed. And the **outbound `Channel` stays exactly as decided below** — one-way, carries no
+> bearer, grants no read of the instance; the surface ADR-0123 opens is **inbound read**, a
+> different direction of a different credential, so admitting it says nothing about the outbound
+> channel here (and nothing about `internal/delivery`'s *"no bearer, ever"*, which is us→receiver).
+
 ## Decision
 
 **A `Channel` carries a `Message` and never the estate. There is one outbound transport, it is
@@ -313,7 +326,7 @@ completes is a schedule arriving, dressed as a message.
 | **Vendor integrations — Slack, Discord, Telegram, Teams, Matrix, PagerDuty** | Each is an API client, an auth flow, a rate-limit regime and a body format we do not own, moving at a cadence we do not control — ADR-0004's release-coupling test applied outside the signal set. It is also precisely what reNgine already ships (Discord/Slack/Telegram), and [#2](https://github.com/winniel123/verge-asm/issues/2) is explicit that the differentiation is narrow and must not be spent competing where the prior art is strong |
 | **A per-vendor body shape as an enum — `json` \| `slack` \| `discord`** | The cheap middle, and it is a **curated table asserting about the world** with a vendor's cadence, no owner's attestation and no watch — handing [#125](https://github.com/winniel123/verge-asm/issues/125) a table nobody can revise on evidence. It also converts *we POST this document* into an ongoing compatibility **claim** about an artefact we do not own, which [#57](https://github.com/winniel123/verge-asm/issues/57)'s *the project may only claim an act it can produce* refuses in its own register. **Reopens** if #125's watch acquires an owner for it |
 | **An operator-editable payload template** | Operator-authored code in the alerting path — #16's refusal one layer across — and its failure mode is a malformed body that 400s on the night the flagship fires. It also hands the operator the ability to put rows in the body, which is the whole of §3 given away in a text area |
-| **A pull feed — RSS, Atom or a JSON endpoint** | The one option the #6 constraint actually kills. A feed reader holds no session and does no TOTP, so the feed needs a bearer credential that **reads the estate** — #6's bypass exactly, and worse than the API it refused because a feed URL ends up in a third-party reader |
+| **A pull feed — RSS, Atom or a JSON endpoint** | The one option the #6 constraint actually kills **as a notification transport**. A feed reader holds no session and does no TOTP, so an *unauthenticated* feed needs a bearer credential that **reads the estate** — #6's bypass exactly, and worse because a feed URL ends up in a third-party reader. **(#6 is since narrowly reversed for a *bearer-authed, opt-in, read-only* `/api/v1`, [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md); that is not this unauthenticated feed, and it is not a notification channel.)** |
 | **Structured log lines to stdout as a channel** | Free and genuinely tempting: `docker compose logs` is already the documented path for #11's setup token. It loses on the same clause as everything else here — it duplicates complete message bodies into a corpus with no retention rule ([#121](https://github.com/winniel123/verge-asm/issues/121) has three and does not want a fourth), readable by anyone in the `docker` group and shipped to a third-party log SaaS by default in most deployments. An operator who wants it points a channel at a loopback receiver that logs, which is the same outcome with a delivery record attached |
 | **In-app only, no outbound transport at all** | Maximally safe and it makes ADR-0001's *deferring the API costs no integration story* false retroactively. Nobody logs into an ASM tool to find out that a port opened |
 | **Make a delivery failure a message** | Needs a fifth cause for a fact about us rather than about the estate, cannot use the channel it is about, and storms across channels when a shared receiver dies. ADR-0026 refused a fifth cause for a **world** event that the four already carried; refusing one for a **product** event is the easier case |

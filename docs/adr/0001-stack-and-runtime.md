@@ -45,7 +45,7 @@ must produce a working instance with no external services to provision.
 | Backend | **Go** across web, worker and measurement binary |
 | Frontend | **Server-rendered** `html/template` + **htmx**, SSE for the live drift feed |
 | Topology | **One image, two compose services** (`web`, `worker`), plus `postgres` |
-| API | **No JSON API in v1**; session-authed CSV/JSON export from the UI |
+| API | ~~**No JSON API in v1**~~; session-authed CSV/JSON export from the UI — **a read-only, opt-in JSON API is now admitted, [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md) (2026-08-26)** |
 
 ### Non-binding implementation defaults
 
@@ -224,6 +224,17 @@ Secrets split by blast radius:
 
 ### No JSON API in v1
 
+> **WITHDRAWN in part, 2026-08-26 by [#660](https://github.com/winniel123/verge-asm/issues/660) /
+> [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** A
+> **read-only, opt-in, off-by-default** JSON API is now in scope. Argument 1 below is answered, not
+> discarded: it refuses a bearer that *bypasses TOTP*, and TOTP guards **mutation** — a read-only
+> bearer can perform no mutation and no Declared act, so it bypasses nothing (a session already
+> reads/exports the inventory without a second challenge). Argument 2 (push, not pull) is narrowed:
+> the push story still holds and is unchanged, but the pull need is now real and served by the
+> read-only API alongside it. A **mutating** API stays refused. The two arguments are left standing
+> below for their reasoning; read them as scoped to a *write-capable* API.
+
 With htmx the HTTP surface is HTML fragments and SSE, so no API falls out for free;
 shipping one is a deliberate act. Two arguments against doing so in v1:
 
@@ -240,8 +251,14 @@ credential class.
 
 - **Unblocks [#9](https://github.com/winniel123/verge-asm/issues/9)**, which inherits
   retry, backoff, dead-lettering and job visibility.
-- **API tokens for programmatic access are out of scope for v1** (redirected to drift
-  notification channels).
+- ~~**API tokens for programmatic access are out of scope for v1** (redirected to drift
+  notification channels).~~
+  > **WITHDRAWN in part, 2026-08-26 by [#660](https://github.com/winniel123/verge-asm/issues/660) /
+  > [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
+  > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+  > Personal tokens for **read-only** programmatic access are now in scope (opt-in, off by default,
+  > separate from sessions). Notification channels are not a *redirect* of this need any more — they
+  > serve push; the read-only API serves pull. Tokens for **mutating** access remain out of scope.
 - **Packaging narrows** to a single `GOARCH` matrix, but first-run configuration must now
   cover which container receives which secret — the split that gives the topology decision
   its teeth.
@@ -271,7 +288,7 @@ credential class.
 | Elixir/Phoenix + Oban | Strong fit for queue and UI; splits the toolchain from the Go binary |
 | SPA + JSON API | npm in the page rendering the attack surface; reintroduces the second toolchain |
 | Unified process, separable by flag | Ships the weak topology as the default, and maintains both paths forever |
-| Read-only or full JSON API | Bearer credential bypassing TOTP; integration need is already served by push |
+| ~~Read-only or full JSON API~~ **Full (write-capable) JSON API** | Bearer credential bypassing TOTP; integration need is already served by push. **The read-only half is now admitted — [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md) (2026-08-26): a read-only bearer bypasses no factor TOTP guards. Only a *write-capable* API stays rejected here.** |
 
 ## Amendment — [#119](https://github.com/winniel123/verge-asm/issues/119): the redirect is discharged, and the secret split gains a fourth entry
 
@@ -288,9 +305,17 @@ preserved rather than traded away. ADR-0039 also refuses the cheap alternative d
 **pull** feed is the one option #6's constraint genuinely kills, because a feed reader holds no
 session and does no TOTP.
 
-**What is still not served is pull.** An operator who wanted to poll gets this ADR's session-authed
+~~**What is still not served is pull.** An operator who wanted to poll gets this ADR's session-authed
 CSV/JSON export and nothing else. That is unchanged and is now the settled position rather than a
-deferral.
+deferral.~~
+
+> **WITHDRAWN 2026-08-26 by [#660](https://github.com/winniel123/verge-asm/issues/660) /
+> [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** Pull
+> **is** now served, by a **read-only, opt-in** JSON API (`/api/v1`) — an operator can poll the
+> current inventory with a personal bearer token, off by default, on a path separate from sessions.
+> The session-authed export still exists; it is no longer *the only* pull surface. Push (ADR-0039)
+> is unaffected.
 
 **The secret split gains a fourth entry, and it is the first of its kind.** Delivery is outbound
 network work and therefore **worker**-side, so a channel secret is a `worker` secret. It is the
