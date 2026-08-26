@@ -201,7 +201,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// seeded candidate renders byte-for-byte what the golden composes. A real deployment
 	// (devMode == false) falls through to the honest live reads below.
 	if s.devMode {
-		s.render(w, "coverage", s.coverageFixtureData(acct))
+		s.render(w, r, "coverage", s.coverageFixtureData(acct))
 		return
 	}
 
@@ -243,7 +243,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		unevaluable = unevaluableRules(corpus)
 	}
 
-	s.render(w, "coverage", map[string]any{
+	s.render(w, r, "coverage", map[string]any{
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "coverage",
 		// coverage.tmpl styles against the design token vocabulary; the "head" block

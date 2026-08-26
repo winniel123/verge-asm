@@ -486,6 +486,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("POST /login/totp", s.loginTOTP)
 	mux.HandleFunc("POST /logout", s.logout)
+	// /signout is the design-owned shell's account-menu form action (shell.tmpl #27b):
+	// a mechanical alias onto the existing /logout handler (a route rename, not a
+	// redesign), so the frozen tmpl's sign-out posts to the same session-revoking path.
+	mux.HandleFunc("POST /signout", s.logout)
 
 	// Single sign-on (#293, ADR-0112): the OIDC authorization-code flow. Both hops are
 	// unauthenticated by construction — a caller signing in has no session — so they

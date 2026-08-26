@@ -169,7 +169,7 @@ func TestInventoryPageRendersEstateValues(t *testing.T) {
 	}
 
 	// The Inventory nav pill is the active one (keyed on NavActive, not Active).
-	if !strings.Contains(page, `class="navpill active" href="/inventory"`) {
+	if !strings.Contains(page, `class="sh-pill on" href="/inventory"`) {
 		t.Errorf("inventory nav pill not marked active; body: %s", page)
 	}
 

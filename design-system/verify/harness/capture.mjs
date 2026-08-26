@@ -58,6 +58,18 @@ const adoptPath = arg('--adopt');
 // The golden renders no chrome (empty stub), so hiding it here puts <main> at the viewport top on
 // BOTH sides and the fixed overlay aligns. Chrome itself is out of Phase-A scope (shell #22).
 const hideChrome = has('--hide-chrome');
+// --full-page (#27f): screenshot the whole scrollable page (chrome + main + footer)
+// instead of cropping to a selector, forcing full-page even when a screen's states.json
+// crop still reads "main" (the crop stays frozen; the harness override is repo-owned).
+// A states.json crop of "full-page" (the shell states) triggers the same path.
+const fullPage = has('--full-page');
+// --skip-state <id[,id...]> drops named states from the run. The shell's org-open state
+// is skipped: orgs are not modeled (ADR-0073), so the switcher ships the static chip and
+// the org-open golden defers with it (SPEC-CHANGE #28, AWAITING DESIGN).
+const skipStates = String(arg('--skip-state', '') || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 const config = JSON.parse(readFileSync(join(verifyDir, 'config.json'), 'utf8'));
 const statesDoc = JSON.parse(readFileSync(join(verifyDir, 'states.json'), 'utf8'));
@@ -147,6 +159,7 @@ async function run() {
       if (mode === 'candidate' && !perStateSession) await login(context);
 
       for (const st of screenStates.states) {
+        if (skipStates.includes(st.id)) continue;
         const page = await context.newPage();
         if (mode === 'golden') {
           // Per-state file (--pagedir, error) or a single shared file (--page, inventory).
@@ -243,7 +256,10 @@ async function run() {
         // states but `body` for the drawer / descope overlays that escape `main` (the fixed
         // scrim + drawer are painted on <body>, outside the <main> box).
         const cropSel = st.crop || screenStates.crop || 'main';
-        const buf = await page.locator(cropSel).first().screenshot();
+        const wantFull = fullPage || cropSel === 'full-page';
+        const buf = wantFull
+          ? await page.screenshot({ fullPage: true })
+          : await page.locator(cropSel).first().screenshot();
         const png = PNG.sync.read(buf);
 
         const gpath = goldenPathFor(st.id, vp.id, theme);

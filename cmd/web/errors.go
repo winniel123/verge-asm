@@ -44,7 +44,7 @@ func (s *server) renderError(w http.ResponseWriter, r *http.Request, status int,
 		data["Account"] = acct
 		data["IsAdmin"] = acct.Role == roleAdmin
 	}
-	s.renderStatus(w, status, "error-page", data)
+	s.renderStatus(w, r, status, "error-page", data)
 }
 
 // notFound answers an unknown path with the 404 error page. It replaces the
@@ -68,8 +68,8 @@ func (s *server) forbidden(w http.ResponseWriter, r *http.Request) {
 // Inventory. It is distinct from a withdrawn subject, which is still reachable by its
 // own key — this state is only for a key that matched no subject at all. subject is
 // the unmatched key the operator asked for.
-func (s *server) renderMissingSubject(w http.ResponseWriter, acct db.Account, subject string) {
-	s.renderStatus(w, http.StatusNotFound, "error-page", map[string]any{
+func (s *server) renderMissingSubject(w http.ResponseWriter, r *http.Request, acct db.Account, subject string) {
+	s.renderStatus(w, r, http.StatusNotFound, "error-page", map[string]any{
 		"Title":        "No such subject",
 		"Kind":         "missing-subject",
 		"Subject":      subject,
@@ -85,8 +85,8 @@ func (s *server) renderMissingSubject(w http.ResponseWriter, acct db.Account, su
 // the console chrome: the history badge, the run id shown big-mono as `run #<id>`,
 // and the way back to Drift. It stands where a run id matched no Dispatch in recent
 // history. run is the raw id the operator asked for.
-func (s *server) renderMissingRun(w http.ResponseWriter, acct db.Account, run string) {
-	s.renderStatus(w, http.StatusNotFound, "error-page", map[string]any{
+func (s *server) renderMissingRun(w http.ResponseWriter, r *http.Request, acct db.Account, run string) {
+	s.renderStatus(w, r, http.StatusNotFound, "error-page", map[string]any{
 		"Title":        "No such run",
 		"Kind":         "missing-run",
 		"Subject":      "run #" + run,
@@ -104,8 +104,8 @@ func (s *server) renderMissingRun(w http.ResponseWriter, acct db.Account, run st
 // "admin only — Settings is where declared acts live" copy that names how an admin
 // widens a viewer's role. It is the ONE admin surface that renders this richer copy;
 // requireAdmin's plain 403 (forbidden) still stands behind every other admin route.
-func (s *server) settingsForbidden(w http.ResponseWriter, acct db.Account) {
-	s.renderStatus(w, http.StatusForbidden, "error-page", map[string]any{
+func (s *server) settingsForbidden(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	s.renderStatus(w, r, http.StatusForbidden, "error-page", map[string]any{
 		"Title":        "Admin only",
 		"Kind":         "settings-forbidden",
 		"Code":         "403",

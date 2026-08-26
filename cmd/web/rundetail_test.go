@@ -87,7 +87,7 @@ func TestRunDetailRendersSections(t *testing.T) {
 	if !strings.Contains(page, `href="/drift"`) {
 		t.Errorf("run detail breadcrumb missing Drift root; body: %s", page)
 	}
-	if !strings.Contains(page, `class="navpill active" href="/drift"`) {
+	if !strings.Contains(page, `class="sh-pill on" href="/drift"`) {
 		t.Errorf("run detail nav pill not marked active; body: %s", page)
 	}
 

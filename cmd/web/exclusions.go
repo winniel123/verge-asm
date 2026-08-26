@@ -90,7 +90,7 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 	// the firing Preview receipt so the candidate renders byte-for-byte what the golden
 	// composes, without touching the DB.
 	if s.devMode {
-		s.render(w, "scope", s.scopeFixtureDataPreview(acct))
+		s.render(w, r, "scope", s.scopeFixtureDataPreview(acct))
 		return
 	}
 	kind := r.FormValue("kind")

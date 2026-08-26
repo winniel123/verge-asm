@@ -37,7 +37,7 @@ func TestReportDeliveryRendersEmptyState(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/reports/delivery", http.StatusOK)
 
-	if !strings.Contains(page, `class="navpill active" href="/reports"`) {
+	if !strings.Contains(page, `class="sh-pill on" href="/reports"`) {
 		t.Errorf("reports nav pill not marked active; body: %s", page)
 	}
 	for _, want := range []string{

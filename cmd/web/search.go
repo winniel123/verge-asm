@@ -237,7 +237,7 @@ func searchRenderMap(acct db.Account, q string, total int, assets []searchAsset,
 // answers over the others.
 func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
-		s.render(w, "search", s.searchFixtureData(acct, r))
+		s.render(w, r, "search", s.searchFixtureData(acct, r))
 		return
 	}
 
@@ -343,5 +343,5 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 	if openSignals > 0 {
 		data["SignalCount"] = openSignals
 	}
-	s.render(w, "search", data)
+	s.render(w, r, "search", data)
 }

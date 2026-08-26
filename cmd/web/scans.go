@@ -248,16 +248,16 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	// (devMode == false) falls through to the honest live reads + batch join below.
 	if s.devMode {
 		if raw == devRunDetailID {
-			s.render(w, "run", s.runDetailFixtureData(acct))
+			s.render(w, r, "run", s.runDetailFixtureData(acct))
 			return
 		}
-		s.renderMissingRun(w, acct, raw)
+		s.renderMissingRun(w, r, acct, raw)
 		return
 	}
 
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
-		s.renderMissingRun(w, acct, raw)
+		s.renderMissingRun(w, r, acct, raw)
 		return
 	}
 
@@ -274,7 +274,7 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		}
 	}
 	if found == nil {
-		s.renderMissingRun(w, acct, raw)
+		s.renderMissingRun(w, r, acct, raw)
 		return
 	}
 
@@ -286,7 +286,7 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	}
 
 	view := s.buildRunView(r, dv, jobRows)
-	s.render(w, "run", map[string]any{
+	s.render(w, r, "run", map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "drift",
 		// rundetail.tmpl styles against the design token vocabulary; the "head" block

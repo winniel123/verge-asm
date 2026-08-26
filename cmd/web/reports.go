@@ -714,7 +714,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// from live derivations without fabricating domain data, which SPEC-CHANGE forbids. A
 	// real deployment (devMode == false) falls through to the honest live reads below.
 	if s.devMode {
-		s.render(w, "reports", s.reportsFixtureData(acct))
+		s.render(w, r, "reports", s.reportsFixtureData(acct))
 		return
 	}
 
@@ -832,7 +832,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	mttwSpark, hasMTTWSpark := buildSparkline(meanDaysSeries(withdrawalPoints), 300, 46, "var(--chart-2)")
 
-	s.render(w, "reports", map[string]any{
+	s.render(w, r, "reports", map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "reports", "DesignTokens": true,
 
@@ -981,7 +981,7 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 	// design's curated corpus. A real deployment (devMode == false) falls through to the
 	// honest live reads below.
 	if s.devMode {
-		s.render(w, "reportartifact", s.reportartifactFixtureData(acct, r.URL.Query().Get("variant")))
+		s.render(w, r, "reportartifact", s.reportartifactFixtureData(acct, r.URL.Query().Get("variant")))
 		return
 	}
 
@@ -1000,7 +1000,7 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 		scheduleHole = scheduleID
 	}
 
-	s.render(w, "reportartifact", map[string]any{
+	s.render(w, r, "reportartifact", map[string]any{
 		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "reports", "DesignTokens": true,
 		"Heading":    heading,

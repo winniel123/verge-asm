@@ -244,35 +244,43 @@ func triggerNotice(q url.Values) (string, bool) {
 // it. The reference to tmpl orders its initialisation before this one.
 var _ = template.Must(tmpl.Parse(triggerTemplates))
 
+// The scantrigger markup is repo-owned glue (ADR-0109: no design component is
+// authored). Under P4.4 pageCSS is deleted, so its few controls are restyled INLINE
+// within the design token vocabulary (the same token colors + literal metrics the
+// frozen shell.tmpl uses), rather than leaning on the retired legacy classes. It
+// renders inside the design-owned settings.tmpl "scans" sub-tab, styled to sit beside
+// its .st-card blocks.
 const triggerTemplates = `
 {{define "scantrigger"}}
 {{if .IsAdmin}}
 {{with .Trigger}}
-<div class="section">
-<div class="microlabel">Admin · on-demand</div>
-<h2>Trigger a scan</h2>
-<p>Dispatch an enabled scan now, without waiting for its cadence. It enqueues the same
-fan-out the worker runs on cadence — a scan already in flight is not dispatched again, and
-the disabled cold tier cannot be triggered at all. Pressing this runs an active measurement;
-the result appears in flight above.</p>
-{{if .Notice}}<div class="{{if .NoticeOK}}notice{{else}}error{{end}}">{{.Notice}}</div>{{end}}
-<table>
-<thead><tr><th>Scan</th><th>Cadence</th><th>State</th><th></th></tr></thead>
+<section style="background:var(--surface-raised);border:1px solid var(--border-default);border-radius:16px;box-shadow:var(--shadow-sm);padding:20px;margin-bottom:20px;font-family:var(--font-ui)">
+<span style="display:block;font:500 10.5px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)">Admin · on-demand</span>
+<h3 style="margin:6px 0 8px;font:600 15px var(--font-ui);letter-spacing:var(--heading-tracking,-0.01em);color:var(--text-ink)">Trigger a scan</h3>
+<p style="margin:0 0 14px;font:400 12.5px/1.5 var(--font-ui);color:var(--text-secondary);max-width:78ch">Dispatch an enabled scan now, without waiting for its cadence. It enqueues the same fan-out the worker runs on cadence — a scan already in flight is not dispatched again, and the disabled cold tier cannot be triggered at all. Pressing this runs an active measurement; the result appears in flight above.</p>
+{{if .Notice}}<div style="border:1px solid {{if .NoticeOK}}var(--ok-border);background:var(--ok-soft);color:var(--ok-solid){{else}}var(--danger-border);background:var(--danger-soft);color:var(--danger-solid){{end}};padding:10px 12px;border-radius:10px;margin-bottom:14px;font:400 12.5px var(--font-ui)">{{.Notice}}</div>{{end}}
+<table style="width:100%;border-collapse:collapse">
+<thead><tr>
+<th style="text-align:left;font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:0 16px 8px 0;border-bottom:1px solid var(--border-strong)">Scan</th>
+<th style="text-align:left;font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:0 16px 8px 0;border-bottom:1px solid var(--border-strong)">Cadence</th>
+<th style="text-align:left;font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:0 16px 8px 0;border-bottom:1px solid var(--border-strong)">State</th>
+<th style="border-bottom:1px solid var(--border-strong)"></th>
+</tr></thead>
 <tbody>
 {{range .Scans}}<tr>
-<td class="mono">{{.Kind}}</td>
-<td class="mono">{{.Cadence}}</td>
-<td>{{if .Active}}<span class="dot live"></span><span class="badge">in flight</span>{{else if .Enabled}}<span class="badge">enabled</span>{{else}}<span class="badge off">disabled</span>{{end}}</td>
-<td>
-{{if .Active}}<span class="muted">running</span>
-{{else if .Enabled}}<form method="post" action="/scans/trigger" style="display:inline"><input type="hidden" name="kind" value="{{.Kind}}"><button type="submit">Run now</button></form>
-{{else if .IsCold}}<span class="muted">disabled — opt a scope in on <a href="/scope">Scope</a></span>
-{{else}}<span class="muted">disabled</span>{{end}}
+<td style="font:400 12px var(--font-mono);color:var(--text-body);padding:10px 16px 10px 0;border-bottom:1px solid var(--row-sep)">{{.Kind}}</td>
+<td style="font:400 12px var(--font-mono);color:var(--text-body);padding:10px 16px 10px 0;border-bottom:1px solid var(--row-sep)">{{.Cadence}}</td>
+<td style="padding:10px 16px 10px 0;border-bottom:1px solid var(--row-sep)">{{if .Active}}<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--accent);margin-right:6px;vertical-align:middle"></span><span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;border:1px solid var(--border-default);font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary)">in flight</span>{{else if .Enabled}}<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;border:1px solid var(--border-default);font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary)">enabled</span>{{else}}<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;border:1px solid var(--border-default);font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">disabled</span>{{end}}</td>
+<td style="padding:10px 0;border-bottom:1px solid var(--row-sep)">
+{{if .Active}}<span style="color:var(--text-muted)">running</span>
+{{else if .Enabled}}<form method="post" action="/scans/trigger" style="display:inline;margin:0"><input type="hidden" name="kind" value="{{.Kind}}"><button type="submit" style="font:500 12px var(--font-ui);padding:6px 14px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);border-radius:10px;cursor:pointer">Run now</button></form>
+{{else if .IsCold}}<span style="color:var(--text-muted)">disabled — opt a scope in on <a href="/scope" style="color:var(--link)">Scope</a></span>
+{{else}}<span style="color:var(--text-muted)">disabled</span>{{end}}
 </td>
 </tr>{{end}}
 </tbody>
 </table>
-</div>
+</section>
 {{end}}
 {{end}}
 {{end}}

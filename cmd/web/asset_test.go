@@ -65,7 +65,7 @@ func TestAssetDetailRendersSections(t *testing.T) {
 	if !strings.Contains(page, `href="/inventory"`) {
 		t.Errorf("asset detail breadcrumb missing Inventory root; body: %s", page)
 	}
-	if !strings.Contains(page, `class="navpill active" href="/inventory"`) {
+	if !strings.Contains(page, `class="sh-pill on" href="/inventory"`) {
 		t.Errorf("asset detail nav pill not marked active; body: %s", page)
 	}
 

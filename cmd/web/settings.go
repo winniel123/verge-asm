@@ -250,7 +250,7 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// projection below (renderSettings). The viewer's forbidden state never reaches here:
 	// requireSettingsAdmin refuses it first (settingsForbidden, the error-page).
 	if s.devMode {
-		s.render(w, "settings", s.settingsFixtureData(acct, r))
+		s.render(w, r, "settings", s.settingsFixtureData(acct, r))
 		return
 	}
 	q := r.URL.Query()
@@ -664,7 +664,7 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	if f.section != "" {
 		status = http.StatusBadRequest
 	}
-	s.renderStatus(w, status, "settings", data)
+	s.renderStatus(w, r, status, "settings", data)
 }
 
 // fillVantagesSection lists the provisioned measurement positions (CONTEXT.md

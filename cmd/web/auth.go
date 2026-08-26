@@ -124,7 +124,7 @@ func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 func (s *server) requireSettingsAdmin(h authedHandler) http.HandlerFunc {
 	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
 		if acct.Role != roleAdmin {
-			s.settingsForbidden(w, acct)
+			s.settingsForbidden(w, r, acct)
 			return
 		}
 		h(w, r, acct)
@@ -143,7 +143,7 @@ func (s *server) setupForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": r.URL.Query().Get("token")}))
+	s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": r.URL.Query().Get("token")}))
 }
 
 func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
@@ -161,15 +161,15 @@ func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if !auth.TokensEqual(token, s.setupToken) {
-		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": "Invalid setup token."}))
+		s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": "Invalid setup token."}))
 		return
 	}
 	if msg := validateCredentials(username, password); msg != "" {
-		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": msg}))
+		s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": msg}))
 		return
 	}
 	if _, err := s.createAccountRow(r, username, roleAdmin, password); err != nil {
-		s.render(w, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)}))
+		s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)}))
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -310,7 +310,7 @@ func (s *server) loginForm(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("invited") != "" {
 		data["Notice"] = "Account created. Sign in with your new credentials."
 	}
-	s.render(w, "login", s.signinData(data))
+	s.render(w, r, "login", s.signinData(data))
 }
 
 func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
@@ -323,7 +323,7 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	// proxy header).
 	acctKey, ipKey := loginAccountKey(username), loginIPKey(r)
 	if s.loginLimiter.locked(acctKey, ipKey) {
-		s.render(w, "login", s.loginData(r.Context(), lockoutMessage))
+		s.render(w, r, "login", s.loginData(r.Context(), lockoutMessage))
 		return
 	}
 
@@ -331,12 +331,12 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		auth.CheckPassword(dummyHash, password) // equalise timing with the found path
 		s.loginLimiter.fail(acctKey, ipKey)
-		s.render(w, "login", s.loginData(r.Context(), "Invalid username or password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Invalid username or password."))
 		return
 	}
 	if !auth.CheckPassword(acct.PasswordHash, password) {
 		s.loginLimiter.fail(acctKey, ipKey)
-		s.render(w, "login", s.loginData(r.Context(), "Invalid username or password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Invalid username or password."))
 		return
 	}
 	// The password is correct: clear the failed-attempt count so a few mistypes
@@ -350,7 +350,7 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		// .Username is the mid-login account the frozen totp step names in its sub-line (a NEW
 		// hole, v3.7.0) — threaded from the account resolved above, not the pending cookie
 		// (which carries no username), so the sub-line reads the real account.
-		s.render(w, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username}))
+		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username}))
 		return
 	}
 	s.completeLogin(w, r, acct.ID)
@@ -380,7 +380,7 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 	acctKey, ipKey := loginAccountKey(acct.Username), loginIPKey(r)
 	if s.loginLimiter.locked(acctKey, ipKey) {
 		s.clearCookie(w, pendingCookie)
-		s.render(w, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
+		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
 		return
 	}
 
@@ -440,10 +440,10 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 		// pending cookie is invalidated so the attacker must start from the password.
 		if nowLocked := s.loginLimiter.fail(acctKey, ipKey); nowLocked {
 			s.clearCookie(w, pendingCookie)
-			s.render(w, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
+			s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
 			return
 		}
-		s.render(w, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": "Incorrect code."}))
+		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": "Incorrect code."}))
 		return
 	}
 	s.loginLimiter.reset(acctKey, ipKey)
@@ -635,13 +635,13 @@ func (s *server) home(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// (devMode == false) falls through to the honest live reads below.
 	if s.devMode {
 		if r.URL.Query().Get("variant") == devFirstRunVariant {
-			s.render(w, "home", s.firstRunFixtureData(acct))
+			s.render(w, r, "home", s.firstRunFixtureData(acct))
 			return
 		}
-		s.render(w, "home", s.dashboardFixtureData(acct, r))
+		s.render(w, r, "home", s.dashboardFixtureData(acct, r))
 		return
 	}
-	s.render(w, "home", s.dashboardData(r, acct))
+	s.render(w, r, "home", s.dashboardData(r, acct))
 }
 
 // dashVantageView is one provisioned prober shaped for the vantage-health card:
@@ -1230,7 +1230,7 @@ func (s *server) beginTOTPEnroll(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "store totp secret", err)
 		return
 	}
-	s.render(w, "totp-enroll", s.signinData(totpEnrollData(acct.Username, secret, "")))
+	s.render(w, r, "totp-enroll", s.signinData(totpEnrollData(acct.Username, secret, "")))
 }
 
 // totpEnrollData assembles the template data for the enrollment screen: the
@@ -1274,7 +1274,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 			return
 		}
 		if !auth.VerifyTOTP(secret, r.FormValue("code"), s.now()) {
-			s.render(w, "totp-enroll", s.signinData(totpEnrollData(acct.Username, secret,
+			s.render(w, r, "totp-enroll", s.signinData(totpEnrollData(acct.Username, secret,
 				"Incorrect code. Two-factor is not enabled.")))
 			return
 		}
@@ -1309,7 +1309,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 			return
 		}
 	}
-	s.render(w, "totp-recovery", s.signinData(map[string]any{"Title": "Two-factor", "Codes": plain}))
+	s.render(w, r, "totp-recovery", s.signinData(map[string]any{"Title": "Two-factor", "Codes": plain}))
 }
 
 // --- forgot / reset password (#314, T19) ------------------------------------
@@ -1317,7 +1317,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 // forgotForm renders the "enter your account name" step of the reset flow. It is
 // pre-auth: a caller who has lost their password has no session to gate on.
 func (s *server) forgotForm(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "forgot", s.signinData(map[string]any{"Title": "Reset password"}))
+	s.render(w, r, "forgot", s.signinData(map[string]any{"Title": "Reset password"}))
 }
 
 // forgotSubmit mints a single-use reset link for the named account, then always
@@ -1351,7 +1351,7 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	s.render(w, "forgot-sent", s.signinData(map[string]any{"Title": "Reset password"}))
+	s.render(w, r, "forgot-sent", s.signinData(map[string]any{"Title": "Reset password"}))
 }
 
 // resetForm renders the set-a-new-password step for a valid, unspent, unexpired
@@ -1360,10 +1360,10 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 func (s *server) resetForm(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if _, ok := s.lookupReset(r, token); !ok {
-		s.render(w, "reset-invalid", s.signinData(map[string]any{"Title": "Reset password"}))
+		s.render(w, r, "reset-invalid", s.signinData(map[string]any{"Title": "Reset password"}))
 		return
 	}
-	s.render(w, "reset", s.signinData(map[string]any{"Title": "Set a new password", "Token": token}))
+	s.render(w, r, "reset", s.signinData(map[string]any{"Title": "Set a new password", "Token": token}))
 }
 
 // resetSubmit sets the account's password from a valid reset token and spends the
@@ -1377,13 +1377,13 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	pr, ok := s.lookupReset(r, token)
 	if !ok {
-		s.render(w, "reset-invalid", s.signinData(map[string]any{"Title": "Reset password"}))
+		s.render(w, r, "reset-invalid", s.signinData(map[string]any{"Title": "Reset password"}))
 		return
 	}
 	pw := r.FormValue("password")
 	confirm := r.FormValue("confirm")
 	fail := func(msg string) {
-		s.renderStatus(w, http.StatusBadRequest, "reset", s.signinData(map[string]any{"Title": "Set a new password", "Token": token, "Error": msg}))
+		s.renderStatus(w, r, http.StatusBadRequest, "reset", s.signinData(map[string]any{"Title": "Set a new password", "Token": token, "Error": msg}))
 	}
 	if msg := validatePassword(pw); msg != "" {
 		fail(msg)
@@ -1415,7 +1415,7 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		log.Printf("web: reset: revoke all sessions: %v", err)
 	}
-	s.render(w, "reset-done", s.signinData(map[string]any{"Title": "Password updated"}))
+	s.render(w, r, "reset-done", s.signinData(map[string]any{"Title": "Password updated"}))
 }
 
 // lookupReset resolves a presented reset token to its row and reports whether it is
@@ -1450,10 +1450,10 @@ func (s *server) inviteForm(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	inv, ok := s.lookupInvite(r, token)
 	if !ok {
-		s.render(w, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
+		s.render(w, r, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
 		return
 	}
-	s.render(w, "invite", s.signinData(map[string]any{"Title": "Accept invitation", "Token": token, "Role": inv.Role}))
+	s.render(w, r, "invite", s.signinData(map[string]any{"Title": "Accept invitation", "Token": token, "Role": inv.Role}))
 }
 
 // inviteAccept creates the account the invite grants — the acceptor's chosen
@@ -1465,13 +1465,13 @@ func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	inv, ok := s.lookupInvite(r, token)
 	if !ok {
-		s.render(w, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
+		s.render(w, r, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
 		return
 	}
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	fail := func(msg string) {
-		s.renderStatus(w, http.StatusBadRequest, "invite", s.signinData(map[string]any{
+		s.renderStatus(w, r, http.StatusBadRequest, "invite", s.signinData(map[string]any{
 			"Title": "Accept invitation", "Token": token, "Role": inv.Role,
 			"Error": msg, "Username": username,
 		}))
@@ -1859,7 +1859,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"EndSession":    st.endSession,
 		"SignOutOthers": st.signOutOthers,
 	}
-	s.render(w, "profile", data)
+	s.render(w, r, "profile", data)
 }
 
 // listPersonalTokensCreatedAsc reads one account's tokens in the order the Profile renders
@@ -2385,15 +2385,17 @@ func (s *server) renderFormError(w http.ResponseWriter, r *http.Request, acct db
 	s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: msg})
 }
 
-func (s *server) render(w http.ResponseWriter, name string, data any) {
-	s.renderStatus(w, http.StatusOK, name, data)
+func (s *server) render(w http.ResponseWriter, r *http.Request, name string, data any) {
+	s.renderStatus(w, r, http.StatusOK, name, data)
 }
 
 // renderStatus writes an HTML page at the given status. The Content-Type must
 // be set before WriteHeader commits the header block, or it is silently
-// dropped and the browser renders the markup as plain text.
-func (s *server) renderStatus(w http.ResponseWriter, status int, name string, data any) {
-	s.injectChrome(data)
+// dropped and the browser renders the markup as plain text. r is threaded so the
+// chrome injection can decode the PRG toast flash and (in devMode) read the capture
+// variant; it may be nil for renders with no request in hand.
+func (s *server) renderStatus(w http.ResponseWriter, r *http.Request, status int, name string, data any) {
+	s.injectChrome(data, r)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
@@ -2401,18 +2403,20 @@ func (s *server) renderStatus(w http.ResponseWriter, status int, name string, da
 	}
 }
 
-// injectChrome supplies the shared console chrome (templates_shell.go) with the
-// global data every screen renders but no per-page handler should have to thread:
-// the unread badge count, the bell's recent messages (P1.3), the org switcher's
-// identity and asset count (P1.4), the palette's Assets group (P1.5), the avatar's
-// initials (P1.8), and the footer/chrome marker (P1.6). It is a single central
-// touchpoint: a chrome page is any render whose data carries an "IsAdmin" key — the
-// chrome-less auth pages (login/setup/totp) have no such key, so they are left
-// alone. Each read is best-effort — a page that computed a value itself keeps it,
-// and a failed read degrades the affordance to its empty form (the spec's own
-// pattern) rather than failing the page. The reads mirror the ones the Dashboard,
-// Search, and Inbox already run on their own.
-func (s *server) injectChrome(data any) {
+// injectChrome supplies the design-owned console shell (shell.tmpl) with its single
+// nullable .Chrome view-model — the nav pills + Signals open count, the single-org
+// static chip (#27b/#28: orgs are not modeled, ADR-0073, so the switcher ships the
+// chip and the org-open golden defers), the build version, the avatar identity, the
+// bell's recent messages (P1.3), the server-rendered command-palette groups (#27c),
+// the scan-running flag, and the ToastStack decoded from the PRG flash query (#27d).
+// It is a single central touchpoint: a chrome page is any render whose data carries an
+// "IsAdmin" key — the chrome-less auth pages (login/setup/totp) have no such key, so
+// they are left with no .Chrome (the shell's {{with .Chrome}} renders no chrome, as
+// today). r is threaded for the toast flash + the devMode capture variant; it may be
+// nil. In a VERGE_DEV build the chrome is composed from the pinned fixtures.json shell
+// slice so the seeded candidate matches the golden render-goldens composes; a real
+// deployment composes it from honest live reads. Every read is best-effort.
+func (s *server) injectChrome(data any, r *http.Request) {
 	m, ok := data.(map[string]any)
 	if !ok {
 		return
@@ -2420,54 +2424,58 @@ func (s *server) injectChrome(data any) {
 	if _, isChrome := m["IsAdmin"]; !isChrome {
 		return
 	}
-	// A chrome page: mark it (the footer renders only on chrome pages, {{if .Chrome}})
-	// and default the nav pill key. The shared chrome highlights the active pill via
-	// {{if eq .NavActive "id"}}; a missing map key would make `eq` error at render, so
-	// every chrome page gets a default here. A screen that passed its own nav id keeps
-	// it. (The key is "NavActive", not "Active" — the scans view owns "Active".)
-	m["Chrome"] = true
-	if _, has := m["NavActive"]; !has {
-		m["NavActive"] = ""
-	}
-	// Self-hosted is single-org (ADR-0073): the switcher's one org is the deployment.
-	m["OrgName"] = "self-hosted"
+	navActive, _ := m["NavActive"].(string)
+	scanning, _ := m["Scanning"].(bool)
 
+	// VERGE_DEV: compose the chrome from the pinned fixtures.json shell slice, so the
+	// seeded candidate renders the SAME chrome the golden harness composes (v4 pixel
+	// parity). The scan-running variant already lit m["Scanning"] on the dashboard;
+	// the flash-toast capture variant folds in the fixture's toast stack.
+	if s.devMode {
+		showToast := r != nil && r.URL.Query().Get("variant") == devShellToastVariant
+		m["Chrome"] = chromeFromFixture(navActive, scanning, showToast)
+		return
+	}
+
+	// A real deployment: honest live reads.
 	ctx := context.Background()
 	acct, hasAcct := m["Account"].(db.Account)
-
-	// Avatar initials (P1.8) — from the signed-in account, replacing the "VA" literal.
-	if _, has := m["Initials"]; !has {
-		if hasAcct {
-			m["Initials"] = accountInitials(acct.Username)
-		} else {
-			m["Initials"] = "?"
-		}
-	}
+	signalCount, _ := m["SignalCount"].(int)
 
 	// Unread badge count — the caller's own count (#327, read-state is per-account),
 	// read once per chrome page unless the page (the Inbox / message panel) set it.
-	if _, has := m["Unread"]; !has {
-		if hasAcct {
-			n, err := s.store.CountUnreadMessages(ctx, acct.ID)
-			if err != nil {
-				log.Printf("web: unread count: %v", err)
-			}
-			m["Unread"] = n
-		} else {
-			m["Unread"] = int64(0)
+	unread, hasUnread := m["Unread"].(int64)
+	if !hasUnread && hasAcct {
+		n, err := s.store.CountUnreadMessages(ctx, acct.ID)
+		if err != nil {
+			log.Printf("web: unread count: %v", err)
 		}
+		unread = n
 	}
 
-	// Bell menu (P1.3) — the recent messages, each deep-linking into the Inbox.
-	if _, has := m["RecentMessages"]; !has && hasAcct {
-		m["RecentMessages"] = s.bellMessages(ctx, acct.ID, 4)
+	var messages []bellMessage
+	if hasAcct {
+		messages = s.bellMessages(ctx, acct.ID, 4)
+	}
+	initials := "?"
+	userName := ""
+	if hasAcct {
+		initials = accountInitials(acct.Username)
+		userName = acct.Username
 	}
 
-	// Org switcher asset count (P1.4) + palette Assets group (P1.5), from one census.
-	if _, has := m["PaletteAssets"]; !has {
-		top, count := s.currentAssets(ctx, 5)
-		m["PaletteAssets"] = top
-		m["AssetCount"] = count
+	m["Chrome"] = &chromeVM{
+		Nav:           navSlice(navActive, signalCount),
+		Org:           "self-hosted", // single-org deployment (ADR-0073, #27b/#28)
+		Orgs:          nil,           // not modeled → the static chip; org-open golden defers
+		Version:       s.buildVersion(),
+		UserName:      userName,
+		UserInitials:  initials,
+		ScanRunning:   scanning,
+		Unread:        unread > 0,
+		Messages:      messages,
+		PaletteGroups: paletteGroupsProd(signalCount, unread),
+		Toasts:        decodeToasts(r),
 	}
 }
 

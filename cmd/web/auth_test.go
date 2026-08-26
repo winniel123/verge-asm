@@ -204,7 +204,7 @@ func TestLoginAndSession(t *testing.T) {
 	dash := body(t, resp)
 	if resp.StatusCode != http.StatusOK ||
 		!strings.Contains(dash, "Open signals") ||
-		!strings.Contains(dash, `class="navpill active" href="/"`) {
+		!strings.Contains(dash, `class="sh-pill on" href="/"`) {
 		t.Fatalf("dashboard not shown at /; status=%d body=%s", resp.StatusCode, dash)
 	}
 

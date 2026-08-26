@@ -264,7 +264,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	// here so the seeded candidate renders byte-for-byte what the golden composes. A real
 	// deployment (devMode == false) falls through to the honest live feed below.
 	if s.devMode {
-		s.render(w, "drift", s.driftFixtureData(acct))
+		s.render(w, r, "drift", s.driftFixtureData(acct))
 		return
 	}
 
@@ -307,7 +307,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	// dispatch exists and omitted otherwise — never a fabricated id.
 	batchID, batchLabel := s.latestBatch(r)
 
-	s.render(w, "drift", map[string]any{
+	s.render(w, r, "drift", map[string]any{
 		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "drift",
 		// drift.tmpl styles against the design token vocabulary; the "head" block inlines

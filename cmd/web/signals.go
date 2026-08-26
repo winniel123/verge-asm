@@ -186,7 +186,7 @@ func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// the authored rows, the drawer's rule metadata + drift join + span history, the
 	// typed-confirm descope). A real deployment renders the honest live projection below.
 	if s.devMode {
-		s.render(w, "signals", s.signalsFixtureData(acct, r))
+		s.render(w, r, "signals", s.signalsFixtureData(acct, r))
 		return
 	}
 	s.renderSignals(w, r, acct, signalsForms{})
@@ -431,7 +431,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 	exportVals := filterVals()
 	exportHref := "/signals/export?" + exportVals.Encode()
 
-	s.render(w, "signals", map[string]any{
+	s.render(w, r, "signals", map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive":      "signals",
 		"SignalCount":    len(open),

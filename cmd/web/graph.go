@@ -416,7 +416,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	// 26-node topology the pixel goldens capture (as the sibling screens do). A real
 	// deployment falls through to the honest live reads below.
 	if s.devMode {
-		s.render(w, "graph", s.graphFixtureData(acct))
+		s.render(w, r, "graph", s.graphFixtureData(acct))
 		return
 	}
 	rows, err := s.store.ListAllOpenSpans(r.Context())
@@ -433,7 +433,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 			g = joinSignals(g, signal.EvaluateCorpus(corpus))
 		}
 	}
-	s.render(w, "graph", map[string]any{
+	s.render(w, r, "graph", map[string]any{
 		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "graph", "DesignTokens": true,
 		"Graph": g,
