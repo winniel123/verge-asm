@@ -413,14 +413,12 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 			s.render(w, r, "run", s.runDetailFixtureData(acct))
 			return
 		}
-		// The running run 1408 (DF-F3/F3b): Foundation seeded it as the Settings scans
-		// active dispatch (fixtures.json), whose scan-kind and per-job ids link here and
-		// to /runs/1408?job={id}. It renders the LIVE pulse + the 5s tail, and — with
-		// ?job= — the server-side per-job log filter + loghead chip.
-		if raw == devRunningRunID {
-			s.render(w, r, "run", s.runningRunFixtureData(acct, r.URL.Query().Get("job"), r.URL.Path))
-			return
-		}
+		// The running run 1408 (DF-F3/F3b) is PARKED, not routed: fixtures.json makes 1408
+		// the Settings active dispatch while frozen states.json still maps /runs/1408 to the
+		// error screen's missing-run capture (the pinned G2 golden) — a design-owned id
+		// collision (SPEC-CHANGE #35, AWAITING DESIGN). Until design gives the live run a
+		// distinct id, bare /runs/1408 stays the missing-run route the error golden pins; the
+		// built runningRunFixtureData demo (devfixtures.go) re-enables in one line once it does.
 		s.renderMissingRun(w, r, acct, raw)
 		return
 	}

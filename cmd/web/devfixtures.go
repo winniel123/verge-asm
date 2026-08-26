@@ -933,8 +933,12 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 // the same pure folds the live path uses (runStages / runLog / runVantages / applyJobFilter /
 // runRefresh), so a real running dispatch and this fixture render byte-for-byte alike. It is
 // VERGE_DEV-only. The rundetail G2 default golden stays /runs/1407; no golden gates 1408 as a
-// running run yet — states.json still maps /runs/1408 to the missing-run capture, a collision
-// the orchestrator reconciles at G2 (see the ticket report), never edited here.
+// running run — states.json maps /runs/1408 to the error screen's missing-run capture, while
+// fixtures.json makes 1408 the Settings active dispatch: a design-owned id collision reconciled
+// at G2 as SPEC-CHANGE #35 (AWAITING DESIGN). PARKED: runPage no longer routes /runs/1408 here
+// (it stays the missing-run route the frozen error golden pins); this built demo re-enables in
+// one line — restore the `if raw == devRunningRunID` case in scans.go — once design gives the
+// live run a distinct id.
 const devRunningRunID = "1408"
 
 // devRunningRunJobs mirrors fixtures.json → settings.scans.active[0].jobs (id 1408): six
