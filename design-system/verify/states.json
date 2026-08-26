@@ -425,5 +425,93 @@
         "js": "document.getElementById('gr-sev-btn').click(); document.querySelector('#gr-sev-panel .opt[data-sev=\"critical\"]').click();"
       }
     ]
+  },
+  "reports": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/reports",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "range-open",
+        "route": "/reports",
+        "session": "admin",
+        "js": "document.getElementById('rp-range-btn').click()"
+      },
+      {
+        "id": "row-menu-open",
+        "route": "/reports",
+        "session": "admin",
+        "js": "document.querySelector('[data-row-menu]').click()"
+      },
+      {
+        "id": "wizard-1",
+        "route": "/reports/schedule/new",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-2",
+        "route": "/reports/schedule/new?step=1&name=Weekly+exposure+summary&sections=kpis&sections=new-assets&sections=signal-changes",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-3",
+        "route": "/reports/schedule/new?step=2&name=Weekly+exposure+summary&sections=kpis&sections=new-assets&sections=signal-changes&cad=Weekly+%C2%B7+mon+09%3A00",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-4",
+        "route": "/reports/schedule/new?step=3&name=Weekly+exposure+summary&sections=kpis&sections=new-assets&sections=signal-changes&cad=Weekly+%C2%B7+mon+09%3A00&channel=ops",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "reportartifact": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/reports/delivery",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "never-delivered",
+        "route": "/reports/delivery",
+        "session": "admin",
+        "variant": "never-delivered",
+        "js": ""
+      }
+    ]
+  },
+  "inbox": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/inbox",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "message-open",
+        "route": "/inbox?id=m1",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "unread-filter",
+        "route": "/inbox?filter=unread",
+        "session": "admin",
+        "js": ""
+      }
+    ]
   }
 }

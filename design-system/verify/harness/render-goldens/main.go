@@ -39,6 +39,7 @@ import (
 
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/qr"
 )
 
@@ -336,6 +337,60 @@ func main() {
 			log.Fatal("render-goldens: -outdir is required for -screen subjectdetail")
 		}
 		files, err := renderSubjectDetailStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "reports":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen reports")
+		}
+		files, err := renderReportsStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "reportartifact":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen reportartifact")
+		}
+		files, err := renderReportartifactStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "inbox":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen inbox")
+		}
+		files, err := renderInboxStates(*bodyFlex)
 		if err != nil {
 			log.Fatalf("render-goldens: %v", err)
 		}
@@ -2646,4 +2701,698 @@ func renderGraph(bodyFlex bool) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// --- screen 16: Reports (reports.tmpl, package v3.11.0, WORK-ORDER-16-18-BATCH5.md) -----------
+//
+// renderReportsStates composes the seven Reports golden HTMLs from the frozen reports.tmpl. The
+// default / range-open / row-menu-open states are the SAME "reports" page HTML (their difference is
+// the frozen tmpl's own JS — open the range popover / open a row kebab — driven over it by
+// capture.mjs on BOTH sides, states.json). The wizard-1..4 states each execute the "schedulewizard"
+// define for the PRG step the states.json GET URL addresses. Every data map mirrors reportsPage /
+// reportsWizardFixtureData EXACTLY, read from the SAME fixtures.json reports slice (numbers ride as
+// json.Number, heat backgrounds as template.CSS), so the cropped `main` is byte-identical to what
+// the seeded server renders. Chrome is the empty stub (goldens crop to `main`).
+
+type reportsFixtureDelta struct {
+	Has  bool   `json:"has"`
+	Text string `json:"text"`
+	Dir  string `json:"dir"`
+	Tone string `json:"tone"`
+}
+
+type reportsFixtureSpark struct {
+	W     json.Number `json:"w"`
+	H     json.Number `json:"h"`
+	Area  string      `json:"area"`
+	Line  string      `json:"line"`
+	Color string      `json:"color"`
+	DotX  json.Number `json:"dot_x"`
+	DotY  json.Number `json:"dot_y"`
+}
+
+type reportsFixtureBar struct {
+	HeightPct json.Number `json:"height_pct"`
+	Title     string      `json:"title"`
+	Last      bool        `json:"last"`
+}
+
+type reportsFixtureBars struct {
+	Bars       []reportsFixtureBar `json:"bars"`
+	LeftLabel  string              `json:"left_label"`
+	RightLabel string              `json:"right_label"`
+}
+
+type reportsFixtureGrid struct {
+	Y      json.Number `json:"y"`
+	X1     json.Number `json:"x1"`
+	X2     json.Number `json:"x2"`
+	Stroke string      `json:"stroke"`
+	LabelX json.Number `json:"label_x"`
+	Label  string      `json:"label"`
+}
+
+type reportsFixtureXLabel struct {
+	X    json.Number `json:"x"`
+	Y    json.Number `json:"y"`
+	Text string      `json:"text"`
+}
+
+type reportsFixtureSeries struct {
+	W          json.Number            `json:"w"`
+	H          json.Number            `json:"h"`
+	N          json.Number            `json:"n"`
+	Grid       []reportsFixtureGrid   `json:"grid"`
+	AllOpen    string                 `json:"all_open"`
+	CritHigh   string                 `json:"crit_high"`
+	XLabels    []reportsFixtureXLabel `json:"x_labels"`
+	LabelsAttr string                 `json:"labels_attr"`
+	SeriesJSON string                 `json:"series_json"`
+}
+
+type reportsFixtureSev struct {
+	Sev   string      `json:"sev"`
+	Label string      `json:"label"`
+	Pct   json.Number `json:"pct"`
+	Count json.Number `json:"count"`
+}
+
+type reportsFixtureHeat struct {
+	Title  string       `json:"title"`
+	Bg     template.CSS `json:"bg"`
+	Border template.CSS `json:"border"`
+}
+
+type reportsFixtureSchedule struct {
+	ID           string      `json:"id"`
+	Name         string      `json:"name"`
+	Cadence      string      `json:"cadence"`
+	Delivery     string      `json:"delivery"`
+	Format       string      `json:"format"`
+	LastSent     string      `json:"last_sent"`
+	LastMins     json.Number `json:"last_mins"`
+	HasDelivery  bool        `json:"has_delivery"`
+	DeliveryHref string      `json:"delivery_href"`
+}
+
+type reportsFixturePeriod struct {
+	Token string `json:"token"`
+	Label string `json:"label"`
+}
+
+type reportsFixtureWizardSection struct {
+	Key     string `json:"key"`
+	Label   string `json:"label"`
+	Checked bool   `json:"checked"`
+}
+
+type reportsFixtureWizardChannel struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Hint  string `json:"hint"`
+}
+
+type reportsFixtureWizard struct {
+	Title       string                        `json:"title"`
+	FormAction  string                        `json:"form_action"`
+	FinishLabel string                        `json:"finish_label"`
+	Steps       []string                      `json:"steps"`
+	Sections    []reportsFixtureWizardSection `json:"sections"`
+	Cads        []string                      `json:"cads"`
+	DefaultCad  string                        `json:"default_cad"`
+	Channels    []reportsFixtureWizardChannel `json:"channels"`
+}
+
+type reportsFixture struct {
+	Period            string                   `json:"period"`
+	PeriodLabel       string                   `json:"period_label"`
+	Periods           []reportsFixturePeriod   `json:"periods"`
+	RangeLabel        string                   `json:"range_label"`
+	RangeWeeks        json.Number              `json:"range_weeks"`
+	HasOpenSignals    bool                     `json:"has_open_signals"`
+	OpenSignals       string                   `json:"open_signals"`
+	OpenDelta         reportsFixtureDelta      `json:"open_delta"`
+	HasOpenSpark      bool                     `json:"has_open_spark"`
+	OpenSpark         reportsFixtureSpark      `json:"open_spark"`
+	HasDiscovery      bool                     `json:"has_discovery"`
+	DiscoveryCount    string                   `json:"discovery_count"`
+	DiscoveryDelta    reportsFixtureDelta      `json:"discovery_delta"`
+	DiscoveryNames    json.Number              `json:"discovery_names"`
+	DiscoveryServices json.Number              `json:"discovery_services"`
+	DiscoveryBars     reportsFixtureBars       `json:"discovery_bars"`
+	HasMTTW           bool                     `json:"has_mttw"`
+	MTTW              string                   `json:"mttw"`
+	MTTWDelta         reportsFixtureDelta      `json:"mttw_delta"`
+	HasMTTWSpark      bool                     `json:"has_mttw_spark"`
+	MTTWSpark         reportsFixtureSpark      `json:"mttw_spark"`
+	HasSignalSeries   bool                     `json:"has_signal_series"`
+	SignalSeries      reportsFixtureSeries     `json:"signal_series"`
+	HasSeverity       bool                     `json:"has_severity"`
+	BySeverity        []reportsFixtureSev      `json:"by_severity"`
+	HasHeat           bool                     `json:"has_heat"`
+	Heat              []reportsFixtureHeat     `json:"heat"`
+	Schedules         []reportsFixtureSchedule `json:"schedules"`
+	Wizard            reportsFixtureWizard     `json:"wizard"`
+}
+
+func loadReportsFixture() (reportsFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return reportsFixture{}, err
+	}
+	var ff struct {
+		Reports reportsFixture `json:"reports"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return reportsFixture{}, err
+	}
+	return ff.Reports, nil
+}
+
+// reportsPageData mirrors reportsFixtureData (cmd/web/devfixtures.go) EXACTLY: the pinned reports
+// slice passed straight through to the "reports" holes.
+func reportsPageData(fx reportsFixture) map[string]any {
+	return map[string]any{
+		"Title": "Reports", "NavActive": "reports", "DesignTokens": true,
+		"RangeLabel":  fx.RangeLabel,
+		"RangeWeeks":  fx.RangeWeeks,
+		"Periods":     fx.Periods,
+		"Period":      fx.Period,
+		"PeriodLabel": fx.PeriodLabel,
+
+		"HasOpenSignals": fx.HasOpenSignals,
+		"OpenSignals":    fx.OpenSignals,
+		"OpenDelta":      fx.OpenDelta,
+		"HasOpenSpark":   fx.HasOpenSpark,
+		"OpenSpark":      fx.OpenSpark,
+
+		"HasDiscovery":      fx.HasDiscovery,
+		"DiscoveryCount":    fx.DiscoveryCount,
+		"DiscoveryDelta":    fx.DiscoveryDelta,
+		"DiscoveryNames":    fx.DiscoveryNames,
+		"DiscoveryServices": fx.DiscoveryServices,
+		"DiscoveryBars":     fx.DiscoveryBars,
+
+		"HasMTTW":      fx.HasMTTW,
+		"MTTW":         fx.MTTW,
+		"MTTWDelta":    fx.MTTWDelta,
+		"HasMTTWSpark": fx.HasMTTWSpark,
+		"MTTWSpark":    fx.MTTWSpark,
+
+		"HasSignalSeries": fx.HasSignalSeries,
+		"SignalSeries":    fx.SignalSeries,
+
+		"HasSeverity": fx.HasSeverity,
+		"BySeverity":  fx.BySeverity,
+
+		"HasHeat": fx.HasHeat,
+		"Heat":    fx.Heat,
+
+		"Schedules": fx.Schedules,
+	}
+}
+
+// reportsCustomCad / reportsScheduleFmt mirror the cmd/web reports_schedule.go constants the wizard
+// review row uses (a Custom cadence carries its cron; the delivered format is a fixed pdf).
+const (
+	reportsCustomCad   = "Custom…"
+	reportsScheduleFmt = "pdf"
+)
+
+// reportsCadLabel mirrors cmd/web/reports_schedule.go reportCadLabel byte-for-byte: the stored
+// cadence label (a custom cadence stores its cron or "custom"; otherwise the lower-cased preset).
+func reportsCadLabel(cad, cron string) string {
+	if cad == reportsCustomCad {
+		if c := strings.TrimSpace(cron); c != "" {
+			return c
+		}
+		return "custom"
+	}
+	return strings.ToLower(cad)
+}
+
+// reportsWizardMap mirrors cmd/web/devfixtures.go reportsWizardMap EXACTLY: it reconstructs the
+// wizard's controlled state from the query (the PRG GET URL each wizard state addresses) using the
+// fixture vocabulary and stamps every "schedulewizard" hole. Account/IsAdmin are omitted — the
+// golden's chrome/head are the empty stubs, and the wizard body never reads them.
+func reportsWizardMap(fx reportsFixtureWizard, q map[string][]string) map[string]any {
+	get := func(k string) string {
+		if v, ok := q[k]; ok && len(v) > 0 {
+			return v[0]
+		}
+		return ""
+	}
+	step := 0
+	if n, err := strconv.Atoi(get("step")); err == nil {
+		step = n
+	}
+	if step < 0 {
+		step = 0
+	}
+	if step > len(fx.Steps)-1 {
+		step = len(fx.Steps) - 1
+	}
+
+	selected := map[string]bool{}
+	if raw, ok := q["sections"]; ok {
+		for _, k := range raw {
+			selected[k] = true
+		}
+	} else {
+		for _, sec := range fx.Sections {
+			if sec.Checked {
+				selected[sec.Key] = true
+			}
+		}
+	}
+	sectionOpts := make([]map[string]any, 0, len(fx.Sections))
+	orderedKeys := make([]string, 0, len(fx.Sections))
+	labels := make([]string, 0, len(fx.Sections))
+	for _, sec := range fx.Sections {
+		on := selected[sec.Key]
+		sectionOpts = append(sectionOpts, map[string]any{"Key": sec.Key, "Label": sec.Label, "Checked": on})
+		if on {
+			orderedKeys = append(orderedKeys, sec.Key)
+			labels = append(labels, sec.Label)
+		}
+	}
+
+	cad := get("cad")
+	if cad == "" {
+		cad = fx.DefaultCad
+	}
+	cron := get("cron")
+	cads := make([]map[string]any, 0, len(fx.Cads))
+	for _, c := range fx.Cads {
+		cads = append(cads, map[string]any{"Value": c, "Selected": c == cad})
+	}
+
+	channel := get("channel")
+	if channel == "" && len(fx.Channels) > 0 {
+		channel = fx.Channels[0].Value
+	}
+	channelLabel := ""
+	channels := make([]map[string]any, 0, len(fx.Channels))
+	for _, c := range fx.Channels {
+		sel := c.Value == channel
+		if sel {
+			channelLabel = c.Label
+		}
+		channels = append(channels, map[string]any{"Value": c.Value, "Label": c.Label, "Hint": c.Hint, "Selected": sel})
+	}
+
+	steps := make([]map[string]any, 0, len(fx.Steps))
+	for i, title := range fx.Steps {
+		steps = append(steps, map[string]any{"Num": i + 1, "Title": title, "Done": i < step, "Current": i == step})
+	}
+
+	nameSummary := get("name")
+	if nameSummary == "" {
+		nameSummary = "—"
+	}
+	sectionsSummary := "—"
+	if len(labels) > 0 {
+		sectionsSummary = strings.Join(labels, ", ")
+	}
+	review := []map[string]any{
+		{"K": "Report", "V": nameSummary},
+		{"K": "Sections", "V": sectionsSummary},
+		{"K": "Cadence", "V": reportsCadLabel(cad, cron)},
+		{"K": "Format", "V": reportsScheduleFmt},
+		{"K": "Delivery", "V": channelLabel},
+	}
+
+	last := step == len(fx.Steps)-1
+	return map[string]any{
+		"Title": fx.Title, "NavActive": "reports", "DesignTokens": true,
+
+		"WizardTitle": fx.Title,
+		"FormAction":  fx.FormAction,
+		"FinishLabel": fx.FinishLabel,
+		"EditMode":    false,
+		"ID":          int64(0),
+
+		"Step":      step,
+		"StepNum":   step + 1,
+		"StepTotal": len(fx.Steps),
+		"Last":      last,
+		"Steps":     steps,
+
+		"Name":         get("name"),
+		"Sections":     sectionOpts,
+		"SectionsKeys": orderedKeys,
+		"Cads":         cads,
+		"Cad":          cad,
+		"Cron":         cron,
+		"Custom":       cad == reportsCustomCad,
+		"Channels":     channels,
+		"ChannelID":    channel,
+		"ChannelLabel": channelLabel,
+
+		"Review": review,
+	}
+}
+
+func renderReportsStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadReportsFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	exec := func(define string, data map[string]any) ([]byte, error) {
+		t, terr := newStubbedTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS, "templates/reports.tmpl"); terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, define, data); terr != nil {
+			return nil, terr
+		}
+		return buf.Bytes(), nil
+	}
+
+	// The page states (default / range-open / row-menu-open) are one HTML; capture.mjs drives the
+	// frozen tmpl's own JS to reach the popover/menu-open forms on both sides.
+	page, err := exec("reports", reportsPageData(fx))
+	if err != nil {
+		return nil, err
+	}
+
+	// The wizard states hit the PRG GET URLs directly (states.json); the accumulated query for each
+	// step matches those URLs exactly.
+	wizardQueries := []map[string][]string{
+		{},
+		{"step": {"1"}, "name": {"Weekly exposure summary"}, "sections": {"kpis", "new-assets", "signal-changes"}},
+		{"step": {"2"}, "name": {"Weekly exposure summary"}, "sections": {"kpis", "new-assets", "signal-changes"}, "cad": {"Weekly · mon 09:00"}},
+		{"step": {"3"}, "name": {"Weekly exposure summary"}, "sections": {"kpis", "new-assets", "signal-changes"}, "cad": {"Weekly · mon 09:00"}, "channel": {"ops"}},
+	}
+	out := []errorGolden{
+		{id: "default", html: page},
+		{id: "range-open", html: page},
+		{id: "row-menu-open", html: page},
+	}
+	for i, q := range wizardQueries {
+		wh, werr := exec("schedulewizard", reportsWizardMap(fx.Wizard, q))
+		if werr != nil {
+			return nil, werr
+		}
+		out = append(out, errorGolden{id: "wizard-" + strconv.Itoa(i+1), html: wh})
+	}
+	return out, nil
+}
+
+// --- screen 17: ReportArtifact (reportartifact.tmpl, package v3.11.0, WORK-ORDER-16-18-BATCH5) --
+//
+// renderReportartifactStates composes the two ReportArtifact golden HTMLs from the frozen
+// reportartifact.tmpl. The page define "reportartifact" calls "artifactdoc", which in turn calls
+// "deltachip" (reports.tmpl), "sevbadge" (signals.tmpl) and "changeglyph" (drift.tmpl) — one parse
+// set — so all four tmpls are parsed into the stubbed template. Every data map mirrors
+// reportartifactFixtureData (cmd/web/devfixtures.go) EXACTLY, read from the SAME fixtures.json
+// reportartifact slice unmarshalled straight into message.ArtifactDoc, so the cropped `main` is
+// byte-identical to what the seeded server renders. Chrome is the empty stub (goldens crop to `main`).
+
+type reportartifactFixtureVariant struct {
+	Period     string              `json:"period"`
+	ScheduleID string              `json:"schedule_id"`
+	Doc        message.ArtifactDoc `json:"doc"`
+}
+
+type reportartifactFixture struct {
+	Heading        string                       `json:"heading"`
+	Period         string                       `json:"period"`
+	ScheduleID     string                       `json:"schedule_id"`
+	Doc            message.ArtifactDoc          `json:"doc"`
+	NeverDelivered reportartifactFixtureVariant `json:"never_delivered_variant"`
+}
+
+func loadReportartifactFixture() (reportartifactFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return reportartifactFixture{}, err
+	}
+	var ff struct {
+		ReportArtifact reportartifactFixture `json:"reportartifact"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return reportartifactFixture{}, err
+	}
+	return ff.ReportArtifact, nil
+}
+
+// reportartifactVariantHeading mirrors cmd/web/devfixtures.go: the never-delivered variant's
+// heading is the honest name of its schedule (s2), resolved from the reports schedules fixture.
+func reportartifactVariantHeading(scheduleID string) string {
+	fx, err := loadReportsFixture()
+	if err != nil {
+		return "Report delivery"
+	}
+	for _, sc := range fx.Schedules {
+		if sc.ID == scheduleID {
+			return sc.Name
+		}
+	}
+	return "Report delivery"
+}
+
+// reportartifactPageData mirrors reportartifactFixtureData (cmd/web/devfixtures.go): the pinned
+// slice passed straight through to the "reportartifact" holes for the given variant. Account/IsAdmin
+// are omitted — the golden's chrome/head are the empty stubs, and the page body never reads them.
+func reportartifactPageData(fx reportartifactFixture, variant string) map[string]any {
+	heading, period, scheduleID, doc := fx.Heading, fx.Period, fx.ScheduleID, fx.Doc
+	if variant == "never-delivered" {
+		heading = reportartifactVariantHeading(fx.NeverDelivered.ScheduleID)
+		period = fx.NeverDelivered.Period
+		scheduleID = fx.NeverDelivered.ScheduleID
+		doc = fx.NeverDelivered.Doc
+	}
+	var scheduleHole any
+	if scheduleID != "" {
+		scheduleHole = scheduleID
+	}
+	return map[string]any{
+		"Title": "Report delivery", "NavActive": "reports", "DesignTokens": true,
+		"Heading":    heading,
+		"Period":     period,
+		"ScheduleID": scheduleHole,
+		"Doc":        doc,
+	}
+}
+
+func renderReportartifactStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadReportartifactFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	exec := func(data map[string]any) ([]byte, error) {
+		t, terr := newStubbedTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS,
+			"templates/reportartifact.tmpl",
+			"templates/reports.tmpl",
+			"templates/signals.tmpl",
+			"templates/drift.tmpl",
+		); terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, "reportartifact", data); terr != nil {
+			return nil, terr
+		}
+		return buf.Bytes(), nil
+	}
+
+	def, err := exec(reportartifactPageData(fx, ""))
+	if err != nil {
+		return nil, err
+	}
+	nev, err := exec(reportartifactPageData(fx, "never-delivered"))
+	if err != nil {
+		return nil, err
+	}
+	return []errorGolden{
+		{id: "default", html: def},
+		{id: "never-delivered", html: nev},
+	}, nil
+}
+
+// --- screen 18: Inbox (inbox.tmpl, package v3.11.1, WORK-ORDER-16-18-BATCH5) -----------------
+//
+// renderInboxStates composes the three Inbox golden HTMLs from the frozen inbox.tmpl, one per
+// states.json inbox state (default /inbox, message-open /inbox?id=m1, unread-filter
+// /inbox?filter=unread). Every data map mirrors inboxFixtureData (cmd/web/devfixtures.go) EXACTLY,
+// read from the SAME fixtures.json inbox slice, so the cropped `main` is byte-identical to what the
+// seeded server renders. Per SPEC-CHANGE #24 (ruled) there is no .Body hole — the detail form is the
+// census + delivery receipts (the failed one flagged undelivered). The "inbox" define calls no
+// cross-tmpl define, so only inbox.tmpl is parsed. Chrome is the empty stub (goldens crop to `main`).
+
+type inboxFixture struct {
+	Unread     int    `json:"unread"`
+	Filter     string `json:"filter"`
+	AllHref    string `json:"all_href"`
+	UnreadHref string `json:"unread_href"`
+	Messages   []struct {
+		ID       string `json:"id"`
+		Read     bool   `json:"read"`
+		Cls      string `json:"cls"`
+		Instant  string `json:"instant"`
+		Rel      string `json:"rel"`
+		Headline string `json:"headline"`
+	} `json:"messages"`
+	Selected struct {
+		ID       string `json:"id"`
+		Cls      string `json:"cls"`
+		Headline string `json:"headline"`
+		Rel      string `json:"rel"`
+		Instant  string `json:"instant"`
+		Census   []struct {
+			Kind string `json:"kind"`
+			Key  string `json:"key"`
+			Href string `json:"href"`
+		} `json:"census"`
+		Deliveries []struct {
+			State       string `json:"state"`
+			ChannelHost string `json:"channel_host"`
+			Failed      bool   `json:"failed"`
+			LastError   string `json:"last_error"`
+		} `json:"deliveries"`
+		Href      string `json:"href"`
+		JumpLabel string `json:"jump_label"`
+	} `json:"selected_fixture"`
+}
+
+func loadInboxFixture() (inboxFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return inboxFixture{}, err
+	}
+	var ff struct {
+		Inbox inboxFixture `json:"inbox"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return inboxFixture{}, err
+	}
+	return ff.Inbox, nil
+}
+
+// inboxStateData mirrors cmd/web/devfixtures.go inboxFixtureData byte-for-byte for one (id, filter)
+// selection: the read-only fixture, the id marking a row .Selected and picking the detail, the
+// unread filter trimming the list. Keeping this identical to the candidate is the point.
+func inboxStateData(fx inboxFixture, selID, filter string) map[string]any {
+	messages := make([]map[string]any, 0, len(fx.Messages))
+	for _, m := range fx.Messages {
+		if filter == "unread" && m.Read {
+			continue
+		}
+		messages = append(messages, map[string]any{
+			"ID":       m.ID,
+			"Read":     m.Read,
+			"Selected": selID != "" && m.ID == selID,
+			"Class":    m.Cls,
+			"Instant":  m.Instant,
+			"Rel":      m.Rel,
+			"Headline": m.Headline,
+		})
+	}
+
+	var selected map[string]any
+	if selID != "" && selID == fx.Selected.ID {
+		census := make([]map[string]any, 0, len(fx.Selected.Census))
+		for _, c := range fx.Selected.Census {
+			census = append(census, map[string]any{"Kind": c.Kind, "Key": c.Key, "Href": c.Href})
+		}
+		deliveries := make([]map[string]any, 0, len(fx.Selected.Deliveries))
+		for _, d := range fx.Selected.Deliveries {
+			deliveries = append(deliveries, map[string]any{
+				"State": d.State, "ChannelHost": d.ChannelHost, "Failed": d.Failed, "LastError": d.LastError,
+			})
+		}
+		selected = map[string]any{
+			"ID":         fx.Selected.ID,
+			"Class":      fx.Selected.Cls,
+			"Headline":   fx.Selected.Headline,
+			"Rel":        fx.Selected.Rel,
+			"Instant":    fx.Selected.Instant,
+			"Census":     census,
+			"Deliveries": deliveries,
+			"Href":       fx.Selected.Href,
+			"JumpLabel":  fx.Selected.JumpLabel,
+		}
+	}
+
+	allHref, unreadHref := fx.AllHref, fx.UnreadHref
+	if selID != "" {
+		allHref = "/inbox?id=" + selID
+		unreadHref = "/inbox?filter=unread&id=" + selID
+	}
+
+	return map[string]any{
+		"Title": "Inbox", "NavActive": "inbox", "DesignTokens": true,
+		"Messages":   messages,
+		"Selected":   selected,
+		"Unread":     fx.Unread,
+		"Filter":     filter,
+		"AllHref":    allHref,
+		"UnreadHref": unreadHref,
+	}
+}
+
+func renderInboxStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadInboxFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	exec := func(data map[string]any) ([]byte, error) {
+		t, terr := newStubbedTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS, "templates/inbox.tmpl"); terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, "inbox", data); terr != nil {
+			return nil, terr
+		}
+		return buf.Bytes(), nil
+	}
+
+	type istate struct {
+		id     string
+		selID  string
+		filter string
+	}
+	states := []istate{
+		{"default", "", "all"},
+		{"message-open", "m1", "all"},
+		{"unread-filter", "", "unread"},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		html, herr := exec(inboxStateData(fx, st.selID, st.filter))
+		if herr != nil {
+			return nil, herr
+		}
+		out = append(out, errorGolden{id: st.id, html: html})
+	}
+	return out, nil
 }

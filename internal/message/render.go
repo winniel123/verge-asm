@@ -304,51 +304,23 @@ const (
 	artifactEmptyBody      = "A delivered report is rendered here once report scheduling lands and a schedule runs. Until then there is no delivery to view."
 )
 
-// RenderArtifact renders one delivered report as the document itself — the card
-// design-system/examples/console/ReportArtifact.jsx fixes — as self-contained,
-// inline-styled HTML that stands alone as a PDF / email body and re-embeds in the
-// console view. An artifact with no delivered content renders the design-system
-// empty-state rather than fabricating a document.
+// RenderArtifact renders one delivered report as the document itself by executing the
+// design-owned "artifactdoc" define (design-system/templates/reportartifact.tmpl) with the
+// recomputed data (SPEC-CHANGE #23g) — the SAME markup the on-screen /reports/delivery page
+// and the PDF-HTML shell render, so the three forms cannot drift. The define is fully
+// inline-styled; standalone (email / print) it needs only the design token vocabulary, which
+// is prepended here so its var(--…) styles resolve with no console stylesheet in scope. An
+// artifact with no delivered content renders the design-system empty-state inside the
+// document (ADR-0110) rather than fabricating one. A render error (never expected — the
+// template and data are internal) degrades to an HTML comment rather than panicking a caller.
 func RenderArtifact(a Artifact) template.HTML {
-	var b strings.Builder
-	b.WriteString(artifactTokens)
-	b.WriteString(`<section class="vg-artifact" data-artifact style="max-width:800px;width:100%;margin:0 auto;box-sizing:border-box;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:28px;color:var(--body)">`)
-	b.WriteString(`<div style="display:flex;flex-direction:column;gap:24px">`)
-
-	// Identity row: org, provenance, and the delivered format tag.
-	b.WriteString(`<div style="display:flex;align-items:baseline;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--hairline);flex-wrap:wrap">`)
-	b.WriteString(`<span style="font:600 15px var(--sans);color:var(--ink)">` + esc(orDash(a.Org)) + `</span>`)
-	if prov := artifactProvenance(a); prov != "" {
-		b.WriteString(`<span style="font:400 11.5px var(--mono);color:var(--muted)">` + esc(prov) + `</span>`)
+	doc, err := renderArtifactDoc(BuildArtifactDoc(a))
+	if err != nil {
+		// #nosec G203 -- err text is HTML-escaped via html.EscapeString and wrapped in an HTML comment; no unescaped data reaches output.
+		return template.HTML("<!-- artifact render error: " + html.EscapeString(err.Error()) + " -->")
 	}
-	if a.Format != "" {
-		b.WriteString(`<span style="margin-left:auto">` + artifactTag(a.Format) + `</span>`)
-	}
-	b.WriteString(`</div>`)
-
-	if a.Empty() {
-		b.WriteString(artifactEmptyState())
-	} else {
-		b.WriteString(artifactStatBand(a.Stats))
-		if len(a.SeverityCounts) > 0 {
-			b.WriteString(artifactSeverityBars(a.SeverityCounts))
-		}
-		if len(a.Signals) > 0 {
-			b.WriteString(artifactSignalsTable(a.Signals))
-		}
-		b.WriteString(artifactChangeSection(artifactWithdrawnTitle, a.Withdrawn, artifactWithdrawnEmpty))
-	}
-
-	// Delivery receipt — the host only, never the raw URL.
-	b.WriteString(`<div style="display:flex;align-items:center;gap:10px;padding-top:16px;border-top:1px solid var(--hairline);flex-wrap:wrap">`)
-	b.WriteString(`<span style="font:400 11.5px var(--mono);color:var(--muted)">` + esc(artifactReceipt(a)) + `</span>`)
-	if a.Delivered != "" {
-		b.WriteString(`<span style="margin-left:auto">` + artifactDeliveredBadge() + `</span>`)
-	}
-	b.WriteString(`</div>`)
-
-	b.WriteString(`</div></section>`)
-	return template.HTML(b.String())
+	// #nosec G203 -- artifactDocTokens is a trusted internal <style> constant; doc is html/template output (auto-escaped) built from internal report data, not attacker input.
+	return template.HTML(artifactDocTokens) + doc
 }
 
 // artifactStatBand renders the KPI summary band — three honest scalars, each a

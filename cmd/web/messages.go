@@ -228,6 +228,18 @@ type inboxView struct {
 // are no messages, the design-system inbox-zero empty-state renders; nothing is
 // fabricated.
 func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// VERGE_DEV pixel-parity path (#590): serve the pinned fixtures.json inbox slice so
+	// the seeded instance renders byte-for-byte what the golden composes (as the sibling
+	// screens do). The curated five-message corpus (string ids m1–m5, the selected m1
+	// census + the failed-delivery receipt) cannot be reconstructed from live Message
+	// reads without fabricating domain data, and the ?id=m1 selection is a fixture key
+	// the live int64 path does not parse. A real deployment (devMode == false) falls
+	// through to the honest live reads below.
+	if s.devMode {
+		s.render(w, "inbox", s.inboxFixtureData(acct, r))
+		return
+	}
+
 	// Opening a message marks it read (the port's open() and initialId both do), so
 	// resolve the selection first and mark before the counts are read back.
 	var selID int64
@@ -307,7 +319,7 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	s.render(w, "inbox", map[string]any{
 		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "inbox",
+		"NavActive": "inbox", "DesignTokens": true,
 		"Messages":   shown,
 		"Selected":   selected,
 		"Unread":     unread,
@@ -493,6 +505,10 @@ type reportScheduleRow struct {
 	Cadence  string
 	Format   string
 	LastSent string
+	// LastMins is the numeric "last sent" sort value the client-side schedule sort reads
+	// (data-last, #23e): whole minutes since the last delivery. A never-run schedule sorts
+	// last (a large sentinel) rather than as "just now".
+	LastMins int
 	// Delivery is the bound channel's URL, or "download only" where the schedule binds
 	// no channel (NULL channel_id) — the Delivery column (P0.6c/T7). A channel receives
 	// only a link-only ready-message; the report body never leaves the instance.
@@ -555,11 +571,19 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 		// No such run (pgx.ErrNoRows) is the genuine empty-state — an em dash and a
 		// disabled item, never an invented delivery. Any other read error degrades the
 		// row to that same empty-state rather than failing the whole page.
+		// reportScheduleNeverRunMins sorts a never-run schedule last under the client-side
+		// "Last sent" sort (a value larger than any real age).
+		const reportScheduleNeverRunMins = 1 << 30
 		lastSent, href, has := "—", "", false
+		lastMins := reportScheduleNeverRunMins
 		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
 		switch {
 		case err == nil:
-			lastSent = relTime(reportDeliveryInstant(del), now)
+			inst := reportDeliveryInstant(del)
+			lastSent = relTime(inst, now)
+			if m := int(now.Sub(inst).Minutes()); m >= 0 {
+				lastMins = m
+			}
 			href, has = reportDeliveryHref, true
 		case !errors.Is(err, pgx.ErrNoRows):
 			log.Printf("web: reports: latest delivery for schedule %d: %v", sc.ID, err)
@@ -579,6 +603,7 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 			Cadence:      sc.Cadence,
 			Format:       sc.Format,
 			LastSent:     lastSent,
+			LastMins:     lastMins,
 			Delivery:     delivery,
 			HasDelivery:  has,
 			DeliveryHref: href,

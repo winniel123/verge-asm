@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -50,8 +51,11 @@ type reportScheduleSection struct {
 	Label string
 }
 
+// The section keys follow the design's fixture vocabulary (fixtures.json →
+// reports.wizard.sections): kpis / new-assets / signal-changes / coverage-gaps. The
+// wizard checkbox value and the persisted sections JSON both use these keys.
 var reportScheduleSections = []reportScheduleSection{
-	{"summary-kpis", "Summary KPIs"},
+	{"kpis", "Summary KPIs"},
 	{"new-assets", "New assets"},
 	{"signal-changes", "Signal changes"},
 	{"coverage-gaps", "Coverage gaps"},
@@ -218,25 +222,69 @@ func reportCadPresetFor(cadence string) (cad, cron string) {
 	return reportCustomCad, cadence
 }
 
-// newReportScheduleWizard renders the "New schedule" wizard at its first step with
-// the example's defaults. Stepping and finishing post to /reports/schedule
-// (createReportSchedule); this GET only opens the flow. requireAdmin — declaring a
-// schedule is an admin config act.
+// reportsNewWizardPath / reportsEditWizardPath name the wizard's PRG routes (#23f): each
+// step POST 303-redirects to a GET at these paths carrying the accumulated values, so the
+// flow is bookmarkable and harness-addressable (the wizard goldens hit the GET URLs).
+const reportsNewWizardPath = "/reports/schedule/new"
+
+func reportsEditWizardPath(id int64) string {
+	return "/reports/schedule/" + strconv.FormatInt(id, 10) + "/edit"
+}
+
+// redirectWizardStep 303-redirects the wizard to a GET at base carrying the accumulated
+// controlled state as query parameters (#23f) — the post-back PRG shape. The GET handler
+// reconstructs the same view and renders the step.
+func redirectWizardStep(w http.ResponseWriter, r *http.Request, base string, v scheduleWizardView) {
+	q := url.Values{}
+	q.Set("step", strconv.Itoa(v.Step))
+	q.Set("name", v.Name)
+	for _, sec := range v.Sections {
+		q.Add("sections", sec)
+	}
+	q.Set("cad", v.Cad)
+	if v.Cron != "" {
+		q.Set("cron", v.Cron)
+	}
+	q.Set("channel", strconv.FormatInt(v.ChannelID, 10))
+	http.Redirect(w, r, base+"?"+q.Encode(), http.StatusSeeOther)
+}
+
+// newReportScheduleWizard renders the "New schedule" wizard. A fresh GET (no ?step)
+// opens at the first step with the example's defaults; a PRG GET (?step=N&…, the
+// post-back redirect target #23f) reconstructs the accumulated state and renders that
+// step. In a VERGE_DEV build it serves the pinned fixtures.json wizard slice so the
+// seeded instance renders byte-for-byte what the golden composes. requireAdmin —
+// declaring a schedule is an admin config act.
 func (s *server) newReportScheduleWizard(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	v := scheduleWizardView{
-		Sections: reportScheduleDefaultSections(),
-		Cad:      reportDefaultCad,
+	if s.devMode {
+		s.render(w, "schedulewizard", s.reportsWizardFixtureData(r, acct))
+		return
+	}
+	var v scheduleWizardView
+	if r.URL.Query().Get("step") == "" {
+		v = scheduleWizardView{Sections: reportScheduleDefaultSections(), Cad: reportDefaultCad}
+	} else {
+		v = readScheduleWizardView(r)
 	}
 	s.renderScheduleWizard(r.Context(), w, acct, v, false)
 }
 
-// editReportScheduleWizard renders the wizard prefilled from an existing schedule.
-// A stale id (already deleted) redirects back to /reports rather than 500ing.
-// Stepping and finishing post to /reports/schedule/edit (editReportSchedule).
+// editReportScheduleWizard renders the wizard prefilled from an existing schedule. A
+// fresh GET (no ?step) prefills from the stored row; a PRG GET (?step=N&…) reconstructs
+// the accumulated state and renders that step. A stale id (already deleted) redirects
+// back to /reports rather than 500ing. Stepping and finishing post to
+// /reports/schedule/{id}/edit (editReportSchedule).
 func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		return
+	}
+	// A PRG GET carries the accumulated state; render it without re-reading the row.
+	if r.URL.Query().Get("step") != "" {
+		v := readScheduleWizardView(r)
+		v.ID = id
+		s.renderScheduleWizard(r.Context(), w, acct, v, true)
 		return
 	}
 	sc, err := s.store.GetReportSchedule(r.Context(), id)
@@ -285,21 +333,21 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		if v.Step > 0 {
 			v.Step--
 		}
-		s.renderScheduleWizard(r.Context(), w, acct, v, false)
+		redirectWizardStep(w, r, reportsNewWizardPath, v)
 		return
 	case "next":
 		if v.Step < reportScheduleLast && scheduleStepValid(v) {
 			v.Step++
 		}
-		s.renderScheduleWizard(r.Context(), w, acct, v, false)
+		redirectWizardStep(w, r, reportsNewWizardPath, v)
 		return
 	}
 
-	// Finish. Re-render at the first step where the operator can fix an incomplete
+	// Finish. Redirect back to the first step where the operator can fix an incomplete
 	// entry rather than filing a schedule that would render nothing.
 	if !scheduleAllValid(v) {
 		v.Step = 0
-		s.renderScheduleWizard(r.Context(), w, acct, v, false)
+		redirectWizardStep(w, r, reportsNewWizardPath, v)
 		return
 	}
 
@@ -330,6 +378,11 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	v := readScheduleWizardView(r)
 	if v.ID == 0 {
+		if id, err := strconv.ParseInt(r.PathValue("id"), 10, 64); err == nil {
+			v.ID = id
+		}
+	}
+	if v.ID == 0 {
 		http.Redirect(w, r, "/reports", http.StatusSeeOther)
 		return
 	}
@@ -339,19 +392,19 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 		if v.Step > 0 {
 			v.Step--
 		}
-		s.renderScheduleWizard(r.Context(), w, acct, v, true)
+		redirectWizardStep(w, r, reportsEditWizardPath(v.ID), v)
 		return
 	case "next":
 		if v.Step < reportScheduleLast && scheduleStepValid(v) {
 			v.Step++
 		}
-		s.renderScheduleWizard(r.Context(), w, acct, v, true)
+		redirectWizardStep(w, r, reportsEditWizardPath(v.ID), v)
 		return
 	}
 
 	if !scheduleAllValid(v) {
 		v.Step = 0
-		s.renderScheduleWizard(r.Context(), w, acct, v, true)
+		redirectWizardStep(w, r, reportsEditWizardPath(v.ID), v)
 		return
 	}
 
@@ -502,10 +555,13 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		cads[i] = map[string]any{"Value": p, "Selected": p == v.Cad}
 	}
 
-	// The Delivery step's Destination select: "Download only" (value 0, the default)
-	// plus one option per declared Channel, labelled by its URL (Reports.jsx's Select).
-	// A read failure leaves only "Download only" — the wizard still works. deliveryLabel
-	// is the Review row's value: the bound channel's URL, or "download only".
+	// The Delivery step's Destination listbox: "Download only" (value 0, the default)
+	// plus one option per declared Channel, labelled by its URL (the spec listbox — the
+	// trigger shows .ChannelLabel, view JS syncs the hidden `channel` input). A read
+	// failure leaves only "Download only" — the wizard still works. channelLabel is the
+	// trigger label (and the Review row's value): the bound channel's URL, or the
+	// download-only label.
+	channelLabel := "Download only"
 	deliveryLabel := "download only"
 	channelOpts := []map[string]any{
 		{"Value": int64(0), "Label": "Download only", "Hint": "artifact stays in Reports", "Selected": v.ChannelID == 0},
@@ -517,6 +573,7 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 			sel := c.ID == v.ChannelID
 			if sel {
 				deliveryLabel = c.Url
+				channelLabel = c.Url
 			}
 			channelOpts = append(channelOpts, map[string]any{
 				"Value": c.ID, "Label": c.Url, "Hint": "signed HTTPS channel", "Selected": sel,
@@ -543,20 +600,21 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		{"K": "Delivery", "V": deliveryLabel},
 	}
 
-	formAction := "/reports/schedule"
+	formAction := reportsNewWizardPath
 	finishLabel := "Create schedule"
 	title := "New report schedule"
 	if editMode {
-		formAction = "/reports/schedule/edit"
+		formAction = reportsEditWizardPath(v.ID)
 		finishLabel = "Save schedule"
 		title = "Edit report schedule"
 	}
 
 	s.render(w, "schedulewizard", map[string]any{
-		"Title":     title,
-		"Account":   acct,
-		"IsAdmin":   acct.Role == roleAdmin,
-		"NavActive": "reports",
+		"Title":       title,
+		"Account":     acct,
+		"IsAdmin":     acct.Role == roleAdmin,
+		"NavActive":   "reports",
+		"DesignTokens": true,
 
 		"WizardTitle": title,
 		"FormAction":  formAction,
@@ -579,6 +637,7 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		"Custom":       v.Cad == reportCustomCad,
 		"Channels":     channelOpts,
 		"ChannelID":    v.ChannelID,
+		"ChannelLabel": channelLabel,
 
 		"Review": review,
 	})

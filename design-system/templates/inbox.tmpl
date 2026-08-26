@@ -1,0 +1,172 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — inbox.tmpl · package v3.11.1 · WORKFLOW.md v4
+  Source of truth: examples/console/Inbox.jsx · shot 07. Replaces templates_inbox.go
+  (define "inbox" kept). PRG skeleton kept: open = ?id link (marks read), filter = query param,
+  mark-all-read / mark-unread = POSTs returning to /inbox.
+  Holes kept: .Unread .Filter .AllHref .UnreadHref .Messages[{ID,Read,Selected,Class,Instant,Rel,
+  Headline}] .Selected{ID,Class,Headline,Rel,Instant,Census[{Kind,Key,Href}],
+  Deliveries[{State,ChannelHost,Failed,LastError}],Href,JumpLabel}.
+  Reconciliations: (SPEC-CHANGE #24, ruled — supersedes #23i's .Body) the detail card carries NO
+  prose body — the mock's paragraph predates the census store, and internal/message is
+  valence-free by design (ADR-0064); the detail form IS the census + delivery receipts, with depth
+  one jump away. No .Body hole; no prose producer should be built. (#23i, remainder ruled): the
+  census and delivery-receipt regions become design-owned (the repo's msgcensus/msgdelivery
+  global classes retire for this route): census renders as sunken key rows (kind micro-label +
+  mono key link), deliveries as receipt lines — failed renders the danger "undelivered" badge, the
+  host, the honest "could not be delivered, not that nothing fired" clause and a dotted reason
+  tooltip carrying .LastError. Map note: the map's "mark-unread menu" state predates the mock —
+  mark-unread is a button in the detail card (covered by the message-open golden).
+*/}}
+{{define "inbox"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+.ib-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.ib-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.ib-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); }
+.ib-sub .n { font-family: var(--font-mono); font-size: 12px; }
+.ib-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.ib-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.ib-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.ib-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid transparent; border-radius: 10px; font: 600 12px var(--font-ui); background: transparent; color: var(--text-secondary); cursor: pointer; text-decoration: none; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.ib-ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.ib-ghost[disabled] { opacity: 0.45; cursor: default; }
+.ib-ghost[disabled]:hover { background: transparent; color: var(--text-secondary); }
+.ib-seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 10px; }
+.ib-seg a { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 8px; font: 500 12px var(--font-ui); color: var(--text-secondary); text-decoration: none; white-space: nowrap; transition: color var(--dur-fast) var(--ease-out); }
+.ib-seg a:hover { color: var(--text-body); }
+.ib-seg a.on { background: var(--surface); color: var(--text-ink); font-weight: 600; box-shadow: var(--shadow-xs); }
+.ib-list { display: flex; flex-direction: column; padding: 10px; }
+.ib-row { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 10px 8px; border-radius: 8px; text-decoration: none; background: transparent; transition: background var(--dur-fast) var(--ease-out); }
+.ib-row + .ib-row { border-top: 1px solid var(--row-sep); }
+.ib-row:hover { background: var(--surface-sunken); }
+.ib-row.sel { background: var(--row-selected); }
+.ib-dot { width: 7px; height: 7px; border-radius: 999px; margin-top: 5px; flex: none; background: transparent; }
+.ib-dot.unread { background: var(--accent); }
+.ib-rowbody { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.ib-rowtop { display: flex; align-items: center; gap: 8px; }
+.ib-time { margin-left: auto; font: 400 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+.ib-text { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-body); }
+.ib-row.unread .ib-text { font-weight: 500; }
+.ib-cardhead { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
+.ib-cardhead .hd { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ib-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.ib-cardbody { padding: 20px; }
+.ib-meta { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.ib-census { display: flex; flex-direction: column; gap: 0; background: var(--surface-sunken); border-radius: 12px; padding: 6px 14px; }
+.ib-crow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.ib-crow + .ib-crow { border-top: 1px solid var(--row-sep); }
+.ib-crow .k { width: 88px; flex: none; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.ib-crow .v { font: 500 12.5px var(--font-mono); color: var(--text-ink); overflow-wrap: anywhere; }
+.ib-crow a.v { color: var(--link); text-decoration: none; }
+.ib-crow a.v:hover { text-decoration: underline; }
+.ib-del { display: flex; flex-direction: column; gap: 6px; }
+.ib-delrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 400 12.5px var(--font-ui); color: var(--text-secondary); }
+.ib-delrow .host { font: 400 12px var(--font-mono); color: var(--text-body); }
+.ib-delrow .why { border-bottom: 1px dashed var(--border-strong); cursor: default; color: var(--text-muted); }
+.ib-undelivered { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--danger-soft); border: 1px solid var(--danger-border); color: var(--danger); font: 500 12px var(--font-ui); white-space: nowrap; }
+.ib-undelivered .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+.ib-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 16px; border: 1px solid transparent; border-radius: 12px; font: 600 13px var(--font-ui); background: var(--accent); color: var(--on-accent); text-decoration: none; cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+.ib-btn:hover { background: var(--accent-hover); }
+.ib-btnghost { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 16px; border: 1px solid transparent; border-radius: 12px; font: 600 13px var(--font-ui); background: transparent; color: var(--text-secondary); cursor: pointer; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.ib-btnghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.ib-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; font-family: var(--font-ui); }
+.ib-empty .ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+.ib-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.ib-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+</style>
+<main class="ib-main" data-screen-label="Inbox">
+<header style="display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<h1>Inbox</h1>
+<span class="ib-sub">Everything Verge told you, by class. <span class="n">{{.Unread}}</span> unread.</span>
+</div>
+<span style="margin-left:auto;display:inline-flex;gap:8px;align-items:center">
+<form method="post" action="/messages/read-all" style="margin:0"><input type="hidden" name="return" value="/inbox">
+<button type="submit" class="ib-ghost"{{if not .Unread}} disabled{{end}}>Mark all read</button></form>
+<span class="ib-seg" role="radiogroup" aria-label="Filter">
+<a class="{{if eq .Filter "all"}}on{{end}}" role="radio" aria-checked="{{if eq .Filter "all"}}true{{else}}false{{end}}" href="{{.AllHref}}">All</a>
+<a class="{{if eq .Filter "unread"}}on{{end}}" role="radio" aria-checked="{{if eq .Filter "unread"}}true{{else}}false{{end}}" href="{{.UnreadHref}}">Unread</a>
+</span>
+</span>
+</header>
+<div style="display:grid;grid-template-columns:380px minmax(0, 1fr);gap:24px;align-items:start">
+<div class="ib-card" style="padding:0">
+{{if .Messages}}
+<div class="ib-list">
+{{range .Messages}}
+<a class="ib-row{{if not .Read}} unread{{end}}{{if .Selected}} sel{{end}}" href="/inbox?id={{.ID}}{{if eq $.Filter "unread"}}&filter=unread{{end}}">
+<span class="ib-dot{{if not .Read}} unread{{end}}"></span>
+<span class="ib-rowbody">
+<span class="ib-rowtop">
+<span class="ib-tag">{{.Class}}</span>
+<span class="ib-time" title="{{.Instant}}">{{.Rel}}</span>
+</span>
+<span class="ib-text">{{.Headline}}</span>
+</span>
+</a>
+{{end}}
+</div>
+{{else}}
+<div class="ib-cardbody"><div class="ib-empty" style="padding:28px 16px">
+<span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg></span>
+<span class="msg">Nothing unread.</span>
+<span class="det">New messages land here as batches conclude.</span>
+</div></div>
+{{end}}
+</div>
+{{with .Selected}}
+<div class="ib-card">
+<header class="ib-cardhead">
+<div class="hd">
+<span class="ib-micro">{{.Class}}</span>
+<h3>{{.Headline}}</h3>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px;flex:none"><span class="ib-tag">{{.Class}}</span></div>
+</header>
+<div class="ib-cardbody">
+<div style="display:flex;flex-direction:column;gap:16px">
+<span class="ib-meta">{{if .Rel}}{{.Rel}} ago{{end}}{{if .Instant}} · {{.Instant}}{{end}}</span>
+{{if .Census}}
+<div class="ib-census">
+{{range .Census}}
+<div class="ib-crow">
+<span class="k">{{.Kind}}</span>
+{{if .Href}}<a class="v" href="{{.Href}}">{{.Key}}</a>{{else}}<span class="v">{{.Key}}</span>{{end}}
+</div>
+{{end}}
+</div>
+{{end}}
+{{if .Deliveries}}
+<div class="ib-del">
+{{range .Deliveries}}
+<div class="ib-delrow">
+{{if .Failed}}
+<span class="ib-undelivered"><span class="d"></span>undelivered</span>
+<span>to <span class="host">{{.ChannelHost}}</span> — this message could not be delivered, not that nothing fired{{if .LastError}} <span class="why" title="{{.LastError}}">(reason)</span>{{end}}</span>
+{{else}}
+<span>{{.State}} to <span class="host">{{.ChannelHost}}</span></span>
+{{end}}
+</div>
+{{end}}
+</div>
+{{end}}
+<div style="display:flex;gap:8px">
+<a class="ib-btn" href="{{.Href}}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>{{.JumpLabel}}</a>
+<form method="post" action="/messages/unread" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="return" value="/inbox">
+<button type="submit" class="ib-btnghost">Mark unread</button></form>
+</div>
+</div>
+</div>
+</div>
+{{else}}
+<div class="ib-card">
+<div class="ib-cardbody"><div class="ib-empty" style="padding:40px 16px">
+<span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"></path><path d="m3 8 2.5-5h13L21 8"></path><path d="m3 8 9 6 9-6"></path></svg></span>
+<span class="msg">No message selected.</span>
+<span class="det">Pick a message on the left to read it here.</span>
+</div></div>
+</div>
+{{end}}
+</div>
+</main>
+{{template "foot" .}}{{end}}
