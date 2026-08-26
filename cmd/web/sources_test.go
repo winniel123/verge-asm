@@ -66,10 +66,11 @@ func TestSourcesModalRendersCatalogueAndDefaults(t *testing.T) {
 			t.Errorf("source %q missing from the modal", c.Name)
 		}
 	}
-	// Both marked groups render.
-	if !strings.Contains(page, "What you may be able to resolve") ||
-		!strings.Contains(page, "What nobody has been able to resolve") {
-		t.Errorf("the two marked groups are not both rendered; body: %s", page)
+	// The three consent tiers render (the spec tier cards, #26).
+	for _, tier := range []string{"unencumbered", "operator-accepted", "barred"} {
+		if !strings.Contains(page, tier) {
+			t.Errorf("consent tier %q not rendered; body: %s", tier, page)
+		}
 	}
 	// A proposer is labelled a proposer, never a source (ADR-0012).
 	if !strings.Contains(page, ">proposer<") || !strings.Contains(page, ">source<") {
@@ -81,9 +82,9 @@ func TestSourcesModalRendersCatalogueAndDefaults(t *testing.T) {
 	}
 }
 
-// LACNIC's actionable group is empty by construction, and it still renders — the
-// #47 "render even when empty" requirement.
-func TestEmptyMarkedGroupStillRenders(t *testing.T) {
+// LACNIC renders in the operator-accepted tier, and its consent dialog renders its
+// single term even though its actionable group is empty by construction.
+func TestLacnicConsentDialogRenders(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -93,8 +94,9 @@ func TestEmptyMarkedGroupStillRenders(t *testing.T) {
 	if !strings.Contains(page, "LACNIC registry") {
 		t.Fatalf("LACNIC not rendered; body: %s", page)
 	}
-	if !strings.Contains(page, "every open question here is one nobody has been able to answer") {
-		t.Errorf("empty actionable group did not render its empty state; body: %s", page)
+	dlg := getBody(t, ac, base+"/sources?consent=lacnic-registry", http.StatusOK)
+	if !strings.Contains(dlg, "Nobody has been able to retrieve these terms.") {
+		t.Errorf("LACNIC consent dialog did not render its term; body: %s", dlg)
 	}
 }
 
@@ -143,21 +145,21 @@ func TestSourcesTermsGateEnabling(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The Enable control links to the terms dialog, not a direct toggle.
+	// The Enable control links to the consent dialog, not a direct toggle (#26).
 	page := getBody(t, ac, base+"/sources", http.StatusOK)
-	if !strings.Contains(page, "/sources?terms=ripestat") {
-		t.Errorf("operator-accepted source has no terms-gated enable; body: %s", page)
+	if !strings.Contains(page, "consent=ripestat") {
+		t.Errorf("operator-accepted source has no consent-gated enable; body: %s", page)
 	}
 	// Opening the dialog renders the acceptance gate.
-	dlg := getBody(t, ac, base+"/sources?terms=ripestat", http.StatusOK)
-	for _, want := range []string{"I accept these terms", "Accept and enable", `id="termsaccept"`} {
+	dlg := getBody(t, ac, base+"/sources?consent=ripestat", http.StatusOK)
+	for _, want := range []string{"I accept these terms", "Accept and enable", `id="st-consent-check"`} {
 		if !strings.Contains(dlg, want) {
-			t.Errorf("terms dialog missing %q", want)
+			t.Errorf("consent dialog missing %q", want)
 		}
 	}
 	// An enable without acceptance bounces back to the dialog and persists nothing.
-	resp := postForm(t, ac, base+"/sources/toggle", url.Values{"slug": {"ripestat"}, "enabled": {"true"}})
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/sources?terms=ripestat" {
+	resp := postForm(t, ac, base+"/settings/sources", url.Values{"id": {"ripestat"}, "enable": {"true"}})
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=sources&consent=ripestat" {
 		t.Fatalf("ungated enable not bounced: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()

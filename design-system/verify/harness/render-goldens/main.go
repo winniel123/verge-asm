@@ -368,6 +368,24 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "settings":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen settings")
+		}
+		files, err := renderSettingsStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	case "reportartifact":
 		if *outdir == "" {
 			log.Fatal("render-goldens: -outdir is required for -screen reportartifact")
@@ -3948,6 +3966,503 @@ func renderSearchStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, herr
 		}
 		out = append(out, errorGolden{id: st.id, html: html})
+	}
+	return out, nil
+}
+
+// --- screen 21: Settings (settings.tmpl, package v3.13.0, WORK-ORDER-21-BATCH7) ---------
+//
+// renderSettingsStates composes the 19 Settings golden HTMLs from the frozen settings.tmpl,
+// one per states.json state. It is the twin of cmd/web/settings_fixtures.go
+// (settingsFixtureData): both read the SAME fixtures.json settings slice and stamp the SAME
+// "settings" holes with VERBATIM fixture values, so the golden and the fixtures-seeded candidate
+// are the same frozen tmpl fed the same data. The 18 chrome-hosted states execute "settings"; the
+// 19th (forbidden) is the viewer's requireSettingsAdmin refusal — the error-page settings-forbidden
+// kind, exactly as renderErrorStates renders it — so this renders that same error-page here.
+//
+// The stubbed template also defines an empty "scantrigger" (the repo-authored admin trigger panel
+// the scans section calls, which renders nothing when .Trigger is unset — and the fixture omits it)
+// and provides the integrationsEnabled func (true), so the frozen tmpl parses and executes.
+
+type gsJob struct {
+	ID          int64  `json:"id"`
+	Kind        string `json:"kind"`
+	Vantage     string `json:"vantage"`
+	State       string `json:"state"`
+	Retrying    bool   `json:"retrying"`
+	Superseded  bool   `json:"superseded"`
+	Attempt     int    `json:"attempt"`
+	MaxAttempts int    `json:"max_attempts"`
+	Batch       string `json:"batch"`
+}
+type gsActive struct {
+	ScanKind     string  `json:"scan_kind"`
+	DispatchedAt string  `json:"dispatched_at"`
+	Completed    int     `json:"completed"`
+	Live         int     `json:"live"`
+	Percent      int     `json:"percent"`
+	Jobs         []gsJob `json:"jobs"`
+}
+type gsHistory struct {
+	ScanKind     string `json:"scan_kind"`
+	DispatchedAt string `json:"dispatched_at"`
+	Live         int    `json:"live"`
+	Completed    int    `json:"completed"`
+	Dead         int    `json:"dead"`
+}
+type gsColdScope struct {
+	ID        string `json:"id"`
+	Scope     string `json:"scope"`
+	IsAddress bool   `json:"is_address"`
+	OptedIn   bool   `json:"opted_in"`
+}
+type gsScans struct {
+	Active      []gsActive    `json:"active"`
+	History     []gsHistory   `json:"history"`
+	ColdEnabled bool          `json:"cold_enabled"`
+	ColdScopes  []gsColdScope `json:"cold_scopes"`
+}
+type gsVantage struct {
+	Name         string `json:"name"`
+	Class        string `json:"class"`
+	Resolver     string `json:"resolver"`
+	Latency      string `json:"latency"`
+	Availability string `json:"availability"`
+	Unverified   bool   `json:"unverified"`
+}
+type gsProber struct {
+	Endpoint           string `json:"endpoint"`
+	Username           string `json:"username"`
+	Availability       string `json:"availability"`
+	HostKeyPinned      bool   `json:"host_key_pinned"`
+	HostKeyFingerprint string `json:"host_key_fingerprint"`
+	Platform           string `json:"platform"`
+	KeySet             bool   `json:"key_set"`
+	PublicKey          string `json:"public_key"`
+	Egress             string `json:"egress"`
+}
+type gsVantages struct {
+	Vantages []gsVantage `json:"vantages"`
+	Probers  []gsProber  `json:"probers"`
+}
+type gsProvider struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	Issuer    string `json:"issuer"`
+	ClientID  string `json:"client_id"`
+	HasSecret bool   `json:"has_secret"`
+	Enabled   bool   `json:"enabled"`
+	CreatedBy string `json:"created_by"`
+	CreatedAt string `json:"created_at"`
+}
+type gsBinding struct {
+	ID           string `json:"id"`
+	ProviderName string `json:"provider_name"`
+	Account      string `json:"account"`
+	DisplayName  string `json:"display_name"`
+	LinkedAt     string `json:"linked_at"`
+}
+type gsSSO struct {
+	Providers []gsProvider `json:"providers"`
+	Bindings  []gsBinding  `json:"bindings"`
+}
+type gsMember struct {
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	Initials    string `json:"initials"`
+	Role        string `json:"role"`
+	TotpEnabled bool   `json:"totp_enabled"`
+	At          string `json:"at"`
+	IsSelf      bool   `json:"is_self"`
+}
+type gsTeam struct {
+	Members    []gsMember `json:"members"`
+	InviteLink string     `json:"invite_link_fixture"`
+}
+type gsSession struct {
+	ID        string `json:"id"`
+	AccountID string `json:"account_id"`
+	Account   string `json:"account"`
+	Role      string `json:"role"`
+	Device    string `json:"device"`
+	IP        string `json:"ip"`
+	LastSeen  string `json:"last_seen"`
+	Current   bool   `json:"current"`
+}
+type gsSource struct {
+	ID    string   `json:"id"`
+	Name  string   `json:"name"`
+	Kind  string   `json:"kind"`
+	What  string   `json:"what"`
+	On    bool     `json:"on"`
+	Terms []string `json:"terms"`
+}
+type gsSources struct {
+	Unencumbered     []gsSource `json:"unencumbered"`
+	OperatorAccepted []gsSource `json:"operator_accepted"`
+	Barred           []gsSource `json:"barred"`
+}
+type gsCounts struct {
+	Sensitive int `json:"sensitive"`
+	Frequency int `json:"frequency"`
+	Union     int `json:"union"`
+	TCP       int `json:"tcp"`
+	UDP       int `json:"udp"`
+}
+type gsSensitive struct {
+	Port      int    `json:"port"`
+	Transport string `json:"transport"`
+	Service   string `json:"service"`
+}
+type gsFrequency struct {
+	Port          int    `json:"port"`
+	AlsoSensitive bool   `json:"also_sensitive"`
+	Edited        bool   `json:"edited"`
+	EditAction    string `json:"edit_action"`
+}
+type gsAperture struct {
+	UDPCount  int           `json:"udp_count"`
+	Counts    gsCounts      `json:"counts"`
+	Sensitive []gsSensitive `json:"sensitive"`
+	Frequency []gsFrequency `json:"frequency"`
+}
+type gsInstanceVantage struct {
+	Name    string `json:"name"`
+	Latency string `json:"latency"`
+	Avail   string `json:"avail"`
+}
+type gsUpdate struct {
+	Version string `json:"version"`
+	Notes   string `json:"notes"`
+}
+type gsInstance struct {
+	Update     *gsUpdate           `json:"update"`
+	Version    string              `json:"version"`
+	License    string              `json:"license"`
+	Uptime     string              `json:"uptime"`
+	QueueDepth int                 `json:"queue_depth"`
+	DiskPct    int                 `json:"disk_pct"`
+	DiskDetail string              `json:"disk_detail"`
+	PgLabel    string              `json:"pg_label"`
+	PgDetail   string              `json:"pg_detail"`
+	Vantages   []gsInstanceVantage `json:"vantages"`
+}
+type gsClassOption struct {
+	Name    string `json:"name"`
+	Checked bool   `json:"checked"`
+}
+type gsChannel struct {
+	ID          string          `json:"id"`
+	URL         string          `json:"url"`
+	Classes     []string        `json:"classes"`
+	ClassStates []gsClassOption `json:"class_states"`
+	HasSecret   bool            `json:"has_secret"`
+	Enabled     bool            `json:"enabled"`
+	By          string          `json:"by"`
+	At          string          `json:"at"`
+}
+type gsChannels struct {
+	ClassOptions []gsClassOption `json:"class_options"`
+	Channels     []gsChannel     `json:"channels"`
+}
+type gsTile struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Mark        string `json:"mark"`
+	Category    string `json:"category"`
+	State       string `json:"state"`
+	Description string `json:"description"`
+}
+type gsGrant struct {
+	Scope  string `json:"scope"`
+	Detail string `json:"detail"`
+	Write  bool   `json:"write"`
+}
+type gsDrawer struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Mark         string    `json:"mark"`
+	Category     string    `json:"category"`
+	State        string    `json:"state"`
+	Description  string    `json:"description"`
+	Attention    string    `json:"attention"`
+	Grants       []gsGrant `json:"grants"`
+	Installed    string    `json:"installed"`
+	LastDelivery string    `json:"last_delivery"`
+	Classes      string    `json:"classes"`
+}
+type gsIntegrations struct {
+	Cats   []string `json:"cats"`
+	Cat    string   `json:"cat"`
+	Q      string   `json:"q"`
+	Tiles  []gsTile `json:"tiles"`
+	Drawer gsDrawer `json:"drawer_fixture"`
+}
+type gsCensus struct {
+	Kind string `json:"kind"`
+	Key  string `json:"key"`
+	Href string `json:"href"`
+}
+type gsMsgDelivery struct {
+	State       string `json:"state"`
+	ChannelHost string `json:"channel_host"`
+	Failed      bool   `json:"failed"`
+	LastError   string `json:"last_error"`
+}
+type gsMessage struct {
+	ID         string          `json:"id"`
+	Read       bool            `json:"read"`
+	Cause      string          `json:"cause"`
+	Class      string          `json:"class"`
+	Instant    string          `json:"instant"`
+	Headline   string          `json:"headline"`
+	Href       string          `json:"href"`
+	LinkText   string          `json:"link_text"`
+	Census     []gsCensus      `json:"census"`
+	Deliveries []gsMsgDelivery `json:"deliveries"`
+}
+type gsOutcome struct {
+	ChannelHost string `json:"channel_host"`
+	Class       string `json:"class"`
+	Failed      bool   `json:"failed"`
+	State       string `json:"state"`
+	When        string `json:"when"`
+}
+type gsRetention struct {
+	ObservationCurrencyDays int    `json:"observation_currency_days"`
+	DispatchCadenceMultiple int    `json:"dispatch_cadence_multiple"`
+	UpdatedAt               string `json:"updated_at"`
+	UpdatedBy               string `json:"updated_by"`
+}
+type gsDeliverySection struct {
+	Deliveries []gsOutcome `json:"deliveries"`
+	Retention  gsRetention `json:"retention"`
+}
+type gsSettings struct {
+	Scans        gsScans           `json:"scans"`
+	Vantages     gsVantages        `json:"vantages"`
+	SSO          gsSSO             `json:"sso"`
+	Team         gsTeam            `json:"team"`
+	Sessions     []gsSession       `json:"sessions"`
+	Sources      gsSources         `json:"sources"`
+	Aperture     gsAperture        `json:"aperture"`
+	Instance     gsInstance        `json:"instance"`
+	Channels     gsChannels        `json:"channels"`
+	Integrations gsIntegrations    `json:"integrations"`
+	Messages     []gsMessage       `json:"messages"`
+	Delivery     gsDeliverySection `json:"delivery"`
+}
+
+func loadSettingsFixtureG() (gsSettings, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return gsSettings{}, err
+	}
+	var ff struct {
+		Settings gsSettings `json:"settings"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return gsSettings{}, err
+	}
+	return ff.Settings, nil
+}
+
+// settingsGoldenMap mirrors cmd/web/settings_fixtures.go settingsFixtureData one-for-one for the
+// given tab and query, stamping the "settings" holes from the fixture with verbatim values.
+func settingsGoldenMap(fx gsSettings, tab string, q map[string]string) map[string]any {
+	data := map[string]any{
+		"Title": "Settings", "NavActive": "settings", "Tab": tab,
+		"IsAdmin": true, "DesignTokens": true,
+	}
+	switch tab {
+	case "scans":
+		data["Active"] = fx.Scans.Active
+		data["History"] = fx.Scans.History
+		data["ColdEnabled"] = fx.Scans.ColdEnabled
+		data["ColdScopes"] = fx.Scans.ColdScopes
+		data["ColdError"] = ""
+	case "vantages":
+		data["Vantages"] = fx.Vantages.Vantages
+		data["Probers"] = fx.Vantages.Probers
+		data["ProberError"], data["ProberHost"], data["ProberPort"], data["ProberUser"] = "", "", "", ""
+	case "sso":
+		data["SSOProviders"] = fx.SSO.Providers
+		data["SSOBindings"] = fx.SSO.Bindings
+		data["SSOError"], data["SSOName"], data["SSOSlug"], data["SSOIssuer"], data["SSOClientID"] = "", "", "", "", ""
+	case "team":
+		data["Members"] = fx.Team.Members
+		data["TeamError"], data["RoleError"], data["RemoveError"] = "", "", ""
+		data["InviteLink"], data["InviteRole"] = "", ""
+		data["InviteOpen"] = q["invite"] != ""
+		if id := q["remove"]; id != "" {
+			for i := range fx.Team.Members {
+				if fx.Team.Members[i].ID == id {
+					data["RemoveTarget"] = fx.Team.Members[i]
+				}
+			}
+		}
+	case "sessions":
+		data["Sessions"] = fx.Sessions
+		data["RevokeAccountError"] = ""
+		if id := q["revoke-account"]; id != "" {
+			for i := range fx.Sessions {
+				if fx.Sessions[i].AccountID == id {
+					data["RevokeAccountTarget"] = map[string]any{"AccountID": id, "Username": fx.Sessions[i].Account}
+					break
+				}
+			}
+		}
+	case "audit":
+		data["AuditRows"] = nil
+	case "sources":
+		data["Unencumbered"] = fx.Sources.Unencumbered
+		data["OperatorAccepted"] = fx.Sources.OperatorAccepted
+		data["Barred"] = fx.Sources.Barred
+		data["SourceError"] = ""
+		if id := q["consent"]; id != "" {
+			for i := range fx.Sources.OperatorAccepted {
+				src := fx.Sources.OperatorAccepted[i]
+				if src.ID == id {
+					data["Consent"] = map[string]any{"ID": src.ID, "Name": src.Name, "Terms": src.Terms}
+					break
+				}
+			}
+		}
+	case "aperture":
+		data["UDPCount"] = fx.Aperture.UDPCount
+		data["Counts"] = fx.Aperture.Counts
+		data["Sensitive"] = fx.Aperture.Sensitive
+		data["Frequency"] = fx.Aperture.Frequency
+		data["VCError"], data["VCPort"] = "", ""
+	case "instance":
+		data["Instance"] = fx.Instance
+	case "channels":
+		data["Channels"] = fx.Channels.Channels
+		data["ClassOptions"] = fx.Channels.ClassOptions
+		data["ChanError"], data["ChanURL"] = "", ""
+	case "integrations":
+		data["IntCats"] = fx.Integrations.Cats
+		data["IntCat"] = fx.Integrations.Cat
+		data["IntQ"] = fx.Integrations.Q
+		data["Integrations"] = fx.Integrations.Tiles
+		if id := q["view"]; id != "" && id == fx.Integrations.Drawer.ID {
+			data["IntDrawer"] = fx.Integrations.Drawer
+		}
+	case "messages":
+		data["Messages"] = fx.Messages
+	case "delivery":
+		data["Deliveries"] = fx.Delivery.Deliveries
+		data["Retention"] = fx.Delivery.Retention
+		data["RetError"], data["RetObs"], data["RetDispatch"] = "", "", ""
+	}
+	return data
+}
+
+func newSettingsTemplate(head template.HTML) (*template.Template, error) {
+	t := template.New("root").Funcs(template.FuncMap{
+		"stubhead":            func() template.HTML { return head },
+		"integrationsEnabled": func() bool { return true },
+		"signDelta": func(n int) template.HTML {
+			var s string
+			switch {
+			case n > 0:
+				s = "+" + strconv.Itoa(n)
+			case n < 0:
+				s = "-" + strconv.Itoa(-n)
+			default:
+				s = "0"
+			}
+			return template.HTML(s) // #nosec G203 -- a sign and digits only, from an int; no user input
+		},
+	})
+	if _, err := t.Parse(settingsStubDefines); err != nil {
+		return nil, err
+	}
+	if _, err := t.ParseFS(designfs.FS, "templates/settings.tmpl"); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+const settingsStubDefines = `{{define "head"}}{{stubhead}}{{end}}{{define "chrome"}}{{end}}{{define "foot"}}</body></html>{{end}}{{define "scantrigger"}}{{end}}`
+
+func renderSettingsStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadSettingsFixtureG()
+	if err != nil {
+		return nil, err
+	}
+
+	execSettings := func(tab string, q map[string]string) ([]byte, error) {
+		t, terr := newSettingsTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, "settings", settingsGoldenMap(fx, tab, q)); terr != nil {
+			return nil, terr
+		}
+		return buf.Bytes(), nil
+	}
+
+	type sstate struct {
+		id  string
+		tab string
+		q   map[string]string
+	}
+	states := []sstate{
+		{"scans", "scans", nil},
+		{"vantages", "vantages", nil},
+		{"sso", "sso", nil},
+		{"team", "team", nil},
+		{"team-invite", "team", map[string]string{"invite": "1"}},
+		{"team-remove", "team", map[string]string{"remove": "u3"}},
+		{"sessions", "sessions", nil},
+		{"sessions-revoke-all", "sessions", map[string]string{"revoke-account": "u2"}},
+		{"audit", "audit", nil},
+		{"sources", "sources", nil},
+		{"sources-consent", "sources", map[string]string{"consent": "ripestat"}},
+		{"aperture", "aperture", nil},
+		{"instance", "instance", nil},
+		{"channels", "channels", nil},
+		{"integrations", "integrations", nil},
+		{"integrations-drawer", "integrations", map[string]string{"view": "pagerduty"}},
+		{"messages", "messages", nil},
+		{"delivery", "delivery", nil},
+	}
+
+	out := make([]errorGolden, 0, len(states)+1)
+	for _, st := range states {
+		html, herr := execSettings(st.tab, st.q)
+		if herr != nil {
+			return nil, herr
+		}
+		out = append(out, errorGolden{id: st.id, html: html})
+	}
+
+	// forbidden: the viewer's requireSettingsAdmin refusal renders the error-page
+	// settings-forbidden kind (the frozen landed behavior), so its golden is that
+	// same error-page — rendered here exactly as renderErrorStates does.
+	{
+		t, terr := newStubbedTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS, "templates/error.tmpl"); terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, "error-page", map[string]any{
+			"Kind": "settings-forbidden", "Code": "403",
+			"ActionLabel": "Back to dashboard", "ActionHref": "/",
+		}); terr != nil {
+			return nil, terr
+		}
+		out = append(out, errorGolden{id: "forbidden", html: buf.Bytes()})
 	}
 	return out, nil
 }

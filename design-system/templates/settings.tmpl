@@ -1,0 +1,1279 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — settings.tmpl · package v3.13.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Settings.jsx + Sources.jsx + Integrations.jsx · shots 17–18.
+  Replaces templates_settings.go wholesale (defines "settings" + "forbidden" + one
+  "settings-<tab>" per section). The repo's "scantrigger" define is still called as-is (it stays
+  repo-authored until its own map item). "sevbadge" is NOT used here — severity never appears on
+  settings surfaces.
+  Reconciliations (SPEC-CHANGE #26, ruled):
+  #26a nav — the spec sidebar (grouped SettingsNav, 210px, sticky) replaces the tabs row;
+    navigation stays ?tab= links. Groups: Scanning (scans, vantages) · Access (sso, team,
+    sessions, audit) · Discovery (sources, aperture) · Instance (instance) · Delivery (channels,
+    integrations{{/**/}}, messages, delivery). Integrations gated by integrationsEnabled.
+  #26b scans — the tab is the queue read (in-flight fan-out + jobs, recent dispatches) plus the
+    relocated cold tier (#21d), spec-styled. The mock's "Recurring intent" config card and the
+    schedule Calendar are DEFERRED — no operator-editable scan-config store exists; nothing is
+    fabricated (ADR-0110). They stay in the spec as the target for a future config store.
+  #26c vantages — spec VantageCards replace the table; each provisioned prober renders its real
+    lifecycle (awaiting key → install key (inverted CodeBlock + copy) → pinned + platform); the
+    mock's 3-step wizard maps onto that lifecycle, not onto client steps. The egress note links
+    /scope (no declare-egress POST exists). #26d the preferred-vantage Combobox is DEFERRED (no
+    default-vantage store).
+  #26e sso — OIDC stands (ADR-0113); the mock's SAML metadata drop, claim MappingEditor, SP
+    certificates and require-SSO switch predate it and RETIRE. The provider table (+ edit
+    disclosure), add form, and linked-identities table render spec-styled.
+  #26f channels — class checkboxes and badges render from .ClassOptions / .Classes (the store's
+    vocabulary), never a hardcoded set.
+  #26g messages — the tab keeps the repo's full store list (cause · class · headline · census ·
+    delivery receipts · mark-read), spec-styled with the inbox treatments; /inbox stays the
+    primary surface.
+  #26h delivery — the mock's error/skeleton/retry states are client-runtime affordances and drop;
+    the server renders data or the honest empty. Retention dials stay.
+  #26i team — invite keeps the repo's link flow (no mail in build): role pick → one-time join
+    link with the shown-once warning + copy. Member rows render initial-avatars derived from the
+    username (no new datum). Dialogs stay PRG (?role= ?reenroll= ?remove= ?invite=1) with the
+    spec panel; remove keeps typed-confirm (JS-gated, server validates).
+  #26j integrations — the spec catalogue maps PRG: cat/q = GET params, tile click = ?view={id}
+    drawer, install/remove/test = POSTs (/settings/integrations, alias or BUILD).
+  Holes per section are documented inline at each define.
+*/}}
+{{define "forbidden"}}{{template "head" .}}
+{{template "chrome" .}}
+<main style="max-width:760px;margin:0 auto;padding:56px 32px;font-family:var(--font-ui)">
+<div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:48px 24px;background:var(--surface);border:1px solid var(--border-default);border-radius:16px;box-shadow:var(--shadow-sm)">
+<span style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:999px;background:var(--surface-sunken);border:1px solid var(--border-default);color:var(--text-secondary);margin-bottom:8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+<span style="font:600 14px var(--font-ui);color:var(--text-ink)">Admin only</span>
+<span style="font:400 13px/1.5 var(--font-ui);color:var(--text-secondary);max-width:380px">{{.Message}}</span>
+</div>
+</main>
+{{template "foot" .}}{{end}}
+
+{{define "settings"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes st-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes st-pop-c { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes st-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes st-pulse { 0% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0.35); } 70% { box-shadow: 0 0 0 6px rgba(3, 122, 192, 0); } 100% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0); } }
+@keyframes st-slide { from { opacity: 0.4; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+.st-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 40px; align-items: start; font-family: var(--font-ui); }
+.st-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 32px; }
+.st-side h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.st-nav { display: flex; flex-direction: column; gap: 20px; }
+.st-navgroup { display: flex; flex-direction: column; gap: 3px; }
+.st-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.st-navgroup .st-micro { margin-bottom: 4px; }
+.st-navitem { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 10px; border-radius: 8px; text-decoration: none; color: var(--text-secondary); font: 500 13px var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
+.st-navitem:hover { background: var(--surface-sunken); }
+.st-navitem.on { background: var(--accent-soft); color: var(--link); font-weight: 600; }
+.st-navitem .ic { display: inline-flex; flex: none; }
+.st-content { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.st-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.st-card.flush { overflow: hidden; }
+.st-cardhead { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
+.st-cardhead .hd { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.st-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.st-body { padding: 20px; }
+.st-lede { margin: 0; font: 400 13px/1.6 var(--font-ui); color: var(--text-secondary); max-width: 72ch; }
+.st-lede a, .st-note a { color: var(--link); }
+.st-note { font: 400 11.5px/1.6 var(--font-ui); color: var(--text-muted); }
+.st-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.st-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.st-badge .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex: none; }
+.st-badge.ok { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.st-badge.warn { background: var(--warn-soft); border-color: var(--warn-border); color: var(--warn); }
+.st-badge.danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.st-badge.neutral { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.st-badge.accent { background: var(--accent-soft); color: var(--link); }
+.st-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.st-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.st-table td { padding: 9px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
+.st-table tbody tr:first-child td { border-top: none; }
+.st-table td.mono { font: 400 12.5px var(--font-mono); }
+.st-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out); }
+.st-btn.pri { background: var(--accent); color: var(--on-accent); }
+.st-btn.pri:hover { background: var(--accent-hover); }
+.st-btn.pri[disabled] { opacity: 0.45; cursor: default; }
+.st-btn.pri[disabled]:hover { background: var(--accent); }
+.st-btn.sec { background: var(--surface); color: var(--text-body); border-color: var(--border-strong); }
+.st-btn.sec:hover { background: var(--surface-sunken); }
+.st-btn.ghost { background: transparent; color: var(--text-secondary); }
+.st-btn.ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.st-btn.danger { background: var(--danger); color: var(--on-danger); }
+.st-btn.danger:hover { background: var(--danger-hover); }
+.st-btn.danger[disabled] { opacity: 0.45; cursor: default; }
+.st-btn.danger[disabled]:hover { background: var(--danger); }
+.st-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.st-btn-sm:hover { background: var(--surface-sunken); }
+.st-kebab { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: background var(--dur-fast) var(--ease-out); padding: 0; }
+.st-kebab:hover { background: var(--surface-sunken); color: var(--text-body); }
+.st-pop { position: relative; display: inline-flex; }
+.st-panel { position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 95; min-width: 200px; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: st-pop var(--dur-base) var(--ease-out); display: flex; flex-direction: column; gap: 2px; }
+.st-panel[hidden] { display: none; }
+.st-mi { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); text-decoration: none; box-sizing: border-box; transition: background var(--dur-fast) var(--ease-out); }
+.st-mi:hover { background: var(--surface-sunken); }
+.st-mi.danger { color: var(--danger); }
+.st-mi.danger:hover { background: var(--danger-soft); }
+.st-mi .mic { display: inline-flex; color: var(--text-secondary); flex: none; }
+.st-mi.danger .mic { color: var(--danger); }
+.st-sep { height: 1px; background: var(--row-sep); margin: 5px 4px; }
+.st-error { padding: 10px 14px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; font: 400 12.5px/1.5 var(--font-ui); color: var(--danger); }
+.st-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border-default); background: var(--surface-sunken); }
+.st-callout.accent { background: var(--accent-softer); border-color: var(--accent-soft); }
+.st-callout.warn { background: var(--warn-soft); border-color: var(--warn-border); }
+.st-callout .ic { color: var(--text-secondary); display: inline-flex; margin-top: 1px; flex: none; }
+.st-callout.accent .ic { color: var(--accent); }
+.st-callout.warn .ic { color: var(--warn); }
+.st-callout .ct { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-callout .ct b { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.st-callout .ct span { font: 400 12.5px/1.55 var(--font-ui); color: var(--text-body); }
+.st-callout code { font: 400 0.92em var(--font-mono); background: var(--surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 1px 5px; }
+.st-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 36px 24px; }
+.st-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.st-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 420px; }
+.st-empty .det a { color: var(--link); }
+.st-input { display: flex; flex-direction: column; gap: 6px; }
+.st-input .lb { font: 500 12.5px var(--font-ui); color: var(--text-body); }
+.st-input .iw { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.st-input .iw:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.st-input input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 12.5px var(--font-mono); }
+.st-input .hint { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+.st-check { display: flex; align-items: center; gap: 8px; font: 400 13px var(--font-ui); color: var(--text-body); cursor: pointer; }
+.st-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.st-check .box { width: 18px; height: 18px; flex: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.st-check input:checked + .box { background: var(--accent); border-color: var(--accent); }
+.st-check .box svg { display: none; }
+.st-check input:checked + .box svg { display: block; }
+.st-check input:focus-visible + .box { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+.st-switch { display: inline-flex; width: 36px; height: 20px; flex: none; border-radius: 999px; position: relative; border: none; padding: 0; background: var(--neutral-300); cursor: pointer; transition: background var(--dur-base) var(--ease-out); }
+.st-switch.on { background: var(--accent); }
+.st-switch .knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgba(35,31,25,0.2); transition: left var(--dur-base) var(--ease-out); }
+.st-switch.on .knob { left: 18px; }
+.st-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-sunken); border-radius: 10px; flex-wrap: wrap; }
+.st-scrim { position: fixed; inset: 0; z-index: 100; background: rgba(21,18,15,0.4); animation: st-fade var(--dur-base) var(--ease-out); display: block; }
+.st-dialog { position: fixed; inset: 0; z-index: 101; display: flex; align-items: center; justify-content: center; padding: 24px; pointer-events: none; }
+.st-dialog .panel { pointer-events: auto; width: min(440px, 92%); max-height: 85%; overflow-y: auto; background: var(--surface); border-radius: 24px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-default); padding: 24px; animation: st-pop-c var(--dur-slow) var(--ease-out); }
+.st-dialog h2 { margin: 0; font: 600 16px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.st-dialog .desc { margin: 4px 0 0; font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); }
+.st-dialog .detail { margin: 16px 0 0; font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.st-dialog .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.st-dialog input.typed { height: 34px; padding: 0 12px; background: var(--surface); color: var(--text-ink); font: 400 12.5px var(--font-mono); border: 1px solid var(--border-default); border-radius: 10px; outline: none; width: 100%; box-sizing: border-box; }
+.st-dialog input.typed:focus { border-color: var(--danger-solid); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-solid) 16%, transparent); }
+.st-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; }
+.st-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.st-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.st-code { position: relative; background: var(--surface-inverted); border-radius: 12px; overflow: hidden; }
+.st-code .ttl { padding: 8px 14px 0; font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--neutral-500); }
+.st-code pre { margin: 0; padding: 13px 16px; overflow: auto; }
+.st-code code { font: 400 12.5px/1.6 var(--font-mono); color: var(--text-on-inverted); overflow-wrap: anywhere; white-space: pre-wrap; }
+.st-code .cp { position: absolute; top: 6px; right: 8px; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--neutral-400); font: 500 10.5px var(--font-mono); letter-spacing: 0.05em; cursor: pointer; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.st-code:hover .cp, .st-code .cp.ok { opacity: 1; }
+.st-code .cp.ok { color: var(--primary-300); }
+.st-vcard { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.st-vcard.unv { border: 1px dashed var(--border-strong); box-shadow: none; }
+.st-av { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.st-av .d { width: 5px; height: 5px; border-radius: 999px; flex: none; }
+.st-av.available { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.st-av.available .d { background: var(--ok-solid); }
+.st-av.unavailable { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.st-av.unavailable .d { background: var(--danger-solid); }
+.st-av.unverified { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
+.st-av.unverified .d { background: var(--neutral-400); }
+.st-meter { height: 6px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.st-meter .fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--dur-slow) var(--ease-out); }
+.st-dotlive { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); animation: st-pulse 1.8s var(--ease-out) infinite; flex: none; }
+.st-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--neutral-400); flex: none; }
+.st-dot.done { background: var(--ok-solid); }
+.st-dot.dead { background: var(--danger-solid); }
+.st-avatar { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--link); font: 600 10.5px var(--font-mono); letter-spacing: 0.02em; flex: none; text-transform: uppercase; }
+.st-disc summary { list-style: none; cursor: pointer; }
+.st-disc summary::-webkit-details-marker { display: none; }
+.st-disc[open] > summary .st-btn-sm { background: var(--surface-sunken); }
+.st-disc .sheet { margin-top: 10px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; display: flex; flex-direction: column; gap: 12px; }
+.st-form { display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+.st-tile { display: flex; flex-direction: column; gap: 8px; padding: 16px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-xs); text-decoration: none; cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.st-tile:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+.st-tile .mark { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; background: var(--surface-sunken); border: 1px solid var(--border-default); font: 600 12px var(--font-mono); color: var(--text-secondary); flex: none; }
+.st-tile .nm { font: 600 13.5px var(--font-ui); color: var(--text-ink); }
+.st-tile .ds { font: 400 12px/1.55 var(--font-ui); color: var(--text-secondary); }
+.st-seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 10px; }
+.st-seg a { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 8px; font: 500 12px var(--font-ui); color: var(--text-secondary); text-decoration: none; white-space: nowrap; }
+.st-seg a:hover { color: var(--text-body); }
+.st-seg a.on { background: var(--surface); color: var(--text-ink); font-weight: 600; box-shadow: var(--shadow-xs); }
+.st-drawer { position: fixed; top: 0; bottom: 0; right: 0; z-index: 101; width: min(430px, 92%); background: var(--surface); border-left: 1px solid var(--border-default); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; animation: st-slide var(--dur-slow) var(--ease-out); }
+.st-drawer .dh { display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px 0; flex: none; }
+.st-drawer .dh h2 { margin: 0; font: 600 16px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.st-drawer .db { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 18px; }
+.st-drawer .df { flex: none; display: flex; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--row-sep); background: var(--surface); }
+.st-x { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; background: transparent; color: var(--text-secondary); border: 1px solid transparent; cursor: pointer; text-decoration: none; margin-left: auto; flex: none; transition: background var(--dur-fast) var(--ease-out); }
+.st-x:hover { background: var(--surface-sunken); color: var(--text-body); }
+.st-grant { display: flex; gap: 10px; align-items: flex-start; }
+.st-grant .gic { display: inline-flex; color: var(--text-muted); flex: none; margin-top: 2px; }
+.st-grant .gt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.st-grant .g1 { font: 500 12.5px var(--font-ui); color: var(--text-ink); display: inline-flex; align-items: center; gap: 8px; }
+.st-grant .g2 { font: 400 12px/1.5 var(--font-ui); color: var(--text-secondary); }
+.st-msg { display: flex; flex-direction: column; gap: 8px; padding: 14px 2px; }
+.st-msg + .st-msg { border-top: 1px solid var(--row-sep); }
+.st-msg .mh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.st-msg .cause { font: 600 12px var(--font-mono); color: var(--text-ink); }
+.st-msg .when { margin-left: auto; font: 400 11px var(--font-mono); color: var(--text-muted); }
+.st-msg .hl { margin: 0; font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.st-msg.unread .hl { font-weight: 500; }
+.st-census { display: flex; flex-direction: column; background: var(--surface-sunken); border-radius: 12px; padding: 6px 14px; }
+.st-census .crow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.st-census .crow + .crow { border-top: 1px solid var(--row-sep); }
+.st-census .k { width: 88px; flex: none; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.st-census .v { font: 500 12.5px var(--font-mono); color: var(--text-ink); overflow-wrap: anywhere; }
+.st-census a.v { color: var(--link); text-decoration: none; }
+.st-census a.v:hover { text-decoration: underline; }
+.st-delrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 400 12.5px var(--font-ui); color: var(--text-secondary); }
+.st-delrow .host { font: 400 12px var(--font-mono); color: var(--text-body); }
+.st-delrow .why { border-bottom: 1px dashed var(--border-strong); cursor: default; color: var(--text-muted); }
+</style>
+<main class="st-main" data-screen-label="Settings">
+<div class="st-side">
+<h1>Settings</h1>
+<nav class="st-nav" aria-label="Settings sections">
+<div class="st-navgroup"><span class="st-micro">Scanning</span>
+<a class="st-navitem{{if eq .Tab "scans"}} on{{end}}" href="/settings?tab=scans"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"></path><path d="M4 6h.01"></path><path d="M2.29 9.62a10 10 0 1 0 19.02-1.27"></path><path d="M16.24 7.76a6 6 0 1 0-8.01 8.91"></path><path d="M12 18h.01"></path><path d="M17.99 11.66a6 6 0 0 1-2.22 5.01"></path><circle cx="12" cy="12" r="2"></circle><path d="m13.41 10.59 5.66-5.66"></path></svg></span>Scans</a>
+<a class="st-navitem{{if eq .Tab "vantages"}} on{{end}}" href="/settings?tab=vantages"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect><rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect><line x1="6" x2="6.01" y1="6" y2="6"></line><line x1="6" x2="6.01" y1="18" y2="18"></line></svg></span>Vantages</a>
+</div>
+<div class="st-navgroup"><span class="st-micro">Access</span>
+<a class="st-navitem{{if eq .Tab "sso"}} on{{end}}" href="/settings?tab=sso"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"></path><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"></circle></svg></span>Single sign-on</a>
+<a class="st-navitem{{if eq .Tab "team"}} on{{end}}" href="/settings?tab=team"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>Team</a>
+<a class="st-navitem{{if eq .Tab "sessions"}} on{{end}}" href="/settings?tab=sessions"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg></span>Sessions</a>
+<a class="st-navitem{{if eq .Tab "audit"}} on{{end}}" href="/settings?tab=audit"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"></path><path d="M15 8h-5"></path><path d="M19 17V5a2 2 0 0 0-2-2H4"></path><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"></path></svg></span>Audit log</a>
+</div>
+<div class="st-navgroup"><span class="st-micro">Discovery</span>
+<a class="st-navitem{{if eq .Tab "sources"}} on{{end}}" href="/settings?tab=sources"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg></span>Sources</a>
+<a class="st-navitem{{if eq .Tab "aperture"}} on{{end}}" href="/settings?tab=aperture"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect></svg></span>Port aperture</a>
+</div>
+<div class="st-navgroup"><span class="st-micro">Instance</span>
+<a class="st-navitem{{if eq .Tab "instance"}} on{{end}}" href="/settings?tab=instance"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg></span>Health</a>
+</div>
+<div class="st-navgroup"><span class="st-micro">Delivery</span>
+<a class="st-navitem{{if eq .Tab "channels"}} on{{end}}" href="/settings?tab=channels"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg></span>Channels</a>
+{{if integrationsEnabled}}<a class="st-navitem{{if eq .Tab "integrations"}} on{{end}}" href="/settings?tab=integrations"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"></path></svg></span>Integrations</a>{{end}}
+<a class="st-navitem{{if eq .Tab "messages"}} on{{end}}" href="/settings?tab=messages"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg></span>Messages</a>
+<a class="st-navitem{{if eq .Tab "delivery"}} on{{end}}" href="/settings?tab=delivery"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"></path><path d="M3 18h.01"></path><path d="M3 6h.01"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M8 6h13"></path></svg></span>Delivery record</a>
+</div>
+</nav>
+</div>
+<div class="st-content">
+{{if .Notice}}<div class="st-callout accent"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span><span class="ct"><span>{{.Notice}}</span></span></div>{{end}}
+{{if eq .Tab "scans"}}{{template "settings-scans" .}}{{end}}
+{{if eq .Tab "vantages"}}{{template "settings-vantages" .}}{{end}}
+{{if eq .Tab "sso"}}{{template "settings-sso" .}}{{end}}
+{{if eq .Tab "team"}}{{template "settings-team" .}}{{end}}
+{{if eq .Tab "sessions"}}{{template "settings-sessions" .}}{{end}}
+{{if eq .Tab "audit"}}{{template "settings-audit" .}}{{end}}
+{{if eq .Tab "sources"}}{{template "settings-sources" .}}{{end}}
+{{if eq .Tab "aperture"}}{{template "settings-aperture" .}}{{end}}
+{{if eq .Tab "instance"}}{{template "settings-instance" .}}{{end}}
+{{if eq .Tab "channels"}}{{template "settings-channels" .}}{{end}}
+{{if integrationsEnabled}}{{if eq .Tab "integrations"}}{{template "settings-integrations" .}}{{end}}{{end}}
+{{if eq .Tab "messages"}}{{template "settings-messages" .}}{{end}}
+{{if eq .Tab "delivery"}}{{template "settings-delivery" .}}{{end}}
+</div>
+</main>
+<script>
+(function(){
+  [].forEach.call(document.querySelectorAll("[data-st-menu]"),function(b){
+    var p=b.parentNode.querySelector(".st-panel");
+    if(!p)return;
+    b.addEventListener("click",function(e){e.stopPropagation();var open=p.hasAttribute("hidden");if(open)p.removeAttribute("hidden");else p.setAttribute("hidden","");b.setAttribute("aria-expanded",open?"true":"false");});
+    document.addEventListener("mousedown",function(e){if(!p.hasAttribute("hidden")&&!p.contains(e.target)&&!b.contains(e.target)){p.setAttribute("hidden","");b.setAttribute("aria-expanded","false");}});
+  });
+  [].forEach.call(document.querySelectorAll("[data-st-copy]"),function(b){
+    b.addEventListener("click",function(){
+      var sel=b.getAttribute("data-st-copy"),src=sel?document.querySelector(sel):null;
+      var v=src?src.textContent:(b.getAttribute("data-st-copy-text")||"");
+      if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(v);else{var ta=document.createElement("textarea");ta.value=v;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(err){}document.body.removeChild(ta);}
+      b.classList.add("ok");var t=b.textContent;b.textContent="copied";setTimeout(function(){b.classList.remove("ok");b.textContent=t;},1600);
+    });
+  });
+  var tn=document.getElementById("st-typed-name");
+  if(tn){var ti=document.querySelector(".st-dialog input.typed"),ts=document.querySelector("[data-st-typed-submit]");
+    if(ti&&ts){ti.addEventListener("input",function(){if(ti.value===tn.textContent)ts.removeAttribute("disabled");else ts.setAttribute("disabled","");});ti.focus();}}
+  var cc=document.getElementById("st-consent-check"),cs=document.querySelector("[data-st-consent-submit]");
+  if(cc&&cs)cc.addEventListener("change",function(){if(cc.checked)cs.removeAttribute("disabled");else cs.setAttribute("disabled","");});
+  var rs=document.getElementById("st-role-select");
+  if(rs){var rb=document.getElementById("st-role-save");
+    rs.addEventListener("change",function(){if(rs.value===rs.getAttribute("data-current"))rb.setAttribute("disabled","");else rb.removeAttribute("disabled");});}
+  document.addEventListener("keydown",function(e){
+    if(e.key!=="Escape")return;
+    var open=false;
+    [].forEach.call(document.querySelectorAll(".st-panel"),function(p){if(!p.hasAttribute("hidden")){p.setAttribute("hidden","");open=true;}});
+    if(open)return;
+    var sc=document.querySelector(".st-scrim");
+    if(sc)window.location=sc.getAttribute("href");
+  });
+})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{/* scans — holes: .Active[{ScanKind,DispatchedAt,Completed,Live,Percent,Jobs[{ID,Kind,Vantage,State,Retrying,Superseded,Attempt,MaxAttempts,Batch}]}] .History[{ScanKind,DispatchedAt,Live,Completed,Dead}] .ColdEnabled .ColdError .ColdScopes[{ID,Scope,IsAddress,OptedIn}] .IsAdmin — calls repo "scantrigger". */}}
+{{define "settings-scans"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Scanning · scans</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Scans</h2>
+<p class="st-lede">What the queue is doing right now. A scan runs as a fan-out of jobs — one per vantage, or per supplied zone file — and each job commits its own batch of observations. This is a read of the queue alone: it records what the system did, never what is true of your estate. Scans run on their own cadence; an admin may also dispatch an enabled one on demand.</p>
+</header>
+{{template "scantrigger" .}}
+<section class="st-card{{if .Active}} flush{{end}}">
+<div class="st-cardhead"{{if .Active}} style="padding-bottom:14px"{{end}}><div class="hd"><span class="st-micro">In flight</span><h3>Running now</h3></div></div>
+{{if .Active}}
+{{range .Active}}
+<div style="padding:0 20px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span class="st-dotlive"></span>
+<span style="font:600 12.5px var(--font-mono);color:var(--text-ink)">{{.ScanKind}}</span>
+<span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">dispatched {{.DispatchedAt}}</span>
+<span style="margin-left:auto;font:400 11.5px var(--font-mono);color:var(--text-secondary)">{{.Completed}} / {{.Live}} jobs · {{.Percent}}%</span>
+</div>
+<div class="st-meter"><span class="fill" style="width:{{.Percent}}%"></span></div>
+</div>
+{{if .Jobs}}
+<table class="st-table">
+<thead><tr><th style="width:70px">Job</th><th>Kind</th><th style="width:120px">Vantage</th><th style="width:130px">State</th><th style="width:90px">Attempt</th><th style="width:170px;text-align:right">Outcome</th></tr></thead>
+<tbody>
+{{range .Jobs}}<tr>
+<td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>#{{.ID}}</td>
+<td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>{{.Kind}}</td>
+<td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>{{if .Vantage}}{{.Vantage}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+<td><span style="display:inline-flex;align-items:center;gap:8px">{{if eq .State "running"}}<span class="st-dotlive"></span><span class="st-badge accent">running</span>{{else if eq .State "ready"}}<span class="st-dot"></span><span class="st-badge neutral">{{if .Retrying}}retrying{{else}}ready{{end}}</span>{{else if eq .State "done"}}<span class="st-dot done"></span><span class="st-badge ok">done</span>{{else if eq .State "dead"}}<span class="st-dot dead"></span><span class="st-badge danger">dead</span>{{else}}<span class="st-dot"></span><span style="color:var(--text-muted)">superseded</span>{{end}}</span></td>
+<td class="mono">{{.Attempt}}/{{.MaxAttempts}}</td>
+<td class="mono" style="text-align:right">{{if .Batch}}<span class="st-tag">{{.Batch}}</span>{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
+{{end}}
+{{else}}
+<div class="st-body"><div class="st-empty" style="padding:24px 12px">
+<span class="msg">No scan running</span>
+<span class="det">Nothing is dispatched right now. When a scan's cadence comes due the worker fans it out, and it appears here with its jobs while it runs. This view refreshes on its own while a scan is in flight.</span>
+</div></div>
+{{end}}
+</section>
+<section class="st-card{{if .History}} flush{{end}}">
+<div class="st-cardhead"{{if .History}} style="padding-bottom:14px"{{end}}><div class="hd"><span class="st-micro">Batches</span><h3>Recent dispatches</h3></div></div>
+{{if .History}}
+<table class="st-table">
+<thead><tr><th style="width:40px"></th><th>Scan</th><th style="width:180px">Dispatched</th><th style="width:70px">Jobs</th><th style="width:100px">Completed</th><th style="width:70px;text-align:right">Dead</th></tr></thead>
+<tbody>
+{{range .History}}<tr>
+<td><span class="st-dot{{if gt .Dead 0}} dead{{else}} done{{end}}"></span></td>
+<td class="mono">{{.ScanKind}}</td>
+<td class="mono">{{.DispatchedAt}}</td>
+<td class="mono">{{.Live}}</td>
+<td class="mono">{{.Completed}}</td>
+<td class="mono" style="text-align:right">{{if gt .Dead 0}}{{.Dead}}{{else}}<span style="color:var(--text-muted)">0</span>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="st-body"><div class="st-empty" style="padding:24px 12px">
+<span class="msg">No dispatches yet</span>
+<span class="det">No scan has been dispatched. Once a scan runs — on its cadence, or on the first batch after onboarding — its completed dispatches are listed here.</span>
+</div></div>
+{{end}}
+</section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Configured · full-range scan</span><h3>Cold tier</h3></div><span style="margin-left:auto">{{if .ColdEnabled}}<span class="st-badge ok"><span class="d"></span>tier on</span>{{else}}<span class="st-badge neutral">tier off — no scope opted in</span>{{end}}</span></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:14px">
+<p class="st-lede" style="max-width:none">The cold scan connects to every TCP port, 1–65535, monthly. It ships <strong>disabled</strong> with no scopes: a full-range sweep runs only where you ask for it, per scope — never at onboarding, never on save. Opting a scope in enables the tier for that scope on its own monthly cadence; opting the last scope out returns it to off. Only Custody-admitted addresses are ever probed, so opting in widens what is measured, never who.</p>
+{{if .ColdError}}<div class="st-error">{{.ColdError}}</div>{{end}}
+{{if .ColdScopes}}
+<div style="display:flex;flex-direction:column;gap:8px">
+{{range .ColdScopes}}
+<div class="st-row">
+<span style="font:500 12px var(--font-mono);color:var(--text-ink)">{{.Scope}}</span>
+<span class="st-tag">{{if .IsAddress}}address{{else}}name{{end}}</span>
+<span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
+{{if .OptedIn}}<span class="st-badge ok"><span class="d"></span>opted in</span>{{else}}<span class="st-badge neutral">off</span>{{end}}
+{{if $.IsAdmin}}<form method="post" action="/settings/cold" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="opt_in" value="{{if .OptedIn}}false{{else}}true{{end}}"><button type="submit" class="st-btn-sm">{{if .OptedIn}}Opt out{{else}}Opt in{{end}}</button></form>{{end}}
+</span>
+</div>
+{{end}}
+</div>
+{{else}}
+<span class="st-note">The full-range tier opts in a declared scope. Declare a name or address scope on <a href="/scope">Scope</a>, then opt it into the cold scan here.</span>
+{{end}}
+</div>
+</div>
+</section>
+{{end}}
+
+{{/* vantages — holes: .Vantages[{Name,Class,Resolver,Latency,Availability,Unverified}] .Probers[{Endpoint,Username,Availability,HostKeyPinned,HostKeyFingerprint,Platform,KeySet,PublicKey,Egress}] .IsAdmin .ProberError .ProberHost .ProberPort .ProberUser */}}
+{{define "settings-vantages"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Scanning · vantages</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Vantages</h2>
+<p class="st-lede">The network positions a scan measures from. A vantage carries a verified class — internet or internal — and the recursive resolver it looks through; provisioning one declares it sits on the internet and opens the Reach and Exposure timelines.</p>
+</header>
+{{if .Vantages}}
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px">
+{{range .Vantages}}
+<section class="st-vcard{{if .Unverified}} unv{{end}}">
+<div style="display:flex;align-items:center;gap:8px">
+<span style="font:600 13px var(--font-mono);color:var(--text-ink);white-space:nowrap;flex:none">{{.Name}}</span>
+<span class="st-tag">{{.Class}}</span>
+</div>
+<div style="display:flex;align-items:center;gap:12px;font:400 11.5px var(--font-mono);color:var(--text-secondary);min-height:20px">
+{{if .Resolver}}<span style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">resolver {{.Resolver}}</span>{{end}}
+{{if .Latency}}<span style="flex:none">{{.Latency}}</span>{{end}}
+<span style="margin-left:auto;flex:none"><span class="st-av {{.Availability}}"><span class="d"></span>{{.Availability}}</span></span>
+</div>
+{{if .Unverified}}<span class="st-note">Unverified — this vantage makes no exposure claims until re-verified.</span>{{end}}
+</section>
+{{end}}
+</div>
+{{else}}
+<section class="st-card"><div class="st-body"><div class="st-empty">
+<span class="msg">No vantage provisioned</span>
+<span class="det">Only the shipped resolver position exists, so the Reach and Exposure timelines have not opened. Provision a prober below to measure from the internet.</span>
+</div></div></section>
+{{end}}
+{{if .Probers}}
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Probers</span><h3>Provisioned internet vantages</h3></div></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:16px">
+<span class="st-note">The worker owns the keypair and generates it out of band; only the public half is published here — the private half never leaves the instance. A host key is pinned on first connection, and a later change is a hard failure, never a prompt.</span>
+{{range $i, $p := .Probers}}
+<div style="display:flex;flex-direction:column;gap:12px;{{if $i}}padding-top:16px;border-top:1px solid var(--row-sep){{end}}">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="font:600 13px var(--font-mono);color:var(--text-ink)">{{$p.Endpoint}}</span>
+<span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">username <span style="color:var(--text-body)">{{$p.Username}}</span></span>
+<span style="margin-left:auto"><span class="st-av {{$p.Availability}}"><span class="d"></span>{{$p.Availability}}</span></span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+{{if $p.HostKeyPinned}}<span class="st-badge ok"><span class="d"></span>host key pinned</span>{{if $p.HostKeyFingerprint}}<span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">{{$p.HostKeyFingerprint}}</span>{{end}}{{else}}<span class="st-badge neutral">awaiting first connection</span>{{end}}
+{{if $p.Platform}}<span class="st-badge ok"><span class="d"></span>{{$p.Platform}} — accepted</span>{{end}}
+</div>
+{{if $p.KeySet}}
+<span class="st-note">Install the <strong>public</strong> key in <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-body)">{{$p.Username}}@{{$p.Endpoint}}</span>'s authorized_keys — the restrict and from= options are already in place.</span>
+<div class="st-code">
+<div class="ttl">authorized_keys</div>
+<pre><code id="st-pub-{{$i}}">{{$p.PublicKey}}</code></pre>
+<button type="button" class="cp" data-st-copy="#st-pub-{{$i}}" aria-label="Copy">copy</button>
+</div>
+{{else}}
+<span class="st-note">Public key not set — the worker has not published one yet.</span>
+{{end}}
+{{if $p.Egress}}
+<div class="st-callout accent">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="ct"><b>Its egress is {{$p.Egress}}</b><span>Observed from SSH_CLIENT on first connection. Declare it as an address scope on <a href="/scope">Scope</a> so the estate knows its own outbound address.</span></span>
+</div>
+{{end}}
+</div>
+{{end}}
+<span class="st-note">A host that is not Linux on x86_64/aarch64 is refused, with the reason.</span>
+</div>
+</div>
+</section>
+{{end}}
+{{if .IsAdmin}}
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Probers</span><h3>Provision an internet vantage</h3></div></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:14px">
+{{if .ProberError}}<div class="st-error">{{.ProberError}}</div>{{end}}
+<form method="post" action="/settings/probers" style="margin:0;display:grid;grid-template-columns:2fr 90px 1.4fr auto;gap:12px;align-items:end">
+<span class="st-input"><span class="lb">Host</span><span class="iw"><input name="host" value="{{.ProberHost}}" placeholder="probe-1.example.net" autocomplete="off" spellcheck="false" required></span></span>
+<span class="st-input"><span class="lb">Port</span><span class="iw"><input name="port" value="{{if .ProberPort}}{{.ProberPort}}{{else}}22{{end}}" autocomplete="off"></span></span>
+<span class="st-input"><span class="lb">Username</span><span class="iw"><input name="username" value="{{.ProberUser}}" placeholder="verge" autocomplete="off" spellcheck="false" required></span></span>
+<button type="submit" class="st-btn pri">Provision</button>
+</form>
+<span class="st-note">Four non-secret values; the instance generates the keypair and publishes only the public half above. Don't hand-roll the host — deploy/prober/ is the hardened compose recipe.</span>
+</div>
+</div>
+</section>
+{{end}}
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Reach</span><h3>What a vantage can conclude</h3></div></div>
+<div class="st-body">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span class="st-av exposed" style="height:20px;padding:0 9px;font-size:10.5px;background:var(--danger-soft);border:1px solid var(--danger-border);color:var(--danger)">exposed</span>
+<span class="st-av firewalled" style="height:20px;padding:0 9px;font-size:10.5px;background:var(--ok-soft);border:1px solid var(--ok-border);color:var(--ok)">firewalled</span>
+<span class="st-av" style="height:20px;padding:0 9px;font-size:10.5px;background:var(--surface-sunken);border:1px solid var(--border-default);color:var(--text-secondary)">not reached</span>
+<span class="st-av unverified" style="height:20px;padding:0 9px;font-size:10.5px">unverified</span>
+<span class="st-note">states, never a score — concluded across two reach legs</span>
+</div>
+</div>
+</section>
+{{end}}
+
+{{/* sso — holes: .SSOError .SSOProviders[{ID,Name,Slug,Issuer,ClientID,HasSecret,Enabled,CreatedBy,CreatedAt}] .SSOName .SSOSlug .SSOIssuer .SSOClientID .SSOBindings[{ID,ProviderName,Account,DisplayName,LinkedAt}] .IsAdmin */}}
+{{define "settings-sso"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Access · single sign-on</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Single sign-on</h2>
+<p class="st-lede">Sign-on via <strong>OpenID Connect</strong>. A provider authenticates an existing account by a linked, verified identity — bound to the provider's stable subject, never a mutable username — and never creates accounts; header-trust reverse-proxy auth stays refused. A user links a provider from their own <a href="/profile">Profile</a>; each enabled provider renders a button on the sign-in screen, and accounts can still sign in with a password and two-factor.</p>
+</header>
+{{if .SSOError}}<div class="st-error">{{.SSOError}}</div>{{end}}
+<section class="st-card{{if .SSOProviders}} flush{{end}}">
+<div class="st-cardhead"{{if .SSOProviders}} style="padding-bottom:14px"{{end}}><div class="hd"><span class="st-micro">OpenID Connect</span><h3>Identity providers</h3></div></div>
+{{if .SSOProviders}}
+<table class="st-table">
+<thead><tr><th>Provider</th><th>Issuer</th><th style="width:150px">Client</th><th style="width:80px">Secret</th><th style="width:96px">State</th><th style="width:150px">Declared by</th>{{if .IsAdmin}}<th style="width:70px"></th>{{end}}</tr></thead>
+<tbody>
+{{range .SSOProviders}}<tr>
+<td><span style="font:500 13px var(--font-ui);color:var(--text-ink)">{{.Name}}</span> <span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">/{{.Slug}}</span></td>
+<td class="mono" style="overflow:hidden;text-overflow:ellipsis;max-width:220px">{{.Issuer}}</td>
+<td class="mono">{{.ClientID}}</td>
+<td>{{if .HasSecret}}<span class="st-badge ok">set</span>{{else}}<span style="color:var(--text-muted)">none</span>{{end}}</td>
+<td>{{if .Enabled}}<span class="st-badge ok"><span class="d"></span>enabled</span>{{else}}<span class="st-badge neutral">disabled</span>{{end}}</td>
+<td class="mono">{{.CreatedBy}}<br><span style="color:var(--text-muted)">{{.CreatedAt}}</span></td>
+{{if $.IsAdmin}}<td style="overflow:visible">
+<details class="st-disc" style="position:relative">
+<summary><span class="st-btn-sm">Edit</span></summary>
+<div class="sheet" style="position:absolute;right:0;z-index:95;width:340px;box-shadow:var(--shadow-md);border:1px solid var(--border-default);background:var(--surface-raised)">
+<form method="post" action="/settings/sso/update" style="margin:0;display:flex;flex-direction:column;gap:10px">
+<input type="hidden" name="id" value="{{.ID}}">
+<span class="st-input"><span class="lb">Display name</span><span class="iw"><input name="name" value="{{.Name}}" required></span></span>
+<span class="st-input"><span class="lb">Slug</span><span class="iw"><input name="slug" value="{{.Slug}}" required></span></span>
+<span class="st-input"><span class="lb">Issuer URL</span><span class="iw"><input name="issuer" value="{{.Issuer}}" required></span></span>
+<span class="st-input"><span class="lb">Client ID</span><span class="iw"><input name="client_id" value="{{.ClientID}}" autocomplete="off" required></span></span>
+<label class="st-check"><input type="checkbox" name="enabled"{{if .Enabled}} checked{{end}}><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>enabled</label>
+<div><button type="submit" class="st-btn-sm">Save provider</button></div>
+</form>
+<form method="post" action="/settings/sso/secret" style="margin:0;display:flex;flex-direction:column;gap:10px">
+<input type="hidden" name="id" value="{{.ID}}">
+<span class="st-input"><span class="lb">Replace client secret</span><span class="iw"><input name="client_secret" type="password" autocomplete="off" placeholder="{{if .HasSecret}}set — leave blank to keep{{else}}not set — leave blank for none{{end}}"></span></span>
+{{if .HasSecret}}<label class="st-check"><input type="checkbox" name="clear_secret"><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>clear the secret</label>{{end}}
+<div><button type="submit" class="st-btn-sm">Update secret</button></div>
+</form>
+<form method="post" action="/settings/sso/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm" style="color:var(--danger);border-color:var(--danger-border)">Remove provider</button></form>
+</div>
+</details>
+</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="st-body"><div class="st-empty">
+<span class="msg">No identity provider configured</span>
+<span class="det">Nothing is configured, so the sign-in screen offers no single-sign-on button and accounts sign in with a password and two-factor. Add an OpenID Connect provider below to enable SSO.</span>
+</div></div>
+{{end}}
+</section>
+{{if .IsAdmin}}
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">New provider</span><h3>Add an OpenID Connect provider</h3></div></div>
+<div class="st-body">
+<form method="post" action="/settings/sso" class="st-form" style="margin:0">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<span class="st-input"><span class="lb">Display name</span><span class="iw"><input name="name" value="{{.SSOName}}" placeholder="Okta" required></span></span>
+<span class="st-input"><span class="lb">Slug</span><span class="iw"><input name="slug" value="{{.SSOSlug}}" placeholder="okta" autocomplete="off" required></span></span>
+</div>
+<span class="st-input"><span class="lb">Issuer URL</span><span class="iw"><input name="issuer" value="{{.SSOIssuer}}" placeholder="https://example.okta.com" autocomplete="off" required></span></span>
+<span class="st-input"><span class="lb">Client ID</span><span class="iw"><input name="client_id" value="{{.SSOClientID}}" autocomplete="off" required></span></span>
+<span class="st-input"><span class="lb">Client secret (optional)</span><span class="iw"><input name="client_secret" type="password" autocomplete="off" placeholder="confidential clients only — never shown again"></span></span>
+<div><button type="submit" class="st-btn pri">Add provider</button></div>
+</form>
+</div>
+</section>
+{{end}}
+<section class="st-card{{if .SSOBindings}} flush{{end}}">
+<div class="st-cardhead"{{if .SSOBindings}} style="padding-bottom:14px"{{end}}><div class="hd"><span class="st-micro">Linked identities</span><h3>Who signs in with what</h3></div></div>
+{{if .SSOBindings}}
+<div style="padding:0 20px 8px"><span class="st-note">Every verified identity bound to a local account. Users link their own from their Profile; remove one here to offboard a departed user or reclaim a reassigned seat — the identity can no longer sign in as that account.</span></div>
+<table class="st-table">
+<thead><tr><th>Provider</th><th>Account</th><th>Identity</th><th style="width:120px">Linked</th><th style="width:90px"></th></tr></thead>
+<tbody>
+{{range .SSOBindings}}<tr>
+<td>{{.ProviderName}}</td>
+<td class="mono">{{.Account}}</td>
+<td class="mono">{{if .DisplayName}}{{.DisplayName}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+<td class="mono">{{.LinkedAt}}</td>
+<td style="text-align:right"><form method="post" action="/settings/sso/identity/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm">Remove</button></form></td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="st-body"><span class="st-note">No identities are linked yet. A user links one from their Profile once a provider is enabled.</span></div>
+{{end}}
+</section>
+{{end}}
+
+{{/* team — holes: .TeamError .RoleError .RemoveError .Members[{ID,Username,Initials,Role,TotpEnabled,At,IsSelf}] .IsAdmin .RoleTarget{ID,Username,Role} .ReenrollTarget{ID,Username} .RemoveTarget{ID,Username} .InviteOpen .InviteRole .InviteLink */}}
+{{define "settings-team"}}
+<header style="display:flex;align-items:flex-start;gap:16px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Access · team</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Who can sign in</h2>
+</div>
+{{if .IsAdmin}}<a class="st-btn pri" style="margin-left:auto" href="/settings?tab=team&invite=1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"></path><circle cx="10" cy="8" r="5"></circle><path d="M19 16v6"></path><path d="M22 19h-6"></path></svg>Invite</a>{{end}}
+</header>
+{{if .TeamError}}<div class="st-error">{{.TeamError}}</div>{{end}}
+{{if .RoleError}}<div class="st-error">{{.RoleError}}</div>{{end}}
+<section class="st-card flush">
+<div class="st-cardhead" style="padding-bottom:14px"><div class="hd"><span class="st-micro">Members</span><h3>Accounts</h3></div></div>
+<table class="st-table">
+<thead><tr><th>Member</th><th style="width:110px">Role</th><th style="width:152px">Two-factor</th><th style="width:140px">Member since</th>{{if .IsAdmin}}<th style="width:58px"></th>{{end}}</tr></thead>
+<tbody>
+{{range .Members}}<tr>
+<td><span style="display:inline-flex;align-items:center;gap:10px"><span class="st-avatar">{{.Initials}}</span><span class="mono" style="font-size:12.5px;font-family:var(--font-mono)">{{.Username}}{{if .IsSelf}} <span style="color:var(--text-muted)">(you)</span>{{end}}</span></span></td>
+<td><span class="st-tag">{{.Role}}</span></td>
+<td>{{if .TotpEnabled}}<span class="st-badge ok"><span class="d"></span>enrolled</span>{{else}}<span class="st-badge warn"><span class="d"></span>not enrolled</span>{{end}}</td>
+<td class="mono">{{if .At}}{{.At}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+{{if $.IsAdmin}}<td style="text-align:right;overflow:visible">{{if not .IsSelf}}
+<span class="st-pop">
+<button type="button" class="st-kebab" data-st-menu aria-haspopup="menu" aria-expanded="false" aria-label="Member actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></button>
+<div class="st-panel" hidden role="menu">
+<a class="st-mi" role="menuitem" href="/settings?tab=team&role={{.ID}}"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path></svg></span>Change role</a>
+<a class="st-mi" role="menuitem" href="/settings?tab=team&reenroll={{.ID}}"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"></path><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"></circle></svg></span>Require re-enrollment</a>
+<div class="st-sep"></div>
+<a class="st-mi danger" role="menuitem" href="/settings?tab=team&remove={{.ID}}"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 11.873-7"></path><circle cx="10" cy="8" r="5"></circle><path d="M17 17h6"></path></svg></span>Remove member</a>
+</div>
+</span>
+{{end}}</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+</section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Roles</span><h3>What each role can do</h3></div></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:12px"><span style="width:76px;flex:none"><span class="st-tag">admin</span></span><span style="font:400 12.5px/1.6 var(--font-ui);color:var(--text-body)">performs declared acts — seeds, scans, channels, annotations, team, instance</span></div>
+<div style="display:flex;align-items:baseline;gap:12px"><span style="width:76px;flex:none"><span class="st-tag">viewer</span></span><span style="font:400 12.5px/1.6 var(--font-ui);color:var(--text-body)">reads everything, changes nothing — including the sources catalogue</span></div>
+</div>
+</div>
+</section>
+{{with .RoleTarget}}
+<a class="st-scrim" href="/settings?tab=team" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Change role">
+<h2>Change role</h2>
+<p class="desc" style="font-family:var(--font-mono);font-size:12.5px">{{.Username}}</p>
+<form method="post" action="/settings/accounts/role" style="margin:16px 0 0;display:flex;flex-direction:column;gap:12px">
+<input type="hidden" name="id" value="{{.ID}}">
+<span class="st-input"><span class="lb">Role</span>
+<select id="st-role-select" name="role" data-current="{{.Role}}" style="height:36px;padding:0 12px;background:var(--surface);color:var(--text-ink);font:400 13px var(--font-ui);border:1px solid var(--border-default);border-radius:12px;outline:none">
+<option value="admin"{{if eq .Role "admin"}} selected{{end}}>admin — declared acts</option>
+<option value="viewer"{{if eq .Role "viewer"}} selected{{end}}>viewer — read-only</option>
+</select></span>
+<div class="acts">
+<a class="st-btn ghost" href="/settings?tab=team">Cancel</a>
+<button id="st-role-save" type="submit" class="st-btn pri" disabled>Save role</button>
+</div>
+</form>
+</div></div>
+{{end}}
+{{with .ReenrollTarget}}
+<a class="st-scrim" href="/settings?tab=team" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Require re-enrollment">
+<h2>Require re-enrollment</h2>
+<p class="desc" style="font-family:var(--font-mono);font-size:12.5px">{{.Username}}</p>
+<p class="detail">Their current authenticator stops working immediately; the next sign-in walks them through two-factor setup again. Active sessions stay signed in.</p>
+<div class="acts">
+<a class="st-btn ghost" href="/settings?tab=team">Cancel</a>
+<form method="post" action="/settings/accounts/reenroll" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn sec">Require re-enrollment</button></form>
+</div>
+</div></div>
+{{end}}
+{{with .RemoveTarget}}
+<a class="st-scrim" href="/settings?tab=team" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Remove member">
+<h2>Remove member</h2>
+<p class="desc">{{.Username}} loses access to this deployment.</p>
+<p class="detail">Their annotations and audit history stay attributed. Personal API tokens are revoked.</p>
+{{if $.RemoveError}}<div class="st-error" style="margin-top:12px">{{$.RemoveError}}</div>{{end}}
+<form method="post" action="/settings/accounts/remove" style="margin:16px 0 0;display:flex;flex-direction:column;gap:6px">
+<input type="hidden" name="id" value="{{.ID}}">
+<span style="font:400 12.5px var(--font-ui);color:var(--text-secondary)">Type <span id="st-typed-name" style="font:600 12px var(--font-mono);color:var(--text-ink)">{{.Username}}</span> to confirm.</span>
+<input class="typed" name="confirm_name" autocomplete="off" spellcheck="false" required aria-label="Type the username to confirm">
+<div class="acts">
+<a class="st-btn ghost" href="/settings?tab=team">Cancel</a>
+<button type="submit" class="st-btn danger" disabled data-st-typed-submit>Remove member</button>
+</div>
+</form>
+</div></div>
+{{end}}
+{{if .InviteOpen}}
+<a class="st-scrim" href="/settings?tab=team" aria-label="Close"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Invite a member">
+{{if .InviteLink}}
+<h2>Copy the join link now</h2>
+<div class="st-callout warn" style="margin:16px 0 0">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span>
+<span class="ct"><b>Shown once</b><span>Hand it to the invitee out of band. Verge keeps only a hash, so it cannot be shown again.</span></span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-top:14px">
+<code id="st-invite-link" style="flex:1;min-width:0;word-break:break-all;background:var(--surface-sunken);border:1px solid var(--border-default);border-radius:10px;padding:10px 12px;font:400 12px/1.5 var(--font-mono);color:var(--text-body)">{{.InviteLink}}</code>
+<button type="button" class="st-btn-sm" style="flex:none" data-st-copy="#st-invite-link">Copy</button>
+</div>
+<p class="detail" style="font-size:12px;color:var(--text-muted)">The role applies on acceptance; the link expires in 7 days.</p>
+<div class="acts"><a class="st-btn pri" href="/settings?tab=team">Done</a></div>
+{{else}}
+<h2>Invite a member</h2>
+<p class="desc">They get a join link; the role applies on acceptance. This build has no mail, so you hand the link over out of band.</p>
+{{if .TeamError}}<div class="st-error" style="margin-top:12px">{{.TeamError}}</div>{{end}}
+<form method="post" action="/settings/accounts" style="margin:16px 0 0;display:flex;flex-direction:column;gap:12px">
+<span class="st-input"><span class="lb">Role</span>
+<select name="role" style="height:36px;padding:0 12px;background:var(--surface);color:var(--text-ink);font:400 13px var(--font-ui);border:1px solid var(--border-default);border-radius:12px;outline:none">
+<option value="viewer"{{if eq .InviteRole "viewer"}} selected{{end}}>viewer — read-only</option>
+<option value="admin"{{if eq .InviteRole "admin"}} selected{{end}}>admin — declared acts</option>
+</select></span>
+<div class="acts">
+<a class="st-btn ghost" href="/settings?tab=team">Cancel</a>
+<button type="submit" class="st-btn pri">Create invite</button>
+</div>
+</form>
+{{end}}
+</div></div>
+{{end}}
+{{end}}
+
+{{/* sessions — holes: .Sessions[{ID,AccountID,Account,Role,Device,IP,LastSeen,Current}] .IsAdmin .RevokeSessionTarget{ID,Account,Device,IP} .RevokeAccountTarget{AccountID,Username} .RevokeAccountError */}}
+{{define "settings-sessions"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Access · sessions</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Active sessions</h2>
+<p class="st-lede">Every account's live sessions across this deployment, newest activity first. Revoking one signs that browser out at once — its next request lands on the sign-in screen. Your own sessions live on your <a href="/profile">profile</a>.</p>
+</header>
+<section class="st-card{{if .Sessions}} flush{{end}}">
+{{if .Sessions}}
+<table class="st-table">
+<thead><tr><th>Account</th><th style="width:96px">Role</th><th style="width:170px">Device</th><th style="width:140px">IP</th><th style="width:100px">Last active</th>{{if .IsAdmin}}<th style="width:84px"></th>{{end}}</tr></thead>
+<tbody>
+{{range .Sessions}}<tr>
+<td class="mono">{{.Account}}{{if .Current}} <span style="color:var(--text-muted)">(you)</span>{{end}}</td>
+<td><span class="st-badge neutral">{{.Role}}</span></td>
+<td>{{.Device}}</td>
+<td class="mono">{{.IP}}</td>
+<td class="mono">{{.LastSeen}}</td>
+{{if $.IsAdmin}}<td style="text-align:right;overflow:visible">{{if not .Current}}
+<span style="display:inline-flex;gap:4px;align-items:center">
+<a class="st-kebab" href="/settings?tab=sessions&revoke={{.ID}}" aria-label="Revoke session" title="Revoke session"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg></a>
+<span class="st-pop">
+<button type="button" class="st-kebab" data-st-menu aria-haspopup="menu" aria-expanded="false" aria-label="More"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></button>
+<div class="st-panel" hidden role="menu">
+<a class="st-mi danger" role="menuitem" href="/settings?tab=sessions&revoke-account={{.AccountID}}"><span class="mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m4.9 4.9 14.2 14.2"></path></svg></span>Revoke all for {{.Account}}</a>
+</div>
+</span>
+</span>
+{{end}}</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="st-body"><div class="st-empty">
+<span class="msg">No active sessions</span>
+<span class="det">No account has a live session right now. A session opens when someone signs in and stays listed here until it is revoked or expires.</span>
+</div></div>
+{{end}}
+</section>
+{{with .RevokeSessionTarget}}
+<a class="st-scrim" href="/settings?tab=sessions" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Revoke session">
+<h2>Revoke this session</h2>
+<p class="detail">{{.Account}}'s session on <span style="font-family:var(--font-mono);font-size:12.5px">{{.Device}}</span> from <span style="font-family:var(--font-mono);font-size:12.5px">{{.IP}}</span> is signed out immediately.</p>
+<p class="detail" style="color:var(--text-secondary)">Its next request lands on the sign-in screen. The account's other sessions are unaffected.</p>
+<div class="acts">
+<a class="st-btn ghost" href="/settings?tab=sessions">Cancel</a>
+<form method="post" action="/settings/sessions/revoke" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn danger">Revoke session</button></form>
+</div>
+</div></div>
+{{end}}
+{{with .RevokeAccountTarget}}
+<a class="st-scrim" href="/settings?tab=sessions" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Revoke all sessions">
+<h2>Revoke every session for {{.Username}}</h2>
+<p class="detail">Every live session {{.Username}} holds is signed out immediately.</p>
+<p class="detail" style="color:var(--text-secondary)">Their membership, role and personal tokens are unaffected; remove the member on <a href="/settings?tab=team" style="color:var(--link)">Team</a> to fully offboard.</p>
+{{if $.RevokeAccountError}}<div class="st-error" style="margin-top:12px">{{$.RevokeAccountError}}</div>{{end}}
+<form method="post" action="/settings/sessions/revoke-account" style="margin:16px 0 0;display:flex;flex-direction:column;gap:6px">
+<input type="hidden" name="account_id" value="{{.AccountID}}">
+<span style="font:400 12.5px var(--font-ui);color:var(--text-secondary)">Type <span id="st-typed-name" style="font:600 12px var(--font-mono);color:var(--text-ink)">{{.Username}}</span> to confirm.</span>
+<input class="typed" name="confirm_name" autocomplete="off" spellcheck="false" required aria-label="Type the username to confirm">
+<div class="acts">
+<a class="st-btn ghost" href="/settings?tab=sessions">Cancel</a>
+<button type="submit" class="st-btn danger" disabled data-st-typed-submit>Revoke all sessions</button>
+</div>
+</form>
+</div></div>
+{{end}}
+{{end}}
+
+{{/* audit — holes: .AuditRows[{When,Actor,Action,Subject}] (nullable) */}}
+{{define "settings-audit"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Access · operational record</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Audit log</h2>
+<p class="st-lede">Who did what, when. This build keeps no separate queryable log of admin acts — source enablement, for one, keeps no log line of its own and is dated by the batch whose recorded source set it moved.</p>
+</header>
+{{if .AuditRows}}
+<section class="st-card flush">
+<table class="st-table">
+<thead><tr><th style="width:160px">When</th><th style="width:170px">Actor</th><th style="width:170px">Action</th><th>Subject</th></tr></thead>
+<tbody>
+{{range .AuditRows}}<tr>
+<td class="mono">{{.When}}</td><td class="mono">{{.Actor}}</td><td class="mono">{{.Action}}</td><td class="mono">{{.Subject}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+</section>
+{{else}}
+<section class="st-card"><div class="st-body"><div class="st-empty">
+<span class="msg">No audit log</span>
+<span class="det">The operational records this build does keep are the <a href="/settings?tab=delivery">delivery record</a> and the <a href="/settings?tab=messages">message store</a> — each fact is legible where it fired.</span>
+</div></div></section>
+{{end}}
+{{end}}
+
+{{/* sources — holes: .SourceError .Unencumbered/.OperatorAccepted/.Barred[{ID,Name,Kind,What,On}] .IsAdmin .Consent{ID,Name,Terms[]} (PRG ?consent={id}) */}}
+{{define "settings-sources"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Discovery · sources</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Sources</h2>
+<p class="st-lede">A source admits subjects on its own authority; a proposer only answers an org-name search with address scopes — nothing joins the estate until you confirm it into a seed. Consent tiers are release-authored.</p>
+</header>
+{{if .SourceError}}<div class="st-error">{{.SourceError}}</div>{{end}}
+<div class="st-callout">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="ct"><b>Toggling is admin-only</b><span>Every account can read this catalogue. Enabling or disabling is an admin act — it keeps no log line of its own; it is dated by the batch whose recorded source set it moved.</span></span>
+</div>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">unencumbered</span><h3>Shipped on</h3></div></div>
+<div class="st-body"><div style="display:flex;flex-direction:column;gap:8px">
+{{range .Unencumbered}}
+<div class="st-row">
+<span style="font:500 13px var(--font-ui);color:var(--text-ink)">{{.Name}}</span>
+<span class="st-tag">{{.Kind}}</span>
+<span class="st-note">{{.What}}</span>
+<span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
+<span class="st-badge ok">unencumbered</span>
+{{if $.IsAdmin}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="{{if .On}}false{{else}}true{{end}}"><button type="submit" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}" class="st-switch{{if .On}} on{{end}}" aria-label="{{if .On}}Disable{{else}}Enable{{end}} {{.Name}}"><span class="knob"></span></button></form>{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
+</span>
+</div>
+{{end}}
+</div></div>
+</section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">operator-accepted</span><h3>Ship off — accept the terms</h3></div></div>
+<div class="st-body"><div style="display:flex;flex-direction:column;gap:8px">
+{{range .OperatorAccepted}}
+<div class="st-row">
+<span style="font:500 13px var(--font-ui);color:var(--text-ink)">{{.Name}}</span>
+<span class="st-tag">{{.Kind}}</span>
+<span class="st-note">{{.What}}</span>
+<span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
+<span class="st-badge warn">operator-accepted</span>
+{{if $.IsAdmin}}{{if .On}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="false"><button type="submit" role="switch" aria-checked="true" class="st-switch on" aria-label="Disable {{.Name}}"><span class="knob"></span></button></form>{{else}}<a href="/settings?tab=sources&consent={{.ID}}" role="switch" aria-checked="false" class="st-switch" aria-label="Enable {{.Name}} — accept the terms" style="text-decoration:none"><span class="knob"></span></a>{{end}}{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
+</span>
+</div>
+{{end}}
+</div></div>
+</section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">barred</span><h3>Not run for anyone</h3></div></div>
+<div class="st-body"><div style="display:flex;flex-direction:column;gap:8px">
+{{range .Barred}}
+<div class="st-row">
+<span style="font:500 13px var(--font-ui);color:var(--text-ink)">{{.Name}}</span>
+<span class="st-tag">{{.Kind}}</span>
+{{if .What}}<span class="st-note">{{.What}}</span>{{end}}
+<span style="margin-left:auto"><span class="st-badge neutral">barred — excluded on terms</span></span>
+</div>
+{{end}}
+</div></div>
+</section>
+{{with .Consent}}
+<a class="st-scrim" href="/settings?tab=sources" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Enable {{.Name}}">
+<h2>Enable {{.Name}}</h2>
+<p class="desc">The project could not clear these terms on your behalf. Your acceptance, your reading.</p>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+{{range .Terms}}
+<div style="display:flex;gap:10px;align-items:flex-start">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M20 6 9 17l-5-5"></path></svg>
+<span style="font:400 12.5px/1.6 var(--font-ui);color:var(--text-body)">{{.}}</span>
+</div>
+{{end}}
+</div>
+<form method="post" action="/settings/sources" style="margin:16px 0 0;display:flex;flex-direction:column;gap:14px">
+<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="enable" value="true">
+<input type="hidden" name="accept_terms" value="true">
+<label class="st-check"><input type="checkbox" id="st-consent-check"><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>I accept these terms</label>
+<div class="acts" style="margin-top:0">
+<a class="st-btn ghost" href="/settings?tab=sources">Cancel</a>
+<button type="submit" class="st-btn pri" disabled data-st-consent-submit>Accept and enable</button>
+</div>
+</form>
+</div></div>
+{{end}}
+{{end}}
+
+{{/* aperture — holes: .UDPCount .Counts{Sensitive,Frequency,Union,TCP,UDP} .Sensitive[{Port,Transport,Service}] .Frequency[{Port,AlsoSensitive,Edited,EditAction}] .VCError .VCPort .IsAdmin */}}
+{{define "settings-aperture"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Discovery · port aperture</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Port aperture</h2>
+<p class="st-lede">The daily hot-tier port set the census walks: the union of a release-authored <em>sensitive</em> tier and an operator-editable <em>frequency</em> tier, plus any port previously seen on the subject. Only the TCP pairs are probed; the {{.UDPCount}} UDP pairs are recorded in scope and never probed.</p>
+</header>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">verge-core</span><h3>Sensitive tier</h3></div><span style="margin-left:auto"><span class="st-badge neutral">locked</span></span></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+{{range .Sensitive}}<span style="display:inline-flex;align-items:center;gap:7px;padding:5px 10px;background:var(--surface-sunken);border:1px solid var(--border-default);border-radius:999px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span style="font:500 12px var(--font-mono);color:var(--text-ink)">:{{.Port}}</span>{{if .Service}}<span style="font:400 11px var(--font-mono);color:var(--text-muted)">{{.Service}}</span>{{end}}</span>{{end}}
+</div>
+<div class="st-callout">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+<span class="ct"><b>Not editable, on purpose</b><span>A port you can hide is a signal you can silence. The sensitive tier is release-authored and moves only with the release — {{.Counts.Sensitive}} pairs, and there is no control to move one.</span></span>
+</div>
+</div>
+</div>
+</section>
+<section class="st-card{{if .Frequency}} flush{{end}}">
+<div class="st-cardhead" style="padding-bottom:14px"><div class="hd"><span class="st-micro">verge-core</span><h3>Frequency tier</h3></div></div>
+<div style="padding:0 20px 14px;display:flex;flex-direction:column;gap:12px">
+<span class="st-note">{{.Counts.Frequency}} TCP ports. Admins may widen or narrow this tier. A port also on the sensitive tier stays probed even if you remove it here — the union keeps it. Union: {{.Counts.Union}} pairs ({{.Counts.TCP}} TCP, {{.Counts.UDP}} UDP).</span>
+{{if .VCError}}<div class="st-error">{{.VCError}}</div>{{end}}
+{{if .IsAdmin}}
+<form method="post" action="/verge-core/frequency" style="margin:0;display:flex;gap:8px;align-items:flex-end">
+<input type="hidden" name="action" value="add">
+<span class="st-input" style="width:200px"><span class="lb">Add a frequency port</span><span class="iw"><input name="port" inputmode="numeric" value="{{.VCPort}}" placeholder="8443" autocomplete="off" required></span></span>
+<button type="submit" class="st-btn sec">Add to frequency</button>
+</form>
+{{end}}
+</div>
+{{if .Frequency}}
+<table class="st-table">
+<thead><tr><th style="width:110px">Port</th><th style="width:140px">Also sensitive</th><th>Edit</th>{{if .IsAdmin}}<th style="width:170px"></th>{{end}}</tr></thead>
+<tbody>
+{{range .Frequency}}<tr>
+<td class="mono">:{{.Port}}/tcp</td>
+<td>{{if .AlsoSensitive}}<span class="st-badge neutral">sensitive</span>{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+<td>{{if .Edited}}<span class="st-badge accent">{{.EditAction}}</span>{{else}}<span style="color:var(--text-muted)">shipped</span>{{end}}</td>
+{{if $.IsAdmin}}<td style="text-align:right"><span style="display:inline-flex;gap:6px">
+<form method="post" action="/verge-core/frequency" style="margin:0"><input type="hidden" name="action" value="remove"><input type="hidden" name="port" value="{{.Port}}"><button type="submit" class="st-btn-sm">Remove</button></form>
+{{if .Edited}}<form method="post" action="/verge-core/frequency" style="margin:0"><input type="hidden" name="action" value="reset"><input type="hidden" name="port" value="{{.Port}}"><button type="submit" class="st-btn-sm">Reset</button></form>{{end}}
+</span></td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
+</section>
+{{end}}
+
+{{/* instance — holes: .Instance{Update{Version,Notes},Version,License,Uptime,QueueDepth,DiskPct,DiskDetail,PgLabel,PgDetail,Vantages[{Name,Latency,Avail}]} */}}
+{{define "settings-instance"}}
+{{with .Instance}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Instance · health</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Health</h2>
+</header>
+{{with .Update}}
+<div class="st-callout accent">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg></span>
+<span class="ct"><b>Update available — {{.Version}}</b><span>{{.Notes}} Update from the host: <code>verge self-update</code></span></span>
+</div>
+{{end}}
+<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
+<section class="st-card"><div class="st-body" style="display:flex;flex-direction:column;gap:4px"><span class="st-micro">Version</span><span style="font:600 28px var(--font-mono);color:var(--text-ink);line-height:1.1">{{.Version}}</span><span class="st-note">{{.License}}</span></div></section>
+<section class="st-card"><div class="st-body" style="display:flex;flex-direction:column;gap:4px"><span class="st-micro">Uptime</span><span style="font:600 28px var(--font-mono);color:var(--text-ink);line-height:1.1">{{.Uptime}}</span><span class="st-note">since last restart</span></div></section>
+<section class="st-card"><div class="st-body" style="display:flex;flex-direction:column;gap:4px"><span class="st-micro">Queue depth</span><span style="font:600 28px var(--font-mono);color:var(--text-ink);line-height:1.1">{{.QueueDepth}}</span><span class="st-note">subjects waiting</span></div></section>
+</div>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Host</span><h3>Storage &amp; database</h3></div></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font:500 12.5px var(--font-ui);color:var(--text-body)">Disk</span><span style="margin-left:auto;font:400 11.5px var(--font-mono);color:var(--text-secondary)">{{.DiskDetail}}</span></div>
+<div class="st-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{.DiskPct}}"><span class="fill" style="width:{{.DiskPct}}%"></span></div>
+</div>
+<div style="display:flex;align-items:center;gap:10px">
+<span class="st-dot done"></span>
+<span style="font:400 12.5px var(--font-ui);color:var(--text-secondary)">{{.PgLabel}}</span>
+<span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">{{.PgDetail}}</span>
+</div>
+</div>
+</div>
+</section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Fleet</span><h3>Vantages</h3></div></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:10px">
+{{range .Vantages}}
+<div style="display:flex;align-items:center;gap:10px">
+<span style="font:500 12.5px var(--font-mono);color:var(--text-ink)">{{.Name}}</span>
+<span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px">
+<span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">{{if .Latency}}{{.Latency}}{{else}}—{{end}}</span>
+<span class="st-av {{.Avail}}"><span class="d"></span>{{.Avail}}</span>
+</span>
+</div>
+{{end}}
+</div>
+</div>
+</section>
+{{end}}
+{{end}}
+
+{{/* channels — holes: .ChanError .Channels[{ID,URL,Classes[],ClassStates[{Name,Checked}],HasSecret,Enabled,By,At}] .ClassOptions[{Name,Checked}] .ChanURL .IsAdmin (#26f — class vocabulary from the store) */}}
+{{define "settings-channels"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Delivery · channels</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Channels</h2>
+<p class="st-lede">A channel is where messages go: an absolute <span style="font-family:var(--font-mono);font-size:12px">https</span> URL, an optional signing secret, and the subset of classes it carries. None ships configured, and a channel is one-way — it grants no read of anything. Routing is by class and nothing finer.</p>
+</header>
+{{if .ChanError}}<div class="st-error">{{.ChanError}}</div>{{end}}
+<section class="st-card{{if .Channels}} flush{{end}}">
+<div class="st-cardhead"{{if .Channels}} style="padding-bottom:14px"{{end}}><div class="hd"><span class="st-micro">Declared</span><h3>One-way delivery</h3></div></div>
+{{if .Channels}}
+<table class="st-table">
+<thead><tr><th>URL</th><th>Classes</th><th style="width:80px">Secret</th><th style="width:96px">State</th><th style="width:150px">Declared by</th>{{if .IsAdmin}}<th style="width:70px"></th>{{end}}</tr></thead>
+<tbody>
+{{range .Channels}}<tr>
+<td class="mono">{{.URL}}</td>
+<td><span style="display:inline-flex;gap:6px;flex-wrap:wrap">{{range .Classes}}<span class="st-tag">{{.}}</span>{{end}}</span></td>
+<td>{{if .HasSecret}}<span class="st-badge ok">set</span>{{else}}<span style="color:var(--text-muted)">not set</span>{{end}}</td>
+<td>{{if .Enabled}}<span class="st-badge ok"><span class="d"></span>enabled</span>{{else}}<span class="st-badge neutral">disabled</span>{{end}}</td>
+<td class="mono">{{.By}}<br><span style="color:var(--text-muted)">{{.At}}</span></td>
+{{if $.IsAdmin}}<td style="overflow:visible">
+<details class="st-disc" style="position:relative">
+<summary><span class="st-btn-sm">Edit</span></summary>
+<div class="sheet" style="position:absolute;right:0;z-index:95;width:340px;box-shadow:var(--shadow-md);border:1px solid var(--border-default);background:var(--surface-raised)">
+<form method="post" action="/settings/channels/update" style="margin:0;display:flex;flex-direction:column;gap:10px">
+<input type="hidden" name="id" value="{{.ID}}">
+<span class="st-input"><span class="lb">URL</span><span class="iw"><input name="url" value="{{.URL}}" autocomplete="off" required></span></span>
+<div style="display:flex;gap:16px;flex-wrap:wrap">
+{{range .ClassStates}}<label class="st-check"><input type="checkbox" name="{{.Name}}"{{if .Checked}} checked{{end}}><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{.Name}}</label>{{end}}
+</div>
+<label class="st-check"><input type="checkbox" name="enabled"{{if .Enabled}} checked{{end}}><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>enabled</label>
+<span class="st-input"><span class="lb">Replace secret</span><span class="iw"><input name="secret" type="password" autocomplete="off" placeholder="{{if .HasSecret}}set — leave blank to keep{{else}}not set — leave blank for none{{end}}"></span></span>
+{{if .HasSecret}}<label class="st-check"><input type="checkbox" name="clear_secret"><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>clear the secret</label>{{end}}
+<div style="display:flex;gap:8px"><button type="submit" class="st-btn-sm">Save channel</button></div>
+</form>
+<form method="post" action="/settings/channels/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm" style="color:var(--danger);border-color:var(--danger-border)">Delete channel</button></form>
+</div>
+</details>
+</td>{{end}}
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="st-body"><div class="st-empty">
+<span class="msg">No channels declared</span>
+<span class="det">Nothing is configured, so every message is written and rendered in the store and carried nowhere else. Declare a channel to have messages POSTed out.</span>
+</div></div>
+{{end}}
+</section>
+{{if .IsAdmin}}
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">New channel</span><h3>Declare a channel</h3></div></div>
+<div class="st-body">
+<form method="post" action="/settings/channels" class="st-form" style="margin:0">
+<span class="st-input"><span class="lb">Channel URL</span><span class="iw"><input name="url" value="{{.ChanURL}}" placeholder="https://ops.example/hook" autocomplete="off" required></span><span class="hint">One-way https delivery</span></span>
+<span class="st-input"><span class="lb">Secret (optional)</span><span class="iw"><input name="secret" type="password" autocomplete="off" placeholder="signs the body — never shown again"></span></span>
+<div style="display:flex;flex-direction:column;gap:8px">
+<span style="font:500 12.5px var(--font-ui);color:var(--text-body)">Receives</span>
+<div style="display:flex;gap:18px;flex-wrap:wrap">
+{{range .ClassOptions}}<label class="st-check"><input type="checkbox" name="{{.Name}}"{{if .Checked}} checked{{end}}><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{.Name}}</label>{{end}}
+</div>
+<span class="hint" style="font:400 11.5px var(--font-ui);color:var(--text-muted)">Routing is by class and nothing finer.</span>
+</div>
+<div><button type="submit" class="st-btn pri">Declare channel</button></div>
+</form>
+</div>
+</section>
+{{end}}
+{{end}}
+
+{{/* integrations — holes: .IntCats[] .IntCat .IntQ .Integrations[{ID,Name,Mark,Category,Description,State(installed|attention|available)}] .IntDrawer{ID,Name,Mark,Category,Description,State,Attention,Grants[{Scope,Detail,Write}],Installed,LastDelivery,Classes} (#26j — PRG: ?cat=&q=&view=) */}}
+{{define "settings-integrations"}}
+<header style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Delivery · integrations</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Integrations</h2>
+<span class="st-note" style="font-size:12.5px">One-way where possible — Verge pushes, integrations receive. Write-backs are proposals, never acts.</span>
+</div>
+<div style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<span class="st-seg" role="radiogroup" aria-label="Category">
+{{range .IntCats}}<a class="{{if eq . $.IntCat}}on{{end}}" role="radio" aria-checked="{{if eq . $.IntCat}}true{{else}}false{{end}}" href="/settings?tab=integrations&cat={{.}}{{if $.IntQ}}&q={{$.IntQ}}{{end}}">{{.}}</a>{{end}}
+</span>
+<form method="get" action="/settings" style="margin:0">
+<input type="hidden" name="tab" value="integrations">
+<input type="hidden" name="cat" value="{{.IntCat}}">
+<span class="st-input" style="width:220px"><span class="iw" style="height:30px;border-radius:10px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><input type="search" name="q" value="{{.IntQ}}" placeholder="Search integrations" aria-label="Search integrations" style="font-size:12px"></span></span>
+</form>
+</div>
+</header>
+<div class="st-callout">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="ct"><b>Webhooks need no integration</b><span>Channels are built in — <a href="/settings?tab=channels">Settings → Channels</a> delivers raw JSON to any URL. Integrations add formatting, acks, and state mapping on top.</span></span>
+</div>
+{{if .Integrations}}
+<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:16px">
+{{range .Integrations}}
+<a class="st-tile" href="/settings?tab=integrations&cat={{$.IntCat}}{{if $.IntQ}}&q={{$.IntQ}}{{end}}&view={{.ID}}">
+<span style="display:flex;align-items:center;gap:10px">
+<span class="mark">{{.Mark}}</span>
+<span style="display:flex;flex-direction:column;gap:1px;min-width:0"><span class="nm">{{.Name}}</span><span style="font:400 11px var(--font-mono);color:var(--text-muted)">{{.Category}}</span></span>
+<span style="margin-left:auto">{{if eq .State "installed"}}<span class="st-badge ok"><span class="d"></span>installed</span>{{else if eq .State "attention"}}<span class="st-badge warn"><span class="d"></span>needs attention</span>{{else}}<span class="st-badge neutral">available</span>{{end}}</span>
+</span>
+<span class="ds">{{.Description}}</span>
+</a>
+{{end}}
+</div>
+{{else}}
+<section class="st-card"><div class="st-body"><div class="st-empty">
+<span class="msg">Nothing matches</span>
+<span class="det">No integration matches the filter. Clear the search or pick another category.</span>
+</div></div></section>
+{{end}}
+{{with .IntDrawer}}
+<a class="st-scrim" style="background:rgba(21,18,15,0.28)" href="/settings?tab=integrations&cat={{$.IntCat}}{{if $.IntQ}}&q={{$.IntQ}}{{end}}" aria-label="Close"></a>
+<aside class="st-drawer" role="dialog" aria-modal="true" aria-label="{{.Name}}">
+<div class="dh">
+<h2>{{.Name}}</h2>
+<a class="st-x" href="/settings?tab=integrations&cat={{$.IntCat}}{{if $.IntQ}}&q={{$.IntQ}}{{end}}" aria-label="Close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></a>
+</div>
+<div class="db">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:var(--surface-sunken);border:1px solid var(--border-default);font:600 12px var(--font-mono);color:var(--text-secondary)">{{.Mark}}</span>
+<span style="font:400 12.5px var(--font-ui);color:var(--text-secondary)">{{.Category}}</span>
+<span style="margin-left:auto">{{if eq .State "installed"}}<span class="st-badge ok"><span class="d"></span>installed</span>{{else if eq .State "attention"}}<span class="st-badge warn"><span class="d"></span>needs attention</span>{{else}}<span class="st-badge neutral">available</span>{{end}}</span>
+</div>
+<p style="margin:0;font:400 13px/1.6 var(--font-ui);color:var(--text-body)">{{.Description}}</p>
+{{if .Attention}}
+<div class="st-callout warn">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span>
+<span class="ct"><b>Delivery failing</b><span>{{.Attention}}</span></span>
+</div>
+{{end}}
+<div style="display:flex;flex-direction:column;gap:8px">
+<span class="st-micro">This integration can</span>
+{{range .Grants}}
+<div class="st-grant">
+<span class="gic">{{if .Write}}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path></svg>{{else}}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>{{end}}</span>
+<span class="gt"><span class="g1">{{.Scope}}{{if .Write}}<span class="st-badge warn" style="height:18px;font-size:10.5px;padding:0 7px">writes</span>{{end}}</span>{{if .Detail}}<span class="g2">{{.Detail}}</span>{{end}}</span>
+</div>
+{{end}}
+</div>
+{{if ne .State "available"}}
+<div class="st-kv" style="grid-template-columns:minmax(0,1fr)">
+<div class="cell"><span class="st-micro">Installed</span><span class="v">{{.Installed}}</span></div>
+<div class="cell"><span class="st-micro">Last delivery</span><span class="v">{{.LastDelivery}}</span></div>
+<div class="cell"><span class="st-micro">Classes</span><span class="v">{{.Classes}}</span></div>
+</div>
+{{end}}
+</div>
+<div class="df">
+{{if eq .State "available"}}
+<form method="post" action="/settings/integrations/install" style="margin:0;width:100%"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn pri" style="width:100%">Install {{.Name}}</button></form>
+{{else}}
+<form method="post" action="/settings/integrations/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn ghost">Remove</button></form>
+<form method="post" action="/settings/integrations/test" style="margin:0;margin-left:auto"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn sec">Send test</button></form>
+{{end}}
+</div>
+</aside>
+{{end}}
+{{end}}
+
+{{/* messages — holes: .Messages[{ID,Read,Cause,Class,Instant,Headline,Href,LinkText,Census[{Kind,Key,Href}],Deliveries[{State,ChannelHost,Failed,LastError}]}] (#26g) */}}
+{{define "settings-messages"}}
+<header style="display:flex;align-items:flex-start;gap:16px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Delivery · messages</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Messages</h2>
+<p class="st-lede">Every message that has fired, newest first. Each names what moved — the estate's own object, our own aperture, your declared input, or a threshold crossed — and links to what it fired at. The store carries the message and never the estate: the fact itself is in the timelines. The <a href="/inbox">Inbox</a> is the reading surface; this is the operational record.</p>
+</div>
+{{if .Messages}}<form method="post" action="/messages/read-all" style="margin-left:auto;flex:none"><input type="hidden" name="return" value="/settings?tab=messages"><button type="submit" class="st-btn sec">Mark all read</button></form>{{end}}
+</header>
+{{if .Messages}}
+<section class="st-card">
+<div class="st-body" style="padding-top:6px;padding-bottom:6px">
+{{range .Messages}}
+<div class="st-msg{{if not .Read}} unread{{end}}">
+<div class="mh">
+<span class="cause">{{.Cause}}</span>
+<span class="st-tag">{{.Class}}</span>
+{{if .Instant}}<span class="when">{{.Instant}}</span>{{end}}
+</div>
+<p class="hl">{{.Headline}}</p>
+{{if .Census}}
+<div class="st-census">
+{{range .Census}}<div class="crow"><span class="k">{{.Kind}}</span>{{if .Href}}<a class="v" href="{{.Href}}">{{.Key}}</a>{{else}}<span class="v">{{.Key}}</span>{{end}}</div>{{end}}
+</div>
+{{end}}
+{{if .Deliveries}}
+<div style="display:flex;flex-direction:column;gap:6px">
+{{range .Deliveries}}
+<div class="st-delrow">
+{{if .Failed}}<span class="st-badge danger"><span class="d"></span>undelivered</span><span>to <span class="host">{{.ChannelHost}}</span> — this message could not be delivered, not that nothing fired{{if .LastError}} <span class="why" title="{{.LastError}}">(reason)</span>{{end}}</span>
+{{else}}<span>{{.State}} to <span class="host">{{.ChannelHost}}</span></span>{{end}}
+</div>
+{{end}}
+</div>
+{{end}}
+<div style="display:flex;gap:10px;align-items:center">
+<a class="st-btn-sm" href="{{.Href}}">{{.LinkText}}</a>
+{{if not .Read}}<form method="post" action="/messages/read" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="return" value="/settings?tab=messages"><button type="submit" class="st-btn-sm" style="border-color:transparent;background:transparent;color:var(--text-secondary)">Mark read</button></form>{{end}}
+</div>
+</div>
+{{end}}
+</div>
+</section>
+{{else}}
+<section class="st-card"><div class="st-body"><div class="st-empty">
+<span class="msg">No message has fired</span>
+<span class="det">Messages appear here as the estate moves — declare a seed and run the first batch to begin measuring.</span>
+</div></div></section>
+{{end}}
+{{end}}
+
+{{/* delivery — holes: .Deliveries[{ChannelHost,Class,Failed,State,When}] .Retention{ObservationCurrencyDays,DispatchCadenceMultiple,UpdatedAt,UpdatedBy} .RetError .RetObs .RetDispatch .IsAdmin (#26h) */}}
+{{define "settings-delivery"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Delivery · operational record</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Deliveries</h2>
+<p class="st-lede">The operational record: every message's outcome to each routed channel, and the retention dials that govern how long the record stays readable. A delivery has no cause and never touches Coverage — an undelivered POST is legible here, joined to the message it failed to carry.</p>
+</header>
+<section class="st-card{{if .Deliveries}} flush{{end}}">
+<div class="st-cardhead"{{if .Deliveries}} style="padding-bottom:14px"{{end}}><div class="hd"><span class="st-micro">Operational record</span><h3>Delivery outcomes</h3></div></div>
+{{if .Deliveries}}
+<table class="st-table">
+<thead><tr><th>Channel</th><th style="width:110px">Class</th><th style="width:130px">Outcome</th><th style="width:80px;text-align:right">When</th></tr></thead>
+<tbody>
+{{range .Deliveries}}<tr>
+<td class="mono">{{.ChannelHost}}</td>
+<td><span class="st-tag">{{.Class}}</span></td>
+<td>{{if .Failed}}<span class="st-badge danger"><span class="d"></span>undelivered</span>{{else}}<span class="st-badge ok"><span class="d"></span>{{.State}}</span>{{end}}</td>
+<td class="mono" style="text-align:right">{{.When}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="st-body"><span class="st-note">No delivery has been attempted yet. Once a channel is declared and a message fires, each outbound POST's outcome is recorded here.</span></div>
+{{end}}
+</section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Retention</span><h3>Retention dials</h3></div></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:14px">
+<span class="st-note">Retention is what may still be read, never age. Dispatch retention is a multiple of the slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. The observation-currency floor lands with later work; for now zero means no operator floor.</span>
+{{if .RetError}}<div class="st-error">{{.RetError}}</div>{{end}}
+{{if .IsAdmin}}
+<form method="post" action="/settings/retention" style="margin:0;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+<span class="st-input" style="width:220px"><span class="lb">Observation-currency floor</span><span class="iw"><input name="observation_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetObs}}{{else}}{{.Retention.ObservationCurrencyDays}}{{end}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">days</span></span></span>
+<span class="st-input" style="width:260px"><span class="lb">Dispatch retention</span><span class="iw"><input name="dispatch_cadence_multiple" inputmode="numeric" value="{{if .RetError}}{{.RetDispatch}}{{else}}{{.Retention.DispatchCadenceMultiple}}{{end}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">× slowest cadence</span></span></span>
+<button type="submit" class="st-btn sec">Save dials</button>
+</form>
+{{else}}
+<div class="st-kv">
+<div class="cell"><span class="st-micro">Observation floor</span><span class="v">{{.Retention.ObservationCurrencyDays}} days</span></div>
+<div class="cell"><span class="st-micro">Dispatch retention</span><span class="v">{{.Retention.DispatchCadenceMultiple}} × slowest scan cadence</span></div>
+</div>
+{{end}}
+{{if .Retention.UpdatedAt}}<span class="st-note">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span style="font-family:var(--font-mono)">{{.Retention.UpdatedBy}}</span>{{end}}.</span>{{end}}
+</div>
+</div>
+</section>
+{{end}}

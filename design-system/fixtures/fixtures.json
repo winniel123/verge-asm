@@ -3672,5 +3672,709 @@
         "gate_title": "Needs an internet vantage first"
       }
     ]
+  },
+  "settings": {
+    "default_tab": "scans",
+    "scans": {
+      "active": [
+        {
+          "scan_kind": "standard",
+          "dispatched_at": "2026-08-22T14:00:02Z",
+          "completed": 4,
+          "live": 6,
+          "percent": 67,
+          "jobs": [
+            {
+              "id": 912,
+              "kind": "dns-sweep",
+              "vantage": "eu-west-1",
+              "state": "done",
+              "attempt": 1,
+              "max_attempts": 3,
+              "batch": "1407"
+            },
+            {
+              "id": 913,
+              "kind": "reachability",
+              "vantage": "eu-west-1",
+              "state": "done",
+              "attempt": 1,
+              "max_attempts": 3,
+              "batch": "1407"
+            },
+            {
+              "id": 914,
+              "kind": "reachability",
+              "vantage": "us-east-2",
+              "state": "done",
+              "attempt": 1,
+              "max_attempts": 3,
+              "batch": "1407"
+            },
+            {
+              "id": 915,
+              "kind": "reachability",
+              "vantage": "ap-south-1",
+              "state": "ready",
+              "retrying": true,
+              "attempt": 2,
+              "max_attempts": 3
+            },
+            {
+              "id": 916,
+              "kind": "port-census",
+              "vantage": "eu-west-1",
+              "state": "running",
+              "attempt": 1,
+              "max_attempts": 3
+            },
+            {
+              "id": 917,
+              "kind": "tls-acceptance",
+              "vantage": "eu-west-1",
+              "state": "done",
+              "attempt": 1,
+              "max_attempts": 3,
+              "batch": "1407"
+            }
+          ]
+        }
+      ],
+      "history": [
+        {
+          "scan_kind": "standard",
+          "dispatched_at": "2026-08-22T08:00Z",
+          "live": 6,
+          "completed": 6,
+          "dead": 0
+        },
+        {
+          "scan_kind": "zone-transfer",
+          "dispatched_at": "2026-08-22T06:00Z",
+          "live": 1,
+          "completed": 1,
+          "dead": 0
+        },
+        {
+          "scan_kind": "standard",
+          "dispatched_at": "2026-08-21T20:00Z",
+          "live": 6,
+          "completed": 5,
+          "dead": 1
+        }
+      ],
+      "cold_enabled": true,
+      "cold_scopes": [
+        {
+          "id": "s1",
+          "scope": "acmecorp.io",
+          "is_address": false,
+          "opted_in": false
+        },
+        {
+          "id": "s2",
+          "scope": "203.0.113.0/24",
+          "is_address": true,
+          "opted_in": true
+        }
+      ]
+    },
+    "vantages": {
+      "vantages": [
+        {
+          "name": "eu-west-1",
+          "class": "internet",
+          "resolver": "9.9.9.9",
+          "latency": "34ms",
+          "availability": "available"
+        },
+        {
+          "name": "us-east-2",
+          "class": "internet",
+          "resolver": "9.9.9.9",
+          "latency": "51ms",
+          "availability": "available"
+        },
+        {
+          "name": "ap-south-1",
+          "class": "unverified",
+          "resolver": "9.9.9.9",
+          "availability": "unverified",
+          "unverified": true
+        }
+      ],
+      "probers": [
+        {
+          "endpoint": "probe-1.example.net:22",
+          "username": "verge",
+          "availability": "available",
+          "host_key_pinned": true,
+          "host_key_fingerprint": "SHA256:9m:41:be:0a:77:c3:e8:12:f4:5d:a0:66:2b:91:c7:03",
+          "platform": "linux · x86_64",
+          "key_set": true,
+          "public_key": "restrict,from=\"203.0.113.5\" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF3kQm7Vr2xw9tPba41uD8cNzUj0eYhLxOqRkM9 verge-prober",
+          "egress": "203.0.113.5"
+        }
+      ]
+    },
+    "sso": {
+      "providers": [
+        {
+          "id": "p1",
+          "name": "Okta",
+          "slug": "okta",
+          "issuer": "https://acmecorp.okta.com",
+          "client_id": "vg-console",
+          "has_secret": true,
+          "enabled": true,
+          "created_by": "ola@acmecorp.io",
+          "created_at": "2026-07-02"
+        }
+      ],
+      "bindings": [
+        {
+          "id": "b1",
+          "provider_name": "Okta",
+          "account": "ola@acmecorp.io",
+          "display_name": "Ola Pérez",
+          "linked_at": "2026-07-03"
+        },
+        {
+          "id": "b2",
+          "provider_name": "Okta",
+          "account": "dana@acmecorp.io",
+          "display_name": "Dana K.",
+          "linked_at": "2026-07-05"
+        }
+      ]
+    },
+    "team": {
+      "members": [
+        {
+          "id": "u1",
+          "username": "ola@acmecorp.io",
+          "initials": "OL",
+          "role": "admin",
+          "totp_enabled": true,
+          "at": "2026-05-19",
+          "is_self": true
+        },
+        {
+          "id": "u2",
+          "username": "dana@acmecorp.io",
+          "initials": "DA",
+          "role": "admin",
+          "totp_enabled": true,
+          "at": "2026-05-20"
+        },
+        {
+          "id": "u3",
+          "username": "sam@acmecorp.io",
+          "initials": "SA",
+          "role": "viewer",
+          "totp_enabled": false,
+          "at": "2026-06-11"
+        },
+        {
+          "id": "u4",
+          "username": "priya@acmecorp.io",
+          "initials": "PR",
+          "role": "viewer",
+          "totp_enabled": true,
+          "at": "2026-08-21"
+        }
+      ],
+      "invite_link_fixture": "https://verge.acmecorp.io/join/vg_inv_9f2ac41b7d0e"
+    },
+    "sessions": [
+      {
+        "id": "s1",
+        "account_id": "u1",
+        "account": "ola@acmecorp.io",
+        "role": "admin",
+        "device": "Firefox · macOS",
+        "ip": "198.51.100.7",
+        "last_seen": "now",
+        "current": true
+      },
+      {
+        "id": "s2",
+        "account_id": "u2",
+        "account": "dana@acmecorp.io",
+        "role": "admin",
+        "device": "Safari · iOS",
+        "ip": "198.51.100.12",
+        "last_seen": "2h"
+      },
+      {
+        "id": "s3",
+        "account_id": "u2",
+        "account": "dana@acmecorp.io",
+        "role": "admin",
+        "device": "Chrome · Windows",
+        "ip": "203.0.113.80",
+        "last_seen": "1d"
+      },
+      {
+        "id": "s4",
+        "account_id": "u4",
+        "account": "priya@acmecorp.io",
+        "role": "viewer",
+        "device": "Chrome · macOS",
+        "ip": "198.51.100.31",
+        "last_seen": "3d"
+      }
+    ],
+    "audit_rows": null,
+    "sources": {
+      "unencumbered": [
+        {
+          "id": "crtsh",
+          "name": "crt.sh",
+          "kind": "source",
+          "what": "Names from certificate-transparency SAN lists · daily, throttled",
+          "on": true
+        },
+        {
+          "id": "arin",
+          "name": "ARIN",
+          "kind": "proposer",
+          "what": "North America · keyless org → prefix",
+          "on": true
+        },
+        {
+          "id": "afrinic",
+          "name": "AFRINIC",
+          "kind": "proposer",
+          "what": "Africa · CAIDA ⋈ delegated-stats",
+          "on": true
+        },
+        {
+          "id": "apnic",
+          "name": "APNIC",
+          "kind": "proposer",
+          "what": "Asia-Pacific · CAIDA ⋈ delegated-stats",
+          "on": true
+        }
+      ],
+      "operator_accepted": [
+        {
+          "id": "ripestat",
+          "name": "RIPEstat",
+          "kind": "proposer",
+          "what": "RIPE region · org → prefix",
+          "on": false,
+          "terms": [
+            "Non-commercial use of the RIPEstat Data API within rate limits.",
+            "Attribution of RIPE NCC as the data source.",
+            "You bear the reading — this is your acceptance, not the project’s."
+          ]
+        },
+        {
+          "id": "ripedb",
+          "name": "RIPE Database",
+          "kind": "proposer",
+          "what": "RIPE region · registry queries",
+          "on": false,
+          "terms": [
+            "RIPE Database terms: queries for network operations, not bulk harvesting.",
+            "Personal data in objects stays subject to the RIPE DB acceptable use policy.",
+            "You bear the reading — this is your acceptance, not the project’s."
+          ]
+        },
+        {
+          "id": "apnicreg",
+          "name": "APNIC registry",
+          "kind": "proposer",
+          "what": "APNIC region · registry queries",
+          "on": false,
+          "terms": [
+            "APNIC Whois terms: operational use, no redistribution of bulk data.",
+            "You bear the reading — this is your acceptance, not the project’s."
+          ]
+        },
+        {
+          "id": "lacnic",
+          "name": "LACNIC registry",
+          "kind": "proposer",
+          "what": "Latin America · registry queries",
+          "on": false,
+          "terms": [
+            "LACNIC rate limits and acceptable-use apply to registry queries.",
+            "You bear the reading — this is your acceptance, not the project’s."
+          ]
+        }
+      ],
+      "barred": [
+        {
+          "id": "hackertarget",
+          "name": "HackerTarget",
+          "kind": "source",
+          "what": ""
+        },
+        {
+          "id": "certspotter",
+          "name": "Cert Spotter",
+          "kind": "source",
+          "what": "unauthenticated tier"
+        }
+      ]
+    },
+    "aperture": {
+      "udp_count": 2,
+      "counts": {
+        "sensitive": 6,
+        "frequency": 8,
+        "union": 16,
+        "tcp": 14,
+        "udp": 2
+      },
+      "sensitive": [
+        {
+          "port": 23,
+          "transport": "tcp",
+          "service": "telnet"
+        },
+        {
+          "port": 3389,
+          "transport": "tcp",
+          "service": "rdp"
+        },
+        {
+          "port": 5900,
+          "transport": "tcp",
+          "service": "vnc"
+        },
+        {
+          "port": 445,
+          "transport": "tcp",
+          "service": "smb"
+        },
+        {
+          "port": 1433,
+          "transport": "tcp",
+          "service": "mssql"
+        },
+        {
+          "port": 21,
+          "transport": "tcp",
+          "service": "ftp"
+        }
+      ],
+      "frequency": [
+        {
+          "port": 80
+        },
+        {
+          "port": 443
+        },
+        {
+          "port": 22
+        },
+        {
+          "port": 8080
+        },
+        {
+          "port": 8443,
+          "edited": true,
+          "edit_action": "added"
+        },
+        {
+          "port": 3000
+        },
+        {
+          "port": 5432
+        },
+        {
+          "port": 6379
+        }
+      ]
+    },
+    "instance": {
+      "update": {
+        "version": "v0.9.3",
+        "notes": "Drift-batch memory fixes and a faster census."
+      },
+      "version": "v0.9.2",
+      "license": "AGPL-3.0 · self-hosted",
+      "uptime": "41d",
+      "queue_depth": 12,
+      "disk_pct": 62,
+      "disk_detail": "24.8 / 40 GB",
+      "pg_label": "postgres 16",
+      "pg_detail": "4.2 GB · vacuumed 6h ago",
+      "vantages": [
+        {
+          "name": "eu-west-1",
+          "latency": "34ms",
+          "avail": "available"
+        },
+        {
+          "name": "us-east-2",
+          "latency": "51ms",
+          "avail": "available"
+        },
+        {
+          "name": "ap-south-1",
+          "latency": "",
+          "avail": "unverified"
+        }
+      ]
+    },
+    "channels": {
+      "class_options": [
+        {
+          "name": "drift",
+          "checked": true
+        },
+        {
+          "name": "coverage",
+          "checked": false
+        },
+        {
+          "name": "clock",
+          "checked": false
+        }
+      ],
+      "channels": [
+        {
+          "id": "c1",
+          "url": "https://ops.acmecorp.io/hook",
+          "classes": [
+            "drift",
+            "coverage"
+          ],
+          "class_states": [
+            {
+              "name": "drift",
+              "checked": true
+            },
+            {
+              "name": "coverage",
+              "checked": true
+            },
+            {
+              "name": "clock",
+              "checked": false
+            }
+          ],
+          "has_secret": true,
+          "enabled": true,
+          "by": "dana@acmecorp.io",
+          "at": "2026-06-30"
+        },
+        {
+          "id": "c2",
+          "url": "https://pager.example/verge",
+          "classes": [
+            "drift"
+          ],
+          "class_states": [
+            {
+              "name": "drift",
+              "checked": true
+            },
+            {
+              "name": "coverage",
+              "checked": false
+            },
+            {
+              "name": "clock",
+              "checked": false
+            }
+          ],
+          "has_secret": false,
+          "enabled": false,
+          "by": "ola@acmecorp.io",
+          "at": "2026-07-12"
+        }
+      ]
+    },
+    "integrations": {
+      "cats": [
+        "All",
+        "Notify",
+        "Ticketing",
+        "SIEM",
+        "Storage"
+      ],
+      "cat": "All",
+      "q": "",
+      "tiles": [
+        {
+          "id": "slack",
+          "name": "Slack",
+          "mark": "SL",
+          "category": "Notify",
+          "state": "installed",
+          "description": "Signals and drift summaries as formatted messages, one channel per class."
+        },
+        {
+          "id": "pagerduty",
+          "name": "PagerDuty",
+          "mark": "PD",
+          "category": "Notify",
+          "state": "attention",
+          "description": "Critical signals open incidents; withdrawn signals resolve them."
+        },
+        {
+          "id": "teams",
+          "name": "Microsoft Teams",
+          "mark": "MT",
+          "category": "Notify",
+          "state": "available",
+          "description": "Adaptive cards for signals and batch completions."
+        },
+        {
+          "id": "jira",
+          "name": "Jira",
+          "mark": "JI",
+          "category": "Ticketing",
+          "state": "installed",
+          "description": "One issue per signal span. Closing the span closes the issue — never the reverse."
+        },
+        {
+          "id": "linear",
+          "name": "Linear",
+          "mark": "LN",
+          "category": "Ticketing",
+          "state": "available",
+          "description": "Signals as issues with severity labels and asset links."
+        },
+        {
+          "id": "splunk",
+          "name": "Splunk",
+          "mark": "SP",
+          "category": "SIEM",
+          "state": "available",
+          "description": "Every observation and transition as HEC events, source-typed by class."
+        },
+        {
+          "id": "elastic",
+          "name": "Elastic",
+          "mark": "EL",
+          "category": "SIEM",
+          "state": "available",
+          "description": "Bulk-indexed observations with ECS field mapping."
+        },
+        {
+          "id": "s3",
+          "name": "S3-compatible export",
+          "mark": "S3",
+          "category": "Storage",
+          "state": "installed",
+          "description": "Nightly NDJSON snapshots of inventory, signals, and coverage to your bucket."
+        }
+      ],
+      "drawer_fixture": {
+        "id": "pagerduty",
+        "name": "PagerDuty",
+        "mark": "PD",
+        "category": "Notify",
+        "state": "attention",
+        "description": "Critical signals open incidents; withdrawn signals resolve them.",
+        "attention": "The last 3 deliveries were refused (401). Rotate the token on the PagerDuty side, then send a test.",
+        "grants": [
+          {
+            "scope": "Read signals",
+            "detail": "Critical and high only — routing is by class and severity."
+          },
+          {
+            "scope": "Write annotations",
+            "detail": "Incident acknowledgement records an annotation on the signal.",
+            "write": true
+          }
+        ],
+        "installed": "2026-07-14",
+        "last_delivery": "failed · 6h ago",
+        "classes": "signals, drift"
+      }
+    },
+    "messages": [
+      {
+        "id": "m1",
+        "read": false,
+        "cause": "appeared",
+        "class": "drift",
+        "instant": "2026-08-22T14:02:11Z",
+        "headline": "appeared · staging-5.acmecorp.io — first seen via certificate transparency",
+        "href": "/drift",
+        "link_text": "Open drift",
+        "census": [
+          {
+            "kind": "Name",
+            "key": "staging-5.acmecorp.io",
+            "href": "/asset/staging-5.acmecorp.io"
+          },
+          {
+            "kind": "Batch",
+            "key": "2026-08-22T14:00Z",
+            "href": "/runs/1407"
+          }
+        ],
+        "deliveries": [
+          {
+            "state": "delivered",
+            "channel_host": "ops.acmecorp.io/hook"
+          }
+        ]
+      },
+      {
+        "id": "m2",
+        "read": true,
+        "cause": "no reports",
+        "class": "coverage",
+        "instant": "2026-08-22T08:06:00Z",
+        "headline": "zone transfer silent for 9d · internal.acmecorp.io",
+        "href": "/scope",
+        "link_text": "Open scope",
+        "census": [
+          {
+            "kind": "Zone",
+            "key": "internal.acmecorp.io",
+            "href": ""
+          }
+        ],
+        "deliveries": [
+          {
+            "state": "delivered",
+            "channel_host": "ops.acmecorp.io/hook"
+          },
+          {
+            "failed": true,
+            "channel_host": "pager.example/verge",
+            "last_error": "TLS handshake failed · 3 attempts"
+          }
+        ]
+      }
+    ],
+    "delivery": {
+      "deliveries": [
+        {
+          "channel_host": "ops.acmecorp.io/hook",
+          "class": "drift",
+          "state": "delivered",
+          "when": "4m"
+        },
+        {
+          "channel_host": "ops.acmecorp.io/hook",
+          "class": "coverage",
+          "state": "delivered",
+          "when": "6h"
+        },
+        {
+          "channel_host": "pager.example/verge",
+          "class": "coverage",
+          "failed": true,
+          "when": "6h"
+        }
+      ],
+      "retention": {
+        "observation_currency_days": 0,
+        "dispatch_cadence_multiple": 0,
+        "updated_at": "2026-08-20",
+        "updated_by": "ola@acmecorp.io"
+      }
+    }
   }
 }

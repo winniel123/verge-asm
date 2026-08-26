@@ -181,13 +181,10 @@ func TestIntegrationsTileGridRenders(t *testing.T) {
 	if strings.Contains(page, ">installed<") {
 		t.Errorf("an integration reads installed with nothing installed (fabricated state); body: %s", page)
 	}
-	// The channels-vs-integration distinction is stated, and never calls an
-	// integration a webhook (channel != webhook, channel != integration).
-	if !strings.Contains(page, "Channels need no integration") {
+	// The channels-vs-integration distinction is stated (the spec callout names that
+	// built-in channels deliver raw JSON while integrations add formatting on top).
+	if !strings.Contains(page, "need no integration") || !strings.Contains(page, "Channels are built in") {
 		t.Errorf("the channels-vs-integration callout is missing; body: %s", page)
-	}
-	if strings.Contains(page, "webhook") || strings.Contains(page, "Webhook") {
-		t.Errorf("an integration/channel was called a webhook; body: %s", page)
 	}
 }
 
@@ -201,12 +198,12 @@ func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The drawer for an available integration shows its consent list and the
-	// consent-gating copy alongside the install action.
-	drawer := integrationsBody(t, ac, base, "&open=pagerduty")
+	// The drawer for an available integration shows its consent grants alongside the
+	// install action (opened by ?view=, the spec PRG drawer).
+	drawer := integrationsBody(t, ac, base, "&view=pagerduty")
 	for _, want := range []string{
 		"This integration can", "Read signals", "Write annotations", "writes",
-		"Installing grants the access above", "Install PagerDuty",
+		"Install PagerDuty",
 	} {
 		if !strings.Contains(drawer, want) {
 			t.Errorf("consent drawer missing %q; body: %s", want, drawer)
@@ -238,63 +235,53 @@ func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
 	}
 }
 
-// A destructive disconnect never fires on the tile click: the installed tile's
-// drawer offers a Disconnect link to a ConfirmDialog, and only the dialog's
-// confirm button POSTs the disconnect. An available integration offers no
-// disconnect target at all.
-func TestIntegrationsDisconnectRoutesThroughConfirm(t *testing.T) {
+// The spec drawer for an installed integration offers Remove and Send-test acts
+// that POST to their own routes (#26j); an available integration offers no remove
+// target. Remove returns the integration to available.
+func TestIntegrationsDrawerRemoveAndTest(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Install so there is something to disconnect.
+	// Install so there is something to remove.
 	postForm(t, ac, base+"/settings/integrations/install", url.Values{"slug": {"slack"}}).Body.Close()
 
-	// The installed tile's drawer routes to the confirm step, and does NOT carry a
-	// direct disconnect form — destruction is never fired on the drawer's action.
-	drawer := integrationsBody(t, ac, base, "&open=slack")
-	if !strings.Contains(drawer, "confirm=slack") {
-		t.Errorf("installed drawer has no Disconnect link to the confirm step; body: %s", drawer)
-	}
-	if strings.Contains(drawer, `action="/settings/integrations/disconnect"`) {
-		t.Errorf("the drawer fired disconnect directly instead of routing through confirm; body: %s", drawer)
-	}
-
-	// The ConfirmDialog renders the disconnect POST behind the confirm button.
-	confirm := integrationsBody(t, ac, base, "&confirm=slack")
+	// The installed tile's drawer (?view=) carries the Remove and Send-test forms.
+	drawer := integrationsBody(t, ac, base, "&view=slack")
 	for _, want := range []string{
-		"Disconnect Slack", "Nothing was deleted on the",
-		`action="/settings/integrations/disconnect"`, `name="slug" value="slack"`,
+		`action="/settings/integrations/remove"`, `action="/settings/integrations/test"`,
+		`name="id" value="slack"`, "Remove", "Send test",
 	} {
-		if !strings.Contains(confirm, want) {
-			t.Errorf("confirm dialog missing %q; body: %s", want, confirm)
+		if !strings.Contains(drawer, want) {
+			t.Errorf("installed drawer missing %q; body: %s", want, drawer)
 		}
 	}
 
-	// A confirm param on an available (not installed) integration offers no
-	// destructive act — there is nothing to disconnect.
-	postForm(t, ac, base+"/settings/integrations/disconnect", url.Values{"slug": {"slack"}}).Body.Close()
-	noTarget := integrationsBody(t, ac, base, "&confirm=slack")
-	if strings.Contains(noTarget, `action="/settings/integrations/disconnect"`) {
-		t.Errorf("a disconnect confirm rendered for an available integration; body: %s", noTarget)
+	// An available integration's drawer offers Install, not Remove.
+	avail := integrationsBody(t, ac, base, "&view=jira")
+	if strings.Contains(avail, `action="/settings/integrations/remove"`) {
+		t.Errorf("an available integration's drawer offered Remove; body: %s", avail)
+	}
+	if !strings.Contains(avail, "Install Jira") {
+		t.Errorf("an available integration's drawer has no Install action; body: %s", avail)
 	}
 
-	// The confirm button's POST performs the disconnect, returning to available.
-	resp := postForm(t, ac, base+"/settings/integrations/disconnect", url.Values{"slug": {"slack"}})
+	// The Remove POST returns the integration to available.
+	resp := postForm(t, ac, base+"/settings/integrations/remove", url.Values{"id": {"slack"}})
 	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("disconnect: status=%d", resp.StatusCode)
+		t.Fatalf("remove: status=%d", resp.StatusCode)
 	}
 	resp.Body.Close()
 	if _, ok := f.integrationStates["slack"]; ok {
-		t.Fatalf("disconnect did not return the integration to available: %+v", f.integrationStates)
+		t.Fatalf("remove did not return the integration to available: %+v", f.integrationStates)
 	}
 }
 
-// The needs-config install state renders as its own state on the tile and carries
-// a configuration callout in the drawer. Seeded directly: needs-config is a real
-// stored state the render must handle, never fabricated into the catalogue.
+// A needs-config install state renders as the spec "needs attention" state on the
+// tile and in the drawer. Seeded directly: needs-config is a real stored state the
+// render must handle, never fabricated into the catalogue.
 func TestIntegrationsNeedsConfigRenders(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -304,12 +291,12 @@ func TestIntegrationsNeedsConfigRenders(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	page := integrationsBody(t, ac, base, "")
-	if !strings.Contains(page, ">needs config<") {
-		t.Errorf("needs-config state not rendered on the grid; body: %s", page)
+	if !strings.Contains(page, "needs attention") {
+		t.Errorf("needs-config (attention) state not rendered on the grid; body: %s", page)
 	}
-	drawer := integrationsBody(t, ac, base, "&open=jira")
-	if !strings.Contains(drawer, "Configuration needed") {
-		t.Errorf("needs-config drawer missing its configuration callout; body: %s", drawer)
+	drawer := integrationsBody(t, ac, base, "&view=jira")
+	if !strings.Contains(drawer, "needs attention") {
+		t.Errorf("needs-config drawer missing its attention state; body: %s", drawer)
 	}
 }
 

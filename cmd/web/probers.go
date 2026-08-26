@@ -27,8 +27,17 @@ type proberView struct {
 	// change is a hard failure, never a prompt — so this is only the pinned/awaiting
 	// status, exactly as PublicKey exposes the public half but never the private one.
 	HostKeyPinned bool
-	By            string
-	At            string
+	// HostKeyFingerprint, Platform and Egress carry the pinned prober's lifecycle
+	// facts to the spec VantageCard (#26c): the host-key fingerprint chip, the
+	// accepted platform, and the observed egress address (which links /scope). The
+	// live projection carries only the pin/publish status, so these render empty and
+	// their regions collapse until a read is wired; the design fixture pins them for
+	// the pixel golden.
+	HostKeyFingerprint string
+	Platform           string
+	Egress             string
+	By                 string
+	At                 string
 }
 
 // provisionProber declares a prober: the operator supplies host, port and a

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -10,12 +9,9 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// sourceTemplates adds the Coverage stub and the source-enablement modal to the
-// shared template set defined in templates.go. Parsing them here — rather than
-// inlining them in that file — keeps this ticket's markup in this ticket's file,
-// so templates.go only gains a nav link. The reference to tmpl orders its
-// initialisation before this one.
-var _ = template.Must(tmpl.Parse(sourceTemplates))
+// The sources sub-tab's view layer is the design-owned settings.tmpl (its
+// "settings-sources" define, package v3.13.0). The repo authors no markup here; the
+// handler below wires the source catalogue into the tmpl's declared holes.
 
 // The three consent tiers a source runs under (v1 spec §3.1, ADR-0003, ADR-0023).
 // consent names the door, never who walked through it: the value is authored by
@@ -196,50 +192,66 @@ func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Ac
 	s.renderSettings(w, r, acct, settingsForms{tab: "sources"})
 }
 
-// fillSourcesSection buckets the discovery-source catalogue by the state each
-// source ships in for the sources sub-tab.
-func (s *server) fillSourcesSection(r *http.Request, data map[string]any) error {
+// sourceTierRow is one source shaped for the spec tier cards (#26): its id, name,
+// kind label (source/proposer), the project's one-line note, and its effective on
+// state. The three tiers — unencumbered / operator-accepted / barred — are the
+// release-authored consent tiers.
+type sourceTierRow struct {
+	ID   string
+	Name string
+	Kind string
+	What string
+	On   bool
+}
+
+// fillSourcesSection buckets the discovery-source catalogue into the three spec
+// consent tiers for the sources sub-tab, and opens the consent dialog when
+// ?consent=<id> names an operator-accepted source that is currently off.
+func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[string]any) error {
 	views, err := s.sourceViews(r)
 	if err != nil {
 		return err
 	}
 
-	var shipOn, shipOff, notExecuting, barred []sourceView
+	var unencumbered, operatorAccepted, barred []sourceTierRow
 	for _, v := range views {
-		// A no-runner source is also non-toggleable, so its case must precede the
-		// barred case below — reversing the two would sink it into the barred
-		// bucket and render it as excluded-on-terms rather than not-yet-executing.
+		row := sourceTierRow{ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote, On: v.Enabled}
 		switch {
-		case v.NoRunner:
-			notExecuting = append(notExecuting, v)
-		case !v.Toggleable:
-			barred = append(barred, v)
-		case v.ShowGroups:
-			shipOff = append(shipOff, v)
-		default:
-			shipOn = append(shipOn, v)
+		case v.Consent == consentAccepted:
+			operatorAccepted = append(operatorAccepted, row)
+		case v.Toggleable: // unencumbered, runnable
+			unencumbered = append(unencumbered, row)
+		default: // barred, or catalogued-not-executing — both stay off for everyone
+			barred = append(barred, row)
 		}
 	}
 
-	data["ShipOn"] = shipOn
-	data["ShipOff"] = shipOff
-	data["NotExecuting"] = notExecuting
+	data["Unencumbered"] = unencumbered
+	data["OperatorAccepted"] = operatorAccepted
 	data["Barred"] = barred
+	data["SourceError"] = f.sourceError
 
-	// The terms dialog that gates enabling an operator-accepted source (Sources.jsx):
-	// opened by ?terms=<slug>, it renders that source's two consent groups and the
-	// acceptance checkbox. It renders only for a source that is operator-accepted,
-	// toggleable, and currently off — nothing gates disabling or an unencumbered
-	// source, and a stray param on either simply opens no dialog.
-	if slug := r.URL.Query().Get("terms"); slug != "" {
-		for i := range shipOff {
-			if shipOff[i].Slug == slug {
-				data["TermsSource"] = shipOff[i]
-				break
+	// The consent dialog (#26): opened by ?consent=<id>, it renders that source's
+	// terms and the acceptance checkbox. It renders only for an operator-accepted,
+	// currently-off source; a stray param opens no dialog.
+	if id := r.URL.Query().Get("consent"); id != "" {
+		if c, ok := catalogBySlug(id); ok && c.Consent == consentAccepted {
+			data["Consent"] = map[string]any{
+				"ID": c.Slug, "Name": c.Name, "Terms": consentTerms(c),
 			}
 		}
 	}
 	return nil
+}
+
+// consentTerms flattens a source's unresolved-reading groups into the flat terms
+// list the consent dialog renders (#26). The project states what is unresolved in
+// its own words, never the source's terms verbatim.
+func consentTerms(c catalogSource) []string {
+	terms := make([]string, 0, len(c.MayResolve)+len(c.Unresolvable))
+	terms = append(terms, c.MayResolve...)
+	terms = append(terms, c.Unresolvable...)
+	return terms
 }
 
 // sourceViews merges the authored catalogue with the operator's overrides. A
@@ -321,123 +333,35 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 	http.Redirect(w, r, "/sources", http.StatusSeeOther)
 }
 
-const sourceTemplates = `
-{{define "srctoggle"}}<form method="post" action="/sources/toggle" style="display:inline">
-<input type="hidden" name="slug" value="{{.Slug}}">
-<input type="hidden" name="enabled" value="{{if .Enabled}}false{{else}}true{{end}}">
-<button class="{{if .Enabled}}secondary{{end}}" type="submit">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
-</form>{{end}}
 
-{{define "settings-sources"}}
-<div class="microlabel">Discovery · sources</div>
-<h2>Sources</h2>
-<p>Which discovery sources may run. Turning a source off never removes anything you already hold — a source's silence never asserted absence. Turning one on lets it run: a source begins observing, a proposer begins offering proposals you confirm into seeds, and neither adds to the estate on its own.</p>
-{{if not .IsAdmin}}<div class="notice">You have read access. Enabling or disabling a source is admin-only.</div>{{end}}
-
-<div class="section">
-<div class="microlabel">Ship on by default</div>
-<table>
-<thead><tr><th>Source</th><th>Kind</th><th>Consent</th><th>Authority</th><th>State</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
-<tbody>
-{{range .ShipOn}}<tr>
-<td><div class="mono">{{.Name}}</div><div class="muted">{{.ShipNote}}</div></td>
-<td><span class="badge">{{.KindLabel}}</span></td>
-<td><span class="badge">{{.Consent}}</span></td>
-<td class="mono">{{if .Authority}}{{.Authority}} · {{.Completeness}}{{else}}—{{end}}</td>
-<td>{{if .Enabled}}<span class="badge">on</span>{{else}}<span class="badge off">off</span>{{end}}</td>
-{{if $.IsAdmin}}<td>{{template "srctoggle" .}}</td>{{end}}
-</tr>{{end}}
-</tbody>
-</table>
-</div>
-
-{{if .NotExecuting}}
-<div class="section">
-<div class="microlabel">Catalogued — not yet executing</div>
-<p>These sources are in the catalogue, but no runner ships for them yet — nothing queries them, so
-they observe nothing. There is nothing to enable until a runner exists; leaving one here never adds
-to the estate and never asserts absence.</p>
-<table>
-<thead><tr><th>Source</th><th>Kind</th><th>Authority</th><th>State</th></tr></thead>
-<tbody>
-{{range .NotExecuting}}<tr>
-<td><div class="mono">{{.Name}}</div><div class="muted">{{.ShipNote}}</div></td>
-<td><span class="badge">{{.KindLabel}}</span></td>
-<td class="mono">{{if .Authority}}{{.Authority}} · {{.Completeness}}{{else}}—{{end}}</td>
-<td><span class="badge off">not yet executing</span></td>
-</tr>{{end}}
-</tbody>
-</table>
-</div>
-{{end}}
-
-<div class="section">
-<div class="microlabel">Ship off — accept the terms to enable</div>
-<p>Each of these ships off. Enabling it is you making a reading the project declined to make on your behalf, so here is what is unresolved, in two groups.</p>
-{{range .ShipOff}}
-<div class="section">
-<div class="custody-head">
-<div>
-<div class="mono">{{.Name}}</div>
-<div class="muted">{{.ShipNote}}</div>
-<div style="margin-top:6px"><span class="badge">{{.KindLabel}}</span> <span class="badge">{{.Consent}}</span> {{if .Enabled}}<span class="badge">on</span>{{else}}<span class="badge off">off</span>{{end}}</div>
-</div>
-{{if $.IsAdmin}}<div>{{if .Enabled}}{{template "srctoggle" .}}{{else}}<a class="btn" href="/sources?terms={{.Slug}}">Enable</a>{{end}}</div>{{end}}
-</div>
-<div class="classes" style="align-items:flex-start">
-<div style="flex:1;min-width:220px">
-<div class="microlabel">What you may be able to resolve</div>
-{{if .MayResolve}}<ul>{{range .MayResolve}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">None — every open question here is one nobody has been able to answer.</p>{{end}}
-</div>
-<div style="flex:1;min-width:220px">
-<div class="microlabel">What nobody has been able to resolve</div>
-{{if .Unresolvable}}<ul>{{range .Unresolvable}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
-</div>
-</div>
-</div>
-{{end}}
-</div>
-
-<div class="section">
-<div class="microlabel">Excluded on terms</div>
-<table>
-<thead><tr><th>Source</th><th>Kind</th><th>Why it stays off</th></tr></thead>
-<tbody>
-{{range .Barred}}<tr>
-<td><div class="mono">{{.Name}}</div></td>
-<td><span class="badge">{{.KindLabel}}</span></td>
-<td>{{.ShipNote}}</td>
-</tr>{{end}}
-</tbody>
-</table>
-</div>
-
-{{if .TermsSource}}{{with .TermsSource}}
-<a class="scrim" href="/sources" aria-label="Cancel"></a>
-<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Enable {{.Name}}" style="position:fixed;top:12vh;left:50%;transform:translateX(-50%);z-index:42">
-<div class="microlabel" style="margin-bottom:8px">Enable {{.Name}}</div>
-<h2 style="margin:0 0 4px">Enable {{.Name}}</h2>
-<p class="muted" style="margin:0 0 var(--space-4)">The project could not clear these terms on your behalf. Your acceptance, your reading.</p>
-<div class="classes" style="align-items:flex-start;margin-bottom:12px">
-<div style="flex:1;min-width:200px">
-<div class="microlabel">What you may be able to resolve</div>
-{{if .MayResolve}}<ul>{{range .MayResolve}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">None — every open question here is one nobody has been able to answer.</p>{{end}}
-</div>
-<div style="flex:1;min-width:200px">
-<div class="microlabel">What nobody has been able to resolve</div>
-{{if .Unresolvable}}<ul>{{range .Unresolvable}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
-</div>
-</div>
-<form method="post" action="/sources/toggle">
-<input type="hidden" name="slug" value="{{.Slug}}">
-<input type="hidden" name="enabled" value="true">
-<label class="check"><input type="checkbox" name="agreed" onchange="document.getElementById('termsaccept').disabled=!this.checked"><span>I accept these terms</span></label>
-<div class="dialog-actions">
-<a class="btn ghost" href="/sources">Cancel</a>
-<button id="termsaccept" type="submit" disabled>Accept and enable</button>
-</div>
-</form>
-</div>
-{{end}}{{end}}
-{{end}}
-`
+// settingsSources records an admin's on/off choice from the spec sources tab (#26).
+// It is the settings-tab twin of toggleSource: the form posts an id and an enable
+// flag, and enabling an operator-accepted source carries accept_terms=true from the
+// consent dialog. Without that acceptance, enabling an operator-accepted source
+// bounces to the consent dialog (?consent=<id>) rather than enabling — a real gate,
+// not only a UI affordance. It is reached only through requireAdmin.
+func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id := r.FormValue("id")
+	c, ok := catalogBySlug(id)
+	if !ok || c.Barred || c.NoRunner {
+		s.renderSettings(w, r, acct, settingsForms{section: "sources", sourceError: "That source could not be found."})
+		return
+	}
+	enable, err := strconv.ParseBool(r.FormValue("enable"))
+	if err != nil {
+		s.renderSettings(w, r, acct, settingsForms{section: "sources", sourceError: "That source state was not understood."})
+		return
+	}
+	// Enabling an operator-accepted source is gated on accepting its terms.
+	if enable && c.Consent == consentAccepted && r.FormValue("accept_terms") != "true" {
+		http.Redirect(w, r, "/settings?tab=sources&consent="+url.QueryEscape(id), http.StatusSeeOther)
+		return
+	}
+	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
+		Slug: id, Enabled: enable,
+	}); err != nil {
+		s.serverError(w, "upsert source state", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=sources", http.StatusSeeOther)
+}

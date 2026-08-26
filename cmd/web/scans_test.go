@@ -195,7 +195,7 @@ func TestScansPageViewerReads(t *testing.T) {
 
 	// Post-#281 the scans monitor is the Settings scans sub-tab; the surface still
 	// resolves and renders its idle state for a viewer.
-	if !strings.Contains(page, "<h2>Scans</h2>") || !strings.Contains(page, "No scan running") {
+	if !strings.Contains(page, ">Scans</h2>") || !strings.Contains(page, "No scan running") {
 		t.Errorf("scans monitor did not render for a viewer; body: %s", page)
 	}
 }
