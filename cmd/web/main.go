@@ -125,11 +125,11 @@ func main() {
 	}
 	web := newServer(queries, key, setupToken, clock)
 	web.devMode = devMode
-	// Wire the raw pool for the VERGE_DEV-only Profile capture reseed route (#542); nil and
-	// unreachable in a real deployment (the route is devMode-gated and nil-guarded).
-	if devMode {
-		web.pool = pool
-	}
+	// Wire the raw pool for the reads that need SQL sqlc does not generate: the Instance
+	// tab's migrations-pending count (#391, a raw goose_db_version query) in any deployment,
+	// and the VERGE_DEV-only Profile capture reseed route (#542, devMode-gated and
+	// nil-guarded). Every consumer nil-guards it.
+	web.pool = pool
 	web.secureCookies = isTruthy(env.OrDefault("VERGE_SECURE_COOKIES", ""))
 	// The trusted origin for the OIDC callback redirect_uri (#293); empty falls back to
 	// the request host.

@@ -131,6 +131,9 @@ type store interface {
 	// flag + who/when, the update-check flag, the release cache and the last-UI-backup
 	// record. Both the #390 and #391 feature clusters read their state through it.
 	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
+	// SetUpdateCheckEnabled opts the worker's daily release-feed check in or out and
+	// stamps who/when (#391); the Version & updates toggle on the Instance tab drives it.
+	SetUpdateCheckEnabled(ctx context.Context, arg db.SetUpdateCheckEnabledParams) error
 	// TightestEnabledScanCadenceSeconds is the tightest bound in force, which the
 	// observation dial floors at (#208, ADR-0094) — symmetric to the Dispatch
 	// floor's SlowestEnabledScanCadenceSeconds.
@@ -418,10 +421,12 @@ type server struct {
 	// (no DB, no new dependency), reset on a successful auth.
 	loginLimiter *loginLimiter
 
-	// pool is the raw pgx pool, wired ONLY for the VERGE_DEV pixel-parity harness
-	// affordance that re-seeds the Profile fixture between capture states (#542) via
-	// the /dev/profile/session route. A real deployment leaves it nil — that route is
-	// registered only in devMode and guards on a nil pool — so no non-dev path touches it.
+	// pool is the raw pgx pool, wired for the few reads that need SQL sqlc does not
+	// generate: the Instance tab's applied-vs-embedded migrations count (#391, a raw
+	// goose_db_version query — internal/db stays untouched) and the VERGE_DEV pixel-parity
+	// harness affordance that re-seeds the Profile fixture between capture states (#542,
+	// the devMode-gated /dev/profile/session route). Every consumer nil-guards it, so a
+	// deployment that leaves it unset degrades best-effort rather than panicking.
 	pool *pgxpool.Pool
 
 	// devMode is a VERGE_DEV build: it unlocks the dev-only pixel-parity affordances
@@ -822,6 +827,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
 	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
+	// Update checks (#391, ADR-0124): opting the worker's best-effort daily release-feed
+	// check in or out is an admin config act, gated like retention. While disabled the
+	// worker never phones home — air-gap-safe; the swap itself always stays a host action.
+	mux.HandleFunc("POST /settings/updates/check", s.requireAdmin(s.updateCheckToggle))
 
 	// Single sign-on config (#293, ADR-0112): declaring, editing, re-keying and
 	// removing an OIDC provider are admin config acts, gated like channel and seed

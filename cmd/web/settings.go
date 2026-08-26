@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/db/migrations"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
@@ -1126,21 +1128,21 @@ func sessionDeviceFromUA(ua string) string {
 // fillInstanceSection carries the instance-health tab (Settings.jsx InstanceSection)
 // as real reads only — no fabricated version string, uptime figure, or queue depth
 // where the datum does not exist. What is real: the licence/build stance (AGPL-3.0,
-// self-hosted), the process uptime since start, that Postgres answered this render,
-// and the provisioned vantage fleet with each vantage's availability.
+// self-hosted), the process uptime since start, the build version, the applied-vs-embedded
+// migrations count, that Postgres answered this render, the provisioned vantage fleet with
+// each vantage's availability, and the release check's opt-in flag + cached last result
+// (#391, ADR-0124). The Backup/Restore card bodies are the B3/B4 clusters'.
 func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error {
 	ctx := r.Context()
-	// Real host facts only (#26h): the licence stance and the process uptime since
-	// start. Version stays absent — no build-version datum reaches this surface yet, so
-	// it collapses rather than fabricate one; the design fixture pins it for the pixel
-	// golden. The update callout is nullable — no update-check mechanism exists, so it is
-	// absent. Queue depth, disk and Postgres are wired from live reads below (#633,
+	// Real host facts only (#26h): the licence stance, the process uptime since start, and
+	// the build version off VERGE_VERSION (buildVersion, the same the auth footer reads).
+	// Queue depth, disk and Postgres are wired from live reads below (#633,
 	// WORK-ORDER-DOGFOOD-R1 item 3), each best-effort: a failed read leaves its hole empty
 	// and the figure collapses, never a guessed number.
 	inst := map[string]any{
 		"License":    "AGPL-3.0 · self-hosted",
 		"Uptime":     humanizeDuration(s.now().Sub(s.startedAt)),
-		"Version":    "",
+		"Version":    s.buildVersion(),
 		"QueueDepth": "",
 		"DiskPct":    0,
 		"DiskDetail": "",
@@ -1191,8 +1193,130 @@ func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error
 		log.Printf("web: instance: list vantages: %v", err)
 	}
 	inst["Vantages"] = fleet
+
+	// Migrations — best-effort applied-vs-embedded count (#391). max(version_id) in
+	// goose's ledger against the versions embedded in the binary (db/migrations); a
+	// version embedded but not yet applied is pending. A read that fails (nil pool off
+	// the pixel harness, or a query error) leaves the badge absent rather than guessing —
+	// the tmpl's {{with .Migrations}} collapses, never a fabricated "schema current".
+	if pending, ok := s.migrationsPending(ctx); ok {
+		inst["Migrations"] = map[string]any{"Pending": pending}
+	}
+
+	// Release — the Version & updates card (#391, ADR-0124: check + surface + guide,
+	// never self-replace). The single instance_config row carries the opt-in flag and the
+	// worker's cached last check (B5 writes it). State is disabled when the check is opted
+	// out, else newer/current from the cache. The host steps are release-authored and
+	// literal — the UI never composes a shell — so they ride a fixed constant, not a
+	// derivation. A failed config read leaves the release block absent.
+	if cfg, err := s.store.GetInstanceConfig(ctx); err == nil {
+		release := map[string]any{
+			"CheckEnabled": cfg.UpdateCheckEnabled,
+			"Steps":        updateHostSteps,
+		}
+		state := "disabled"
+		if cfg.UpdateCheckEnabled {
+			// Enabled ⇒ newer or current (disabled means the check is off). A "newer"
+			// carries the cached latest version + notes; anything else reads as current
+			// — nothing newer known — never a guess at an unseen release.
+			state = "current"
+			if cfg.ReleaseState.String == "newer" {
+				state = "newer"
+				release["Latest"] = map[string]any{
+					"Version": cfg.ReleaseLatestVersion.String,
+					"Notes":   cfg.ReleaseLatestNotes.String,
+				}
+			}
+			if cfg.ReleaseCheckedAt.Valid {
+				release["CheckedAt"] = cfg.ReleaseCheckedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+			}
+		}
+		release["State"] = state
+		inst["Release"] = release
+	} else {
+		log.Printf("web: instance: release config: %v", err)
+	}
+
 	data["Instance"] = inst
 	return nil
+}
+
+// updateHostSteps are the literal, release-authored host commands the Version & updates
+// card prints when a newer release is available (#391, ADR-0124). Verge never rewrites
+// its own image — the swap is a host action — so the UI composes no shell: it renders
+// these exact lines. Until B5 threads a feed-delivered list through the release cache
+// they live here as the shipped constant, matching the design fixture line-for-line.
+var updateHostSteps = []string{
+	"# on the host — verge cannot rewrite its own image",
+	"docker compose pull",
+	"docker compose up -d web worker",
+	"docker compose exec web verge migrate status",
+}
+
+// migrationsPending is the best-effort applied-vs-embedded migrations count the
+// Version & updates badge shows (#391): how many embedded goose migrations carry a
+// version newer than the highest goose has applied. It reads goose's ledger with a raw
+// pool query (not sqlc — internal/db stays untouched this round) and the embedded set
+// from the same migrations.FS the binary applies at boot. Best-effort: a nil pool (off
+// the pixel harness) or any read error returns ok=false, so the badge collapses rather
+// than fabricate a "schema current".
+func (s *server) migrationsPending(ctx context.Context) (int, bool) {
+	if s.pool == nil {
+		return 0, false
+	}
+	var applied int64
+	if err := s.pool.QueryRow(ctx, "SELECT COALESCE(max(version_id), 0) FROM goose_db_version").Scan(&applied); err != nil {
+		log.Printf("web: instance: migrations applied: %v", err)
+		return 0, false
+	}
+	entries, err := migrations.FS.ReadDir(".")
+	if err != nil {
+		log.Printf("web: instance: migrations embed: %v", err)
+		return 0, false
+	}
+	pending := 0
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".sql") {
+			continue
+		}
+		if v, ok := migrationVersion(name); ok && v > applied {
+			pending++
+		}
+	}
+	return pending, true
+}
+
+// migrationVersion parses the leading integer of a goose migration filename
+// (e.g. "23000_instance_config.sql" → 23000), the version goose records in its ledger.
+// A name with no leading integer is not a numbered migration and reports ok=false.
+func migrationVersion(name string) (int64, bool) {
+	i := strings.IndexByte(name, '_')
+	if i <= 0 {
+		return 0, false
+	}
+	v, err := strconv.ParseInt(name[:i], 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return v, true
+}
+
+// updateCheckToggle opts the worker's daily release-feed check in or out (#391, ADR-0124).
+// The hidden `enabled` field carries the flip target the Version & updates toggle computed
+// from the current state; SetUpdateCheckEnabled stamps who acted and when. While off the
+// worker never dispatches a check — air-gap-safe (B5 honours the flag). Admin-gated
+// (requireAdmin) with a PRG back to the Instance tab so a reload does not re-post.
+func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	enabled := r.FormValue("enabled") == "true"
+	if err := s.store.SetUpdateCheckEnabled(r.Context(), db.SetUpdateCheckEnabledParams{
+		UpdateCheckEnabled:   enabled,
+		UpdateCheckUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+	}); err != nil {
+		s.serverError(w, "set update check enabled", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=instance", http.StatusSeeOther)
 }
 
 // diskLabel renders the used / total volume figure the instance-health disk row shows
