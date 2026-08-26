@@ -42,7 +42,7 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | 19 | SearchResults | /search | search.tmpl | — | **LANDED — operator confirmed 2026-08-26** |
 | 20 | Onboarding + FirstRun | /onboarding, / | onboarding.tmpl, firstrun.tmpl | wizard steps | **LANDED — operator confirmed 2026-08-26** |
 | 21 | Settings (all sections) | /settings/* | settings.tmpl | one golden per section incl. sessions, SSO, vantages+prober flow, channels, sources, aperture | **LANDED — operator confirmed 2026-08-26** |
-| 22 | Shell/chrome (LAST) | all | shell.tmpl | palette open · inbox bell menu · org switcher · toasts | queued |
+| 22 | Shell/chrome (LAST) | all | shell.tmpl | palette open · inbox bell menu · org switcher · toasts | **BATCH 8 — artifacts in v3.14.0** |
 
 Shell converts last because every earlier screen renders inside the current chrome; its goldens to that point mask chrome diffs by cropping to `<main>` (the harness crops until #22 lands, then goldens re-render full-page — a one-time golden regen, version-bumped).
 

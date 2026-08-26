@@ -49,6 +49,7 @@ PATHS=(
   design-system/goldens/onboarding
   design-system/goldens/firstrun
   design-system/goldens/settings
+  design-system/goldens/shell
 )
 
 # "<blob-sha>  <path>", sorted by path, C locale for a stable order across machines.
