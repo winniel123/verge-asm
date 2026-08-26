@@ -614,6 +614,15 @@ func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64)
 // designfs's existing `templates/*.tmpl` glob, so no designfs.go change is needed.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/dashboard.tmpl"))
 
+// The empty-estate first-run checklist is now byte-served from the design-owned, frozen
+// firstrun.tmpl (package v3.12.0, WORKFLOW v4, map #20): a BARE define "firstrun" — no
+// head/chrome/foot — that dashboard.tmpl's "home" define wraps when .EmptyEstate is true.
+// The repo authors no first-run markup/CSS: templates_firstrun.go is deleted; its "firstrun"
+// define moves to the frozen tmpl, which parses into the SAME shared `tmpl` set as
+// dashboard.tmpl so "home" resolves it at execute time. It auto-embeds through designfs's
+// existing templates/*.tmpl glob.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/firstrun.tmpl"))
+
 func (s *server) home(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if r.URL.Path != "/" {
 		s.notFound(w, r)
@@ -621,8 +630,14 @@ func (s *server) home(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	}
 	// VERGE_DEV pixel-parity path: serve the pinned fixtures.json dashboard slice so the seeded
 	// instance renders byte-for-byte what the golden composes (as coverage/exposure/signals do).
-	// A real deployment (devMode == false) falls through to the honest live reads below.
+	// The empty-estate first-run wrap rides a dev ?variant=empty-estate query (states.json), which
+	// selects the pinned firstrun slice so its golden composes byte-for-byte. A real deployment
+	// (devMode == false) falls through to the honest live reads below.
 	if s.devMode {
+		if r.URL.Query().Get("variant") == devFirstRunVariant {
+			s.render(w, "home", s.firstRunFixtureData(acct))
+			return
+		}
 		s.render(w, "home", s.dashboardFixtureData(acct, r))
 		return
 	}
@@ -693,20 +708,23 @@ type dashStat struct {
 	Tone     string
 }
 
-// firstRunStep is one step of the empty-estate first-run checklist (#302), shaped
-// after FirstRun.jsx's steps array: a number, whether the real read shows it done,
-// its title and detail, an optional action (label + href) shown only while the step
-// is open, and a Gated flag. Gated step 4 renders a disabled action naming the gate
-// rather than a live one — its precondition is a real internet vantage, never a
-// fabricated "done".
+// firstRunStep is one step of the empty-estate first-run checklist (#302, #20), shaped to the
+// holes the frozen firstrun.tmpl reads: .Num, .Done, .Title, .Detail, and — when .HasAction —
+// exactly ONE of .ActionHref (a link, steps 2/3) or .ActionPost (a form post, step 4's
+// "Run first batch" enqueues and cannot be a GET), plus .ActionLabel. Step 4 is .Gated until a
+// real internet vantage exists: while gated the tmpl renders a disabled secondary button whose
+// title is .GateTitle, never a fabricated "done" (#25f). Each .Done is the honest read.
 type firstRunStep struct {
-	N           int
+	Num         int
 	Done        bool
 	Title       string
 	Detail      string
+	HasAction   bool
 	ActionLabel string
 	ActionHref  string
+	ActionPost  string
 	Gated       bool
+	GateTitle   string
 }
 
 // dashboardData assembles the Dashboard's real figures of the shape the example
@@ -888,7 +906,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	var steps []firstRunStep
 	if emptyEstate {
-		steps = firstRunChecklist(nameScopes+addrScopes, zoneUploaded, internetVantage, scanDispatched)
+		steps = firstRunChecklist(nameScopes+addrScopes, firstSeedName(seedRows), zoneUploaded, internetVantage, scanDispatched)
 	}
 
 	// The header sub-line's "last full scan Xm ago · next in Yh Zm" instants (P0.4,
@@ -1063,47 +1081,68 @@ func statTone(change int, riseIsBad bool) string {
 	}
 }
 
-// firstRunChecklist builds the four setup steps for the empty-estate home (#302),
-// ported from FirstRun.jsx's steps array with the sample data swapped for the real
-// reads passed in. Each step's Done is the honest read — never a fabricated done —
-// and its action is offered only while the step is open. Step 4 is gated on the
-// internet vantage: without one its action is disabled and names the gate, matching
-// the withheld/gating pattern exposure.go uses for the same signal.
-func firstRunChecklist(scopes int, zoneUploaded, internetVantage, scanDispatched bool) []firstRunStep {
+// firstRunChecklist builds the four setup steps for the empty-estate home (#302, #20), from the
+// real reads passed in. Each step's Done is the honest read — never a fabricated done — and its
+// action is offered only while it is undone (.HasAction = !Done). Steps 2/3 offer a link
+// (.ActionHref → /scope, /settings/vantages); step 4 offers a form POST (.ActionPost →
+// /onboarding/finish, which enqueues the first scan — it cannot be a GET, #25f). Step 4 is gated
+// on the internet vantage: without one its action renders disabled and names the gate, matching
+// the withheld/gating pattern exposure.go uses for the same signal. The step copy is the fixture
+// copy verbatim (firstrun slice); the step-1 detail names the declared seed the read surfaces.
+func firstRunChecklist(scopes int, seedName string, zoneUploaded, internetVantage, scanDispatched bool) []firstRunStep {
 	scopeDetail := "A seed is a boundary, not a starting gun"
 	if scopes > 0 {
-		unit := "scopes"
-		if scopes == 1 {
-			unit = "scope"
+		lead := seedName
+		if lead == "" {
+			unit := "scopes"
+			if scopes == 1 {
+				unit = "scope"
+			}
+			lead = fmt.Sprintf("%d %s", scopes, unit)
 		}
-		scopeDetail = fmt.Sprintf("%d %s declared · a seed is a boundary, not a starting gun", scopes, unit)
+		scopeDetail = lead + " declared · a seed is a boundary, not a starting gun"
 	}
 	return []firstRunStep{
 		{
-			N: 1, Done: scopes > 0,
+			Num: 1, Done: scopes > 0,
 			Title: "Declare your domain", Detail: scopeDetail,
-			ActionLabel: "Declare scope", ActionHref: "/scope",
+			HasAction: scopes == 0, ActionLabel: "Declare scope", ActionHref: "/scope",
 		},
 		{
-			N: 2, Done: zoneUploaded,
+			Num: 2, Done: zoneUploaded,
 			Title:       "Upload a zone file",
 			Detail:      "Enables removal detection — you stopped telling us becomes detectable",
-			ActionLabel: "Upload zone", ActionHref: "/scope",
+			HasAction:   !zoneUploaded, ActionLabel: "Upload zone", ActionHref: "/scope",
 		},
 		{
-			N: 3, Done: internetVantage,
+			Num: 3, Done: internetVantage,
 			Title:       "Add an internet vantage",
 			Detail:      "Exposure needs an outside observer, unconditionally",
-			ActionLabel: "Provision prober", ActionHref: "/scope",
+			HasAction:   !internetVantage, ActionLabel: "Provision prober", ActionHref: "/settings/vantages",
 		},
 		{
-			N: 4, Done: scanDispatched,
+			Num: 4, Done: scanDispatched,
 			Title:       "Run the first batch",
 			Detail:      "Scans dispatch on cadence; kick the first one now",
-			ActionLabel: "Run first batch", ActionHref: "/scans",
-			Gated: !internetVantage,
+			HasAction:   !scanDispatched, ActionLabel: "Run first batch", ActionPost: "/onboarding/finish",
+			Gated: !internetVantage, GateTitle: "Needs an internet vantage first",
 		},
 	}
+}
+
+// firstSeedName returns a display name for the first declared seed — its domain (a name scope)
+// or its CIDR (an address scope) — for the step-1 detail. Empty when no seed is read, in which
+// case the checklist falls back to a count-based lead rather than fabricating a name.
+func firstSeedName(rows []db.ListSeedsRow) string {
+	for _, sd := range rows {
+		if sd.NameDomain.Valid && sd.NameDomain.String != "" {
+			return sd.NameDomain.String
+		}
+		if sd.AddressCidr != nil {
+			return sd.AddressCidr.String()
+		}
+	}
+	return ""
 }
 
 // --- account management -----------------------------------------------------

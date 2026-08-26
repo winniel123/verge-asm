@@ -68,6 +68,8 @@ docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen reports -outdir design-system/goldens/reports && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen reportartifact -outdir design-system/goldens/reportartifact && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen inbox -outdir design-system/goldens/inbox && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen onboarding -outdir design-system/goldens/onboarding && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen firstrun -outdir design-system/goldens/firstrun && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen graph -out design-system/goldens/graph.html"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
@@ -122,6 +124,14 @@ if [ "${GOLDENS:-}" = "write" ]; then
   # ?id / ?filter selection is baked into each render, so no state JS runs.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen inbox --pagedir /src/design-system/goldens/inbox
+  # onboarding: per-state HTML dir (--pagedir). wizard-1..4 are the per-step "onboarding" renders at
+  # the PRG GET URLs (states.json); each is a static server render of the self-contained tmpl.
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen onboarding --pagedir /src/design-system/goldens/onboarding
+  # firstrun: per-state HTML dir (--pagedir). default is the empty-estate wrap of `/` (dashboard.tmpl
+  # "home" wrapping the bare "firstrun" define when .EmptyEstate) — one static server render.
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen firstrun --pagedir /src/design-system/goldens/firstrun
   # graph is a SINGLE shared golden file (--page, like drift): its default / node-drawer /
   # filtered-critical states are the same HTML with the frozen tmpl's own view JS (node click →
   # drawer, severity listbox → filter) driven over it by capture.mjs (states.json) on BOTH sides.
@@ -288,6 +298,24 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # /dev/seed/empty TRUNCATEs the account table (which would strand inbox's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen inbox --base "http://${WEB}:8080" --hide-chrome
+# onboarding: chrome-hosted /onboarding cropped to `main`, session admin (per-state /dev/session
+# mint). --hide-chrome drops the sticky console header so <main> sits at the viewport top and aligns
+# with the chrome-less golden (as reports). wizard-1..4 are the pure PRG GET URLs (/onboarding?step=N&…)
+# the onboarding GET handler reconstructs from the query — a stateless read (no DB reshape), so its
+# constants (cadence presets, default cad, profile) already match the fixture. No seed — it touches no
+# table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table (which would
+# strand onboarding's authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen onboarding --base "http://${WEB}:8080" --hide-chrome
+# firstrun: chrome-hosted `/` cropped to `main`, session admin (per-state /dev/session mint), served
+# from the pinned fixtures.json firstrun slice under VERGE_DEV. --hide-chrome drops the sticky console
+# header so <main> sits at the viewport top and aligns with the chrome-less golden (as reports). The
+# default state rides a dev ?variant=empty-estate query capture.mjs appends (states.json), which home()
+# reads to serve the empty-estate wrap (dashboard.tmpl "home" wrapping "firstrun"). No seed — it touches
+# no table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table (which would
+# strand firstrun's authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen firstrun --base "http://${WEB}:8080" --hide-chrome
 # setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
 # capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
 # window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB

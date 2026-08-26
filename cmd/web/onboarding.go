@@ -1,14 +1,25 @@
 package main
 
 import (
+	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"unicode"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/scan"
 )
+
+// The onboarding wizard is now byte-served from the design-owned, frozen onboarding.tmpl
+// (package v3.12.0, WORKFLOW v4, map #20), embedded read-only via the designfs package and
+// parsed into the shared set here. The repo authors no onboarding markup/CSS/JS:
+// templates_onboarding.go is deleted (the "onboarding" define moves to the frozen tmpl). The
+// tmpl is self-contained (it calls only the shared head/chrome/foot defines) and auto-embeds
+// through designfs's existing templates/*.tmpl glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/onboarding.tmpl"))
 
 // The onboarding wizard (#307, T12, ADR-0110) — the first-run setup ported from
 // design-system/examples/console/Onboarding.jsx: the seeds → cadence → channel →
@@ -157,10 +168,31 @@ func (s *server) onboarding(w http.ResponseWriter, r *http.Request, acct db.Acco
 	s.renderOnboard(w, r, acct, readOnboardView(r))
 }
 
-// onboardingStep advances or rewinds the controlled flow. A chip's remove button
-// (`rm`) drops that seed and re-renders the same step; Back steps back; Next
-// advances only when the current step's valid gate passes (mirroring the example's
-// disabled Next), otherwise it re-renders the same step so the operator can fix it.
+// redirectOnboardStep 303-redirects the wizard to a GET at /onboarding carrying the
+// accumulated controlled state as query parameters (#25d, the batch-5 #23f precedent) —
+// the post-back PRG shape. The GET handler (onboarding) reconstructs the same view from the
+// query and renders the step, so every wizard state is bookmarkable and harness-addressable
+// (the wizard goldens hit these GET URLs directly). The seeds ride comma-joined, exactly as
+// the hidden `seeds` field carries them; a typed seed absorbed on this submit is already
+// folded into v.Seeds, so it rides forward as committed state.
+func redirectOnboardStep(w http.ResponseWriter, r *http.Request, v onboardView) {
+	q := url.Values{}
+	q.Set("step", strconv.Itoa(v.Step))
+	q.Set("seeds", strings.Join(v.Seeds, ","))
+	q.Set("profile", v.Profile)
+	q.Set("cad", v.Cad)
+	if v.Cron != "" {
+		q.Set("cron", v.Cron)
+	}
+	q.Set("channel", v.Channel)
+	http.Redirect(w, r, "/onboarding?"+q.Encode(), http.StatusSeeOther)
+}
+
+// onboardingStep advances or rewinds the controlled flow, then 303-redirects to the GET for
+// the resulting step (#25d PRG). A chip's remove button (`rm`) drops that seed and re-renders
+// the same step; Back steps back; Next advances only when the current step's valid gate passes
+// (mirroring the example's disabled Next), otherwise it redirects back to the same step so the
+// operator can fix it.
 func (s *server) onboardingStep(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	v := readOnboardView(r)
 
@@ -172,7 +204,7 @@ func (s *server) onboardingStep(w http.ResponseWriter, r *http.Request, acct db.
 			}
 		}
 		v.Seeds = out
-		s.renderOnboard(w, r, acct, v)
+		redirectOnboardStep(w, r, v)
 		return
 	}
 
@@ -186,7 +218,7 @@ func (s *server) onboardingStep(w http.ResponseWriter, r *http.Request, acct db.
 			v.Step++
 		}
 	}
-	s.renderOnboard(w, r, acct, v)
+	redirectOnboardStep(w, r, v)
 }
 
 // renderOnboard shapes the controlled state into the template data: the step
@@ -231,16 +263,22 @@ func (s *server) renderOnboard(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	data := map[string]any{
-		"Title":     "Set up this workspace",
-		"Account":   acct,
-		"IsAdmin":   acct.Role == roleAdmin,
-		"NavActive": "",
+		"Title":        "Set up this workspace",
+		"Account":      acct,
+		"IsAdmin":      acct.Role == roleAdmin,
+		"NavActive":    "",
+		"DesignTokens": true,
 
 		"Step":      v.Step,
 		"StepNum":   v.Step + 1,
 		"StepTotal": len(onboardStepTitles),
 		"Last":      v.Step == onboardLast,
 		"Steps":     steps,
+		// StepValid is the server-computed validity of the rendered step (#25d, NEW): it
+		// renders the Next/Start `disabled` attribute server-side as the no-JS floor under
+		// the frozen tmpl's JS validity gate (≥1 seed on step 0 — a typed seed is absorbed on
+		// submit; a cron required when the cadence is Custom…).
+		"StepValid": onboardStepValid(v),
 
 		"Seeds":      v.Seeds,
 		"SeedsField": strings.Join(v.Seeds, ","),
