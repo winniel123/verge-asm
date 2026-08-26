@@ -951,7 +951,11 @@ type Querier interface {
 	// Open a new span for a timeline. The caller passes the canonical value, the
 	// gap flag, the Derivation vector as a JSON array of {leaf,version}, and the id of
 	// the Batch whose fold opened it (ADR-0111) — nullable, since a span opened outside
-	// a batch fold cites none.
+	// a batch fold cites none. opened_aperture is TRUE where a widened aperture opened
+	// the timeline (a Seed-declared subject the fold first looked at) rather than the
+	// world bringing the subject — the signal the drift feed reads `revealed` from
+	// (#637, ADR-0014). It defaults FALSE, so the ordinary world-measured opening the
+	// feed narrates `appeared` needs nothing passed.
 	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
 	// Opts one `Seed` scope into the cold tier. Idempotent on seed_id: opting an
 	// already-opted-in scope in again is a no-op, never a duplicate.
