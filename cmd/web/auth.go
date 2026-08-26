@@ -2476,8 +2476,9 @@ func (s *server) injectChrome(data any, r *http.Request) {
 	// (flash.go) additionally carries the scan trigger / stop / terminate receipts (#633,
 	// WORK-ORDER-DOGFOOD-R1 item 1): stashed server-side and read-and-deleted here on the
 	// first chrome render, so the in-flight auto-refresh reloading the same clean URL does
-	// not re-show them. A flash, when present, is the authoritative single toast.
-	toasts := decodeToasts(r)
+	// not re-show them. A flash, when present, is the authoritative single toast (it wins
+	// over the inline FlashToasts above — in practice the two never co-occur, since the
+	// bulk-act pages that set FlashToasts do not stash a scan receipt).
 	if hasAcct {
 		if t, ok := s.flash.take(acct.ID); ok {
 			toasts = []toastVM{t}
