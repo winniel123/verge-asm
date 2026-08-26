@@ -41,7 +41,7 @@ release, and CI configuration under `.github/`, `Dockerfile`, and
 
 Out of scope:
 
-- **`design-system/` and `design-system-legacy/`** — static design assets, not a
+- **`design-system/` and `prototypes/design-system-legacy/`** — static design assets, not a
   production request path. Demo values there (e.g. placeholder tokens) are
   fixtures, not live credentials.
 - **`prototypes/`, `temp/`, and `docs/`** — non-shipping material.

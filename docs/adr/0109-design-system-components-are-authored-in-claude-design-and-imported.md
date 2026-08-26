@@ -9,7 +9,7 @@
 
 Verge ASM has just migrated its visual language: `design-system/` is now the redesigned "clean,
 friendly, modern SaaS" system, and the old "engineered paper" system is frozen to
-`design-system-legacy/` for the dated prototypes ([map #263](https://github.com/winniel123/verge-asm/issues/263)).
+`prototypes/design-system-legacy/` for the dated prototypes ([map #263](https://github.com/winniel123/verge-asm/issues/263)).
 The new system arrived as **~110 already-authored components** across `forms/ display/ feedback/
 navigation/ media/`, each shipping a `.jsx`, a `.d.ts` contract, and a `.prompt.md` usage note. None of
 them were written in this repository. They were authored in **Claude Design** — the dedicated design
