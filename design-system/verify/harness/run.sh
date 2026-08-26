@@ -68,7 +68,8 @@ docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen reports -outdir design-system/goldens/reports && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen reportartifact -outdir design-system/goldens/reportartifact && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen inbox -outdir design-system/goldens/inbox && \
-         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen graph -out design-system/goldens/graph.html"
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen graph -out design-system/goldens/graph.html && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen search -outdir design-system/goldens/search"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
 docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_IMAGE" \
@@ -127,6 +128,11 @@ if [ "${GOLDENS:-}" = "write" ]; then
   # drawer, severity listbox → filter) driven over it by capture.mjs (states.json) on BOTH sides.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen graph --page /src/design-system/goldens/graph.html
+  # search: per-state HTML dir (--pagedir). default (/search?q=acme) / empty (/search?q=zzz-none) are two
+  # static server renders of "search" — the ?q= query is baked into each render (segments folded through
+  # the #25a builder), so no state JS runs.
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen search --pagedir /src/design-system/goldens/search
 fi
 
 echo "== 3a. Postgres (pinned) =="
@@ -288,6 +294,14 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # /dev/seed/empty TRUNCATEs the account table (which would strand inbox's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen inbox --base "http://${WEB}:8080" --hide-chrome
+# search: chrome-hosted /search cropped to `main`, session admin (per-state /dev/session mint), served
+# from the pinned fixtures.json search slice under VERGE_DEV. --hide-chrome drops the sticky console
+# header from flow so <main> sits at the viewport top and aligns with the chrome-less golden (as inbox).
+# default (/search?q=acme) and empty (/search?q=zzz-none) are pure ?q= routes searchFixtureData reads in
+# devMode — no seed, no state JS. No table touched — so it MUST precede setup, whose /dev/seed/empty
+# TRUNCATEs the account table (which would strand search's authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen search --base "http://${WEB}:8080" --hide-chrome
 # setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
 # capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
 # window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB
