@@ -200,22 +200,76 @@ type sfInstanceVantage struct {
 	Avail   string `json:"avail"`
 }
 
-type sfUpdate struct {
+// Instance · data & release holes (v3.18.0, #391). The old sfUpdate callout is RETIRED
+// (its content moved into the Release card); Backup / Release / Migrations / Restore
+// mirror fixtures.json → settings.instance.* so the dev-mode golden render matches the
+// frozen tmpl holes. Preflight / RestoreConfirm are pointers so a null fixture leaves
+// them nil (the {{with}} branches collapse); Backup / Release / Migrations are struct
+// values the fixture always carries.
+type sfBackup struct {
+	InProgress bool   `json:"in_progress"`
+	Streamed   string `json:"streamed"`
+	SizeHint   string `json:"size_hint"`
+	Percent    int    `json:"percent"`
+	LastAt     string `json:"last_at"`
+	LastSize   string `json:"last_size"`
+}
+
+type sfLatest struct {
 	Version string `json:"version"`
 	Notes   string `json:"notes"`
 }
 
+type sfRelease struct {
+	State        string   `json:"state"`
+	CheckEnabled bool     `json:"check_enabled"`
+	CheckedAt    string   `json:"checked_at"`
+	Latest       sfLatest `json:"latest"`
+	Steps        []string `json:"steps"`
+}
+
+type sfMigrations struct {
+	Pending int `json:"pending"`
+}
+
+type sfPreflight struct {
+	File     string `json:"file"`
+	TakenAt  string `json:"taken_at"`
+	Subjects string `json:"subjects"`
+	Schema   string `json:"schema"`
+}
+
+type sfRestoreConfirm struct {
+	File     string `json:"file"`
+	TakenAt  string `json:"taken_at"`
+	Subjects string `json:"subjects"`
+}
+
 type sfInstance struct {
-	Update     *sfUpdate           `json:"update"`
-	Version    string              `json:"version"`
-	License    string              `json:"license"`
-	Uptime     string              `json:"uptime"`
-	QueueDepth int                 `json:"queue_depth"`
-	DiskPct    int                 `json:"disk_pct"`
-	DiskDetail string              `json:"disk_detail"`
-	PgLabel    string              `json:"pg_label"`
-	PgDetail   string              `json:"pg_detail"`
-	Vantages   []sfInstanceVantage `json:"vantages"`
+	Version        string              `json:"version"`
+	License        string              `json:"license"`
+	Uptime         string              `json:"uptime"`
+	QueueDepth     int                 `json:"queue_depth"`
+	DiskPct        int                 `json:"disk_pct"`
+	DiskDetail     string              `json:"disk_detail"`
+	PgLabel        string              `json:"pg_label"`
+	PgDetail       string              `json:"pg_detail"`
+	Vantages       []sfInstanceVantage `json:"vantages"`
+	Backup         sfBackup            `json:"backup"`
+	RestoreError   string              `json:"restore_error"`
+	Preflight      *sfPreflight        `json:"preflight"`
+	RestoreConfirm *sfRestoreConfirm   `json:"restore_confirm"`
+	Migrations     sfMigrations        `json:"migrations"`
+	Release        sfRelease           `json:"release"`
+}
+
+// sfAPI mirrors fixtures.json → settings.api: the read-only /api/v1 opt-in state and,
+// when enabled, the dated act of the current state (By/At). Disabled in the fixture, so
+// By/At are empty and the tmpl renders only the disabled badge + note.
+type sfAPI struct {
+	Enabled bool   `json:"enabled"`
+	By      string `json:"by"`
+	At      string `json:"at"`
 }
 
 type sfClassOption struct {
@@ -338,6 +392,7 @@ type settingsFixture struct {
 	Integrations sfIntegrations    `json:"integrations"`
 	Messages     []sfMessage       `json:"messages"`
 	Delivery     sfDeliverySection `json:"delivery"`
+	API          sfAPI             `json:"api"`
 }
 
 // loadSettingsFixture reads and decodes the fixtures.json → settings slice.
@@ -462,6 +517,8 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		}
 	case "audit":
 		data["AuditRows"] = nil
+	case "api":
+		data["API"] = fx.API
 	case "sources":
 		data["Unencumbered"] = fx.Sources.Unencumbered
 		data["OperatorAccepted"] = fx.Sources.OperatorAccepted

@@ -191,7 +191,7 @@ type settingsForms struct {
 // record). Each is reached at /settings?tab=<id>.
 var settingsTabs = []string{
 	"scans", "vantages",
-	"sso", "team", "audit", "sessions",
+	"sso", "team", "audit", "api", "sessions",
 	"sources", "aperture",
 	"instance",
 	"channels", "integrations", "messages", "delivery",
@@ -217,6 +217,8 @@ func validTab(t string) string {
 // rejected submission re-renders with its own section active.
 func tabForSection(section string) string {
 	switch section {
+	case "api":
+		return "api"
 	case "sso":
 		return "sso"
 	case "team":
@@ -638,6 +640,8 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		err = s.fillTeamSection(r, acct, f, data)
 	case "audit":
 		err = s.fillAuditSection(r, data)
+	case "api":
+		err = s.fillAPISection(r, data)
 	case "sessions":
 		err = s.fillSessionsSection(r, f, data)
 	case "sources":
@@ -783,6 +787,41 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	data["RetError"] = f.retError
 	data["RetObs"] = f.retObs
 	data["RetDispatch"] = f.retDispatch
+	return nil
+}
+
+// fillAPISection carries the read-only /api/v1 opt-in surface (#390, ADR-0123 pending
+// A1). It reads the single instance_config row: .API{Enabled,By,At}, where By/At are the
+// dated act of the CURRENT state (who last flipped the surface on, when) and both stay
+// nil while it has never been enabled. Enabling is admin-only (the toggle is behind
+// .IsAdmin in the tmpl, its POST /settings/api handler is A4); a viewer reaches this one
+// Settings tab read-only (requireSettingsAdmin lets ?tab=api through) and sees the state
+// and note without a button. The bearer verification, the enable POST and the live
+// enabled render are the A-cluster's; this lands the disabled/read baseline.
+func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
+	cfg, err := s.store.GetInstanceConfig(r.Context())
+	if err != nil {
+		return err
+	}
+	api := map[string]any{"Enabled": cfg.ApiEnabled}
+	if cfg.ApiEnabled {
+		// By/At describe the current enabled state — resolve the author username by the
+		// same join toRetentionView uses (settings.go), and format the instant in UTC.
+		if cfg.ApiUpdatedBy.Valid {
+			if accounts, aerr := s.store.ListAccounts(r.Context()); aerr == nil {
+				for _, a := range accounts {
+					if a.ID == cfg.ApiUpdatedBy.Int64 {
+						api["By"] = a.Username
+						break
+					}
+				}
+			}
+		}
+		if cfg.ApiUpdatedAt.Valid {
+			api["At"] = cfg.ApiUpdatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+		}
+	}
+	data["API"] = api
 	return nil
 }
 

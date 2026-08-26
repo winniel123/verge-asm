@@ -232,14 +232,18 @@ type devProfileToken struct {
 	name       string
 	prefix     string
 	created    string // fixtures.json date-only, YYYY-MM-DD
-	last       string // fixtures.json display token: 2h / 14d
+	last       string // fixtures.json display token: 2h / 14d ("" when never used)
 	lastOffset time.Duration
+	lastNull   bool // #390: never-used token — last_used_at is NULL, renders "never"
 }
 
-// devProfileTokens pins fixtures.json → profile.tokens, in fixture order.
+// devProfileTokens pins fixtures.json → profile.tokens, in fixture order. The third,
+// ci-export (#390, v3.18.0), has never been used: its last_used_at is NULL, so the
+// Profile renders it "never".
 var devProfileTokens = []devProfileToken{
 	{name: "laptop-cli", prefix: "vg_pat_9f3k…", created: "2026-05-02", last: "2h", lastOffset: 2 * time.Hour},
 	{name: "grafana-readonly", prefix: "vg_pat_x81m…", created: "2026-07-19", last: "14d", lastOffset: 14 * 24 * time.Hour},
+	{name: "ci-export", prefix: "vg_pat_r55q…", created: "2026-08-20", last: "", lastNull: true},
 }
 
 // devFixtureClockTime parses the pinned clock; a VERGE_DEV server and the seeder read the
@@ -354,8 +358,14 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 		if derr != nil {
 			return fmt.Errorf("profile fixture: parse token created %q: %w", pt.created, derr)
 		}
+		// A never-used token (ci-export, #390) carries a NULL last_used_at so lastUsed
+		// renders "never"; the others stamp a clock-relative last_used_at (2h / 14d).
+		lastUsedAt := pgtype.Timestamptz{Time: clock.Add(-pt.lastOffset), Valid: true}
+		if pt.lastNull {
+			lastUsedAt = pgtype.Timestamptz{}
+		}
 		if _, err := pool.Exec(ctx, insToken,
-			acct.ID, pt.name, pt.prefix, hashToken("verge-dev-token-"+pt.name), created, clock.Add(-pt.lastOffset),
+			acct.ID, pt.name, pt.prefix, hashToken("verge-dev-token-"+pt.name), created, lastUsedAt,
 		); err != nil {
 			return fmt.Errorf("profile fixture: insert token %q: %w", pt.name, err)
 		}

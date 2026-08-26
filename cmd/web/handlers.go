@@ -127,6 +127,10 @@ type store interface {
 	GetInstanceHealth(ctx context.Context) (db.GetInstanceHealthRow, error)
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
+	// GetInstanceConfig reads the instance-global singleton (v3.18.0): the API opt-in
+	// flag + who/when, the update-check flag, the release cache and the last-UI-backup
+	// record. Both the #390 and #391 feature clusters read their state through it.
+	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
 	// TightestEnabledScanCadenceSeconds is the tightest bound in force, which the
 	// observation dial floors at (#208, ADR-0094) — symmetric to the Dispatch
 	// floor's SlowestEnabledScanCadenceSeconds.

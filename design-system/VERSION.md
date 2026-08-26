@@ -1,11 +1,12 @@
 # Package version
 
-current: 3.17.1
+current: 3.18.0
 exported: 2026-08-26
 
 Convention: MAJOR.ROUND.PATCH — MAJOR is the package generation, ROUND increments per sync/Wayfinder round, PATCH per mid-round ruling or spec fix. The design workspace bumps this on every export; the repo copy always states what landed.
 
 ## Log
+- 3.18.0 — 2026-08-26 · Wayfinder tickets #390/#391 retired into design: API token surfaces (Settings·Access gains the api tab — read-only opt-in /api/v1 toggle with dated act + both-state callouts; profile tokens get real nullable Last with "never" + inert-tokens note via .APIEnabled) and Backup & updates (Instance gains Backup / Restore / Version&updates cards — data-only no-secrets framing, preflight + typed-confirm restore via new generic [data-typed-confirm] wiring, release states current|newer|disabled with literal host steps, migrations badge; the old .Update callout retires); fixtures + 3 states; WORK-ORDER-390-391.md (full Behavior)
 - 3.17.1 — 2026-08-26 · fix: .rd-loghead .jf gains white-space:nowrap (job-filter chip wrapped outside its pill at narrow widths)
 - 3.17.0 — 2026-08-26 · rulings #33–#35 + DF-F4b: OrgSwitcher retired permanently (ADR-0073 stands — static chip only, .Chrome.Orgs/org-open/orgs-fixture drop, TopNav updated); rundetail loghead moves outside {{if .Log}} (DF-F3b chip renders over honest empty); /runs id split — active dispatch → 1409, missing-run keeps 1408, rundetail·running state added; .Run.Status gains stopped|terminated badge treatments (warn / danger-outline; BatchStatus too); WORK-ORDER-33-35.md
 - 3.16.2 — 2026-08-26 · drift-audit rulings #28–#32 (SPEC-CHANGE.md, no template change): severity docs stale side (#1 stands); Run-now stays download-only + #17 delivery IS built (docs drop the stale AWAITING note) + format=pdf normative (#23c); 4 runnerless RIR proposers → the #241 catalogued-not-executing bucket; cadence preset times + cron = BUILD (spec normative); drift legend stands contingent on estate wiring (else trims next round)

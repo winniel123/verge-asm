@@ -105,9 +105,10 @@ type fakeStore struct {
 	// landing view (#196); the exposure test seeds it directly.
 	reachSpans []db.ListReachabilitySpansForExposureRow
 
-	channels   []fakeChannel
-	chanNextID int64
-	retention  db.GetRetentionSettingsRow
+	channels       []fakeChannel
+	chanNextID     int64
+	retention      db.GetRetentionSettingsRow
+	instanceConfig db.GetInstanceConfigRow
 
 	// scans mirrors the scan table. newFakeStore seeds the dns Scan the migration
 	// ships (enabled, daily) so the aperture statement has a cadence to read.
@@ -960,6 +961,10 @@ func (f *fakeStore) DeleteChannel(_ context.Context, id int64) error {
 
 func (f *fakeStore) GetRetentionSettings(context.Context) (db.GetRetentionSettingsRow, error) {
 	return f.retention, nil
+}
+
+func (f *fakeStore) GetInstanceConfig(context.Context) (db.GetInstanceConfigRow, error) {
+	return f.instanceConfig, nil
 }
 
 func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {

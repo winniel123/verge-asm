@@ -1867,7 +1867,9 @@ func renderProfileStates(bodyFlex bool) ([]errorGolden, error) {
 	mintedTokens := make([]map[string]any, 0, len(baseTokens)+1)
 	mintedTokens = append(mintedTokens, baseTokens...)
 	mintedTokens = append(mintedTokens, map[string]any{
-		"ID": "new", "Name": "ci-golden", "Prefix": mintedPrefix, "Created": "2026-08-24", "Last": "—",
+		// A freshly-minted token has never been used → last_used_at NULL → lastUsed
+		// returns "" → the frozen tmpl renders "never" (#390, v3.18.0).
+		"ID": "new", "Name": "ci-golden", "Prefix": mintedPrefix, "Created": "2026-08-24", "Last": "",
 	})
 
 	base := func(tokens []map[string]any) map[string]any {
@@ -4578,21 +4580,60 @@ type gsInstanceVantage struct {
 	Latency string `json:"latency"`
 	Avail   string `json:"avail"`
 }
-type gsUpdate struct {
+type gsBackup struct {
+	InProgress bool   `json:"in_progress"`
+	Streamed   string `json:"streamed"`
+	SizeHint   string `json:"size_hint"`
+	Percent    int    `json:"percent"`
+	LastAt     string `json:"last_at"`
+	LastSize   string `json:"last_size"`
+}
+type gsLatest struct {
 	Version string `json:"version"`
 	Notes   string `json:"notes"`
 }
+type gsRelease struct {
+	State        string   `json:"state"`
+	CheckEnabled bool     `json:"check_enabled"`
+	CheckedAt    string   `json:"checked_at"`
+	Latest       gsLatest `json:"latest"`
+	Steps        []string `json:"steps"`
+}
+type gsMigrations struct {
+	Pending int `json:"pending"`
+}
+type gsPreflight struct {
+	File     string `json:"file"`
+	TakenAt  string `json:"taken_at"`
+	Subjects string `json:"subjects"`
+	Schema   string `json:"schema"`
+}
+type gsRestoreConfirm struct {
+	File     string `json:"file"`
+	TakenAt  string `json:"taken_at"`
+	Subjects string `json:"subjects"`
+}
 type gsInstance struct {
-	Update     *gsUpdate           `json:"update"`
-	Version    string              `json:"version"`
-	License    string              `json:"license"`
-	Uptime     string              `json:"uptime"`
-	QueueDepth int                 `json:"queue_depth"`
-	DiskPct    int                 `json:"disk_pct"`
-	DiskDetail string              `json:"disk_detail"`
-	PgLabel    string              `json:"pg_label"`
-	PgDetail   string              `json:"pg_detail"`
-	Vantages   []gsInstanceVantage `json:"vantages"`
+	Version        string              `json:"version"`
+	License        string              `json:"license"`
+	Uptime         string              `json:"uptime"`
+	QueueDepth     int                 `json:"queue_depth"`
+	DiskPct        int                 `json:"disk_pct"`
+	DiskDetail     string              `json:"disk_detail"`
+	PgLabel        string              `json:"pg_label"`
+	PgDetail       string              `json:"pg_detail"`
+	Vantages       []gsInstanceVantage `json:"vantages"`
+	Backup         gsBackup            `json:"backup"`
+	RestoreError   string              `json:"restore_error"`
+	Preflight      *gsPreflight        `json:"preflight"`
+	RestoreConfirm *gsRestoreConfirm   `json:"restore_confirm"`
+	Migrations     gsMigrations        `json:"migrations"`
+	Release        gsRelease           `json:"release"`
+}
+type gsAPI struct {
+	Enabled bool   `json:"enabled"`
+	By      string `json:"by"`
+	At      string `json:"at"`
 }
 type gsClassOption struct {
 	Name    string `json:"name"`
@@ -4698,6 +4739,7 @@ type gsSettings struct {
 	Integrations gsIntegrations    `json:"integrations"`
 	Messages     []gsMessage       `json:"messages"`
 	Delivery     gsDeliverySection `json:"delivery"`
+	API          gsAPI             `json:"api"`
 }
 
 func loadSettingsFixtureG() (gsSettings, error) {
@@ -4811,6 +4853,8 @@ func settingsGoldenMap(fx gsSettings, tab string, q map[string]string) map[strin
 		}
 	case "audit":
 		data["AuditRows"] = nil
+	case "api":
+		data["API"] = fx.API
 	case "sources":
 		data["Unencumbered"] = fx.Sources.Unencumbered
 		data["OperatorAccepted"] = fx.Sources.OperatorAccepted
@@ -4885,49 +4929,57 @@ func renderSettingsStates(bodyFlex bool) ([]errorGolden, error) {
 		return nil, err
 	}
 
-	execSettings := func(tab string, q map[string]string) ([]byte, error) {
+	execSettings := func(tab string, q map[string]string, admin bool) ([]byte, error) {
 		t, terr := newSettingsTemplate(head)
 		if terr != nil {
 			return nil, terr
 		}
+		data := settingsGoldenMap(fx, tab, q)
+		// settingsGoldenMap stamps IsAdmin:true (the admin captures); the API access tab
+		// is the one Settings surface a viewer reads (#390 api-viewer), rendered read-only
+		// with no toggle, so its golden flips IsAdmin off.
+		data["IsAdmin"] = admin
 		var buf bytes.Buffer
-		if terr := execGolden(t, &buf, "settings", settingsGoldenMap(fx, tab, q)); terr != nil {
+		if terr := execGolden(t, &buf, "settings", data); terr != nil {
 			return nil, terr
 		}
 		return buf.Bytes(), nil
 	}
 
 	type sstate struct {
-		id  string
-		tab string
-		q   map[string]string
+		id    string
+		tab   string
+		q     map[string]string
+		admin bool
 	}
 	states := []sstate{
-		{"scans", "scans", nil},
-		{"scans-stop-confirm", "scans", map[string]string{"stop": "1409"}},
-		{"scans-terminate-confirm", "scans", map[string]string{"terminate": "1409"}},
-		{"vantages", "vantages", nil},
-		{"sso", "sso", nil},
-		{"team", "team", nil},
-		{"team-invite", "team", map[string]string{"invite": "1"}},
-		{"team-remove", "team", map[string]string{"remove": "u3"}},
-		{"sessions", "sessions", nil},
-		{"sessions-revoke-all", "sessions", map[string]string{"revoke-account": "u2"}},
-		{"audit", "audit", nil},
-		{"sources", "sources", nil},
-		{"sources-consent", "sources", map[string]string{"consent": "ripestat"}},
-		{"aperture", "aperture", nil},
-		{"instance", "instance", nil},
-		{"channels", "channels", nil},
-		{"integrations", "integrations", nil},
-		{"integrations-drawer", "integrations", map[string]string{"view": "pagerduty"}},
-		{"messages", "messages", nil},
-		{"delivery", "delivery", nil},
+		{"scans", "scans", nil, true},
+		{"scans-stop-confirm", "scans", map[string]string{"stop": "1409"}, true},
+		{"scans-terminate-confirm", "scans", map[string]string{"terminate": "1409"}, true},
+		{"vantages", "vantages", nil, true},
+		{"sso", "sso", nil, true},
+		{"team", "team", nil, true},
+		{"team-invite", "team", map[string]string{"invite": "1"}, true},
+		{"team-remove", "team", map[string]string{"remove": "u3"}, true},
+		{"sessions", "sessions", nil, true},
+		{"sessions-revoke-all", "sessions", map[string]string{"revoke-account": "u2"}, true},
+		{"audit", "audit", nil, true},
+		{"api", "api", nil, true},
+		{"api-viewer", "api", nil, false},
+		{"sources", "sources", nil, true},
+		{"sources-consent", "sources", map[string]string{"consent": "ripestat"}, true},
+		{"aperture", "aperture", nil, true},
+		{"instance", "instance", nil, true},
+		{"channels", "channels", nil, true},
+		{"integrations", "integrations", nil, true},
+		{"integrations-drawer", "integrations", map[string]string{"view": "pagerduty"}, true},
+		{"messages", "messages", nil, true},
+		{"delivery", "delivery", nil, true},
 	}
 
 	out := make([]errorGolden, 0, len(states)+1)
 	for _, st := range states {
-		html, herr := execSettings(st.tab, st.q)
+		html, herr := execSettings(st.tab, st.q, st.admin)
 		if herr != nil {
 			return nil, herr
 		}

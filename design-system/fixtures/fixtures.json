@@ -291,9 +291,17 @@
         "prefix": "vg_pat_x81m…",
         "created": "2026-07-19",
         "last": "14d"
+      },
+      {
+        "id": "t3",
+        "name": "ci-export",
+        "prefix": "vg_pat_r55q…",
+        "created": "2026-08-20",
+        "last": null
       }
     ],
-    "minted_token_fixture": "vg_pat_cigolden0example"
+    "minted_token_fixture": "vg_pat_cigolden0example",
+    "api_enabled": false
   },
   "signin": {
     "version": "v0.9.2",
@@ -4099,10 +4107,6 @@
       ]
     },
     "instance": {
-      "update": {
-        "version": "v0.9.3",
-        "notes": "Drift-batch memory fixes and a faster census."
-      },
       "version": "v0.9.2",
       "license": "AGPL-3.0 · self-hosted",
       "uptime": "41d",
@@ -4127,7 +4131,32 @@
           "latency": "",
           "avail": "unverified"
         }
-      ]
+      ],
+      "backup": {
+        "in_progress": false,
+        "last_at": null
+      },
+      "restore_error": null,
+      "preflight": null,
+      "restore_confirm": null,
+      "migrations": {
+        "pending": 0
+      },
+      "release": {
+        "state": "newer",
+        "check_enabled": true,
+        "checked_at": "2026-08-22 13:40 UTC",
+        "latest": {
+          "version": "v0.9.3",
+          "notes": "Drift-batch memory fixes and a faster census."
+        },
+        "steps": [
+          "# on the host — verge cannot rewrite its own image",
+          "docker compose pull",
+          "docker compose up -d web worker",
+          "docker compose exec web verge migrate status"
+        ]
+      }
     },
     "channels": {
       "class_options": [
@@ -4383,6 +4412,11 @@
         "updated_at": "2026-08-20",
         "updated_by": "ola@acmecorp.io"
       }
+    },
+    "api": {
+      "enabled": false,
+      "by": null,
+      "at": null
     }
   },
   "shell": {

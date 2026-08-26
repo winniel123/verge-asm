@@ -243,6 +243,7 @@
 <a class="st-navitem{{if eq .Tab "team"}} on{{end}}" href="/settings?tab=team"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>Team</a>
 <a class="st-navitem{{if eq .Tab "sessions"}} on{{end}}" href="/settings?tab=sessions"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg></span>Sessions</a>
 <a class="st-navitem{{if eq .Tab "audit"}} on{{end}}" href="/settings?tab=audit"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"></path><path d="M15 8h-5"></path><path d="M19 17V5a2 2 0 0 0-2-2H4"></path><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"></path></svg></span>Audit log</a>
+<a class="st-navitem{{if eq .Tab "api"}} on{{end}}" href="/settings?tab=api"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg></span>API access</a>
 </div>
 <div class="st-navgroup"><span class="st-micro">Discovery</span>
 <a class="st-navitem{{if eq .Tab "sources"}} on{{end}}" href="/settings?tab=sources"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg></span>Sources</a>
@@ -267,6 +268,7 @@
 {{if eq .Tab "team"}}{{template "settings-team" .}}{{end}}
 {{if eq .Tab "sessions"}}{{template "settings-sessions" .}}{{end}}
 {{if eq .Tab "audit"}}{{template "settings-audit" .}}{{end}}
+{{if eq .Tab "api"}}{{template "settings-api" .}}{{end}}
 {{if eq .Tab "sources"}}{{template "settings-sources" .}}{{end}}
 {{if eq .Tab "aperture"}}{{template "settings-aperture" .}}{{end}}
 {{if eq .Tab "instance"}}{{template "settings-instance" .}}{{end}}
@@ -291,6 +293,11 @@
       if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(v);else{var ta=document.createElement("textarea");ta.value=v;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(err){}document.body.removeChild(ta);}
       b.classList.add("ok");var t=b.textContent;b.textContent="copied";setTimeout(function(){b.classList.remove("ok");b.textContent=t;},1600);
     });
+  });
+  [].forEach.call(document.querySelectorAll("input[data-typed-confirm]"),function(inp){
+    var btn=inp.form&&inp.form.querySelector('button[type="submit"]');
+    if(!btn)return;
+    inp.addEventListener("input",function(){btn.disabled=inp.value.trim()!==inp.getAttribute("data-typed-confirm");});
   });
   var tn=document.getElementById("st-typed-name");
   if(tn){var ti=document.querySelector(".st-dialog input.typed"),ts=document.querySelector("[data-st-typed-submit]");
@@ -988,19 +995,14 @@
 </section>
 {{end}}
 
-{{/* instance — holes: .Instance{Update{Version,Notes},Version,License,Uptime,QueueDepth,DiskPct,DiskDetail,PgLabel,PgDetail,Vantages[{Name,Latency,Avail}] (nullable — empty state renders)} */}}
+{{/* instance — holes (#391 — the .Update callout retired into Release): .Instance{Version,License,Uptime,QueueDepth,DiskPct,DiskDetail,PgLabel,PgDetail,Vantages[] (nullable),Backup{InProgress,Streamed,SizeHint,Percent,LastAt,LastSize} (nullable),RestoreError,Preflight{File,TakenAt,Subjects,Schema} (nullable),RestoreConfirm{File,TakenAt,Subjects} (nullable — ?restore-confirm=1),Migrations{Pending},Release{State(current|newer|disabled),CheckEnabled,CheckedAt,Latest{Version,Notes},Steps[]}} */}}
 {{define "settings-instance"}}
 {{with .Instance}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Instance · health</span>
 <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Health</h2>
 </header>
-{{with .Update}}
-<div class="st-callout accent">
-<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg></span>
-<span class="ct"><b>Update available — {{.Version}}</b><span>{{.Notes}} Update from the host: <code>verge self-update</code></span></span>
-</div>
-{{end}}
+
 <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
 <section class="st-card"><div class="st-body" style="display:flex;flex-direction:column;gap:4px"><span class="st-micro">Version</span><span style="font:600 28px var(--font-mono);color:var(--text-ink);line-height:1.1">{{.Version}}</span><span class="st-note">{{.License}}</span></div></section>
 <section class="st-card"><div class="st-body" style="display:flex;flex-direction:column;gap:4px"><span class="st-micro">Uptime</span><span style="font:600 28px var(--font-mono);color:var(--text-ink);line-height:1.1">{{.Uptime}}</span><span class="st-note">since last restart</span></div></section>
@@ -1043,7 +1045,112 @@
 </div>
 </div>
 </section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Instance · data</span><h3>Backup</h3></div></div>
+<div class="st-body"><div style="display:flex;flex-direction:column;gap:12px">
+<p class="st-lede">A backup carries the estate and its configuration — data only, never a secret. The session key and the prober key are not in it: on restore both regenerate, and old sessions lapse. That is the design, not a caveat — a stolen backup cannot impersonate this instance.</p>
+{{with .Backup}}{{if .InProgress}}
+<div style="display:flex;align-items:center;gap:10px"><span class="st-dotlive"></span><span style="font:400 12.5px var(--font-ui);color:var(--text-secondary)">Preparing the archive — {{.Streamed}} of ~{{.SizeHint}}. Big estates stream; the download starts when the archive is sealed.</span></div>
+<div class="st-meter"><span class="fill" style="width:{{.Percent}}%"></span></div>
+{{else}}
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+{{if $.IsAdmin}}<form method="post" action="/settings/backup" style="margin:0"><button type="submit" class="st-btn">Download backup</button></form>{{end}}
+<span class="st-note">{{if .LastAt}}Last backup {{.LastAt}} · {{.LastSize}}{{else}}No backup has been taken from this UI yet.{{end}}</span>
+</div>
+{{end}}{{end}}
+</div></div>
+</section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Instance · data</span><h3>Restore</h3></div></div>
+<div class="st-body"><div style="display:flex;flex-direction:column;gap:12px">
+<p class="st-lede">Restoring replaces the current estate and configuration with the archive’s — it overwrites what is here now. The archive is pre-flighted before anything is touched, and applying it takes a typed confirmation. Fresh session and prober keys are generated: every session signs in again, and probers re-pin.</p>
+{{if .RestoreError}}<div class="st-error">{{.RestoreError}}</div>{{end}}
+{{with .Preflight}}
+<div class="st-callout warn">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span>
+<span class="ct"><b>Pre-flight — {{.File}}</b><span>Taken {{.TakenAt}} · {{.Subjects}} subjects · schema {{.Schema}}. Applying it overwrites the current data. <a href="/settings?tab=instance&amp;restore-confirm=1">Continue to restore…</a> · <a href="/settings?tab=instance">Discard</a></span></span>
+</div>
+{{else}}
+{{if $.IsAdmin}}
+<form method="post" action="/settings/restore/preflight" enctype="multipart/form-data" style="margin:0;display:flex;align-items:center;gap:10px">
+<label class="st-btn ghost" style="cursor:pointer">Choose archive…<input type="file" name="archive" accept=".tar.gz,.vgbak" style="display:none" onchange="this.form.submit()"></label>
+<span class="st-note">Pre-flight only — nothing is applied yet.</span>
+</form>
 {{end}}
+{{end}}
+</div></div>
+</section>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Instance · release</span><h3>Version &amp; updates</h3></div></div>
+<div class="st-body"><div style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="font:600 15px var(--font-mono);color:var(--text-ink)">{{.Version}}</span>
+{{with .Migrations}}{{if .Pending}}<span class="st-badge warn">{{.Pending}} migrations pending</span>{{else}}<span class="st-badge ok">schema current</span>{{end}}{{end}}
+</div>
+{{with .Release}}
+{{if eq .State "newer"}}
+<div class="st-callout accent">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg></span>
+<span class="ct"><b>{{.Latest.Version}} is available</b><span>{{.Latest.Notes}} Verge never rewrites its own image — the swap is a host action. The exact steps:</span></span>
+</div>
+<pre style="margin:0;padding:12px 14px;background:var(--surface-inverted);border-radius:12px;font:400 12px/1.7 var(--font-mono);color:var(--text-on-inverted);overflow-x:auto">{{range .Steps}}{{.}}
+{{end}}</pre>
+{{else if eq .State "current"}}
+<span style="display:inline-flex;align-items:center;gap:8px;font:400 12.5px var(--font-ui);color:var(--text-secondary)"><span class="st-dot done"></span>Up to date — checked {{.CheckedAt}}.</span>
+{{else}}
+<span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">Update checks are off — air-gap friendly; Verge never phones home while disabled. Compare {{$.Instance.Version}} against the releases page when you choose.</span>
+{{end}}
+<div style="display:flex;align-items:center;gap:12px">
+{{if $.IsAdmin}}<form method="post" action="/settings/updates/check" style="margin:0"><input type="hidden" name="enabled" value="{{if .CheckEnabled}}false{{else}}true{{end}}"><button type="submit" class="st-btn-sm">{{if .CheckEnabled}}Disable update checks{{else}}Enable update checks{{end}}</button></form>{{end}}
+<span class="st-note">Best-effort check against the release feed — a failed check reports nothing and never blocks.</span>
+</div>
+{{end}}
+</div></div>
+</section>
+{{with .RestoreConfirm}}
+<a class="st-scrim" href="/settings?tab=instance" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Restore archive">
+<h2>Restore {{.File}}</h2>
+<p class="detail">This overwrites the current estate and configuration with the archive’s ({{.Subjects}} subjects, taken {{.TakenAt}}). Fresh session and prober keys are generated — every session signs in again, and probers re-pin.</p>
+<p class="detail" style="color:var(--text-secondary)">Type <span style="font-family:var(--font-mono);font-size:12.5px">restore</span> to confirm.</p>
+<form method="post" action="/settings/restore" style="margin:16px 0 0;display:flex;flex-direction:column;gap:16px">
+<input class="typed" name="confirm" autocomplete="off" spellcheck="false" aria-label="Type restore to confirm" data-typed-confirm="restore">
+<div class="acts" style="margin-top:0">
+<a class="st-btn ghost" href="/settings?tab=instance">Cancel</a>
+<button type="submit" class="st-btn danger" disabled>Restore — overwrite current data</button>
+</div>
+</form>
+</div></div>
+{{end}}
+{{end}}
+{{end}}
+
+{{/* api — holes: .API{Enabled,By,At} .IsAdmin (#390: read-only opt-in /api/v1; bearer path separate from sessions) */}}
+{{define "settings-api"}}
+<header style="display:flex;flex-direction:column;gap:6px">
+<span class="st-micro">Access · api access</span>
+<h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">API access</h2>
+<p class="st-lede">A read-only JSON surface at <code>/api/v1</code>, authenticated by personal tokens — the bearer path is fully separate from browser sessions. It is <strong>off by default</strong>; minted tokens stay inert until an admin turns it on. A token can never mutate anything: leaked, it can read the inventory, but it cannot change the estate or its configuration.</p>
+</header>
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Read-only · opt-in</span><h3>/api/v1</h3></div></div>
+<div class="st-body"><div style="display:flex;flex-direction:column;gap:12px">
+{{with .API}}
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+{{if .Enabled}}<span class="st-badge ok">enabled</span>{{else}}<span class="st-badge neutral">disabled</span>{{end}}
+{{if $.IsAdmin}}
+<form method="post" action="/settings/api" style="margin:0"><input type="hidden" name="enabled" value="{{if .Enabled}}false{{else}}true{{end}}"><button type="submit" class="st-btn-sm">{{if .Enabled}}Disable API access{{else}}Enable API access{{end}}</button></form>
+{{else}}<span class="st-note">You have read access. Enabling or disabling the API is admin-only.</span>{{end}}
+{{if .Enabled}}<span class="st-note">Enabled by {{.By}} · {{.At}}</span>{{end}}
+</div>
+{{if .Enabled}}
+<div class="st-callout accent"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span><span class="ct"><b>Live — read-only, always</b><span>Personal tokens now answer <span style="font-family:var(--font-mono);font-size:12px">GET /api/v1/…</span> with their account’s read access. No token can change the estate or its configuration — there is no write surface to enable.</span></span></div>
+{{else}}
+<div class="st-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span><span class="ct"><b>Disabled — the default</b><span><span style="font-family:var(--font-mono);font-size:12px">/api/v1</span> answers nothing and every minted token is inert. Tokens are managed per-account in the Profile; enabling here is the single switch that makes them live.</span></span></div>
+{{end}}
+{{end}}
+</div></div>
+</section>
 {{end}}
 
 {{/* channels — holes: .ChanError .Channels[{ID,URL,Classes[],ClassStates[{Name,Checked}],HasSecret,Enabled,By,At}] .ClassOptions[{Name,Checked}] .ChanURL .IsAdmin (#26f — class vocabulary from the store) */}}
