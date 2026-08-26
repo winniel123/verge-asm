@@ -2665,3 +2665,143 @@ func reportsWizardJoin(parts []string) string {
 	}
 	return out
 }
+
+// --- screen 18: Inbox (inbox.tmpl, package v3.11.1, WORK-ORDER-16-18-BATCH5) -----------------
+
+// inboxFixture is the pinned fixtures.json → inbox slice: the list holes (.Unread .Filter
+// .AllHref .UnreadHref .Messages) and the selected-message detail. Per SPEC-CHANGE #24 (ruled)
+// the detail carries NO prose body — the form is the census (kind + linked mono key) plus the
+// delivery receipts, a failed one flagged undelivered with its host + drill-down reason. Message
+// ids are the fixture's own string keys (m1–m5); ?id selects a detail, ?filter=unread trims the
+// list. The golden (render-goldens) reads the SAME slice and shapes it identically, so the two
+// agree byte-for-byte.
+type inboxFixture struct {
+	Unread     int    `json:"unread"`
+	Filter     string `json:"filter"`
+	AllHref    string `json:"all_href"`
+	UnreadHref string `json:"unread_href"`
+	Messages   []struct {
+		ID       string `json:"id"`
+		Read     bool   `json:"read"`
+		Cls      string `json:"cls"`
+		Instant  string `json:"instant"`
+		Rel      string `json:"rel"`
+		Headline string `json:"headline"`
+	} `json:"messages"`
+	Selected struct {
+		ID       string `json:"id"`
+		Cls      string `json:"cls"`
+		Headline string `json:"headline"`
+		Rel      string `json:"rel"`
+		Instant  string `json:"instant"`
+		Census   []struct {
+			Kind string `json:"kind"`
+			Key  string `json:"key"`
+			Href string `json:"href"`
+		} `json:"census"`
+		Deliveries []struct {
+			State       string `json:"state"`
+			ChannelHost string `json:"channel_host"`
+			Failed      bool   `json:"failed"`
+			LastError   string `json:"last_error"`
+		} `json:"deliveries"`
+		Href      string `json:"href"`
+		JumpLabel string `json:"jump_label"`
+	} `json:"selected_fixture"`
+}
+
+// loadInboxFixture reads the pinned fixtures.json inbox slice from the embedded design package
+// (designfs). Both inboxPage (candidate) and render-goldens (golden) read the SAME bytes and shape
+// them identically, so the two agree. A read/parse failure degrades to the zero fixture (the
+// inbox-zero empty states) rather than 500ing.
+func loadInboxFixture() inboxFixture {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return inboxFixture{}
+	}
+	var ff struct {
+		Inbox inboxFixture `json:"inbox"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return inboxFixture{}
+	}
+	return ff.Inbox
+}
+
+// inboxFixtureData is the render map inboxPage passes to the frozen inbox.tmpl in a VERGE_DEV
+// build. It reads the selection (?id) and the all/unread filter (?filter) straight off the query —
+// the fixture is READ-ONLY, so a dev capture never mutates read-state (the additive, deterministic
+// posture the sibling fixtures paths keep): the id only marks a row .Selected and picks the detail
+// from the pinned selected_fixture, and the filter trims the list to the unread rows. render-goldens
+// composes the identical map statically from the same fixtures.json, so golden and candidate agree.
+func (s *server) inboxFixtureData(acct db.Account, r *http.Request) map[string]any {
+	fx := loadInboxFixture()
+
+	selID := r.URL.Query().Get("id")
+	filter := "all"
+	if r.URL.Query().Get("filter") == "unread" {
+		filter = "unread"
+	}
+
+	messages := make([]map[string]any, 0, len(fx.Messages))
+	for _, m := range fx.Messages {
+		if filter == "unread" && m.Read {
+			continue
+		}
+		messages = append(messages, map[string]any{
+			"ID":       m.ID,
+			"Read":     m.Read,
+			"Selected": selID != "" && m.ID == selID,
+			"Class":    m.Cls,
+			"Instant":  m.Instant,
+			"Rel":      m.Rel,
+			"Headline": m.Headline,
+		})
+	}
+
+	// The detail card renders only when the selected id resolves to the pinned message (m1). No
+	// prose body (SPEC-CHANGE #24): the form is the census + the delivery receipts.
+	var selected map[string]any
+	if selID != "" && selID == fx.Selected.ID {
+		census := make([]map[string]any, 0, len(fx.Selected.Census))
+		for _, c := range fx.Selected.Census {
+			census = append(census, map[string]any{"Kind": c.Kind, "Key": c.Key, "Href": c.Href})
+		}
+		deliveries := make([]map[string]any, 0, len(fx.Selected.Deliveries))
+		for _, d := range fx.Selected.Deliveries {
+			deliveries = append(deliveries, map[string]any{
+				"State": d.State, "ChannelHost": d.ChannelHost, "Failed": d.Failed, "LastError": d.LastError,
+			})
+		}
+		selected = map[string]any{
+			"ID":         fx.Selected.ID,
+			"Class":      fx.Selected.Cls,
+			"Headline":   fx.Selected.Headline,
+			"Rel":        fx.Selected.Rel,
+			"Instant":    fx.Selected.Instant,
+			"Census":     census,
+			"Deliveries": deliveries,
+			"Href":       fx.Selected.Href,
+			"JumpLabel":  fx.Selected.JumpLabel,
+		}
+	}
+
+	// The filter toggle preserves the open message, so its links carry the id (mirrors the live
+	// inboxPage). Without a selection the fixture's own hrefs stand.
+	allHref, unreadHref := fx.AllHref, fx.UnreadHref
+	if selID != "" {
+		allHref = "/inbox?id=" + selID
+		unreadHref = "/inbox?filter=unread&id=" + selID
+	}
+
+	return map[string]any{
+		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "inbox", "DesignTokens": true,
+		"Messages":   messages,
+		"Selected":   selected,
+		"Unread":     fx.Unread,
+		"Filter":     filter,
+		"AllHref":    allHref,
+		"UnreadHref": unreadHref,
+	}
+}

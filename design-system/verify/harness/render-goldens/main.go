@@ -386,6 +386,24 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "inbox":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen inbox")
+		}
+		files, err := renderInboxStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	case "graph":
 		if *out == "" {
 			log.Fatal("render-goldens: -out is required for -screen graph")
@@ -3209,4 +3227,172 @@ func renderReportartifactStates(bodyFlex bool) ([]errorGolden, error) {
 		{id: "default", html: def},
 		{id: "never-delivered", html: nev},
 	}, nil
+}
+
+// --- screen 18: Inbox (inbox.tmpl, package v3.11.1, WORK-ORDER-16-18-BATCH5) -----------------
+//
+// renderInboxStates composes the three Inbox golden HTMLs from the frozen inbox.tmpl, one per
+// states.json inbox state (default /inbox, message-open /inbox?id=m1, unread-filter
+// /inbox?filter=unread). Every data map mirrors inboxFixtureData (cmd/web/devfixtures.go) EXACTLY,
+// read from the SAME fixtures.json inbox slice, so the cropped `main` is byte-identical to what the
+// seeded server renders. Per SPEC-CHANGE #24 (ruled) there is no .Body hole — the detail form is the
+// census + delivery receipts (the failed one flagged undelivered). The "inbox" define calls no
+// cross-tmpl define, so only inbox.tmpl is parsed. Chrome is the empty stub (goldens crop to `main`).
+
+type inboxFixture struct {
+	Unread     int    `json:"unread"`
+	Filter     string `json:"filter"`
+	AllHref    string `json:"all_href"`
+	UnreadHref string `json:"unread_href"`
+	Messages   []struct {
+		ID       string `json:"id"`
+		Read     bool   `json:"read"`
+		Cls      string `json:"cls"`
+		Instant  string `json:"instant"`
+		Rel      string `json:"rel"`
+		Headline string `json:"headline"`
+	} `json:"messages"`
+	Selected struct {
+		ID       string `json:"id"`
+		Cls      string `json:"cls"`
+		Headline string `json:"headline"`
+		Rel      string `json:"rel"`
+		Instant  string `json:"instant"`
+		Census   []struct {
+			Kind string `json:"kind"`
+			Key  string `json:"key"`
+			Href string `json:"href"`
+		} `json:"census"`
+		Deliveries []struct {
+			State       string `json:"state"`
+			ChannelHost string `json:"channel_host"`
+			Failed      bool   `json:"failed"`
+			LastError   string `json:"last_error"`
+		} `json:"deliveries"`
+		Href      string `json:"href"`
+		JumpLabel string `json:"jump_label"`
+	} `json:"selected_fixture"`
+}
+
+func loadInboxFixture() (inboxFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return inboxFixture{}, err
+	}
+	var ff struct {
+		Inbox inboxFixture `json:"inbox"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return inboxFixture{}, err
+	}
+	return ff.Inbox, nil
+}
+
+// inboxStateData mirrors cmd/web/devfixtures.go inboxFixtureData byte-for-byte for one (id, filter)
+// selection: the read-only fixture, the id marking a row .Selected and picking the detail, the
+// unread filter trimming the list. Keeping this identical to the candidate is the point.
+func inboxStateData(fx inboxFixture, selID, filter string) map[string]any {
+	messages := make([]map[string]any, 0, len(fx.Messages))
+	for _, m := range fx.Messages {
+		if filter == "unread" && m.Read {
+			continue
+		}
+		messages = append(messages, map[string]any{
+			"ID":       m.ID,
+			"Read":     m.Read,
+			"Selected": selID != "" && m.ID == selID,
+			"Class":    m.Cls,
+			"Instant":  m.Instant,
+			"Rel":      m.Rel,
+			"Headline": m.Headline,
+		})
+	}
+
+	var selected map[string]any
+	if selID != "" && selID == fx.Selected.ID {
+		census := make([]map[string]any, 0, len(fx.Selected.Census))
+		for _, c := range fx.Selected.Census {
+			census = append(census, map[string]any{"Kind": c.Kind, "Key": c.Key, "Href": c.Href})
+		}
+		deliveries := make([]map[string]any, 0, len(fx.Selected.Deliveries))
+		for _, d := range fx.Selected.Deliveries {
+			deliveries = append(deliveries, map[string]any{
+				"State": d.State, "ChannelHost": d.ChannelHost, "Failed": d.Failed, "LastError": d.LastError,
+			})
+		}
+		selected = map[string]any{
+			"ID":         fx.Selected.ID,
+			"Class":      fx.Selected.Cls,
+			"Headline":   fx.Selected.Headline,
+			"Rel":        fx.Selected.Rel,
+			"Instant":    fx.Selected.Instant,
+			"Census":     census,
+			"Deliveries": deliveries,
+			"Href":       fx.Selected.Href,
+			"JumpLabel":  fx.Selected.JumpLabel,
+		}
+	}
+
+	allHref, unreadHref := fx.AllHref, fx.UnreadHref
+	if selID != "" {
+		allHref = "/inbox?id=" + selID
+		unreadHref = "/inbox?filter=unread&id=" + selID
+	}
+
+	return map[string]any{
+		"Title": "Inbox", "NavActive": "inbox", "DesignTokens": true,
+		"Messages":   messages,
+		"Selected":   selected,
+		"Unread":     fx.Unread,
+		"Filter":     filter,
+		"AllHref":    allHref,
+		"UnreadHref": unreadHref,
+	}
+}
+
+func renderInboxStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadInboxFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	exec := func(data map[string]any) ([]byte, error) {
+		t, terr := newStubbedTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS, "templates/inbox.tmpl"); terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, "inbox", data); terr != nil {
+			return nil, terr
+		}
+		return buf.Bytes(), nil
+	}
+
+	type istate struct {
+		id     string
+		selID  string
+		filter string
+	}
+	states := []istate{
+		{"default", "", "all"},
+		{"message-open", "m1", "all"},
+		{"unread-filter", "", "unread"},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		html, herr := exec(inboxStateData(fx, st.selID, st.filter))
+		if herr != nil {
+			return nil, herr
+		}
+		out = append(out, errorGolden{id: st.id, html: html})
+	}
+	return out, nil
 }

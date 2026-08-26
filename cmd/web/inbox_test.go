@@ -30,10 +30,10 @@ func TestInboxRendersReadUnread(t *testing.T) {
 		"Everything Verge told you, by class.",
 		"a.example.com entered the estate",
 		"198.51.100.0/24 narrowed",
-		`class="n">2<`,             // two unread, rendered mono in the subtitle
-		`class="ibx-tag">drift`,    // the store's own class vocabulary, not the example's
-		`class="ibx-tag">coverage`, // an aperture firing routes to the coverage class
-		"ibx-dot unread",           // the unread affordance
+		`class="n">2<`,            // two unread, rendered mono in the subtitle
+		`class="ib-tag">drift`,    // the store's own class vocabulary, not the example's
+		`class="ib-tag">coverage`, // an aperture firing routes to the coverage class
+		"ib-dot unread",           // the unread affordance
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("inbox missing %q\nbody: %s", want, page)
@@ -76,7 +76,7 @@ func TestInboxMarkAllRead(t *testing.T) {
 	if !strings.Contains(page, `disabled>Mark all read`) {
 		t.Errorf("mark-all-read should be disabled at inbox zero\nbody: %s", page)
 	}
-	if strings.Contains(page, "ibx-dot unread") {
+	if strings.Contains(page, "ib-dot unread") {
 		t.Errorf("no message should carry the unread dot after mark all read\nbody: %s", page)
 	}
 	// The messages themselves are still listed under the All filter.
@@ -99,7 +99,7 @@ func TestInboxSelectMarksReadAndShowsDetail(t *testing.T) {
 
 	for _, want := range []string{
 		"198.51.100.1:443/tcp reached from the internet",       // the headline, as the detail title
-		`class="microlabel">drift`,                             // per-class detail micro-label
+		`class="ib-micro">drift`,                               // per-class detail micro-label
 		`href="/subjects/service?key=198.51.100.1%3A443%2Ftcp`, // the per-mover jump link
 		"Open subject",                                         // the jump-link label
 	} {
