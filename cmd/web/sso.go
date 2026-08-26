@@ -258,7 +258,7 @@ func (s *server) ssoStart(w http.ResponseWriter, r *http.Request) {
 	}
 	authURL, err := s.sso.AuthCodeURL(r.Context(), cfg, state, nonce, verifier)
 	if err != nil {
-		log.Printf("web: sso: auth url for %q: %v", slug, err)
+		log.Printf("web: sso: auth url for %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
 		s.render(w, r, "login", s.loginData(r.Context(), "That identity provider could not be reached. Sign in with your password."))
 		return
 	}
@@ -313,7 +313,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	ident, err := s.sso.Exchange(r.Context(), cfg, code, tx.Verifier, tx.Nonce)
 	if err != nil {
-		log.Printf("web: sso: exchange for %q: %v", slug, err)
+		log.Printf("web: sso: exchange for %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
 		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
 		return
 	}
@@ -326,13 +326,13 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		// A verified identity with no binding: refuse honestly. The subject is not linked
 		// to any local account, and SSO never provisions or falls back to a username
 		// (ADR-0113). The user signs in with a password and links this identity on Profile.
-		log.Printf("web: sso: no binding for verified identity via %q", slug)
+		log.Printf("web: sso: no binding for verified identity via %q", logSafe(slug)) // #nosec G706 (sanitized via logSafe)
 		s.render(w, r, "login", s.loginData(r.Context(), "That identity is not linked to an account here. Sign in with your password, then link it on your Profile."))
 		return
 	case err != nil:
 		// A transient read failure is NOT an unlinked identity: don't misdirect a
 		// legitimately-linked user to re-link during a DB blip. Fail generically.
-		log.Printf("web: sso: look up binding via %q: %v", slug, err)
+		log.Printf("web: sso: look up binding via %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
 		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
 		return
 	}
@@ -371,7 +371,7 @@ func (s *server) ssoLinkStart(w http.ResponseWriter, r *http.Request, _ db.Accou
 	}
 	authURL, err := s.sso.AuthCodeURL(r.Context(), cfg, state, nonce, verifier)
 	if err != nil {
-		log.Printf("web: sso: link auth url for %q: %v", slug, err)
+		log.Printf("web: sso: link auth url for %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
 		http.Redirect(w, r, "/profile?linkerr=unavailable", http.StatusSeeOther)
 		return
 	}
@@ -420,7 +420,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 	}
 	ident, err := s.sso.Exchange(r.Context(), cfg, code, tx.Verifier, tx.Nonce)
 	if err != nil {
-		log.Printf("web: sso: link exchange for %q: %v", slug, err)
+		log.Printf("web: sso: link exchange for %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
 		http.Redirect(w, r, "/profile?linkerr=failed", http.StatusSeeOther)
 		return
 	}
@@ -435,7 +435,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		http.Redirect(w, r, "/profile?linked=exists", http.StatusSeeOther)
 		return
 	case err == nil:
-		log.Printf("web: sso: link refused: identity via %q already bound to another account", slug)
+		log.Printf("web: sso: link refused: identity via %q already bound to another account", logSafe(slug)) // #nosec G706 (sanitized via logSafe)
 		http.Redirect(w, r, "/profile?linkerr=elsewhere", http.StatusSeeOther)
 		return
 	case !errors.Is(err, pgx.ErrNoRows):
@@ -456,7 +456,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "insert sso identity", err)
 		return
 	}
-	log.Printf("web: sso: account %d linked an identity via %q", acct.ID, slug)
+	log.Printf("web: sso: account %d linked an identity via %q", acct.ID, logSafe(slug)) // #nosec G706 (sanitized via logSafe)
 	http.Redirect(w, r, "/profile?linked=1", http.StatusSeeOther)
 }
 
@@ -515,7 +515,7 @@ func (s *server) setSSOTxCookie(w http.ResponseWriter, r *http.Request, tx ssoTx
 		s.serverError(w, "marshal sso transaction", err)
 		return false
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure conditional (r.TLS != nil || s.secureCookies); HttpOnly + SameSite=Lax always set.
 		Name: ssoTxCookie, Value: auth.Sign(s.key, ssoTxDomain, payload), Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteLaxMode, Secure: s.secureCookies || r.TLS != nil, MaxAge: int(ssoTxTTL.Seconds()),
 	})

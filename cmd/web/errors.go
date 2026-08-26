@@ -151,8 +151,8 @@ func (s *server) recoverPanics(next http.Handler) http.Handler {
 				if s.devMode {
 					id = devFixtureIncidentID
 				}
-				log.Printf("web: incident %s: recovered panic on %s %s: %v\n%s",
-					id, r.Method, r.URL.Path, rec, debug.Stack())
+				log.Printf("web: incident %s: recovered panic on %s %s: %v\n%s", // #nosec G706 (sanitized via logSafe)
+					id, r.Method, logSafe(r.URL.Path), rec, debug.Stack())
 				s.renderError(w, r, http.StatusInternalServerError, "500", "Something broke", id)
 			}
 		}()

@@ -257,10 +257,14 @@
    PARAMS
    ═══════════════════════════════════════════════════════════════════════ */
 const P      = new URLSearchParams(location.search);
-const PLACE  = P.get("place")  || "view";
-const BROAD  = P.get("broad")  || "full";
-const RULEID = P.get("rule")   || "plaintext";
-const MEMBER = P.get("member") || "";
+/* Every reflected param reaches an innerHTML sink, so each is constrained to a
+   known-safe value (strict whitelist) before use — a raw value outside the set
+   falls back to the default and can never carry markup. */
+const pick   = (raw, opts, def) => opts.includes(raw) ? raw : def;
+const PLACE  = pick(P.get("place"),  ["view", "inline"],              "view");
+const BROAD  = pick(P.get("broad"),  ["full", "sample", "rollup"],    "full");
+const RULEID = pick(P.get("rule"),   ["expiring", "plaintext", "outage"], "plaintext");
+const MEMBER = pick(P.get("member"), ["fired", "notfired", "ne"],     "");
 
 const AS_OF = "evaluated 2026-08-14 04:07 UTC";
 
