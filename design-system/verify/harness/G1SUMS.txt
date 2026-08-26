@@ -1,4 +1,4 @@
-105051c4757eb3234e43b4b9f74389ead25bd86a  design-system/fixtures/fixtures.json
+ba08269bb721198da85e2212762d54ad4f1e26a4  design-system/fixtures/fixtures.json
 1f76852830c26778e88c1b571921b88e631a549d  design-system/goldens/asset/default-1440-dark.png
 7333903aca829288eef6cb3a5a48abc51e483c8c  design-system/goldens/asset/default-1440-light.png
 93fb1758380c6b9edb782335772d439c01ec319a  design-system/goldens/coverage/default-1440-dark.png
@@ -97,6 +97,8 @@ cd3ebb10b5d3d04faa70fecf46133060835bdc0d  design-system/goldens/reports/wizard-3
 cb977809c7c62003093568d75196fe8fc4db5bf5  design-system/goldens/reports/wizard-4-1440-light.png
 8a003109197c8c90ceb21aad1014ec49df4e0234  design-system/goldens/rundetail/default-1440-dark.png
 2f0aa66cd8f4de6e4085c4e6291562862d975309  design-system/goldens/rundetail/default-1440-light.png
+c49fc3d667e0cbcc851c5b111fa2e55f9494433a  design-system/goldens/rundetail/running-1440-dark.png
+80e6cdc1cb6bbd825ff7d0a814e46a568834a84e  design-system/goldens/rundetail/running-1440-light.png
 cdfe0293da7bf3c5c6c7969693db6992e6886e90  design-system/goldens/scope/default-1440-dark.png
 b779594c91f1081e17ee650ceeec5fd193b2ed39  design-system/goldens/scope/default-1440-light.png
 068bd346209639cb7bcd5520d507db4ff29a3f3a  design-system/goldens/scope/exclusion-preview-1440-dark.png
@@ -219,12 +221,12 @@ b8356c6bd3fca8dac9b886639258a45283a084de  design-system/templates/inventory.tmpl
 8e3eac18a001dfc555ec7a1848f8aefd7d58262e  design-system/templates/profile.tmpl
 500d92cac46ea611800a8ce611003d09223d8be8  design-system/templates/reportartifact.tmpl
 5fcf80331a5887f5ad821b58062ea5ac7bb797bd  design-system/templates/reports.tmpl
-0642d3421d4e98b30682f48c3eeed9870cb39afb  design-system/templates/rundetail.tmpl
+2b57e4362eefb0a5f3d044b1273cacf00d203f63  design-system/templates/rundetail.tmpl
 413cbd02e81939f99e024354c56ce33dc484dc6e  design-system/templates/scope.tmpl
 84f27b97f2004c20d78bd1b47b01d96b420a3ba3  design-system/templates/search.tmpl
 0f8c7adc52d9777010b728c2c328ed2a912e4080  design-system/templates/settings.tmpl
 ade3b85dd5f098be03a282e1f366db43198480f6  design-system/templates/setup.tmpl
-a9a2699491587b05b145ece885bdd569bc61bc1b  design-system/templates/shell.tmpl
+f10c1edb431ed4c8e4fba7034fe393fc3ef53fe8  design-system/templates/shell.tmpl
 ae842d9b5081aad05206faef26b3b2a964190a1f  design-system/templates/signals.tmpl
 4316f11a7d7482fdcee1261316e3b62ecedd53ae  design-system/templates/signin.tmpl
 6d9464d0138bd777ffb149d24e5090dbab1d1d31  design-system/templates/subjectdetail.tmpl
@@ -237,4 +239,4 @@ ce55c028dafb1edeef11ddafbe8690e5ce280bb6  design-system/tokens/radius.css
 15b202d10a3c6c26c4dd6bf49144c6fc404359bc  design-system/tokens/typography.css
 3c93d85c70fab4ca0c098c6775ed0a29b994ca8b  design-system/verify/PILOT-P4.0.md
 d570a8261ce4c20f69c7e553f0848985660024e6  design-system/verify/config.json
-40d16969972230317b28c432f779d5d74b72a935  design-system/verify/states.json
+31eff99d2089789916645b9884184037c49b3406  design-system/verify/states.json

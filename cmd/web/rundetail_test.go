@@ -59,8 +59,8 @@ func TestRunDetailRendersSections(t *testing.T) {
 		"batch 2026-08-16",       // log title carries the dispatched instant
 		"2 of 2 done",            // stage count folded from the jobs
 		"eu-west-1", "us-east-2", // the vantages that looked
-		"hot profile",            // header meta: the scan kind as profile
-		"2 vantages",             // vantage count
+		"hot profile", // header meta: the scan kind as profile
+		"2 vantages",  // vantage count
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("run detail missing wired value %q; body: %s", want, page)
@@ -284,15 +284,17 @@ func TestRunDetailJobFilterServerSide(t *testing.T) {
 	}
 
 	// Unknown job id: the log is filtered to zero rows, so the run page renders the honest
-	// "No log to show" empty state. The handler still SETS .JobFilter (see TestApplyJobFilter),
-	// but the frozen rundetail.tmpl gates the loghead — chip included — inside {{if .Log}}, so
-	// the chip does not render over an empty log: the DF-F3b edge ("empty .Log + chip still
-	// renders") is unsatisfiable with the frozen template and is flagged for design (a patch
-	// would move the loghead outside the {{if .Log}} gate). The handler is forward-compatible:
-	// the chip appears with zero handler change once that patch lands.
+	// "No log to show" empty state — AND the loghead chip still renders over it. Package v3.17.0
+	// (#34) moved the loghead outside the {{if .Log}} gate, so the DF-F3b edge ("empty .Log +
+	// chip still renders") is now satisfiable with zero handler change: the handler sets
+	// .JobFilter for any numeric id (see TestApplyJobFilter), and the frozen tmpl now renders it
+	// above the empty-log well.
 	unknown := getBody(t, ac, base+"/run/52?job=99999", http.StatusOK)
 	if !strings.Contains(unknown, "No log to show") {
 		t.Errorf("unknown job filter should render the honest empty log; body: %s", unknown)
+	}
+	if !strings.Contains(unknown, "job #99999") || !strings.Contains(unknown, "Clear job filter") {
+		t.Errorf("the loghead chip should render over the empty log (#34); body: %s", unknown)
 	}
 	for _, gone := range []string{"#900", "#901", "#902"} {
 		if strings.Contains(unknown, gone) {
@@ -322,6 +324,51 @@ func TestRunStatusLabel(t *testing.T) {
 	for _, c := range cases {
 		if got := runStatusLabel(c.active, c.dead, c.outcome); got != c.want {
 			t.Errorf("%s: runStatusLabel(%v,%d,%q)=%q, want %q", c.name, c.active, c.dead, c.outcome, got, c.want)
+		}
+	}
+}
+
+// DF-F4b: a dispatch the operator stopped or terminated carries that disposition in the
+// shared corpus (dispatch.status, migration 22901), and the run page's read now surfaces it
+// (ListDispatchProgress → dv.Status). buildRunView passes it through runStatusLabel (via
+// dispatchOutcome) so the drill-in renders the real terminal badge — rd-batch stopped (warn) /
+// terminated (danger-outline), landed in rundetail.tmpl v3.17.0 — rather than the live
+// complete/failed derivation. A natural 'fanned-out' run is not a terminal outcome, so the
+// live derivation still stands (a dead-lettered job → failed).
+func TestRunDetailTerminalStatusBadge(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 8, 22, 14, 0, 0, 0, time.UTC)
+	stopped := progressRow(60, "standard", tick, 2, 0, 0, 2, 0, 0)
+	stopped.Status = "stopped"
+	terminated := progressRow(61, "standard", tick, 2, 0, 0, 1, 1, 0)
+	terminated.Status = "terminated"
+	// A dead-lettered job on a natural run: no operator disposition, so it stays 'fanned-out'
+	// and the live derivation renders "failed" — proving dispatchOutcome does not override it.
+	failed := progressRow(62, "standard", tick, 1, 0, 0, 0, 1, 0)
+	failed.Status = "fanned-out"
+	f.dispatchProgress = []db.ListDispatchProgressRow{stopped, terminated, failed}
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		60: {{ID: 900, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3,
+			VantageName: pgtype.Text{String: "eu-west-1", Valid: true}}},
+		61: {{ID: 910, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3,
+			VantageName: pgtype.Text{String: "eu-west-1", Valid: true}}},
+		62: {{ID: 920, Kind: "dns-sweep", State: "dead", Attempt: 3, MaxAttempts: 3,
+			VantageName: pgtype.Text{String: "eu-west-1", Valid: true}}},
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	for _, c := range []struct{ id, want string }{
+		{"60", "rd-batch stopped"},
+		{"61", "rd-batch terminated"},
+		{"62", "rd-batch failed"},
+	} {
+		body := getBody(t, ac, base+"/run/"+c.id, http.StatusOK)
+		if !strings.Contains(body, c.want) {
+			t.Errorf("/run/%s should render %q; body: %s", c.id, c.want, body)
 		}
 	}
 }

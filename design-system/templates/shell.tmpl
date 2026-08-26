@@ -27,8 +27,10 @@
   #27f goldens — with the chrome converted the harness stops cropping to <main>: ALL landed
     screens re-render FULL-PAGE goldens in the canonical container — the one-time regen,
     version-bumped here.
+  #33 (ruled 2026-08-26): OrgSwitcher retires permanently — single-org stands per ADR-0073; the static
+  org chip is the only rendering; .Chrome.Orgs and the /org/switch route never ship; org-open state drops.
   Holes: .Title .Refresh, and .Chrome (nullable — auth surfaces pass none):
-  .Chrome{Nav[{ID,Label,Href,Active,Count}], Org, Orgs[{ID,Name,Assets,Active}] (nullable),
+  .Chrome{Nav[{ID,Label,Href,Active,Count}], Org,
   Version, UserName, UserInitials, ScanRunning, Unread, Messages[{ID,Class,Rel,Headline,Unread,
   Href}], PaletteGroups[{Label,Items[{Label,Icon,Hint,Href,Search,ThemeToggle}]}],
   Toasts[{Tone,Title,Description}]}.
@@ -58,20 +60,12 @@ a:hover { text-decoration: underline; }
 .sh-pop { position: relative; display: inline-flex; flex: none; }
 .sh-pop > summary { list-style: none; cursor: pointer; display: inline-flex; }
 .sh-pop > summary::-webkit-details-marker { display: none; }
-.sh-orgbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 10px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); font: 500 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
-.sh-orgbtn:hover { border-color: var(--border-strong); }
 .sh-orgchip { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); font: 500 11.5px var(--font-mono); color: var(--text-secondary); flex: none; white-space: nowrap; }
 .sh-panel { position: absolute; top: calc(100% + 6px); z-index: 95; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: sh-pop var(--dur-base) var(--ease-out); }
 .sh-panel.left { left: 0; }
 .sh-panel.right { right: 0; }
 .sh-micro { font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
 .sh-panel > .sh-micro { display: block; padding: 6px 10px 4px; }
-.sh-orgitem { display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 10px; border: none; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; text-decoration: none; transition: background var(--dur-fast) var(--ease-out); }
-.sh-orgitem:hover { background: var(--surface-sunken); text-decoration: none; }
-.sh-orgitem .nm { font: 500 12px var(--font-mono); color: var(--text-body); }
-.sh-orgitem.on .nm { font-weight: 600; color: var(--text-ink); }
-.sh-orgitem .as { font: 400 10.5px var(--font-mono); color: var(--text-muted); }
-.sh-orgitem .ck { margin-left: auto; color: var(--link); display: inline-flex; }
 .sh-pills { display: flex; gap: 4px; margin-left: 8px; }
 .sh-pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; font: 500 13px var(--font-ui); color: var(--text-secondary); background: transparent; text-decoration: none; white-space: nowrap; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
 .sh-pill:hover { color: var(--text-body); background: var(--surface-sunken); text-decoration: none; }
@@ -157,21 +151,7 @@ a:hover { text-decoration: underline; }
 <svg width="20" height="20" viewBox="0 0 44 44" style="flex:none;display:block" aria-hidden="true"><circle cx="22" cy="22" r="19" fill="none" stroke="var(--accent)" stroke-width="3" opacity="0.4"></circle><circle cx="22" cy="22" r="12" fill="none" stroke="var(--accent)" stroke-width="3.5" opacity="0.75"></circle><circle cx="22" cy="22" r="5.5" fill="var(--accent)"></circle></svg>
 <span class="wm"><span class="w1">verge</span><span class="w2">ASM</span></span>
 </a>
-{{if .Orgs}}
-<details class="sh-pop" id="sh-org">
-<summary><span class="sh-orgbtn">{{.Org}}<svg viewBox="0 0 16 16" width="11" height="11" style="color:var(--text-muted)"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></summary>
-<div class="sh-panel left" style="width:224px" role="menu">
-<span class="sh-micro">Orgs</span>
-{{range .Orgs}}
-<form method="post" action="/org/switch" style="margin:0"><input type="hidden" name="org" value="{{.ID}}"><button type="submit" class="sh-orgitem{{if .Active}} on{{end}}" role="menuitem">
-<span class="nm">{{.Name}}</span>
-{{if .Assets}}<span class="as">{{.Assets}}</span>{{end}}
-{{if .Active}}<span class="ck"><svg viewBox="0 0 18 18" width="13" height="13"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{end}}
-</button></form>
-{{end}}
-</div>
-</details>
-{{else}}<span class="sh-orgchip">{{.Org}}</span>{{end}}
+<span class="sh-orgchip">{{.Org}}</span>
 <nav class="sh-pills" aria-label="Primary">
 {{range .Nav}}<a class="sh-pill{{if .Active}} on{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}{{if .Count}}<span class="ct">{{.Count}}</span>{{end}}</a>{{end}}
 </nav>

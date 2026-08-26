@@ -1110,21 +1110,21 @@ func firstRunChecklist(scopes int, seedName string, zoneUploaded, internetVantag
 		},
 		{
 			Num: 2, Done: zoneUploaded,
-			Title:       "Upload a zone file",
-			Detail:      "Enables removal detection — you stopped telling us becomes detectable",
-			HasAction:   !zoneUploaded, ActionLabel: "Upload zone", ActionHref: "/scope",
+			Title:     "Upload a zone file",
+			Detail:    "Enables removal detection — you stopped telling us becomes detectable",
+			HasAction: !zoneUploaded, ActionLabel: "Upload zone", ActionHref: "/scope",
 		},
 		{
 			Num: 3, Done: internetVantage,
-			Title:       "Add an internet vantage",
-			Detail:      "Exposure needs an outside observer, unconditionally",
-			HasAction:   !internetVantage, ActionLabel: "Provision prober", ActionHref: "/settings/vantages",
+			Title:     "Add an internet vantage",
+			Detail:    "Exposure needs an outside observer, unconditionally",
+			HasAction: !internetVantage, ActionLabel: "Provision prober", ActionHref: "/settings/vantages",
 		},
 		{
 			Num: 4, Done: scanDispatched,
-			Title:       "Run the first batch",
-			Detail:      "Scans dispatch on cadence; kick the first one now",
-			HasAction:   !scanDispatched, ActionLabel: "Run first batch", ActionPost: "/onboarding/finish",
+			Title:     "Run the first batch",
+			Detail:    "Scans dispatch on cadence; kick the first one now",
+			HasAction: !scanDispatched, ActionLabel: "Run first batch", ActionPost: "/onboarding/finish",
 			Gated: !internetVantage, GateTitle: "Needs an internet vantage first",
 		},
 	}
@@ -2487,8 +2487,7 @@ func (s *server) injectChrome(data any, r *http.Request) {
 
 	m["Chrome"] = &chromeVM{
 		Nav:           navSlice(navActive, signalCount),
-		Org:           "self-hosted", // single-org deployment (ADR-0073, #27b/#28)
-		Orgs:          nil,           // not modeled → the static chip; org-open golden defers
+		Org:           "self-hosted", // single-org deployment; static chip (ADR-0073, switcher retired #33)
 		Version:       s.buildVersion(),
 		UserName:      userName,
 		UserInitials:  initials,

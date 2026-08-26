@@ -271,6 +271,12 @@
         "route": "/runs/1407",
         "session": "admin",
         "js": ""
+      },
+      {
+        "id": "running",
+        "route": "/runs/1409",
+        "session": "admin",
+        "js": ""
       }
     ]
   },
@@ -696,14 +702,14 @@
       },
       {
         "id": "scans-stop-confirm",
-        "route": "/settings?tab=scans&stop=1408",
+        "route": "/settings?tab=scans&stop=1409",
         "session": "admin",
         "js": "",
         "crop": "body"
       },
       {
         "id": "scans-terminate-confirm",
-        "route": "/settings?tab=scans&terminate=1408",
+        "route": "/settings?tab=scans&terminate=1409",
         "session": "admin",
         "js": "",
         "crop": "body"
@@ -730,12 +736,6 @@
         "route": "/",
         "session": "admin",
         "js": "document.getElementById('sh-bell').setAttribute('open','')"
-      },
-      {
-        "id": "org-open",
-        "route": "/",
-        "session": "admin",
-        "js": "document.getElementById('sh-org').setAttribute('open','')"
       },
       {
         "id": "acct-open",

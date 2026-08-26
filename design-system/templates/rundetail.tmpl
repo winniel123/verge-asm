@@ -1,7 +1,7 @@
 {{/*
   DESIGN-OWNED ARTIFACT — rundetail.tmpl · package v3.8.0 · WORKFLOW.md v4
   Source of truth: examples/console/RunDetail.jsx · shot 11. Replaces templates_rundetail.go.
-  Define "run" kept. Holes: .Run{Title, Status(scheduled|running|complete|failed), Scope, Meta,
+  Define "run" kept. Holes: .Run{Title, Status(scheduled|running|complete|failed|stopped|terminated — #34/DF-F4b: stopped = warn treatment, terminated = danger-outline on sunken, distinct from failed), Scope, Meta,
   Stages[{Num,Title,Detail,Done,Current,Last}], Log[{Tag,Level,Text}], Active,
   Transitions(string, "—" until a diff concluded), NewSignals(string, same),
   Degraded(nullable {Vantage,Detail}), JobFilter(nullable {ID,Kind,Vantage,ClearHref} — ?job={id}; .Log arrives already filtered to that job), Params[{K,V}], Vantages[{Name,Latency,Status(ok|degraded)}]}.
@@ -37,6 +37,10 @@
 .rd-batch.complete .dot { background: var(--ok-solid); }
 .rd-batch.failed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 .rd-batch.failed .dot { background: var(--danger-solid); }
+.rd-batch.stopped { background: var(--warn-soft); border-color: var(--warn-border); color: var(--warn); }
+.rd-batch.stopped .dot { background: var(--warn-solid); }
+.rd-batch.terminated { background: var(--surface-sunken); border-color: var(--danger-border); color: var(--danger); }
+.rd-batch.terminated .dot { background: var(--danger-solid); }
 .rd-batch .scope { font-weight: 400; opacity: 0.8; }
 .rd-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
 .rd-btn:hover { background: var(--surface-sunken); }
@@ -58,7 +62,7 @@
 .rd-loghead .lbl { font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--neutral-500); }
 .rd-loghead .live { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 500 10px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--primary-400); }
 .rd-loghead .live .ldot { width: 6px; height: 6px; border-radius: 999px; background: var(--primary-400); animation: rd-pulse 1.8s var(--ease-out) infinite; }
-.rd-loghead .jf { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--neutral-700); font: 500 10px var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--neutral-400); }
+.rd-loghead .jf { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--neutral-700); font: 500 10px var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--neutral-400); white-space: nowrap; }
 .rd-loghead .jf a { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 999px; color: var(--neutral-500); }
 .rd-loghead .jf a:hover { color: var(--text-on-inverted); background: var(--neutral-800); }
 .rd-logbody { height: 300px; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 12px; }
@@ -137,27 +141,27 @@
 </div>
 </section>
 <div style="display:grid;grid-template-columns:minmax(0, 1fr) 340px;gap:24px;align-items:start">
-{{if .Log}}
 <div class="rd-log">
 <div class="rd-loghead">
 <span class="lbl">batch {{.Title}}</span>
 {{with .JobFilter}}<span class="jf">job #{{.ID}} · {{.Kind}}{{if .Vantage}} · {{.Vantage}}{{end}}<a href="{{.ClearHref}}" aria-label="Clear job filter"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></a></span>{{end}}
 {{if .Active}}<span class="live"><span class="ldot"></span>streaming</span>{{end}}
 </div>
+{{if .Log}}
 <div class="rd-logbody">
 {{range .Log}}
 <div class="rd-line{{if .Level}} {{.Level}}{{end}}"><span class="t">{{.Tag}}</span><span class="x">{{.Text}}</span></div>
 {{end}}
 </div>
-</div>
 {{else}}
-<div class="rd-log" style="display:flex;align-items:center;justify-content:center">
+<div style="height:300px;display:flex;align-items:center;justify-content:center">
 <div class="rd-empty">
 <span class="msg" style="color:var(--text-on-inverted)">No log to show</span>
 <span class="det" style="color:var(--neutral-500)">This run recorded no per-job event yet. Each job the fan-out enqueued appears here with its kind, live state and the vantage it ran at as the worker moves it.</span>
 </div>
 </div>
 {{end}}
+</div>
 <div style="display:flex;flex-direction:column;gap:24px">
 <section class="rd-card">
 <div class="rd-cardhead"><span class="rd-micro">Outcome</span><h3>What it produced</h3></div>

@@ -152,10 +152,10 @@ if [ "${GOLDENS:-}" = "write" ]; then
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --full-page --mode golden --write-goldens --advisory --screen settings --pagedir /src/design-system/goldens/settings
   # shell (#27f): the 6 captured shell-state goldens on `/` FULL-PAGE (default / palette-open /
-  # bell-open / acct-open / scan-running / toasts). org-open is skipped — orgs are not modeled
-  # (ADR-0073), so the switcher ships the static chip and its golden defers (SPEC-CHANGE #28).
+  # bell-open / acct-open / scan-running / toasts). The org switcher is retired (SPEC-CHANGE #33,
+  # v3.17.0): shell.tmpl renders only the static org chip, so there is no org-open state.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --full-page --skip-state org-open --mode golden --write-goldens --advisory --screen shell --pagedir /src/design-system/goldens/shell
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen shell --pagedir /src/design-system/goldens/shell
 fi
 
 echo "== 3a. Postgres (pinned) =="
@@ -226,9 +226,10 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --full-page --mode candidate $ADV_FLAG --screen drift --base "http://${WEB}:8080"
 # rundetail: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
 # in-memory dev fixture (no DB reshape). drops the sticky console header from flow so
-# <main> sits at the viewport top and aligns with the chrome-less golden (as coverage). Route is
-# /runs/1407 (states.json); 1408 is the MISSING id the error screen already covers. MUST come BEFORE
-# setup: setup's candidate hits /dev/seed/empty which TRUNCATEs accounts, stranding the admin session
+# <main> sits at the viewport top and aligns with the chrome-less golden (as coverage). Routes are
+# /runs/1407 (default, complete) and /runs/1409 (running, #35); 1408 is the MISSING id the error
+# screen already covers. MUST come BEFORE setup: setup's candidate hits /dev/seed/empty which
+# TRUNCATEs accounts, stranding the admin session
 # the /dev/session/admin mint needs.
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --full-page --mode candidate $ADV_FLAG --screen rundetail --base "http://${WEB}:8080"
@@ -360,11 +361,11 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # bell popover / account menu) against the frozen tmpl's own handlers; scan-running rides
 # ?variant=scanning (home lights .Scanning → chrome .ScanRunning); toasts rides ?variant=flash-toast
 # (injectChrome folds the fixture toast stack into .Chrome.Toasts) with a 400ms delay to capture it
-# before the 5s auto-dismiss. org-open is SKIPPED (orgs not modeled → static chip; golden defers,
-# SPEC-CHANGE #28). No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty
-# TRUNCATEs the account table (which would strand the shell's authed-admin session).
+# before the 5s auto-dismiss. The org switcher is retired (static chip only, SPEC-CHANGE #33), so
+# there is no org-open state. No seed — it touches no table — so it MUST precede setup, whose
+# /dev/seed/empty TRUNCATEs the account table (which would strand the shell's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --full-page --skip-state org-open --mode candidate $ADV_FLAG --screen shell --base "http://${WEB}:8080"
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen shell --base "http://${WEB}:8080"
 # setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
 # capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
 # window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB

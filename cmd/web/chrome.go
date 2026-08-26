@@ -19,16 +19,17 @@ import (
 //
 //   - production (chromeFromReads): the honest live reads a real deployment renders —
 //     the nav slice the old hardcoded links encoded (Signals carries the open count),
-//     the single-org static chip (orgs are NOT modeled — ADR-0073 single-org — so the
-//     switcher escalates to SPEC-CHANGE #28 and ships the chip; .Orgs stays nil), the
-//     bell's recent messages, the palette groups, the avatar identity, and the toast
-//     stack decoded from the PRG flash query (shell.go toastRedirect).
+//     the single-org static chip, the bell's recent messages, the palette groups, the
+//     avatar identity, and the toast stack decoded from the PRG flash query (shell.go
+//     toastRedirect).
 //   - devMode (chromeFromFixture): the pinned fixtures.json shell slice, so the seeded
 //     candidate renders the SAME chrome render-goldens composes for the golden — the
 //     v4 pixel-parity contract. The active pill is set per the page's NavActive.
 //
-// #27b org switcher: orgs are not modeled, so .Orgs is nil in BOTH paths (the static
-// chip renders) and the org-open golden defers (SPEC-CHANGE #28, AWAITING DESIGN).
+// Org switcher: single-org stands (ADR-0073 — the deployment IS the org; there is no org
+// table, no org-scoped tenancy, no POST /org/switch). SPEC-CHANGE #33 RETIRED the switcher
+// permanently (package v3.17.0): shell.tmpl renders only the static org chip, .Chrome.Orgs
+// is gone from the contract, and the org-open golden is dropped. Nothing here models orgs.
 
 // devShellToastVariant is the states.json shell "toasts" capture variant: a VERGE_DEV
 // ?variant=flash-toast query folds the fixture's toast stack into .Chrome.Toasts so the
@@ -39,8 +40,7 @@ const devShellToastVariant = "flash-toast"
 // chromeVM is the nullable .Chrome hole shell.tmpl's "chrome"/"foot" read.
 type chromeVM struct {
 	Nav           []chromeNav
-	Org           string
-	Orgs          []chromeOrg // nil → the static single-org chip (#27b, #28)
+	Org           string // the static single-org chip label (ADR-0073; switcher retired, #33)
 	Version       string
 	UserName      string
 	UserInitials  string
@@ -60,14 +60,6 @@ type chromeNav struct {
 	Href   string
 	Active bool
 	Count  string
-}
-
-// chromeOrg is one OrgSwitcher row (nullable set — nil renders the static chip).
-type chromeOrg struct {
-	ID     string
-	Name   string
-	Assets string
-	Active bool
 }
 
 // paletteGroup / paletteItem are the server-rendered command-palette groups
@@ -265,10 +257,10 @@ func loadShellFixture() shellFixture {
 // chromeFromFixture shapes the pinned shell slice into the .Chrome view-model for a
 // VERGE_DEV render. The active pill is set per the page's NavActive (each screen's
 // candidate highlights its own pill); scanning lights .ScanRunning; showToast folds
-// in the toasts variant. .Orgs is nil (the static chip; the org-open golden defers —
-// #27b/#28). The gated Integrations palette item is emitted only when
-// integrationsEnabled. render-goldens composes the identical struct from the same
-// bytes, so golden and candidate agree byte-for-byte.
+// in the toasts variant. The org chip is static (the switcher retired, #33). The gated
+// Integrations palette item is emitted only when integrationsEnabled. render-goldens
+// composes the identical struct from the same bytes, so golden and candidate agree
+// byte-for-byte.
 func chromeFromFixture(navActive string, scanning, showToast bool) *chromeVM {
 	fx := loadShellFixture()
 	c := &chromeVM{

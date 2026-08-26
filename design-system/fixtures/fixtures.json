@@ -3678,8 +3678,8 @@
     "scans": {
       "active": [
         {
-          "id": 1408,
-          "href": "/runs/1408",
+          "id": 1409,
+          "href": "/runs/1409",
           "scan_kind": "standard",
           "dispatched_at": "2026-08-22T14:00:02Z",
           "completed": 4,
@@ -3694,7 +3694,7 @@
               "attempt": 1,
               "max_attempts": 3,
               "batch": "1407",
-              "href": "/runs/1408?job=912"
+              "href": "/runs/1409?job=912"
             },
             {
               "id": 913,
@@ -3704,7 +3704,7 @@
               "attempt": 1,
               "max_attempts": 3,
               "batch": "1407",
-              "href": "/runs/1408?job=913"
+              "href": "/runs/1409?job=913"
             },
             {
               "id": 914,
@@ -3714,7 +3714,7 @@
               "attempt": 1,
               "max_attempts": 3,
               "batch": "1407",
-              "href": "/runs/1408?job=914"
+              "href": "/runs/1409?job=914"
             },
             {
               "id": 915,
@@ -3724,7 +3724,7 @@
               "retrying": true,
               "attempt": 2,
               "max_attempts": 3,
-              "href": "/runs/1408?job=915"
+              "href": "/runs/1409?job=915"
             },
             {
               "id": 916,
@@ -3733,7 +3733,7 @@
               "state": "running",
               "attempt": 1,
               "max_attempts": 3,
-              "href": "/runs/1408?job=916"
+              "href": "/runs/1409?job=916"
             },
             {
               "id": 917,
@@ -3743,7 +3743,7 @@
               "attempt": 1,
               "max_attempts": 3,
               "batch": "1407",
-              "href": "/runs/1408?job=917"
+              "href": "/runs/1409?job=917"
             }
           ]
         }
@@ -4438,24 +4438,7 @@
         }
       ],
       "org": "acmecorp",
-      "orgs": [
-        {
-          "id": "acme",
-          "name": "acmecorp",
-          "assets": "1,284",
-          "active": true
-        },
-        {
-          "id": "north",
-          "name": "northwind-sec",
-          "assets": "342"
-        },
-        {
-          "id": "globex",
-          "name": "globex",
-          "assets": "5,108"
-        }
-      ],
+      "orgs": null,
       "orgs_note": "nullable — single-org deployments render the static chip; the switcher needs an org store (alias or BUILD POST /org/switch; SPEC-CHANGE escalate if orgs are not modeled)",
       "version": "v0.9.2",
       "user_name": "ola@acmecorp.io",

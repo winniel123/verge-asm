@@ -601,6 +601,10 @@ type Querier interface {
 	// created_at is the instant the fan-out actually happened, which is what "when did
 	// this scan start" means to an operator; scheduled_time is the cadence tick the
 	// Dispatch is idempotent on, not a wall-clock start, so it is not read here.
+	// status carries the Dispatch's operator-ended disposition (DF-F4b, migration 22901):
+	// 'fanned-out' for a natural run, 'stopped' / 'terminated' once an operator ended it.
+	// The run page renders that recorded token as its terminal batch badge (runStatusLabel),
+	// so a stopped/terminated drill-in shows the real outcome, not the live derivation.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
 	// The enabled providers the SignIn screen renders a button for, newest-first. No
 	// secret, and no created-by join — SignIn is pre-auth and needs only what a button
