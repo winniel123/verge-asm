@@ -27,6 +27,23 @@ func TestOnboardingRequiresLogin(t *testing.T) {
 	}
 }
 
+// stepFollow posts a wizard step and follows the #25d PRG redirect: it asserts the POST
+// 303-redirects to a bookmarkable GET /onboarding?step=… URL and returns that step's rendered
+// body. Stepping mutates nothing, so a viewer-safe GET renders the accumulated state.
+func stepFollow(t *testing.T, c *http.Client, base string, form url.Values) string {
+	t.Helper()
+	resp := postForm(t, c, base+"/onboarding", form)
+	loc := resp.Header.Get("Location")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("stepping POST status = %d, want 303 (PRG redirect to the step GET)", resp.StatusCode)
+	}
+	if !strings.HasPrefix(loc, "/onboarding?") {
+		t.Fatalf("stepping should redirect to the /onboarding step GET; location: %q", loc)
+	}
+	return getBody(t, c, base+loc, http.StatusOK)
+}
+
 // The four steps render in order and Next advances only past a satisfied valid
 // gate: the seeds step blocks Next until a seed is entered, then walks seeds ->
 // cadence -> channel -> review (AC: the 4 steps render/advance, controlled).
@@ -42,16 +59,18 @@ func TestOnboardingStepsAdvance(t *testing.T) {
 		t.Fatalf("step 0 did not render the seeds step; body: %s", page)
 	}
 
-	// Next on an empty seeds step does not advance — the valid gate holds it on step 0.
-	resp := postForm(t, ac, base+"/onboarding", url.Values{"step": {"0"}, "action": {"next"}})
-	held := body(t, resp)
+	// Next on an empty seeds step does not advance — the valid gate holds it on step 0, and the
+	// server-side floor renders Next disabled (.StepValid false).
+	held := stepFollow(t, ac, base, url.Values{"step": {"0"}, "action": {"next"}})
 	if !strings.Contains(held, `name="seedsadd"`) {
 		t.Fatalf("empty seeds should hold on step 0; body: %s", held)
 	}
+	if !strings.Contains(held, `id="ob-next" disabled`) {
+		t.Fatalf("empty seeds should render Next disabled server-side (.StepValid floor); body: %s", held)
+	}
 
-	// Enter a seed and advance to cadence.
-	resp = postForm(t, ac, base+"/onboarding", url.Values{"step": {"0"}, "action": {"next"}, "seedsadd": {"acmecorp.io"}})
-	cadence := body(t, resp)
+	// Enter a seed and advance to cadence — the typed seed is absorbed as a committed seed.
+	cadence := stepFollow(t, ac, base, url.Values{"step": {"0"}, "action": {"next"}, "seedsadd": {"acmecorp.io"}})
 	if !strings.Contains(cadence, "Scan profile") || !strings.Contains(cadence, "Passive only") {
 		t.Fatalf("did not advance to cadence step; body: %s", cadence)
 	}
@@ -61,20 +80,18 @@ func TestOnboardingStepsAdvance(t *testing.T) {
 	}
 
 	// Advance cadence -> channel.
-	resp = postForm(t, ac, base+"/onboarding", url.Values{
+	channel := stepFollow(t, ac, base, url.Values{
 		"step": {"1"}, "action": {"next"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Daily · 08:00"},
 	})
-	channel := body(t, resp)
 	if !strings.Contains(channel, "Delivery URL (optional)") {
 		t.Fatalf("did not advance to channel step; body: %s", channel)
 	}
 
 	// Advance channel -> review.
-	resp = postForm(t, ac, base+"/onboarding", url.Values{
+	review := stepFollow(t, ac, base, url.Values{
 		"step": {"2"}, "action": {"next"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Daily · 08:00"},
 		"channel": {"https://ops.example/hook"},
 	})
-	review := body(t, resp)
 	if !strings.Contains(review, "Start first scan") {
 		t.Fatalf("did not advance to review step; body: %s", review)
 	}
@@ -89,19 +106,17 @@ func TestOnboardingCustomCadenceGate(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	// Custom cadence with no cron: Next holds on the cadence step and reveals the cron field.
-	resp := postForm(t, ac, base+"/onboarding", url.Values{
+	held := stepFollow(t, ac, base, url.Values{
 		"step": {"1"}, "action": {"next"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Custom…"},
 	})
-	held := body(t, resp)
 	if !strings.Contains(held, "Scan profile") || !strings.Contains(held, `name="cron"`) {
 		t.Fatalf("custom cadence without cron should hold on cadence and reveal cron; body: %s", held)
 	}
 
 	// With a cron supplied, Next advances to the channel step.
-	resp = postForm(t, ac, base+"/onboarding", url.Values{
+	adv := stepFollow(t, ac, base, url.Values{
 		"step": {"1"}, "action": {"next"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Custom…"}, "cron": {"0 8 * * 1"},
 	})
-	adv := body(t, resp)
 	if !strings.Contains(adv, "Delivery URL (optional)") {
 		t.Fatalf("custom cadence with cron should advance to channel; body: %s", adv)
 	}
@@ -115,12 +130,11 @@ func TestOnboardingReviewReflectsInputs(t *testing.T) {
 	base := startWithTrigger(t, f, &fakeTrigger{jobs: 2})
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/onboarding", url.Values{
+	review := stepFollow(t, ac, base, url.Values{
 		"step": {"2"}, "action": {"next"},
 		"seeds": {"acmecorp.io,203.0.113.0/24"}, "profile": {"passive"}, "cad": {"Weekly · mon 09:00"},
 		"channel": {"https://ops.example/hook"},
 	})
-	review := body(t, resp)
 	for _, want := range []string{"acmecorp.io, 203.0.113.0/24", "passive", "weekly · mon 09:00", "https://ops.example/hook"} {
 		if !strings.Contains(review, want) {
 			t.Errorf("review missing real input %q; body: %s", want, review)

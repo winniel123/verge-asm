@@ -1816,6 +1816,80 @@ func (s *server) dashboardFixtureData(acct db.Account, r *http.Request) map[stri
 	return data
 }
 
+// --- screen 20: FirstRun fixture (firstrun.tmpl, package v3.12.0, WORK-ORDER-19-20-BATCH6) -----
+//
+// The empty-estate first-run wrap of `/` (the dashboard.tmpl "home" define wrapping the frozen
+// firstrun.tmpl when .EmptyEstate) rides a dev ?variant=empty-estate query (states.json). Its
+// VIEW corpus — the four checklist steps, their done/undone reads, and the exact ported step copy
+// — is the design's pinned fixture, not a live-estate read: the step-1 detail names a concrete
+// declared seed ("acmecorp.io declared · …") the live derivation cannot reconstruct without
+// fabricating domain data. So, exactly as the sibling screens pin their dev fixture and serve it
+// under devMode, home() serves the pinned fixtures.json firstrun slice below when the variant is
+// set. It reads the firstrun slice straight from the embedded package JSON (no hardcoded Go copy to
+// drift), and render-goldens reads the SAME bytes and shapes them identically. The production path
+// (auth.go firstRunChecklist) builds the same holes from real estate reads.
+const devFirstRunVariant = "empty-estate"
+
+// firstRunFixture is the pinned fixtures.json → firstrun slice: the "N of 4 complete" count and the
+// four steps with their tmpl holes (Num/Done/Title/Detail and, when HasAction, one of ActionHref or
+// ActionPost plus Gated/GateTitle). render-goldens reads the SAME slice and shapes it identically,
+// so the cropped `main` is byte-identical to what the seeded server renders.
+type firstRunFixture struct {
+	FirstRunDone  int `json:"first_run_done"`
+	FirstRunSteps []struct {
+		Num         int    `json:"num"`
+		Done        bool   `json:"done"`
+		Title       string `json:"title"`
+		Detail      string `json:"detail"`
+		HasAction   bool   `json:"has_action"`
+		ActionLabel string `json:"action_label"`
+		ActionHref  string `json:"action_href"`
+		ActionPost  string `json:"action_post"`
+		Gated       bool   `json:"gated"`
+		GateTitle   string `json:"gate_title"`
+	} `json:"first_run_steps"`
+}
+
+// loadFirstRunFixture reads the pinned fixtures.json firstrun slice from the embedded design
+// package (designfs). A read/parse failure degrades to the zero fixture (an empty checklist)
+// rather than 500ing.
+func loadFirstRunFixture() firstRunFixture {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return firstRunFixture{}
+	}
+	var ff struct {
+		FirstRun firstRunFixture `json:"firstrun"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return firstRunFixture{}
+	}
+	return ff.FirstRun
+}
+
+// firstRunFixtureData shapes the pinned firstrun slice into the "home" holes for the empty-estate
+// wrap: EmptyEstate lit, the done count, and the four steps. render-goldens composes the identical
+// map statically (minus Account/IsAdmin, which the golden's stub chrome never reads), so golden and
+// candidate agree byte-for-byte.
+func (s *server) firstRunFixtureData(acct db.Account) map[string]any {
+	fx := loadFirstRunFixture()
+	steps := make([]firstRunStep, 0, len(fx.FirstRunSteps))
+	for _, st := range fx.FirstRunSteps {
+		steps = append(steps, firstRunStep{
+			Num: st.Num, Done: st.Done, Title: st.Title, Detail: st.Detail,
+			HasAction: st.HasAction, ActionLabel: st.ActionLabel, ActionHref: st.ActionHref,
+			ActionPost: st.ActionPost, Gated: st.Gated, GateTitle: st.GateTitle,
+		})
+	}
+	return map[string]any{
+		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "dashboard", "DesignTokens": true,
+		"EmptyEstate":   true,
+		"FirstRunDone":  fx.FirstRunDone,
+		"FirstRunSteps": steps,
+	}
+}
+
 // --- screen 13: AssetDetail fixture (package v3.10.0, WORK-ORDER-13-15-BATCH4.md) -------------
 //
 // The Asset detail (`/asset/{key}`, #581) reads inside the full app chrome and a real admin session

@@ -105,7 +105,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard | asset | subjectdetail | graph | search")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard | asset | subjectdetail | graph | reports | reportartifact | inbox | onboarding | firstrun | search")
 	out := flag.String("out", "", "inventory|drift: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile|…: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -391,6 +391,42 @@ func main() {
 			log.Fatal("render-goldens: -outdir is required for -screen inbox")
 		}
 		files, err := renderInboxStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "onboarding":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen onboarding")
+		}
+		files, err := renderOnboardingStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "firstrun":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen firstrun")
+		}
+		files, err := renderFirstRunStates(*bodyFlex)
 		if err != nil {
 			log.Fatalf("render-goldens: %v", err)
 		}
@@ -3124,6 +3160,292 @@ func renderReportsStates(bodyFlex bool) ([]errorGolden, error) {
 		out = append(out, errorGolden{id: "wizard-" + strconv.Itoa(i+1), html: wh})
 	}
 	return out, nil
+}
+
+// --- screen 20: Onboarding (onboarding.tmpl, package v3.12.0, WORK-ORDER-19-20-BATCH6) ---------
+//
+// renderOnboardingStates composes the four Onboarding golden HTMLs from the frozen onboarding.tmpl,
+// one per states.json wizard-N state. Each state is the PRG GET URL that step addresses (#25d): the
+// query is reconstructed into the controlled view and shaped into the "onboarding" holes EXACTLY as
+// cmd/web/onboarding.go's readOnboardView + renderOnboard do — the seeds accumulate, the profile /
+// cadence default to standard / "Daily · 08:00", .StepValid computes the no-JS Next/Start gate, and
+// the Review step maps the real inputs (lowercased cadence, "none — inbox only" for an empty
+// channel). The onboarding fixture (steps / cads / default cad) is read from the SAME fixtures.json
+// slice, so a fixture change flows through. Chrome/head are the empty stubs (goldens crop to `main`).
+
+// onboardingFixture is the fixtures.json → onboarding slice the golden reads (the step titles, the
+// cadence presets and the default cad); the per-state values ride the states.json query.
+type onboardingFixture struct {
+	Steps      []string `json:"steps"`
+	Cads       []string `json:"cads"`
+	DefaultCad string   `json:"default_cad"`
+}
+
+func loadOnboardingFixture() (onboardingFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return onboardingFixture{}, err
+	}
+	var ff struct {
+		Onboarding onboardingFixture `json:"onboarding"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return onboardingFixture{}, err
+	}
+	return ff.Onboarding, nil
+}
+
+const onboardingCustomCad = "Custom…"
+
+// onboardingSeedTokens mirrors cmd/web/onboarding.go parseSeedTokens: split a raw seed entry on
+// commas and whitespace, dropping empties.
+func onboardingSeedTokens(raw string) []string {
+	return strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	})
+}
+
+// onboardingGoldenMap mirrors cmd/web/onboarding.go renderOnboard EXACTLY: it reconstructs the
+// controlled state from the wizard-N query and stamps every "onboarding" hole the frozen tmpl reads.
+// Account/IsAdmin are omitted — the golden's chrome/head are the empty stubs, and the body never
+// reads them.
+func onboardingGoldenMap(fx onboardingFixture, q map[string][]string) map[string]any {
+	get := func(k string) string {
+		if v, ok := q[k]; ok && len(v) > 0 {
+			return v[0]
+		}
+		return ""
+	}
+	last := len(fx.Steps) - 1
+	step := 0
+	if n, err := strconv.Atoi(get("step")); err == nil {
+		step = n
+	}
+	if step < 0 {
+		step = 0
+	}
+	if step > last {
+		step = last
+	}
+
+	// Seeds accumulate (seeds + seedsadd), deduped in first-seen order — mirroring readOnboardView.
+	seen := map[string]bool{}
+	var seeds []string
+	for _, tok := range append(onboardingSeedTokens(get("seeds")), onboardingSeedTokens(get("seedsadd"))...) {
+		if !seen[tok] {
+			seen[tok] = true
+			seeds = append(seeds, tok)
+		}
+	}
+
+	profile := get("profile")
+	if profile != "passive" {
+		profile = "standard"
+	}
+	cad := get("cad")
+	if cad == "" {
+		cad = fx.DefaultCad
+	}
+	cron := strings.TrimSpace(get("cron"))
+	channel := get("channel")
+
+	steps := make([]map[string]any, 0, len(fx.Steps))
+	for i, title := range fx.Steps {
+		steps = append(steps, map[string]any{"Num": i + 1, "Title": title, "Done": i < step, "Current": i == step})
+	}
+	cads := make([]map[string]any, 0, len(fx.Cads))
+	for _, p := range fx.Cads {
+		cads = append(cads, map[string]any{"Value": p, "Selected": p == cad})
+	}
+
+	// StepValid mirrors onboardStepValid: step 0 needs ≥1 seed; step 1 needs a cron when Custom…;
+	// else valid.
+	stepValid := true
+	switch step {
+	case 0:
+		stepValid = len(seeds) > 0
+	case 1:
+		stepValid = cad != onboardingCustomCad || cron != ""
+	}
+
+	// Review summary mirrors renderOnboard: seeds joined (or an em dash), the profile, the cadence
+	// (the cron when Custom…, else the lowercased preset), the channel (or inbox-only).
+	seedsSummary := "—"
+	if len(seeds) > 0 {
+		seedsSummary = strings.Join(seeds, ", ")
+	}
+	cadence := strings.ToLower(cad)
+	if cad == onboardingCustomCad {
+		cadence = cron
+	}
+	channelSummary := strings.TrimSpace(channel)
+	if channelSummary == "" {
+		channelSummary = "none — inbox only"
+	}
+	review := []map[string]any{
+		{"K": "Seeds", "V": seedsSummary},
+		{"K": "Profile", "V": profile},
+		{"K": "Cadence", "V": cadence},
+		{"K": "Channel", "V": channelSummary},
+	}
+
+	kind := "hot"
+	if profile == "passive" {
+		kind = "dns"
+	}
+
+	return map[string]any{
+		"Title": "Set up this workspace", "NavActive": "", "DesignTokens": true,
+
+		"Step":      step,
+		"StepNum":   step + 1,
+		"StepTotal": len(fx.Steps),
+		"Last":      step == last,
+		"Steps":     steps,
+		"StepValid": stepValid,
+
+		"Seeds":      seeds,
+		"SeedsField": strings.Join(seeds, ","),
+		"Profile":    profile,
+		"Cads":       cads,
+		"Cad":        cad,
+		"Cron":       cron,
+		"Custom":     cad == onboardingCustomCad,
+		"Channel":    channel,
+
+		"Review": review,
+		"Kind":   kind,
+	}
+}
+
+func renderOnboardingStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadOnboardingFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	exec := func(data map[string]any) ([]byte, error) {
+		t, terr := newStubbedTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS, "templates/onboarding.tmpl"); terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, "onboarding", data); terr != nil {
+			return nil, terr
+		}
+		return buf.Bytes(), nil
+	}
+
+	// The wizard states hit the PRG GET URLs directly (states.json); the accumulated query for each
+	// step matches those URLs exactly.
+	wizardQueries := []map[string][]string{
+		{},
+		{"step": {"1"}, "seeds": {"acmecorp.io"}},
+		{"step": {"2"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Daily · 08:00"}},
+		{"step": {"3"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Daily · 08:00"}, "channel": {"https://ops.example/hook"}},
+	}
+	out := make([]errorGolden, 0, len(wizardQueries))
+	for i, q := range wizardQueries {
+		h, herr := exec(onboardingGoldenMap(fx, q))
+		if herr != nil {
+			return nil, herr
+		}
+		out = append(out, errorGolden{id: "wizard-" + strconv.Itoa(i+1), html: h})
+	}
+	return out, nil
+}
+
+// --- screen 20: FirstRun (firstrun.tmpl, package v3.12.0, WORK-ORDER-19-20-BATCH6) -------------
+//
+// renderFirstRunStates composes the one FirstRun golden HTML — the empty-estate wrap of `/`. The
+// bare "firstrun" define is wrapped by dashboard.tmpl's "home" define when .EmptyEstate is true, so
+// "home" is executed with EmptyEstate lit over a template set carrying dashboard.tmpl + firstrun.tmpl
+// (+ signals.tmpl for the "sevbadge" the dashboard body references but does not render here). Every
+// hole mirrors firstRunFixtureData (cmd/web/devfixtures.go) EXACTLY, read from the SAME fixtures.json
+// firstrun slice, so the cropped `main` is byte-identical to what the seeded server renders.
+
+type firstRunGoldenFixture struct {
+	FirstRunDone  int `json:"first_run_done"`
+	FirstRunSteps []struct {
+		Num         int    `json:"num"`
+		Done        bool   `json:"done"`
+		Title       string `json:"title"`
+		Detail      string `json:"detail"`
+		HasAction   bool   `json:"has_action"`
+		ActionLabel string `json:"action_label"`
+		ActionHref  string `json:"action_href"`
+		ActionPost  string `json:"action_post"`
+		Gated       bool   `json:"gated"`
+		GateTitle   string `json:"gate_title"`
+	} `json:"first_run_steps"`
+}
+
+func loadFirstRunGoldenFixture() (firstRunGoldenFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return firstRunGoldenFixture{}, err
+	}
+	var ff struct {
+		FirstRun firstRunGoldenFixture `json:"firstrun"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return firstRunGoldenFixture{}, err
+	}
+	return ff.FirstRun, nil
+}
+
+func renderFirstRunStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadFirstRunGoldenFixture()
+	if err != nil {
+		return nil, err
+	}
+
+	steps := make([]map[string]any, 0, len(fx.FirstRunSteps))
+	for _, st := range fx.FirstRunSteps {
+		steps = append(steps, map[string]any{
+			"Num": st.Num, "Done": st.Done, "Title": st.Title, "Detail": st.Detail,
+			"HasAction": st.HasAction, "ActionLabel": st.ActionLabel, "ActionHref": st.ActionHref,
+			"ActionPost": st.ActionPost, "Gated": st.Gated, "GateTitle": st.GateTitle,
+		})
+	}
+	data := map[string]any{
+		"Title": "Dashboard", "NavActive": "dashboard", "DesignTokens": true, "IsAdmin": true,
+		"EmptyEstate":   true,
+		"FirstRunDone":  fx.FirstRunDone,
+		"FirstRunSteps": steps,
+	}
+
+	t, err := newStubbedTemplate(head)
+	if err != nil {
+		return nil, err
+	}
+	// "home" references "sevbadge" (signals.tmpl) via the dashboard body; parse it so the escaper's
+	// static walk resolves, even though the empty-estate branch renders "firstrun", not the body.
+	if _, err := t.ParseFS(designfs.FS, "templates/signals.tmpl"); err != nil {
+		return nil, err
+	}
+	if _, err := t.ParseFS(designfs.FS, "templates/firstrun.tmpl"); err != nil {
+		return nil, err
+	}
+	if _, err := t.ParseFS(designfs.FS, "templates/dashboard.tmpl"); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "home", data); err != nil {
+		return nil, err
+	}
+	return []errorGolden{{id: "default", html: buf.Bytes()}}, nil
 }
 
 // --- screen 17: ReportArtifact (reportartifact.tmpl, package v3.11.0, WORK-ORDER-16-18-BATCH5) --
