@@ -896,6 +896,13 @@ func (s *server) handler() http.Handler {
 		mux.HandleFunc("GET /dev/seed/empty-authed", s.devCoverageSeedEmpty)
 	}
 
+	// Read-only /api/v1 JSON surface (#390, ADR-0123; A3 of #658). One self-contained
+	// call mounts the whole tree (router + handlers live in api_v1.go), each route
+	// wrapped in A2's apiBearer spine: 404 when api_enabled is off, 405 on any non-GET,
+	// bearer-resolved and read-only otherwise. Kept a single localized line so sibling
+	// route additions to this file union-merge cleanly.
+	s.mountAPIv1(mux)
+
 	// Recovered panics render the 500 error page with a real, logged incident id
 	// (T11, #306). Wrapped once here at the mux-construction boundary; the render
 	// and incident-id helpers live in errors.go.
