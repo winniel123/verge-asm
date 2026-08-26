@@ -175,15 +175,31 @@ func canonicalSections(selected []string) []string {
 	return out
 }
 
+// scheduleCadenceValid gates the Cadence step: a preset is always valid; a Custom
+// cadence needs a cron that both is non-empty AND parses as a well-formed 5-field
+// expression (report.ValidateCron, ADR-0122). This is the REFUSAL surface for an
+// invalid cron — the wizard will neither advance past nor finish from the Cadence
+// step while the cron does not parse, so an uninterpretable cadence is never
+// persisted and never silently coerced to a weekly default. The client JS blocks an
+// empty cron; the server additionally blocks a malformed one, so a hand-crafted POST
+// cannot slip one past.
+func scheduleCadenceValid(v scheduleWizardView) bool {
+	if v.Cad != reportCustomCad {
+		return true
+	}
+	cron := strings.TrimSpace(v.Cron)
+	return cron != "" && report.ValidateCron(cron) == nil
+}
+
 // scheduleStepValid is the per-step valid gate, ported from the example's step
 // `valid` predicates: Scope needs a name and at least one section; Cadence needs a
-// cron when the custom preset is chosen; Review is always valid.
+// valid cron when the custom preset is chosen; Review is always valid.
 func scheduleStepValid(v scheduleWizardView) bool {
 	switch v.Step {
 	case 0:
 		return strings.TrimSpace(v.Name) != "" && len(v.Sections) > 0
 	case 1:
-		return v.Cad != reportCustomCad || strings.TrimSpace(v.Cron) != ""
+		return scheduleCadenceValid(v)
 	default:
 		return true
 	}
@@ -191,10 +207,22 @@ func scheduleStepValid(v scheduleWizardView) bool {
 
 // scheduleAllValid is the whole-form gate the finish path checks before persisting —
 // every step's predicate at once, so a hand-crafted finish POST that skipped a step
-// cannot file an incomplete schedule.
+// cannot file an incomplete or uninterpretable schedule.
 func scheduleAllValid(v scheduleWizardView) bool {
-	return strings.TrimSpace(v.Name) != "" && len(v.Sections) > 0 &&
-		(v.Cad != reportCustomCad || strings.TrimSpace(v.Cron) != "")
+	return strings.TrimSpace(v.Name) != "" && len(v.Sections) > 0 && scheduleCadenceValid(v)
+}
+
+// scheduleFirstInvalidStep is the step the finish path bounces an incomplete or
+// uninterpretable submission back to, so the operator lands where the fix is: the
+// Scope step for a missing name/sections, the Cadence step for an invalid cron.
+func scheduleFirstInvalidStep(v scheduleWizardView) int {
+	if strings.TrimSpace(v.Name) == "" || len(v.Sections) == 0 {
+		return 0
+	}
+	if !scheduleCadenceValid(v) {
+		return 1
+	}
+	return 0
 }
 
 // reportCadLabel renders the stored cadence label, ported from Reports.jsx's
@@ -343,10 +371,11 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		return
 	}
 
-	// Finish. Redirect back to the first step where the operator can fix an incomplete
-	// entry rather than filing a schedule that would render nothing.
+	// Finish. Redirect back to the first failing step where the operator can fix an
+	// incomplete entry or an invalid cron rather than filing a schedule that would
+	// render nothing or fire nowhere.
 	if !scheduleAllValid(v) {
-		v.Step = 0
+		v.Step = scheduleFirstInvalidStep(v)
 		redirectWizardStep(w, r, reportsNewWizardPath, v)
 		return
 	}
@@ -403,7 +432,7 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 	}
 
 	if !scheduleAllValid(v) {
-		v.Step = 0
+		v.Step = scheduleFirstInvalidStep(v)
 		redirectWizardStep(w, r, reportsEditWizardPath(v.ID), v)
 		return
 	}
