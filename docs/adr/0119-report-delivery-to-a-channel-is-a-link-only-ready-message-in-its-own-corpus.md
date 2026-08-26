@@ -20,9 +20,7 @@ settles the destination: a schedule **delivers to a Channel** — the same signe
 Message delivery path uses (migration 20600) — chosen in a new wizard **Delivery** step, with
 "Download only" as the default. This raised three questions the build had to answer honestly, all
 in the shadow of [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
-("a Channel carries the Message, never the estate") and
-[ADR-0081](./0081-a-delivery-is-not-a-message-and-a-delivery-failure-is-surfaced-on-its-message.md)
-("a delivery is not a Message").
+("a Channel carries the Message, never the estate").
 
 1. **What crosses the wire?** A report artifact is the estate rendered — signals, subjects,
    withdrawals, severities. ADR-0039 forbids any of that leaving in a Channel POST. So what does a
