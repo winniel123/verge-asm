@@ -1239,7 +1239,7 @@ var devScopeExclusions = []devScopeExclusionRow{
 type scopeOverlay struct {
 	formScope   string
 	formError   string
-	refusal     *refusalView
+	refusals    []refusalView
 	exclKind    string
 	exclValue   string
 	exclPreview map[string]any
@@ -1303,8 +1303,8 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 		"ExclKind":         ov.exclKind,
 		"ExclValue":        ov.exclValue,
 	}
-	if ov.refusal != nil {
-		data["Refusal"] = ov.refusal
+	if len(ov.refusals) > 0 {
+		data["Refusals"] = ov.refusals
 	}
 	if ov.exclPreview != nil {
 		data["ExclPreview"] = ov.exclPreview
@@ -1323,7 +1323,7 @@ func (s *server) scopeFixtureDataRefusal(acct db.Account, value string) map[stri
 	if isAddressValue(value) {
 		if raw, err := netip.ParsePrefix(cidrForm(value)); err == nil && !seed.WithinCap(raw, devScopeAddressCap) {
 			ref := refusalOverCap(value, raw, devScopeAddressCap)
-			ov.refusal = &ref
+			ov.refusals = []refusalView{ref}
 			ov.formError = overCapFormError(devScopeAddressCap)
 		}
 	}
