@@ -173,11 +173,25 @@ type runStage struct {
 
 // runLogLine is one line of the batch log — one queue job's event: its id tag, an
 // optional level (a dead job is an error, a superseded or retrying attempt a warn),
-// and the terse text (kind · state · vantage · batch).
+// and the terse text (kind · state · vantage · batch). JobID carries the source
+// queue-job id so the per-job filter (DF-F3b, ?job={id}) can narrow the log
+// server-side; the frozen tmpl reads only Tag/Level/Text, never JobID.
 type runLogLine struct {
+	JobID int64
 	Tag   string
 	Level string // "" | "warn" | "error"
 	Text  string
+}
+
+// runJobFilter is the loghead per-job filter chip (DF-F3b): the queue-job the log is
+// narrowed to (its id, kind and — where it has one — vantage) and the bare run route
+// the × clears back to. Nil on runView renders no chip ({{with .JobFilter}}); the
+// filter itself is applied server-side (applyJobFilter), never in the tmpl.
+type runJobFilter struct {
+	ID        int64
+	Kind      string
+	Vantage   string
+	ClearHref string
 }
 
 // runKV is one row of the run's "as configured" parameters.
@@ -224,6 +238,9 @@ type runView struct {
 	Vantages    []runVantage
 	// Degraded is nullable (#20): a *runDegraded, nil where no vantage fell short.
 	Degraded *runDegraded
+	// JobFilter is nullable (DF-F3b): set when the request carries ?job={id}; .Log has
+	// already been narrowed to that job's rows server-side by the time it renders.
+	JobFilter *runJobFilter
 }
 
 // runPage renders the per-run drill-in. The run id is a Dispatch id; the dispatch
@@ -249,6 +266,14 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	if s.devMode {
 		if raw == devRunDetailID {
 			s.render(w, r, "run", s.runDetailFixtureData(acct))
+			return
+		}
+		// The running run 1408 (DF-F3/F3b): Foundation seeded it as the Settings scans
+		// active dispatch (fixtures.json), whose scan-kind and per-job ids link here and
+		// to /runs/1408?job={id}. It renders the LIVE pulse + the 5s tail, and — with
+		// ?job= — the server-side per-job log filter + loghead chip.
+		if raw == devRunningRunID {
+			s.render(w, r, "run", s.runningRunFixtureData(acct, r.URL.Query().Get("job"), r.URL.Path))
 			return
 		}
 		s.renderMissingRun(w, r, acct, raw)
@@ -292,7 +317,11 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		// rundetail.tmpl styles against the design token vocabulary; the "head" block
 		// inlines tokens/*.css only when this datum is set (as Coverage/Exposure do).
 		"DesignTokens": true,
-		"Run":          view,
+		// While the run is in flight the head's meta-refresh hole tails the log on a
+		// cadence (DF-F3); on conclusion it returns 0 and the terminal state stands. The
+		// filter lives in the URL, so a refresh preserves it.
+		"Refresh": runRefresh(view.Status),
+		"Run":     view,
 	})
 }
 
@@ -308,14 +337,15 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 		Active: dv.Active,
 		Scope:  "all scopes",
 	}
-	switch {
-	case dv.Active:
-		v.Status = "running"
-	case dv.Dead > 0:
-		v.Status = "failed"
-	default:
-		v.Status = "complete"
-	}
+	// A dispatch stopped/terminated via DF-F4 carries a recorded outcome the run page
+	// renders as its terminal status (runStatusLabel — the literal word "stopped" /
+	// "terminated" in the .Status hole; the danger badge treatment arrives with the
+	// design patch that adds the .stopped/.terminated classes). That recording is the
+	// Scans ticket's (#633) write side and reaches this read through the shared corpus
+	// seam, which does not model a dispatch-level outcome yet — so the outcome is ""
+	// here and this reduces to the live running/failed/complete derivation with no
+	// behaviour change until the seam lands.
+	v.Status = runStatusLabel(dv.Active, dv.Dead, "")
 
 	jobs := make([]jobView, 0, len(jobRows))
 	for _, j := range jobRows {
@@ -363,7 +393,79 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 	if nv > 0 {
 		v.Params = append(v.Params, runKV{K: "Vantages", V: strconv.Itoa(nv)})
 	}
+
+	// The per-job filter (DF-F3b): with ?job={id} the log is narrowed to that job's rows
+	// server-side and the loghead chip is set — the tmpl renders whatever .Log it is
+	// handed, never filtering client-side. The filter lives in the URL so it survives the
+	// live meta-refresh; the × clears back to the bare run route.
+	applyJobFilter(&v, r.URL.Query().Get("job"), r.URL.Path, jobs)
 	return v
+}
+
+// runStatusLabel is the run page's batch-status word (the frozen .Status hole, which is
+// both the rd-batch CSS class and the visible label). A dispatch stopped or terminated via
+// DF-F4 renders its recorded outcome verbatim — the literal "stopped" / "terminated" per
+// the ruled interim edge; the danger badge treatment ships in a later design patch that
+// adds the matching .rd-batch classes, at which point "rd-batch stopped" styles with no
+// handler change. Absent an outcome it is the live derivation: in-flight → running, any
+// dead-lettered job → failed, else complete.
+func runStatusLabel(active bool, dead int64, outcome string) string {
+	switch outcome {
+	case "stopped", "terminated":
+		return outcome
+	}
+	switch {
+	case active:
+		return "running"
+	case dead > 0:
+		return "failed"
+	default:
+		return "complete"
+	}
+}
+
+// runRefresh drives the head's meta-refresh hole from run status (DF-F3): 5 while the run
+// is running so the log tails, 0 once it concludes so the terminal page settles. The frozen
+// head renders the hole as a truthy toggle ({{if .Refresh}}<meta http-equiv="refresh" …>),
+// so 5 turns the tail on and 0 turns it off; the literal cadence the meta tag carries is the
+// design's, fixed in the frozen shell head, not the handler's to set.
+func runRefresh(status string) int {
+	if status == "running" {
+		return 5
+	}
+	return 0
+}
+
+// applyJobFilter narrows a run view's log to a single queue job and sets the loghead chip,
+// server-side (DF-F3b). A blank or non-numeric ?job param is not a filter and leaves the
+// view untouched. A numeric id always renders the chip — even an unknown or superseded id:
+// the log is filtered to the rows tagged with that job id (empty for an unknown id, the
+// honest "No log to show" the tmpl renders), and the chip's kind/vantage come from the
+// matching job where the run has one. ClearHref is the bare run route the × navigates to.
+func applyJobFilter(v *runView, jobParam, bareHref string, jobs []jobView) {
+	if jobParam == "" {
+		return
+	}
+	jobID, err := strconv.ParseInt(jobParam, 10, 64)
+	if err != nil {
+		return
+	}
+	jf := &runJobFilter{ID: jobID, ClearHref: bareHref}
+	for _, j := range jobs {
+		if j.ID == jobID {
+			jf.Kind = j.Kind
+			jf.Vantage = j.Vantage
+			break
+		}
+	}
+	filtered := make([]runLogLine, 0, len(v.Log))
+	for _, ln := range v.Log {
+		if ln.JobID == jobID {
+			filtered = append(filtered, ln)
+		}
+	}
+	v.Log = filtered
+	v.JobFilter = jf
 }
 
 // runStages folds the dispatch's jobs into pipeline steps, grouped by job kind in
@@ -436,7 +538,7 @@ func runLog(jobs []jobView) []runLogLine {
 		if j.Batch != "" {
 			text += " · " + j.Batch
 		}
-		out = append(out, runLogLine{Tag: "#" + strconv.FormatInt(j.ID, 10), Level: level, Text: text})
+		out = append(out, runLogLine{JobID: j.ID, Tag: "#" + strconv.FormatInt(j.ID, 10), Level: level, Text: text})
 	}
 	return out
 }
