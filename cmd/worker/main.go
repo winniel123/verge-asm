@@ -19,6 +19,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/release"
 	"github.com/winniel123/verge-asm/internal/report"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -145,6 +146,29 @@ func main() {
 	go func() {
 		if err := obsRetirer.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Printf("worker: observation retention stopped: %v", err)
+		}
+	}()
+
+	// Release check runs beside the retirers (#391, ADR-0124: check + surface +
+	// guide, never self-replace). A daily best-effort poll of the upstream release
+	// feed, gated on instance_config.update_check_enabled: while the operator has
+	// left the check off, it makes NO network call — not on a tick and not on this
+	// boot run — so an air-gapped instance stays genuinely silent. When enabled it
+	// records a current/newer verdict in the release cache (SetReleaseCache) that
+	// the web Version & updates card renders; a failed or unreachable feed is a
+	// logged no-op that leaves the cache untouched, never a crash. VERGE_VERSION is
+	// the running build compared against the feed's latest; VERGE_RELEASE_FEED_URL
+	// overrides the default GitHub latest-release feed (unset ⇒ release.DefaultFeedURL).
+	releaseChecker := release.NewChecker(
+		db.New(pool),
+		release.NewHTTPFetcher(env.OrDefault("VERGE_RELEASE_FEED_URL", release.DefaultFeedURL)),
+		env.OrDefault("VERGE_VERSION", "dev"),
+		time.Now,
+		logger,
+	)
+	go func() {
+		if err := releaseChecker.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: release check stopped: %v", err)
 		}
 	}()
 
