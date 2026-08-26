@@ -17,7 +17,7 @@ The system lives at **`design-system/`** in the repo root:
 
 **Never hardcode a value a token already names.** If you find yourself typing `#231f19`, you want `var(--ink)`.
 
-The old "engineered paper" system is frozen to **`design-system-legacy/`** (styles.css + tokens/ + README only). It exists solely for the dated prototypes (see ADR-0075 below); do not use it for new work.
+The old "engineered paper" system is frozen to **`prototypes/design-system-legacy/`** (styles.css + tokens/ + README only), co-located with its only consumers. It exists solely for the dated prototypes (see ADR-0075 below); do not use it for new work.
 
 ## What is canonical and what is not
 
@@ -54,7 +54,7 @@ Where the round-trip's wait is unacceptable, the correct move is still the reque
 
 [ADR-0075](../adr/0075-a-prototype-is-a-dated-record-of-a-reading-never-of-a-rule.md), from
 [#131](https://github.com/winniel123/verge-asm/issues/131). This guidance is unaffected by the redesign,
-with one path change: **prototypes link `design-system-legacy/styles.css`** (the frozen "engineered
+with one path change: **prototypes link `prototypes/design-system-legacy/styles.css`** (the frozen "engineered
 paper" system), since the dated prototypes were drawn against it and must not silently re-skin.
 
 **Writing one.** Carry a **dateline on the rendered surface** — ticket, date, and one clause pointing
