@@ -1,0 +1,155 @@
+{
+  "entities" : [ {
+    "events" : [ {
+      "eventAction" : "last changed",
+      "eventDate" : "2024-02-09T15:21:55-05:00"
+    }, {
+      "eventAction" : "registration",
+      "eventDate" : "2011-02-18T14:57:07-05:00"
+    } ],
+    "handle" : "CKN23-ARIN",
+    "links" : [ {
+      "href" : "https://rdap.arin.net/registry/entity/CKN23-ARIN",
+      "rel" : "self",
+      "type" : "application/rdap+json",
+      "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+    }, {
+      "href" : "https://whois.arin.net/rest/poc/CKN23-ARIN",
+      "rel" : "alternate",
+      "type" : "application/xml",
+      "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+    } ],
+    "objectClassName" : "entity",
+    "port43" : "whois.arin.net",
+    "remarks" : [ {
+      "description" : [ "There is no known POC for this organization. This is a placeholder record. Please contact hostmaster@arin.net if you can provide contact information for this record." ],
+      "title" : "Registration Comments"
+    }, {
+      "description" : [ "ARIN has attempted to validate the data for this POC, but has received no response from the POC since 2025-02-08" ],
+      "title" : "Unvalidated POC"
+    } ],
+    "roles" : [ "abuse", "technical", "administrative" ],
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "adr", {
+      "label" : "123 Main St\nAnytown\nVA\n20151\nUnited States"
+    }, "text", [ "", "", "", "", "", "", "" ] ], [ "fn", { }, "text", "Contact Known No" ], [ "n", { }, "text", [ "No", "Contact", "Known", "", "" ] ], [ "kind", { }, "text", "individual" ], [ "email", { }, "text", "nobody@example.com" ], [ "tel", {
+      "type" : [ "work", "voice" ]
+    }, "text", "+1-800-555-1234" ] ] ]
+  } ],
+  "events" : [ {
+    "eventAction" : "last changed",
+    "eventDate" : "2011-09-24T08:30:57-04:00"
+  }, {
+    "eventAction" : "registration",
+    "eventDate" : "2000-02-22T00:00:00-05:00"
+  } ],
+  "handle" : "HURRIC-1",
+  "links" : [ {
+    "href" : "https://rdap.arin.net/registry/entity/HURRIC-1",
+    "rel" : "self",
+    "type" : "application/rdap+json",
+    "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+  }, {
+    "href" : "https://whois.arin.net/rest/org/HURRIC-1",
+    "rel" : "alternate",
+    "type" : "application/xml",
+    "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+  } ],
+  "networks" : [ {
+    "arin_originas0_originautnums" : [ ],
+    "cidr0_cidrs" : [ {
+      "v4prefix" : "216.218.130.128",
+      "length" : 29
+    } ],
+    "endAddress" : "216.218.130.135",
+    "entities" : [ {
+      "events" : [ {
+        "eventAction" : "last changed",
+        "eventDate" : "2025-03-04T19:15:23-05:00"
+      }, {
+        "eventAction" : "registration",
+        "eventDate" : "1999-03-17T23:14:32-05:00"
+      } ],
+      "handle" : "GS265-ARIN",
+      "links" : [ {
+        "href" : "https://rdap.arin.net/registry/entity/GS265-ARIN",
+        "rel" : "self",
+        "type" : "application/rdap+json",
+        "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+      }, {
+        "href" : "https://whois.arin.net/rest/poc/GS265-ARIN",
+        "rel" : "alternate",
+        "type" : "application/xml",
+        "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+      } ],
+      "objectClassName" : "entity",
+      "port43" : "whois.arin.net",
+      "roles" : [ "technical" ],
+      "status" : [ "validated" ],
+      "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "adr", {
+        "label" : "Hurricane Electric\r\n760 Mission Ct\nFremont\nCA\n94539\nUnited States"
+      }, "text", [ "", "", "", "", "", "", "" ] ], [ "fn", { }, "text", "Gary Shaver" ], [ "n", { }, "text", [ "Shaver", "Gary", "", "", "" ] ], [ "kind", { }, "text", "individual" ], [ "email", { }, "text", "gshaver@he.net" ], [ "tel", {
+        "type" : [ "work", "voice" ]
+      }, "text", "+1-510-580-4100" ] ] ]
+    } ],
+    "events" : [ {
+      "eventAction" : "last changed",
+      "eventDate" : "2000-02-22T23:02:42-05:00"
+    }, {
+      "eventAction" : "registration",
+      "eventDate" : "2000-02-22T00:00:00-05:00"
+    } ],
+    "handle" : "NET-216-218-130-128-1",
+    "ipVersion" : "v4",
+    "links" : [ {
+      "href" : "https://rdap.arin.net/registry/ip/216.218.130.128",
+      "rel" : "self",
+      "type" : "application/rdap+json",
+      "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+    }, {
+      "href" : "https://whois.arin.net/rest/net/NET-216-218-130-128-1",
+      "rel" : "alternate",
+      "type" : "application/xml",
+      "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+    }, {
+      "href" : "https://rdap.arin.net/registry/ip/216.218.128.0/17",
+      "rel" : "up",
+      "type" : "application/rdap+json",
+      "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+    } ],
+    "name" : "HURRICANE-DC0012-2769",
+    "objectClassName" : "ip network",
+    "parentHandle" : "NET-216-218-128-0-1",
+    "port43" : "whois.arin.net",
+    "startAddress" : "216.218.130.128",
+    "status" : [ "active" ],
+    "type" : "ASSIGNMENT"
+  } ],
+  "notices" : [ {
+    "description" : [ "By using the ARIN RDAP/Whois service, you are agreeing to the RDAP/Whois Terms of Use" ],
+    "links" : [ {
+      "href" : "https://www.arin.net/resources/registry/whois/tou/",
+      "rel" : "terms-of-service",
+      "type" : "text/html",
+      "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+    } ],
+    "title" : "Terms of Service"
+  }, {
+    "description" : [ "If you see inaccuracies in the results, please visit: " ],
+    "links" : [ {
+      "href" : "https://www.arin.net/resources/registry/whois/inaccuracy_reporting/",
+      "rel" : "inaccuracy-report",
+      "type" : "text/html",
+      "value" : "https://rdap.arin.net/registry/entity/HURRIC-1"
+    } ],
+    "title" : "Whois Inaccuracy Reporting"
+  }, {
+    "description" : [ "Copyright 1997-2026, American Registry for Internet Numbers, Ltd." ],
+    "title" : "Copyright Notice"
+  } ],
+  "objectClassName" : "entity",
+  "port43" : "whois.arin.net",
+  "rdapConformance" : [ "nro_rdap_profile_0", "rdap_level_0" ],
+  "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "Hurricane Electric" ], [ "adr", {
+    "label" : "55 South Market St Suite 205\nSan Jose\nCA\n95113\nUnited States"
+  }, "text", [ "", "", "", "", "", "", "" ] ], [ "kind", { }, "text", "org" ] ] ]
+}
