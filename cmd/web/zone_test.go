@@ -55,7 +55,9 @@ func TestZoneUploadStoresAtSupplyInstantAndListsIt(t *testing.T) {
 	seedID := f.seeds[0].ID
 
 	resp := uploadZone(t, ac, base, seedID, testZone)
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
+	// DF-F2: an accepted upload now fires a "zone files supplied" flash across the PRG, so
+	// the redirect carries a toast query — match the path prefix, not the whole URL.
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(resp.Header.Get("Location"), "/scope") {
 		t.Fatalf("upload: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()

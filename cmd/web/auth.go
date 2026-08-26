@@ -2457,6 +2457,14 @@ func (s *server) injectChrome(data any, r *http.Request) {
 	if hasAcct {
 		messages = s.bellMessages(ctx, acct.ID, 4)
 	}
+
+	// A page may carry a flash INLINE (a bulk act that mixed successes with refusals
+	// renders the callouts and the success toast in one response, rather than a PRG that
+	// would drop the callouts). An inline FlashToasts wins over the PRG `toast` query.
+	toasts := decodeToasts(r)
+	if pt, ok := m["FlashToasts"].([]toastVM); ok {
+		toasts = pt
+	}
 	initials := "?"
 	userName := ""
 	if hasAcct {
@@ -2475,7 +2483,7 @@ func (s *server) injectChrome(data any, r *http.Request) {
 		Unread:        unread > 0,
 		Messages:      messages,
 		PaletteGroups: paletteGroupsProd(signalCount, unread),
-		Toasts:        decodeToasts(r),
+		Toasts:        toasts,
 	}
 }
 
