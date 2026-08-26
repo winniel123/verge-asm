@@ -8,7 +8,7 @@ user-invocable: true
 
 The system lives at **`design-system/`** in the repo root, not in this skill directory. This file is the entry point; `design-system/README.md` is the full handoff and `design-system/docs/AGENT-GUIDE.md` is the compact usage guide. Read those before doing anything non-trivial.
 
-The old "engineered paper" datasheet look has been retired to `design-system-legacy/` (frozen — styles + tokens only). Do **not** pull colours, type, or geometry from there; everything below is the current system.
+The old "engineered paper" datasheet look has been retired to `prototypes/design-system-legacy/` (frozen — styles + tokens only). Do **not** pull colours, type, or geometry from there; everything below is the current system.
 
 ## Design idea
 
