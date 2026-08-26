@@ -172,7 +172,7 @@ func buildQuery(q Query) ([]byte, error) {
 		return nil, errors.New("resolutionwalk: unsupported qtype " + string(q.Qtype))
 	}
 	b := dnsmessage.NewBuilder(nil, dnsmessage.Header{
-		ID:               uint16(time.Now().UnixNano()),
+		ID:               uint16(time.Now().UnixNano()), // #nosec G115 (intended 16-bit truncation for the DNS transaction ID field)
 		RecursionDesired: q.Path == PathDeclared,
 	})
 	b.EnableCompression()
@@ -285,7 +285,7 @@ func exchangeTCP(ctx context.Context, d net.Dialer, server string, msg []byte) (
 		_ = conn.SetDeadline(dl)
 	}
 	framed := make([]byte, 2+len(msg))
-	binary.BigEndian.PutUint16(framed, uint16(len(msg)))
+	binary.BigEndian.PutUint16(framed, uint16(len(msg))) // #nosec G115 (own small DNS query; DoT length prefix is a 16-bit field per RFC 1035)
 	copy(framed[2:], msg)
 	if _, err := conn.Write(framed); err != nil {
 		return nil, err
