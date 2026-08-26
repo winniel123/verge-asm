@@ -1126,7 +1126,7 @@ func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error
 	// figure collapses rather than fabricate one.
 	if used, total, ok := diskUsage("."); ok {
 		inst["DiskDetail"] = diskLabel(used, total)
-		inst["DiskPct"] = int(used * 100 / total)
+		inst["DiskPct"] = int(used * 100 / total) // #nosec G115 -- used<=total (guarded in diskUsage), so the percentage is 0..100
 	}
 
 	// Database — real pg_database_size and server version off the running Postgres.
