@@ -77,6 +77,38 @@ func (f *fakeStore) DeletePersonalToken(_ context.Context, arg db.DeletePersonal
 	return nil
 }
 
+// GetPersonalTokenByHash mirrors the by-hash lookup the /api/v1 bearer path uses (#390,
+// A2): the row whose token_hash equals the presented digest, or no row. No row is the
+// same pgx.ErrNoRows the generated query returns, which the middleware renders as 401.
+func (f *fakeStore) GetPersonalTokenByHash(_ context.Context, tokenHash string) (db.PersonalToken, error) {
+	for _, t := range f.personalTokens {
+		if t.TokenHash == tokenHash {
+			return t, nil
+		}
+	}
+	return db.PersonalToken{}, pgx.ErrNoRows
+}
+
+// UpdatePersonalTokenLastUsed mirrors the coarsened touch SQL exactly (#390, A2): stamp
+// last_used_at only when it is null or older than an hour, so a busy token is not one
+// write per request and the timestamp never regresses. A missing id is a no-op, matching
+// the WHERE clause. It uses wall-clock time.Now() as the SQL's now() does, so a test's
+// two back-to-back requests fall inside the one-hour window and the second is a no-op.
+func (f *fakeStore) UpdatePersonalTokenLastUsed(_ context.Context, id int64) error {
+	now := time.Now()
+	for i := range f.personalTokens {
+		if f.personalTokens[i].ID != id {
+			continue
+		}
+		lu := f.personalTokens[i].LastUsedAt
+		if !lu.Valid || lu.Time.Before(now.Add(-time.Hour)) {
+			f.personalTokens[i].LastUsedAt = pgtype.Timestamptz{Time: now, Valid: true}
+		}
+		return nil
+	}
+	return nil
+}
+
 // --- session registry fakes (#405, ADR-0117) -------------------------------
 
 // CreateSession opens a session row: a monotonic id, now-stamped created_at and
