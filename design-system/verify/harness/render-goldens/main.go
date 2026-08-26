@@ -105,7 +105,7 @@ type fixtureFile struct {
 }
 
 func main() {
-	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard | asset | subjectdetail | graph | reports | reportartifact | inbox | onboarding | firstrun")
+	screen := flag.String("screen", "inventory", "which screen to render: inventory | error | profile | signin | setup | coverage | exposure | drift | rundetail | scope | signals | dashboard | asset | subjectdetail | graph | reports | reportartifact | inbox | onboarding | firstrun | search")
 	out := flag.String("out", "", "inventory|drift: path to write the single golden HTML")
 	outdir := flag.String("outdir", "", "error|profile|…: directory to write one golden HTML per state (<state>.html)")
 	// -body-flex is a DIAGNOSTIC-ONLY toggle (never used for the canonical golden):
@@ -427,6 +427,24 @@ func main() {
 			log.Fatal("render-goldens: -outdir is required for -screen firstrun")
 		}
 		files, err := renderFirstRunStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
+	case "search":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen search")
+		}
+		files, err := renderSearchStates(*bodyFlex)
 		if err != nil {
 			log.Fatalf("render-goldens: %v", err)
 		}
@@ -3711,6 +3729,221 @@ func renderInboxStates(bodyFlex bool) ([]errorGolden, error) {
 	out := make([]errorGolden, 0, len(states))
 	for _, st := range states {
 		html, herr := exec(inboxStateData(fx, st.selID, st.filter))
+		if herr != nil {
+			return nil, herr
+		}
+		out = append(out, errorGolden{id: st.id, html: html})
+	}
+	return out, nil
+}
+
+// searchHiSeg is one matched-field run in the golden: its literal text and whether it
+// is the highlighted (query-matched) run. It carries the field names the "hisegs"
+// define reads (.Text/.Hit).
+type searchHiSeg struct {
+	Text string
+	Hit  bool
+}
+
+// searchSegG mirrors cmd/web searchSegs byte-for-byte: it splits text on the FIRST
+// case-insensitive occurrence of q into the [{Text,Hit}] list "hisegs" renders (#25a),
+// omitting empty edges and folding a non-match to a single un-hit seg. Keeping this
+// identical to the candidate handler is the point — the golden must exercise the same
+// builder over the reconstructed field text.
+func searchSegG(text, q string) []searchHiSeg {
+	if q == "" {
+		return []searchHiSeg{{Text: text}}
+	}
+	i := strings.Index(strings.ToLower(text), strings.ToLower(q))
+	if i < 0 {
+		return []searchHiSeg{{Text: text}}
+	}
+	end := i + len(strings.ToLower(q))
+	if i > len(text) || end > len(text) {
+		return []searchHiSeg{{Text: text}}
+	}
+	segs := make([]searchHiSeg, 0, 3)
+	if i > 0 {
+		segs = append(segs, searchHiSeg{Text: text[:i]})
+	}
+	segs = append(segs, searchHiSeg{Text: text[i:end], Hit: true})
+	if end < len(text) {
+		segs = append(segs, searchHiSeg{Text: text[end:]})
+	}
+	return segs
+}
+
+// searchFixtureSeg is one fixtures.json search segment.
+type searchFixtureSeg struct {
+	Text string `json:"text"`
+	Hit  bool   `json:"hit"`
+}
+
+// searchFixtureG is the design-system/fixtures/fixtures.json → search slice (the golden
+// reads the SAME bytes cmd/web devfixtures.go loadSearchFixture does; a drift fails the
+// pixel diff and TestBuildSearchMatchesDesignFixture).
+type searchFixtureG struct {
+	Query  string `json:"query"`
+	Total  int    `json:"total"`
+	Assets []struct {
+		Href     string             `json:"href"`
+		NameSegs []searchFixtureSeg `json:"name_segs"`
+		Type     string             `json:"type"`
+		Severity string             `json:"severity"`
+		SevLabel string             `json:"sev_label"`
+	} `json:"assets"`
+	Signals []struct {
+		Href        string             `json:"href"`
+		Severity    string             `json:"severity"`
+		SevLabel    string             `json:"sev_label"`
+		RuleSegs    []searchFixtureSeg `json:"rule_segs"`
+		SubjectSegs []searchFixtureSeg `json:"subject_segs"`
+	} `json:"signals"`
+	Batches []struct {
+		Href      string             `json:"href"`
+		Status    string             `json:"status"`
+		LabelSegs []searchFixtureSeg `json:"label_segs"`
+	} `json:"batches"`
+	Docs []struct {
+		TitleSegs []searchFixtureSeg `json:"title_segs"`
+		SnipSegs  []searchFixtureSeg `json:"snip_segs"`
+	} `json:"docs"`
+	EmptyVariant struct {
+		Query string `json:"query"`
+		Total int    `json:"total"`
+	} `json:"empty_variant"`
+}
+
+func loadSearchFixtureG() (searchFixtureG, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return searchFixtureG{}, err
+	}
+	var ff struct {
+		Search searchFixtureG `json:"search"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return searchFixtureG{}, err
+	}
+	return ff.Search, nil
+}
+
+// joinSearchSegsG reconstructs a field's raw text from its authored segments so it can
+// be re-segmented through searchSegG (mirrors cmd/web joinFixtureSegs).
+func joinSearchSegsG(segs []searchFixtureSeg) string {
+	var b strings.Builder
+	for _, s := range segs {
+		b.WriteString(s.Text)
+	}
+	return b.String()
+}
+
+// searchStateData mirrors cmd/web/devfixtures.go searchFixtureData byte-for-byte for a
+// given query: the canonical query renders the authored slice folded through searchSegG,
+// any other query (the empty variant) renders the zero-result state. Keeping this
+// identical to the candidate is the point.
+func searchStateData(fx searchFixtureG, q string) map[string]any {
+	base := map[string]any{
+		"Title": "Search results", "NavActive": "", "DesignTokens": true,
+		"Query": q,
+	}
+	if q != fx.Query {
+		base["Total"] = 0
+		base["Assets"] = []map[string]any{}
+		base["Signals"] = []map[string]any{}
+		base["Batches"] = []map[string]any{}
+		base["Docs"] = []map[string]any{}
+		return base
+	}
+
+	assets := make([]map[string]any, 0, len(fx.Assets))
+	for _, a := range fx.Assets {
+		assets = append(assets, map[string]any{
+			"Href":     a.Href,
+			"NameSegs": searchSegG(joinSearchSegsG(a.NameSegs), q),
+			"Type":     a.Type,
+			"Severity": a.Severity,
+			"SevLabel": a.SevLabel,
+		})
+	}
+	signals := make([]map[string]any, 0, len(fx.Signals))
+	for _, sg := range fx.Signals {
+		signals = append(signals, map[string]any{
+			"Href":        sg.Href,
+			"Severity":    sg.Severity,
+			"SevLabel":    sg.SevLabel,
+			"RuleSegs":    searchSegG(joinSearchSegsG(sg.RuleSegs), q),
+			"SubjectSegs": searchSegG(joinSearchSegsG(sg.SubjectSegs), q),
+		})
+	}
+	batches := make([]map[string]any, 0, len(fx.Batches))
+	for _, b := range fx.Batches {
+		batches = append(batches, map[string]any{
+			"Href":      b.Href,
+			"Status":    b.Status,
+			"LabelSegs": searchSegG(joinSearchSegsG(b.LabelSegs), q),
+		})
+	}
+	docs := make([]map[string]any, 0, len(fx.Docs))
+	for _, d := range fx.Docs {
+		docs = append(docs, map[string]any{
+			"TitleSegs": searchSegG(joinSearchSegsG(d.TitleSegs), q),
+			"SnipSegs":  searchSegG(joinSearchSegsG(d.SnipSegs), q),
+		})
+	}
+
+	base["Total"] = len(assets) + len(signals) + len(batches) + len(docs)
+	base["Assets"] = assets
+	base["Signals"] = signals
+	base["Batches"] = batches
+	base["Docs"] = docs
+	return base
+}
+
+// renderSearchStates renders the two search goldens — default (/search?q=acme) and
+// empty (/search?q=zzz-none). search.tmpl calls the landed "sevbadge" (signals.tmpl),
+// so the template set parses BOTH templates/signals.tmpl and templates/search.tmpl into
+// the stubbed set for sevbadge to resolve.
+func renderSearchStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadSearchFixtureG()
+	if err != nil {
+		return nil, err
+	}
+
+	exec := func(data map[string]any) ([]byte, error) {
+		t, terr := newStubbedTemplate(head)
+		if terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS, "templates/signals.tmpl"); terr != nil {
+			return nil, terr
+		}
+		if _, terr := t.ParseFS(designfs.FS, "templates/search.tmpl"); terr != nil {
+			return nil, terr
+		}
+		var buf bytes.Buffer
+		if terr := t.ExecuteTemplate(&buf, "search", data); terr != nil {
+			return nil, terr
+		}
+		return buf.Bytes(), nil
+	}
+
+	type sstate struct {
+		id string
+		q  string
+	}
+	states := []sstate{
+		{"default", fx.Query},
+		{"empty", fx.EmptyVariant.Query},
+	}
+
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		html, herr := exec(searchStateData(fx, st.q))
 		if herr != nil {
 			return nil, herr
 		}

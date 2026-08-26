@@ -103,6 +103,10 @@ cb6f90b48fa6403361198b6dfd209c1176f6c40e  design-system/goldens/scope/default-14
 fe0e1c99812b691de96fc846968715756ae3a531  design-system/goldens/scope/exclusion-preview-1440-light.png
 d83cad348d07c49ef89f9de2244fd936ae127ccf  design-system/goldens/scope/refusal-1440-dark.png
 cd657f8545fe206f8abffcf02d4aed7fe3229695  design-system/goldens/scope/refusal-1440-light.png
+58670659e84bb95095210735c13d1972a99d5063  design-system/goldens/search/default-1440-dark.png
+abda918060aa078789e876d824addd6bd89d6024  design-system/goldens/search/default-1440-light.png
+d1d8acb9f1b8beb2c86002e450b8a252f222d769  design-system/goldens/search/empty-1440-dark.png
+294f3c4dea47ef643b6b457798eb6142670b8c11  design-system/goldens/search/empty-1440-light.png
 eb615f23465847425234c23953d8d83fef5b3844  design-system/goldens/setup/default-1440-dark.png
 1d554ee9621d5a9a54f407ee9006147fe440d100  design-system/goldens/setup/default-1440-light.png
 f2362a6c8a660643582aa933bd86f5481f03e422  design-system/goldens/setup/error-1440-dark.png
