@@ -319,7 +319,7 @@ func TestChangeRoleSaveDisabledUntilDiffers(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	page := getBody(t, ac, base+"/settings?tab=team&role="+itoa(viewer.ID), http.StatusOK)
-	if !strings.Contains(page, `id="rolesave"`) || !strings.Contains(page, "disabled>Save role") {
+	if !strings.Contains(page, `id="st-role-save"`) || !strings.Contains(page, "disabled>Save role") {
 		t.Errorf("change-role Save not disabled by default; body: %s", page)
 	}
 	if !strings.Contains(page, `data-current="viewer"`) {

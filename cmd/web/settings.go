@@ -31,22 +31,42 @@ import (
 // secret, only whether one is set: the secret is write-only and the render path
 // is structurally unable to hold it (CONTEXT.md "Channel").
 type channelView struct {
-	ID        int64
-	URL       string
-	Drift     bool
-	Coverage  bool
-	Clock     bool
-	Enabled   bool
-	HasSecret bool
-	By        string
-	At        string
+	ID       int64
+	URL      string
+	Drift    bool
+	Coverage bool
+	Clock    bool
+	// Classes is the store vocabulary this channel carries, in vocabulary order —
+	// the display tags (#26f, never a hardcoded set in the tmpl). ClassStates is the
+	// full vocabulary with each class's checked flag for the edit-disclosure form.
+	Classes     []string
+	ClassStates []classState
+	Enabled     bool
+	HasSecret   bool
+	By          string
+	At          string
 }
+
+// classState is one routing class in the channel vocabulary with its checked flag —
+// the shape both the create form's .ClassOptions and a channel's per-row .ClassStates
+// render from, so the class checkboxes/badges come from the store's vocabulary rather
+// than a hardcoded set (#26f).
+type classState struct {
+	Name    string
+	Checked bool
+}
+
+// channelClasses is the store's routing-class vocabulary (the route_drift /
+// route_coverage / route_clock columns, ADR-0091). The tmpl renders class
+// checkboxes and badges from this, never from a literal set baked into the markup.
+var channelClasses = []string{"drift", "coverage", "clock"}
 
 // accountRow is one account in the management list. It carries no password hash
 // and no TOTP secret — managing an account needs neither.
 type accountRow struct {
 	ID          int64
 	Username    string
+	Initials    string
 	Role        string
 	TotpEnabled bool
 	At          string
@@ -89,6 +109,13 @@ type vantageRow struct {
 	Availability string
 	Resolver     string
 	Endpoint     string
+	// Latency is the measured connect round-trip label ("34ms") or empty when
+	// unmeasured; Unverified marks a vantage that makes no exposure claims until
+	// re-verified (its availability reads "unverified"). The spec VantageCard renders
+	// the dashed border and no-claims note off Unverified (#26c).
+	Latency    string
+	Unverified bool
+	Avail      string
 }
 
 // settingsForms carries the echo state of the Settings screen's forms so a
@@ -136,6 +163,10 @@ type settingsForms struct {
 
 	vcError string
 	vcPort  string
+
+	// sources (#26). sourceError is an inline error on the sources tab (a bad id or a
+	// rejected enable), echoed above the tier cards.
+	sourceError string
 
 	// cold + probers (#21d): the full-range opt-in and prober provisioning acts
 	// relocated from /scope. coldError is an inline error on the Scans tab's cold-tier
@@ -196,6 +227,10 @@ func tabForSection(section string) string {
 		return "delivery"
 	case "vergecore":
 		return "aperture"
+	case "sources":
+		return "sources"
+	case "integrations":
+		return "integrations"
 	case "sessions":
 		return "sessions"
 	case "vantages":
@@ -208,6 +243,16 @@ func tabForSection(section string) string {
 }
 
 func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// A VERGE_DEV build serves the design's curated fixtures.json settings slice so each
+	// section renders byte-for-byte for the pixel-parity harness (the 19 golden states).
+	// It touches no table — the twin of the render-goldens settings case, both stamping
+	// the same "settings" holes from the same fixture. A real deployment renders the live
+	// projection below (renderSettings). The viewer's forbidden state never reaches here:
+	// requireSettingsAdmin refuses it first (settingsForbidden, the error-page).
+	if s.devMode {
+		s.render(w, "settings", s.settingsFixtureData(acct, r))
+		return
+	}
 	q := r.URL.Query()
 	s.renderSettings(w, r, acct, settingsForms{
 		tab:    validTab(q.Get("tab")),
@@ -575,7 +620,7 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 
 	data := map[string]any{
 		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "settings", "Tab": active,
+		"NavActive": "settings", "Tab": active, "DesignTokens": true,
 	}
 	if f.notice != "" {
 		data["Notice"] = f.notice
@@ -596,7 +641,7 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	case "sessions":
 		err = s.fillSessionsSection(r, f, data)
 	case "sources":
-		err = s.fillSourcesSection(r, data)
+		err = s.fillSourcesSection(r, f, data)
 	case "aperture":
 		err = s.fillApertureSection(r, f, data)
 	case "instance":
@@ -641,13 +686,12 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 		vr := vantageRow{
 			Name: v.Name, Class: v.Class, Availability: v.Availability.String,
 			Resolver: v.Resolver, Endpoint: endpointString(v.Host.String, v.Port.Int32),
+			Latency: vantageLatencyLabel(v.LatencyMs),
 		}
 		if vr.Availability == "" {
 			vr.Availability = "pending"
 		}
-		if vr.Resolver == "" {
-			vr.Resolver = "—"
-		}
+		vr.Unverified = vr.Availability == "unverified"
 		out = append(out, vr)
 	}
 	data["Vantages"] = out
@@ -677,7 +721,35 @@ func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[
 	data["ChanDrift"] = chDrift
 	data["ChanCoverage"] = chCoverage
 	data["ChanClock"] = chClock
+	// The create form's class checkboxes render from the store vocabulary (#26f),
+	// pre-checked to the create-form defaults (all three, or the operator's echoed
+	// selection after a rejected create).
+	defaults := map[string]bool{"drift": chDrift, "coverage": chCoverage, "clock": chClock}
+	opts := make([]classState, 0, len(channelClasses))
+	for _, name := range channelClasses {
+		opts = append(opts, classState{Name: name, Checked: defaults[name]})
+	}
+	data["ClassOptions"] = opts
 	return nil
+}
+
+// initialsFromUsername derives a member's initial-avatar label from their username
+// — the first two letters of the local part, uppercased (Settings.jsx derives the
+// avatar from the username, no new datum). A single-character local part yields one
+// letter; an empty username yields the empty string.
+func initialsFromUsername(username string) string {
+	local := username
+	if i := strings.IndexByte(username, '@'); i >= 0 {
+		local = username[:i]
+	}
+	letters := make([]rune, 0, 2)
+	for _, r := range local {
+		letters = append(letters, r)
+		if len(letters) == 2 {
+			break
+		}
+	}
+	return strings.ToUpper(string(letters))
 }
 
 // fillDeliverySection carries the operational-record group: the delivery outcomes
@@ -744,7 +816,10 @@ func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[
 	}
 	sens := make([]sensRow, 0, len(shipped.SensitivePairs()))
 	for _, p := range shipped.SensitivePairs() {
-		sens = append(sens, sensRow{Port: int(p.Port), Transport: string(p.Transport)})
+		sens = append(sens, sensRow{
+			Port: int(p.Port), Transport: string(p.Transport),
+			Service: sensitiveServiceLabels[int(p.Port)],
+		})
 	}
 	c := effective.Count()
 	data["Counts"] = c
@@ -1015,22 +1090,39 @@ func sessionDeviceFromUA(ua string) string {
 // self-hosted), the process uptime since start, that Postgres answered this render,
 // and the provisioned vantage fleet with each vantage's availability.
 func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error {
-	data["Licence"] = "AGPL-3.0 · self-hosted"
-	data["Uptime"] = humanizeDuration(s.now().Sub(s.startedAt))
+	// Real host facts only (#26h): the licence stance and the process uptime since
+	// start. Version, queue depth, disk and postgres are host facts with no read
+	// wired on the live surface yet, so they render empty and their figures collapse
+	// rather than fabricate a number; the design fixture pins them for the pixel
+	// golden. The update callout is nullable — no update-check mechanism exists, so
+	// it is absent.
+	inst := map[string]any{
+		"License":    "AGPL-3.0 · self-hosted",
+		"Uptime":     humanizeDuration(s.now().Sub(s.startedAt)),
+		"Version":    "",
+		"QueueDepth": "",
+		"DiskPct":    0,
+		"DiskDetail": "",
+		"PgLabel":    "postgres",
+		"PgDetail":   "",
+	}
 
-	var fleet []vantageRow
+	var fleet []map[string]any
 	if rows, err := s.store.ListVantages(r.Context()); err == nil {
 		for _, v := range rows {
 			avail := v.Availability.String
 			if avail == "" {
 				avail = "pending"
 			}
-			fleet = append(fleet, vantageRow{Name: v.Name, Class: v.Class, Availability: avail})
+			fleet = append(fleet, map[string]any{
+				"Name": v.Name, "Latency": vantageLatencyLabel(v.LatencyMs), "Avail": avail,
+			})
 		}
 	} else {
 		log.Printf("web: instance: list vantages: %v", err)
 	}
-	data["Fleet"] = fleet
+	inst["Vantages"] = fleet
+	data["Instance"] = inst
 	return nil
 }
 
@@ -1054,8 +1146,8 @@ func toAccountRows(rows []db.ListAccountsRow, selfID int64) []accountRow {
 	out := make([]accountRow, 0, len(rows))
 	for _, a := range rows {
 		r := accountRow{
-			ID: a.ID, Username: a.Username, Role: a.Role,
-			TotpEnabled: a.TotpEnabled, IsSelf: a.ID == selfID,
+			ID: a.ID, Username: a.Username, Initials: initialsFromUsername(a.Username),
+			Role: a.Role, TotpEnabled: a.TotpEnabled, IsSelf: a.ID == selfID,
 		}
 		if a.CreatedAt.Valid {
 			r.At = a.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -1072,6 +1164,13 @@ func toChannelViews(rows []db.ListChannelsRow) []channelView {
 			ID: c.ID, URL: c.Url, Drift: c.RouteDrift, Coverage: c.RouteCoverage,
 			Clock: c.RouteClock, Enabled: c.Enabled, HasSecret: c.HasSecret,
 			By: c.CreatedByUsername,
+		}
+		checked := map[string]bool{"drift": c.RouteDrift, "coverage": c.RouteCoverage, "clock": c.RouteClock}
+		for _, name := range channelClasses {
+			v.ClassStates = append(v.ClassStates, classState{Name: name, Checked: checked[name]})
+			if checked[name] {
+				v.Classes = append(v.Classes, name)
+			}
 		}
 		if c.CreatedAt.Valid {
 			v.At = c.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")

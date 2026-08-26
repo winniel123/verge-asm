@@ -60,7 +60,7 @@ func TestAdminSessionsListsEveryAccount(t *testing.T) {
 	}
 	// Every live account's session is present — three signed-in accounts — but only the
 	// two that are not the current session carry a revoke control (boyd, cara).
-	if got, want := strings.Count(got, `href="/settings?tab=sessions&amp;revoke=`), 2; got != want {
+	if got, want := strings.Count(got, `href="/settings?tab=sessions&revoke=`), 2; got != want {
 		t.Fatalf("per-session revoke controls = %d, want %d", got, want)
 	}
 }

@@ -723,6 +723,9 @@ func (s *server) handler() http.Handler {
 	// Settings would 403 viewers, so it stays a viewer route.
 	mux.HandleFunc("GET /sources", s.requireLogin(s.sourcesModal))
 	mux.HandleFunc("POST /sources/toggle", s.requireAdmin(s.toggleSource))
+	// The spec sources tab (#26) posts the enable/disable act here; enabling an
+	// operator-accepted source carries accept_terms=true from the consent dialog.
+	mux.HandleFunc("POST /settings/sources", s.requireAdmin(s.settingsSources))
 
 	// The account surface folded into Settings → access (#281): GET /account now
 	// redirects there (accountPage), so the merged SignIn's totp-enroll Cancel link
@@ -806,7 +809,11 @@ func (s *server) handler() http.Handler {
 	// write to integration_state.
 	if integrationsEnabled {
 		mux.HandleFunc("POST /settings/integrations/install", s.requireAdmin(s.installIntegration))
-		mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.disconnectIntegration))
+		// remove is the spec drawer's Remove act (#26j); disconnect is its pre-spec
+		// alias, kept resolving. test acknowledges the spec drawer's "Send test".
+		mux.HandleFunc("POST /settings/integrations/remove", s.requireAdmin(s.removeIntegration))
+		mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.removeIntegration))
+		mux.HandleFunc("POST /settings/integrations/test", s.requireAdmin(s.testIntegration))
 	}
 
 	// Dev-only pixel-parity harness routes (devfixtures.go), registered only in a

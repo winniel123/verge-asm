@@ -133,8 +133,8 @@ func TestPublicKeyShownAndPrivateNeverIs(t *testing.T) {
 	if !strings.Contains(page, pub) {
 		t.Errorf("public key not rendered; body: %s", page)
 	}
-	if !strings.Contains(page, ">set<") {
-		t.Errorf("public key status not shown as 'set'; body: %s", page)
+	if !strings.Contains(page, "authorized_keys") {
+		t.Errorf("public key not presented for install (authorized_keys block); body: %s", page)
 	}
 	if !strings.Contains(page, ">available<") {
 		t.Errorf("availability not shown; body: %s", page)

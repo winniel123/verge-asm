@@ -25,9 +25,16 @@ import (
 // undelivered; LastError is the drill-down reason, never a top-level log (#22).
 type deliveryView struct {
 	ChannelHost string
-	State       string
-	Failed      bool
-	LastError   string
+	// Class and When are the message's routing class and the outcome's relative time
+	// (#26h). The delivery-outcomes projection carries neither the class nor an
+	// attempt timestamp, so on the live surface they render empty (the honest omit —
+	// the columns collapse) rather than a fabricated value; the design fixture pins
+	// both for the pixel golden.
+	Class     string
+	When      string
+	State     string
+	Failed    bool
+	LastError string
 }
 
 // messageRow is one message shaped for the panel: the rendered headline, the

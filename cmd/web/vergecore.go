@@ -25,10 +25,20 @@ type freqRow struct {
 	EditAction    string
 }
 
-// sensRow is one read-only sensitive pair.
+// sensRow is one read-only sensitive pair. Service is the release-authored display
+// label for the port (#26c) — the sensitive tier is a fixed set, so the label is a
+// known-service lookup, empty for a pair with no authored label (the chip collapses).
 type sensRow struct {
 	Port      int
 	Transport string
+	Service   string
+}
+
+// sensitiveServiceLabels names the release-authored sensitive tier's ports for the
+// aperture chips. The sensitive tier is fixed and moves only with the release, so
+// these labels are static; a port with no entry renders no label.
+var sensitiveServiceLabels = map[int]string{
+	21: "ftp", 23: "telnet", 445: "smb", 1433: "mssql", 3389: "rdp", 5900: "vnc",
 }
 
 func (s *server) vergeCorePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
