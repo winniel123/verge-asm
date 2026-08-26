@@ -137,6 +137,9 @@ type store interface {
 	// SetLastBackup records the instant (now()) and byte size of the last UI-taken backup
 	// (#391, B3); the Backup card surfaces it as .Backup.LastAt/LastSize.
 	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
+	// SetAPIEnabled flips the read-only /api/v1 surface on or off and stamps who/when
+	// (#390); the API access toggle on the Settings · Access · API tab drives it.
+	SetAPIEnabled(ctx context.Context, arg db.SetAPIEnabledParams) error
 	// TightestEnabledScanCadenceSeconds is the tightest bound in force, which the
 	// observation dial floors at (#208, ADR-0094) — symmetric to the Dispatch
 	// floor's SlowestEnabledScanCadenceSeconds.
@@ -837,6 +840,10 @@ func (s *server) handler() http.Handler {
 	// Backup (#391, ADR-0124, B3): an admin streams a data-only logical archive of the
 	// estate + config tables. See cmd/web/backup.go — secret-free by construction.
 	mux.HandleFunc("POST /settings/backup", s.requireAdmin(s.backupDownload))
+	// API access (#390, ADR-0123): flipping the read-only /api/v1 surface on or off is an
+	// admin config act, gated like the update-check toggle. Off by default; while off every
+	// minted personal token is inert and /api/v1 answers nothing (surface off beats auth).
+	mux.HandleFunc("POST /settings/api", s.requireAdmin(s.apiToggle))
 
 	// Single sign-on config (#293, ADR-0112): declaring, editing, re-keying and
 	// removing an OIDC provider are admin config acts, gated like channel and seed
@@ -894,6 +901,13 @@ func (s *server) handler() http.Handler {
 		// nothing ("/dev/seed/empty" is a different literal).
 		mux.HandleFunc("GET /dev/seed/empty-authed", s.devCoverageSeedEmpty)
 	}
+
+	// Read-only /api/v1 JSON surface (#390, ADR-0123; A3 of #658). One self-contained
+	// call mounts the whole tree (router + handlers live in api_v1.go), each route
+	// wrapped in A2's apiBearer spine: 404 when api_enabled is off, 405 on any non-GET,
+	// bearer-resolved and read-only otherwise. Kept a single localized line so sibling
+	// route additions to this file union-merge cleanly.
+	s.mountAPIv1(mux)
 
 	// Recovered panics render the 500 error page with a real, logged incident id
 	// (T11, #306). Wrapped once here at the mux-construction boundary; the render

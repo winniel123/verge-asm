@@ -980,6 +980,13 @@ func (f *fakeStore) SetLastBackup(_ context.Context, lastBackupSize pgtype.Int8)
 	return nil
 }
 
+func (f *fakeStore) SetAPIEnabled(_ context.Context, arg db.SetAPIEnabledParams) error {
+	f.instanceConfig.ApiEnabled = arg.ApiEnabled
+	f.instanceConfig.ApiUpdatedBy = arg.ApiUpdatedBy
+	f.instanceConfig.ApiUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
 func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
 	f.retention.ObservationCurrencyDays = arg.ObservationCurrencyDays
 	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
