@@ -137,12 +137,12 @@ func paletteGroupsProd(signalCount int, unread int64) []paletteGroup {
 		{Label: "Scope", Icon: "globe", Href: "/scope"},
 		{Label: "Inventory", Icon: "server", Href: "/inventory"},
 		{Label: "Drift", Icon: "git-branch", Href: "/drift"},
-		{Label: "Signals", Icon: "shield-alert", Hint: countHint(signalCount, "open"), Href: "/signals"},
+		{Label: "Signals", Icon: "shield-alert", Hint: countHint(int64(signalCount), "open"), Href: "/signals"},
 		{Label: "Exposure", Icon: "eye", Href: "/exposure"},
 		{Label: "Coverage", Icon: "gauge", Href: "/coverage"},
 		{Label: "Graph", Icon: "network", Href: "/graph"},
 		{Label: "Reports", Icon: "file-text", Href: "/reports"},
-		{Label: "Inbox", Icon: "inbox", Hint: countHint(int(unread), "unread"), Href: "/inbox"},
+		{Label: "Inbox", Icon: "inbox", Hint: countHint(unread, "unread"), Href: "/inbox"},
 		{Label: "Profile", Icon: "user", Href: "/profile"},
 		{Label: "Sources", Icon: "database", Href: "/settings?tab=sources"},
 		{Label: "Sessions", Icon: "monitor-smartphone", Href: "/settings?tab=sessions"},
@@ -167,11 +167,11 @@ func paletteGroupsProd(signalCount int, unread int64) []paletteGroup {
 
 // countHint renders a palette item hint like "47 open" / "2 unread", or "" when the
 // count is zero (the tmpl drops an empty hint).
-func countHint(n int, word string) string {
+func countHint(n int64, word string) string {
 	if n <= 0 {
 		return ""
 	}
-	return strconv.Itoa(n) + " " + word
+	return strconv.FormatInt(n, 10) + " " + word
 }
 
 // decodeToasts reads the PRG flash the shell's toastRedirect (shell.go) writes into
