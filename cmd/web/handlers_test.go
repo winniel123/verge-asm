@@ -967,6 +967,13 @@ func (f *fakeStore) GetInstanceConfig(context.Context) (db.GetInstanceConfigRow,
 	return f.instanceConfig, nil
 }
 
+func (f *fakeStore) SetUpdateCheckEnabled(_ context.Context, arg db.SetUpdateCheckEnabledParams) error {
+	f.instanceConfig.UpdateCheckEnabled = arg.UpdateCheckEnabled
+	f.instanceConfig.UpdateCheckUpdatedBy = arg.UpdateCheckUpdatedBy
+	f.instanceConfig.UpdateCheckUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
 func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
 	f.retention.ObservationCurrencyDays = arg.ObservationCurrencyDays
 	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
