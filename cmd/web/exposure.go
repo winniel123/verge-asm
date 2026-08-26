@@ -88,7 +88,7 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// which capture.mjs appends. A real deployment (devMode == false) falls through to the honest
 	// live reads below.
 	if s.devMode {
-		s.render(w, "exposure", s.exposureFixtureData(acct, r.URL.Query().Get("variant")))
+		s.render(w, r, "exposure", s.exposureFixtureData(acct, r.URL.Query().Get("variant")))
 		return
 	}
 
@@ -111,7 +111,7 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		}
 	}
 	if !internetVantage {
-		s.render(w, "exposure", map[string]any{
+		s.render(w, r, "exposure", map[string]any{
 			"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 			"NavActive": "exposure",
 			// exposure.tmpl styles against the design token vocabulary; the "head" block
@@ -151,7 +151,7 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 			data["HasDeltas"] = true
 		}
 	}
-	s.render(w, "exposure", data)
+	s.render(w, r, "exposure", data)
 }
 
 // legInfo is one class-scoped reachability leg as the by-class read carries it.

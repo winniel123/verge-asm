@@ -4376,5 +4376,241 @@
         "updated_by": "ola@acmecorp.io"
       }
     }
+  },
+  "shell": {
+    "title": "Dashboard",
+    "chrome": {
+      "nav": [
+        {
+          "id": "dashboard",
+          "label": "Dashboard",
+          "href": "/",
+          "active": true
+        },
+        {
+          "id": "scope",
+          "label": "Scope",
+          "href": "/scope"
+        },
+        {
+          "id": "inventory",
+          "label": "Inventory",
+          "href": "/inventory"
+        },
+        {
+          "id": "drift",
+          "label": "Drift",
+          "href": "/drift"
+        },
+        {
+          "id": "signals",
+          "label": "Signals",
+          "href": "/signals",
+          "count": "47"
+        },
+        {
+          "id": "exposure",
+          "label": "Exposure",
+          "href": "/exposure"
+        },
+        {
+          "id": "coverage",
+          "label": "Coverage",
+          "href": "/coverage"
+        },
+        {
+          "id": "graph",
+          "label": "Graph",
+          "href": "/graph"
+        },
+        {
+          "id": "reports",
+          "label": "Reports",
+          "href": "/reports"
+        }
+      ],
+      "org": "acmecorp",
+      "orgs": [
+        {
+          "id": "acme",
+          "name": "acmecorp",
+          "assets": "1,284",
+          "active": true
+        },
+        {
+          "id": "north",
+          "name": "northwind-sec",
+          "assets": "342"
+        },
+        {
+          "id": "globex",
+          "name": "globex",
+          "assets": "5,108"
+        }
+      ],
+      "orgs_note": "nullable — single-org deployments render the static chip; the switcher needs an org store (alias or BUILD POST /org/switch; SPEC-CHANGE escalate if orgs are not modeled)",
+      "version": "v0.9.2",
+      "user_name": "ola@acmecorp.io",
+      "user_initials": "OL",
+      "scan_running": false,
+      "unread": true,
+      "messages": [
+        {
+          "id": "m1",
+          "class": "drift",
+          "rel": "4m",
+          "headline": "appeared · staging-5.acmecorp.io",
+          "unread": true,
+          "href": "/inbox?id=m1"
+        },
+        {
+          "id": "m2",
+          "class": "coverage",
+          "rel": "6h",
+          "headline": "zone transfer silent for 9d · internal.acmecorp.io",
+          "unread": true,
+          "href": "/inbox?id=m2"
+        },
+        {
+          "id": "m3",
+          "class": "drift",
+          "rel": "6h",
+          "headline": "batch complete · 7 transitions",
+          "unread": false,
+          "href": "/inbox?id=m3"
+        },
+        {
+          "id": "m4",
+          "class": "clock",
+          "rel": "2d",
+          "headline": "certificate expires in 23 days · idp-signing-2026",
+          "unread": false,
+          "href": "/inbox?id=m4"
+        }
+      ],
+      "palette_groups": [
+        {
+          "label": "Screens",
+          "items": [
+            {
+              "label": "Dashboard",
+              "icon": "layout-dashboard",
+              "href": "/"
+            },
+            {
+              "label": "Scope",
+              "icon": "globe",
+              "href": "/scope"
+            },
+            {
+              "label": "Inventory",
+              "icon": "server",
+              "href": "/inventory"
+            },
+            {
+              "label": "Drift",
+              "icon": "git-branch",
+              "href": "/drift"
+            },
+            {
+              "label": "Signals",
+              "icon": "shield-alert",
+              "hint": "47 open",
+              "href": "/signals"
+            },
+            {
+              "label": "Exposure",
+              "icon": "eye",
+              "href": "/exposure"
+            },
+            {
+              "label": "Coverage",
+              "icon": "gauge",
+              "href": "/coverage"
+            },
+            {
+              "label": "Graph",
+              "icon": "network",
+              "href": "/graph"
+            },
+            {
+              "label": "Reports",
+              "icon": "file-text",
+              "href": "/reports"
+            },
+            {
+              "label": "Inbox",
+              "icon": "inbox",
+              "hint": "2 unread",
+              "href": "/inbox"
+            },
+            {
+              "label": "Profile",
+              "icon": "user",
+              "href": "/profile"
+            },
+            {
+              "label": "Sources",
+              "icon": "database",
+              "href": "/settings?tab=sources"
+            },
+            {
+              "label": "Sessions",
+              "icon": "monitor-smartphone",
+              "href": "/settings?tab=sessions"
+            },
+            {
+              "label": "Port aperture",
+              "icon": "layout-grid",
+              "href": "/settings?tab=aperture"
+            },
+            {
+              "label": "Integrations",
+              "icon": "puzzle",
+              "href": "/settings?tab=integrations",
+              "gated": "integrationsEnabled"
+            },
+            {
+              "label": "Settings",
+              "icon": "settings",
+              "href": "/settings"
+            },
+            {
+              "label": "Search everything",
+              "icon": "search",
+              "href": "/search",
+              "search": true
+            }
+          ]
+        },
+        {
+          "label": "Actions",
+          "items": [
+            {
+              "label": "Run scan",
+              "icon": "play",
+              "href": "/scans"
+            },
+            {
+              "label": "Add seed",
+              "icon": "plus",
+              "href": "/scope#seed-form"
+            },
+            {
+              "label": "Toggle theme",
+              "icon": "moon",
+              "theme_toggle": true
+            }
+          ]
+        }
+      ],
+      "toasts_variant": [
+        {
+          "tone": "ok",
+          "title": "Scan complete",
+          "description": "3 new signals raised."
+        }
+      ]
+    }
   }
 }

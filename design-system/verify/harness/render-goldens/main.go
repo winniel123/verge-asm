@@ -152,6 +152,24 @@ func main() {
 			}
 			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
 		}
+	case "shell":
+		if *outdir == "" {
+			log.Fatal("render-goldens: -outdir is required for -screen shell")
+		}
+		files, err := renderShellStates(*bodyFlex)
+		if err != nil {
+			log.Fatalf("render-goldens: %v", err)
+		}
+		if err := os.MkdirAll(*outdir, 0o750); err != nil {
+			log.Fatalf("render-goldens: mkdir: %v", err)
+		}
+		for _, f := range files {
+			path := filepath.Join(*outdir, f.id+".html")
+			if err := os.WriteFile(path, f.html, 0o600); err != nil {
+				log.Fatalf("render-goldens: write %s: %v", path, err)
+			}
+			log.Printf("render-goldens: wrote %s (%d bytes)", path, len(f.html))
+		}
 	case "profile":
 		if *outdir == "" {
 			log.Fatal("render-goldens: -outdir is required for -screen profile")
@@ -630,7 +648,7 @@ func renderRunDetailStates(bodyFlex bool) ([]errorGolden, error) {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "run", data); err != nil {
+	if err := execGolden(t, &buf, "run", data); err != nil {
 		return nil, err
 	}
 	return []errorGolden{{id: "default", html: buf.Bytes()}}, nil
@@ -781,7 +799,7 @@ func renderCoverageStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "coverage", st.data); err != nil {
+		if err := execGolden(t, &buf, "coverage", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -880,7 +898,7 @@ func renderExposureStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "exposure", st.data); err != nil {
+		if err := execGolden(t, &buf, "exposure", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -1092,7 +1110,7 @@ func renderScopeStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "scope", st.data); err != nil {
+		if err := execGolden(t, &buf, "scope", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -1220,7 +1238,7 @@ func renderDrift(bodyFlex bool) ([]byte, error) {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "drift", data); err != nil {
+	if err := execGolden(t, &buf, "drift", data); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -1268,17 +1286,25 @@ func goldenHead(bodyFlex bool) (template.HTML, error) {
 	return template.HTML(headHTML), nil // #nosec G203 -- trusted design CSS/HTML composed by the harness from embedded artifacts, no user input
 }
 
-// newStubbedTemplate returns a template set whose "head"/"chrome"/"foot" are the golden
-// stubs the design tmpls call: "head" inlines the composed shell (so the token CSS's
-// single braces are never parsed as template text), "chrome" is empty (cropped out of the
-// `main` screenshot), and "foot" only closes the document.
-func newStubbedTemplate(head template.HTML) (*template.Template, error) {
+// newStubbedTemplate returns a template set carrying the REAL design-owned shell
+// (design-system/templates/shell.tmpl — "head"/"chrome"/"foot"/"cmdkicon"), so a
+// screen render composes its FULL PAGE — head + TopNav chrome + main + footer —
+// byte-for-byte the way the converted app serves it (#27f: with the shell landed the
+// harness stops cropping to <main>; every landed screen re-renders full-page). The
+// funcmap mirrors cmd/web/templates_shell.go: integrationsEnabled (the compile-time
+// #388 flag — true, matching integrations.go), designTokens (the sorted-join of
+// tokens/*.css the head inlines on EVERY page now), and signDelta. The `head` param
+// is retained for call-site compatibility but is no longer used — the real shell.tmpl
+// carries its own head.
+func newStubbedTemplate(_ template.HTML) (*template.Template, error) {
+	tokens, err := loadDesignTokens()
+	if err != nil {
+		return nil, err
+	}
 	t := template.New("root").Funcs(template.FuncMap{
-		"stubhead": func() template.HTML { return head },
-		// signDelta mirrors cmd/web/templates_shell.go byte-for-byte: the exposure.tmpl's
-		// exposed-tile chip formats its vs-last-batch change (.ExposedDelta.Change) through it,
-		// so the golden must carry the identical "+N" / "−N" / "0" label the app renders. A
-		// screen that never calls signDelta (inventory, coverage, …) simply ignores it.
+		"integrationsEnabled": func() bool { return true },
+		"designTokens":        func() template.CSS { return template.CSS(tokens) }, // #nosec G203 -- trusted design tokens from the embedded package
+		// signDelta mirrors cmd/web/templates_shell.go byte-for-byte.
 		"signDelta": func(n int) template.HTML {
 			var s string
 			switch {
@@ -1292,7 +1318,185 @@ func newStubbedTemplate(head template.HTML) (*template.Template, error) {
 			return template.HTML(s) // #nosec G203 -- a sign and digits only, from an int; no user input
 		},
 	})
-	return t.Parse(`{{define "head"}}{{stubhead}}{{end}}{{define "chrome"}}{{end}}{{define "foot"}}</body></html>{{end}}`)
+	if _, err := t.ParseFS(designfs.FS, "templates/shell.tmpl"); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+// --- golden chrome (#27f) ----------------------------------------------------------
+//
+// The design-owned shell.tmpl "chrome"/"foot" read a single nullable .Chrome hole.
+// For the full-page goldens the harness composes that .Chrome from the pinned
+// fixtures.json shell slice — the SAME bytes cmd/web/chrome.go's chromeFromFixture
+// reads in a VERGE_DEV candidate — so golden and candidate agree byte-for-byte. The
+// struct mirrors cmd/web's chromeVM. .Orgs is nil (orgs are not modeled — the static
+// chip renders; the org-open golden defers, SPEC-CHANGE #28).
+
+// integrationsGolden mirrors the app's compile-time integrationsEnabled const
+// (integrations.go = true): the gated Integrations palette item is emitted.
+const integrationsGolden = true
+
+type rgChrome struct {
+	Nav           []rgNav
+	Org           string
+	Orgs          []rgOrg
+	Version       string
+	UserName      string
+	UserInitials  string
+	ScanRunning   bool
+	Unread        bool
+	Messages      []rgMsg
+	PaletteGroups []rgPaletteGroup
+	Toasts        []rgToast
+}
+type rgNav struct {
+	ID, Label, Href string
+	Active          bool
+	Count           string
+}
+type rgOrg struct {
+	ID, Name, Assets string
+	Active           bool
+}
+type rgMsg struct {
+	Class, Rel, Headline, Href string
+	Unread                     bool
+}
+type rgPaletteGroup struct {
+	Label string
+	Items []rgPaletteItem
+}
+type rgPaletteItem struct {
+	Label, Icon, Hint, Href string
+	Search, ThemeToggle     bool
+}
+type rgToast struct {
+	Tone, Title, Description string
+}
+
+// rgShellFixture mirrors cmd/web's shellFixture — the fixtures.json shell slice.
+type rgShellFixture struct {
+	Chrome struct {
+		Nav []struct {
+			ID     string `json:"id"`
+			Label  string `json:"label"`
+			Href   string `json:"href"`
+			Active bool   `json:"active"`
+			Count  string `json:"count"`
+		} `json:"nav"`
+		Org          string `json:"org"`
+		Version      string `json:"version"`
+		UserName     string `json:"user_name"`
+		UserInitials string `json:"user_initials"`
+		Unread       bool   `json:"unread"`
+		Messages     []struct {
+			Class    string `json:"class"`
+			Rel      string `json:"rel"`
+			Headline string `json:"headline"`
+			Unread   bool   `json:"unread"`
+			Href     string `json:"href"`
+		} `json:"messages"`
+		PaletteGroups []struct {
+			Label string `json:"label"`
+			Items []struct {
+				Label       string `json:"label"`
+				Icon        string `json:"icon"`
+				Hint        string `json:"hint"`
+				Href        string `json:"href"`
+				Search      bool   `json:"search"`
+				ThemeToggle bool   `json:"theme_toggle"`
+				Gated       string `json:"gated"`
+			} `json:"items"`
+		} `json:"palette_groups"`
+		ToastsVariant []struct {
+			Tone        string `json:"tone"`
+			Title       string `json:"title"`
+			Description string `json:"description"`
+		} `json:"toasts_variant"`
+	} `json:"chrome"`
+}
+
+func loadShellFixture() (rgShellFixture, error) {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return rgShellFixture{}, err
+	}
+	var ff struct {
+		Shell rgShellFixture `json:"shell"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return rgShellFixture{}, err
+	}
+	return ff.Shell, nil
+}
+
+// goldenChrome composes the .Chrome view-model from the pinned shell slice, with the
+// active pill set per navActive, scanning lighting .ScanRunning, and showToast folding
+// in the toasts variant. The gated Integrations palette item is included (the app's
+// integrationsEnabled const is true). .Orgs is nil (#28). It matches chromeFromFixture.
+func goldenChrome(navActive string, scanning, showToast bool) *rgChrome {
+	fx, err := loadShellFixture()
+	if err != nil {
+		log.Printf("render-goldens: shell fixture: %v", err)
+	}
+	c := &rgChrome{
+		Org:          fx.Chrome.Org,
+		Version:      fx.Chrome.Version,
+		UserName:     fx.Chrome.UserName,
+		UserInitials: fx.Chrome.UserInitials,
+		ScanRunning:  scanning,
+		Unread:       fx.Chrome.Unread,
+	}
+	for _, n := range fx.Chrome.Nav {
+		c.Nav = append(c.Nav, rgNav{ID: n.ID, Label: n.Label, Href: n.Href, Active: n.ID == navActive, Count: n.Count})
+	}
+	for _, m := range fx.Chrome.Messages {
+		c.Messages = append(c.Messages, rgMsg{Class: m.Class, Rel: m.Rel, Headline: m.Headline, Unread: m.Unread, Href: m.Href})
+	}
+	for _, g := range fx.Chrome.PaletteGroups {
+		pg := rgPaletteGroup{Label: g.Label}
+		for _, it := range g.Items {
+			// The gated Integrations item is included: the app's integrationsEnabled
+			// const is true (integrations.go), so the candidate emits it too.
+			if it.Gated == "integrationsEnabled" && !integrationsGolden {
+				continue
+			}
+			pg.Items = append(pg.Items, rgPaletteItem{Label: it.Label, Icon: it.Icon, Hint: it.Hint, Href: it.Href, Search: it.Search, ThemeToggle: it.ThemeToggle})
+		}
+		c.PaletteGroups = append(c.PaletteGroups, pg)
+	}
+	if showToast {
+		for _, t := range fx.Chrome.ToastsVariant {
+			c.Toasts = append(c.Toasts, rgToast{Tone: t.Tone, Title: t.Title, Description: t.Description})
+		}
+	}
+	return c
+}
+
+// chromeInto stamps .Chrome onto a chrome-ful screen's golden data map, reading its
+// own NavActive (each screen highlights its own pill) and its own Scanning flag (the
+// dashboard's scanning state lights the chrome scan indicator). A map with no
+// "NavActive" key (the chrome-less auth surfaces) is left untouched — the shell's
+// {{with .Chrome}} then renders no chrome, exactly as the candidate does.
+func chromeInto(data map[string]any) {
+	nav, ok := data["NavActive"].(string)
+	if !ok {
+		return
+	}
+	scanning, _ := data["Scanning"].(bool)
+	data["Chrome"] = goldenChrome(nav, scanning, false)
+}
+
+// execGolden is the single execute choke point for the full-page goldens: it stamps
+// .Chrome onto any chrome-ful map (chromeInto is a no-op for chrome-less auth maps and
+// non-map data) and then executes the named screen define into buf. Every render
+// function routes its execute through here, so the full-page shell composes uniformly.
+func execGolden(t *template.Template, buf *bytes.Buffer, name string, data any) error {
+	if m, ok := data.(map[string]any); ok {
+		chromeInto(m)
+	}
+	return t.ExecuteTemplate(buf, name, data)
 }
 
 func render(bodyFlex bool) ([]byte, error) {
@@ -1308,13 +1512,19 @@ func render(bodyFlex bool) ([]byte, error) {
 		return nil, err
 	}
 
-	data, err := loadFixture()
+	fx, err := loadFixture()
 	if err != nil {
 		return nil, err
 	}
+	// Full-page (#27f): wrap the inventory holes in a map so the shell chrome stamps on
+	// (NavActive drives the active pill); the inventory.tmpl reads .HasData / .Groups.
+	data := map[string]any{
+		"Title": "Inventory", "NavActive": "inventory",
+		"HasData": fx.HasData, "Groups": fx.Groups,
+	}
 
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "inventory", data); err != nil {
+	if err := execGolden(t, &buf, "inventory", data); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -1382,7 +1592,7 @@ func renderErrorStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "error-page", data[st.id]); err != nil {
+		if err := execGolden(t, &buf, "error-page", data[st.id]); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -1502,6 +1712,10 @@ func renderProfileStates(bodyFlex bool) ([]errorGolden, error) {
 
 	base := func(tokens []map[string]any) map[string]any {
 		return map[string]any{
+			// Full-page (#27f): profile renders inside the chrome. NavActive is "" (no
+			// nav pill is the Profile page) — matching auth.go's profile render — so
+			// chromeInto stamps the chrome with no active pill.
+			"NavActive":     "",
 			"Initials":      fx.Account.Initials,
 			"Username":      fx.Account.Username,
 			"Role":          fx.Account.Role,
@@ -1567,7 +1781,7 @@ func renderProfileStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "profile", data[id]); err != nil {
+		if err := execGolden(t, &buf, "profile", data[id]); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: id, html: buf.Bytes()})
@@ -1696,7 +1910,7 @@ func renderSigninStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, st.tmpl, st.data); err != nil {
+		if err := execGolden(t, &buf, st.tmpl, st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -1747,7 +1961,7 @@ func renderSetupStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "setup", st.data); err != nil {
+		if err := execGolden(t, &buf, "setup", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -2185,7 +2399,7 @@ func renderSignalsStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "signals", st.data); err != nil {
+		if err := execGolden(t, &buf, "signals", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -2279,23 +2493,11 @@ func dashRawStr(raw json.RawMessage) string {
 // .ProbeDismissed. "home" wraps head/chrome/dashboard/foot; it references the repo-authored "firstrun"
 // (stubbed empty here — never executed with EmptyEstate false) and the "sevbadge" define signals.tmpl
 // declares (parsed in for the register rows). Chrome is the empty stub (goldens crop to `main`).
-func renderDashboardStates(bodyFlex bool) ([]errorGolden, error) {
-	head, err := goldenHead(bodyFlex)
-	if err != nil {
-		return nil, err
-	}
-	fx, err := loadDashboardFixture()
-	if err != nil {
-		return nil, err
-	}
-	sfx, err := loadSignalsFixture()
-	if err != nil {
-		return nil, err
-	}
-	if len(sfx.Rows) < 6 {
-		return nil, fmt.Errorf("dashboard golden: signals.rows has %d rows, need >= 6", len(sfx.Rows))
-	}
-
+// dashboardData composes the dashboard "home" holes from the pinned dashboard+signals
+// fixtures, per scanning / probe-dismissed. It mirrors cmd/web/devfixtures.go's
+// dashboardFixtureData so golden and candidate agree byte-for-byte, and is shared by
+// both the dashboard goldens and the shell-state goldens (which render `/` full-page).
+func dashboardData(fx dashboardFixture, sfx signalsFixture, scanning, probeDismissed bool) map[string]any {
 	sevBars := make([]map[string]any, 0, len(fx.SevBars))
 	for _, b := range fx.SevBars {
 		sevBars = append(sevBars, map[string]any{"Sev": b.Sev, "Pct": b.Pct, "Count": b.Count})
@@ -2320,46 +2522,126 @@ func renderDashboardStates(bodyFlex bool) ([]errorGolden, error) {
 			"Asset": row.Asset, "Port": row.Port, "Seen": row.Seen, "ViewKey": row.ViewKey,
 		})
 	}
+	statBand := make([]map[string]any, 0, len(fx.StatBand))
+	for _, st := range fx.StatBand {
+		statBand = append(statBand, map[string]any{
+			"Label": st.Label, "Value": st.Value, "Live": scanning && st.LiveWhenScanning,
+			"HasDelta": st.HasDelta, "Change": st.Change, "Tone": st.Tone, "Caption": st.Caption,
+		})
+	}
+	data := map[string]any{
+		"Title": "Dashboard", "NavActive": "dashboard", "DesignTokens": true, "IsAdmin": true,
+		"EmptyEstate": false,
+		"ScanSchedule": map[string]any{
+			"HasLast": fx.ScanSchedule.HasLast, "LastAgo": fx.ScanSchedule.LastAgo,
+			"HasNext": fx.ScanSchedule.HasNext, "NextIn": fx.ScanSchedule.NextIn,
+		},
+		"Scanning":       scanning,
+		"Unavailable":    fx.Unavailable,
+		"ProbeDismissed": probeDismissed,
+		"StatBand":       statBand,
+		"HasSignals":     true,
+		"SevBars":        sevBars,
+		"CoverageMeters": meters,
+		"SilentZone":     map[string]any{"Bound": fx.SilentZone.Bound, "Text": fx.SilentZone.Text},
+		"Vantages":       vantages,
+		"RecentSignals":  recent,
+	}
+	if scanning {
+		data["ScanDetail"] = fx.ScanDetail
+	}
+	return data
+}
 
-	buildData := func(scanning, probeDismissed bool) map[string]any {
-		statBand := make([]map[string]any, 0, len(fx.StatBand))
-		for _, st := range fx.StatBand {
-			statBand = append(statBand, map[string]any{
-				"Label": st.Label, "Value": st.Value, "Live": scanning && st.LiveWhenScanning,
-				"HasDelta": st.HasDelta, "Change": st.Change, "Tone": st.Tone, "Caption": st.Caption,
-			})
+// renderShellStates composes the 6 captured shell-state goldens (#27f / SPEC-CHANGE
+// #27), all on `/` (the dashboard) FULL-PAGE: default, palette-open, bell-open,
+// acct-open (the popover states share the base HTML — capture.mjs opens each popover),
+// scan-running (chrome .ScanRunning + the dashboard scanning content), and toasts (the
+// fixture toast stack folded into .Chrome.Toasts). The 7th states.json state, org-open,
+// is DEFERRED: orgs are not modeled (ADR-0073), so the switcher ships the static chip
+// and its golden defers with it (SPEC-CHANGE #28, AWAITING DESIGN) — the run.sh skips
+// it. Chrome is set explicitly (so the toasts state can carry showToast) rather than via
+// chromeInto, and matches cmd/web/chrome.go's chromeFromFixture.
+func renderShellStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadDashboardFixture()
+	if err != nil {
+		return nil, err
+	}
+	sfx, err := loadSignalsFixture()
+	if err != nil {
+		return nil, err
+	}
+	if len(sfx.Rows) < 6 {
+		return nil, fmt.Errorf("shell golden: signals.rows has %d rows, need >= 6", len(sfx.Rows))
+	}
+	states := []struct {
+		id       string
+		scanning bool
+		toast    bool
+	}{
+		{"default", false, false},
+		{"palette-open", false, false},
+		{"bell-open", false, false},
+		{"acct-open", false, false},
+		{"scan-running", true, false},
+		{"toasts", false, true},
+	}
+	out := make([]errorGolden, 0, len(states))
+	for _, st := range states {
+		data := dashboardData(fx, sfx, st.scanning, false)
+		data["Chrome"] = goldenChrome("dashboard", st.scanning, st.toast)
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
 		}
-		data := map[string]any{
-			"Title": "Dashboard", "NavActive": "dashboard", "DesignTokens": true, "IsAdmin": true,
-			"EmptyEstate": false,
-			"ScanSchedule": map[string]any{
-				"HasLast": fx.ScanSchedule.HasLast, "LastAgo": fx.ScanSchedule.LastAgo,
-				"HasNext": fx.ScanSchedule.HasNext, "NextIn": fx.ScanSchedule.NextIn,
-			},
-			"Scanning":       scanning,
-			"Unavailable":    fx.Unavailable,
-			"ProbeDismissed": probeDismissed,
-			"StatBand":       statBand,
-			"HasSignals":     true,
-			"SevBars":        sevBars,
-			"CoverageMeters": meters,
-			"SilentZone":     map[string]any{"Bound": fx.SilentZone.Bound, "Text": fx.SilentZone.Text},
-			"Vantages":       vantages,
-			"RecentSignals":  recent,
+		if _, err := t.Parse(`{{define "firstrun"}}{{end}}`); err != nil {
+			return nil, err
 		}
-		if scanning {
-			data["ScanDetail"] = fx.ScanDetail
+		if _, err := t.ParseFS(designfs.FS, "templates/signals.tmpl"); err != nil {
+			return nil, err
 		}
-		return data
+		if _, err := t.ParseFS(designfs.FS, "templates/dashboard.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		// Chrome is already set (with the per-state showToast), so execute directly
+		// rather than through execGolden (whose chromeInto would drop the toast).
+		if err := t.ExecuteTemplate(&buf, "home", data); err != nil {
+			return nil, err
+		}
+		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
+	}
+	return out, nil
+}
+
+func renderDashboardStates(bodyFlex bool) ([]errorGolden, error) {
+	head, err := goldenHead(bodyFlex)
+	if err != nil {
+		return nil, err
+	}
+	fx, err := loadDashboardFixture()
+	if err != nil {
+		return nil, err
+	}
+	sfx, err := loadSignalsFixture()
+	if err != nil {
+		return nil, err
+	}
+	if len(sfx.Rows) < 6 {
+		return nil, fmt.Errorf("dashboard golden: signals.rows has %d rows, need >= 6", len(sfx.Rows))
 	}
 
 	states := []struct {
 		id   string
 		data map[string]any
 	}{
-		{"default", buildData(false, false)},
-		{"scanning", buildData(true, false)},
-		{"banner-dismissed", buildData(false, true)},
+		{"default", dashboardData(fx, sfx, false, false)},
+		{"scanning", dashboardData(fx, sfx, true, false)},
+		{"banner-dismissed", dashboardData(fx, sfx, false, true)},
 	}
 
 	out := make([]errorGolden, 0, len(states))
@@ -2381,7 +2663,7 @@ func renderDashboardStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "home", st.data); err != nil {
+		if err := execGolden(t, &buf, "home", st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -2497,7 +2779,7 @@ func renderAssetStates(bodyFlex bool) ([]errorGolden, error) {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "asset", data); err != nil {
+	if err := execGolden(t, &buf, "asset", data); err != nil {
 		return nil, err
 	}
 	return []errorGolden{{id: "default", html: buf.Bytes()}}, nil
@@ -2670,7 +2952,7 @@ func renderSubjectDetailStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, err
 		}
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, st.define, st.data); err != nil {
+		if err := execGolden(t, &buf, st.define, st.data); err != nil {
 			return nil, err
 		}
 		out = append(out, errorGolden{id: st.id, html: buf.Bytes()})
@@ -2769,7 +3051,7 @@ func renderGraph(bodyFlex bool) ([]byte, error) {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "graph", data); err != nil {
+	if err := execGolden(t, &buf, "graph", data); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -3144,7 +3426,7 @@ func renderReportsStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, terr
 		}
 		var buf bytes.Buffer
-		if terr := t.ExecuteTemplate(&buf, define, data); terr != nil {
+		if terr := execGolden(t, &buf, define, data); terr != nil {
 			return nil, terr
 		}
 		return buf.Bytes(), nil
@@ -3355,7 +3637,7 @@ func renderOnboardingStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, terr
 		}
 		var buf bytes.Buffer
-		if terr := t.ExecuteTemplate(&buf, "onboarding", data); terr != nil {
+		if terr := execGolden(t, &buf, "onboarding", data); terr != nil {
 			return nil, terr
 		}
 		return buf.Bytes(), nil
@@ -3460,7 +3742,7 @@ func renderFirstRunStates(bodyFlex bool) ([]errorGolden, error) {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "home", data); err != nil {
+	if err := execGolden(t, &buf, "home", data); err != nil {
 		return nil, err
 	}
 	return []errorGolden{{id: "default", html: buf.Bytes()}}, nil
@@ -3567,7 +3849,7 @@ func renderReportartifactStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, terr
 		}
 		var buf bytes.Buffer
-		if terr := t.ExecuteTemplate(&buf, "reportartifact", data); terr != nil {
+		if terr := execGolden(t, &buf, "reportartifact", data); terr != nil {
 			return nil, terr
 		}
 		return buf.Bytes(), nil
@@ -3727,7 +4009,7 @@ func renderInboxStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, terr
 		}
 		var buf bytes.Buffer
-		if terr := t.ExecuteTemplate(&buf, "inbox", data); terr != nil {
+		if terr := execGolden(t, &buf, "inbox", data); terr != nil {
 			return nil, terr
 		}
 		return buf.Bytes(), nil
@@ -3944,7 +4226,7 @@ func renderSearchStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, terr
 		}
 		var buf bytes.Buffer
-		if terr := t.ExecuteTemplate(&buf, "search", data); terr != nil {
+		if terr := execGolden(t, &buf, "search", data); terr != nil {
 			return nil, terr
 		}
 		return buf.Bytes(), nil
@@ -4359,24 +4641,18 @@ func settingsGoldenMap(fx gsSettings, tab string, q map[string]string) map[strin
 	return data
 }
 
+// newSettingsTemplate carries the REAL design-owned shell (via newStubbedTemplate) plus
+// settings.tmpl, so the Settings goldens render full-page inside the chrome (#27f). The
+// repo-authored "scantrigger" define (cmd/web/scantrigger.go) is not a design-owned
+// artifact, so it is stubbed empty here exactly as before — the candidate's settings
+// scans tab renders no trigger panel either (its .Trigger is unset in the fixture path),
+// so golden and candidate agree.
 func newSettingsTemplate(head template.HTML) (*template.Template, error) {
-	t := template.New("root").Funcs(template.FuncMap{
-		"stubhead":            func() template.HTML { return head },
-		"integrationsEnabled": func() bool { return true },
-		"signDelta": func(n int) template.HTML {
-			var s string
-			switch {
-			case n > 0:
-				s = "+" + strconv.Itoa(n)
-			case n < 0:
-				s = "-" + strconv.Itoa(-n)
-			default:
-				s = "0"
-			}
-			return template.HTML(s) // #nosec G203 -- a sign and digits only, from an int; no user input
-		},
-	})
-	if _, err := t.Parse(settingsStubDefines); err != nil {
+	t, err := newStubbedTemplate(head)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.Parse(`{{define "scantrigger"}}{{end}}`); err != nil {
 		return nil, err
 	}
 	if _, err := t.ParseFS(designfs.FS, "templates/settings.tmpl"); err != nil {
@@ -4384,8 +4660,6 @@ func newSettingsTemplate(head template.HTML) (*template.Template, error) {
 	}
 	return t, nil
 }
-
-const settingsStubDefines = `{{define "head"}}{{stubhead}}{{end}}{{define "chrome"}}{{end}}{{define "foot"}}</body></html>{{end}}{{define "scantrigger"}}{{end}}`
 
 func renderSettingsStates(bodyFlex bool) ([]errorGolden, error) {
 	head, err := goldenHead(bodyFlex)
@@ -4403,7 +4677,7 @@ func renderSettingsStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, terr
 		}
 		var buf bytes.Buffer
-		if terr := t.ExecuteTemplate(&buf, "settings", settingsGoldenMap(fx, tab, q)); terr != nil {
+		if terr := execGolden(t, &buf, "settings", settingsGoldenMap(fx, tab, q)); terr != nil {
 			return nil, terr
 		}
 		return buf.Bytes(), nil
@@ -4456,7 +4730,7 @@ func renderSettingsStates(bodyFlex bool) ([]errorGolden, error) {
 			return nil, terr
 		}
 		var buf bytes.Buffer
-		if terr := t.ExecuteTemplate(&buf, "error-page", map[string]any{
+		if terr := execGolden(t, &buf, "error-page", map[string]any{
 			"Kind": "settings-forbidden", "Code": "403",
 			"ActionLabel": "Back to dashboard", "ActionHref": "/",
 		}); terr != nil {

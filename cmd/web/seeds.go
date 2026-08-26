@@ -117,7 +117,7 @@ func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	// the golden composes. A real deployment (devMode == false) falls through to the
 	// honest live reads below.
 	if s.devMode {
-		s.render(w, "scope", s.scopeFixtureData(acct, scopeOverlay{}))
+		s.render(w, r, "scope", s.scopeFixtureData(acct, scopeOverlay{}))
 		return
 	}
 	var f seedsForms
@@ -145,7 +145,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// the seed form (states.json). Serve the pinned fixture + the RefusalCallout so the
 	// candidate renders byte-for-byte what the golden composes, without touching the DB.
 	if s.devMode {
-		s.render(w, "scope", s.scopeFixtureDataRefusal(acct, value))
+		s.render(w, r, "scope", s.scopeFixtureDataRefusal(acct, value))
 		return
 	}
 
@@ -418,7 +418,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
 	}
-	s.renderStatus(w, status, "scope", data)
+	s.renderStatus(w, r, status, "scope", data)
 }
 
 // coverageMsgView is one coverage fact shaped for the Scope screen's coverage

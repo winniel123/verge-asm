@@ -162,7 +162,7 @@ func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 
 	// No transition feed exists yet, so the timeline is the design-system empty-state
 	// (fact + next action), not a fabricated batch.
-	if !strings.Contains(page, "emptystate") {
+	if !strings.Contains(page, "dr-empty") {
 		t.Errorf("drift page missing empty-state block; body: %s", page)
 	}
 	if !strings.Contains(page, "No change to show yet") {
@@ -173,7 +173,7 @@ func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 	}
 
 	// The Drift nav pill is the active one (keyed on NavActive, not Active).
-	if !strings.Contains(page, `href="/drift"`) || !strings.Contains(page, `navpill active`) {
+	if !strings.Contains(page, `href="/drift"`) || !strings.Contains(page, `sh-pill on`) {
 		t.Errorf("drift page did not mark the Drift nav pill active; body: %s", page)
 	}
 }

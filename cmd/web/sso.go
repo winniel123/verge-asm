@@ -245,7 +245,7 @@ func (s *server) ssoStart(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	prov, err := s.store.GetSSOProviderForAuth(r.Context(), slug)
 	if err != nil {
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
 		return
 	}
 
@@ -259,7 +259,7 @@ func (s *server) ssoStart(w http.ResponseWriter, r *http.Request) {
 	authURL, err := s.sso.AuthCodeURL(r.Context(), cfg, state, nonce, verifier)
 	if err != nil {
 		log.Printf("web: sso: auth url for %q: %v", slug, err)
-		s.render(w, "login", s.loginData(r.Context(), "That identity provider could not be reached. Sign in with your password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "That identity provider could not be reached. Sign in with your password."))
 		return
 	}
 
@@ -280,30 +280,30 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	tx, ok := s.readSSOTxCookie(r)
 	s.clearCookie(w, ssoTxCookie) // single-use: spend it whether or not it verifies
 	if !ok || tx.Slug != slug || tx.Link {
-		s.render(w, "login", s.loginData(r.Context(), "That sign-on attempt expired. Try again."))
+		s.render(w, r, "login", s.loginData(r.Context(), "That sign-on attempt expired. Try again."))
 		return
 	}
 	// The IdP reports a user-declined or error response in the query rather than a code.
 	if e := r.URL.Query().Get("error"); e != "" {
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on was cancelled or refused."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on was cancelled or refused."))
 		return
 	}
 	// state is the CSRF guard: the value the IdP echoes back must equal the one minted
 	// into the signed cookie at the start of this transaction. Compared in constant
 	// time, like the rest of the auth surface.
 	if st := r.URL.Query().Get("state"); st == "" || !subtleConstantEqual(st, tx.State) {
-		s.render(w, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
+		s.render(w, r, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
 		return
 	}
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		s.render(w, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
+		s.render(w, r, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
 		return
 	}
 
 	prov, err := s.store.GetSSOProviderForAuth(r.Context(), slug)
 	if err != nil {
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
 		return
 	}
 	cfg := ssoConfig{
@@ -314,7 +314,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	ident, err := s.sso.Exchange(r.Context(), cfg, code, tx.Verifier, tx.Nonce)
 	if err != nil {
 		log.Printf("web: sso: exchange for %q: %v", slug, err)
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
 		return
 	}
 
@@ -327,13 +327,13 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		// to any local account, and SSO never provisions or falls back to a username
 		// (ADR-0113). The user signs in with a password and links this identity on Profile.
 		log.Printf("web: sso: no binding for verified identity via %q", slug)
-		s.render(w, "login", s.loginData(r.Context(), "That identity is not linked to an account here. Sign in with your password, then link it on your Profile."))
+		s.render(w, r, "login", s.loginData(r.Context(), "That identity is not linked to an account here. Sign in with your password, then link it on your Profile."))
 		return
 	case err != nil:
 		// A transient read failure is NOT an unlinked identity: don't misdirect a
 		// legitimately-linked user to re-link during a DB blip. Fail generically.
 		log.Printf("web: sso: look up binding via %q: %v", slug, err)
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
 		return
 	}
 	// SSO proves the IdP identity, but it must never DOWNGRADE a local second factor:
@@ -344,7 +344,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return
 		}
-		s.render(w, "totp", map[string]any{"Title": "Two-factor"})
+		s.render(w, r, "totp", map[string]any{"Title": "Two-factor"})
 		return
 	}
 	s.completeLogin(w, r, acct.ID)

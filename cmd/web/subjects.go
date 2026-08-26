@@ -357,14 +357,14 @@ func splitEndpointKey(key string) (name, service string) {
 func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := strings.TrimSpace(r.FormValue("key"))
 	if key == "" {
-		s.renderMissingSubject(w, acct, key)
+		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
 	// A VERGE_DEV build serves the pinned fixtures.json subjectdetail endpoint slice —
 	// the byte-exact corpus the pixel goldens capture (as the sibling screens do).
 	if s.devMode {
 		if data, ok := s.endpointFixtureData(acct, key); ok {
-			s.render(w, "endpoint", data)
+			s.render(w, r, "endpoint", data)
 			return
 		}
 	}
@@ -372,7 +372,7 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderMissingSubject(w, acct, key)
+		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
 	if err != nil {
@@ -408,7 +408,7 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines))
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
-	s.render(w, "endpoint", map[string]any{
+	s.render(w, r, "endpoint", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "inventory", "DesignTokens": true,
 		"Endpoint": data,
@@ -487,7 +487,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := strings.TrimSpace(r.FormValue("key"))
 	if key == "" {
-		s.renderMissingSubject(w, acct, key)
+		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
 	// A VERGE_DEV build serves the pinned fixtures.json subjectdetail service slices —
@@ -495,7 +495,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// seeded keys are the fixtures' own; any other key still resolves the live read below.
 	if s.devMode {
 		if data, ok := s.serviceFixtureData(acct, key); ok {
-			s.render(w, "service", data)
+			s.render(w, r, "service", data)
 			return
 		}
 	}
@@ -503,7 +503,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderMissingSubject(w, acct, key)
+		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
 	if err != nil {
@@ -545,7 +545,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 	data.Signals = s.assetSignals(r, subject.SubjectKey)
 
-	s.render(w, "service", map[string]any{
+	s.render(w, r, "service", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "inventory", "DesignTokens": true,
 		"Service": data,
@@ -1262,7 +1262,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	// corpus the pixel goldens capture (as the sibling screens do). The seeded key is
 	// the fixture's own; any other key still resolves the live read below.
 	if s.devMode && r.PathValue("key") == devAssetKey {
-		s.render(w, "asset", s.assetFixtureData(acct))
+		s.render(w, r, "asset", s.assetFixtureData(acct))
 		return
 	}
 	key := r.PathValue("key")
@@ -1270,7 +1270,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderMissingSubject(w, acct, key)
+		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
 	if err != nil {
@@ -1297,7 +1297,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Exposure = assetHeaderExposure(data.Ports)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
-	s.render(w, "asset", map[string]any{
+	s.render(w, r, "asset", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "inventory", "DesignTokens": true,
 		"Asset": data,

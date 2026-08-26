@@ -64,7 +64,7 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 	page := getBody(t, ac, base+"/reports", http.StatusOK)
 
 	// The nav pill and the heading.
-	if !strings.Contains(page, `class="navpill active" href="/reports"`) {
+	if !strings.Contains(page, `class="sh-pill on" href="/reports"`) {
 		t.Errorf("reports nav pill not marked active; body: %s", page)
 	}
 	for _, want := range []string{

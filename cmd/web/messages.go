@@ -243,7 +243,7 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	// the live int64 path does not parse. A real deployment (devMode == false) falls
 	// through to the honest live reads below.
 	if s.devMode {
-		s.render(w, "inbox", s.inboxFixtureData(acct, r))
+		s.render(w, r, "inbox", s.inboxFixtureData(acct, r))
 		return
 	}
 
@@ -324,7 +324,7 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		allHref, unreadHref = "/inbox?"+idq, "/inbox?filter=unread&"+idq
 	}
 
-	s.render(w, "inbox", map[string]any{
+	s.render(w, r, "inbox", map[string]any{
 		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "inbox", "DesignTokens": true,
 		"Messages":   shown,

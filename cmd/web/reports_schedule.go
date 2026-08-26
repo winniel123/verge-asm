@@ -257,7 +257,7 @@ func redirectWizardStep(w http.ResponseWriter, r *http.Request, base string, v s
 // declaring a schedule is an admin config act.
 func (s *server) newReportScheduleWizard(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
-		s.render(w, "schedulewizard", s.reportsWizardFixtureData(r, acct))
+		s.render(w, r, "schedulewizard", s.reportsWizardFixtureData(r, acct))
 		return
 	}
 	var v scheduleWizardView
@@ -266,7 +266,7 @@ func (s *server) newReportScheduleWizard(w http.ResponseWriter, r *http.Request,
 	} else {
 		v = readScheduleWizardView(r)
 	}
-	s.renderScheduleWizard(r.Context(), w, acct, v, false)
+	s.renderScheduleWizard(r.Context(), w, r, acct, v, false)
 }
 
 // editReportScheduleWizard renders the wizard prefilled from an existing schedule. A
@@ -284,7 +284,7 @@ func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request
 	if r.URL.Query().Get("step") != "" {
 		v := readScheduleWizardView(r)
 		v.ID = id
-		s.renderScheduleWizard(r.Context(), w, acct, v, true)
+		s.renderScheduleWizard(r.Context(), w, r, acct, v, true)
 		return
 	}
 	sc, err := s.store.GetReportSchedule(r.Context(), id)
@@ -307,7 +307,7 @@ func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request
 	if sc.ChannelID.Valid {
 		v.ChannelID = sc.ChannelID.Int64
 	}
-	s.renderScheduleWizard(r.Context(), w, acct, v, true)
+	s.renderScheduleWizard(r.Context(), w, r, acct, v, true)
 }
 
 // parseScheduleSections reads a schedule's stored sections JSON array back into the
@@ -525,7 +525,7 @@ func channelBinding(channelID int64) pgtype.Int8 {
 // post target and the finish label between the create and edit paths. The Delivery
 // step's Destination select is built from the declared Channels (ListChannels);
 // a list-read failure degrades to "Download only" alone rather than 500ing the wizard.
-func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter, acct db.Account, v scheduleWizardView, editMode bool) {
+func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter, r *http.Request, acct db.Account, v scheduleWizardView, editMode bool) {
 	steps := make([]map[string]any, len(reportScheduleStepTitles))
 	for i, title := range reportScheduleStepTitles {
 		steps[i] = map[string]any{
@@ -609,7 +609,7 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		title = "Edit report schedule"
 	}
 
-	s.render(w, "schedulewizard", map[string]any{
+	s.render(w, r, "schedulewizard", map[string]any{
 		"Title":       title,
 		"Account":     acct,
 		"IsAdmin":     acct.Role == roleAdmin,

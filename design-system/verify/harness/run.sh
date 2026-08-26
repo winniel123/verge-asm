@@ -72,7 +72,8 @@ docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen firstrun -outdir design-system/goldens/firstrun && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen search -outdir design-system/goldens/search && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen graph -out design-system/goldens/graph.html && \
-         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen settings -outdir design-system/goldens/settings"
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen settings -outdir design-system/goldens/settings && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen shell -outdir design-system/goldens/shell"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
 docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_IMAGE" \
@@ -81,75 +82,80 @@ docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_I
 if [ "${GOLDENS:-}" = "write" ]; then
   echo "== 2. capture --write-goldens (file://) — inventory + error + profile + signin + setup + coverage + exposure + drift + rundetail =="
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen inventory --page /src/design-system/goldens/inventory.html
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen inventory --page /src/design-system/goldens/inventory.html
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen error --pagedir /src/design-system/goldens/error
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen error --pagedir /src/design-system/goldens/error
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen profile --pagedir /src/design-system/goldens/profile
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen profile --pagedir /src/design-system/goldens/profile
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen signin --pagedir /src/design-system/goldens/signin
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen signin --pagedir /src/design-system/goldens/signin
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen setup --pagedir /src/design-system/goldens/setup
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen setup --pagedir /src/design-system/goldens/setup
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen coverage --pagedir /src/design-system/goldens/coverage
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen coverage --pagedir /src/design-system/goldens/coverage
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen exposure --pagedir /src/design-system/goldens/exposure
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen exposure --pagedir /src/design-system/goldens/exposure
   # drift is a SINGLE shared golden file (--page, like inventory): its default/feed-expanded/
   # range-open states are the same HTML with the frozen tmpl's own JS (group-collapse, range
   # popover) driven over it by capture.mjs (states.json). So write one page and let the state
   # JS produce the expanded/open captures — not a per-state dir.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen drift --page /src/design-system/goldens/drift.html
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen drift --page /src/design-system/goldens/drift.html
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen rundetail --pagedir /src/design-system/goldens/rundetail
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen rundetail --pagedir /src/design-system/goldens/rundetail
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen scope --pagedir /src/design-system/goldens/scope
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen scope --pagedir /src/design-system/goldens/scope
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen signals --pagedir /src/design-system/goldens/signals
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen signals --pagedir /src/design-system/goldens/signals
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen dashboard --pagedir /src/design-system/goldens/dashboard
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen dashboard --pagedir /src/design-system/goldens/dashboard
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen asset --pagedir /src/design-system/goldens/asset
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen asset --pagedir /src/design-system/goldens/asset
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen subjectdetail --pagedir /src/design-system/goldens/subjectdetail
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen subjectdetail --pagedir /src/design-system/goldens/subjectdetail
   # reports: per-state HTML dir (--pagedir). default/range-open/row-menu-open share the "reports"
   # page HTML (their JS is driven on both sides); wizard-1..4 are the per-step "schedulewizard"
   # renders at the PRG GET URLs (states.json).
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen reports --pagedir /src/design-system/goldens/reports
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen reports --pagedir /src/design-system/goldens/reports
   # reportartifact: per-state HTML dir (--pagedir). default is the delivered document; never-delivered
   # is the empty-state document (schedule s2, .Doc.Empty) — both static server renders of "reportartifact".
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen reportartifact --pagedir /src/design-system/goldens/reportartifact
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen reportartifact --pagedir /src/design-system/goldens/reportartifact
   # inbox: per-state HTML dir (--pagedir). default/message-open/unread-filter are three static server
   # renders of "inbox" (no .Body per SPEC-CHANGE #24 — the detail is census + delivery receipts); the
   # ?id / ?filter selection is baked into each render, so no state JS runs.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen inbox --pagedir /src/design-system/goldens/inbox
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen inbox --pagedir /src/design-system/goldens/inbox
   # onboarding: per-state HTML dir (--pagedir). wizard-1..4 are the per-step "onboarding" renders at
   # the PRG GET URLs (states.json); each is a static server render of the self-contained tmpl.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen onboarding --pagedir /src/design-system/goldens/onboarding
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen onboarding --pagedir /src/design-system/goldens/onboarding
   # firstrun: per-state HTML dir (--pagedir). default is the empty-estate wrap of `/` (dashboard.tmpl
   # "home" wrapping the bare "firstrun" define when .EmptyEstate) — one static server render.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen firstrun --pagedir /src/design-system/goldens/firstrun
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen firstrun --pagedir /src/design-system/goldens/firstrun
   # graph is a SINGLE shared golden file (--page, like drift): its default / node-drawer /
   # filtered-critical states are the same HTML with the frozen tmpl's own view JS (node click →
   # drawer, severity listbox → filter) driven over it by capture.mjs (states.json) on BOTH sides.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen graph --page /src/design-system/goldens/graph.html
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen graph --page /src/design-system/goldens/graph.html
   # search: per-state HTML dir (--pagedir). default (/search?q=acme) / empty (/search?q=zzz-none) are two
   # static server renders of "search" — the ?q= query is baked into each render (segments folded through
   # the #25a builder), so no state JS runs.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen search --pagedir /src/design-system/goldens/search
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen search --pagedir /src/design-system/goldens/search
   # settings: per-state HTML dir (--pagedir). The 18 chrome-hosted sub-tab/dialog states are static
   # server renders of "settings" (the ?tab=/dialog selection baked into each render); the 19th
   # (forbidden) is the error-page settings-forbidden. The dialog/drawer states crop `body`, the rest
   # crop `main` (states.json) — no state JS runs.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-    node capture.mjs --mode golden --write-goldens --advisory --screen settings --pagedir /src/design-system/goldens/settings
+    node capture.mjs --full-page --mode golden --write-goldens --advisory --screen settings --pagedir /src/design-system/goldens/settings
+  # shell (#27f): the 6 captured shell-state goldens on `/` FULL-PAGE (default / palette-open /
+  # bell-open / acct-open / scan-running / toasts). org-open is skipped — orgs are not modeled
+  # (ADR-0073), so the switcher ships the static chip and its golden defers (SPEC-CHANGE #28).
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --full-page --skip-state org-open --mode golden --write-goldens --advisory --screen shell --pagedir /src/design-system/goldens/shell
 fi
 
 echo "== 3a. Postgres (pinned) =="
@@ -182,34 +188,34 @@ ADV_FLAG=""
 if [ "${ADVISORY:-1}" = "1" ]; then ADV_FLAG="--advisory"; fi
 echo "== 4. capture --mode candidate ${ADV_FLAG} — inventory + error + profile + signin + coverage + exposure + drift + rundetail + setup =="
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen inventory --base "http://${WEB}:8080"
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen inventory --base "http://${WEB}:8080"
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen error --base "http://${WEB}:8080"
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen error --base "http://${WEB}:8080"
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen profile --base "http://${WEB}:8080" --adopt /dev/profile/session --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen profile --base "http://${WEB}:8080" --adopt /dev/profile/session
 # signin: chrome-less auth surfaces (crop=body); per-state session none/viewer via the /dev/session
 # mint, no --adopt/--hide-chrome. The no-sso variant rides a dev ?variant query capture.mjs appends.
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen signin --base "http://${WEB}:8080"
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen signin --base "http://${WEB}:8080"
 # coverage: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
-# DB-backed session. --hide-chrome drops the sticky console header from flow so <main> sits at the
+# DB-backed session. drops the sticky console header from flow so <main> sits at the
 # viewport top and aligns with the chrome-less golden (as profile). MUST come BEFORE setup: the
 # empty state hits /dev/seed/empty-authed (keeps accounts), but setup's candidate then hits
 # /dev/seed/empty which TRUNCATEs the account table — capturing coverage after that would strand it
 # with no authed-admin session.
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen coverage --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen coverage --base "http://${WEB}:8080"
 # exposure: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
-# served from the pinned fixtures.json exposure slice under VERGE_DEV. --hide-chrome drops the
+# served from the pinned fixtures.json exposure slice under VERGE_DEV. drops the
 # sticky console header from flow so <main> sits at the viewport top and aligns with the
 # chrome-less golden (as coverage). The withheld state rides a dev ?variant=no-internet-vantage
 # query capture.mjs appends (states.json), which exposurePage reads to render WITHHELD. No seed —
 # it touches no table — so its position relative to coverage is free; it MUST precede setup, whose
 # /dev/seed/empty TRUNCATEs the account table (which would strand exposure's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen exposure --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen exposure --base "http://${WEB}:8080"
 # drift: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
-# served from the pinned fixtures.json drift slice under VERGE_DEV. --hide-chrome drops the sticky
+# served from the pinned fixtures.json drift slice under VERGE_DEV. drops the sticky
 # console header from flow so <main> sits at the viewport top and aligns with the chrome-less
 # golden (as coverage). The feed-expanded / range-open states run states.json's `js` (expand the
 # collapsed group headers / open the range popover) against the frozen tmpl's own handlers, in BOTH
@@ -217,17 +223,17 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # free; it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table (which would
 # strand drift's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen drift --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen drift --base "http://${WEB}:8080"
 # rundetail: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
-# in-memory dev fixture (no DB reshape). --hide-chrome drops the sticky console header from flow so
+# in-memory dev fixture (no DB reshape). drops the sticky console header from flow so
 # <main> sits at the viewport top and aligns with the chrome-less golden (as coverage). Route is
 # /runs/1407 (states.json); 1408 is the MISSING id the error screen already covers. MUST come BEFORE
 # setup: setup's candidate hits /dev/seed/empty which TRUNCATEs accounts, stranding the admin session
 # the /dev/session/admin mint needs.
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen rundetail --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen rundetail --base "http://${WEB}:8080"
 # scope: chrome-hosted screen cropped to `main`, session admin (per-state /dev/session mint),
-# served from the pinned fixtures.json scope slice under VERGE_DEV. --hide-chrome drops the sticky
+# served from the pinned fixtures.json scope slice under VERGE_DEV. drops the sticky
 # console header from flow so <main> sits at the viewport top and aligns with the chrome-less
 # golden (as coverage). The refusal / exclusion-preview states run states.json's `js` (post the /20
 # through the seed form; type staging-4 + click Preview) against the frozen tmpl's own forms, which
@@ -235,9 +241,9 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # touches no table — so its position relative to coverage is free; it MUST precede setup, whose
 # /dev/seed/empty TRUNCATEs the account table (which would strand scope's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen scope --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen scope --base "http://${WEB}:8080"
 # signals: chrome-hosted screen, session admin (per-state /dev/session mint), served from the pinned
-# fixtures.json signals slice under VERGE_DEV. --hide-chrome drops the sticky console header from flow
+# fixtures.json signals slice under VERGE_DEV. drops the sticky console header from flow
 # so <main> sits at the viewport top and aligns with the chrome-less golden (as scope). The default /
 # withdrawn-tab / menu-open states crop `main`; the drawer-open / drawer-annotated / descope-confirm
 # states crop `body` (per-state crop in states.json) because the fixed scrim + drawer / dialog escape
@@ -246,35 +252,35 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # BOTH sides. No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty
 # TRUNCATEs the account table (which would strand signals' authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen signals --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen signals --base "http://${WEB}:8080"
 # dashboard: chrome-hosted `/` cropped to `main`, session admin (per-state /dev/session mint), served
-# from the pinned fixtures.json dashboard slice under VERGE_DEV. --hide-chrome drops the sticky console
+# from the pinned fixtures.json dashboard slice under VERGE_DEV. drops the sticky console
 # header from flow so <main> sits at the viewport top and aligns with the chrome-less golden (as
 # coverage). The scanning state rides a dev ?variant=scanning query capture.mjs appends (states.json),
 # which home() reads to light .Scanning + .ScanDetail; banner-dismissed is the pure ?probe=dismissed
 # route. No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs the
 # account table (which would strand dashboard's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen dashboard --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen dashboard --base "http://${WEB}:8080"
 # asset: chrome-hosted /asset/{key} cropped to `main`, session admin (per-state /dev/session mint),
-# served from the pinned fixtures.json asset slice under VERGE_DEV. --hide-chrome drops the sticky
+# served from the pinned fixtures.json asset slice under VERGE_DEV. drops the sticky
 # console header from flow so <main> sits at the viewport top and aligns with the chrome-less golden
 # (as coverage). The default state is the pure /asset/edge-gw-03.acmecorp.io route assetPage reads in
 # devMode. No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs
 # the account table (which would strand asset's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen asset --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen asset --base "http://${WEB}:8080"
 # subjectdetail: chrome-hosted /subjects/{service,endpoint} cropped to `main`, session admin
 # (per-state /dev/session mint), served from the pinned fixtures.json subjectdetail slices under
-# VERGE_DEV. --hide-chrome drops the sticky console header from flow so <main> sits at the viewport
+# VERGE_DEV. drops the sticky console header from flow so <main> sits at the viewport
 # top and aligns with the chrome-less golden (as asset). The service / endpoint / service-withdrawn
 # states are pure ?key= routes servicePage/endpointPage read in devMode. No seed — it touches no
 # table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table (which would
 # strand subjectdetail's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen subjectdetail --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen subjectdetail --base "http://${WEB}:8080"
 # graph: chrome-hosted /graph, session admin (per-state /dev/session mint), served from the pinned
-# fixtures.json graph slice under VERGE_DEV. --hide-chrome drops the sticky console header so <main>
+# fixtures.json graph slice under VERGE_DEV. drops the sticky console header so <main>
 # sits at the viewport top and aligns with the chrome-less golden (as coverage). The default /
 # filtered-critical states crop `main`; the node-drawer state crops `body` (per-state crop in
 # states.json) because the fixed scrim + drawer escape <main>. All three run states.json's `js` (click
@@ -282,9 +288,9 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # candidate. No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs
 # the account table (which would strand graph's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen graph --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen graph --base "http://${WEB}:8080"
 # reports: chrome-hosted /reports (+ the schedule wizard) cropped to `main`, session admin (per-state
-# /dev/session mint), served from the pinned fixtures.json reports slice under VERGE_DEV. --hide-chrome
+# /dev/session mint), served from the pinned fixtures.json reports slice under VERGE_DEV.
 # drops the sticky console header so <main> sits at the viewport top and aligns with the chrome-less
 # golden (as coverage). default/range-open/row-menu-open are the /reports route driven by the frozen
 # tmpl's own JS (open the range popover / open a row kebab) on BOTH sides; wizard-1..4 are the pure PRG
@@ -292,53 +298,53 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # touches no table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table
 # (which would strand reports' authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen reports --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen reports --base "http://${WEB}:8080"
 # reportartifact: chrome-hosted /reports/delivery cropped to `main`, session admin (per-state
 # /dev/session mint), served from the pinned fixtures.json reportartifact slice under VERGE_DEV.
-# --hide-chrome drops the sticky console header so <main> sits at the viewport top and aligns with the
+# drops the sticky console header so <main> sits at the viewport top and aligns with the
 # chrome-less golden (as reports). default is the pure /reports/delivery route; never-delivered rides a
 # dev ?variant=never-delivered query capture.mjs appends (states.json), which reportDeliveryPage reads
 # to serve the .Doc.Empty document for schedule s2. No seed — it touches no table — so it MUST precede
 # setup, whose /dev/seed/empty TRUNCATEs the account table (which would strand its authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen reportartifact --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen reportartifact --base "http://${WEB}:8080"
 # inbox: chrome-hosted /inbox cropped to `main`, session admin (per-state /dev/session mint), served
-# from the pinned fixtures.json inbox slice under VERGE_DEV. --hide-chrome drops the sticky console
+# from the pinned fixtures.json inbox slice under VERGE_DEV. drops the sticky console
 # header so <main> sits at the viewport top and aligns with the chrome-less golden (as reports).
 # default is the plain /inbox route; message-open is the pure /inbox?id=m1 route and unread-filter the
 # pure /inbox?filter=unread route inboxFixtureData reads in devMode (no state JS — the ?id/?filter
 # selection is server-rendered). No seed — it touches no table — so it MUST precede setup, whose
 # /dev/seed/empty TRUNCATEs the account table (which would strand inbox's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen inbox --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen inbox --base "http://${WEB}:8080"
 # onboarding: chrome-hosted /onboarding cropped to `main`, session admin (per-state /dev/session
-# mint). --hide-chrome drops the sticky console header so <main> sits at the viewport top and aligns
+# mint). drops the sticky console header so <main> sits at the viewport top and aligns
 # with the chrome-less golden (as reports). wizard-1..4 are the pure PRG GET URLs (/onboarding?step=N&…)
 # the onboarding GET handler reconstructs from the query — a stateless read (no DB reshape), so its
 # constants (cadence presets, default cad, profile) already match the fixture. No seed — it touches no
 # table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table (which would
 # strand onboarding's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen onboarding --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen onboarding --base "http://${WEB}:8080"
 # firstrun: chrome-hosted `/` cropped to `main`, session admin (per-state /dev/session mint), served
-# from the pinned fixtures.json firstrun slice under VERGE_DEV. --hide-chrome drops the sticky console
+# from the pinned fixtures.json firstrun slice under VERGE_DEV. drops the sticky console
 # header so <main> sits at the viewport top and aligns with the chrome-less golden (as reports). The
 # default state rides a dev ?variant=empty-estate query capture.mjs appends (states.json), which home()
 # reads to serve the empty-estate wrap (dashboard.tmpl "home" wrapping "firstrun"). No seed — it touches
 # no table — so it MUST precede setup, whose /dev/seed/empty TRUNCATEs the account table (which would
 # strand firstrun's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen firstrun --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen firstrun --base "http://${WEB}:8080"
 # search: chrome-hosted /search cropped to `main`, session admin (per-state /dev/session mint), served
-# from the pinned fixtures.json search slice under VERGE_DEV. --hide-chrome drops the sticky console
+# from the pinned fixtures.json search slice under VERGE_DEV. drops the sticky console
 # header from flow so <main> sits at the viewport top and aligns with the chrome-less golden (as inbox).
 # default (/search?q=acme) and empty (/search?q=zzz-none) are pure ?q= routes searchFixtureData reads in
 # devMode — no seed, no state JS. No table touched — so it MUST precede setup, whose /dev/seed/empty
 # TRUNCATEs the account table (which would strand search's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen search --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen search --base "http://${WEB}:8080"
 # settings: chrome-hosted /settings cropped to `main`, session admin (per-state /dev/session mint),
-# served from the pinned fixtures.json settings slice under VERGE_DEV. --hide-chrome drops the sticky
+# served from the pinned fixtures.json settings slice under VERGE_DEV. drops the sticky
 # console header from flow so <main> sits at the viewport top and aligns with the chrome-less golden
 # (as reports). The 18 sub-tab/dialog states are pure ?tab=/dialog routes settingsFixtureData reads in
 # devMode (the dialog/drawer states — team-invite/team-remove/sessions-revoke-all/sources-consent/
@@ -347,12 +353,23 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # state JS runs. No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty
 # TRUNCATEs the account table (which would strand settings' authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen settings --base "http://${WEB}:8080" --hide-chrome
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen settings --base "http://${WEB}:8080"
+# shell (#27f): the design-owned chrome itself, FULL-PAGE on `/` (dashboard fixture), session admin
+# (per-state /dev/session mint). The 6 states drive the shell's own JS on the live candidate: default
+# is the plain render; palette-open/bell-open/acct-open run states.json's `js` (open the ⌘K palette /
+# bell popover / account menu) against the frozen tmpl's own handlers; scan-running rides
+# ?variant=scanning (home lights .Scanning → chrome .ScanRunning); toasts rides ?variant=flash-toast
+# (injectChrome folds the fixture toast stack into .Chrome.Toasts) with a 400ms delay to capture it
+# before the 5s auto-dismiss. org-open is SKIPPED (orgs not modeled → static chip; golden defers,
+# SPEC-CHANGE #28). No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty
+# TRUNCATEs the account table (which would strand the shell's authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --full-page --skip-state org-open --mode candidate $ADV_FLAG --screen shell --base "http://${WEB}:8080"
 # setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
 # capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
 # window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB
 # here would strand any screen captured after it.
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
-  node capture.mjs --mode candidate $ADV_FLAG --screen setup --base "http://${WEB}:8080"
+  node capture.mjs --full-page --mode candidate $ADV_FLAG --screen setup --base "http://${WEB}:8080"
 
 echo "== done (ADVISORY=${ADVISORY:-1}) =="

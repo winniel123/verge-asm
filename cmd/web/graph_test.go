@@ -238,7 +238,7 @@ func TestGraphPageRendersTopology(t *testing.T) {
 		"api.example.com",                      // the real Name node
 		"203.0.113.5",                          // the real Address node
 		":443 tcp",                             // the real Service node label
-		`class="navpill active" href="/graph"`, // NavActive wired to graph
+		`class="sh-pill on" href="/graph"`, // NavActive wired to graph
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("graph page missing %q; body: %s", want, page)

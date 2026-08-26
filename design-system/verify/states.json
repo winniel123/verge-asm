@@ -695,5 +695,56 @@
         "js": ""
       }
     ]
-  }
+  },
+  "shell": {
+    "crop": "full-page",
+    "states": [
+      {
+        "id": "default",
+        "route": "/",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "palette-open",
+        "route": "/",
+        "session": "admin",
+        "js": "document.getElementById('sh-cmdk-btn').click()"
+      },
+      {
+        "id": "bell-open",
+        "route": "/",
+        "session": "admin",
+        "js": "document.getElementById('sh-bell').setAttribute('open','')"
+      },
+      {
+        "id": "org-open",
+        "route": "/",
+        "session": "admin",
+        "js": "document.getElementById('sh-org').setAttribute('open','')"
+      },
+      {
+        "id": "acct-open",
+        "route": "/",
+        "session": "admin",
+        "js": "document.getElementById('sh-acct').setAttribute('open','')"
+      },
+      {
+        "id": "scan-running",
+        "route": "/",
+        "session": "admin",
+        "variant": "scanning",
+        "js": ""
+      },
+      {
+        "id": "toasts",
+        "route": "/",
+        "session": "admin",
+        "variant": "flash-toast",
+        "js": "",
+        "delay": 400
+      }
+    ]
+  },
+  "$golden_regen": "#27f — with shell landed the harness stops cropping to <main>: ALL landed screens re-render FULL-PAGE goldens in the canonical container (one-time regen, this version)."
 }

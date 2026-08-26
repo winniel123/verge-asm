@@ -169,13 +169,20 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The count rides a chrome page that never computed it itself.
+	// The count rides a chrome page that never computed it itself. The design-owned
+	// shell (#22) shows the unread state two ways: the bell wears a dot when anything is
+	// unread (.sh-bell .ud), and the command palette's Inbox item carries the exact
+	// count in its hint ("2 unread"). Assert both — the count now lives in the palette
+	// hint rather than a numeric bell badge.
 	seeds := getBody(t, ac, base+"/scope", http.StatusOK)
 	if !strings.Contains(seeds, `href="/inbox"`) {
 		t.Error("the global nav is missing the Inbox bell")
 	}
-	if !strings.Contains(seeds, `class="count">2<`) {
-		t.Errorf("the nav should carry the unread count 2\nbody: %s", seeds)
+	if !strings.Contains(seeds, `class="ud"`) {
+		t.Errorf("the bell should wear the unread dot\nbody: %s", seeds)
+	}
+	if !strings.Contains(seeds, `2 unread`) {
+		t.Errorf("the palette Inbox hint should carry the unread count 2\nbody: %s", seeds)
 	}
 
 	// Mark one read; the count drops to 1.

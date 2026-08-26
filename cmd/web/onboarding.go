@@ -292,5 +292,5 @@ func (s *server) renderOnboard(w http.ResponseWriter, r *http.Request, acct db.A
 		"Review": review,
 		"Kind":   onboardingScanKind(v.Profile),
 	}
-	s.render(w, "onboarding", data)
+	s.render(w, r, "onboarding", data)
 }

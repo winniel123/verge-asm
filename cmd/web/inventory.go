@@ -510,7 +510,7 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 	groups := buildInventory(rows)
-	s.render(w, "inventory", map[string]any{
+	s.render(w, r, "inventory", map[string]any{
 		"Title": "Inventory", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "inventory",
 		"Groups":    groups,

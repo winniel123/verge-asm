@@ -29,7 +29,7 @@ func TestServiceDetailRendersV32Composition(t *testing.T) {
 
 	for _, want := range []string{
 		// Breadcrumb + header + nav
-		`href="/inventory"`, `class="navpill active" href="/inventory"`,
+		`href="/inventory"`, `class="sh-pill on" href="/inventory"`,
 		`<span class="sd-tag">service</span>`,
 		`class="as-leg exposed">exposed`, // header ExposureBadge rolled up from reachability (assetexposure)
 		"198.51.100.1:3389/tcp",          // the key
