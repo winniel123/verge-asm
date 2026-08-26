@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/netip"
 	"sort"
@@ -27,9 +28,11 @@ import (
 // define (templates_scope.go + proposals.go proposalTemplates, deleted). The tmpl
 // renders inside the full app chrome ({{template "chrome" .}}) and declares the holes
 // renderSeeds shapes below: .Notice .IsAdmin .AddressCap .Seeds[{ID,Anchor,Scope,
-// IsAddress}] .FormScope .FormError .Refusal{Input,Reason,Reachable}(nullable)
+// IsAddress}] .FormScope .FormError .Refusals[{Input,Reason,Reachable(nullable)}] (DF-F1,
+// one per refused paste token; replaces the single .Refusal)
 // .CustodyScopes[{ID,Scope,CustodyExtension,Census}] .CustodyError .ZoneScopes[{ID,
-// Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}] .ZoneError .ZoneIntervalDays
+// Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}] .ZoneErrors[{File,Reason}] (DF-F2,
+// one per refused file; replaces .ZoneError) .ZoneIntervalDays
 // .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}] .CoverageMsgs[
 // {Kind,Badge,Bound,Subject,Text,When,ISO}] .Proposals[{ID,Value,Kind,Source}] .OrgQuery
 // .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,
@@ -73,8 +76,12 @@ type seedsForms struct {
 	exclError, exclKind, exclValue                  string
 	custodyError                                    string
 	proberError, proberHost, proberPort, proberUser string
-	zoneError, zoneIntervalError                    string
+	zoneIntervalError                               string
 	coldError                                       string
+	// zoneErrors are the per-file zone-upload refusals (DF-F2): one row per rejected
+	// file, in upload order. It replaces the single zoneError string — a bulk upload
+	// refuses each file independently.
+	zoneErrors []zoneErrorView
 	// zoneIntervalDays echoes a rejected interval so the admin need not retype
 	// it; empty means render the stored dial.
 	zoneIntervalDays string
@@ -86,9 +93,24 @@ type seedsForms struct {
 	// loss named — but only where a withdrawal message would actually fire. Nil
 	// when no preview was requested.
 	exclPreview *message.NarrowingReceipt
-	// refusal is the spec RefusalCallout (#21a): set alongside seedError when a scope
-	// declaration is refused for being wider than the address cap. Nil otherwise.
-	refusal *refusalView
+	// refusals are the per-token declaration refusals (DF-F1): one RefusalCallout per
+	// refused token in a paste, in declaration order. It replaces the single .Refusal
+	// hole — a paste declares many scopes at once, each validated independently.
+	refusals []refusalView
+	// flash is a success toast rendered INLINE (not via the PRG `toast` query): a bulk
+	// declare/upload with a mix of successes and refusals must show the success flash AND
+	// the per-item callouts in one response, so the flash rides the render (injectChrome
+	// honours it) rather than a redirect that would drop the callouts. Nil on a pure
+	// success (a plain PRG toastRedirect fires it) or a pure failure (no flash at all).
+	flash *toastVM
+}
+
+// zoneErrorView is one per-file zone-upload refusal (DF-F2): the file's name and the
+// reason it was refused (apex outside the name scopes, or not a zone file). It replaces
+// the single .ZoneError hole so a bulk upload lists a row per rejected file.
+type zoneErrorView struct {
+	File   string
+	Reason string
 }
 
 // nameScopes returns the name-scope subset of a seed listing, in the same order.
@@ -136,61 +158,170 @@ func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 // #21a: the seed form no longer carries a kind select — the handler infers name
 // vs. address from the value's SHAPE (a slash or a bare address literal is an
 // address scope; anything else is a name). An address block wider than the cap is
-// REFUSED, never auto-corrected: the RefusalCallout (.Refusal) names the reachable
-// in-cap set (the /22 that fits the base) for the operator to declare themselves.
+// REFUSED, never auto-corrected: the RefusalCallout names the reachable in-cap set
+// (the /22 that fits the base) for the operator to declare themselves.
+//
+// DF-F1 (paste-split): the `scope` field is a RAW string the operator may paste
+// several scopes into. It is tokenized on commas, whitespace and newlines by the
+// SAME parseSeedTokens onboarding's seedsadd uses (cmd/web/onboarding.go) — the one
+// tokenizer, not a fork — and each token is validated and committed independently as
+// its own dated act. Successes fire a flash; each failure fills a .Refusals[] callout
+// in declaration order. A token that duplicates one already declared in the same paste
+// (or a pre-existing seed) is refused `already declared`.
 func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	value := strings.TrimSpace(r.FormValue("scope"))
+	raw := r.FormValue("scope")
 
 	// VERGE_DEV pixel-parity: the scope "refusal" golden posts 203.0.113.0/20 through
 	// the seed form (states.json). Serve the pinned fixture + the RefusalCallout so the
 	// candidate renders byte-for-byte what the golden composes, without touching the DB.
 	if s.devMode {
-		s.render(w, r, "scope", s.scopeFixtureDataRefusal(acct, value))
+		s.render(w, r, "scope", s.scopeFixtureDataRefusal(acct, strings.TrimSpace(raw)))
 		return
 	}
 
-	fail := func(f seedsForms) {
-		s.renderSeeds(w, r, acct, f)
+	// The shared tokenizer (DF-F1): commas / whitespace / newlines split, empty tokens
+	// drop. This is parseSeedTokens verbatim — the exact commit boundary the onboarding
+	// TagInput uses — so the two entry points can never diverge.
+	tokens := parseSeedTokens(raw)
+	if len(tokens) == 0 {
+		// Nothing to declare — an empty submit is a no-op redirect, no flash, no error.
+		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		return
 	}
 
+	// declared tracks the normalized keys committed in THIS paste so a duplicate token
+	// within one paste is refused `already declared` even before the DB unique constraint
+	// would catch it — the first token declares, the second refuses (DF-F1 edge).
+	declared := make(map[string]bool, len(tokens))
+	var refusals []refusalView
+	successes := 0
+	for _, tok := range tokens {
+		if ref := s.declareOneScope(r, acct, tok, declared); ref != nil {
+			refusals = append(refusals, *ref)
+		} else {
+			successes++
+		}
+	}
+
+	if successes > 0 {
+		title := fmt.Sprintf("%d %s declared", successes, plural(successes, "scope", "scopes"))
+		desc := ""
+		if len(refusals) > 0 {
+			desc = fmt.Sprintf("%d refused — see the callouts", len(refusals))
+		}
+		if len(refusals) == 0 {
+			// Pure success: a plain post-redirect-get fires the flash (PARITY-CHART P1.7).
+			s.toastRedirect(w, r, "/scope", "neutral", title, desc)
+			return
+		}
+		// Mixed: the callouts must render AND the flash must fire, so both ride one
+		// response — the flash is carried inline (renderSeeds → injectChrome) rather than
+		// through a redirect that would drop the refusals.
+		s.renderSeeds(w, r, acct, seedsForms{
+			refusals:  refusals,
+			seedScope: joinRefusedInputs(refusals),
+			flash:     &toastVM{Tone: "neutral", Title: title, Description: desc},
+		})
+		return
+	}
+
+	// All-refused: no flash, callouts only. The field-level line reddens the input and
+	// replaces the hint; a single over-cap token keeps its terse cap line (and its
+	// TestAddressScopeOverCapRejected contract), any other single refusal shows its
+	// reason, and a multi-token paste summarizes the count.
+	s.renderSeeds(w, r, acct, seedsForms{
+		refusals:  refusals,
+		seedScope: joinRefusedInputs(refusals),
+		seedError: allRefusedFormError(refusals, s.seedAddressCap),
+	})
+}
+
+// declareOneScope validates and commits ONE pasted scope token (DF-F1). It returns nil
+// on a committed declaration, or a *refusalView describing why the token was refused —
+// an over-cap block (with the reachable in-cap set named), an unparseable value, or a
+// duplicate (`already declared`). declared holds the normalized keys already committed
+// in this paste so a within-paste duplicate refuses before the DB is touched. Each
+// success is its own dated act (a distinct CreateSeed call).
+func (s *server) declareOneScope(r *http.Request, acct db.Account, value string, declared map[string]bool) *refusalView {
+	value = strings.TrimSpace(value)
 	if isAddressValue(value) {
 		if _, err := seed.ParseCIDR(cidrForm(value)); err != nil {
-			fail(seedsForms{seedError: err.Error(), seedScope: value})
-			return
+			return &refusalView{Input: value, Reason: err.Error()}
 		}
 		// seed.ParseCIDR validated the block, so the raw (unmasked) re-parse cannot fail.
 		// The raw form is kept for the callout so its Input/Reachable echo the operator's
 		// own base address rather than the masked network address.
-		raw, _ := netip.ParsePrefix(strings.TrimSpace(cidrForm(value)))
-		if !seed.WithinCap(raw, s.seedAddressCap) {
-			ref := refusalOverCap(value, raw, s.seedAddressCap)
-			fail(seedsForms{
-				seedError: overCapFormError(s.seedAddressCap), seedScope: value, refusal: &ref,
-			})
-			return
+		rawP, _ := netip.ParsePrefix(strings.TrimSpace(cidrForm(value)))
+		if !seed.WithinCap(rawP, s.seedAddressCap) {
+			ref := refusalOverCap(value, rawP, s.seedAddressCap)
+			return &ref
 		}
-		p := raw.Masked()
+		p := rawP.Masked()
+		key := "addr:" + p.String()
+		if declared[key] {
+			return &refusalView{Input: value, Reason: alreadyDeclaredReason}
+		}
 		if _, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 			AddressCidr: &p, CreatedBy: acct.ID,
 		}); err != nil {
-			fail(seedsForms{seedError: seedCreateError(err, "block"), seedScope: value})
-			return
+			return createRefusal(value, err)
 		}
-	} else {
-		domain, err := seed.NormalizeDomain(value)
-		if err != nil {
-			fail(seedsForms{seedError: err.Error(), seedScope: value})
-			return
-		}
-		if _, err := s.store.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
-			NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: acct.ID,
-		}); err != nil {
-			fail(seedsForms{seedError: seedCreateError(err, "domain"), seedScope: value})
-			return
-		}
+		declared[key] = true
+		return nil
 	}
-	// A save fires a toast across the post-redirect-get (PARITY-CHART P1.7).
-	s.toastRedirect(w, r, "/scope", "neutral", "Seed added", value+" enters scope; it is scanned on cadence.")
+	domain, err := seed.NormalizeDomain(value)
+	if err != nil {
+		return &refusalView{Input: value, Reason: err.Error()}
+	}
+	key := "name:" + domain
+	if declared[key] {
+		return &refusalView{Input: value, Reason: alreadyDeclaredReason}
+	}
+	if _, err := s.store.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
+		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: acct.ID,
+	}); err != nil {
+		return createRefusal(value, err)
+	}
+	declared[key] = true
+	return nil
+}
+
+// alreadyDeclaredReason is the refusal reason for a token that duplicates a scope
+// already declared — within the same paste or a pre-existing seed (DF-F1).
+const alreadyDeclaredReason = "already declared"
+
+// createRefusal maps a CreateSeed error to a refusal: a unique-constraint violation
+// means the scope is already declared; any other error is an opaque failure.
+func createRefusal(value string, err error) *refusalView {
+	if isUniqueViolation(err) {
+		return &refusalView{Input: value, Reason: alreadyDeclaredReason}
+	}
+	return &refusalView{Input: value, Reason: "could not be declared"}
+}
+
+// joinRefusedInputs joins the refused tokens back into the input field so the operator
+// can edit and resubmit just the ones that failed (the successes are already committed).
+// Tokens never contain a comma (comma is a split boundary), so ", " re-joins cleanly.
+func joinRefusedInputs(refusals []refusalView) string {
+	parts := make([]string, 0, len(refusals))
+	for _, rv := range refusals {
+		parts = append(parts, rv.Input)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// allRefusedFormError builds the field-level error line for an all-refused paste. A
+// single over-cap token keeps its terse cap line (Reachable is set only for over-cap
+// refusals); any other single refusal shows its reason; a multi-token paste names the
+// count and points at the callouts.
+func allRefusedFormError(refusals []refusalView, cap int) string {
+	if len(refusals) == 1 {
+		if refusals[0].Reachable != "" {
+			return overCapFormError(cap)
+		}
+		return refusals[0].Reason
+	}
+	return fmt.Sprintf("%d refused — see the callouts.", len(refusals))
 }
 
 // deleteSeed withdraws a declared Seed by id — the Scope chip-remove act (#21a). It
@@ -207,11 +338,36 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.renderSeeds(w, r, acct, seedsForms{seedError: "That scope could not be found."})
 		return
 	}
+	// Resolve the scope's display string BEFORE the delete so the removal flash can name
+	// it (WORK-ORDER-DOGFOOD-R1 item 2). A stale chip whose row is already gone leaves
+	// scope empty and simply redirects — the delete stays idempotent.
+	scope := s.seedScopeByID(r, id)
 	if _, err := s.store.DeleteSeed(r.Context(), id); err != nil {
 		s.serverError(w, "delete seed", err)
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	if scope == "" {
+		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		return
+	}
+	s.toastRedirect(w, r, "/scope", "neutral", "Scope removed",
+		scope+" — nothing new is admitted under it; existing subjects keep their citations.")
+}
+
+// seedScopeByID returns the display scope for a declared seed id — the address CIDR for
+// an address scope, the domain for a name scope — or "" when no such seed exists. It
+// reuses toSeedViews so the string matches the chip the operator clicked.
+func (s *server) seedScopeByID(r *http.Request, id int64) string {
+	rows, err := s.store.ListSeeds(r.Context())
+	if err != nil {
+		return ""
+	}
+	for _, v := range toSeedViews(rows) {
+		if v.ID == id {
+			return v.Scope
+		}
+	}
+	return ""
 }
 
 // refusalView is the spec RefusalCallout (#21a): a declaration the handler refused
@@ -360,9 +516,14 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list proposals", err)
 		return
 	}
+	// A failure with no accompanying success flash renders 400. A bulk paste/upload that
+	// mixed successes with refusals (f.flash set) is a 200 — the successes committed, the
+	// refusals show as callouts alongside the success toast.
 	status := http.StatusOK
-	if f.seedError != "" || f.exclError != "" || f.custodyError != "" ||
-		f.zoneError != "" || f.zoneIntervalError != "" || f.proposalError != "" {
+	failed := f.seedError != "" || f.exclError != "" || f.custodyError != "" ||
+		f.zoneIntervalError != "" || f.proposalError != "" ||
+		len(f.refusals) > 0 || len(f.zoneErrors) > 0
+	if failed && f.flash == nil {
 		status = http.StatusBadRequest
 	}
 	seeds := toSeedViews(rows)
@@ -396,8 +557,9 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// (owned elsewhere); nothing here is fabricated.
 		"CoverageMsgs": coverageMessages(probers),
 		"FormError":    f.seedError, "FormScope": f.seedScope,
-		// The RefusalCallout (#21a): set alongside FormError when a block is over-cap.
-		"Refusal":    f.refusal,
+		// The RefusalCallouts (DF-F1): one per refused token in a paste, declaration
+		// order. Replaces the single .Refusal hole.
+		"Refusals":   f.refusals,
 		"Exclusions": toExclusionViews(excl),
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
 		// The custody-extension section reads name scopes alone — an address scope can
@@ -407,8 +569,11 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// supplied file, and the interval dial is the declared re-supply cadence. The
 		// FileDrop infers the apex from the uploaded file, so no per-scope select.
 		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus, cadence, s.now().UTC()),
-		"ZoneError":  f.zoneError, "ZoneIntervalError": f.zoneIntervalError,
-		"ZoneIntervalDays": intervalDays,
+		// The per-file zone-upload refusals (DF-F2): one row per rejected file. Replaces
+		// the single .ZoneError hole.
+		"ZoneErrors":       f.zoneErrors,
+		"ZoneIntervalError": f.zoneIntervalError,
+		"ZoneIntervalDays":  intervalDays,
 		// Pending Proposals flattened to the spec rows + the org-name search echo (#21).
 		"Proposals": flattenProposals(lookups), "OrgQuery": f.proposalQuery,
 		// The narrowing receipt (#205 AC8): shown before an exclusion commits, only
@@ -417,6 +582,12 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
+	}
+	// A mixed bulk result carries its success flash inline: injectChrome honours an
+	// already-set FlashToasts in place of the PRG `toast` query, so the ToastStack fires
+	// on this same response, next to the rendered refusal callouts.
+	if f.flash != nil {
+		data["FlashToasts"] = []toastVM{*f.flash}
 	}
 	s.renderStatus(w, r, status, "scope", data)
 }
@@ -690,60 +861,113 @@ func zoneIntervalLabel(cadenceSeconds int64) string {
 // file's observations at this instant, never at the worker's later read (v1 spec
 // §3.4). The file is stored in the shared database so both web and worker read
 // it; it is evidence, not a secret (§4.2).
+// DF-F2 (bulk zone-file upload): the drop/picker is `multiple`, so one multipart POST
+// carries N `zonefile` parts. Each file is processed independently — its apex inferred
+// from the content, checked against the declared name scopes — and each accepted file
+// records its own dated act at the shared upload instant (the observation instant; the
+// zone status query tie-breaks equal instants by insertion order, so two files for one
+// apex leave the later as the current supply). Per-file refusals fill .ZoneErrors[]; a
+// flash fires on ≥1 accepted file.
 func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
 		http.Redirect(w, r, "/scope", http.StatusSeeOther)
 		return
 	}
-	fail := func(msg string) {
-		s.renderSeeds(w, r, acct, seedsForms{zoneError: msg})
-	}
 	if err := r.ParseMultipartForm(maxZoneUpload); err != nil {
-		fail("The upload was too large or malformed. A zone file is text, up to 8 MB.")
+		s.renderSeeds(w, r, acct, seedsForms{zoneErrors: []zoneErrorView{{
+			Reason: "The upload was too large or malformed. A zone file is text, up to 8 MB.",
+		}}})
 		return
 	}
-	file, _, err := r.FormFile("zonefile")
-	if err != nil {
-		fail("Choose a zone file to upload.")
+	var files []*multipart.FileHeader
+	if r.MultipartForm != nil {
+		files = r.MultipartForm.File["zonefile"]
+	}
+	if len(files) == 0 {
+		s.renderSeeds(w, r, acct, seedsForms{zoneErrors: []zoneErrorView{{
+			Reason: "Choose a zone file to upload.",
+		}}})
 		return
+	}
+
+	// A single upload instant for the whole drop — every accepted file's observation
+	// instant. Equal instants tie-break by insertion order (zone.sql ORDER BY id DESC),
+	// so files pasted for the same apex settle with the last as the current supply.
+	now := s.now().UTC()
+	var zoneErrors []zoneErrorView
+	accepted := 0
+	for _, fh := range files {
+		if ref := s.uploadOneZoneFile(r, acct, fh, now); ref != nil {
+			zoneErrors = append(zoneErrors, *ref)
+		} else {
+			accepted++
+		}
+	}
+
+	if accepted > 0 {
+		title := fmt.Sprintf("%d zone %s supplied", accepted, plural(accepted, "file", "files"))
+		desc := ""
+		if len(zoneErrors) > 0 {
+			desc = fmt.Sprintf("%d refused", len(zoneErrors))
+		}
+		if len(zoneErrors) == 0 {
+			s.toastRedirect(w, r, "/scope", "neutral", title, desc)
+			return
+		}
+		// Mixed: refusal rows AND the success flash on one response.
+		s.renderSeeds(w, r, acct, seedsForms{
+			zoneErrors: zoneErrors,
+			flash:      &toastVM{Tone: "neutral", Title: title, Description: desc},
+		})
+		return
+	}
+	// Zero accepted: no flash, refusal rows only.
+	s.renderSeeds(w, r, acct, seedsForms{zoneErrors: zoneErrors})
+}
+
+// uploadOneZoneFile stores ONE uploaded zone file (DF-F2). It returns nil on a recorded
+// supply act, or a *zoneErrorView naming the file and why it was refused: unreadable or
+// empty content, an unparseable file (`not a zone file`), or an apex outside every
+// declared name scope. now is the shared upload instant — this file's observation
+// instant (v1 spec §3.4).
+func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipart.FileHeader, now time.Time) *zoneErrorView {
+	name := fh.Filename
+	file, err := fh.Open()
+	if err != nil {
+		return &zoneErrorView{File: name, Reason: "could not be read"}
 	}
 	defer file.Close()
 	content, err := io.ReadAll(io.LimitReader(file, maxZoneUpload+1))
 	if err != nil {
-		fail("Could not read the uploaded file.")
-		return
+		return &zoneErrorView{File: name, Reason: "could not be read"}
 	}
 	if len(content) == 0 {
-		fail("The uploaded file is empty.")
-		return
+		return &zoneErrorView{File: name, Reason: "the file is empty"}
 	}
 	if len(content) > maxZoneUpload {
-		fail("The zone file is over the 8 MB cap.")
-		return
+		return &zoneErrorView{File: name, Reason: "over the 8 MB cap"}
 	}
-	// #21c: the seed select drops — the handler infers the scope from the file's apex
-	// ($ORIGIN, or the SOA owner). An apex outside every declared name scope is REFUSED
-	// with the reason, never silently attached to a scope the operator did not name.
+	// #21c/DF-F2: the handler infers the scope from the file's apex ($ORIGIN, or the SOA
+	// owner). An unparseable file has no apex; an apex outside every declared name scope
+	// is refused, never silently attached to a scope the operator did not name.
 	apex := zoneApex(string(content))
 	if apex == "" {
-		fail("Could not read the zone's apex — the file has no $ORIGIN and no SOA record to infer it from.")
-		return
+		return &zoneErrorView{File: name, Reason: "not a zone file"}
 	}
 	seedID, ok := s.nameSeedForApex(r, apex)
 	if !ok {
-		fail(fmt.Sprintf("The zone's apex %s is outside every declared name scope — declare it as a name scope first, or upload the zone for a scope you hold.", apex))
-		return
+		return &zoneErrorView{File: name, Reason: fmt.Sprintf(
+			"the zone's apex %s is outside every declared name scope — declare it as a name scope first, or upload the zone for a scope you hold.", apex)}
 	}
 	if _, err := s.store.CreateZoneFile(r.Context(), db.CreateZoneFileParams{
 		SeedID:     seedID,
-		SuppliedAt: pgtype.Timestamptz{Time: s.now().UTC(), Valid: true},
+		SuppliedAt: pgtype.Timestamptz{Time: now, Valid: true},
 		Content:    string(content),
 		UploadedBy: acct.ID,
 	}); err != nil {
-		s.serverError(w, "create zone file", err)
-		return
+		return &zoneErrorView{File: name, Reason: "could not be stored"}
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	return nil
 }
 
 // zoneApex extracts an uploaded zone file's apex — the $ORIGIN directive when present,

@@ -154,6 +154,12 @@ type fakeStore struct {
 	// Scans monitor (#245); the scans test seeds them directly.
 	dispatchProgress []db.ListDispatchProgressRow
 	jobsByDispatch   map[int64][]db.ListJobsForDispatchRow
+	// dispatchStatus records the operator-ended disposition SetDispatchStatus writes
+	// ('stopped' / 'terminated'), so a stop/terminate test asserts the status was set.
+	dispatchStatus map[int64]string
+	// instanceHealth is the canned pg_database_size / server_version the instance-health
+	// tab reads (#633); zero-value renders empty figures.
+	instanceHealth db.GetInstanceHealthRow
 
 	// reportSchedules mirrors the report_schedule table (#290): the recurring reports
 	// the Reports wizard declares, filed once and listed newest-first. No content
@@ -252,6 +258,55 @@ func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.L
 
 func (f *fakeStore) ListJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error) {
 	return f.jobsByDispatch[dispatchID.Int64], nil
+}
+
+// dispatchIdx finds the progress row for a dispatch id, or -1.
+func (f *fakeStore) dispatchIdx(id int64) int {
+	for i := range f.dispatchProgress {
+		if f.dispatchProgress[i].DispatchID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// CancelReadyJobsForDispatch cancels the pending (ready) jobs of a dispatch — the stop
+// act — moving that count into the cancelled bucket (ready → 0) and returning it.
+func (f *fakeStore) CancelReadyJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
+	i := f.dispatchIdx(dispatchID.Int64)
+	if i < 0 {
+		return 0, nil
+	}
+	n := f.dispatchProgress[i].Ready
+	f.dispatchProgress[i].Ready = 0
+	return n, nil
+}
+
+// CancelActiveJobsForDispatch cancels the ready AND running jobs of a dispatch — the
+// terminate act — returning the total cancelled.
+func (f *fakeStore) CancelActiveJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
+	i := f.dispatchIdx(dispatchID.Int64)
+	if i < 0 {
+		return 0, nil
+	}
+	n := f.dispatchProgress[i].Ready + f.dispatchProgress[i].Running
+	f.dispatchProgress[i].Ready = 0
+	f.dispatchProgress[i].Running = 0
+	return n, nil
+}
+
+// SetDispatchStatus records a dispatch's operator-ended disposition.
+func (f *fakeStore) SetDispatchStatus(_ context.Context, arg db.SetDispatchStatusParams) error {
+	if f.dispatchStatus == nil {
+		f.dispatchStatus = map[int64]string{}
+	}
+	f.dispatchStatus[arg.ID] = arg.Status
+	return nil
+}
+
+// GetInstanceHealth returns the canned instance-health db facts.
+func (f *fakeStore) GetInstanceHealth(context.Context) (db.GetInstanceHealthRow, error) {
+	return f.instanceHealth, nil
 }
 
 func (f *fakeStore) ListColdScopeSeedIds(context.Context) ([]int64, error) {

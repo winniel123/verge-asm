@@ -13,24 +13,23 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
-// Reports export — `GET /reports/export` (#291). It serves the operational Reports
-// figures as a downloadable file so an operator can pull the numbers into a sheet or
-// a pipeline without screenshotting the console. Two things are exported, both of
-// which exist INDEPENDENTLY of report scheduling (which has no backend yet, #290):
-// the KPI band (open signals / scans run / in flight) and the scans-per-day series
-// over the active range. It reuses reportsPage's exact data sources and its range
-// param, so the file mirrors what the screen shows for the same ?weeks=.
+// Reports export — `GET /reports/export` (#291, #23c). It serves the Reports figures
+// for the active period as a downloadable file so an operator can pull the numbers into
+// a sheet or a pipeline without screenshotting the console. It reuses reportsPage's exact
+// data sources and its range param, so the download mirrors what the screen shows for the
+// same window.
 //
-// Two formats ship: csv and json. CSV is one uniform three-column table
-// (section,label,value) carrying both the summary and the per-day series, so a
-// spreadsheet opens it without a schema; json is the same figures as a structured
-// object with an explicit null where the signal count was unavailable. PDF is
-// deliberately NOT offered here, and this is unchanged by #345: PDF is the
-// *delivered report* document — a drift narrative (appeared / withdrawn changes),
-// not the operational activity series — so it is served from /reports/delivery/pdf
-// by internal/message.RenderArtifactPDF (ADR-0114), a surface this handler must not
-// depend on. This operational export stays csv + json by design; the two are
-// different reads and must not be conflated.
+// Three formats ship (the spec SplitButton — CSV primary, JSON + PDF in the menu, #23c),
+// chosen by ?format=. CSV and JSON are the operational activity read: the KPI band (open
+// signals / scans run / in flight) and the scans-per-day series over the active range. CSV
+// is one uniform three-column table (section,label,value) a spreadsheet opens without a
+// schema; JSON is the same figures as a structured object with an explicit null where a
+// read was unavailable. PDF (#23c, spec-normative, built in #586) is a DIFFERENT read: the
+// *delivered-report* document for the period — a drift narrative (appeared / withdrawn
+// changes) — recomputed from the period bounds by internal/message.RenderArtifactPDF
+// (ADR-0114), the SAME renderer /reports/delivery/pdf uses. The operational (csv/json) and
+// delivered (pdf) reads must not be conflated, but both are now served from this one route
+// by ?format=. (This corrects an earlier comment that claimed PDF was not offered here.)
 //
 // This handler reads exposure/scans/signals data sources read-only; it owns no
 // mutation and adds no store method. It fabricates nothing: an unavailable signal

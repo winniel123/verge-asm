@@ -30,6 +30,34 @@ GROUP BY d.id, d.scan_id, s.kind, d.created_at
 ORDER BY d.id DESC
 LIMIT $1;
 
+-- name: CancelReadyJobsForDispatch :execrows
+-- Stop a Dispatch (DF-F4): cancel its pending work. Every ready (not-yet-claimed)
+-- job of the dispatch moves to the terminal 'cancelled' state, leaving the claimable
+-- set at once — ClaimJob selects state = 'ready' alone, so a cancelled job is never
+-- run. A job the worker is mid-claim on is locked FOR UPDATE and already 'running' by
+-- the time this UPDATE reaches it, so the WHERE state = 'ready' no longer matches: a
+-- running job is left to finish and commit, which is the stop contract. Returns the
+-- count actually cancelled (the "N pending jobs cancelled" figure).
+UPDATE queue_job SET state = 'cancelled'
+WHERE dispatch_id = $1 AND state = 'ready';
+
+-- name: CancelActiveJobsForDispatch :execrows
+-- Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
+-- ready job never runs; a running job is cancelled out from under the worker, whose
+-- guarded terminal write (MarkJobDone/Dead/Retried, WHERE state = 'running') then
+-- affects no row and rolls its transaction back, so the job's uncommitted batch and
+-- observations are discarded (job atomicity — internal/queue/worker.go). A job that
+-- already committed is 'done'/'dead', not 'running', so its batch stands untouched
+-- (append-only). Returns the count cancelled (the "N jobs stopped" figure).
+UPDATE queue_job SET state = 'cancelled'
+WHERE dispatch_id = $1 AND state IN ('ready', 'running');
+
+-- name: SetDispatchStatus :exec
+-- Record a Dispatch's operator-ended disposition (DF-F4): 'stopped' or 'terminated'.
+-- Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
+-- cannot overwrite a recorded terminal status.
+UPDATE dispatch SET status = $2 WHERE id = $1 AND status = 'fanned-out';
+
 -- name: ListJobsForDispatch :many
 -- The per-job detail for one Dispatch — the progress drill-down (#245). Ordered by
 -- id so a retried attempt reads immediately before the fresh job that replaced it.

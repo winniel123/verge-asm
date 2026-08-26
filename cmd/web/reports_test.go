@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/drift"
 )
 
 // reportsClock is the fixed server instant the render tests read against
@@ -1099,5 +1100,77 @@ func TestReportsBuildsTrendDatumWithoutError(t *testing.T) {
 	// the datum wiring must not have disturbed.
 	if !strings.Contains(page, "Scans per day") {
 		t.Fatal("Reports page should still render the scans-per-day heatmap with the trend datum wired")
+	}
+}
+
+// The daily-discovery BarChart is capped at reportsMaxBars (v3.15.0 dogfood ss3 data
+// contract): a range within a month keeps per-day bars, a range beyond a month folds
+// to weekly buckets (and coarser whole-week buckets past 31 weeks), so the frozen
+// ≤31-bar bars row never overflows the KPI card. Aggregation sums the folded days'
+// discovery counts and never truncates the range.
+func TestReportsBarChartCapsAtThirtyOneBars(t *testing.T) {
+	// A daily series of `days` buckets, oldest-first, one discovery per day so a
+	// weekly fold must sum to 7 per bucket — proving aggregation sums, not samples.
+	series := func(days int) []drift.DiscoveryPoint {
+		pts := make([]drift.DiscoveryPoint, days)
+		base := reportsClock.AddDate(0, 0, -(days - 1))
+		for i := range pts {
+			pts[i] = drift.DiscoveryPoint{Start: base.AddDate(0, 0, i), Count: 1}
+		}
+		return pts
+	}
+
+	cases := []struct {
+		name     string
+		weeks    int // preset span; days = weeks*7
+		wantBars int
+		wantAgg  bool // did we fold below one-bar-per-day?
+	}{
+		{"24h preset — 28 days, daily", 4, 28, false},   // ≤31: per-day bars kept
+		{"7d default — 84 days → weekly", 12, 12, true},  // the ss3 case: 84 → 12
+		{"30d preset — 182 days → weekly", 26, 26, true}, // 182 → 26 weekly bars
+		{"90d preset — 364 days → 2-week", 52, 26, true}, // 52 weeks > 31 → 14-day buckets
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			days := tc.weeks * 7
+			chart := buildReportsBarChart(series(days), tc.weeks)
+			if len(chart.Bars) > reportsMaxBars {
+				t.Fatalf("bars = %d, exceeds the %d-bar contract", len(chart.Bars), reportsMaxBars)
+			}
+			if len(chart.Bars) != tc.wantBars {
+				t.Errorf("bars = %d, want %d", len(chart.Bars), tc.wantBars)
+			}
+			// Labels describe the span, not the bar count — unchanged by aggregation.
+			if chart.LeftLabel != strconv.Itoa(tc.weeks)+"w ago" || chart.RightLabel != "today" {
+				t.Errorf("labels = %q/%q, want %dw ago/today", chart.LeftLabel, chart.RightLabel, tc.weeks)
+			}
+			// The last bar (today's bucket) is the emphasised one; every other bar dimmed.
+			last := chart.Bars[len(chart.Bars)-1]
+			if !last.Last {
+				t.Error("the last bar should be emphasised (today)")
+			}
+			if len(chart.Bars) > 1 && chart.Bars[0].Last {
+				t.Error("only the last bar should be emphasised")
+			}
+		})
+	}
+
+	// Aggregation SUMS the folded days rather than sampling one: a week of one-per-day
+	// discoveries becomes a 7-asset weekly bar. All buckets equal → every bar full height.
+	chart := buildReportsBarChart(series(84), 12)
+	for i, b := range chart.Bars {
+		if b.Title != "7 assets" {
+			t.Fatalf("weekly bar %d title = %q, want %q (7 daily discoveries summed)", i, b.Title, "7 assets")
+		}
+		if b.HeightPct != 100 {
+			t.Errorf("weekly bar %d height = %d, want 100 (all weeks equal)", i, b.HeightPct)
+		}
+	}
+
+	// A short range passes through untouched: closed-state pixel parity for ≤31 days.
+	short := series(21)
+	if got := aggregateDiscoveryBars(short); len(got) != 21 {
+		t.Errorf("21-day series aggregated to %d bars, want 21 (unchanged within a month)", len(got))
 	}
 }

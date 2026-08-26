@@ -82,9 +82,10 @@ func TestSourcesModalRendersCatalogueAndDefaults(t *testing.T) {
 	}
 }
 
-// LACNIC renders in the operator-accepted tier, and its consent dialog renders its
-// single term even though its actionable group is empty by construction.
-func TestLacnicConsentDialogRenders(t *testing.T) {
+// LACNIC is catalogued-not-executing (#241, ruling #30): no proposer runner ships
+// for it, so it renders in the barred/catalogued bucket, offers no toggle, and its
+// ?consent dialog no longer opens — there is nothing to enable until a runner lands.
+func TestLacnicCataloguedSourceNoConsent(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -94,9 +95,13 @@ func TestLacnicConsentDialogRenders(t *testing.T) {
 	if !strings.Contains(page, "LACNIC registry") {
 		t.Fatalf("LACNIC not rendered; body: %s", page)
 	}
+	// A no-runner source opens no consent dialog even by ?consent=<id>.
 	dlg := getBody(t, ac, base+"/sources?consent=lacnic-registry", http.StatusOK)
-	if !strings.Contains(dlg, "Nobody has been able to retrieve these terms.") {
-		t.Errorf("LACNIC consent dialog did not render its term; body: %s", dlg)
+	if strings.Contains(dlg, "Nobody has been able to retrieve these terms.") {
+		t.Errorf("LACNIC consent dialog rendered for a no-runner source; body: %s", dlg)
+	}
+	if strings.Contains(dlg, "Accept and enable") {
+		t.Errorf("consent dialog opened for a catalogued-not-executing source; body: %s", dlg)
 	}
 }
 
@@ -108,18 +113,18 @@ func TestToggleSourcePersistsOverride(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// RIPEstat ships off and is operator-accepted, so enabling it is gated on
-	// accepting its terms (#313): the acceptance rides an `agreed` field the terms
-	// dialog sets. With it, the enable persists.
+	// RIPEstat is catalogued-not-executing now (#241, ruling #30): no runner ships,
+	// so it is non-toggleable — an enable POST is refused and persists nothing, even
+	// carrying the acceptance field the old operator-accepted gate wanted.
 	resp := postForm(t, ac, base+"/sources/toggle", url.Values{
 		"slug": {"ripestat"}, "enabled": {"true"}, "agreed": {"on"},
 	})
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/sources" {
-		t.Fatalf("toggle: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("catalogued-source toggle: status=%d, want 400", resp.StatusCode)
 	}
 	resp.Body.Close()
-	if st, ok := f.sourceStates["ripestat"]; !ok || !st.Enabled {
-		t.Fatalf("override not persisted: %+v", f.sourceStates["ripestat"])
+	if _, ok := f.sourceStates["ripestat"]; ok {
+		t.Fatalf("no-runner source wrote state: %+v", f.sourceStates["ripestat"])
 	}
 
 	// ARIN ships on (a keyless proposer that executes); disabling is safe and persists.
@@ -136,35 +141,39 @@ func TestToggleSourcePersistsOverride(t *testing.T) {
 	}
 }
 
-// Enabling an operator-accepted source is gated on accepting its terms (#313): the
-// Enable affordance opens a terms dialog, and an enable POST without the acceptance
-// field bounces back to that dialog rather than enabling. Accepting (agreed) enables.
-func TestSourcesTermsGateEnabling(t *testing.T) {
+// A catalogued-not-executing source (#241, ruling #30) offers no enable at all: its
+// row carries no consent link, its ?consent dialog does not open, and an enable POST
+// is refused rather than bounced to a terms dialog — there is nothing to enable until
+// a real proposer.Source runner lands, at which point it returns to operator-accepted.
+func TestCataloguedSourceOffersNoEnable(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The Enable control links to the consent dialog, not a direct toggle (#26).
+	// No consent-gated enable control renders for a no-runner source.
 	page := getBody(t, ac, base+"/sources", http.StatusOK)
-	if !strings.Contains(page, "consent=ripestat") {
-		t.Errorf("operator-accepted source has no consent-gated enable; body: %s", page)
+	if strings.Contains(page, "consent=ripestat") {
+		t.Errorf("catalogued source rendered a consent-gated enable; body: %s", page)
 	}
-	// Opening the dialog renders the acceptance gate.
+	// The consent dialog does not open for it.
 	dlg := getBody(t, ac, base+"/sources?consent=ripestat", http.StatusOK)
-	for _, want := range []string{"I accept these terms", "Accept and enable", `id="st-consent-check"`} {
-		if !strings.Contains(dlg, want) {
-			t.Errorf("consent dialog missing %q", want)
-		}
+	if strings.Contains(dlg, "Accept and enable") {
+		t.Errorf("consent dialog opened for a catalogued source; body: %s", dlg)
 	}
-	// An enable without acceptance bounces back to the dialog and persists nothing.
+	// The settings twin refuses an enable POST — it renders the sources section with an
+	// error (a 400 by renderSettings' section-error convention), never the consent-dialog
+	// bounce, and persists nothing.
 	resp := postForm(t, ac, base+"/settings/sources", url.Values{"id": {"ripestat"}, "enable": {"true"}})
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=sources&consent=ripestat" {
-		t.Fatalf("ungated enable not bounced: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("catalogued enable: status=%d, want 400 (refusal render)", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "" {
+		t.Errorf("catalogued enable bounced to %q rather than refusing", loc)
 	}
 	resp.Body.Close()
 	if st, ok := f.sourceStates["ripestat"]; ok && st.Enabled {
-		t.Fatalf("source enabled without accepting terms: %+v", st)
+		t.Fatalf("catalogued source enabled: %+v", st)
 	}
 }
 

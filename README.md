@@ -131,7 +131,7 @@ Grouped as they appear in the docs-site nav.
 | **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, scaling workers, on-demand scan triggers, upgrades. |
 | **[Sources](docs/guides/sources.md)** | Discovery sources and proposers: consent tiers, admin-only toggling, and the crt.sh and RIR-proposer caveats. |
 | **[Prober](docs/guides/prober.md)** | A worked `docker compose` example for a dedicated internet vantage on a second host — the [`deploy/prober/`](deploy/prober/) recipe, host-key pin, and key hardening. |
-| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires; the no-severity, release-coupled philosophy. |
+| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires; the release-coupled philosophy and the five-level severity ramp (Critical / High / Medium / Low / Info). |
 | **[Notification channels](docs/guides/notification-channels.md)** | The outbound HTTPS endpoints the worker POSTs each message to — declaring them, what fires, and why a `Delivery` is a record and never a message. |
 | **[Reports](docs/guides/reports.md)** | Scheduled digests of the estate — how a report differs from a notification, the schedule shape, and the delivered-report artifact and its PDF. |
 | **[Accounts, invites & roles](docs/guides/accounts.md)** | The admin/viewer model, inviting operators and the invite lifecycle, changing a role, re-enrolling a lost second factor, and removing an account. |

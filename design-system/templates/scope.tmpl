@@ -3,8 +3,10 @@
   Source of truth: examples/console/Scope.jsx · shot 02. Replaces the "scope" define in
   templates_scope.go (and the repo-authored "proposals" define, folded in here).
   Holes: .Notice .IsAdmin .AddressCap .Seeds[{ID,Anchor,Scope,IsAddress}] .FormScope .FormError
-  .Refusal{Input,Reason,Reachable}(NEW, nullable) .CustodyScopes[{ID,Scope,CustodyExtension,Census}]
-  .CustodyError .ZoneScopes[{ID,Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}] .ZoneError
+  .Refusals[{Input,Reason,Reachable}] (one per refused token — DF-F1; replaces the single .Refusal)
+  .CustodyScopes[{ID,Scope,CustodyExtension,Census}]
+  .CustodyError .ZoneScopes[{ID,Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}]
+  .ZoneErrors[{File,Reason}] (one per refused file — DF-F2; replaces .ZoneError)
   .ZoneIntervalDays .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}]
   .CoverageMsgs[{Kind,Badge,Bound,Subject,Text,When,ISO}] .Proposals[{ID,Value,Kind,Source}]
   .OrgQuery .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,Headline,Loss}
@@ -14,6 +16,9 @@
   zone upload is the spec FileDrop — seed select drops, the handler infers the scope from the
   file's apex (#21c); cold-tier + prober config relocate to /settings (their design homes, shots
   17–18) (#21d); the exclusion Preview receipt stays (spec-styled). Forms keep their POST routes.
+  Dogfood features (WORK-ORDER-FEATURES-1): DF-F1 — the declare input paste-splits server-side
+  (tokens split on commas/whitespace/newlines, one declaration each, per-token refusal callouts);
+  DF-F2 — zone re-supply accepts multiple files, one dated act per file, per-file refusals.
 */}}
 {{define "scope"}}{{template "head" .}}
 {{template "chrome" .}}
@@ -36,7 +41,7 @@
 .sc-field { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 36px; padding: 5px 10px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); cursor: text; }
 .sc-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
 .sc-field.err { border-color: var(--danger-solid); }
-.sc-field form { display: flex; flex: 1; min-width: 80px; margin: 0; }
+.sc-field > form { display: flex; flex: 1; min-width: 80px; margin: 0; }
 .sc-field input { flex: 1; min-width: 80px; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 12.5px var(--font-mono); }
 .sc-hint { font-size: 11.5px; font-family: var(--font-ui); color: var(--text-muted); }
 .sc-errline { font-size: 11.5px; font-family: var(--font-ui); color: var(--danger); }
@@ -61,9 +66,9 @@
 .sc-meter .top .val { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
 .sc-meter .census { height: 4px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-sunken) 5px 10px); }
 .sc-meter .det { font: 400 11px var(--font-ui); color: var(--text-muted); }
-.sc-zrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.sc-zrow .zname { font: 500 12px var(--font-mono); color: var(--text-body); }
-.sc-zrow .zmeta { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.sc-zrow { display: flex; align-items: center; gap: 10px; }
+.sc-zrow .zname { font: 500 12px var(--font-mono); color: var(--text-body); white-space: nowrap; }
+.sc-zrow .zmeta { font: 400 11.5px var(--font-mono); color: var(--text-muted); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-badge-warn { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--warn-soft); border: 1px solid var(--warn-border); color: var(--warn); font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .sc-badge-warn .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
 .sc-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 16px 14px; border: 1.5px dashed var(--border-strong); border-radius: 16px; background: var(--surface); cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); font-family: var(--font-ui); text-align: center; }
@@ -168,9 +173,9 @@ button.sc-trow { cursor: pointer; }
 {{range .Seeds}}<span class="sc-tag" id="seed-{{.Anchor}}">{{.Scope}}{{if $.IsAdmin}}<form method="post" action="/seeds/delete"><input type="hidden" name="id" value="{{.ID}}"><button class="rm" type="submit" aria-label="Remove seed"><svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}</span>{{end}}
 {{if .IsAdmin}}<form method="post" action="/seeds"><input name="scope" value="{{.FormScope}}" placeholder="{{if not .Seeds}}acmecorp.io or 203.0.113.0/24{{end}}" autocomplete="off" aria-label="Declare a scope"></form>{{end}}
 </div>
-{{if .FormError}}<span class="sc-errline">{{.FormError}}</span>{{else}}<span class="sc-hint">Names or address scopes · a block wider than the {{.AddressCap}}-address cap is refused, never auto-corrected.</span>{{end}}
+{{if .FormError}}<span class="sc-errline">{{.FormError}}</span>{{else}}<span class="sc-hint">Names or address scopes · paste several — commas, spaces, or newlines split · a block wider than the {{.AddressCap}}-address cap is refused, never auto-corrected.</span>{{end}}
 </div>
-{{with .Refusal}}
+{{range .Refusals}}
 <div class="sc-refusal">
 <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg></span>
 <div class="ct">
@@ -216,7 +221,7 @@ button.sc-trow { cursor: pointer; }
 <div class="sc-cardhead"><div class="hd"><span class="sc-micro">Removal detection</span><h3>Zone file</h3></div></div>
 <div class="sc-body">
 <div style="display:flex;flex-direction:column;gap:12px">
-{{if .ZoneError}}<div class="sc-error">{{.ZoneError}}</div>{{end}}
+{{range .ZoneErrors}}<div class="sc-error"><span style="font-family:var(--font-mono);font-size:12px">{{.File}}</span> — {{.Reason}}</div>{{end}}
 {{range .ZoneScopes}}
 <div class="sc-zrow">
 {{if .HasFile}}
@@ -233,9 +238,9 @@ button.sc-trow { cursor: pointer; }
 <form method="post" action="/seeds/zone" enctype="multipart/form-data" style="margin:0">
 <label class="sc-drop" id="sc-zone-drop">
 <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg></span>
-<span class="l">Re-supply zone file</span>
-<span class="h">Upload is a dated act — the upload instant is the observation instant. An apex outside your name scopes is refused, with the reason.</span>
-<input type="file" name="zonefile" accept=".zone,.txt" style="display:none">
+<span class="l">Re-supply zone files</span>
+<span class="h">Upload is a dated act — the upload instant is the observation instant. Drop several — each file is its own act. An apex outside your name scopes is refused, with the reason.</span>
+<input type="file" name="zonefile" accept=".zone,.txt" multiple style="display:none">
 </label>
 </form>
 <div class="sc-introw">
@@ -395,10 +400,11 @@ button.sc-trow { cursor: pointer; }
   var drop=document.getElementById("sc-zone-drop");
   if(drop){
     var fi=drop.querySelector("input[type=file]");
-    fi.addEventListener("change",function(){if(fi.files.length)fi.form.submit();});
+    var zsub=function(){if(fi.form.requestSubmit)fi.form.requestSubmit();else fi.form.submit();};
+    fi.addEventListener("change",function(){if(fi.files.length)zsub();});
     drop.addEventListener("dragover",function(e){e.preventDefault();drop.classList.add("over");});
     drop.addEventListener("dragleave",function(){drop.classList.remove("over");});
-    drop.addEventListener("drop",function(e){e.preventDefault();drop.classList.remove("over");if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;fi.form.submit();}});
+    drop.addEventListener("drop",function(e){e.preventDefault();drop.classList.remove("over");if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;zsub();}});
   }
   var kb=document.getElementById("sc-xkind-btn"),kp=document.getElementById("sc-xkind-panel"),kh=document.getElementById("sc-xkind");
   if(kb&&kp&&kh){

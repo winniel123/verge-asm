@@ -312,7 +312,7 @@
 </script>
 {{template "foot" .}}{{end}}
 
-{{/* scans — holes: .Active[{ScanKind,DispatchedAt,Completed,Live,Percent,Jobs[{ID,Kind,Vantage,State,Retrying,Superseded,Attempt,MaxAttempts,Batch}]}] .History[{ScanKind,DispatchedAt,Live,Completed,Dead}] .ColdEnabled .ColdError .ColdScopes[{ID,Scope,IsAddress,OptedIn}] .IsAdmin — calls repo "scantrigger". */}}
+{{/* scans — holes: .Active[{ID,Href,ScanKind,DispatchedAt,Completed,Live,Percent,Jobs[{ID,Href (nullable — /runs/{run}?job={id}),Kind,Vantage,State,Retrying,Superseded,Attempt,MaxAttempts,Batch}]}] .StopTarget{ID,ScanKind,Pending,Running} (nullable) .TerminateTarget{ID,ScanKind,Running} (nullable) .History[{Href (nullable),ScanKind,DispatchedAt,Live,Completed,Dead}] .ColdEnabled .ColdError .ColdScopes[{ID,Scope,IsAddress,OptedIn}] .IsAdmin — calls repo "scantrigger". */}}
 {{define "settings-scans"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Scanning · scans</span>
@@ -327,9 +327,10 @@
 <div style="padding:0 20px 16px;display:flex;flex-direction:column;gap:10px">
 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
 <span class="st-dotlive"></span>
-<span style="font:600 12.5px var(--font-mono);color:var(--text-ink)">{{.ScanKind}}</span>
+<a href="{{.Href}}" style="font:600 12.5px var(--font-mono);color:var(--link);text-decoration:none">{{.ScanKind}}</a>
 <span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">dispatched {{.DispatchedAt}}</span>
 <span style="margin-left:auto;font:400 11.5px var(--font-mono);color:var(--text-secondary)">{{.Completed}} / {{.Live}} jobs · {{.Percent}}%</span>
+{{if $.IsAdmin}}<a class="st-btn-sm" href="/settings?tab=scans&amp;stop={{.ID}}">Stop dispatch</a><a class="st-btn-sm" style="color:var(--danger)" href="/settings?tab=scans&amp;terminate={{.ID}}">Terminate</a>{{end}}
 </div>
 <div class="st-meter"><span class="fill" style="width:{{.Percent}}%"></span></div>
 </div>
@@ -338,7 +339,7 @@
 <thead><tr><th style="width:70px">Job</th><th>Kind</th><th style="width:120px">Vantage</th><th style="width:130px">State</th><th style="width:90px">Attempt</th><th style="width:170px;text-align:right">Outcome</th></tr></thead>
 <tbody>
 {{range .Jobs}}<tr>
-<td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>#{{.ID}}</td>
+<td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>{{if .Href}}<a href="{{.Href}}" style="color:var(--link);text-decoration:none">#{{.ID}}</a>{{else}}#{{.ID}}{{end}}</td>
 <td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>{{.Kind}}</td>
 <td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>{{if .Vantage}}{{.Vantage}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
 <td><span style="display:inline-flex;align-items:center;gap:8px">{{if eq .State "running"}}<span class="st-dotlive"></span><span class="st-badge accent">running</span>{{else if eq .State "ready"}}<span class="st-dot"></span><span class="st-badge neutral">{{if .Retrying}}retrying{{else}}ready{{end}}</span>{{else if eq .State "done"}}<span class="st-dot done"></span><span class="st-badge ok">done</span>{{else if eq .State "dead"}}<span class="st-dot dead"></span><span class="st-badge danger">dead</span>{{else}}<span class="st-dot"></span><span style="color:var(--text-muted)">superseded</span>{{end}}</span></td>
@@ -364,7 +365,7 @@
 <tbody>
 {{range .History}}<tr>
 <td><span class="st-dot{{if gt .Dead 0}} dead{{else}} done{{end}}"></span></td>
-<td class="mono">{{.ScanKind}}</td>
+<td class="mono">{{if .Href}}<a href="{{.Href}}" style="color:var(--link);text-decoration:none">{{.ScanKind}}</a>{{else}}{{.ScanKind}}{{end}}</td>
 <td class="mono">{{.DispatchedAt}}</td>
 <td class="mono">{{.Live}}</td>
 <td class="mono">{{.Completed}}</td>
@@ -404,6 +405,30 @@
 </div>
 </div>
 </section>
+{{with .StopTarget}}
+<a class="st-scrim" href="/settings?tab=scans" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Stop dispatch">
+<h2>Stop dispatching {{.ScanKind}}</h2>
+<p class="detail">{{.Pending}} pending jobs are cancelled. {{.Running}} running jobs finish and commit their batches; nothing already observed is discarded.</p>
+<p class="detail" style="color:var(--text-secondary)">The dispatch is recorded as stopped · partial. The scan runs again on its normal cadence.</p>
+<div class="acts">
+<a class="st-btn ghost" href="/settings?tab=scans">Cancel</a>
+<form method="post" action="/scans/stop" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn">Stop dispatch</button></form>
+</div>
+</div></div>
+{{end}}
+{{with .TerminateTarget}}
+<a class="st-scrim" href="/settings?tab=scans" aria-label="Cancel"></a>
+<div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Terminate scan">
+<h2>Terminate {{.ScanKind}} now</h2>
+<p class="detail">{{.Running}} running jobs are stopped where they stand and their uncommitted work discards. Batches already committed stand — observations are append-only.</p>
+<p class="detail" style="color:var(--text-secondary)">The dispatch is recorded as terminated. Anything half-measured is simply absent until the next run.</p>
+<div class="acts">
+<a class="st-btn ghost" href="/settings?tab=scans">Cancel</a>
+<form method="post" action="/scans/terminate" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn danger">Terminate</button></form>
+</div>
+</div></div>
+{{end}}
 {{end}}
 
 {{/* vantages — holes: .Vantages[{Name,Class,Resolver,Latency,Availability,Unverified}] .Probers[{Endpoint,Username,Availability,HostKeyPinned,HostKeyFingerprint,Platform,KeySet,PublicKey,Egress}] .IsAdmin .ProberError .ProberHost .ProberPort .ProberUser */}}
@@ -963,7 +988,7 @@
 </section>
 {{end}}
 
-{{/* instance — holes: .Instance{Update{Version,Notes},Version,License,Uptime,QueueDepth,DiskPct,DiskDetail,PgLabel,PgDetail,Vantages[{Name,Latency,Avail}]} */}}
+{{/* instance — holes: .Instance{Update{Version,Notes},Version,License,Uptime,QueueDepth,DiskPct,DiskDetail,PgLabel,PgDetail,Vantages[{Name,Latency,Avail}] (nullable — empty state renders)} */}}
 {{define "settings-instance"}}
 {{with .Instance}}
 <header style="display:flex;flex-direction:column;gap:6px">
@@ -1008,6 +1033,11 @@
 <span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">{{if .Latency}}{{.Latency}}{{else}}—{{end}}</span>
 <span class="st-av {{.Avail}}"><span class="d"></span>{{.Avail}}</span>
 </span>
+</div>
+{{else}}
+<div class="st-empty" style="padding:20px 12px">
+<span class="msg">No vantage provisioned</span>
+<span class="det">Only the shipped resolver position exists. Provision a prober under <a href="/settings?tab=vantages">Scanning · Vantages</a> to measure from the internet.</span>
 </div>
 {{end}}
 </div>
