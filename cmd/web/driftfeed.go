@@ -241,7 +241,7 @@ func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, 
 
 	// The feed is capped (driftFeedLimit); a full result set is stated in a trailing
 	// marker row rather than dropping the older tail silently.
-	if int32(len(rows)) >= driftFeedLimit {
+	if int32(len(rows)) >= driftFeedLimit { // #nosec G115 (len(rows) under driftFeedLimit=500-row cap)
 		_ = cw.Write([]string{"feed capped at " + strconv.Itoa(int(driftFeedLimit)) + " most-recent events; older transitions omitted", "", "", "", "", "", "", "", ""})
 	}
 }
