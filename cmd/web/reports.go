@@ -302,11 +302,54 @@ type reportsBarChart struct {
 	RightLabel string
 }
 
+// reportsMaxBars is the daily-discovery BarChart's bar budget (v3.15.0 dogfood ss3,
+// data contract). With more than a month of DAILY bars the 3px-min bars + 4px gaps
+// overflowed the KPI card and the baseline drew past the card edge; the frozen tmpl
+// now clips with min-width:0;overflow:hidden, and the handler must pass ≤31 bars —
+// a month of days — aggregating to weekly beyond a month so a long range stays
+// legible rather than being silently truncated.
+const reportsMaxBars = 31
+
+// aggregateDiscoveryBars caps a daily-discovery series at reportsMaxBars. Within a
+// month (≤31 daily buckets) the daily series passes through UNCHANGED — the common
+// 24h preset (28 days) and any short custom range keep their per-day bars. Beyond a
+// month the contiguous, oldest-first daily buckets fold into whole-WEEK buckets
+// (summing each week's discovery counts, the bucket keyed to its first day), so the
+// default 7d preset's 84 daily bars collapse to 12 weekly bars. Because the daily
+// series length is always weeks*7, grouping by whole weeks divides evenly. Should the
+// weekly series itself still exceed the budget (a range wider than 31 weeks — the 90d
+// preset resolves to 52), the bucket widens to the smallest whole-week multiple that
+// fits, so the chart is never handed more than reportsMaxBars bars while staying
+// week-aligned. The weekly-bucket source exists (drift.DiscoverySeries buckets at any
+// width), so this never truncates.
+func aggregateDiscoveryBars(points []drift.DiscoveryPoint) []drift.DiscoveryPoint {
+	if len(points) <= reportsMaxBars {
+		return points
+	}
+	// Days per bucket: one week, widened by whole weeks until the bucket count fits.
+	perBucket := 7
+	for (len(points)+perBucket-1)/perBucket > reportsMaxBars {
+		perBucket += 7
+	}
+	out := make([]drift.DiscoveryPoint, 0, (len(points)+perBucket-1)/perBucket)
+	for i := 0; i < len(points); i += perBucket {
+		bucket := drift.DiscoveryPoint{Start: points[i].Start}
+		for j := i; j < i+perBucket && j < len(points); j++ {
+			bucket.Count += points[j].Count
+		}
+		out = append(out, bucket)
+	}
+	return out
+}
+
 // buildReportsBarChart folds the daily-discovery series into the bar geometry,
-// scaling each bar to a percentage of the busiest day (floored at 1 so an all-zero
+// scaling each bar to a percentage of the busiest bucket (floored at 1 so an all-zero
 // series is every bar at its 2px minimum rather than a divide-by-zero), exactly as
-// BarChart.jsx does. The last bar (today) is emphasised; the rest are dimmed.
+// BarChart.jsx does. The last bar (today) is emphasised; the rest are dimmed. The
+// series is first capped at reportsMaxBars (aggregateDiscoveryBars): daily within a
+// month, weekly beyond, so the frozen ≤31-bar bars row never overflows the card.
 func buildReportsBarChart(points []drift.DiscoveryPoint, weeks int) reportsBarChart {
+	points = aggregateDiscoveryBars(points)
 	max := 1
 	for _, p := range points {
 		if p.Count > max {
