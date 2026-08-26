@@ -57,12 +57,16 @@ type catalogSource struct {
 
 // sourceCatalog is the authored set the release ships. Defaults are §3.1's
 // consent-bar ruling: the keyless RIR org→prefix paths (ARIN, AFRINIC, APNIC via
-// CAIDA) on; the operator-accepted registry paths (RIPEstat, RIPE Database, APNIC
-// registry, LACNIC registry) off; HackerTarget and unauthenticated Cert Spotter
-// excluded on terms. crt.sh ships on and executing (§3.1, throttled): its runner
-// is the ct Scan (ADR-0106), which polls certificate transparency and admits
-// Names, so it is a live source again — reversing the not-yet-executing state
-// #241 held it in until the runner landed.
+// CAIDA) on; HackerTarget and unauthenticated Cert Spotter excluded on terms. The
+// four registry proposer paths (RIPEstat, RIPE Database, APNIC registry, LACNIC
+// registry) are operator-accepted by tier but ship catalogued-not-executing: no
+// proposer.Source runner emits for them yet, so they carry NoRunner (#241) — off
+// for everyone, non-toggleable, no consent dialog offered — and return to the
+// operator-accepted tier the moment a runner lands, the same reversal crt.sh made.
+// crt.sh ships on and executing (§3.1, throttled): its runner is the ct Scan
+// (ADR-0106), which polls certificate transparency and admits Names, so it is a
+// live source again — reversing the not-yet-executing state #241 held it in until
+// the runner landed.
 var sourceCatalog = []catalogSource{
 	{
 		Slug: "crtsh", Name: "crt.sh",
@@ -86,26 +90,26 @@ var sourceCatalog = []catalogSource{
 		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats.",
 	},
 	{
-		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted,
-		ShipNote:     "Ships off. Enabling it is your own acceptance of the source's terms. It proposes address scopes; nothing enters the estate until you confirm a proposal into a seed.",
+		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Whether you resell a service built on the source's data.", "Your own reading of whether writing prefixes to an inventory is re-packaging, and of the purpose list you are bound by."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "ripe-db", Name: "RIPE Database", IsProposer: true, Consent: consentAccepted,
-		ShipNote:     "Ships off. Enabling it is your own acceptance of the source's terms. It proposes address scopes; nothing enters the estate until you confirm a proposal into a seed.",
+		Slug: "ripe-db", Name: "RIPE Database", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Your own reading of whether inventorying your own estate is a permitted purpose."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "apnic-registry", Name: "APNIC registry", IsProposer: true, Consent: consentAccepted,
-		ShipNote:     "Ships off. Enabling it is your own acceptance of the source's terms. It proposes address scopes; nothing enters the estate until you confirm a proposal into a seed.",
+		Slug: "apnic-registry", Name: "APNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Whether you hold, or will seek, the registry's approval.", "Your own reading of the retrieval-system clause's carve-out."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "lacnic-registry", Name: "LACNIC registry", IsProposer: true, Consent: consentAccepted,
-		ShipNote:     "Ships off. Its terms cannot be retrieved, so enabling it accepts a source whose terms nobody has been able to read.",
+		Slug: "lacnic-registry", Name: "LACNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted, but its terms cannot be retrieved: when a runner lands, enabling it would accept a source whose terms nobody has been able to read.",
 		MayResolve:   nil, // empty by construction — the actionable group renders empty here (#47)
 		Unresolvable: []string{"Nobody has been able to retrieve these terms."},
 	},
@@ -216,12 +220,18 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	var unencumbered, operatorAccepted, barred []sourceTierRow
 	for _, v := range views {
 		row := sourceTierRow{ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote, On: v.Enabled}
+		// A catalogued source with no runner (#241) is off for everyone, non-toggleable,
+		// and offers no consent — regardless of its consent tier. It is bucketed before
+		// the operator-accepted case, which would otherwise claim a consent-accepted
+		// proposer that has no runner (the four RIR registry proposers, ruling #30).
 		switch {
+		case v.NoRunner:
+			barred = append(barred, row)
 		case v.Consent == consentAccepted:
 			operatorAccepted = append(operatorAccepted, row)
 		case v.Toggleable: // unencumbered, runnable
 			unencumbered = append(unencumbered, row)
-		default: // barred, or catalogued-not-executing — both stay off for everyone
+		default: // barred — excluded on terms; also stays off for everyone
 			barred = append(barred, row)
 		}
 	}
@@ -235,7 +245,9 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	// terms and the acceptance checkbox. It renders only for an operator-accepted,
 	// currently-off source; a stray param opens no dialog.
 	if id := r.URL.Query().Get("consent"); id != "" {
-		if c, ok := catalogBySlug(id); ok && c.Consent == consentAccepted {
+		// A catalogued-not-executing source (#241) offers no consent dialog even
+		// though its tier is operator-accepted — there is nothing to enable yet.
+		if c, ok := catalogBySlug(id); ok && c.Consent == consentAccepted && !c.NoRunner {
 			data["Consent"] = map[string]any{
 				"ID": c.Slug, "Name": c.Name, "Terms": consentTerms(c),
 			}
@@ -332,7 +344,6 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 	http.Redirect(w, r, "/sources", http.StatusSeeOther)
 }
-
 
 // settingsSources records an admin's on/off choice from the spec sources tab (#26).
 // It is the settings-tab twin of toggleSource: the form posts an id and an enable
