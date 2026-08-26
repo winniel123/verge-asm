@@ -37,6 +37,20 @@ Pixel output differs across OSes (font rasterization, antialiasing, subpixel pol
 3. Claude Code wires any new data holes (structs/handlers), runs G1+G2 locally, opens the PR.
 4. CI blocks on G1/G2. A genuine impossibility = SPEC-CHANGE stop-and-escalate, unchanged from v3.
 
+## Behavior section (required for every new-feature WORK-ORDER)
+
+G1/G2 prove the view; they say nothing about what the feature *does*. Every WORK-ORDER that introduces a new feature (new screen, new state, new user action) MUST carry a `## Behavior` section — Claude Code implements from it instead of guessing. Wiring-only or visual-only orders may state `Behavior: no change`.
+
+Required subsections:
+
+- **Entry points** — how the user reaches the feature (route, nav item, action on another screen).
+- **State transitions** — what moves the screen between its `states.json` fixture states (e.g. `signals · default` → `drawer-open`: row click; `drawer-open` → `default`: Esc / scrim click). Every fixture state must be reachable; every transition names its trigger.
+- **Data contract** — per template hole: source datum, type, format (matching `fixtures.json`), and whether it can be empty/null. Derivations (counts, relative times, qualifiers) name their inputs.
+- **Actions & side effects** — per interactive element: endpoint or handler called, method, payload, success result (what changes on screen), failure result (which error state renders).
+- **Edge cases** — empty, loading, error, permission-denied, and any limits (pagination thresholds, truncation rules). Each must map to a fixture state or explicitly rule one out.
+
+Behavior text is spec, not suggestion — a gap found while wiring is a collision (SPEC-CHANGE, AWAITING DESIGN), never an improvisation. The section binds semantics only; the repo still owns implementation shape (handler structure, storage, migrations).
+
 ## Migration chart (P4 — new Wayfinder tree)
 
 - P4.0 **Pilot** — Inventory: repo refactors to `//go:embed design-system/templates/inventory.tmpl`, deletes its authored template + screen CSS delta; design ships the tmpl + fixtures + Phase-A goldens for that screen; harness runs it end-to-end. Proves the loop before mass conversion.

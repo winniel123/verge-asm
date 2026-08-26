@@ -6,7 +6,7 @@
   Holes kept: .RangeLabel .HasOpenSignals .OpenSignals .OpenDelta{Has,Text,Dir,Tone} .HasOpenSpark
   .OpenSpark{W,H,Area,Line,Color,DotX,DotY} .HasDiscovery .DiscoveryCount .DiscoveryDelta
   .DiscoveryNames .DiscoveryServices .DiscoveryBars{Bars[{HeightPct,Title,Last}],LeftLabel,
-  RightLabel} .HasMTTW .MTTW .MTTWDelta .HasMTTWSpark .MTTWSpark .HasSignalSeries
+  RightLabel} (≤31 bars — aggregate to weekly beyond a month) .HasMTTW .MTTW .MTTWDelta .HasMTTWSpark .MTTWSpark .HasSignalSeries
   .SignalSeries{W,H,N,Grid[{Y,X1,X2,Stroke,LabelX,Label}],AllOpen,CritHigh,XLabels[{X,Y,Text}],
   LabelsAttr,SeriesJSON} .HasSeverity .BySeverity[{Sev,Label,Pct,Count}] .HasHeat
   .Heat[{Title,Bg,Border}] .RangeWeeks .Schedules[{ID,Name,Cadence,Delivery,Format,LastSent,
@@ -26,7 +26,7 @@
 
 {{define "spark"}}<svg width="100%" height="{{.H}}" viewBox="0 0 {{.W}} {{.H}}" preserveAspectRatio="none" style="display:block;width:100%;overflow:visible" aria-hidden="true"><path d="{{.Area}}" fill="{{.Color}}" class="rp-sparkarea"></path><polyline points="{{.Line}}" fill="none" stroke="{{.Color}}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" class="rp-sparkline"></polyline><circle cx="{{.DotX}}" cy="{{.DotY}}" r="2.5" fill="{{.Color}}" class="rp-sparkdot"></circle></svg>{{end}}
 
-{{define "barchart"}}<div style="display:flex;flex-direction:column;gap:6px" aria-hidden="true"><div style="display:flex;align-items:flex-end;gap:4px;height:44px;border-bottom:1px solid var(--chart-grid);padding-bottom:1px">{{range .Bars}}<span title="{{.Title}}" class="rp-bar" style="height:{{.HeightPct}}%;{{if not .Last}}opacity:0.45{{end}}"></span>{{end}}</div><div style="display:flex;justify-content:space-between;gap:8px"><span style="font:400 9.5px var(--font-mono);color:var(--text-muted);white-space:nowrap">{{.LeftLabel}}</span><span style="font:400 9.5px var(--font-mono);color:var(--text-muted);white-space:nowrap">{{.RightLabel}}</span></div></div>{{end}}
+{{define "barchart"}}<div style="display:flex;flex-direction:column;gap:6px" aria-hidden="true"><div style="display:flex;align-items:flex-end;gap:4px;height:44px;border-bottom:1px solid var(--chart-grid);padding-bottom:1px;min-width:0;overflow:hidden">{{range .Bars}}<span title="{{.Title}}" class="rp-bar" style="height:{{.HeightPct}}%;{{if not .Last}}opacity:0.45{{end}}"></span>{{end}}</div><div style="display:flex;justify-content:space-between;gap:8px"><span style="font:400 9.5px var(--font-mono);color:var(--text-muted);white-space:nowrap">{{.LeftLabel}}</span><span style="font:400 9.5px var(--font-mono);color:var(--text-muted);white-space:nowrap">{{.RightLabel}}</span></div></div>{{end}}
 
 {{define "reports"}}{{template "head" .}}
 {{template "chrome" .}}
